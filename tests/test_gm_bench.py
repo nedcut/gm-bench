@@ -33,6 +33,25 @@ def test_observation_hides_true_potential() -> None:
     assert "trade_market" in encoded
 
 
+def test_observation_lineup_rules_match_validation() -> None:
+    league = League.new(seed=11)
+    rules = league.observation("preseason")["rules"]
+    assert rules["lineup_size"] == 18
+    assert rules["lineup_min_positions"] == {"F": 10, "D": 4, "G": 1}
+    assert "positions" not in rules
+
+
+def test_trade_market_uses_public_estimates_not_hidden_asset_value() -> None:
+    league = League.new(seed=17)
+    market = league.observation("trade_deadline")["trade_market"]
+    encoded = json.dumps(market)
+    assert "asset_value" not in encoded
+    assert "true_potential" not in encoded
+    for offer in market:
+        player = league.players[offer["player"]["id"]]
+        assert offer["estimated_price"] == League._public_trade_estimate(player)
+
+
 def test_invalid_actions_are_penalized() -> None:
     league = League.new(seed=3)
     league.apply_actions([{"type": "sign_free_agent", "player_id": -999, "salary": 1, "years": 1}], "preseason")
@@ -67,6 +86,31 @@ def test_external_agent_missing_command_returns_noop() -> None:
     actions = agent.act({"phase": "preseason"})
     assert actions[0]["type"] == "noop"
     assert "could not be launched" in actions[0]["error"]
+
+
+def test_external_agent_timeout_warns_when_too_low(capsys: pytest.CaptureFixture[str]) -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "gm_bench",
+            "run",
+            "--agent-cmd",
+            f"{sys.executable} -c 'import json; print(json.dumps([{{\"type\":\"noop\"}}]))'",
+            "--agent-timeout",
+            "5",
+            "--seeds",
+            "1",
+            "--seasons",
+            "1",
+            "--no-log",
+        ],
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    assert "warning:" in completed.stderr
+    assert "--agent-timeout=5" in completed.stderr
 
 
 def test_value_agent_beats_randomish_floor_on_small_panel() -> None:
