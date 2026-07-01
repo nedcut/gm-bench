@@ -11,6 +11,9 @@ dependencies = []
 gm-bench = "gm_bench.cli:main"
 gm-bench-gui = "gm_bench.gui:main"
 
+[tool.setuptools.packages.find]
+include = ["gm_bench*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
