@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from gm_bench.generator import generate_draft_class, generate_league_data
-from gm_bench.models import Player, SeasonSummary, Team, Transaction
+from gm_bench.models import LINEUP_MIN_POSITIONS, LINEUP_SIZE, Player, SeasonSummary, Team, Transaction
 from gm_bench.scoring import score_team
 
 
@@ -48,8 +48,8 @@ class League:
             "rules": {
                 "salary_cap": self.cap,
                 "roster_min": 18,
-                "lineup_size": 18,
-                "positions": {"F": 12, "D": 4, "G": 2},
+                "lineup_size": LINEUP_SIZE,
+                "lineup_min_positions": LINEUP_MIN_POSITIONS,
                 "trade_value_threshold": 0.78,
             },
             "team": self.user_team.public_dict(self.players, self.cap),
@@ -192,6 +192,9 @@ class League:
         if not give or not receive:
             self._record(action, phase, False, "trades must include players from both teams")
             return
+        if len(set(give)) != len(give) or len(set(receive)) != len(receive):
+            self._record(action, phase, False, "trade lists must not contain duplicate player ids")
+            return
         if any(player_id not in self.user_team.roster for player_id in give):
             self._record(action, phase, False, "cannot trade players not on your roster")
             return
@@ -245,8 +248,8 @@ class League:
 
     def _set_lineup(self, action: dict[str, Any], phase: str) -> None:
         lineup = [int(player_id) for player_id in action.get("player_ids", [])]
-        if len(lineup) != 18 or len(set(lineup)) != 18:
-            self._record(action, phase, False, "lineup must contain 18 unique player ids")
+        if len(lineup) != LINEUP_SIZE or len(set(lineup)) != LINEUP_SIZE:
+            self._record(action, phase, False, f"lineup must contain {LINEUP_SIZE} unique player ids")
             return
         if any(player_id not in self.user_team.roster for player_id in lineup):
             self._record(action, phase, False, "lineup includes players not on roster")
@@ -254,8 +257,9 @@ class League:
         positions = {"F": 0, "D": 0, "G": 0}
         for player_id in lineup:
             positions[self.players[player_id].position] += 1
-        if positions["G"] < 1 or positions["D"] < 4 or positions["F"] < 10:
-            self._record(action, phase, False, "lineup must include at least 10 F, 4 D, and 1 G")
+        if any(positions[key] < LINEUP_MIN_POSITIONS[key] for key in LINEUP_MIN_POSITIONS):
+            mins = ", ".join(f"{count} {pos}" for pos, count in LINEUP_MIN_POSITIONS.items())
+            self._record(action, phase, False, f"lineup must include at least {mins}")
             return
         roster = self.user_team.roster
         self.user_team.roster = lineup + [player_id for player_id in roster if player_id not in set(lineup)]
@@ -289,17 +293,28 @@ class League:
         for team in self.teams.values():
             if team.id == self.user_team_id:
                 continue
-            candidates = sorted((self.players[player_id] for player_id in team.roster), key=lambda player: player.asset_value)
+            candidates = sorted(
+                (self.players[player_id] for player_id in team.roster),
+                key=self._public_trade_estimate,
+            )
             for player in candidates[:2]:
                 market.append(
                     {
                         "team_id": team.id,
                         "team_name": team.name,
                         "player": player.public_dict(),
-                        "estimated_price": round(player.asset_value / 0.78, 2),
+                        "estimated_price": self._public_trade_estimate(player),
                     }
                 )
         return sorted(market, key=lambda item: item["estimated_price"])[:24]
+
+    @staticmethod
+    def _public_trade_estimate(player: Player) -> float:
+        """Noisy public trade valuation using only visible player attributes."""
+        age_factor = max(0.05, 1.14 - max(player.age - 23, 0) * 0.05)
+        public_skill = player.overall * 0.55 + player.potential * 0.45
+        contract_drag = player.salary * 0.55 if player.salary > 0 else 0.0
+        return round(max(1.0, (public_skill - 44.0) * age_factor - contract_drag), 2)
 
     def _team_strength(self, team: Team, apply_injury_noise: bool, rng: random.Random | None = None) -> float:
         lineup = sorted((self.players[player_id] for player_id in team.roster), key=lambda player: player.overall, reverse=True)[:18]

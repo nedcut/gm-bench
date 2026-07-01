@@ -10,7 +10,7 @@ import pytest
 from examples.claude_agent import build_command as build_claude_command
 from examples.codex_agent import build_command as build_codex_command
 from examples.gm_agent_common import parse_actions
-from gm_bench.agents import ConservativeAgent, ValueAgent
+from gm_bench.agents import ConservativeAgent, ExternalProcessAgent, ValueAgent
 from gm_bench.gui import _parse_seeds, agent_standings, dashboard_payload, run_from_request, score_history
 from gm_bench.runner import run_episode, run_many
 from gm_bench.simulator import League
@@ -33,11 +33,84 @@ def test_observation_hides_true_potential() -> None:
     assert "trade_market" in encoded
 
 
+def test_observation_lineup_rules_match_validation() -> None:
+    league = League.new(seed=11)
+    rules = league.observation("preseason")["rules"]
+    assert rules["lineup_size"] == 18
+    assert rules["lineup_min_positions"] == {"F": 10, "D": 4, "G": 1}
+    assert "positions" not in rules
+
+
+def test_trade_market_uses_public_estimates_not_hidden_asset_value() -> None:
+    league = League.new(seed=17)
+    market = league.observation("trade_deadline")["trade_market"]
+    encoded = json.dumps(market)
+    assert "asset_value" not in encoded
+    assert "true_potential" not in encoded
+    for offer in market:
+        player = league.players[offer["player"]["id"]]
+        assert offer["estimated_price"] == League._public_trade_estimate(player)
+
+
 def test_invalid_actions_are_penalized() -> None:
     league = League.new(seed=3)
     league.apply_actions([{"type": "sign_free_agent", "player_id": -999, "salary": 1, "years": 1}], "preseason")
     assert league.illegal_actions == 1
     assert league.transactions[-1].accepted is False
+
+
+def test_trade_with_duplicate_ids_is_rejected_without_side_effects() -> None:
+    league = League.new(seed=3)
+    partner = league.teams[1]
+    give_id = league.user_team.roster[0]
+    receive_id = partner.roster[0]
+    league.apply_actions(
+        [{"type": "trade", "partner_team_id": 1, "give_player_ids": [give_id, give_id], "receive_player_ids": [receive_id]}],
+        "preseason",
+    )
+    assert league.transactions[-1].accepted is False
+    assert give_id in league.user_team.roster
+    assert give_id not in partner.roster
+    assert league.players[give_id].team_id == league.user_team_id
+
+
+def test_external_agent_timeout_returns_noop_instead_of_crashing() -> None:
+    agent = ExternalProcessAgent(f"{sys.executable} -c 'import time; time.sleep(5)'", timeout_seconds=0.5)
+    actions = agent.act({"phase": "preseason"})
+    assert actions[0]["type"] == "noop"
+    assert "timed out" in actions[0]["error"]
+
+
+def test_external_agent_missing_command_returns_noop() -> None:
+    agent = ExternalProcessAgent("this-command-does-not-exist-xyz")
+    actions = agent.act({"phase": "preseason"})
+    assert actions[0]["type"] == "noop"
+    assert "could not be launched" in actions[0]["error"]
+
+
+def test_external_agent_timeout_warns_when_too_low(capsys: pytest.CaptureFixture[str]) -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "gm_bench",
+            "run",
+            "--agent-cmd",
+            f"{sys.executable} -c 'import json; print(json.dumps([{{\"type\":\"noop\"}}]))'",
+            "--agent-timeout",
+            "5",
+            "--seeds",
+            "1",
+            "--seasons",
+            "1",
+            "--no-log",
+        ],
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    assert "warning:" in completed.stderr
+    assert "--agent-timeout=5" in completed.stderr
 
 
 def test_value_agent_beats_randomish_floor_on_small_panel() -> None:
