@@ -145,6 +145,11 @@ def _paired_analysis(
 
     lift_mean = mean(lifts) if lifts else 0.0
     ci_low, ci_high = _bootstrap_mean_ci(lifts)
+    # Round the CI once, then derive significance from those exposed bounds so the
+    # displayed interval and the significance flag can never contradict each other
+    # (e.g. an interval that rounds to [0.0, ...] while the flag reads "significant").
+    ci95_low = round(ci_low, 3)
+    ci95_high = round(ci_high, 3)
 
     # The panel average includes weak baselines like `random`; the strongest single
     # baseline is a more honest bar to clear, so report it separately. Select it by
@@ -167,8 +172,8 @@ def _paired_analysis(
         "per_seed": per_seed,
         "paired_lift_mean": round(lift_mean, 3),
         "paired_lift_stddev": round(pstdev(lifts), 3) if len(lifts) > 1 else 0.0,
-        "paired_lift_ci95": [round(ci_low, 3), round(ci_high, 3)],
-        "significant_at_95": ci_low > 0.0 or ci_high < 0.0,
+        "paired_lift_ci95": [ci95_low, ci95_high],
+        "significant_at_95": ci95_low > 0.0 or ci95_high < 0.0,
         "candidate_seed_win_rate": round(candidate_wins / len(seeds), 3) if seeds else 0.0,
         "best_baseline": best_block,
     }

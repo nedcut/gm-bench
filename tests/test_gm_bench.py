@@ -188,6 +188,35 @@ def test_paired_evaluation_reports_per_seed_lift_and_ci() -> None:
     assert paired["best_baseline"]["agent"] == max(baseline_means, key=baseline_means.get)
 
 
+def test_cli_evaluate_prints_paired_section() -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "gm_bench",
+            "evaluate",
+            "--agent",
+            "value",
+            "--baselines",
+            "random",
+            "conservative",
+            "--seeds",
+            "1",
+            "2",
+            "--seasons",
+            "1",
+            "--no-log",
+        ],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    )
+    assert "paired_lift=" in completed.stdout
+    assert "candidate_seed_win_rate=" in completed.stdout
+    assert "vs strongest baseline" in completed.stdout
+
+
 def test_paired_evaluation_is_deterministic() -> None:
     first = evaluate_against_baselines(ValueAgent(), seeds=[4, 5], seasons=2, baseline_names=["random", "conservative"])
     second = evaluate_against_baselines(ValueAgent(), seeds=[4, 5], seasons=2, baseline_names=["random", "conservative"])
