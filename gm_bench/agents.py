@@ -141,15 +141,20 @@ class ExternalProcessAgent(Agent):
         self.timeout_seconds = timeout_seconds
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
-        completed = subprocess.run(
-            shlex.split(self.command),
-            input=json.dumps(observation),
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=self.timeout_seconds,
-            check=False,
-        )
+        try:
+            completed = subprocess.run(
+                shlex.split(self.command),
+                input=json.dumps(observation),
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=self.timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return [{"type": "noop", "error": f"external agent timed out after {self.timeout_seconds}s"}]
+        except OSError as exc:
+            return [{"type": "noop", "error": f"external agent could not be launched: {exc}"}]
         if completed.returncode != 0:
             return [{"type": "noop", "error": completed.stderr[-500:]}]
         try:

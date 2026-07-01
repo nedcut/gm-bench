@@ -50,6 +50,7 @@ class League:
                 "roster_min": 18,
                 "lineup_size": 18,
                 "positions": {"F": 12, "D": 4, "G": 2},
+                "lineup_position_minimums": {"F": 10, "D": 4, "G": 1},
                 "trade_value_threshold": 0.78,
             },
             "team": self.user_team.public_dict(self.players, self.cap),
@@ -191,6 +192,9 @@ class League:
         partner = self.teams[partner_id]
         if not give or not receive:
             self._record(action, phase, False, "trades must include players from both teams")
+            return
+        if len(set(give)) != len(give) or len(set(receive)) != len(receive):
+            self._record(action, phase, False, "trade lists must not contain duplicate player ids")
             return
         if any(player_id not in self.user_team.roster for player_id in give):
             self._record(action, phase, False, "cannot trade players not on your roster")
