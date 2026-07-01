@@ -51,7 +51,9 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         help=f"seconds to wait for each external-agent decision (default {EXTERNAL_AGENT_TIMEOUT_DEFAULT:g} with --agent-cmd)",
     )
-    evaluate_parser.add_argument("--baselines", nargs="+", choices=sorted(AGENTS), default=["random", "conservative", "win-now", "rebuild"])
+    evaluate_parser.add_argument(
+        "--baselines", nargs="+", choices=sorted(AGENTS), default=["random", "conservative", "win-now", "rebuild"]
+    )
     evaluate_parser.add_argument("--seeds", nargs="+", type=int, default=[1, 2, 3, 4, 5])
     evaluate_parser.add_argument("--seasons", type=int, default=5)
     evaluate_parser.add_argument("--json", action="store_true")
@@ -112,7 +114,11 @@ def _resolve_agent(agent_cmd: str | None, agent_name: str, timeout: float | None
 
 
 def _add_logging_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--db", default=os.environ.get("GM_BENCH_DB", str(DEFAULT_DB_PATH)), help="SQLite database path for automatic run logging")
+    parser.add_argument(
+        "--db",
+        default=os.environ.get("GM_BENCH_DB", str(DEFAULT_DB_PATH)),
+        help="SQLite database path for automatic run logging",
+    )
     parser.add_argument("--no-log", action="store_true", help="disable automatic SQLite run logging")
 
 

@@ -108,4 +108,3 @@ class SeasonSummary:
     champion_team_id: int
     playoff_rounds: int
     score_after_season: float
-

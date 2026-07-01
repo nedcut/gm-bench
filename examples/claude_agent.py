@@ -35,8 +35,7 @@ def main() -> None:
         "You are competing in GM-Bench as a sports general manager. "
         "Do not inspect or edit files. Do not run shell commands. "
         "Use only the observation in the prompt. "
-        "Return only JSON matching the schema.\n\n"
-        + build_prompt(observation)
+        "Return only JSON matching the schema.\n\n" + build_prompt(observation)
     )
     command = build_command(prompt)
     try:

@@ -35,4 +35,3 @@ def score_team(league: "League", team_id: int) -> float:
         + roster_depth * 8.0
         - illegal_penalty
     )
-

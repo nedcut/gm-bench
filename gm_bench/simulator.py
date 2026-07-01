@@ -31,7 +31,14 @@ class League:
     @classmethod
     def new(cls, seed: int, user_team_id: int = 0, num_teams: int = 12) -> "League":
         teams, players, free_agents = generate_league_data(seed, num_teams=num_teams)
-        league = cls(seed=seed, user_team_id=user_team_id, num_teams=num_teams, teams=teams, players=players, free_agents=free_agents)
+        league = cls(
+            seed=seed,
+            user_team_id=user_team_id,
+            num_teams=num_teams,
+            teams=teams,
+            players=players,
+            free_agents=free_agents,
+        )
         league.prospects = generate_draft_class(seed, league.season, num_teams * 5)
         return league
 
@@ -203,11 +210,15 @@ class League:
             return
         give_value = sum(self.players[player_id].asset_value for player_id in give)
         receive_value = sum(self.players[player_id].asset_value for player_id in receive)
-        partner_payroll_after = self._payroll(partner) - sum(self.players[player_id].salary for player_id in receive) + sum(
-            self.players[player_id].salary for player_id in give
+        partner_payroll_after = (
+            self._payroll(partner)
+            - sum(self.players[player_id].salary for player_id in receive)
+            + sum(self.players[player_id].salary for player_id in give)
         )
-        user_payroll_after = self._payroll(self.user_team) - sum(self.players[player_id].salary for player_id in give) + sum(
-            self.players[player_id].salary for player_id in receive
+        user_payroll_after = (
+            self._payroll(self.user_team)
+            - sum(self.players[player_id].salary for player_id in give)
+            + sum(self.players[player_id].salary for player_id in receive)
         )
         if partner_payroll_after > self.cap + 8.0 or user_payroll_after > self.cap + 8.0:
             self._record(action, phase, False, "trade would exceed hard cap buffer")
@@ -317,7 +328,9 @@ class League:
         return round(max(1.0, (public_skill - 44.0) * age_factor - contract_drag), 2)
 
     def _team_strength(self, team: Team, apply_injury_noise: bool, rng: random.Random | None = None) -> float:
-        lineup = sorted((self.players[player_id] for player_id in team.roster), key=lambda player: player.overall, reverse=True)[:18]
+        lineup = sorted(
+            (self.players[player_id] for player_id in team.roster), key=lambda player: player.overall, reverse=True
+        )[:18]
         if not lineup:
             return 20.0
         position_bonus = min(sum(1 for player in lineup if player.position == "G"), 2) * 2.5
@@ -386,7 +399,9 @@ class League:
 
     def _opponent_signings(self, team: Team, rng: random.Random) -> None:
         needed = max(0, 21 - len(team.roster))
-        candidates = sorted((self.players[player_id] for player_id in self.free_agents), key=lambda player: player.overall, reverse=True)
+        candidates = sorted(
+            (self.players[player_id] for player_id in self.free_agents), key=lambda player: player.overall, reverse=True
+        )
         for player in candidates[: needed * 2]:
             if needed <= 0:
                 break
@@ -400,7 +415,12 @@ class League:
                 needed -= 1
 
     def _opponent_lineup(self, team: Team) -> None:
-        team.roster = [player.id for player in sorted((self.players[player_id] for player_id in team.roster), key=lambda player: player.overall, reverse=True)]
+        team.roster = [
+            player.id
+            for player in sorted(
+                (self.players[player_id] for player_id in team.roster), key=lambda player: player.overall, reverse=True
+            )
+        ]
 
     def _payroll(self, team: Team) -> float:
         return sum(self.players[player_id].salary for player_id in team.roster)

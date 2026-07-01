@@ -42,8 +42,7 @@ def main() -> None:
         "You are competing in GM-Bench as a sports general manager. "
         "Do not inspect or edit files. Do not run shell commands. "
         "Use only the observation in the prompt. "
-        "Your final answer must be valid JSON matching the provided schema.\n\n"
-        + build_prompt(observation)
+        "Your final answer must be valid JSON matching the provided schema.\n\n" + build_prompt(observation)
     )
     try:
         with tempfile.NamedTemporaryFile("r", suffix=".json", delete=True) as output:
@@ -58,7 +57,11 @@ def main() -> None:
             )
             content = output.read() or completed.stdout
         if completed.returncode != 0:
-            print(json.dumps(fallback_actions(observation, f"codex_exit_{completed.returncode}: {completed.stderr[-300:]}")))
+            print(
+                json.dumps(
+                    fallback_actions(observation, f"codex_exit_{completed.returncode}: {completed.stderr[-300:]}")
+                )
+            )
             return
         print(json.dumps(parse_actions(content)))
     except (subprocess.TimeoutExpired, OSError, ValueError, json.JSONDecodeError) as exc:

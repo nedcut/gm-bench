@@ -62,11 +62,9 @@ def build_prompt(observation: dict[str, Any]) -> str:
     fallback_lineup = position_aware_lineup(observation["team"]["roster"])
     no_think = "/no_think\n" if os.environ.get("GM_AGENT_NO_THINK", "0") == "1" else ""
     return (
-        no_think
-        +
-        "You are controlling a fictional hockey team in GM-Bench. "
+        no_think + "You are controlling a fictional hockey team in GM-Bench. "
         "Choose legal front-office actions that maximize long-term benchmark score: wins, playoffs, titles, young assets, cap health, and valid decisions.\n\n"
-        "Return ONLY a JSON object shaped like {\"actions\":[...]}. Do not use markdown. Do not explain.\n\n"
+        'Return ONLY a JSON object shaped like {"actions":[...]}. Do not use markdown. Do not explain.\n\n'
         "Allowed action objects inside actions:\n"
         '{"type":"sign_free_agent","player_id":123,"years":1,"salary":2.5}\n'
         '{"type":"draft","prospect_id":1010001}\n'

@@ -165,4 +165,3 @@ def _summary_for_payload(command: str, payload: Any) -> dict[str, Any]:
             "agents": agents,
         }
     return {"agent": None, "seasons": None, "seeds": []}
-

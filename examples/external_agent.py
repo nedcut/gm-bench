@@ -12,7 +12,7 @@ def main() -> None:
 
     free_agents = sorted(
         observation["free_agents"],
-        key=lambda player: (player["overall"] / max(player["asking_salary"], 0.1)),
+        key=lambda player: player["overall"] / max(player["asking_salary"], 0.1),
         reverse=True,
     )
     cap_room = observation["team"]["cap_room"]
@@ -38,13 +38,21 @@ def position_aware_lineup(roster):
     selected = []
     selected_ids = set()
     for position, count in {"F": 10, "D": 4, "G": 1}.items():
-        candidates = sorted((player for player in roster if player["position"] == position), key=lambda player: player["overall"], reverse=True)
+        candidates = sorted(
+            (player for player in roster if player["position"] == position),
+            key=lambda player: player["overall"],
+            reverse=True,
+        )
         if len(candidates) < count:
             return []
         for player in candidates[:count]:
             selected.append(player)
             selected_ids.add(player["id"])
-    remaining = sorted((player for player in roster if player["id"] not in selected_ids), key=lambda player: player["overall"], reverse=True)
+    remaining = sorted(
+        (player for player in roster if player["id"] not in selected_ids),
+        key=lambda player: player["overall"],
+        reverse=True,
+    )
     selected.extend(remaining[: 18 - len(selected)])
     return [player["id"] for player in selected]
 

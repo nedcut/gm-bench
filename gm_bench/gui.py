@@ -339,7 +339,9 @@ def run_from_request(request: dict[str, Any], db_path: Path) -> dict[str, Any]:
             raise ValueError(f"unknown agent: {agent_name}")
         if not isinstance(baselines, list) or any(name not in AGENTS for name in baselines):
             raise ValueError("baselines must be known built-in agents")
-        payload = evaluate_against_baselines(AGENTS[agent_name](), seeds=seeds, seasons=seasons, baseline_names=baselines)
+        payload = evaluate_against_baselines(
+            AGENTS[agent_name](), seeds=seeds, seasons=seasons, baseline_names=baselines
+        )
     else:
         raise ValueError("mode must be run, compare, or evaluate")
 
