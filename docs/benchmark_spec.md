@@ -85,6 +85,9 @@ against a baseline panel on identical seeds:
 score_lift = candidate_mean_score - baseline_panel_mean_score
 ```
 
+See [scoring_calibration.md](scoring_calibration.md) for term definitions and
+weight rationale.
+
 ## Reproducibility
 
 The simulator is deterministic for a given seed, agent, and season count. Public

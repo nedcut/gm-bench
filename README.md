@@ -280,4 +280,6 @@ evaluation focuses on decision quality rather than browser-control reliability
 or memorized sports data.
 
 See [docs/benchmark_spec.md](docs/benchmark_spec.md) for the MVP design,
-landscape notes, and suggested next steps.
+landscape notes, and suggested next steps. See
+[docs/scoring_calibration.md](docs/scoring_calibration.md) for how the objective
+score is weighted and normalized.
