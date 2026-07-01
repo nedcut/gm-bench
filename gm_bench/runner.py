@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import random
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from statistics import mean, pstdev
 from typing import Any
@@ -49,8 +51,13 @@ def run_episode(agent: Agent, seed: int, seasons: int = 5, user_team_id: int = 0
     )
 
 
-def run_many(agent: Agent, seeds: list[int], seasons: int = 5) -> dict[str, Any]:
-    results = [run_episode(agent, seed=seed, seasons=seasons) for seed in seeds]
+def run_many(agent: Agent, seeds: list[int], seasons: int = 5, workers: int | None = None) -> dict[str, Any]:
+    max_workers = workers if workers is not None else _default_workers(len(seeds))
+    if max_workers <= 1 or len(seeds) <= 1:
+        results = [run_episode(agent, seed=seed, seasons=seasons) for seed in seeds]
+    else:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            results = list(executor.map(lambda seed: run_episode(agent, seed=seed, seasons=seasons), seeds))
     scores = [result.final_score for result in results]
     wins = [result.wins for result in results]
     return {
@@ -204,3 +211,10 @@ def _bootstrap_mean_ci(
     low = means[int(tail * last)]
     high = means[int((1.0 - tail) * last)]
     return low, high
+
+
+def _default_workers(seed_count: int) -> int:
+    configured = os.environ.get("GM_BENCH_WORKERS")
+    if configured:
+        return max(1, int(configured))
+    return max(1, min(seed_count, os.cpu_count() or 1))
