@@ -95,6 +95,10 @@ This keeps league-seed luck from dominating a small benchmark run.
 data/gm_bench.sqlite
 ```
 
+The database is created automatically on first run and is not committed to the
+repository. See `results/benchmark_results.md` for an example snapshot of logged
+benchmark output.
+
 Override the path:
 
 ```bash

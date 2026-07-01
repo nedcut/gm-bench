@@ -2,15 +2,21 @@
 
 This snapshot records the benchmark results generated during the MVP build.
 
-## Committed SQLite Database
+## Example SQLite Database
 
-The committed database is:
+The example database path is:
 
 ```text
 data/gm_bench.sqlite
 ```
 
-It currently contains:
+Generate it locally by running any logged command, for example:
+
+```bash
+python -m gm_bench compare --agents random conservative win-now rebuild value --seeds 1 2 --seasons 2
+```
+
+A local run used to produce this snapshot contained:
 
 - 3 logged CLI runs.
 - 11 episode rows.
@@ -32,7 +38,7 @@ sqlite3 data/gm_bench.sqlite 'select count(*) from episodes;'
 sqlite3 data/gm_bench.sqlite 'select agent, seed, final_score, wins, championships, illegal_actions from episodes order by final_score desc limit 8;'
 ```
 
-Top committed episode rows:
+Top episode rows from the snapshot run:
 
 | Agent | Seed | Final Score | Wins | Championships | Illegal Actions |
 | --- | ---: | ---: | ---: | ---: | ---: |
