@@ -178,8 +178,14 @@ def test_paired_evaluation_reports_per_seed_lift_and_ci() -> None:
     assert paired["paired_lift_mean"] == pytest.approx(result["normalized"]["score_lift"], abs=1e-3)
     low, high = paired["paired_lift_ci95"]
     assert low <= paired["paired_lift_mean"] <= high
-    assert 0.0 <= paired["panel_seed_win_rate"] <= 1.0
+    assert 0.0 <= paired["candidate_seed_win_rate"] <= 1.0
     assert paired["best_baseline"]["agent"] in {"random", "conservative"}
+    # The strongest baseline is picked by the precise per-episode mean, so it must be
+    # the baseline with the genuinely highest mean score, not a rounding artifact.
+    baseline_means = {
+        baseline["agent"]: mean(ep["final_score"] for ep in baseline["episodes"]) for baseline in result["baselines"]
+    }
+    assert paired["best_baseline"]["agent"] == max(baseline_means, key=baseline_means.get)
 
 
 def test_paired_evaluation_is_deterministic() -> None:

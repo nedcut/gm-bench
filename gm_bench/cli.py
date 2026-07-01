@@ -143,7 +143,7 @@ def _print_evaluation(result: dict[str, Any]) -> None:
         verdict = "significant" if paired["significant_at_95"] else "within noise"
         print(
             f"paired_lift={paired['paired_lift_mean']} ci95=[{low}, {high}] ({verdict}) "
-            f"panel_seed_win_rate={paired['panel_seed_win_rate']} over {paired['num_seeds']} seed(s)"
+            f"candidate_seed_win_rate={paired['candidate_seed_win_rate']} over {paired['num_seeds']} seed(s)"
         )
         best = paired.get("best_baseline")
         if best:

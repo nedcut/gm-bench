@@ -103,6 +103,12 @@ def _scores_by_seed(result: dict[str, Any]) -> dict[int, float]:
     return {episode["seed"]: episode["final_score"] for episode in result["episodes"]}
 
 
+def _precise_mean_score(result: dict[str, Any]) -> float:
+    """Mean of per-episode scores without the display rounding `summary` applies."""
+    scores = [episode["final_score"] for episode in result["episodes"]]
+    return mean(scores) if scores else 0.0
+
+
 def _paired_analysis(
     seeds: list[int],
     candidate: dict[str, Any],
@@ -120,14 +126,14 @@ def _paired_analysis(
 
     per_seed: list[dict[str, Any]] = []
     lifts: list[float] = []
-    panel_wins = 0
+    candidate_wins = 0
     for seed in seeds:
         candidate_score = candidate_scores[seed]
         panel_score = mean(scores[seed] for scores in baseline_scores) if baseline_scores else 0.0
         lift = candidate_score - panel_score
         lifts.append(lift)
         if lift > 0:
-            panel_wins += 1
+            candidate_wins += 1
         per_seed.append(
             {
                 "seed": seed,
@@ -141,15 +147,17 @@ def _paired_analysis(
     ci_low, ci_high = _bootstrap_mean_ci(lifts)
 
     # The panel average includes weak baselines like `random`; the strongest single
-    # baseline is a more honest bar to clear, so report it separately.
-    best_baseline = max(baseline_results, key=lambda result: result["summary"]["mean_score"], default=None)
+    # baseline is a more honest bar to clear, so report it separately. Select it by
+    # the precise per-episode mean, not the display-rounded summary, so near-ties
+    # aren't decided by rounding.
+    best_baseline = max(baseline_results, key=_precise_mean_score, default=None)
     best_block: dict[str, Any] | None = None
     if best_baseline is not None:
         best_scores = _scores_by_seed(best_baseline)
         best_lifts = [candidate_scores[seed] - best_scores[seed] for seed in seeds]
         best_block = {
             "agent": best_baseline["agent"],
-            "mean_score": best_baseline["summary"]["mean_score"],
+            "mean_score": round(_precise_mean_score(best_baseline), 3),
             "paired_lift_mean": round(mean(best_lifts), 3) if best_lifts else 0.0,
             "seed_win_rate": round(sum(1 for lift in best_lifts if lift > 0) / len(best_lifts), 3) if best_lifts else 0.0,
         }
@@ -161,7 +169,7 @@ def _paired_analysis(
         "paired_lift_stddev": round(pstdev(lifts), 3) if len(lifts) > 1 else 0.0,
         "paired_lift_ci95": [round(ci_low, 3), round(ci_high, 3)],
         "significant_at_95": ci_low > 0.0 or ci_high < 0.0,
-        "panel_seed_win_rate": round(panel_wins / len(seeds), 3) if seeds else 0.0,
+        "candidate_seed_win_rate": round(candidate_wins / len(seeds), 3) if seeds else 0.0,
         "best_baseline": best_block,
     }
 
@@ -185,6 +193,9 @@ def _bootstrap_mean_ci(
     count = len(values)
     means = sorted(mean(values[rng.randrange(count)] for _ in range(count)) for _ in range(iterations))
     tail = (1.0 - confidence) / 2.0
-    low = means[int(tail * iterations)]
-    high = means[min(iterations - 1, int((1.0 - tail) * iterations))]
+    # Percentile indexes into the 0-based sorted sample: floor(p * (n - 1)) keeps the
+    # endpoints inside the array and centered on the requested quantile.
+    last = iterations - 1
+    low = means[int(tail * last)]
+    high = means[int((1.0 - tail) * last)]
     return low, high

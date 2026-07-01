@@ -96,7 +96,7 @@ far lower-variance read on skill than comparing unpaired means:
 - `paired_lift_ci95`: a deterministic bootstrap 95% confidence interval on the
   paired lift.
 - `significant_at_95`: whether that interval excludes zero.
-- `panel_seed_win_rate`: fraction of seeds where the candidate beat the panel.
+- `candidate_seed_win_rate`: fraction of seeds where the candidate beat the panel.
 - `best_baseline`: the strongest single baseline (by mean score) with the
   candidate's paired lift and seed win rate against it — an honest bar to clear,
   since the panel average is dragged down by weak baselines like `random`.
