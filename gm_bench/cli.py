@@ -13,6 +13,9 @@ from gm_bench.runner import evaluate_against_baselines, run_many
 from gm_bench.simulator import League
 from gm_bench.storage import DEFAULT_DB_PATH, log_payload
 
+EXTERNAL_AGENT_TIMEOUT_DEFAULT = 120.0
+EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED = 60.0
+
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="gm-bench")
@@ -21,7 +24,12 @@ def main(argv: list[str] | None = None) -> None:
     run_parser = subparsers.add_parser("run", help="run one agent across seeds")
     run_parser.add_argument("--agent", choices=sorted(AGENTS), default="value")
     run_parser.add_argument("--agent-cmd", help="external command implementing the JSON agent protocol")
-    run_parser.add_argument("--agent-timeout", type=float, default=10.0, help="seconds to wait for each external-agent decision")
+    run_parser.add_argument(
+        "--agent-timeout",
+        type=float,
+        default=None,
+        help=f"seconds to wait for each external-agent decision (default {EXTERNAL_AGENT_TIMEOUT_DEFAULT:g} with --agent-cmd)",
+    )
     run_parser.add_argument("--seeds", nargs="+", type=int, default=[1])
     run_parser.add_argument("--seasons", type=int, default=5)
     run_parser.add_argument("--json", action="store_true", help="emit full JSON results")
@@ -37,7 +45,12 @@ def main(argv: list[str] | None = None) -> None:
     evaluate_parser = subparsers.add_parser("evaluate", help="evaluate an agent against a normalized baseline panel")
     evaluate_parser.add_argument("--agent", choices=sorted(AGENTS), default="value")
     evaluate_parser.add_argument("--agent-cmd", help="external command implementing the JSON agent protocol")
-    evaluate_parser.add_argument("--agent-timeout", type=float, default=10.0, help="seconds to wait for each external-agent decision")
+    evaluate_parser.add_argument(
+        "--agent-timeout",
+        type=float,
+        default=None,
+        help=f"seconds to wait for each external-agent decision (default {EXTERNAL_AGENT_TIMEOUT_DEFAULT:g} with --agent-cmd)",
+    )
     evaluate_parser.add_argument("--baselines", nargs="+", choices=sorted(AGENTS), default=["random", "conservative", "win-now", "rebuild"])
     evaluate_parser.add_argument("--seeds", nargs="+", type=int, default=[1, 2, 3, 4, 5])
     evaluate_parser.add_argument("--seasons", type=int, default=5)
@@ -54,7 +67,7 @@ def main(argv: list[str] | None = None) -> None:
 
     args = parser.parse_args(argv)
     if args.command == "run":
-        agent = ExternalProcessAgent(args.agent_cmd, timeout_seconds=args.agent_timeout) if args.agent_cmd else AGENTS[args.agent]()
+        agent = _resolve_agent(args.agent_cmd, args.agent, args.agent_timeout)
         result = run_many(agent, args.seeds, args.seasons)
         run_id = _maybe_log(args, "run", result)
         _print_result(result, args.json)
@@ -68,7 +81,7 @@ def main(argv: list[str] | None = None) -> None:
             _print_table(results)
         _print_log_line(run_id, args)
     elif args.command == "evaluate":
-        agent = ExternalProcessAgent(args.agent_cmd, timeout_seconds=args.agent_timeout) if args.agent_cmd else AGENTS[args.agent]()
+        agent = _resolve_agent(args.agent_cmd, args.agent, args.agent_timeout)
         result = evaluate_against_baselines(agent, args.seeds, args.seasons, args.baselines)
         run_id = _maybe_log(args, "evaluate", result)
         if args.json:
@@ -83,6 +96,19 @@ def main(argv: list[str] | None = None) -> None:
         from gm_bench.gui import serve
 
         serve(args.host, args.port, args.db)
+
+
+def _resolve_agent(agent_cmd: str | None, agent_name: str, timeout: float | None) -> Any:
+    if not agent_cmd:
+        return AGENTS[agent_name]()
+    resolved_timeout = timeout if timeout is not None else EXTERNAL_AGENT_TIMEOUT_DEFAULT
+    if resolved_timeout < EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED:
+        print(
+            f"warning: --agent-timeout={resolved_timeout} may be too low for LLM-backed agents; "
+            f"consider >= {EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED:g}",
+            file=sys.stderr,
+        )
+    return ExternalProcessAgent(agent_cmd, timeout_seconds=resolved_timeout)
 
 
 def _add_logging_args(parser: argparse.ArgumentParser) -> None:
