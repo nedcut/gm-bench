@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["actions"],
+  "properties": {
+    "actions": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "player_id",
+          "player_ids",
+          "prospect_id",
+          "partner_team_id",
+          "give_player_ids",
+          "receive_player_ids",
+          "years",
+          "salary"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["sign_free_agent", "release", "trade", "draft", "set_lineup", "noop"]
+          },
+          "player_id": { "type": ["integer", "null"] },
+          "player_ids": {
+            "type": ["array", "null"],
+            "items": { "type": "integer" }
+          },
+          "prospect_id": { "type": ["integer", "null"] },
+          "partner_team_id": { "type": ["integer", "null"] },
+          "give_player_ids": {
+            "type": ["array", "null"],
+            "items": { "type": "integer" }
+          },
+          "receive_player_ids": {
+            "type": ["array", "null"],
+            "items": { "type": "integer" }
+          },
+          "years": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 },
+          "salary": { "type": ["number", "null"], "minimum": 0 }
+        }
+      }
+    }
+  }
+}
