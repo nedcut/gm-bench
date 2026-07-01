@@ -85,6 +85,12 @@ against a baseline panel on identical seeds:
 score_lift = candidate_mean_score - baseline_panel_mean_score
 ```
 
+Because every agent plays the same seeds, `evaluate` additionally differences the
+candidate against the baselines per seed and reports a deterministic bootstrap
+95% confidence interval on that paired lift, a per-seed win rate, and the paired
+lift against the strongest single baseline. Paired differencing cancels most of
+the league-generation luck, which is what makes small-seed runs trustworthy.
+
 See [scoring_calibration.md](scoring_calibration.md) for term definitions and
 weight rationale.
 
