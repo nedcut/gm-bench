@@ -51,7 +51,14 @@ def main() -> None:
             except ValueError:
                 snippet = str(repaired or content).replace("\n", " ")[:220]
                 print(json.dumps(fallback_actions(observation, f"ollama_parse_error: {exc}; content={snippet!r}")))
-    except (subprocess.TimeoutExpired, urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
+    except (
+        subprocess.TimeoutExpired,
+        urllib.error.URLError,
+        TimeoutError,
+        ValueError,
+        KeyError,
+        json.JSONDecodeError,
+    ) as exc:
         print(json.dumps(fallback_actions(observation, f"ollama_error: {exc}")))
 
 

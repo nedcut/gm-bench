@@ -36,7 +36,10 @@ def main() -> None:
         "model": model,
         "temperature": float(os.environ.get("LLM_TEMPERATURE", "0.2")),
         "messages": [
-            {"role": "system", "content": "Return only a JSON object with an actions array of GM-Bench action objects."},
+            {
+                "role": "system",
+                "content": "Return only a JSON object with an actions array of GM-Bench action objects.",
+            },
             {"role": "user", "content": build_prompt(observation)},
         ],
     }

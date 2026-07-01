@@ -171,7 +171,9 @@ def _paired_analysis(
             "agent": best_baseline["agent"],
             "mean_score": round(_precise_mean_score(best_baseline), 3),
             "paired_lift_mean": round(mean(best_lifts), 3) if best_lifts else 0.0,
-            "seed_win_rate": round(sum(1 for lift in best_lifts if lift > 0) / len(best_lifts), 3) if best_lifts else 0.0,
+            "seed_win_rate": round(sum(1 for lift in best_lifts if lift > 0) / len(best_lifts), 3)
+            if best_lifts
+            else 0.0,
         }
 
     return {

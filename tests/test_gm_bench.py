@@ -8,10 +8,10 @@ from statistics import mean
 
 import pytest
 
+import gm_bench.runner as runner_module
 from examples.claude_agent import build_command as build_claude_command
 from examples.codex_agent import build_command as build_codex_command
 from examples.gm_agent_common import parse_actions
-import gm_bench.runner as runner_module
 from gm_bench.agents import ExternalProcessAgent, RandomAgent, ValueAgent
 from gm_bench.gui import _parse_seeds, agent_standings, dashboard_payload, run_from_request, score_history
 from gm_bench.runner import evaluate_against_baselines, run_episode, run_many
@@ -67,7 +67,14 @@ def test_trade_with_duplicate_ids_is_rejected_without_side_effects() -> None:
     give_id = league.user_team.roster[0]
     receive_id = partner.roster[0]
     league.apply_actions(
-        [{"type": "trade", "partner_team_id": 1, "give_player_ids": [give_id, give_id], "receive_player_ids": [receive_id]}],
+        [
+            {
+                "type": "trade",
+                "partner_team_id": 1,
+                "give_player_ids": [give_id, give_id],
+                "receive_player_ids": [receive_id],
+            }
+        ],
         "preseason",
     )
     assert league.transactions[-1].accepted is False
@@ -98,7 +105,7 @@ def test_external_agent_timeout_warns_when_too_low(capsys: pytest.CaptureFixture
             "gm_bench",
             "run",
             "--agent-cmd",
-            f"{sys.executable} -c 'import json; print(json.dumps([{{\"type\":\"noop\"}}]))'",
+            f'{sys.executable} -c \'import json; print(json.dumps([{{"type":"noop"}}]))\'',
             "--agent-timeout",
             "5",
             "--seeds",
@@ -127,12 +134,27 @@ def test_parallel_run_many_matches_sequential_results() -> None:
     sequential = run_many(ValueAgent(), seeds=seeds, seasons=2, workers=1)
     parallel = run_many(ValueAgent(), seeds=seeds, seasons=2, workers=4)
     assert sequential["summary"] == parallel["summary"]
-    assert {episode["seed"] for episode in sequential["episodes"]} == {episode["seed"] for episode in parallel["episodes"]}
+    assert {episode["seed"] for episode in sequential["episodes"]} == {
+        episode["seed"] for episode in parallel["episodes"]
+    }
 
 
 def test_cli_json_run() -> None:
     completed = subprocess.run(
-        [sys.executable, "-m", "gm_bench", "run", "--agent", "value", "--seeds", "1", "--seasons", "1", "--json", "--no-log"],
+        [
+            sys.executable,
+            "-m",
+            "gm_bench",
+            "run",
+            "--agent",
+            "value",
+            "--seeds",
+            "1",
+            "--seasons",
+            "1",
+            "--json",
+            "--no-log",
+        ],
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -181,7 +203,9 @@ def test_storage_logs_episode_and_transactions(tmp_path: Path) -> None:
     with sqlite3.connect(tmp_path / "runs.sqlite") as connection:
         run_count = connection.execute("SELECT COUNT(*) FROM runs WHERE id = ?", (run_id,)).fetchone()[0]
         episode_count = connection.execute("SELECT COUNT(*) FROM episodes WHERE run_id = ?", (run_id,)).fetchone()[0]
-        transaction_count = connection.execute("SELECT COUNT(*) FROM transactions WHERE run_id = ?", (run_id,)).fetchone()[0]
+        transaction_count = connection.execute(
+            "SELECT COUNT(*) FROM transactions WHERE run_id = ?", (run_id,)
+        ).fetchone()[0]
     assert run_count == 1
     assert episode_count == 1
     assert transaction_count > 0
@@ -361,7 +385,9 @@ def test_cli_evaluate_prints_paired_section() -> None:
 
 def test_paired_evaluation_is_deterministic() -> None:
     first = evaluate_against_baselines(ValueAgent(), seeds=[4, 5], seasons=2, baseline_names=["random", "conservative"])
-    second = evaluate_against_baselines(ValueAgent(), seeds=[4, 5], seasons=2, baseline_names=["random", "conservative"])
+    second = evaluate_against_baselines(
+        ValueAgent(), seeds=[4, 5], seasons=2, baseline_names=["random", "conservative"]
+    )
     assert first["paired"] == second["paired"]
 
 

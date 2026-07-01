@@ -80,7 +80,9 @@ def _name(rng: random.Random, used: set[str]) -> str:
             return candidate
 
 
-def generate_league_data(seed: int, num_teams: int = 12, roster_size: int = 23) -> tuple[dict[int, Team], dict[int, Player], list[int]]:
+def generate_league_data(
+    seed: int, num_teams: int = 12, roster_size: int = 23
+) -> tuple[dict[int, Team], dict[int, Player], list[int]]:
     rng = random.Random(seed)
     teams: dict[int, Team] = {}
     players: dict[int, Player] = {}
@@ -175,4 +177,3 @@ def generate_draft_class(seed: int, season: int, count: int) -> dict[int, Player
         )
         prospects[prospect.id] = prospect
     return prospects
-

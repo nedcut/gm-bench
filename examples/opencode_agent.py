@@ -26,9 +26,15 @@ def main() -> None:
     timeout = float(os.environ.get("OPENCODE_TIMEOUT", "180"))
     command = ["opencode", "run", "--model", model, "--format", "json", "--pure", build_prompt(observation)]
     try:
-        completed = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout, check=False)
+        completed = subprocess.run(
+            command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout, check=False
+        )
         if completed.returncode != 0:
-            print(json.dumps(fallback_actions(observation, f"opencode_exit_{completed.returncode}: {completed.stderr[-300:]}")))
+            print(
+                json.dumps(
+                    fallback_actions(observation, f"opencode_exit_{completed.returncode}: {completed.stderr[-300:]}")
+                )
+            )
             return
         content = extract_opencode_text(completed.stdout)
         print(json.dumps(parse_actions(content)))
