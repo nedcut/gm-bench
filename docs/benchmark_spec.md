@@ -91,6 +91,9 @@ candidate against the baselines per seed and reports a deterministic bootstrap
 lift against the strongest single baseline. Paired differencing cancels most of
 the league-generation luck, which is what makes small-seed runs trustworthy.
 
+See [scoring_calibration.md](scoring_calibration.md) for term definitions and
+weight rationale.
+
 ## Reproducibility
 
 The simulator is deterministic for a given seed, agent, and season count. Public
