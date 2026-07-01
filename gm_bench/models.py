@@ -8,6 +8,9 @@ from typing import Any, Literal
 Position = Literal["F", "D", "G"]
 ActionType = Literal["sign_free_agent", "release", "trade", "draft", "set_lineup", "noop"]
 
+LINEUP_SIZE = 18
+LINEUP_MIN_POSITIONS: dict[str, int] = {"F": 10, "D": 4, "G": 1}
+
 
 @dataclass
 class Player:

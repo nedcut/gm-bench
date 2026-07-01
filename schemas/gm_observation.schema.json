@@ -27,20 +27,11 @@
     "rules": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["salary_cap", "roster_min", "lineup_size", "trade_value_threshold"],
+      "required": ["salary_cap", "roster_min", "lineup_size", "lineup_min_positions", "trade_value_threshold"],
       "properties": {
         "salary_cap": { "type": "number" },
         "roster_min": { "type": "integer", "minimum": 1 },
         "lineup_size": { "type": "integer", "minimum": 1 },
-        "positions": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "F": { "type": "integer", "minimum": 0 },
-            "D": { "type": "integer", "minimum": 0 },
-            "G": { "type": "integer", "minimum": 0 }
-          }
-        },
         "lineup_min_positions": {
           "type": "object",
           "additionalProperties": false,

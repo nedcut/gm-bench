@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from gm_bench.generator import generate_draft_class, generate_league_data
-from gm_bench.models import Player, SeasonSummary, Team, Transaction
+from gm_bench.models import LINEUP_MIN_POSITIONS, LINEUP_SIZE, Player, SeasonSummary, Team, Transaction
 from gm_bench.scoring import score_team
 
 
@@ -48,8 +48,8 @@ class League:
             "rules": {
                 "salary_cap": self.cap,
                 "roster_min": 18,
-                "lineup_size": 18,
-                "positions": {"F": 12, "D": 4, "G": 2},
+                "lineup_size": LINEUP_SIZE,
+                "lineup_min_positions": LINEUP_MIN_POSITIONS,
                 "trade_value_threshold": 0.78,
             },
             "team": self.user_team.public_dict(self.players, self.cap),
