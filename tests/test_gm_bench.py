@@ -52,7 +52,7 @@ def test_parallel_run_many_matches_sequential_results() -> None:
     sequential = run_many(ValueAgent(), seeds=seeds, seasons=2, workers=1)
     parallel = run_many(ValueAgent(), seeds=seeds, seasons=2, workers=4)
     assert sequential["summary"] == parallel["summary"]
-    assert {episode["seed"] for episode in sequential["episodes"]} == {episode["seed"] for episode in parallel["episodes"]}
+    assert sequential["episodes"] == parallel["episodes"]
 
 
 def test_cli_json_run() -> None:

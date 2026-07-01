@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from statistics import mean, pstdev
@@ -56,7 +57,7 @@ def run_many(agent: Agent, seeds: list[int], seasons: int = 5, workers: int | No
         results = [run_episode(agent, seed=seed, seasons=seasons) for seed in seeds]
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            results = list(executor.map(lambda seed: run_episode(agent, seed=seed, seasons=seasons), seeds))
+            results = list(executor.map(lambda seed: run_episode(deepcopy(agent), seed=seed, seasons=seasons), seeds))
     scores = [result.final_score for result in results]
     wins = [result.wins for result in results]
     return {
