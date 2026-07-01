@@ -137,6 +137,20 @@ def _print_evaluation(result: dict[str, Any]) -> None:
             **normalized
         )
     )
+    paired = result.get("paired")
+    if paired:
+        low, high = paired["paired_lift_ci95"]
+        verdict = "significant" if paired["significant_at_95"] else "within noise"
+        print(
+            f"paired_lift={paired['paired_lift_mean']} ci95=[{low}, {high}] ({verdict}) "
+            f"panel_seed_win_rate={paired['panel_seed_win_rate']} over {paired['num_seeds']} seed(s)"
+        )
+        best = paired.get("best_baseline")
+        if best:
+            print(
+                f"vs strongest baseline '{best['agent']}': paired_lift={best['paired_lift_mean']} "
+                f"seed_win_rate={best['seed_win_rate']}"
+            )
     print()
     _print_table([result["candidate"], *result["baselines"]])
 

@@ -4,6 +4,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from statistics import mean
 
 import pytest
 
@@ -12,7 +13,7 @@ from examples.codex_agent import build_command as build_codex_command
 from examples.gm_agent_common import parse_actions
 from gm_bench.agents import ConservativeAgent, ValueAgent
 from gm_bench.gui import _parse_seeds, agent_standings, dashboard_payload, run_from_request, score_history
-from gm_bench.runner import run_episode, run_many
+from gm_bench.runner import evaluate_against_baselines, run_episode, run_many
 from gm_bench.simulator import League
 from gm_bench.storage import log_payload
 
@@ -163,6 +164,28 @@ def test_coding_agent_commands_are_non_interactive() -> None:
     assert claude_command[:2] == ["claude", "-p"]
     assert "--no-session-persistence" in claude_command
     assert "--json-schema" in claude_command
+
+
+def test_paired_evaluation_reports_per_seed_lift_and_ci() -> None:
+    seeds = [1, 2, 3]
+    result = evaluate_against_baselines(ValueAgent(), seeds=seeds, seasons=2, baseline_names=["random", "conservative"])
+    paired = result["paired"]
+    assert paired["num_seeds"] == 3
+    assert [row["seed"] for row in paired["per_seed"]] == seeds
+    # The panel lift is exactly the average of the per-seed paired lifts.
+    assert paired["paired_lift_mean"] == pytest.approx(mean(row["lift"] for row in paired["per_seed"]), abs=1e-3)
+    # And it must agree with the unpaired panel lift on shared seeds.
+    assert paired["paired_lift_mean"] == pytest.approx(result["normalized"]["score_lift"], abs=1e-3)
+    low, high = paired["paired_lift_ci95"]
+    assert low <= paired["paired_lift_mean"] <= high
+    assert 0.0 <= paired["panel_seed_win_rate"] <= 1.0
+    assert paired["best_baseline"]["agent"] in {"random", "conservative"}
+
+
+def test_paired_evaluation_is_deterministic() -> None:
+    first = evaluate_against_baselines(ValueAgent(), seeds=[4, 5], seasons=2, baseline_names=["random", "conservative"])
+    second = evaluate_against_baselines(ValueAgent(), seeds=[4, 5], seasons=2, baseline_names=["random", "conservative"])
+    assert first["paired"] == second["paired"]
 
 
 def test_coding_agent_effort_flags(monkeypatch: pytest.MonkeyPatch) -> None:

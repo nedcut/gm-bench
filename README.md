@@ -85,6 +85,22 @@ panel on the same seeds, then reports:
 - `score_lift_pct`: percent lift over the baseline panel.
 - illegal action counts.
 
+Because every agent plays identical seeds, the report also includes a `paired`
+block that differences the candidate against the baselines *per seed*. On a
+handful of seeds this cancels most of the league-generation luck and gives a
+far lower-variance read on skill than comparing unpaired means:
+
+- `per_seed`: candidate score, baseline-panel score, and lift for each seed.
+- `paired_lift_mean`: mean of the per-seed lifts (equals `score_lift`, but with
+  a variance you can now quantify).
+- `paired_lift_ci95`: a deterministic bootstrap 95% confidence interval on the
+  paired lift.
+- `significant_at_95`: whether that interval excludes zero.
+- `panel_seed_win_rate`: fraction of seeds where the candidate beat the panel.
+- `best_baseline`: the strongest single baseline (by mean score) with the
+  candidate's paired lift and seed win rate against it — an honest bar to clear,
+  since the panel average is dragged down by weak baselines like `random`.
+
 This keeps league-seed luck from dominating a small benchmark run.
 
 ## Run Database

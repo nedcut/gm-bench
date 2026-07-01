@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 from statistics import mean, pstdev
 from typing import Any
@@ -93,4 +94,97 @@ def evaluate_against_baselines(
             "candidate_illegal_actions": candidate["summary"]["illegal_actions"],
             "baseline_illegal_actions": sum(result["summary"]["illegal_actions"] for result in baseline_results),
         },
+        "paired": _paired_analysis(seeds, candidate, baseline_results),
     }
+
+
+def _scores_by_seed(result: dict[str, Any]) -> dict[int, float]:
+    """Map each seed to the candidate/baseline final score for that episode."""
+    return {episode["seed"]: episode["final_score"] for episode in result["episodes"]}
+
+
+def _paired_analysis(
+    seeds: list[int],
+    candidate: dict[str, Any],
+    baseline_results: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Compare candidate and baselines on the *same* seeds, differencing per seed.
+
+    Because every agent plays identical seeds, per-seed differences cancel most of
+    the league-generation luck the benchmark warns about. This yields a far
+    lower-variance estimate of skill than comparing unpaired means, which is what
+    matters when the benchmark is run on only a handful of seeds.
+    """
+    candidate_scores = _scores_by_seed(candidate)
+    baseline_scores = [_scores_by_seed(result) for result in baseline_results]
+
+    per_seed: list[dict[str, Any]] = []
+    lifts: list[float] = []
+    panel_wins = 0
+    for seed in seeds:
+        candidate_score = candidate_scores[seed]
+        panel_score = mean(scores[seed] for scores in baseline_scores) if baseline_scores else 0.0
+        lift = candidate_score - panel_score
+        lifts.append(lift)
+        if lift > 0:
+            panel_wins += 1
+        per_seed.append(
+            {
+                "seed": seed,
+                "candidate_score": round(candidate_score, 3),
+                "baseline_panel_score": round(panel_score, 3),
+                "lift": round(lift, 3),
+            }
+        )
+
+    lift_mean = mean(lifts) if lifts else 0.0
+    ci_low, ci_high = _bootstrap_mean_ci(lifts)
+
+    # The panel average includes weak baselines like `random`; the strongest single
+    # baseline is a more honest bar to clear, so report it separately.
+    best_baseline = max(baseline_results, key=lambda result: result["summary"]["mean_score"], default=None)
+    best_block: dict[str, Any] | None = None
+    if best_baseline is not None:
+        best_scores = _scores_by_seed(best_baseline)
+        best_lifts = [candidate_scores[seed] - best_scores[seed] for seed in seeds]
+        best_block = {
+            "agent": best_baseline["agent"],
+            "mean_score": best_baseline["summary"]["mean_score"],
+            "paired_lift_mean": round(mean(best_lifts), 3) if best_lifts else 0.0,
+            "seed_win_rate": round(sum(1 for lift in best_lifts if lift > 0) / len(best_lifts), 3) if best_lifts else 0.0,
+        }
+
+    return {
+        "num_seeds": len(seeds),
+        "per_seed": per_seed,
+        "paired_lift_mean": round(lift_mean, 3),
+        "paired_lift_stddev": round(pstdev(lifts), 3) if len(lifts) > 1 else 0.0,
+        "paired_lift_ci95": [round(ci_low, 3), round(ci_high, 3)],
+        "significant_at_95": ci_low > 0.0 or ci_high < 0.0,
+        "panel_seed_win_rate": round(panel_wins / len(seeds), 3) if seeds else 0.0,
+        "best_baseline": best_block,
+    }
+
+
+def _bootstrap_mean_ci(
+    values: list[float],
+    confidence: float = 0.95,
+    iterations: int = 2000,
+) -> tuple[float, float]:
+    """Deterministic percentile bootstrap confidence interval for the mean.
+
+    Uses a fixed RNG seed so a given set of per-seed lifts always yields the same
+    interval, preserving the benchmark's reproducibility guarantee. With fewer
+    than two samples the interval is undefined, so the point estimate is returned
+    for both bounds.
+    """
+    if len(values) < 2:
+        point = values[0] if values else 0.0
+        return point, point
+    rng = random.Random(f"gm-bench-bootstrap:{len(values)}:{sum(values):.6f}")
+    count = len(values)
+    means = sorted(mean(values[rng.randrange(count)] for _ in range(count)) for _ in range(iterations))
+    tail = (1.0 - confidence) / 2.0
+    low = means[int(tail * iterations)]
+    high = means[min(iterations - 1, int((1.0 - tail) * iterations))]
+    return low, high
