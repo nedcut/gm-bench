@@ -33,6 +33,13 @@ def test_observation_hides_true_potential() -> None:
     assert "trade_market" in encoded
 
 
+def test_observation_lineup_rules_match_validation() -> None:
+    league = League.new(seed=11)
+    rules = league.observation("preseason")["rules"]
+    assert rules["lineup_size"] == 18
+    assert rules["lineup_min_positions"] == {"F": 10, "D": 4, "G": 1}
+
+
 def test_invalid_actions_are_penalized() -> None:
     league = League.new(seed=3)
     league.apply_actions([{"type": "sign_free_agent", "player_id": -999, "salary": 1, "years": 1}], "preseason")

@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from gm_bench.generator import generate_draft_class, generate_league_data
-from gm_bench.models import Player, SeasonSummary, Team, Transaction
+from gm_bench.models import LINEUP_MIN_POSITIONS, LINEUP_SIZE, Player, SeasonSummary, Team, Transaction
 from gm_bench.scoring import score_team
 
 
@@ -48,8 +48,8 @@ class League:
             "rules": {
                 "salary_cap": self.cap,
                 "roster_min": 18,
-                "lineup_size": 18,
-                "positions": {"F": 12, "D": 4, "G": 2},
+                "lineup_size": LINEUP_SIZE,
+                "lineup_min_positions": LINEUP_MIN_POSITIONS,
                 "trade_value_threshold": 0.78,
             },
             "team": self.user_team.public_dict(self.players, self.cap),
@@ -245,8 +245,8 @@ class League:
 
     def _set_lineup(self, action: dict[str, Any], phase: str) -> None:
         lineup = [int(player_id) for player_id in action.get("player_ids", [])]
-        if len(lineup) != 18 or len(set(lineup)) != 18:
-            self._record(action, phase, False, "lineup must contain 18 unique player ids")
+        if len(lineup) != LINEUP_SIZE or len(set(lineup)) != LINEUP_SIZE:
+            self._record(action, phase, False, f"lineup must contain {LINEUP_SIZE} unique player ids")
             return
         if any(player_id not in self.user_team.roster for player_id in lineup):
             self._record(action, phase, False, "lineup includes players not on roster")
@@ -254,9 +254,15 @@ class League:
         positions = {"F": 0, "D": 0, "G": 0}
         for player_id in lineup:
             positions[self.players[player_id].position] += 1
-        if positions["G"] < 1 or positions["D"] < 4 or positions["F"] < 10:
-            self._record(action, phase, False, "lineup must include at least 10 F, 4 D, and 1 G")
-            return
+        for position, minimum in LINEUP_MIN_POSITIONS.items():
+            if positions[position] < minimum:
+                self._record(
+                    action,
+                    phase,
+                    False,
+                    f"lineup must include at least {minimum} {position}",
+                )
+                return
         roster = self.user_team.roster
         self.user_team.roster = lineup + [player_id for player_id in roster if player_id not in set(lineup)]
         self._record(action, phase, True, "lineup set")
