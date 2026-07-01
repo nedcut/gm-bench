@@ -47,6 +47,14 @@ def test_value_agent_beats_randomish_floor_on_small_panel() -> None:
     assert conservative["summary"]["illegal_actions"] == 0
 
 
+def test_parallel_run_many_matches_sequential_results() -> None:
+    seeds = [1, 2, 3, 4]
+    sequential = run_many(ValueAgent(), seeds=seeds, seasons=2, workers=1)
+    parallel = run_many(ValueAgent(), seeds=seeds, seasons=2, workers=4)
+    assert sequential["summary"] == parallel["summary"]
+    assert {episode["seed"] for episode in sequential["episodes"]} == {episode["seed"] for episode in parallel["episodes"]}
+
+
 def test_cli_json_run() -> None:
     completed = subprocess.run(
         [sys.executable, "-m", "gm_bench", "run", "--agent", "value", "--seeds", "1", "--seasons", "1", "--json", "--no-log"],
