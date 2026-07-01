@@ -8,25 +8,7 @@ import re
 from typing import Any
 
 
-def public_value(player: dict[str, Any]) -> float:
-    age_factor = max(0.05, 1.16 - max(player["age"] - 23, 0) * 0.052)
-    salary = player.get("asking_salary", player.get("salary", 0.0))
-    return (player["overall"] * 0.5 + player["potential"] * 0.5 - 43.0) * age_factor - salary * 0.7
-
-
-def position_aware_lineup(roster: list[dict[str, Any]]) -> list[int]:
-    selected: list[dict[str, Any]] = []
-    selected_ids: set[int] = set()
-    for position, count in {"F": 10, "D": 4, "G": 1}.items():
-        candidates = sorted((player for player in roster if player["position"] == position), key=lambda player: player["overall"], reverse=True)
-        if len(candidates) < count:
-            return []
-        for player in candidates[:count]:
-            selected.append(player)
-            selected_ids.add(player["id"])
-    remaining = sorted((player for player in roster if player["id"] not in selected_ids), key=lambda player: player["overall"], reverse=True)
-    selected.extend(remaining[: 18 - len(selected)])
-    return [player["id"] for player in selected[:18]]
+from gm_bench.agent_utils import position_aware_lineup, public_asset_value
 
 
 def compact_observation(observation: dict[str, Any]) -> dict[str, Any]:
@@ -43,8 +25,8 @@ def compact_observation(observation: dict[str, Any]) -> dict[str, Any]:
         trade_limit = 12
     team = observation["team"]
     roster = sorted(team["roster"], key=lambda player: player["overall"], reverse=True)
-    free_agents = sorted(observation["free_agents"], key=public_value, reverse=True)
-    draft_class = sorted(observation["draft_class"], key=public_value, reverse=True)
+    free_agents = sorted(observation["free_agents"], key=public_asset_value, reverse=True)
+    draft_class = sorted(observation["draft_class"], key=public_asset_value, reverse=True)
     return {
         "seed": observation["seed"],
         "season": observation["season"],
@@ -155,7 +137,7 @@ def strip_terminal_codes(text: str) -> str:
 def fallback_actions(observation: dict[str, Any], error: str | None = None) -> list[dict[str, Any]]:
     actions: list[dict[str, Any]] = []
     if observation["phase"] == "draft" and observation["draft_class"]:
-        prospect = max(observation["draft_class"], key=public_value)
+        prospect = max(observation["draft_class"], key=public_asset_value)
         actions.append({"type": "draft", "prospect_id": prospect["id"]})
     lineup = position_aware_lineup(observation["team"]["roster"])
     if lineup:

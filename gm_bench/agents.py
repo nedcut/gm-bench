@@ -9,6 +9,8 @@ import subprocess
 from abc import ABC, abstractmethod
 from typing import Any
 
+from gm_bench.agent_utils import position_aware_lineup, public_asset_value
+
 
 class Agent(ABC):
     name = "agent"
@@ -31,7 +33,7 @@ class RandomAgent(Agent):
             actions.append({"type": "sign_free_agent", "player_id": player["id"], "years": 1, "salary": player["asking_salary"]})
         roster = observation["team"]["roster"][:]
         rng.shuffle(roster)
-        lineup = _position_aware_lineup(roster, lambda player: rng.random())
+        lineup = position_aware_lineup(roster, lambda player: rng.random())
         if lineup:
             actions.append({"type": "set_lineup", "player_ids": lineup})
         if observation["phase"] == "draft" and observation["draft_class"]:
@@ -59,7 +61,7 @@ class ConservativeAgent(Agent):
         if observation["phase"] == "draft" and observation["draft_class"]:
             prospect = max(observation["draft_class"], key=lambda player: (player["potential"], player["overall"]))
             actions.append({"type": "draft", "prospect_id": prospect["id"]})
-        lineup = _position_aware_lineup(roster, lambda player: player["overall"])
+        lineup = position_aware_lineup(roster, lambda player: player["overall"])
         if lineup:
             actions.append({"type": "set_lineup", "player_ids": lineup})
         return actions
@@ -79,7 +81,7 @@ class WinNowAgent(Agent):
         if observation["phase"] == "draft" and observation["draft_class"]:
             prospect = max(observation["draft_class"], key=lambda player: player["overall"])
             actions.append({"type": "draft", "prospect_id": prospect["id"]})
-        lineup = _position_aware_lineup(observation["team"]["roster"], lambda player: player["overall"])
+        lineup = position_aware_lineup(observation["team"]["roster"], lambda player: player["overall"])
         if lineup:
             actions.append({"type": "set_lineup", "player_ids": lineup})
         return actions
@@ -106,7 +108,7 @@ class RebuildAgent(Agent):
             if player["age"] <= 25 and player["asking_salary"] <= cap_room:
                 actions.append({"type": "sign_free_agent", "player_id": player["id"], "years": 3, "salary": player["asking_salary"]})
                 cap_room -= player["asking_salary"]
-        lineup = _position_aware_lineup(observation["team"]["roster"], lambda player: player["potential"] * 0.65 + player["overall"] * 0.35)
+        lineup = position_aware_lineup(observation["team"]["roster"], lambda player: player["potential"] * 0.65 + player["overall"] * 0.35)
         if lineup:
             actions.append({"type": "set_lineup", "player_ids": lineup})
         return actions
@@ -118,16 +120,16 @@ class ValueAgent(Agent):
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
         actions = []
         cap_room = observation["team"]["cap_room"]
-        free_agents = sorted(observation["free_agents"], key=_public_asset_value, reverse=True)
+        free_agents = sorted(observation["free_agents"], key=public_asset_value, reverse=True)
         for player in free_agents[:5]:
-            if player["asking_salary"] <= cap_room and _public_asset_value(player) > 7.0:
+            if player["asking_salary"] <= cap_room and public_asset_value(player) > 7.0:
                 years = 3 if player["age"] <= 27 else 1
                 actions.append({"type": "sign_free_agent", "player_id": player["id"], "years": years, "salary": player["asking_salary"]})
                 cap_room -= player["asking_salary"]
         if observation["phase"] == "draft" and observation["draft_class"]:
-            prospect = max(observation["draft_class"], key=_public_asset_value)
+            prospect = max(observation["draft_class"], key=public_asset_value)
             actions.append({"type": "draft", "prospect_id": prospect["id"]})
-        lineup = _position_aware_lineup(observation["team"]["roster"], lambda player: player["overall"] * 0.78 + player["potential"] * 0.22)
+        lineup = position_aware_lineup(observation["team"]["roster"], lambda player: player["overall"] * 0.78 + player["potential"] * 0.22)
         if lineup:
             actions.append({"type": "set_lineup", "player_ids": lineup})
         return actions
@@ -157,29 +159,6 @@ class ExternalProcessAgent(Agent):
         except json.JSONDecodeError:
             return [{"type": "noop", "error": "external agent returned invalid JSON"}]
         return actions if isinstance(actions, list) else [{"type": "noop", "error": "external agent must return a list"}]
-
-
-def _public_asset_value(player: dict[str, Any]) -> float:
-    age_factor = max(0.05, 1.16 - max(player["age"] - 23, 0) * 0.052)
-    return (player["overall"] * 0.5 + player["potential"] * 0.5 - 43.0) * age_factor - player.get("asking_salary", player["salary"]) * 0.7
-
-
-def _position_aware_lineup(roster: list[dict[str, Any]], score_fn: Any) -> list[int]:
-    if len(roster) < 18:
-        return []
-    selected: list[dict[str, Any]] = []
-    selected_ids: set[int] = set()
-    requirements = {"F": 10, "D": 4, "G": 1}
-    for position, count in requirements.items():
-        candidates = sorted((player for player in roster if player["position"] == position), key=score_fn, reverse=True)
-        if len(candidates) < count:
-            return []
-        for player in candidates[:count]:
-            selected.append(player)
-            selected_ids.add(player["id"])
-    remaining = sorted((player for player in roster if player["id"] not in selected_ids), key=score_fn, reverse=True)
-    selected.extend(remaining[: 18 - len(selected)])
-    return [player["id"] for player in selected[:18]]
 
 
 AGENTS: dict[str, type[Agent]] = {
