@@ -5,10 +5,17 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
+from pathlib import Path
 from typing import Any
 
-
-from gm_bench.agent_utils import position_aware_lineup, public_asset_value
+try:
+    from gm_bench.agent_utils import position_aware_lineup, public_asset_value
+except ModuleNotFoundError:
+    # Example agents run as standalone scripts (`python examples/claude_agent.py`),
+    # where only examples/ is on sys.path and gm-bench is not necessarily installed.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from gm_bench.agent_utils import position_aware_lineup, public_asset_value
 
 
 def compact_observation(observation: dict[str, Any]) -> dict[str, Any]:
