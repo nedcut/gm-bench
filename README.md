@@ -43,8 +43,10 @@ The GUI can:
 
 - Run built-in agents in `run`, `compare`, and `evaluate` modes.
 - Automatically log those runs into the SQLite database.
-- Show KPI totals for runs, episodes, best score, and illegal-action rate.
-- Browse the leaderboard, recent runs, and transaction audit feed.
+- Show KPI totals for runs, episodes, best score, mean score, and rejected-action rate.
+- Explain the latest run with candidate-vs-baseline lift, score, wins, titles, and illegal-action totals.
+- Compare aggregate agent standings by mean score, best score, score range, wins, titles, and legality.
+- Browse score history, the episode leaderboard, recent runs, and transaction audit feed.
 
 The GUI intentionally does not launch external model-backed agents yet; use the
 CLI for Codex, Claude, opencode, Ollama, and API-backed agents where cost and

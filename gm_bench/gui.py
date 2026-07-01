@@ -91,6 +91,9 @@ def dashboard_payload(db_path: Path) -> dict[str, Any]:
         "db_path": str(db_path),
         "agents": sorted(AGENTS),
         "metrics": dashboard_metrics(db_path),
+        "insights": dashboard_insights(db_path),
+        "agent_standings": agent_standings(db_path),
+        "score_history": score_history(db_path),
         "leaderboard": leaderboard(db_path),
         "runs": recent_runs(db_path),
         "transactions": recent_transactions(db_path),
@@ -99,15 +102,147 @@ def dashboard_payload(db_path: Path) -> dict[str, Any]:
 
 def dashboard_metrics(db_path: Path) -> dict[str, Any]:
     if not db_path.exists():
-        return {"runs": 0, "episodes": 0, "best_score": 0.0, "illegal_action_rate": 0.0}
+        return {
+            "runs": 0,
+            "episodes": 0,
+            "best_score": 0.0,
+            "mean_score": 0.0,
+            "illegal_action_rate": 0.0,
+            "best_agent": None,
+        }
     with sqlite3.connect(db_path) as connection:
         runs = connection.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
         episodes = connection.execute("SELECT COUNT(*) FROM episodes").fetchone()[0]
         best_score = connection.execute("SELECT COALESCE(MAX(final_score), 0) FROM episodes").fetchone()[0]
+        mean_score = connection.execute("SELECT COALESCE(AVG(final_score), 0) FROM episodes").fetchone()[0]
+        best_agent_row = connection.execute(
+            """
+            SELECT agent
+            FROM episodes
+            GROUP BY agent
+            ORDER BY AVG(final_score) DESC, COUNT(*) DESC
+            LIMIT 1
+            """
+        ).fetchone()
         actions = connection.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
         illegal = connection.execute("SELECT COUNT(*) FROM transactions WHERE accepted = 0").fetchone()[0]
     rate = (illegal / actions * 100.0) if actions else 0.0
-    return {"runs": runs, "episodes": episodes, "best_score": round(best_score, 3), "illegal_action_rate": round(rate, 2)}
+    return {
+        "runs": runs,
+        "episodes": episodes,
+        "best_score": round(best_score, 3),
+        "mean_score": round(mean_score, 3),
+        "illegal_action_rate": round(rate, 2),
+        "best_agent": best_agent_row[0] if best_agent_row else None,
+    }
+
+
+def dashboard_insights(db_path: Path) -> list[dict[str, Any]]:
+    if not db_path.exists():
+        return [
+            {
+                "title": "No results yet",
+                "detail": "Run a single agent, compare scripted baselines, or evaluate a candidate against the panel.",
+                "tone": "neutral",
+            }
+        ]
+
+    standings = agent_standings(db_path, limit=5)
+    metrics = dashboard_metrics(db_path)
+    insights: list[dict[str, Any]] = []
+
+    if standings:
+        leader = standings[0]
+        insights.append(
+            {
+                "title": f"{leader['agent']} leads the board",
+                "detail": f"Average score {leader['mean_score']:.3f} across {leader['episodes']} logged episode{'' if leader['episodes'] == 1 else 's'}.",
+                "tone": "good",
+            }
+        )
+    if len(standings) >= 2:
+        spread = standings[0]["mean_score"] - standings[1]["mean_score"]
+        insights.append(
+            {
+                "title": f"{spread:.3f} score gap to second",
+                "detail": f"{standings[0]['agent']} is ahead of {standings[1]['agent']} on mean final score.",
+                "tone": "neutral",
+            }
+        )
+    if metrics["illegal_action_rate"] > 0:
+        insights.append(
+            {
+                "title": f"{metrics['illegal_action_rate']:.2f}% rejected actions",
+                "detail": "Use the audit feed to inspect which decisions violated benchmark rules.",
+                "tone": "warn",
+            }
+        )
+    else:
+        insights.append(
+            {
+                "title": "No rejected actions logged",
+                "detail": "The current database has a clean legality record across accepted transaction traces.",
+                "tone": "good",
+            }
+        )
+    return insights[:3]
+
+
+def agent_standings(db_path: Path, limit: int = 12) -> list[dict[str, Any]]:
+    if not db_path.exists():
+        return []
+    with sqlite3.connect(db_path) as connection:
+        connection.row_factory = sqlite3.Row
+        rows = connection.execute(
+            """
+            SELECT
+                e.agent,
+                COUNT(*) AS episodes,
+                AVG(e.final_score) AS mean_score,
+                MIN(e.final_score) AS worst_score,
+                MAX(e.final_score) AS best_score,
+                AVG(e.wins) AS mean_wins,
+                SUM(e.championships) AS titles,
+                SUM(e.illegal_actions) AS illegal_actions,
+                MAX(r.created_at) AS last_run_at
+            FROM episodes e
+            JOIN runs r ON r.id = e.run_id
+            GROUP BY e.agent
+            ORDER BY mean_score DESC, episodes DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    standings: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        item["mean_score"] = round(float(item["mean_score"]), 3)
+        item["worst_score"] = round(float(item["worst_score"]), 3)
+        item["best_score"] = round(float(item["best_score"]), 3)
+        item["mean_wins"] = round(float(item["mean_wins"]), 2)
+        item["illegal_actions"] = int(item["illegal_actions"] or 0)
+        item["titles"] = int(item["titles"] or 0)
+        item["range"] = round(item["best_score"] - item["worst_score"], 3)
+        standings.append(item)
+    return standings
+
+
+def score_history(db_path: Path, limit: int = 24) -> list[dict[str, Any]]:
+    if not db_path.exists():
+        return []
+    with sqlite3.connect(db_path) as connection:
+        connection.row_factory = sqlite3.Row
+        rows = connection.execute(
+            """
+            SELECT e.agent, e.seed, e.final_score, e.wins, e.championships, r.created_at
+            FROM episodes e
+            JOIN runs r ON r.id = e.run_id
+            ORDER BY r.created_at DESC, e.id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    return [dict(row) for row in rows][::-1]
 
 
 def leaderboard(db_path: Path, limit: int = 10) -> list[dict[str, Any]]:
@@ -238,4 +373,3 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-

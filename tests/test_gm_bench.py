@@ -11,7 +11,7 @@ from examples.claude_agent import build_command as build_claude_command
 from examples.codex_agent import build_command as build_codex_command
 from examples.gm_agent_common import parse_actions
 from gm_bench.agents import ConservativeAgent, ValueAgent
-from gm_bench.gui import _parse_seeds, dashboard_payload, run_from_request
+from gm_bench.gui import _parse_seeds, agent_standings, dashboard_payload, run_from_request, score_history
 from gm_bench.runner import run_episode, run_many
 from gm_bench.simulator import League
 from gm_bench.storage import log_payload
@@ -111,7 +111,23 @@ def test_gui_backend_runs_and_logs_to_db(tmp_path: Path) -> None:
     assert payload["run_id"]
     assert dashboard["metrics"]["runs"] == 1
     assert dashboard["metrics"]["episodes"] == 1
+    assert dashboard["metrics"]["best_agent"] == "value"
+    assert dashboard["metrics"]["mean_score"] > 0
     assert dashboard["leaderboard"][0]["agent"] == "value"
+    assert dashboard["agent_standings"][0]["agent"] == "value"
+    assert dashboard["insights"]
+
+
+def test_gui_agent_standings_and_score_history(tmp_path: Path) -> None:
+    db_path = tmp_path / "gui.sqlite"
+    run_from_request({"mode": "compare", "agents": ["random", "value"], "seeds": "1-2", "seasons": 1}, db_path)
+    standings = agent_standings(db_path)
+    history = score_history(db_path)
+    assert {row["agent"] for row in standings} == {"random", "value"}
+    assert all(row["episodes"] == 2 for row in standings)
+    assert all("range" in row for row in standings)
+    assert len(history) == 4
+    assert {"agent", "seed", "final_score", "created_at"} <= set(history[0])
 
 
 def test_gui_parse_seed_ranges() -> None:
