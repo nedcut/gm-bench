@@ -47,6 +47,32 @@ def test_value_agent_beats_randomish_floor_on_small_panel() -> None:
     assert conservative["summary"]["illegal_actions"] == 0
 
 
+def test_external_agent_timeout_warns_when_too_low() -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "gm_bench",
+            "run",
+            "--agent-cmd",
+            "python3 examples/external_agent.py",
+            "--agent-timeout",
+            "5",
+            "--seeds",
+            "1",
+            "--seasons",
+            "1",
+            "--no-log",
+        ],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    )
+    assert "warning:" in completed.stderr.lower()
+    assert "agent-timeout" in completed.stderr.lower()
+
+
 def test_cli_json_run() -> None:
     completed = subprocess.run(
         [sys.executable, "-m", "gm_bench", "run", "--agent", "value", "--seeds", "1", "--seasons", "1", "--json", "--no-log"],
