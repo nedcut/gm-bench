@@ -12,7 +12,7 @@ from examples.claude_agent import build_command as build_claude_command
 from examples.codex_agent import build_command as build_codex_command
 from examples.gm_agent_common import parse_actions
 import gm_bench.runner as runner_module
-from gm_bench.agents import ConservativeAgent, ExternalProcessAgent, ValueAgent
+from gm_bench.agents import ExternalProcessAgent, RandomAgent, ValueAgent
 from gm_bench.gui import _parse_seeds, agent_standings, dashboard_payload, run_from_request, score_history
 from gm_bench.runner import evaluate_against_baselines, run_episode, run_many
 from gm_bench.simulator import League
@@ -117,9 +117,9 @@ def test_external_agent_timeout_warns_when_too_low(capsys: pytest.CaptureFixture
 
 def test_value_agent_beats_randomish_floor_on_small_panel() -> None:
     value = run_many(ValueAgent(), seeds=[1, 2], seasons=3)
-    conservative = run_many(ConservativeAgent(), seeds=[1, 2], seasons=3)
-    assert value["summary"]["mean_score"] > 0
-    assert conservative["summary"]["illegal_actions"] == 0
+    random = run_many(RandomAgent(), seeds=[1, 2], seasons=3)
+    assert value["summary"]["mean_score"] > random["summary"]["mean_score"]
+    assert value["summary"]["illegal_actions"] == 0
 
 
 def test_parallel_run_many_matches_sequential_results() -> None:
