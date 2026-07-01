@@ -11,6 +11,7 @@ import pytest
 from examples.claude_agent import build_command as build_claude_command
 from examples.codex_agent import build_command as build_codex_command
 from examples.gm_agent_common import parse_actions
+import gm_bench.runner as runner_module
 from gm_bench.agents import ConservativeAgent, ValueAgent
 from gm_bench.gui import _parse_seeds, agent_standings, dashboard_payload, run_from_request, score_history
 from gm_bench.runner import evaluate_against_baselines, run_episode, run_many
@@ -186,6 +187,29 @@ def test_paired_evaluation_reports_per_seed_lift_and_ci() -> None:
         baseline["agent"]: mean(ep["final_score"] for ep in baseline["episodes"]) for baseline in result["baselines"]
     }
     assert paired["best_baseline"]["agent"] == max(baseline_means, key=baseline_means.get)
+
+
+def test_evaluation_lift_uses_precise_episode_scores(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run_many(agent: object, seeds: list[int], seasons: int) -> dict[str, object]:
+        del seasons
+        if getattr(agent, "name") == "value":
+            scores = [1.0004 for _ in seeds]
+            summary_score = 1.0
+        else:
+            scores = [0.9996 for _ in seeds]
+            summary_score = 1.0
+        return {
+            "agent": getattr(agent, "name"),
+            "summary": {"mean_score": summary_score, "illegal_actions": 0},
+            "episodes": [{"seed": seed, "final_score": score} for seed, score in zip(seeds, scores, strict=True)],
+        }
+
+    monkeypatch.setattr(runner_module, "run_many", fake_run_many)
+
+    result = evaluate_against_baselines(ValueAgent(), seeds=[1, 2], seasons=1, baseline_names=["random"])
+
+    assert result["normalized"]["score_lift"] == pytest.approx(0.001)
+    assert result["paired"]["paired_lift_mean"] == pytest.approx(result["normalized"]["score_lift"])
 
 
 def test_cli_evaluate_prints_paired_section() -> None:

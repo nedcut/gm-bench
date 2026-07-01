@@ -77,9 +77,9 @@ def evaluate_against_baselines(
     baselines = baseline_names or ["random", "conservative", "win-now", "rebuild", "value"]
     candidate = run_many(agent, seeds=seeds, seasons=seasons)
     baseline_results = [run_many(AGENTS[name](), seeds=seeds, seasons=seasons) for name in baselines]
-    baseline_scores = [result["summary"]["mean_score"] for result in baseline_results]
+    baseline_scores = [_precise_mean_score(result) for result in baseline_results]
     baseline_mean = mean(baseline_scores) if baseline_scores else 0.0
-    candidate_mean = candidate["summary"]["mean_score"]
+    candidate_mean = _precise_mean_score(candidate)
     return {
         "agent": agent.name,
         "seasons": seasons,
