@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gm-bench.dev/schemas/gm_action_list.schema.json",
+  "title": "GM-Bench Action List",
+  "description": "JSON array written to stdout by external agents (stdin/stdout protocol).",
+  "type": "array",
+  "maxItems": 24,
+  "items": { "$ref": "#/$defs/action" },
+  "$defs": {
+    "action": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["sign_free_agent", "release", "trade", "draft", "set_lineup", "noop"]
+        },
+        "player_id": { "type": "integer" },
+        "player_ids": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 18,
+          "maxItems": 18
+        },
+        "prospect_id": { "type": "integer" },
+        "partner_team_id": { "type": "integer" },
+        "give_player_ids": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 1
+        },
+        "receive_player_ids": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 1
+        },
+        "years": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "salary": { "type": "number", "minimum": 0 },
+        "error": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "sign_free_agent" } } },
+          "then": { "required": ["player_id", "years", "salary"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "release" } } },
+          "then": { "required": ["player_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "trade" } } },
+          "then": { "required": ["partner_team_id", "give_player_ids", "receive_player_ids"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "draft" } } },
+          "then": { "required": ["prospect_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "set_lineup" } } },
+          "then": { "required": ["player_ids"] }
+        }
+      ]
+    }
+  }
+}

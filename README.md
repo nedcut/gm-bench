@@ -74,6 +74,12 @@ Invalid actions are ignored and penalized. Observations intentionally include
 noisy public ratings, not hidden true potential, so agents must reason under
 uncertainty.
 
+JSON Schema definitions for the protocol live in `schemas/`:
+
+- `gm_observation.schema.json` — observation sent to agents
+- `gm_action_list.schema.json` — action array on stdout
+- `gm_actions.schema.json` — structured wrapper for Codex/Claude adapters
+
 ## Evaluation
 
 Use `evaluate` for benchmark-style scoring. It runs the candidate and a baseline

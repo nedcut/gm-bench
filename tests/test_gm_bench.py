@@ -154,6 +154,33 @@ def test_coding_agent_schema_exists() -> None:
     assert "draft" in payload["properties"]["actions"]["items"]["properties"]["type"]["enum"]
 
 
+def test_protocol_schemas_exist_and_are_valid_json() -> None:
+    for name in ("gm_observation.schema.json", "gm_action_list.schema.json", "gm_actions.schema.json"):
+        payload = json.loads((Path("schemas") / name).read_text())
+        assert "$schema" in payload
+
+
+def test_sample_observation_matches_protocol_shape() -> None:
+    league = League.new(seed=42)
+    observation = league.observation("preseason")
+    required = {
+        "benchmark",
+        "seed",
+        "season",
+        "phase",
+        "rules",
+        "team",
+        "standings",
+        "free_agents",
+        "draft_class",
+        "trade_market",
+        "history",
+        "recent_transactions",
+    }
+    assert required <= set(observation)
+    assert "true_potential" not in json.dumps(observation)
+
+
 def test_coding_agent_commands_are_non_interactive() -> None:
     codex_command = build_codex_command()
     claude_command = build_claude_command('{"actions":[{"type":"noop"}]}')
