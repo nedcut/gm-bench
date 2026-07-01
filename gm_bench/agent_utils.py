@@ -5,8 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-LINEUP_SIZE = 18
-LINEUP_MIN_POSITIONS: dict[str, int] = {"F": 10, "D": 4, "G": 1}
+from gm_bench.models import LINEUP_MIN_POSITIONS, LINEUP_SIZE
 
 
 def public_asset_value(player: dict[str, Any]) -> float:
