@@ -109,16 +109,34 @@
       }
     },
     "free_agent": {
-      "allOf": [
-        { "$ref": "#/$defs/player" },
-        {
-          "type": "object",
-          "required": ["asking_salary"],
-          "properties": {
-            "asking_salary": { "type": "number", "minimum": 0 }
-          }
-        }
-      ]
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "position",
+        "age",
+        "overall",
+        "potential",
+        "salary",
+        "contract_years",
+        "injury_risk",
+        "morale",
+        "asking_salary"
+      ],
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": "string" },
+        "position": { "type": "string", "enum": ["F", "D", "G"] },
+        "age": { "type": "integer", "minimum": 16 },
+        "overall": { "type": "number" },
+        "potential": { "type": "number" },
+        "salary": { "type": "number", "minimum": 0 },
+        "contract_years": { "type": "integer", "minimum": 0 },
+        "injury_risk": { "type": "number", "minimum": 0, "maximum": 1 },
+        "morale": { "type": "number" },
+        "asking_salary": { "type": "number", "minimum": 0 }
+      }
     },
     "team": {
       "type": "object",

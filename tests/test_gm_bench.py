@@ -181,6 +181,16 @@ def test_sample_observation_matches_protocol_shape() -> None:
     assert "true_potential" not in json.dumps(observation)
 
 
+def test_sample_observation_validates_against_schema() -> None:
+    jsonschema = pytest.importorskip("jsonschema")
+    league = League.new(seed=42)
+    observation = league.observation("preseason")
+    schema = json.loads(Path("schemas/gm_observation.schema.json").read_text())
+
+    jsonschema.Draft202012Validator.check_schema(schema)
+    jsonschema.validate(observation, schema)
+
+
 def test_coding_agent_commands_are_non_interactive() -> None:
     codex_command = build_codex_command()
     claude_command = build_claude_command('{"actions":[{"type":"noop"}]}')
