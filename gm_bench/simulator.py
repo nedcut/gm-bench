@@ -289,17 +289,28 @@ class League:
         for team in self.teams.values():
             if team.id == self.user_team_id:
                 continue
-            candidates = sorted((self.players[player_id] for player_id in team.roster), key=lambda player: player.asset_value)
+            candidates = sorted(
+                (self.players[player_id] for player_id in team.roster),
+                key=self._public_trade_estimate,
+            )
             for player in candidates[:2]:
                 market.append(
                     {
                         "team_id": team.id,
                         "team_name": team.name,
                         "player": player.public_dict(),
-                        "estimated_price": round(player.asset_value / 0.78, 2),
+                        "estimated_price": self._public_trade_estimate(player),
                     }
                 )
         return sorted(market, key=lambda item: item["estimated_price"])[:24]
+
+    @staticmethod
+    def _public_trade_estimate(player: Player) -> float:
+        """Noisy public trade valuation using only visible player attributes."""
+        age_factor = max(0.05, 1.14 - max(player.age - 23, 0) * 0.05)
+        public_skill = player.overall * 0.55 + player.potential * 0.45
+        contract_drag = player.salary * 0.55 if player.salary > 0 else 0.0
+        return round(max(1.0, (public_skill - 44.0) * age_factor - contract_drag), 2)
 
     def _team_strength(self, team: Team, apply_injury_noise: bool, rng: random.Random | None = None) -> float:
         lineup = sorted((self.players[player_id] for player_id in team.roster), key=lambda player: player.overall, reverse=True)[:18]

@@ -47,6 +47,17 @@ def test_value_agent_beats_randomish_floor_on_small_panel() -> None:
     assert conservative["summary"]["illegal_actions"] == 0
 
 
+def test_trade_market_uses_public_estimates_not_hidden_asset_value() -> None:
+    league = League.new(seed=17)
+    market = league.observation("trade_deadline")["trade_market"]
+    encoded = json.dumps(market)
+    assert "asset_value" not in encoded
+    assert "true_potential" not in encoded
+    for offer in market:
+        player = league.players[offer["player"]["id"]]
+        assert offer["estimated_price"] == League._public_trade_estimate(player)
+
+
 def test_cli_json_run() -> None:
     completed = subprocess.run(
         [sys.executable, "-m", "gm_bench", "run", "--agent", "value", "--seeds", "1", "--seasons", "1", "--json", "--no-log"],
