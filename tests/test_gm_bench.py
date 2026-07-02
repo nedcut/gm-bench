@@ -317,8 +317,10 @@ def test_paired_evaluation_reports_per_seed_lift_and_ci() -> None:
     assert [row["seed"] for row in paired["per_seed"]] == seeds
     # The panel lift is exactly the average of the per-seed paired lifts.
     assert paired["paired_lift_mean"] == pytest.approx(mean(row["lift"] for row in paired["per_seed"]), abs=1e-3)
-    # And it must agree with the unpaired panel lift on shared seeds.
-    assert paired["paired_lift_mean"] == pytest.approx(result["normalized"]["score_lift"], abs=1e-3)
+    # And it must agree with the unpaired panel lift on shared seeds. Both values
+    # are independently rounded to 3 decimals, so they may differ by one ulp of
+    # that rounding (0.001) even though the underlying quantity is identical.
+    assert paired["paired_lift_mean"] == pytest.approx(result["normalized"]["score_lift"], abs=2e-3)
     low, high = paired["paired_lift_ci95"]
     assert low <= paired["paired_lift_mean"] <= high
     assert 0.0 <= paired["candidate_seed_win_rate"] <= 1.0
@@ -342,7 +344,12 @@ def test_evaluation_lift_uses_precise_episode_scores(monkeypatch: pytest.MonkeyP
             summary_score = 1.0
         return {
             "agent": getattr(agent, "name"),
-            "summary": {"mean_score": summary_score, "illegal_actions": 0},
+            "summary": {
+                "mean_score": summary_score,
+                "mean_strategy_score": summary_score,
+                "total_protocol_penalty": 0.0,
+                "illegal_actions": 0,
+            },
             "episodes": [{"seed": seed, "final_score": score} for seed, score in zip(seeds, scores, strict=True)],
         }
 

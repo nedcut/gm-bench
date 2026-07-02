@@ -9,11 +9,26 @@ The MVP includes:
 
 - A seeded league simulator with aging, development, injuries, contracts,
   salary-cap pressure, free agency, trades, drafts, playoffs, and team standings.
-- Baseline agents: random, conservative, win-now, rebuild, and value-model.
+- Lineups that matter: the players you dress set team strength, and only
+  dressed young players develop at full speed.
+- A competitive draft: opponents pick in inverse-standings order, so top
+  prospects are gone before a strong team's turn.
+- Competitive free agency: opponent front offices act after every phase, fill
+  roster needs, and grab standout free agents (waiving their weakest player
+  to make room), so waiting on a signing carries real risk.
+- A realistic trade market: partners privately re-value players each season,
+  accept a limited number of trades, and rosters cannot be stripped below the
+  league minimum. At the trade deadline, opponents also make one-for-one
+  trades among themselves, visible in the transaction feed.
+- Baseline agents: random, conservative, win-now, rebuild, value, and a
+  red-team `exploit` canary that replays known-degenerate strategies.
 - A scoring model that rewards wins, championships, future assets, prospects,
-  and cap health while penalizing illegal or wasteful management.
+  and cap health, reported as a strategy score with protocol (invalid-action)
+  penalties broken out separately.
 - A CLI runner for single-agent runs and baseline comparisons.
-- An external-process protocol for plugging in LLM agents.
+- An external-process protocol for plugging in LLM agents, including a
+  persistent `memo` scratchpad for carrying multi-season plans between
+  decision points.
 
 ## Quickstart
 
@@ -68,11 +83,34 @@ Each action is an object:
 {"type": "trade", "partner_team_id": 3, "give_player_ids": [11], "receive_player_ids": [87]}
 {"type": "draft", "prospect_id": 9001}
 {"type": "set_lineup", "player_ids": [1, 2, 3, 4, 5, 6]}
+{"type": "memo", "text": "rebuild through season 3, then spend cap room"}
 ```
 
 Invalid actions are ignored and penalized. Observations intentionally include
 noisy public ratings, not hidden true potential, so agents must reason under
-uncertainty.
+uncertainty. Trade acceptance additionally uses hidden per-partner valuation
+noise (re-rolled each season), so offers can only be estimated, not solved.
+
+Key mechanics agents should know:
+
+- `set_lineup` chooses the 18 players who actually dress. It drives team
+  strength directly, and players outside the lineup develop at half speed.
+  Stale lineups (after trades or expiring contracts) are repaired
+  automatically at simulation time.
+- Each opponent accepts at most `trade_limit_per_partner` trades per season,
+  and no trade may shrink a roster below `roster_min`.
+- Opponents draft in inverse-standings order around your slot, so the draft
+  class you see at your pick already reflects earlier selections.
+- Opponent front offices act after every phase: they sign free agents (both
+  to fill needs and to poach clear upgrades) and swap players among
+  themselves at the trade deadline. A free agent visible now may be gone at
+  the next decision point, and opponent trades appear in
+  `recent_transactions` as market signal.
+- `memo` stores up to 2000 characters that are echoed back in every future
+  observation — the only state that persists across decision points for
+  stateless external agents. `text` must be a JSON string; a null or missing
+  `text` (allowed by the structured-output wrapper schema, where every field
+  is nullable) is rejected as an invalid action.
 
 JSON Schema definitions for the protocol live in `schemas/`:
 
@@ -86,6 +124,9 @@ Use `evaluate` for benchmark-style scoring. It runs the candidate and a baseline
 panel on the same seeds, then reports:
 
 - `candidate_mean_score`: the raw objective score.
+- `candidate_mean_strategy_score` / `candidate_protocol_penalty`: the score
+  split into roster-management quality and invalid-action penalties, so
+  strategy skill is not conflated with JSON discipline.
 - `baseline_panel_mean_score`: the mean score of selected scripted baselines.
 - `score_lift`: candidate score minus the baseline-panel score.
 - `score_lift_pct`: percent lift over the baseline panel.
@@ -300,6 +341,17 @@ allocation, numeric reasoning, uncertainty management, and coherent memory over
 multi-season episodes. It avoids GUI automation and avoids real player names so
 evaluation focuses on decision quality rather than browser-control reliability
 or memorized sports data.
+
+Multi-season coherence is testable in practice because external agents are
+stateless between decision points: the `memo` action is the only channel for
+carrying a plan forward, so agents that form and follow multi-season plans are
+distinguishable from agents that re-derive greedy moves each call.
+
+The `exploit` baseline exists to keep the benchmark honest. It replays the
+degenerate strategies that used to dominate (trade value-pumping and free-agent
+hoarding); a regression test asserts it stays below the honest `value`
+baseline, so any rules change that re-opens an exploit fails CI instead of
+silently inflating scores.
 
 See [docs/benchmark_spec.md](docs/benchmark_spec.md) for the MVP design,
 landscape notes, and suggested next steps. See

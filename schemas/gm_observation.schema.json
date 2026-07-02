@@ -15,9 +15,11 @@
     "standings",
     "free_agents",
     "draft_class",
+    "draft_order",
     "trade_market",
     "history",
-    "recent_transactions"
+    "recent_transactions",
+    "memo"
   ],
   "properties": {
     "benchmark": { "type": "string", "const": "gm-bench-mvp" },
@@ -27,9 +29,18 @@
     "rules": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["salary_cap", "roster_min", "lineup_size", "lineup_min_positions", "trade_value_threshold"],
+      "required": [
+        "salary_cap",
+        "hard_cap_buffer",
+        "roster_min",
+        "lineup_size",
+        "lineup_min_positions",
+        "trade_value_threshold",
+        "trade_limit_per_partner"
+      ],
       "properties": {
         "salary_cap": { "type": "number" },
+        "hard_cap_buffer": { "type": "number", "minimum": 0 },
         "roster_min": { "type": "integer", "minimum": 1 },
         "lineup_size": { "type": "integer", "minimum": 1 },
         "lineup_min_positions": {
@@ -41,7 +52,8 @@
             "G": { "type": "integer", "minimum": 0 }
           }
         },
-        "trade_value_threshold": { "type": "number", "minimum": 0, "maximum": 1 }
+        "trade_value_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "trade_limit_per_partner": { "type": "integer", "minimum": 0 }
       }
     },
     "team": { "$ref": "#/$defs/team" },
@@ -57,6 +69,11 @@
       "type": "array",
       "items": { "$ref": "#/$defs/player" }
     },
+    "draft_order": {
+      "description": "Team ids with a current-season pick remaining, in pick order (worst record first).",
+      "type": "array",
+      "items": { "type": "integer" }
+    },
     "trade_market": {
       "type": "array",
       "items": { "$ref": "#/$defs/trade_offer" }
@@ -68,6 +85,11 @@
     "recent_transactions": {
       "type": "array",
       "items": { "$ref": "#/$defs/transaction" }
+    },
+    "memo": {
+      "description": "The agent's own persistent scratchpad, set via the memo action and echoed back at every decision point.",
+      "type": "string",
+      "maxLength": 2000
     }
   },
   "$defs": {
@@ -144,6 +166,7 @@
         "payroll",
         "cap_room",
         "draft_picks",
+        "lineup",
         "roster"
       ],
       "properties": {
@@ -160,6 +183,11 @@
         "draft_picks": {
           "type": "object",
           "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "lineup": {
+          "description": "Player ids most recently set via set_lineup; empty until first set. Stale entries are repaired at simulation time.",
+          "type": "array",
+          "items": { "type": "integer" }
         },
         "roster": {
           "type": "array",

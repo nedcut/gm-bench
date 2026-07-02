@@ -31,10 +31,22 @@ def main() -> None:
     lineup = position_aware_lineup(observation["team"]["roster"])
     if lineup:
         actions.append({"type": "set_lineup", "player_ids": lineup})
+
+    # Demonstrate the persistent scratchpad: the previous memo arrives in the
+    # observation, and the new one is echoed back at the next decision point.
+    signings = sum(1 for action in actions if action["type"] == "sign_free_agent")
+    actions.append(
+        {
+            "type": "memo",
+            "text": f"season {observation['season']} {observation['phase']}: signed {signings} free agents",
+        }
+    )
     print(json.dumps(actions))
 
 
 def position_aware_lineup(roster):
+    if len(roster) < 18:
+        return []
     selected = []
     selected_ids = set()
     for position, count in {"F": 10, "D": 4, "G": 1}.items():

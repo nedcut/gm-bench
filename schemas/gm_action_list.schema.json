@@ -14,7 +14,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["sign_free_agent", "release", "trade", "draft", "set_lineup", "noop"]
+          "enum": ["sign_free_agent", "release", "trade", "draft", "set_lineup", "memo", "noop"]
         },
         "player_id": { "type": "integer" },
         "player_ids": {
@@ -37,6 +37,7 @@
         },
         "years": { "type": "integer", "minimum": 1, "maximum": 5 },
         "salary": { "type": "number", "minimum": 0 },
+        "text": { "type": "string", "maxLength": 2000 },
         "error": { "type": "string" }
       },
       "allOf": [
@@ -59,6 +60,10 @@
         {
           "if": { "properties": { "type": { "const": "set_lineup" } } },
           "then": { "required": ["player_ids"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "memo" } } },
+          "then": { "required": ["text"] }
         }
       ]
     }

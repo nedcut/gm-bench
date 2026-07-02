@@ -10,7 +10,7 @@ from statistics import mean, pstdev
 from typing import Any
 
 from gm_bench.agents import AGENTS, Agent
-from gm_bench.scoring import score_team
+from gm_bench.scoring import score_breakdown
 from gm_bench.simulator import League
 
 
@@ -20,6 +20,8 @@ class BenchmarkResult:
     seed: int
     seasons: int
     final_score: float
+    strategy_score: float
+    protocol_penalty: float
     wins: int
     championships: int
     illegal_actions: int
@@ -31,18 +33,23 @@ def run_episode(agent: Agent, seed: int, seasons: int = 5, user_team_id: int = 0
     league = League.new(seed=seed, user_team_id=user_team_id)
     for _ in range(seasons):
         for phase in ["preseason", "trade_deadline", "draft"]:
+            if phase == "draft":
+                league.run_opponent_draft(before_user=True)
             observation = league.observation(phase)
             actions = agent.act(observation)
             league.apply_actions(actions, phase)
-            if phase == "preseason":
-                league.run_autopilot_opponents()
+            if phase == "draft":
+                league.run_opponent_draft(before_user=False)
+            league.run_autopilot_opponents(phase)
         league.simulate_season()
-    final_score = score_team(league, user_team_id)
+    breakdown = score_breakdown(league, user_team_id)
     return BenchmarkResult(
         agent=agent.name,
         seed=seed,
         seasons=seasons,
-        final_score=round(final_score, 3),
+        final_score=round(breakdown["final_score"], 3),
+        strategy_score=round(breakdown["strategy_score"], 3),
+        protocol_penalty=round(breakdown["protocol_penalty"], 3),
         wins=sum(summary.wins for summary in league.summaries),
         championships=league.user_team.championships,
         illegal_actions=league.illegal_actions,
@@ -67,6 +74,8 @@ def run_many(agent: Agent, seeds: list[int], seasons: int = 5, workers: int | No
         "episodes": [result.__dict__ for result in results],
         "summary": {
             "mean_score": round(mean(scores), 3) if scores else 0.0,
+            "mean_strategy_score": round(mean(result.strategy_score for result in results), 3) if results else 0.0,
+            "total_protocol_penalty": round(sum(result.protocol_penalty for result in results), 3),
             "score_stddev": round(pstdev(scores), 3) if len(scores) > 1 else 0.0,
             "mean_total_wins": round(mean(wins), 3) if wins else 0.0,
             "championships": sum(result.championships for result in results),
@@ -95,7 +104,17 @@ def evaluate_against_baselines(
         "baselines": baseline_results,
         "normalized": {
             "candidate_mean_score": round(candidate_mean, 3),
+            "candidate_mean_strategy_score": candidate["summary"]["mean_strategy_score"],
+            "candidate_protocol_penalty": candidate["summary"]["total_protocol_penalty"],
             "baseline_panel_mean_score": round(baseline_mean, 3),
+            "baseline_panel_mean_strategy_score": round(
+                mean(result["summary"]["mean_strategy_score"] for result in baseline_results), 3
+            )
+            if baseline_results
+            else 0.0,
+            "baseline_panel_total_protocol_penalty": round(
+                sum(result["summary"]["total_protocol_penalty"] for result in baseline_results), 3
+            ),
             "score_lift": round(candidate_mean - baseline_mean, 3),
             "score_lift_pct": round(((candidate_mean / baseline_mean) - 1.0) * 100.0, 2) if baseline_mean else 0.0,
             "candidate_illegal_actions": candidate["summary"]["illegal_actions"],
