@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import random
 import shlex
 import subprocess
@@ -241,11 +242,25 @@ class ExploitAgent(Agent):
 class ExternalProcessAgent(Agent):
     name = "external"
 
-    def __init__(self, command: str, timeout_seconds: float = 10.0) -> None:
+    def __init__(
+        self,
+        command: str,
+        timeout_seconds: float = 10.0,
+        *,
+        env: dict[str, str] | None = None,
+        name: str | None = None,
+    ) -> None:
         self.command = command
         self.timeout_seconds = timeout_seconds
+        self.env = env
+        if name is not None:
+            self.name = name
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        run_env = None
+        if self.env:
+            run_env = os.environ.copy()
+            run_env.update(self.env)
         try:
             completed = subprocess.run(
                 shlex.split(self.command),
@@ -255,6 +270,7 @@ class ExternalProcessAgent(Agent):
                 stderr=subprocess.PIPE,
                 timeout=self.timeout_seconds,
                 check=False,
+                env=run_env,
             )
         except subprocess.TimeoutExpired:
             return [{"type": "noop", "error": f"external agent timed out after {self.timeout_seconds}s"}]

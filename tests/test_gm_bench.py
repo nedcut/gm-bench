@@ -334,8 +334,8 @@ def test_paired_evaluation_reports_per_seed_lift_and_ci() -> None:
 
 
 def test_evaluation_lift_uses_precise_episode_scores(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fake_run_many(agent: object, seeds: list[int], seasons: int) -> dict[str, object]:
-        del seasons
+    def fake_run_many(agent: object, seeds: list[int], seasons: int, **kwargs: object) -> dict[str, object]:
+        del seasons, kwargs
         if getattr(agent, "name") == "value":
             scores = [1.0004 for _ in seeds]
             summary_score = 1.0
@@ -355,7 +355,9 @@ def test_evaluation_lift_uses_precise_episode_scores(monkeypatch: pytest.MonkeyP
 
     monkeypatch.setattr(runner_module, "run_many", fake_run_many)
 
-    result = evaluate_against_baselines(ValueAgent(), seeds=[1, 2], seasons=1, baseline_names=["random"])
+    result = evaluate_against_baselines(
+        ValueAgent(), seeds=[1, 2], seasons=1, baseline_names=["random"], use_baseline_cache=False
+    )
 
     assert result["normalized"]["score_lift"] == pytest.approx(0.001)
     assert result["paired"]["paired_lift_mean"] == pytest.approx(result["normalized"]["score_lift"])

@@ -1,0 +1,9 @@
+{
+  "preset": "smoke",
+  "provider": "openai",
+  "model": "gpt-4.1-mini",
+  "command": "evaluate",
+  "profile": "compact",
+  "verbose": false,
+  "json": false
+}
