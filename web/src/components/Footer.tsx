@@ -2,7 +2,7 @@ import type { Snapshot } from "../types";
 import { Logo } from "./Nav";
 
 export default function Footer({ snapshot }: { snapshot: Snapshot }) {
-  const generated = new Date(snapshot.generated_at);
+  const { config } = snapshot;
   return (
     <footer className="footer">
       <div className="shell footer-inner">
@@ -18,8 +18,8 @@ export default function Footer({ snapshot }: { snapshot: Snapshot }) {
           <a href="#quickstart">Quickstart</a>
         </div>
         <span>
-          reference results generated{" "}
-          {generated.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+          reference snapshot · {config.candidate} vs {config.baselines.join(", ")} · seeds{" "}
+          {config.seeds.join(" ")} × {config.seasons} seasons
         </span>
       </div>
     </footer>

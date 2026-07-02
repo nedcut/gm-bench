@@ -49,15 +49,6 @@ export interface StandingRow {
   worst_score: number;
 }
 
-export interface EpisodeRow {
-  agent: string;
-  seed: number;
-  final_score: number;
-  wins: number;
-  championships: number;
-  illegal_actions: number;
-}
-
 export interface SeasonRow {
   season: number;
   wins: number;
@@ -77,12 +68,10 @@ export interface SampleTransaction {
 }
 
 export interface Snapshot {
-  generated_at: string;
   config: SnapshotConfig;
   normalized: Normalized;
   paired: Paired;
   standings: StandingRow[];
-  episodes: EpisodeRow[];
   season_trace: {
     agent: string;
     seed: number;

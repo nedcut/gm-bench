@@ -14,7 +14,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -29,9 +28,7 @@ CANDIDATE = "value"
 
 
 def build_snapshot(seeds: list[int], seasons: int) -> dict:
-    evaluation = evaluate_against_baselines(
-        AGENTS[CANDIDATE](), seeds=seeds, seasons=seasons, baseline_names=BASELINES
-    )
+    evaluation = evaluate_against_baselines(AGENTS[CANDIDATE](), seeds=seeds, seasons=seasons, baseline_names=BASELINES)
 
     all_results = [evaluation["candidate"], *evaluation["baselines"]]
     standings = sorted(
@@ -50,23 +47,6 @@ def build_snapshot(seeds: list[int], seasons: int) -> dict:
             for result in all_results
         ),
         key=lambda row: row["mean_score"],
-        reverse=True,
-    )
-
-    episodes = sorted(
-        (
-            {
-                "agent": result["agent"],
-                "seed": episode["seed"],
-                "final_score": episode["final_score"],
-                "wins": episode["wins"],
-                "championships": episode["championships"],
-                "illegal_actions": episode["illegal_actions"],
-            }
-            for result in all_results
-            for episode in result["episodes"]
-        ),
-        key=lambda row: row["final_score"],
         reverse=True,
     )
 
@@ -98,7 +78,6 @@ def build_snapshot(seeds: list[int], seasons: int) -> dict:
     ]
 
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "config": {
             "candidate": CANDIDATE,
             "baselines": BASELINES,
@@ -108,7 +87,6 @@ def build_snapshot(seeds: list[int], seasons: int) -> dict:
         "normalized": evaluation["normalized"],
         "paired": evaluation["paired"],
         "standings": standings,
-        "episodes": episodes[:12],
         "season_trace": {
             "agent": CANDIDATE,
             "seed": seeds[0],

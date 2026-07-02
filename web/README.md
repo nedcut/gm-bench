@@ -35,4 +35,4 @@ python web/scripts/export_snapshot.py --seeds 1 2 3 4 5 --seasons 5
 ```
 
 Because the simulator is seeded, the same arguments always reproduce the same
-snapshot.
+snapshot bytes (no wall-clock timestamps in the export).

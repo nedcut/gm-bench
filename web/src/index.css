@@ -276,6 +276,15 @@ code {
   background: var(--accent-dim);
 }
 
+.hero-stats-label {
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
 .hero-stats {
   display: flex;
   flex-wrap: wrap;

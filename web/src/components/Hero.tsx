@@ -32,6 +32,9 @@ export default function Hero({ snapshot }: { snapshot: Snapshot }) {
               Read the protocol
             </a>
           </div>
+          <div className="hero-stats-label">
+            Scripted reference baseline · {config.candidate} vs {config.baselines.join(", ")}
+          </div>
           <div className="hero-stats">
             <div className="hero-stat">
               <strong>+{fmt(normalized.score_lift_pct, 0)}%</strong>
@@ -87,6 +90,17 @@ export default function Hero({ snapshot }: { snapshot: Snapshot }) {
             <span className="t-key">"partner_team_id"</span>
             <span className="t-out">: </span>
             <span className="t-num">3</span>
+            <span className="t-out">, </span>
+            <span className="t-key">"give_player_ids"</span>
+            <span className="t-out">: </span>
+            <span className="t-out">[</span>
+            <span className="t-num">11</span>
+            <span className="t-out">], </span>
+            <span className="t-key">"receive_player_ids"</span>
+            <span className="t-out">: </span>
+            <span className="t-out">[</span>
+            <span className="t-num">87</span>
+            <span className="t-out">]</span>
             <span className="t-out">{"}"},</span>
             {"\n  "}
             <span className="t-out">{"{"}</span>
@@ -97,6 +111,16 @@ export default function Hero({ snapshot }: { snapshot: Snapshot }) {
             <span className="t-key">"prospect_id"</span>
             <span className="t-out">: </span>
             <span className="t-num">9001</span>
+            <span className="t-out">{"}"},</span>
+            {"\n  "}
+            <span className="t-out">{"{"}</span>
+            <span className="t-key">"type"</span>
+            <span className="t-out">: </span>
+            <span className="t-str">"memo"</span>
+            <span className="t-out">, </span>
+            <span className="t-key">"text"</span>
+            <span className="t-out">: </span>
+            <span className="t-str">"target playoff spot; revisit D depth"</span>
             <span className="t-out">{"}"}</span>
             {"\n"}
             <span className="t-out">{"]"}</span>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const BASELINE_CMDS = `# clone and run — no dependencies beyond Python 3.10+
+const BASELINE_CMDS = `# clone and run — Python 3.11+ required
 python -m gm_bench run --agent value \\
     --seeds 1 2 3 --seasons 5
 

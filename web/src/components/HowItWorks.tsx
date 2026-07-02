@@ -4,24 +4,24 @@ const PHASES = [
   {
     num: "01 · preseason",
     title: "Build the roster",
-    body: "Sign free agents under a hard salary cap, set the opening lineup, and balance veterans against prospects. Public ratings are noisy — true potential stays hidden.",
+    body: "Sign free agents under a hard salary cap, dress an 18-player lineup, and balance veterans against prospects. Rivals compete for the same pool — a free agent visible now may be gone next phase.",
   },
   {
     num: "02 · trade deadline",
     title: "Trade under pressure",
-    body: "Swap players and picks with eleven autopilot rivals mid-season. Win-now buyers pay premiums; rebuilders stockpile futures. Illegal proposals are rejected and penalized.",
+    body: "Swap players with eleven AI rivals mid-season. Partners apply hidden valuation noise each season, so what looked fair in preseason may fail at the deadline. Illegal proposals are rejected and penalized.",
   },
   {
     num: "03 · draft",
     title: "Invest in the future",
-    body: "Spend draft capital on a seeded prospect class, then watch aging, development, and injuries play out across the season simulation and playoffs.",
+    body: "Spend draft capital on a seeded prospect class while opponents pick in inverse-standings order. Aging, development, and injuries play out across the season simulation and playoffs.",
   },
 ];
 
 const PROTO_POINTS = [
   {
     title: "Observation on stdin",
-    body: "One JSON object per decision point: roster, cap room, standings, free agents, trade candidates, and the prospect board.",
+    body: "One JSON object per decision point: your team (roster, lineup, cap room), standings, free agents, draft class, trade market, recent transactions, and your memo scratchpad.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16" />
@@ -30,7 +30,7 @@ const PROTO_POINTS = [
   },
   {
     title: "Actions on stdout",
-    body: "Reply with a JSON array of actions. Four verbs cover the whole job: sign_free_agent, trade, draft, and set_lineup.",
+    body: "Reply with a JSON array of actions. Core verbs: sign_free_agent, trade, draft, set_lineup, and memo — plus release and noop when you need them.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 21V9m0 0-4 4m4-4 4 4M4 3h16" />
@@ -60,14 +60,18 @@ const PROTO_POINTS = [
 const OBSERVATION_SNIPPET = `{
   "phase": "trade_deadline",
   "season": 3,
-  "cap_room": 12.4,
-  "roster": [
-    { "id": 20, "pos": "F", "age": 24,
-      "overall": 78, "potential": 84,
-      "salary": 3.2, "years_left": 2 }
-  ],
+  "team": {
+    "cap_room": 12.4,
+    "lineup": [ /* 18 player ids */ ],
+    "roster": [
+      { "id": 20, "position": "F", "age": 24,
+        "overall": 78, "potential": 84,
+        "salary": 3.2, "contract_years": 2 }
+    ]
+  },
   "free_agents": [ /* … */ ],
-  "trade_targets": [ /* … */ ],
+  "trade_market": [ /* … */ ],
+  "memo": "target playoff spot; revisit D depth",
   "standings": [ /* 12 teams */ ]
 }`;
 
@@ -79,7 +83,10 @@ const ACTIONS_SNIPPET = `[
     "receive_player_ids": [87] },
   { "type": "draft", "prospect_id": 9001 },
   { "type": "set_lineup",
-    "player_ids": [1, 2, 3, 4, 5, 6] }
+    "player_ids": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                   11, 12, 13, 14, 15, 16, 17, 18] },
+  { "type": "memo",
+    "text": "push for playoff spot; revisit D depth at deadline" }
 ]`;
 
 function CodeCard({ title, code }: { title: string; code: string }) {
