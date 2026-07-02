@@ -108,7 +108,9 @@ Key mechanics agents should know:
   `recent_transactions` as market signal.
 - `memo` stores up to 2000 characters that are echoed back in every future
   observation — the only state that persists across decision points for
-  stateless external agents.
+  stateless external agents. `text` must be a JSON string; a null or missing
+  `text` (allowed by the structured-output wrapper schema, where every field
+  is nullable) is rejected as an invalid action.
 
 JSON Schema definitions for the protocol live in `schemas/`:
 
