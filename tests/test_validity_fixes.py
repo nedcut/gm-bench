@@ -210,6 +210,11 @@ def test_opponents_compete_for_standout_free_agents_at_the_deadline() -> None:
     league = League.new(seed=14)
     star_id = league.free_agents[0]
     league.players[star_id].overall = 90.0
+    for team in league.teams.values():
+        if team.id == league.user_team_id:
+            continue
+        for player_id in team.roster:
+            league.players[player_id].salary = 1.0
     league.run_autopilot_opponents("trade_deadline")
     assert league.players[star_id].team_id is not None
     assert star_id not in league.free_agents

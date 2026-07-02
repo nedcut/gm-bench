@@ -204,8 +204,9 @@ class League:
         if not isinstance(text, str):
             self._record(action, phase, False, "memo text must be a string")
             return
-        self.agent_memo = text[:MEMO_MAX_CHARS]
-        self._record(action, phase, True, "memo saved")
+        memo = text[:MEMO_MAX_CHARS]
+        self.agent_memo = memo
+        self._record({**action, "text": memo}, phase, True, "memo saved")
 
     def _sign_free_agent(self, action: dict[str, Any], phase: str) -> None:
         player_id = int(action.get("player_id", -1))

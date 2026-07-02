@@ -107,6 +107,14 @@ def evaluate_against_baselines(
             "candidate_mean_strategy_score": candidate["summary"]["mean_strategy_score"],
             "candidate_protocol_penalty": candidate["summary"]["total_protocol_penalty"],
             "baseline_panel_mean_score": round(baseline_mean, 3),
+            "baseline_panel_mean_strategy_score": round(
+                mean(result["summary"]["mean_strategy_score"] for result in baseline_results), 3
+            )
+            if baseline_results
+            else 0.0,
+            "baseline_panel_total_protocol_penalty": round(
+                sum(result["summary"]["total_protocol_penalty"] for result in baseline_results), 3
+            ),
             "score_lift": round(candidate_mean - baseline_mean, 3),
             "score_lift_pct": round(((candidate_mean / baseline_mean) - 1.0) * 100.0, 2) if baseline_mean else 0.0,
             "candidate_illegal_actions": candidate["summary"]["illegal_actions"],
