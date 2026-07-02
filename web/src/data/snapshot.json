@@ -1,0 +1,415 @@
+{
+  "config": {
+    "baselines": [
+      "random",
+      "conservative",
+      "win-now",
+      "rebuild"
+    ],
+    "candidate": "value",
+    "seasons": 5,
+    "seeds": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "normalized": {
+    "baseline_illegal_actions": 0,
+    "baseline_panel_mean_score": 102.224,
+    "baseline_panel_mean_strategy_score": 102.224,
+    "baseline_panel_total_protocol_penalty": 0.0,
+    "candidate_illegal_actions": 0,
+    "candidate_mean_score": 254.739,
+    "candidate_mean_strategy_score": 254.739,
+    "candidate_protocol_penalty": 0.0,
+    "score_lift": 152.515,
+    "score_lift_pct": 149.2
+  },
+  "paired": {
+    "best_baseline": {
+      "agent": "win-now",
+      "mean_score": 196.41,
+      "paired_lift_mean": 58.328,
+      "seed_win_rate": 1.0
+    },
+    "candidate_seed_win_rate": 1.0,
+    "num_seeds": 5,
+    "paired_lift_ci95": [
+      134.06,
+      173.062
+    ],
+    "paired_lift_mean": 152.515,
+    "paired_lift_stddev": 22.512,
+    "per_seed": [
+      {
+        "baseline_panel_score": 93.226,
+        "candidate_score": 227.392,
+        "lift": 134.166,
+        "seed": 1
+      },
+      {
+        "baseline_panel_score": 109.248,
+        "candidate_score": 236.443,
+        "lift": 127.196,
+        "seed": 2
+      },
+      {
+        "baseline_panel_score": 108.91,
+        "candidate_score": 256.484,
+        "lift": 147.574,
+        "seed": 3
+      },
+      {
+        "baseline_panel_score": 95.011,
+        "candidate_score": 258.595,
+        "lift": 163.584,
+        "seed": 4
+      },
+      {
+        "baseline_panel_score": 104.725,
+        "candidate_score": 294.779,
+        "lift": 190.054,
+        "seed": 5
+      }
+    ],
+    "significant_at_95": true
+  },
+  "sample_transactions": [
+    {
+      "accepted": true,
+      "action": {
+        "player_id": 294,
+        "salary": 4.14,
+        "type": "sign_free_agent",
+        "years": 3
+      },
+      "message": "signed Finn Anders",
+      "phase": "preseason",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_id": 304,
+        "salary": 7.04,
+        "type": "sign_free_agent",
+        "years": 1
+      },
+      "message": "signed Ivan Price",
+      "phase": "preseason",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_id": 278,
+        "salary": 6.36,
+        "type": "sign_free_agent",
+        "years": 1
+      },
+      "message": "signed Finn Keller",
+      "phase": "preseason",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_id": 301,
+        "salary": 2.12,
+        "type": "sign_free_agent",
+        "years": 3
+      },
+      "message": "signed Alex Diaz",
+      "phase": "preseason",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_id": 297,
+        "salary": 3.32,
+        "type": "sign_free_agent",
+        "years": 3
+      },
+      "message": "signed Gabe Quill",
+      "phase": "preseason",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_ids": [
+          20,
+          13,
+          12,
+          18,
+          21,
+          23,
+          9,
+          22,
+          14,
+          10,
+          8,
+          4,
+          5,
+          6,
+          1,
+          2,
+          3,
+          11
+        ],
+        "type": "set_lineup"
+      },
+      "message": "lineup set",
+      "phase": "preseason",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_ids": [
+          304,
+          278,
+          20,
+          294,
+          13,
+          12,
+          18,
+          21,
+          23,
+          9,
+          8,
+          4,
+          297,
+          5,
+          1,
+          301,
+          2,
+          22
+        ],
+        "type": "set_lineup"
+      },
+      "message": "lineup set",
+      "phase": "trade_deadline",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "give_player_ids": [
+          39
+        ],
+        "partner_team_id": 3,
+        "receive_player_ids": [
+          82
+        ],
+        "type": "trade"
+      },
+      "message": "Austin Jackals traded Drew Ivers to Calgary Peaks for Cal Anders",
+      "phase": "trade_deadline",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "give_player_ids": [
+          312
+        ],
+        "partner_team_id": 4,
+        "receive_player_ids": [
+          107
+        ],
+        "type": "trade"
+      },
+      "message": "Boston Harbors traded Milo Lund to Chicago Steel for Hugo Vale",
+      "phase": "trade_deadline",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "give_player_ids": [
+          136
+        ],
+        "partner_team_id": 11,
+        "receive_player_ids": [
+          266
+        ],
+        "type": "trade"
+      },
+      "message": "Denver Comets traded Ben Quill to Seattle Surge for Jules Reed",
+      "phase": "trade_deadline",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "prospect_id": 1010006,
+        "type": "draft"
+      },
+      "message": "drafted Gabe Hayes",
+      "phase": "draft",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_ids": [
+          304,
+          278,
+          20,
+          294,
+          13,
+          12,
+          18,
+          21,
+          23,
+          9,
+          8,
+          4,
+          297,
+          5,
+          1,
+          301,
+          2,
+          22
+        ],
+        "type": "set_lineup"
+      },
+      "message": "lineup set",
+      "phase": "draft",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "prospect_id": 1010012,
+        "type": "draft"
+      },
+      "message": "Austin Jackals drafted Finn Grant",
+      "phase": "draft",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "prospect_id": 1010009,
+        "type": "draft"
+      },
+      "message": "Boston Harbors drafted Gabe Frost",
+      "phase": "draft",
+      "season": 1
+    }
+  ],
+  "season_trace": {
+    "agent": "value",
+    "seasons": [
+      {
+        "cap_room": 13.72,
+        "champion": false,
+        "losses": 18,
+        "playoff_rounds": 0,
+        "score_after_season": 120.147,
+        "season": 1,
+        "wins": 15
+      },
+      {
+        "cap_room": 14.71,
+        "champion": false,
+        "losses": 19,
+        "playoff_rounds": 0,
+        "score_after_season": 142.373,
+        "season": 2,
+        "wins": 14
+      },
+      {
+        "cap_room": 27.62,
+        "champion": false,
+        "losses": 14,
+        "playoff_rounds": 0,
+        "score_after_season": 141.68,
+        "season": 3,
+        "wins": 19
+      },
+      {
+        "cap_room": 27.43,
+        "champion": false,
+        "losses": 15,
+        "playoff_rounds": 0,
+        "score_after_season": 180.285,
+        "season": 4,
+        "wins": 18
+      },
+      {
+        "cap_room": 31.35,
+        "champion": false,
+        "losses": 13,
+        "playoff_rounds": 1,
+        "score_after_season": 215.872,
+        "season": 5,
+        "wins": 20
+      }
+    ],
+    "seed": 1
+  },
+  "standings": [
+    {
+      "agent": "value",
+      "best_score": 294.779,
+      "episodes": 5,
+      "illegal_actions": 0,
+      "mean_score": 254.739,
+      "mean_wins": 101,
+      "score_stddev": 23.254,
+      "titles": 1,
+      "worst_score": 227.392
+    },
+    {
+      "agent": "win-now",
+      "best_score": 223.315,
+      "episodes": 5,
+      "illegal_actions": 0,
+      "mean_score": 196.41,
+      "mean_wins": 101.8,
+      "score_stddev": 23.387,
+      "titles": 3,
+      "worst_score": 165.763
+    },
+    {
+      "agent": "rebuild",
+      "best_score": 129.159,
+      "episodes": 5,
+      "illegal_actions": 0,
+      "mean_score": 88.315,
+      "mean_wins": 55.4,
+      "score_stddev": 21.594,
+      "titles": 1,
+      "worst_score": 66.094
+    },
+    {
+      "agent": "conservative",
+      "best_score": 82.686,
+      "episodes": 5,
+      "illegal_actions": 0,
+      "mean_score": 73.668,
+      "mean_wins": 54.2,
+      "score_stddev": 6.503,
+      "titles": 0,
+      "worst_score": 66.117
+    },
+    {
+      "agent": "random",
+      "best_score": 81.655,
+      "episodes": 5,
+      "illegal_actions": 0,
+      "mean_score": 50.501,
+      "mean_wins": 40.6,
+      "score_stddev": 17.097,
+      "titles": 1,
+      "worst_score": 30.119
+    }
+  ]
+}
