@@ -115,6 +115,15 @@ against a baseline panel on identical seeds:
 score_lift = candidate_mean_score - baseline_panel_mean_score
 ```
 
+Results also attribute decisions: every episode reports `decision_points` and
+`fallback_decisions`, counting the decision windows answered by an adapter's
+fallback policy (actions tagged `model_error` by the example adapters, or
+`error` by the external-process runner) instead of the model. Fallbacks are not
+penalized — the score scale is unchanged — but the `fallback_decision_rate` in
+summaries and `evaluate` output shows how much of a model-backed score the
+model actually earned, which matters most for small local models with high
+parse-failure rates.
+
 Because every agent plays the same seeds, `evaluate` additionally differences the
 candidate against the baselines per seed and reports a deterministic bootstrap
 95% confidence interval on that paired lift, a per-seed win rate, and the paired

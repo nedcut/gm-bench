@@ -432,6 +432,12 @@ stateless between decision points: the `memo` action is the only channel for
 carrying a plan forward, so agents that form and follow multi-season plans are
 distinguishable from agents that re-derive greedy moves each call.
 
+Model-backed scores are also attributed: adapters tag substituted actions
+(`model_error`/`error`), and every result reports how many decision points the
+model actually played versus how many fell back to the adapter's safety policy
+(`fallback_decisions` and `fallback_decision_rate`). This keeps a weak model
+from being silently carried by its fallback heuristics.
+
 The `exploit` baseline exists to keep the benchmark honest. It replays the
 degenerate strategies that used to dominate (trade value-pumping and free-agent
 hoarding); a regression test asserts it stays below the honest `value`

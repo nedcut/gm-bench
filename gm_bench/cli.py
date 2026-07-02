@@ -370,7 +370,7 @@ def _print_result(result: dict[str, Any], as_json: bool) -> None:
     summary = result["summary"]
     print(f"agent={result['agent']} seasons={result['seasons']} seeds={result['seeds']}")
     print(
-        "mean_score={mean_score} strategy={mean_strategy_score} protocol_penalty={total_protocol_penalty} score_stddev={score_stddev} mean_total_wins={mean_total_wins} championships={championships} illegal_actions={illegal_actions}".format(
+        "mean_score={mean_score} strategy={mean_strategy_score} protocol_penalty={total_protocol_penalty} score_stddev={score_stddev} mean_total_wins={mean_total_wins} championships={championships} illegal_actions={illegal_actions} fallback_decisions={fallback_decisions}/{decision_points}".format(
             **summary
         )
     )
@@ -378,12 +378,13 @@ def _print_result(result: dict[str, Any], as_json: bool) -> None:
 
 def _print_table(results: list[dict[str, Any]]) -> None:
     name_width = max(14, *(len(result["agent"]) + 2 for result in results))
-    print(f"{'agent':<{name_width}}mean_score  stddev  mean_wins  titles  illegal")
-    print("-" * (name_width + 49))
+    print(f"{'agent':<{name_width}}mean_score  stddev  mean_wins  titles  illegal  fallback")
+    print("-" * (name_width + 59))
     for result in sorted(results, key=lambda item: item["summary"]["mean_score"], reverse=True):
         summary = result["summary"]
+        fallback = f"{summary.get('fallback_decisions', 0)}/{summary.get('decision_points', 0)}"
         print(
-            f"{result['agent']:<{name_width}}{summary['mean_score']:>10.2f}{summary['score_stddev']:>8.2f}{summary['mean_total_wins']:>11.2f}{summary['championships']:>8}{summary['illegal_actions']:>9}"
+            f"{result['agent']:<{name_width}}{summary['mean_score']:>10.2f}{summary['score_stddev']:>8.2f}{summary['mean_total_wins']:>11.2f}{summary['championships']:>8}{summary['illegal_actions']:>9}{fallback:>10}"
         )
 
 
@@ -391,7 +392,7 @@ def _print_evaluation(result: dict[str, Any]) -> None:
     normalized = result["normalized"]
     print(f"agent={result['agent']} seasons={result['seasons']} seeds={result['seeds']}")
     print(
-        "candidate_mean={candidate_mean_score} strategy={candidate_mean_strategy_score} protocol_penalty={candidate_protocol_penalty} baseline_panel_mean={baseline_panel_mean_score} lift={score_lift} lift_pct={score_lift_pct}% illegal={candidate_illegal_actions}".format(
+        "candidate_mean={candidate_mean_score} strategy={candidate_mean_strategy_score} protocol_penalty={candidate_protocol_penalty} baseline_panel_mean={baseline_panel_mean_score} lift={score_lift} lift_pct={score_lift_pct}% illegal={candidate_illegal_actions} fallback_rate={candidate_fallback_decision_rate}".format(
             **normalized
         )
     )

@@ -29,8 +29,23 @@ class BenchmarkResult:
     wins: int
     championships: int
     illegal_actions: int
+    decision_points: int
+    fallback_decisions: int
     season_summaries: list[dict[str, Any]]
     transactions: list[dict[str, Any]]
+
+
+def _is_fallback_response(actions: Any) -> bool:
+    """Detect decision points the model did not actually play.
+
+    External adapters tag substituted actions with `model_error` (parse or
+    transport failures answered by the adapter's fallback policy) and the
+    external-process runner tags process-level failures with `error`. Scripted
+    agents never emit these keys, so their fallback count is always zero.
+    """
+    if not isinstance(actions, list):
+        return True
+    return any(isinstance(action, dict) and ("model_error" in action or "error" in action) for action in actions)
 
 
 def run_episode(
@@ -43,6 +58,7 @@ def run_episode(
     league = League.new(seed=seed, user_team_id=user_team_id)
     decision = 0
     total_decisions = seasons * 3
+    fallback_decisions = 0
     for season_index in range(1, seasons + 1):
         for phase in ["preseason", "trade_deadline", "draft"]:
             decision += 1
@@ -61,6 +77,8 @@ def run_episode(
                 league.run_opponent_draft(before_user=True)
             observation = league.observation(phase)
             actions = agent.act(observation)
+            if _is_fallback_response(actions):
+                fallback_decisions += 1
             league.apply_actions(actions, phase)
             if phase == "draft":
                 league.run_opponent_draft(before_user=False)
@@ -77,6 +95,8 @@ def run_episode(
         wins=sum(summary.wins for summary in league.summaries),
         championships=league.user_team.championships,
         illegal_actions=league.illegal_actions,
+        decision_points=decision,
+        fallback_decisions=fallback_decisions,
         season_summaries=[summary.__dict__ for summary in league.summaries],
         transactions=[transaction.__dict__ for transaction in league.transactions],
     )
@@ -108,6 +128,8 @@ def summarize_episodes(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     never drift into differently-shaped summaries.
     """
     scores = [episode["final_score"] for episode in episodes]
+    total_decisions = sum(episode["decision_points"] for episode in episodes)
+    total_fallbacks = sum(episode["fallback_decisions"] for episode in episodes)
     return {
         "mean_score": round(mean(scores), 3) if scores else 0.0,
         "mean_strategy_score": round(mean(episode["strategy_score"] for episode in episodes), 3) if episodes else 0.0,
@@ -116,6 +138,9 @@ def summarize_episodes(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_total_wins": round(mean(episode["wins"] for episode in episodes), 3) if episodes else 0.0,
         "championships": sum(episode["championships"] for episode in episodes),
         "illegal_actions": sum(episode["illegal_actions"] for episode in episodes),
+        "decision_points": total_decisions,
+        "fallback_decisions": total_fallbacks,
+        "fallback_decision_rate": round(total_fallbacks / total_decisions, 3) if total_decisions else 0.0,
     }
 
 
@@ -231,6 +256,8 @@ def evaluate_against_baselines(
             "score_lift_pct": round(((candidate_mean / baseline_mean) - 1.0) * 100.0, 2) if baseline_mean else 0.0,
             "candidate_illegal_actions": candidate["summary"]["illegal_actions"],
             "baseline_illegal_actions": sum(result["summary"]["illegal_actions"] for result in baseline_results),
+            "candidate_fallback_decisions": candidate["summary"]["fallback_decisions"],
+            "candidate_fallback_decision_rate": candidate["summary"]["fallback_decision_rate"],
         },
         "paired": _paired_analysis(seeds, candidate, baseline_results),
     }
