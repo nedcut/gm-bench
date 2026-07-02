@@ -38,8 +38,11 @@ def test_final_episode_score_matches_scoring_function() -> None:
     league = League.new(seed=9)
     for _ in range(2):
         for phase in ["preseason", "trade_deadline", "draft"]:
+            if phase == "draft":
+                league.run_opponent_draft(before_user=True)
             league.apply_actions(ValueAgent().act(league.observation(phase)), phase)
-            if phase == "preseason":
-                league.run_autopilot_opponents()
+            if phase == "draft":
+                league.run_opponent_draft(before_user=False)
+            league.run_autopilot_opponents(phase)
         league.simulate_season()
     assert result.final_score == round(score_team(league, league.user_team_id), 3)

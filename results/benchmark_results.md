@@ -2,6 +2,54 @@
 
 This snapshot records the benchmark results generated during the MVP build.
 
+> **Note:** All results below the "Post-Validity-Fixes Baselines" section were
+> produced by the original MVP rules and are retained as a historical record.
+> The validity fixes (real lineups, competitive draft and free agency,
+> opponent-initiated trades, trade limits with hidden partner valuations,
+> roster minimums, memo scratchpad, and the strategy/protocol score split)
+> changed the score scale, so old and new numbers are not comparable.
+
+## Post-Validity-Fixes Baselines
+
+Command:
+
+```bash
+python -m gm_bench compare --agents random conservative win-now rebuild value exploit --seeds 1 2 3 --seasons 5 --no-log
+```
+
+Result:
+
+| Agent | Mean Score | Stddev | Mean Wins | Titles | Illegal |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| value | 240.11 | 12.16 | 98.67 | 0 | 0 |
+| win-now | 197.66 | 18.86 | 98.00 | 2 | 0 |
+| rebuild | 96.09 | 23.49 | 50.00 | 1 | 0 |
+| conservative | 74.52 | 6.77 | 49.33 | 0 | 0 |
+| random | 46.91 | 3.51 | 32.00 | 0 | 0 |
+| exploit | -135.84 | 8.44 | 48.33 | 0 | 261 |
+
+The `exploit` red-team canary (trade value-pumping plus free-agent hoarding)
+now finishes far below every honest baseline — 261 of its trade attempts are
+rejected. Before the fixes, its strategies were score-dominant. Baseline
+lifts are also tighter than under the original rules because opponents now
+compete for free agents in every phase and trade among themselves, so easy
+value is scarcer for everyone.
+
+Normalized evaluation:
+
+```bash
+python -m gm_bench evaluate --agent value --baselines random conservative win-now rebuild --seeds 1 2 3 --seasons 3 --no-log
+```
+
+```text
+candidate_mean=148.364 strategy=148.364 protocol_penalty=0.0
+baseline_panel_mean=100.406 lift=47.958 lift_pct=47.76%
+paired_lift=47.958 ci95=[27.24, 66.304] (significant) candidate_seed_win_rate=1.0
+vs strongest baseline 'win-now': paired_lift=4.567 seed_win_rate=0.667
+```
+
+## Historical MVP Results (pre-fix rules)
+
 ## Committed SQLite Database
 
 The committed database is:
