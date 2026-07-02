@@ -169,6 +169,75 @@ class ValueAgent(Agent):
         return actions
 
 
+class ExploitAgent(Agent):
+    """Red-team diagnostic that replays known-degenerate strategies.
+
+    Hoards cheap free agents for depth/asset points and attempts value-pump
+    trades (receiving more public value than it gives, which the pre-fix 0.78
+    acceptance threshold allowed). It is kept as a baseline canary: if a rules
+    or scoring change re-opens an exploit, this agent's score jumps past the
+    honest baselines and the regression test in test_validity_fixes catches it.
+    """
+
+    name = "exploit"
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        actions: list[dict[str, Any]] = []
+        team = observation["team"]
+        cap_room = team["cap_room"]
+        for player in sorted(observation["free_agents"], key=lambda item: item["asking_salary"]):
+            if len(actions) >= 8:
+                break
+            if player["asking_salary"] <= cap_room:
+                actions.append(
+                    {
+                        "type": "sign_free_agent",
+                        "player_id": player["id"],
+                        "years": 1,
+                        "salary": player["asking_salary"],
+                    }
+                )
+                cap_room -= player["asking_salary"]
+
+        givable = sorted(team["roster"], key=public_asset_value)
+        used_give_ids: set[int] = set()
+        offers = sorted(
+            observation["trade_market"], key=lambda offer: public_asset_value(offer["player"]), reverse=True
+        )
+        for offer in offers:
+            if len(actions) >= 16:
+                break
+            receive_value = public_asset_value(offer["player"])
+            give = next(
+                (
+                    player
+                    for player in givable
+                    if player["id"] not in used_give_ids
+                    and receive_value / 1.25 <= public_asset_value(player) < receive_value
+                ),
+                None,
+            )
+            if give is None:
+                continue
+            used_give_ids.add(give["id"])
+            actions.append(
+                {
+                    "type": "trade",
+                    "partner_team_id": offer["team_id"],
+                    "give_player_ids": [give["id"]],
+                    "receive_player_ids": [offer["player"]["id"]],
+                }
+            )
+
+        if observation["phase"] == "draft" and observation["draft_class"]:
+            prospect = max(observation["draft_class"], key=public_asset_value)
+            actions.append({"type": "draft", "prospect_id": prospect["id"]})
+        lineup = position_aware_lineup(team["roster"], lambda player: player["overall"])
+        if lineup:
+            actions.append({"type": "set_lineup", "player_ids": lineup})
+        return actions
+
+
 class ExternalProcessAgent(Agent):
     name = "external"
 
@@ -208,4 +277,5 @@ AGENTS: dict[str, type[Agent]] = {
     "win-now": WinNowAgent,
     "rebuild": RebuildAgent,
     "value": ValueAgent,
+    "exploit": ExploitAgent,
 }

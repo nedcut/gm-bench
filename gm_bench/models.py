@@ -6,10 +6,11 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 Position = Literal["F", "D", "G"]
-ActionType = Literal["sign_free_agent", "release", "trade", "draft", "set_lineup", "noop"]
+ActionType = Literal["sign_free_agent", "release", "trade", "draft", "set_lineup", "memo", "noop"]
 
 LINEUP_SIZE = 18
 LINEUP_MIN_POSITIONS: dict[str, int] = {"F": 10, "D": 4, "G": 1}
+ROSTER_MIN = 18
 
 
 @dataclass
@@ -64,6 +65,7 @@ class Team:
     market: float
     patience: float
     roster: list[int] = field(default_factory=list)
+    lineup: list[int] = field(default_factory=list)
     wins: int = 0
     losses: int = 0
     championships: int = 0
@@ -84,6 +86,7 @@ class Team:
             "payroll": round(payroll, 2),
             "cap_room": round(cap - payroll, 2),
             "draft_picks": dict(sorted(self.draft_picks.items())),
+            "lineup": list(self.lineup),
             "roster": [players[player_id].public_dict() for player_id in self.roster],
         }
 

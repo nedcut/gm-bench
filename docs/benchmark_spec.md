@@ -29,9 +29,14 @@ The MVP implements a compact hockey-style league:
 - Public overall and potential ratings.
 - Hidden true potential.
 - Salary cap and contract years.
-- Free agents with asking prices.
-- Draft classes with noisy projections.
-- Simple trade acceptance based on hidden asset value and cap constraints.
+- Free agents with asking prices (free agents age and rust while unsigned).
+- Draft classes with noisy projections, drafted competitively: every team
+  picks once per season in inverse-standings order around the user's slot.
+- Trade acceptance based on asset value perturbed by hidden per-partner
+  valuation noise (re-rolled each season), a per-partner trade limit per
+  season, roster minimums on both sides, and cap constraints.
+- Lineups that matter: `set_lineup` picks the 18 players who dress, which
+  drives team strength; young players outside the lineup develop at half rate.
 - Seasons, standings, playoffs, championships, aging, development, and expiring
   contracts.
 
@@ -50,20 +55,34 @@ Agents return a JSON array of actions:
 - `trade`
 - `draft`
 - `set_lineup`
+- `memo`
 - `noop`
 
 Actions are validated by the simulator. Invalid actions are ignored and counted
 as penalties.
 
+`memo` stores a persistent scratchpad (up to 2000 characters) echoed back in
+every subsequent observation. External agents are launched fresh at each
+decision point, so the memo is the only cross-decision memory channel — it is
+what makes multi-season plan coherence observable rather than assumed.
+
+During the draft phase, opponents with worse records pick before the user's
+decision and opponents with better records pick after it, so the visible draft
+class at the user's turn already reflects earlier selections. Every team's
+pick is replenished each season, so episodes of any length keep a draft.
+
 ## Built-In Agents
 
-The MVP includes five scripted baselines:
+The MVP includes six scripted baselines:
 
 - `random`: noisy but valid roster moves.
 - `conservative`: value signings and best public prospects.
 - `win-now`: prioritizes current overall and immediate wins.
 - `rebuild`: prioritizes youth and potential.
 - `value`: balances public overall, potential, age, and price.
+- `exploit`: a red-team canary that replays historically degenerate strategies
+  (trade value-pumping, free-agent hoarding). A regression test pins it below
+  `value`; if a rules change re-opens an exploit, the canary jumps and CI fails.
 
 ## Scoring
 
@@ -78,7 +97,11 @@ The objective score rewards:
 - Current team strength.
 - Roster depth.
 
-It penalizes illegal actions. The benchmark also supports normalized scoring
+Illegal actions are penalized, but reported separately: every result carries a
+`strategy_score` (roster management quality) and a `protocol_penalty`
+(invalid-action cost), with `final_score = strategy_score - protocol_penalty`.
+This keeps strategy skill from being conflated with JSON discipline when
+comparing model-backed agents. The benchmark also supports normalized scoring
 against a baseline panel on identical seeds:
 
 ```text
@@ -98,7 +121,11 @@ weight rationale.
 
 The simulator is deterministic for a given seed, agent, and season count. Public
 observations do not expose hidden `true_potential`, so agents must handle noisy
-information rather than optimize directly against ground truth.
+information rather than optimize directly against ground truth. Trade
+acceptance uses hidden per-partner valuation noise seeded from stable keys
+(`seed:season:partner:player`), so it is deterministic across identical runs
+while remaining uncomputable from the observation alone — agents can estimate
+whether an offer will land, but cannot solve for it.
 
 ## Commands
 
@@ -133,3 +160,5 @@ model services.
 - Add a multi-agent arena mode where agents negotiate with each other.
 - Add private evaluation seeds and a leaderboard package.
 - Add sport variants with different roster and cap constraints.
+- Let opponents initiate trades and re-sign free agents outside the preseason
+  window, removing the user's remaining first-mover advantage in free agency.

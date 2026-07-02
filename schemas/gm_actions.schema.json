@@ -19,12 +19,13 @@
           "give_player_ids",
           "receive_player_ids",
           "years",
-          "salary"
+          "salary",
+          "text"
         ],
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["sign_free_agent", "release", "trade", "draft", "set_lineup", "noop"]
+            "enum": ["sign_free_agent", "release", "trade", "draft", "set_lineup", "memo", "noop"]
           },
           "player_id": { "type": ["integer", "null"] },
           "player_ids": {
@@ -42,7 +43,8 @@
             "items": { "type": "integer" }
           },
           "years": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 },
-          "salary": { "type": ["number", "null"], "minimum": 0 }
+          "salary": { "type": ["number", "null"], "minimum": 0 },
+          "text": { "type": ["string", "null"], "maxLength": 2000 }
         }
       }
     }

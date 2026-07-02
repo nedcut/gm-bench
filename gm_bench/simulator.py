@@ -8,8 +8,21 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from gm_bench.generator import generate_draft_class, generate_league_data
-from gm_bench.models import LINEUP_MIN_POSITIONS, LINEUP_SIZE, Player, SeasonSummary, Team, Transaction
+from gm_bench.models import (
+    LINEUP_MIN_POSITIONS,
+    LINEUP_SIZE,
+    ROSTER_MIN,
+    Player,
+    SeasonSummary,
+    Team,
+    Transaction,
+)
 from gm_bench.scoring import score_team
+
+TRADE_VALUE_THRESHOLD = 0.95
+TRADE_LIMIT_PER_PARTNER = 2
+MEMO_MAX_CHARS = 2000
+HARD_CAP_BUFFER = 8.0
 
 
 @dataclass
@@ -27,6 +40,8 @@ class League:
     summaries: list[SeasonSummary] = field(default_factory=list)
     illegal_actions: int = 0
     rng_state_offset: int = 0
+    agent_memo: str = ""
+    partner_trades: dict[int, int] = field(default_factory=dict)
 
     @classmethod
     def new(cls, seed: int, user_team_id: int = 0, num_teams: int = 12) -> "League":
@@ -54,18 +69,22 @@ class League:
             "phase": phase,
             "rules": {
                 "salary_cap": self.cap,
-                "roster_min": 18,
+                "hard_cap_buffer": HARD_CAP_BUFFER,
+                "roster_min": ROSTER_MIN,
                 "lineup_size": LINEUP_SIZE,
                 "lineup_min_positions": LINEUP_MIN_POSITIONS,
-                "trade_value_threshold": 0.78,
+                "trade_value_threshold": TRADE_VALUE_THRESHOLD,
+                "trade_limit_per_partner": TRADE_LIMIT_PER_PARTNER,
             },
             "team": self.user_team.public_dict(self.players, self.cap),
             "standings": self._standings_public(),
             "free_agents": [self._free_agent_public(player_id) for player_id in self.free_agents],
             "draft_class": [player.public_dict() for player in self.prospects.values()],
+            "draft_order": self._draft_order(),
             "trade_market": self._trade_market_public(),
             "history": [summary.__dict__ for summary in self.summaries[-5:]],
             "recent_transactions": [transaction.__dict__ for transaction in self.transactions[-12:]],
+            "memo": self.agent_memo,
         }
 
     def apply_actions(self, actions: list[dict[str, Any]], phase: str) -> None:
@@ -79,6 +98,8 @@ class League:
             action_type = action.get("type", "noop")
             if action_type == "noop":
                 self._record(action, phase, True, "no-op")
+            elif action_type == "memo":
+                self._safe_apply(self._memo, action, phase)
             elif action_type == "sign_free_agent":
                 self._safe_apply(self._sign_free_agent, action, phase)
             elif action_type == "release":
@@ -105,7 +126,22 @@ class League:
                 continue
             self._trim_expiring_contracts(team, rng)
             self._opponent_signings(team, rng)
-            self._opponent_lineup(team)
+
+    def run_opponent_draft(self, before_user: bool) -> None:
+        """Let opponents draft in inverse-standings order around the user's slot.
+
+        Called twice per draft phase: once before the user's decision (teams
+        picking ahead of the user) and once after (teams picking behind). The
+        order is worst record first, team id as tiebreak.
+        """
+        order = self._draft_order()
+        if self.user_team_id in order:
+            user_index = order.index(self.user_team_id)
+            picking = order[:user_index] if before_user else order[user_index + 1 :]
+        else:
+            picking = [] if before_user else order
+        for team_id in picking:
+            self._opponent_draft_pick(self.teams[team_id])
 
     def simulate_season(self) -> SeasonSummary:
         rng = self._rng("season")
@@ -147,8 +183,19 @@ class League:
         )
         self.summaries.append(summary)
         self.season += 1
+        self.partner_trades = {}
+        for team in self.teams.values():
+            team.draft_picks.setdefault(self.season, 1)
         self.prospects = generate_draft_class(self.seed, self.season, self.num_teams * 5)
         return summary
+
+    def _memo(self, action: dict[str, Any], phase: str) -> None:
+        text = action.get("text", "")
+        if not isinstance(text, str):
+            self._record(action, phase, False, "memo text must be a string")
+            return
+        self.agent_memo = text[:MEMO_MAX_CHARS]
+        self._record(action, phase, True, "memo saved")
 
     def _sign_free_agent(self, action: dict[str, Any], phase: str) -> None:
         player_id = int(action.get("player_id", -1))
@@ -165,7 +212,7 @@ class League:
         if salary < minimum:
             self._record(action, phase, False, f"salary below player's market ask of {minimum:.2f}")
             return
-        if self._payroll(self.user_team) + salary > self.cap + 8.0:
+        if self._payroll(self.user_team) + salary > self.cap + HARD_CAP_BUFFER:
             self._record(action, phase, False, "signing would exceed hard cap buffer")
             return
         self.free_agents.remove(player_id)
@@ -180,8 +227,11 @@ class League:
         if player_id not in self.user_team.roster:
             self._record(action, phase, False, "player is not on your roster")
             return
+        if len(self.user_team.roster) <= ROSTER_MIN:
+            self._record(action, phase, False, f"release would drop roster below the {ROSTER_MIN}-player minimum")
+            return
         player = self.players[player_id]
-        self.user_team.roster.remove(player_id)
+        self._remove_from_team(self.user_team, player_id)
         player.team_id = None
         player.contract_years = 0
         player.salary = 0.0
@@ -208,8 +258,28 @@ class League:
         if any(player_id not in partner.roster for player_id in receive):
             self._record(action, phase, False, "requested player is not on partner roster")
             return
-        give_value = sum(self.players[player_id].asset_value for player_id in give)
-        receive_value = sum(self.players[player_id].asset_value for player_id in receive)
+        if self.partner_trades.get(partner_id, 0) >= TRADE_LIMIT_PER_PARTNER:
+            self._record(action, phase, False, "partner has no appetite for more trades this season")
+            return
+        # Contract expiries can leave a team below the floor before it re-signs, so
+        # only block trades that shrink a roster to below the minimum — a roster
+        # already under the floor may still make size-neutral or growing trades.
+        user_after = len(self.user_team.roster) - len(give) + len(receive)
+        partner_after = len(partner.roster) - len(receive) + len(give)
+        if user_after < ROSTER_MIN and user_after < len(self.user_team.roster):
+            self._record(action, phase, False, f"trade would drop your roster below the {ROSTER_MIN}-player minimum")
+            return
+        if partner_after < ROSTER_MIN and partner_after < len(partner.roster):
+            self._record(action, phase, False, f"trade would drop partner roster below the {ROSTER_MIN}-player minimum")
+            return
+        perceived_give = sum(
+            self.players[player_id].asset_value * self._partner_valuation_bias(partner_id, player_id)
+            for player_id in give
+        )
+        perceived_receive = sum(
+            self.players[player_id].asset_value * self._partner_valuation_bias(partner_id, player_id)
+            for player_id in receive
+        )
         partner_payroll_after = (
             self._payroll(partner)
             - sum(self.players[player_id].salary for player_id in receive)
@@ -220,20 +290,21 @@ class League:
             - sum(self.players[player_id].salary for player_id in give)
             + sum(self.players[player_id].salary for player_id in receive)
         )
-        if partner_payroll_after > self.cap + 8.0 or user_payroll_after > self.cap + 8.0:
+        if partner_payroll_after > self.cap + HARD_CAP_BUFFER or user_payroll_after > self.cap + HARD_CAP_BUFFER:
             self._record(action, phase, False, "trade would exceed hard cap buffer")
             return
-        if give_value < receive_value * 0.78:
-            self._record(action, phase, False, "partner rejects low-value offer")
+        if perceived_give < perceived_receive * TRADE_VALUE_THRESHOLD:
+            self._record(action, phase, False, "partner rejects the offer as too light")
             return
         for player_id in give:
-            self.user_team.roster.remove(player_id)
+            self._remove_from_team(self.user_team, player_id)
             partner.roster.append(player_id)
             self.players[player_id].team_id = partner_id
         for player_id in receive:
-            partner.roster.remove(player_id)
+            self._remove_from_team(partner, player_id)
             self.user_team.roster.append(player_id)
             self.players[player_id].team_id = self.user_team_id
+        self.partner_trades[partner_id] = self.partner_trades.get(partner_id, 0) + 1
         self._record(action, phase, True, "trade accepted")
 
     def _draft(self, action: dict[str, Any], phase: str) -> None:
@@ -247,14 +318,7 @@ class League:
         if self.user_team.draft_picks.get(self.season, 0) <= 0:
             self._record(action, phase, False, "no current-season draft pick available")
             return
-        prospect = self.prospects.pop(prospect_id)
-        prospect.team_id = self.user_team_id
-        prospect.salary = 0.95
-        prospect.contract_years = 3
-        prospect.drafted_round = 1
-        self.players[prospect.id] = prospect
-        self.user_team.roster.append(prospect.id)
-        self.user_team.draft_picks[self.season] -= 1
+        prospect = self._assign_prospect(self.user_team, prospect_id)
         self._record(action, phase, True, f"drafted {prospect.name}")
 
     def _set_lineup(self, action: dict[str, Any], phase: str) -> None:
@@ -272,14 +336,17 @@ class League:
             mins = ", ".join(f"{count} {pos}" for pos, count in LINEUP_MIN_POSITIONS.items())
             self._record(action, phase, False, f"lineup must include at least {mins}")
             return
-        roster = self.user_team.roster
-        self.user_team.roster = lineup + [player_id for player_id in roster if player_id not in set(lineup)]
+        self.user_team.lineup = lineup
         self._record(action, phase, True, "lineup set")
 
-    def _record(self, action: dict[str, Any], phase: str, accepted: bool, message: str) -> None:
-        if not accepted:
+    def _record(
+        self, action: dict[str, Any], phase: str, accepted: bool, message: str, team_id: int | None = None
+    ) -> None:
+        if team_id is None:
+            team_id = self.user_team_id
+        if not accepted and team_id == self.user_team_id:
             self.illegal_actions += 1
-        self.transactions.append(Transaction(self.season, phase, self.user_team_id, action, accepted, message))
+        self.transactions.append(Transaction(self.season, phase, team_id, action, accepted, message))
 
     def _standings_public(self) -> list[dict[str, Any]]:
         return [
@@ -327,10 +394,97 @@ class League:
         contract_drag = player.salary * 0.55 if player.salary > 0 else 0.0
         return round(max(1.0, (public_skill - 44.0) * age_factor - contract_drag), 2)
 
+    def _partner_valuation_bias(self, partner_id: int, player_id: int) -> float:
+        """Hidden, deterministic per-partner scouting bias on a player's value.
+
+        Re-rolled each season so trade acceptance cannot be computed exactly from
+        public observations, only estimated. Seeded directly (not via `_rng`) so
+        evaluating an offer never perturbs the league's RNG stream.
+        """
+        rng = random.Random(f"{self.seed}:{self.season}:valuation:{partner_id}:{player_id}")
+        return rng.uniform(0.9, 1.1)
+
+    def _draft_order(self) -> list[int]:
+        """Current-season pick order: worst record first, team id as tiebreak."""
+        ordered = sorted(self.teams.values(), key=lambda team: (team.wins, team.id))
+        return [team.id for team in ordered if team.draft_picks.get(self.season, 0) > 0]
+
+    def _opponent_draft_pick(self, team: Team) -> None:
+        if not self.prospects or team.draft_picks.get(self.season, 0) <= 0:
+            return
+        prospect_id = max(
+            self.prospects,
+            key=lambda pid: (
+                self.prospects[pid].potential * 0.6 + self.prospects[pid].overall * 0.4 - self.prospects[pid].age * 0.3,
+                -pid,
+            ),
+        )
+        prospect = self._assign_prospect(team, prospect_id)
+        self._record(
+            {"type": "draft", "prospect_id": prospect.id},
+            "draft",
+            True,
+            f"{team.name} drafted {prospect.name}",
+            team_id=team.id,
+        )
+
+    def _assign_prospect(self, team: Team, prospect_id: int) -> Player:
+        prospect = self.prospects.pop(prospect_id)
+        prospect.team_id = team.id
+        prospect.salary = 0.95
+        prospect.contract_years = 3
+        prospect.drafted_round = 1
+        self.players[prospect.id] = prospect
+        team.roster.append(prospect.id)
+        team.draft_picks[self.season] -= 1
+        return prospect
+
+    def _remove_from_team(self, team: Team, player_id: int) -> None:
+        team.roster.remove(player_id)
+        if player_id in team.lineup:
+            team.lineup.remove(player_id)
+
+    def _effective_lineup(self, team: Team) -> list[Player]:
+        """The players who actually dress: the set lineup, repaired as needed.
+
+        Starts from the team's stored lineup (ids no longer on the roster are
+        skipped), tops up to LINEUP_SIZE with the best remaining players by
+        overall, then swaps in bench players to satisfy position minimums.
+        Teams with no stored lineup get a best-legal auto lineup.
+        """
+        roster = [self.players[player_id] for player_id in team.roster]
+        if len(roster) <= LINEUP_SIZE:
+            return roster
+        roster_ids = set(team.roster)
+        chosen: dict[int, Player] = {}
+        for player_id in dict.fromkeys(team.lineup):
+            if player_id in roster_ids and len(chosen) < LINEUP_SIZE:
+                chosen[player_id] = self.players[player_id]
+        bench = sorted((player for player in roster if player.id not in chosen), key=lambda p: p.overall, reverse=True)
+        for player in bench:
+            if len(chosen) >= LINEUP_SIZE:
+                break
+            chosen[player.id] = player
+        for position, minimum in LINEUP_MIN_POSITIONS.items():
+            candidates = [player for player in bench if player.id not in chosen and player.position == position]
+            while sum(1 for player in chosen.values() if player.position == position) < minimum and candidates:
+                surplus = [
+                    player
+                    for player in chosen.values()
+                    if player.position != position
+                    and sum(1 for other in chosen.values() if other.position == player.position)
+                    > LINEUP_MIN_POSITIONS[player.position]
+                ]
+                if not surplus:
+                    break
+                drop = min(surplus, key=lambda player: player.overall)
+                del chosen[drop.id]
+                add = candidates.pop(0)
+                chosen[add.id] = add
+        return list(chosen.values())
+
     def _team_strength(self, team: Team, apply_injury_noise: bool, rng: random.Random | None = None) -> float:
-        lineup = sorted(
-            (self.players[player_id] for player_id in team.roster), key=lambda player: player.overall, reverse=True
-        )[:18]
+        lineup = sorted(self._effective_lineup(team), key=lambda player: player.overall, reverse=True)
         if not lineup:
             return 20.0
         position_bonus = min(sum(1 for player in lineup if player.position == "G"), 2) * 2.5
@@ -363,13 +517,26 @@ class League:
         return bracket[0]
 
     def _age_and_contracts(self, rng: random.Random) -> None:
+        dressed: set[int] = set()
+        for team in self.teams.values():
+            dressed.update(player.id for player in self._effective_lineup(team))
         for player in list(self.players.values()):
-            if player.team_id is None:
-                continue
             player.age += 1
+            if player.team_id is None:
+                # Free agents get no playing time: they rust slightly and decline
+                # normally with age, but never develop.
+                if player.age >= 30:
+                    player.overall -= rng.uniform(0.4, 1.9) * (1.0 + max(player.age - 33, 0) * 0.15)
+                else:
+                    player.overall -= rng.uniform(0.0, 0.6)
+                player.overall = min(92.0, max(30.0, player.overall))
+                player.potential = min(97.0, max(30.0, player.potential + rng.gauss(0, 1.2)))
+                continue
             growth_room = max(0.0, player.true_potential - player.overall)
             if player.age <= 24:
-                player.overall += rng.uniform(0.2, 2.8) * min(1.0, growth_room / 10.0)
+                # Playing time drives development: bench players grow at half rate.
+                usage = 1.0 if player.id in dressed else 0.5
+                player.overall += rng.uniform(0.2, 2.8) * min(1.0, growth_room / 10.0) * usage
             elif player.age >= 30:
                 player.overall -= rng.uniform(0.4, 1.9) * (1.0 + max(player.age - 33, 0) * 0.15)
             else:
@@ -380,7 +547,7 @@ class League:
             if player.contract_years <= 0:
                 team = self.teams.get(player.team_id)
                 if team and player.id in team.roster:
-                    team.roster.remove(player.id)
+                    self._remove_from_team(team, player.id)
                 player.team_id = None
                 player.salary = 0.0
                 player.contract_years = 0
@@ -391,7 +558,7 @@ class League:
             return
         excess = sorted((self.players[player_id] for player_id in team.roster), key=lambda player: player.asset_value)
         for player in excess[: max(0, len(team.roster) - 23)]:
-            team.roster.remove(player.id)
+            self._remove_from_team(team, player.id)
             player.team_id = None
             player.salary = 0.0
             player.contract_years = 0
@@ -413,14 +580,6 @@ class League:
                 player.salary = ask
                 player.contract_years = rng.randint(1, 3)
                 needed -= 1
-
-    def _opponent_lineup(self, team: Team) -> None:
-        team.roster = [
-            player.id
-            for player in sorted(
-                (self.players[player_id] for player_id in team.roster), key=lambda player: player.overall, reverse=True
-            )
-        ]
 
     def _payroll(self, team: Team) -> float:
         return sum(self.players[player_id].salary for player_id in team.roster)

@@ -52,8 +52,10 @@ def compact_observation(observation: dict[str, Any]) -> dict[str, Any]:
         },
         "free_agents": free_agents[:free_agent_limit],
         "draft_class": draft_class[:draft_limit],
+        "draft_order": observation.get("draft_order", []),
         "trade_market": observation["trade_market"][:trade_limit],
         "history": observation["history"],
+        "memo": observation.get("memo", ""),
     }
 
 
@@ -71,9 +73,14 @@ def build_prompt(observation: dict[str, Any]) -> str:
         '{"type":"trade","partner_team_id":3,"give_player_ids":[1],"receive_player_ids":[88]}\n'
         '{"type":"release","player_id":1}\n'
         '{"type":"set_lineup","player_ids":[18 unique roster player ids]}\n'
+        '{"type":"memo","text":"plan notes carried to your next decision"}\n'
         '{"type":"noop"}\n\n'
         "Constraints: lineup must include exactly 18 unique current roster players with at least 10 F, 4 D, and 1 G. "
-        "Do not invent IDs. Keep signings under cap room unless the player is clearly worth it. "
+        "Only players in the lineup develop at full speed; the lineup also sets team strength. "
+        "Trades: partners privately re-value players, accept at most trade_limit_per_partner trades per season, "
+        "and rosters cannot drop below roster_min. Opponents draft in inverse-standings order, so top prospects "
+        "may be gone before your pick. Use the memo action to carry multi-season plans forward; your last memo "
+        "is echoed in the observation. Do not invent IDs. Keep signings under cap room unless the player is clearly worth it. "
         f"If unsure, at least set this valid lineup: {json.dumps(fallback_lineup)}.\n\n"
         f"Observation JSON:\n{json.dumps(compact, sort_keys=True)}"
     )
