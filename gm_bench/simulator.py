@@ -119,13 +119,23 @@ class League:
         except (TypeError, ValueError):
             self._record(action, phase, False, "action has invalid or missing argument values")
 
-    def run_autopilot_opponents(self) -> None:
-        rng = self._rng("opponents")
+    def run_autopilot_opponents(self, phase: str = "preseason") -> None:
+        """Opponent front offices act after every user decision window.
+
+        Preseason additionally trims oversized rosters. Every phase includes
+        need-based and opportunistic free-agent signings, so the user has no
+        monopoly on the free-agent pool between phases. At the trade deadline,
+        opponents also make one-for-one trades among themselves.
+        """
+        rng = self._rng(f"opponents:{phase}")
         for team in self.teams.values():
             if team.id == self.user_team_id:
                 continue
-            self._trim_expiring_contracts(team, rng)
+            if phase == "preseason":
+                self._trim_expiring_contracts(team, rng)
             self._opponent_signings(team, rng)
+        if phase == "trade_deadline":
+            self._opponent_trades()
 
     def run_opponent_draft(self, before_user: bool) -> None:
         """Let opponents draft in inverse-standings order around the user's slot.
@@ -574,12 +584,129 @@ class League:
                 break
             ask = player.asking_salary
             if self._payroll(team) + ask <= self.cap + 4.0:
-                self.free_agents.remove(player.id)
-                team.roster.append(player.id)
-                player.team_id = team.id
-                player.salary = ask
-                player.contract_years = rng.randint(1, 3)
+                self._sign_to_team(team, player, rng)
                 needed -= 1
+        self._opponent_opportunistic_signing(team, rng)
+
+    def _opponent_opportunistic_signing(self, team: Team, rng: random.Random) -> None:
+        """Sign one clear upgrade over the team's weakest dressed player.
+
+        This is what makes free agency competitive: opponents grab standout
+        free agents between phases instead of leaving the pool untouched for
+        the user, so waiting on a signing carries real risk. A team with a
+        full roster waives its least valuable player to make room, but only
+        when the incoming player is clearly better than the one waived.
+        """
+        lineup = self._effective_lineup(team)
+        if not lineup:
+            return
+        floor_overall = min(player.overall for player in lineup)
+        upgrades = sorted(
+            (
+                self.players[player_id]
+                for player_id in self.free_agents
+                if self.players[player_id].overall >= floor_overall + 2.0
+            ),
+            key=lambda player: player.overall,
+            reverse=True,
+        )
+        for player in upgrades:
+            waived: Player | None = None
+            if len(team.roster) >= 23:
+                waived = min((self.players[player_id] for player_id in team.roster), key=lambda item: item.asset_value)
+                if waived.overall + 2.0 >= player.overall:
+                    continue
+            payroll_after = self._payroll(team) - (waived.salary if waived else 0.0) + player.asking_salary
+            if payroll_after > self.cap + 4.0:
+                continue
+            if waived is not None:
+                self._remove_from_team(team, waived.id)
+                waived.team_id = None
+                waived.salary = 0.0
+                waived.contract_years = 0
+                self.free_agents.append(waived.id)
+            self._sign_to_team(team, player, rng)
+            return
+
+    def _sign_to_team(self, team: Team, player: Player, rng: random.Random) -> None:
+        self.free_agents.remove(player.id)
+        team.roster.append(player.id)
+        player.team_id = team.id
+        player.salary = player.asking_salary
+        player.contract_years = rng.randint(1, 3)
+
+    def _opponent_trades(self) -> None:
+        """One deadline round of one-for-one swaps between opponent teams.
+
+        Each front office evaluates a swap with its own hidden valuation bias,
+        so a trade happens only when both sides believe they gain. Every
+        opponent participates in at most one such trade per season. Trades are
+        recorded in the transaction feed as market signal for the user.
+        """
+        traded: set[int] = set()
+        opponents = [team for team in self.teams.values() if team.id != self.user_team_id]
+        for index, team_a in enumerate(opponents):
+            if team_a.id in traded:
+                continue
+            for team_b in opponents[index + 1 :]:
+                if team_b.id in traded:
+                    continue
+                swap = self._find_mutual_swap(team_a, team_b)
+                if swap is None:
+                    continue
+                player_a, player_b = swap
+                self._remove_from_team(team_a, player_a.id)
+                self._remove_from_team(team_b, player_b.id)
+                team_a.roster.append(player_b.id)
+                team_b.roster.append(player_a.id)
+                player_a.team_id = team_b.id
+                player_b.team_id = team_a.id
+                traded.add(team_a.id)
+                traded.add(team_b.id)
+                self._record(
+                    {
+                        "type": "trade",
+                        "partner_team_id": team_b.id,
+                        "give_player_ids": [player_a.id],
+                        "receive_player_ids": [player_b.id],
+                    },
+                    "trade_deadline",
+                    True,
+                    f"{team_a.name} traded {player_a.name} to {team_b.name} for {player_b.name}",
+                    team_id=team_a.id,
+                )
+                break
+
+    def _find_mutual_swap(self, team_a: Team, team_b: Team) -> tuple[Player, Player] | None:
+        """Find a same-position swap both teams' hidden valuations prefer.
+
+        Each team shops from the five players it privately values least; the
+        divergent per-team biases are what create genuine win-win swaps.
+        """
+
+        def shop_list(team: Team) -> list[Player]:
+            return sorted(
+                (self.players[player_id] for player_id in team.roster),
+                key=lambda player: player.asset_value * self._partner_valuation_bias(team.id, player.id),
+            )[:5]
+
+        def perceived(team: Team, player: Player) -> float:
+            return player.asset_value * self._partner_valuation_bias(team.id, player.id)
+
+        for player_a in shop_list(team_a):
+            for player_b in shop_list(team_b):
+                if player_a.position != player_b.position:
+                    continue
+                if perceived(team_a, player_b) < perceived(team_a, player_a) * 1.03:
+                    continue
+                if perceived(team_b, player_a) < perceived(team_b, player_b) * 1.03:
+                    continue
+                payroll_a = self._payroll(team_a) - player_a.salary + player_b.salary
+                payroll_b = self._payroll(team_b) - player_b.salary + player_a.salary
+                if payroll_a > self.cap + HARD_CAP_BUFFER or payroll_b > self.cap + HARD_CAP_BUFFER:
+                    continue
+                return player_a, player_b
+        return None
 
     def _payroll(self, team: Team) -> float:
         return sum(self.players[player_id].salary for player_id in team.roster)

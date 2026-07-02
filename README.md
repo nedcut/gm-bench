@@ -13,9 +13,13 @@ The MVP includes:
   dressed young players develop at full speed.
 - A competitive draft: opponents pick in inverse-standings order, so top
   prospects are gone before a strong team's turn.
+- Competitive free agency: opponent front offices act after every phase, fill
+  roster needs, and grab standout free agents (waiving their weakest player
+  to make room), so waiting on a signing carries real risk.
 - A realistic trade market: partners privately re-value players each season,
   accept a limited number of trades, and rosters cannot be stripped below the
-  league minimum.
+  league minimum. At the trade deadline, opponents also make one-for-one
+  trades among themselves, visible in the transaction feed.
 - Baseline agents: random, conservative, win-now, rebuild, value, and a
   red-team `exploit` canary that replays known-degenerate strategies.
 - A scoring model that rewards wins, championships, future assets, prospects,
@@ -97,6 +101,11 @@ Key mechanics agents should know:
   and no trade may shrink a roster below `roster_min`.
 - Opponents draft in inverse-standings order around your slot, so the draft
   class you see at your pick already reflects earlier selections.
+- Opponent front offices act after every phase: they sign free agents (both
+  to fill needs and to poach clear upgrades) and swap players among
+  themselves at the trade deadline. A free agent visible now may be gone at
+  the next decision point, and opponent trades appear in
+  `recent_transactions` as market signal.
 - `memo` stores up to 2000 characters that are echoed back in every future
   observation — the only state that persists across decision points for
   stateless external agents.

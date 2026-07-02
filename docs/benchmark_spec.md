@@ -30,6 +30,13 @@ The MVP implements a compact hockey-style league:
 - Hidden true potential.
 - Salary cap and contract years.
 - Free agents with asking prices (free agents age and rust while unsigned).
+- Competitive free agency: opponent front offices sign free agents after
+  every phase — filling roster needs and poaching standout players, waiving
+  their least valuable player to make room when full — so the pool is never
+  reserved for the user between decision points.
+- Opponent-initiated trades: at the trade deadline, opponents make
+  one-for-one swaps among themselves whenever both sides' hidden valuations
+  agree, recorded in the transaction feed.
 - Draft classes with noisy projections, drafted competitively: every team
   picks once per season in inverse-standings order around the user's slot.
 - Trade acceptance based on asset value perturbed by hidden per-partner
@@ -160,5 +167,5 @@ model services.
 - Add a multi-agent arena mode where agents negotiate with each other.
 - Add private evaluation seeds and a leaderboard package.
 - Add sport variants with different roster and cap constraints.
-- Let opponents initiate trades and re-sign free agents outside the preseason
-  window, removing the user's remaining first-mover advantage in free agency.
+- Let opponents propose trades directly to the user, adding a negotiation
+  surface on top of the existing opponent-to-opponent deadline trades.

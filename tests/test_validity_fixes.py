@@ -203,6 +203,43 @@ def test_draft_picks_replenish_beyond_generated_years() -> None:
     assert season_nine_drafts, "the user's draft pick should still exist in season 9"
 
 
+# --- Competitive free agency and opponent trades ---------------------------
+
+
+def test_opponents_compete_for_standout_free_agents_at_the_deadline() -> None:
+    league = League.new(seed=14)
+    star_id = league.free_agents[0]
+    league.players[star_id].overall = 90.0
+    league.run_autopilot_opponents("trade_deadline")
+    assert league.players[star_id].team_id is not None
+    assert star_id not in league.free_agents
+
+
+def test_opponent_trades_are_one_for_one_between_opponents() -> None:
+    result = run_episode(ValueAgent(), seed=1, seasons=5)
+    ai_trades = [
+        transaction
+        for transaction in result.transactions
+        if transaction["team_id"] != 0 and transaction["action"].get("type") == "trade"
+    ]
+    assert ai_trades, "opponents should trade among themselves over five seasons"
+    for transaction in ai_trades:
+        action = transaction["action"]
+        assert transaction["accepted"] is True
+        assert len(action["give_player_ids"]) == 1
+        assert len(action["receive_player_ids"]) == 1
+        assert action["partner_team_id"] != 0
+
+
+def test_opponent_activity_does_not_touch_user_roster_or_penalties() -> None:
+    league = League.new(seed=14)
+    roster_before = list(league.user_team.roster)
+    for phase in ("preseason", "trade_deadline", "draft"):
+        league.run_autopilot_opponents(phase)
+    assert league.user_team.roster == roster_before
+    assert league.illegal_actions == 0
+
+
 # --- Memo scratchpad ------------------------------------------------------
 
 
