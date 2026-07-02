@@ -12,25 +12,25 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import urllib.error
 import urllib.request
+from typing import Any
 
 try:
-    from gm_agent_common import build_prompt, fallback_actions, parse_actions
+    from gm_agent_common import build_prompt, fallback_actions, parse_actions, run_agent_main
 except ModuleNotFoundError:
-    from examples.gm_agent_common import build_prompt, fallback_actions, parse_actions
+    from examples.gm_agent_common import build_prompt, fallback_actions, parse_actions, run_agent_main
 
 
-def main() -> None:
-    observation = json.load(sys.stdin)
+def choose_actions(observation: dict[str, Any]) -> list[dict[str, Any]]:
+    if observation.get("phase") == "action_results":
+        return [{"type": "end_turn"}]
     api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
     model = os.environ.get("LLM_MODEL", "gpt-4.1-mini")
     base_url = os.environ.get("LLM_API_BASE", "https://api.openai.com/v1").rstrip("/")
     timeout = float(os.environ.get("LLM_TIMEOUT", "120"))
     if not api_key:
-        print(json.dumps(fallback_actions(observation, "missing LLM_API_KEY or OPENAI_API_KEY")))
-        return
+        return fallback_actions(observation, "missing LLM_API_KEY or OPENAI_API_KEY")
 
     payload = {
         "model": model,
@@ -53,9 +53,13 @@ def main() -> None:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8"))
         content = data["choices"][0]["message"]["content"]
-        print(json.dumps(parse_actions(content)))
+        return parse_actions(content)
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
-        print(json.dumps(fallback_actions(observation, f"api_error: {exc}")))
+        return fallback_actions(observation, f"api_error: {exc}")
+
+
+def main() -> None:
+    run_agent_main(choose_actions)
 
 
 if __name__ == "__main__":

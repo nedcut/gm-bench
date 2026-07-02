@@ -9,7 +9,9 @@ import sys
 from typing import Any
 
 from gm_bench.agents import AGENTS, ExternalProcessAgent
-from gm_bench.runner import evaluate_against_baselines, run_many
+from gm_bench.protocol import EpisodeConfig
+from gm_bench.runner import evaluate_against_baselines, make_progress_printer, run_many
+from gm_bench.session import PersistentProcessAgent
 from gm_bench.simulator import League
 from gm_bench.storage import DEFAULT_DB_PATH, log_payload
 
@@ -33,6 +35,7 @@ def main(argv: list[str] | None = None) -> None:
     run_parser.add_argument("--seeds", nargs="+", type=int, default=[1])
     run_parser.add_argument("--seasons", type=int, default=5)
     run_parser.add_argument("--json", action="store_true", help="emit full JSON results")
+    _add_episode_args(run_parser)
     _add_logging_args(run_parser)
 
     compare_parser = subparsers.add_parser("compare", help="compare built-in agents")
@@ -57,10 +60,13 @@ def main(argv: list[str] | None = None) -> None:
     evaluate_parser.add_argument("--seeds", nargs="+", type=int, default=[1, 2, 3, 4, 5])
     evaluate_parser.add_argument("--seasons", type=int, default=5)
     evaluate_parser.add_argument("--json", action="store_true")
+    _add_episode_args(evaluate_parser)
     _add_logging_args(evaluate_parser)
 
     describe_parser = subparsers.add_parser("describe", help="describe a generated league seed")
     describe_parser.add_argument("--seed", type=int, default=1)
+    describe_parser.add_argument("--tier", choices=["summary", "full"], default="full")
+    describe_parser.add_argument("--phase", default="preseason")
 
     gui_parser = subparsers.add_parser("gui", help="start the local GM-Bench web GUI")
     gui_parser.add_argument("--host", default="127.0.0.1")
@@ -69,8 +75,10 @@ def main(argv: list[str] | None = None) -> None:
 
     args = parser.parse_args(argv)
     if args.command == "run":
-        agent = _resolve_agent(args.agent_cmd, args.agent, args.agent_timeout)
-        result = run_many(agent, args.seeds, args.seasons)
+        agent = _resolve_agent(args)
+        result = run_many(
+            agent, args.seeds, args.seasons, config=_episode_config(args), progress=make_progress_printer(args.verbose)
+        )
         run_id = _maybe_log(args, "run", result)
         _print_result(result, args.json)
         _print_log_line(run_id, args)
@@ -83,8 +91,15 @@ def main(argv: list[str] | None = None) -> None:
             _print_table(results)
         _print_log_line(run_id, args)
     elif args.command == "evaluate":
-        agent = _resolve_agent(args.agent_cmd, args.agent, args.agent_timeout)
-        result = evaluate_against_baselines(agent, args.seeds, args.seasons, args.baselines)
+        agent = _resolve_agent(args)
+        result = evaluate_against_baselines(
+            agent,
+            args.seeds,
+            args.seasons,
+            args.baselines,
+            config=_episode_config(args),
+            progress=make_progress_printer(args.verbose),
+        )
         run_id = _maybe_log(args, "evaluate", result)
         if args.json:
             print(json.dumps(result, indent=2, sort_keys=True))
@@ -93,24 +108,55 @@ def main(argv: list[str] | None = None) -> None:
         _print_log_line(run_id, args)
     elif args.command == "describe":
         league = League.new(args.seed)
-        print(json.dumps(league.observation("preseason"), indent=2, sort_keys=True))
+        print(json.dumps(league.observation(args.phase, tier=args.tier), indent=2, sort_keys=True))
     elif args.command == "gui":
         from gm_bench.gui import serve
 
         serve(args.host, args.port, args.db)
 
 
-def _resolve_agent(agent_cmd: str | None, agent_name: str, timeout: float | None) -> Any:
-    if not agent_cmd:
-        return AGENTS[agent_name]()
-    resolved_timeout = timeout if timeout is not None else EXTERNAL_AGENT_TIMEOUT_DEFAULT
+def _add_episode_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--strict", action="store_true", help="disable heuristic fallback actions for external agents")
+    parser.add_argument(
+        "--persistent-session",
+        action="store_true",
+        help="keep one external-agent subprocess alive for the whole episode",
+    )
+    parser.add_argument(
+        "--observation-tier",
+        choices=["summary", "full"],
+        default="summary",
+        help="observation detail for external agents (built-ins always receive full)",
+    )
+    parser.add_argument("--no-midseason", action="store_true", help="disable the midseason injury/waiver phase")
+    parser.add_argument("--verbose", action="store_true", help="print per-decision progress to stderr")
+
+
+def _episode_config(args: argparse.Namespace) -> EpisodeConfig:
+    return EpisodeConfig(
+        observation_tier=args.observation_tier,
+        persistent_session=bool(getattr(args, "persistent_session", False)),
+        strict=bool(getattr(args, "strict", False)),
+        include_midseason=not bool(getattr(args, "no_midseason", False)),
+    )
+
+
+def _resolve_agent(args: argparse.Namespace) -> Any:
+    if not args.agent_cmd:
+        return AGENTS[args.agent]()
+    resolved_timeout = args.agent_timeout if args.agent_timeout is not None else EXTERNAL_AGENT_TIMEOUT_DEFAULT
     if resolved_timeout < EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED:
         print(
             f"warning: --agent-timeout={resolved_timeout} may be too low for LLM-backed agents; "
             f"consider >= {EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED:g}",
             file=sys.stderr,
         )
-    return ExternalProcessAgent(agent_cmd, timeout_seconds=resolved_timeout)
+    env: dict[str, str] = {}
+    if args.strict:
+        env["GM_BENCH_STRICT"] = "1"
+    if args.persistent_session:
+        return PersistentProcessAgent(args.agent_cmd, timeout_seconds=resolved_timeout, env=env or None)
+    return ExternalProcessAgent(args.agent_cmd, timeout_seconds=resolved_timeout, env=env or None)
 
 
 def _add_logging_args(parser: argparse.ArgumentParser) -> None:

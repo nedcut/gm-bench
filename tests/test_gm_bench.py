@@ -275,6 +275,7 @@ def test_sample_observation_matches_protocol_shape() -> None:
         "seed",
         "season",
         "phase",
+        "observation_tier",
         "rules",
         "team",
         "standings",
@@ -283,6 +284,10 @@ def test_sample_observation_matches_protocol_shape() -> None:
         "trade_market",
         "history",
         "recent_transactions",
+        "memo",
+        "scouting_budget",
+        "incoming_trade_offers",
+        "available_actions",
     }
     assert required <= set(observation)
     assert "true_potential" not in json.dumps(observation)
@@ -334,8 +339,8 @@ def test_paired_evaluation_reports_per_seed_lift_and_ci() -> None:
 
 
 def test_evaluation_lift_uses_precise_episode_scores(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fake_run_many(agent: object, seeds: list[int], seasons: int) -> dict[str, object]:
-        del seasons
+    def fake_run_many(agent: object, seeds: list[int], seasons: int, **kwargs: object) -> dict[str, object]:
+        del seasons, kwargs
         if getattr(agent, "name") == "value":
             scores = [1.0004 for _ in seeds]
             summary_score = 1.0

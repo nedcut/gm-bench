@@ -6,7 +6,24 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 Position = Literal["F", "D", "G"]
-ActionType = Literal["sign_free_agent", "release", "trade", "draft", "set_lineup", "memo", "noop"]
+ActionType = Literal[
+    "sign_free_agent",
+    "release",
+    "trade",
+    "draft",
+    "set_lineup",
+    "memo",
+    "noop",
+    "inspect_team",
+    "inspect_player",
+    "list_free_agents",
+    "scout",
+    "accept_trade_offer",
+    "reject_trade_offer",
+    "counter_trade_offer",
+    "claim_waiver",
+    "end_turn",
+]
 
 LINEUP_SIZE = 18
 LINEUP_MIN_POSITIONS: dict[str, int] = {"F": 10, "D": 4, "G": 1}
@@ -26,11 +43,12 @@ class Player:
     contract_years: int
     team_id: int | None
     injury_risk: float
-    morale: float = 0.0
+    morale: float = 50.0
     drafted_round: int | None = None
+    injured_games: int = 0
 
-    def public_dict(self) -> dict[str, Any]:
-        return {
+    def public_dict(self, *, include_injury_status: bool = True) -> dict[str, Any]:
+        payload = {
             "id": self.id,
             "name": self.name,
             "position": self.position,
@@ -42,6 +60,9 @@ class Player:
             "injury_risk": round(self.injury_risk, 3),
             "morale": round(self.morale, 2),
         }
+        if include_injury_status and self.injured_games > 0:
+            payload["injured_games_remaining"] = self.injured_games
+        return payload
 
     @property
     def asking_salary(self) -> float:
@@ -55,7 +76,14 @@ class Player:
         if self.contract_years > 0:
             surplus = max(-10.0, self.overall - 52.0 - self.salary * 2.5)
             contract_factor += surplus * 0.018
-        return max(0.0, (self.overall * 0.55 + self.potential * 0.45 - 45.0) * age_factor * contract_factor)
+        morale_factor = 0.92 + min(max(self.morale, 0.0), 100.0) / 100.0 * 0.08
+        return max(0.0, (self.overall * 0.55 + self.potential * 0.45 - 45.0) * age_factor * contract_factor * morale_factor)
+
+    @property
+    def effective_overall(self) -> float:
+        injury_penalty = min(18.0, self.injured_games * 2.25) if self.injured_games > 0 else 0.0
+        morale_penalty = max(0.0, (45.0 - self.morale) * 0.06)
+        return max(30.0, self.overall - injury_penalty - morale_penalty)
 
 
 @dataclass
@@ -72,9 +100,10 @@ class Team:
     playoff_rounds: int = 0
     draft_picks: dict[int, int] = field(default_factory=dict)
 
-    def public_dict(self, players: dict[int, Player], cap: float) -> dict[str, Any]:
+    def public_dict(self, players: dict[int, Player], cap: float, *, full_roster: bool = True) -> dict[str, Any]:
         payroll = sum(players[player_id].salary for player_id in self.roster)
-        return {
+        roster_players = [players[player_id] for player_id in self.roster]
+        payload: dict[str, Any] = {
             "id": self.id,
             "name": self.name,
             "market": round(self.market, 2),
@@ -87,8 +116,17 @@ class Team:
             "cap_room": round(cap - payroll, 2),
             "draft_picks": dict(sorted(self.draft_picks.items())),
             "lineup": list(self.lineup),
-            "roster": [players[player_id].public_dict() for player_id in self.roster],
         }
+        if full_roster:
+            payload["roster"] = [players[player_id].public_dict() for player_id in self.roster]
+        else:
+            top = sorted(roster_players, key=lambda player: player.overall, reverse=True)[:8]
+            payload["roster_summary"] = {
+                "count": len(self.roster),
+                "avg_overall": round(sum(player.overall for player in roster_players) / max(len(roster_players), 1), 2),
+                "top_player_ids": [player.id for player in top],
+            }
+        return payload
 
 
 @dataclass

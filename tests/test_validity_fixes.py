@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from gm_bench.agents import ExploitAgent, ValueAgent
 from gm_bench.models import LINEUP_MIN_POSITIONS, LINEUP_SIZE, ROSTER_MIN
+from gm_bench.protocol import PHASES
 from gm_bench.runner import run_episode
 from gm_bench.scoring import score_breakdown
 from gm_bench.simulator import MEMO_MAX_CHARS, TRADE_LIMIT_PER_PARTNER, League
@@ -239,7 +240,9 @@ def test_opponent_trades_are_one_for_one_between_opponents() -> None:
 def test_opponent_activity_does_not_touch_user_roster_or_penalties() -> None:
     league = League.new(seed=14)
     roster_before = list(league.user_team.roster)
-    for phase in ("preseason", "trade_deadline", "draft"):
+    for phase in PHASES:
+        if phase == "midseason":
+            league.prepare_midseason()
         league.run_autopilot_opponents(phase)
     assert league.user_team.roster == roster_before
     assert league.illegal_actions == 0

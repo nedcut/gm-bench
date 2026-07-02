@@ -49,21 +49,19 @@ The MVP implements a compact hockey-style league:
 
 ## Decision Interface
 
-At each season, agents receive observations for three phases:
+At each season, agents receive observations for four phases:
 
 - `preseason`
+- `midseason` (partial-season standings, injuries, waiver wire)
 - `trade_deadline`
 - `draft`
 
 Agents return a JSON array of actions:
 
-- `sign_free_agent`
-- `release`
-- `trade`
-- `draft`
-- `set_lineup`
-- `memo`
-- `noop`
+- `sign_free_agent`, `release`, `trade`, `draft`, `set_lineup`, `memo`, `noop`
+- `inspect_team`, `inspect_player`, `list_free_agents`, `scout`
+- `accept_trade_offer`, `reject_trade_offer`, `counter_trade_offer`
+- `claim_waiver`, `end_turn`
 
 Actions are validated by the simulator. Invalid actions are ignored and counted
 as penalties.
@@ -162,10 +160,15 @@ model services.
 
 ## Next Steps
 
-- Add a richer trade market with draft-pick trades.
-- Add private scouting actions that improve noisy projections.
-- Add a multi-agent arena mode where agents negotiate with each other.
-- Add private evaluation seeds and a leaderboard package.
-- Add sport variants with different roster and cap constraints.
-- Let opponents propose trades directly to the user, adding a negotiation
-  surface on top of the existing opponent-to-opponent deadline trades.
+- Multi-agent arena mode where agents negotiate with each other
+- Private evaluation seeds and a leaderboard package
+- Sport variants with different roster and cap constraints
+
+Completed in v2:
+
+- Richer trade market with draft-pick trades
+- Private scouting actions
+- Opponent trade proposals to the user
+- Midseason injury/waiver phase
+- Tiered observations and query actions
+- Persistent agent sessions and strict evaluation mode

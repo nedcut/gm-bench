@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from gm_bench.agents import ValueAgent
+from gm_bench.protocol import PHASES
 from gm_bench.runner import run_episode
 from gm_bench.scoring import score_team
 from gm_bench.simulator import League
@@ -37,7 +38,11 @@ def test_final_episode_score_matches_scoring_function() -> None:
     result = run_episode(ValueAgent(), seed=9, seasons=2)
     league = League.new(seed=9)
     for _ in range(2):
-        for phase in ["preseason", "trade_deadline", "draft"]:
+        for phase in PHASES:
+            if phase == "midseason":
+                league.prepare_midseason()
+            if phase == "trade_deadline":
+                league.prepare_trade_deadline()
             if phase == "draft":
                 league.run_opponent_draft(before_user=True)
             league.apply_actions(ValueAgent().act(league.observation(phase)), phase)

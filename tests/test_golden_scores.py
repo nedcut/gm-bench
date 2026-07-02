@@ -6,9 +6,9 @@ from gm_bench.agents import RandomAgent, ValueAgent
 from gm_bench.runner import run_episode, run_many
 
 GOLDEN_VALUE_SCORES_5_SEASONS = {
-    1: 227.392,
-    2: 236.443,
-    3: 256.484,
+    1: 298.231,
+    2: 343.833,
+    3: 310.847,
 }
 
 

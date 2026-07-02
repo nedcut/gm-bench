@@ -30,7 +30,26 @@ The MVP includes:
   persistent `memo` scratchpad for carrying multi-season plans between
   decision points.
 
-## Quickstart
+## Protocol v2 (gm-bench-v2)
+
+GM-Bench v2 expands how agents interact with the environment:
+
+- **4 phases per season**: `preseason`, `midseason` (partial games, injuries, waiver wire), `trade_deadline`, `draft`
+- **Tiered observations**: summary by default for external agents; use query actions for detail
+- **Query actions**: `inspect_team`, `inspect_player`, `list_free_agents`, `scout` (reveals true-potential band)
+- **Trade negotiation**: incoming opponent offers with `accept_trade_offer`, `reject_trade_offer`, `counter_trade_offer`
+- **Draft-pick trades**: `give_pick_seasons` / `receive_pick_seasons` on `trade` actions
+- **Same-turn feedback**: multi-round decisions return `action_results` until `end_turn`
+- **Persistent sessions**: `--persistent-session` keeps one subprocess alive per episode
+- **Strict mode**: `--strict` disables heuristic fallback actions for model evaluation
+- **Morale & injuries**: morale affects performance; midseason injuries reduce effective overall
+
+```bash
+python -m gm_bench run --agent-cmd "python examples/openai_compatible_agent.py" \
+  --observation-tier summary --persistent-session --strict \
+  --seeds 1 --seasons 1
+```
+
 
 ```bash
 python -m gm_bench run --agent value --seeds 1 2 3 --seasons 5
