@@ -52,6 +52,20 @@ The GUI intentionally does not launch external model-backed agents yet; use the
 CLI for Codex, Claude, opencode, Ollama, and API-backed agents where cost and
 provider behavior should be explicit.
 
+## Public Web Site
+
+A forward-facing landing site (Vite + React + TypeScript, managed with Bun)
+lives in [`web/`](web/README.md). It renders reference baseline results,
+the decision-loop and protocol overview, and a quickstart from a committed
+snapshot of real benchmark output, and builds to a fully static bundle:
+
+```bash
+cd web
+bun install
+bun dev        # local development
+bun run build  # static production build in web/dist/
+```
+
 ## External Agent Protocol
 
 External agents are launched once per decision point. The runner writes an

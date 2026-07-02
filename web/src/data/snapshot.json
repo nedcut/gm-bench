@@ -1,0 +1,536 @@
+{
+  "config": {
+    "baselines": [
+      "random",
+      "conservative",
+      "win-now",
+      "rebuild"
+    ],
+    "candidate": "value",
+    "seasons": 5,
+    "seeds": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "episodes": [
+    {
+      "agent": "value",
+      "championships": 2,
+      "final_score": 314.257,
+      "illegal_actions": 0,
+      "seed": 1,
+      "wins": 107
+    },
+    {
+      "agent": "value",
+      "championships": 2,
+      "final_score": 313.638,
+      "illegal_actions": 0,
+      "seed": 2,
+      "wins": 120
+    },
+    {
+      "agent": "value",
+      "championships": 2,
+      "final_score": 305.704,
+      "illegal_actions": 0,
+      "seed": 4,
+      "wins": 126
+    },
+    {
+      "agent": "value",
+      "championships": 1,
+      "final_score": 273.467,
+      "illegal_actions": 0,
+      "seed": 5,
+      "wins": 109
+    },
+    {
+      "agent": "win-now",
+      "championships": 2,
+      "final_score": 259.968,
+      "illegal_actions": 0,
+      "seed": 3,
+      "wins": 110
+    },
+    {
+      "agent": "win-now",
+      "championships": 2,
+      "final_score": 257.09,
+      "illegal_actions": 0,
+      "seed": 1,
+      "wins": 107
+    },
+    {
+      "agent": "value",
+      "championships": 1,
+      "final_score": 248.997,
+      "illegal_actions": 0,
+      "seed": 3,
+      "wins": 111
+    },
+    {
+      "agent": "win-now",
+      "championships": 2,
+      "final_score": 239.736,
+      "illegal_actions": 0,
+      "seed": 4,
+      "wins": 128
+    },
+    {
+      "agent": "win-now",
+      "championships": 1,
+      "final_score": 208.769,
+      "illegal_actions": 0,
+      "seed": 5,
+      "wins": 112
+    },
+    {
+      "agent": "win-now",
+      "championships": 0,
+      "final_score": 147.439,
+      "illegal_actions": 0,
+      "seed": 2,
+      "wins": 105
+    },
+    {
+      "agent": "conservative",
+      "championships": 1,
+      "final_score": 129.218,
+      "illegal_actions": 0,
+      "seed": 4,
+      "wins": 84
+    },
+    {
+      "agent": "rebuild",
+      "championships": 1,
+      "final_score": 116.641,
+      "illegal_actions": 0,
+      "seed": 4,
+      "wins": 79
+    }
+  ],
+  "generated_at": "2026-07-02T04:20:11+00:00",
+  "normalized": {
+    "baseline_illegal_actions": 0,
+    "baseline_panel_mean_score": 120.279,
+    "candidate_illegal_actions": 0,
+    "candidate_mean_score": 291.213,
+    "score_lift": 170.934,
+    "score_lift_pct": 142.12
+  },
+  "paired": {
+    "best_baseline": {
+      "agent": "win-now",
+      "mean_score": 222.6,
+      "paired_lift_mean": 68.612,
+      "seed_win_rate": 0.8
+    },
+    "candidate_seed_win_rate": 1.0,
+    "num_seeds": 5,
+    "paired_lift_ci95": [
+      145.875,
+      198.253
+    ],
+    "paired_lift_mean": 170.934,
+    "paired_lift_stddev": 31.255,
+    "per_seed": [
+      {
+        "baseline_panel_score": 127.257,
+        "candidate_score": 314.257,
+        "lift": 187.0,
+        "seed": 1
+      },
+      {
+        "baseline_panel_score": 90.332,
+        "candidate_score": 313.638,
+        "lift": 223.306,
+        "seed": 2
+      },
+      {
+        "baseline_panel_score": 114.648,
+        "candidate_score": 248.997,
+        "lift": 134.349,
+        "seed": 3
+      },
+      {
+        "baseline_panel_score": 146.351,
+        "candidate_score": 305.704,
+        "lift": 159.353,
+        "seed": 4
+      },
+      {
+        "baseline_panel_score": 122.805,
+        "candidate_score": 273.467,
+        "lift": 150.662,
+        "seed": 5
+      }
+    ],
+    "significant_at_95": true
+  },
+  "sample_transactions": [
+    {
+      "accepted": true,
+      "action": {
+        "player_id": 294,
+        "salary": 4.14,
+        "type": "sign_free_agent",
+        "years": 3
+      },
+      "message": "signed Finn Anders",
+      "phase": "preseason",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_id": 304,
+        "salary": 7.04,
+        "type": "sign_free_agent",
+        "years": 1
+      },
+      "message": "signed Ivan Price",
+      "phase": "preseason",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_id": 278,
+        "salary": 6.36,
+        "type": "sign_free_agent",
+        "years": 1
+      },
+      "message": "signed Finn Keller",
+      "phase": "preseason",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_id": 301,
+        "salary": 2.12,
+        "type": "sign_free_agent",
+        "years": 3
+      },
+      "message": "signed Alex Diaz",
+      "phase": "preseason",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_id": 297,
+        "salary": 3.32,
+        "type": "sign_free_agent",
+        "years": 3
+      },
+      "message": "signed Gabe Quill",
+      "phase": "preseason",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_ids": [
+          20,
+          13,
+          12,
+          18,
+          21,
+          23,
+          9,
+          22,
+          14,
+          10,
+          8,
+          4,
+          5,
+          6,
+          1,
+          2,
+          3,
+          11
+        ],
+        "type": "set_lineup"
+      },
+      "message": "lineup set",
+      "phase": "preseason",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_ids": [
+          304,
+          278,
+          20,
+          294,
+          13,
+          12,
+          18,
+          21,
+          23,
+          9,
+          8,
+          4,
+          297,
+          5,
+          1,
+          301,
+          2,
+          22
+        ],
+        "type": "set_lineup"
+      },
+      "message": "lineup set",
+      "phase": "trade_deadline",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "prospect_id": 1010006,
+        "type": "draft"
+      },
+      "message": "drafted Gabe Hayes",
+      "phase": "draft",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_ids": [
+          304,
+          278,
+          20,
+          294,
+          13,
+          12,
+          18,
+          21,
+          23,
+          9,
+          8,
+          4,
+          297,
+          5,
+          1,
+          301,
+          2,
+          22
+        ],
+        "type": "set_lineup"
+      },
+      "message": "lineup set",
+      "phase": "draft",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_id": 213,
+        "salary": 5.69,
+        "type": "sign_free_agent",
+        "years": 3
+      },
+      "message": "signed Milo Olsen",
+      "phase": "preseason",
+      "season": 2
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_id": 257,
+        "salary": 2.88,
+        "type": "sign_free_agent",
+        "years": 3
+      },
+      "message": "signed Jules Diaz",
+      "phase": "preseason",
+      "season": 2
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_id": 238,
+        "salary": 3.07,
+        "type": "sign_free_agent",
+        "years": 3
+      },
+      "message": "signed Alex Olsen",
+      "phase": "preseason",
+      "season": 2
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_ids": [
+          1010006,
+          20,
+          294,
+          13,
+          12,
+          21,
+          18,
+          23,
+          9,
+          22,
+          8,
+          4,
+          297,
+          5,
+          1,
+          301,
+          14,
+          6
+        ],
+        "type": "set_lineup"
+      },
+      "message": "lineup set",
+      "phase": "preseason",
+      "season": 2
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_ids": [
+          1010006,
+          20,
+          294,
+          13,
+          12,
+          21,
+          18,
+          23,
+          9,
+          22,
+          213,
+          8,
+          238,
+          257,
+          1,
+          4,
+          297,
+          301
+        ],
+        "type": "set_lineup"
+      },
+      "message": "lineup set",
+      "phase": "trade_deadline",
+      "season": 2
+    }
+  ],
+  "season_trace": {
+    "agent": "value",
+    "seasons": [
+      {
+        "cap_room": 13.72,
+        "champion": false,
+        "losses": 17,
+        "playoff_rounds": 1,
+        "score_after_season": 119.746,
+        "season": 1,
+        "wins": 16
+      },
+      {
+        "cap_room": 16.64,
+        "champion": false,
+        "losses": 14,
+        "playoff_rounds": 0,
+        "score_after_season": 154.463,
+        "season": 2,
+        "wins": 19
+      },
+      {
+        "cap_room": 28.12,
+        "champion": false,
+        "losses": 9,
+        "playoff_rounds": 0,
+        "score_after_season": 159.795,
+        "season": 3,
+        "wins": 24
+      },
+      {
+        "cap_room": 35.4,
+        "champion": true,
+        "losses": 8,
+        "playoff_rounds": 3,
+        "score_after_season": 208.423,
+        "season": 4,
+        "wins": 25
+      },
+      {
+        "cap_room": 41.03,
+        "champion": true,
+        "losses": 10,
+        "playoff_rounds": 3,
+        "score_after_season": 285.577,
+        "season": 5,
+        "wins": 23
+      }
+    ],
+    "seed": 1
+  },
+  "standings": [
+    {
+      "agent": "value",
+      "best_score": 314.257,
+      "episodes": 5,
+      "illegal_actions": 0,
+      "mean_score": 291.213,
+      "mean_wins": 114.6,
+      "score_stddev": 25.85,
+      "titles": 8,
+      "worst_score": 248.997
+    },
+    {
+      "agent": "win-now",
+      "best_score": 259.968,
+      "episodes": 5,
+      "illegal_actions": 0,
+      "mean_score": 222.6,
+      "mean_wins": 112.4,
+      "score_stddev": 41.761,
+      "titles": 7,
+      "worst_score": 147.439
+    },
+    {
+      "agent": "conservative",
+      "best_score": 129.218,
+      "episodes": 5,
+      "illegal_actions": 0,
+      "mean_score": 103.621,
+      "mean_wins": 73.8,
+      "score_stddev": 16.934,
+      "titles": 1,
+      "worst_score": 80.842
+    },
+    {
+      "agent": "rebuild",
+      "best_score": 116.641,
+      "episodes": 5,
+      "illegal_actions": 0,
+      "mean_score": 99.07,
+      "mean_wins": 71,
+      "score_stddev": 13.837,
+      "titles": 1,
+      "worst_score": 81.433
+    },
+    {
+      "agent": "random",
+      "best_score": 99.808,
+      "episodes": 5,
+      "illegal_actions": 0,
+      "mean_score": 55.823,
+      "mean_wins": 56,
+      "score_stddev": 24.728,
+      "titles": 1,
+      "worst_score": 29.159
+    }
+  ]
+}
