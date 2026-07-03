@@ -68,10 +68,11 @@ python -m gm_bench model \
   --profile tiny
 ```
 
-Reproducible JSON configs live in `examples/`:
+Reproducible JSON configs live in `examples/` (the config supplies the provider,
+so no extra flags are needed):
 
 ```bash
-LLM_API_KEY=... python -m gm_bench model --provider openai --config examples/benchmark.smoke.json
+LLM_API_KEY=... python -m gm_bench model --config examples/benchmark.smoke.json
 ```
 
 List supported providers:
@@ -87,13 +88,19 @@ agents:
 python -m gm_bench cache-baselines --preset benchmark
 ```
 
+Cached baseline episodes are keyed by a fingerprint of the simulator, scoring,
+and agent source files, so any change to the simulation automatically
+invalidates the cache — stale baselines can never bias lift statistics. Pass
+`--no-baseline-cache` to force fresh baseline runs, or set
+`GM_BENCH_BASELINE_CACHE=/path/to/cache.json` to relocate the cache file.
+
 Presets:
 
-| Preset | Seeds | Seasons | LLM calls per seed |
-|--------|-------|---------|--------------------|
-| `smoke` | 1 | 1 | 3 |
-| `standard` | 1–3 | 3 | 9 |
-| `benchmark` | 1–5 | 5 | 15 |
+| Preset | Seeds | Seasons | LLM calls per seed | Total LLM calls |
+|--------|-------|---------|--------------------|-----------------|
+| `smoke` | 1 | 1 | 3 | 3 |
+| `standard` | 3 | 3 | 9 | 27 |
+| `benchmark` | 5 | 5 | 15 | 75 |
 
 Use `--verbose` (or `GM_BENCH_VERBOSE=1`) to print per-decision progress while
 model episodes run.

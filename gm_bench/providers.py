@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -100,11 +101,12 @@ def build_provider_agent(
         env["GM_AGENT_PROFILE"] = profile
     elif spec.default_profile and "GM_AGENT_PROFILE" not in os.environ:
         env["GM_AGENT_PROFILE"] = spec.default_profile
+    env.update(spec.extra_env)
+    # User-supplied env goes last so config files can override spec defaults.
     if extra_env:
         env.update(extra_env)
-    env.update(spec.extra_env)
 
-    command = f"{sys.executable} {script_path}"
+    command = f"{shlex.quote(sys.executable)} {shlex.quote(str(script_path))}"
     display_name = f"{spec.name}:{resolved_model}"
     return ExternalProcessAgent(command, timeout_seconds=resolved_timeout, env=env, name=display_name)
 

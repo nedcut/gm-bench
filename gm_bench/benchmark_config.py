@@ -35,7 +35,6 @@ PRESETS: dict[str, dict[str, Any]] = {
 
 @dataclass
 class BenchmarkConfig:
-    command: str = "evaluate"
     provider: str | None = None
     model: str | None = None
     agent: str = "value"
@@ -66,16 +65,14 @@ class BenchmarkConfig:
         self.preset = preset
 
     def validate(self) -> None:
-        if self.command not in {"run", "evaluate"}:
-            raise ValueError("command must be 'run' or 'evaluate'")
         if self.provider and self.provider.lower() not in PROVIDER_NAMES:
             raise ValueError(f"unknown provider {self.provider!r}")
-        if not self.provider and not self.agent_cmd and self.command == "evaluate" and self.agent == "value":
-            pass
         if self.provider and self.agent_cmd:
             raise ValueError("use either provider or agent_cmd, not both")
         if not self.seeds:
             raise ValueError("seeds must not be empty")
+        if self.seasons < 1:
+            raise ValueError("seasons must be >= 1")
 
 
 def load_config(path: str | Path) -> BenchmarkConfig:
@@ -88,7 +85,6 @@ def load_config(path: str | Path) -> BenchmarkConfig:
 def config_from_dict(payload: dict[str, Any]) -> BenchmarkConfig:
     preset = payload.get("preset")
     config = BenchmarkConfig(
-        command=str(payload.get("command", "evaluate")),
         provider=payload.get("provider"),
         model=payload.get("model"),
         agent=str(payload.get("agent", "value")),

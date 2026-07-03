@@ -9,7 +9,7 @@ import sys
 from typing import Any
 
 from gm_bench.agents import AGENTS, ExternalProcessAgent
-from gm_bench.baseline_cache import DEFAULT_CACHE_PATH
+from gm_bench.baseline_cache import default_cache_path
 from gm_bench.benchmark_config import PRESET_NAMES, BenchmarkConfig, load_config
 from gm_bench.providers import PROVIDER_NAMES, build_provider_agent, provider_help
 from gm_bench.runner import evaluate_against_baselines, make_progress_printer, run_many, run_many_cached_baselines
@@ -47,7 +47,9 @@ def main(argv: list[str] | None = None) -> None:
         "model",
         help="run a built-in model provider with objective scoring against baselines",
     )
-    model_parser.add_argument("--provider", choices=PROVIDER_NAMES, required=True)
+    model_parser.add_argument(
+        "--provider", choices=PROVIDER_NAMES, help='built-in model provider (or set "provider" in --config)'
+    )
     model_parser.add_argument("--model", help="model name for the selected provider")
     model_parser.add_argument("--preset", choices=PRESET_NAMES, help="smoke, standard, or benchmark seed/season panel")
     model_parser.add_argument("--config", help="JSON benchmark config file (overrides preset defaults)")
@@ -66,7 +68,9 @@ def main(argv: list[str] | None = None) -> None:
     cache_parser.add_argument("--baselines", nargs="+", choices=sorted(AGENTS))
     cache_parser.add_argument("--seeds", nargs="+", type=int)
     cache_parser.add_argument("--seasons", type=int)
-    cache_parser.add_argument("--cache-path", default=str(DEFAULT_CACHE_PATH))
+    cache_parser.add_argument(
+        "--cache-path", default=None, help="baseline cache file (default: data/baseline_cache.json)"
+    )
     cache_parser.add_argument("--json", action="store_true")
 
     providers_parser = subparsers.add_parser("providers", help="list built-in model providers")
@@ -126,7 +130,7 @@ def _add_common_run_args(parser: argparse.ArgumentParser) -> None:
 
 
 def _run_command(args: argparse.Namespace) -> None:
-    config = _config_from_args(args, command="run")
+    config = _config_from_args(args)
     agent = _resolve_agent_from_config(config)
     progress = make_progress_printer(config.verbose)
     result = run_many(agent, config.seeds, config.seasons, progress=progress)
@@ -146,7 +150,7 @@ def _compare_command(args: argparse.Namespace) -> None:
 
 
 def _evaluate_command(args: argparse.Namespace) -> None:
-    config = _config_from_args(args, command="evaluate")
+    config = _config_from_args(args)
     agent = _resolve_agent_from_config(config)
     progress = make_progress_printer(config.verbose)
     result = evaluate_against_baselines(
@@ -188,7 +192,6 @@ def _model_command(args: argparse.Namespace) -> None:
         config.use_baseline_cache = config.use_baseline_cache and not args.no_baseline_cache
     else:
         config = BenchmarkConfig(
-            command="evaluate",
             provider=args.provider,
             model=args.model,
             agent_timeout=args.agent_timeout,
@@ -205,8 +208,10 @@ def _model_command(args: argparse.Namespace) -> None:
         if args.preset:
             config.apply_preset(args.preset)
     config.validate()
+    if not config.provider:
+        sys.exit('gm-bench model: no provider specified; pass --provider or set "provider" in the config file')
     agent = build_provider_agent(
-        config.provider or args.provider,
+        config.provider,
         model=config.model,
         timeout=config.agent_timeout,
         profile=config.profile,
@@ -244,6 +249,7 @@ def _cache_baselines_command(args: argparse.Namespace) -> None:
         if args.baselines is not None:
             config.baselines = args.baselines
 
+    cache_path = args.cache_path if args.cache_path is not None else str(default_cache_path())
     updated: list[str] = []
     results: list[dict[str, Any]] = []
     for name in config.baselines:
@@ -251,14 +257,14 @@ def _cache_baselines_command(args: argparse.Namespace) -> None:
             name,
             config.seeds,
             config.seasons,
-            cache_path=args.cache_path,
+            cache_path=cache_path,
             use_cache=True,
         )
         results.append(payload)
         if hits < len(config.seeds):
             updated.append(name)
     output = {
-        "cache_path": args.cache_path,
+        "cache_path": cache_path,
         "seeds": config.seeds,
         "seasons": config.seasons,
         "baselines": [result["agent"] for result in results],
@@ -268,7 +274,7 @@ def _cache_baselines_command(args: argparse.Namespace) -> None:
     if args.json:
         print(json.dumps(output, indent=2, sort_keys=True))
     else:
-        print(f"cache_path={args.cache_path} seeds={config.seeds} seasons={config.seasons}")
+        print(f"cache_path={cache_path} seeds={config.seeds} seasons={config.seasons}")
         if updated:
             print(f"updated baselines: {', '.join(updated)}")
         else:
@@ -288,9 +294,8 @@ def _providers_command(args: argparse.Namespace) -> None:
         print(f"{row['provider']:<14}{row['model_env']:<18}{row['default_model']}")
 
 
-def _config_from_args(args: argparse.Namespace, *, command: str) -> BenchmarkConfig:
+def _config_from_args(args: argparse.Namespace) -> BenchmarkConfig:
     config = BenchmarkConfig(
-        command=command,
         provider=getattr(args, "provider", None),
         model=getattr(args, "model", None),
         agent=getattr(args, "agent", "value"),
@@ -372,12 +377,13 @@ def _print_result(result: dict[str, Any], as_json: bool) -> None:
 
 
 def _print_table(results: list[dict[str, Any]]) -> None:
-    print("agent          mean_score  stddev  mean_wins  titles  illegal")
-    print("---------------------------------------------------------------")
+    name_width = max(14, *(len(result["agent"]) + 2 for result in results))
+    print(f"{'agent':<{name_width}}mean_score  stddev  mean_wins  titles  illegal")
+    print("-" * (name_width + 49))
     for result in sorted(results, key=lambda item: item["summary"]["mean_score"], reverse=True):
         summary = result["summary"]
         print(
-            f"{result['agent']:<14}{summary['mean_score']:>10.2f}{summary['score_stddev']:>8.2f}{summary['mean_total_wins']:>11.2f}{summary['championships']:>8}{summary['illegal_actions']:>9}"
+            f"{result['agent']:<{name_width}}{summary['mean_score']:>10.2f}{summary['score_stddev']:>8.2f}{summary['mean_total_wins']:>11.2f}{summary['championships']:>8}{summary['illegal_actions']:>9}"
         )
 
 
@@ -392,11 +398,22 @@ def _print_evaluation(result: dict[str, Any]) -> None:
     paired = result.get("paired")
     if paired:
         low, high = paired["paired_lift_ci95"]
-        verdict = "significant" if paired["significant_at_95"] else "within noise"
+        if paired["num_seeds"] < 2:
+            verdict = "significance n/a with 1 seed"
+        elif paired["significant_at_95"]:
+            verdict = "significant"
+        else:
+            verdict = "within noise"
         print(
             f"paired_lift={paired['paired_lift_mean']} ci95=[{low}, {high}] ({verdict}) "
             f"candidate_seed_win_rate={paired['candidate_seed_win_rate']} over {paired['num_seeds']} seed(s)"
         )
+        if paired["num_seeds"] < 3:
+            print(
+                f"note: {paired['num_seeds']} seed(s) is too few to trust the confidence interval; "
+                "treat this as a smoke test and use --preset standard or benchmark for real comparisons",
+                file=sys.stderr,
+            )
         best = paired.get("best_baseline")
         if best:
             print(

@@ -7,12 +7,13 @@ from pathlib import Path
 
 import pytest
 
+from gm_bench import baseline_cache as baseline_cache_module
 from gm_bench import cli as cli_module
-from gm_bench.agents import ValueAgent
+from gm_bench.agents import AGENTS, ValueAgent
 from gm_bench.baseline_cache import cache_key, get_cached_episode, load_cache, save_cache
 from gm_bench.benchmark_config import BenchmarkConfig, config_from_dict, load_config
 from gm_bench.providers import build_provider_agent, resolve_provider
-from gm_bench.runner import evaluate_against_baselines, run_many_cached_baselines
+from gm_bench.runner import evaluate_against_baselines, run_many, run_many_cached_baselines, summarize_episodes
 
 
 def test_provider_registry_resolves_openai() -> None:
@@ -48,6 +49,32 @@ def test_benchmark_config_file_loads(tmp_path: Path) -> None:
     config = load_config(path)
     assert config.seeds == [1]
     assert config.provider == "openai"
+
+
+def test_cache_invalidates_when_simulation_fingerprint_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    cache_path = tmp_path / "cache.json"
+    episode = {"seed": 1, "final_score": 12.3, "strategy_score": 12.3, "protocol_penalty": 0.0}
+    cache = {cache_key("value", 1, 2): episode}
+    save_cache(cache, cache_path)
+
+    monkeypatch.setattr(baseline_cache_module, "simulation_fingerprint", lambda: "deadbeefcafe")
+    assert get_cached_episode("value", 1, 2, cache=load_cache(cache_path)) is None
+
+
+def test_save_cache_prunes_entries_from_older_fingerprints(tmp_path: Path) -> None:
+    cache_path = tmp_path / "cache.json"
+    episode = {"seed": 1, "final_score": 1.0}
+    stale = {"v1:000000000000:value:1:2": episode, cache_key("value", 1, 2): episode}
+    save_cache(stale, cache_path)
+    assert list(load_cache(cache_path)) == [cache_key("value", 1, 2)]
+
+
+def test_cached_baseline_summary_matches_run_many_shape(tmp_path: Path) -> None:
+    cache_path = tmp_path / "cache.json"
+    live = run_many(AGENTS["value"](), seeds=[1], seasons=1)
+    cached, _ = run_many_cached_baselines("value", [1], seasons=1, cache_path=cache_path)
+    assert set(cached["summary"]) == set(live["summary"])
+    assert cached["summary"] == summarize_episodes(cached["episodes"])
 
 
 def test_baseline_cache_round_trip(tmp_path: Path) -> None:
@@ -198,3 +225,31 @@ def test_cli_model_config_preserves_config_baselines(tmp_path: Path, monkeypatch
     cli_module.main(["model", "--provider", "openai", "--config", str(config_path), "--no-log"])
 
     assert captured == {"seeds": [1], "seasons": 1, "baselines": ["value"]}
+
+
+def test_cli_model_config_supplies_provider_without_flag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "bench.json"
+    config_path.write_text(json.dumps({"provider": "openai", "seeds": [1], "seasons": 1}))
+    built: dict[str, object] = {}
+
+    class DummyAgent:
+        name = "openai:gpt-test"
+
+    def fake_build(provider, **kwargs):
+        built["provider"] = provider
+        return DummyAgent()
+
+    monkeypatch.setattr(cli_module, "build_provider_agent", fake_build)
+    monkeypatch.setattr(cli_module, "evaluate_against_baselines", lambda *args, **kwargs: {})
+    monkeypatch.setattr(cli_module, "_maybe_log", lambda *args, **kwargs: None)
+    monkeypatch.setattr(cli_module, "_print_evaluation", lambda result: None)
+
+    cli_module.main(["model", "--config", str(config_path), "--no-log"])
+
+    assert built["provider"] == "openai"
+
+
+def test_cli_model_without_any_provider_exits_with_error() -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        cli_module.main(["model", "--preset", "smoke", "--no-log"])
+    assert "no provider specified" in str(excinfo.value)
