@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from gm_bench import cli as cli_module
 from gm_bench.agents import ValueAgent
 from gm_bench.baseline_cache import cache_key, get_cached_episode, load_cache, save_cache
 from gm_bench.benchmark_config import BenchmarkConfig, config_from_dict, load_config
@@ -137,3 +138,63 @@ def test_cli_cache_baselines_json(tmp_path: Path) -> None:
     payload = json.loads(completed.stdout)
     assert payload["summary"]["value"] > 0
     assert cache_path.exists()
+
+
+def test_cli_cache_baselines_accepts_preset(tmp_path: Path) -> None:
+    cache_path = tmp_path / "cache.json"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "gm_bench",
+            "cache-baselines",
+            "--preset",
+            "smoke",
+            "--cache-path",
+            str(cache_path),
+            "--json",
+        ],
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    payload = json.loads(completed.stdout)
+    assert payload["seeds"] == [1]
+    assert payload["seasons"] == 1
+    assert payload["baselines"] == ["random", "conservative", "win-now", "rebuild"]
+
+
+def test_cli_model_config_preserves_config_baselines(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "bench.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "provider": "openai",
+                "model": "gpt-test",
+                "baselines": ["value"],
+                "seeds": [1],
+                "seasons": 1,
+                "no_log": True,
+            }
+        )
+    )
+    captured: dict[str, object] = {}
+
+    class DummyAgent:
+        name = "openai:gpt-test"
+
+    def fake_evaluate(agent, seeds, seasons, baselines, **kwargs):
+        del agent, kwargs
+        captured["seeds"] = seeds
+        captured["seasons"] = seasons
+        captured["baselines"] = baselines
+        return {}
+
+    monkeypatch.setattr(cli_module, "build_provider_agent", lambda *args, **kwargs: DummyAgent())
+    monkeypatch.setattr(cli_module, "evaluate_against_baselines", fake_evaluate)
+    monkeypatch.setattr(cli_module, "_maybe_log", lambda *args, **kwargs: None)
+    monkeypatch.setattr(cli_module, "_print_evaluation", lambda result: None)
+
+    cli_module.main(["model", "--provider", "openai", "--config", str(config_path), "--no-log"])
+
+    assert captured == {"seeds": [1], "seasons": 1, "baselines": ["value"]}

@@ -54,9 +54,7 @@ def main(argv: list[str] | None = None) -> None:
     model_parser.add_argument("--profile", choices=["tiny", "compact"], help="observation compaction profile")
     model_parser.add_argument("--seeds", nargs="+", type=int)
     model_parser.add_argument("--seasons", type=int)
-    model_parser.add_argument(
-        "--baselines", nargs="+", choices=sorted(AGENTS), default=["random", "conservative", "win-now", "rebuild"]
-    )
+    model_parser.add_argument("--baselines", nargs="+", choices=sorted(AGENTS))
     model_parser.add_argument("--agent-timeout", type=float)
     model_parser.add_argument("--no-baseline-cache", action="store_true")
     model_parser.add_argument("--verbose", action="store_true", help="print per-decision progress to stderr")
@@ -64,9 +62,10 @@ def main(argv: list[str] | None = None) -> None:
     _add_logging_args(model_parser)
 
     cache_parser = subparsers.add_parser("cache-baselines", help="precompute scripted baseline scores for reuse")
-    cache_parser.add_argument("--baselines", nargs="+", choices=sorted(AGENTS), default=["random", "conservative", "win-now", "rebuild", "value"])
-    cache_parser.add_argument("--seeds", nargs="+", type=int, default=[1, 2, 3, 4, 5])
-    cache_parser.add_argument("--seasons", type=int, default=5)
+    cache_parser.add_argument("--preset", choices=PRESET_NAMES, help="apply a seed/season/baseline preset")
+    cache_parser.add_argument("--baselines", nargs="+", choices=sorted(AGENTS))
+    cache_parser.add_argument("--seeds", nargs="+", type=int)
+    cache_parser.add_argument("--seasons", type=int)
     cache_parser.add_argument("--cache-path", default=str(DEFAULT_CACHE_PATH))
     cache_parser.add_argument("--json", action="store_true")
 
@@ -105,9 +104,13 @@ def main(argv: list[str] | None = None) -> None:
 
 def _add_common_run_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--agent-cmd", help="external command implementing the JSON agent protocol")
-    parser.add_argument("--provider", choices=PROVIDER_NAMES, help="built-in model provider (alternative to --agent-cmd)")
+    parser.add_argument(
+        "--provider", choices=PROVIDER_NAMES, help="built-in model provider (alternative to --agent-cmd)"
+    )
     parser.add_argument("--model", help="model name when using --provider")
-    parser.add_argument("--profile", choices=["tiny", "compact"], help="observation compaction profile for model providers")
+    parser.add_argument(
+        "--profile", choices=["tiny", "compact"], help="observation compaction profile for model providers"
+    )
     parser.add_argument(
         "--agent-timeout",
         type=float,
@@ -192,7 +195,7 @@ def _model_command(args: argparse.Namespace) -> None:
             profile=args.profile,
             seeds=args.seeds or [1, 2, 3, 4, 5],
             seasons=args.seasons if args.seasons is not None else 5,
-            baselines=args.baselines,
+            baselines=args.baselines or ["random", "conservative", "win-now", "rebuild"],
             verbose=args.verbose,
             json_output=args.json,
             no_log=args.no_log,
@@ -227,23 +230,37 @@ def _model_command(args: argparse.Namespace) -> None:
 
 
 def _cache_baselines_command(args: argparse.Namespace) -> None:
+    config = BenchmarkConfig(
+        seeds=args.seeds or [1, 2, 3, 4, 5],
+        seasons=args.seasons if args.seasons is not None else 5,
+        baselines=args.baselines or ["random", "conservative", "win-now", "rebuild", "value"],
+    )
+    if args.preset:
+        config.apply_preset(args.preset)
+        if args.seeds is not None:
+            config.seeds = args.seeds
+        if args.seasons is not None:
+            config.seasons = args.seasons
+        if args.baselines is not None:
+            config.baselines = args.baselines
+
     updated: list[str] = []
     results: list[dict[str, Any]] = []
-    for name in args.baselines:
+    for name in config.baselines:
         payload, hits = run_many_cached_baselines(
             name,
-            args.seeds,
-            args.seasons,
+            config.seeds,
+            config.seasons,
             cache_path=args.cache_path,
             use_cache=True,
         )
         results.append(payload)
-        if hits < len(args.seeds):
+        if hits < len(config.seeds):
             updated.append(name)
     output = {
         "cache_path": args.cache_path,
-        "seeds": args.seeds,
-        "seasons": args.seasons,
+        "seeds": config.seeds,
+        "seasons": config.seasons,
         "baselines": [result["agent"] for result in results],
         "updated_agents": updated,
         "summary": {result["agent"]: result["summary"]["mean_score"] for result in results},
@@ -251,7 +268,7 @@ def _cache_baselines_command(args: argparse.Namespace) -> None:
     if args.json:
         print(json.dumps(output, indent=2, sort_keys=True))
     else:
-        print(f"cache_path={args.cache_path} seeds={args.seeds} seasons={args.seasons}")
+        print(f"cache_path={args.cache_path} seeds={config.seeds} seasons={config.seasons}")
         if updated:
             print(f"updated baselines: {', '.join(updated)}")
         else:
