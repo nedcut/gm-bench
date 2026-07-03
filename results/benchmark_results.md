@@ -48,6 +48,57 @@ paired_lift=47.958 ci95=[27.24, 66.304] (significant) candidate_seed_win_rate=1.
 vs strongest baseline 'win-now': paired_lift=4.567 seed_win_rate=0.667
 ```
 
+## Local Ollama Models (current rules)
+
+First model-backed results under the post-validity-fixes rules, run with the
+fixed Ollama adapter (thinking disabled by default — see below). Protocol:
+
+```bash
+GM_BENCH_WORKERS=1 OLLAMA_MODEL=<model> python -m gm_bench evaluate \
+  --agent-cmd "python examples/ollama_agent.py" --agent-timeout 300 \
+  --baselines random conservative win-now rebuild value \
+  --seeds 1 2 --seasons 3 --no-log --json
+```
+
+| Model | Mean Score | Strategy | Penalty | Fallback | Paired Lift vs Panel | CI95 | vs `value` |
+| --- | ---: | ---: | ---: | ---: | ---: | --- | ---: |
+| qwen3.5:latest | 65.93 | 80.93 | 30.0 | 1/18 | −36.17 (sig) | [−43.93, −28.40] | −82.82 |
+| gemma4:e4b | 69.77 | 81.02 | 22.5 | 2/18 | −32.32 (sig) | [−46.35, −18.29] | −78.98 |
+
+Baseline panel mean on these seeds: 102.09; `value` mean: 148.75.
+
+Observations:
+
+- Both models played nearly every decision point themselves (fallback rates
+  0.056 and 0.111), so these scores are genuinely model-earned — the first
+  model-backed numbers under the current rules where that is verifiable.
+- Their strategy scores are nearly identical (80.9 vs 81.0); they differ
+  mainly in protocol discipline (qwen 12 illegal actions, gemma 9).
+- qwen plays a reckless win-now style: 41 mean wins (more than any baseline
+  archetype except win-now itself) but weak asset/cap terms. gemma is more
+  conservative (30 mean wins) with a similar overall result.
+- Neither model used the `memo` action once across 6 seasons of decisions —
+  no multi-season planning was even attempted. The benchmark's headroom story
+  holds: both finish significantly below the scripted baseline panel and
+  ~80 points below the `value` heuristic, so there is ample room above small
+  local models before the `value` ceiling is even in question.
+
+### Adapter validity fix: thinking models
+
+Earlier runs of both models produced fallback rates of 83–89%: qwen3.5 and
+gemma4 both emit reasoning prose ("Thinking...") that never reaches JSON,
+because the adapter's `/no_think` prompt prefix is a qwen3-era soft switch
+newer models ignore. Those scores measured the adapter's deterministic
+fallback policy, not the model — exactly the failure mode the
+`fallback_decisions` attribution was added to expose (a tainted qwen run
+scored **87.2 with 16/18 fallbacks**, i.e. *higher* than the model plays on
+its own).
+
+The adapter now passes Ollama's real think switch (`--think=false` on the
+CLI, `"think": false` over HTTP) for every model by default, retrying without
+the switch for models or CLI versions that reject it. `OLLAMA_THINK=1` opts
+back in.
+
 ## Historical MVP Results (pre-fix rules)
 
 ## Committed SQLite Database

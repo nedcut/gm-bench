@@ -27,14 +27,15 @@ def main() -> None:
     os.environ.setdefault("GM_AGENT_PROFILE", "tiny")
     if model.lower().startswith("qwen"):
         os.environ.setdefault("GM_AGENT_NO_THINK", "1")
+    think = resolve_think_mode(model)
     host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
     timeout = float(os.environ.get("OLLAMA_TIMEOUT", "120"))
     prompt = build_prompt(observation)
     try:
         if os.environ.get("OLLAMA_TRANSPORT", "cli") == "http":
-            content = generate_http(host, model, prompt, timeout, use_json_mode=True)
+            content = generate_http(host, model, prompt, timeout, use_json_mode=True, think=think)
         else:
-            content = generate_cli(model, prompt, timeout)
+            content = generate_cli(model, prompt, timeout, think=think)
         try:
             print(json.dumps(parse_actions(content)))
         except ValueError as exc:
@@ -43,9 +44,9 @@ def main() -> None:
                 "Return exactly one JSON object with an actions array and no other text."
             )
             if os.environ.get("OLLAMA_TRANSPORT", "cli") == "http":
-                repaired = generate_http(host, model, repair_prompt, timeout, use_json_mode=False)
+                repaired = generate_http(host, model, repair_prompt, timeout, use_json_mode=False, think=think)
             else:
-                repaired = generate_cli(model, repair_prompt, timeout)
+                repaired = generate_cli(model, repair_prompt, timeout, think=think)
             try:
                 print(json.dumps(parse_actions(repaired)))
             except ValueError:
@@ -62,9 +63,30 @@ def main() -> None:
         print(json.dumps(fallback_actions(observation, f"ollama_error: {exc}")))
 
 
-def generate_cli(model: str, prompt: str, timeout: float) -> str:
+def resolve_think_mode(model: str) -> bool | None:
+    """Decide whether to force the Ollama think switch on, off, or leave unset.
+
+    The `/no_think` prompt prefix is a qwen3-era soft switch that newer thinking
+    models ignore; without the real `think` control they spend the whole
+    generation on reasoning prose and never emit JSON, so every decision falls
+    back. Both qwen3.5 and gemma4 fail this way, so thinking defaults to off for
+    every model; the CLI/HTTP callers retry without the switch when a model or
+    an older Ollama rejects it. `OLLAMA_THINK=1` opts a model back in.
+    """
+    del model
+    setting = os.environ.get("OLLAMA_THINK")
+    if setting is None:
+        return False
+    return setting.strip().lower() not in {"0", "false", "no", "off"}
+
+
+def generate_cli(model: str, prompt: str, timeout: float, think: bool | None = None) -> str:
+    command = ["ollama", "run", model]
+    if think is not None:
+        command.append(f"--think={'true' if think else 'false'}")
+    command.append(prompt)
     completed = subprocess.run(
-        ["ollama", "run", model, prompt],
+        command,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -72,11 +94,15 @@ def generate_cli(model: str, prompt: str, timeout: float) -> str:
         check=False,
     )
     if completed.returncode != 0:
+        # Older CLIs reject --think, and non-thinking models reject the switch
+        # itself; either way the un-flagged invocation is the right retry.
+        if think is not None and "think" in completed.stderr.lower():
+            return generate_cli(model, prompt, timeout, think=None)
         raise ValueError(completed.stderr[-500:])
     return strip_terminal_codes(completed.stdout)
 
 
-def generate_http(host: str, model: str, prompt: str, timeout: float, use_json_mode: bool) -> str:
+def generate_http(host: str, model: str, prompt: str, timeout: float, use_json_mode: bool, think: bool | None = None) -> str:
     payload: dict[str, object] = {
         "model": model,
         "stream": False,
@@ -86,6 +112,8 @@ def generate_http(host: str, model: str, prompt: str, timeout: float, use_json_m
             "num_predict": int(os.environ.get("OLLAMA_NUM_PREDICT", "512")),
         },
     }
+    if think is not None:
+        payload["think"] = think
     if use_json_mode:
         payload["format"] = "json"
     request = urllib.request.Request(
@@ -94,8 +122,13 @@ def generate_http(host: str, model: str, prompt: str, timeout: float, use_json_m
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        data = json.loads(response.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        if think is not None and exc.code == 400:
+            return generate_http(host, model, prompt, timeout, use_json_mode, think=None)
+        raise
     return extract_ollama_content(data)
 
 

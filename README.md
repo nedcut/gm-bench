@@ -300,6 +300,9 @@ Useful knobs:
   The Ollama adapter defaults to `tiny`.
 - `OLLAMA_TRANSPORT=cli|http`: defaults to `cli`; `http` uses the Ollama REST
   API.
+- `OLLAMA_THINK=0|1`: the adapter defaults to disabling Ollama thinking mode so
+  thinking-first local models return JSON actions instead of reasoning prose.
+  Set `OLLAMA_THINK=1` to opt a model back into thinking.
 
 ### OpenAI-Compatible APIs
 

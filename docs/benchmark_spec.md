@@ -161,7 +161,9 @@ CLAUDE_MODEL=sonnet python -m gm_bench run --agent-cmd "python examples/claude_a
 
 The Ollama adapter defaults to a tiny prompt profile because local models are
 much more sensitive to long roster/draft observations. API-backed models can use
-`GM_AGENT_PROFILE=compact` for a richer observation.
+`GM_AGENT_PROFILE=compact` for a richer observation. It also defaults to
+disabling Ollama thinking mode; set `OLLAMA_THINK=1` when you explicitly want a
+local model to reason before producing actions.
 
 Codex CLI and Claude Code are treated like any other external process. The
 benchmark sends them one JSON observation per decision point and accepts only
