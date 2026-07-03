@@ -9,7 +9,10 @@ import sys
 from typing import Any
 
 from gm_bench.agents import AGENTS, ExternalProcessAgent
-from gm_bench.runner import evaluate_against_baselines, run_many
+from gm_bench.baseline_cache import default_cache_path
+from gm_bench.benchmark_config import PRESET_NAMES, BenchmarkConfig, load_config
+from gm_bench.providers import PROVIDER_NAMES, build_provider_agent, provider_help
+from gm_bench.runner import evaluate_against_baselines, make_progress_printer, run_many, run_many_cached_baselines
 from gm_bench.simulator import League
 from gm_bench.storage import DEFAULT_DB_PATH, log_payload
 
@@ -22,18 +25,8 @@ def main(argv: list[str] | None = None) -> None:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     run_parser = subparsers.add_parser("run", help="run one agent across seeds")
+    _add_common_run_args(run_parser)
     run_parser.add_argument("--agent", choices=sorted(AGENTS), default="value")
-    run_parser.add_argument("--agent-cmd", help="external command implementing the JSON agent protocol")
-    run_parser.add_argument(
-        "--agent-timeout",
-        type=float,
-        default=None,
-        help=f"seconds to wait for each external-agent decision (default {EXTERNAL_AGENT_TIMEOUT_DEFAULT:g} with --agent-cmd)",
-    )
-    run_parser.add_argument("--seeds", nargs="+", type=int, default=[1])
-    run_parser.add_argument("--seasons", type=int, default=5)
-    run_parser.add_argument("--json", action="store_true", help="emit full JSON results")
-    _add_logging_args(run_parser)
 
     compare_parser = subparsers.add_parser("compare", help="compare built-in agents")
     compare_parser.add_argument("--agents", nargs="+", choices=sorted(AGENTS), default=sorted(AGENTS))
@@ -43,21 +36,45 @@ def main(argv: list[str] | None = None) -> None:
     _add_logging_args(compare_parser)
 
     evaluate_parser = subparsers.add_parser("evaluate", help="evaluate an agent against a normalized baseline panel")
+    _add_common_run_args(evaluate_parser)
     evaluate_parser.add_argument("--agent", choices=sorted(AGENTS), default="value")
-    evaluate_parser.add_argument("--agent-cmd", help="external command implementing the JSON agent protocol")
-    evaluate_parser.add_argument(
-        "--agent-timeout",
-        type=float,
-        default=None,
-        help=f"seconds to wait for each external-agent decision (default {EXTERNAL_AGENT_TIMEOUT_DEFAULT:g} with --agent-cmd)",
-    )
     evaluate_parser.add_argument(
         "--baselines", nargs="+", choices=sorted(AGENTS), default=["random", "conservative", "win-now", "rebuild"]
     )
-    evaluate_parser.add_argument("--seeds", nargs="+", type=int, default=[1, 2, 3, 4, 5])
-    evaluate_parser.add_argument("--seasons", type=int, default=5)
-    evaluate_parser.add_argument("--json", action="store_true")
-    _add_logging_args(evaluate_parser)
+    evaluate_parser.add_argument("--no-baseline-cache", action="store_true")
+
+    model_parser = subparsers.add_parser(
+        "model",
+        help="run a built-in model provider with objective scoring against baselines",
+    )
+    model_parser.add_argument(
+        "--provider", choices=PROVIDER_NAMES, help='built-in model provider (or set "provider" in --config)'
+    )
+    model_parser.add_argument("--model", help="model name for the selected provider")
+    model_parser.add_argument("--preset", choices=PRESET_NAMES, help="smoke, standard, or benchmark seed/season panel")
+    model_parser.add_argument("--config", help="JSON benchmark config file (overrides preset defaults)")
+    model_parser.add_argument("--profile", choices=["tiny", "compact"], help="observation compaction profile")
+    model_parser.add_argument("--seeds", nargs="+", type=int)
+    model_parser.add_argument("--seasons", type=int)
+    model_parser.add_argument("--baselines", nargs="+", choices=sorted(AGENTS))
+    model_parser.add_argument("--agent-timeout", type=float)
+    model_parser.add_argument("--no-baseline-cache", action="store_true")
+    model_parser.add_argument("--verbose", action="store_true", help="print per-decision progress to stderr")
+    model_parser.add_argument("--json", action="store_true")
+    _add_logging_args(model_parser)
+
+    cache_parser = subparsers.add_parser("cache-baselines", help="precompute scripted baseline scores for reuse")
+    cache_parser.add_argument("--preset", choices=PRESET_NAMES, help="apply a seed/season/baseline preset")
+    cache_parser.add_argument("--baselines", nargs="+", choices=sorted(AGENTS))
+    cache_parser.add_argument("--seeds", nargs="+", type=int)
+    cache_parser.add_argument("--seasons", type=int)
+    cache_parser.add_argument(
+        "--cache-path", default=None, help="baseline cache file (default: data/baseline_cache.json)"
+    )
+    cache_parser.add_argument("--json", action="store_true")
+
+    providers_parser = subparsers.add_parser("providers", help="list built-in model providers")
+    providers_parser.add_argument("--json", action="store_true")
 
     describe_parser = subparsers.add_parser("describe", help="describe a generated league seed")
     describe_parser.add_argument("--seed", type=int, default=1)
@@ -69,28 +86,17 @@ def main(argv: list[str] | None = None) -> None:
 
     args = parser.parse_args(argv)
     if args.command == "run":
-        agent = _resolve_agent(args.agent_cmd, args.agent, args.agent_timeout)
-        result = run_many(agent, args.seeds, args.seasons)
-        run_id = _maybe_log(args, "run", result)
-        _print_result(result, args.json)
-        _print_log_line(run_id, args)
+        _run_command(args)
     elif args.command == "compare":
-        results = [run_many(AGENTS[name](), args.seeds, args.seasons) for name in args.agents]
-        run_id = _maybe_log(args, "compare", results)
-        if args.json:
-            print(json.dumps(results, indent=2, sort_keys=True))
-        else:
-            _print_table(results)
-        _print_log_line(run_id, args)
+        _compare_command(args)
     elif args.command == "evaluate":
-        agent = _resolve_agent(args.agent_cmd, args.agent, args.agent_timeout)
-        result = evaluate_against_baselines(agent, args.seeds, args.seasons, args.baselines)
-        run_id = _maybe_log(args, "evaluate", result)
-        if args.json:
-            print(json.dumps(result, indent=2, sort_keys=True))
-        else:
-            _print_evaluation(result)
-        _print_log_line(run_id, args)
+        _evaluate_command(args)
+    elif args.command == "model":
+        _model_command(args)
+    elif args.command == "cache-baselines":
+        _cache_baselines_command(args)
+    elif args.command == "providers":
+        _providers_command(args)
     elif args.command == "describe":
         league = League.new(args.seed)
         print(json.dumps(league.observation("preseason"), indent=2, sort_keys=True))
@@ -100,17 +106,236 @@ def main(argv: list[str] | None = None) -> None:
         serve(args.host, args.port, args.db)
 
 
-def _resolve_agent(agent_cmd: str | None, agent_name: str, timeout: float | None) -> Any:
-    if not agent_cmd:
-        return AGENTS[agent_name]()
-    resolved_timeout = timeout if timeout is not None else EXTERNAL_AGENT_TIMEOUT_DEFAULT
-    if resolved_timeout < EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED:
-        print(
-            f"warning: --agent-timeout={resolved_timeout} may be too low for LLM-backed agents; "
-            f"consider >= {EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED:g}",
-            file=sys.stderr,
+def _add_common_run_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--agent-cmd", help="external command implementing the JSON agent protocol")
+    parser.add_argument(
+        "--provider", choices=PROVIDER_NAMES, help="built-in model provider (alternative to --agent-cmd)"
+    )
+    parser.add_argument("--model", help="model name when using --provider")
+    parser.add_argument(
+        "--profile", choices=["tiny", "compact"], help="observation compaction profile for model providers"
+    )
+    parser.add_argument(
+        "--agent-timeout",
+        type=float,
+        default=None,
+        help=f"seconds to wait for each external-agent decision (default {EXTERNAL_AGENT_TIMEOUT_DEFAULT:g} with external agents)",
+    )
+    parser.add_argument("--preset", choices=PRESET_NAMES, help="apply a seed/season preset")
+    parser.add_argument("--seeds", nargs="+", type=int, default=[1])
+    parser.add_argument("--seasons", type=int, default=5)
+    parser.add_argument("--verbose", action="store_true", help="print per-decision progress to stderr")
+    parser.add_argument("--json", action="store_true", help="emit full JSON results")
+    _add_logging_args(parser)
+
+
+def _run_command(args: argparse.Namespace) -> None:
+    config = _config_from_args(args)
+    agent = _resolve_agent_from_config(config)
+    progress = make_progress_printer(config.verbose)
+    result = run_many(agent, config.seeds, config.seasons, progress=progress)
+    run_id = _maybe_log(args, "run", result)
+    _print_result(result, config.json_output)
+    _print_log_line(run_id, args)
+
+
+def _compare_command(args: argparse.Namespace) -> None:
+    results = [run_many(AGENTS[name](), args.seeds, args.seasons) for name in args.agents]
+    run_id = _maybe_log(args, "compare", results)
+    if args.json:
+        print(json.dumps(results, indent=2, sort_keys=True))
+    else:
+        _print_table(results)
+    _print_log_line(run_id, args)
+
+
+def _evaluate_command(args: argparse.Namespace) -> None:
+    config = _config_from_args(args)
+    agent = _resolve_agent_from_config(config)
+    progress = make_progress_printer(config.verbose)
+    result = evaluate_against_baselines(
+        agent,
+        config.seeds,
+        config.seasons,
+        config.baselines,
+        use_baseline_cache=not getattr(args, "no_baseline_cache", False),
+        progress=progress,
+    )
+    run_id = _maybe_log(args, "evaluate", result)
+    if config.json_output:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        _print_evaluation(result)
+    _print_log_line(run_id, args)
+
+
+def _model_command(args: argparse.Namespace) -> None:
+    if args.config:
+        config = load_config(args.config)
+        config.provider = config.provider or args.provider
+        config.model = config.model or args.model
+        if args.preset:
+            config.apply_preset(args.preset)
+        if args.seeds:
+            config.seeds = args.seeds
+        if args.seasons is not None:
+            config.seasons = args.seasons
+        if args.baselines:
+            config.baselines = args.baselines
+        if args.agent_timeout is not None:
+            config.agent_timeout = args.agent_timeout
+        if args.profile:
+            config.profile = args.profile
+        config.verbose = config.verbose or args.verbose
+        config.json_output = config.json_output or args.json
+        config.no_log = config.no_log or args.no_log
+        config.use_baseline_cache = config.use_baseline_cache and not args.no_baseline_cache
+    else:
+        config = BenchmarkConfig(
+            provider=args.provider,
+            model=args.model,
+            agent_timeout=args.agent_timeout,
+            profile=args.profile,
+            seeds=args.seeds or [1, 2, 3, 4, 5],
+            seasons=args.seasons if args.seasons is not None else 5,
+            baselines=args.baselines or ["random", "conservative", "win-now", "rebuild"],
+            verbose=args.verbose,
+            json_output=args.json,
+            no_log=args.no_log,
+            db=args.db,
+            use_baseline_cache=not args.no_baseline_cache,
         )
-    return ExternalProcessAgent(agent_cmd, timeout_seconds=resolved_timeout)
+        if args.preset:
+            config.apply_preset(args.preset)
+    config.validate()
+    if not config.provider:
+        sys.exit('gm-bench model: no provider specified; pass --provider or set "provider" in the config file')
+    agent = build_provider_agent(
+        config.provider,
+        model=config.model,
+        timeout=config.agent_timeout,
+        profile=config.profile,
+        extra_env=config.extra_env,
+    )
+    progress = make_progress_printer(config.verbose)
+    result = evaluate_against_baselines(
+        agent,
+        config.seeds,
+        config.seasons,
+        config.baselines,
+        use_baseline_cache=config.use_baseline_cache,
+        progress=progress,
+    )
+    run_id = _maybe_log(args, "model", result)
+    if config.json_output:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        _print_evaluation(result)
+    _print_log_line(run_id, args)
+
+
+def _cache_baselines_command(args: argparse.Namespace) -> None:
+    config = BenchmarkConfig(
+        seeds=args.seeds or [1, 2, 3, 4, 5],
+        seasons=args.seasons if args.seasons is not None else 5,
+        baselines=args.baselines or ["random", "conservative", "win-now", "rebuild", "value"],
+    )
+    if args.preset:
+        config.apply_preset(args.preset)
+        if args.seeds is not None:
+            config.seeds = args.seeds
+        if args.seasons is not None:
+            config.seasons = args.seasons
+        if args.baselines is not None:
+            config.baselines = args.baselines
+
+    cache_path = args.cache_path if args.cache_path is not None else str(default_cache_path())
+    updated: list[str] = []
+    results: list[dict[str, Any]] = []
+    for name in config.baselines:
+        payload, hits = run_many_cached_baselines(
+            name,
+            config.seeds,
+            config.seasons,
+            cache_path=cache_path,
+            use_cache=True,
+        )
+        results.append(payload)
+        if hits < len(config.seeds):
+            updated.append(name)
+    output = {
+        "cache_path": cache_path,
+        "seeds": config.seeds,
+        "seasons": config.seasons,
+        "baselines": [result["agent"] for result in results],
+        "updated_agents": updated,
+        "summary": {result["agent"]: result["summary"]["mean_score"] for result in results},
+    }
+    if args.json:
+        print(json.dumps(output, indent=2, sort_keys=True))
+    else:
+        print(f"cache_path={cache_path} seeds={config.seeds} seasons={config.seasons}")
+        if updated:
+            print(f"updated baselines: {', '.join(updated)}")
+        else:
+            print("all requested baseline episodes were already cached")
+        for result in results:
+            print(f"{result['agent']}: mean_score={result['summary']['mean_score']}")
+
+
+def _providers_command(args: argparse.Namespace) -> None:
+    payload = provider_help()
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return
+    print("provider       model_env         default_model")
+    print("------------------------------------------------")
+    for row in payload:
+        print(f"{row['provider']:<14}{row['model_env']:<18}{row['default_model']}")
+
+
+def _config_from_args(args: argparse.Namespace) -> BenchmarkConfig:
+    config = BenchmarkConfig(
+        provider=getattr(args, "provider", None),
+        model=getattr(args, "model", None),
+        agent=getattr(args, "agent", "value"),
+        agent_cmd=getattr(args, "agent_cmd", None),
+        agent_timeout=getattr(args, "agent_timeout", None),
+        profile=getattr(args, "profile", None),
+        seeds=list(getattr(args, "seeds", [1])),
+        seasons=int(getattr(args, "seasons", 5)),
+        baselines=list(getattr(args, "baselines", ["random", "conservative", "win-now", "rebuild"])),
+        verbose=bool(getattr(args, "verbose", False)),
+        json_output=bool(getattr(args, "json", False)),
+        no_log=bool(getattr(args, "no_log", False)),
+        db=getattr(args, "db", None),
+    )
+    preset = getattr(args, "preset", None)
+    if preset:
+        config.apply_preset(preset)
+    config.validate()
+    return config
+
+
+def _resolve_agent_from_config(config: BenchmarkConfig) -> Any:
+    if config.provider:
+        return build_provider_agent(
+            config.provider,
+            model=config.model,
+            timeout=config.agent_timeout,
+            profile=config.profile,
+            extra_env=config.extra_env,
+        )
+    if config.agent_cmd:
+        resolved_timeout = config.agent_timeout if config.agent_timeout is not None else EXTERNAL_AGENT_TIMEOUT_DEFAULT
+        if resolved_timeout < EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED:
+            print(
+                f"warning: --agent-timeout={resolved_timeout} may be too low for LLM-backed agents; "
+                f"consider >= {EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED:g}",
+                file=sys.stderr,
+            )
+        return ExternalProcessAgent(config.agent_cmd, timeout_seconds=resolved_timeout)
+    return AGENTS[config.agent]()
 
 
 def _add_logging_args(parser: argparse.ArgumentParser) -> None:
@@ -132,7 +357,7 @@ def _print_log_line(run_id: str | None, args: argparse.Namespace) -> None:
     if not run_id:
         return
     line = f"logged_run_id={run_id} db={args.db}"
-    if args.json:
+    if getattr(args, "json", False):
         print(line, file=sys.stderr)
     else:
         print(line)
@@ -152,12 +377,13 @@ def _print_result(result: dict[str, Any], as_json: bool) -> None:
 
 
 def _print_table(results: list[dict[str, Any]]) -> None:
-    print("agent          mean_score  stddev  mean_wins  titles  illegal")
-    print("---------------------------------------------------------------")
+    name_width = max(14, *(len(result["agent"]) + 2 for result in results))
+    print(f"{'agent':<{name_width}}mean_score  stddev  mean_wins  titles  illegal")
+    print("-" * (name_width + 49))
     for result in sorted(results, key=lambda item: item["summary"]["mean_score"], reverse=True):
         summary = result["summary"]
         print(
-            f"{result['agent']:<14}{summary['mean_score']:>10.2f}{summary['score_stddev']:>8.2f}{summary['mean_total_wins']:>11.2f}{summary['championships']:>8}{summary['illegal_actions']:>9}"
+            f"{result['agent']:<{name_width}}{summary['mean_score']:>10.2f}{summary['score_stddev']:>8.2f}{summary['mean_total_wins']:>11.2f}{summary['championships']:>8}{summary['illegal_actions']:>9}"
         )
 
 
@@ -172,17 +398,31 @@ def _print_evaluation(result: dict[str, Any]) -> None:
     paired = result.get("paired")
     if paired:
         low, high = paired["paired_lift_ci95"]
-        verdict = "significant" if paired["significant_at_95"] else "within noise"
+        if paired["num_seeds"] < 2:
+            verdict = "significance n/a with 1 seed"
+        elif paired["significant_at_95"]:
+            verdict = "significant"
+        else:
+            verdict = "within noise"
         print(
             f"paired_lift={paired['paired_lift_mean']} ci95=[{low}, {high}] ({verdict}) "
             f"candidate_seed_win_rate={paired['candidate_seed_win_rate']} over {paired['num_seeds']} seed(s)"
         )
+        if paired["num_seeds"] < 3:
+            print(
+                f"note: {paired['num_seeds']} seed(s) is too few to trust the confidence interval; "
+                "treat this as a smoke test and use --preset standard or benchmark for real comparisons",
+                file=sys.stderr,
+            )
         best = paired.get("best_baseline")
         if best:
             print(
                 f"vs strongest baseline '{best['agent']}': paired_lift={best['paired_lift_mean']} "
                 f"seed_win_rate={best['seed_win_rate']}"
             )
+    cache = result.get("baseline_cache")
+    if cache and cache.get("enabled"):
+        print(f"baseline_cache_hits={cache['hits']}/{cache['total']} path={cache['path']}")
     print()
     _print_table([result["candidate"], *result["baselines"]])
 

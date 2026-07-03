@@ -1,0 +1,8 @@
+{
+  "preset": "standard",
+  "provider": "openai",
+  "model": "gpt-4.1-mini",
+  "profile": "compact",
+  "baselines": ["random", "conservative", "win-now", "rebuild"],
+  "use_baseline_cache": true
+}

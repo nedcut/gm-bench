@@ -40,6 +40,71 @@ python -m gm_bench describe --seed 42
 python -m gm_bench gui
 ```
 
+## Model Benchmarking (Recommended)
+
+The fastest way to score an LLM with objective simulator metrics is the `model`
+command. It wires a built-in provider adapter, runs the candidate on your seed
+panel, and compares against scripted baselines with paired lift statistics.
+
+```bash
+# Quick smoke test (1 seed, 1 season, 3 LLM calls)
+LLM_API_KEY=... python -m gm_bench model \
+  --provider openai \
+  --model gpt-4.1-mini \
+  --preset smoke
+
+# Standard panel (3 seeds, 3 seasons)
+python -m gm_bench model \
+  --provider openai \
+  --model gpt-4.1-mini \
+  --preset standard \
+  --json
+
+# Local Ollama
+python -m gm_bench model \
+  --provider ollama \
+  --model gemma4:e4b \
+  --preset smoke \
+  --profile tiny
+```
+
+Reproducible JSON configs live in `examples/` (the config supplies the provider,
+so no extra flags are needed):
+
+```bash
+LLM_API_KEY=... python -m gm_bench model --config examples/benchmark.smoke.json
+```
+
+List supported providers:
+
+```bash
+python -m gm_bench providers
+```
+
+Precompute baseline scores so repeated model runs skip re-simulating scripted
+agents:
+
+```bash
+python -m gm_bench cache-baselines --preset benchmark
+```
+
+Cached baseline episodes are keyed by a fingerprint of the simulator, scoring,
+and agent source files, so any change to the simulation automatically
+invalidates the cache — stale baselines can never bias lift statistics. Pass
+`--no-baseline-cache` to force fresh baseline runs, or set
+`GM_BENCH_BASELINE_CACHE=/path/to/cache.json` to relocate the cache file.
+
+Presets:
+
+| Preset | Seeds | Seasons | LLM calls per seed | Total LLM calls |
+|--------|-------|---------|--------------------|-----------------|
+| `smoke` | 1 | 1 | 3 | 3 |
+| `standard` | 3 | 3 | 9 | 27 |
+| `benchmark` | 5 | 5 | 15 | 75 |
+
+Use `--verbose` (or `GM_BENCH_VERBOSE=1`) to print per-decision progress while
+model episodes run.
+
 ## Local GUI
 
 Start the browser GUI:
@@ -238,7 +303,7 @@ Useful knobs:
 
 ### OpenAI-Compatible APIs
 
-Use the generic chat-completions adapter:
+Use the generic chat-completions adapter directly:
 
 ```bash
 LLM_API_KEY=... \
@@ -249,6 +314,12 @@ python -m gm_bench evaluate \
   --baselines random conservative win-now rebuild \
   --seeds 1 2 3 \
   --seasons 3
+```
+
+Or use the built-in provider shortcut:
+
+```bash
+LLM_API_KEY=... python -m gm_bench model --provider openai --model gpt-4.1-mini --preset standard
 ```
 
 For non-OpenAI-compatible providers, set:

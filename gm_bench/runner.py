@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import os
 import random
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from statistics import mean, pstdev
-from typing import Any
+from typing import Any, Callable
 
 from gm_bench.agents import AGENTS, Agent
+from gm_bench.baseline_cache import cache_key, default_cache_path, load_cache, put_cached_episode, save_cache
 from gm_bench.scoring import score_breakdown
 from gm_bench.simulator import League
+
+ProgressCallback = Callable[[dict[str, Any]], None]
 
 
 @dataclass
@@ -29,10 +33,30 @@ class BenchmarkResult:
     transactions: list[dict[str, Any]]
 
 
-def run_episode(agent: Agent, seed: int, seasons: int = 5, user_team_id: int = 0) -> BenchmarkResult:
+def run_episode(
+    agent: Agent,
+    seed: int,
+    seasons: int = 5,
+    user_team_id: int = 0,
+    progress: ProgressCallback | None = None,
+) -> BenchmarkResult:
     league = League.new(seed=seed, user_team_id=user_team_id)
-    for _ in range(seasons):
+    decision = 0
+    total_decisions = seasons * 3
+    for season_index in range(1, seasons + 1):
         for phase in ["preseason", "trade_deadline", "draft"]:
+            decision += 1
+            if progress is not None:
+                progress(
+                    {
+                        "agent": agent.name,
+                        "seed": seed,
+                        "season": season_index,
+                        "phase": phase,
+                        "decision": decision,
+                        "total_decisions": total_decisions,
+                    }
+                )
             if phase == "draft":
                 league.run_opponent_draft(before_user=True)
             observation = league.observation(phase)
@@ -58,30 +82,93 @@ def run_episode(agent: Agent, seed: int, seasons: int = 5, user_team_id: int = 0
     )
 
 
-def run_many(agent: Agent, seeds: list[int], seasons: int = 5, workers: int | None = None) -> dict[str, Any]:
+def run_many(
+    agent: Agent,
+    seeds: list[int],
+    seasons: int = 5,
+    workers: int | None = None,
+    progress: ProgressCallback | None = None,
+) -> dict[str, Any]:
     max_workers = workers if workers is not None else _default_workers(len(seeds))
     if max_workers <= 1 or len(seeds) <= 1:
-        results = [run_episode(agent, seed=seed, seasons=seasons) for seed in seeds]
+        results = [run_episode(agent, seed=seed, seasons=seasons, progress=progress) for seed in seeds]
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            results = list(executor.map(lambda seed: run_episode(agent, seed=seed, seasons=seasons), seeds))
-    scores = [result.final_score for result in results]
-    wins = [result.wins for result in results]
+            results = list(
+                executor.map(lambda seed: run_episode(agent, seed=seed, seasons=seasons, progress=progress), seeds)
+            )
+    episodes = [result.__dict__ for result in results]
+    return _episodes_payload(agent.name, seeds, seasons, episodes)
+
+
+def summarize_episodes(episodes: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate per-episode stats into the summary block shared by every run payload.
+
+    Live runs and baseline-cache hits both flow through here so the two paths can
+    never drift into differently-shaped summaries.
+    """
+    scores = [episode["final_score"] for episode in episodes]
     return {
-        "agent": agent.name,
+        "mean_score": round(mean(scores), 3) if scores else 0.0,
+        "mean_strategy_score": round(mean(episode["strategy_score"] for episode in episodes), 3) if episodes else 0.0,
+        "total_protocol_penalty": round(sum(episode["protocol_penalty"] for episode in episodes), 3),
+        "score_stddev": round(pstdev(scores), 3) if len(scores) > 1 else 0.0,
+        "mean_total_wins": round(mean(episode["wins"] for episode in episodes), 3) if episodes else 0.0,
+        "championships": sum(episode["championships"] for episode in episodes),
+        "illegal_actions": sum(episode["illegal_actions"] for episode in episodes),
+    }
+
+
+def _episodes_payload(
+    agent_name: str,
+    seeds: list[int],
+    seasons: int,
+    episodes: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "agent": agent_name,
         "seasons": seasons,
         "seeds": seeds,
-        "episodes": [result.__dict__ for result in results],
-        "summary": {
-            "mean_score": round(mean(scores), 3) if scores else 0.0,
-            "mean_strategy_score": round(mean(result.strategy_score for result in results), 3) if results else 0.0,
-            "total_protocol_penalty": round(sum(result.protocol_penalty for result in results), 3),
-            "score_stddev": round(pstdev(scores), 3) if len(scores) > 1 else 0.0,
-            "mean_total_wins": round(mean(wins), 3) if wins else 0.0,
-            "championships": sum(result.championships for result in results),
-            "illegal_actions": sum(result.illegal_actions for result in results),
-        },
+        "episodes": episodes,
+        "summary": summarize_episodes(episodes),
     }
+
+
+def run_many_cached_baselines(
+    agent_name: str,
+    seeds: list[int],
+    seasons: int,
+    *,
+    cache_path: str | os.PathLike[str] | None = None,
+    use_cache: bool = True,
+) -> tuple[dict[str, Any], int]:
+    """Return run_many-shaped payload for a scripted baseline, using cache hits where available."""
+    if agent_name not in AGENTS:
+        raise KeyError(f"unknown baseline agent {agent_name!r}")
+
+    cache_path = cache_path if cache_path is not None else default_cache_path()
+    cache = load_cache(cache_path) if use_cache else {}
+    episodes: list[dict[str, Any]] = []
+    cache_hits = 0
+    agent = AGENTS[agent_name]()
+
+    for seed in seeds:
+        key = cache_key(agent_name, seed, seasons)
+        cached = cache.get(key) if use_cache else None
+        if cached is not None:
+            episodes.append(cached)
+            cache_hits += 1
+            continue
+        result = run_episode(agent, seed=seed, seasons=seasons)
+        episode = result.__dict__
+        episodes.append(episode)
+        if use_cache:
+            put_cached_episode(agent_name, seed, seasons, episode, cache=cache)
+
+    if use_cache and cache_hits < len(seeds):
+        save_cache(cache, cache_path)
+
+    return _episodes_payload(agent_name, seeds, seasons, episodes), cache_hits
 
 
 def evaluate_against_baselines(
@@ -89,10 +176,29 @@ def evaluate_against_baselines(
     seeds: list[int],
     seasons: int = 5,
     baseline_names: list[str] | None = None,
+    *,
+    use_baseline_cache: bool = True,
+    baseline_cache_path: str | os.PathLike[str] | None = None,
+    progress: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     baselines = baseline_names or ["random", "conservative", "win-now", "rebuild", "value"]
-    candidate = run_many(agent, seeds=seeds, seasons=seasons)
-    baseline_results = [run_many(AGENTS[name](), seeds=seeds, seasons=seasons) for name in baselines]
+    candidate = run_many(agent, seeds=seeds, seasons=seasons, progress=progress)
+    baseline_results: list[dict[str, Any]] = []
+    cache_hits = 0
+    resolved_cache_path = baseline_cache_path if baseline_cache_path is not None else default_cache_path()
+    for name in baselines:
+        if use_baseline_cache:
+            payload, hits = run_many_cached_baselines(
+                name,
+                seeds,
+                seasons,
+                cache_path=resolved_cache_path,
+                use_cache=True,
+            )
+            cache_hits += hits
+            baseline_results.append(payload)
+        else:
+            baseline_results.append(run_many(AGENTS[name](), seeds=seeds, seasons=seasons))
     baseline_scores = [_precise_mean_score(result) for result in baseline_results]
     baseline_mean = mean(baseline_scores) if baseline_scores else 0.0
     candidate_mean = _precise_mean_score(candidate)
@@ -102,6 +208,12 @@ def evaluate_against_baselines(
         "seeds": seeds,
         "candidate": candidate,
         "baselines": baseline_results,
+        "baseline_cache": {
+            "enabled": use_baseline_cache,
+            "path": str(resolved_cache_path),
+            "hits": cache_hits,
+            "total": len(baselines) * len(seeds),
+        },
         "normalized": {
             "candidate_mean_score": round(candidate_mean, 3),
             "candidate_mean_strategy_score": candidate["summary"]["mean_strategy_score"],
@@ -201,7 +313,9 @@ def _paired_analysis(
         "paired_lift_mean": round(lift_mean, 3),
         "paired_lift_stddev": round(pstdev(lifts), 3) if len(lifts) > 1 else 0.0,
         "paired_lift_ci95": [ci95_low, ci95_high],
-        "significant_at_95": ci95_low > 0.0 or ci95_high < 0.0,
+        # With one seed the bootstrap interval collapses to a point, which would
+        # otherwise read as "significant" — significance is undefined there.
+        "significant_at_95": len(lifts) >= 2 and (ci95_low > 0.0 or ci95_high < 0.0),
         "candidate_seed_win_rate": round(candidate_wins / len(seeds), 3) if seeds else 0.0,
         "best_baseline": best_block,
     }
@@ -232,6 +346,21 @@ def _bootstrap_mean_ci(
     low = means[int(tail * last)]
     high = means[int((1.0 - tail) * last)]
     return low, high
+
+
+def make_progress_printer(verbose: bool = False) -> ProgressCallback | None:
+    if not verbose and os.environ.get("GM_BENCH_VERBOSE", "0") != "1":
+        return None
+
+    def _print(event: dict[str, Any]) -> None:
+        print(
+            f"[gm-bench] {event['agent']} seed={event['seed']} "
+            f"decision {event['decision']}/{event['total_decisions']} "
+            f"(season {event['season']} {event['phase']})",
+            file=sys.stderr,
+        )
+
+    return _print
 
 
 def _default_workers(seed_count: int) -> int:
