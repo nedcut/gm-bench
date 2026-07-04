@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import random
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from statistics import mean, pstdev
@@ -14,6 +15,7 @@ from gm_bench.agents import AGENTS, Agent
 from gm_bench.baseline_cache import cache_key, default_cache_path, load_cache, put_cached_episode, save_cache
 from gm_bench.scoring import score_breakdown
 from gm_bench.simulator import League
+from gm_bench.telemetry import aggregate_usage, summarize_usage
 
 ProgressCallback = Callable[[dict[str, Any]], None]
 
@@ -31,6 +33,7 @@ class BenchmarkResult:
     illegal_actions: int
     decision_points: int
     fallback_decisions: int
+    usage: dict[str, Any]
     season_summaries: list[dict[str, Any]]
     transactions: list[dict[str, Any]]
 
@@ -59,6 +62,8 @@ def run_episode(
     decision = 0
     total_decisions = seasons * 3
     fallback_decisions = 0
+    harness_latency_ms = 0.0
+    usage_records: list[dict[str, Any]] = []
     for season_index in range(1, seasons + 1):
         for phase in ["preseason", "trade_deadline", "draft"]:
             decision += 1
@@ -76,7 +81,12 @@ def run_episode(
             if phase == "draft":
                 league.run_opponent_draft(before_user=True)
             observation = league.observation(phase)
-            actions = agent.act(observation)
+            started = time.perf_counter()
+            actions, usage = agent.act_with_usage(observation)
+            elapsed_ms = (time.perf_counter() - started) * 1000.0
+            harness_latency_ms += elapsed_ms
+            if usage is not None:
+                usage_records.append({**usage, "season": season_index, "phase": phase})
             if _is_fallback_response(actions):
                 fallback_decisions += 1
             league.apply_actions(actions, phase)
@@ -85,6 +95,14 @@ def run_episode(
             league.run_autopilot_opponents(phase)
         league.simulate_season()
     breakdown = score_breakdown(league, user_team_id)
+    # harness latency covers every decision (process spawn included); the
+    # api_latency inside usage covers only the model calls the adapter timed.
+    # The gap between the two is harness/CLI overhead. It is recorded only for
+    # usage-reporting (model-backed) runs: scripted-agent payloads must stay
+    # byte-identical across runs to preserve the determinism guarantee.
+    usage_summary = aggregate_usage(usage_records)
+    usage_summary["harness_latency_ms"] = round(harness_latency_ms, 1) if usage_records else 0.0
+    usage_summary["per_decision"] = usage_records
     return BenchmarkResult(
         agent=agent.name,
         seed=seed,
@@ -97,6 +115,7 @@ def run_episode(
         illegal_actions=league.illegal_actions,
         decision_points=decision,
         fallback_decisions=fallback_decisions,
+        usage=usage_summary,
         season_summaries=[summary.__dict__ for summary in league.summaries],
         transactions=[transaction.__dict__ for transaction in league.transactions],
     )
@@ -141,6 +160,7 @@ def summarize_episodes(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "decision_points": total_decisions,
         "fallback_decisions": total_fallbacks,
         "fallback_decision_rate": round(total_fallbacks / total_decisions, 3) if total_decisions else 0.0,
+        "usage": summarize_usage(episodes),
     }
 
 
@@ -258,6 +278,7 @@ def evaluate_against_baselines(
             "baseline_illegal_actions": sum(result["summary"]["illegal_actions"] for result in baseline_results),
             "candidate_fallback_decisions": candidate["summary"]["fallback_decisions"],
             "candidate_fallback_decision_rate": candidate["summary"]["fallback_decision_rate"],
+            "candidate_usage": candidate["summary"].get("usage", summarize_usage([])),
         },
         "paired": _paired_analysis(seeds, candidate, baseline_results),
     }

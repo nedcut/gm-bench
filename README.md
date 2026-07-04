@@ -30,6 +30,23 @@ The MVP includes:
   persistent `memo` scratchpad for carrying multi-season plans between
   decision points.
 
+## Leaderboard & Website
+
+Official results use the `leaderboard` preset (8 held-back seeds × 5 seasons,
+full baseline panel; `GM_BENCH_PRIVATE_SEEDS` swaps in a private panel). Every
+run records usage telemetry — tokens, dollar cost (from `gm_bench/pricing.json`
+or adapter-reported cost), and per-decision latency — alongside scores.
+
+```bash
+LLM_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \
+  --preset leaderboard --json > results/leaderboard/openai-gpt-5.4.json
+python web/scripts/build_leaderboard.py   # refresh web/src/data/leaderboard.json
+cd web && bun install && bun run dev      # local site
+```
+
+The site in `web/` deploys to GitHub Pages automatically on pushes to `main`
+(`.github/workflows/pages.yml`).
+
 ## Quickstart
 
 ```bash

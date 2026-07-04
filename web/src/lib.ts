@@ -4,6 +4,12 @@ export const AGENT_COLORS: Record<string, string> = {
   conservative: "#ffc46b",
   rebuild: "#c792ea",
   random: "#66779a",
+  // model providers on the leaderboard
+  openai: "#7de3ff",
+  claude: "#f2a37b",
+  codex: "#b8ff7d",
+  ollama: "#e08ad4",
+  opencode: "#9fd0ff",
 };
 
 export function agentColor(agent: string): string {

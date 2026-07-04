@@ -21,12 +21,13 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 try:
-    from gm_agent_common import build_prompt, fallback_actions, parse_actions
+    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions
 except ModuleNotFoundError:
-    from examples.gm_agent_common import build_prompt, fallback_actions, parse_actions
+    from examples.gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,6 +45,8 @@ def main() -> None:
         "Use only the observation in the prompt. "
         "Your final answer must be valid JSON matching the provided schema.\n\n" + build_prompt(observation)
     )
+    model = os.environ.get("CODEX_MODEL", "gpt-5-mini")
+    started = time.perf_counter()
     try:
         with tempfile.NamedTemporaryFile("r", suffix=".json", delete=True) as output:
             completed = subprocess.run(
@@ -56,16 +59,23 @@ def main() -> None:
                 cwd=ROOT,
             )
             content = output.read() or completed.stdout
+        latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
+        # Codex exec exposes no machine-readable token counts on this path;
+        # latency and call count are the only telemetry available.
+        usage = make_usage(provider="codex", model=model, api_calls=1, api_latency_ms=latency_ms)
         if completed.returncode != 0:
-            print(
-                json.dumps(
-                    fallback_actions(observation, f"codex_exit_{completed.returncode}: {completed.stderr[-300:]}")
-                )
+            emit(
+                fallback_actions(observation, f"codex_exit_{completed.returncode}: {completed.stderr[-300:]}"),
+                usage,
             )
             return
-        print(json.dumps(parse_actions(content)))
+        emit(parse_actions(content), usage)
     except (subprocess.TimeoutExpired, OSError, ValueError, json.JSONDecodeError) as exc:
-        print(json.dumps(fallback_actions(observation, f"codex_error: {exc}")))
+        latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
+        emit(
+            fallback_actions(observation, f"codex_error: {exc}"),
+            make_usage(provider="codex", model=model, api_calls=1, api_latency_ms=latency_ms),
+        )
 
 
 def build_command() -> list[str]:

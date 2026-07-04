@@ -5,10 +5,13 @@ from __future__ import annotations
 from gm_bench.agents import RandomAgent, ValueAgent
 from gm_bench.runner import run_episode, run_many
 
+# Re-pinned 2026-07-04 after draft-pick trading landed: future picks count as
+# scored assets, shifting every score by a flat +3.748 (the untouched-pick
+# baseline) without changing value-agent behavior.
 GOLDEN_VALUE_SCORES_5_SEASONS = {
-    1: 227.392,
-    2: 236.443,
-    3: 256.484,
+    1: 231.140,
+    2: 240.191,
+    3: 260.232,
 }
 
 

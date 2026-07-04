@@ -2,6 +2,43 @@
 
 This snapshot records the benchmark results generated during the MVP build.
 
+> **Note (2026-07-04):** Draft-pick trading, opponent-initiated trade offers,
+> and scouting landed together with usage/cost telemetry. Scoring now counts
+> future picks as assets, shifting every score by a flat +3.748 versus the
+> post-validity-fixes numbers below without reordering any baseline. All older
+> numbers remain historical records on the previous scale.
+
+## Rules Update Baselines (pick trading + offers + scouting, 2026-07-04)
+
+```bash
+python -m gm_bench compare --agents random conservative win-now rebuild value exploit --seeds 1 2 3 --seasons 5 --no-log
+```
+
+| Agent | Mean Score | Stddev | Mean Wins | Titles | Illegal |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| value | 243.85 | 12.16 | 98.67 | 0 | 0 |
+| win-now | 201.41 | 18.86 | 98.00 | 2 | 0 |
+| rebuild | 99.84 | 23.49 | 50.00 | 1 | 0 |
+| conservative | 78.27 | 6.77 | 49.33 | 0 | 0 |
+| random | 50.66 | 3.51 | 32.00 | 0 | 0 |
+| exploit | -132.09 | 8.44 | 48.33 | 0 | 261 |
+
+The exploit canary stays far below every honest baseline, so the new
+mechanics (including far-future pick churn, which is provably score-neutral)
+did not reopen degenerate strategies. Scripted baselines ignore incoming
+offers and never scout, and both features are RNG-stream-isolated, so their
+scores moved only by the flat pick-asset term.
+
+Leaderboard preset baselines (seeds 11-18, 5 seasons):
+
+| Agent | Mean Score |
+| --- | ---: |
+| value | 282.22 |
+| win-now | 217.43 |
+| rebuild | 79.49 |
+| conservative | 76.08 |
+| random | 51.39 |
+
 > **Note:** All results below the "Post-Validity-Fixes Baselines" section were
 > produced by the original MVP rules and are retained as a historical record.
 > The validity fixes (real lineups, competitive draft and free agency,

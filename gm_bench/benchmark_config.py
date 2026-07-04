@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from gm_bench.providers import PROVIDER_NAMES
 
-PRESET_NAMES = ("smoke", "standard", "benchmark")
+PRESET_NAMES = ("smoke", "standard", "benchmark", "leaderboard")
+PRIVATE_SEEDS_ENV = "GM_BENCH_PRIVATE_SEEDS"
 
 PRESETS: dict[str, dict[str, Any]] = {
     "smoke": {
@@ -29,6 +31,16 @@ PRESETS: dict[str, dict[str, Any]] = {
         "seasons": 5,
         "baselines": ["random", "conservative", "win-now", "rebuild", "value"],
         "agent_timeout": 120.0,
+    },
+    # Official leaderboard runs. The public seed panel deliberately avoids the
+    # 1-5 dev seeds used throughout the docs and examples, and can be replaced
+    # wholesale with a held-out panel via GM_BENCH_PRIVATE_SEEDS (e.g.
+    # "101,102,110-115"), which is never committed to the repository.
+    "leaderboard": {
+        "seeds": [11, 12, 13, 14, 15, 16, 17, 18],
+        "seasons": 5,
+        "baselines": ["random", "conservative", "win-now", "rebuild", "value"],
+        "agent_timeout": 180.0,
     },
 }
 
@@ -58,6 +70,8 @@ class BenchmarkConfig:
             raise ValueError(f"unknown preset {preset!r}; supported presets: {supported}")
         values = PRESETS[preset]
         self.seeds = list(values["seeds"])
+        if preset == "leaderboard" and os.environ.get(PRIVATE_SEEDS_ENV):
+            self.seeds = _parse_seeds(os.environ[PRIVATE_SEEDS_ENV])
         self.seasons = int(values["seasons"])
         self.baselines = list(values["baselines"])
         if self.agent_timeout is None:

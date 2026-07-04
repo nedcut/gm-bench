@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from gm_bench.models import PICK_TRADE_MAX_SEASONS_AHEAD, pick_value
+
 if TYPE_CHECKING:
     from gm_bench.simulator import League
 
@@ -22,6 +24,19 @@ def score_breakdown(league: "League", team_id: int) -> dict[str, float]:
     payroll = sum(player.salary for player in roster)
     young_assets = sum(player.asset_value for player in roster if player.age <= 24)
     total_assets = sum(player.asset_value for player in roster)
+    # Future picks are assets: valued at the same discounted scale trades use,
+    # so trading players for picks (or picks for players) is priced consistently
+    # by the market and the objective. Every team is scored over the same
+    # league-wide horizon with absent seasons defaulting to one implicit pick —
+    # otherwise swapping not-yet-materialized far-future picks would mint score.
+    horizon = league.season + PICK_TRADE_MAX_SEASONS_AHEAD
+    for any_team in league.teams.values():
+        if any_team.draft_picks:
+            horizon = max(horizon, max(any_team.draft_picks))
+    pick_assets = sum(
+        team.draft_picks.get(season, 1) * pick_value(league.season, season)
+        for season in range(league.season + 1, horizon + 1)
+    )
     cap_room = league.cap - payroll
     recent = league.summaries[-3:]
     recent_wins = sum(summary.wins for summary in recent)
@@ -38,6 +53,7 @@ def score_breakdown(league: "League", team_id: int) -> dict[str, float]:
         + championships * 35.0
         + total_assets * 0.16
         + young_assets * 0.18
+        + pick_assets * 0.16
         + cap_score
         + current_strength * 0.28
         + roster_depth * 8.0

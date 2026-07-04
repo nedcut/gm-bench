@@ -374,6 +374,26 @@ def _print_result(result: dict[str, Any], as_json: bool) -> None:
             **summary
         )
     )
+    usage_line = _format_usage_line(summary)
+    if usage_line:
+        print(usage_line)
+
+
+def _format_usage_line(summary: dict[str, Any]) -> str | None:
+    usage = summary.get("usage") or {}
+    if not usage.get("decisions_with_usage"):
+        return None
+    cost = usage.get("cost_usd")
+    cost_text = f"${cost:.4f}" if cost is not None else "unknown"
+    api_seconds = usage.get("api_latency_ms", 0.0) / 1000.0
+    harness_seconds = usage.get("harness_latency_ms", 0.0) / 1000.0
+    model = usage.get("model") or "?"
+    return (
+        f"usage: model={model} tokens={usage.get('total_tokens', 0)} "
+        f"(in={usage.get('input_tokens', 0)} out={usage.get('output_tokens', 0)}) "
+        f"cost={cost_text} api_time={api_seconds:.1f}s harness_time={harness_seconds:.1f}s "
+        f"decisions_with_usage={usage.get('decisions_with_usage', 0)}"
+    )
 
 
 def _print_table(results: list[dict[str, Any]]) -> None:
@@ -421,6 +441,9 @@ def _print_evaluation(result: dict[str, Any]) -> None:
                 f"vs strongest baseline '{best['agent']}': paired_lift={best['paired_lift_mean']} "
                 f"seed_win_rate={best['seed_win_rate']}"
             )
+    usage_line = _format_usage_line(result["candidate"]["summary"])
+    if usage_line:
+        print(usage_line)
     cache = result.get("baseline_cache")
     if cache and cache.get("enabled"):
         print(f"baseline_cache_hits={cache['hits']}/{cache['total']} path={cache['path']}")

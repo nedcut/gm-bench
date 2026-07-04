@@ -59,11 +59,22 @@ Agents return a JSON array of actions:
 
 - `sign_free_agent`
 - `release`
-- `trade`
+- `trade` (players and/or future draft picks via `give_pick_seasons` /
+  `receive_pick_seasons`, up to 3 seasons ahead)
+- `accept_offer` / `decline_offer` (respond to opponent-initiated offers in
+  `incoming_offers`; every offer looks fair to the sender's hidden valuation,
+  so some are bargains and some are traps — offers expire each decision point
+  and ignoring them is free)
+- `scout` (spend one of 3 per-season scouting points for a near-true
+  `true_potential` reading, echoed permanently in `scout_reports`)
 - `draft`
 - `set_lineup`
 - `memo`
 - `noop`
+
+Future draft picks are scored assets (discounted per season of distance, at
+the same scale the trade market prices them) and every team is scored over the
+same league-wide pick horizon, so pick churn cannot mint score.
 
 Actions are validated by the simulator. Invalid actions are ignored and counted
 as penalties.
@@ -72,6 +83,33 @@ as penalties.
 every subsequent observation. External agents are launched fresh at each
 decision point, so the memo is the only cross-decision memory channel — it is
 what makes multi-season plan coherence observable rather than assumed.
+
+### Adapter stdout protocol and usage telemetry
+
+External adapters may print either of two shapes to stdout:
+
+- A bare JSON action list (`[...]`) — the original protocol, still accepted so
+  third-party adapters keep working.
+- An envelope `{"actions": [...], "usage": {...}}` that also reports model
+  usage for the decision.
+
+Recognized `usage` keys (all optional; unknown keys are dropped):
+`provider`, `model`, `api_calls`, `input_tokens`, `output_tokens`,
+`total_tokens`, `api_latency_ms`, and `cost_usd` (adapter-reported cost, which
+takes precedence over the pricing-table estimate). Adapters report only what
+their backend actually returned — a missing token count means "unmeasured",
+never zero.
+
+The runner independently times every decision (`harness_latency_ms`), so the
+gap between harness latency and adapter-reported `api_latency_ms` exposes
+process-spawn/CLI overhead. Per-episode results carry an aggregated `usage`
+block (tokens, api calls, latency, cost) plus the per-decision records; run
+summaries and `evaluate` output aggregate it further. Costs are computed from
+`gm_bench/pricing.json` (USD per million tokens, longest-prefix model match,
+provider defaults such as `ollama` = $0). Unknown models yield
+`cost_usd: null` rather than a guessed price; `GM_BENCH_PRICING=<path>` merges
+a local override table. Episode usage is also logged to SQLite
+(`episodes.total_tokens`, `episodes.cost_usd`, `episodes.usage_json`).
 
 During the draft phase, opponents with worse records pick before the user's
 decision and opponents with better records pick after it, so the visible draft
@@ -171,12 +209,17 @@ typed GM action objects in response. Codex can be run against local Ollama via
 OSS mode; Claude Code and provider-backed Codex/opencode runs may call external
 model services.
 
+## Official Leaderboard Runs
+
+The `leaderboard` preset (8 seeds × 5 seasons, full baseline panel) is the
+official configuration for published results. Its public seed panel (11-18)
+deliberately avoids the dev seeds (1-5) used across docs and examples; setting
+`GM_BENCH_PRIVATE_SEEDS` (e.g. `"101,102,110-115"`) replaces the panel with a
+held-out one that is never committed, guarding against seed overfitting.
+
 ## Next Steps
 
-- Add a richer trade market with draft-pick trades.
-- Add private scouting actions that improve noisy projections.
 - Add a multi-agent arena mode where agents negotiate with each other.
-- Add private evaluation seeds and a leaderboard package.
 - Add sport variants with different roster and cap constraints.
-- Let opponents propose trades directly to the user, adding a negotiation
-  surface on top of the existing opponent-to-opponent deadline trades.
+- Add counter-offers: let the user renegotiate an incoming offer instead of
+  only accepting or declining.

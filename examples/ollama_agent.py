@@ -12,13 +12,26 @@ import json
 import os
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
+from typing import Any
 
 try:
-    from gm_agent_common import build_prompt, fallback_actions, parse_actions, strip_terminal_codes
+    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions, strip_terminal_codes
 except ModuleNotFoundError:
-    from examples.gm_agent_common import build_prompt, fallback_actions, parse_actions, strip_terminal_codes
+    from examples.gm_agent_common import (
+        build_prompt,
+        emit,
+        fallback_actions,
+        make_usage,
+        parse_actions,
+        strip_terminal_codes,
+    )
+
+# One entry per completed backend call; merged into a single usage block at
+# emit time so repair retries count as extra api_calls, not lost telemetry.
+CALLS: list[dict[str, Any]] = []
 
 
 def main() -> None:
@@ -37,7 +50,7 @@ def main() -> None:
         else:
             content = generate_cli(model, prompt, timeout, think=think)
         try:
-            print(json.dumps(parse_actions(content)))
+            emit(parse_actions(content), merged_usage(model))
         except ValueError as exc:
             repair_prompt = (
                 f"{prompt}\n\nYour previous answer was invalid: {str(content)[:300]!r}. "
@@ -48,10 +61,13 @@ def main() -> None:
             else:
                 repaired = generate_cli(model, repair_prompt, timeout, think=think)
             try:
-                print(json.dumps(parse_actions(repaired)))
+                emit(parse_actions(repaired), merged_usage(model))
             except ValueError:
                 snippet = str(repaired or content).replace("\n", " ")[:220]
-                print(json.dumps(fallback_actions(observation, f"ollama_parse_error: {exc}; content={snippet!r}")))
+                emit(
+                    fallback_actions(observation, f"ollama_parse_error: {exc}; content={snippet!r}"),
+                    merged_usage(model),
+                )
     except (
         subprocess.TimeoutExpired,
         urllib.error.URLError,
@@ -60,7 +76,22 @@ def main() -> None:
         KeyError,
         json.JSONDecodeError,
     ) as exc:
-        print(json.dumps(fallback_actions(observation, f"ollama_error: {exc}")))
+        emit(fallback_actions(observation, f"ollama_error: {exc}"), merged_usage(model))
+
+
+def merged_usage(model: str) -> dict[str, Any] | None:
+    if not CALLS:
+        return None
+    input_tokens = [call["input_tokens"] for call in CALLS if "input_tokens" in call]
+    output_tokens = [call["output_tokens"] for call in CALLS if "output_tokens" in call]
+    return make_usage(
+        provider="ollama",
+        model=model,
+        api_calls=len(CALLS),
+        input_tokens=sum(input_tokens) if input_tokens else None,
+        output_tokens=sum(output_tokens) if output_tokens else None,
+        api_latency_ms=round(sum(call["api_latency_ms"] for call in CALLS), 1),
+    )
 
 
 def resolve_think_mode(model: str) -> bool | None:
@@ -85,6 +116,7 @@ def generate_cli(model: str, prompt: str, timeout: float, think: bool | None = N
     if think is not None:
         command.append(f"--think={'true' if think else 'false'}")
     command.append(prompt)
+    started = time.perf_counter()
     completed = subprocess.run(
         command,
         text=True,
@@ -99,6 +131,8 @@ def generate_cli(model: str, prompt: str, timeout: float, think: bool | None = N
         if think is not None and "think" in completed.stderr.lower():
             return generate_cli(model, prompt, timeout, think=None)
         raise ValueError(completed.stderr[-500:])
+    # The CLI reports no token counts; latency is the only telemetry here.
+    CALLS.append({"api_latency_ms": (time.perf_counter() - started) * 1000.0})
     return strip_terminal_codes(completed.stdout)
 
 
@@ -122,6 +156,7 @@ def generate_http(host: str, model: str, prompt: str, timeout: float, use_json_m
         headers={"Content-Type": "application/json"},
         method="POST",
     )
+    started = time.perf_counter()
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8"))
@@ -129,6 +164,12 @@ def generate_http(host: str, model: str, prompt: str, timeout: float, use_json_m
         if think is not None and exc.code == 400:
             return generate_http(host, model, prompt, timeout, use_json_mode, think=None)
         raise
+    call: dict[str, Any] = {"api_latency_ms": (time.perf_counter() - started) * 1000.0}
+    if isinstance(data.get("prompt_eval_count"), int):
+        call["input_tokens"] = data["prompt_eval_count"]
+    if isinstance(data.get("eval_count"), int):
+        call["output_tokens"] = data["eval_count"]
+    CALLS.append(call)
     return extract_ollama_content(data)
 
 

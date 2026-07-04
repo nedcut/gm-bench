@@ -492,6 +492,14 @@ tbody tr.is-candidate {
   background: linear-gradient(90deg, rgba(52, 224, 161, 0.07), transparent 85%);
 }
 
+tbody tr.is-reference {
+  opacity: 0.62;
+}
+
+tbody tr.is-reference td {
+  font-weight: 400;
+}
+
 .agent-cell {
   display: flex;
   align-items: center;

@@ -1,0 +1,46 @@
+{
+  "baselines": [
+    {
+      "agent": "value",
+      "mean_score": 282.223,
+      "score_stddev": 45.09
+    },
+    {
+      "agent": "win-now",
+      "mean_score": 217.43,
+      "score_stddev": 34.309
+    },
+    {
+      "agent": "rebuild",
+      "mean_score": 79.487,
+      "score_stddev": 10.859
+    },
+    {
+      "agent": "conservative",
+      "mean_score": 76.081,
+      "score_stddev": 6.644
+    },
+    {
+      "agent": "random",
+      "mean_score": 51.394,
+      "score_stddev": 9.081
+    }
+  ],
+  "models": [],
+  "preset": {
+    "decision_points_per_episode": 15,
+    "name": "leaderboard",
+    "seasons": 5,
+    "seeds": [
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ]
+  },
+  "updated": "2026-07-04"
+}

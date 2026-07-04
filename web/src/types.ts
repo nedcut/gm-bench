@@ -67,6 +67,52 @@ export interface SampleTransaction {
   action: Record<string, unknown>;
 }
 
+export interface LeaderboardModel {
+  id: string;
+  model: string;
+  provider: string;
+  mean_score: number;
+  score_stddev: number;
+  mean_strategy_score: number | null;
+  protocol_penalty: number | null;
+  paired_lift: number | null;
+  ci95: number[] | null;
+  significant: boolean | null;
+  seed_win_rate: number | null;
+  lift_vs_best_baseline: number | null;
+  fallback_rate: number;
+  illegal_actions: number;
+  total_tokens: number;
+  tokens_per_decision: number | null;
+  cost_usd: number | null;
+  cost_per_episode_usd: number | null;
+  api_latency_s_per_decision: number | null;
+  harness_latency_s_per_decision: number | null;
+  decisions_with_usage: number;
+  decision_points: number;
+  seeds: number[] | null;
+  seasons: number | null;
+  baseline_panel_mean_score: number | null;
+}
+
+export interface LeaderboardBaseline {
+  agent: string;
+  mean_score: number;
+  score_stddev: number;
+}
+
+export interface Leaderboard {
+  updated: string;
+  preset: {
+    name: string;
+    seeds: number[];
+    seasons: number;
+    decision_points_per_episode: number;
+  };
+  baselines: LeaderboardBaseline[];
+  models: LeaderboardModel[];
+}
+
 export interface Snapshot {
   config: SnapshotConfig;
   normalized: Normalized;

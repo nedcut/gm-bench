@@ -11,11 +11,13 @@ from gm_bench.generator import generate_draft_class, generate_league_data
 from gm_bench.models import (
     LINEUP_MIN_POSITIONS,
     LINEUP_SIZE,
+    PICK_TRADE_MAX_SEASONS_AHEAD,
     ROSTER_MIN,
     Player,
     SeasonSummary,
     Team,
     Transaction,
+    pick_value,
 )
 from gm_bench.scoring import score_team
 
@@ -23,6 +25,8 @@ TRADE_VALUE_THRESHOLD = 0.95
 TRADE_LIMIT_PER_PARTNER = 2
 MEMO_MAX_CHARS = 2000
 HARD_CAP_BUFFER = 8.0
+SCOUT_POINTS_PER_SEASON = 3
+SCOUT_REPORT_NOISE = 1.5
 
 
 @dataclass
@@ -42,6 +46,9 @@ class League:
     rng_state_offset: int = 0
     agent_memo: str = ""
     partner_trades: dict[int, int] = field(default_factory=dict)
+    current_offers: dict[str, dict[str, Any]] = field(default_factory=dict)
+    scout_points_used: int = 0
+    scout_reports: dict[int, float] = field(default_factory=dict)
 
     @classmethod
     def new(cls, seed: int, user_team_id: int = 0, num_teams: int = 12) -> "League":
@@ -75,6 +82,18 @@ class League:
                 "lineup_min_positions": LINEUP_MIN_POSITIONS,
                 "trade_value_threshold": TRADE_VALUE_THRESHOLD,
                 "trade_limit_per_partner": TRADE_LIMIT_PER_PARTNER,
+                "pick_trading": {
+                    "max_seasons_ahead": PICK_TRADE_MAX_SEASONS_AHEAD,
+                    "pick_value_estimate": {
+                        str(season): round(pick_value(self.season, season), 2)
+                        for season in self._tradeable_pick_seasons()
+                    },
+                },
+                "scouting": {
+                    "points_per_season": SCOUT_POINTS_PER_SEASON,
+                    "points_remaining": SCOUT_POINTS_PER_SEASON - self.scout_points_used,
+                    "report_noise": SCOUT_REPORT_NOISE,
+                },
             },
             "team": self.user_team.public_dict(self.players, self.cap),
             "standings": self._standings_public(),
@@ -82,6 +101,8 @@ class League:
             "draft_class": [player.public_dict() for player in self.prospects.values()],
             "draft_order": self._draft_order(),
             "trade_market": self._trade_market_public(),
+            "incoming_offers": self._incoming_offers_public(phase),
+            "scout_reports": {str(player_id): report for player_id, report in sorted(self.scout_reports.items())},
             "history": [summary.__dict__ for summary in self.summaries[-5:]],
             "recent_transactions": [transaction.__dict__ for transaction in self.transactions[-12:]],
             "memo": self.agent_memo,
@@ -106,6 +127,12 @@ class League:
                 self._safe_apply(self._release, action, phase)
             elif action_type == "trade":
                 self._safe_apply(self._trade, action, phase)
+            elif action_type == "accept_offer":
+                self._safe_apply(self._accept_offer, action, phase)
+            elif action_type == "decline_offer":
+                self._safe_apply(self._decline_offer, action, phase)
+            elif action_type == "scout":
+                self._safe_apply(self._scout, action, phase)
             elif action_type == "draft":
                 self._safe_apply(self._draft, action, phase)
             elif action_type == "set_lineup":
@@ -151,7 +178,9 @@ class League:
         else:
             picking = [] if before_user else order
         for team_id in picking:
-            self._opponent_draft_pick(self.teams[team_id])
+            # A team that traded for extra picks exercises all of them at its slot.
+            for _ in range(self.teams[team_id].draft_picks.get(self.season, 0)):
+                self._opponent_draft_pick(self.teams[team_id])
 
     def simulate_season(self) -> SeasonSummary:
         rng = self._rng("season")
@@ -194,10 +223,36 @@ class League:
         self.summaries.append(summary)
         self.season += 1
         self.partner_trades = {}
+        self.scout_points_used = 0
         for team in self.teams.values():
             team.draft_picks.setdefault(self.season, 1)
         self.prospects = generate_draft_class(self.seed, self.season, self.num_teams * 5)
         return summary
+
+    def _scout(self, action: dict[str, Any], phase: str) -> None:
+        """Spend one scouting point for a near-true read on a player's potential.
+
+        The report is `true_potential` plus small deterministic noise — far
+        tighter than the public `potential` estimate. Reports persist across
+        seasons and are echoed in every observation's `scout_reports`, so a
+        point spent early keeps paying off. Noise is seeded per player (not via
+        `_rng`), so scouting never perturbs the league's RNG stream.
+        """
+        player_id = int(action.get("player_id", -1))
+        target = self.players.get(player_id) or self.prospects.get(player_id)
+        if target is None:
+            self._record(action, phase, False, "no such player or prospect to scout")
+            return
+        if player_id in self.scout_reports:
+            self._record(action, phase, False, "player already scouted; see scout_reports")
+            return
+        if self.scout_points_used >= SCOUT_POINTS_PER_SEASON:
+            self._record(action, phase, False, "no scouting points left this season")
+            return
+        noise = random.Random(f"{self.seed}:scout:{player_id}").uniform(-SCOUT_REPORT_NOISE, SCOUT_REPORT_NOISE)
+        self.scout_points_used += 1
+        self.scout_reports[player_id] = round(target.true_potential + noise, 1)
+        self._record(action, phase, True, f"scouted {target.name}: potential ≈ {self.scout_reports[player_id]}")
 
     def _memo(self, action: dict[str, Any], phase: str) -> None:
         text = action.get("text", "")
@@ -253,12 +308,20 @@ class League:
         partner_id = int(action.get("partner_team_id", -1))
         give = [int(player_id) for player_id in action.get("give_player_ids", [])]
         receive = [int(player_id) for player_id in action.get("receive_player_ids", [])]
+        give_picks = [int(season) for season in action.get("give_pick_seasons", [])]
+        receive_picks = [int(season) for season in action.get("receive_pick_seasons", [])]
         if partner_id not in self.teams or partner_id == self.user_team_id:
             self._record(action, phase, False, "invalid trade partner")
             return
         partner = self.teams[partner_id]
-        if not give or not receive:
-            self._record(action, phase, False, "trades must include players from both teams")
+        if not (give or give_picks) or not (receive or receive_picks):
+            self._record(action, phase, False, "trades must include assets from both teams")
+            return
+        pick_error = self._validate_pick_seasons(self.user_team, give_picks) or self._validate_pick_seasons(
+            partner, receive_picks
+        )
+        if pick_error:
+            self._record(action, phase, False, pick_error)
             return
         if len(set(give)) != len(give) or len(set(receive)) != len(receive):
             self._record(action, phase, False, "trade lists must not contain duplicate player ids")
@@ -286,10 +349,16 @@ class League:
         perceived_give = sum(
             self.players[player_id].asset_value * self._partner_valuation_bias(partner_id, player_id)
             for player_id in give
+        ) + sum(
+            pick_value(self.season, season) * self._partner_valuation_bias(partner_id, f"pick:{season}")
+            for season in give_picks
         )
         perceived_receive = sum(
             self.players[player_id].asset_value * self._partner_valuation_bias(partner_id, player_id)
             for player_id in receive
+        ) + sum(
+            pick_value(self.season, season) * self._partner_valuation_bias(partner_id, f"pick:{season}")
+            for season in receive_picks
         )
         partner_payroll_after = (
             self._payroll(partner)
@@ -315,8 +384,159 @@ class League:
             self._remove_from_team(partner, player_id)
             self.user_team.roster.append(player_id)
             self.players[player_id].team_id = self.user_team_id
+        for season in give_picks:
+            self._transfer_pick(self.user_team, partner, season)
+        for season in receive_picks:
+            self._transfer_pick(partner, self.user_team, season)
         self.partner_trades[partner_id] = self.partner_trades.get(partner_id, 0) + 1
         self._record(action, phase, True, "trade accepted")
+
+    def _incoming_offers_public(self, phase: str) -> list[dict[str, Any]]:
+        """Regenerate and publish opponent-initiated trade offers for this decision.
+
+        Offers are deterministic in (seed, season, phase) and league state, and
+        valid only for the decision window they were published in — the pool is
+        re-rolled at the next observation.
+        """
+        self.current_offers = self._generate_incoming_offers(phase)
+        published = []
+        for offer_id, offer in self.current_offers.items():
+            published.append(
+                {
+                    "offer_id": offer_id,
+                    "team_id": offer["partner_id"],
+                    "team_name": self.teams[offer["partner_id"]].name,
+                    "you_receive_players": [self.players[pid].public_dict() for pid in offer["you_receive"]],
+                    "they_receive_players": [self.players[pid].public_dict() for pid in offer["they_receive"]],
+                    "you_receive_pick_seasons": offer["you_receive_picks"],
+                    "they_receive_pick_seasons": offer["they_receive_picks"],
+                    "expires": "this decision point",
+                }
+            )
+        return published
+
+    def _generate_incoming_offers(self, phase: str) -> dict[str, dict[str, Any]]:
+        """Build offers from partners' hidden valuations.
+
+        A partner offers a player it privately undervalues and asks for a user
+        player it perceives as at least as valuable — so every offer looks fair
+        to the partner, but only some are good for the user. Distinguishing the
+        bargains (partner undervalues a genuinely good player) from the traps
+        (partner is offloading a genuinely bad one) is the skill being tested.
+        Seeded directly, not via `_rng`, so publishing offers never perturbs the
+        league's RNG stream — scripted baselines that ignore offers score
+        identically with or without this feature.
+        """
+        rng = random.Random(f"{self.seed}:{self.season}:{phase}:incoming-offers")
+        offers: dict[str, dict[str, Any]] = {}
+        opponents = [team for team in self.teams.values() if team.id != self.user_team_id]
+        rng.shuffle(opponents)
+        for partner in opponents[:3]:
+            if self.partner_trades.get(partner.id, 0) >= TRADE_LIMIT_PER_PARTNER:
+                continue
+            if len(partner.roster) <= ROSTER_MIN:
+                continue
+            offered = min(
+                (self.players[player_id] for player_id in partner.roster),
+                key=lambda player: player.asset_value * self._partner_valuation_bias(partner.id, player.id),
+            )
+            wanted_candidates = [
+                self.players[player_id]
+                for player_id in self.user_team.roster
+                if self.players[player_id].asset_value * self._partner_valuation_bias(partner.id, player_id)
+                >= offered.asset_value * self._partner_valuation_bias(partner.id, offered.id) * 1.03
+            ]
+            if not wanted_candidates or len(self.user_team.roster) <= ROSTER_MIN:
+                continue
+            # Ask for the cheapest user player that still clears the partner's bar,
+            # keeping most offers plausible rather than obviously predatory.
+            wanted = min(
+                wanted_candidates,
+                key=lambda player: player.asset_value * self._partner_valuation_bias(partner.id, player.id),
+            )
+            offer_id = f"offer-{partner.id}-{self.season}-{phase}-{offered.id}-{wanted.id}"
+            offers[offer_id] = {
+                "partner_id": partner.id,
+                "you_receive": [offered.id],
+                "they_receive": [wanted.id],
+                "you_receive_picks": [],
+                "they_receive_picks": [],
+            }
+        return offers
+
+    def _accept_offer(self, action: dict[str, Any], phase: str) -> None:
+        offer_id = str(action.get("offer_id", ""))
+        offer = self.current_offers.get(offer_id)
+        if offer is None:
+            self._record(action, phase, False, "no such active offer (offers expire every decision point)")
+            return
+        partner = self.teams[offer["partner_id"]]
+        you_receive = offer["you_receive"]
+        they_receive = offer["they_receive"]
+        if any(player_id not in partner.roster for player_id in you_receive) or any(
+            player_id not in self.user_team.roster for player_id in they_receive
+        ):
+            self._record(action, phase, False, "offer is stale: a player already changed teams")
+            return
+        if self.partner_trades.get(partner.id, 0) >= TRADE_LIMIT_PER_PARTNER:
+            self._record(action, phase, False, "partner has no appetite for more trades this season")
+            return
+        user_payroll_after = (
+            self._payroll(self.user_team)
+            - sum(self.players[pid].salary for pid in they_receive)
+            + sum(self.players[pid].salary for pid in you_receive)
+        )
+        if user_payroll_after > self.cap + HARD_CAP_BUFFER:
+            self._record(action, phase, False, "accepting would exceed hard cap buffer")
+            return
+        for player_id in they_receive:
+            self._remove_from_team(self.user_team, player_id)
+            partner.roster.append(player_id)
+            self.players[player_id].team_id = partner.id
+        for player_id in you_receive:
+            self._remove_from_team(partner, player_id)
+            self.user_team.roster.append(player_id)
+            self.players[player_id].team_id = self.user_team_id
+        for season in offer["they_receive_picks"]:
+            self._transfer_pick(self.user_team, partner, season)
+        for season in offer["you_receive_picks"]:
+            self._transfer_pick(partner, self.user_team, season)
+        self.partner_trades[partner.id] = self.partner_trades.get(partner.id, 0) + 1
+        del self.current_offers[offer_id]
+        self._record(action, phase, True, f"accepted offer from {partner.name}")
+
+    def _decline_offer(self, action: dict[str, Any], phase: str) -> None:
+        offer_id = str(action.get("offer_id", ""))
+        if offer_id not in self.current_offers:
+            self._record(action, phase, False, "no such active offer")
+            return
+        partner = self.teams[self.current_offers[offer_id]["partner_id"]]
+        del self.current_offers[offer_id]
+        self._record(action, phase, True, f"declined offer from {partner.name}")
+
+    def _tradeable_pick_seasons(self) -> list[int]:
+        return list(range(self.season + 1, self.season + PICK_TRADE_MAX_SEASONS_AHEAD + 1))
+
+    def _picks_owned(self, team: Team, season: int) -> int:
+        # The generator pre-grants one pick per team for early seasons; a season
+        # beyond that horizon that no trade has touched is an implicit single pick.
+        if season in team.draft_picks:
+            return team.draft_picks[season]
+        return 1 if season > self.season else 0
+
+    def _validate_pick_seasons(self, owner: Team, seasons: list[int]) -> str | None:
+        window = self._tradeable_pick_seasons()
+        for season in seasons:
+            if season not in window:
+                return f"pick seasons must be between {window[0]} and {window[-1]}"
+        for season in set(seasons):
+            if seasons.count(season) > self._picks_owned(owner, season):
+                return f"{owner.name} does not own enough season-{season} picks"
+        return None
+
+    def _transfer_pick(self, giver: Team, receiver: Team, season: int) -> None:
+        giver.draft_picks[season] = self._picks_owned(giver, season) - 1
+        receiver.draft_picks[season] = self._picks_owned(receiver, season) + 1
 
     def _draft(self, action: dict[str, Any], phase: str) -> None:
         if phase != "draft":
@@ -368,6 +588,7 @@ class League:
                 "losses": team.losses,
                 "championships": team.championships,
                 "public_strength": round(self._team_strength(team, apply_injury_noise=False), 1),
+                "draft_picks": dict(sorted(team.draft_picks.items())),
             }
             for team in sorted(self.teams.values(), key=lambda item: item.wins, reverse=True)
         ]
@@ -405,8 +626,8 @@ class League:
         contract_drag = player.salary * 0.55 if player.salary > 0 else 0.0
         return round(max(1.0, (public_skill - 44.0) * age_factor - contract_drag), 2)
 
-    def _partner_valuation_bias(self, partner_id: int, player_id: int) -> float:
-        """Hidden, deterministic per-partner scouting bias on a player's value.
+    def _partner_valuation_bias(self, partner_id: int, player_id: int | str) -> float:
+        """Hidden, deterministic per-partner scouting bias on a player's or pick's value.
 
         Re-rolled each season so trade acceptance cannot be computed exactly from
         public observations, only estimated. Seeded directly (not via `_rng`) so
