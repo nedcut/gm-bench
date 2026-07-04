@@ -134,14 +134,28 @@ def parse_actions(text: str) -> list[dict[str, Any]]:
 def _actions_from_json(parsed: Any) -> list[dict[str, Any]]:
     if isinstance(parsed, dict) and isinstance(parsed.get("actions"), list):
         parsed = parsed["actions"]
-    if isinstance(parsed, dict) and isinstance(parsed.get("type"), str):
+    if isinstance(parsed, dict):
         parsed = [parsed]
     if not isinstance(parsed, list):
         raise ValueError("model JSON was not an action list")
-    actions = [action for action in parsed if isinstance(action, dict) and isinstance(action.get("type"), str)]
+    actions = [_normalize_action_keys(action) for action in parsed if isinstance(action, dict)]
+    actions = [action for action in actions if isinstance(action.get("type"), str)]
     if not actions:
         raise ValueError("model JSON did not contain typed actions")
     return actions
+
+
+def _normalize_action_keys(action: dict[str, Any]) -> dict[str, Any]:
+    """Mechanical key repair only: accept "action" as an alias for "type".
+
+    Small local models often emit {"action": "draft", ...}. Renaming the key
+    preserves the model's decision verbatim; semantic mistakes (an unknown
+    action type, a bad id) still flow through to the simulator and are
+    penalized as the model's own errors.
+    """
+    if "type" not in action and isinstance(action.get("action"), str):
+        action = {**action, "type": action.pop("action")}
+    return action
 
 
 def _scan_json_values(text: str, opener: str) -> list[Any]:
