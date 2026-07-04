@@ -26,7 +26,47 @@
       "score_stddev": 9.081
     }
   ],
-  "models": [],
+  "models": [
+    {
+      "api_latency_s_per_decision": 11.02,
+      "baseline_panel_mean_score": 141.323,
+      "ci95": [
+        -132.383,
+        -92.209
+      ],
+      "cost_per_episode_usd": 0.0,
+      "cost_usd": 0.0,
+      "decision_points": 120,
+      "decisions_with_usage": 120,
+      "fallback_rate": 0.125,
+      "harness_latency_s_per_decision": 11.09,
+      "id": "ollama:gemma4:e4b",
+      "illegal_actions": 142,
+      "lift_vs_best_baseline": -255.686,
+      "mean_score": 26.537,
+      "mean_strategy_score": 70.912,
+      "model": "gemma4:e4b",
+      "paired_lift": -114.786,
+      "protocol_penalty": 355.0,
+      "provider": "ollama",
+      "score_stddev": 31.613,
+      "seasons": 5,
+      "seed_win_rate": 0.0,
+      "seeds": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "significant": true,
+      "tokens_per_decision": 3721.3,
+      "total_tokens": 446551
+    }
+  ],
   "preset": {
     "decision_points_per_episode": 15,
     "name": "leaderboard",
