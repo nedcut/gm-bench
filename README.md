@@ -191,6 +191,23 @@ Key mechanics agents should know:
   `text` (allowed by the structured-output wrapper schema, where every field
   is nullable) is rejected as an invalid action.
 
+### Adapter reliability accounting
+
+When a model-backed adapter cannot use the model's output (timeout, crash,
+unparseable JSON, missing API key), it substitutes fallback actions marked
+with a `model_error` key (adapter-level failures from the runner carry an
+`error` key). The runner counts each such decision as a *failed decision* and
+reports `decisions`, `failed_decisions`, `decision_failure_rate`, and
+`memo_writes` per episode and in run summaries, plus per-episode
+`mean_decision_seconds` / `max_decision_seconds` wall-time latency. A model
+that never produces usable output no longer silently scores like the fallback
+policy — the failure rate is right next to the score.
+
+By default the fallback still plays a safe turn (best-value draft pick plus a
+legal lineup) so one flaky decision doesn't ruin an episode. Set
+`GM_AGENT_STRICT=1` to make the fallback a pure `noop`, so the score reflects
+only actions the model itself produced.
+
 JSON Schema definitions for the protocol live in `schemas/`:
 
 - `gm_observation.schema.json` — observation sent to agents

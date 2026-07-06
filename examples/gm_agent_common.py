@@ -149,6 +149,16 @@ def strip_terminal_codes(text: str) -> str:
 
 
 def fallback_actions(observation: dict[str, Any], error: str | None = None) -> list[dict[str, Any]]:
+    """Actions substituted when the model produced no usable output.
+
+    The first action always carries a `model_error` marker so the runner can
+    count the decision as failed instead of crediting the fallback policy to
+    the model. With GM_AGENT_STRICT=1 the fallback is a pure noop, so the
+    score reflects only what the model itself produced.
+    """
+    marker = (error or "model produced no usable actions")[:300]
+    if os.environ.get("GM_AGENT_STRICT", "0") == "1":
+        return [{"type": "noop", "model_error": marker}]
     actions: list[dict[str, Any]] = []
     if observation["phase"] == "draft" and observation["draft_class"]:
         prospect = max(observation["draft_class"], key=public_asset_value)
@@ -158,6 +168,5 @@ def fallback_actions(observation: dict[str, Any], error: str | None = None) -> l
         actions.append({"type": "set_lineup", "player_ids": lineup})
     if not actions:
         actions.append({"type": "noop"})
-    if error:
-        actions[0]["model_error"] = error[:300]
+    actions[0]["model_error"] = marker
     return actions

@@ -374,6 +374,21 @@ def _print_result(result: dict[str, Any], as_json: bool) -> None:
             **summary
         )
     )
+    print(_reliability_line(result))
+
+
+def _reliability_line(result: dict[str, Any]) -> str:
+    summary = result["summary"]
+    latencies = [
+        episode["mean_decision_seconds"] for episode in result["episodes"] if "mean_decision_seconds" in episode
+    ]
+    line = (
+        f"decisions={summary.get('decisions', 0)} failed_decisions={summary.get('failed_decisions', 0)} "
+        f"(rate {summary.get('decision_failure_rate', 0.0)}) memo_writes={summary.get('memo_writes', 0)}"
+    )
+    if latencies:
+        line += f" mean_decision_seconds={round(sum(latencies) / len(latencies), 3)}"
+    return line
 
 
 def _print_table(results: list[dict[str, Any]]) -> None:
@@ -395,6 +410,13 @@ def _print_evaluation(result: dict[str, Any]) -> None:
             **normalized
         )
     )
+    print(_reliability_line(result["candidate"]))
+    if result["candidate"]["summary"].get("failed_decisions"):
+        print(
+            "warning: some decisions used adapter fallback/error output instead of the model's own actions; "
+            "the score partially reflects the fallback policy, not the model",
+            file=sys.stderr,
+        )
     paired = result.get("paired")
     if paired:
         low, high = paired["paired_lift_ci95"]

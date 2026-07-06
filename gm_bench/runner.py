@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import random
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from statistics import mean, pstdev
@@ -29,8 +30,27 @@ class BenchmarkResult:
     wins: int
     championships: int
     illegal_actions: int
+    decisions: int
+    failed_decisions: int
+    memo_writes: int
+    mean_decision_seconds: float
+    max_decision_seconds: float
     season_summaries: list[dict[str, Any]]
     transactions: list[dict[str, Any]]
+
+
+def _decision_failed(actions: Any) -> bool:
+    """Whether the agent's actions for a decision point came from a failure path.
+
+    Adapters mark substituted output: `ExternalProcessAgent` returns a noop with
+    an `error` key on timeouts/crashes/bad JSON, and the example adapters attach
+    `model_error` to fallback actions when the model's own output was unusable.
+    Without this accounting, a model that never produces valid output still
+    scores like a scripted fallback agent and the failure is invisible.
+    """
+    if not isinstance(actions, list):
+        return True
+    return any(isinstance(action, dict) and ("error" in action or "model_error" in action) for action in actions)
 
 
 def run_episode(
@@ -43,6 +63,8 @@ def run_episode(
     league = League.new(seed=seed, user_team_id=user_team_id)
     decision = 0
     total_decisions = seasons * 3
+    failed_decisions = 0
+    decision_seconds: list[float] = []
     for season_index in range(1, seasons + 1):
         for phase in ["preseason", "trade_deadline", "draft"]:
             decision += 1
@@ -60,13 +82,22 @@ def run_episode(
             if phase == "draft":
                 league.run_opponent_draft(before_user=True)
             observation = league.observation(phase)
+            started = time.perf_counter()
             actions = agent.act(observation)
+            decision_seconds.append(time.perf_counter() - started)
+            if _decision_failed(actions):
+                failed_decisions += 1
             league.apply_actions(actions, phase)
             if phase == "draft":
                 league.run_opponent_draft(before_user=False)
             league.run_autopilot_opponents(phase)
         league.simulate_season()
     breakdown = score_breakdown(league, user_team_id)
+    memo_writes = sum(
+        1
+        for transaction in league.transactions
+        if transaction.team_id == user_team_id and transaction.accepted and transaction.action.get("type") == "memo"
+    )
     return BenchmarkResult(
         agent=agent.name,
         seed=seed,
@@ -77,6 +108,11 @@ def run_episode(
         wins=sum(summary.wins for summary in league.summaries),
         championships=league.user_team.championships,
         illegal_actions=league.illegal_actions,
+        decisions=total_decisions,
+        failed_decisions=failed_decisions,
+        memo_writes=memo_writes,
+        mean_decision_seconds=round(mean(decision_seconds), 4) if decision_seconds else 0.0,
+        max_decision_seconds=round(max(decision_seconds), 4) if decision_seconds else 0.0,
         season_summaries=[summary.__dict__ for summary in league.summaries],
         transactions=[transaction.__dict__ for transaction in league.transactions],
     )
@@ -108,6 +144,11 @@ def summarize_episodes(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     never drift into differently-shaped summaries.
     """
     scores = [episode["final_score"] for episode in episodes]
+    # Older cached baseline episodes may predate the reliability fields, so read
+    # them defensively; wall-time latency stays per-episode to keep summaries
+    # deterministic for a given agent behavior.
+    decisions = sum(episode.get("decisions", 0) for episode in episodes)
+    failed_decisions = sum(episode.get("failed_decisions", 0) for episode in episodes)
     return {
         "mean_score": round(mean(scores), 3) if scores else 0.0,
         "mean_strategy_score": round(mean(episode["strategy_score"] for episode in episodes), 3) if episodes else 0.0,
@@ -116,6 +157,10 @@ def summarize_episodes(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_total_wins": round(mean(episode["wins"] for episode in episodes), 3) if episodes else 0.0,
         "championships": sum(episode["championships"] for episode in episodes),
         "illegal_actions": sum(episode["illegal_actions"] for episode in episodes),
+        "decisions": decisions,
+        "failed_decisions": failed_decisions,
+        "decision_failure_rate": round(failed_decisions / decisions, 3) if decisions else 0.0,
+        "memo_writes": sum(episode.get("memo_writes", 0) for episode in episodes),
     }
 
 
@@ -231,6 +276,10 @@ def evaluate_against_baselines(
             "score_lift_pct": round(((candidate_mean / baseline_mean) - 1.0) * 100.0, 2) if baseline_mean else 0.0,
             "candidate_illegal_actions": candidate["summary"]["illegal_actions"],
             "baseline_illegal_actions": sum(result["summary"]["illegal_actions"] for result in baseline_results),
+            "candidate_decisions": candidate["summary"].get("decisions", 0),
+            "candidate_failed_decisions": candidate["summary"].get("failed_decisions", 0),
+            "candidate_decision_failure_rate": candidate["summary"].get("decision_failure_rate", 0.0),
+            "candidate_memo_writes": candidate["summary"].get("memo_writes", 0),
         },
         "paired": _paired_analysis(seeds, candidate, baseline_results),
     }
