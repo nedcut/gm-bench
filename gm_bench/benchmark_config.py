@@ -11,24 +11,32 @@ from gm_bench.providers import PROVIDER_NAMES
 
 PRESET_NAMES = ("smoke", "standard", "benchmark")
 
+# Presets pin the observation profile so scores produced under the same preset
+# are comparable across providers: provider defaults differ (ollama defaults to
+# "tiny", openai to "compact"), and a tiny-profile score answers a different
+# question than a compact-profile one. An explicit --profile / config value
+# still wins over the preset.
 PRESETS: dict[str, dict[str, Any]] = {
     "smoke": {
         "seeds": [1],
         "seasons": 1,
         "baselines": ["random", "conservative", "win-now", "rebuild"],
         "agent_timeout": 120.0,
+        "profile": "compact",
     },
     "standard": {
         "seeds": [1, 2, 3],
         "seasons": 3,
         "baselines": ["random", "conservative", "win-now", "rebuild"],
         "agent_timeout": 120.0,
+        "profile": "compact",
     },
     "benchmark": {
         "seeds": [1, 2, 3, 4, 5],
         "seasons": 5,
         "baselines": ["random", "conservative", "win-now", "rebuild", "value"],
         "agent_timeout": 120.0,
+        "profile": "compact",
     },
 }
 
@@ -62,6 +70,8 @@ class BenchmarkConfig:
         self.baselines = list(values["baselines"])
         if self.agent_timeout is None:
             self.agent_timeout = float(values["agent_timeout"])
+        if self.profile is None:
+            self.profile = values.get("profile")
         self.preset = preset
 
     def validate(self) -> None:
