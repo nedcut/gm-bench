@@ -77,7 +77,9 @@ class Player:
             surplus = max(-10.0, self.overall - 52.0 - self.salary * 2.5)
             contract_factor += surplus * 0.018
         morale_factor = 0.92 + min(max(self.morale, 0.0), 100.0) / 100.0 * 0.08
-        return max(0.0, (self.overall * 0.55 + self.potential * 0.45 - 45.0) * age_factor * contract_factor * morale_factor)
+        return max(
+            0.0, (self.overall * 0.55 + self.potential * 0.45 - 45.0) * age_factor * contract_factor * morale_factor
+        )
 
     @property
     def effective_overall(self) -> float:

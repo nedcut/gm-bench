@@ -115,9 +115,7 @@ class League:
                 "used": self.scouts_used_this_season,
                 "remaining": max(0, SCOUTS_PER_SEASON - self.scouts_used_this_season),
             },
-            "incoming_trade_offers": [
-                offer.public_dict(self.players) for offer in self.incoming_trade_offers
-            ],
+            "incoming_trade_offers": [offer.public_dict(self.players) for offer in self.incoming_trade_offers],
             "available_actions": self._available_actions(phase),
         }
         if action_results:
@@ -225,7 +223,9 @@ class League:
         except (TypeError, ValueError):
             action_type = action.get("type", "")
             penalize = action_type not in NON_PENALIZED_TYPES
-            return self._record(action, phase, False, "action has invalid or missing argument values", penalize=penalize)
+            return self._record(
+                action, phase, False, "action has invalid or missing argument values", penalize=penalize
+            )
 
     def prepare_midseason(self) -> None:
         if self.partial_season_played:
@@ -383,9 +383,7 @@ class League:
             key=lambda player: player.asset_value * self._partner_valuation_bias(partner.id, player.id),
         )
         receive_candidates = [
-            self.players[pid]
-            for pid in self.user_team.roster
-            if self.players[pid].position == give_player.position
+            self.players[pid] for pid in self.user_team.roster if self.players[pid].position == give_player.position
         ]
         if not receive_candidates:
             receive_candidates = [self.players[pid] for pid in self.user_team.roster]
@@ -450,7 +448,9 @@ class League:
         players = [player for player in players if player.overall >= min_overall]
         players.sort(key=lambda player: player.overall, reverse=True)
         data = {"free_agents": [self._free_agent_public(player.id) for player in players[:limit]]}
-        return self._record(action, phase, True, f"listed {len(data['free_agents'])} free agents", data=data, penalize=False)
+        return self._record(
+            action, phase, True, f"listed {len(data['free_agents'])} free agents", data=data, penalize=False
+        )
 
     def _scout(self, action: dict[str, Any], phase: str) -> ActionResult:
         if self.scouts_used_this_season >= SCOUTS_PER_SEASON:
@@ -499,7 +499,9 @@ class League:
         }
         result = self._trade(trade_action, phase)
         if result.accepted:
-            self.incoming_trade_offers = [item for item in self.incoming_trade_offers if item.offer_id != offer.offer_id]
+            self.incoming_trade_offers = [
+                item for item in self.incoming_trade_offers if item.offer_id != offer.offer_id
+            ]
             result.message = f"accepted offer {offer.offer_id}"
         return result
 
@@ -524,7 +526,9 @@ class League:
         }
         result = self._trade(trade_action, phase)
         if result.accepted:
-            self.incoming_trade_offers = [item for item in self.incoming_trade_offers if item.offer_id != offer.offer_id]
+            self.incoming_trade_offers = [
+                item for item in self.incoming_trade_offers if item.offer_id != offer.offer_id
+            ]
             result.message = f"counter accepted for offer {offer.offer_id}"
         return result
 
@@ -578,7 +582,9 @@ class League:
         if player_id not in self.user_team.roster:
             return self._record(action, phase, False, "player is not on your roster")
         if len(self.user_team.roster) <= ROSTER_MIN:
-            return self._record(action, phase, False, f"release would drop roster below the {ROSTER_MIN}-player minimum")
+            return self._record(
+                action, phase, False, f"release would drop roster below the {ROSTER_MIN}-player minimum"
+            )
         player = self.players[player_id]
         self._remove_from_team(self.user_team, player_id)
         player.team_id = None
@@ -613,10 +619,14 @@ class League:
         user_after = len(self.user_team.roster) - len(give) + len(receive)
         partner_after = len(partner.roster) - len(receive) + len(give)
         if user_after < ROSTER_MIN and user_after < len(self.user_team.roster):
-            return self._record(action, phase, False, f"trade would drop your roster below the {ROSTER_MIN}-player minimum")
+            return self._record(
+                action, phase, False, f"trade would drop your roster below the {ROSTER_MIN}-player minimum"
+            )
         if partner_after < ROSTER_MIN and partner_after < len(partner.roster):
-            return self._record(action, phase, False, f"trade would drop partner roster below the {ROSTER_MIN}-player minimum")
-        perceived_give = self._trade_asset_value(give, give_picks, partner_id) 
+            return self._record(
+                action, phase, False, f"trade would drop partner roster below the {ROSTER_MIN}-player minimum"
+            )
+        perceived_give = self._trade_asset_value(give, give_picks, partner_id)
         perceived_receive = self._trade_asset_value(receive, receive_picks, partner_id)
         partner_payroll_after = (
             self._payroll(partner)
