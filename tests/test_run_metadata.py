@@ -101,3 +101,8 @@ def test_cli_model_run_info_records_resolved_provider_metadata(monkeypatch: pyte
     # default would also be compact; the point is the resolved value is stamped.
     assert run_info["profile"] == "compact"
     assert run_info["preset"] == "smoke"
+
+
+def test_config_rejects_unknown_profile() -> None:
+    with pytest.raises(ValueError, match="unknown profile"):
+        config_from_dict({"provider": "ollama", "profile": "bogus", "seeds": [1]})
