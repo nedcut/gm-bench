@@ -87,11 +87,13 @@ The MVP includes seven scripted baselines:
 - `win-now`: prioritizes current overall and immediate wins.
 - `rebuild`: prioritizes youth and potential.
 - `value`: balances public overall, potential, age, and price.
-- `shrewd`: the strongest honest baseline — `value` plus releasing
+- `shrewd`: a stronger-on-average honest reference — `value` plus releasing
   clearly-negative veteran contracts before shopping and dressing high-upside
-  youth so they develop at full speed. A regression test pins it at or above
-  `value` on shared seeds; use it as the bar a model-backed candidate should
-  clear before its score means anything.
+  youth so they develop at full speed. The youth bet wins the panel mean
+  (roughly +6-7 lift over `value` at 3 seasons across seeds 1-30) but loses
+  individual seeds, so a regression test pins the panel-mean advantage, not
+  per-seed dominance. Use its panel average as the bar a model-backed
+  candidate should clear before its score means anything.
 - `exploit`: a red-team canary that replays historically degenerate strategies
   (trade value-pumping, free-agent hoarding). A regression test pins it below
   `value`; if a rules change re-opens an exploit, the canary jumps and CI fails.

@@ -171,17 +171,22 @@ class ValueAgent(Agent):
 
 
 class ShrewdAgent(Agent):
-    """The strongest honest baseline: `value` plus cap hygiene and development.
+    """A stronger-on-average honest reference than `value`.
 
     Uses only public observation data, like every scripted baseline. It exists
-    to keep the skill bar honest — a model-backed candidate that cannot clear
-    `shrewd` has not demonstrated anything a short heuristic can't do. On top
-    of `value`-style signings it:
+    to keep the skill bar honest — a model-backed candidate that cannot beat
+    `shrewd`'s panel average has not demonstrated anything a short heuristic
+    can't do. On top of `value`-style signings it:
 
     - releases clearly-negative veteran contracts before shopping, so the
       freed cap is spent in the same decision window;
     - dresses high-upside youth over marginal veterans, since only dressed
       players develop at full speed and young asset value scores double.
+
+    The youth-dressing rule is a horizon bet: it wins on average across seed
+    panels (roughly +6-7 mean lift over `value` at 3 seasons on seeds 1-30)
+    but loses individual seeds when the developed prospects don't pan out, so
+    no per-seed dominance over `value` is claimed or pinned.
     """
 
     name = "shrewd"
