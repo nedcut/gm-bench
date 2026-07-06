@@ -43,6 +43,7 @@ class BenchmarkConfig:
     profile: str | None = None
     seeds: list[int] = field(default_factory=lambda: [1, 2, 3, 4, 5])
     seasons: int = 5
+    repeats: int = 1
     baselines: list[str] = field(default_factory=lambda: ["random", "conservative", "win-now", "rebuild"])
     preset: str | None = None
     use_baseline_cache: bool = True
@@ -73,6 +74,8 @@ class BenchmarkConfig:
             raise ValueError("seeds must not be empty")
         if self.seasons < 1:
             raise ValueError("seasons must be >= 1")
+        if self.repeats < 1:
+            raise ValueError("repeats must be >= 1")
 
 
 def load_config(path: str | Path) -> BenchmarkConfig:
@@ -93,6 +96,7 @@ def config_from_dict(payload: dict[str, Any]) -> BenchmarkConfig:
         profile=payload.get("profile"),
         seeds=_parse_seeds(payload.get("seeds", [1, 2, 3, 4, 5])),
         seasons=int(payload.get("seasons", 5)),
+        repeats=int(payload.get("repeats", 1)),
         baselines=list(payload.get("baselines", ["random", "conservative", "win-now", "rebuild"])),
         preset=preset,
         use_baseline_cache=bool(payload.get("use_baseline_cache", True)),

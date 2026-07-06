@@ -117,9 +117,21 @@ score_lift = candidate_mean_score - baseline_panel_mean_score
 
 Because every agent plays the same seeds, `evaluate` additionally differences the
 candidate against the baselines per seed and reports a deterministic bootstrap
-95% confidence interval on that paired lift, a per-seed win rate, and the paired
+95% confidence interval on that paired lift, a per-seed win rate, an exact
+two-sided sign-flip permutation p-value (`sign_flip_p_value`), and the paired
 lift against the strongest single baseline. Paired differencing cancels most of
 the league-generation luck, which is what makes small-seed runs trustworthy.
+The permutation test is exact at benchmark-sized panels, where the bootstrap
+interval is coarse: with `n` seeds the smallest achievable p is `2 / 2^n`, so a
+3-seed run can never look more certain than p=0.25.
+
+The simulator is deterministic, but model-backed agents are not: one episode
+per seed confounds model skill with sampling luck. `--repeats N` runs the
+candidate N times per seed (baselines stay at one run — they are
+deterministic). Paired statistics then use the per-seed mean across repeats,
+and summaries report `within_seed_score_stddev` — the model's own run-to-run
+noise — next to the across-seed `score_stddev`, so score differences between
+models can be checked against both variance sources.
 
 See [scoring_calibration.md](scoring_calibration.md) for term definitions and
 weight rationale.

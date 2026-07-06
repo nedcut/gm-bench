@@ -87,18 +87,32 @@ def run_many(
     seeds: list[int],
     seasons: int = 5,
     workers: int | None = None,
+    repeats: int = 1,
     progress: ProgressCallback | None = None,
 ) -> dict[str, Any]:
-    max_workers = workers if workers is not None else _default_workers(len(seeds))
-    if max_workers <= 1 or len(seeds) <= 1:
-        results = [run_episode(agent, seed=seed, seasons=seasons, progress=progress) for seed in seeds]
+    """Run `repeats` episodes per seed (episodes carry a 1-based `repeat` index).
+
+    The simulator is deterministic, so repeats only matter for stochastic
+    agents — model-backed ones. Multiple repeats separate model sampling luck
+    from seed (league-generation) luck: paired statistics use the per-seed
+    mean across repeats, and summaries report the within-seed spread.
+    """
+    jobs = [(seed, repeat) for seed in seeds for repeat in range(1, max(1, repeats) + 1)]
+
+    def one(job: tuple[int, int]) -> dict[str, Any]:
+        seed, repeat = job
+        result = run_episode(agent, seed=seed, seasons=seasons, progress=progress)
+        return {**result.__dict__, "repeat": repeat}
+
+    max_workers = workers if workers is not None else _default_workers(len(jobs))
+    if max_workers <= 1 or len(jobs) <= 1:
+        episodes = [one(job) for job in jobs]
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            results = list(
-                executor.map(lambda seed: run_episode(agent, seed=seed, seasons=seasons, progress=progress), seeds)
-            )
-    episodes = [result.__dict__ for result in results]
-    return _episodes_payload(agent.name, seeds, seasons, episodes)
+            episodes = list(executor.map(one, jobs))
+    payload = _episodes_payload(agent.name, seeds, seasons, episodes)
+    payload["repeats"] = max(1, repeats)
+    return payload
 
 
 def summarize_episodes(episodes: list[dict[str, Any]]) -> dict[str, Any]:
@@ -116,7 +130,22 @@ def summarize_episodes(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_total_wins": round(mean(episode["wins"] for episode in episodes), 3) if episodes else 0.0,
         "championships": sum(episode["championships"] for episode in episodes),
         "illegal_actions": sum(episode["illegal_actions"] for episode in episodes),
+        "within_seed_score_stddev": _within_seed_stddev(episodes),
     }
+
+
+def _within_seed_stddev(episodes: list[dict[str, Any]]) -> float:
+    """Mean per-seed score spread across repeats — the model-sampling noise.
+
+    Zero when every seed ran once (or the agent is deterministic). Comparing
+    this against the across-seed `score_stddev` shows whether score
+    differences between models exceed their own run-to-run variance.
+    """
+    by_seed: dict[int, list[float]] = {}
+    for episode in episodes:
+        by_seed.setdefault(episode["seed"], []).append(episode["final_score"])
+    spreads = [pstdev(scores) for scores in by_seed.values() if len(scores) > 1]
+    return round(mean(spreads), 3) if spreads else 0.0
 
 
 def _episodes_payload(
@@ -177,12 +206,15 @@ def evaluate_against_baselines(
     seasons: int = 5,
     baseline_names: list[str] | None = None,
     *,
+    repeats: int = 1,
     use_baseline_cache: bool = True,
     baseline_cache_path: str | os.PathLike[str] | None = None,
     progress: ProgressCallback | None = None,
 ) -> dict[str, Any]:
+    # Repeats apply to the candidate only: scripted baselines are deterministic,
+    # so re-running them would produce identical episodes.
     baselines = baseline_names or ["random", "conservative", "win-now", "rebuild", "value"]
-    candidate = run_many(agent, seeds=seeds, seasons=seasons, progress=progress)
+    candidate = run_many(agent, seeds=seeds, seasons=seasons, repeats=repeats, progress=progress)
     baseline_results: list[dict[str, Any]] = []
     cache_hits = 0
     resolved_cache_path = baseline_cache_path if baseline_cache_path is not None else default_cache_path()
@@ -237,8 +269,11 @@ def evaluate_against_baselines(
 
 
 def _scores_by_seed(result: dict[str, Any]) -> dict[int, float]:
-    """Map each seed to the candidate/baseline final score for that episode."""
-    return {episode["seed"]: episode["final_score"] for episode in result["episodes"]}
+    """Map each seed to its final score, averaged across repeats when present."""
+    by_seed: dict[int, list[float]] = {}
+    for episode in result["episodes"]:
+        by_seed.setdefault(episode["seed"], []).append(episode["final_score"])
+    return {seed: mean(scores) for seed, scores in by_seed.items()}
 
 
 def _precise_mean_score(result: dict[str, Any]) -> float:
@@ -313,12 +348,49 @@ def _paired_analysis(
         "paired_lift_mean": round(lift_mean, 3),
         "paired_lift_stddev": round(pstdev(lifts), 3) if len(lifts) > 1 else 0.0,
         "paired_lift_ci95": [ci95_low, ci95_high],
+        # Exact at benchmark-sized seed panels, unlike the bootstrap interval,
+        # which is coarse below ~10 samples. None with a single seed.
+        "sign_flip_p_value": _sign_flip_p_value(lifts),
         # With one seed the bootstrap interval collapses to a point, which would
         # otherwise read as "significant" — significance is undefined there.
         "significant_at_95": len(lifts) >= 2 and (ci95_low > 0.0 or ci95_high < 0.0),
         "candidate_seed_win_rate": round(candidate_wins / len(seeds), 3) if seeds else 0.0,
         "best_baseline": best_block,
     }
+
+
+def _sign_flip_p_value(lifts: list[float]) -> float | None:
+    """Two-sided sign-flip permutation p-value for mean(paired lifts) != 0.
+
+    Under the null (candidate and baseline panel are interchangeable), each
+    per-seed lift is symmetric around zero, so flipping signs generates the
+    exact null distribution of the mean. Enumerated exactly up to 14 seeds
+    (2^14 flips); beyond that, a deterministically seeded sample of flips
+    keeps the benchmark's reproducibility guarantee. The smallest achievable
+    p is 2 / 2^n, so a 3-seed run can never look more certain than p=0.25 —
+    an honest floor the bootstrap interval hides.
+    """
+    n = len(lifts)
+    if n < 2:
+        return None
+    observed = abs(mean(lifts))
+    tolerance = 1e-12
+    if n <= 14:
+        total = 1 << n
+        hits = sum(
+            1
+            for mask in range(total)
+            if abs(sum(lift if mask >> i & 1 else -lift for i, lift in enumerate(lifts)) / n) >= observed - tolerance
+        )
+        return round(hits / total, 4)
+    rng = random.Random(f"gm-bench-signflip:{n}:{sum(lifts):.6f}")
+    total = 20000
+    hits = sum(
+        1
+        for _ in range(total)
+        if abs(sum(lift if rng.random() < 0.5 else -lift for lift in lifts) / n) >= observed - tolerance
+    )
+    return round(hits / total, 4)
 
 
 def _bootstrap_mean_ci(
