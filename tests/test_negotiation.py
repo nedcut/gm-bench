@@ -133,3 +133,19 @@ def test_episode_result_reports_rejected_offers() -> None:
     result = run_episode(ValueAgent(), seed=1, seasons=1)
     assert result.rejected_offers == 0
     assert result.protocol_penalty == result.illegal_actions * 2.5
+
+
+def test_non_positive_salary_is_a_protocol_violation_not_a_rejected_offer() -> None:
+    """An impossible bid is malformed, not negotiation — it must not let a model
+    dodge protocol penalties by lowballing below zero."""
+    league = League.new(seed=7)
+    player_id = league.free_agents[0]
+    for salary in (-5.0, 0.0):
+        league.apply_actions(
+            [{"type": "sign_free_agent", "player_id": player_id, "years": 1, "salary": salary}], "preseason"
+        )
+        assert league.transactions[-1].accepted is False
+        assert "positive" in league.transactions[-1].message
+    assert league.illegal_actions == 2
+    assert league.rejected_offers == 0
+    assert player_id in league.free_agents

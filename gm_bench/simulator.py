@@ -227,6 +227,11 @@ class League:
         if years < 1 or years > 5:
             self._record(action, phase, False, "contract years must be 1-5")
             return
+        # A non-positive salary is not a negotiable bid — it is a malformed
+        # action, so it must not ride the penalty-free rejected-offer path.
+        if salary <= 0:
+            self._record(action, phase, False, "salary must be a positive amount")
+            return
         player = self.players[player_id]
         counterparty = f"player:{player_id}"
         if self._walkaway(counterparty):
