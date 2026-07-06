@@ -36,7 +36,9 @@
         "lineup_size",
         "lineup_min_positions",
         "trade_value_threshold",
-        "trade_limit_per_partner"
+        "trade_limit_per_partner",
+        "fa_reservation_range",
+        "rejected_offer_limit_per_window"
       ],
       "properties": {
         "salary_cap": { "type": "number" },
@@ -53,7 +55,14 @@
           }
         },
         "trade_value_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
-        "trade_limit_per_partner": { "type": "integer", "minimum": 0 }
+        "trade_limit_per_partner": { "type": "integer", "minimum": 0 },
+        "fa_reservation_range": {
+          "type": "array",
+          "items": { "type": "number", "minimum": 0 },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "rejected_offer_limit_per_window": { "type": "integer", "minimum": 1 }
       }
     },
     "team": { "$ref": "#/$defs/team" },
