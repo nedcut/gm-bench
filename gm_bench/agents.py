@@ -170,6 +170,79 @@ class ValueAgent(Agent):
         return actions
 
 
+class ShrewdAgent(Agent):
+    """The strongest honest baseline: `value` plus cap hygiene and development.
+
+    Uses only public observation data, like every scripted baseline. It exists
+    to keep the skill bar honest — a model-backed candidate that cannot clear
+    `shrewd` has not demonstrated anything a short heuristic can't do. On top
+    of `value`-style signings it:
+
+    - releases clearly-negative veteran contracts before shopping, so the
+      freed cap is spent in the same decision window;
+    - dresses high-upside youth over marginal veterans, since only dressed
+      players develop at full speed and young asset value scores double.
+    """
+
+    name = "shrewd"
+
+    RELEASE_VALUE_FLOOR = -2.0
+    MIN_KEEP_ROSTER = 20
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        actions: list[dict[str, Any]] = []
+        roster = observation["team"]["roster"]
+        cap_room = observation["team"]["cap_room"]
+
+        deadweight = sorted(
+            (
+                player
+                for player in roster
+                if player["age"] >= 30
+                and player["salary"] > 0
+                and public_asset_value(player) < self.RELEASE_VALUE_FLOOR
+            ),
+            key=public_asset_value,
+        )
+        releasable = max(0, len(roster) - self.MIN_KEEP_ROSTER)
+        released_ids: set[int] = set()
+        for player in deadweight[: min(2, releasable)]:
+            actions.append({"type": "release", "player_id": player["id"]})
+            released_ids.add(player["id"])
+            cap_room += player["salary"]
+
+        free_agents = sorted(observation["free_agents"], key=public_asset_value, reverse=True)
+        for player in free_agents[:6]:
+            if player["asking_salary"] <= cap_room and public_asset_value(player) > 6.0:
+                years = 3 if player["age"] <= 27 else 1
+                actions.append(
+                    {
+                        "type": "sign_free_agent",
+                        "player_id": player["id"],
+                        "years": years,
+                        "salary": player["asking_salary"],
+                    }
+                )
+                cap_room -= player["asking_salary"]
+
+        if observation["phase"] == "draft" and observation["draft_class"]:
+            prospect = max(observation["draft_class"], key=public_asset_value)
+            actions.append({"type": "draft", "prospect_id": prospect["id"]})
+
+        # Dress for today and tomorrow: mostly overall, but bump young players
+        # with real growth room so they develop at full speed.
+        def dress_rank(player: dict[str, Any]) -> float:
+            upside = max(0.0, player["potential"] - player["overall"])
+            youth_bonus = upside * 0.45 if player["age"] <= 24 else 0.0
+            return player["overall"] + youth_bonus
+
+        remaining = [player for player in roster if player["id"] not in released_ids]
+        lineup = position_aware_lineup(remaining, dress_rank)
+        if lineup:
+            actions.append({"type": "set_lineup", "player_ids": lineup})
+        return actions
+
+
 class ExploitAgent(Agent):
     """Red-team diagnostic that replays known-degenerate strategies.
 
@@ -293,5 +366,6 @@ AGENTS: dict[str, type[Agent]] = {
     "win-now": WinNowAgent,
     "rebuild": RebuildAgent,
     "value": ValueAgent,
+    "shrewd": ShrewdAgent,
     "exploit": ExploitAgent,
 }

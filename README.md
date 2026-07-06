@@ -20,8 +20,10 @@ The MVP includes:
   accept a limited number of trades, and rosters cannot be stripped below the
   league minimum. At the trade deadline, opponents also make one-for-one
   trades among themselves, visible in the transaction feed.
-- Baseline agents: random, conservative, win-now, rebuild, value, and a
-  red-team `exploit` canary that replays known-degenerate strategies.
+- Baseline agents: random, conservative, win-now, rebuild, value, a stronger
+  `shrewd` reference (cap hygiene plus development-aware lineups — the bar a
+  model-backed candidate should clear), and a red-team `exploit` canary that
+  replays known-degenerate strategies.
 - A scoring model that rewards wins, championships, future assets, prospects,
   and cap health, reported as a strategy score with protocol (invalid-action)
   penalties broken out separately.
