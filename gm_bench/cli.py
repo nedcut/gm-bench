@@ -390,10 +390,12 @@ def _print_table(results: list[dict[str, Any]]) -> None:
 
 def _print_evaluation(result: dict[str, Any]) -> None:
     normalized = result["normalized"]
+    fallback_pct = round(normalized["candidate_fallback_decision_rate"] * 100.0, 1)
     print(f"agent={result['agent']} seasons={result['seasons']} seeds={result['seeds']}")
     print(
-        "candidate_mean={candidate_mean_score} strategy={candidate_mean_strategy_score} protocol_penalty={candidate_protocol_penalty} baseline_panel_mean={baseline_panel_mean_score} lift={score_lift} lift_pct={score_lift_pct}% illegal={candidate_illegal_actions} fallback_rate={candidate_fallback_decision_rate}".format(
-            **normalized
+        "candidate_mean={candidate_mean_score} strategy={candidate_mean_strategy_score} protocol_penalty={candidate_protocol_penalty} baseline_panel_mean={baseline_panel_mean_score} lift={score_lift} lift_pct={score_lift_pct}% illegal={candidate_illegal_actions} fallback_rate={fallback_pct}%".format(
+            fallback_pct=fallback_pct,
+            **normalized,
         )
     )
     paired = result.get("paired")

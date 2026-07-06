@@ -68,3 +68,19 @@ def test_generate_http_retries_without_think_when_api_rejects_switch(monkeypatch
     assert content == '{"actions":[{"type":"noop"}]}'
     assert payloads[0]["think"] is False
     assert "think" not in payloads[1]
+
+
+def test_generate_http_does_not_retry_on_unrelated_http_400(monkeypatch) -> None:
+    def fake_urlopen(request: object, **kwargs: object) -> None:
+        del request, kwargs
+        raise urllib.error.HTTPError("http://127.0.0.1:11434/api/generate", 400, "invalid model", {}, None)
+
+    monkeypatch.setattr(ollama_agent.urllib.request, "urlopen", fake_urlopen)
+
+    try:
+        ollama_agent.generate_http("http://127.0.0.1:11434", "gemma4:e4b", "prompt", 5, True, think=False)
+    except urllib.error.HTTPError as exc:
+        assert exc.code == 400
+        assert exc.reason == "invalid model"
+    else:
+        raise AssertionError("expected HTTPError")

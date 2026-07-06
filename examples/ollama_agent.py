@@ -25,8 +25,6 @@ def main() -> None:
     observation = json.load(sys.stdin)
     model = os.environ.get("OLLAMA_MODEL", "gemma4:e4b")
     os.environ.setdefault("GM_AGENT_PROFILE", "tiny")
-    if model.lower().startswith("qwen"):
-        os.environ.setdefault("GM_AGENT_NO_THINK", "1")
     think = resolve_think_mode(model)
     host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
     timeout = float(os.environ.get("OLLAMA_TIMEOUT", "120"))
@@ -102,7 +100,9 @@ def generate_cli(model: str, prompt: str, timeout: float, think: bool | None = N
     return strip_terminal_codes(completed.stdout)
 
 
-def generate_http(host: str, model: str, prompt: str, timeout: float, use_json_mode: bool, think: bool | None = None) -> str:
+def generate_http(
+    host: str, model: str, prompt: str, timeout: float, use_json_mode: bool, think: bool | None = None
+) -> str:
     payload: dict[str, object] = {
         "model": model,
         "stream": False,
@@ -126,7 +126,9 @@ def generate_http(host: str, model: str, prompt: str, timeout: float, use_json_m
         with urllib.request.urlopen(request, timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        if think is not None and exc.code == 400:
+        body = exc.read().decode("utf-8", errors="ignore") if exc.fp else ""
+        error_text = f"{exc.reason or ''} {body}".lower()
+        if think is not None and exc.code == 400 and "think" in error_text:
             return generate_http(host, model, prompt, timeout, use_json_mode, think=None)
         raise
     return extract_ollama_content(data)

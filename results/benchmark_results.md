@@ -60,7 +60,7 @@ GM_BENCH_WORKERS=1 OLLAMA_MODEL=<model> python -m gm_bench evaluate \
   --seeds 1 2 --seasons 3 --no-log --json
 ```
 
-| Model | Mean Score | Strategy | Penalty | Fallback | Paired Lift vs Panel | CI95 | vs `value` |
+| Model | Mean Score | Strategy (mean/episode) | Penalty (total, 2 seeds) | Fallback | Paired Lift vs Panel | CI95 | vs `value` |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: |
 | qwen3.5:latest | 65.93 | 80.93 | 30.0 | 1/18 | −36.17 (sig) | [−43.93, −28.40] | −82.82 |
 | gemma4:e4b | 69.77 | 81.02 | 22.5 | 2/18 | −32.32 (sig) | [−46.35, −18.29] | −78.98 |
