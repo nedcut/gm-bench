@@ -29,6 +29,7 @@ class BenchmarkResult:
     wins: int
     championships: int
     illegal_actions: int
+    rejected_offers: int
     season_summaries: list[dict[str, Any]]
     transactions: list[dict[str, Any]]
 
@@ -77,6 +78,7 @@ def run_episode(
         wins=sum(summary.wins for summary in league.summaries),
         championships=league.user_team.championships,
         illegal_actions=league.illegal_actions,
+        rejected_offers=league.rejected_offers,
         season_summaries=[summary.__dict__ for summary in league.summaries],
         transactions=[transaction.__dict__ for transaction in league.transactions],
     )
@@ -116,6 +118,8 @@ def summarize_episodes(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_total_wins": round(mean(episode["wins"] for episode in episodes), 3) if episodes else 0.0,
         "championships": sum(episode["championships"] for episode in episodes),
         "illegal_actions": sum(episode["illegal_actions"] for episode in episodes),
+        # Older cached episodes may predate this field, so read it defensively.
+        "rejected_offers": sum(episode.get("rejected_offers", 0) for episode in episodes),
     }
 
 
@@ -231,6 +235,7 @@ def evaluate_against_baselines(
             "score_lift_pct": round(((candidate_mean / baseline_mean) - 1.0) * 100.0, 2) if baseline_mean else 0.0,
             "candidate_illegal_actions": candidate["summary"]["illegal_actions"],
             "baseline_illegal_actions": sum(result["summary"]["illegal_actions"] for result in baseline_results),
+            "candidate_rejected_offers": candidate["summary"].get("rejected_offers", 0),
         },
         "paired": _paired_analysis(seeds, candidate, baseline_results),
     }

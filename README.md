@@ -170,6 +170,23 @@ noisy public ratings, not hidden true potential, so agents must reason under
 uncertainty. Trade acceptance additionally uses hidden per-partner valuation
 noise (re-rolled each season), so offers can only be estimated, not solved.
 
+Rejections come in two kinds, and only one is penalized:
+
+- **Protocol violations** (malformed actions, invented IDs, cap or roster
+  violations) count as `illegal_actions` and cost score via
+  `protocol_penalty`.
+- **Rejected offers** — a trade the partner declines as too light, or a
+  free-agent offer below the player's hidden reservation price — are
+  legitimate negotiation under hidden information. They are counted and
+  reported as `rejected_offers` but cost nothing. To keep free probing from
+  solving the hidden values, a counterparty breaks off talks for the rest of
+  the decision window after `rejected_offer_limit_per_window` declines.
+
+Free agents accept salaries down to a hidden reservation fraction of their
+asking price (uniform within `fa_reservation_range`, re-rolled each season),
+so bidding is a real decision: offering the full ask always works, shading
+below it saves cap but risks a decline.
+
 Key mechanics agents should know:
 
 - `set_lineup` chooses the 18 players who actually dress. It drives team
