@@ -22,6 +22,22 @@ class AlwaysFailingAgent(Agent):
         return [{"type": "noop", "error": "model returned garbage"}]
 
 
+class FlakyValueAgent(Agent):
+    """Fails on every third decision, mimicking an intermittently flaky adapter."""
+
+    name = "flaky-value"
+
+    def __init__(self) -> None:
+        self.inner = ValueAgent()
+        self.calls = 0
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        self.calls += 1
+        if self.calls % 3 == 0:
+            return [{"type": "noop", "model_error": "intermittent parse failure"}]
+        return self.inner.act(observation)
+
+
 class MemoValueAgent(Agent):
     name = "memo-value"
 
@@ -52,6 +68,14 @@ def test_memo_writes_counted_per_episode() -> None:
     result = run_episode(MemoValueAgent(), seed=1, seasons=2)
     assert result.memo_writes == 6
     assert result.failed_decisions == 0
+
+
+def test_partial_failures_produce_fractional_failure_rate() -> None:
+    payload = run_many(FlakyValueAgent(), seeds=[1], seasons=2, workers=1)
+    summary = payload["summary"]
+    assert summary["decisions"] == 6
+    assert summary["failed_decisions"] == 2
+    assert summary["decision_failure_rate"] == round(2 / 6, 3)
 
 
 def test_summary_aggregates_reliability_metrics() -> None:
