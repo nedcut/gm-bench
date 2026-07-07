@@ -59,6 +59,11 @@ def main(argv: list[str] | None = None) -> None:
     model_parser.add_argument("--profile", choices=["tiny", "compact"], help="observation compaction profile")
     model_parser.add_argument("--seeds", nargs="+", type=int)
     model_parser.add_argument("--seasons", type=int)
+    model_parser.add_argument(
+        "--repeats",
+        type=int,
+        help="candidate episodes per seed; >1 separates model sampling noise from seed luck",
+    )
     model_parser.add_argument("--baselines", nargs="+", choices=sorted(AGENTS))
     model_parser.add_argument("--agent-timeout", type=float)
     model_parser.add_argument("--no-baseline-cache", action="store_true")
@@ -127,6 +132,12 @@ def _add_common_run_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--preset", choices=PRESET_NAMES, help="apply a seed/season preset")
     parser.add_argument("--seeds", nargs="+", type=int, default=[1])
     parser.add_argument("--seasons", type=int, default=5)
+    parser.add_argument(
+        "--repeats",
+        type=int,
+        default=1,
+        help="episodes per seed; >1 separates model sampling noise from seed luck (stochastic agents only)",
+    )
     parser.add_argument("--verbose", action="store_true", help="print per-decision progress to stderr")
     parser.add_argument("--json", action="store_true", help="emit full JSON results")
     _add_logging_args(parser)
@@ -162,7 +173,7 @@ def _run_command(args: argparse.Namespace) -> None:
     config = _config_from_args(args)
     agent = _resolve_agent_from_config(config)
     progress = make_progress_printer(config.verbose)
-    result = run_many(agent, config.seeds, config.seasons, progress=progress)
+    result = run_many(agent, config.seeds, config.seasons, repeats=config.repeats, progress=progress)
     result["run_info"] = _run_info("run", agent, config)
     run_id = _maybe_log(args, "run", result)
     _print_result(result, config.json_output)
@@ -188,6 +199,7 @@ def _evaluate_command(args: argparse.Namespace) -> None:
         config.seeds,
         config.seasons,
         config.baselines,
+        repeats=config.repeats,
         use_baseline_cache=not getattr(args, "no_baseline_cache", False),
         progress=progress,
     )
@@ -211,6 +223,8 @@ def _model_command(args: argparse.Namespace) -> None:
             config.seeds = args.seeds
         if args.seasons is not None:
             config.seasons = args.seasons
+        if args.repeats is not None:
+            config.repeats = args.repeats
         if args.baselines:
             config.baselines = args.baselines
         if args.agent_timeout is not None:
@@ -229,6 +243,7 @@ def _model_command(args: argparse.Namespace) -> None:
             profile=args.profile,
             seeds=args.seeds or [1, 2, 3, 4, 5],
             seasons=args.seasons if args.seasons is not None else 5,
+            repeats=args.repeats if args.repeats is not None else 1,
             baselines=args.baselines or ["random", "conservative", "win-now", "rebuild"],
             verbose=args.verbose,
             json_output=args.json,
@@ -254,6 +269,7 @@ def _model_command(args: argparse.Namespace) -> None:
         config.seeds,
         config.seasons,
         config.baselines,
+        repeats=config.repeats,
         use_baseline_cache=config.use_baseline_cache,
         progress=progress,
     )
@@ -336,6 +352,7 @@ def _config_from_args(args: argparse.Namespace) -> BenchmarkConfig:
         profile=getattr(args, "profile", None),
         seeds=list(getattr(args, "seeds", [1])),
         seasons=int(getattr(args, "seasons", 5)),
+        repeats=int(getattr(args, "repeats", 1)),
         baselines=list(getattr(args, "baselines", ["random", "conservative", "win-now", "rebuild"])),
         verbose=bool(getattr(args, "verbose", False)),
         json_output=bool(getattr(args, "json", False)),
@@ -402,7 +419,9 @@ def _print_result(result: dict[str, Any], as_json: bool) -> None:
     summary = result["summary"]
     print(f"agent={result['agent']} seasons={result['seasons']} seeds={result['seeds']}")
     print(
-        "mean_score={mean_score} strategy={mean_strategy_score} protocol_penalty={total_protocol_penalty} score_stddev={score_stddev} mean_total_wins={mean_total_wins} championships={championships} illegal_actions={illegal_actions}".format(
+        "mean_score={mean_score} strategy={mean_strategy_score} protocol_penalty={total_protocol_penalty} "
+        "score_stddev={score_stddev} within_seed_stddev={within_seed_score_stddev} "
+        "mean_total_wins={mean_total_wins} championships={championships} illegal_actions={illegal_actions}".format(
             **summary
         )
     )
@@ -436,8 +455,10 @@ def _print_evaluation(result: dict[str, Any]) -> None:
             verdict = "significant"
         else:
             verdict = "within noise"
+        p_value = paired.get("sign_flip_p_value")
+        p_text = f" sign_flip_p={p_value}" if p_value is not None else ""
         print(
-            f"paired_lift={paired['paired_lift_mean']} ci95=[{low}, {high}] ({verdict}) "
+            f"paired_lift={paired['paired_lift_mean']} ci95=[{low}, {high}] ({verdict}){p_text} "
             f"candidate_seed_win_rate={paired['candidate_seed_win_rate']} over {paired['num_seeds']} seed(s)"
         )
         if paired["num_seeds"] < 3:

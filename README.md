@@ -120,6 +120,15 @@ attributable and comparable after the fact.
 Use `--verbose` (or `GM_BENCH_VERBOSE=1`) to print per-decision progress while
 model episodes run.
 
+Add `--repeats N` (CLI or `"repeats"` in a config file) to run the candidate N
+times per seed. The simulator is deterministic, so repeats isolate the model's
+own sampling noise: paired lift statistics use the per-seed mean, and the
+summary reports `within_seed_score_stddev` alongside the across-seed
+`score_stddev`. `evaluate` also reports an exact sign-flip permutation p-value
+on the paired lift (`sign_flip_p_value`), which is more trustworthy than the
+bootstrap interval at 3-5 seeds — note the exact floor of `2 / 2^n` means a
+3-seed run can never show p below 0.25.
+
 ## Local GUI
 
 Start the browser GUI:
