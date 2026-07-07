@@ -1,6 +1,11 @@
 {
   "baselines": [
     {
+      "agent": "shrewd",
+      "mean_score": 320.127,
+      "score_stddev": 39.303
+    },
+    {
       "agent": "value",
       "mean_score": 282.223,
       "score_stddev": 45.09
@@ -28,28 +33,28 @@
   ],
   "models": [
     {
-      "api_latency_s_per_decision": 11.02,
-      "baseline_panel_mean_score": 141.323,
+      "api_latency_s_per_decision": 12.89,
+      "baseline_panel_mean_score": 171.124,
       "ci95": [
-        -132.383,
-        -92.209
+        -214.889,
+        -170.868
       ],
       "cost_per_episode_usd": 0.0,
       "cost_usd": 0.0,
       "decision_points": 120,
       "decisions_with_usage": 120,
-      "fallback_rate": 0.125,
-      "harness_latency_s_per_decision": 11.09,
+      "fallback_rate": 0.067,
+      "harness_latency_s_per_decision": 13.0,
       "id": "ollama:gemma4:e4b",
-      "illegal_actions": 142,
-      "lift_vs_best_baseline": -255.686,
-      "mean_score": 26.537,
-      "mean_strategy_score": 70.912,
+      "illegal_actions": 226,
+      "lift_vs_best_baseline": -343.54,
+      "mean_score": -23.413,
+      "mean_strategy_score": 47.212,
       "model": "gemma4:e4b",
-      "paired_lift": -114.786,
-      "protocol_penalty": 355.0,
+      "paired_lift": -194.537,
+      "protocol_penalty": 565.0,
       "provider": "ollama",
-      "score_stddev": 31.613,
+      "score_stddev": 30.705,
       "seasons": 5,
       "seed_win_rate": 0.0,
       "seeds": [
@@ -63,8 +68,8 @@
         18
       ],
       "significant": true,
-      "tokens_per_decision": 3721.3,
-      "total_tokens": 446551
+      "tokens_per_decision": 3970.9,
+      "total_tokens": 476514
     }
   ],
   "preset": {
@@ -82,5 +87,5 @@
       18
     ]
   },
-  "updated": "2026-07-04"
+  "updated": "2026-07-07"
 }
