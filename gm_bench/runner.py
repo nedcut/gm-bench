@@ -121,17 +121,24 @@ def summarize_episodes(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     Live runs and baseline-cache hits both flow through here so the two paths can
     never drift into differently-shaped summaries.
     """
-    scores = [episode["final_score"] for episode in episodes]
+    seed_means = _per_seed_mean_scores(episodes)
     return {
-        "mean_score": round(mean(scores), 3) if scores else 0.0,
+        "mean_score": round(mean(seed_means), 3) if seed_means else 0.0,
         "mean_strategy_score": round(mean(episode["strategy_score"] for episode in episodes), 3) if episodes else 0.0,
         "total_protocol_penalty": round(sum(episode["protocol_penalty"] for episode in episodes), 3),
-        "score_stddev": round(pstdev(scores), 3) if len(scores) > 1 else 0.0,
+        "score_stddev": round(pstdev(seed_means), 3) if len(seed_means) > 1 else 0.0,
         "mean_total_wins": round(mean(episode["wins"] for episode in episodes), 3) if episodes else 0.0,
         "championships": sum(episode["championships"] for episode in episodes),
         "illegal_actions": sum(episode["illegal_actions"] for episode in episodes),
         "within_seed_score_stddev": _within_seed_stddev(episodes),
     }
+
+
+def _per_seed_mean_scores(episodes: list[dict[str, Any]]) -> list[float]:
+    by_seed: dict[int, list[float]] = {}
+    for episode in episodes:
+        by_seed.setdefault(episode["seed"], []).append(episode["final_score"])
+    return [mean(scores) for scores in by_seed.values()]
 
 
 def _within_seed_stddev(episodes: list[dict[str, Any]]) -> float:

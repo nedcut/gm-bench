@@ -6,7 +6,7 @@ from typing import Any
 
 from gm_bench.agents import Agent, ValueAgent
 from gm_bench.benchmark_config import BenchmarkConfig, config_from_dict
-from gm_bench.runner import _sign_flip_p_value, evaluate_against_baselines, run_many
+from gm_bench.runner import _sign_flip_p_value, evaluate_against_baselines, run_many, summarize_episodes
 
 
 class NoisyAgent(Agent):
@@ -102,6 +102,67 @@ def test_evaluate_reports_sign_flip_p_value() -> None:
     assert 0.0 < p_value <= 1.0
     # Three seeds can never beat the exact floor of 2 / 2^3.
     assert p_value >= 0.25
+
+
+def test_score_stddev_uses_per_seed_means_not_flattened_episodes() -> None:
+    episodes = [
+        {
+            "seed": 1,
+            "final_score": 100.0,
+            "strategy_score": 0.0,
+            "protocol_penalty": 0.0,
+            "wins": 0,
+            "championships": 0,
+            "illegal_actions": 0,
+            "repeat": 1,
+        },
+        {
+            "seed": 1,
+            "final_score": 200.0,
+            "strategy_score": 0.0,
+            "protocol_penalty": 0.0,
+            "wins": 0,
+            "championships": 0,
+            "illegal_actions": 0,
+            "repeat": 2,
+        },
+        {
+            "seed": 2,
+            "final_score": 100.0,
+            "strategy_score": 0.0,
+            "protocol_penalty": 0.0,
+            "wins": 0,
+            "championships": 0,
+            "illegal_actions": 0,
+            "repeat": 1,
+        },
+        {
+            "seed": 2,
+            "final_score": 200.0,
+            "strategy_score": 0.0,
+            "protocol_penalty": 0.0,
+            "wins": 0,
+            "championships": 0,
+            "illegal_actions": 0,
+            "repeat": 2,
+        },
+    ]
+    summary = summarize_episodes(episodes)
+    assert summary["score_stddev"] == 0.0
+    assert summary["within_seed_score_stddev"] > 0.0
+
+
+def test_config_from_args_rejects_zero_repeats() -> None:
+    from argparse import Namespace
+
+    from gm_bench.cli import _config_from_args
+
+    try:
+        _config_from_args(Namespace(repeats=0, seeds=[1], seasons=5))
+    except ValueError as exc:
+        assert "repeats" in str(exc)
+    else:
+        raise AssertionError("repeats=0 should fail validation")
 
 
 def test_config_accepts_repeats() -> None:

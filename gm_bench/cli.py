@@ -320,7 +320,7 @@ def _config_from_args(args: argparse.Namespace) -> BenchmarkConfig:
         profile=getattr(args, "profile", None),
         seeds=list(getattr(args, "seeds", [1])),
         seasons=int(getattr(args, "seasons", 5)),
-        repeats=int(getattr(args, "repeats", 1) or 1),
+        repeats=int(getattr(args, "repeats", 1)),
         baselines=list(getattr(args, "baselines", ["random", "conservative", "win-now", "rebuild"])),
         verbose=bool(getattr(args, "verbose", False)),
         json_output=bool(getattr(args, "json", False)),
@@ -387,7 +387,9 @@ def _print_result(result: dict[str, Any], as_json: bool) -> None:
     summary = result["summary"]
     print(f"agent={result['agent']} seasons={result['seasons']} seeds={result['seeds']}")
     print(
-        "mean_score={mean_score} strategy={mean_strategy_score} protocol_penalty={total_protocol_penalty} score_stddev={score_stddev} mean_total_wins={mean_total_wins} championships={championships} illegal_actions={illegal_actions}".format(
+        "mean_score={mean_score} strategy={mean_strategy_score} protocol_penalty={total_protocol_penalty} "
+        "score_stddev={score_stddev} within_seed_stddev={within_seed_score_stddev} "
+        "mean_total_wins={mean_total_wins} championships={championships} illegal_actions={illegal_actions}".format(
             **summary
         )
     )
