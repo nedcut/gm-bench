@@ -34,7 +34,8 @@ def test_trade_rejected_when_give_value_too_low() -> None:
         return
     give_id = min(user_roster, key=lambda pid: league.players[pid].asset_value)
     receive_id = max(partner_roster, key=lambda pid: league.players[pid].asset_value)
-    before = league.illegal_actions
+    illegal_before = league.illegal_actions
+    rejected_before = league.rejected_offers
     league.apply_actions(
         [
             {
@@ -46,5 +47,7 @@ def test_trade_rejected_when_give_value_too_low() -> None:
         ],
         "trade_deadline",
     )
-    assert league.illegal_actions > before
+    # A legal-but-declined offer is negotiation, not a protocol violation.
+    assert league.illegal_actions == illegal_before
+    assert league.rejected_offers > rejected_before
     assert league.transactions[-1].accepted is False

@@ -78,7 +78,10 @@ def build_prompt(observation: dict[str, Any]) -> str:
         "Constraints: lineup must include exactly 18 unique current roster players with at least 10 F, 4 D, and 1 G. "
         "Only players in the lineup develop at full speed; the lineup also sets team strength. "
         "Trades: partners privately re-value players, accept at most trade_limit_per_partner trades per season, "
-        "and rosters cannot drop below roster_min. Opponents draft in inverse-standings order, so top prospects "
+        "and rosters cannot drop below roster_min. Declined trade offers and free-agent lowballs cost no penalty, "
+        "but after rejected_offer_limit_per_window declines a counterparty stops negotiating until your next "
+        "decision window. Free agents accept offers down to a hidden reservation within fa_reservation_range of "
+        "their ask; offering the full ask always works. Opponents draft in inverse-standings order, so top prospects "
         "may be gone before your pick. Opponent teams also sign free agents after every phase and trade among "
         "themselves at the deadline, so a free agent visible now may be gone at your next decision. "
         "Use the memo action to carry multi-season plans forward; your last memo "
@@ -149,6 +152,16 @@ def strip_terminal_codes(text: str) -> str:
 
 
 def fallback_actions(observation: dict[str, Any], error: str | None = None) -> list[dict[str, Any]]:
+    """Actions substituted when the model produced no usable output.
+
+    The first action always carries a `model_error` marker so the runner can
+    count the decision as failed instead of crediting the fallback policy to
+    the model. With GM_AGENT_STRICT=1 the fallback is a pure noop, so the
+    score reflects only what the model itself produced.
+    """
+    marker = (error or "model produced no usable actions")[:300]
+    if os.environ.get("GM_AGENT_STRICT", "0") == "1":
+        return [{"type": "noop", "model_error": marker}]
     actions: list[dict[str, Any]] = []
     if observation["phase"] == "draft" and observation["draft_class"]:
         prospect = max(observation["draft_class"], key=public_asset_value)
@@ -158,6 +171,5 @@ def fallback_actions(observation: dict[str, Any], error: str | None = None) -> l
         actions.append({"type": "set_lineup", "player_ids": lineup})
     if not actions:
         actions.append({"type": "noop"})
-    if error:
-        actions[0]["model_error"] = error[:300]
+    actions[0]["model_error"] = marker
     return actions

@@ -20,8 +20,12 @@ The MVP includes:
   accept a limited number of trades, and rosters cannot be stripped below the
   league minimum. At the trade deadline, opponents also make one-for-one
   trades among themselves, visible in the transaction feed.
-- Baseline agents: random, conservative, win-now, rebuild, value, and a
-  red-team `exploit` canary that replays known-degenerate strategies.
+- Baseline agents: random, conservative, win-now, rebuild, value, a
+  stronger-on-average `shrewd` reference (cap hygiene plus development-aware
+  lineups — the panel-mean bar a model-backed candidate should clear; its
+  youth-dressing bet loses individual seeds, so no per-seed dominance is
+  claimed), and a red-team `exploit` canary that replays known-degenerate
+  strategies.
 - A scoring model that rewards wins, championships, future assets, prospects,
   and cap health, reported as a strategy score with protocol (invalid-action)
   penalties broken out separately.
@@ -102,8 +106,28 @@ Presets:
 | `standard` | 3 | 3 | 9 | 27 |
 | `benchmark` | 5 | 5 | 15 | 75 |
 
+Every preset pins the `compact` observation profile so scores from the same
+preset are comparable across providers (provider defaults otherwise differ —
+Ollama would see a `tiny` observation while OpenAI sees `compact`, which are
+different questions). Pass `--profile tiny` explicitly for local models that
+need the smaller observation, and treat those scores as their own track.
+
+Result payloads from `run`, `evaluate`, and `model` include a `run_info`
+provenance block recording the resolved provider, model, observation profile,
+timeout, preset, benchmark version, and timestamp, so logged runs stay
+attributable and comparable after the fact.
+
 Use `--verbose` (or `GM_BENCH_VERBOSE=1`) to print per-decision progress while
 model episodes run.
+
+Add `--repeats N` (CLI or `"repeats"` in a config file) to run the candidate N
+times per seed. The simulator is deterministic, so repeats isolate the model's
+own sampling noise: paired lift statistics use the per-seed mean, and the
+summary reports `within_seed_score_stddev` alongside the across-seed
+`score_stddev`. `evaluate` also reports an exact sign-flip permutation p-value
+on the paired lift (`sign_flip_p_value`), which is more trustworthy than the
+bootstrap interval at 3-5 seeds — note the exact floor of `2 / 2^n` means a
+3-seed run can never show p below 0.25.
 
 ## Local GUI
 
@@ -170,6 +194,23 @@ noisy public ratings, not hidden true potential, so agents must reason under
 uncertainty. Trade acceptance additionally uses hidden per-partner valuation
 noise (re-rolled each season), so offers can only be estimated, not solved.
 
+Rejections come in two kinds, and only one is penalized:
+
+- **Protocol violations** (malformed actions, invented IDs, cap or roster
+  violations) count as `illegal_actions` and cost score via
+  `protocol_penalty`.
+- **Rejected offers** — a trade the partner declines as too light, or a
+  free-agent offer below the player's hidden reservation price — are
+  legitimate negotiation under hidden information. They are counted and
+  reported as `rejected_offers` but cost nothing. To keep free probing from
+  solving the hidden values, a counterparty breaks off talks for the rest of
+  the decision window after `rejected_offer_limit_per_window` declines.
+
+Free agents accept salaries down to a hidden reservation fraction of their
+asking price (uniform within `fa_reservation_range`, re-rolled each season),
+so bidding is a real decision: offering the full ask always works, shading
+below it saves cap but risks a decline.
+
 Key mechanics agents should know:
 
 - `set_lineup` chooses the 18 players who actually dress. It drives team
@@ -190,6 +231,23 @@ Key mechanics agents should know:
   stateless external agents. `text` must be a JSON string; a null or missing
   `text` (allowed by the structured-output wrapper schema, where every field
   is nullable) is rejected as an invalid action.
+
+### Adapter reliability accounting
+
+When a model-backed adapter cannot use the model's output (timeout, crash,
+unparseable JSON, missing API key), it substitutes fallback actions marked
+with a `model_error` key (adapter-level failures from the runner carry an
+`error` key). The runner counts each such decision as a *failed decision* and
+reports `decisions`, `failed_decisions`, `decision_failure_rate`, and
+`memo_writes` per episode and in run summaries, plus per-episode
+`mean_decision_seconds` / `max_decision_seconds` wall-time latency. A model
+that never produces usable output no longer silently scores like the fallback
+policy — the failure rate is right next to the score.
+
+By default the fallback still plays a safe turn (best-value draft pick plus a
+legal lineup) so one flaky decision doesn't ruin an episode. Set
+`GM_AGENT_STRICT=1` to make the fallback a pure `noop`, so the score reflects
+only actions the model itself produced.
 
 JSON Schema definitions for the protocol live in `schemas/`:
 

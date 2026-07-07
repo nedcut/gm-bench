@@ -108,7 +108,19 @@ def build_provider_agent(
 
     command = f"{shlex.quote(sys.executable)} {shlex.quote(str(script_path))}"
     display_name = f"{spec.name}:{resolved_model}"
-    return ExternalProcessAgent(command, timeout_seconds=resolved_timeout, env=env, name=display_name)
+    agent = ExternalProcessAgent(command, timeout_seconds=resolved_timeout, env=env, name=display_name)
+    # Resolve the profile exactly as the adapter subprocess will see it
+    # (per-agent env overrides the inherited environment; gm_agent_common
+    # defaults to "compact" when unset), so results can record what the model
+    # actually observed. Scores from different profiles are not comparable.
+    resolved_profile = env.get("GM_AGENT_PROFILE") or os.environ.get("GM_AGENT_PROFILE") or "compact"
+    agent.metadata = {
+        "provider": spec.name,
+        "model": resolved_model,
+        "profile": resolved_profile,
+        "agent_timeout": resolved_timeout,
+    }
+    return agent
 
 
 def provider_help() -> list[dict[str, Any]]:

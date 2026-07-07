@@ -5,9 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import sys
+from datetime import datetime, timezone
 from typing import Any
 
+from gm_bench import __version__
 from gm_bench.agents import AGENTS, ExternalProcessAgent
 from gm_bench.baseline_cache import default_cache_path
 from gm_bench.benchmark_config import PRESET_NAMES, BenchmarkConfig, load_config
@@ -56,6 +59,11 @@ def main(argv: list[str] | None = None) -> None:
     model_parser.add_argument("--profile", choices=["tiny", "compact"], help="observation compaction profile")
     model_parser.add_argument("--seeds", nargs="+", type=int)
     model_parser.add_argument("--seasons", type=int)
+    model_parser.add_argument(
+        "--repeats",
+        type=int,
+        help="candidate episodes per seed; >1 separates model sampling noise from seed luck",
+    )
     model_parser.add_argument("--baselines", nargs="+", choices=sorted(AGENTS))
     model_parser.add_argument("--agent-timeout", type=float)
     model_parser.add_argument("--no-baseline-cache", action="store_true")
@@ -124,16 +132,49 @@ def _add_common_run_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--preset", choices=PRESET_NAMES, help="apply a seed/season preset")
     parser.add_argument("--seeds", nargs="+", type=int, default=[1])
     parser.add_argument("--seasons", type=int, default=5)
+    parser.add_argument(
+        "--repeats",
+        type=int,
+        default=1,
+        help="episodes per seed; >1 separates model sampling noise from seed luck (stochastic agents only)",
+    )
     parser.add_argument("--verbose", action="store_true", help="print per-decision progress to stderr")
     parser.add_argument("--json", action="store_true", help="emit full JSON results")
     _add_logging_args(parser)
+
+
+def _run_info(command: str, agent: Any, config: BenchmarkConfig) -> dict[str, Any]:
+    """Provenance block stamped into result payloads.
+
+    Records what actually ran — resolved provider/model/observation profile
+    (from the agent's metadata when it has any), preset, and benchmark
+    version — so logged results stay attributable and comparable after the
+    fact. Scores produced under different profiles are not comparable, which
+    is why the resolved profile is recorded rather than the requested one.
+    """
+    metadata = getattr(agent, "metadata", None) or {}
+    info: dict[str, Any] = {
+        "command": command,
+        "agent": agent.name,
+        "provider": metadata.get("provider", config.provider),
+        "model": metadata.get("model", config.model),
+        "agent_timeout": metadata.get("agent_timeout", config.agent_timeout),
+        "preset": config.preset,
+        "gm_bench_version": __version__,
+        "python_version": platform.python_version(),
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    if "profile" in metadata:
+        info["profile"] = metadata["profile"]
+    return info
 
 
 def _run_command(args: argparse.Namespace) -> None:
     config = _config_from_args(args)
     agent = _resolve_agent_from_config(config)
     progress = make_progress_printer(config.verbose)
-    result = run_many(agent, config.seeds, config.seasons, progress=progress)
+    result = run_many(agent, config.seeds, config.seasons, repeats=config.repeats, progress=progress)
+    result["run_info"] = _run_info("run", agent, config)
     run_id = _maybe_log(args, "run", result)
     _print_result(result, config.json_output)
     _print_log_line(run_id, args)
@@ -158,9 +199,11 @@ def _evaluate_command(args: argparse.Namespace) -> None:
         config.seeds,
         config.seasons,
         config.baselines,
+        repeats=config.repeats,
         use_baseline_cache=not getattr(args, "no_baseline_cache", False),
         progress=progress,
     )
+    result["run_info"] = _run_info("evaluate", agent, config)
     run_id = _maybe_log(args, "evaluate", result)
     if config.json_output:
         print(json.dumps(result, indent=2, sort_keys=True))
@@ -180,6 +223,8 @@ def _model_command(args: argparse.Namespace) -> None:
             config.seeds = args.seeds
         if args.seasons is not None:
             config.seasons = args.seasons
+        if args.repeats is not None:
+            config.repeats = args.repeats
         if args.baselines:
             config.baselines = args.baselines
         if args.agent_timeout is not None:
@@ -198,6 +243,7 @@ def _model_command(args: argparse.Namespace) -> None:
             profile=args.profile,
             seeds=args.seeds or [1, 2, 3, 4, 5],
             seasons=args.seasons if args.seasons is not None else 5,
+            repeats=args.repeats if args.repeats is not None else 1,
             baselines=args.baselines or ["random", "conservative", "win-now", "rebuild"],
             verbose=args.verbose,
             json_output=args.json,
@@ -223,9 +269,11 @@ def _model_command(args: argparse.Namespace) -> None:
         config.seeds,
         config.seasons,
         config.baselines,
+        repeats=config.repeats,
         use_baseline_cache=config.use_baseline_cache,
         progress=progress,
     )
+    result["run_info"] = _run_info("model", agent, config)
     run_id = _maybe_log(args, "model", result)
     if config.json_output:
         print(json.dumps(result, indent=2, sort_keys=True))
@@ -304,6 +352,7 @@ def _config_from_args(args: argparse.Namespace) -> BenchmarkConfig:
         profile=getattr(args, "profile", None),
         seeds=list(getattr(args, "seeds", [1])),
         seasons=int(getattr(args, "seasons", 5)),
+        repeats=int(getattr(args, "repeats", 1)),
         baselines=list(getattr(args, "baselines", ["random", "conservative", "win-now", "rebuild"])),
         verbose=bool(getattr(args, "verbose", False)),
         json_output=bool(getattr(args, "json", False)),
@@ -370,10 +419,26 @@ def _print_result(result: dict[str, Any], as_json: bool) -> None:
     summary = result["summary"]
     print(f"agent={result['agent']} seasons={result['seasons']} seeds={result['seeds']}")
     print(
-        "mean_score={mean_score} strategy={mean_strategy_score} protocol_penalty={total_protocol_penalty} score_stddev={score_stddev} mean_total_wins={mean_total_wins} championships={championships} illegal_actions={illegal_actions}".format(
-            **summary
-        )
+        "mean_score={mean_score} strategy={mean_strategy_score} protocol_penalty={total_protocol_penalty} "
+        "score_stddev={score_stddev} within_seed_stddev={within_seed_score_stddev} "
+        "mean_total_wins={mean_total_wins} championships={championships} illegal_actions={illegal_actions} "
+        "rejected_offers={rejected_offers}".format(**summary)
     )
+    print(_reliability_line(result))
+
+
+def _reliability_line(result: dict[str, Any]) -> str:
+    summary = result["summary"]
+    latencies = [
+        episode["mean_decision_seconds"] for episode in result["episodes"] if "mean_decision_seconds" in episode
+    ]
+    line = (
+        f"decisions={summary.get('decisions', 0)} failed_decisions={summary.get('failed_decisions', 0)} "
+        f"(rate {summary.get('decision_failure_rate', 0.0)}) memo_writes={summary.get('memo_writes', 0)}"
+    )
+    if latencies:
+        line += f" mean_decision_seconds={round(sum(latencies) / len(latencies), 3)}"
+    return line
 
 
 def _print_table(results: list[dict[str, Any]]) -> None:
@@ -391,10 +456,17 @@ def _print_evaluation(result: dict[str, Any]) -> None:
     normalized = result["normalized"]
     print(f"agent={result['agent']} seasons={result['seasons']} seeds={result['seeds']}")
     print(
-        "candidate_mean={candidate_mean_score} strategy={candidate_mean_strategy_score} protocol_penalty={candidate_protocol_penalty} baseline_panel_mean={baseline_panel_mean_score} lift={score_lift} lift_pct={score_lift_pct}% illegal={candidate_illegal_actions}".format(
+        "candidate_mean={candidate_mean_score} strategy={candidate_mean_strategy_score} protocol_penalty={candidate_protocol_penalty} baseline_panel_mean={baseline_panel_mean_score} lift={score_lift} lift_pct={score_lift_pct}% illegal={candidate_illegal_actions} rejected_offers={candidate_rejected_offers}".format(
             **normalized
         )
     )
+    print(_reliability_line(result["candidate"]))
+    if result["candidate"]["summary"].get("failed_decisions"):
+        print(
+            "warning: some decisions used adapter fallback/error output instead of the model's own actions; "
+            "the score partially reflects the fallback policy, not the model",
+            file=sys.stderr,
+        )
     paired = result.get("paired")
     if paired:
         low, high = paired["paired_lift_ci95"]
@@ -404,8 +476,10 @@ def _print_evaluation(result: dict[str, Any]) -> None:
             verdict = "significant"
         else:
             verdict = "within noise"
+        p_value = paired.get("sign_flip_p_value")
+        p_text = f" sign_flip_p={p_value}" if p_value is not None else ""
         print(
-            f"paired_lift={paired['paired_lift_mean']} ci95=[{low}, {high}] ({verdict}) "
+            f"paired_lift={paired['paired_lift_mean']} ci95=[{low}, {high}] ({verdict}){p_text} "
             f"candidate_seed_win_rate={paired['candidate_seed_win_rate']} over {paired['num_seeds']} seed(s)"
         )
         if paired["num_seeds"] < 3:

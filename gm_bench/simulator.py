@@ -23,6 +23,8 @@ TRADE_VALUE_THRESHOLD = 0.95
 TRADE_LIMIT_PER_PARTNER = 2
 MEMO_MAX_CHARS = 2000
 HARD_CAP_BUFFER = 8.0
+FA_RESERVATION_RANGE = (0.85, 1.0)
+REJECTED_OFFER_LIMIT_PER_WINDOW = 2
 
 
 @dataclass
@@ -39,9 +41,11 @@ class League:
     transactions: list[Transaction] = field(default_factory=list)
     summaries: list[SeasonSummary] = field(default_factory=list)
     illegal_actions: int = 0
+    rejected_offers: int = 0
     rng_state_offset: int = 0
     agent_memo: str = ""
     partner_trades: dict[int, int] = field(default_factory=dict)
+    window_walkaways: dict[str, int] = field(default_factory=dict)
 
     @classmethod
     def new(cls, seed: int, user_team_id: int = 0, num_teams: int = 12) -> "League":
@@ -75,6 +79,8 @@ class League:
                 "lineup_min_positions": LINEUP_MIN_POSITIONS,
                 "trade_value_threshold": TRADE_VALUE_THRESHOLD,
                 "trade_limit_per_partner": TRADE_LIMIT_PER_PARTNER,
+                "fa_reservation_range": list(FA_RESERVATION_RANGE),
+                "rejected_offer_limit_per_window": REJECTED_OFFER_LIMIT_PER_WINDOW,
             },
             "team": self.user_team.public_dict(self.players, self.cap),
             "standings": self._standings_public(),
@@ -88,6 +94,9 @@ class League:
         }
 
     def apply_actions(self, actions: list[dict[str, Any]], phase: str) -> None:
+        # Walk-aways last one decision window: each call to apply_actions is one
+        # window, so counterparties who broke off talks come back next window.
+        self.window_walkaways = {}
         if not isinstance(actions, list):
             self._record({}, phase, False, "agent response must be a list of actions")
             return
@@ -218,13 +227,30 @@ class League:
         if years < 1 or years > 5:
             self._record(action, phase, False, "contract years must be 1-5")
             return
-        player = self.players[player_id]
-        minimum = player.asking_salary * 0.9
-        if salary < minimum:
-            self._record(action, phase, False, f"salary below player's market ask of {minimum:.2f}")
+        # A non-positive salary is not a negotiable bid — it is a malformed
+        # action, so it must not ride the penalty-free rejected-offer path.
+        if salary <= 0:
+            self._record(action, phase, False, "salary must be a positive amount")
             return
+        player = self.players[player_id]
+        counterparty = f"player:{player_id}"
         if self._payroll(self.user_team) + salary > self.cap + HARD_CAP_BUFFER:
             self._record(action, phase, False, "signing would exceed hard cap buffer")
+            return
+        if self._walkaway(counterparty):
+            self._record(
+                action, phase, False, "player has broken off negotiations for this window", rejected_offer=True
+            )
+            return
+        if salary < self._fa_reservation(player_id):
+            self._note_rejection(counterparty)
+            self._record(
+                action,
+                phase,
+                False,
+                f"player declines the offer; the ask is {player.asking_salary:.2f}",
+                rejected_offer=True,
+            )
             return
         self.free_agents.remove(player_id)
         player.team_id = self.user_team_id
@@ -304,8 +330,15 @@ class League:
         if partner_payroll_after > self.cap + HARD_CAP_BUFFER or user_payroll_after > self.cap + HARD_CAP_BUFFER:
             self._record(action, phase, False, "trade would exceed hard cap buffer")
             return
+        counterparty = f"team:{partner_id}"
+        if self._walkaway(counterparty):
+            self._record(
+                action, phase, False, "partner has broken off trade talks for this window", rejected_offer=True
+            )
+            return
         if perceived_give < perceived_receive * TRADE_VALUE_THRESHOLD:
-            self._record(action, phase, False, "partner rejects the offer as too light")
+            self._note_rejection(counterparty)
+            self._record(action, phase, False, "partner rejects the offer as too light", rejected_offer=True)
             return
         for player_id in give:
             self._remove_from_team(self.user_team, player_id)
@@ -351,13 +384,45 @@ class League:
         self._record(action, phase, True, "lineup set")
 
     def _record(
-        self, action: dict[str, Any], phase: str, accepted: bool, message: str, team_id: int | None = None
+        self,
+        action: dict[str, Any],
+        phase: str,
+        accepted: bool,
+        message: str,
+        team_id: int | None = None,
+        rejected_offer: bool = False,
     ) -> None:
+        """Log an action. Declines that hinge on hidden valuations are counted as
+        ``rejected_offers`` (legitimate negotiation, no protocol penalty); every
+        other non-accepted action is a protocol violation."""
         if team_id is None:
             team_id = self.user_team_id
         if not accepted and team_id == self.user_team_id:
-            self.illegal_actions += 1
+            if rejected_offer:
+                self.rejected_offers += 1
+            else:
+                self.illegal_actions += 1
         self.transactions.append(Transaction(self.season, phase, team_id, action, accepted, message))
+
+    def _walkaway(self, counterparty: str) -> bool:
+        """Whether a counterparty has broken off negotiations for this window."""
+        return self.window_walkaways.get(counterparty, 0) >= REJECTED_OFFER_LIMIT_PER_WINDOW
+
+    def _note_rejection(self, counterparty: str) -> None:
+        self.window_walkaways[counterparty] = self.window_walkaways.get(counterparty, 0) + 1
+
+    def _fa_reservation(self, player_id: int) -> float:
+        """Hidden, deterministic minimum salary a free agent will accept.
+
+        A per-player fraction of the asking price in FA_RESERVATION_RANGE,
+        re-rolled each season, so the optimal bid can be estimated but not
+        solved from the observation. Offering the full ask always succeeds.
+        Seeded directly (not via `_rng`) so evaluating an offer never perturbs
+        the league's RNG stream.
+        """
+        rng = random.Random(f"{self.seed}:{self.season}:reservation:{player_id}")
+        low, high = FA_RESERVATION_RANGE
+        return self.players[player_id].asking_salary * rng.uniform(low, high)
 
     def _standings_public(self) -> list[dict[str, Any]]:
         return [

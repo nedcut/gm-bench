@@ -66,7 +66,18 @@ Agents return a JSON array of actions:
 - `noop`
 
 Actions are validated by the simulator. Invalid actions are ignored and counted
-as penalties.
+as penalties. Legal-but-declined offers are different: a trade rejected as too
+light or a free-agent offer below the player's hidden reservation price is
+counted separately as a `rejected_offer` with no protocol penalty, because
+probing hidden valuations is legitimate negotiation, not a protocol failure.
+After `rejected_offer_limit_per_window` declines in one decision window, the
+counterparty breaks off talks until the next window, so unpenalized probing
+cannot binary-search the hidden values.
+
+Free agents accept salaries down to a hidden per-player reservation fraction
+of the asking price (uniform in `fa_reservation_range`, re-rolled each season,
+seeded from stable keys like trade valuation bias). Offering the full ask
+always succeeds; shading below it saves cap space but risks a decline.
 
 `memo` stores a persistent scratchpad (up to 2000 characters) echoed back in
 every subsequent observation. External agents are launched fresh at each
@@ -80,13 +91,20 @@ pick is replenished each season, so episodes of any length keep a draft.
 
 ## Built-In Agents
 
-The MVP includes six scripted baselines:
+The MVP includes seven scripted baselines:
 
 - `random`: noisy but valid roster moves.
 - `conservative`: value signings and best public prospects.
 - `win-now`: prioritizes current overall and immediate wins.
 - `rebuild`: prioritizes youth and potential.
 - `value`: balances public overall, potential, age, and price.
+- `shrewd`: a stronger-on-average honest reference — `value` plus releasing
+  clearly-negative veteran contracts before shopping and dressing high-upside
+  youth so they develop at full speed. The youth bet wins the panel mean
+  (roughly +6-7 lift over `value` at 3 seasons across seeds 1-30) but loses
+  individual seeds, so a regression test pins the panel-mean advantage, not
+  per-seed dominance. Use its panel average as the bar a model-backed
+  candidate should clear before its score means anything.
 - `exploit`: a red-team canary that replays historically degenerate strategies
   (trade value-pumping, free-agent hoarding). A regression test pins it below
   `value`; if a rules change re-opens an exploit, the canary jumps and CI fails.
@@ -117,12 +135,37 @@ score_lift = candidate_mean_score - baseline_panel_mean_score
 
 Because every agent plays the same seeds, `evaluate` additionally differences the
 candidate against the baselines per seed and reports a deterministic bootstrap
-95% confidence interval on that paired lift, a per-seed win rate, and the paired
+95% confidence interval on that paired lift, a per-seed win rate, an exact
+two-sided sign-flip permutation p-value (`sign_flip_p_value`), and the paired
 lift against the strongest single baseline. Paired differencing cancels most of
 the league-generation luck, which is what makes small-seed runs trustworthy.
+The permutation test is exact at benchmark-sized panels, where the bootstrap
+interval is coarse: with `n` seeds the smallest achievable p is `2 / 2^n`, so a
+3-seed run can never look more certain than p=0.25.
+
+The simulator is deterministic, but model-backed agents are not: one episode
+per seed confounds model skill with sampling luck. `--repeats N` runs the
+candidate N times per seed (baselines stay at one run — they are
+deterministic). Paired statistics then use the per-seed mean across repeats,
+and summaries report `within_seed_score_stddev` — the model's own run-to-run
+noise — next to the across-seed `score_stddev`, so score differences between
+models can be checked against both variance sources.
 
 See [scoring_calibration.md](scoring_calibration.md) for term definitions and
 weight rationale.
+
+## Adapter Reliability Metrics
+
+Model-backed adapters mark substituted output: fallback actions carry a
+`model_error` key and runner-level failures (timeout, crash, invalid JSON)
+carry an `error` key. The episode loop counts any decision containing such a
+marker as a failed decision and reports `decisions`, `failed_decisions`,
+`decision_failure_rate`, and `memo_writes` alongside the score, plus
+per-episode decision wall-time latency. This keeps the benchmark honest: a
+model that never produces usable output is visibly failing rather than
+silently scoring like the fallback policy. `GM_AGENT_STRICT=1` turns the
+fallback into a pure noop for runs that should reflect only the model's own
+actions.
 
 ## Reproducibility
 
