@@ -8,10 +8,16 @@ import sys
 
 import pytest
 
+from importlib.metadata import version
+
 from gm_bench import __version__
 from gm_bench import cli as cli_module
 from gm_bench.benchmark_config import BenchmarkConfig, config_from_dict
 from gm_bench.providers import build_provider_agent
+
+
+def test_package_version_matches_pyproject() -> None:
+    assert __version__ == version("gm-bench")
 
 
 def test_provider_agent_carries_resolved_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -79,6 +85,7 @@ def test_cli_run_payload_includes_run_info() -> None:
     assert run_info["command"] == "run"
     assert run_info["agent"] == "value"
     assert run_info["provider"] is None
+    assert "profile" not in run_info
     assert run_info["gm_bench_version"] == __version__
     assert "timestamp_utc" in run_info
 

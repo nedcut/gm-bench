@@ -142,18 +142,20 @@ def _run_info(command: str, agent: Any, config: BenchmarkConfig) -> dict[str, An
     is why the resolved profile is recorded rather than the requested one.
     """
     metadata = getattr(agent, "metadata", None) or {}
-    return {
+    info: dict[str, Any] = {
         "command": command,
         "agent": agent.name,
         "provider": metadata.get("provider", config.provider),
         "model": metadata.get("model", config.model),
-        "profile": metadata.get("profile", config.profile),
         "agent_timeout": metadata.get("agent_timeout", config.agent_timeout),
         "preset": config.preset,
         "gm_bench_version": __version__,
         "python_version": platform.python_version(),
         "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
+    if "profile" in metadata:
+        info["profile"] = metadata["profile"]
+    return info
 
 
 def _run_command(args: argparse.Namespace) -> None:
