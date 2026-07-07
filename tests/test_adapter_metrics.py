@@ -89,6 +89,7 @@ def test_summary_aggregates_reliability_metrics() -> None:
 
 def test_summarize_episodes_tolerates_legacy_episodes_without_new_fields() -> None:
     legacy = {
+        "seed": 1,
         "final_score": 10.0,
         "strategy_score": 10.0,
         "protocol_penalty": 0.0,

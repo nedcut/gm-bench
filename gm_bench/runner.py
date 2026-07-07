@@ -35,6 +35,7 @@ class BenchmarkResult:
     memo_writes: int
     mean_decision_seconds: float
     max_decision_seconds: float
+    rejected_offers: int
     season_summaries: list[dict[str, Any]]
     transactions: list[dict[str, Any]]
 
@@ -113,6 +114,7 @@ def run_episode(
         memo_writes=memo_writes,
         mean_decision_seconds=round(mean(decision_seconds), 4) if decision_seconds else 0.0,
         max_decision_seconds=round(max(decision_seconds), 4) if decision_seconds else 0.0,
+        rejected_offers=league.rejected_offers,
         season_summaries=[summary.__dict__ for summary in league.summaries],
         transactions=[transaction.__dict__ for transaction in league.transactions],
     )
@@ -176,6 +178,8 @@ def summarize_episodes(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "failed_decisions": failed_decisions,
         "decision_failure_rate": round(failed_decisions / decisions, 3) if decisions else 0.0,
         "memo_writes": sum(episode.get("memo_writes", 0) for episode in episodes),
+        # Older cached episodes may predate this field, so read it defensively.
+        "rejected_offers": sum(episode.get("rejected_offers", 0) for episode in episodes),
     }
 
 
@@ -319,6 +323,7 @@ def evaluate_against_baselines(
             "candidate_failed_decisions": candidate["summary"].get("failed_decisions", 0),
             "candidate_decision_failure_rate": candidate["summary"].get("decision_failure_rate", 0.0),
             "candidate_memo_writes": candidate["summary"].get("memo_writes", 0),
+            "candidate_rejected_offers": candidate["summary"].get("rejected_offers", 0),
         },
         "paired": _paired_analysis(seeds, candidate, baseline_results),
     }

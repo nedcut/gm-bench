@@ -5,10 +5,9 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from importlib.metadata import version
 
 import pytest
-
-from importlib.metadata import version
 
 from gm_bench import __version__
 from gm_bench import cli as cli_module

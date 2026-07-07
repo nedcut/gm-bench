@@ -421,7 +421,8 @@ def _print_result(result: dict[str, Any], as_json: bool) -> None:
     print(
         "mean_score={mean_score} strategy={mean_strategy_score} protocol_penalty={total_protocol_penalty} "
         "score_stddev={score_stddev} within_seed_stddev={within_seed_score_stddev} "
-        "mean_total_wins={mean_total_wins} championships={championships} illegal_actions={illegal_actions}".format(
+        "mean_total_wins={mean_total_wins} championships={championships} illegal_actions={illegal_actions} "
+        "rejected_offers={rejected_offers}".format(
             **summary
         )
     )
@@ -457,7 +458,7 @@ def _print_evaluation(result: dict[str, Any]) -> None:
     normalized = result["normalized"]
     print(f"agent={result['agent']} seasons={result['seasons']} seeds={result['seeds']}")
     print(
-        "candidate_mean={candidate_mean_score} strategy={candidate_mean_strategy_score} protocol_penalty={candidate_protocol_penalty} baseline_panel_mean={baseline_panel_mean_score} lift={score_lift} lift_pct={score_lift_pct}% illegal={candidate_illegal_actions}".format(
+        "candidate_mean={candidate_mean_score} strategy={candidate_mean_strategy_score} protocol_penalty={candidate_protocol_penalty} baseline_panel_mean={baseline_panel_mean_score} lift={score_lift} lift_pct={score_lift_pct}% illegal={candidate_illegal_actions} rejected_offers={candidate_rejected_offers}".format(
             **normalized
         )
     )

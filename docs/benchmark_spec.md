@@ -66,7 +66,18 @@ Agents return a JSON array of actions:
 - `noop`
 
 Actions are validated by the simulator. Invalid actions are ignored and counted
-as penalties.
+as penalties. Legal-but-declined offers are different: a trade rejected as too
+light or a free-agent offer below the player's hidden reservation price is
+counted separately as a `rejected_offer` with no protocol penalty, because
+probing hidden valuations is legitimate negotiation, not a protocol failure.
+After `rejected_offer_limit_per_window` declines in one decision window, the
+counterparty breaks off talks until the next window, so unpenalized probing
+cannot binary-search the hidden values.
+
+Free agents accept salaries down to a hidden per-player reservation fraction
+of the asking price (uniform in `fa_reservation_range`, re-rolled each season,
+seeded from stable keys like trade valuation bias). Offering the full ask
+always succeeds; shading below it saves cap space but risks a decline.
 
 `memo` stores a persistent scratchpad (up to 2000 characters) echoed back in
 every subsequent observation. External agents are launched fresh at each
