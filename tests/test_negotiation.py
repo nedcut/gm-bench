@@ -135,6 +135,44 @@ def test_episode_result_reports_rejected_offers() -> None:
     assert result.protocol_penalty == result.illegal_actions * 2.5
 
 
+def test_illegal_offers_stay_illegal_after_walkaway() -> None:
+    """Cap-busting and roster-breaking offers must count as illegal_actions even
+    when the counterparty has already broken off negotiations."""
+    league = League.new(seed=7)
+    player_id = league.free_agents[0]
+    ask = league.players[player_id].asking_salary
+    offers = [_lowball(league, player_id) for _ in range(REJECTED_OFFER_LIMIT_PER_WINDOW)]
+    offers.append({"type": "sign_free_agent", "player_id": player_id, "years": 1, "salary": ask})
+    league.apply_actions(offers, "preseason")
+    assert "broken off" in league.transactions[-1].message
+
+    cap_buster = {
+        "type": "sign_free_agent",
+        "player_id": player_id,
+        "years": 1,
+        "salary": league.cap + league.cap,
+    }
+    league.apply_actions([cap_buster], "preseason")
+    assert league.transactions[-1].accepted is False
+    assert "hard cap" in league.transactions[-1].message
+    assert league.illegal_actions >= 1
+
+    trade_league = League.new(seed=21)
+    trade_offers = [_too_light_trade(trade_league, 1) for _ in range(REJECTED_OFFER_LIMIT_PER_WINDOW + 1)]
+    trade_league.apply_actions(trade_offers, "trade_deadline")
+    assert "broken off" in trade_league.transactions[-1].message
+    roster_breaker = {
+        "type": "trade",
+        "partner_team_id": 1,
+        "give_player_ids": list(trade_league.user_team.roster),
+        "receive_player_ids": [trade_league.teams[1].roster[0]],
+    }
+    trade_league.apply_actions([roster_breaker], "trade_deadline")
+    assert trade_league.transactions[-1].accepted is False
+    assert "minimum" in trade_league.transactions[-1].message
+    assert trade_league.illegal_actions >= 1
+
+
 def test_non_positive_salary_is_a_protocol_violation_not_a_rejected_offer() -> None:
     """An impossible bid is malformed, not negotiation — it must not let a model
     dodge protocol penalties by lowballing below zero."""

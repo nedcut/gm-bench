@@ -234,6 +234,9 @@ class League:
             return
         player = self.players[player_id]
         counterparty = f"player:{player_id}"
+        if self._payroll(self.user_team) + salary > self.cap + HARD_CAP_BUFFER:
+            self._record(action, phase, False, "signing would exceed hard cap buffer")
+            return
         if self._walkaway(counterparty):
             self._record(
                 action, phase, False, "player has broken off negotiations for this window", rejected_offer=True
@@ -248,9 +251,6 @@ class League:
                 f"player declines the offer; the ask is {player.asking_salary:.2f}",
                 rejected_offer=True,
             )
-            return
-        if self._payroll(self.user_team) + salary > self.cap + HARD_CAP_BUFFER:
-            self._record(action, phase, False, "signing would exceed hard cap buffer")
             return
         self.free_agents.remove(player_id)
         player.team_id = self.user_team_id
@@ -298,12 +298,6 @@ class League:
         if self.partner_trades.get(partner_id, 0) >= TRADE_LIMIT_PER_PARTNER:
             self._record(action, phase, False, "partner has no appetite for more trades this season")
             return
-        counterparty = f"team:{partner_id}"
-        if self._walkaway(counterparty):
-            self._record(
-                action, phase, False, "partner has broken off trade talks for this window", rejected_offer=True
-            )
-            return
         # Contract expiries can leave a team below the floor before it re-signs, so
         # only block trades that shrink a roster to below the minimum — a roster
         # already under the floor may still make size-neutral or growing trades.
@@ -335,6 +329,12 @@ class League:
         )
         if partner_payroll_after > self.cap + HARD_CAP_BUFFER or user_payroll_after > self.cap + HARD_CAP_BUFFER:
             self._record(action, phase, False, "trade would exceed hard cap buffer")
+            return
+        counterparty = f"team:{partner_id}"
+        if self._walkaway(counterparty):
+            self._record(
+                action, phase, False, "partner has broken off trade talks for this window", rejected_offer=True
+            )
             return
         if perceived_give < perceived_receive * TRADE_VALUE_THRESHOLD:
             self._note_rejection(counterparty)
