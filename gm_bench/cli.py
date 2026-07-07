@@ -5,9 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import sys
+from datetime import datetime, timezone
 from typing import Any
 
+from gm_bench import __version__
 from gm_bench.agents import AGENTS, ExternalProcessAgent
 from gm_bench.baseline_cache import default_cache_path
 from gm_bench.benchmark_config import PRESET_NAMES, BenchmarkConfig, load_config
@@ -129,11 +132,38 @@ def _add_common_run_args(parser: argparse.ArgumentParser) -> None:
     _add_logging_args(parser)
 
 
+def _run_info(command: str, agent: Any, config: BenchmarkConfig) -> dict[str, Any]:
+    """Provenance block stamped into result payloads.
+
+    Records what actually ran — resolved provider/model/observation profile
+    (from the agent's metadata when it has any), preset, and benchmark
+    version — so logged results stay attributable and comparable after the
+    fact. Scores produced under different profiles are not comparable, which
+    is why the resolved profile is recorded rather than the requested one.
+    """
+    metadata = getattr(agent, "metadata", None) or {}
+    info: dict[str, Any] = {
+        "command": command,
+        "agent": agent.name,
+        "provider": metadata.get("provider", config.provider),
+        "model": metadata.get("model", config.model),
+        "agent_timeout": metadata.get("agent_timeout", config.agent_timeout),
+        "preset": config.preset,
+        "gm_bench_version": __version__,
+        "python_version": platform.python_version(),
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    if "profile" in metadata:
+        info["profile"] = metadata["profile"]
+    return info
+
+
 def _run_command(args: argparse.Namespace) -> None:
     config = _config_from_args(args)
     agent = _resolve_agent_from_config(config)
     progress = make_progress_printer(config.verbose)
     result = run_many(agent, config.seeds, config.seasons, progress=progress)
+    result["run_info"] = _run_info("run", agent, config)
     run_id = _maybe_log(args, "run", result)
     _print_result(result, config.json_output)
     _print_log_line(run_id, args)
@@ -161,6 +191,7 @@ def _evaluate_command(args: argparse.Namespace) -> None:
         use_baseline_cache=not getattr(args, "no_baseline_cache", False),
         progress=progress,
     )
+    result["run_info"] = _run_info("evaluate", agent, config)
     run_id = _maybe_log(args, "evaluate", result)
     if config.json_output:
         print(json.dumps(result, indent=2, sort_keys=True))
@@ -226,6 +257,7 @@ def _model_command(args: argparse.Namespace) -> None:
         use_baseline_cache=config.use_baseline_cache,
         progress=progress,
     )
+    result["run_info"] = _run_info("model", agent, config)
     run_id = _maybe_log(args, "model", result)
     if config.json_output:
         print(json.dumps(result, indent=2, sort_keys=True))

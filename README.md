@@ -102,6 +102,17 @@ Presets:
 | `standard` | 3 | 3 | 9 | 27 |
 | `benchmark` | 5 | 5 | 15 | 75 |
 
+Every preset pins the `compact` observation profile so scores from the same
+preset are comparable across providers (provider defaults otherwise differ —
+Ollama would see a `tiny` observation while OpenAI sees `compact`, which are
+different questions). Pass `--profile tiny` explicitly for local models that
+need the smaller observation, and treat those scores as their own track.
+
+Result payloads from `run`, `evaluate`, and `model` include a `run_info`
+provenance block recording the resolved provider, model, observation profile,
+timeout, preset, benchmark version, and timestamp, so logged runs stay
+attributable and comparable after the fact.
+
 Use `--verbose` (or `GM_BENCH_VERBOSE=1`) to print per-decision progress while
 model episodes run.
 
