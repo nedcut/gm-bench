@@ -233,6 +233,10 @@ class League:
         self.season += 1
         self.partner_trades = {}
         self.scout_points_used = 0
+        # Offers are scoped to a decision window and regenerated on every
+        # observation(); clear them at the season boundary so a stale offer_id
+        # can never be accepted across seasons regardless of call order.
+        self.current_offers = {}
         for team in self.teams.values():
             team.draft_picks.setdefault(self.season, 1)
         self.prospects = generate_draft_class(self.seed, self.season, self.num_teams * 5)
@@ -519,7 +523,15 @@ class League:
             - sum(self.players[pid].salary for pid in they_receive)
             + sum(self.players[pid].salary for pid in you_receive)
         )
-        if user_payroll_after > self.cap + HARD_CAP_BUFFER:
+        partner_payroll_after = (
+            self._payroll(partner)
+            - sum(self.players[pid].salary for pid in you_receive)
+            + sum(self.players[pid].salary for pid in they_receive)
+        )
+        # Mirror _trade: neither side may be pushed past the hard-cap buffer.
+        # Without the partner check, an accepted offer could dump salary onto a
+        # partner who cannot afford it, which _trade would have rejected.
+        if user_payroll_after > self.cap + HARD_CAP_BUFFER or partner_payroll_after > self.cap + HARD_CAP_BUFFER:
             self._record(action, phase, False, "accepting would exceed hard cap buffer")
             return
         for player_id in they_receive:
