@@ -34,13 +34,26 @@
           ]
         },
         "player_id": { "type": "integer" },
-        "player_ids": { "type": "array", "items": { "type": "integer" } },
+        "player_ids": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 18,
+          "maxItems": 18
+        },
         "prospect_id": { "type": "integer" },
         "partner_team_id": { "type": "integer" },
         "team_id": { "type": "integer" },
         "offer_id": { "type": "string" },
-        "give_player_ids": { "type": "array", "items": { "type": "integer" } },
-        "receive_player_ids": { "type": "array", "items": { "type": "integer" } },
+        "give_player_ids": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 1
+        },
+        "receive_player_ids": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 1
+        },
         "give_pick_seasons": { "type": "array", "items": { "type": "integer" } },
         "receive_pick_seasons": { "type": "array", "items": { "type": "integer" } },
         "position": { "type": "string", "enum": ["F", "D", "G"] },
@@ -50,7 +63,61 @@
         "salary": { "type": "number", "minimum": 0 },
         "text": { "type": "string", "maxLength": 2000 },
         "error": { "type": "string" }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "sign_free_agent" } } },
+          "then": { "required": ["player_id", "years", "salary"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "release" } } },
+          "then": { "required": ["player_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "trade" } } },
+          "then": { "required": ["partner_team_id", "give_player_ids", "receive_player_ids"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "draft" } } },
+          "then": { "required": ["prospect_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "set_lineup" } } },
+          "then": { "required": ["player_ids"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "memo" } } },
+          "then": { "required": ["text"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "inspect_team" } } },
+          "then": { "required": ["team_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "inspect_player" } } },
+          "then": { "required": ["player_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "scout" } } },
+          "then": { "required": ["player_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "accept_trade_offer" } } },
+          "then": { "required": ["offer_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "reject_trade_offer" } } },
+          "then": { "required": ["offer_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "counter_trade_offer" } } },
+          "then": { "required": ["offer_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "claim_waiver" } } },
+          "then": { "required": ["player_id"] }
+        }
+      ]
     }
   }
 }

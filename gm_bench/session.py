@@ -67,6 +67,15 @@ class PersistentProcessAgent(Agent):
                 self._process.kill()
             self._process = None
 
+    def clone(self) -> PersistentProcessAgent:
+        """Return an independent session handle for parallel seed runs."""
+        return PersistentProcessAgent(
+            self.command,
+            timeout_seconds=self.timeout_seconds,
+            env=dict(self.env) if self.env else None,
+            name=self.name,
+        )
+
     def _send(self, payload: dict[str, Any]) -> None:
         if self._process is None or self._process.stdin is None:
             raise RuntimeError("persistent agent session is not started")

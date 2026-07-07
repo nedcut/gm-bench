@@ -137,17 +137,22 @@ def run_many(
     progress: ProgressCallback | None = None,
     config: EpisodeConfig | None = None,
 ) -> dict[str, Any]:
+    def one(seed: int) -> BenchmarkResult:
+        episode_agent = agent.clone() if isinstance(agent, PersistentProcessAgent) else agent
+        return run_episode(
+            episode_agent,
+            seed=seed,
+            seasons=seasons,
+            progress=progress,
+            config=config,
+        )
+
     max_workers = workers if workers is not None else _default_workers(len(seeds))
     if max_workers <= 1 or len(seeds) <= 1:
-        results = [run_episode(agent, seed=seed, seasons=seasons, progress=progress, config=config) for seed in seeds]
+        results = [one(seed) for seed in seeds]
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            results = list(
-                executor.map(
-                    lambda seed: run_episode(agent, seed=seed, seasons=seasons, progress=progress, config=config),
-                    seeds,
-                )
-            )
+            results = list(executor.map(one, seeds))
     episodes = [result.__dict__ for result in results]
     return _episodes_payload(agent.name, seeds, seasons, episodes)
 

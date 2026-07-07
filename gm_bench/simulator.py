@@ -279,16 +279,10 @@ class League:
             for team in self.teams.values():
                 team.wins = 0
                 team.losses = 0
-                team.playoff_rounds = 0
             games_per_pair = 3
         else:
             games_per_pair = max(1, int(3 * (1.0 - PARTIAL_SEASON_FRACTION)))
         ratings = {team.id: self._team_strength(team, apply_injury_noise=True, rng=rng) for team in self.teams.values()}
-        if not self.partial_season_played:
-            for team in self.teams.values():
-                team.wins = 0
-                team.losses = 0
-                team.playoff_rounds = 0
         for home in self.teams.values():
             for away in self.teams.values():
                 if home.id >= away.id:
@@ -296,6 +290,8 @@ class League:
                 for _ in range(games_per_pair):
                     self._play_game(home, away, ratings, rng)
 
+        for team in self.teams.values():
+            team.playoff_rounds = 0
         playoff_teams = sorted(self.teams.values(), key=lambda team: team.wins, reverse=True)[:8]
         champion = self._simulate_playoffs(playoff_teams, ratings, rng)
         champion.championships += 1

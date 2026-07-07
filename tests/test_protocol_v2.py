@@ -71,3 +71,16 @@ def test_midseason_adds_partial_standings_and_waiver_wire() -> None:
 def test_episode_config_can_disable_midseason() -> None:
     result = run_episode(ValueAgent(), seed=1, seasons=1, config=EpisodeConfig(include_midseason=False))
     assert result.final_score > 0
+
+
+def test_playoff_rounds_reset_each_season_with_midseason() -> None:
+    league = League.new(seed=9)
+    league.prepare_midseason()
+    league.simulate_season()
+    first_rounds = league.summaries[-1].playoff_rounds
+    league.prepare_midseason()
+    league.simulate_season()
+    second_rounds = league.summaries[-1].playoff_rounds
+    assert first_rounds <= 3
+    assert second_rounds <= 3
+    assert league.user_team.playoff_rounds <= 3
