@@ -422,9 +422,7 @@ def _print_result(result: dict[str, Any], as_json: bool) -> None:
         "mean_score={mean_score} strategy={mean_strategy_score} protocol_penalty={total_protocol_penalty} "
         "score_stddev={score_stddev} within_seed_stddev={within_seed_score_stddev} "
         "mean_total_wins={mean_total_wins} championships={championships} illegal_actions={illegal_actions} "
-        "rejected_offers={rejected_offers}".format(
-            **summary
-        )
+        "rejected_offers={rejected_offers}".format(**summary)
     )
     print(_reliability_line(result))
 
