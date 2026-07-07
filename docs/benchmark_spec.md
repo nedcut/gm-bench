@@ -143,6 +143,19 @@ models can be checked against both variance sources.
 See [scoring_calibration.md](scoring_calibration.md) for term definitions and
 weight rationale.
 
+## Adapter Reliability Metrics
+
+Model-backed adapters mark substituted output: fallback actions carry a
+`model_error` key and runner-level failures (timeout, crash, invalid JSON)
+carry an `error` key. The episode loop counts any decision containing such a
+marker as a failed decision and reports `decisions`, `failed_decisions`,
+`decision_failure_rate`, and `memo_writes` alongside the score, plus
+per-episode decision wall-time latency. This keeps the benchmark honest: a
+model that never produces usable output is visibly failing rather than
+silently scoring like the fallback policy. `GM_AGENT_STRICT=1` turns the
+fallback into a pure noop for runs that should reflect only the model's own
+actions.
+
 ## Reproducibility
 
 The simulator is deterministic for a given seed, agent, and season count. Public
