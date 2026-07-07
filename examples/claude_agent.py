@@ -15,12 +15,14 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
+from typing import Any
 
 try:
-    from gm_agent_common import build_prompt, fallback_actions, parse_actions
+    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions
 except ModuleNotFoundError:
-    from examples.gm_agent_common import build_prompt, fallback_actions, parse_actions
+    from examples.gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +33,7 @@ def main() -> None:
     observation = json.load(sys.stdin)
     os.environ.setdefault("GM_AGENT_PROFILE", "tiny")
     timeout = float(os.environ.get("CLAUDE_AGENT_TIMEOUT", "180"))
+    model = os.environ.get("CLAUDE_MODEL")
     prompt = (
         "You are competing in GM-Bench as a sports general manager. "
         "Do not inspect or edit files. Do not run shell commands. "
@@ -38,6 +41,7 @@ def main() -> None:
         "Return only JSON matching the schema.\n\n" + build_prompt(observation)
     )
     command = build_command(prompt)
+    started = time.perf_counter()
     try:
         completed = subprocess.run(
             command,
@@ -48,13 +52,22 @@ def main() -> None:
             check=False,
             cwd=ROOT,
         )
+        latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         if completed.returncode != 0:
             detail = (completed.stderr or completed.stdout)[-500:]
-            print(json.dumps(fallback_actions(observation, f"claude_exit_{completed.returncode}: {detail}")))
+            emit(
+                fallback_actions(observation, f"claude_exit_{completed.returncode}: {detail}"),
+                make_usage(provider="claude", model=model, api_calls=1, api_latency_ms=latency_ms),
+            )
             return
-        print(json.dumps(parse_actions(extract_claude_text(completed.stdout))))
+        text, usage = extract_claude_result(completed.stdout, model, latency_ms)
+        emit(parse_actions(text), usage)
     except (subprocess.TimeoutExpired, OSError, ValueError, json.JSONDecodeError) as exc:
-        print(json.dumps(fallback_actions(observation, f"claude_error: {exc}")))
+        latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
+        emit(
+            fallback_actions(observation, f"claude_error: {exc}"),
+            make_usage(provider="claude", model=model, api_calls=1, api_latency_ms=latency_ms),
+        )
 
 
 def build_command(prompt: str) -> list[str]:
@@ -66,8 +79,10 @@ def build_command(prompt: str) -> list[str]:
         "dontAsk",
         "--tools",
         "",
+        # JSON output carries usage and total_cost_usd alongside the result
+        # text, which is what makes the CLI lane priceable on the leaderboard.
         "--output-format",
-        "text",
+        "json",
         "--json-schema",
         SCHEMA.read_text(),
     ]
@@ -84,17 +99,49 @@ def build_command(prompt: str) -> list[str]:
     return command
 
 
-def extract_claude_text(stdout: str) -> str:
+def extract_claude_result(stdout: str, model: str | None, wall_latency_ms: float) -> tuple[str, dict[str, Any] | None]:
+    """Pull the result text plus usage/cost from `claude -p --output-format json`."""
+    fallback_usage = make_usage(provider="claude", model=model, api_calls=1, api_latency_ms=wall_latency_ms)
     try:
         payload = json.loads(stdout)
     except json.JSONDecodeError:
-        return stdout
-    if isinstance(payload, dict):
-        for key in ("result", "content", "message", "text"):
-            value = payload.get(key)
-            if isinstance(value, str):
-                return value
-    return stdout
+        return stdout, fallback_usage
+    if not isinstance(payload, dict):
+        return stdout, fallback_usage
+
+    text = stdout
+    for key in ("result", "content", "message", "text"):
+        value = payload.get(key)
+        if isinstance(value, str):
+            text = value
+            break
+
+    raw_usage = payload.get("usage") if isinstance(payload.get("usage"), dict) else {}
+    input_tokens = None
+    if raw_usage:
+        # Cache reads/writes are still context the model processed; fold them
+        # into input so token counts are comparable across providers. Cost
+        # comes from the CLI's own total_cost_usd, which already prices cache
+        # traffic at its discounted rates.
+        parts = [
+            raw_usage.get("input_tokens"),
+            raw_usage.get("cache_creation_input_tokens"),
+            raw_usage.get("cache_read_input_tokens"),
+        ]
+        numeric = [part for part in parts if isinstance(part, (int, float))]
+        input_tokens = int(sum(numeric)) if numeric else None
+    cost = payload.get("total_cost_usd")
+    api_latency = payload.get("duration_api_ms") or payload.get("duration_ms")
+    usage = make_usage(
+        provider="claude",
+        model=payload.get("model") if isinstance(payload.get("model"), str) else model,
+        api_calls=1,
+        input_tokens=input_tokens,
+        output_tokens=raw_usage.get("output_tokens") if isinstance(raw_usage.get("output_tokens"), int) else None,
+        api_latency_ms=float(api_latency) if isinstance(api_latency, (int, float)) else wall_latency_ms,
+        cost_usd=float(cost) if isinstance(cost, (int, float)) else None,
+    )
+    return text, usage or fallback_usage
 
 
 if __name__ == "__main__":

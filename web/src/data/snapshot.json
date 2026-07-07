@@ -18,20 +18,35 @@
   },
   "normalized": {
     "baseline_illegal_actions": 0,
-    "baseline_panel_mean_score": 102.224,
-    "baseline_panel_mean_strategy_score": 102.224,
+    "baseline_panel_mean_score": 105.972,
+    "baseline_panel_mean_strategy_score": 105.971,
     "baseline_panel_total_protocol_penalty": 0.0,
+    "candidate_fallback_decision_rate": 0.0,
+    "candidate_fallback_decisions": 0,
     "candidate_illegal_actions": 0,
-    "candidate_mean_score": 254.739,
-    "candidate_mean_strategy_score": 254.739,
+    "candidate_mean_score": 258.487,
+    "candidate_mean_strategy_score": 258.487,
     "candidate_protocol_penalty": 0.0,
+    "candidate_usage": {
+      "api_calls": 0,
+      "api_latency_ms": 0.0,
+      "cost_usd": null,
+      "decisions_with_usage": 0,
+      "harness_latency_ms": 0.0,
+      "input_tokens": 0,
+      "mean_tokens_per_decision": 0.0,
+      "model": null,
+      "output_tokens": 0,
+      "provider": null,
+      "total_tokens": 0
+    },
     "score_lift": 152.515,
-    "score_lift_pct": 149.2
+    "score_lift_pct": 143.92
   },
   "paired": {
     "best_baseline": {
       "agent": "win-now",
-      "mean_score": 196.41,
+      "mean_score": 200.158,
       "paired_lift_mean": 58.328,
       "seed_win_rate": 1.0
     },
@@ -39,38 +54,38 @@
     "num_seeds": 5,
     "paired_lift_ci95": [
       134.06,
-      173.062
+      170.97
     ],
     "paired_lift_mean": 152.515,
     "paired_lift_stddev": 22.512,
     "per_seed": [
       {
-        "baseline_panel_score": 93.226,
-        "candidate_score": 227.392,
+        "baseline_panel_score": 96.974,
+        "candidate_score": 231.14,
         "lift": 134.166,
         "seed": 1
       },
       {
-        "baseline_panel_score": 109.248,
-        "candidate_score": 236.443,
+        "baseline_panel_score": 112.995,
+        "candidate_score": 240.191,
         "lift": 127.196,
         "seed": 2
       },
       {
-        "baseline_panel_score": 108.91,
-        "candidate_score": 256.484,
-        "lift": 147.574,
+        "baseline_panel_score": 112.657,
+        "candidate_score": 260.232,
+        "lift": 147.575,
         "seed": 3
       },
       {
-        "baseline_panel_score": 95.011,
-        "candidate_score": 258.595,
+        "baseline_panel_score": 98.759,
+        "candidate_score": 262.343,
         "lift": 163.584,
         "seed": 4
       },
       {
-        "baseline_panel_score": 104.725,
-        "candidate_score": 294.779,
+        "baseline_panel_score": 108.472,
+        "candidate_score": 298.527,
         "lift": 190.054,
         "seed": 5
       }
@@ -312,7 +327,7 @@
         "champion": false,
         "losses": 18,
         "playoff_rounds": 0,
-        "score_after_season": 120.147,
+        "score_after_season": 125.813,
         "season": 1,
         "wins": 15
       },
@@ -321,7 +336,7 @@
         "champion": false,
         "losses": 19,
         "playoff_rounds": 0,
-        "score_after_season": 142.373,
+        "score_after_season": 147.536,
         "season": 2,
         "wins": 14
       },
@@ -330,7 +345,7 @@
         "champion": false,
         "losses": 14,
         "playoff_rounds": 0,
-        "score_after_season": 141.68,
+        "score_after_season": 146.214,
         "season": 3,
         "wins": 19
       },
@@ -339,7 +354,7 @@
         "champion": false,
         "losses": 15,
         "playoff_rounds": 0,
-        "score_after_season": 180.285,
+        "score_after_season": 184.033,
         "season": 4,
         "wins": 18
       },
@@ -348,7 +363,7 @@
         "champion": false,
         "losses": 13,
         "playoff_rounds": 1,
-        "score_after_season": 215.872,
+        "score_after_season": 219.62,
         "season": 5,
         "wins": 20
       }
@@ -358,58 +373,58 @@
   "standings": [
     {
       "agent": "value",
-      "best_score": 294.779,
+      "best_score": 298.527,
       "episodes": 5,
       "illegal_actions": 0,
-      "mean_score": 254.739,
+      "mean_score": 258.487,
       "mean_wins": 101,
       "score_stddev": 23.254,
       "titles": 1,
-      "worst_score": 227.392
+      "worst_score": 231.14
     },
     {
       "agent": "win-now",
-      "best_score": 223.315,
+      "best_score": 227.063,
       "episodes": 5,
       "illegal_actions": 0,
-      "mean_score": 196.41,
+      "mean_score": 200.158,
       "mean_wins": 101.8,
       "score_stddev": 23.387,
       "titles": 3,
-      "worst_score": 165.763
+      "worst_score": 169.511
     },
     {
       "agent": "rebuild",
-      "best_score": 129.159,
+      "best_score": 132.906,
       "episodes": 5,
       "illegal_actions": 0,
-      "mean_score": 88.315,
+      "mean_score": 92.063,
       "mean_wins": 55.4,
-      "score_stddev": 21.594,
+      "score_stddev": 21.593,
       "titles": 1,
-      "worst_score": 66.094
+      "worst_score": 69.842
     },
     {
       "agent": "conservative",
-      "best_score": 82.686,
+      "best_score": 86.434,
       "episodes": 5,
       "illegal_actions": 0,
-      "mean_score": 73.668,
+      "mean_score": 77.416,
       "mean_wins": 54.2,
       "score_stddev": 6.503,
       "titles": 0,
-      "worst_score": 66.117
+      "worst_score": 69.865
     },
     {
       "agent": "random",
-      "best_score": 81.655,
+      "best_score": 85.403,
       "episodes": 5,
       "illegal_actions": 0,
-      "mean_score": 50.501,
+      "mean_score": 54.249,
       "mean_wins": 40.6,
       "score_stddev": 17.097,
       "titles": 1,
-      "worst_score": 30.119
+      "worst_score": 33.867
     }
   ]
 }

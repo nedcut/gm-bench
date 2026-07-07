@@ -22,7 +22,7 @@ gm-bench-gui = "gm_bench.gui:main"
 include = ["gm_bench*"]
 
 [tool.setuptools.package-data]
-gm_bench = ["gui_static/*"]
+gm_bench = ["gui_static/*", "pricing.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

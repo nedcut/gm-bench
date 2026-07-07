@@ -38,7 +38,8 @@
         "trade_value_threshold",
         "trade_limit_per_partner",
         "fa_reservation_range",
-        "rejected_offer_limit_per_window"
+        "rejected_offer_limit_per_window",
+        "pick_trading"
       ],
       "properties": {
         "salary_cap": { "type": "number" },
@@ -62,7 +63,30 @@
           "minItems": 2,
           "maxItems": 2
         },
-        "rejected_offer_limit_per_window": { "type": "integer", "minimum": 1 }
+        "rejected_offer_limit_per_window": { "type": "integer", "minimum": 1 },
+        "scouting": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["points_per_season", "points_remaining", "report_noise"],
+          "properties": {
+            "points_per_season": { "type": "integer", "minimum": 0 },
+            "points_remaining": { "type": "integer", "minimum": 0 },
+            "report_noise": { "type": "number", "minimum": 0 }
+          }
+        },
+        "pick_trading": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max_seasons_ahead", "pick_value_estimate"],
+          "properties": {
+            "max_seasons_ahead": { "type": "integer", "minimum": 0 },
+            "pick_value_estimate": {
+              "description": "Rough asset value of a pick per tradeable future season, keyed by season number.",
+              "type": "object",
+              "additionalProperties": { "type": "number", "minimum": 0 }
+            }
+          }
+        }
       }
     },
     "team": { "$ref": "#/$defs/team" },
@@ -86,6 +110,16 @@
     "trade_market": {
       "type": "array",
       "items": { "$ref": "#/$defs/trade_offer" }
+    },
+    "incoming_offers": {
+      "description": "Opponent-initiated trade offers, valid only for this decision point.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/incoming_offer" }
+    },
+    "scout_reports": {
+      "description": "Near-true potential estimates from past scout actions, keyed by player id. Persist across seasons.",
+      "type": "object",
+      "additionalProperties": { "type": "number" }
     },
     "history": {
       "type": "array",
@@ -207,14 +241,42 @@
     "standing": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["team_id", "team_name", "wins", "losses", "championships", "public_strength"],
+      "required": ["team_id", "team_name", "wins", "losses", "championships", "public_strength", "draft_picks"],
       "properties": {
         "team_id": { "type": "integer" },
         "team_name": { "type": "string" },
         "wins": { "type": "integer", "minimum": 0 },
         "losses": { "type": "integer", "minimum": 0 },
         "championships": { "type": "integer", "minimum": 0 },
-        "public_strength": { "type": "number" }
+        "public_strength": { "type": "number" },
+        "draft_picks": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "incoming_offer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offer_id",
+        "team_id",
+        "team_name",
+        "you_receive_players",
+        "they_receive_players",
+        "you_receive_pick_seasons",
+        "they_receive_pick_seasons",
+        "expires"
+      ],
+      "properties": {
+        "offer_id": { "type": "string" },
+        "team_id": { "type": "integer" },
+        "team_name": { "type": "string" },
+        "you_receive_players": { "type": "array", "items": { "$ref": "#/$defs/player" } },
+        "they_receive_players": { "type": "array", "items": { "$ref": "#/$defs/player" } },
+        "you_receive_pick_seasons": { "type": "array", "items": { "type": "integer" } },
+        "they_receive_pick_seasons": { "type": "array", "items": { "type": "integer" } },
+        "expires": { "type": "string" }
       }
     },
     "trade_offer": {

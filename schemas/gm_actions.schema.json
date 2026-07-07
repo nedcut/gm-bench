@@ -18,6 +18,9 @@
           "partner_team_id",
           "give_player_ids",
           "receive_player_ids",
+          "give_pick_seasons",
+          "receive_pick_seasons",
+          "offer_id",
           "years",
           "salary",
           "text"
@@ -25,7 +28,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["sign_free_agent", "release", "trade", "draft", "set_lineup", "memo", "noop"]
+            "enum": ["sign_free_agent", "release", "trade", "accept_offer", "decline_offer", "scout", "draft", "set_lineup", "memo", "noop"]
           },
           "player_id": { "type": ["integer", "null"] },
           "player_ids": {
@@ -42,6 +45,15 @@
             "type": ["array", "null"],
             "items": { "type": "integer" }
           },
+          "give_pick_seasons": {
+            "type": ["array", "null"],
+            "items": { "type": "integer" }
+          },
+          "receive_pick_seasons": {
+            "type": ["array", "null"],
+            "items": { "type": "integer" }
+          },
+          "offer_id": { "type": ["string", "null"] },
           "years": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 },
           "salary": { "type": ["number", "null"], "minimum": 0 },
           "text": { "type": ["string", "null"], "maxLength": 2000 }

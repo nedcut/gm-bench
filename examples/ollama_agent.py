@@ -12,13 +12,26 @@ import json
 import os
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
+from typing import Any
 
 try:
-    from gm_agent_common import build_prompt, fallback_actions, parse_actions, strip_terminal_codes
+    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions, strip_terminal_codes
 except ModuleNotFoundError:
-    from examples.gm_agent_common import build_prompt, fallback_actions, parse_actions, strip_terminal_codes
+    from examples.gm_agent_common import (
+        build_prompt,
+        emit,
+        fallback_actions,
+        make_usage,
+        parse_actions,
+        strip_terminal_codes,
+    )
+
+# One entry per completed backend call; merged into a single usage block at
+# emit time so repair retries count as extra api_calls, not lost telemetry.
+CALLS: list[dict[str, Any]] = []
 
 
 def main() -> None:
@@ -27,30 +40,34 @@ def main() -> None:
     os.environ.setdefault("GM_AGENT_PROFILE", "tiny")
     if model.lower().startswith("qwen"):
         os.environ.setdefault("GM_AGENT_NO_THINK", "1")
+    think = resolve_think_mode(model)
     host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
     timeout = float(os.environ.get("OLLAMA_TIMEOUT", "120"))
     prompt = build_prompt(observation)
     try:
         if os.environ.get("OLLAMA_TRANSPORT", "cli") == "http":
-            content = generate_http(host, model, prompt, timeout, use_json_mode=True)
+            content = generate_http(host, model, prompt, timeout, use_json_mode=True, think=think)
         else:
-            content = generate_cli(model, prompt, timeout)
+            content = generate_cli(model, prompt, timeout, think=think)
         try:
-            print(json.dumps(parse_actions(content)))
+            emit(parse_actions(content), merged_usage(model))
         except ValueError as exc:
             repair_prompt = (
                 f"{prompt}\n\nYour previous answer was invalid: {str(content)[:300]!r}. "
                 "Return exactly one JSON object with an actions array and no other text."
             )
             if os.environ.get("OLLAMA_TRANSPORT", "cli") == "http":
-                repaired = generate_http(host, model, repair_prompt, timeout, use_json_mode=False)
+                repaired = generate_http(host, model, repair_prompt, timeout, use_json_mode=False, think=think)
             else:
-                repaired = generate_cli(model, repair_prompt, timeout)
+                repaired = generate_cli(model, repair_prompt, timeout, think=think)
             try:
-                print(json.dumps(parse_actions(repaired)))
+                emit(parse_actions(repaired), merged_usage(model))
             except ValueError:
                 snippet = str(repaired or content).replace("\n", " ")[:220]
-                print(json.dumps(fallback_actions(observation, f"ollama_parse_error: {exc}; content={snippet!r}")))
+                emit(
+                    fallback_actions(observation, f"ollama_parse_error: {exc}; content={snippet!r}"),
+                    merged_usage(model),
+                )
     except (
         subprocess.TimeoutExpired,
         urllib.error.URLError,
@@ -59,12 +76,49 @@ def main() -> None:
         KeyError,
         json.JSONDecodeError,
     ) as exc:
-        print(json.dumps(fallback_actions(observation, f"ollama_error: {exc}")))
+        emit(fallback_actions(observation, f"ollama_error: {exc}"), merged_usage(model))
 
 
-def generate_cli(model: str, prompt: str, timeout: float) -> str:
+def merged_usage(model: str) -> dict[str, Any] | None:
+    if not CALLS:
+        return None
+    input_tokens = [call["input_tokens"] for call in CALLS if "input_tokens" in call]
+    output_tokens = [call["output_tokens"] for call in CALLS if "output_tokens" in call]
+    return make_usage(
+        provider="ollama",
+        model=model,
+        api_calls=len(CALLS),
+        input_tokens=sum(input_tokens) if input_tokens else None,
+        output_tokens=sum(output_tokens) if output_tokens else None,
+        api_latency_ms=round(sum(call["api_latency_ms"] for call in CALLS), 1),
+    )
+
+
+def resolve_think_mode(model: str) -> bool | None:
+    """Decide whether to force the Ollama think switch on, off, or leave unset.
+
+    The `/no_think` prompt prefix is a qwen3-era soft switch that newer thinking
+    models ignore; without the real `think` control they spend the whole
+    generation on reasoning prose and never emit JSON, so every decision falls
+    back. Both qwen3.5 and gemma4 fail this way, so thinking defaults to off for
+    every model; the CLI/HTTP callers retry without the switch when a model or
+    an older Ollama rejects it. `OLLAMA_THINK=1` opts a model back in.
+    """
+    del model
+    setting = os.environ.get("OLLAMA_THINK")
+    if setting is None:
+        return False
+    return setting.strip().lower() not in {"0", "false", "no", "off"}
+
+
+def generate_cli(model: str, prompt: str, timeout: float, think: bool | None = None) -> str:
+    command = ["ollama", "run", model]
+    if think is not None:
+        command.append(f"--think={'true' if think else 'false'}")
+    command.append(prompt)
+    started = time.perf_counter()
     completed = subprocess.run(
-        ["ollama", "run", model, prompt],
+        command,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -72,11 +126,19 @@ def generate_cli(model: str, prompt: str, timeout: float) -> str:
         check=False,
     )
     if completed.returncode != 0:
+        # Older CLIs reject --think, and non-thinking models reject the switch
+        # itself; either way the un-flagged invocation is the right retry.
+        if think is not None and "think" in completed.stderr.lower():
+            return generate_cli(model, prompt, timeout, think=None)
         raise ValueError(completed.stderr[-500:])
+    # The CLI reports no token counts; latency is the only telemetry here.
+    CALLS.append({"api_latency_ms": (time.perf_counter() - started) * 1000.0})
     return strip_terminal_codes(completed.stdout)
 
 
-def generate_http(host: str, model: str, prompt: str, timeout: float, use_json_mode: bool) -> str:
+def generate_http(
+    host: str, model: str, prompt: str, timeout: float, use_json_mode: bool, think: bool | None = None
+) -> str:
     payload: dict[str, object] = {
         "model": model,
         "stream": False,
@@ -86,6 +148,8 @@ def generate_http(host: str, model: str, prompt: str, timeout: float, use_json_m
             "num_predict": int(os.environ.get("OLLAMA_NUM_PREDICT", "512")),
         },
     }
+    if think is not None:
+        payload["think"] = think
     if use_json_mode:
         payload["format"] = "json"
     request = urllib.request.Request(
@@ -94,8 +158,20 @@ def generate_http(host: str, model: str, prompt: str, timeout: float, use_json_m
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        data = json.loads(response.read().decode("utf-8"))
+    started = time.perf_counter()
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        if think is not None and exc.code == 400:
+            return generate_http(host, model, prompt, timeout, use_json_mode, think=None)
+        raise
+    call: dict[str, Any] = {"api_latency_ms": (time.perf_counter() - started) * 1000.0}
+    if isinstance(data.get("prompt_eval_count"), int):
+        call["input_tokens"] = data["prompt_eval_count"]
+    if isinstance(data.get("eval_count"), int):
+        call["output_tokens"] = data["eval_count"]
+    CALLS.append(call)
     return extract_ollama_content(data)
 
 
