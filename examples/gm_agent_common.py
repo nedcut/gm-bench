@@ -7,7 +7,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 try:
     from gm_bench.agent_utils import position_aware_lineup, public_asset_value
@@ -16,6 +16,10 @@ except ModuleNotFoundError:
     # where only examples/ is on sys.path and gm-bench is not necessarily installed.
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from gm_bench.agent_utils import position_aware_lineup, public_asset_value
+
+# decide() may return a bare action list or (actions, usage) for telemetry.
+DecideResult = list[dict[str, Any]] | tuple[list[dict[str, Any]], dict[str, Any] | None]
+DecideFn = Callable[[dict[str, Any]], DecideResult]
 
 
 def compact_observation(observation: dict[str, Any]) -> dict[str, Any]:
@@ -30,63 +34,104 @@ def compact_observation(observation: dict[str, Any]) -> dict[str, Any]:
         free_agent_limit = 16
         draft_limit = 16
         trade_limit = 12
-    team = observation["team"]
-    roster = sorted(team["roster"], key=lambda player: player["overall"], reverse=True)
-    free_agents = sorted(observation["free_agents"], key=public_asset_value, reverse=True)
-    draft_class = sorted(observation["draft_class"], key=public_asset_value, reverse=True)
-    return {
-        "seed": observation["seed"],
-        "season": observation["season"],
-        "phase": observation["phase"],
-        "rules": observation["rules"],
+    team = observation.get("team") or {}
+    roster = team.get("roster") or []
+    roster_sorted = sorted(roster, key=lambda player: player["overall"], reverse=True) if roster else []
+    free_agents = observation.get("free_agents") or []
+    if not free_agents and observation.get("free_agents_summary"):
+        free_agents = [{"id": pid} for pid in observation["free_agents_summary"].get("top_ids", [])]
+    free_agents_sorted = sorted(
+        [player for player in free_agents if isinstance(player, dict) and "overall" in player],
+        key=public_asset_value,
+        reverse=True,
+    )
+    draft_class = observation.get("draft_class") or []
+    if not draft_class and observation.get("draft_class_summary"):
+        draft_class = [{"id": pid} for pid in observation["draft_class_summary"].get("top_ids", [])]
+    draft_sorted = sorted(
+        [player for player in draft_class if isinstance(player, dict) and "overall" in player],
+        key=public_asset_value,
+        reverse=True,
+    )
+    trade_market = observation.get("trade_market") or []
+    payload: dict[str, Any] = {
+        "seed": observation.get("seed"),
+        "season": observation.get("season"),
+        "phase": observation.get("phase"),
+        "observation_tier": observation.get("observation_tier", "full"),
+        "interaction_round": observation.get("interaction_round", 0),
+        "rules": observation.get("rules"),
         "team": {
-            "id": team["id"],
-            "name": team["name"],
-            "wins": team["wins"],
-            "losses": team["losses"],
-            "payroll": team["payroll"],
-            "cap_room": team["cap_room"],
-            "championships": team["championships"],
-            "draft_picks": team["draft_picks"],
-            "top_roster": roster[:roster_limit],
+            "id": team.get("id"),
+            "name": team.get("name"),
+            "wins": team.get("wins"),
+            "losses": team.get("losses"),
+            "payroll": team.get("payroll"),
+            "cap_room": team.get("cap_room"),
+            "championships": team.get("championships"),
+            "draft_picks": team.get("draft_picks"),
+            "top_roster": roster_sorted[:roster_limit] if roster_sorted else team.get("roster_summary"),
         },
-        "free_agents": free_agents[:free_agent_limit],
-        "draft_class": draft_class[:draft_limit],
+        "free_agents": free_agents_sorted[:free_agent_limit],
+        "draft_class": draft_sorted[:draft_limit],
         "draft_order": observation.get("draft_order", []),
-        "trade_market": observation["trade_market"][:trade_limit],
+        "trade_market": trade_market[:trade_limit],
         "incoming_offers": observation.get("incoming_offers", [])[:3],
         "scout_reports": observation.get("scout_reports", {}),
-        "history": observation["history"],
+        "waiver_wire_summary": observation.get("waiver_wire_summary"),
+        "available_actions": observation.get("available_actions", []),
+        "action_results": observation.get("action_results"),
+        "history": observation.get("history"),
         "memo": observation.get("memo", ""),
+        "hint": observation.get("hint"),
     }
+    if observation.get("free_agents_summary"):
+        payload["free_agents_summary"] = observation["free_agents_summary"]
+    if observation.get("draft_class_summary"):
+        payload["draft_class_summary"] = observation["draft_class_summary"]
+    if observation.get("trade_market_summary"):
+        payload["trade_market_summary"] = observation["trade_market_summary"]
+    return payload
 
 
 def build_prompt(observation: dict[str, Any]) -> str:
     compact = compact_observation(observation)
-    fallback_lineup = position_aware_lineup(observation["team"]["roster"])
+    roster = (observation.get("team") or {}).get("roster") or []
+    fallback_lineup = position_aware_lineup(roster) if roster else []
     return (
         "You are controlling a fictional hockey team in GM-Bench. "
         "Choose legal front-office actions that maximize long-term benchmark score: wins, playoffs, titles, young assets, cap health, and valid decisions.\n\n"
         'Return ONLY a JSON object shaped like {"actions":[...]}. Do not use markdown. Do not explain.\n\n'
-        "Allowed action objects inside actions:\n"
+        "Core actions:\n"
         '{"type":"sign_free_agent","player_id":123,"years":1,"salary":2.5}\n'
         '{"type":"draft","prospect_id":1010001}\n'
-        '{"type":"trade","partner_team_id":3,"give_player_ids":[1],"receive_player_ids":[88],"give_pick_seasons":[],"receive_pick_seasons":[4]}\n'
-        '{"type":"accept_offer","offer_id":"offer-3-1-preseason-12-34"}\n'
-        '{"type":"decline_offer","offer_id":"offer-3-1-preseason-12-34"}\n'
+        '{"type":"trade","partner_team_id":3,"give_player_ids":[1],"receive_player_ids":[88],'
+        '"give_pick_seasons":[],"receive_pick_seasons":[4]}\n'
         '{"type":"release","player_id":1}\n'
-        '{"type":"scout","player_id":1010001}\n'
         '{"type":"set_lineup","player_ids":[18 unique roster player ids]}\n'
+        '{"type":"claim_waiver","player_id":55}\n'
         '{"type":"memo","text":"plan notes carried to your next decision"}\n'
+        "Information actions (same-turn results appear in action_results on the next round):\n"
+        '{"type":"inspect_team","team_id":3}\n'
+        '{"type":"inspect_player","player_id":88}\n'
+        '{"type":"list_free_agents","position":"F","min_overall":55,"limit":12}\n'
+        '{"type":"scout","player_id":88} or {"type":"scout","prospect_id":1010001}\n'
+        "Incoming trade negotiation:\n"
+        '{"type":"accept_trade_offer","offer_id":"offer-3-1-preseason-12-34"}\n'
+        '{"type":"reject_trade_offer","offer_id":"offer-3-1-preseason-12-34"}\n'
+        '{"type":"counter_trade_offer","offer_id":"offer-3-1-preseason-12-34","give_player_ids":[2],"receive_player_ids":[9]}\n'
+        '{"type":"end_turn"} to finish an information-gathering round\n'
         '{"type":"noop"}\n\n'
+        "Observations may be summary-tier: use inspect/list/scout before committing. "
         "Public potential ratings are noisy; scout (limited points per season, see rules.scouting) buys a "
         "near-true potential reading, echoed forever in scout_reports — most valuable before drafting or big trades.\n"
-        "Opponents may send you trade offers in incoming_offers; each is valid only for this decision point. "
+        "Opponents may send you trade offers in incoming_offers; accept, reject, or counter them. "
         "Every offer looks fair to the SENDER's private valuation — some are bargains, some dump bad contracts on you. "
         "Judge with public stats before accepting; ignoring an offer is free.\n"
         "Future draft picks are tradeable assets: give_pick_seasons/receive_pick_seasons list future season numbers "
         "(up to rules.pick_trading.max_seasons_ahead ahead; rough values in rules.pick_trading.pick_value_estimate); "
         "owned picks per season are in team.draft_picks and future picks count toward your final score.\n"
+        "Midseason has waiver claims after partial-season games. "
         "Constraints: lineup must include exactly 18 unique current roster players with at least 10 F, 4 D, and 1 G. "
         "Only players in the lineup develop at full speed; the lineup also sets team strength. "
         "Trades: partners privately re-value players, accept at most trade_limit_per_partner trades per season, "
@@ -97,9 +142,14 @@ def build_prompt(observation: dict[str, Any]) -> str:
         "may be gone before your pick. Opponent teams also sign free agents after every phase and trade among "
         "themselves at the deadline, so a free agent visible now may be gone at your next decision. "
         "Use the memo action to carry multi-season plans forward; your last memo "
-        "is echoed in the observation. Do not invent IDs. Keep signings under cap room unless the player is clearly worth it. "
-        f"If unsure, at least set this valid lineup: {json.dumps(fallback_lineup)}.\n\n"
-        f"Observation JSON:\n{json.dumps(compact, sort_keys=True)}"
+        "is echoed in the observation. Review action_results before repeating failed moves. "
+        "Do not invent IDs. Keep signings under cap room unless the player is clearly worth it. "
+        + (
+            f"If unsure, at least set this valid lineup: {json.dumps(fallback_lineup)}.\n\n"
+            if fallback_lineup
+            else "\n"
+        )
+        + f"Observation JSON:\n{json.dumps(compact, sort_keys=True)}"
     )
 
 
@@ -250,9 +300,49 @@ def make_usage(
 def emit(actions: list[dict[str, Any]], usage: dict[str, Any] | None = None) -> None:
     """Print the adapter response: bare list without usage, envelope with it."""
     if usage:
-        print(json.dumps({"actions": actions, "usage": usage}))
+        print(json.dumps({"actions": actions, "usage": usage}), flush=True)
     else:
-        print(json.dumps(actions))
+        print(json.dumps(actions), flush=True)
+
+
+def _unpack_decide_result(result: DecideResult) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    if isinstance(result, tuple):
+        return result[0], result[1]
+    return result, None
+
+
+def run_agent_main(decide: DecideFn) -> None:
+    """Run once per stdin observation, or as a persistent session when GM_BENCH_SESSION=1."""
+    if os.environ.get("GM_BENCH_SESSION") == "1":
+        run_session_loop(decide)
+        return
+    observation = json.load(sys.stdin)
+    actions, usage = _unpack_decide_result(decide(observation))
+    emit(actions, usage)
+
+
+def run_session_loop(decide: DecideFn) -> None:
+    """Line-delimited JSON session: start / observation / action_results / end."""
+    for line in sys.stdin:
+        if not line.strip():
+            continue
+        event = json.loads(line)
+        event_type = event.get("event")
+        if event_type == "end":
+            break
+        if event_type == "start":
+            continue
+        if event_type == "observation":
+            actions, usage = _unpack_decide_result(decide(event["payload"]))
+            emit(actions, usage)
+        elif event_type == "action_results":
+            payload = {
+                "phase": "action_results",
+                "action_results": event.get("results", []),
+                "interaction_round": event.get("round", 0),
+            }
+            actions, usage = _unpack_decide_result(decide(payload))
+            emit(actions, usage)
 
 
 def fallback_actions(observation: dict[str, Any], error: str | None = None) -> list[dict[str, Any]]:
@@ -267,10 +357,12 @@ def fallback_actions(observation: dict[str, Any], error: str | None = None) -> l
     if os.environ.get("GM_AGENT_STRICT", "0") == "1":
         return [{"type": "noop", "model_error": marker}]
     actions: list[dict[str, Any]] = []
-    if observation["phase"] == "draft" and observation["draft_class"]:
-        prospect = max(observation["draft_class"], key=public_asset_value)
+    draft_class = observation.get("draft_class") or []
+    if observation.get("phase") == "draft" and draft_class:
+        prospect = max(draft_class, key=public_asset_value)
         actions.append({"type": "draft", "prospect_id": prospect["id"]})
-    lineup = position_aware_lineup(observation["team"]["roster"])
+    roster = (observation.get("team") or {}).get("roster") or []
+    lineup = position_aware_lineup(roster) if roster else []
     if lineup:
         actions.append({"type": "set_lineup", "player_ids": lineup})
     if not actions:

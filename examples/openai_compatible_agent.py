@@ -12,26 +12,40 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import time
 import urllib.error
 import urllib.request
+from typing import Any
 
 try:
-    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions
+    from gm_agent_common import (
+        build_prompt,
+        fallback_actions,
+        make_usage,
+        parse_actions,
+        run_agent_main,
+    )
 except ModuleNotFoundError:
-    from examples.gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions
+    from examples.gm_agent_common import (
+        build_prompt,
+        fallback_actions,
+        make_usage,
+        parse_actions,
+        run_agent_main,
+    )
 
 
-def main() -> None:
-    observation = json.load(sys.stdin)
+def choose_actions(
+    observation: dict[str, Any],
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    if observation.get("phase") == "action_results":
+        return [{"type": "end_turn"}], None
     api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
     model = os.environ.get("LLM_MODEL", "gpt-4.1-mini")
     base_url = os.environ.get("LLM_API_BASE", "https://api.openai.com/v1").rstrip("/")
     timeout = float(os.environ.get("LLM_TIMEOUT", "120"))
     if not api_key:
-        emit(fallback_actions(observation, "missing LLM_API_KEY or OPENAI_API_KEY"))
-        return
+        return fallback_actions(observation, "missing LLM_API_KEY or OPENAI_API_KEY"), None
 
     payload = {
         "model": model,
@@ -66,11 +80,15 @@ def main() -> None:
             api_latency_ms=latency_ms,
         )
         content = data["choices"][0]["message"]["content"]
-        emit(parse_actions(content), usage)
+        return parse_actions(content), usage
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         usage = make_usage(provider="openai", model=model, api_calls=1, api_latency_ms=latency_ms)
-        emit(fallback_actions(observation, f"api_error: {exc}"), usage)
+        return fallback_actions(observation, f"api_error: {exc}"), usage
+
+
+def main() -> None:
+    run_agent_main(choose_actions)
 
 
 if __name__ == "__main__":

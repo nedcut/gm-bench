@@ -19,7 +19,15 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions, strip_terminal_codes
+    from gm_agent_common import (
+        build_prompt,
+        emit,
+        fallback_actions,
+        make_usage,
+        parse_actions,
+        run_session_loop,
+        strip_terminal_codes,
+    )
 except ModuleNotFoundError:
     from examples.gm_agent_common import (
         build_prompt,
@@ -27,6 +35,7 @@ except ModuleNotFoundError:
         fallback_actions,
         make_usage,
         parse_actions,
+        run_session_loop,
         strip_terminal_codes,
     )
 
@@ -51,8 +60,12 @@ def load_action_schema() -> dict[str, Any] | None:
         return None
 
 
-def main() -> None:
-    observation = json.load(sys.stdin)
+def choose_actions(
+    observation: dict[str, Any],
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    if observation.get("phase") == "action_results":
+        return [{"type": "end_turn"}], None
+    CALLS.clear()
     model = os.environ.get("OLLAMA_MODEL", "gemma4:e4b")
     os.environ.setdefault("GM_AGENT_PROFILE", "tiny")
     think = resolve_think_mode(model)
@@ -63,7 +76,7 @@ def main() -> None:
     try:
         content = generate(host, model, prompt, timeout, schema, think=think)
         try:
-            emit(parse_actions(content), merged_usage(model))
+            return parse_actions(content), merged_usage(model)
         except ValueError as exc:
             repair_prompt = (
                 f"{prompt}\n\nYour previous answer was invalid: {str(content)[:300]!r}. "
@@ -75,10 +88,10 @@ def main() -> None:
             # *something* parseable, guided by the textual instruction above.
             repaired = generate(host, model, repair_prompt, timeout, None, think=think)
             try:
-                emit(parse_actions(repaired), merged_usage(model))
+                return parse_actions(repaired), merged_usage(model)
             except ValueError:
                 snippet = str(repaired or content).replace("\n", " ")[:220]
-                emit(
+                return (
                     fallback_actions(observation, f"ollama_parse_error: {exc}; content={snippet!r}"),
                     merged_usage(model),
                 )
@@ -90,7 +103,7 @@ def main() -> None:
         KeyError,
         json.JSONDecodeError,
     ) as exc:
-        emit(fallback_actions(observation, f"ollama_error: {exc}"), merged_usage(model))
+        return fallback_actions(observation, f"ollama_error: {exc}"), merged_usage(model)
 
 
 def merged_usage(model: str) -> dict[str, Any] | None:
@@ -257,6 +270,17 @@ def extract_ollama_content(data: dict[str, object]) -> str:
         if isinstance(candidate, str) and candidate.strip():
             return candidate
     return json.dumps(data)[:1000]
+
+
+def main() -> None:
+    # One-shot keeps json.load + emit on this module so existing adapter tests
+    # can monkeypatch them; session mode uses the shared line-delimited loop.
+    if os.environ.get("GM_BENCH_SESSION") == "1":
+        run_session_loop(choose_actions)
+        return
+    observation = json.load(sys.stdin)
+    actions, usage = choose_actions(observation)
+    emit(actions, usage)
 
 
 if __name__ == "__main__":
