@@ -33,6 +33,12 @@ The MVP includes:
 - An external-process protocol for plugging in LLM agents, including a
   persistent `memo` scratchpad for carrying multi-season plans between
   decision points.
+- Protocol v2 (`gm-bench-v2`): four phases per season (including midseason
+  injuries and waivers), multi-round decision windows with query actions and
+  same-turn `action_results`, trade negotiation (`accept_trade_offer` /
+  `reject_trade_offer` / `counter_trade_offer`), tiered observations
+  (`full` / `summary`), and optional persistent subprocess sessions per
+  episode.
 
 ## Leaderboard & Website
 
@@ -76,7 +82,7 @@ command. It wires a built-in provider adapter, runs the candidate on your seed
 panel, and compares against scripted baselines with paired lift statistics.
 
 ```bash
-# Quick smoke test (1 seed, 1 season, 3 LLM calls)
+# Quick smoke test (1 seed, 1 season, 4 LLM calls)
 LLM_API_KEY=... python -m gm_bench model \
   --provider openai \
   --model gpt-4.1-mini \
@@ -127,9 +133,9 @@ Presets:
 
 | Preset | Seeds | Seasons | LLM calls per seed | Total LLM calls |
 |--------|-------|---------|--------------------|-----------------|
-| `smoke` | 1 | 1 | 3 | 3 |
-| `standard` | 3 | 3 | 9 | 27 |
-| `benchmark` | 5 | 5 | 15 | 75 |
+| `smoke` | 1 | 1 | 4 | 4 |
+| `standard` | 3 | 3 | 12 | 36 |
+| `benchmark` | 5 | 5 | 20 | 100 |
 
 Every preset pins the `compact` observation profile so scores from the same
 preset are comparable across providers (provider defaults otherwise differ —
@@ -197,21 +203,82 @@ bun run build  # static production build in web/dist/
 
 ## External Agent Protocol
 
-External agents are launched once per decision point. The runner writes an
-observation JSON object to stdin and expects a JSON array of actions on stdout.
+The default episode uses protocol v2 (`benchmark: "gm-bench-v2"` in every
+observation). Each season has four decision phases:
+
+- `preseason`
+- `midseason` — partial-season games, standings update, injuries, and a waiver
+  wire (`claim_waiver`)
+- `trade_deadline` — opponent trade proposals in `incoming_offers`
+- `draft`
+
+By default the runner launches external agents once per decision point: one
+observation JSON object on stdin, a JSON action list (or `{"actions": [...],
+"usage": {...}}` envelope) on stdout. For a persistent subprocess that stays
+alive across the whole episode, use a session-capable adapter with
+`GM_BENCH_SESSION=1` (see `examples/gm_agent_common.py`); the runner exchanges
+line-delimited `start` / `observation` / `action_results` / `end` events and
+only times the first round of each decision for usage telemetry.
 
 ```bash
 python -m gm_bench run --agent-cmd "python examples/external_agent.py" --seeds 1 --seasons 3
+python -m gm_bench run --agent-cmd "python examples/openai_compatible_agent.py" \
+  --seeds 1 --seasons 1
 ```
 
-Each action is an object:
+### Multi-round decision windows
+
+Within each phase the agent may take up to five interaction rounds. Query actions
+return results in the same window; the runner echoes them as `action_results` on
+the next round (with `interaction_round` incremented):
+
+- `inspect_team` — roster and cap detail for one team
+- `inspect_player` — full public card for one player
+- `list_free_agents` — filtered free-agent list
+- `scout` — spend a scouting point for a near-true `true_potential` reading
+  (persisted in `scout_reports`)
+
+Send `end_turn` to stop gathering information and close the window. Core roster
+moves (`sign_free_agent`, `trade`, `draft`, etc.) apply immediately and also
+end the multi-round loop unless followed by more query actions in the same
+response. Review `action_results` before repeating failed moves.
+
+### Observation tiers
+
+Observations carry `observation_tier`: `full` (default for built-in scripted
+agents) or `summary`. Summary tier replaces long lists with compact
+`*_summary` blocks (`free_agents_summary`, `draft_class_summary`,
+`waiver_wire_summary`, …) and a hint to use query actions. External agents
+receive the tier configured for the run; use inspect/list/scout before
+committing when on summary tier.
+
+### Actions
+
+Each action is an object. Core moves:
 
 ```json
 {"type": "sign_free_agent", "player_id": 123, "years": 2, "salary": 4.2}
-{"type": "trade", "partner_team_id": 3, "give_player_ids": [11], "receive_player_ids": [87]}
+{"type": "trade", "partner_team_id": 3, "give_player_ids": [11], "receive_player_ids": [87], "give_pick_seasons": [], "receive_pick_seasons": [4]}
 {"type": "draft", "prospect_id": 9001}
 {"type": "set_lineup", "player_ids": [1, 2, 3, 4, 5, 6]}
+{"type": "claim_waiver", "player_id": 55}
 {"type": "memo", "text": "rebuild through season 3, then spend cap room"}
+```
+
+Trade negotiation (when `incoming_offers` is non-empty):
+
+```json
+{"type": "accept_trade_offer", "offer_id": "offer-3-1-trade_deadline-12-34"}
+{"type": "reject_trade_offer", "offer_id": "offer-3-1-trade_deadline-12-34"}
+{"type": "counter_trade_offer", "offer_id": "offer-3-1-trade_deadline-12-34", "give_player_ids": [2], "receive_player_ids": [9]}
+```
+
+`accept_offer` and `decline_offer` remain accepted aliases. Query and control:
+
+```json
+{"type": "inspect_team", "team_id": 3}
+{"type": "scout", "player_id": 88}
+{"type": "end_turn"}
 ```
 
 Invalid actions are ignored and penalized. Observations intentionally include
@@ -242,8 +309,13 @@ Key mechanics agents should know:
   strength directly, and players outside the lineup develop at half speed.
   Stale lineups (after trades or expiring contracts) are repaired
   automatically at simulation time.
+- Midseason simulates roughly 35% of the regular season, updates standings
+  and player morale, generates injuries, and populates `waiver_wire` with
+  players opponents waived. `claim_waiver` is only legal in that phase.
 - Each opponent accepts at most `trade_limit_per_partner` trades per season,
-  and no trade may shrink a roster below `roster_min`.
+  and no trade may shrink a roster below `roster_min`. Opponents may send
+  incoming trade offers at the deadline; judge them with public stats before
+  accepting — every offer looks fair to the sender's hidden valuation.
 - Opponents draft in inverse-standings order around your slot, so the draft
   class you see at your pick already reflects earlier selections.
 - Opponent front offices act after every phase: they sign free agents (both
@@ -252,10 +324,11 @@ Key mechanics agents should know:
   the next decision point, and opponent trades appear in
   `recent_transactions` as market signal.
 - `memo` stores up to 2000 characters that are echoed back in every future
-  observation — the only state that persists across decision points for
-  stateless external agents. `text` must be a JSON string; a null or missing
-  `text` (allowed by the structured-output wrapper schema, where every field
-  is nullable) is rejected as an invalid action.
+  observation — the only cross-decision memory for stateless one-shot
+  agents. Persistent-session adapters can also keep in-process state between
+  rounds. `text` must be a JSON string; a null or missing `text` (allowed by
+  the structured-output wrapper schema, where every field is nullable) is
+  rejected as an invalid action.
 
 ### Adapter reliability accounting
 
@@ -514,9 +587,11 @@ evaluation focuses on decision quality rather than browser-control reliability
 or memorized sports data.
 
 Multi-season coherence is testable in practice because external agents are
-stateless between decision points: the `memo` action is the only channel for
-carrying a plan forward, so agents that form and follow multi-season plans are
-distinguishable from agents that re-derive greedy moves each call.
+stateless between decision points by default: the `memo` action is the primary
+channel for carrying a plan forward, so agents that form and follow multi-season
+plans are distinguishable from agents that re-derive greedy moves each call.
+Persistent-session adapters can additionally keep in-process memory across
+rounds within an episode.
 
 Model-backed scores are also attributed: adapters tag substituted actions
 (`model_error`/`error`), and every result reports how many decision points the
