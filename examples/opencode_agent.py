@@ -12,6 +12,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from typing import Any
 
@@ -28,9 +29,19 @@ def main() -> None:
     command = ["opencode", "run", "--model", model, "--format", "json", "--pure", build_prompt(observation)]
     started = time.perf_counter()
     try:
-        completed = subprocess.run(
-            command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout, check=False
-        )
+        # opencode is a coding agent that can read files; run it from a
+        # throwaway directory with no view of this repo so it cannot open
+        # gm_bench/simulator.py and recompute the hidden valuations from the seed.
+        with tempfile.TemporaryDirectory() as scratch:
+            completed = subprocess.run(
+                command,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=timeout,
+                check=False,
+                cwd=scratch,
+            )
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         input_tokens, output_tokens, cost = extract_opencode_usage(completed.stdout)
         usage = make_usage(
