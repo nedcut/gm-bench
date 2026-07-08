@@ -34,6 +34,10 @@ TRADE_LIMIT_PER_PARTNER = 2
 MEMO_MAX_CHARS = 2000
 HARD_CAP_BUFFER = 8.0
 PICK_ASSET_VALUE = 14.0
+# A full season is this many games per team pairing. When a midseason break
+# splits the season, the pre- and post-break legs must sum to exactly this so a
+# midseason episode plays the same total schedule as a --no-midseason one.
+REGULAR_SEASON_GAMES_PER_PAIR = 3
 
 
 @dataclass
@@ -58,6 +62,7 @@ class League:
     scouted_players: dict[int, dict[str, float]] = field(default_factory=dict)
     scouts_used_this_season: int = 0
     partial_season_played: bool = False
+    partial_games_per_pair: int = 0
     _incoming_offer_counter: int = 0
 
     @classmethod
@@ -162,7 +167,11 @@ class League:
             actions.append("draft")
         if phase == "midseason":
             actions.append("claim_waiver")
-        if phase in {"trade_deadline", "midseason", "preseason"}:
+        # Advertise negotiation actions from actual state, not the phase name:
+        # they only apply to a pending incoming offer, which exists solely at the
+        # trade deadline. Listing them when the offer queue is empty would tempt
+        # an agent into an "offer not found" move that is penalized as illegal.
+        if self.incoming_trade_offers:
             actions.extend(["accept_trade_offer", "reject_trade_offer", "counter_trade_offer"])
         return actions
 
@@ -241,7 +250,10 @@ class League:
     def simulate_partial_season(self, fraction: float) -> None:
         rng = self._rng("partial_season")
         ratings = {team.id: self._team_strength(team, apply_injury_noise=True, rng=rng) for team in self.teams.values()}
-        games_per_pair = max(1, int(3 * fraction))
+        # Round (not truncate) so the pre-break leg keeps its intended share, and
+        # record it so simulate_season can play the exact complement.
+        games_per_pair = max(1, min(REGULAR_SEASON_GAMES_PER_PAIR - 1, round(REGULAR_SEASON_GAMES_PER_PAIR * fraction)))
+        self.partial_games_per_pair = games_per_pair
         for home in self.teams.values():
             for away in self.teams.values():
                 if home.id >= away.id:
@@ -279,9 +291,11 @@ class League:
             for team in self.teams.values():
                 team.wins = 0
                 team.losses = 0
-            games_per_pair = 3
+            games_per_pair = REGULAR_SEASON_GAMES_PER_PAIR
         else:
-            games_per_pair = max(1, int(3 * (1.0 - PARTIAL_SEASON_FRACTION)))
+            # Play exactly the games the midseason leg didn't, so the two legs
+            # sum to a full season rather than truncating each independently.
+            games_per_pair = max(1, REGULAR_SEASON_GAMES_PER_PAIR - self.partial_games_per_pair)
         ratings = {team.id: self._team_strength(team, apply_injury_noise=True, rng=rng) for team in self.teams.values()}
         for home in self.teams.values():
             for away in self.teams.values():
@@ -317,6 +331,7 @@ class League:
         self.incoming_trade_offers = []
         self.waiver_wire = []
         self.partial_season_played = False
+        self.partial_games_per_pair = 0
         for team in self.teams.values():
             team.draft_picks.setdefault(self.season, 1)
         self.prospects = generate_draft_class(self.seed, self.season, self.num_teams * 5)

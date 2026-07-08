@@ -36,8 +36,12 @@ def simulation_fingerprint() -> str:
     return digest.hexdigest()[:12]
 
 
-def cache_key(agent_name: str, seed: int, seasons: int) -> str:
-    return f"v{CACHE_VERSION}:{simulation_fingerprint()}:{agent_name}:{seed}:{seasons}"
+def cache_key(agent_name: str, seed: int, seasons: int, config_fingerprint: str = "") -> str:
+    base = f"v{CACHE_VERSION}:{simulation_fingerprint()}:{agent_name}:{seed}:{seasons}"
+    # The default episode config appends nothing, so its keys stay identical to
+    # the historical cache; non-default configs (e.g. --no-midseason) get their
+    # own bucket instead of silently reusing default-config baseline scores.
+    return f"{base}:{config_fingerprint}" if config_fingerprint else base
 
 
 def load_cache(path: str | Path | None = None) -> dict[str, dict[str, Any]]:
@@ -70,11 +74,12 @@ def get_cached_episode(
     seed: int,
     seasons: int,
     *,
+    config_fingerprint: str = "",
     cache: dict[str, dict[str, Any]] | None = None,
     cache_path: str | Path | None = None,
 ) -> dict[str, Any] | None:
     store = cache if cache is not None else load_cache(cache_path)
-    return store.get(cache_key(agent_name, seed, seasons))
+    return store.get(cache_key(agent_name, seed, seasons, config_fingerprint))
 
 
 def put_cached_episode(
@@ -83,6 +88,7 @@ def put_cached_episode(
     seasons: int,
     episode: dict[str, Any],
     *,
+    config_fingerprint: str = "",
     cache: dict[str, dict[str, Any]],
 ) -> None:
-    cache[cache_key(agent_name, seed, seasons)] = episode
+    cache[cache_key(agent_name, seed, seasons, config_fingerprint)] = episode

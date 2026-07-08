@@ -5,10 +5,13 @@ from __future__ import annotations
 from gm_bench.agents import RandomAgent, ValueAgent
 from gm_bench.runner import run_episode, run_many
 
+# Regenerated after the midseason schedule fix: the pre- and post-break legs now
+# sum to a full 3-games-per-pairing season instead of the truncated 2, which
+# changes standings, morale, and draft order — and therefore these scores.
 GOLDEN_VALUE_SCORES_5_SEASONS = {
-    1: 289.231,
-    2: 316.833,
-    3: 274.847,
+    1: 279.039,
+    2: 374.969,
+    3: 305.513,
 }
 
 

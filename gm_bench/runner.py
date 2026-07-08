@@ -208,9 +208,12 @@ def run_many_cached_baselines(
     episodes: list[dict[str, Any]] = []
     cache_hits = 0
     agent = AGENTS[agent_name]()
+    # Non-default configs (e.g. --no-midseason) play different episodes; key the
+    # cache on them so they never reuse default-config baseline scores.
+    config_fingerprint = (config or EpisodeConfig()).baseline_cache_fingerprint()
 
     for seed in seeds:
-        key = cache_key(agent_name, seed, seasons)
+        key = cache_key(agent_name, seed, seasons, config_fingerprint)
         cached = cache.get(key) if use_cache else None
         if cached is not None:
             episodes.append(cached)
@@ -220,7 +223,7 @@ def run_many_cached_baselines(
         episode = result.__dict__
         episodes.append(episode)
         if use_cache:
-            put_cached_episode(agent_name, seed, seasons, episode, cache=cache)
+            put_cached_episode(agent_name, seed, seasons, episode, config_fingerprint=config_fingerprint, cache=cache)
 
     if use_cache and cache_hits < len(seeds):
         save_cache(cache, cache_path)

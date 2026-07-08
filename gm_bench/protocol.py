@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -83,3 +85,26 @@ class EpisodeConfig:
     strict: bool = False
     include_midseason: bool = True
     builtin_full_observation: bool = True
+
+    def baseline_cache_fingerprint(self) -> str:
+        """Fingerprint the fields that change a played-out episode.
+
+        Two runs whose configs differ here produce different episodes, so their
+        cached baseline scores must not collide. ``persistent_session`` is
+        excluded: it only selects the candidate's transport and never alters an
+        in-process scripted baseline. The default config returns ``""`` so its
+        keys stay identical to the historical cache and keep hitting.
+        """
+
+        default = EpisodeConfig()
+        relevant = (
+            "observation_tier",
+            "max_interaction_rounds",
+            "strict",
+            "include_midseason",
+            "builtin_full_observation",
+        )
+        if all(getattr(self, name) == getattr(default, name) for name in relevant):
+            return ""
+        payload = json.dumps({name: getattr(self, name) for name in relevant}, sort_keys=True)
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
