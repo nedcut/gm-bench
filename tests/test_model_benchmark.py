@@ -12,8 +12,13 @@ from gm_bench import cli as cli_module
 from gm_bench.agents import AGENTS, ValueAgent
 from gm_bench.baseline_cache import cache_key, get_cached_episode, load_cache, save_cache
 from gm_bench.benchmark_config import BenchmarkConfig, config_from_dict, load_config
+from gm_bench.contract import contract_fingerprint
 from gm_bench.providers import build_provider_agent, resolve_provider
 from gm_bench.runner import evaluate_against_baselines, run_many, run_many_cached_baselines, summarize_episodes
+
+
+def test_baseline_cache_tracks_the_score_affecting_contract() -> None:
+    assert baseline_cache_module.simulation_fingerprint() == contract_fingerprint()[:12]
 
 
 def test_provider_registry_resolves_openai() -> None:

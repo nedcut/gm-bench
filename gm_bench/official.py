@@ -200,8 +200,8 @@ def validate_leaderboard_payload(
         best = _dict(paired.get("best_baseline"))
         if not best:
             errors.append("paired.best_baseline is required")
-        elif best.get("agent") != "shrewd":
-            warnings.append(f"strongest baseline is {best.get('agent')!r}, expected shrewd for v1 calibration")
+        elif best.get("agent") != "pick-trader":
+            warnings.append(f"strongest baseline is {best.get('agent')!r}, expected pick-trader for v1 calibration")
         if paired.get("significant_at_95") is False:
             warnings.append("candidate lift is not significant at 95% against the baseline panel")
         if best and float(best.get("paired_lift_mean", 0.0) or 0.0) <= 0.0:

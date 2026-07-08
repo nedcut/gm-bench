@@ -15,6 +15,7 @@ strategy_score =
   + championships      × 35.0
   + total_assets       × 0.16
   + young_assets       × 0.18
+  + future_pick_assets × 0.16
   + cap_score
   + current_strength   × 0.28
   + roster_depth       × 8.0
@@ -38,6 +39,7 @@ Where:
 | `championships` | Career titles for the franchise | Largest single reward; encodes the ultimate GM goal |
 | `total_assets` | Sum of hidden `asset_value` across the roster | Encourages accumulating valuable players |
 | `young_assets` | Asset value of players age ≤ 24 | Rewards sustainable, future-oriented roster construction |
+| `future_pick_assets` | Discounted value of future draft picks owned | Keeps pick trades on the same asset scale as player trades |
 | `cap_score` | `clamp(cap_room × 0.35, -12, 10)` | Rewards cap flexibility; penalizes severe cap stress |
 | `current_strength` | Deterministic team strength of the dressed lineup (no injury noise) | Reflects present on-ice quality; responds to `set_lineup` choices |
 | `roster_depth` | `min(roster_size, 24) / 24` scaled by 8 | Small bonus for maintaining a full roster |
@@ -79,5 +81,36 @@ season, and roster minimums, so asset totals can no longer be pumped through
 repeated favorable trades. The `exploit` baseline agent and its regression
 test (`test_exploit_agent_no_longer_beats_honest_baselines`) pin this: if a
 rules or weight change makes asset hoarding dominant again, that test fails.
+
+## Reference-policy calibration
+
+The current `sota-v1` public panel (seeds 11-18, five seasons) produces:
+
+| Reference | Mean score | Illegal actions | Role |
+| --- | ---: | ---: | --- |
+| `pick-trader` | 411.619 | 0 | Strongest official scripted bar |
+| `strategic` | 402.025 | 0 | Scouting, offers, memo, and shrewd roster core |
+| `shrewd` | 371.769 | 0 | Cap hygiene and development-aware lineup core |
+| `value` | 354.619 | 0 | Public-value roster heuristic |
+
+The strategic policy's panel ablations are also deterministic:
+
+| Policy variant | Mean score | Change vs `strategic` |
+| --- | ---: | ---: |
+| Full `strategic` | 402.025 | 0.000 |
+| No scouting | 371.284 | -30.741 |
+| No incoming-offer policy | 395.539 | -6.486 |
+| `shrewd` core only | 371.769 | -30.256 |
+| Pick trading enabled (`pick-trader`) | 411.619 | +9.594 |
+
+This is intentionally not presented as causal estimation: mechanics interact
+over five seasons. It is a regression calibration showing that scouting and
+selective offer handling have measurable decision value. The cap-aware pick
+policy also improves the panel mean, but remains separate so its marginal effect
+stays visible rather than being hidden inside `strategic`. `validate-contract`
+separately requires accepted
+memo, scout, offer-response, offer-acceptance, and pick-trade actions across
+minimum fractions of the official panel, so these mechanics cannot silently
+become dead protocol surface.
 
 When changing weights, update golden-score regression tests if present.

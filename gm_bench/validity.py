@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from gm_bench.agent_utils import position_aware_lineup, public_asset_value
-from gm_bench.agents import Agent, ExploitAgent, ShrewdAgent, ValueAgent
+from gm_bench.agents import Agent, ExploitAgent, PickTraderAgent, ShrewdAgent, StrategicAgent, ValueAgent
 from gm_bench.benchmark_config import PRESETS
 from gm_bench.models import ROSTER_MIN
 from gm_bench.runner import run_many
 
 CANARY_MIN_FINAL_MARGIN = 25.0
 CANARY_MIN_STRATEGY_MARGIN = 25.0
+MECHANIC_MIN_SEED_RATES = {
+    "memo": 0.75,
+    "scouting": 0.75,
+    "offer_response": 0.75,
+    "accepted_offer": 0.25,
+    "pick_trade": 0.25,
+}
 
 
 class PickHoardAgent(Agent):
@@ -121,11 +129,19 @@ def run_validity_canaries(
 
     value = run_many(ValueAgent(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1)
     shrewd = run_many(ShrewdAgent(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1)
+    strategic = run_many(StrategicAgent(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1)
+    pick_trader = run_many(PickTraderAgent(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1)
     canaries = [
         run_many(agent_cls(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1) for agent_cls in CANARY_AGENTS
     ]
 
-    checks = [_margin_check(shrewd, value, "shrewd", "value", "honest_bar")]
+    mechanic_coverage, mechanic_checks = _mechanic_coverage(pick_trader, len(resolved_seeds))
+    checks = [
+        _margin_check(pick_trader, strategic, "pick-trader", "strategic", "honest_bar"),
+        _margin_check(strategic, shrewd, "strategic", "shrewd", "honest_bar"),
+        _margin_check(shrewd, value, "shrewd", "value", "honest_bar"),
+        *mechanic_checks,
+    ]
     for canary in canaries:
         checks.append(_margin_check(value, canary, "value", canary["agent"], "canary_final_score"))
         checks.append(_strategy_margin_check(value, canary, "value", canary["agent"]))
@@ -134,10 +150,72 @@ def run_validity_canaries(
         "ok": all(check["ok"] for check in checks),
         "seeds": resolved_seeds,
         "seasons": resolved_seasons,
-        "baselines": [_summary_row(shrewd), _summary_row(value)],
+        "baselines": [
+            _summary_row(pick_trader),
+            _summary_row(strategic),
+            _summary_row(shrewd),
+            _summary_row(value),
+        ],
+        "mechanic_coverage": mechanic_coverage,
         "canaries": [_summary_row(result) for result in canaries],
         "checks": checks,
     }
+
+
+def _mechanic_coverage(
+    result: dict[str, Any],
+    seed_count: int,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    covered_seeds: dict[str, set[int]] = {name: set() for name in MECHANIC_MIN_SEED_RATES}
+    accepted_actions: dict[str, int] = {name: 0 for name in MECHANIC_MIN_SEED_RATES}
+    for episode in result["episodes"]:
+        seed = int(episode["seed"])
+        for transaction in episode["transactions"]:
+            if transaction.get("team_id") != 0 or not transaction.get("accepted"):
+                continue
+            action = transaction.get("action") or {}
+            action_type = action.get("type")
+            mechanics: list[str] = []
+            if action_type == "memo":
+                mechanics.append("memo")
+            if action_type == "scout":
+                mechanics.append("scouting")
+            if action_type in {"accept_trade_offer", "reject_trade_offer", "counter_trade_offer"}:
+                mechanics.append("offer_response")
+            if action_type == "accept_trade_offer":
+                mechanics.append("accepted_offer")
+            if action_type == "trade" and (action.get("give_pick_seasons") or action.get("receive_pick_seasons")):
+                mechanics.append("pick_trade")
+            for mechanic in mechanics:
+                accepted_actions[mechanic] += 1
+                covered_seeds[mechanic].add(seed)
+
+    rows: list[dict[str, Any]] = []
+    checks: list[dict[str, Any]] = []
+    for mechanic, minimum_rate in MECHANIC_MIN_SEED_RATES.items():
+        minimum_seeds = max(1, math.ceil(seed_count * minimum_rate))
+        observed = len(covered_seeds[mechanic])
+        rows.append(
+            {
+                "mechanic": mechanic,
+                "accepted_actions": accepted_actions[mechanic],
+                "seed_count": observed,
+                "seed_rate": round(observed / max(seed_count, 1), 3),
+                "minimum_seed_count": minimum_seeds,
+            }
+        )
+        checks.append(
+            {
+                "name": "mechanic_coverage",
+                "winner": result["agent"],
+                "loser": f"missing-{mechanic}",
+                "metric": "seed_count",
+                "margin": observed,
+                "minimum_margin": minimum_seeds,
+                "ok": observed >= minimum_seeds,
+            }
+        )
+    return rows, checks
 
 
 def _margin_check(

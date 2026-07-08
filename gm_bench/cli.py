@@ -453,10 +453,20 @@ def _validate_contract_command(args: argparse.Namespace) -> None:
         print("honest baselines:")
         for row in result["baselines"]:
             print(_validity_row(row))
+        if result.get("mechanic_coverage"):
+            print("mechanic coverage:")
+            for row in result["mechanic_coverage"]:
+                status = "ok" if row["seed_count"] >= row["minimum_seed_count"] else "error"
+                print(
+                    f"  {status}: {row['mechanic']} accepted={row['accepted_actions']} "
+                    f"seeds={row['seed_count']} min={row['minimum_seed_count']}"
+                )
         print("canaries:")
         for row in result["canaries"]:
             print(_validity_row(row))
         for check in result["checks"]:
+            if check.get("name") == "mechanic_coverage":
+                continue
             prefix = "ok" if check["ok"] else "error"
             print(
                 f"{prefix}: {check['winner']} over {check['loser']} "

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+
+from gm_bench.contract import contract_fingerprint
 
 CACHE_VERSION = 1
 _PACKAGE_DIR = Path(__file__).resolve().parent
@@ -20,20 +21,11 @@ def default_cache_path() -> Path:
     return Path(override) if override else DEFAULT_CACHE_PATH
 
 
-# A cached baseline episode is a pure function of the seed, the season count,
-# and the code that plays it out: the scripted agents, the episode loop in
-# runner.py, the simulator, and the scoring. Any edit to these files must
-# invalidate the cache, otherwise stale baseline scores silently bias every
-# lift statistic.
-_FINGERPRINT_SOURCES = ("agents.py", "runner.py", "scoring.py", "simulator.py")
-
-
 @lru_cache(maxsize=1)
 def simulation_fingerprint() -> str:
-    digest = hashlib.sha256()
-    for filename in _FINGERPRINT_SOURCES:
-        digest.update((_PACKAGE_DIR / filename).read_bytes())
-    return digest.hexdigest()[:12]
+    """Use the score-affecting benchmark contract to invalidate cached episodes."""
+
+    return contract_fingerprint()[:12]
 
 
 def cache_key(agent_name: str, seed: int, seasons: int, config_fingerprint: str = "") -> str:

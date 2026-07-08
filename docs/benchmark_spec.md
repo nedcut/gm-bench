@@ -119,8 +119,7 @@ Optional persistent sessions keep one subprocess alive for the entire episode.
 The runner sends line-delimited JSON events (`start`, `observation`,
 `action_results`, `end`); session-capable adapters set `GM_BENCH_SESSION=1` and
 respond with actions after each event. This preserves in-process state across
-rounds and phases while still reporting per-decision usage on the first round
-of each window.
+rounds and phases while still reporting usage for every interaction round.
 
 Actions are validated by the simulator. Invalid actions are ignored and counted
 as penalties. Legal-but-declined offers are different: a trade rejected as too
@@ -174,7 +173,7 @@ pick is replenished each season, so episodes of any length keep a draft.
 
 ## Built-In Agents
 
-The MVP includes seven scripted baselines:
+The MVP includes nine scripted references and diagnostics:
 
 - `random`: noisy but valid roster moves.
 - `conservative`: value signings and best public prospects.
@@ -183,11 +182,11 @@ The MVP includes seven scripted baselines:
 - `value`: balances public overall, potential, age, and price.
 - `shrewd`: a stronger-on-average honest reference — `value` plus releasing
   clearly-negative veteran contracts before shopping and dressing high-upside
-  youth so they develop at full speed. The youth bet wins the panel mean
-  (roughly +6-7 lift over `value` at 3 seasons across seeds 1-30) but loses
-  individual seeds, so a regression test pins the panel-mean advantage, not
-  per-seed dominance. Use its panel average as the bar a model-backed
-  candidate should clear before its score means anything.
+  youth so they develop at full speed.
+- `strategic`: `shrewd` plus report-driven scouting, selective incoming-offer
+  responses, and a persistent plan memo.
+- `pick-trader`: the strongest official reference — `strategic` plus cap-aware,
+  conservative future-pick acquisitions.
 - `exploit`: a red-team canary that replays historically degenerate strategies
   (trade value-pumping, free-agent hoarding). A regression test pins it below
   `value`; if a rules change re-opens an exploit, the canary jumps and CI fails.

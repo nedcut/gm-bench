@@ -1,34 +1,44 @@
 {
   "baselines": [
     {
+      "agent": "pick-trader",
+      "mean_score": 411.619,
+      "score_stddev": 50.64
+    },
+    {
+      "agent": "strategic",
+      "mean_score": 402.025,
+      "score_stddev": 49.4
+    },
+    {
       "agent": "shrewd",
-      "mean_score": 320.127,
-      "score_stddev": 39.303
+      "mean_score": 371.769,
+      "score_stddev": 47.86
     },
     {
       "agent": "value",
-      "mean_score": 282.223,
-      "score_stddev": 45.09
+      "mean_score": 354.619,
+      "score_stddev": 31.492
     },
     {
       "agent": "win-now",
-      "mean_score": 217.43,
-      "score_stddev": 34.309
-    },
-    {
-      "agent": "rebuild",
-      "mean_score": 79.487,
-      "score_stddev": 10.859
+      "mean_score": 275.834,
+      "score_stddev": 45.055
     },
     {
       "agent": "conservative",
-      "mean_score": 76.081,
-      "score_stddev": 6.644
+      "mean_score": 139.098,
+      "score_stddev": 19.361
+    },
+    {
+      "agent": "rebuild",
+      "mean_score": 138.745,
+      "score_stddev": 15.887
     },
     {
       "agent": "random",
-      "mean_score": 51.394,
-      "score_stddev": 9.081
+      "mean_score": 96.932,
+      "score_stddev": 17.776
     }
   ],
   "models": [
@@ -76,10 +86,12 @@
       "sota_v1_issues": [
         "run_info.benchmark_contract is required for current-contract validation",
         "run_info.seed_panel is required for official seed-panel validation",
+        "baselines must be ['random', 'conservative', 'win-now', 'rebuild', 'value', 'shrewd', 'strategic', 'pick-trader'], got ['random', 'conservative', 'win-now', 'rebuild', 'value', 'shrewd']",
         "candidate.repeats must be >= 3 for sota-v1",
         "candidate decision_failure_rate 0.108 exceeds 0.020 for sota-v1",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
+        "strongest baseline is 'shrewd', expected pick-trader for v1 calibration",
         "candidate does not beat the strongest scripted baseline"
       ],
       "tokens_per_decision": 4307.9,
@@ -129,10 +141,12 @@
       "sota_v1_issues": [
         "run_info.benchmark_contract is required for current-contract validation",
         "run_info.seed_panel is required for official seed-panel validation",
+        "baselines must be ['random', 'conservative', 'win-now', 'rebuild', 'value', 'shrewd', 'strategic', 'pick-trader'], got ['random', 'conservative', 'win-now', 'rebuild', 'value', 'shrewd']",
         "candidate.repeats must be >= 3 for sota-v1",
         "candidate decision_failure_rate 0.067 exceeds 0.020 for sota-v1",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
+        "strongest baseline is 'shrewd', expected pick-trader for v1 calibration",
         "candidate does not beat the strongest scripted baseline"
       ],
       "tokens_per_decision": 3984.3,
@@ -140,7 +154,7 @@
     }
   ],
   "preset": {
-    "decision_points_per_episode": 15,
+    "decision_points_per_episode": 20,
     "name": "leaderboard",
     "seasons": 5,
     "seeds": [

@@ -208,7 +208,7 @@ export default function Leaderboard({ data }: { data: LeaderboardData }) {
           <p>
             Models manage the same franchises over the same {data.preset.seeds.length} seeds for {data.preset.seasons} seasons
             ({data.preset.decision_points_per_episode} decisions per franchise). Scripted baselines are shown as
-            reference rows: <strong>shrewd</strong> is the serious scripted bar to beat, <strong>random</strong> the floor.
+            reference rows: <strong>pick-trader</strong> is the serious scripted bar to beat, <strong>random</strong> the floor.
           </p>
         </div>
         <LeaderboardTable data={data} />

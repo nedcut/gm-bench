@@ -20,12 +20,11 @@ The MVP includes:
   accept a limited number of trades, and rosters cannot be stripped below the
   league minimum. At the trade deadline, opponents also make one-for-one
   trades among themselves, visible in the transaction feed.
-- Baseline agents: random, conservative, win-now, rebuild, value, a
-  stronger-on-average `shrewd` reference (cap hygiene plus development-aware
-  lineups — the panel-mean bar a model-backed candidate should clear; its
-  youth-dressing bet loses individual seeds, so no per-seed dominance is
-  claimed), and a red-team `exploit` canary that replays known-degenerate
-  strategies.
+- Baseline agents: random, conservative, win-now, rebuild, value, `shrewd`
+  (cap hygiene plus development-aware lineups), and `strategic`, which also
+  scouts, evaluates incoming offers, and persists a plan memo. The strongest
+  `pick-trader` reference adds cap-aware future-pick acquisitions, while the
+  red-team `exploit` canary replays known-degenerate strategies.
 - A scoring model that rewards wins, championships, future assets, prospects,
   and cap health, reported as a strategy score with protocol (invalid-action)
   penalties broken out separately.
@@ -218,7 +217,7 @@ observation JSON object on stdin, a JSON action list (or `{"actions": [...],
 alive across the whole episode, use a session-capable adapter with
 `GM_BENCH_SESSION=1` (see `examples/gm_agent_common.py`); the runner exchanges
 line-delimited `start` / `observation` / `action_results` / `end` events and
-only times the first round of each decision for usage telemetry.
+records usage and latency for every interaction round.
 
 ```bash
 python -m gm_bench run --agent-cmd "python examples/external_agent.py" --seeds 1 --seasons 3
@@ -598,6 +597,11 @@ Model-backed scores are also attributed: adapters tag substituted actions
 model actually played versus how many fell back to the adapter's safety policy
 (`fallback_decisions` and `fallback_decision_rate`). This keeps a weak model
 from being silently carried by its fallback heuristics.
+
+The `strategic` and `pick-trader` references ensure that scouting, offer
+responses, pick trading, and memo persistence are exercised by accepted actions
+across the official seed panel; `validate-contract` fails if that coverage or
+their clean-play calibration disappears.
 
 The `exploit` baseline exists to keep the benchmark honest. It replays the
 degenerate strategies that used to dominate (trade value-pumping and free-agent

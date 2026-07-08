@@ -67,8 +67,8 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
                 {
                     "seed": seed,
                     "seasons": seasons,
-                    "final_score": 300.0 if name == "shrewd" else 100.0,
-                    "strategy_score": 300.0 if name == "shrewd" else 100.0,
+                    "final_score": 300.0 if name == "pick-trader" else 100.0,
+                    "strategy_score": 300.0 if name == "pick-trader" else 100.0,
                     "protocol_penalty": 0.0,
                     "wins": 90,
                     "championships": 1,
@@ -77,7 +77,7 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
                 for seed in seeds
             ],
             "summary": {
-                "mean_score": 300.0 if name == "shrewd" else 100.0,
+                "mean_score": 300.0 if name == "pick-trader" else 100.0,
                 "score_stddev": 0.0,
             },
         }
@@ -91,19 +91,19 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
         "baselines": baselines,
         "normalized": {
             "candidate_mean_score": 350.0,
-            "baseline_panel_mean_score": 133.333,
-            "score_lift": 216.667,
+            "baseline_panel_mean_score": 125.0,
+            "score_lift": 225.0,
         },
         "paired": {
             "num_seeds": len(seeds),
             "per_seed": [],
-            "paired_lift_mean": 216.667,
+            "paired_lift_mean": 225.0,
             "paired_lift_ci95": [200.0, 230.0],
             "sign_flip_p_value": 0.0078,
             "significant_at_95": True,
             "candidate_seed_win_rate": 1.0,
             "best_baseline": {
-                "agent": "shrewd",
+                "agent": "pick-trader",
                 "mean_score": 300.0,
                 "paired_lift_mean": 50.0,
                 "seed_win_rate": 1.0,
