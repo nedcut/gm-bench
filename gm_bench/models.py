@@ -51,6 +51,7 @@ class Player:
     injury_risk: float
     morale: float = 0.0
     drafted_round: int | None = None
+    injured_games: int = 0
 
     def public_dict(self) -> dict[str, Any]:
         return {

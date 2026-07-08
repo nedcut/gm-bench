@@ -20,7 +20,9 @@ from gm_bench.models import (
     pick_value,
 )
 from gm_bench.protocol import (
+    INJURY_GAMES_DEFAULT,
     NON_PENALIZED_TYPES,
+    PARTIAL_SEASON_FRACTION,
     ActionResult,
 )
 from gm_bench.scoring import score_team
@@ -33,6 +35,10 @@ FA_RESERVATION_RANGE = (0.85, 1.0)
 REJECTED_OFFER_LIMIT_PER_WINDOW = 2
 SCOUT_POINTS_PER_SEASON = 3
 SCOUT_REPORT_NOISE = 1.5
+# A full season is this many games per team pairing. When a midseason break
+# splits the season, the pre- and post-break legs must sum to exactly this so a
+# midseason episode plays the same total schedule as a non-midseason one.
+REGULAR_SEASON_GAMES_PER_PAIR = 3
 
 
 @dataclass
@@ -57,6 +63,9 @@ class League:
     current_offers: dict[str, dict[str, Any]] = field(default_factory=dict)
     scout_points_used: int = 0
     scout_reports: dict[int, float] = field(default_factory=dict)
+    waiver_wire: list[int] = field(default_factory=list)
+    partial_season_played: bool = False
+    partial_games_per_pair: int = 0
     _action_results: list[ActionResult] = field(default_factory=list)
 
     @classmethod
@@ -135,6 +144,8 @@ class League:
         ]
         if phase == "draft":
             actions.append("draft")
+        if phase == "midseason":
+            actions.append("claim_waiver")
         # Advertise negotiation actions from actual state, not the phase name:
         # they only apply when a pending incoming offer exists (trade deadline).
         if self.current_offers:
@@ -179,6 +190,7 @@ class League:
             "reject_trade_offer": self._decline_offer,
             "decline_offer": self._decline_offer,
             "counter_trade_offer": self._counter_offer,
+            "claim_waiver": self._claim_waiver,
         }
         handler = handlers.get(action_type)
         if handler is None:
@@ -231,27 +243,50 @@ class League:
             for _ in range(self.teams[team_id].draft_picks.get(self.season, 0)):
                 self._opponent_draft_pick(self.teams[team_id])
 
-    def simulate_season(self) -> SeasonSummary:
-        rng = self._rng("season")
-        ratings = {team.id: self._team_strength(team, apply_injury_noise=True, rng=rng) for team in self.teams.values()}
-        for team in self.teams.values():
-            team.wins = 0
-            team.losses = 0
-            team.playoff_rounds = 0
+    def prepare_midseason(self) -> None:
+        if self.partial_season_played:
+            return
+        self.simulate_partial_season(PARTIAL_SEASON_FRACTION)
+        self._generate_midseason_injuries()
+        self._populate_waiver_wire()
+        self.partial_season_played = True
 
-        games_per_pair = 3
+    def simulate_partial_season(self, fraction: float) -> None:
+        rng = self._rng("partial_season")
+        ratings = {team.id: self._team_strength(team, apply_injury_noise=True, rng=rng) for team in self.teams.values()}
+        # Round (not truncate) so the pre-break leg keeps its intended share, and
+        # record it so simulate_season can play the exact complement.
+        games_per_pair = max(1, min(REGULAR_SEASON_GAMES_PER_PAIR - 1, round(REGULAR_SEASON_GAMES_PER_PAIR * fraction)))
+        self.partial_games_per_pair = games_per_pair
         for home in self.teams.values():
             for away in self.teams.values():
                 if home.id >= away.id:
                     continue
                 for _ in range(games_per_pair):
-                    probability = 1.0 / (1.0 + math.exp(-(ratings[home.id] - ratings[away.id]) / 7.5))
-                    if rng.random() < probability:
-                        home.wins += 1
-                        away.losses += 1
-                    else:
-                        away.wins += 1
-                        home.losses += 1
+                    self._play_game(home, away, ratings, rng)
+        self._update_morale_from_standings()
+
+    def simulate_season(self) -> SeasonSummary:
+        rng = self._rng("season")
+        if not self.partial_season_played:
+            for team in self.teams.values():
+                team.wins = 0
+                team.losses = 0
+                team.playoff_rounds = 0
+            games_per_pair = REGULAR_SEASON_GAMES_PER_PAIR
+        else:
+            # Play exactly the games the midseason leg didn't, so the two legs
+            # sum to a full season rather than truncating each independently.
+            for team in self.teams.values():
+                team.playoff_rounds = 0
+            games_per_pair = max(1, REGULAR_SEASON_GAMES_PER_PAIR - self.partial_games_per_pair)
+        ratings = {team.id: self._team_strength(team, apply_injury_noise=True, rng=rng) for team in self.teams.values()}
+        for home in self.teams.values():
+            for away in self.teams.values():
+                if home.id >= away.id:
+                    continue
+                for _ in range(games_per_pair):
+                    self._play_game(home, away, ratings, rng)
 
         playoff_teams = sorted(self.teams.values(), key=lambda team: team.wins, reverse=True)[:8]
         champion = self._simulate_playoffs(playoff_teams, ratings, rng)
@@ -277,10 +312,52 @@ class League:
         # observation(); clear them at the season boundary so a stale offer_id
         # can never be accepted across seasons regardless of call order.
         self.current_offers = {}
+        self.waiver_wire = []
+        self.partial_season_played = False
+        self.partial_games_per_pair = 0
         for team in self.teams.values():
             team.draft_picks.setdefault(self.season, 1)
         self.prospects = generate_draft_class(self.seed, self.season, self.num_teams * 5)
         return summary
+
+    def _play_game(self, home: Team, away: Team, ratings: dict[int, float], rng: random.Random) -> None:
+        probability = 1.0 / (1.0 + math.exp(-(ratings[home.id] - ratings[away.id]) / 7.5))
+        if rng.random() < probability:
+            home.wins += 1
+            away.losses += 1
+        else:
+            away.wins += 1
+            home.losses += 1
+
+    def _update_morale_from_standings(self) -> None:
+        ordered = sorted(self.teams.values(), key=lambda team: team.wins, reverse=True)
+        for rank, team in enumerate(ordered):
+            delta = 4.0 - rank * 0.6
+            for player_id in team.roster:
+                player = self.players[player_id]
+                player.morale = min(100.0, max(20.0, player.morale + delta))
+
+    def _generate_midseason_injuries(self) -> None:
+        rng = self._rng("injuries")
+        candidates = [player for player in self.players.values() if player.team_id is not None]
+        rng.shuffle(candidates)
+        for player in candidates[: rng.randint(2, 5)]:
+            if rng.random() < player.injury_risk * 2.5:
+                player.injured_games = max(player.injured_games, INJURY_GAMES_DEFAULT)
+
+    def _populate_waiver_wire(self) -> None:
+        rng = self._rng("waiver")
+        opponents = [team for team in self.teams.values() if team.id != self.user_team_id]
+        for team in opponents:
+            if len(team.roster) <= ROSTER_MIN or rng.random() > 0.35:
+                continue
+            player = min((self.players[pid] for pid in team.roster), key=lambda item: item.asset_value)
+            self._remove_from_team(team, player.id)
+            player.team_id = None
+            player.salary = 0.0
+            player.contract_years = 0
+            if player.id not in self.waiver_wire:
+                self.waiver_wire.append(player.id)
 
     def _scout(self, action: dict[str, Any], phase: str) -> None:
         """Spend one scouting point for a near-true read on a player's potential.
@@ -657,6 +734,22 @@ class League:
             result.message = f"counter accepted for offer {offer_id}"
         return result
 
+    def _claim_waiver(self, action: dict[str, Any], phase: str) -> ActionResult:
+        if phase != "midseason":
+            return self._record(action, phase, False, "waiver claims are only allowed during midseason")
+        player_id = int(action.get("player_id", -1))
+        if player_id not in self.waiver_wire:
+            return self._record(action, phase, False, "player is not on the waiver wire")
+        if self._payroll(self.user_team) + self.players[player_id].asking_salary > self.cap + HARD_CAP_BUFFER:
+            return self._record(action, phase, False, "claim would exceed hard cap buffer")
+        self.waiver_wire.remove(player_id)
+        player = self.players[player_id]
+        player.team_id = self.user_team_id
+        player.salary = player.asking_salary
+        player.contract_years = 1
+        self.user_team.roster.append(player_id)
+        return self._record(action, phase, True, f"claimed {player.name} from waivers")
+
     def _tradeable_pick_seasons(self) -> list[int]:
         return list(range(self.season + 1, self.season + PICK_TRADE_MAX_SEASONS_AHEAD + 1))
 
@@ -781,6 +874,11 @@ class League:
         ]
 
     def _free_agent_public(self, player_id: int) -> dict[str, Any]:
+        player = self.players[player_id].public_dict()
+        player["asking_salary"] = self.players[player_id].asking_salary
+        return player
+
+    def _waiver_player_public(self, player_id: int) -> dict[str, Any]:
         player = self.players[player_id].public_dict()
         player["asking_salary"] = self.players[player_id].asking_salary
         return player
