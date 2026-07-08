@@ -128,6 +128,22 @@ def test_public_leaderboard_policy_accepts_single_repeat_payload() -> None:
     assert report.ok
 
 
+def test_historical_baseline_panel_is_diagnostic_but_not_sota() -> None:
+    payload = _official_payload(repeats=3)
+    payload["baselines"] = [
+        baseline for baseline in payload["baselines"] if baseline["agent"] not in {"strategic", "pick-trader"}
+    ]
+    payload["paired"]["best_baseline"]["agent"] = "shrewd"
+
+    public_report = validate_leaderboard_payload(payload, policy=PUBLIC_LEADERBOARD_POLICY)
+    assert public_report.ok
+    assert "historical baseline panel differs from the current official panel" in public_report.warnings
+
+    sota_report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    assert not sota_report.ok
+    assert any(error.startswith("baselines must be") for error in sota_report.errors)
+
+
 def test_sota_v1_policy_requires_repeats() -> None:
     report = validate_leaderboard_payload(_official_payload(repeats=1), policy=SOTA_V1_POLICY)
     assert not report.ok
