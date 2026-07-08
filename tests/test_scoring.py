@@ -36,8 +36,13 @@ def test_opponent_scores_ignore_illegal_actions() -> None:
 def test_final_episode_score_matches_scoring_function() -> None:
     result = run_episode(ValueAgent(), seed=9, seasons=2)
     league = League.new(seed=9)
+    # Mirror the default 4-phase episode (incl. midseason) used by run_episode.
     for _ in range(2):
-        for phase in ["preseason", "trade_deadline", "draft"]:
+        for phase in ["preseason", "midseason", "trade_deadline", "draft"]:
+            if phase == "midseason":
+                league.prepare_midseason()
+            if phase == "trade_deadline":
+                league.prepare_trade_deadline()
             if phase == "draft":
                 league.run_opponent_draft(before_user=True)
             league.apply_actions(ValueAgent().act(league.observation(phase)), phase)

@@ -12,19 +12,32 @@ from gm_bench.runner import _sign_flip_p_value, evaluate_against_baselines, run_
 class NoisyAgent(Agent):
     """Deterministic across runs, but behaves differently on each repeat.
 
-    Signs the top free agent only on even-numbered calls, so the two repeats
-    of a seed produce different scores — a stand-in for model sampling noise.
+    Plays value on even-numbered episodes and noops on odd ones, so two
+    repeats of a seed produce different scores — a stand-in for model
+    sampling noise. Keyed on episode starts (season-1 preseason) rather than
+    raw call count so the 4-phase default episode cannot cancel the pattern.
     """
 
     name = "noisy"
 
     def __init__(self) -> None:
         self.inner = ValueAgent()
-        self.calls = 0
+        self._episode = 0
+        self._saw_non_start = False
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
-        self.calls += 1
-        if self.calls % 2 == 0:
+        at_start = (
+            observation["season"] == 1
+            and observation["phase"] == "preseason"
+            and observation.get("interaction_round", 0) == 0
+        )
+        if at_start and (self._episode == 0 or self._saw_non_start):
+            self._episode += 1
+            self._saw_non_start = False
+        if not at_start:
+            self._saw_non_start = True
+
+        if self._episode % 2 == 0:
             return self.inner.act(observation)
         return [{"type": "noop"}]
 

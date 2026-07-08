@@ -23,7 +23,9 @@ from gm_bench.protocol import (
     INJURY_GAMES_DEFAULT,
     NON_PENALIZED_TYPES,
     PARTIAL_SEASON_FRACTION,
+    PROTOCOL_VERSION,
     ActionResult,
+    ObservationTier,
 )
 from gm_bench.scoring import score_team
 
@@ -86,12 +88,22 @@ class League:
     def user_team(self) -> Team:
         return self.teams[self.user_team_id]
 
-    def observation(self, phase: str) -> dict[str, Any]:
-        return {
-            "benchmark": "gm-bench-mvp",
+    def observation(
+        self,
+        phase: str,
+        *,
+        tier: ObservationTier = "full",
+        action_results: list[dict[str, Any]] | None = None,
+        interaction_round: int = 0,
+    ) -> dict[str, Any]:
+        full = tier == "full"
+        payload: dict[str, Any] = {
+            "benchmark": PROTOCOL_VERSION,
             "seed": self.seed,
             "season": self.season,
             "phase": phase,
+            "observation_tier": tier,
+            "interaction_round": interaction_round,
             "rules": {
                 "salary_cap": self.cap,
                 "hard_cap_buffer": HARD_CAP_BUFFER,
@@ -115,18 +127,49 @@ class League:
                     "report_noise": SCOUT_REPORT_NOISE,
                 },
             },
-            "team": self.user_team.public_dict(self.players, self.cap),
+            "team": self.user_team.public_dict(self.players, self.cap, full_roster=full),
             "standings": self._standings_public(),
-            "free_agents": [self._free_agent_public(player_id) for player_id in self.free_agents],
-            "draft_class": [player.public_dict() for player in self.prospects.values()],
             "draft_order": self._draft_order(),
-            "trade_market": self._trade_market_public(),
-            "incoming_offers": self._incoming_offers_public(phase),
+            "incoming_offers": self._incoming_offers_public(),
             "scout_reports": {str(player_id): report for player_id, report in sorted(self.scout_reports.items())},
             "history": [summary.__dict__ for summary in self.summaries[-5:]],
             "recent_transactions": [transaction.__dict__ for transaction in self.transactions[-12:]],
             "memo": self.agent_memo,
+            "available_actions": self._available_actions(phase),
         }
+        if action_results:
+            payload["action_results"] = action_results
+        if full:
+            payload["free_agents"] = [self._free_agent_public(player_id) for player_id in self.free_agents]
+            payload["draft_class"] = [player.public_dict() for player in self.prospects.values()]
+            payload["trade_market"] = self._trade_market_public()
+            payload["waiver_wire"] = [self._waiver_player_public(player_id) for player_id in self.waiver_wire]
+        else:
+            payload["free_agents_summary"] = self._list_summary(
+                self.free_agents, key=lambda pid: self.players[pid].overall, limit=8
+            )
+            payload["draft_class_summary"] = self._list_summary(
+                list(self.prospects.keys()),
+                key=lambda pid: self.prospects[pid].overall,
+                limit=8,
+            )
+            payload["trade_market_summary"] = {"count": len(self._trade_market_public())}
+            payload["waiver_wire_summary"] = self._list_summary(
+                self.waiver_wire, key=lambda pid: self.players[pid].overall, limit=6
+            )
+            payload["hint"] = (
+                "Use inspect_team, inspect_player, list_free_agents, or scout for details. "
+                "Send end_turn when finished gathering information."
+            )
+        return payload
+
+    def _list_summary(self, ids: list[int], *, key: Any, limit: int) -> dict[str, Any]:
+        ordered = sorted(ids, key=key, reverse=True)
+        return {"count": len(ids), "top_ids": ordered[:limit]}
+
+    def prepare_trade_deadline(self) -> None:
+        """Generate incoming offers once for this trade-deadline decision window."""
+        self.current_offers = self._generate_incoming_offers("trade_deadline")
 
     def _available_actions(self, phase: str) -> list[str]:
         actions = [
@@ -583,14 +626,14 @@ class League:
         self.partner_trades[partner_id] = self.partner_trades.get(partner_id, 0) + 1
         self._record(action, phase, True, "trade accepted")
 
-    def _incoming_offers_public(self, phase: str) -> list[dict[str, Any]]:
-        """Regenerate and publish opponent-initiated trade offers for this decision.
+    def _incoming_offers_public(self) -> list[dict[str, Any]]:
+        """Publish the current incoming-offer pool without regenerating it.
 
-        Offers are deterministic in (seed, season, phase) and league state, and
-        valid only for the decision window they were published in — the pool is
-        re-rolled at the next observation.
+        Offers are generated once per trade-deadline window via
+        ``prepare_trade_deadline``. Observation only publishes whatever is
+        currently in ``current_offers`` so multi-round interaction cannot
+        resurrect an offer the agent already accepted or declined.
         """
-        self.current_offers = self._generate_incoming_offers(phase)
         published = []
         for offer_id, offer in self.current_offers.items():
             published.append(

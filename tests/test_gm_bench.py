@@ -441,7 +441,7 @@ def test_evaluation_lift_uses_precise_episode_scores(monkeypatch: pytest.MonkeyP
                 "mean_strategy_score": summary_score,
                 "total_protocol_penalty": 0.0,
                 "illegal_actions": 0,
-                "decisions": 3 * len(seeds),
+                "decisions": 4 * len(seeds),
                 "failed_decisions": 0,
                 "decision_failure_rate": 0.0,
             },

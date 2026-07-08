@@ -189,9 +189,10 @@ class ShrewdAgent(Agent):
       players develop at full speed and young asset value scores double.
 
     The youth-dressing rule is a horizon bet: it wins on average across seed
-    panels (roughly +6-7 mean lift over `value` at 3 seasons on seeds 1-30)
-    but loses individual seeds when the developed prospects don't pan out, so
-    no per-seed dominance over `value` is claimed or pinned.
+    panels but loses individual seeds when the developed prospects don't pan
+    out, so no per-seed dominance over `value` is claimed or pinned. Midseason
+    (now in the default episode) uses a looser FA bar and overall-only dress —
+    the remaining games reward current form over development.
     """
 
     name = "shrewd"
@@ -203,27 +204,34 @@ class ShrewdAgent(Agent):
         actions: list[dict[str, Any]] = []
         roster = observation["team"]["roster"]
         cap_room = observation["team"]["cap_room"]
+        midseason = observation["phase"] == "midseason"
 
-        deadweight = sorted(
-            (
-                player
-                for player in roster
-                if player["age"] >= 30
-                and player["salary"] > 0
-                and public_asset_value(player) < self.RELEASE_VALUE_FLOOR
-            ),
-            key=public_asset_value,
-        )
-        releasable = max(0, len(roster) - self.MIN_KEEP_ROSTER)
+        # Cap hygiene: skip releases at midseason — dumping salary after the
+        # partial leg disrupts a roster that still has half a season to play.
         released_ids: set[int] = set()
-        for player in deadweight[: min(2, releasable)]:
-            actions.append({"type": "release", "player_id": player["id"]})
-            released_ids.add(player["id"])
-            cap_room += player["salary"]
+        if not midseason:
+            deadweight = sorted(
+                (
+                    player
+                    for player in roster
+                    if player["age"] >= 30
+                    and player["salary"] > 0
+                    and public_asset_value(player) < self.RELEASE_VALUE_FLOOR
+                ),
+                key=public_asset_value,
+            )
+            releasable = max(0, len(roster) - self.MIN_KEEP_ROSTER)
+            for player in deadweight[: min(2, releasable)]:
+                actions.append({"type": "release", "player_id": player["id"]})
+                released_ids.add(player["id"])
+                cap_room += player["salary"]
 
+        # Midseason FA bar is slightly looser: the partial-season break is the
+        # best window to spend remaining cap before the stretch run.
+        fa_threshold = 5.0 if midseason else 6.0
         free_agents = sorted(observation["free_agents"], key=public_asset_value, reverse=True)
-        for player in free_agents[:6]:
-            if player["asking_salary"] <= cap_room and public_asset_value(player) > 6.0:
+        for player in free_agents[:8]:
+            if player["asking_salary"] <= cap_room and public_asset_value(player) > fa_threshold:
                 years = 3 if player["age"] <= 27 else 1
                 actions.append(
                     {
@@ -240,8 +248,11 @@ class ShrewdAgent(Agent):
             actions.append({"type": "draft", "prospect_id": prospect["id"]})
 
         # Dress for today and tomorrow: mostly overall, but bump young players
-        # with real growth room so they develop at full speed.
+        # with real growth room so they develop at full speed. At midseason,
+        # dress strictly by overall — the remaining games reward current form.
         def dress_rank(player: dict[str, Any]) -> float:
+            if midseason:
+                return player["overall"]
             upside = max(0.0, player["potential"] - player["overall"])
             youth_bonus = upside * 0.45 if player["age"] <= 24 else 0.0
             return player["overall"] + youth_bonus

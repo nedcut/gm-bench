@@ -50,14 +50,15 @@ class MemoValueAgent(Agent):
 
 def test_failed_decisions_counted_for_error_marked_actions() -> None:
     result = run_episode(AlwaysFailingAgent(), seed=1, seasons=2)
-    assert result.decisions == 6
-    assert result.failed_decisions == 6
+    # Default episode is 4 phases (incl. midseason): 2 seasons → 8 decisions.
+    assert result.decisions == 8
+    assert result.failed_decisions == 8
     assert result.illegal_actions == 0  # noops are legal; the failure is adapter-level
 
 
 def test_scripted_agent_reports_zero_failures_and_latency_fields() -> None:
     result = run_episode(ValueAgent(), seed=1, seasons=1)
-    assert result.decisions == 3
+    assert result.decisions == 4
     assert result.failed_decisions == 0
     assert result.memo_writes == 0
     assert result.mean_decision_seconds >= 0.0
@@ -66,23 +67,23 @@ def test_scripted_agent_reports_zero_failures_and_latency_fields() -> None:
 
 def test_memo_writes_counted_per_episode() -> None:
     result = run_episode(MemoValueAgent(), seed=1, seasons=2)
-    assert result.memo_writes == 6
+    assert result.memo_writes == 8
     assert result.failed_decisions == 0
 
 
 def test_partial_failures_produce_fractional_failure_rate() -> None:
     payload = run_many(FlakyValueAgent(), seeds=[1], seasons=2, workers=1)
     summary = payload["summary"]
-    assert summary["decisions"] == 6
+    assert summary["decisions"] == 8
     assert summary["failed_decisions"] == 2
-    assert summary["decision_failure_rate"] == round(2 / 6, 3)
+    assert summary["decision_failure_rate"] == round(2 / 8, 3)
 
 
 def test_summary_aggregates_reliability_metrics() -> None:
     payload = run_many(AlwaysFailingAgent(), seeds=[1, 2], seasons=1)
     summary = payload["summary"]
-    assert summary["decisions"] == 6
-    assert summary["failed_decisions"] == 6
+    assert summary["decisions"] == 8
+    assert summary["failed_decisions"] == 8
     assert summary["decision_failure_rate"] == 1.0
     assert summary["memo_writes"] == 0
 
@@ -113,8 +114,8 @@ def test_evaluate_exposes_candidate_failure_rate() -> None:
         use_baseline_cache=False,
     )
     normalized = result["normalized"]
-    assert normalized["candidate_decisions"] == 3
-    assert normalized["candidate_failed_decisions"] == 3
+    assert normalized["candidate_decisions"] == 4
+    assert normalized["candidate_failed_decisions"] == 4
     assert normalized["candidate_decision_failure_rate"] == 1.0
     assert normalized["candidate_memo_writes"] == 0
 

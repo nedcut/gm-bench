@@ -22,7 +22,8 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
     leaderboard = PRESETS["leaderboard"]
     seeds = list(seeds or leaderboard["seeds"])
     seasons = int(leaderboard["seasons"])
-    decisions = len(seeds) * repeats * seasons * 3
+    # Default episode is 4 phases (incl. midseason).
+    decisions = len(seeds) * repeats * seasons * 4
     failed = round(decisions * failure_rate)
     candidate = {
         "agent": "openai:gpt-test",
