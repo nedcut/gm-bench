@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 from typing import Any
 
@@ -49,6 +50,7 @@ POLICIES = {
     PUBLIC_LEADERBOARD_POLICY.name: PUBLIC_LEADERBOARD_POLICY,
     SOTA_V1_POLICY.name: SOTA_V1_POLICY,
 }
+REDACTED_SEEDS_SENTINEL = "<redacted>"
 
 
 @dataclass(frozen=True)
@@ -178,6 +180,64 @@ def validate_leaderboard_payload(
             warnings.append("candidate does not beat the strongest scripted baseline")
 
     return ValidationReport(policy=policy.name, errors=errors, warnings=warnings)
+
+
+def redact_leaderboard_payload(
+    payload: dict[str, Any],
+    *,
+    policy: ResultPolicy = SOTA_V1_POLICY,
+) -> tuple[dict[str, Any], ValidationReport]:
+    """Return a public-safe copy of a leaderboard payload.
+
+    Private leaderboard results carry the exact seed list in the raw JSON so
+    they can be locally reproduced and validated. This redacted artifact keeps
+    aggregate scores, usage, provenance, and the seed-panel hash, but removes
+    per-seed traces and episode/transaction detail that would reveal the held
+    out panel.
+    """
+
+    report = validate_leaderboard_payload(payload, policy=policy)
+    redacted = copy.deepcopy(payload)
+    run_info = _dict(redacted.get("run_info"))
+    seed_panel = _dict(run_info.get("seed_panel"))
+    is_private = seed_panel.get("name") == PRIVATE_LEADERBOARD_PANEL_NAME
+
+    redacted.setdefault("validation_reports", {})[policy.name] = report.to_dict()
+    redacted["redaction"] = {
+        "applied": is_private,
+        "seed_panel": seed_panel.get("name"),
+        "removed": [],
+    }
+    if not is_private:
+        return redacted, report
+
+    _redact_seed_fields(redacted, redacted["redaction"]["removed"])
+    for result_key in ("candidate",):
+        _redact_run_block(_dict(redacted.get(result_key)), redacted["redaction"]["removed"])
+    for baseline in _list(redacted.get("baselines")):
+        _redact_run_block(_dict(baseline), redacted["redaction"]["removed"])
+    paired = _dict(redacted.get("paired"))
+    if "per_seed" in paired:
+        paired["per_seed"] = []
+        redacted["redaction"]["removed"].append("paired.per_seed")
+    return redacted, report
+
+
+def _redact_seed_fields(payload: dict[str, Any], removed: list[str]) -> None:
+    if "seeds" in payload:
+        payload["seeds"] = REDACTED_SEEDS_SENTINEL
+        removed.append("seeds")
+
+
+def _redact_run_block(block: dict[str, Any], removed: list[str]) -> None:
+    if not block:
+        return
+    if "seeds" in block:
+        block["seeds"] = REDACTED_SEEDS_SENTINEL
+        removed.append(f"{block.get('agent', 'result')}.seeds")
+    if "episodes" in block:
+        block["episodes"] = []
+        removed.append(f"{block.get('agent', 'result')}.episodes")
 
 
 def _resolve_expected_seeds(

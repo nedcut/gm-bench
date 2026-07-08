@@ -15,7 +15,13 @@ from gm_bench.agents import AGENTS, ExternalProcessAgent
 from gm_bench.baseline_cache import default_cache_path
 from gm_bench.benchmark_config import PRESET_NAMES, BenchmarkConfig, load_config, seed_panel_metadata
 from gm_bench.contract import benchmark_contract
-from gm_bench.official import POLICIES, PUBLIC_LEADERBOARD_POLICY, validate_leaderboard_payload
+from gm_bench.official import (
+    POLICIES,
+    PUBLIC_LEADERBOARD_POLICY,
+    SOTA_V1_POLICY,
+    redact_leaderboard_payload,
+    validate_leaderboard_payload,
+)
 from gm_bench.providers import PROVIDER_NAMES, build_provider_agent, provider_help
 from gm_bench.runner import evaluate_against_baselines, make_progress_printer, run_many, run_many_cached_baselines
 from gm_bench.simulator import League
@@ -100,6 +106,19 @@ def main(argv: list[str] | None = None) -> None:
     )
     validate_parser.add_argument("--json", action="store_true", help="emit machine-readable validation output")
 
+    redact_parser = subparsers.add_parser(
+        "redact-result",
+        help="write a public-safe leaderboard result artifact without private seed details",
+    )
+    redact_parser.add_argument("path", help="raw JSON file produced by gm-bench model --preset leaderboard --json")
+    redact_parser.add_argument("--output", required=True, help="path for the redacted JSON artifact")
+    redact_parser.add_argument(
+        "--policy",
+        choices=sorted(POLICIES),
+        default=SOTA_V1_POLICY.name,
+        help="validation policy to record before redaction",
+    )
+
     validate_contract_parser = subparsers.add_parser(
         "validate-contract",
         help="run benchmark validity canaries against the official contract",
@@ -131,6 +150,8 @@ def main(argv: list[str] | None = None) -> None:
         _providers_command(args)
     elif args.command == "validate-result":
         _validate_result_command(args)
+    elif args.command == "redact-result":
+        _redact_result_command(args)
     elif args.command == "validate-contract":
         _validate_contract_command(args)
     elif args.command == "describe":
@@ -393,6 +414,31 @@ def _validate_result_command(args: argparse.Namespace) -> None:
             print(f"error: {error}")
         for warning in report.warnings:
             print(f"warning: {warning}")
+    if not report.ok:
+        sys.exit(1)
+
+
+def _redact_result_command(args: argparse.Namespace) -> None:
+    try:
+        with open(args.path) as handle:
+            payload = json.load(handle)
+    except OSError as exc:
+        sys.exit(f"gm-bench redact-result: cannot read {args.path}: {exc}")
+    except json.JSONDecodeError as exc:
+        sys.exit(f"gm-bench redact-result: invalid JSON in {args.path}: {exc}")
+    if not isinstance(payload, dict):
+        sys.exit("gm-bench redact-result: result JSON must be an object")
+
+    redacted, report = redact_leaderboard_payload(payload, policy=POLICIES[args.policy])
+    with open(args.output, "w") as handle:
+        json.dump(redacted, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    status = "ok" if report.ok else "invalid"
+    print(f"{status}: policy={report.policy} wrote {args.output}")
+    for error in report.errors:
+        print(f"error: {error}")
+    for warning in report.warnings:
+        print(f"warning: {warning}")
     if not report.ok:
         sys.exit(1)
 

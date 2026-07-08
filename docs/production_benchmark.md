@@ -23,8 +23,9 @@ python -m gm_bench model \
 ```
 
 For a held-out SOTA run, set a private leaderboard seed panel before running
-and validating. The exact seed list stays local, while the result records a
-SHA-256 seed-panel commitment:
+and validating. Keep the raw JSON local; it contains the exact seed ids needed
+for local reproduction. Publish only a redacted artifact, which preserves the
+seed-panel SHA-256 commitment without exposing the held-out panel:
 
 ```bash
 export GM_BENCH_PRIVATE_SEEDS="101,102,110-115"
@@ -33,7 +34,11 @@ python -m gm_bench model \
   --model <model> \
   --preset leaderboard \
   --repeats 3 \
-  --json > results/leaderboard/<provider>-<model>-private.json
+  --json > /tmp/gm-bench-<provider>-<model>-private.raw.json
+python -m gm_bench redact-result \
+  /tmp/gm-bench-<provider>-<model>-private.raw.json \
+  --output results/leaderboard/<provider>-<model>-private.redacted.json \
+  --policy sota-v1
 ```
 
 It must also satisfy the machine validator:

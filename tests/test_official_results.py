@@ -8,7 +8,14 @@ import pytest
 from gm_bench import cli as cli_module
 from gm_bench.benchmark_config import PRESETS, PRIVATE_SEEDS_ENV, seed_panel_metadata
 from gm_bench.contract import benchmark_contract
-from gm_bench.official import PUBLIC_LEADERBOARD_POLICY, SOTA_V1_POLICY, validate_leaderboard_payload
+from gm_bench.official import (
+    PUBLIC_LEADERBOARD_POLICY,
+    REDACTED_SEEDS_SENTINEL,
+    SOTA_V1_POLICY,
+    redact_leaderboard_payload,
+    validate_leaderboard_payload,
+)
+from web.scripts.build_leaderboard import model_row
 
 
 def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: list[int] | None = None) -> dict:
@@ -193,6 +200,50 @@ def test_sota_v1_policy_rejects_seed_panel_hash_mismatch() -> None:
     report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
     assert not report.ok
     assert any("seed_panel.sha256" in error for error in report.errors)
+
+
+def test_redact_leaderboard_payload_removes_private_seed_details(monkeypatch: pytest.MonkeyPatch) -> None:
+    private_seeds = [101, 102, 110, 111, 112, 113, 114, 115]
+    monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-115")
+    redacted, report = redact_leaderboard_payload(_official_payload(repeats=3, seeds=private_seeds))
+
+    assert report.ok
+    assert redacted["validation_reports"]["sota-v1"]["ok"] is True
+    assert redacted["redaction"]["applied"] is True
+    assert redacted["seeds"] == REDACTED_SEEDS_SENTINEL
+    assert redacted["candidate"]["seeds"] == REDACTED_SEEDS_SENTINEL
+    assert redacted["candidate"]["episodes"] == []
+    assert redacted["baselines"][0]["episodes"] == []
+    assert redacted["paired"]["per_seed"] == []
+    assert redacted["run_info"]["seed_panel"]["sha256"]
+
+
+def test_cli_redact_result_writes_public_safe_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    private_seeds = [101, 102, 110, 111, 112, 113, 114, 115]
+    monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-115")
+    raw_path = tmp_path / "raw.json"
+    redacted_path = tmp_path / "redacted.json"
+    raw_path.write_text(json.dumps(_official_payload(repeats=3, seeds=private_seeds)))
+
+    cli_module.main(["redact-result", str(raw_path), "--output", str(redacted_path)])
+
+    payload = json.loads(redacted_path.read_text())
+    assert payload["seeds"] == REDACTED_SEEDS_SENTINEL
+    assert payload["candidate"]["episodes"] == []
+    assert payload["validation_reports"]["sota-v1"]["ok"] is True
+
+
+def test_leaderboard_builder_accepts_redacted_private_artifact(monkeypatch: pytest.MonkeyPatch) -> None:
+    private_seeds = [101, 102, 110, 111, 112, 113, 114, 115]
+    monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-115")
+    redacted, _report = redact_leaderboard_payload(_official_payload(repeats=3, seeds=private_seeds))
+
+    row = model_row(redacted)
+
+    assert row["seeds"] is None
+    assert row["seed_panel"] == "private-env"
+    assert row["sota_v1_eligible"] is True
+    assert row["sota_v1_issues"] == []
 
 
 def test_result_validation_rejects_wrong_seed_panel() -> None:
