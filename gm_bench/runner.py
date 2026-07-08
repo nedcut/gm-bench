@@ -76,9 +76,9 @@ def run_episode(
     harness_latency_ms = 0.0
     usage_records: list[dict[str, Any]] = []
     persistent = isinstance(agent, PersistentProcessAgent)
-    if persistent:
-        agent.start_episode(seed, seasons)
     try:
+        if persistent:
+            agent.start_episode(seed, seasons)
         for season_index in range(1, seasons + 1):
             for phase in phases:
                 decision += 1
@@ -158,9 +158,9 @@ def run_decision_point(
     """Run one decision window, optionally across multiple interaction rounds.
 
     Preserves main's per-decision telemetry: every round goes through
-    ``act_with_usage`` (except persistent follow-ups via ``act_on_results``),
-    each call is timed into harness latency, usages are collected, and the
-    decision is marked failed if ANY round's actions fail.
+    ``act_with_usage`` (or the persistent follow-up equivalent), each call is
+    timed into harness latency, usages are collected, and the decision is
+    marked failed if ANY round's actions fail.
     """
     tier = _observation_tier_for_agent(agent, config)
     action_results: list[dict[str, Any]] | None = None
@@ -180,8 +180,7 @@ def run_decision_point(
         if round_index == 0:
             actions, usage = agent.act_with_usage(observation)
         elif isinstance(agent, PersistentProcessAgent):
-            actions = agent.act_on_results(action_results or [])
-            usage = None
+            actions, usage = agent.act_on_results_with_usage(action_results or [])
         else:
             observation["action_results"] = action_results
             actions, usage = agent.act_with_usage(observation)

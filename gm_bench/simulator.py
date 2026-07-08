@@ -371,6 +371,18 @@ class League:
         else:
             away.wins += 1
             home.losses += 1
+        for team in (home, away):
+            injured = any(self.players[player_id].injured_games > 0 for player_id in team.roster)
+            unavailable_strength = self._team_strength(team, apply_injury_noise=False) if injured else 0.0
+            recovered = False
+            for player_id in team.roster:
+                player = self.players[player_id]
+                if player.injured_games > 0:
+                    player.injured_games -= 1
+                    recovered = recovered or player.injured_games == 0
+            if recovered:
+                available_strength = self._team_strength(team, apply_injury_noise=False)
+                ratings[team.id] += available_strength - unavailable_strength
 
     def _update_morale_from_standings(self) -> None:
         ordered = sorted(self.teams.values(), key=lambda team: team.wins, reverse=True)
@@ -1004,7 +1016,7 @@ class League:
         if player_id in team.lineup:
             team.lineup.remove(player_id)
 
-    def _effective_lineup(self, team: Team) -> list[Player]:
+    def _effective_lineup(self, team: Team, *, available_only: bool = False) -> list[Player]:
         """The players who actually dress: the set lineup, repaired as needed.
 
         Starts from the team's stored lineup (ids no longer on the roster are
@@ -1012,10 +1024,14 @@ class League:
         overall, then swaps in bench players to satisfy position minimums.
         Teams with no stored lineup get a best-legal auto lineup.
         """
-        roster = [self.players[player_id] for player_id in team.roster]
+        roster = [
+            self.players[player_id]
+            for player_id in team.roster
+            if not available_only or self.players[player_id].injured_games == 0
+        ]
         if len(roster) <= LINEUP_SIZE:
             return roster
-        roster_ids = set(team.roster)
+        roster_ids = {player.id for player in roster}
         chosen: dict[int, Player] = {}
         for player_id in dict.fromkeys(team.lineup):
             if player_id in roster_ids and len(chosen) < LINEUP_SIZE:
@@ -1044,7 +1060,11 @@ class League:
         return list(chosen.values())
 
     def _team_strength(self, team: Team, apply_injury_noise: bool, rng: random.Random | None = None) -> float:
-        lineup = sorted(self._effective_lineup(team), key=lambda player: player.overall, reverse=True)
+        lineup = sorted(
+            self._effective_lineup(team, available_only=True),
+            key=lambda player: player.overall,
+            reverse=True,
+        )
         if not lineup:
             return 20.0
         position_bonus = min(sum(1 for player in lineup if player.position == "G"), 2) * 2.5

@@ -298,11 +298,8 @@ def make_usage(
 
 
 def emit(actions: list[dict[str, Any]], usage: dict[str, Any] | None = None) -> None:
-    """Print the adapter response: bare list without usage, envelope with it."""
-    if usage:
-        print(json.dumps({"actions": actions, "usage": usage}), flush=True)
-    else:
-        print(json.dumps(actions), flush=True)
+    """Print a consistent response envelope for one-shot and session adapters."""
+    print(json.dumps({"actions": actions, "usage": usage}), flush=True)
 
 
 def _unpack_decide_result(result: DecideResult) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
