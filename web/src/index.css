@@ -535,6 +535,18 @@ tbody tr.is-reference td {
   border: 1px solid var(--line);
 }
 
+.tag-official {
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid rgba(52, 224, 161, 0.35);
+}
+
+.tag-dev {
+  color: var(--amber);
+  background: rgba(255, 196, 87, 0.1);
+  border: 1px solid rgba(255, 196, 87, 0.35);
+}
+
 .score-strong {
   font-family: var(--font-display);
   font-weight: 700;

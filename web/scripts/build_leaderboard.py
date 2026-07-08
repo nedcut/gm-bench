@@ -2,7 +2,7 @@
 
 Reads every ``results/leaderboard/*.json`` file — each one the saved output of
 
-    python -m gm_bench model --provider <p> --model <m> --preset leaderboard --json > results/leaderboard/<name>.json
+    python -m gm_bench model --provider <p> --model <m> --preset leaderboard --repeats 3 --json > results/leaderboard/<name>.json
 
 — and writes ``web/src/data/leaderboard.json`` with one row per model plus the
 scripted-baseline reference panel. When no model results exist yet, the
@@ -27,6 +27,7 @@ sys.path.insert(0, str(ROOT))
 
 from gm_bench.baseline_cache import cache_key, load_cache  # noqa: E402
 from gm_bench.benchmark_config import PRESETS  # noqa: E402
+from gm_bench.official import SOTA_V1_POLICY, validate_leaderboard_payload  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
 OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard.json"
@@ -38,6 +39,10 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
     usage = summary.get("usage") or {}
     paired = payload.get("paired") or {}
     normalized = payload.get("normalized") or {}
+    run_info = payload.get("run_info") or {}
+    contract = run_info.get("benchmark_contract") or {}
+    seed_panel = run_info.get("seed_panel") or {}
+    sota_report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
     decisions = summary.get("decisions", 0)
     agent = payload.get("agent", "unknown")
     provider, _, model_name = agent.partition(":")
@@ -75,6 +80,12 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
         "seeds": payload.get("seeds"),
         "seasons": payload.get("seasons"),
         "baseline_panel_mean_score": normalized.get("baseline_panel_mean_score"),
+        "benchmark_version": contract.get("benchmark_version"),
+        "contract_fingerprint": contract.get("contract_fingerprint"),
+        "seed_panel": seed_panel.get("name"),
+        "seed_panel_hash": seed_panel.get("sha256"),
+        "sota_v1_eligible": sota_report.ok,
+        "sota_v1_issues": [*sota_report.errors, *sota_report.warnings],
     }
 
 

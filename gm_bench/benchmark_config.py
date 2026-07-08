@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from dataclasses import dataclass, field
@@ -13,6 +14,9 @@ from gm_bench.providers import PROVIDER_NAMES
 PRESET_NAMES = ("smoke", "standard", "benchmark", "leaderboard")
 PROFILE_NAMES = ("tiny", "compact")
 PRIVATE_SEEDS_ENV = "GM_BENCH_PRIVATE_SEEDS"
+PUBLIC_LEADERBOARD_PANEL_NAME = "public-leaderboard"
+PRIVATE_LEADERBOARD_PANEL_NAME = "private-env"
+CUSTOM_SEED_PANEL_NAME = "custom"
 
 # Presets pin the observation profile so scores produced under the same preset
 # are comparable across providers: provider defaults differ (ollama defaults to
@@ -171,3 +175,26 @@ def _parse_seeds(value: Any) -> list[int]:
     if isinstance(value, list):
         return [int(item) for item in value]
     raise ValueError(f"unsupported seeds value: {value!r}")
+
+
+def seed_panel_hash(seeds: list[int]) -> str:
+    """Stable public commitment to an ordered seed panel."""
+
+    text = ",".join(str(seed) for seed in seeds)
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def seed_panel_metadata(seeds: list[int], preset: str | None) -> dict[str, Any]:
+    if preset == "leaderboard" and seeds == list(PRESETS["leaderboard"]["seeds"]):
+        name = PUBLIC_LEADERBOARD_PANEL_NAME
+    elif preset == "leaderboard" and os.environ.get(PRIVATE_SEEDS_ENV):
+        private_seeds = _parse_seeds(os.environ[PRIVATE_SEEDS_ENV])
+        name = PRIVATE_LEADERBOARD_PANEL_NAME if seeds == private_seeds else CUSTOM_SEED_PANEL_NAME
+    else:
+        name = CUSTOM_SEED_PANEL_NAME
+    return {
+        "name": name,
+        "count": len(seeds),
+        "sha256": seed_panel_hash(seeds),
+        "preset": preset,
+    }
