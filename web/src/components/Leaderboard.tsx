@@ -32,6 +32,29 @@ function cost(model: LeaderboardModel): string {
   return `$${fmt(model.cost_per_episode_usd, 2)}`;
 }
 
+function statusTag(model: LeaderboardModel) {
+  const issues = model.sota_v1_issues.join("\n");
+  if (model.sota_v1_eligible) {
+    return (
+      <span className="status-stack">
+        <span className="tag tag-official" title={issues || "validated as sota-v1"}>
+          sota-v1
+        </span>
+        {model.sota_v1_issues.length > 0 && (
+          <span className="tag tag-warn" title={issues}>
+            {model.sota_v1_issues.length} warning{model.sota_v1_issues.length === 1 ? "" : "s"}
+          </span>
+        )}
+      </span>
+    );
+  }
+  return (
+    <span className="tag tag-dev" title={issues || "not validated as sota-v1"}>
+      diagnostic
+    </span>
+  );
+}
+
 function LeaderboardTable({ data }: { data: LeaderboardData }) {
   const rows = buildRows(data);
   const maxScore = Math.max(...rows.map((row) => (row.kind === "model" ? row.model.mean_score : row.baseline.mean_score)));
@@ -49,6 +72,7 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
             <tr>
               <th>#</th>
               <th>Model</th>
+              <th>Status</th>
               <th className="num">Score</th>
               <th></th>
               <th className="num">Lift vs panel</th>
@@ -70,6 +94,9 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
                         {row.baseline.agent}
                         <span className="tag tag-baseline">scripted baseline</span>
                       </span>
+                    </td>
+                    <td>
+                      <span className="tag tag-baseline">baseline</span>
                     </td>
                     <td className="num mono-dim">{fmt(row.baseline.mean_score, 1)}</td>
                     <td>
@@ -103,6 +130,7 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
                       <span className="tag tag-candidate">{PROVIDER_LABELS[model.provider] ?? model.provider}</span>
                     </span>
                   </td>
+                  <td>{statusTag(model)}</td>
                   <td className="num score-strong">{fmt(model.mean_score, 1)}</td>
                   <td>
                     <div className="bar-track">
@@ -133,6 +161,11 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
         </table>
       </div>
       <div className="legend">
+        <span>sota-v1 = 3 repeats, official seed panel, full usage, low fallback, full baseline panel</span>
+        <span>seed-panel hash is an integrity check for a known panel, not a secrecy mechanism</span>
+        <span>contract fingerprint pins simulator, scoring, preset, and action schemas</span>
+        <span>eligible rows may still show warnings (illegal actions, fallback, insignificant lift)</span>
+        <span>diagnostic rows are useful evidence, but not frontier-model claims</span>
         <span>✓ lift significant at 95% (paired bootstrap)</span>
         <span>fallback = decisions answered by the adapter's fallback policy, not the model</span>
         <span>cost from measured tokens × published prices; CLI lanes report their own cost</span>
@@ -156,7 +189,8 @@ function EmptyState() {
       <pre>
         <code>
           {`LLM_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \\
-  --preset leaderboard --json > results/leaderboard/openai-gpt-5.4.json
+  --preset leaderboard --repeats 3 --json > results/leaderboard/openai-gpt-5.4.json
+python -m gm_bench validate-result results/leaderboard/openai-gpt-5.4.json --policy sota-v1
 python web/scripts/build_leaderboard.py`}
         </code>
       </pre>
@@ -174,7 +208,7 @@ export default function Leaderboard({ data }: { data: LeaderboardData }) {
           <p>
             Models manage the same franchises over the same {data.preset.seeds.length} seeds for {data.preset.seasons} seasons
             ({data.preset.decision_points_per_episode} decisions per franchise). Scripted baselines are shown as
-            reference rows: <strong>value</strong> is the heuristic ceiling to beat, <strong>random</strong> the floor.
+            reference rows: <strong>shrewd</strong> is the serious scripted bar to beat, <strong>random</strong> the floor.
           </p>
         </div>
         <LeaderboardTable data={data} />

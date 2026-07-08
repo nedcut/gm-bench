@@ -35,10 +35,12 @@
     {
       "api_latency_s_per_decision": 22.08,
       "baseline_panel_mean_score": 171.124,
+      "benchmark_version": null,
       "ci95": [
         -182.672,
         -124.845
       ],
+      "contract_fingerprint": null,
       "cost_per_episode_usd": 0.0,
       "cost_usd": 0.0,
       "decision_points": 120,
@@ -56,6 +58,8 @@
       "provider": "ollama",
       "score_stddev": 39.583,
       "seasons": 5,
+      "seed_panel": null,
+      "seed_panel_hash": null,
       "seed_win_rate": 0.0,
       "seeds": [
         11,
@@ -68,16 +72,28 @@
         18
       ],
       "significant": true,
+      "sota_v1_eligible": false,
+      "sota_v1_issues": [
+        "run_info.benchmark_contract is required for current-contract validation",
+        "run_info.seed_panel is required for official seed-panel validation",
+        "candidate.repeats must be >= 3 for sota-v1",
+        "candidate decision_failure_rate 0.108 exceeds 0.020 for sota-v1",
+        "candidate has illegal actions; score includes protocol penalties",
+        "candidate used adapter fallback/error output on at least one decision",
+        "candidate does not beat the strongest scripted baseline"
+      ],
       "tokens_per_decision": 4307.9,
       "total_tokens": 516954
     },
     {
       "api_latency_s_per_decision": 12.88,
       "baseline_panel_mean_score": 171.124,
+      "benchmark_version": null,
       "ci95": [
         -212.8,
         -158.233
       ],
+      "contract_fingerprint": null,
       "cost_per_episode_usd": 0.0,
       "cost_usd": 0.0,
       "decision_points": 120,
@@ -95,6 +111,8 @@
       "provider": "ollama",
       "score_stddev": 42.406,
       "seasons": 5,
+      "seed_panel": null,
+      "seed_panel_hash": null,
       "seed_win_rate": 0.0,
       "seeds": [
         11,
@@ -107,6 +125,16 @@
         18
       ],
       "significant": true,
+      "sota_v1_eligible": false,
+      "sota_v1_issues": [
+        "run_info.benchmark_contract is required for current-contract validation",
+        "run_info.seed_panel is required for official seed-panel validation",
+        "candidate.repeats must be >= 3 for sota-v1",
+        "candidate decision_failure_rate 0.067 exceeds 0.020 for sota-v1",
+        "candidate has illegal actions; score includes protocol penalties",
+        "candidate used adapter fallback/error output on at least one decision",
+        "candidate does not beat the strongest scripted baseline"
+      ],
       "tokens_per_decision": 3984.3,
       "total_tokens": 478122
     }
@@ -126,5 +154,5 @@
       18
     ]
   },
-  "updated": "2026-07-07"
+  "updated": "2026-07-08"
 }

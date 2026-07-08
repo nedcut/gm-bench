@@ -11,7 +11,8 @@ import pytest
 
 from gm_bench import __version__
 from gm_bench import cli as cli_module
-from gm_bench.benchmark_config import BenchmarkConfig, config_from_dict
+from gm_bench.benchmark_config import PRIVATE_SEEDS_ENV, BenchmarkConfig, config_from_dict, seed_panel_hash
+from gm_bench.contract import benchmark_contract
 from gm_bench.providers import build_provider_agent
 
 
@@ -86,6 +87,9 @@ def test_cli_run_payload_includes_run_info() -> None:
     assert run_info["provider"] is None
     assert "profile" not in run_info
     assert run_info["gm_bench_version"] == __version__
+    assert run_info["benchmark_contract"] == benchmark_contract()
+    assert run_info["seed_panel"]["name"] == "custom"
+    assert run_info["seed_panel"]["count"] == 1
     assert "timestamp_utc" in run_info
 
 
@@ -107,6 +111,24 @@ def test_cli_model_run_info_records_resolved_provider_metadata(monkeypatch: pyte
     # default would also be compact; the point is the resolved value is stamped.
     assert run_info["profile"] == "compact"
     assert run_info["preset"] == "smoke"
+    assert run_info["benchmark_contract"] == benchmark_contract()
+    assert run_info["seed_panel"]["name"] == "custom"
+
+
+def test_cli_model_run_info_records_private_seed_panel(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-111")
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(cli_module, "evaluate_against_baselines", lambda *args, **kwargs: {})
+    monkeypatch.setattr(cli_module, "_maybe_log", lambda *args, **kwargs: None)
+    monkeypatch.setattr(cli_module, "_print_evaluation", lambda result: captured.update(result))
+
+    cli_module.main(["model", "--provider", "openai", "--preset", "leaderboard", "--no-log"])
+
+    seed_panel = captured["run_info"]["seed_panel"]
+    assert seed_panel["name"] == "private-env"
+    assert seed_panel["count"] == 4
+    assert seed_panel["sha256"] == seed_panel_hash([101, 102, 110, 111])
 
 
 def test_config_rejects_unknown_profile() -> None:

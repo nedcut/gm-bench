@@ -13,11 +13,20 @@ from typing import Any
 from gm_bench import __version__
 from gm_bench.agents import AGENTS, ExternalProcessAgent
 from gm_bench.baseline_cache import default_cache_path
-from gm_bench.benchmark_config import PRESET_NAMES, BenchmarkConfig, load_config
+from gm_bench.benchmark_config import PRESET_NAMES, BenchmarkConfig, load_config, seed_panel_metadata
+from gm_bench.contract import benchmark_contract
+from gm_bench.official import (
+    POLICIES,
+    PUBLIC_LEADERBOARD_POLICY,
+    SOTA_V1_POLICY,
+    redact_leaderboard_payload,
+    validate_leaderboard_payload,
+)
 from gm_bench.providers import PROVIDER_NAMES, build_provider_agent, provider_help
 from gm_bench.runner import evaluate_against_baselines, make_progress_printer, run_many, run_many_cached_baselines
 from gm_bench.simulator import League
 from gm_bench.storage import DEFAULT_DB_PATH, log_payload
+from gm_bench.validity import run_validity_canaries
 
 EXTERNAL_AGENT_TIMEOUT_DEFAULT = 120.0
 EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED = 60.0
@@ -84,6 +93,40 @@ def main(argv: list[str] | None = None) -> None:
     providers_parser = subparsers.add_parser("providers", help="list built-in model providers")
     providers_parser.add_argument("--json", action="store_true")
 
+    validate_parser = subparsers.add_parser(
+        "validate-result",
+        help="validate a saved leaderboard result against an official-result policy",
+    )
+    validate_parser.add_argument("path", help="JSON file produced by gm-bench model --preset leaderboard --json")
+    validate_parser.add_argument(
+        "--policy",
+        choices=sorted(POLICIES),
+        default=PUBLIC_LEADERBOARD_POLICY.name,
+        help="validation policy to apply",
+    )
+    validate_parser.add_argument("--json", action="store_true", help="emit machine-readable validation output")
+
+    redact_parser = subparsers.add_parser(
+        "redact-result",
+        help="write a public-safe leaderboard result artifact without private seed details",
+    )
+    redact_parser.add_argument("path", help="raw JSON file produced by gm-bench model --preset leaderboard --json")
+    redact_parser.add_argument("--output", required=True, help="path for the redacted JSON artifact")
+    redact_parser.add_argument(
+        "--policy",
+        choices=sorted(POLICIES),
+        default=SOTA_V1_POLICY.name,
+        help="validation policy to record before redaction",
+    )
+
+    validate_contract_parser = subparsers.add_parser(
+        "validate-contract",
+        help="run benchmark validity canaries against the official contract",
+    )
+    validate_contract_parser.add_argument("--seeds", nargs="+", type=int, help="override the official seed panel")
+    validate_contract_parser.add_argument("--seasons", type=int, help="override official season count")
+    validate_contract_parser.add_argument("--json", action="store_true", help="emit machine-readable canary output")
+
     describe_parser = subparsers.add_parser("describe", help="describe a generated league seed")
     describe_parser.add_argument("--seed", type=int, default=1)
 
@@ -105,6 +148,12 @@ def main(argv: list[str] | None = None) -> None:
         _cache_baselines_command(args)
     elif args.command == "providers":
         _providers_command(args)
+    elif args.command == "validate-result":
+        _validate_result_command(args)
+    elif args.command == "redact-result":
+        _redact_result_command(args)
+    elif args.command == "validate-contract":
+        _validate_contract_command(args)
     elif args.command == "describe":
         league = League.new(args.seed)
         print(json.dumps(league.observation("preseason"), indent=2, sort_keys=True))
@@ -161,6 +210,8 @@ def _run_info(command: str, agent: Any, config: BenchmarkConfig) -> dict[str, An
         "agent_timeout": metadata.get("agent_timeout", config.agent_timeout),
         "preset": config.preset,
         "gm_bench_version": __version__,
+        "benchmark_contract": benchmark_contract(),
+        "seed_panel": seed_panel_metadata(config.seeds, config.preset),
         "python_version": platform.python_version(),
         "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
@@ -340,6 +391,87 @@ def _providers_command(args: argparse.Namespace) -> None:
     print("------------------------------------------------")
     for row in payload:
         print(f"{row['provider']:<14}{row['model_env']:<18}{row['default_model']}")
+
+
+def _validate_result_command(args: argparse.Namespace) -> None:
+    try:
+        with open(args.path) as handle:
+            payload = json.load(handle)
+    except OSError as exc:
+        sys.exit(f"gm-bench validate-result: cannot read {args.path}: {exc}")
+    except json.JSONDecodeError as exc:
+        sys.exit(f"gm-bench validate-result: invalid JSON in {args.path}: {exc}")
+    if not isinstance(payload, dict):
+        sys.exit("gm-bench validate-result: result JSON must be an object")
+
+    report = validate_leaderboard_payload(payload, policy=POLICIES[args.policy])
+    if args.json:
+        print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
+    else:
+        status = "ok" if report.ok else "invalid"
+        print(f"{status}: policy={report.policy} path={args.path}")
+        for error in report.errors:
+            print(f"error: {error}")
+        for warning in report.warnings:
+            print(f"warning: {warning}")
+    if not report.ok:
+        sys.exit(1)
+
+
+def _redact_result_command(args: argparse.Namespace) -> None:
+    try:
+        with open(args.path) as handle:
+            payload = json.load(handle)
+    except OSError as exc:
+        sys.exit(f"gm-bench redact-result: cannot read {args.path}: {exc}")
+    except json.JSONDecodeError as exc:
+        sys.exit(f"gm-bench redact-result: invalid JSON in {args.path}: {exc}")
+    if not isinstance(payload, dict):
+        sys.exit("gm-bench redact-result: result JSON must be an object")
+
+    redacted, report = redact_leaderboard_payload(payload, policy=POLICIES[args.policy])
+    for error in report.errors:
+        print(f"error: {error}")
+    for warning in report.warnings:
+        print(f"warning: {warning}")
+    if not report.ok:
+        print(f"invalid: policy={report.policy}; not writing {args.output}")
+        sys.exit(1)
+    with open(args.output, "w") as handle:
+        json.dump(redacted, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    print(f"ok: policy={report.policy} wrote {args.output}")
+
+
+def _validate_contract_command(args: argparse.Namespace) -> None:
+    result = run_validity_canaries(seeds=args.seeds, seasons=args.seasons)
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        status = "ok" if result["ok"] else "invalid"
+        print(f"{status}: validity canaries seeds={result['seeds']} seasons={result['seasons']}")
+        print("honest baselines:")
+        for row in result["baselines"]:
+            print(_validity_row(row))
+        print("canaries:")
+        for row in result["canaries"]:
+            print(_validity_row(row))
+        for check in result["checks"]:
+            prefix = "ok" if check["ok"] else "error"
+            print(
+                f"{prefix}: {check['winner']} over {check['loser']} "
+                f"{check['metric']} margin={check['margin']} min={check['minimum_margin']}"
+            )
+    if not result["ok"]:
+        sys.exit(1)
+
+
+def _validity_row(row: dict[str, Any]) -> str:
+    return (
+        f"  {row['agent']}: mean={row['mean_score']} strategy={row['mean_strategy_score']} "
+        f"penalty={row['protocol_penalty']} illegal={row['illegal_actions']} "
+        f"rejected={row['rejected_offers']} wins={row['mean_total_wins']}"
+    )
 
 
 def _config_from_args(args: argparse.Namespace) -> BenchmarkConfig:

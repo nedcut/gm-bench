@@ -1,13 +1,14 @@
 """Build the public leaderboard dataset for the GM-Bench site.
 
-Reads every ``results/leaderboard/*.json`` file — each one the saved output of
+Reads every ``results/leaderboard/*.json`` file — each one either the saved output of
 
-    python -m gm_bench model --provider <p> --model <m> --preset leaderboard --json > results/leaderboard/<name>.json
+    python -m gm_bench model --provider <p> --model <m> --preset leaderboard --repeats 3 --json > results/leaderboard/<name>.json
 
-— and writes ``web/src/data/leaderboard.json`` with one row per model plus the
-scripted-baseline reference panel. When no model results exist yet, the
-baseline panel is computed from the committed baseline cache so the site can
-render its reference rows.
+or a redacted private-panel artifact from ``python -m gm_bench redact-result``.
+It writes ``web/src/data/leaderboard.json`` with one row per model plus the
+scripted-baseline reference panel. When no model results exist yet, the baseline
+panel is computed from the committed baseline cache so the site can render its
+reference rows.
 
 Usage (from the repository root):
 
@@ -26,7 +27,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from gm_bench.baseline_cache import cache_key, load_cache  # noqa: E402
-from gm_bench.benchmark_config import PRESETS  # noqa: E402
+from gm_bench.benchmark_config import PRESETS, PRIVATE_LEADERBOARD_PANEL_NAME  # noqa: E402
+from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V1_POLICY, validate_leaderboard_payload  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
 OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard.json"
@@ -38,13 +40,22 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
     usage = summary.get("usage") or {}
     paired = payload.get("paired") or {}
     normalized = payload.get("normalized") or {}
+    run_info = payload.get("run_info") or {}
+    contract = run_info.get("benchmark_contract") or {}
+    seed_panel = run_info.get("seed_panel") or {}
+    sota_report = _sota_report(payload)
     decisions = summary.get("decisions", 0)
     agent = payload.get("agent", "unknown")
     provider, _, model_name = agent.partition(":")
     if not model_name:
         provider, model_name = usage.get("provider") or "unknown", agent
-    episodes = len(payload["candidate"].get("episodes", []))
+    episodes = len(payload["candidate"].get("episodes", [])) or _redacted_episode_count(payload)
     cost = usage.get("cost_usd")
+    seeds = payload.get("seeds")
+    if seeds == REDACTED_SEEDS_SENTINEL:
+        seeds = None
+    elif seed_panel.get("name") == PRIVATE_LEADERBOARD_PANEL_NAME:
+        seeds = None
     return {
         "id": agent,
         "model": model_name,
@@ -72,10 +83,32 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
         else None,
         "decisions_with_usage": usage.get("decisions_with_usage", 0),
         "decision_points": decisions,
-        "seeds": payload.get("seeds"),
+        "seeds": seeds,
         "seasons": payload.get("seasons"),
         "baseline_panel_mean_score": normalized.get("baseline_panel_mean_score"),
+        "benchmark_version": contract.get("benchmark_version"),
+        "contract_fingerprint": contract.get("contract_fingerprint"),
+        "seed_panel": seed_panel.get("name"),
+        "seed_panel_hash": seed_panel.get("sha256"),
+        "sota_v1_eligible": bool(sota_report.get("ok")),
+        "sota_v1_issues": [*sota_report.get("errors", []), *sota_report.get("warnings", [])],
     }
+
+
+def _sota_report(payload: dict[str, Any]) -> dict[str, Any]:
+    """Always recompute eligibility; never trust embedded validation_reports."""
+
+    return validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY).to_dict()
+
+
+def _redacted_episode_count(payload: dict[str, Any]) -> int:
+    seed_panel = (payload.get("run_info") or {}).get("seed_panel") or {}
+    candidate = payload.get("candidate") or {}
+    count = seed_panel.get("count")
+    repeats = candidate.get("repeats", 1)
+    if isinstance(count, int):
+        return count * int(repeats or 1)
+    return 0
 
 
 def baselines_from_payloads(payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:

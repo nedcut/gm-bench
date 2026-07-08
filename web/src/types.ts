@@ -93,6 +93,12 @@ export interface LeaderboardModel {
   seeds: number[] | null;
   seasons: number | null;
   baseline_panel_mean_score: number | null;
+  benchmark_version: string | null;
+  contract_fingerprint: string | null;
+  seed_panel: string | null;
+  seed_panel_hash: string | null;
+  sota_v1_eligible: boolean;
+  sota_v1_issues: string[];
 }
 
 export interface LeaderboardBaseline {
