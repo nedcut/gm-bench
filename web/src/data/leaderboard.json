@@ -33,6 +33,45 @@
   ],
   "models": [
     {
+      "api_latency_s_per_decision": 21.34,
+      "baseline_panel_mean_score": 171.124,
+      "ci95": [
+        -146.729,
+        -100.64
+      ],
+      "cost_per_episode_usd": 0.0,
+      "cost_usd": 0.0,
+      "decision_points": 120,
+      "decisions_with_usage": 120,
+      "fallback_rate": 0.55,
+      "harness_latency_s_per_decision": 21.45,
+      "id": "ollama:qwen3.5:latest",
+      "illegal_actions": 101,
+      "lift_vs_best_baseline": -272.038,
+      "mean_score": 48.089,
+      "mean_strategy_score": 79.652,
+      "model": "qwen3.5:latest",
+      "paired_lift": -123.034,
+      "protocol_penalty": 252.5,
+      "provider": "ollama",
+      "score_stddev": 29.78,
+      "seasons": 5,
+      "seed_win_rate": 0.0,
+      "seeds": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "significant": true,
+      "tokens_per_decision": 4354.6,
+      "total_tokens": 522556
+    },
+    {
       "api_latency_s_per_decision": 12.89,
       "baseline_panel_mean_score": 171.124,
       "ci95": [
