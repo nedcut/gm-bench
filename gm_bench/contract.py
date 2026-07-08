@@ -20,6 +20,10 @@ SIMULATOR_VERSION = "sim-v1"
 OBSERVATION_VERSION = "observation-v1"
 
 _ROOT = Path(__file__).resolve().parents[1]
+# Fingerprint covers score-affecting simulator/protocol sources only.
+# Pricing/telemetry (gm_bench/pricing.json, gm_bench/telemetry.py) and
+# presentation helpers are intentionally excluded: cost/latency changes do not
+# change whether a score is comparable under the same contract.
 _CONTRACT_SOURCES = (
     "gm_bench/agent_utils.py",
     "gm_bench/agents.py",

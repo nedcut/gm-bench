@@ -43,8 +43,8 @@ or adapter-reported cost), and per-decision latency — alongside scores. Result
 intended for serious frontier-model comparison should pass the stricter
 `sota-v1` validator in [`docs/production_benchmark.md`](docs/production_benchmark.md).
 Runs also stamp a seed-panel hash so private held-out panels can be verified
-locally; use `redact-result` before publishing private-panel artifacts so the
-seed list is not committed.
+locally (integrity for a known panel, not secrecy). Use `redact-result` before
+publishing private-panel artifacts so the seed list is not committed.
 
 ```bash
 LLM_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \

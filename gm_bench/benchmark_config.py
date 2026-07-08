@@ -178,7 +178,11 @@ def _parse_seeds(value: Any) -> list[int]:
 
 
 def seed_panel_hash(seeds: list[int]) -> str:
-    """Stable public commitment to an ordered seed panel."""
+    """Stable integrity hash of an ordered seed panel.
+
+    Useful for verifying that a published result matches a known panel. Not a
+    secrecy mechanism: small integer panels are brute-forceable from the hash.
+    """
 
     text = ",".join(str(seed) for seed in seeds)
     return hashlib.sha256(text.encode()).hexdigest()

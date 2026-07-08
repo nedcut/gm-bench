@@ -251,6 +251,11 @@ def test_leaderboard_builder_accepts_redacted_private_artifact(monkeypatch: pyte
     private_seeds = [101, 102, 110, 111, 112, 113, 114, 115]
     monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-115")
     redacted, _report = redact_leaderboard_payload(_official_payload(repeats=3, seeds=private_seeds))
+    monkeypatch.delenv(PRIVATE_SEEDS_ENV)
+
+    # Revalidation must succeed without the private seed env: only the commitment remains.
+    report = validate_leaderboard_payload(redacted, policy=SOTA_V1_POLICY)
+    assert report.ok
 
     row = model_row(redacted)
 
@@ -267,6 +272,58 @@ def test_leaderboard_builder_revalidates_forged_sota_report() -> None:
     row = model_row(payload)
 
     assert row["sota_v1_eligible"] is False
+
+
+def test_leaderboard_builder_rejects_forged_redacted_sota_report() -> None:
+    payload = _official_payload(repeats=1, failure_rate=1.0)
+    payload["seeds"] = REDACTED_SEEDS_SENTINEL
+    payload["candidate"]["seeds"] = REDACTED_SEEDS_SENTINEL
+    payload["candidate"]["episodes"] = []
+    payload["candidate"]["repeats"] = 1
+    for baseline in payload["baselines"]:
+        baseline["seeds"] = REDACTED_SEEDS_SENTINEL
+        baseline["episodes"] = []
+    payload["paired"]["per_seed"] = []
+    payload["run_info"]["seed_panel"] = {
+        "name": "private-env",
+        "count": 8,
+        "sha256": "a" * 64,
+        "preset": "leaderboard",
+    }
+    payload["redaction"] = {"applied": True, "seed_panel": "private-env", "removed": ["seeds"]}
+    payload["validation_reports"] = {"sota-v1": {"policy": "sota-v1", "ok": True, "errors": [], "warnings": []}}
+
+    report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    assert not report.ok
+    assert any("candidate.repeats" in error for error in report.errors)
+    assert any("decision_failure_rate" in error for error in report.errors)
+
+    row = model_row(payload)
+    assert row["sota_v1_eligible"] is False
+
+
+def test_sota_v1_policy_accepts_valid_redacted_private_artifact(monkeypatch: pytest.MonkeyPatch) -> None:
+    private_seeds = [101, 102, 110, 111, 112, 113, 114, 115]
+    monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-115")
+    redacted, report = redact_leaderboard_payload(_official_payload(repeats=3, seeds=private_seeds))
+    assert report.ok
+    monkeypatch.delenv(PRIVATE_SEEDS_ENV)
+
+    revalidated = validate_leaderboard_payload(redacted, policy=SOTA_V1_POLICY)
+    assert revalidated.ok
+
+
+def test_cli_redact_result_skips_write_when_invalid(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    private_seeds = [101, 102, 110, 111, 112, 113, 114, 115]
+    monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-115")
+    raw_path = tmp_path / "raw.json"
+    redacted_path = tmp_path / "redacted.json"
+    raw_path.write_text(json.dumps(_official_payload(repeats=1, seeds=private_seeds)))
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli_module.main(["redact-result", str(raw_path), "--output", str(redacted_path)])
+    assert excinfo.value.code == 1
+    assert not redacted_path.exists()
 
 
 def test_result_validation_rejects_wrong_seed_panel() -> None:

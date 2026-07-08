@@ -541,10 +541,23 @@ tbody tr.is-reference td {
   border: 1px solid rgba(52, 224, 161, 0.35);
 }
 
+.tag-warn {
+  color: var(--amber);
+  background: rgba(255, 196, 87, 0.1);
+  border: 1px solid rgba(255, 196, 87, 0.35);
+}
+
 .tag-dev {
   color: var(--amber);
   background: rgba(255, 196, 87, 0.1);
   border: 1px solid rgba(255, 196, 87, 0.35);
+}
+
+.status-stack {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
 }
 
 .score-strong {

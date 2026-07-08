@@ -33,11 +33,23 @@ function cost(model: LeaderboardModel): string {
 }
 
 function statusTag(model: LeaderboardModel) {
+  const issues = model.sota_v1_issues.join("\n");
   if (model.sota_v1_eligible) {
-    return <span className="tag tag-official">sota-v1</span>;
+    return (
+      <span className="status-stack">
+        <span className="tag tag-official" title={issues || "validated as sota-v1"}>
+          sota-v1
+        </span>
+        {model.sota_v1_issues.length > 0 && (
+          <span className="tag tag-warn" title={issues}>
+            {model.sota_v1_issues.length} warning{model.sota_v1_issues.length === 1 ? "" : "s"}
+          </span>
+        )}
+      </span>
+    );
   }
   return (
-    <span className="tag tag-dev" title={model.sota_v1_issues.join("\n") || "not validated as sota-v1"}>
+    <span className="tag tag-dev" title={issues || "not validated as sota-v1"}>
       diagnostic
     </span>
   );
@@ -150,8 +162,9 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
       </div>
       <div className="legend">
         <span>sota-v1 = 3 repeats, official seed panel, full usage, low fallback, full baseline panel</span>
-        <span>seed-panel hash records the exact public or private held-out seed panel</span>
+        <span>seed-panel hash is an integrity check for a known panel, not a secrecy mechanism</span>
         <span>contract fingerprint pins simulator, scoring, preset, and action schemas</span>
+        <span>eligible rows may still show warnings (illegal actions, fallback, insignificant lift)</span>
         <span>diagnostic rows are useful evidence, but not frontier-model claims</span>
         <span>✓ lift significant at 95% (paired bootstrap)</span>
         <span>fallback = decisions answered by the adapter's fallback policy, not the model</span>

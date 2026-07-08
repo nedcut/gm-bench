@@ -430,17 +430,17 @@ def _redact_result_command(args: argparse.Namespace) -> None:
         sys.exit("gm-bench redact-result: result JSON must be an object")
 
     redacted, report = redact_leaderboard_payload(payload, policy=POLICIES[args.policy])
-    with open(args.output, "w") as handle:
-        json.dump(redacted, handle, indent=2, sort_keys=True)
-        handle.write("\n")
-    status = "ok" if report.ok else "invalid"
-    print(f"{status}: policy={report.policy} wrote {args.output}")
     for error in report.errors:
         print(f"error: {error}")
     for warning in report.warnings:
         print(f"warning: {warning}")
     if not report.ok:
+        print(f"invalid: policy={report.policy}; not writing {args.output}")
         sys.exit(1)
+    with open(args.output, "w") as handle:
+        json.dump(redacted, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    print(f"ok: policy={report.policy} wrote {args.output}")
 
 
 def _validate_contract_command(args: argparse.Namespace) -> None:

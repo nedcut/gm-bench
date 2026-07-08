@@ -25,7 +25,9 @@ python -m gm_bench model \
 For a held-out SOTA run, set a private leaderboard seed panel before running
 and validating. Keep the raw JSON local; it contains the exact seed ids needed
 for local reproduction. Publish only a redacted artifact, which preserves the
-seed-panel SHA-256 commitment without exposing the held-out panel:
+seed-panel SHA-256 commitment and strips per-seed traces. Treat that hash as an
+integrity check for operators who already know the panel — small integer seed
+lists are brute-forceable, so the hash is not a secrecy mechanism:
 
 ```bash
 export GM_BENCH_PRIVATE_SEEDS="101,102,110-115"
@@ -84,9 +86,14 @@ The validator enforces:
 Warnings are still attached to otherwise valid results when the model has
 illegal actions, any adapter fallback/error decisions, insignificant lift, or a
 failure to beat the strongest scripted baseline. Those warnings are not hidden:
-the public leaderboard builder carries `sota_v1_eligible` and
-`sota_v1_issues` into `web/src/data/leaderboard.json`, along with the
-benchmark contract version/fingerprint and seed-panel name/hash when present.
+the public leaderboard builder always revalidates eligibility (it never trusts
+embedded `validation_reports`), carries `sota_v1_eligible` and
+`sota_v1_issues` into `web/src/data/leaderboard.json`, and the UI surfaces
+warning counts on otherwise eligible rows. Contract version/fingerprint and
+seed-panel name/hash are included when present.
+
+`redact-result` only writes an output file when the selected policy passes.
+Invalid private runs stay local; do not publish them.
 
 ## Interpretation
 

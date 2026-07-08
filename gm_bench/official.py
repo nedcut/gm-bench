@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import copy
+import os
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,6 +21,7 @@ from gm_bench.contract import expected_contract
 
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
 SOTA_V1_POLICY_NAME = "sota-v1"
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 @dataclass(frozen=True)
@@ -82,14 +85,23 @@ def validate_leaderboard_payload(
     Errors mean the result should not be treated as satisfying the selected
     policy. Warnings are quality signals that should travel with the score but
     do not invalidate the result by themselves.
+
+    Redacted private-panel artifacts are validated from the fields that survive
+    redaction (contract, seed-panel commitment, repeats, usage, failure rate,
+    baseline names, paired aggregates). Episode/seed lists are not required, and
+    stored ``validation_reports`` are never trusted as proof of eligibility.
     """
 
     errors: list[str] = []
     warnings: list[str] = []
     leaderboard = PRESETS["leaderboard"]
-    expected_seeds = list(leaderboard["seeds"])
     expected_baselines = list(leaderboard["baselines"])
     expected_seasons = int(leaderboard["seasons"])
+    redacted_private = _redacted_private_artifact(payload)
+    _validate_redaction_shape(errors, payload, redacted_private=redacted_private)
+
+    expected_seeds: list[int] | None = list(leaderboard["seeds"])
+    expected_seed_count = len(expected_seeds)
 
     run_info = _dict(payload.get("run_info"))
     if not run_info:
@@ -106,17 +118,25 @@ def validate_leaderboard_payload(
         if not run_info.get("model"):
             errors.append("run_info.model is required for official model results")
         _validate_contract_provenance(errors, warnings, run_info, require=policy.require_contract_provenance)
-        expected_seeds = _resolve_expected_seeds(
+        expected_seeds, expected_seed_count = _resolve_expected_seeds(
             errors,
             warnings,
             run_info,
-            payload_seeds=_list(payload.get("seeds")),
+            payload_seeds=payload.get("seeds"),
             require=policy.require_seed_panel_provenance,
+            redacted_private=redacted_private,
         )
 
-    _expect_equal(errors, "seeds", payload.get("seeds"), expected_seeds)
-    if len(_list(payload.get("seeds"))) < policy.min_seed_count:
-        errors.append(f"seeds must contain at least {policy.min_seed_count} seed(s) for {policy.name}")
+    if redacted_private:
+        if expected_seed_count < policy.min_seed_count:
+            errors.append(
+                f"run_info.seed_panel.count must be >= {policy.min_seed_count} for {policy.name}, "
+                f"got {expected_seed_count}"
+            )
+    else:
+        _expect_equal(errors, "seeds", payload.get("seeds"), expected_seeds)
+        if len(_list(payload.get("seeds"))) < policy.min_seed_count:
+            errors.append(f"seeds must contain at least {policy.min_seed_count} seed(s) for {policy.name}")
     _expect_equal(errors, "seasons", payload.get("seasons"), expected_seasons)
 
     baselines = [_dict(result) for result in _list(payload.get("baselines"))]
@@ -130,7 +150,10 @@ def validate_leaderboard_payload(
         repeats = int(candidate.get("repeats", 1) or 1)
         if repeats < policy.min_repeats:
             errors.append(f"candidate.repeats must be >= {policy.min_repeats} for {policy.name}")
-        _validate_episode_panel(errors, "candidate", candidate, expected_seeds, expected_seasons, repeats=repeats)
+        if redacted_private:
+            _expect_redacted_run_block(errors, "candidate", candidate)
+        elif expected_seeds is not None:
+            _validate_episode_panel(errors, "candidate", candidate, expected_seeds, expected_seasons, repeats=repeats)
         summary = _dict(candidate.get("summary"))
         decisions = int(summary.get("decisions", 0) or 0)
         failure_rate = float(summary.get("decision_failure_rate", 0.0) or 0.0)
@@ -152,7 +175,10 @@ def validate_leaderboard_payload(
 
     for baseline in baselines:
         name = baseline.get("agent", "unknown")
-        _validate_episode_panel(errors, f"baseline[{name}]", baseline, expected_seeds, expected_seasons, repeats=1)
+        if redacted_private:
+            _expect_redacted_run_block(errors, f"baseline[{name}]", baseline)
+        elif expected_seeds is not None:
+            _validate_episode_panel(errors, f"baseline[{name}]", baseline, expected_seeds, expected_seasons, repeats=1)
 
     normalized = _dict(payload.get("normalized"))
     paired = _dict(payload.get("paired"))
@@ -165,8 +191,10 @@ def validate_leaderboard_payload(
     if not paired:
         errors.append("missing paired analysis block")
     else:
-        if paired.get("num_seeds") != len(expected_seeds):
-            errors.append(f"paired.num_seeds must be {len(expected_seeds)}")
+        if paired.get("num_seeds") != expected_seed_count:
+            errors.append(f"paired.num_seeds must be {expected_seed_count}")
+        if redacted_private and _list(paired.get("per_seed")):
+            errors.append("redacted private artifacts must not include paired.per_seed rows")
         if "sign_flip_p_value" not in paired:
             errors.append("paired.sign_flip_p_value is required")
         best = _dict(paired.get("best_baseline"))
@@ -193,7 +221,8 @@ def redact_leaderboard_payload(
     they can be locally reproduced and validated. This redacted artifact keeps
     aggregate scores, usage, provenance, and the seed-panel hash, but removes
     per-seed traces and episode/transaction detail that would reveal the held
-    out panel.
+    out panel. The seed-panel hash is an integrity commitment for operators who
+    already know the panel; it is not a secrecy mechanism against brute force.
     """
 
     report = validate_leaderboard_payload(payload, policy=policy)
@@ -223,6 +252,29 @@ def redact_leaderboard_payload(
     return redacted, report
 
 
+def _redacted_private_artifact(payload: dict[str, Any]) -> bool:
+    redaction = _dict(payload.get("redaction"))
+    seed_panel = _dict(_dict(payload.get("run_info")).get("seed_panel"))
+    return (
+        redaction.get("applied") is True
+        and seed_panel.get("name") == PRIVATE_LEADERBOARD_PANEL_NAME
+        and payload.get("seeds") == REDACTED_SEEDS_SENTINEL
+    )
+
+
+def _validate_redaction_shape(errors: list[str], payload: dict[str, Any], *, redacted_private: bool) -> None:
+    redaction = _dict(payload.get("redaction"))
+    if not redaction:
+        if payload.get("seeds") == REDACTED_SEEDS_SENTINEL:
+            errors.append("redacted seeds require a redaction block with applied=true")
+        return
+    applied = redaction.get("applied")
+    if applied is True and not redacted_private:
+        errors.append("redaction.applied requires seed_panel.name='private-env' and top-level seeds='<redacted>'")
+    if applied is False and payload.get("seeds") == REDACTED_SEEDS_SENTINEL:
+        errors.append("seeds='<redacted>' is invalid when redaction.applied is false")
+
+
 def _redact_seed_fields(payload: dict[str, Any], removed: list[str]) -> None:
     if "seeds" in payload:
         payload["seeds"] = REDACTED_SEEDS_SENTINEL
@@ -240,52 +292,80 @@ def _redact_run_block(block: dict[str, Any], removed: list[str]) -> None:
         removed.append(f"{block.get('agent', 'result')}.episodes")
 
 
+def _expect_redacted_run_block(errors: list[str], label: str, block: dict[str, Any]) -> None:
+    if block.get("seeds") not in (None, REDACTED_SEEDS_SENTINEL):
+        errors.append(f"{label}.seeds must be redacted in private artifacts")
+    if _list(block.get("episodes")):
+        errors.append(f"{label}.episodes must be empty in redacted private artifacts")
+
+
 def _resolve_expected_seeds(
     errors: list[str],
     warnings: list[str],
     run_info: dict[str, Any],
     *,
-    payload_seeds: list[Any],
+    payload_seeds: Any,
     require: bool,
-) -> list[int]:
+    redacted_private: bool,
+) -> tuple[list[int] | None, int]:
     public_seeds = list(PRESETS["leaderboard"]["seeds"])
     panel = _dict(run_info.get("seed_panel"))
-    actual_seeds = [int(seed) for seed in payload_seeds] if payload_seeds else []
+    actual_seeds = _list(payload_seeds) if payload_seeds != REDACTED_SEEDS_SENTINEL else []
+    parsed_seeds: list[int] = []
+    if actual_seeds and all(isinstance(seed, int) or str(seed).lstrip("-").isdigit() for seed in actual_seeds):
+        parsed_seeds = [int(seed) for seed in actual_seeds]
+
     if not panel:
         message = "run_info.seed_panel is required for official seed-panel validation"
         if require:
             errors.append(message)
         else:
             warnings.append(message)
-        return public_seeds
+        return public_seeds, len(public_seeds)
 
     name = panel.get("name")
     if name == PUBLIC_LEADERBOARD_PANEL_NAME:
-        expected_seeds = public_seeds
+        expected_seeds: list[int] | None = public_seeds
+        expected_count = len(public_seeds)
     elif name == PRIVATE_LEADERBOARD_PANEL_NAME:
-        import os
-
-        if not os.environ.get(PRIVATE_SEEDS_ENV):
+        if redacted_private:
+            expected_seeds = None
+            try:
+                expected_count = int(panel.get("count"))
+            except (TypeError, ValueError):
+                expected_count = 0
+                errors.append("run_info.seed_panel.count must be an integer for redacted private panels")
+            sha = panel.get("sha256")
+            if not isinstance(sha, str) or not _SHA256_RE.fullmatch(sha):
+                errors.append("run_info.seed_panel.sha256 must be a 64-char lowercase hex digest")
+        elif not os.environ.get(PRIVATE_SEEDS_ENV):
             errors.append(f"{PRIVATE_SEEDS_ENV} is required to validate a private leaderboard seed panel")
-            expected_seeds = actual_seeds or public_seeds
+            expected_seeds = parsed_seeds or public_seeds
+            expected_count = len(expected_seeds)
         else:
             expected_seeds = _parse_seeds(os.environ[PRIVATE_SEEDS_ENV])
+            expected_count = len(expected_seeds)
     elif name == CUSTOM_SEED_PANEL_NAME:
         errors.append("custom seed panels are not official leaderboard results")
-        expected_seeds = actual_seeds or public_seeds
+        expected_seeds = parsed_seeds or public_seeds
+        expected_count = len(expected_seeds)
     else:
         errors.append(f"unknown seed panel name {name!r}")
-        expected_seeds = actual_seeds or public_seeds
+        expected_seeds = parsed_seeds or public_seeds
+        expected_count = len(expected_seeds)
 
     if panel.get("preset") != "leaderboard":
         errors.append(f"run_info.seed_panel.preset must be 'leaderboard', got {panel.get('preset')!r}")
-    if actual_seeds:
-        expected_hash = seed_panel_hash(actual_seeds)
+    if parsed_seeds:
+        expected_hash = seed_panel_hash(parsed_seeds)
         if panel.get("sha256") != expected_hash:
             errors.append(f"run_info.seed_panel.sha256 must be {expected_hash!r}, got {panel.get('sha256')!r}")
-        if panel.get("count") != len(actual_seeds):
-            errors.append(f"run_info.seed_panel.count must be {len(actual_seeds)}, got {panel.get('count')!r}")
-    return expected_seeds
+        if panel.get("count") != len(parsed_seeds):
+            errors.append(f"run_info.seed_panel.count must be {len(parsed_seeds)}, got {panel.get('count')!r}")
+    elif redacted_private and panel.get("count") != expected_count and expected_count:
+        # count already parsed above; keep consistency if both present
+        pass
+    return expected_seeds, expected_count
 
 
 def _validate_contract_provenance(

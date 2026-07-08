@@ -96,10 +96,8 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _sota_report(payload: dict[str, Any]) -> dict[str, Any]:
-    if (payload.get("redaction") or {}).get("applied"):
-        stored = ((payload.get("validation_reports") or {}).get(SOTA_V1_POLICY.name) or {})
-        if stored:
-            return stored
+    """Always recompute eligibility; never trust embedded validation_reports."""
+
     return validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY).to_dict()
 
 
