@@ -1,0 +1,130 @@
+{
+  "baselines": [
+    {
+      "agent": "shrewd",
+      "mean_score": 320.127,
+      "score_stddev": 39.303
+    },
+    {
+      "agent": "value",
+      "mean_score": 282.223,
+      "score_stddev": 45.09
+    },
+    {
+      "agent": "win-now",
+      "mean_score": 217.43,
+      "score_stddev": 34.309
+    },
+    {
+      "agent": "rebuild",
+      "mean_score": 79.487,
+      "score_stddev": 10.859
+    },
+    {
+      "agent": "conservative",
+      "mean_score": 76.081,
+      "score_stddev": 6.644
+    },
+    {
+      "agent": "random",
+      "mean_score": 51.394,
+      "score_stddev": 9.081
+    }
+  ],
+  "models": [
+    {
+      "api_latency_s_per_decision": 22.08,
+      "baseline_panel_mean_score": 171.124,
+      "ci95": [
+        -182.672,
+        -124.845
+      ],
+      "cost_per_episode_usd": 0.0,
+      "cost_usd": 0.0,
+      "decision_points": 120,
+      "decisions_with_usage": 120,
+      "fallback_rate": 0.108,
+      "harness_latency_s_per_decision": 22.18,
+      "id": "ollama:qwen3.5:latest",
+      "illegal_actions": 163,
+      "lift_vs_best_baseline": -302.588,
+      "mean_score": 17.539,
+      "mean_strategy_score": 68.477,
+      "model": "qwen3.5:latest",
+      "paired_lift": -153.584,
+      "protocol_penalty": 407.5,
+      "provider": "ollama",
+      "score_stddev": 39.583,
+      "seasons": 5,
+      "seed_win_rate": 0.0,
+      "seeds": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "significant": true,
+      "tokens_per_decision": 4307.9,
+      "total_tokens": 516954
+    },
+    {
+      "api_latency_s_per_decision": 12.88,
+      "baseline_panel_mean_score": 171.124,
+      "ci95": [
+        -212.8,
+        -158.233
+      ],
+      "cost_per_episode_usd": 0.0,
+      "cost_usd": 0.0,
+      "decision_points": 120,
+      "decisions_with_usage": 120,
+      "fallback_rate": 0.067,
+      "harness_latency_s_per_decision": 12.97,
+      "id": "ollama:gemma4:e4b",
+      "illegal_actions": 230,
+      "lift_vs_best_baseline": -339.273,
+      "mean_score": -19.146,
+      "mean_strategy_score": 52.729,
+      "model": "gemma4:e4b",
+      "paired_lift": -190.269,
+      "protocol_penalty": 575.0,
+      "provider": "ollama",
+      "score_stddev": 42.406,
+      "seasons": 5,
+      "seed_win_rate": 0.0,
+      "seeds": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "significant": true,
+      "tokens_per_decision": 3984.3,
+      "total_tokens": 478122
+    }
+  ],
+  "preset": {
+    "decision_points_per_episode": 15,
+    "name": "leaderboard",
+    "seasons": 5,
+    "seeds": [
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ]
+  },
+  "updated": "2026-07-07"
+}

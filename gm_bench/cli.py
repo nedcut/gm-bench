@@ -425,6 +425,9 @@ def _print_result(result: dict[str, Any], as_json: bool) -> None:
         "rejected_offers={rejected_offers}".format(**summary)
     )
     print(_reliability_line(result))
+    usage_line = _format_usage_line(summary)
+    if usage_line:
+        print(usage_line)
 
 
 def _reliability_line(result: dict[str, Any]) -> str:
@@ -441,14 +444,32 @@ def _reliability_line(result: dict[str, Any]) -> str:
     return line
 
 
+def _format_usage_line(summary: dict[str, Any]) -> str | None:
+    usage = summary.get("usage") or {}
+    if not usage.get("decisions_with_usage"):
+        return None
+    cost = usage.get("cost_usd")
+    cost_text = f"${cost:.4f}" if cost is not None else "unknown"
+    api_seconds = usage.get("api_latency_ms", 0.0) / 1000.0
+    harness_seconds = usage.get("harness_latency_ms", 0.0) / 1000.0
+    model = usage.get("model") or "?"
+    return (
+        f"usage: model={model} tokens={usage.get('total_tokens', 0)} "
+        f"(in={usage.get('input_tokens', 0)} out={usage.get('output_tokens', 0)}) "
+        f"cost={cost_text} api_time={api_seconds:.1f}s harness_time={harness_seconds:.1f}s "
+        f"decisions_with_usage={usage.get('decisions_with_usage', 0)}"
+    )
+
+
 def _print_table(results: list[dict[str, Any]]) -> None:
     name_width = max(14, *(len(result["agent"]) + 2 for result in results))
-    print(f"{'agent':<{name_width}}mean_score  stddev  mean_wins  titles  illegal")
-    print("-" * (name_width + 49))
+    print(f"{'agent':<{name_width}}mean_score  stddev  mean_wins  titles  illegal  fallback")
+    print("-" * (name_width + 59))
     for result in sorted(results, key=lambda item: item["summary"]["mean_score"], reverse=True):
         summary = result["summary"]
+        fallback = f"{summary.get('failed_decisions', 0)}/{summary.get('decisions', 0)}"
         print(
-            f"{result['agent']:<{name_width}}{summary['mean_score']:>10.2f}{summary['score_stddev']:>8.2f}{summary['mean_total_wins']:>11.2f}{summary['championships']:>8}{summary['illegal_actions']:>9}"
+            f"{result['agent']:<{name_width}}{summary['mean_score']:>10.2f}{summary['score_stddev']:>8.2f}{summary['mean_total_wins']:>11.2f}{summary['championships']:>8}{summary['illegal_actions']:>9}{fallback:>10}"
         )
 
 
@@ -494,6 +515,9 @@ def _print_evaluation(result: dict[str, Any]) -> None:
                 f"vs strongest baseline '{best['agent']}': paired_lift={best['paired_lift_mean']} "
                 f"seed_win_rate={best['seed_win_rate']}"
             )
+    usage_line = _format_usage_line(result["candidate"]["summary"])
+    if usage_line:
+        print(usage_line)
     cache = result.get("baseline_cache")
     if cache and cache.get("enabled"):
         print(f"baseline_cache_hits={cache['hits']}/{cache['total']} path={cache['path']}")

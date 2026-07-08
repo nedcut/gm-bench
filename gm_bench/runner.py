@@ -15,6 +15,7 @@ from gm_bench.agents import AGENTS, Agent
 from gm_bench.baseline_cache import cache_key, default_cache_path, load_cache, put_cached_episode, save_cache
 from gm_bench.scoring import score_breakdown
 from gm_bench.simulator import League
+from gm_bench.telemetry import aggregate_usage, summarize_usage
 
 ProgressCallback = Callable[[dict[str, Any]], None]
 
@@ -36,6 +37,7 @@ class BenchmarkResult:
     mean_decision_seconds: float
     max_decision_seconds: float
     rejected_offers: int
+    usage: dict[str, Any]
     season_summaries: list[dict[str, Any]]
     transactions: list[dict[str, Any]]
 
@@ -66,6 +68,8 @@ def run_episode(
     total_decisions = seasons * 3
     failed_decisions = 0
     decision_seconds: list[float] = []
+    harness_latency_ms = 0.0
+    usage_records: list[dict[str, Any]] = []
     for season_index in range(1, seasons + 1):
         for phase in ["preseason", "trade_deadline", "draft"]:
             decision += 1
@@ -84,8 +88,12 @@ def run_episode(
                 league.run_opponent_draft(before_user=True)
             observation = league.observation(phase)
             started = time.perf_counter()
-            actions = agent.act(observation)
-            decision_seconds.append(time.perf_counter() - started)
+            actions, usage = agent.act_with_usage(observation)
+            elapsed = time.perf_counter() - started
+            decision_seconds.append(elapsed)
+            harness_latency_ms += elapsed * 1000.0
+            if usage is not None:
+                usage_records.append({**usage, "season": season_index, "phase": phase})
             if _decision_failed(actions):
                 failed_decisions += 1
             league.apply_actions(actions, phase)
@@ -99,6 +107,14 @@ def run_episode(
         for transaction in league.transactions
         if transaction.team_id == user_team_id and transaction.accepted and transaction.action.get("type") == "memo"
     )
+    # harness latency covers every decision (process spawn included); the
+    # api_latency inside usage covers only the model calls the adapter timed.
+    # The gap between the two is harness/CLI overhead. It is recorded only for
+    # usage-reporting (model-backed) runs: scripted-agent payloads must stay
+    # byte-identical across runs to preserve the determinism guarantee.
+    usage_summary = aggregate_usage(usage_records)
+    usage_summary["harness_latency_ms"] = round(harness_latency_ms, 1) if usage_records else 0.0
+    usage_summary["per_decision"] = usage_records
     return BenchmarkResult(
         agent=agent.name,
         seed=seed,
@@ -115,6 +131,7 @@ def run_episode(
         mean_decision_seconds=round(mean(decision_seconds), 4) if decision_seconds else 0.0,
         max_decision_seconds=round(max(decision_seconds), 4) if decision_seconds else 0.0,
         rejected_offers=league.rejected_offers,
+        usage=usage_summary,
         season_summaries=[summary.__dict__ for summary in league.summaries],
         transactions=[transaction.__dict__ for transaction in league.transactions],
     )
@@ -180,6 +197,7 @@ def summarize_episodes(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "memo_writes": sum(episode.get("memo_writes", 0) for episode in episodes),
         # Older cached episodes may predate this field, so read it defensively.
         "rejected_offers": sum(episode.get("rejected_offers", 0) for episode in episodes),
+        "usage": summarize_usage(episodes),
     }
 
 
@@ -324,6 +342,7 @@ def evaluate_against_baselines(
             "candidate_decision_failure_rate": candidate["summary"].get("decision_failure_rate", 0.0),
             "candidate_memo_writes": candidate["summary"].get("memo_writes", 0),
             "candidate_rejected_offers": candidate["summary"].get("rejected_offers", 0),
+            "candidate_usage": candidate["summary"].get("usage", summarize_usage([])),
         },
         "paired": _paired_analysis(seeds, candidate, baseline_results),
     }

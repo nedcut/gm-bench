@@ -54,6 +54,8 @@ def compact_observation(observation: dict[str, Any]) -> dict[str, Any]:
         "draft_class": draft_class[:draft_limit],
         "draft_order": observation.get("draft_order", []),
         "trade_market": observation["trade_market"][:trade_limit],
+        "incoming_offers": observation.get("incoming_offers", [])[:3],
+        "scout_reports": observation.get("scout_reports", {}),
         "history": observation["history"],
         "memo": observation.get("memo", ""),
     }
@@ -70,11 +72,22 @@ def build_prompt(observation: dict[str, Any]) -> str:
         "Allowed action objects inside actions:\n"
         '{"type":"sign_free_agent","player_id":123,"years":1,"salary":2.5}\n'
         '{"type":"draft","prospect_id":1010001}\n'
-        '{"type":"trade","partner_team_id":3,"give_player_ids":[1],"receive_player_ids":[88]}\n'
+        '{"type":"trade","partner_team_id":3,"give_player_ids":[1],"receive_player_ids":[88],"give_pick_seasons":[],"receive_pick_seasons":[4]}\n'
+        '{"type":"accept_offer","offer_id":"offer-3-1-preseason-12-34"}\n'
+        '{"type":"decline_offer","offer_id":"offer-3-1-preseason-12-34"}\n'
         '{"type":"release","player_id":1}\n'
+        '{"type":"scout","player_id":1010001}\n'
         '{"type":"set_lineup","player_ids":[18 unique roster player ids]}\n'
         '{"type":"memo","text":"plan notes carried to your next decision"}\n'
         '{"type":"noop"}\n\n'
+        "Public potential ratings are noisy; scout (limited points per season, see rules.scouting) buys a "
+        "near-true potential reading, echoed forever in scout_reports — most valuable before drafting or big trades.\n"
+        "Opponents may send you trade offers in incoming_offers; each is valid only for this decision point. "
+        "Every offer looks fair to the SENDER's private valuation — some are bargains, some dump bad contracts on you. "
+        "Judge with public stats before accepting; ignoring an offer is free.\n"
+        "Future draft picks are tradeable assets: give_pick_seasons/receive_pick_seasons list future season numbers "
+        "(up to rules.pick_trading.max_seasons_ahead ahead; rough values in rules.pick_trading.pick_value_estimate); "
+        "owned picks per season are in team.draft_picks and future picks count toward your final score.\n"
         "Constraints: lineup must include exactly 18 unique current roster players with at least 10 F, 4 D, and 1 G. "
         "Only players in the lineup develop at full speed; the lineup also sets team strength. "
         "Trades: partners privately re-value players, accept at most trade_limit_per_partner trades per season, "
@@ -124,14 +137,38 @@ def parse_actions(text: str) -> list[dict[str, Any]]:
 def _actions_from_json(parsed: Any) -> list[dict[str, Any]]:
     if isinstance(parsed, dict) and isinstance(parsed.get("actions"), list):
         parsed = parsed["actions"]
-    if isinstance(parsed, dict) and isinstance(parsed.get("type"), str):
+    if isinstance(parsed, dict):
         parsed = [parsed]
     if not isinstance(parsed, list):
         raise ValueError("model JSON was not an action list")
-    actions = [action for action in parsed if isinstance(action, dict) and isinstance(action.get("type"), str)]
+    # A well-formed but empty action list is a legitimate "do nothing this
+    # window" decision, not a parse failure. Return an explicit noop so it is
+    # attributed to the model, not the fallback policy. (Items that fail to
+    # normalize below still raise, because that is a real formatting failure.)
+    if not parsed:
+        return [{"type": "noop"}]
+    actions = [_normalize_action_keys(action) for action in parsed if isinstance(action, dict)]
+    actions = [action for action in actions if isinstance(action.get("type"), str)]
     if not actions:
         raise ValueError("model JSON did not contain typed actions")
     return actions
+
+
+def _normalize_action_keys(action: dict[str, Any]) -> dict[str, Any]:
+    """Mechanical key repair only: accept "action"/"action_type" as aliases for "type".
+
+    Small local models often emit {"action": "draft", ...} or
+    {"action_type": "draft", ...}. Renaming the key preserves the model's
+    decision verbatim; semantic mistakes (an unknown action type, a bad id)
+    still flow through to the simulator and are penalized as the model's own
+    errors.
+    """
+    for alias in ("action", "action_type"):
+        if "type" not in action and isinstance(action.get(alias), str):
+            renamed = dict(action)
+            renamed["type"] = renamed.pop(alias)
+            action = renamed
+    return action
 
 
 def _scan_json_values(text: str, opener: str) -> list[Any]:
@@ -149,6 +186,45 @@ def _scan_json_values(text: str, opener: str) -> list[Any]:
 def strip_terminal_codes(text: str) -> str:
     text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
     return re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
+
+
+def make_usage(
+    *,
+    provider: str | None = None,
+    model: str | None = None,
+    api_calls: int | None = None,
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
+    total_tokens: int | None = None,
+    api_latency_ms: float | None = None,
+    cost_usd: float | None = None,
+) -> dict[str, Any] | None:
+    """Build a usage block for the stdout envelope, dropping unknown fields.
+
+    Report only what the backend actually returned — a missing token count is
+    recorded as absent, never zero, so the harness can distinguish "free" from
+    "unmeasured".
+    """
+    usage = {
+        "provider": provider,
+        "model": model,
+        "api_calls": api_calls,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "total_tokens": total_tokens,
+        "api_latency_ms": api_latency_ms,
+        "cost_usd": cost_usd,
+    }
+    cleaned = {key: value for key, value in usage.items() if value is not None}
+    return cleaned or None
+
+
+def emit(actions: list[dict[str, Any]], usage: dict[str, Any] | None = None) -> None:
+    """Print the adapter response: bare list without usage, envelope with it."""
+    if usage:
+        print(json.dumps({"actions": actions, "usage": usage}))
+    else:
+        print(json.dumps(actions))
 
 
 def fallback_actions(observation: dict[str, Any], error: str | None = None) -> list[dict[str, Any]]:

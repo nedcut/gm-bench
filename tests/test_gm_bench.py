@@ -254,6 +254,30 @@ def test_model_action_parser_rejects_untyped_objects() -> None:
     raise AssertionError("parser should reject JSON objects without typed actions")
 
 
+def test_model_action_parser_aliases_action_type_key() -> None:
+    # Some models emit {"action_type": ...} instead of {"type": ...}; the
+    # mechanical rename preserves the decision and drops the stale key.
+    actions = parse_actions('{"actions":[{"action_type":"draft","prospect_id":5}]}')
+    assert actions == [{"type": "draft", "prospect_id": 5}]
+
+
+def test_model_action_parser_treats_empty_action_list_as_noop() -> None:
+    # A well-formed empty action list is an explicit "do nothing" turn, not a
+    # parse failure — it must not be attributed to the fallback policy.
+    assert parse_actions('{"actions": []}') == [{"type": "noop"}]
+    assert parse_actions("[]") == [{"type": "noop"}]
+
+
+def test_model_action_parser_still_rejects_all_untyped_items() -> None:
+    # Items that are present but none normalize to a typed action are a real
+    # formatting failure and must still raise (so they count as a fallback).
+    try:
+        parse_actions('{"actions":[{"foo":"bar"}]}')
+    except ValueError:
+        return
+    raise AssertionError("parser should reject action lists with no typed items")
+
+
 def test_coding_agent_schema_exists() -> None:
     schema_path = Path("schemas/gm_actions.schema.json")
     payload = json.loads(schema_path.read_text())
@@ -349,6 +373,9 @@ def test_evaluation_lift_uses_precise_episode_scores(monkeypatch: pytest.MonkeyP
                 "mean_strategy_score": summary_score,
                 "total_protocol_penalty": 0.0,
                 "illegal_actions": 0,
+                "decisions": 3 * len(seeds),
+                "failed_decisions": 0,
+                "decision_failure_rate": 0.0,
             },
             "episodes": [{"seed": seed, "final_score": score} for seed, score in zip(seeds, scores, strict=True)],
         }

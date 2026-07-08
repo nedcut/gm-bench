@@ -92,19 +92,30 @@ def initialize(connection: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_transactions_run_id ON transactions(run_id);
         """
     )
+    _ensure_episode_usage_columns(connection)
+
+
+def _ensure_episode_usage_columns(connection: sqlite3.Connection) -> None:
+    """Add usage columns to episode tables created before telemetry existed."""
+    existing = {row[1] for row in connection.execute("PRAGMA table_info(episodes)")}
+    for name, column_type in (("total_tokens", "INTEGER"), ("cost_usd", "REAL"), ("usage_json", "TEXT")):
+        if name not in existing:
+            connection.execute(f"ALTER TABLE episodes ADD COLUMN {name} {column_type}")
 
 
 def _insert_agent_payload(connection: sqlite3.Connection, run_id: str, payload: Any) -> None:
     if not isinstance(payload, dict):
         return
     for episode in payload.get("episodes", []):
+        usage = episode.get("usage") or {}
         cursor = connection.execute(
             """
             INSERT INTO episodes (
                 run_id, agent, seed, seasons, final_score, wins,
-                championships, illegal_actions, season_summaries_json
+                championships, illegal_actions, season_summaries_json,
+                total_tokens, cost_usd, usage_json
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 run_id,
@@ -116,6 +127,9 @@ def _insert_agent_payload(connection: sqlite3.Connection, run_id: str, payload: 
                 episode.get("championships", 0),
                 episode.get("illegal_actions", 0),
                 json.dumps(episode.get("season_summaries", []), sort_keys=True),
+                usage.get("total_tokens"),
+                usage.get("cost_usd"),
+                json.dumps(usage, sort_keys=True) if usage else None,
             ),
         )
         episode_id = int(cursor.lastrowid)

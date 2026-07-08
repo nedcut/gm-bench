@@ -11,6 +11,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from gm_bench.agent_utils import position_aware_lineup, public_asset_value
+from gm_bench.telemetry import normalize_usage
 
 
 class Agent(ABC):
@@ -19,6 +20,10 @@ class Agent(ABC):
     @abstractmethod
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
         raise NotImplementedError
+
+    def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        """Return (actions, usage). Scripted agents have no model usage to report."""
+        return self.act(observation), None
 
 
 class RandomAgent(Agent):
@@ -335,6 +340,16 @@ class ExternalProcessAgent(Agent):
             self.name = name
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        actions, _usage = self.act_with_usage(observation)
+        return actions
+
+    def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        """Run the adapter and parse its stdout.
+
+        Two stdout shapes are accepted: a bare JSON action list (the original
+        protocol, kept so third-party adapters don't break) and an envelope
+        ``{"actions": [...], "usage": {...}}`` that also reports model usage.
+        """
         run_env = None
         if self.env:
             run_env = os.environ.copy()
@@ -351,18 +366,20 @@ class ExternalProcessAgent(Agent):
                 env=run_env,
             )
         except subprocess.TimeoutExpired:
-            return [{"type": "noop", "error": f"external agent timed out after {self.timeout_seconds}s"}]
+            return [{"type": "noop", "error": f"external agent timed out after {self.timeout_seconds}s"}], None
         except OSError as exc:
-            return [{"type": "noop", "error": f"external agent could not be launched: {exc}"}]
+            return [{"type": "noop", "error": f"external agent could not be launched: {exc}"}], None
         if completed.returncode != 0:
-            return [{"type": "noop", "error": completed.stderr[-500:]}]
+            return [{"type": "noop", "error": completed.stderr[-500:]}], None
         try:
-            actions = json.loads(completed.stdout)
+            payload = json.loads(completed.stdout)
         except json.JSONDecodeError:
-            return [{"type": "noop", "error": "external agent returned invalid JSON"}]
-        return (
-            actions if isinstance(actions, list) else [{"type": "noop", "error": "external agent must return a list"}]
-        )
+            return [{"type": "noop", "error": "external agent returned invalid JSON"}], None
+        if isinstance(payload, list):
+            return payload, None
+        if isinstance(payload, dict) and isinstance(payload.get("actions"), list):
+            return payload["actions"], normalize_usage(payload.get("usage"))
+        return [{"type": "noop", "error": "external agent must return an action list or envelope"}], None
 
 
 AGENTS: dict[str, type[Agent]] = {

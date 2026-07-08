@@ -34,6 +34,23 @@ The MVP includes:
   persistent `memo` scratchpad for carrying multi-season plans between
   decision points.
 
+## Leaderboard & Website
+
+Official results use the `leaderboard` preset (8 held-back seeds × 5 seasons,
+full baseline panel; `GM_BENCH_PRIVATE_SEEDS` swaps in a private panel). Every
+run records usage telemetry — tokens, dollar cost (from `gm_bench/pricing.json`
+or adapter-reported cost), and per-decision latency — alongside scores.
+
+```bash
+LLM_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \
+  --preset leaderboard --json > results/leaderboard/openai-gpt-5.4.json
+python web/scripts/build_leaderboard.py   # refresh web/src/data/leaderboard.json
+cd web && bun install && bun run dev      # local site
+```
+
+The site in `web/` deploys to GitHub Pages automatically on pushes to `main`
+(`.github/workflows/pages.yml`).
+
 ## Quickstart
 
 ```bash
@@ -358,6 +375,9 @@ Useful knobs:
   The Ollama adapter defaults to `tiny`.
 - `OLLAMA_TRANSPORT=cli|http`: defaults to `cli`; `http` uses the Ollama REST
   API.
+- `OLLAMA_THINK=0|1`: the adapter defaults to disabling Ollama thinking mode so
+  thinking-first local models return JSON actions instead of reasoning prose.
+  Set `OLLAMA_THINK=1` to opt a model back into thinking.
 
 ### OpenAI-Compatible APIs
 
@@ -489,6 +509,12 @@ Multi-season coherence is testable in practice because external agents are
 stateless between decision points: the `memo` action is the only channel for
 carrying a plan forward, so agents that form and follow multi-season plans are
 distinguishable from agents that re-derive greedy moves each call.
+
+Model-backed scores are also attributed: adapters tag substituted actions
+(`model_error`/`error`), and every result reports how many decision points the
+model actually played versus how many fell back to the adapter's safety policy
+(`fallback_decisions` and `fallback_decision_rate`). This keeps a weak model
+from being silently carried by its fallback heuristics.
 
 The `exploit` baseline exists to keep the benchmark honest. It replays the
 degenerate strategies that used to dominate (trade value-pumping and free-agent

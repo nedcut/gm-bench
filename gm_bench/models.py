@@ -6,11 +6,34 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 Position = Literal["F", "D", "G"]
-ActionType = Literal["sign_free_agent", "release", "trade", "draft", "set_lineup", "memo", "noop"]
+ActionType = Literal[
+    "sign_free_agent",
+    "release",
+    "trade",
+    "accept_offer",
+    "decline_offer",
+    "scout",
+    "draft",
+    "set_lineup",
+    "memo",
+    "noop",
+]
 
 LINEUP_SIZE = 18
 LINEUP_MIN_POSITIONS: dict[str, int] = {"F": 10, "D": 4, "G": 1}
 ROSTER_MIN = 18
+
+# Draft-pick trading: picks are generic one-per-team-per-season selections,
+# exercised at the owner's standings slot. A pick's value approximates the
+# asset value of a mid-round prospect, discounted per season of distance.
+PICK_BASE_VALUE = 12.0
+PICK_VALUE_DISCOUNT = 0.8
+PICK_TRADE_MAX_SEASONS_AHEAD = 3
+
+
+def pick_value(current_season: int, pick_season: int) -> float:
+    """Undiscounted-today value of a draft pick `pick_season - current_season` seasons out."""
+    return PICK_BASE_VALUE * (PICK_VALUE_DISCOUNT ** max(0, pick_season - current_season))
 
 
 @dataclass
