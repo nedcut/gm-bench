@@ -2,6 +2,18 @@
 
 This snapshot records the benchmark results generated during the MVP build.
 
+> **Note (2026-07-08, protocol v2 / contract `cf2607e59dba`):** Midseason,
+> multi-round interaction, functional injuries, and the full v1 baseline panel
+> (`strategic`, `pick-trader`) are now on `main`. SOTA-v1 claims must use this
+> contract fingerprint. Older model rows and pre-v2 leaderboard means are not
+> comparable. Re-run model candidates with
+> `python -m gm_bench model --preset leaderboard --repeats 3` and validate with
+> `--policy sota-v1`. Scripted reference means on the public panel (seeds 11–18,
+> 5 seasons): `pick-trader` 411.619, `strategic` 402.025, `shrewd` 371.769,
+> `value` 354.619, `win-now` 275.834, `conservative` 139.030, `rebuild` 138.745,
+> `random` 96.715. See `docs/scoring_calibration.md` and
+> `python -m gm_bench validate-contract` / `calibrate-score --json`.
+
 > **Note (2026-07-04):** Draft-pick trading, opponent-initiated trade offers,
 > and scouting landed together with usage/cost telemetry. Scoring now counts
 > future picks as assets, shifting every score by a flat +3.748 versus the
