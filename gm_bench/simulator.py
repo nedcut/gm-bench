@@ -382,7 +382,10 @@ class League:
                     recovered = recovered or player.injured_games == 0
             if recovered:
                 available_strength = self._team_strength(team, apply_injury_noise=False)
-                ratings[team.id] += available_strength - unavailable_strength
+                # Guard the direction: _team_strength is a weighted average, so a
+                # returning below-average player on a still-short lineup could
+                # otherwise nudge the rating down. Recovery must never weaken a team.
+                ratings[team.id] += max(0.0, available_strength - unavailable_strength)
 
     def _update_morale_from_standings(self) -> None:
         ordered = sorted(self.teams.values(), key=lambda team: team.wins, reverse=True)
