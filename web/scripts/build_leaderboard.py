@@ -102,7 +102,7 @@ def _sota_report(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _redacted_episode_count(payload: dict[str, Any]) -> int:
-    seed_panel = ((payload.get("run_info") or {}).get("seed_panel") or {})
+    seed_panel = (payload.get("run_info") or {}).get("seed_panel") or {}
     candidate = payload.get("candidate") or {}
     count = seed_panel.get("count")
     repeats = candidate.get("repeats", 1)
