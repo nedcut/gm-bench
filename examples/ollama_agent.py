@@ -69,7 +69,11 @@ def main() -> None:
                 f"{prompt}\n\nYour previous answer was invalid: {str(content)[:300]!r}. "
                 "Return exactly one JSON object with an actions array and no other text."
             )
-            repaired = generate(host, model, repair_prompt, timeout, schema, think=think)
+            # Retry unconstrained: the schema-pinned first attempt already failed
+            # to parse, so pinning the same schema again just reproduces it. Drop
+            # the format constraint (schema=None) so a weak model can emit
+            # *something* parseable, guided by the textual instruction above.
+            repaired = generate(host, model, repair_prompt, timeout, None, think=think)
             try:
                 emit(parse_actions(repaired), merged_usage(model))
             except ValueError:
@@ -125,17 +129,21 @@ def generate(
 ) -> str:
     """Prefer schema-constrained HTTP generation; fall back to unconstrained CLI.
 
-    The HTTP path pins the model to the real action schema on every call
-    (including repairs). Only if that schema-constrained call errors — e.g. an
-    older Ollama that rejects a full JSON-schema `format` object — do we drop to
-    the unconstrained `ollama run` CLI.
+    The HTTP path pins the model to the real action schema when one is supplied.
+    Only if that schema-constrained call errors — e.g. an older Ollama that
+    rejects a full JSON-schema `format` object — do we drop to the unconstrained
+    `ollama run` CLI.
     """
     if os.environ.get("OLLAMA_TRANSPORT", "http") != "http":
         return generate_cli(model, prompt, timeout, think=think)
     try:
         return generate_http(host, model, prompt, timeout, format_schema=schema, think=think)
     except urllib.error.HTTPError as exc:
-        if _is_schema_format_rejection(exc):
+        # Any 400 from a schema-constrained call means this Ollama build won't
+        # accept the JSON-schema `format` object; some builds reject it with an
+        # opaque body the substring heuristic misses, so key on "we sent a
+        # schema" too rather than degrading straight to a fallback decision.
+        if _is_schema_format_rejection(exc) or (schema is not None and exc.code == 400):
             return generate_cli(model, prompt, timeout, think=think)
         raise
 
