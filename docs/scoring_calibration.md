@@ -82,6 +82,35 @@ repeated favorable trades. The `exploit` baseline agent and its regression
 test (`test_exploit_agent_no_longer_beats_honest_baselines`) pin this: if a
 rules or weight change makes asset hoarding dominant again, that test fails.
 
+## Versioned scale and marginal values
+
+The active scale is `score-v1`, fingerprint `05a60ff4f691e734`. The fingerprint
+is derived only from the published weights and clamps. GM-Bench validates it at
+import time, so changing a weight without declaring a new score version fails
+immediately instead of silently changing leaderboard meaning.
+
+Reproduce the complete machine-readable scale and calibration:
+
+```bash
+python -m gm_bench calibrate-score --json
+```
+
+| Counterfactual change | Score delta |
+| --- | ---: |
+| One championship | +35.0 |
+| Ten recent wins | +4.2 |
+| One playoff round | +9.0 |
+| Twenty veteran asset value | +3.2 |
+| Twenty young asset value | +6.8 |
+| Ten future-pick asset value | +1.6 |
+| Ten cap room, while the cap term is unclamped | +3.5 |
+| Ten current-strength points | +2.8 |
+| One illegal action | -2.5 |
+
+These are local score-scale marginals, not claims that the underlying roster
+changes are causally independent. Acquiring a young player, for example, may
+also change strength, cap room, and wins.
+
 ## Reference-policy calibration
 
 The current `sota-v1` public panel (seeds 11-18, five seasons) produces:
@@ -100,6 +129,7 @@ The strategic policy's panel ablations are also deterministic:
 | Full `strategic` | 402.025 | 0.000 |
 | No scouting | 371.284 | -30.741 |
 | No incoming-offer policy | 395.539 | -6.486 |
+| No memo writes | 402.025 | 0.000 |
 | `shrewd` core only | 371.769 | -30.256 |
 | Pick trading enabled (`pick-trader`) | 411.619 | +9.594 |
 
@@ -107,10 +137,11 @@ This is intentionally not presented as causal estimation: mechanics interact
 over five seasons. It is a regression calibration showing that scouting and
 selective offer handling have measurable decision value. The cap-aware pick
 policy also improves the panel mean, but remains separate so its marginal effect
-stays visible rather than being hidden inside `strategic`. `validate-contract`
-separately requires accepted
+stays visible rather than being hidden inside `strategic`. Memo persistence is
+covered as protocol behavior but has zero direct effect for this deterministic
+reference, which can reconstruct its policy from the observation; its value as
+an LLM memory channel still requires model-backed evaluation.
+`validate-contract` separately requires accepted
 memo, scout, offer-response, offer-acceptance, and pick-trade actions across
 minimum fractions of the official panel, so these mechanics cannot silently
 become dead protocol surface.
-
-When changing weights, update golden-score regression tests if present.

@@ -58,6 +58,13 @@ validity canaries:
 python -m gm_bench validate-contract
 ```
 
+Reproduce the active score scale, marginal-value table, reference scores, and
+strategic ablations with:
+
+```bash
+python -m gm_bench calibrate-score --json
+```
+
 This checks that `strategic` and `pick-trader` remain clean, competent
 references above `shrewd`, that accepted actions cover scouting, incoming
 offers, pick trading, and memo persistence across the panel, and that known

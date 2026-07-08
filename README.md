@@ -57,6 +57,7 @@ LLM_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \
 python -m gm_bench validate-result results/leaderboard/openai-gpt-5.4.json \
   --policy sota-v1
 python -m gm_bench validate-contract
+python -m gm_bench calibrate-score --json
 python web/scripts/build_leaderboard.py   # refresh web/src/data/leaderboard.json
 cd web && bun install && bun run dev      # local site
 ```
