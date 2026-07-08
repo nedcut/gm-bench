@@ -4,6 +4,7 @@ import json
 import random
 import shlex
 import sys
+import time
 
 import pytest
 
@@ -40,6 +41,33 @@ def test_persistent_agent_times_out_without_hanging(tmp_path) -> None:
 
     assert actions[0]["type"] == "noop"
     assert "timed out" in actions[0]["error"]
+
+
+def test_persistent_agent_times_out_on_partial_line(tmp_path) -> None:
+    """A writer that emits bytes without a newline must still hit timeout_seconds."""
+    script = tmp_path / "partial_line_agent.py"
+    script.write_text(
+        "import sys, time\n"
+        "for line in sys.stdin:\n"
+        "    if 'observation' in line:\n"
+        "        sys.stdout.buffer.write(b'{')\n"
+        "        sys.stdout.buffer.flush()\n"
+        "        time.sleep(60)\n",
+        encoding="utf-8",
+    )
+    agent = PersistentProcessAgent(_session_command(str(script)), timeout_seconds=0.2)
+
+    agent.start_episode(seed=1, seasons=1)
+    try:
+        started = time.perf_counter()
+        actions = agent.act({"phase": "preseason"})
+        elapsed = time.perf_counter() - started
+    finally:
+        agent.end_episode()
+
+    assert actions[0]["type"] == "noop"
+    assert "timed out" in actions[0]["error"]
+    assert elapsed < 2.0
 
 
 def test_persistent_agent_stderr_cannot_block_actions(tmp_path) -> None:

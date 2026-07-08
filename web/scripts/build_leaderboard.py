@@ -115,18 +115,27 @@ def _redacted_episode_count(payload: dict[str, Any]) -> int:
 
 
 def baselines_from_cache() -> list[dict[str, Any]]:
+    """Load baseline rows that have complete seed coverage in the cache.
+
+    Partial cache hits are ignored so ``current_baselines()`` recomputes rather
+    than publishing a mean over a subset of seeds.
+    """
     cache = load_cache()
     rows = []
+    seeds = list(LEADERBOARD["seeds"])
     for agent in LEADERBOARD["baselines"]:
         scores = []
-        for seed in LEADERBOARD["seeds"]:
+        for seed in seeds:
             episode = cache.get(cache_key(agent, seed, LEADERBOARD["seasons"]))
-            if episode is not None:
-                scores.append(episode["final_score"])
-        if scores:
-            mean = sum(scores) / len(scores)
-            stddev = (sum((score - mean) ** 2 for score in scores) / len(scores)) ** 0.5
-            rows.append({"agent": agent, "mean_score": round(mean, 3), "score_stddev": round(stddev, 3)})
+            if episode is None:
+                scores = []
+                break
+            scores.append(episode["final_score"])
+        if len(scores) != len(seeds):
+            continue
+        mean = sum(scores) / len(scores)
+        stddev = (sum((score - mean) ** 2 for score in scores) / len(scores)) ** 0.5
+        rows.append({"agent": agent, "mean_score": round(mean, 3), "score_stddev": round(stddev, 3)})
     return sorted(rows, key=lambda row: row["mean_score"], reverse=True)
 
 
