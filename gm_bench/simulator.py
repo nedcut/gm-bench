@@ -19,6 +19,10 @@ from gm_bench.models import (
     Transaction,
     pick_value,
 )
+from gm_bench.protocol import (
+    NON_PENALIZED_TYPES,
+    ActionResult,
+)
 from gm_bench.scoring import score_team
 
 TRADE_VALUE_THRESHOLD = 0.95
@@ -53,6 +57,7 @@ class League:
     current_offers: dict[str, dict[str, Any]] = field(default_factory=dict)
     scout_points_used: int = 0
     scout_reports: dict[int, float] = field(default_factory=dict)
+    _action_results: list[ActionResult] = field(default_factory=list)
 
     @classmethod
     def new(cls, seed: int, user_team_id: int = 0, num_teams: int = 12) -> "League":
@@ -114,46 +119,81 @@ class League:
             "memo": self.agent_memo,
         }
 
-    def apply_actions(self, actions: list[dict[str, Any]], phase: str) -> None:
+    def _available_actions(self, phase: str) -> list[str]:
+        actions = [
+            "sign_free_agent",
+            "release",
+            "trade",
+            "set_lineup",
+            "memo",
+            "noop",
+            "inspect_team",
+            "inspect_player",
+            "list_free_agents",
+            "scout",
+            "end_turn",
+        ]
+        if phase == "draft":
+            actions.append("draft")
+        # Advertise negotiation actions from actual state, not the phase name:
+        # they only apply when a pending incoming offer exists (trade deadline).
+        if self.current_offers:
+            actions.extend(["accept_trade_offer", "reject_trade_offer", "counter_trade_offer"])
+        return actions
+
+    def apply_actions(self, actions: list[dict[str, Any]], phase: str) -> list[ActionResult]:
         # Walk-aways last one decision window: each call to apply_actions is one
         # window, so counterparties who broke off talks come back next window.
         self.window_walkaways = {}
+        self._action_results = []
         if not isinstance(actions, list):
             self._record({}, phase, False, "agent response must be a list of actions")
-            return
+            return self._action_results
         for action in actions[:24]:
             if not isinstance(action, dict):
                 self._record({}, phase, False, "action must be an object")
                 continue
             action_type = action.get("type", "noop")
-            if action_type == "noop":
-                self._record(action, phase, True, "no-op")
-            elif action_type == "memo":
-                self._safe_apply(self._memo, action, phase)
-            elif action_type == "sign_free_agent":
-                self._safe_apply(self._sign_free_agent, action, phase)
-            elif action_type == "release":
-                self._safe_apply(self._release, action, phase)
-            elif action_type == "trade":
-                self._safe_apply(self._trade, action, phase)
-            elif action_type == "accept_offer":
-                self._safe_apply(self._accept_offer, action, phase)
-            elif action_type == "decline_offer":
-                self._safe_apply(self._decline_offer, action, phase)
-            elif action_type == "scout":
-                self._safe_apply(self._scout, action, phase)
-            elif action_type == "draft":
-                self._safe_apply(self._draft, action, phase)
-            elif action_type == "set_lineup":
-                self._safe_apply(self._set_lineup, action, phase)
-            else:
-                self._record(action, phase, False, f"unknown action type {action_type!r}")
+            if action_type == "end_turn":
+                self._record(action, phase, True, "turn ended", penalize=False)
+                break
+            self._dispatch_action(action_type, action, phase)
+        return self._action_results
 
-    def _safe_apply(self, handler: Any, action: dict[str, Any], phase: str) -> None:
+    def _dispatch_action(self, action_type: str, action: dict[str, Any], phase: str) -> ActionResult:
+        if action_type == "noop":
+            return self._record(action, phase, True, "no-op", penalize=False)
+        handlers = {
+            "memo": self._memo,
+            "sign_free_agent": self._sign_free_agent,
+            "release": self._release,
+            "trade": self._trade,
+            "draft": self._draft,
+            "set_lineup": self._set_lineup,
+            "scout": self._scout,
+            "inspect_team": self._inspect_team,
+            "inspect_player": self._inspect_player,
+            "list_free_agents": self._list_free_agents,
+            "accept_trade_offer": self._accept_offer,
+            "accept_offer": self._accept_offer,
+            "reject_trade_offer": self._decline_offer,
+            "decline_offer": self._decline_offer,
+            "counter_trade_offer": self._counter_offer,
+        }
+        handler = handlers.get(action_type)
+        if handler is None:
+            return self._record(action, phase, False, f"unknown action type {action_type!r}")
+        return self._safe_apply(handler, action, phase)
+
+    def _safe_apply(self, handler: Any, action: dict[str, Any], phase: str) -> ActionResult:
         try:
-            handler(action, phase)
+            result = handler(action, phase)
+            if isinstance(result, ActionResult):
+                return result
+            # Mutating handlers still call _record without returning.
+            return self._action_results[-1]
         except (TypeError, ValueError):
-            self._record(action, phase, False, "action has invalid or missing argument values")
+            return self._record(action, phase, False, "action has invalid or missing argument values")
 
     def run_autopilot_opponents(self, phase: str = "preseason") -> None:
         """Opponent front offices act after every user decision window.
@@ -266,6 +306,44 @@ class League:
         self.scout_points_used += 1
         self.scout_reports[player_id] = round(target.true_potential + noise, 1)
         self._record(action, phase, True, f"scouted {target.name}: potential ≈ {self.scout_reports[player_id]}")
+
+    def _inspect_team(self, action: dict[str, Any], phase: str) -> ActionResult:
+        team_id = int(action.get("team_id", -1))
+        if team_id not in self.teams:
+            return self._record(action, phase, False, "unknown team id", penalize=False)
+        team = self.teams[team_id]
+        data = {
+            "team": team.public_dict(self.players, self.cap),
+            "roster": [self.players[pid].public_dict() for pid in team.roster],
+        }
+        return self._record(action, phase, True, f"inspected {team.name}", data=data, penalize=False)
+
+    def _inspect_player(self, action: dict[str, Any], phase: str) -> ActionResult:
+        player_id = int(action.get("player_id", -1))
+        if player_id not in self.players:
+            return self._record(action, phase, False, "unknown player id", penalize=False)
+        return self._record(
+            action,
+            phase,
+            True,
+            f"inspected {self.players[player_id].name}",
+            data={"player": self.players[player_id].public_dict()},
+            penalize=False,
+        )
+
+    def _list_free_agents(self, action: dict[str, Any], phase: str) -> ActionResult:
+        position = action.get("position")
+        min_overall = float(action.get("min_overall", 0.0))
+        limit = min(24, max(1, int(action.get("limit", 12))))
+        players = [self.players[pid] for pid in self.free_agents]
+        if position in {"F", "D", "G"}:
+            players = [player for player in players if player.position == position]
+        players = [player for player in players if player.overall >= min_overall]
+        players.sort(key=lambda player: player.overall, reverse=True)
+        data = {"free_agents": [self._free_agent_public(player.id) for player in players[:limit]]}
+        return self._record(
+            action, phase, True, f"listed {len(data['free_agents'])} free agents", data=data, penalize=False
+        )
 
     def _memo(self, action: dict[str, Any], phase: str) -> None:
         text = action.get("text", "")
@@ -559,6 +637,26 @@ class League:
         del self.current_offers[offer_id]
         self._record(action, phase, True, f"declined offer from {partner.name}")
 
+    def _counter_offer(self, action: dict[str, Any], phase: str) -> ActionResult:
+        offer_id = str(action.get("offer_id", ""))
+        offer = self.current_offers.get(offer_id)
+        if offer is None:
+            return self._record(action, phase, False, "no such active offer")
+        trade_action = {
+            "type": "trade",
+            "partner_team_id": offer["partner_id"],
+            "give_player_ids": action.get("give_player_ids", offer["they_receive"]),
+            "receive_player_ids": action.get("receive_player_ids", offer["you_receive"]),
+            "give_pick_seasons": action.get("give_pick_seasons", offer["they_receive_picks"]),
+            "receive_pick_seasons": action.get("receive_pick_seasons", offer["you_receive_picks"]),
+        }
+        self._trade(trade_action, phase)
+        result = self._action_results[-1]
+        if result.accepted:
+            del self.current_offers[offer_id]
+            result.message = f"counter accepted for offer {offer_id}"
+        return result
+
     def _tradeable_pick_seasons(self) -> list[int]:
         return list(range(self.season + 1, self.season + PICK_TRADE_MAX_SEASONS_AHEAD + 1))
 
@@ -623,18 +721,30 @@ class League:
         message: str,
         team_id: int | None = None,
         rejected_offer: bool = False,
-    ) -> None:
+        *,
+        data: dict[str, Any] | None = None,
+        penalize: bool | None = None,
+    ) -> ActionResult:
         """Log an action. Declines that hinge on hidden valuations are counted as
         ``rejected_offers`` (legitimate negotiation, no protocol penalty); every
-        other non-accepted action is a protocol violation."""
+        other non-accepted action is a protocol violation unless ``penalize`` says
+        otherwise (or the action type is in ``NON_PENALIZED_TYPES``)."""
         if team_id is None:
             team_id = self.user_team_id
+        result = ActionResult(action=action, accepted=accepted, message=message, data=data)
         if not accepted and team_id == self.user_team_id:
             if rejected_offer:
                 self.rejected_offers += 1
             else:
-                self.illegal_actions += 1
+                should_penalize = (
+                    penalize if penalize is not None else action.get("type", "") not in NON_PENALIZED_TYPES
+                )
+                if should_penalize:
+                    self.illegal_actions += 1
         self.transactions.append(Transaction(self.season, phase, team_id, action, accepted, message))
+        if team_id == self.user_team_id:
+            self._action_results.append(result)
+        return result
 
     def _walkaway(self, counterparty: str) -> bool:
         """Whether a counterparty has broken off negotiations for this window."""
