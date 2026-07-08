@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -32,6 +33,7 @@ except ModuleNotFoundError:
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "schemas" / "gm_actions.schema.json"
+DEFAULT_MODEL = "gpt-5-mini"
 
 
 def main() -> None:
@@ -44,7 +46,7 @@ def main() -> None:
         "Use only the observation in the prompt. "
         "Your final answer must be valid JSON matching the provided schema.\n\n" + build_prompt(observation)
     )
-    model = os.environ.get("CODEX_MODEL", "gpt-5-mini")
+    model = os.environ.get("CODEX_MODEL", DEFAULT_MODEL)
     started = time.perf_counter()
     try:
         # Codex can read files (read-only sandbox); run it in a throwaway
@@ -52,7 +54,9 @@ def main() -> None:
         # gm_bench/simulator.py and recompute the hidden partner/FA valuations
         # from the seed. build_command already points --cd at the scratch dir.
         with tempfile.TemporaryDirectory() as scratch:
-            command = build_command(scratch)
+            scratch_schema = Path(scratch) / SCHEMA.name
+            shutil.copy2(SCHEMA, scratch_schema)
+            command = build_command(scratch, schema_path=scratch_schema)
             with tempfile.NamedTemporaryFile("r", suffix=".json", delete=True, dir=scratch) as output:
                 completed = subprocess.run(
                     [*command, "--output-last-message", output.name, prompt],
@@ -83,7 +87,10 @@ def main() -> None:
         )
 
 
-def build_command(cwd: str | os.PathLike[str] | None = None) -> list[str]:
+def build_command(
+    cwd: str | os.PathLike[str] | None = None, schema_path: str | os.PathLike[str] | None = None
+) -> list[str]:
+    schema = Path(schema_path) if schema_path is not None else Path(cwd) / SCHEMA.name if cwd is not None else SCHEMA
     command = [
         "codex",
         "--ask-for-approval",
@@ -96,7 +103,7 @@ def build_command(cwd: str | os.PathLike[str] | None = None) -> list[str]:
         "--sandbox",
         "read-only",
         "--output-schema",
-        str(SCHEMA),
+        str(schema),
         "--color",
         "never",
     ]
@@ -104,9 +111,8 @@ def build_command(cwd: str | os.PathLike[str] | None = None) -> list[str]:
     # repo's source (the simulator that computes the "hidden" valuations).
     if cwd is not None:
         command.extend(["--cd", str(cwd)])
-    model = os.environ.get("CODEX_MODEL")
-    if model:
-        command.extend(["--model", model])
+    model = os.environ.get("CODEX_MODEL", DEFAULT_MODEL)
+    command.extend(["--model", model])
     effort = os.environ.get("CODEX_EFFORT")
     if effort:
         command.extend(["--config", f'model_reasoning_effort="{effort}"'])

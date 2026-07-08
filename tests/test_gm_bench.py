@@ -11,7 +11,7 @@ import pytest
 import gm_bench.runner as runner_module
 from examples.claude_agent import build_command as build_claude_command
 from examples.codex_agent import build_command as build_codex_command
-from examples.gm_agent_common import parse_actions
+from examples.gm_agent_common import build_prompt, parse_actions
 from gm_bench.agents import ExternalProcessAgent, RandomAgent, ValueAgent
 from gm_bench.gui import _parse_seeds, agent_standings, dashboard_payload, run_from_request, score_history
 from gm_bench.runner import evaluate_against_baselines, run_episode, run_many
@@ -290,6 +290,27 @@ def test_model_action_parser_trade_alias_only_fills_absent_canonical_key() -> No
     assert actions == [{"type": "trade", "partner_team_id": 5, "team_id": 9, "give_player_ids": [2]}]
 
 
+def test_model_action_parser_trade_alias_fills_null_or_empty_canonical_key() -> None:
+    actions = parse_actions(
+        json.dumps(
+            {
+                "actions": [
+                    {
+                        "type": "trade",
+                        "partner_team_id": None,
+                        "team_id": 9,
+                        "give_player_ids": [],
+                        "players_to_send": [2],
+                        "receive_player_ids": None,
+                        "players_to_acquire": [88],
+                    }
+                ]
+            }
+        )
+    )
+    assert actions == [{"type": "trade", "partner_team_id": 9, "give_player_ids": [2], "receive_player_ids": [88]}]
+
+
 def test_model_action_parser_treats_empty_action_list_as_noop() -> None:
     # A well-formed empty action list is an explicit "do nothing" turn, not a
     # parse failure — it must not be attributed to the fallback policy.
@@ -305,6 +326,12 @@ def test_model_action_parser_still_rejects_all_untyped_items() -> None:
     except ValueError:
         return
     raise AssertionError("parser should reject action lists with no typed items")
+
+
+def test_prompt_builder_ignores_legacy_no_think_soft_switch(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GM_AGENT_NO_THINK", "1")
+    prompt = build_prompt(League.new(seed=42).observation("preseason"))
+    assert "/no_think" not in prompt
 
 
 def test_coding_agent_schema_exists() -> None:
@@ -360,6 +387,18 @@ def test_coding_agent_commands_are_non_interactive() -> None:
     assert claude_command[:2] == ["claude", "-p"]
     assert "--no-session-persistence" in claude_command
     assert "--json-schema" in claude_command
+
+
+def test_codex_command_uses_scratch_schema_and_explicit_default_model(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("CODEX_MODEL", raising=False)
+    codex_command = build_codex_command(tmp_path)
+
+    schema_path = Path(codex_command[codex_command.index("--output-schema") + 1])
+    assert schema_path == tmp_path / "gm_actions.schema.json"
+    assert str(Path("schemas/gm_actions.schema.json").resolve()) not in codex_command
+    assert codex_command[codex_command.index("--model") + 1] == "gpt-5-mini"
 
 
 def test_paired_evaluation_reports_per_seed_lift_and_ci() -> None:

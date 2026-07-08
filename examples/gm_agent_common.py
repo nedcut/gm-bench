@@ -64,9 +64,8 @@ def compact_observation(observation: dict[str, Any]) -> dict[str, Any]:
 def build_prompt(observation: dict[str, Any]) -> str:
     compact = compact_observation(observation)
     fallback_lineup = position_aware_lineup(observation["team"]["roster"])
-    no_think = "/no_think\n" if os.environ.get("GM_AGENT_NO_THINK", "0") == "1" else ""
     return (
-        no_think + "You are controlling a fictional hockey team in GM-Bench. "
+        "You are controlling a fictional hockey team in GM-Bench. "
         "Choose legal front-office actions that maximize long-term benchmark score: wins, playoffs, titles, young assets, cap health, and valid decisions.\n\n"
         'Return ONLY a JSON object shaped like {"actions":[...]}. Do not use markdown. Do not explain.\n\n'
         "Allowed action objects inside actions:\n"
@@ -173,7 +172,7 @@ def _normalize_action_keys(action: dict[str, Any]) -> dict[str, Any]:
     Renaming the key preserves the model's decision verbatim; semantic mistakes
     (an unknown action type, a bad id) still flow through to the simulator and
     are penalized as the model's own errors. Aliases only apply when the
-    canonical key is absent, and the stale key is dropped.
+    canonical key is absent/null/empty, and the stale key is dropped.
     """
     for alias in ("action", "action_type"):
         if "type" not in action and isinstance(action.get(alias), str):
@@ -181,15 +180,23 @@ def _normalize_action_keys(action: dict[str, Any]) -> dict[str, Any]:
             renamed["type"] = renamed.pop(alias)
             action = renamed
     for canonical, aliases in _TRADE_KEY_ALIASES.items():
-        if canonical in action:
+        if _has_usable_value(action.get(canonical)):
             continue
         for alias in aliases:
-            if alias in action:
+            if _has_usable_value(action.get(alias)):
                 renamed = dict(action)
                 renamed[canonical] = renamed.pop(alias)
                 action = renamed
                 break
     return action
+
+
+def _has_usable_value(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str | list | tuple | dict | set) and not value:
+        return False
+    return True
 
 
 def _scan_json_values(text: str, opener: str) -> list[Any]:

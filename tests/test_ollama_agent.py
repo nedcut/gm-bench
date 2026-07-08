@@ -4,6 +4,8 @@ import json
 import urllib.error
 from types import SimpleNamespace
 
+import pytest
+
 from examples import ollama_agent
 
 
@@ -123,3 +125,26 @@ def test_generate_falls_back_to_cli_when_schema_call_errors(monkeypatch) -> None
 
     assert content == '{"actions":[{"type":"noop"}]}'
     assert cli_calls == [["ollama", "run", "gemma4:e4b", "prompt"]]
+
+
+def test_generate_does_not_fall_back_to_cli_for_non_schema_http_errors(monkeypatch) -> None:
+    monkeypatch.delenv("OLLAMA_TRANSPORT", raising=False)
+
+    def fake_urlopen(request: object, **kwargs: object) -> object:
+        del kwargs
+        raise urllib.error.HTTPError(getattr(request, "full_url", ""), 500, "server error", {}, None)
+
+    cli_calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
+        del kwargs
+        cli_calls.append(command)
+        return SimpleNamespace(returncode=0, stderr="", stdout='{"actions":[{"type":"noop"}]}')
+
+    monkeypatch.setattr(ollama_agent.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(ollama_agent.subprocess, "run", fake_run)
+
+    with pytest.raises(urllib.error.HTTPError):
+        ollama_agent.generate("http://127.0.0.1:11434", "gemma4:e4b", "prompt", 5, _SCHEMA, think=None)
+
+    assert cli_calls == []

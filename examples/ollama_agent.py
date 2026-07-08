@@ -55,8 +55,6 @@ def main() -> None:
     observation = json.load(sys.stdin)
     model = os.environ.get("OLLAMA_MODEL", "gemma4:e4b")
     os.environ.setdefault("GM_AGENT_PROFILE", "tiny")
-    if model.lower().startswith("qwen"):
-        os.environ.setdefault("GM_AGENT_NO_THINK", "1")
     think = resolve_think_mode(model)
     host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
     timeout = float(os.environ.get("OLLAMA_TIMEOUT", "120"))
@@ -109,12 +107,11 @@ def merged_usage(model: str) -> dict[str, Any] | None:
 def resolve_think_mode(model: str) -> bool | None:
     """Decide whether to force the Ollama think switch on, off, or leave unset.
 
-    The `/no_think` prompt prefix is a qwen3-era soft switch that newer thinking
-    models ignore; without the real `think` control they spend the whole
+    Without the real `think` control, some thinking models spend the whole
     generation on reasoning prose and never emit JSON, so every decision falls
-    back. Both qwen3.5 and gemma4 fail this way, so thinking defaults to off for
-    every model; the CLI/HTTP callers retry without the switch when a model or
-    an older Ollama rejects it. `OLLAMA_THINK=1` opts a model back in.
+    back. Thinking defaults to off for every model; the CLI/HTTP callers retry
+    without the switch when a model or an older Ollama rejects it.
+    `OLLAMA_THINK=1` opts a model back in.
     """
     del model
     setting = os.environ.get("OLLAMA_THINK")
@@ -137,8 +134,10 @@ def generate(
         return generate_cli(model, prompt, timeout, think=think)
     try:
         return generate_http(host, model, prompt, timeout, format_schema=schema, think=think)
-    except urllib.error.HTTPError:
-        return generate_cli(model, prompt, timeout, think=think)
+    except urllib.error.HTTPError as exc:
+        if _is_schema_format_rejection(exc):
+            return generate_cli(model, prompt, timeout, think=think)
+        raise
 
 
 def generate_cli(model: str, prompt: str, timeout: float, think: bool | None = None) -> str:
@@ -200,7 +199,7 @@ def generate_http(
         with urllib.request.urlopen(request, timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        if think is not None and exc.code == 400:
+        if think is not None and _is_think_rejection(exc):
             return generate_http(host, model, prompt, timeout, format_schema, think=None)
         raise
     call: dict[str, Any] = {"api_latency_ms": (time.perf_counter() - started) * 1000.0}
@@ -210,6 +209,31 @@ def generate_http(
         call["output_tokens"] = data["eval_count"]
     CALLS.append(call)
     return extract_ollama_content(data)
+
+
+def _is_schema_format_rejection(exc: urllib.error.HTTPError) -> bool:
+    if exc.code != 400:
+        return False
+    text = _http_error_text(exc).lower()
+    mentions_schema_format = "format" in text or "schema" in text
+    rejected_as_unsupported = any(marker in text for marker in ("unsupported", "not support", "invalid", "unmarshal"))
+    return mentions_schema_format and rejected_as_unsupported
+
+
+def _is_think_rejection(exc: urllib.error.HTTPError) -> bool:
+    return exc.code == 400 and "think" in _http_error_text(exc).lower()
+
+
+def _http_error_text(exc: urllib.error.HTTPError) -> str:
+    cached = getattr(exc, "_gm_bench_error_text", None)
+    if cached is None:
+        try:
+            body = exc.read().decode("utf-8", errors="replace")
+        except (OSError, AttributeError, UnicodeDecodeError):
+            body = ""
+        cached = " ".join(part for part in (str(exc.reason), str(exc), body) if part)
+        setattr(exc, "_gm_bench_error_text", cached)
+    return str(cached)
 
 
 def extract_ollama_content(data: dict[str, object]) -> str:
