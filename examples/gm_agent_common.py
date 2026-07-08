@@ -154,20 +154,41 @@ def _actions_from_json(parsed: Any) -> list[dict[str, Any]]:
     return actions
 
 
+# Canonical trade-field name -> natural-but-wrong names models emit for it.
+# Aliasing is a pure key rename (see _normalize_action_keys): it never resolves
+# names to ids or invents content, so an unrepairable payload stays illegal.
+_TRADE_KEY_ALIASES: dict[str, tuple[str, ...]] = {
+    "partner_team_id": ("team_id", "target_team_id", "opponent_team_id", "destination_team_id"),
+    "give_player_ids": ("players_to_send", "offered_players", "players_offered"),
+    "receive_player_ids": ("players_to_acquire", "requested_players", "players_requested"),
+}
+
+
 def _normalize_action_keys(action: dict[str, Any]) -> dict[str, Any]:
-    """Mechanical key repair only: accept "action"/"action_type" as aliases for "type".
+    """Mechanical key repair only: accept common aliases for canonical keys.
 
     Small local models often emit {"action": "draft", ...} or
-    {"action_type": "draft", ...}. Renaming the key preserves the model's
-    decision verbatim; semantic mistakes (an unknown action type, a bad id)
-    still flow through to the simulator and are penalized as the model's own
-    errors.
+    {"action_type": "draft", ...}, and phrase trade fields naturally
+    ({"players_to_send": [...]}) instead of the schema's give_player_ids.
+    Renaming the key preserves the model's decision verbatim; semantic mistakes
+    (an unknown action type, a bad id) still flow through to the simulator and
+    are penalized as the model's own errors. Aliases only apply when the
+    canonical key is absent, and the stale key is dropped.
     """
     for alias in ("action", "action_type"):
         if "type" not in action and isinstance(action.get(alias), str):
             renamed = dict(action)
             renamed["type"] = renamed.pop(alias)
             action = renamed
+    for canonical, aliases in _TRADE_KEY_ALIASES.items():
+        if canonical in action:
+            continue
+        for alias in aliases:
+            if alias in action:
+                renamed = dict(action)
+                renamed[canonical] = renamed.pop(alias)
+                action = renamed
+                break
     return action
 
 

@@ -38,7 +38,6 @@ def main() -> None:
     observation = json.load(sys.stdin)
     os.environ.setdefault("GM_AGENT_PROFILE", "tiny")
     timeout = float(os.environ.get("CODEX_AGENT_TIMEOUT", "180"))
-    command = build_command()
     prompt = (
         "You are competing in GM-Bench as a sports general manager. "
         "Do not inspect or edit files. Do not run shell commands. "
@@ -48,17 +47,23 @@ def main() -> None:
     model = os.environ.get("CODEX_MODEL", "gpt-5-mini")
     started = time.perf_counter()
     try:
-        with tempfile.NamedTemporaryFile("r", suffix=".json", delete=True) as output:
-            completed = subprocess.run(
-                [*command, "--output-last-message", output.name, prompt],
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=timeout,
-                check=False,
-                cwd=ROOT,
-            )
-            content = output.read() or completed.stdout
+        # Codex can read files (read-only sandbox); run it in a throwaway
+        # directory with no line of sight to this repo so it cannot open
+        # gm_bench/simulator.py and recompute the hidden partner/FA valuations
+        # from the seed. build_command already points --cd at the scratch dir.
+        with tempfile.TemporaryDirectory() as scratch:
+            command = build_command(scratch)
+            with tempfile.NamedTemporaryFile("r", suffix=".json", delete=True, dir=scratch) as output:
+                completed = subprocess.run(
+                    [*command, "--output-last-message", output.name, prompt],
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=timeout,
+                    check=False,
+                    cwd=scratch,
+                )
+                content = output.read() or completed.stdout
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         # Codex exec exposes no machine-readable token counts on this path;
         # latency and call count are the only telemetry available.
@@ -78,7 +83,7 @@ def main() -> None:
         )
 
 
-def build_command() -> list[str]:
+def build_command(cwd: str | os.PathLike[str] | None = None) -> list[str]:
     command = [
         "codex",
         "--ask-for-approval",
@@ -94,9 +99,11 @@ def build_command() -> list[str]:
         str(SCHEMA),
         "--color",
         "never",
-        "--cd",
-        str(ROOT),
     ]
+    # Point Codex at a throwaway working directory so it cannot browse this
+    # repo's source (the simulator that computes the "hidden" valuations).
+    if cwd is not None:
+        command.extend(["--cd", str(cwd)])
     model = os.environ.get("CODEX_MODEL")
     if model:
         command.extend(["--model", model])

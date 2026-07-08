@@ -261,6 +261,35 @@ def test_model_action_parser_aliases_action_type_key() -> None:
     assert actions == [{"type": "draft", "prospect_id": 5}]
 
 
+def test_model_action_parser_aliases_natural_trade_field_names() -> None:
+    # Models phrase trade fields naturally; the mechanical rename maps each to
+    # the canonical schema key and drops the stale one, without inventing ids.
+    actions = parse_actions(
+        json.dumps(
+            {
+                "actions": [
+                    {
+                        "type": "trade",
+                        "target_team_id": 3,
+                        "players_to_send": [1],
+                        "players_to_acquire": [88],
+                    }
+                ]
+            }
+        )
+    )
+    assert actions == [{"type": "trade", "partner_team_id": 3, "give_player_ids": [1], "receive_player_ids": [88]}]
+
+
+def test_model_action_parser_trade_alias_only_fills_absent_canonical_key() -> None:
+    # When the canonical key is already present, the alias is left untouched so
+    # the model's explicit choice wins (and the payload stays illegal if wrong).
+    actions = parse_actions(
+        json.dumps({"actions": [{"type": "trade", "partner_team_id": 5, "team_id": 9, "offered_players": [2]}]})
+    )
+    assert actions == [{"type": "trade", "partner_team_id": 5, "team_id": 9, "give_player_ids": [2]}]
+
+
 def test_model_action_parser_treats_empty_action_list_as_noop() -> None:
     # A well-formed empty action list is an explicit "do nothing" turn, not a
     # parse failure — it must not be attributed to the fallback policy.
