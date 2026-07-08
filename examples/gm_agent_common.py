@@ -141,6 +141,12 @@ def _actions_from_json(parsed: Any) -> list[dict[str, Any]]:
         parsed = [parsed]
     if not isinstance(parsed, list):
         raise ValueError("model JSON was not an action list")
+    # A well-formed but empty action list is a legitimate "do nothing this
+    # window" decision, not a parse failure. Return an explicit noop so it is
+    # attributed to the model, not the fallback policy. (Items that fail to
+    # normalize below still raise, because that is a real formatting failure.)
+    if not parsed:
+        return [{"type": "noop"}]
     actions = [_normalize_action_keys(action) for action in parsed if isinstance(action, dict)]
     actions = [action for action in actions if isinstance(action.get("type"), str)]
     if not actions:
@@ -149,15 +155,19 @@ def _actions_from_json(parsed: Any) -> list[dict[str, Any]]:
 
 
 def _normalize_action_keys(action: dict[str, Any]) -> dict[str, Any]:
-    """Mechanical key repair only: accept "action" as an alias for "type".
+    """Mechanical key repair only: accept "action"/"action_type" as aliases for "type".
 
-    Small local models often emit {"action": "draft", ...}. Renaming the key
-    preserves the model's decision verbatim; semantic mistakes (an unknown
-    action type, a bad id) still flow through to the simulator and are
-    penalized as the model's own errors.
+    Small local models often emit {"action": "draft", ...} or
+    {"action_type": "draft", ...}. Renaming the key preserves the model's
+    decision verbatim; semantic mistakes (an unknown action type, a bad id)
+    still flow through to the simulator and are penalized as the model's own
+    errors.
     """
-    if "type" not in action and isinstance(action.get("action"), str):
-        action = {**action, "type": action.pop("action")}
+    for alias in ("action", "action_type"):
+        if "type" not in action and isinstance(action.get(alias), str):
+            renamed = dict(action)
+            renamed["type"] = renamed.pop(alias)
+            action = renamed
     return action
 
 
