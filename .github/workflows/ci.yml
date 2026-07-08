@@ -36,3 +36,22 @@ jobs:
         run: bun run lint
       - name: Build
         run: bun run build
+
+  benchmark-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Run validity canaries
+        run: python -m gm_bench validate-contract
+      - name: Validate committed leaderboard results
+        run: |
+          for result in results/leaderboard/*.json; do
+            python -m gm_bench validate-result "$result" --policy public-leaderboard
+          done
+      - name: Exercise leaderboard builder
+        run: python web/scripts/build_leaderboard.py
