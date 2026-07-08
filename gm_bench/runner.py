@@ -13,7 +13,9 @@ from typing import Any, Callable
 
 from gm_bench.agents import AGENTS, Agent
 from gm_bench.baseline_cache import cache_key, default_cache_path, load_cache, put_cached_episode, save_cache
+from gm_bench.protocol import PHASES, EpisodeConfig
 from gm_bench.scoring import score_breakdown
+from gm_bench.session import PersistentProcessAgent, should_continue_interaction
 from gm_bench.simulator import League
 from gm_bench.telemetry import aggregate_usage, summarize_usage
 
@@ -62,45 +64,55 @@ def run_episode(
     seasons: int = 5,
     user_team_id: int = 0,
     progress: ProgressCallback | None = None,
+    config: EpisodeConfig | None = None,
 ) -> BenchmarkResult:
+    episode_config = config or EpisodeConfig()
     league = League.new(seed=seed, user_team_id=user_team_id)
+    phases = list(PHASES) if episode_config.include_midseason else [phase for phase in PHASES if phase != "midseason"]
+    total_decisions = seasons * len(phases)
     decision = 0
-    total_decisions = seasons * 3
     failed_decisions = 0
     decision_seconds: list[float] = []
     harness_latency_ms = 0.0
     usage_records: list[dict[str, Any]] = []
-    for season_index in range(1, seasons + 1):
-        for phase in ["preseason", "trade_deadline", "draft"]:
-            decision += 1
-            if progress is not None:
-                progress(
-                    {
-                        "agent": agent.name,
-                        "seed": seed,
-                        "season": season_index,
-                        "phase": phase,
-                        "decision": decision,
-                        "total_decisions": total_decisions,
-                    }
-                )
-            if phase == "draft":
-                league.run_opponent_draft(before_user=True)
-            observation = league.observation(phase)
-            started = time.perf_counter()
-            actions, usage = agent.act_with_usage(observation)
-            elapsed = time.perf_counter() - started
-            decision_seconds.append(elapsed)
-            harness_latency_ms += elapsed * 1000.0
-            if usage is not None:
-                usage_records.append({**usage, "season": season_index, "phase": phase})
-            if _decision_failed(actions):
-                failed_decisions += 1
-            league.apply_actions(actions, phase)
-            if phase == "draft":
-                league.run_opponent_draft(before_user=False)
-            league.run_autopilot_opponents(phase)
-        league.simulate_season()
+    persistent = isinstance(agent, PersistentProcessAgent)
+    try:
+        if persistent:
+            agent.start_episode(seed, seasons)
+        for season_index in range(1, seasons + 1):
+            for phase in phases:
+                decision += 1
+                if progress is not None:
+                    progress(
+                        {
+                            "agent": agent.name,
+                            "seed": seed,
+                            "season": season_index,
+                            "phase": phase,
+                            "decision": decision,
+                            "total_decisions": total_decisions,
+                        }
+                    )
+                if phase == "midseason":
+                    league.prepare_midseason()
+                if phase == "trade_deadline":
+                    league.prepare_trade_deadline()
+                if phase == "draft":
+                    league.run_opponent_draft(before_user=True)
+                point = run_decision_point(league, agent, phase, episode_config)
+                decision_seconds.append(point["decision_seconds"])
+                harness_latency_ms += point["harness_latency_ms"]
+                for usage in point["usage_records"]:
+                    usage_records.append({**usage, "season": season_index, "phase": phase})
+                if point["failed"]:
+                    failed_decisions += 1
+                if phase == "draft":
+                    league.run_opponent_draft(before_user=False)
+                league.run_autopilot_opponents(phase)
+            league.simulate_season()
+    finally:
+        if persistent:
+            agent.end_episode()
     breakdown = score_breakdown(league, user_team_id)
     memo_writes = sum(
         1
@@ -137,6 +149,68 @@ def run_episode(
     )
 
 
+def run_decision_point(
+    league: League,
+    agent: Agent,
+    phase: str,
+    config: EpisodeConfig,
+) -> dict[str, Any]:
+    """Run one decision window, optionally across multiple interaction rounds.
+
+    Preserves main's per-decision telemetry: every round goes through
+    ``act_with_usage`` (or the persistent follow-up equivalent), each call is
+    timed into harness latency, usages are collected, and the decision is
+    marked failed if ANY round's actions fail.
+    """
+    tier = _observation_tier_for_agent(agent, config)
+    action_results: list[dict[str, Any]] | None = None
+    last_results: list[dict[str, Any]] = []
+    usage_records: list[dict[str, Any]] = []
+    harness_latency_ms = 0.0
+    decision_seconds = 0.0
+    failed = False
+    for round_index in range(config.max_interaction_rounds):
+        observation = league.observation(
+            phase,
+            tier=tier,
+            action_results=action_results,
+            interaction_round=round_index,
+        )
+        started = time.perf_counter()
+        if round_index == 0:
+            actions, usage = agent.act_with_usage(observation)
+        elif isinstance(agent, PersistentProcessAgent):
+            actions, usage = agent.act_on_results_with_usage(action_results or [])
+        else:
+            observation["action_results"] = action_results
+            actions, usage = agent.act_with_usage(observation)
+        elapsed = time.perf_counter() - started
+        decision_seconds += elapsed
+        harness_latency_ms += elapsed * 1000.0
+        if usage is not None:
+            usage_records.append({**usage, "interaction_round": round_index})
+        if _decision_failed(actions):
+            failed = True
+        results = [item.to_dict() for item in league.apply_actions(actions, phase)]
+        last_results = results
+        if not should_continue_interaction(results, max_rounds=config.max_interaction_rounds, round_index=round_index):
+            break
+        action_results = results
+    return {
+        "results": last_results,
+        "usage_records": usage_records,
+        "harness_latency_ms": harness_latency_ms,
+        "decision_seconds": decision_seconds,
+        "failed": failed,
+    }
+
+
+def _observation_tier_for_agent(agent: Agent, config: EpisodeConfig) -> str:
+    if config.builtin_full_observation and agent.name in AGENTS:
+        return "full"
+    return config.observation_tier
+
+
 def run_many(
     agent: Agent,
     seeds: list[int],
@@ -144,6 +218,7 @@ def run_many(
     workers: int | None = None,
     repeats: int = 1,
     progress: ProgressCallback | None = None,
+    config: EpisodeConfig | None = None,
 ) -> dict[str, Any]:
     """Run `repeats` episodes per seed (episodes carry a 1-based `repeat` index).
 
@@ -156,7 +231,8 @@ def run_many(
 
     def one(job: tuple[int, int]) -> dict[str, Any]:
         seed, repeat = job
-        result = run_episode(agent, seed=seed, seasons=seasons, progress=progress)
+        episode_agent = agent.clone() if isinstance(agent, PersistentProcessAgent) else agent
+        result = run_episode(episode_agent, seed=seed, seasons=seasons, progress=progress, config=config)
         return {**result.__dict__, "repeat": repeat}
 
     max_workers = workers if workers is not None else _default_workers(len(jobs))
@@ -244,6 +320,7 @@ def run_many_cached_baselines(
     *,
     cache_path: str | os.PathLike[str] | None = None,
     use_cache: bool = True,
+    config: EpisodeConfig | None = None,
 ) -> tuple[dict[str, Any], int]:
     """Return run_many-shaped payload for a scripted baseline, using cache hits where available."""
     if agent_name not in AGENTS:
@@ -254,19 +331,29 @@ def run_many_cached_baselines(
     episodes: list[dict[str, Any]] = []
     cache_hits = 0
     agent = AGENTS[agent_name]()
+    # Non-default configs (e.g. --no-midseason) play different episodes; key the
+    # cache on them so they never reuse default-config baseline scores.
+    config_fingerprint = (config or EpisodeConfig()).baseline_cache_fingerprint()
 
     for seed in seeds:
-        key = cache_key(agent_name, seed, seasons)
+        key = cache_key(agent_name, seed, seasons, config_fingerprint)
         cached = cache.get(key) if use_cache else None
         if cached is not None:
             episodes.append(cached)
             cache_hits += 1
             continue
-        result = run_episode(agent, seed=seed, seasons=seasons)
+        result = run_episode(agent, seed=seed, seasons=seasons, config=config)
         episode = result.__dict__
         episodes.append(episode)
         if use_cache:
-            put_cached_episode(agent_name, seed, seasons, episode, cache=cache)
+            put_cached_episode(
+                agent_name,
+                seed,
+                seasons,
+                episode,
+                config_fingerprint=config_fingerprint,
+                cache=cache,
+            )
 
     if use_cache and cache_hits < len(seeds):
         save_cache(cache, cache_path)
@@ -284,11 +371,12 @@ def evaluate_against_baselines(
     use_baseline_cache: bool = True,
     baseline_cache_path: str | os.PathLike[str] | None = None,
     progress: ProgressCallback | None = None,
+    config: EpisodeConfig | None = None,
 ) -> dict[str, Any]:
     # Repeats apply to the candidate only: scripted baselines are deterministic,
     # so re-running them would produce identical episodes.
     baselines = baseline_names or ["random", "conservative", "win-now", "rebuild", "value"]
-    candidate = run_many(agent, seeds=seeds, seasons=seasons, repeats=repeats, progress=progress)
+    candidate = run_many(agent, seeds=seeds, seasons=seasons, repeats=repeats, progress=progress, config=config)
     baseline_results: list[dict[str, Any]] = []
     cache_hits = 0
     resolved_cache_path = baseline_cache_path if baseline_cache_path is not None else default_cache_path()
@@ -300,11 +388,12 @@ def evaluate_against_baselines(
                 seasons,
                 cache_path=resolved_cache_path,
                 use_cache=True,
+                config=config,
             )
             cache_hits += hits
             baseline_results.append(payload)
         else:
-            baseline_results.append(run_many(AGENTS[name](), seeds=seeds, seasons=seasons))
+            baseline_results.append(run_many(AGENTS[name](), seeds=seeds, seasons=seasons, config=config))
     baseline_scores = [_precise_mean_score(result) for result in baseline_results]
     baseline_mean = mean(baseline_scores) if baseline_scores else 0.0
     candidate_mean = _precise_mean_score(candidate)

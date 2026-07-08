@@ -19,6 +19,14 @@ from gm_bench.models import (
     Transaction,
     pick_value,
 )
+from gm_bench.protocol import (
+    INJURY_GAMES_DEFAULT,
+    NON_PENALIZED_TYPES,
+    PARTIAL_SEASON_FRACTION,
+    PROTOCOL_VERSION,
+    ActionResult,
+    ObservationTier,
+)
 from gm_bench.scoring import score_team
 
 TRADE_VALUE_THRESHOLD = 0.95
@@ -29,6 +37,10 @@ FA_RESERVATION_RANGE = (0.85, 1.0)
 REJECTED_OFFER_LIMIT_PER_WINDOW = 2
 SCOUT_POINTS_PER_SEASON = 3
 SCOUT_REPORT_NOISE = 1.5
+# A full season is this many games per team pairing. When a midseason break
+# splits the season, the pre- and post-break legs must sum to exactly this so a
+# midseason episode plays the same total schedule as a non-midseason one.
+REGULAR_SEASON_GAMES_PER_PAIR = 3
 
 
 @dataclass
@@ -53,6 +65,10 @@ class League:
     current_offers: dict[str, dict[str, Any]] = field(default_factory=dict)
     scout_points_used: int = 0
     scout_reports: dict[int, float] = field(default_factory=dict)
+    waiver_wire: list[int] = field(default_factory=list)
+    partial_season_played: bool = False
+    partial_games_per_pair: int = 0
+    _action_results: list[ActionResult] = field(default_factory=list)
 
     @classmethod
     def new(cls, seed: int, user_team_id: int = 0, num_teams: int = 12) -> "League":
@@ -72,12 +88,22 @@ class League:
     def user_team(self) -> Team:
         return self.teams[self.user_team_id]
 
-    def observation(self, phase: str) -> dict[str, Any]:
-        return {
-            "benchmark": "gm-bench-mvp",
+    def observation(
+        self,
+        phase: str,
+        *,
+        tier: ObservationTier = "full",
+        action_results: list[dict[str, Any]] | None = None,
+        interaction_round: int = 0,
+    ) -> dict[str, Any]:
+        full = tier == "full"
+        payload: dict[str, Any] = {
+            "benchmark": PROTOCOL_VERSION,
             "seed": self.seed,
             "season": self.season,
             "phase": phase,
+            "observation_tier": tier,
+            "interaction_round": interaction_round,
             "rules": {
                 "salary_cap": self.cap,
                 "hard_cap_buffer": HARD_CAP_BUFFER,
@@ -101,59 +127,128 @@ class League:
                     "report_noise": SCOUT_REPORT_NOISE,
                 },
             },
-            "team": self.user_team.public_dict(self.players, self.cap),
+            "team": self.user_team.public_dict(self.players, self.cap, full_roster=full),
             "standings": self._standings_public(),
-            "free_agents": [self._free_agent_public(player_id) for player_id in self.free_agents],
-            "draft_class": [player.public_dict() for player in self.prospects.values()],
             "draft_order": self._draft_order(),
-            "trade_market": self._trade_market_public(),
-            "incoming_offers": self._incoming_offers_public(phase),
+            "incoming_offers": self._incoming_offers_public(),
             "scout_reports": {str(player_id): report for player_id, report in sorted(self.scout_reports.items())},
             "history": [summary.__dict__ for summary in self.summaries[-5:]],
             "recent_transactions": [transaction.__dict__ for transaction in self.transactions[-12:]],
             "memo": self.agent_memo,
+            "available_actions": self._available_actions(phase),
         }
+        if action_results:
+            payload["action_results"] = action_results
+        if full:
+            payload["free_agents"] = [self._free_agent_public(player_id) for player_id in self.free_agents]
+            payload["draft_class"] = [player.public_dict() for player in self.prospects.values()]
+            payload["trade_market"] = self._trade_market_public()
+            payload["waiver_wire"] = [self._waiver_player_public(player_id) for player_id in self.waiver_wire]
+        else:
+            payload["free_agents_summary"] = self._list_summary(
+                self.free_agents, key=lambda pid: self.players[pid].overall, limit=8
+            )
+            payload["draft_class_summary"] = self._list_summary(
+                list(self.prospects.keys()),
+                key=lambda pid: self.prospects[pid].overall,
+                limit=8,
+            )
+            payload["trade_market_summary"] = {"count": len(self._trade_market_public())}
+            payload["waiver_wire_summary"] = self._list_summary(
+                self.waiver_wire, key=lambda pid: self.players[pid].overall, limit=6
+            )
+            payload["hint"] = (
+                "Use inspect_team, inspect_player, list_free_agents, or scout for details. "
+                "Send end_turn when finished gathering information."
+            )
+        return payload
 
-    def apply_actions(self, actions: list[dict[str, Any]], phase: str) -> None:
+    def _list_summary(self, ids: list[int], *, key: Any, limit: int) -> dict[str, Any]:
+        ordered = sorted(ids, key=key, reverse=True)
+        return {"count": len(ids), "top_ids": ordered[:limit]}
+
+    def prepare_trade_deadline(self) -> None:
+        """Generate incoming offers once for this trade-deadline decision window."""
+        self.current_offers = self._generate_incoming_offers("trade_deadline")
+
+    def _available_actions(self, phase: str) -> list[str]:
+        actions = [
+            "sign_free_agent",
+            "release",
+            "trade",
+            "set_lineup",
+            "memo",
+            "noop",
+            "inspect_team",
+            "inspect_player",
+            "list_free_agents",
+            "scout",
+            "end_turn",
+        ]
+        if phase == "draft":
+            actions.append("draft")
+        if phase == "midseason":
+            actions.append("claim_waiver")
+        # Advertise negotiation actions from actual state, not the phase name:
+        # they only apply when a pending incoming offer exists (trade deadline).
+        if self.current_offers:
+            actions.extend(["accept_trade_offer", "reject_trade_offer", "counter_trade_offer"])
+        return actions
+
+    def apply_actions(self, actions: list[dict[str, Any]], phase: str) -> list[ActionResult]:
         # Walk-aways last one decision window: each call to apply_actions is one
         # window, so counterparties who broke off talks come back next window.
         self.window_walkaways = {}
+        self._action_results = []
         if not isinstance(actions, list):
             self._record({}, phase, False, "agent response must be a list of actions")
-            return
+            return self._action_results
         for action in actions[:24]:
             if not isinstance(action, dict):
                 self._record({}, phase, False, "action must be an object")
                 continue
             action_type = action.get("type", "noop")
-            if action_type == "noop":
-                self._record(action, phase, True, "no-op")
-            elif action_type == "memo":
-                self._safe_apply(self._memo, action, phase)
-            elif action_type == "sign_free_agent":
-                self._safe_apply(self._sign_free_agent, action, phase)
-            elif action_type == "release":
-                self._safe_apply(self._release, action, phase)
-            elif action_type == "trade":
-                self._safe_apply(self._trade, action, phase)
-            elif action_type == "accept_offer":
-                self._safe_apply(self._accept_offer, action, phase)
-            elif action_type == "decline_offer":
-                self._safe_apply(self._decline_offer, action, phase)
-            elif action_type == "scout":
-                self._safe_apply(self._scout, action, phase)
-            elif action_type == "draft":
-                self._safe_apply(self._draft, action, phase)
-            elif action_type == "set_lineup":
-                self._safe_apply(self._set_lineup, action, phase)
-            else:
-                self._record(action, phase, False, f"unknown action type {action_type!r}")
+            if action_type == "end_turn":
+                self._record(action, phase, True, "turn ended", penalize=False)
+                break
+            self._dispatch_action(action_type, action, phase)
+        return self._action_results
 
-    def _safe_apply(self, handler: Any, action: dict[str, Any], phase: str) -> None:
+    def _dispatch_action(self, action_type: str, action: dict[str, Any], phase: str) -> ActionResult:
+        if action_type == "noop":
+            return self._record(action, phase, True, "no-op", penalize=False)
+        handlers = {
+            "memo": self._memo,
+            "sign_free_agent": self._sign_free_agent,
+            "release": self._release,
+            "trade": self._trade,
+            "draft": self._draft,
+            "set_lineup": self._set_lineup,
+            "scout": self._scout,
+            "inspect_team": self._inspect_team,
+            "inspect_player": self._inspect_player,
+            "list_free_agents": self._list_free_agents,
+            "accept_trade_offer": self._accept_offer,
+            "accept_offer": self._accept_offer,
+            "reject_trade_offer": self._decline_offer,
+            "decline_offer": self._decline_offer,
+            "counter_trade_offer": self._counter_offer,
+            "claim_waiver": self._claim_waiver,
+        }
+        handler = handlers.get(action_type)
+        if handler is None:
+            return self._record(action, phase, False, f"unknown action type {action_type!r}")
+        return self._safe_apply(handler, action, phase)
+
+    def _safe_apply(self, handler: Any, action: dict[str, Any], phase: str) -> ActionResult:
         try:
-            handler(action, phase)
+            result = handler(action, phase)
+            if isinstance(result, ActionResult):
+                return result
+            # Mutating handlers still call _record without returning.
+            return self._action_results[-1]
         except (TypeError, ValueError):
-            self._record(action, phase, False, "action has invalid or missing argument values")
+            return self._record(action, phase, False, "action has invalid or missing argument values")
 
     def run_autopilot_opponents(self, phase: str = "preseason") -> None:
         """Opponent front offices act after every user decision window.
@@ -191,27 +286,50 @@ class League:
             for _ in range(self.teams[team_id].draft_picks.get(self.season, 0)):
                 self._opponent_draft_pick(self.teams[team_id])
 
-    def simulate_season(self) -> SeasonSummary:
-        rng = self._rng("season")
-        ratings = {team.id: self._team_strength(team, apply_injury_noise=True, rng=rng) for team in self.teams.values()}
-        for team in self.teams.values():
-            team.wins = 0
-            team.losses = 0
-            team.playoff_rounds = 0
+    def prepare_midseason(self) -> None:
+        if self.partial_season_played:
+            return
+        self.simulate_partial_season(PARTIAL_SEASON_FRACTION)
+        self._generate_midseason_injuries()
+        self._populate_waiver_wire()
+        self.partial_season_played = True
 
-        games_per_pair = 3
+    def simulate_partial_season(self, fraction: float) -> None:
+        rng = self._rng("partial_season")
+        ratings = {team.id: self._team_strength(team, apply_injury_noise=True, rng=rng) for team in self.teams.values()}
+        # Round (not truncate) so the pre-break leg keeps its intended share, and
+        # record it so simulate_season can play the exact complement.
+        games_per_pair = max(1, min(REGULAR_SEASON_GAMES_PER_PAIR - 1, round(REGULAR_SEASON_GAMES_PER_PAIR * fraction)))
+        self.partial_games_per_pair = games_per_pair
         for home in self.teams.values():
             for away in self.teams.values():
                 if home.id >= away.id:
                     continue
                 for _ in range(games_per_pair):
-                    probability = 1.0 / (1.0 + math.exp(-(ratings[home.id] - ratings[away.id]) / 7.5))
-                    if rng.random() < probability:
-                        home.wins += 1
-                        away.losses += 1
-                    else:
-                        away.wins += 1
-                        home.losses += 1
+                    self._play_game(home, away, ratings, rng)
+        self._update_morale_from_standings()
+
+    def simulate_season(self) -> SeasonSummary:
+        rng = self._rng("season")
+        if not self.partial_season_played:
+            for team in self.teams.values():
+                team.wins = 0
+                team.losses = 0
+                team.playoff_rounds = 0
+            games_per_pair = REGULAR_SEASON_GAMES_PER_PAIR
+        else:
+            # Play exactly the games the midseason leg didn't, so the two legs
+            # sum to a full season rather than truncating each independently.
+            for team in self.teams.values():
+                team.playoff_rounds = 0
+            games_per_pair = max(1, REGULAR_SEASON_GAMES_PER_PAIR - self.partial_games_per_pair)
+        ratings = {team.id: self._team_strength(team, apply_injury_noise=True, rng=rng) for team in self.teams.values()}
+        for home in self.teams.values():
+            for away in self.teams.values():
+                if home.id >= away.id:
+                    continue
+                for _ in range(games_per_pair):
+                    self._play_game(home, away, ratings, rng)
 
         playoff_teams = sorted(self.teams.values(), key=lambda team: team.wins, reverse=True)[:8]
         champion = self._simulate_playoffs(playoff_teams, ratings, rng)
@@ -237,10 +355,67 @@ class League:
         # observation(); clear them at the season boundary so a stale offer_id
         # can never be accepted across seasons regardless of call order.
         self.current_offers = {}
+        self.waiver_wire = []
+        self.partial_season_played = False
+        self.partial_games_per_pair = 0
         for team in self.teams.values():
             team.draft_picks.setdefault(self.season, 1)
         self.prospects = generate_draft_class(self.seed, self.season, self.num_teams * 5)
         return summary
+
+    def _play_game(self, home: Team, away: Team, ratings: dict[int, float], rng: random.Random) -> None:
+        probability = 1.0 / (1.0 + math.exp(-(ratings[home.id] - ratings[away.id]) / 7.5))
+        if rng.random() < probability:
+            home.wins += 1
+            away.losses += 1
+        else:
+            away.wins += 1
+            home.losses += 1
+        for team in (home, away):
+            injured = any(self.players[player_id].injured_games > 0 for player_id in team.roster)
+            unavailable_strength = self._team_strength(team, apply_injury_noise=False) if injured else 0.0
+            recovered = False
+            for player_id in team.roster:
+                player = self.players[player_id]
+                if player.injured_games > 0:
+                    player.injured_games -= 1
+                    recovered = recovered or player.injured_games == 0
+            if recovered:
+                available_strength = self._team_strength(team, apply_injury_noise=False)
+                # Guard the direction: _team_strength is a weighted average, so a
+                # returning below-average player on a still-short lineup could
+                # otherwise nudge the rating down. Recovery must never weaken a team.
+                ratings[team.id] += max(0.0, available_strength - unavailable_strength)
+
+    def _update_morale_from_standings(self) -> None:
+        ordered = sorted(self.teams.values(), key=lambda team: team.wins, reverse=True)
+        for rank, team in enumerate(ordered):
+            delta = 4.0 - rank * 0.6
+            for player_id in team.roster:
+                player = self.players[player_id]
+                player.morale = min(100.0, max(20.0, player.morale + delta))
+
+    def _generate_midseason_injuries(self) -> None:
+        rng = self._rng("injuries")
+        candidates = [player for player in self.players.values() if player.team_id is not None]
+        rng.shuffle(candidates)
+        for player in candidates[: rng.randint(2, 5)]:
+            if rng.random() < player.injury_risk * 2.5:
+                player.injured_games = max(player.injured_games, INJURY_GAMES_DEFAULT)
+
+    def _populate_waiver_wire(self) -> None:
+        rng = self._rng("waiver")
+        opponents = [team for team in self.teams.values() if team.id != self.user_team_id]
+        for team in opponents:
+            if len(team.roster) <= ROSTER_MIN or rng.random() > 0.35:
+                continue
+            player = min((self.players[pid] for pid in team.roster), key=lambda item: item.asset_value)
+            self._remove_from_team(team, player.id)
+            player.team_id = None
+            player.salary = 0.0
+            player.contract_years = 0
+            if player.id not in self.waiver_wire:
+                self.waiver_wire.append(player.id)
 
     def _scout(self, action: dict[str, Any], phase: str) -> None:
         """Spend one scouting point for a near-true read on a player's potential.
@@ -266,6 +441,44 @@ class League:
         self.scout_points_used += 1
         self.scout_reports[player_id] = round(target.true_potential + noise, 1)
         self._record(action, phase, True, f"scouted {target.name}: potential ≈ {self.scout_reports[player_id]}")
+
+    def _inspect_team(self, action: dict[str, Any], phase: str) -> ActionResult:
+        team_id = int(action.get("team_id", -1))
+        if team_id not in self.teams:
+            return self._record(action, phase, False, "unknown team id", penalize=False)
+        team = self.teams[team_id]
+        data = {
+            "team": team.public_dict(self.players, self.cap),
+            "roster": [self.players[pid].public_dict() for pid in team.roster],
+        }
+        return self._record(action, phase, True, f"inspected {team.name}", data=data, penalize=False)
+
+    def _inspect_player(self, action: dict[str, Any], phase: str) -> ActionResult:
+        player_id = int(action.get("player_id", -1))
+        if player_id not in self.players:
+            return self._record(action, phase, False, "unknown player id", penalize=False)
+        return self._record(
+            action,
+            phase,
+            True,
+            f"inspected {self.players[player_id].name}",
+            data={"player": self.players[player_id].public_dict()},
+            penalize=False,
+        )
+
+    def _list_free_agents(self, action: dict[str, Any], phase: str) -> ActionResult:
+        position = action.get("position")
+        min_overall = float(action.get("min_overall", 0.0))
+        limit = min(24, max(1, int(action.get("limit", 12))))
+        players = [self.players[pid] for pid in self.free_agents]
+        if position in {"F", "D", "G"}:
+            players = [player for player in players if player.position == position]
+        players = [player for player in players if player.overall >= min_overall]
+        players.sort(key=lambda player: player.overall, reverse=True)
+        data = {"free_agents": [self._free_agent_public(player.id) for player in players[:limit]]}
+        return self._record(
+            action, phase, True, f"listed {len(data['free_agents'])} free agents", data=data, penalize=False
+        )
 
     def _memo(self, action: dict[str, Any], phase: str) -> None:
         text = action.get("text", "")
@@ -428,14 +641,14 @@ class League:
         self.partner_trades[partner_id] = self.partner_trades.get(partner_id, 0) + 1
         self._record(action, phase, True, "trade accepted")
 
-    def _incoming_offers_public(self, phase: str) -> list[dict[str, Any]]:
-        """Regenerate and publish opponent-initiated trade offers for this decision.
+    def _incoming_offers_public(self) -> list[dict[str, Any]]:
+        """Publish the current incoming-offer pool without regenerating it.
 
-        Offers are deterministic in (seed, season, phase) and league state, and
-        valid only for the decision window they were published in — the pool is
-        re-rolled at the next observation.
+        Offers are generated once per trade-deadline window via
+        ``prepare_trade_deadline``. Observation only publishes whatever is
+        currently in ``current_offers`` so multi-round interaction cannot
+        resurrect an offer the agent already accepted or declined.
         """
-        self.current_offers = self._generate_incoming_offers(phase)
         published = []
         for offer_id, offer in self.current_offers.items():
             published.append(
@@ -559,6 +772,42 @@ class League:
         del self.current_offers[offer_id]
         self._record(action, phase, True, f"declined offer from {partner.name}")
 
+    def _counter_offer(self, action: dict[str, Any], phase: str) -> ActionResult:
+        offer_id = str(action.get("offer_id", ""))
+        offer = self.current_offers.get(offer_id)
+        if offer is None:
+            return self._record(action, phase, False, "no such active offer")
+        trade_action = {
+            "type": "trade",
+            "partner_team_id": offer["partner_id"],
+            "give_player_ids": action.get("give_player_ids", offer["they_receive"]),
+            "receive_player_ids": action.get("receive_player_ids", offer["you_receive"]),
+            "give_pick_seasons": action.get("give_pick_seasons", offer["they_receive_picks"]),
+            "receive_pick_seasons": action.get("receive_pick_seasons", offer["you_receive_picks"]),
+        }
+        self._trade(trade_action, phase)
+        result = self._action_results[-1]
+        if result.accepted:
+            del self.current_offers[offer_id]
+            result.message = f"counter accepted for offer {offer_id}"
+        return result
+
+    def _claim_waiver(self, action: dict[str, Any], phase: str) -> ActionResult:
+        if phase != "midseason":
+            return self._record(action, phase, False, "waiver claims are only allowed during midseason")
+        player_id = int(action.get("player_id", -1))
+        if player_id not in self.waiver_wire:
+            return self._record(action, phase, False, "player is not on the waiver wire")
+        if self._payroll(self.user_team) + self.players[player_id].asking_salary > self.cap + HARD_CAP_BUFFER:
+            return self._record(action, phase, False, "claim would exceed hard cap buffer")
+        self.waiver_wire.remove(player_id)
+        player = self.players[player_id]
+        player.team_id = self.user_team_id
+        player.salary = player.asking_salary
+        player.contract_years = 1
+        self.user_team.roster.append(player_id)
+        return self._record(action, phase, True, f"claimed {player.name} from waivers")
+
     def _tradeable_pick_seasons(self) -> list[int]:
         return list(range(self.season + 1, self.season + PICK_TRADE_MAX_SEASONS_AHEAD + 1))
 
@@ -623,18 +872,30 @@ class League:
         message: str,
         team_id: int | None = None,
         rejected_offer: bool = False,
-    ) -> None:
+        *,
+        data: dict[str, Any] | None = None,
+        penalize: bool | None = None,
+    ) -> ActionResult:
         """Log an action. Declines that hinge on hidden valuations are counted as
         ``rejected_offers`` (legitimate negotiation, no protocol penalty); every
-        other non-accepted action is a protocol violation."""
+        other non-accepted action is a protocol violation unless ``penalize`` says
+        otherwise (or the action type is in ``NON_PENALIZED_TYPES``)."""
         if team_id is None:
             team_id = self.user_team_id
+        result = ActionResult(action=action, accepted=accepted, message=message, data=data)
         if not accepted and team_id == self.user_team_id:
             if rejected_offer:
                 self.rejected_offers += 1
             else:
-                self.illegal_actions += 1
+                should_penalize = (
+                    penalize if penalize is not None else action.get("type", "") not in NON_PENALIZED_TYPES
+                )
+                if should_penalize:
+                    self.illegal_actions += 1
         self.transactions.append(Transaction(self.season, phase, team_id, action, accepted, message))
+        if team_id == self.user_team_id:
+            self._action_results.append(result)
+        return result
 
     def _walkaway(self, counterparty: str) -> bool:
         """Whether a counterparty has broken off negotiations for this window."""
@@ -671,6 +932,11 @@ class League:
         ]
 
     def _free_agent_public(self, player_id: int) -> dict[str, Any]:
+        player = self.players[player_id].public_dict()
+        player["asking_salary"] = self.players[player_id].asking_salary
+        return player
+
+    def _waiver_player_public(self, player_id: int) -> dict[str, Any]:
         player = self.players[player_id].public_dict()
         player["asking_salary"] = self.players[player_id].asking_salary
         return player
@@ -753,7 +1019,7 @@ class League:
         if player_id in team.lineup:
             team.lineup.remove(player_id)
 
-    def _effective_lineup(self, team: Team) -> list[Player]:
+    def _effective_lineup(self, team: Team, *, available_only: bool = False) -> list[Player]:
         """The players who actually dress: the set lineup, repaired as needed.
 
         Starts from the team's stored lineup (ids no longer on the roster are
@@ -761,10 +1027,14 @@ class League:
         overall, then swaps in bench players to satisfy position minimums.
         Teams with no stored lineup get a best-legal auto lineup.
         """
-        roster = [self.players[player_id] for player_id in team.roster]
+        roster = [
+            self.players[player_id]
+            for player_id in team.roster
+            if not available_only or self.players[player_id].injured_games == 0
+        ]
         if len(roster) <= LINEUP_SIZE:
             return roster
-        roster_ids = set(team.roster)
+        roster_ids = {player.id for player in roster}
         chosen: dict[int, Player] = {}
         for player_id in dict.fromkeys(team.lineup):
             if player_id in roster_ids and len(chosen) < LINEUP_SIZE:
@@ -793,7 +1063,11 @@ class League:
         return list(chosen.values())
 
     def _team_strength(self, team: Team, apply_injury_noise: bool, rng: random.Random | None = None) -> float:
-        lineup = sorted(self._effective_lineup(team), key=lambda player: player.overall, reverse=True)
+        lineup = sorted(
+            self._effective_lineup(team, available_only=True),
+            key=lambda player: player.overall,
+            reverse=True,
+        )
         if not lineup:
             return 20.0
         position_bonus = min(sum(1 for player in lineup if player.position == "G"), 2) * 2.5

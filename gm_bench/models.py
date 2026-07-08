@@ -51,6 +51,7 @@ class Player:
     injury_risk: float
     morale: float = 0.0
     drafted_round: int | None = None
+    injured_games: int = 0
 
     def public_dict(self) -> dict[str, Any]:
         return {
@@ -95,9 +96,10 @@ class Team:
     playoff_rounds: int = 0
     draft_picks: dict[int, int] = field(default_factory=dict)
 
-    def public_dict(self, players: dict[int, Player], cap: float) -> dict[str, Any]:
+    def public_dict(self, players: dict[int, Player], cap: float, *, full_roster: bool = True) -> dict[str, Any]:
         payroll = sum(players[player_id].salary for player_id in self.roster)
-        return {
+        roster_players = [players[player_id] for player_id in self.roster]
+        payload: dict[str, Any] = {
             "id": self.id,
             "name": self.name,
             "market": round(self.market, 2),
@@ -110,8 +112,17 @@ class Team:
             "cap_room": round(cap - payroll, 2),
             "draft_picks": dict(sorted(self.draft_picks.items())),
             "lineup": list(self.lineup),
-            "roster": [players[player_id].public_dict() for player_id in self.roster],
         }
+        if full_roster:
+            payload["roster"] = [player.public_dict() for player in roster_players]
+        else:
+            top = sorted(roster_players, key=lambda player: player.overall, reverse=True)[:8]
+            payload["roster_summary"] = {
+                "count": len(self.roster),
+                "avg_overall": round(sum(player.overall for player in roster_players) / max(len(roster_players), 1), 2),
+                "top_player_ids": [player.id for player in top],
+            }
+        return payload
 
 
 @dataclass

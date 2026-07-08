@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://gm-bench.dev/schemas/gm_action_list.schema.json",
-  "title": "GM-Bench Action List",
+  "title": "GM-Bench Action List v2",
   "description": "JSON array written to stdout by external agents (stdin/stdout protocol).",
   "type": "array",
   "maxItems": 24,
@@ -14,7 +14,24 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["sign_free_agent", "release", "trade", "draft", "set_lineup", "memo", "noop"]
+          "enum": [
+            "sign_free_agent",
+            "release",
+            "trade",
+            "draft",
+            "set_lineup",
+            "memo",
+            "noop",
+            "inspect_team",
+            "inspect_player",
+            "list_free_agents",
+            "scout",
+            "accept_trade_offer",
+            "reject_trade_offer",
+            "counter_trade_offer",
+            "claim_waiver",
+            "end_turn"
+          ]
         },
         "player_id": { "type": "integer" },
         "player_ids": {
@@ -25,6 +42,8 @@
         },
         "prospect_id": { "type": "integer" },
         "partner_team_id": { "type": "integer" },
+        "team_id": { "type": "integer" },
+        "offer_id": { "type": "string" },
         "give_player_ids": {
           "type": "array",
           "items": { "type": "integer" },
@@ -35,6 +54,11 @@
           "items": { "type": "integer" },
           "minItems": 1
         },
+        "give_pick_seasons": { "type": "array", "items": { "type": "integer" } },
+        "receive_pick_seasons": { "type": "array", "items": { "type": "integer" } },
+        "position": { "type": "string", "enum": ["F", "D", "G"] },
+        "min_overall": { "type": "number" },
+        "limit": { "type": "integer" },
         "years": { "type": "integer", "minimum": 1, "maximum": 5 },
         "salary": { "type": "number", "minimum": 0 },
         "text": { "type": "string", "maxLength": 2000 },
@@ -64,6 +88,34 @@
         {
           "if": { "properties": { "type": { "const": "memo" } } },
           "then": { "required": ["text"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "inspect_team" } } },
+          "then": { "required": ["team_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "inspect_player" } } },
+          "then": { "required": ["player_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "scout" } } },
+          "then": { "required": ["player_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "accept_trade_offer" } } },
+          "then": { "required": ["offer_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "reject_trade_offer" } } },
+          "then": { "required": ["offer_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "counter_trade_offer" } } },
+          "then": { "required": ["offer_id"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "claim_waiver" } } },
+          "then": { "required": ["player_id"] }
         }
       ]
     }

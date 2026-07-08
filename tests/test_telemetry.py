@@ -157,24 +157,30 @@ def test_external_process_agent_rejects_envelope_without_actions(tmp_path):
 def test_run_episode_aggregates_usage():
     result = run_episode(UsageReportingAgent(), seed=1, seasons=1)
     usage = result.usage
-    assert usage["decisions_with_usage"] == 3
-    assert usage["input_tokens"] == 3000
-    assert usage["total_tokens"] == 3300
-    assert usage["api_latency_ms"] == pytest.approx(750.0)
+    # Default episode includes midseason → 4 decisions per season.
+    assert usage["decisions_with_usage"] == 4
+    assert usage["input_tokens"] == 4000
+    assert usage["total_tokens"] == 4400
+    assert usage["api_latency_ms"] == pytest.approx(1000.0)
     assert usage["harness_latency_ms"] >= 0.0
     assert usage["model"] == "gpt-5.4-mini"
-    assert usage["cost_usd"] == pytest.approx(3 * (1000 / 1e6 * 0.75 + 100 / 1e6 * 4.5))
-    assert len(usage["per_decision"]) == 3
-    assert {record["phase"] for record in usage["per_decision"]} == {"preseason", "trade_deadline", "draft"}
+    assert usage["cost_usd"] == pytest.approx(4 * (1000 / 1e6 * 0.75 + 100 / 1e6 * 4.5))
+    assert len(usage["per_decision"]) == 4
+    assert {record["phase"] for record in usage["per_decision"]} == {
+        "preseason",
+        "midseason",
+        "trade_deadline",
+        "draft",
+    }
 
 
 def test_run_many_summary_includes_usage():
     payload = run_many(UsageReportingAgent(), seeds=[1, 2], seasons=1, workers=1)
     usage = payload["summary"]["usage"]
-    assert usage["decisions_with_usage"] == 6
-    assert usage["total_tokens"] == 6600
+    assert usage["decisions_with_usage"] == 8
+    assert usage["total_tokens"] == 8800
     assert usage["provider"] == "openai"
-    assert usage["cost_usd"] == pytest.approx(6 * (1000 / 1e6 * 0.75 + 100 / 1e6 * 4.5))
+    assert usage["cost_usd"] == pytest.approx(8 * (1000 / 1e6 * 0.75 + 100 / 1e6 * 4.5))
 
 
 def test_scripted_agents_report_zero_usage():

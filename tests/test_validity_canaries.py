@@ -14,6 +14,8 @@ def test_official_validity_canaries_underperform_value() -> None:
     assert result["ok"], result["checks"]
     assert result["seeds"] == PRESETS["leaderboard"]["seeds"]
     assert result["seasons"] == PRESETS["leaderboard"]["seasons"]
+    assert [row["agent"] for row in result["baselines"][:3]] == ["pick-trader", "strategic", "shrewd"]
+    assert all(row["seed_count"] >= row["minimum_seed_count"] for row in result["mechanic_coverage"])
     canary_names = {row["agent"] for row in result["canaries"]}
     assert {"exploit", "pick-hoard", "cap-hoard", "accept-everything"} <= canary_names
 

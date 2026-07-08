@@ -7,8 +7,8 @@ Reads every ``results/leaderboard/*.json`` file — each one either the saved ou
 or a redacted private-panel artifact from ``python -m gm_bench redact-result``.
 It writes ``web/src/data/leaderboard.json`` with one row per model plus the
 scripted-baseline reference panel. When no model results exist yet, the baseline
-panel is computed from the committed baseline cache so the site can render its
-reference rows.
+panel is read from the current-contract cache or recomputed deterministically so
+the site never mixes historical model rows with stale reference scores.
 
 Usage (from the repository root):
 
@@ -26,9 +26,12 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from gm_bench.agents import AGENTS  # noqa: E402
 from gm_bench.baseline_cache import cache_key, load_cache  # noqa: E402
 from gm_bench.benchmark_config import PRESETS, PRIVATE_LEADERBOARD_PANEL_NAME  # noqa: E402
 from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V1_POLICY, validate_leaderboard_payload  # noqa: E402
+from gm_bench.protocol import PHASES  # noqa: E402
+from gm_bench.runner import run_many  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
 OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard.json"
@@ -111,34 +114,50 @@ def _redacted_episode_count(payload: dict[str, Any]) -> int:
     return 0
 
 
-def baselines_from_payloads(payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    for payload in payloads:
-        rows = [
+def baselines_from_cache() -> list[dict[str, Any]]:
+    """Load baseline rows that have complete seed coverage in the cache.
+
+    Partial cache hits are ignored so ``current_baselines()`` recomputes rather
+    than publishing a mean over a subset of seeds.
+    """
+    cache = load_cache()
+    rows = []
+    seeds = list(LEADERBOARD["seeds"])
+    for agent in LEADERBOARD["baselines"]:
+        scores = []
+        for seed in seeds:
+            episode = cache.get(cache_key(agent, seed, LEADERBOARD["seasons"]))
+            if episode is None:
+                scores = []
+                break
+            scores.append(episode["final_score"])
+        if len(scores) != len(seeds):
+            continue
+        mean = sum(scores) / len(scores)
+        stddev = (sum((score - mean) ** 2 for score in scores) / len(scores)) ** 0.5
+        rows.append({"agent": agent, "mean_score": round(mean, 3), "score_stddev": round(stddev, 3)})
+    return sorted(rows, key=lambda row: row["mean_score"], reverse=True)
+
+
+def current_baselines() -> list[dict[str, Any]]:
+    rows = baselines_from_cache()
+    cached_agents = {row["agent"] for row in rows}
+    for agent_name in LEADERBOARD["baselines"]:
+        if agent_name in cached_agents:
+            continue
+        result = run_many(
+            AGENTS[agent_name](),
+            seeds=list(LEADERBOARD["seeds"]),
+            seasons=int(LEADERBOARD["seasons"]),
+            workers=1,
+        )
+        rows.append(
             {
-                "agent": result["agent"],
+                "agent": agent_name,
                 "mean_score": result["summary"]["mean_score"],
                 "score_stddev": result["summary"]["score_stddev"],
             }
-            for result in payload.get("baselines", [])
-        ]
-        if rows:
-            return sorted(rows, key=lambda row: row["mean_score"], reverse=True)
-    return []
-
-
-def baselines_from_cache() -> list[dict[str, Any]]:
-    cache = load_cache()
-    rows = []
-    for agent in LEADERBOARD["baselines"]:
-        scores = []
-        for seed in LEADERBOARD["seeds"]:
-            episode = cache.get(cache_key(agent, seed, LEADERBOARD["seasons"]))
-            if episode is not None:
-                scores.append(episode["final_score"])
-        if scores:
-            mean = sum(scores) / len(scores)
-            stddev = (sum((score - mean) ** 2 for score in scores) / len(scores)) ** 0.5
-            rows.append({"agent": agent, "mean_score": round(mean, 3), "score_stddev": round(stddev, 3)})
+        )
     return sorted(rows, key=lambda row: row["mean_score"], reverse=True)
 
 
@@ -151,14 +170,14 @@ def main() -> None:
             except json.JSONDecodeError:
                 print(f"skipping unparseable {path}", file=sys.stderr)
     models = sorted((model_row(payload) for payload in payloads), key=lambda row: row["mean_score"], reverse=True)
-    baselines = baselines_from_payloads(payloads) or baselines_from_cache()
+    baselines = current_baselines()
     dataset = {
         "updated": date.today().isoformat(),
         "preset": {
             "name": "leaderboard",
             "seeds": LEADERBOARD["seeds"],
             "seasons": LEADERBOARD["seasons"],
-            "decision_points_per_episode": LEADERBOARD["seasons"] * 3,
+            "decision_points_per_episode": LEADERBOARD["seasons"] * len(PHASES),
         },
         "baselines": baselines,
         "models": models,

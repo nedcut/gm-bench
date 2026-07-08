@@ -13,9 +13,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from gm_bench.scoring import SCORING_VERSION, scoring_scale_fingerprint
+
 BENCHMARK_VERSION = "sota-v1"
 ACTION_PROTOCOL_VERSION = "actions-v1"
-SCORING_VERSION = "score-v1"
 SIMULATOR_VERSION = "sim-v1"
 OBSERVATION_VERSION = "observation-v1"
 
@@ -55,6 +56,7 @@ def benchmark_contract() -> dict[str, Any]:
         "benchmark_version": BENCHMARK_VERSION,
         "action_protocol_version": ACTION_PROTOCOL_VERSION,
         "scoring_version": SCORING_VERSION,
+        "scoring_scale_fingerprint": scoring_scale_fingerprint(),
         "simulator_version": SIMULATOR_VERSION,
         "observation_version": OBSERVATION_VERSION,
         "contract_fingerprint": contract_fingerprint(),

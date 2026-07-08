@@ -12,8 +12,13 @@ from gm_bench import cli as cli_module
 from gm_bench.agents import AGENTS, ValueAgent
 from gm_bench.baseline_cache import cache_key, get_cached_episode, load_cache, save_cache
 from gm_bench.benchmark_config import BenchmarkConfig, config_from_dict, load_config
+from gm_bench.contract import contract_fingerprint
 from gm_bench.providers import build_provider_agent, resolve_provider
 from gm_bench.runner import evaluate_against_baselines, run_many, run_many_cached_baselines, summarize_episodes
+
+
+def test_baseline_cache_tracks_the_score_affecting_contract() -> None:
+    assert baseline_cache_module.simulation_fingerprint() == contract_fingerprint()[:12]
 
 
 def test_provider_registry_resolves_openai() -> None:
@@ -253,3 +258,29 @@ def test_cli_model_without_any_provider_exits_with_error() -> None:
     with pytest.raises(SystemExit) as excinfo:
         cli_module.main(["model", "--preset", "smoke", "--no-log"])
     assert "no provider specified" in str(excinfo.value)
+
+
+def test_baselines_from_cache_requires_full_seed_coverage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Partial cache hits must not be treated as complete baseline rows."""
+    import web.scripts.build_leaderboard as bl
+
+    cache_path = tmp_path / "cache.json"
+    seasons = 5
+    # Only seed 11 is present — LEADERBOARD seeds are 11..18.
+    save_cache(
+        {cache_key("value", 11, seasons): {"seed": 11, "final_score": 10.0}},
+        cache_path,
+    )
+    monkeypatch.setattr(bl, "load_cache", lambda: load_cache(cache_path))
+    assert bl.baselines_from_cache() == []
+
+    # Full coverage for one agent should produce a row.
+    full = {
+        cache_key("value", seed, seasons): {"seed": seed, "final_score": float(seed)}
+        for seed in bl.LEADERBOARD["seeds"]
+    }
+    save_cache(full, cache_path)
+    rows = bl.baselines_from_cache()
+    assert len(rows) == 1
+    assert rows[0]["agent"] == "value"
+    assert rows[0]["mean_score"] == pytest.approx(sum(bl.LEADERBOARD["seeds"]) / len(bl.LEADERBOARD["seeds"]))

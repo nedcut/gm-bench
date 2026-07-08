@@ -52,7 +52,16 @@ PRESETS: dict[str, dict[str, Any]] = {
     "leaderboard": {
         "seeds": [11, 12, 13, 14, 15, 16, 17, 18],
         "seasons": 5,
-        "baselines": ["random", "conservative", "win-now", "rebuild", "value", "shrewd"],
+        "baselines": [
+            "random",
+            "conservative",
+            "win-now",
+            "rebuild",
+            "value",
+            "shrewd",
+            "strategic",
+            "pick-trader",
+        ],
         "agent_timeout": 180.0,
         "profile": "compact",
     },

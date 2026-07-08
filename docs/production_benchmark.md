@@ -58,9 +58,18 @@ validity canaries:
 python -m gm_bench validate-contract
 ```
 
-This checks that the honest `shrewd` reference still beats `value`, and that
-known degenerate strategies remain comfortably below `value` on both final
-score and strategy score:
+Reproduce the active score scale, marginal-value table, reference scores, and
+strategic ablations with:
+
+```bash
+python -m gm_bench calibrate-score --json
+```
+
+This checks that `strategic` and `pick-trader` remain clean, competent
+references above `shrewd`, that accepted actions cover scouting, incoming
+offers, pick trading, and memo persistence across the panel, and that known
+degenerate strategies remain comfortably below `value` on both final score and
+strategy score:
 
 - `exploit`: replays known trade-pump and free-agent-hoarding attacks.
 - `pick-hoard`: tries to convert productive players into future picks.
@@ -76,7 +85,7 @@ The validator enforces:
   a private panel proven by the local `GM_BENCH_PRIVATE_SEEDS` value.
 - Five seasons per seed.
 - The full v1 baseline panel: `random`, `conservative`, `win-now`, `rebuild`,
-  `value`, and `shrewd`.
+  `value`, `shrewd`, `strategic`, and `pick-trader`.
 - At least 3 candidate repeats per seed, so model sampling noise is observable.
 - Full usage telemetry for every decision point.
 - Candidate decision failure rate at or below 2%.
@@ -102,7 +111,7 @@ on the official contract and is reliable enough to discuss. A model-backed
 result still needs to be interpreted next to:
 
 - mean score and paired lift against the baseline panel,
-- lift against `shrewd`, the strongest v1 scripted baseline,
+- lift against `pick-trader`, the strongest v1 scripted baseline,
 - seed win rate,
 - confidence interval and sign-flip p-value,
 - illegal-action count,

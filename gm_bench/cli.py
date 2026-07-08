@@ -14,6 +14,7 @@ from gm_bench import __version__
 from gm_bench.agents import AGENTS, ExternalProcessAgent
 from gm_bench.baseline_cache import default_cache_path
 from gm_bench.benchmark_config import PRESET_NAMES, BenchmarkConfig, load_config, seed_panel_metadata
+from gm_bench.calibration import build_scoring_calibration
 from gm_bench.contract import benchmark_contract
 from gm_bench.official import (
     POLICIES,
@@ -127,6 +128,14 @@ def main(argv: list[str] | None = None) -> None:
     validate_contract_parser.add_argument("--seasons", type=int, help="override official season count")
     validate_contract_parser.add_argument("--json", action="store_true", help="emit machine-readable canary output")
 
+    calibrate_parser = subparsers.add_parser(
+        "calibrate-score",
+        help="reproduce scoring marginals and scripted-policy calibration",
+    )
+    calibrate_parser.add_argument("--seeds", nargs="+", type=int, help="override the official seed panel")
+    calibrate_parser.add_argument("--seasons", type=int, help="override official season count")
+    calibrate_parser.add_argument("--json", action="store_true", help="emit machine-readable calibration output")
+
     describe_parser = subparsers.add_parser("describe", help="describe a generated league seed")
     describe_parser.add_argument("--seed", type=int, default=1)
 
@@ -154,6 +163,8 @@ def main(argv: list[str] | None = None) -> None:
         _redact_result_command(args)
     elif args.command == "validate-contract":
         _validate_contract_command(args)
+    elif args.command == "calibrate-score":
+        _calibrate_score_command(args)
     elif args.command == "describe":
         league = League.new(args.seed)
         print(json.dumps(league.observation("preseason"), indent=2, sort_keys=True))
@@ -453,10 +464,20 @@ def _validate_contract_command(args: argparse.Namespace) -> None:
         print("honest baselines:")
         for row in result["baselines"]:
             print(_validity_row(row))
+        if result.get("mechanic_coverage"):
+            print("mechanic coverage:")
+            for row in result["mechanic_coverage"]:
+                status = "ok" if row["seed_count"] >= row["minimum_seed_count"] else "error"
+                print(
+                    f"  {status}: {row['mechanic']} accepted={row['accepted_actions']} "
+                    f"seeds={row['seed_count']} min={row['minimum_seed_count']}"
+                )
         print("canaries:")
         for row in result["canaries"]:
             print(_validity_row(row))
         for check in result["checks"]:
+            if check.get("name") == "mechanic_coverage":
+                continue
             prefix = "ok" if check["ok"] else "error"
             print(
                 f"{prefix}: {check['winner']} over {check['loser']} "
@@ -464,6 +485,29 @@ def _validate_contract_command(args: argparse.Namespace) -> None:
             )
     if not result["ok"]:
         sys.exit(1)
+
+
+def _calibrate_score_command(args: argparse.Namespace) -> None:
+    result = build_scoring_calibration(seeds=args.seeds, seasons=args.seasons)
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return
+    scale = result["scoring_scale"]
+    panel = result["panel"]
+    print(
+        f"scoring scale: {scale['version']} fingerprint={scale['fingerprint']} "
+        f"seeds={panel['seeds']} seasons={panel['seasons']}"
+    )
+    print("marginal values:")
+    for row in result["marginal_values"]:
+        print(f"  {row['scenario']}: {row['score_delta']:+.3f}")
+    print("reference policies:")
+    for row in result["policies"]:
+        print(
+            f"  {row['agent']}: mean={row['mean_score']} "
+            f"delta_vs_strategic={row['delta_vs_strategic']:+.3f} "
+            f"illegal={row['illegal_actions']}"
+        )
 
 
 def _validity_row(row: dict[str, Any]) -> str:

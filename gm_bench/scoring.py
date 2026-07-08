@@ -2,23 +2,87 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import hashlib
+import json
+from dataclasses import asdict, dataclass
+from typing import TYPE_CHECKING, Any
 
 from gm_bench.models import PICK_TRADE_MAX_SEASONS_AHEAD, pick_value
 
 if TYPE_CHECKING:
     from gm_bench.simulator import League
 
-ILLEGAL_ACTION_PENALTY = 2.5
+SCORING_VERSION = "score-v1"
 
 
-def score_breakdown(league: "League", team_id: int) -> dict[str, float]:
-    """Score components for a team, split into strategy quality and protocol compliance.
+@dataclass(frozen=True)
+class ScoreScale:
+    recent_win: float
+    playoff_round: float
+    championship: float
+    total_asset: float
+    young_asset: float
+    future_pick_asset: float
+    cap_room: float
+    cap_score_min: float
+    cap_score_max: float
+    current_strength: float
+    roster_depth: float
+    illegal_action_penalty: float
 
-    ``strategy_score`` measures roster management outcomes; ``protocol_penalty``
-    measures invalid/rejected actions (user team only). ``final_score`` is their
-    difference and remains the headline objective.
-    """
+
+SCORE_SCALES = {
+    "score-v1": ScoreScale(
+        recent_win=0.42,
+        playoff_round=9.0,
+        championship=35.0,
+        total_asset=0.16,
+        young_asset=0.18,
+        future_pick_asset=0.16,
+        cap_room=0.35,
+        cap_score_min=-12.0,
+        cap_score_max=10.0,
+        current_strength=0.28,
+        roster_depth=8.0,
+        illegal_action_penalty=2.5,
+    )
+}
+PUBLISHED_SCORE_SCALE_FINGERPRINTS = {
+    "score-v1": "05a60ff4f691e734",
+}
+ACTIVE_SCORE_SCALE = SCORE_SCALES[SCORING_VERSION]
+ILLEGAL_ACTION_PENALTY = ACTIVE_SCORE_SCALE.illegal_action_penalty
+
+
+def scoring_scale_fingerprint(version: str = SCORING_VERSION) -> str:
+    payload = json.dumps(asdict(SCORE_SCALES[version]), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+
+def scoring_scale_metadata(version: str = SCORING_VERSION) -> dict[str, Any]:
+    return {
+        "version": version,
+        "fingerprint": scoring_scale_fingerprint(version),
+        "weights": asdict(SCORE_SCALES[version]),
+    }
+
+
+def validate_published_scoring_scale(version: str = SCORING_VERSION) -> None:
+    expected = PUBLISHED_SCORE_SCALE_FINGERPRINTS.get(version)
+    actual = scoring_scale_fingerprint(version)
+    if expected != actual:
+        raise RuntimeError(
+            f"scoring scale {version!r} changed without a new published version: expected {expected!r}, got {actual!r}"
+        )
+
+
+validate_published_scoring_scale()
+
+
+def score_components(league: "League", team_id: int) -> dict[str, float]:
+    """Return raw state metrics and weighted score contributions."""
+
+    scale = ACTIVE_SCORE_SCALE
     team = league.teams[team_id]
     roster = [league.players[player_id] for player_id in team.roster]
     payroll = sum(player.salary for player in roster)
@@ -43,21 +107,42 @@ def score_breakdown(league: "League", team_id: int) -> dict[str, float]:
     recent_rounds = sum(summary.playoff_rounds for summary in recent)
     championships = team.championships
     roster_depth = min(len(roster), 24) / 24.0
-    cap_score = max(-12.0, min(10.0, cap_room * 0.35))
-    protocol_penalty = league.illegal_actions * ILLEGAL_ACTION_PENALTY if team_id == league.user_team_id else 0.0
+    cap_score = max(scale.cap_score_min, min(scale.cap_score_max, cap_room * scale.cap_room))
+    protocol_penalty = league.illegal_actions * scale.illegal_action_penalty if team_id == league.user_team_id else 0.0
     current_strength = league._team_strength(team, apply_injury_noise=False)
 
-    strategy_score = (
-        recent_wins * 0.42
-        + recent_rounds * 9.0
-        + championships * 35.0
-        + total_assets * 0.16
-        + young_assets * 0.18
-        + pick_assets * 0.16
-        + cap_score
-        + current_strength * 0.28
-        + roster_depth * 8.0
-    )
+    contributions = {
+        "recent_wins": recent_wins * scale.recent_win,
+        "playoff_rounds": recent_rounds * scale.playoff_round,
+        "championships": championships * scale.championship,
+        "total_assets": total_assets * scale.total_asset,
+        "young_assets": young_assets * scale.young_asset,
+        "future_pick_assets": pick_assets * scale.future_pick_asset,
+        "cap_room": cap_score,
+        "current_strength": current_strength * scale.current_strength,
+        "roster_depth": roster_depth * scale.roster_depth,
+    }
+    return {
+        "recent_wins": float(recent_wins),
+        "playoff_rounds": float(recent_rounds),
+        "championships": float(championships),
+        "total_assets": total_assets,
+        "young_assets": young_assets,
+        "future_pick_assets": pick_assets,
+        "cap_room": cap_room,
+        "current_strength": current_strength,
+        "roster_depth": roster_depth,
+        "protocol_penalty": protocol_penalty,
+        **{f"{name}_contribution": value for name, value in contributions.items()},
+    }
+
+
+def score_breakdown(league: "League", team_id: int) -> dict[str, float]:
+    """Split objective strategy quality from invalid-action penalties."""
+
+    components = score_components(league, team_id)
+    strategy_score = sum(value for name, value in components.items() if name.endswith("_contribution"))
+    protocol_penalty = components["protocol_penalty"]
     return {
         "strategy_score": strategy_score,
         "protocol_penalty": protocol_penalty,

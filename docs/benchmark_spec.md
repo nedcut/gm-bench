@@ -44,37 +44,82 @@ The MVP implements a compact hockey-style league:
   season, roster minimums on both sides, and cap constraints.
 - Lineups that matter: `set_lineup` picks the 18 players who dress, which
   drives team strength; young players outside the lineup develop at half rate.
+- Midseason phase: partial-season games (~35% of the schedule), standings and
+  morale updates, random injuries, and a waiver wire with `claim_waiver`.
 - Seasons, standings, playoffs, championships, aging, development, and expiring
   contracts.
 
 ## Decision Interface
 
-At each season, agents receive observations for three phases:
+The default episode uses protocol v2 (`gm-bench-v2`). At each season, agents
+receive observations for four phases:
 
 - `preseason`
-- `trade_deadline`
+- `midseason` — partial-season standings, injuries, and waiver wire
+- `trade_deadline` — opponent trade proposals in `incoming_offers`
 - `draft`
 
-Agents return a JSON array of actions:
+### Multi-round windows
+
+Each phase is one decision window that may span up to five interaction rounds.
+Round 0 delivers the phase observation; later rounds include `action_results`
+from the prior round and an incremented `interaction_round`. Query actions
+return same-turn feedback; send `end_turn` to stop gathering information.
+
+Query actions:
+
+- `inspect_team` — detailed roster/cap for one team
+- `inspect_player` — full public card for one player
+- `list_free_agents` — filtered free-agent list
+- `scout` — spend one of three per-season scouting points for a near-true
+  `true_potential` reading (echoed permanently in `scout_reports`)
+
+Control:
+
+- `end_turn` — close the information-gathering loop for this window
+
+Core roster actions (apply immediately):
 
 - `sign_free_agent`
 - `release`
 - `trade` (players and/or future draft picks via `give_pick_seasons` /
   `receive_pick_seasons`, up to 3 seasons ahead)
-- `accept_offer` / `decline_offer` (respond to opponent-initiated offers in
-  `incoming_offers`; every offer looks fair to the sender's hidden valuation,
-  so some are bargains and some are traps — offers expire each decision point
-  and ignoring them is free)
-- `scout` (spend one of 3 per-season scouting points for a near-true
-  `true_potential` reading, echoed permanently in `scout_reports`)
 - `draft`
 - `set_lineup`
+- `claim_waiver` (midseason only)
 - `memo`
 - `noop`
 
-Future draft picks are scored assets (discounted per season of distance, at
-the same scale the trade market prices them) and every team is scored over the
-same league-wide pick horizon, so pick churn cannot mint score.
+Trade negotiation (when `incoming_offers` is non-empty):
+
+- `accept_trade_offer` / `reject_trade_offer` / `counter_trade_offer`
+- `accept_offer` / `decline_offer` remain accepted aliases
+
+Incoming opponent offers look fair to the sender's hidden valuation, so some
+are bargains and some are traps — offers expire each decision point and
+ignoring them is free. `counter_trade_offer` rewrites the players/picks and
+re-submits as a trade against the same partner.
+
+### Observation tiers
+
+Every observation includes `observation_tier`:
+
+- `full` — complete `free_agents`, `draft_class`, `trade_market`, `waiver_wire`,
+  and full roster cards (default for built-in scripted agents).
+- `summary` — compact `*_summary` blocks plus a hint to use query actions;
+  intended for external LLM agents that should inspect before committing.
+
+### Persistent sessions
+
+By default external agents are launched fresh at each decision point, so the
+`memo` action is the only cross-decision memory channel — it is what makes
+multi-season plan coherence observable rather than assumed.
+
+Optional persistent sessions keep one subprocess alive for the entire episode.
+The runner sends line-delimited JSON events (`start`, `observation`,
+`action_results`, `end`); session-capable adapters set `GM_BENCH_SESSION=1` and
+respond with actions after each event. This preserves in-process state across
+rounds and phases while still reporting usage for every interaction round.
 
 Actions are validated by the simulator. Invalid actions are ignored and counted
 as penalties. Legal-but-declined offers are different: a trade rejected as too
@@ -90,10 +135,9 @@ of the asking price (uniform in `fa_reservation_range`, re-rolled each season,
 seeded from stable keys like trade valuation bias). Offering the full ask
 always succeeds; shading below it saves cap space but risks a decline.
 
-`memo` stores a persistent scratchpad (up to 2000 characters) echoed back in
-every subsequent observation. External agents are launched fresh at each
-decision point, so the memo is the only cross-decision memory channel — it is
-what makes multi-season plan coherence observable rather than assumed.
+Future draft picks are scored assets (discounted per season of distance, at
+the same scale the trade market prices them) and every team is scored over the
+same league-wide pick horizon, so pick churn cannot mint score.
 
 ### Adapter stdout protocol and usage telemetry
 
@@ -129,7 +173,7 @@ pick is replenished each season, so episodes of any length keep a draft.
 
 ## Built-In Agents
 
-The MVP includes seven scripted baselines:
+The MVP includes nine scripted references and diagnostics:
 
 - `random`: noisy but valid roster moves.
 - `conservative`: value signings and best public prospects.
@@ -138,11 +182,11 @@ The MVP includes seven scripted baselines:
 - `value`: balances public overall, potential, age, and price.
 - `shrewd`: a stronger-on-average honest reference — `value` plus releasing
   clearly-negative veteran contracts before shopping and dressing high-upside
-  youth so they develop at full speed. The youth bet wins the panel mean
-  (roughly +6-7 lift over `value` at 3 seasons across seeds 1-30) but loses
-  individual seeds, so a regression test pins the panel-mean advantage, not
-  per-seed dominance. Use its panel average as the bar a model-backed
-  candidate should clear before its score means anything.
+  youth so they develop at full speed.
+- `strategic`: `shrewd` plus report-driven scouting, selective incoming-offer
+  responses, and a persistent plan memo.
+- `pick-trader`: the strongest official reference — `strategic` plus cap-aware,
+  conservative future-pick acquisitions.
 - `exploit`: a red-team canary that replays historically degenerate strategies
   (trade value-pumping, free-agent hoarding). A regression test pins it below
   `value`; if a rules change re-opens an exploit, the canary jumps and CI fails.
@@ -264,5 +308,16 @@ held-out one that is never committed, guarding against seed overfitting.
 
 - Add a multi-agent arena mode where agents negotiate with each other.
 - Add sport variants with different roster and cap constraints.
-- Add counter-offers: let the user renegotiate an incoming offer instead of
-  only accepting or declining.
+
+Completed in v2 (now the default episode):
+
+- Four-phase seasons with midseason injuries and waiver wire
+- Multi-round decision windows with query actions, `end_turn`, and
+  `action_results`
+- Trade negotiation: `accept_trade_offer`, `reject_trade_offer`,
+  `counter_trade_offer` (plus legacy `accept_offer` / `decline_offer` aliases)
+- Draft-pick trades on `trade` actions
+- Tiered observations (`full` / `summary`)
+- Persistent agent subprocess sessions (`GM_BENCH_SESSION=1`)
+- Private evaluation seeds, leaderboard package, contract fingerprint, and
+  `sota-v1` official-result validation (see [production_benchmark.md](production_benchmark.md))

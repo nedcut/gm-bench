@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://gm-bench.dev/schemas/gm_observation.schema.json",
   "title": "GM-Bench Observation",
-  "description": "Observation payload sent to agents at each decision point.",
+  "description": "Observation payload sent to agents at each decision point (protocol v2).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -10,22 +10,40 @@
     "seed",
     "season",
     "phase",
+    "observation_tier",
+    "interaction_round",
     "rules",
     "team",
     "standings",
-    "free_agents",
-    "draft_class",
     "draft_order",
-    "trade_market",
+    "incoming_offers",
+    "scout_reports",
     "history",
     "recent_transactions",
-    "memo"
+    "memo",
+    "available_actions"
   ],
   "properties": {
-    "benchmark": { "type": "string", "const": "gm-bench-mvp" },
-    "seed": { "type": "integer" },
-    "season": { "type": "integer", "minimum": 1 },
-    "phase": { "type": "string", "enum": ["preseason", "trade_deadline", "draft"] },
+    "benchmark": {
+      "type": "string",
+      "const": "gm-bench-v2"
+    },
+    "seed": {
+      "type": "integer"
+    },
+    "season": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "preseason",
+        "midseason",
+        "trade_deadline",
+        "draft"
+      ]
+    },
     "rules": {
       "type": "object",
       "additionalProperties": false,
@@ -42,97 +60,213 @@
         "pick_trading"
       ],
       "properties": {
-        "salary_cap": { "type": "number" },
-        "hard_cap_buffer": { "type": "number", "minimum": 0 },
-        "roster_min": { "type": "integer", "minimum": 1 },
-        "lineup_size": { "type": "integer", "minimum": 1 },
+        "salary_cap": {
+          "type": "number"
+        },
+        "hard_cap_buffer": {
+          "type": "number",
+          "minimum": 0
+        },
+        "roster_min": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "lineup_size": {
+          "type": "integer",
+          "minimum": 1
+        },
         "lineup_min_positions": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "F": { "type": "integer", "minimum": 0 },
-            "D": { "type": "integer", "minimum": 0 },
-            "G": { "type": "integer", "minimum": 0 }
+            "F": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "D": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "G": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         },
-        "trade_value_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
-        "trade_limit_per_partner": { "type": "integer", "minimum": 0 },
+        "trade_value_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "trade_limit_per_partner": {
+          "type": "integer",
+          "minimum": 0
+        },
         "fa_reservation_range": {
           "type": "array",
-          "items": { "type": "number", "minimum": 0 },
+          "items": {
+            "type": "number",
+            "minimum": 0
+          },
           "minItems": 2,
           "maxItems": 2
         },
-        "rejected_offer_limit_per_window": { "type": "integer", "minimum": 1 },
+        "rejected_offer_limit_per_window": {
+          "type": "integer",
+          "minimum": 1
+        },
         "scouting": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["points_per_season", "points_remaining", "report_noise"],
+          "required": [
+            "points_per_season",
+            "points_remaining",
+            "report_noise"
+          ],
           "properties": {
-            "points_per_season": { "type": "integer", "minimum": 0 },
-            "points_remaining": { "type": "integer", "minimum": 0 },
-            "report_noise": { "type": "number", "minimum": 0 }
+            "points_per_season": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "points_remaining": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "report_noise": {
+              "type": "number",
+              "minimum": 0
+            }
           }
         },
         "pick_trading": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["max_seasons_ahead", "pick_value_estimate"],
+          "required": [
+            "max_seasons_ahead",
+            "pick_value_estimate"
+          ],
           "properties": {
-            "max_seasons_ahead": { "type": "integer", "minimum": 0 },
+            "max_seasons_ahead": {
+              "type": "integer",
+              "minimum": 0
+            },
             "pick_value_estimate": {
               "description": "Rough asset value of a pick per tradeable future season, keyed by season number.",
               "type": "object",
-              "additionalProperties": { "type": "number", "minimum": 0 }
+              "additionalProperties": {
+                "type": "number",
+                "minimum": 0
+              }
             }
           }
         }
       }
     },
-    "team": { "$ref": "#/$defs/team" },
+    "team": {
+      "$ref": "#/$defs/team"
+    },
     "standings": {
       "type": "array",
-      "items": { "$ref": "#/$defs/standing" }
+      "items": {
+        "$ref": "#/$defs/standing"
+      }
     },
     "free_agents": {
       "type": "array",
-      "items": { "$ref": "#/$defs/free_agent" }
+      "items": {
+        "$ref": "#/$defs/free_agent"
+      }
     },
     "draft_class": {
       "type": "array",
-      "items": { "$ref": "#/$defs/player" }
+      "items": {
+        "$ref": "#/$defs/player"
+      }
     },
     "draft_order": {
       "description": "Team ids with a current-season pick remaining, in pick order (worst record first).",
       "type": "array",
-      "items": { "type": "integer" }
+      "items": {
+        "type": "integer"
+      }
     },
     "trade_market": {
       "type": "array",
-      "items": { "$ref": "#/$defs/trade_offer" }
+      "items": {
+        "$ref": "#/$defs/trade_offer"
+      }
     },
     "incoming_offers": {
       "description": "Opponent-initiated trade offers, valid only for this decision point.",
       "type": "array",
-      "items": { "$ref": "#/$defs/incoming_offer" }
+      "items": {
+        "$ref": "#/$defs/incoming_offer"
+      }
     },
     "scout_reports": {
       "description": "Near-true potential estimates from past scout actions, keyed by player id. Persist across seasons.",
       "type": "object",
-      "additionalProperties": { "type": "number" }
+      "additionalProperties": {
+        "type": "number"
+      }
     },
     "history": {
       "type": "array",
-      "items": { "$ref": "#/$defs/season_summary" }
+      "items": {
+        "$ref": "#/$defs/season_summary"
+      }
     },
     "recent_transactions": {
       "type": "array",
-      "items": { "$ref": "#/$defs/transaction" }
+      "items": {
+        "$ref": "#/$defs/transaction"
+      }
     },
     "memo": {
       "description": "The agent's own persistent scratchpad, set via the memo action and echoed back at every decision point.",
       "type": "string",
       "maxLength": 2000
+    },
+    "observation_tier": {
+      "type": "string",
+      "enum": [
+        "summary",
+        "full"
+      ]
+    },
+    "interaction_round": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "action_results": {
+      "type": "array"
+    },
+    "available_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hint": {
+      "type": "string"
+    },
+    "free_agents_summary": {
+      "type": "object"
+    },
+    "draft_class_summary": {
+      "type": "object"
+    },
+    "trade_market_summary": {
+      "type": "object"
+    },
+    "waiver_wire": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/free_agent"
+      }
+    },
+    "waiver_wire_summary": {
+      "type": "object"
     }
   },
   "$defs": {
@@ -152,16 +286,46 @@
         "morale"
       ],
       "properties": {
-        "id": { "type": "integer" },
-        "name": { "type": "string" },
-        "position": { "type": "string", "enum": ["F", "D", "G"] },
-        "age": { "type": "integer", "minimum": 16 },
-        "overall": { "type": "number" },
-        "potential": { "type": "number" },
-        "salary": { "type": "number", "minimum": 0 },
-        "contract_years": { "type": "integer", "minimum": 0 },
-        "injury_risk": { "type": "number", "minimum": 0, "maximum": 1 },
-        "morale": { "type": "number" }
+        "id": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "position": {
+          "type": "string",
+          "enum": [
+            "F",
+            "D",
+            "G"
+          ]
+        },
+        "age": {
+          "type": "integer",
+          "minimum": 16
+        },
+        "overall": {
+          "type": "number"
+        },
+        "potential": {
+          "type": "number"
+        },
+        "salary": {
+          "type": "number",
+          "minimum": 0
+        },
+        "contract_years": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "injury_risk": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "morale": {
+          "type": "number"
+        }
       }
     },
     "free_agent": {
@@ -181,17 +345,50 @@
         "asking_salary"
       ],
       "properties": {
-        "id": { "type": "integer" },
-        "name": { "type": "string" },
-        "position": { "type": "string", "enum": ["F", "D", "G"] },
-        "age": { "type": "integer", "minimum": 16 },
-        "overall": { "type": "number" },
-        "potential": { "type": "number" },
-        "salary": { "type": "number", "minimum": 0 },
-        "contract_years": { "type": "integer", "minimum": 0 },
-        "injury_risk": { "type": "number", "minimum": 0, "maximum": 1 },
-        "morale": { "type": "number" },
-        "asking_salary": { "type": "number", "minimum": 0 }
+        "id": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "position": {
+          "type": "string",
+          "enum": [
+            "F",
+            "D",
+            "G"
+          ]
+        },
+        "age": {
+          "type": "integer",
+          "minimum": 16
+        },
+        "overall": {
+          "type": "number"
+        },
+        "potential": {
+          "type": "number"
+        },
+        "salary": {
+          "type": "number",
+          "minimum": 0
+        },
+        "contract_years": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "injury_risk": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "morale": {
+          "type": "number"
+        },
+        "asking_salary": {
+          "type": "number",
+          "minimum": 0
+        }
       }
     },
     "team": {
@@ -209,49 +406,130 @@
         "payroll",
         "cap_room",
         "draft_picks",
-        "lineup",
-        "roster"
+        "lineup"
       ],
       "properties": {
-        "id": { "type": "integer" },
-        "name": { "type": "string" },
-        "market": { "type": "number" },
-        "patience": { "type": "number" },
-        "wins": { "type": "integer", "minimum": 0 },
-        "losses": { "type": "integer", "minimum": 0 },
-        "championships": { "type": "integer", "minimum": 0 },
-        "playoff_rounds": { "type": "integer", "minimum": 0 },
-        "payroll": { "type": "number", "minimum": 0 },
-        "cap_room": { "type": "number" },
+        "id": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "market": {
+          "type": "number"
+        },
+        "patience": {
+          "type": "number"
+        },
+        "wins": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "losses": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "championships": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "playoff_rounds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payroll": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cap_room": {
+          "type": "number"
+        },
         "draft_picks": {
           "type": "object",
-          "additionalProperties": { "type": "integer", "minimum": 0 }
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
         },
         "lineup": {
           "description": "Player ids most recently set via set_lineup; empty until first set. Stale entries are repaired at simulation time.",
           "type": "array",
-          "items": { "type": "integer" }
+          "items": {
+            "type": "integer"
+          }
         },
         "roster": {
           "type": "array",
-          "items": { "$ref": "#/$defs/player" }
+          "items": {
+            "$ref": "#/$defs/player"
+          }
+        },
+        "roster_summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "count",
+            "avg_overall",
+            "top_player_ids"
+          ],
+          "properties": {
+            "count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "avg_overall": {
+              "type": "number"
+            },
+            "top_player_ids": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          }
         }
       }
     },
     "standing": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["team_id", "team_name", "wins", "losses", "championships", "public_strength", "draft_picks"],
+      "required": [
+        "team_id",
+        "team_name",
+        "wins",
+        "losses",
+        "championships",
+        "public_strength",
+        "draft_picks"
+      ],
       "properties": {
-        "team_id": { "type": "integer" },
-        "team_name": { "type": "string" },
-        "wins": { "type": "integer", "minimum": 0 },
-        "losses": { "type": "integer", "minimum": 0 },
-        "championships": { "type": "integer", "minimum": 0 },
-        "public_strength": { "type": "number" },
+        "team_id": {
+          "type": "integer"
+        },
+        "team_name": {
+          "type": "string"
+        },
+        "wins": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "losses": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "championships": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "public_strength": {
+          "type": "number"
+        },
         "draft_picks": {
           "type": "object",
-          "additionalProperties": { "type": "integer", "minimum": 0 }
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       }
     },
@@ -269,25 +547,67 @@
         "expires"
       ],
       "properties": {
-        "offer_id": { "type": "string" },
-        "team_id": { "type": "integer" },
-        "team_name": { "type": "string" },
-        "you_receive_players": { "type": "array", "items": { "$ref": "#/$defs/player" } },
-        "they_receive_players": { "type": "array", "items": { "$ref": "#/$defs/player" } },
-        "you_receive_pick_seasons": { "type": "array", "items": { "type": "integer" } },
-        "they_receive_pick_seasons": { "type": "array", "items": { "type": "integer" } },
-        "expires": { "type": "string" }
+        "offer_id": {
+          "type": "string"
+        },
+        "team_id": {
+          "type": "integer"
+        },
+        "team_name": {
+          "type": "string"
+        },
+        "you_receive_players": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/player"
+          }
+        },
+        "they_receive_players": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/player"
+          }
+        },
+        "you_receive_pick_seasons": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "they_receive_pick_seasons": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "expires": {
+          "type": "string"
+        }
       }
     },
     "trade_offer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["team_id", "team_name", "player", "estimated_price"],
+      "required": [
+        "team_id",
+        "team_name",
+        "player",
+        "estimated_price"
+      ],
       "properties": {
-        "team_id": { "type": "integer" },
-        "team_name": { "type": "string" },
-        "player": { "$ref": "#/$defs/player" },
-        "estimated_price": { "type": "number", "minimum": 0 }
+        "team_id": {
+          "type": "integer"
+        },
+        "team_name": {
+          "type": "string"
+        },
+        "player": {
+          "$ref": "#/$defs/player"
+        },
+        "estimated_price": {
+          "type": "number",
+          "minimum": 0
+        }
       }
     },
     "season_summary": {
@@ -304,27 +624,68 @@
         "score_after_season"
       ],
       "properties": {
-        "season": { "type": "integer", "minimum": 1 },
-        "wins": { "type": "integer", "minimum": 0 },
-        "losses": { "type": "integer", "minimum": 0 },
-        "payroll": { "type": "number", "minimum": 0 },
-        "cap_room": { "type": "number" },
-        "champion_team_id": { "type": "integer" },
-        "playoff_rounds": { "type": "integer", "minimum": 0 },
-        "score_after_season": { "type": "number" }
+        "season": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "wins": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "losses": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payroll": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cap_room": {
+          "type": "number"
+        },
+        "champion_team_id": {
+          "type": "integer"
+        },
+        "playoff_rounds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "score_after_season": {
+          "type": "number"
+        }
       }
     },
     "transaction": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["season", "phase", "team_id", "action", "accepted", "message"],
+      "required": [
+        "season",
+        "phase",
+        "team_id",
+        "action",
+        "accepted",
+        "message"
+      ],
       "properties": {
-        "season": { "type": "integer", "minimum": 1 },
-        "phase": { "type": "string" },
-        "team_id": { "type": "integer" },
-        "action": { "type": "object" },
-        "accepted": { "type": "boolean" },
-        "message": { "type": "string" }
+        "season": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "phase": {
+          "type": "string"
+        },
+        "team_id": {
+          "type": "integer"
+        },
+        "action": {
+          "type": "object"
+        },
+        "accepted": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
       }
     }
   }

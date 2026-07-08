@@ -141,7 +141,17 @@ def validate_leaderboard_payload(
 
     baselines = [_dict(result) for result in _list(payload.get("baselines"))]
     baseline_names = [result.get("agent") for result in baselines]
-    _expect_equal(errors, "baselines", baseline_names, expected_baselines)
+    if policy.name == SOTA_V1_POLICY_NAME:
+        _expect_equal(errors, "baselines", baseline_names, expected_baselines)
+    else:
+        if not baseline_names:
+            errors.append("baselines must contain at least one scripted reference")
+        elif len(set(baseline_names)) != len(baseline_names):
+            errors.append("baselines must not contain duplicate agent names")
+        elif any(name not in expected_baselines for name in baseline_names):
+            errors.append(f"baselines contain unknown agents; expected a subset of {expected_baselines!r}")
+        elif baseline_names != expected_baselines:
+            warnings.append("historical baseline panel differs from the current official panel")
 
     candidate = _dict(payload.get("candidate"))
     if not candidate:
@@ -200,8 +210,8 @@ def validate_leaderboard_payload(
         best = _dict(paired.get("best_baseline"))
         if not best:
             errors.append("paired.best_baseline is required")
-        elif best.get("agent") != "shrewd":
-            warnings.append(f"strongest baseline is {best.get('agent')!r}, expected shrewd for v1 calibration")
+        elif best.get("agent") != "pick-trader":
+            warnings.append(f"strongest baseline is {best.get('agent')!r}, expected pick-trader for v1 calibration")
         if paired.get("significant_at_95") is False:
             warnings.append("candidate lift is not significant at 95% against the baseline panel")
         if best and float(best.get("paired_lift_mean", 0.0) or 0.0) <= 0.0:

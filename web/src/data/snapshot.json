@@ -18,15 +18,18 @@
   },
   "normalized": {
     "baseline_illegal_actions": 0,
-    "baseline_panel_mean_score": 105.972,
-    "baseline_panel_mean_strategy_score": 105.971,
+    "baseline_panel_mean_score": 162.905,
+    "baseline_panel_mean_strategy_score": 162.906,
     "baseline_panel_total_protocol_penalty": 0.0,
-    "candidate_fallback_decision_rate": 0.0,
-    "candidate_fallback_decisions": 0,
+    "candidate_decision_failure_rate": 0.0,
+    "candidate_decisions": 100,
+    "candidate_failed_decisions": 0,
     "candidate_illegal_actions": 0,
-    "candidate_mean_score": 258.487,
-    "candidate_mean_strategy_score": 258.487,
+    "candidate_mean_score": 373.888,
+    "candidate_mean_strategy_score": 373.888,
+    "candidate_memo_writes": 0,
     "candidate_protocol_penalty": 0.0,
+    "candidate_rejected_offers": 0,
     "candidate_usage": {
       "api_calls": 0,
       "api_latency_ms": 0.0,
@@ -40,56 +43,57 @@
       "provider": null,
       "total_tokens": 0
     },
-    "score_lift": 152.515,
-    "score_lift_pct": 143.92
+    "score_lift": 210.983,
+    "score_lift_pct": 129.51
   },
   "paired": {
     "best_baseline": {
       "agent": "win-now",
-      "mean_score": 200.158,
-      "paired_lift_mean": 58.328,
+      "mean_score": 286.023,
+      "paired_lift_mean": 87.866,
       "seed_win_rate": 1.0
     },
     "candidate_seed_win_rate": 1.0,
     "num_seeds": 5,
     "paired_lift_ci95": [
-      134.06,
-      170.97
+      168.996,
+      265.446
     ],
-    "paired_lift_mean": 152.515,
-    "paired_lift_stddev": 22.512,
+    "paired_lift_mean": 210.983,
+    "paired_lift_stddev": 55.047,
     "per_seed": [
       {
-        "baseline_panel_score": 96.974,
-        "candidate_score": 231.14,
-        "lift": 134.166,
+        "baseline_panel_score": 149.452,
+        "candidate_score": 319.261,
+        "lift": 169.81,
         "seed": 1
       },
       {
-        "baseline_panel_score": 112.995,
-        "candidate_score": 240.191,
-        "lift": 127.196,
+        "baseline_panel_score": 165.71,
+        "candidate_score": 471.201,
+        "lift": 305.491,
         "seed": 2
       },
       {
-        "baseline_panel_score": 112.657,
-        "candidate_score": 260.232,
-        "lift": 147.575,
+        "baseline_panel_score": 196.504,
+        "candidate_score": 438.532,
+        "lift": 242.028,
         "seed": 3
       },
       {
-        "baseline_panel_score": 98.759,
-        "candidate_score": 262.343,
-        "lift": 163.584,
+        "baseline_panel_score": 143.597,
+        "candidate_score": 312.456,
+        "lift": 168.859,
         "seed": 4
       },
       {
-        "baseline_panel_score": 108.472,
-        "candidate_score": 298.527,
-        "lift": 190.054,
+        "baseline_panel_score": 159.264,
+        "candidate_score": 327.991,
+        "lift": 168.726,
         "seed": 5
       }
     ],
+    "sign_flip_p_value": 0.0625,
     "significant_at_95": true
   },
   "sample_transactions": [
@@ -208,6 +212,35 @@
         "type": "set_lineup"
       },
       "message": "lineup set",
+      "phase": "midseason",
+      "season": 1
+    },
+    {
+      "accepted": true,
+      "action": {
+        "player_ids": [
+          304,
+          278,
+          20,
+          294,
+          13,
+          12,
+          18,
+          21,
+          23,
+          9,
+          8,
+          4,
+          297,
+          5,
+          1,
+          301,
+          2,
+          22
+        ],
+        "type": "set_lineup"
+      },
+      "message": "lineup set",
       "phase": "trade_deadline",
       "season": 1
     },
@@ -265,36 +298,7 @@
         "prospect_id": 1010006,
         "type": "draft"
       },
-      "message": "drafted Gabe Hayes",
-      "phase": "draft",
-      "season": 1
-    },
-    {
-      "accepted": true,
-      "action": {
-        "player_ids": [
-          304,
-          278,
-          20,
-          294,
-          13,
-          12,
-          18,
-          21,
-          23,
-          9,
-          8,
-          4,
-          297,
-          5,
-          1,
-          301,
-          2,
-          22
-        ],
-        "type": "set_lineup"
-      },
-      "message": "lineup set",
+      "message": "Boston Harbors drafted Gabe Hayes",
       "phase": "draft",
       "season": 1
     },
@@ -304,7 +308,7 @@
         "prospect_id": 1010012,
         "type": "draft"
       },
-      "message": "Austin Jackals drafted Finn Grant",
+      "message": "Denver Comets drafted Finn Grant",
       "phase": "draft",
       "season": 1
     },
@@ -314,7 +318,7 @@
         "prospect_id": 1010009,
         "type": "draft"
       },
-      "message": "Boston Harbors drafted Gabe Frost",
+      "message": "Calgary Peaks drafted Gabe Frost",
       "phase": "draft",
       "season": 1
     }
@@ -324,48 +328,48 @@
     "seasons": [
       {
         "cap_room": 13.72,
-        "champion": false,
-        "losses": 18,
-        "playoff_rounds": 0,
-        "score_after_season": 125.813,
-        "season": 1,
-        "wins": 15
-      },
-      {
-        "cap_room": 14.71,
-        "champion": false,
-        "losses": 19,
-        "playoff_rounds": 0,
-        "score_after_season": 147.536,
-        "season": 2,
-        "wins": 14
-      },
-      {
-        "cap_room": 27.62,
-        "champion": false,
-        "losses": 14,
-        "playoff_rounds": 0,
-        "score_after_season": 146.214,
-        "season": 3,
-        "wins": 19
-      },
-      {
-        "cap_room": 27.43,
-        "champion": false,
+        "champion": true,
         "losses": 15,
-        "playoff_rounds": 0,
-        "score_after_season": 184.033,
-        "season": 4,
+        "playoff_rounds": 3,
+        "score_after_season": 153.268,
+        "season": 1,
         "wins": 18
       },
       {
-        "cap_room": 31.35,
+        "cap_room": 14.95,
         "champion": false,
-        "losses": 13,
+        "losses": 31,
         "playoff_rounds": 1,
-        "score_after_season": 219.62,
+        "score_after_season": 197.213,
+        "season": 2,
+        "wins": 35
+      },
+      {
+        "cap_room": 28.9,
+        "champion": false,
+        "losses": 51,
+        "playoff_rounds": 0,
+        "score_after_season": 218.802,
+        "season": 3,
+        "wins": 48
+      },
+      {
+        "cap_room": 28.53,
+        "champion": false,
+        "losses": 70,
+        "playoff_rounds": 0,
+        "score_after_season": 276.244,
+        "season": 4,
+        "wins": 62
+      },
+      {
+        "cap_room": 31.58,
+        "champion": false,
+        "losses": 90,
+        "playoff_rounds": 0,
+        "score_after_season": 311.461,
         "season": 5,
-        "wins": 20
+        "wins": 75
       }
     ],
     "seed": 1
@@ -373,58 +377,58 @@
   "standings": [
     {
       "agent": "value",
-      "best_score": 298.527,
+      "best_score": 471.201,
       "episodes": 5,
       "illegal_actions": 0,
-      "mean_score": 258.487,
-      "mean_wins": 101,
-      "score_stddev": 23.254,
-      "titles": 1,
-      "worst_score": 231.14
+      "mean_score": 373.888,
+      "mean_wins": 276,
+      "score_stddev": 67.102,
+      "titles": 6,
+      "worst_score": 312.456
     },
     {
       "agent": "win-now",
-      "best_score": 227.063,
+      "best_score": 433.739,
       "episodes": 5,
       "illegal_actions": 0,
-      "mean_score": 200.158,
-      "mean_wins": 101.8,
-      "score_stddev": 23.387,
-      "titles": 3,
-      "worst_score": 169.511
+      "mean_score": 286.023,
+      "mean_wins": 285.2,
+      "score_stddev": 76.212,
+      "titles": 6,
+      "worst_score": 222.25
     },
     {
       "agent": "rebuild",
-      "best_score": 132.906,
+      "best_score": 173.103,
       "episodes": 5,
       "illegal_actions": 0,
-      "mean_score": 92.063,
-      "mean_wins": 55.4,
-      "score_stddev": 21.593,
+      "mean_score": 142.524,
+      "mean_wins": 200,
+      "score_stddev": 16.056,
       "titles": 1,
-      "worst_score": 69.842
+      "worst_score": 128.014
     },
     {
       "agent": "conservative",
-      "best_score": 86.434,
+      "best_score": 136.698,
       "episodes": 5,
       "illegal_actions": 0,
-      "mean_score": 77.416,
-      "mean_wins": 54.2,
-      "score_stddev": 6.503,
+      "mean_score": 131.647,
+      "mean_wins": 197.8,
+      "score_stddev": 5.755,
       "titles": 0,
-      "worst_score": 69.865
+      "worst_score": 121.972
     },
     {
       "agent": "random",
-      "best_score": 85.403,
+      "best_score": 102.291,
       "episodes": 5,
       "illegal_actions": 0,
-      "mean_score": 54.249,
-      "mean_wins": 40.6,
-      "score_stddev": 17.097,
-      "titles": 1,
-      "worst_score": 33.867
+      "mean_score": 91.428,
+      "mean_wins": 162,
+      "score_stddev": 6.096,
+      "titles": 0,
+      "worst_score": 83.452
     }
   ]
 }

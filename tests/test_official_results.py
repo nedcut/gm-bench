@@ -22,7 +22,8 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
     leaderboard = PRESETS["leaderboard"]
     seeds = list(seeds or leaderboard["seeds"])
     seasons = int(leaderboard["seasons"])
-    decisions = len(seeds) * repeats * seasons * 3
+    # Default episode is 4 phases (incl. midseason).
+    decisions = len(seeds) * repeats * seasons * 4
     failed = round(decisions * failure_rate)
     candidate = {
         "agent": "openai:gpt-test",
@@ -66,8 +67,8 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
                 {
                     "seed": seed,
                     "seasons": seasons,
-                    "final_score": 300.0 if name == "shrewd" else 100.0,
-                    "strategy_score": 300.0 if name == "shrewd" else 100.0,
+                    "final_score": 300.0 if name == "pick-trader" else 100.0,
+                    "strategy_score": 300.0 if name == "pick-trader" else 100.0,
                     "protocol_penalty": 0.0,
                     "wins": 90,
                     "championships": 1,
@@ -76,7 +77,7 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
                 for seed in seeds
             ],
             "summary": {
-                "mean_score": 300.0 if name == "shrewd" else 100.0,
+                "mean_score": 300.0 if name == "pick-trader" else 100.0,
                 "score_stddev": 0.0,
             },
         }
@@ -90,19 +91,19 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
         "baselines": baselines,
         "normalized": {
             "candidate_mean_score": 350.0,
-            "baseline_panel_mean_score": 133.333,
-            "score_lift": 216.667,
+            "baseline_panel_mean_score": 125.0,
+            "score_lift": 225.0,
         },
         "paired": {
             "num_seeds": len(seeds),
             "per_seed": [],
-            "paired_lift_mean": 216.667,
+            "paired_lift_mean": 225.0,
             "paired_lift_ci95": [200.0, 230.0],
             "sign_flip_p_value": 0.0078,
             "significant_at_95": True,
             "candidate_seed_win_rate": 1.0,
             "best_baseline": {
-                "agent": "shrewd",
+                "agent": "pick-trader",
                 "mean_score": 300.0,
                 "paired_lift_mean": 50.0,
                 "seed_win_rate": 1.0,
@@ -125,6 +126,22 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
 def test_public_leaderboard_policy_accepts_single_repeat_payload() -> None:
     report = validate_leaderboard_payload(_official_payload(), policy=PUBLIC_LEADERBOARD_POLICY)
     assert report.ok
+
+
+def test_historical_baseline_panel_is_diagnostic_but_not_sota() -> None:
+    payload = _official_payload(repeats=3)
+    payload["baselines"] = [
+        baseline for baseline in payload["baselines"] if baseline["agent"] not in {"strategic", "pick-trader"}
+    ]
+    payload["paired"]["best_baseline"]["agent"] = "shrewd"
+
+    public_report = validate_leaderboard_payload(payload, policy=PUBLIC_LEADERBOARD_POLICY)
+    assert public_report.ok
+    assert "historical baseline panel differs from the current official panel" in public_report.warnings
+
+    sota_report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    assert not sota_report.ok
+    assert any(error.startswith("baselines must be") for error in sota_report.errors)
 
 
 def test_sota_v1_policy_requires_repeats() -> None:
