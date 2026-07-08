@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from gm_bench.baseline_cache import cache_key, load_cache  # noqa: E402
-from gm_bench.benchmark_config import PRESETS  # noqa: E402
+from gm_bench.benchmark_config import PRESETS, PRIVATE_LEADERBOARD_PANEL_NAME  # noqa: E402
 from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V1_POLICY, validate_leaderboard_payload  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
@@ -53,6 +53,8 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
     cost = usage.get("cost_usd")
     seeds = payload.get("seeds")
     if seeds == REDACTED_SEEDS_SENTINEL:
+        seeds = None
+    elif seed_panel.get("name") == PRIVATE_LEADERBOARD_PANEL_NAME:
         seeds = None
     return {
         "id": agent,
@@ -94,9 +96,10 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _sota_report(payload: dict[str, Any]) -> dict[str, Any]:
-    stored = ((payload.get("validation_reports") or {}).get(SOTA_V1_POLICY.name) or {})
-    if stored:
-        return stored
+    if (payload.get("redaction") or {}).get("applied"):
+        stored = ((payload.get("validation_reports") or {}).get(SOTA_V1_POLICY.name) or {})
+        if stored:
+            return stored
     return validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY).to_dict()
 
 

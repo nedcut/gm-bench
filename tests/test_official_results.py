@@ -139,6 +139,20 @@ def test_sota_v1_policy_rejects_high_failure_rate() -> None:
     assert any("decision_failure_rate" in error for error in report.errors)
 
 
+def test_sota_v1_policy_requires_full_usage() -> None:
+    payload = _official_payload(repeats=3)
+    payload["candidate"]["summary"]["usage"]["decisions_with_usage"] = 0
+    report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    assert not report.ok
+    assert "candidate usage must cover every decision point" in report.errors
+
+    payload = _official_payload(repeats=3)
+    payload["candidate"]["summary"]["usage"]["cost_usd"] = "missing"
+    report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    assert not report.ok
+    assert "candidate usage.cost_usd is required, use null only when pricing is unknown" in report.errors
+
+
 def test_sota_v1_policy_requires_contract_provenance() -> None:
     payload = _official_payload(repeats=3)
     del payload["run_info"]["benchmark_contract"]
@@ -244,6 +258,15 @@ def test_leaderboard_builder_accepts_redacted_private_artifact(monkeypatch: pyte
     assert row["seed_panel"] == "private-env"
     assert row["sota_v1_eligible"] is True
     assert row["sota_v1_issues"] == []
+
+
+def test_leaderboard_builder_revalidates_forged_sota_report() -> None:
+    payload = _official_payload(repeats=1, failure_rate=0.05)
+    payload["validation_reports"] = {"sota-v1": {"ok": True, "errors": []}}
+
+    row = model_row(payload)
+
+    assert row["sota_v1_eligible"] is False
 
 
 def test_result_validation_rejects_wrong_seed_panel() -> None:
