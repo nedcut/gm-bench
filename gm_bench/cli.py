@@ -23,6 +23,7 @@ from gm_bench.official import (
     redact_leaderboard_payload,
     validate_leaderboard_payload,
 )
+from gm_bench.oracle import OracleAgent
 from gm_bench.providers import PROVIDER_NAMES, build_provider_agent, provider_help
 from gm_bench.runner import evaluate_against_baselines, make_progress_printer, run_many, run_many_cached_baselines
 from gm_bench.simulator import League
@@ -32,6 +33,10 @@ from gm_bench.validity import run_validity_canaries
 EXTERNAL_AGENT_TIMEOUT_DEFAULT = 120.0
 EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED = 60.0
 
+# The oracle is intentionally CLI-only.  Keeping it out of ``AGENTS`` means it
+# cannot become an official baseline or alter the frozen benchmark contract.
+CLI_AGENTS: dict[str, type[Any]] = {**AGENTS, "oracle": OracleAgent}
+
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="gm-bench")
@@ -39,10 +44,10 @@ def main(argv: list[str] | None = None) -> None:
 
     run_parser = subparsers.add_parser("run", help="run one agent across seeds")
     _add_common_run_args(run_parser)
-    run_parser.add_argument("--agent", choices=sorted(AGENTS), default="value")
+    run_parser.add_argument("--agent", choices=sorted(CLI_AGENTS), default="value")
 
     compare_parser = subparsers.add_parser("compare", help="compare built-in agents")
-    compare_parser.add_argument("--agents", nargs="+", choices=sorted(AGENTS), default=sorted(AGENTS))
+    compare_parser.add_argument("--agents", nargs="+", choices=sorted(CLI_AGENTS), default=sorted(AGENTS))
     compare_parser.add_argument("--seeds", nargs="+", type=int, default=[1, 2, 3])
     compare_parser.add_argument("--seasons", type=int, default=5)
     compare_parser.add_argument("--json", action="store_true")
@@ -50,7 +55,7 @@ def main(argv: list[str] | None = None) -> None:
 
     evaluate_parser = subparsers.add_parser("evaluate", help="evaluate an agent against a normalized baseline panel")
     _add_common_run_args(evaluate_parser)
-    evaluate_parser.add_argument("--agent", choices=sorted(AGENTS), default="value")
+    evaluate_parser.add_argument("--agent", choices=sorted(CLI_AGENTS), default="value")
     evaluate_parser.add_argument(
         "--baselines", nargs="+", choices=sorted(AGENTS), default=["random", "conservative", "win-now", "rebuild"]
     )
@@ -244,7 +249,7 @@ def _run_command(args: argparse.Namespace) -> None:
 
 
 def _compare_command(args: argparse.Namespace) -> None:
-    results = [run_many(AGENTS[name](), args.seeds, args.seasons) for name in args.agents]
+    results = [run_many(CLI_AGENTS[name](), args.seeds, args.seasons) for name in args.agents]
     run_id = _maybe_log(args, "compare", results)
     if args.json:
         print(json.dumps(results, indent=2, sort_keys=True))
@@ -565,7 +570,7 @@ def _resolve_agent_from_config(config: BenchmarkConfig) -> Any:
             timeout_seconds=resolved_timeout,
             env={"GM_BENCH_AGENT_TIMEOUT": str(resolved_timeout)},
         )
-    return AGENTS[config.agent]()
+    return CLI_AGENTS[config.agent]()
 
 
 def _add_logging_args(parser: argparse.ArgumentParser) -> None:
