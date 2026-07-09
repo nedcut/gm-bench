@@ -26,9 +26,16 @@ import time
 from pathlib import Path
 
 try:
-    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions
+    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions, resolve_call_timeout
 except ModuleNotFoundError:
-    from examples.gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions
+    from examples.gm_agent_common import (
+        build_prompt,
+        emit,
+        fallback_actions,
+        make_usage,
+        parse_actions,
+        resolve_call_timeout,
+    )
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,7 +46,7 @@ DEFAULT_MODEL = "gpt-5-mini"
 def main() -> None:
     observation = json.load(sys.stdin)
     os.environ.setdefault("GM_AGENT_PROFILE", "tiny")
-    timeout = float(os.environ.get("CODEX_AGENT_TIMEOUT", "180"))
+    timeout = resolve_call_timeout("CODEX_AGENT_TIMEOUT", 180.0)
     prompt = (
         "You are competing in GM-Bench as a sports general manager. "
         "Do not inspect or edit files. Do not run shell commands. "

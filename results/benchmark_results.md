@@ -22,6 +22,20 @@ This snapshot records the benchmark results generated during the MVP build.
 >
 > Both are far below `pick-trader` (paired lifts ≈ −232 / −319). Treat them as
 > diagnostics under the new contract, not evidence of frontier GM skill.
+>
+> **Caveat on the qwen3.5 fail rate:** post-run log analysis shows the 0.454
+> failure rate is dominated by a harness artifact, not protocol comprehension.
+> The Ollama adapter's per-call HTTP timeout defaulted to 120 s regardless of
+> `--agent-timeout 300`, and for a contiguous stretch of the sequential run
+> (seed 12 rep 3 → seed 17 rep 2) local generation slowed to ~110–135 s per
+> decision, so calls timed out inside the adapter (which also explains the
+> 278/480 usage-coverage gap — timed-out decisions report no usage). In the
+> healthy episodes the failure rate was ~4.4% (8/180) with full usage coverage.
+> Adapters now derive their call timeout from the harness budget
+> (`GM_BENCH_AGENT_TIMEOUT`), so this failure mode is fixed; qwen3.5's row
+> should be re-run before quoting its numbers. Its illegal-action rate is real,
+> however — healthy episodes still averaged ~50–64 illegal actions per 20
+> decisions. The gemma4:e4b run was unaffected (0.029 fail rate, full usage).
 
 > **Note (2026-07-04):** Draft-pick trading, opponent-initiated trade offers,
 > and scouting landed together with usage/cost telemetry. Scoring now counts

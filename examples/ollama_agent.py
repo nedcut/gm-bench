@@ -25,6 +25,7 @@ try:
         fallback_actions,
         make_usage,
         parse_actions,
+        resolve_call_timeout,
         run_session_loop,
         strip_terminal_codes,
     )
@@ -35,6 +36,7 @@ except ModuleNotFoundError:
         fallback_actions,
         make_usage,
         parse_actions,
+        resolve_call_timeout,
         run_session_loop,
         strip_terminal_codes,
     )
@@ -70,7 +72,7 @@ def choose_actions(
     os.environ.setdefault("GM_AGENT_PROFILE", "tiny")
     think = resolve_think_mode(model)
     host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
-    timeout = float(os.environ.get("OLLAMA_TIMEOUT", "120"))
+    timeout = resolve_call_timeout("OLLAMA_TIMEOUT", 120.0)
     schema = load_action_schema()
     prompt = build_prompt(observation)
     try:

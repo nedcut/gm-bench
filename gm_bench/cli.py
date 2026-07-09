@@ -559,7 +559,11 @@ def _resolve_agent_from_config(config: BenchmarkConfig) -> Any:
                 f"consider >= {EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED:g}",
                 file=sys.stderr,
             )
-        return ExternalProcessAgent(config.agent_cmd, timeout_seconds=resolved_timeout)
+        return ExternalProcessAgent(
+            config.agent_cmd,
+            timeout_seconds=resolved_timeout,
+            env={"GM_BENCH_AGENT_TIMEOUT": str(resolved_timeout)},
+        )
     return AGENTS[config.agent]()
 
 

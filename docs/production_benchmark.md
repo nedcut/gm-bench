@@ -104,6 +104,26 @@ seed-panel name/hash are included when present.
 `redact-result` only writes an output file when the selected policy passes.
 Invalid private runs stay local; do not publish them.
 
+## Contract freeze
+
+The `sota-v1` leaderboard contract is **frozen at fingerprint
+`cf2607e59dba0c7f`** (protocol `gm-bench-v2` with midseason, the full v1
+baseline panel, public seeds 11–18) as of 2026-07-09. Every contract change so
+far has invalidated all prior model rows; a leaderboard only accumulates
+comparable results while the contract holds still.
+
+Under the freeze:
+
+- New model rows run against the frozen contract; `validate-result` already
+  rejects rows whose fingerprint does not match the current source.
+- Simulator, scoring, preset, or schema changes that alter the fingerprint do
+  not amend `sota-v1` — they start a new claim lane (`sota-v2`) with its own
+  re-cached baseline panel and reference means. Existing `sota-v1` rows stay
+  published and comparable with each other under their own contract.
+- Changes that do not alter simulation or scoring behavior (CLI, docs,
+  adapters, site) are free. A behavior-changing bug fix is a deliberate
+  lane-versioning decision, not routine maintenance.
+
 ## Interpretation
 
 Passing `sota-v1` does not mean the model is good. It means the result was run

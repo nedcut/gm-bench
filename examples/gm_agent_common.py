@@ -266,6 +266,30 @@ def strip_terminal_codes(text: str) -> str:
     return re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
 
 
+def resolve_call_timeout(env_var: str, default: float, margin: float = 15.0) -> float:
+    """Resolve the per-call backend timeout for an adapter.
+
+    An explicit adapter env var (e.g. ``OLLAMA_TIMEOUT``) always wins. Otherwise
+    derive it from the harness decision budget (``GM_BENCH_AGENT_TIMEOUT``,
+    exported by the runner) minus a margin, so a slow backend call fails inside
+    the adapter — which can still emit a fallback envelope with usage — instead
+    of the harness killing the process and recording nothing.
+    """
+    raw = os.environ.get(env_var)
+    if raw is not None:
+        try:
+            return float(raw)
+        except ValueError:
+            pass
+    budget = os.environ.get("GM_BENCH_AGENT_TIMEOUT")
+    if budget is not None:
+        try:
+            return max(30.0, float(budget) - margin)
+        except ValueError:
+            pass
+    return default
+
+
 def make_usage(
     *,
     provider: str | None = None,

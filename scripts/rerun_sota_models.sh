@@ -5,6 +5,11 @@
 # Usage (from repo root):
 #   GM_BENCH_WORKERS=1 bash scripts/rerun_sota_models.sh
 #
+# Env knobs:
+#   SKIP_EXISTING=1     skip a model whose output file already holds valid JSON
+#   ALLOW_INELIGIBLE=1  exit 0 even when models fail sota-v1 validation
+#                       (set this for known-diagnostic local models)
+#
 # Sequential by design — Ollama cannot usefully parallelize large local models.
 set -euo pipefail
 
@@ -20,6 +25,8 @@ models=(
   "gemma4:e4b|ollama-gemma4-e4b.json"
   "qwen3.5:latest|ollama-qwen3-5-latest.json"
 )
+
+ineligible=()
 
 run_one() {
   local model="$1"
@@ -49,40 +56,33 @@ run_one() {
   fi
   mv "$tmp_path" "$out_path"
   echo "==> validating $out_path"
-  uv run python -m gm_bench validate-result "$out_path" --policy sota-v1 --json \
-    | tee "$LOG_DIR/validate-${out_name%.json}.json" || true
+  if ! uv run python -m gm_bench validate-result "$out_path" --policy sota-v1 --json \
+      | tee "$LOG_DIR/validate-${out_name%.json}.json"; then
+    ineligible+=("$model")
+    echo "!! $model is NOT sota-v1 eligible; see $LOG_DIR/validate-${out_name%.json}.json" >&2
+  fi
 }
 
-# If a gemma run is already in progress writing the final path, skip re-entry.
-if pgrep -f "gm_bench model --provider ollama --model gemma4:e4b" >/dev/null 2>&1; then
-  echo "gemma4:e4b already running; waiting for it to finish before sequencing"
-  while pgrep -f "gm_bench model --provider ollama --model gemma4:e4b" >/dev/null 2>&1; do
-    sleep 30
-  done
-  # Existing run wrote directly to the final path (older launcher). Validate if present.
-  if [[ -s "$RESULT_DIR/ollama-gemma4-e4b.json" ]]; then
-    uv run python -m gm_bench validate-result \
-      "$RESULT_DIR/ollama-gemma4-e4b.json" --policy sota-v1 --json \
-      | tee "$LOG_DIR/validate-ollama-gemma4-e4b.json" || true
-  else
-    run_one "gemma4:e4b" "ollama-gemma4-e4b.json"
-  fi
-  run_one "qwen3.5:latest" "ollama-qwen3-5-latest.json"
-else
-  for entry in "${models[@]}"; do
-    IFS='|' read -r model out_name <<<"$entry"
-    # Skip models that already have a complete, non-empty JSON from this session
-    # only when the user sets SKIP_EXISTING=1.
-    if [[ "${SKIP_EXISTING:-0}" == "1" && -s "$RESULT_DIR/$out_name" ]]; then
-      if python3 -c "import json; json.load(open('$RESULT_DIR/$out_name'))" 2>/dev/null; then
-        echo "skipping $out_name (SKIP_EXISTING=1 and valid JSON present)"
-        continue
-      fi
+for entry in "${models[@]}"; do
+  IFS='|' read -r model out_name <<<"$entry"
+  if [[ "${SKIP_EXISTING:-0}" == "1" && -s "$RESULT_DIR/$out_name" ]]; then
+    if uv run python -c "import json; json.load(open('$RESULT_DIR/$out_name'))" 2>/dev/null; then
+      echo "skipping $out_name (SKIP_EXISTING=1 and valid JSON present)"
+      continue
     fi
-    run_one "$model" "$out_name"
-  done
-fi
+  fi
+  run_one "$model" "$out_name"
+done
 
 echo "==> rebuilding web leaderboard"
 uv run python web/scripts/build_leaderboard.py
 echo "==> done $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+if ((${#ineligible[@]})); then
+  echo "!! ${#ineligible[@]} model(s) failed sota-v1 validation: ${ineligible[*]}" >&2
+  echo "!! Their rows are published as diagnostics only, not sota-v1 results." >&2
+  if [[ "${ALLOW_INELIGIBLE:-0}" != "1" ]]; then
+    echo "!! Set ALLOW_INELIGIBLE=1 if this is expected." >&2
+    exit 1
+  fi
+fi
