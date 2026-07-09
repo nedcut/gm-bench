@@ -96,6 +96,13 @@ The validator enforces:
 - Candidate decision failure rate at or below 2%.
 - Complete paired analysis, including sign-flip p-value and strongest-baseline
   comparison.
+- Scaffold provenance: new rows record `run_info.scaffold_fingerprint`, a
+  per-provider hash of the prompt scaffold (shared prompt builder plus the
+  provider's adapter script and spec). A recorded fingerprint that does not
+  match the current source is an error; rows predating scaffold provenance
+  get a warning instead, so the prompt layer is visibly unattested rather
+  than silently trusted. Scaffold changes do not open a new contract lane —
+  they mark which rows are prompt-comparable within it.
 
 Warnings are still attached to otherwise valid results when the model has
 illegal actions, any adapter fallback/error decisions, insignificant lift, or a

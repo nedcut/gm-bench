@@ -17,7 +17,7 @@ from gm_bench.benchmark_config import (
     _parse_seeds,
     seed_panel_hash,
 )
-from gm_bench.contract import expected_contract
+from gm_bench.contract import expected_contract, scaffold_fingerprint
 
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
 SOTA_V1_POLICY_NAME = "sota-v1"
@@ -118,6 +118,7 @@ def validate_leaderboard_payload(
         if not run_info.get("model"):
             errors.append("run_info.model is required for official model results")
         _validate_contract_provenance(errors, warnings, run_info, require=policy.require_contract_provenance)
+        _validate_scaffold_provenance(errors, warnings, run_info)
         expected_seeds, expected_seed_count = _resolve_expected_seeds(
             errors,
             warnings,
@@ -398,6 +399,37 @@ def _validate_contract_provenance(
         actual = contract.get(key)
         if actual != expected_value:
             errors.append(f"run_info.benchmark_contract.{key} must be {expected_value!r}, got {actual!r}")
+
+
+def _validate_scaffold_provenance(
+    errors: list[str],
+    warnings: list[str],
+    run_info: dict[str, Any],
+) -> None:
+    """Check the row's prompt scaffold matches the current source.
+
+    Rows produced before scaffold provenance existed carry no fingerprint and
+    get a warning, not an error, so already-published artifacts stay eligible
+    while remaining visibly unattested at the prompt layer.
+    """
+    recorded = run_info.get("scaffold_fingerprint")
+    provider = str(run_info.get("provider") or "")
+    expected = scaffold_fingerprint(provider)
+    if recorded is None:
+        warnings.append(
+            "run_info.scaffold_fingerprint missing: prompt scaffold unverified (pre-provenance artifact)"
+        )
+        return
+    if expected is None:
+        warnings.append(
+            f"run_info.provider {provider!r} is not a built-in provider; scaffold fingerprint cannot be checked"
+        )
+        return
+    if recorded != expected:
+        errors.append(
+            f"run_info.scaffold_fingerprint {recorded!r} does not match current scaffold {expected!r} "
+            f"for provider {provider!r}"
+        )
 
 
 def _validate_episode_panel(

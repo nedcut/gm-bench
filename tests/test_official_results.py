@@ -7,7 +7,7 @@ import pytest
 
 from gm_bench import cli as cli_module
 from gm_bench.benchmark_config import PRESETS, PRIVATE_SEEDS_ENV, seed_panel_metadata
-from gm_bench.contract import benchmark_contract
+from gm_bench.contract import benchmark_contract, scaffold_fingerprint
 from gm_bench.official import (
     PUBLIC_LEADERBOARD_POLICY,
     REDACTED_SEEDS_SENTINEL,
@@ -118,6 +118,7 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
             "profile": "compact",
             "gm_bench_version": "0.1.0",
             "benchmark_contract": benchmark_contract(),
+            "scaffold_fingerprint": scaffold_fingerprint("openai"),
             "seed_panel": seed_panel_metadata(seeds, "leaderboard"),
         },
     }
