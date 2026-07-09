@@ -14,7 +14,7 @@ from gm_bench.agents import Agent, ExternalProcessAgent
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = ROOT / "examples"
 
-PROVIDER_NAMES = ("openai", "ollama", "codex", "claude", "opencode")
+PROVIDER_NAMES = ("openai", "ollama", "codex", "claude", "opencode", "cursor")
 
 
 @dataclass(frozen=True)
@@ -66,6 +66,14 @@ PROVIDERS: dict[str, ProviderSpec] = {
         script="opencode_agent.py",
         model_env="OPENCODE_MODEL",
         default_model="opencode/deepseek-v4-flash-free",
+        default_timeout=180.0,
+        default_profile="compact",
+    ),
+    "cursor": ProviderSpec(
+        name="cursor",
+        script="cursor_agent.py",
+        model_env="CURSOR_MODEL",
+        default_model="composer-2.5",
         default_timeout=180.0,
         default_profile="compact",
     ),
