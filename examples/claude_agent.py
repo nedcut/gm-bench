@@ -77,6 +77,18 @@ def main() -> None:
         )
 
 
+def schema_for_cli() -> str:
+    """Return the action schema without its $schema declaration.
+
+    The Claude CLI's structured-output validator cannot resolve the
+    draft/2020-12 meta-schema reference and rejects the file wholesale;
+    stripping the declaration leaves the constraints intact.
+    """
+    schema = json.loads(SCHEMA.read_text())
+    schema.pop("$schema", None)
+    return json.dumps(schema)
+
+
 def build_command(prompt: str) -> list[str]:
     command = [
         "claude",
@@ -91,7 +103,7 @@ def build_command(prompt: str) -> list[str]:
         "--output-format",
         "json",
         "--json-schema",
-        SCHEMA.read_text(),
+        schema_for_cli(),
     ]
     model = os.environ.get("CLAUDE_MODEL")
     if model:
