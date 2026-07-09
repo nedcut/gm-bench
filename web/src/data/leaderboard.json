@@ -41,7 +41,109 @@
       "score_stddev": 18.063
     }
   ],
-  "models": [],
+  "models": [
+    {
+      "api_latency_s_per_decision": 48.97,
+      "baseline_panel_mean_score": 273.794,
+      "benchmark_version": "sota-v1",
+      "ci95": [
+        -277.89,
+        -191.733
+      ],
+      "contract_fingerprint": "cf2607e59dba0c7f",
+      "cost_per_episode_usd": 0.0,
+      "cost_usd": 0.0,
+      "decision_points": 480,
+      "decisions_with_usage": 278,
+      "fallback_rate": 0.454,
+      "harness_latency_s_per_decision": 100.31,
+      "id": "ollama:qwen3.5:latest",
+      "illegal_actions": 781,
+      "lift_vs_best_baseline": -370.017,
+      "mean_score": 41.602,
+      "mean_strategy_score": 122.956,
+      "model": "qwen3.5:latest",
+      "paired_lift": -232.193,
+      "protocol_penalty": 1952.5,
+      "provider": "ollama",
+      "score_stddev": 64.003,
+      "seasons": 5,
+      "seed_panel": "public-leaderboard",
+      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
+      "seed_win_rate": 0.0,
+      "seeds": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "significant": true,
+      "sota_v1_eligible": false,
+      "sota_v1_issues": [
+        "candidate decision_failure_rate 0.454 exceeds 0.020 for sota-v1",
+        "candidate usage must cover every decision point",
+        "candidate has illegal actions; score includes protocol penalties",
+        "candidate used adapter fallback/error output on at least one decision",
+        "candidate does not beat the strongest scripted baseline"
+      ],
+      "tokens_per_decision": 1333.6,
+      "total_tokens": 640120
+    },
+    {
+      "api_latency_s_per_decision": 34.65,
+      "baseline_panel_mean_score": 273.794,
+      "benchmark_version": "sota-v1",
+      "ci95": [
+        -341.408,
+        -294.304
+      ],
+      "contract_fingerprint": "cf2607e59dba0c7f",
+      "cost_per_episode_usd": 0.0,
+      "cost_usd": 0.0,
+      "decision_points": 480,
+      "decisions_with_usage": 480,
+      "fallback_rate": 0.029,
+      "harness_latency_s_per_decision": 35.17,
+      "id": "ollama:gemma4:e4b",
+      "illegal_actions": 1384,
+      "lift_vs_best_baseline": -457.287,
+      "mean_score": -45.668,
+      "mean_strategy_score": 98.498,
+      "model": "gemma4:e4b",
+      "paired_lift": -319.463,
+      "protocol_penalty": 3460.0,
+      "provider": "ollama",
+      "score_stddev": 25.115,
+      "seasons": 5,
+      "seed_panel": "public-leaderboard",
+      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
+      "seed_win_rate": 0.0,
+      "seeds": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "significant": true,
+      "sota_v1_eligible": false,
+      "sota_v1_issues": [
+        "candidate decision_failure_rate 0.029 exceeds 0.020 for sota-v1",
+        "candidate has illegal actions; score includes protocol penalties",
+        "candidate used adapter fallback/error output on at least one decision",
+        "candidate does not beat the strongest scripted baseline"
+      ],
+      "tokens_per_decision": 2407.1,
+      "total_tokens": 1155431
+    }
+  ],
   "preset": {
     "decision_points_per_episode": 20,
     "name": "leaderboard",
@@ -57,5 +159,5 @@
       18
     ]
   },
-  "updated": "2026-07-08"
+  "updated": "2026-07-09"
 }

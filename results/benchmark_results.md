@@ -2,17 +2,26 @@
 
 This snapshot records the benchmark results generated during the MVP build.
 
-> **Note (2026-07-08, protocol v2 / contract `cf2607e59dba`):** Midseason,
+> **Note (2026-07-08/09, protocol v2 / contract `cf2607e59dba`):** Midseason,
 > multi-round interaction, functional injuries, and the full v1 baseline panel
 > (`strategic`, `pick-trader`) are now on `main`. SOTA-v1 claims must use this
 > contract fingerprint. Older model rows and pre-v2 leaderboard means are not
-> comparable. Re-run model candidates with
-> `python -m gm_bench model --preset leaderboard --repeats 3` and validate with
-> `--policy sota-v1`. Scripted reference means on the public panel (seeds 11–18,
+> comparable. Scripted reference means on the public panel (seeds 11–18,
 > 5 seasons): `pick-trader` 411.619, `strategic` 402.025, `shrewd` 371.769,
 > `value` 354.619, `win-now` 275.834, `conservative` 139.030, `rebuild` 138.745,
 > `random` 96.715. See `docs/scoring_calibration.md` and
 > `python -m gm_bench validate-contract` / `calibrate-score --json`.
+>
+> Local Ollama candidates re-ran under `--preset leaderboard --repeats 3`
+> (480 decisions each) on 2026-07-09. Neither is `sota-v1` eligible:
+>
+> | Model | Mean | Strategy | Illegal | Fail rate | sota-v1 |
+> | --- | ---: | ---: | ---: | ---: | --- |
+> | `ollama:qwen3.5:latest` | 41.602 | 122.956 | 781 | 0.454 | fail (failure rate + incomplete usage) |
+> | `ollama:gemma4:e4b` | -45.668 | 98.498 | 1384 | 0.029 | fail (failure rate 0.029 > 0.02) |
+>
+> Both are far below `pick-trader` (paired lifts ≈ −232 / −319). Treat them as
+> diagnostics under the new contract, not evidence of frontier GM skill.
 
 > **Note (2026-07-04):** Draft-pick trading, opponent-initiated trade offers,
 > and scouting landed together with usage/cost telemetry. Scoring now counts
