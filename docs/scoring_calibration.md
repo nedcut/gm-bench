@@ -151,6 +151,36 @@ memo, scout, offer-response, offer-acceptance, and pick-trade actions across
 minimum fractions of the official panel, so these mechanics cannot silently
 become dead protocol surface.
 
+### Ceiling reference
+
+`oracle` is a diagnostic-only hidden-information reference, not an official
+baseline and not part of the `sota-v1` baseline panel. On the same public panel
+(seeds 11-18, five seasons), it scores **431.150**, versus **411.619** for
+`pick-trader`: a **19.531-point** pick-trader-to-oracle gap.
+
+The oracle begins with the `pick-trader` policy, then regenerates a draft
+class's deterministic `true_potential` from its seed and uses it only for
+material latent-upside substitutions at the draft. It also recomputes the
+deterministic free-agent reservation price before retaining an offer, and the
+partner-specific trade-valuation bias before retaining a pick trade. Initial
+league players and every yearly draft class are deterministically regenerable;
+therefore players who later surface as free agents or waivers can also be
+traced to an initial or draft population. This partial reference deliberately
+does not use their latent potential for its free-agent roster policy, so the
+measured result is conservative rather than a claim of globally optimal play.
+
+It does not predict injury draws, player-development rolls, game and playoff
+outcomes, or opponents' future actions. The gap is the strategic headroom that
+the benchmark can discriminate beyond its strongest public-information scripted
+policy; it is a ceiling reference, not a target for valid model submissions.
+
+This gap is narrower than the 8-seed minimum detectable difference reported
+in the Robustness section below: at the current panel size, scores inside the
+pick-trader-to-oracle band cannot be statistically separated from each other.
+The band marks where strategic headroom exists, not where the current design
+can rank models; separating models inside it is a larger-panel (`sota-v2`)
+concern.
+
 ## Robustness
 
 The diagnostic scripts make the uncertainty around the hand-tuned scale
