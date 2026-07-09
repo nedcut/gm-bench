@@ -66,7 +66,7 @@ def main() -> None:
             command = build_command(scratch, schema_path=scratch_schema)
             with tempfile.NamedTemporaryFile("r", suffix=".json", delete=True, dir=scratch) as output:
                 completed = subprocess.run(
-                    [*command, "--output-last-message", output.name, prompt],
+                    [*command, "--json", "--output-last-message", output.name, prompt],
                     text=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -74,11 +74,17 @@ def main() -> None:
                     check=False,
                     cwd=scratch,
                 )
-                content = output.read() or completed.stdout
+                content = output.read() or last_agent_message(completed.stdout)
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
-        # Codex exec exposes no machine-readable token counts on this path;
-        # latency and call count are the only telemetry available.
-        usage = make_usage(provider="codex", model=model, api_calls=1, api_latency_ms=latency_ms)
+        input_tokens, output_tokens = extract_token_usage(completed.stdout)
+        usage = make_usage(
+            provider="codex",
+            model=model,
+            api_calls=1,
+            api_latency_ms=latency_ms,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
         if completed.returncode != 0:
             emit(
                 fallback_actions(observation, f"codex_exit_{completed.returncode}: {completed.stderr[-300:]}"),
@@ -92,6 +98,55 @@ def main() -> None:
             fallback_actions(observation, f"codex_error: {exc}"),
             make_usage(provider="codex", model=model, api_calls=1, api_latency_ms=latency_ms),
         )
+
+
+def extract_token_usage(stdout: str) -> tuple[int | None, int | None]:
+    """Sum token usage from `codex exec --json` turn.completed events.
+
+    Codex reports reasoning_output_tokens as a subset of output_tokens (same
+    convention as the OpenAI Responses API), so output_tokens is used as-is.
+    Returns (None, None) when no usage event is present, so unmeasured stays
+    distinct from zero.
+    """
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict) or event.get("type") != "turn.completed":
+            continue
+        usage = event.get("usage")
+        if not isinstance(usage, dict):
+            continue
+        if isinstance(usage.get("input_tokens"), (int, float)):
+            input_tokens = (input_tokens or 0) + int(usage["input_tokens"])
+        if isinstance(usage.get("output_tokens"), (int, float)):
+            output_tokens = (output_tokens or 0) + int(usage["output_tokens"])
+    return input_tokens, output_tokens
+
+
+def last_agent_message(stdout: str) -> str:
+    """Fallback content path: pull the final agent message from --json events."""
+    text = ""
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        item = event.get("item")
+        if event.get("type") == "item.completed" and isinstance(item, dict) and item.get("type") == "agent_message":
+            text = item.get("text") or text
+    return text or stdout
 
 
 def build_command(
