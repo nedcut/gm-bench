@@ -33,3 +33,7 @@ Thumbs.db
 
 .env
 .env.*
+
+# Seed-panel commitment salts (reveal manually when a panel rotates out).
+*.seed-salt.json
+seed_panel_salts/

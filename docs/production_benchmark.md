@@ -129,6 +129,82 @@ Under the freeze:
   adapters, site) are free. A behavior-changing bug fix is a deliberate
   lane-versioning decision, not routine maintenance.
 
+## Seed-panel rotation and contamination
+
+The benchmark is deterministic by seed, so a public seed panel is contamination-
+exposed: once decision traces circulate, the exact league instances behind seeds
+11–18 can be memorized or solved offline. The public panel is therefore a
+**reproducibility** surface, not a contamination-resistant one. Contamination-
+resistant claims come from a **private** evaluation panel that is held back,
+rotated on a schedule, and pre-committed so operators cannot improvise a panel
+after seeing scores.
+
+### Rotation cadence
+
+- The private evaluation panel rotates **quarterly**. Each rotation picks a new
+  held-out seed list (kept out of the repo, supplied at run time via
+  `GM_BENCH_PRIVATE_SEEDS`) with at least as many seeds as the public panel —
+  `sota-v1` requires `len(PRESETS["leaderboard"]["seeds"])` seeds (currently 8),
+  so a short panel is rejected.
+- Before the quarter's runs, publish a **salted commitment** to the new panel
+  using `scripts/seed_panel_commitment.py commit`. The salt stays local (the
+  `*.seed-salt.json` path is gitignored); only the commitment digest is
+  announced. This is a real hiding commitment, unlike the unsalted
+  `seed_panel_hash` embedded in artifacts, which is brute-forceable from the
+  digest.
+- When the panel rotates out, reveal salt + seeds
+  (`seed_panel_commitment.py verify`) so the prior quarter's private rows become
+  independently reproducible.
+
+### Panel identity vs contract
+
+Rotation changes the **panel**, not the **contract**. The private panel is
+supplied at run time and is *not* part of the contract fingerprint, so swapping
+it in and out does not touch the frozen `cf2607e59dba0c7f` and does not start a
+new claim lane. The validator recognizes the private panel by the `private-env`
+name plus a seed-count and SHA-256 that it re-derives from the local
+`GM_BENCH_PRIVATE_SEEDS` value (or, for redacted artifacts, the declared
+`count` and `sha256`).
+
+There is one sharp edge, enforced by the code and not to be papered over: the
+public panel (seeds 11–18) lives in `gm_bench/benchmark_config.py`, which **is**
+one of the contract-fingerprint sources (`gm_bench/contract.py`,
+`_CONTRACT_SOURCES`). Editing the canonical public panel changes the fingerprint
+and therefore ends `sota-v1` and opens `sota-v2` — it is a deliberate lane
+version bump, not a free rotation. The validator also hardcodes exactly two
+official panel identities: `public-leaderboard` (must equal 11–18) and
+`private-env`. `custom` panels are rejected outright.
+
+Consequently, "the previous private panel becomes public when rotated out" is a
+**disclosure convention, not a rename inside the validator**. A retired panel is
+republished by revealing its seeds/salt/commitment; anyone reproduces it by
+exporting those seeds as `GM_BENCH_PRIVATE_SEEDS`, at which point the validator
+still labels it `private-env` (its own reproduced hash), not
+`public-leaderboard`. The canonical `public-leaderboard` identity stays 11–18
+until a deliberate contract bump.
+
+**Required follow-up (not yet implemented):** there is no validator concept of a
+named, archived public panel. If retired panels should carry a distinct,
+machine-checkable public identity — rather than being reproduced under the
+`private-env` label — `official.py` (`_resolve_expected_seeds`) needs an
+archived-panel registry keyed by name/hash. Until then, do not claim a retired
+panel validates as its own public panel; it validates as a reproduced
+`private-env` panel.
+
+### Row labeling
+
+Every published row is labeled with its panel name and hash (`run_info.seed_panel`),
+which the leaderboard builder carries through. Read the labels as:
+
+- **Public-panel rows** (`public-leaderboard`, seeds 11–18) are reproducibility
+  artifacts. Anyone can rerun them exactly and check the score; because the seeds
+  are public they are contamination-exposed and should be read as "does this
+  pipeline reproduce," not as a clean state-of-the-art claim.
+- **Private-panel rows** (`private-env`) are the contamination-resistant claims,
+  valid for the quarter their pre-committed panel was live. Published as redacted
+  artifacts (seeds stripped, commitment retained); reproducible in full only
+  after the panel is rotated out and revealed.
+
 ## Interpretation
 
 Passing `sota-v1` does not mean the model is good. It means the result was run
