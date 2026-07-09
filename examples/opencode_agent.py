@@ -17,15 +17,22 @@ import time
 from typing import Any
 
 try:
-    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions
+    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions, resolve_call_timeout
 except ModuleNotFoundError:
-    from examples.gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions
+    from examples.gm_agent_common import (
+        build_prompt,
+        emit,
+        fallback_actions,
+        make_usage,
+        parse_actions,
+        resolve_call_timeout,
+    )
 
 
 def main() -> None:
     observation = json.load(sys.stdin)
     model = os.environ.get("OPENCODE_MODEL", "opencode/deepseek-v4-flash-free")
-    timeout = float(os.environ.get("OPENCODE_TIMEOUT", "180"))
+    timeout = resolve_call_timeout("OPENCODE_TIMEOUT", 180.0)
     command = ["opencode", "run", "--model", model, "--format", "json", "--pure", build_prompt(observation)]
     started = time.perf_counter()
     try:

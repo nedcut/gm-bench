@@ -1,10 +1,14 @@
 """Build the public leaderboard dataset for the GM-Bench site.
 
-Reads every ``results/leaderboard/*.json`` file — each one either the saved output of
+Reads official ``results/leaderboard/*.json`` artifacts and explicitly marked
+``results/diagnostics/*.json`` artifacts. Official artifacts are either the saved output of
 
     python -m gm_bench model --provider <p> --model <m> --preset leaderboard --repeats 3 --json > results/leaderboard/<name>.json
 
 or a redacted private-panel artifact from ``python -m gm_bench redact-result``.
+Diagnostics are visible on the site for transparency, but are deliberately kept
+outside the official-artifact directory so the public-leaderboard CI gate remains
+meaningful.
 It writes ``web/src/data/leaderboard.json`` with one row per model plus the
 scripted-baseline reference panel. When no model results exist yet, the baseline
 panel is read from the current-contract cache or recomputed deterministically so
@@ -34,6 +38,7 @@ from gm_bench.protocol import PHASES  # noqa: E402
 from gm_bench.runner import run_many  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
+DIAGNOSTICS_DIR = ROOT / "results" / "diagnostics"
 OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard.json"
 LEADERBOARD = PRESETS["leaderboard"]
 
@@ -163,8 +168,10 @@ def current_baselines() -> list[dict[str, Any]]:
 
 def main() -> None:
     payloads = []
-    if RESULTS_DIR.exists():
-        for path in sorted(RESULTS_DIR.glob("*.json")):
+    for directory in (RESULTS_DIR, DIAGNOSTICS_DIR):
+        if not directory.exists():
+            continue
+        for path in sorted(directory.glob("*.json")):
             try:
                 payloads.append(json.loads(path.read_text()))
             except json.JSONDecodeError:

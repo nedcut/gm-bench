@@ -23,6 +23,7 @@ try:
         fallback_actions,
         make_usage,
         parse_actions,
+        resolve_call_timeout,
         run_agent_main,
     )
 except ModuleNotFoundError:
@@ -31,6 +32,7 @@ except ModuleNotFoundError:
         fallback_actions,
         make_usage,
         parse_actions,
+        resolve_call_timeout,
         run_agent_main,
     )
 
@@ -43,7 +45,7 @@ def choose_actions(
     api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
     model = os.environ.get("LLM_MODEL", "gpt-4.1-mini")
     base_url = os.environ.get("LLM_API_BASE", "https://api.openai.com/v1").rstrip("/")
-    timeout = float(os.environ.get("LLM_TIMEOUT", "120"))
+    timeout = resolve_call_timeout("LLM_TIMEOUT", 120.0)
     if not api_key:
         return fallback_actions(observation, "missing LLM_API_KEY or OPENAI_API_KEY"), None
 

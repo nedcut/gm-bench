@@ -96,7 +96,12 @@ def build_provider_agent(
     if not script_path.exists():
         raise FileNotFoundError(f"provider script not found: {script_path}")
 
-    env = {spec.model_env: resolved_model}
+    env = {
+        spec.model_env: resolved_model,
+        # Adapters derive their per-call backend timeout from the harness
+        # decision budget unless an explicit adapter timeout env is set.
+        "GM_BENCH_AGENT_TIMEOUT": str(resolved_timeout),
+    }
     if profile is not None:
         env["GM_AGENT_PROFILE"] = profile
     elif spec.default_profile and "GM_AGENT_PROFILE" not in os.environ:

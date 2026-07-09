@@ -20,9 +20,16 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions
+    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions, resolve_call_timeout
 except ModuleNotFoundError:
-    from examples.gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions
+    from examples.gm_agent_common import (
+        build_prompt,
+        emit,
+        fallback_actions,
+        make_usage,
+        parse_actions,
+        resolve_call_timeout,
+    )
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,7 +39,7 @@ SCHEMA = ROOT / "schemas" / "gm_actions.schema.json"
 def main() -> None:
     observation = json.load(sys.stdin)
     os.environ.setdefault("GM_AGENT_PROFILE", "tiny")
-    timeout = float(os.environ.get("CLAUDE_AGENT_TIMEOUT", "180"))
+    timeout = resolve_call_timeout("CLAUDE_AGENT_TIMEOUT", 180.0)
     model = os.environ.get("CLAUDE_MODEL")
     prompt = (
         "You are competing in GM-Bench as a sports general manager. "

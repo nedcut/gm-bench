@@ -117,8 +117,16 @@ def aggregate_usage(records: list[dict[str, Any]]) -> dict[str, Any]:
     costs = [cost for cost in (estimate_cost_usd(record) for record in records) if cost is not None]
     models = Counter(record["model"] for record in records if record.get("model"))
     providers = Counter(record["provider"] for record in records if record.get("provider"))
+    # A multi-round decision window emits one usage record per round; coverage
+    # must count decision points, not rounds, or extra rounds on one decision
+    # would mask missing usage on another (and pass the sota-v1 coverage gate).
+    decision_keys = {
+        (record["season"], record["phase"])
+        for record in records
+        if record.get("season") is not None and record.get("phase")
+    }
     return {
-        "decisions_with_usage": len(records),
+        "decisions_with_usage": len(decision_keys) if decision_keys else len(records),
         **totals,
         "api_latency_ms": round(sum(float(record.get("api_latency_ms", 0.0)) for record in records), 1),
         "cost_usd": round(sum(costs), 6) if costs else None,

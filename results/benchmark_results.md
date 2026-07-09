@@ -2,6 +2,41 @@
 
 This snapshot records the benchmark results generated during the MVP build.
 
+> **Note (2026-07-08/09, protocol v2 / contract `cf2607e59dba`):** Midseason,
+> multi-round interaction, functional injuries, and the full v1 baseline panel
+> (`strategic`, `pick-trader`) are now on `main`. SOTA-v1 claims must use this
+> contract fingerprint. Older model rows and pre-v2 leaderboard means are not
+> comparable. Scripted reference means on the public panel (seeds 11–18,
+> 5 seasons): `pick-trader` 411.619, `strategic` 402.025, `shrewd` 371.769,
+> `value` 354.619, `win-now` 275.834, `conservative` 139.030, `rebuild` 138.745,
+> `random` 96.715. See `docs/scoring_calibration.md` and
+> `python -m gm_bench validate-contract` / `calibrate-score --json`.
+>
+> Local Ollama candidates re-ran under `--preset leaderboard --repeats 3`
+> (480 decisions each) on 2026-07-09. Neither is `sota-v1` eligible:
+>
+> | Model | Mean | Strategy | Illegal | Fail rate | sota-v1 |
+> | --- | ---: | ---: | ---: | ---: | --- |
+> | `ollama:qwen3.5:latest` | 41.602 | 122.956 | 781 | 0.454 | fail (failure rate + incomplete usage) |
+> | `ollama:gemma4:e4b` | -45.668 | 98.498 | 1384 | 0.029 | fail (failure rate 0.029 > 0.02) |
+>
+> Both are far below `pick-trader` (paired lifts ≈ −232 / −319). Treat them as
+> diagnostics under the new contract, not evidence of frontier GM skill.
+>
+> **Caveat on the qwen3.5 fail rate:** post-run log analysis shows the 0.454
+> failure rate is dominated by a harness artifact, not protocol comprehension.
+> The Ollama adapter's per-call HTTP timeout defaulted to 120 s regardless of
+> `--agent-timeout 300`, and for a contiguous stretch of the sequential run
+> (seed 12 rep 3 → seed 17 rep 2) local generation slowed to ~110–135 s per
+> decision, so calls timed out inside the adapter (which also explains the
+> 278/480 usage-coverage gap — timed-out decisions report no usage). In the
+> healthy episodes the failure rate was ~4.4% (8/180) with full usage coverage.
+> Adapters now derive their call timeout from the harness budget
+> (`GM_BENCH_AGENT_TIMEOUT`), so this failure mode is fixed; qwen3.5's row
+> should be re-run before quoting its numbers. Its illegal-action rate is real,
+> however — healthy episodes still averaged ~50–64 illegal actions per 20
+> decisions. The gemma4:e4b run was unaffected (0.029 fail rate, full usage).
+
 > **Note (2026-07-04):** Draft-pick trading, opponent-initiated trade offers,
 > and scouting landed together with usage/cost telemetry. Scoring now counts
 > future picks as assets, shifting every score by a flat +3.748 versus the

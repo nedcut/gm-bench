@@ -18,8 +18,8 @@
   },
   "normalized": {
     "baseline_illegal_actions": 0,
-    "baseline_panel_mean_score": 162.905,
-    "baseline_panel_mean_strategy_score": 162.906,
+    "baseline_panel_mean_score": 162.916,
+    "baseline_panel_mean_strategy_score": 162.916,
     "baseline_panel_total_protocol_penalty": 0.0,
     "candidate_decision_failure_rate": 0.0,
     "candidate_decisions": 100,
@@ -43,29 +43,29 @@
       "provider": null,
       "total_tokens": 0
     },
-    "score_lift": 210.983,
-    "score_lift_pct": 129.51
+    "score_lift": 210.972,
+    "score_lift_pct": 129.5
   },
   "paired": {
     "best_baseline": {
       "agent": "win-now",
-      "mean_score": 286.023,
-      "paired_lift_mean": 87.866,
+      "mean_score": 286.275,
+      "paired_lift_mean": 87.614,
       "seed_win_rate": 1.0
     },
     "candidate_seed_win_rate": 1.0,
     "num_seeds": 5,
     "paired_lift_ci95": [
-      168.996,
-      265.446
+      168.922,
+      265.472
     ],
-    "paired_lift_mean": 210.983,
-    "paired_lift_stddev": 55.047,
+    "paired_lift_mean": 210.972,
+    "paired_lift_stddev": 55.057,
     "per_seed": [
       {
-        "baseline_panel_score": 149.452,
+        "baseline_panel_score": 149.189,
         "candidate_score": 319.261,
-        "lift": 169.81,
+        "lift": 170.072,
         "seed": 1
       },
       {
@@ -87,9 +87,9 @@
         "seed": 4
       },
       {
-        "baseline_panel_score": 159.264,
+        "baseline_panel_score": 159.579,
         "candidate_score": 327.991,
-        "lift": 168.726,
+        "lift": 168.411,
         "seed": 5
       }
     ],
@@ -391,9 +391,9 @@
       "best_score": 433.739,
       "episodes": 5,
       "illegal_actions": 0,
-      "mean_score": 286.023,
-      "mean_wins": 285.2,
-      "score_stddev": 76.212,
+      "mean_score": 286.275,
+      "mean_wins": 285.8,
+      "score_stddev": 76.153,
       "titles": 6,
       "worst_score": 222.25
     },
@@ -410,12 +410,12 @@
     },
     {
       "agent": "conservative",
-      "best_score": 136.698,
+      "best_score": 136.609,
       "episodes": 5,
       "illegal_actions": 0,
-      "mean_score": 131.647,
-      "mean_wins": 197.8,
-      "score_stddev": 5.755,
+      "mean_score": 131.437,
+      "mean_wins": 197.4,
+      "score_stddev": 5.583,
       "titles": 0,
       "worst_score": 121.972
     },

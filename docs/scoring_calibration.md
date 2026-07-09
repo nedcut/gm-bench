@@ -113,7 +113,8 @@ also change strength, cap room, and wins.
 
 ## Reference-policy calibration
 
-The current `sota-v1` public panel (seeds 11-18, five seasons) produces:
+The current `sota-v1` public panel (seeds 11-18, five seasons; contract
+fingerprint `cf2607e59dba…`, protocol `gm-bench-v2` with midseason) produces:
 
 | Reference | Mean score | Illegal actions | Role |
 | --- | ---: | ---: | --- |
@@ -121,6 +122,10 @@ The current `sota-v1` public panel (seeds 11-18, five seasons) produces:
 | `strategic` | 402.025 | 0 | Scouting, offers, memo, and shrewd roster core |
 | `shrewd` | 371.769 | 0 | Cap hygiene and development-aware lineup core |
 | `value` | 354.619 | 0 | Public-value roster heuristic |
+| `win-now` | 275.834 | 0 | Short-horizon win maximizer |
+| `conservative` | 139.030 | 0 | Low-churn roster holder |
+| `rebuild` | 138.745 | 0 | Youth-oriented tear-down |
+| `random` | 96.715 | 0 | Floor / noise baseline |
 
 The strategic policy's panel ablations are also deterministic:
 

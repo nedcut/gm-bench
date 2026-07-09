@@ -27,8 +27,8 @@
     },
     {
       "agent": "conservative",
-      "mean_score": 139.098,
-      "score_stddev": 19.361
+      "mean_score": 139.03,
+      "score_stddev": 18.297
     },
     {
       "agent": "rebuild",
@@ -37,39 +37,39 @@
     },
     {
       "agent": "random",
-      "mean_score": 96.932,
-      "score_stddev": 17.776
+      "mean_score": 96.715,
+      "score_stddev": 18.063
     }
   ],
   "models": [
     {
-      "api_latency_s_per_decision": 22.08,
-      "baseline_panel_mean_score": 171.124,
-      "benchmark_version": null,
+      "api_latency_s_per_decision": 48.97,
+      "baseline_panel_mean_score": 273.794,
+      "benchmark_version": "sota-v1",
       "ci95": [
-        -182.672,
-        -124.845
+        -277.89,
+        -191.733
       ],
-      "contract_fingerprint": null,
+      "contract_fingerprint": "cf2607e59dba0c7f",
       "cost_per_episode_usd": 0.0,
       "cost_usd": 0.0,
-      "decision_points": 120,
-      "decisions_with_usage": 120,
-      "fallback_rate": 0.108,
-      "harness_latency_s_per_decision": 22.18,
+      "decision_points": 480,
+      "decisions_with_usage": 278,
+      "fallback_rate": 0.454,
+      "harness_latency_s_per_decision": 100.31,
       "id": "ollama:qwen3.5:latest",
-      "illegal_actions": 163,
-      "lift_vs_best_baseline": -302.588,
-      "mean_score": 17.539,
-      "mean_strategy_score": 68.477,
+      "illegal_actions": 781,
+      "lift_vs_best_baseline": -370.017,
+      "mean_score": 41.602,
+      "mean_strategy_score": 122.956,
       "model": "qwen3.5:latest",
-      "paired_lift": -153.584,
-      "protocol_penalty": 407.5,
+      "paired_lift": -232.193,
+      "protocol_penalty": 1952.5,
       "provider": "ollama",
-      "score_stddev": 39.583,
+      "score_stddev": 64.003,
       "seasons": 5,
-      "seed_panel": null,
-      "seed_panel_hash": null,
+      "seed_panel": "public-leaderboard",
+      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
       "seed_win_rate": 0.0,
       "seeds": [
         11,
@@ -84,47 +84,43 @@
       "significant": true,
       "sota_v1_eligible": false,
       "sota_v1_issues": [
-        "run_info.benchmark_contract is required for current-contract validation",
-        "run_info.seed_panel is required for official seed-panel validation",
-        "baselines must be ['random', 'conservative', 'win-now', 'rebuild', 'value', 'shrewd', 'strategic', 'pick-trader'], got ['random', 'conservative', 'win-now', 'rebuild', 'value', 'shrewd']",
-        "candidate.repeats must be >= 3 for sota-v1",
-        "candidate decision_failure_rate 0.108 exceeds 0.020 for sota-v1",
+        "candidate decision_failure_rate 0.454 exceeds 0.020 for sota-v1",
+        "candidate usage must cover every decision point",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
-        "strongest baseline is 'shrewd', expected pick-trader for v1 calibration",
         "candidate does not beat the strongest scripted baseline"
       ],
-      "tokens_per_decision": 4307.9,
-      "total_tokens": 516954
+      "tokens_per_decision": 1333.6,
+      "total_tokens": 640120
     },
     {
-      "api_latency_s_per_decision": 12.88,
-      "baseline_panel_mean_score": 171.124,
-      "benchmark_version": null,
+      "api_latency_s_per_decision": 34.65,
+      "baseline_panel_mean_score": 273.794,
+      "benchmark_version": "sota-v1",
       "ci95": [
-        -212.8,
-        -158.233
+        -341.408,
+        -294.304
       ],
-      "contract_fingerprint": null,
+      "contract_fingerprint": "cf2607e59dba0c7f",
       "cost_per_episode_usd": 0.0,
       "cost_usd": 0.0,
-      "decision_points": 120,
-      "decisions_with_usage": 120,
-      "fallback_rate": 0.067,
-      "harness_latency_s_per_decision": 12.97,
+      "decision_points": 480,
+      "decisions_with_usage": 480,
+      "fallback_rate": 0.029,
+      "harness_latency_s_per_decision": 35.17,
       "id": "ollama:gemma4:e4b",
-      "illegal_actions": 230,
-      "lift_vs_best_baseline": -339.273,
-      "mean_score": -19.146,
-      "mean_strategy_score": 52.729,
+      "illegal_actions": 1384,
+      "lift_vs_best_baseline": -457.287,
+      "mean_score": -45.668,
+      "mean_strategy_score": 98.498,
       "model": "gemma4:e4b",
-      "paired_lift": -190.269,
-      "protocol_penalty": 575.0,
+      "paired_lift": -319.463,
+      "protocol_penalty": 3460.0,
       "provider": "ollama",
-      "score_stddev": 42.406,
+      "score_stddev": 25.115,
       "seasons": 5,
-      "seed_panel": null,
-      "seed_panel_hash": null,
+      "seed_panel": "public-leaderboard",
+      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
       "seed_win_rate": 0.0,
       "seeds": [
         11,
@@ -139,18 +135,13 @@
       "significant": true,
       "sota_v1_eligible": false,
       "sota_v1_issues": [
-        "run_info.benchmark_contract is required for current-contract validation",
-        "run_info.seed_panel is required for official seed-panel validation",
-        "baselines must be ['random', 'conservative', 'win-now', 'rebuild', 'value', 'shrewd', 'strategic', 'pick-trader'], got ['random', 'conservative', 'win-now', 'rebuild', 'value', 'shrewd']",
-        "candidate.repeats must be >= 3 for sota-v1",
-        "candidate decision_failure_rate 0.067 exceeds 0.020 for sota-v1",
+        "candidate decision_failure_rate 0.029 exceeds 0.020 for sota-v1",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
-        "strongest baseline is 'shrewd', expected pick-trader for v1 calibration",
         "candidate does not beat the strongest scripted baseline"
       ],
-      "tokens_per_decision": 3984.3,
-      "total_tokens": 478122
+      "tokens_per_decision": 2407.1,
+      "total_tokens": 1155431
     }
   ],
   "preset": {
@@ -168,5 +159,5 @@
       18
     ]
   },
-  "updated": "2026-07-08"
+  "updated": "2026-07-09"
 }
