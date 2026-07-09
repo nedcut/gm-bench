@@ -51,6 +51,31 @@ def contract_fingerprint() -> str:
     return digest.hexdigest()[:16]
 
 
+def scaffold_fingerprint(provider: str) -> str | None:
+    """Fingerprint the prompt scaffold a built-in provider row was produced with.
+
+    The scaffold — shared prompt builder plus the provider's adapter script and
+    spec — is part of the measured system: two rows with identical contract
+    fingerprints but different prompt text are not comparable. The hash is
+    per-provider so fixing one adapter does not invalidate other providers'
+    rows. Returns None for unknown providers (external --agent-cmd runs have no
+    built-in scaffold to attest).
+    """
+    from gm_bench.providers import PROVIDERS
+
+    spec = PROVIDERS.get(str(provider).lower())
+    if spec is None:
+        return None
+    digest = hashlib.sha256()
+    digest.update(f"{spec.name}\0{spec.model_env}\0{spec.default_profile}\0".encode())
+    for relative_path in ("examples/gm_agent_common.py", f"examples/{spec.script}"):
+        digest.update(relative_path.encode())
+        digest.update(b"\0")
+        digest.update((_ROOT / relative_path).read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()[:16]
+
+
 def benchmark_contract() -> dict[str, Any]:
     return {
         "benchmark_version": BENCHMARK_VERSION,

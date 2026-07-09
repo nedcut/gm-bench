@@ -15,7 +15,7 @@ from gm_bench.agents import AGENTS, ExternalProcessAgent
 from gm_bench.baseline_cache import default_cache_path
 from gm_bench.benchmark_config import PRESET_NAMES, BenchmarkConfig, load_config, seed_panel_metadata
 from gm_bench.calibration import build_scoring_calibration
-from gm_bench.contract import benchmark_contract
+from gm_bench.contract import benchmark_contract, scaffold_fingerprint
 from gm_bench.official import (
     POLICIES,
     PUBLIC_LEADERBOARD_POLICY,
@@ -222,6 +222,7 @@ def _run_info(command: str, agent: Any, config: BenchmarkConfig) -> dict[str, An
         "preset": config.preset,
         "gm_bench_version": __version__,
         "benchmark_contract": benchmark_contract(),
+        "scaffold_fingerprint": scaffold_fingerprint(metadata.get("provider", config.provider) or ""),
         "seed_panel": seed_panel_metadata(config.seeds, config.preset),
         "python_version": platform.python_version(),
         "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
