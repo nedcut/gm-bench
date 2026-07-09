@@ -89,9 +89,7 @@ def _commit(args: argparse.Namespace) -> int:
             sys.stderr.write(f"refusing to overwrite existing salt file {path} (pass --force)\n")
             return 1
         path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
-        sys.stderr.write(
-            f"wrote salt to {path}; keep it out of git and reveal it only when the panel rotates out\n"
-        )
+        sys.stderr.write(f"wrote salt to {path}; keep it out of git and reveal it only when the panel rotates out\n")
     print(f"commitment {digest}")
     print(f"count {len(seeds)}")
     if not args.salt_file:
