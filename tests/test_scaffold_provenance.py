@@ -31,9 +31,7 @@ def test_validator_warns_when_fingerprint_missing() -> None:
 def test_validator_errors_on_mismatch() -> None:
     errors: list[str] = []
     warnings: list[str] = []
-    _validate_scaffold_provenance(
-        errors, warnings, {"provider": "ollama", "scaffold_fingerprint": "0" * 16}
-    )
+    _validate_scaffold_provenance(errors, warnings, {"provider": "ollama", "scaffold_fingerprint": "0" * 16})
     assert any("does not match current scaffold" in e for e in errors)
 
 
@@ -52,8 +50,6 @@ def test_validator_accepts_current_fingerprint() -> None:
 def test_validator_warns_on_unknown_provider_with_fingerprint() -> None:
     errors: list[str] = []
     warnings: list[str] = []
-    _validate_scaffold_provenance(
-        errors, warnings, {"provider": "someones-fork", "scaffold_fingerprint": "abc"}
-    )
+    _validate_scaffold_provenance(errors, warnings, {"provider": "someones-fork", "scaffold_fingerprint": "abc"})
     assert not errors
     assert any("not a built-in provider" in w for w in warnings)

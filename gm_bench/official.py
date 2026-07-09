@@ -416,9 +416,7 @@ def _validate_scaffold_provenance(
     provider = str(run_info.get("provider") or "")
     expected = scaffold_fingerprint(provider)
     if recorded is None:
-        warnings.append(
-            "run_info.scaffold_fingerprint missing: prompt scaffold unverified (pre-provenance artifact)"
-        )
+        warnings.append("run_info.scaffold_fingerprint missing: prompt scaffold unverified (pre-provenance artifact)")
         return
     if expected is None:
         warnings.append(
