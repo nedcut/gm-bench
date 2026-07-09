@@ -150,3 +150,48 @@ an LLM memory channel still requires model-backed evaluation.
 memo, scout, offer-response, offer-acceptance, and pick-trade actions across
 minimum fractions of the official panel, so these mechanics cannot silently
 become dead protocol surface.
+
+## Robustness
+
+The diagnostic scripts make the uncertainty around the hand-tuned scale
+explicit.  They are intentionally separate from the benchmark contract:
+
+```bash
+python scripts/power_analysis.py --result results/leaderboard/ollama-gemma4-e4b.json
+python scripts/weight_sensitivity.py
+```
+
+On the current reference panel (seeds 11-18, five seasons), power analysis
+uses the scripted policies' centred same-seed differences as the empirical
+paired-noise distribution.  It uses three repeats and the supplied artifact's
+observed within-seed score SD of 15.037, simulates two model rows with a true
+gap, and tests the synthetic paired lifts at p < 0.05 using a normal
+approximation to the sign-flip null.  At eight seeds the exact sign-flip test
+also has minimum p-value `2 / 2^8 = 0.0078125` (resolution `1 / 2^8`).
+
+| Seed count | MDD at 80% simulated detection rate |
+| ---: | ---: |
+| 8 | 62 points |
+| 12 | 46 points |
+| 16 | 40 points |
+| 24 | 30 points |
+
+The 12-, 16-, and 24-seed entries resample the observed eight-seed paired
+residuals, so they are design extrapolations rather than claims that new seed
+panels were directly measured.  Re-run the script with a different result JSON
+when evaluating a model with materially different repeat noise.
+
+For scale sensitivity, `weight_sensitivity.py` runs the scripted panel once,
+captures raw end-of-episode components through a diagnostic-only temporary
+wrapper around `runner.score_breakdown`, and restores the wrapper immediately.
+It then applies 200 independent draws, multiplying each score weight uniformly
+between 0.70 and 1.30.  The canonical ordering is `pick-trader > strategic >
+shrewd > value > win-now > conservative > rebuild > random`.  Adjacent-pair
+rank-flip rates were 0% for every pair except `conservative > rebuild`, which
+flipped in 40% of draws.  Kendall tau against the canonical full ranking had
+mean 0.971, median 1.000, and 5th--95th percentile range 0.929--1.000.
+
+Per-episode score components are not persisted in result artifacts, so weight
+sensitivity for model rows cannot be recomputed post-hoc.  Persisting them
+would touch the frozen runner contract and is therefore a `sota-v2` item, not
+part of this score-v1 analysis tooling.
