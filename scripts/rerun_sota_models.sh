@@ -19,19 +19,23 @@ cd "$ROOT"
 export GM_BENCH_WORKERS="${GM_BENCH_WORKERS:-1}"
 LOG_DIR="$ROOT/logs"
 RESULT_DIR="$ROOT/results/leaderboard"
-mkdir -p "$LOG_DIR" "$RESULT_DIR"
+DIAGNOSTIC_DIR="$ROOT/results/diagnostics"
+mkdir -p "$LOG_DIR" "$RESULT_DIR" "$DIAGNOSTIC_DIR"
 
 models=(
-  "gemma4:e4b|ollama-gemma4-e4b.json"
-  "qwen3.5:latest|ollama-qwen3-5-latest.json"
+  "gemma4:e4b|$RESULT_DIR/ollama-gemma4-e4b.json"
+  # qwen's current run is intentionally published as a diagnostic: it fails
+  # the public-leaderboard policy and therefore must not enter the official
+  # artifact directory validated by CI.
+  "qwen3.5:latest|$DIAGNOSTIC_DIR/ollama-qwen3-5-latest.json"
 )
 
 ineligible=()
 
 run_one() {
   local model="$1"
-  local out_name="$2"
-  local out_path="$RESULT_DIR/$out_name"
+  local out_path="$2"
+  local out_name="${out_path##*/}"
   local log_path="$LOG_DIR/sota-${out_name%.json}.log"
   local tmp_path
   tmp_path="$(mktemp "$RESULT_DIR/.tmp.${out_name}.XXXXXX")"
@@ -64,14 +68,15 @@ run_one() {
 }
 
 for entry in "${models[@]}"; do
-  IFS='|' read -r model out_name <<<"$entry"
-  if [[ "${SKIP_EXISTING:-0}" == "1" && -s "$RESULT_DIR/$out_name" ]]; then
-    if uv run python -c "import json; json.load(open('$RESULT_DIR/$out_name'))" 2>/dev/null; then
+  IFS='|' read -r model out_path <<<"$entry"
+  out_name="${out_path##*/}"
+  if [[ "${SKIP_EXISTING:-0}" == "1" && -s "$out_path" ]]; then
+    if uv run python -c "import json, sys; json.load(open(sys.argv[1]))" "$out_path" 2>/dev/null; then
       echo "skipping $out_name (SKIP_EXISTING=1 and valid JSON present)"
       continue
     fi
   fi
-  run_one "$model" "$out_name"
+  run_one "$model" "$out_path"
 done
 
 echo "==> rebuilding web leaderboard"

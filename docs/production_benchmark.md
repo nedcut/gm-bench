@@ -9,6 +9,11 @@ The public leaderboard can show development and diagnostic rows, including local
 models that are below the scripted baselines. A `sota-v1` result is the minimum
 bar for a result that should be compared as a serious model benchmark.
 
+Committed official artifacts belong in `results/leaderboard/` and must pass the
+`public-leaderboard` validator in CI. Ineligible runs that are retained for
+transparency belong in `results/diagnostics/`; the site builder includes those
+rows explicitly while preserving the official-artifact gate.
+
 ## SOTA-v1 Requirements
 
 A `sota-v1` result must be produced by:
