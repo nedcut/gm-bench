@@ -119,6 +119,17 @@ def validate_leaderboard_payload(
             errors.append("run_info.model is required for official model results")
         _validate_contract_provenance(errors, warnings, run_info, require=policy.require_contract_provenance)
         _validate_scaffold_provenance(errors, warnings, run_info)
+        if run_info.get("session"):
+            if policy.name == SOTA_V1_POLICY_NAME:
+                errors.append(
+                    "sota-v1 rows must be fresh-spawn (memo-only memory); "
+                    "session-condition rows are a separate lane and not comparable"
+                )
+            else:
+                warnings.append(
+                    "session-condition row: model retains full trajectory in context; "
+                    "not comparable with fresh-spawn rows"
+                )
         expected_seeds, expected_seed_count = _resolve_expected_seeds(
             errors,
             warnings,

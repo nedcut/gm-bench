@@ -121,6 +121,16 @@ The runner sends line-delimited JSON events (`start`, `observation`,
 respond with actions after each event. This preserves in-process state across
 rounds and phases while still reporting usage for every interaction round.
 
+`python -m gm_bench model --session` runs a built-in provider in this mode as
+an explicit **in-context condition**: the OpenAI-compatible adapter accumulates
+the episode conversation (each observation and the model's reply) so the model
+retains its full trajectory in context instead of externalizing plans through
+`memo`. Session rows record `run_info.session: true`, are labeled on the
+leaderboard, and are not `sota-v1` eligible — the frozen contract lane is
+fresh-spawn/memo-only, and the delta between the two conditions is itself a
+measurement: what explicit memory management costs a model versus free
+continuity.
+
 Actions are validated by the simulator. Invalid actions are ignored and counted
 as penalties. Legal-but-declined offers are different: a trade rejected as too
 light or a free-agent offer below the player's hidden reservation price is

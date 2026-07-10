@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from gm_bench.agents import Agent, ExternalProcessAgent
+from gm_bench.session import PersistentProcessAgent
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = ROOT / "examples"
@@ -95,6 +96,7 @@ def build_provider_agent(
     timeout: float | None = None,
     profile: str | None = None,
     extra_env: dict[str, str] | None = None,
+    session: bool = False,
 ) -> Agent:
     """Create an external-process agent for a built-in model provider."""
     spec = resolve_provider(provider)
@@ -121,7 +123,14 @@ def build_provider_agent(
 
     command = f"{shlex.quote(sys.executable)} {shlex.quote(str(script_path))}"
     display_name = f"{spec.name}:{resolved_model}"
-    agent = ExternalProcessAgent(command, timeout_seconds=resolved_timeout, env=env, name=display_name)
+    if session:
+        # One live adapter process per episode: the model keeps its whole
+        # trajectory in context instead of relying on the memo action. A
+        # different measurement condition from fresh-spawn rows, recorded in
+        # metadata and provenance so the two are never silently compared.
+        agent: Agent = PersistentProcessAgent(command, timeout_seconds=resolved_timeout, env=env, name=display_name)
+    else:
+        agent = ExternalProcessAgent(command, timeout_seconds=resolved_timeout, env=env, name=display_name)
     # Resolve the profile exactly as the adapter subprocess will see it
     # (per-agent env overrides the inherited environment; gm_agent_common
     # defaults to "compact" when unset), so results can record what the model
@@ -132,6 +141,7 @@ def build_provider_agent(
         "model": resolved_model,
         "profile": resolved_profile,
         "agent_timeout": resolved_timeout,
+        "session": session,
     }
     return agent
 

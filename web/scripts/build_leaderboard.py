@@ -91,6 +91,7 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
         else None,
         "decisions_with_usage": usage.get("decisions_with_usage", 0),
         "decision_points": decisions,
+        "session": bool(run_info.get("session", False)),
         "seeds": seeds,
         "seasons": payload.get("seasons"),
         "baseline_panel_mean_score": normalized.get("baseline_panel_mean_score"),

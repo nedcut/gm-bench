@@ -28,6 +28,7 @@ def test_provider_agent_carries_resolved_metadata(monkeypatch: pytest.MonkeyPatc
         "model": "gpt-test",
         "profile": "compact",
         "agent_timeout": 120.0,
+        "session": False,
     }
 
 
