@@ -27,13 +27,13 @@
     },
     {
       "agent": "conservative",
-      "mean_score": 139.03,
-      "score_stddev": 18.297
+      "mean_score": 139.198,
+      "score_stddev": 18.367
     },
     {
       "agent": "rebuild",
-      "mean_score": 138.745,
-      "score_stddev": 15.887
+      "mean_score": 138.913,
+      "score_stddev": 16.054
     },
     {
       "agent": "random",
@@ -42,6 +42,55 @@
     }
   ],
   "models": [
+    {
+      "api_latency_s_per_decision": 24.56,
+      "baseline_panel_mean_score": 273.794,
+      "benchmark_version": "sota-v1",
+      "ci95": [
+        -26.479,
+        20.859
+      ],
+      "contract_fingerprint": "cf2607e59dba0c7f",
+      "cost_per_episode_usd": null,
+      "cost_usd": null,
+      "decision_points": 480,
+      "decisions_with_usage": 480,
+      "fallback_rate": 0.0,
+      "harness_latency_s_per_decision": 27.09,
+      "id": "cursor:grok-4.5-xhigh",
+      "illegal_actions": 29,
+      "lift_vs_best_baseline": -138.673,
+      "mean_score": 272.945,
+      "mean_strategy_score": 275.966,
+      "model": "grok-4.5-xhigh",
+      "paired_lift": -0.849,
+      "protocol_penalty": 72.5,
+      "provider": "cursor",
+      "score_stddev": 34.001,
+      "seasons": 5,
+      "seed_panel": "public-leaderboard",
+      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
+      "seed_win_rate": 0.75,
+      "seeds": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "significant": false,
+      "sota_v1_eligible": true,
+      "sota_v1_issues": [
+        "candidate has illegal actions; score includes protocol penalties",
+        "candidate lift is not significant at 95% against the baseline panel",
+        "candidate does not beat the strongest scripted baseline"
+      ],
+      "tokens_per_decision": 30772.2,
+      "total_tokens": 14770643
+    },
     {
       "api_latency_s_per_decision": 48.97,
       "baseline_panel_mean_score": 273.794,
@@ -86,6 +135,7 @@
       "sota_v1_issues": [
         "candidate decision_failure_rate 0.454 exceeds 0.020 for sota-v1",
         "candidate usage must cover every decision point",
+        "run_info.scaffold_fingerprint missing: prompt scaffold unverified (pre-provenance artifact)",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
         "candidate does not beat the strongest scripted baseline"
@@ -136,6 +186,7 @@
       "sota_v1_eligible": false,
       "sota_v1_issues": [
         "candidate decision_failure_rate 0.029 exceeds 0.020 for sota-v1",
+        "run_info.scaffold_fingerprint missing: prompt scaffold unverified (pre-provenance artifact)",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
         "candidate does not beat the strongest scripted baseline"
