@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 export function Logo({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
@@ -15,17 +17,49 @@ export function Logo({ size = 28 }: { size?: number }) {
 }
 
 const LINKS = [
-  { href: "#why", label: "Why" },
-  { href: "#leaderboard", label: "Leaderboard" },
-  { href: "#how-it-works", label: "How it works" },
-  { href: "#quickstart", label: "Run" },
+  { href: "#why", id: "why", label: "Why" },
+  { href: "#leaderboard", id: "leaderboard", label: "Leaderboard" },
+  { href: "#how-it-works", id: "how-it-works", label: "How it works" },
+  { href: "#quickstart", id: "quickstart", label: "Run" },
 ];
 
 const REPO = "https://github.com/nedcut/gm-bench";
 
 export default function Nav() {
+  const [scrolled, setScrolled] = useState(false);
+  const [active, setActive] = useState("");
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 18);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const sections = LINKS.map((link) => document.getElementById(link.id)).filter(
+      (node): node is HTMLElement => Boolean(node),
+    );
+    if (sections.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible[0]?.target.id) {
+          setActive(visible[0].target.id);
+        }
+      },
+      { rootMargin: "-28% 0px -55% 0px", threshold: [0.1, 0.35, 0.6] },
+    );
+
+    for (const section of sections) observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <header className="nav">
+    <header className={`nav ${scrolled ? "is-scrolled" : ""}`}>
       <div className="shell nav-inner">
         <a href="#top" className="brand">
           <Logo />
@@ -33,7 +67,11 @@ export default function Nav() {
         </a>
         <nav className="nav-links">
           {LINKS.map((link) => (
-            <a key={link.href} href={link.href}>
+            <a
+              key={link.href}
+              href={link.href}
+              className={active === link.id ? "is-active" : undefined}
+            >
               {link.label}
             </a>
           ))}

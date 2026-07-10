@@ -1,3 +1,5 @@
+import { Reveal } from "./Reveal";
+
 const ADAPTERS = [
   {
     name: "Codex CLI",
@@ -41,17 +43,17 @@ export default function Adapters() {
   return (
     <section className="section" id="adapters">
       <div className="shell">
-        <div className="section-head">
+        <Reveal className="section-head">
           <p className="section-kicker">Bring your own model</p>
           <h2>Adapters for the tools you already run.</h2>
           <p>
             Every adapter speaks the same observation/action schema, so results are comparable
             across providers — from frontier APIs to a laptop-hosted 4B model.
           </p>
-        </div>
+        </Reveal>
         <div className="adapter-grid">
-          {ADAPTERS.map((adapter) => (
-            <article key={adapter.name} className="adapter-card">
+          {ADAPTERS.map((adapter, index) => (
+            <Reveal key={adapter.name} as="article" className="adapter-card" delay={(index % 3) * 70}>
               <h4>
                 <i />
                 {adapter.name}
@@ -60,7 +62,7 @@ export default function Adapters() {
               <a href={adapter.href} target="_blank" rel="noreferrer">
                 <code>{adapter.snippet}</code>
               </a>
-            </article>
+            </Reveal>
           ))}
         </div>
       </div>

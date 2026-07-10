@@ -1,5 +1,6 @@
 import type { Leaderboard as LeaderboardData, LeaderboardBaseline, LeaderboardModel } from "../types";
 import { agentColor, fmt, pct } from "../lib";
+import { Reveal } from "./Reveal";
 
 const PROVIDER_LABELS: Record<string, string> = {
   openai: "OpenAI API",
@@ -263,7 +264,7 @@ export default function Leaderboard({ data }: { data: LeaderboardData }) {
   return (
     <section className="section" id="leaderboard">
       <div className="shell">
-        <div className="section-head">
+        <Reveal className="section-head">
           <p className="section-kicker">Leaderboard</p>
           <h2>One official panel. Beat pick-trader — or show why you didn’t.</h2>
           <p>
@@ -272,12 +273,16 @@ export default function Leaderboard({ data }: { data: LeaderboardData }) {
             episode). Scripted baselines stay on the board as reference rows. Cost and latency are
             measured when the adapter reports usage.
           </p>
-        </div>
-        <BoardCallout data={data} />
-        <LeaderboardTable data={data} />
-        <div className="leaderboard-foot">
+        </Reveal>
+        <Reveal delay={60}>
+          <BoardCallout data={data} />
+        </Reveal>
+        <Reveal className="panel-reveal" delay={110}>
+          <LeaderboardTable data={data} />
+        </Reveal>
+        <Reveal className="leaderboard-foot" delay={160}>
           <SubmitBlock />
-        </div>
+        </Reveal>
       </div>
     </section>
   );

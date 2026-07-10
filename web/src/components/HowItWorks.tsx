@@ -1,3 +1,5 @@
+import { Reveal } from "./Reveal";
+
 const PHASES = [
   {
     num: "01 · preseason",
@@ -79,7 +81,7 @@ export default function HowItWorks() {
   return (
     <section className="section" id="how-it-works">
       <div className="shell">
-        <div className="section-head">
+        <Reveal className="section-head">
           <p className="section-kicker">The decision loop</p>
           <h2>Four phases per season. Five seasons per episode.</h2>
           <p>
@@ -87,19 +89,19 @@ export default function HowItWorks() {
             speak a minimal JSON protocol: observation on stdin, actions on stdout, optional
             memo for cross-decision memory.
           </p>
-        </div>
+        </Reveal>
 
         <div className="loop-grid loop-grid-4">
-          {PHASES.map((phase) => (
-            <article key={phase.num} className="loop-card">
+          {PHASES.map((phase, index) => (
+            <Reveal key={phase.num} as="article" className="loop-card" delay={index * 70}>
               <p className="loop-num">{phase.num}</p>
               <h3>{phase.title}</h3>
               <p>{phase.body}</p>
-            </article>
+            </Reveal>
           ))}
         </div>
 
-        <div className="score-strip">
+        <Reveal className="score-strip" delay={80}>
           <div>
             <p className="section-kicker">How scoring works</p>
             <h3>Strategy first. Protocol penalties broken out.</h3>
@@ -128,9 +130,9 @@ export default function HowItWorks() {
               </li>
             ))}
           </ul>
-        </div>
+        </Reveal>
 
-        <div className="protocol-grid">
+        <Reveal className="protocol-grid" delay={120}>
           <div className="proto-points">
             <div className="proto-point">
               <span className="proto-icon">
@@ -179,7 +181,7 @@ export default function HowItWorks() {
             <CodeCard title="observation → stdin" code={OBSERVATION_SNIPPET} />
             <CodeCard title="actions ← stdout" code={ACTIONS_SNIPPET} />
           </div>
-        </div>
+        </Reveal>
       </div>
     </section>
   );

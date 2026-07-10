@@ -1,16 +1,131 @@
+import { useEffect, useMemo, useState } from "react";
 import type { Leaderboard as LeaderboardData } from "../types";
 import { fmt } from "../lib";
 
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  return reduced;
+}
+
+function useTypedLines(lines: string[], enabled: boolean) {
+  const [lineIndex, setLineIndex] = useState(0);
+  const [charIndex, setCharIndex] = useState(0);
+  const [done, setDone] = useState(!enabled);
+
+  useEffect(() => {
+    if (!enabled) {
+      setDone(true);
+      return;
+    }
+    if (lineIndex >= lines.length) {
+      setDone(true);
+      return;
+    }
+    const current = lines[lineIndex];
+    if (charIndex >= current.length) {
+      const timer = window.setTimeout(() => {
+        setLineIndex((value) => value + 1);
+        setCharIndex(0);
+      }, 120);
+      return () => window.clearTimeout(timer);
+    }
+    const timer = window.setTimeout(() => {
+      setCharIndex((value) => value + 1);
+    }, current.startsWith("//") ? 10 : 16);
+    return () => window.clearTimeout(timer);
+  }, [charIndex, enabled, lineIndex, lines]);
+
+  const visible = lines.slice(0, lineIndex).concat(
+    lineIndex < lines.length ? [lines[lineIndex].slice(0, charIndex)] : [],
+  );
+  return { visible, done };
+}
+
+function renderLine(line: string, key: number) {
+  if (line.startsWith("//")) {
+    return (
+      <div key={key} className="term-line">
+        <span className="t-dim">{line}</span>
+      </div>
+    );
+  }
+  if (line.startsWith("$ ")) {
+    return (
+      <div key={key} className="term-line">
+        <span className="t-prompt">$ </span>
+        <span className="t-cmd">{line.slice(2)}</span>
+      </div>
+    );
+  }
+  if (line.startsWith("    --")) {
+    const [flag, ...rest] = line.trim().split(" ");
+    return (
+      <div key={key} className="term-line">
+        <span className="t-flag">    {flag} </span>
+        <span className="t-num">{rest.join(" ")}</span>
+      </div>
+    );
+  }
+  const eq = line.indexOf(" = ");
+  if (eq > 0) {
+    return (
+      <div key={key} className="term-line">
+        <span className="t-key">{line.slice(0, eq)} </span>
+        <span className="t-out">= </span>
+        <span className="t-num">{line.slice(eq + 3)}</span>
+      </div>
+    );
+  }
+  return (
+    <div key={key} className="term-line">
+      <span className="t-out">{line || "\u00a0"}</span>
+    </div>
+  );
+}
+
 export default function Hero({ leaderboard }: { leaderboard: LeaderboardData }) {
+  const reducedMotion = usePrefersReducedMotion();
   const pickTrader = leaderboard.baselines.find((row) => row.agent === "pick-trader");
   const bestModel = [...leaderboard.models].sort((a, b) => b.mean_score - a.mean_score)[0];
   const bar = pickTrader?.mean_score ?? 0;
   const gap = bestModel ? bestModel.mean_score - bar : null;
 
+  const lines = useMemo(() => {
+    const next = [
+      "// scripted bar to beat",
+      `pick-trader = ${fmt(bar, 1)}`,
+      "",
+      "// best model on this board",
+    ];
+    if (bestModel && gap !== null) {
+      next.push(
+        `${bestModel.model.slice(0, 14)} = ${fmt(bestModel.mean_score, 1)}`,
+        `vs pick-trader = ${gap >= 0 ? "+" : ""}${fmt(gap, 1)}`,
+        "",
+        "// honest read: models are still below the bar",
+      );
+    } else {
+      next.push("// no model rows yet — submit a run");
+    }
+    next.push("", "$ python -m gm_bench model", "    --preset leaderboard --repeats 3");
+    return next;
+  }, [bar, bestModel, gap]);
+
+  const { visible, done } = useTypedLines(lines, !reducedMotion);
+
   return (
     <section className="hero" id="top">
       <div className="hero-glow" />
       <div className="hero-grid-lines" />
+      <div className="hero-orb hero-orb-a" aria-hidden="true" />
+      <div className="hero-orb hero-orb-b" aria-hidden="true" />
       <div className="shell hero-inner">
         <div className="hero-copy">
           <span className="hero-kicker">
@@ -42,41 +157,14 @@ export default function Hero({ leaderboard }: { leaderboard: LeaderboardData }) 
         <div className="terminal hero-terminal" aria-label="Official bar to beat">
           <div className="terminal-bar">
             <i /><i /><i />
-            <span>official panel · {leaderboard.preset.seeds.length} seeds × {leaderboard.preset.seasons} seasons</span>
+            <span>
+              official panel · {leaderboard.preset.seeds.length} seeds × {leaderboard.preset.seasons}{" "}
+              seasons
+            </span>
           </div>
           <div className="terminal-body">
-            <span className="t-dim">{"// scripted bar to beat"}</span>
-            {"\n"}
-            <span className="t-key">pick-trader </span>
-            <span className="t-out">= </span>
-            <span className="t-num">{fmt(bar, 1)}</span>
-            {"\n\n"}
-            <span className="t-dim">{"// best model on this board"}</span>
-            {"\n"}
-            {bestModel ? (
-              <>
-                <span className="t-key">{bestModel.model.padEnd(14).slice(0, 14)} </span>
-                <span className="t-out">= </span>
-                <span className="t-num">{fmt(bestModel.mean_score, 1)}</span>
-                {"\n"}
-                <span className="t-key">vs pick-trader</span>
-                <span className="t-out"> = </span>
-                <span className="t-num">
-                  {gap !== null && gap >= 0 ? "+" : ""}
-                  {gap !== null ? fmt(gap, 1) : "—"}
-                </span>
-                {"\n\n"}
-                <span className="t-dim">{"// honest read: models are still below the bar"}</span>
-              </>
-            ) : (
-              <span className="t-dim">{"// no model rows yet — submit a run"}</span>
-            )}
-            {"\n\n"}
-            <span className="t-prompt">$ </span>
-            <span className="t-cmd">python -m gm_bench model</span>
-            {"\n"}
-            <span className="t-flag">    --preset leaderboard --repeats </span>
-            <span className="t-num">3</span>
+            {(reducedMotion ? lines : visible).map((line, index) => renderLine(line, index))}
+            {!done && <span className="term-caret" aria-hidden="true" />}
           </div>
         </div>
       </div>

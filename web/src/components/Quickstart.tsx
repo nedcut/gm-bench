@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Reveal } from "./Reveal";
 
 const REPO = "https://github.com/nedcut/gm-bench";
 
@@ -24,12 +25,16 @@ python -m gm_bench validate-result \\
 function CommandCard({ title, code }: { title: string; code: string }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
   };
   return (
-    <div className="code-card">
+    <div className={`code-card ${copied ? "is-copied" : ""}`}>
       <div className="code-card-head">
         <span>{title}</span>
         <button type="button" className="copy-btn" onClick={copy}>
@@ -47,7 +52,7 @@ export default function Quickstart() {
   return (
     <section className="section" id="quickstart">
       <div className="shell">
-        <div className="section-head">
+        <Reveal className="section-head">
           <p className="section-kicker">Run it</p>
           <h2>Clone, calibrate, then submit an official row.</h2>
           <p>
@@ -62,12 +67,16 @@ export default function Quickstart() {
             </a>
             .
           </p>
-        </div>
+        </Reveal>
         <div className="quickstart-grid">
-          <CommandCard title="1 · calibrate with baselines" code={BASELINE_CMDS} />
-          <CommandCard title="2 · official model run" code={CANDIDATE_CMDS} />
+          <Reveal delay={40}>
+            <CommandCard title="1 · calibrate with baselines" code={BASELINE_CMDS} />
+          </Reveal>
+          <Reveal delay={110}>
+            <CommandCard title="2 · official model run" code={CANDIDATE_CMDS} />
+          </Reveal>
         </div>
-        <div className="quickstart-links">
+        <Reveal className="quickstart-links" delay={160}>
           <a href={`${REPO}/blob/main/docs/production_benchmark.md`} target="_blank" rel="noreferrer">
             Production standard →
           </a>
@@ -77,7 +86,7 @@ export default function Quickstart() {
           <a href={`${REPO}/blob/main/docs/benchmark_spec.md`} target="_blank" rel="noreferrer">
             Benchmark spec →
           </a>
-        </div>
+        </Reveal>
       </div>
     </section>
   );

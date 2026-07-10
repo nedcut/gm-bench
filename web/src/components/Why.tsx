@@ -1,3 +1,5 @@
+import { Reveal } from "./Reveal";
+
 const POINTS = [
   {
     title: "Not coding. Not trivia. Not UI clicking.",
@@ -17,7 +19,7 @@ export default function Why() {
   return (
     <section className="section" id="why">
       <div className="shell">
-        <div className="section-head">
+        <Reveal className="section-head">
           <p className="section-kicker">Why it exists</p>
           <h2>A stress test for long-horizon decisions — not another leaderboard of one-shot answers.</h2>
           <p>
@@ -26,13 +28,13 @@ export default function Why() {
             score gaps on eight seeds are underpowered; clearing the scripted bar is the
             claim that matters.
           </p>
-        </div>
+        </Reveal>
         <div className="why-grid">
-          {POINTS.map((point) => (
-            <article key={point.title} className="why-card">
+          {POINTS.map((point, index) => (
+            <Reveal key={point.title} as="article" className="why-card" delay={index * 90}>
               <h3>{point.title}</h3>
               <p>{point.body}</p>
-            </article>
+            </Reveal>
           ))}
         </div>
       </div>
