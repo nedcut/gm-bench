@@ -15,6 +15,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -50,15 +51,20 @@ def main() -> None:
     command = build_command(prompt)
     started = time.perf_counter()
     try:
-        completed = subprocess.run(
-            command,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=timeout,
-            check=False,
-            cwd=ROOT,
-        )
+        # Run from a throwaway directory: with cwd at the repo root the CLI
+        # auto-injects project context (CLAUDE.md/AGENTS.md) into every call,
+        # leaking benchmark-adjacent text into the model's context and paying
+        # for it on every decision. Mirrors the codex adapter's isolation.
+        with tempfile.TemporaryDirectory() as scratch:
+            completed = subprocess.run(
+                command,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=timeout,
+                check=False,
+                cwd=scratch,
+            )
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         if completed.returncode != 0:
             detail = (completed.stderr or completed.stdout)[-500:]
@@ -93,6 +99,10 @@ def build_command(prompt: str) -> list[str]:
     command = [
         "claude",
         "-p",
+        # Safe mode drops CLAUDE.md, skills, plugins, hooks, and MCP servers
+        # from the call: no user/project customization can leak into the
+        # benchmark context, and the per-decision token overhead shrinks.
+        "--safe-mode",
         "--no-session-persistence",
         "--permission-mode",
         "dontAsk",
