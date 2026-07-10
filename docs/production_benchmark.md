@@ -96,6 +96,10 @@ The validator enforces:
 - Candidate decision failure rate at or below 2%.
 - Complete paired analysis, including sign-flip p-value and strongest-baseline
   comparison.
+- Fresh-spawn condition: `run_info.session` must be absent or false. Session
+  rows (`--session`, model keeps its full trajectory in context) are a separate
+  labeled condition — publishable, but never comparable with memo-only rows and
+  never `sota-v1`.
 - Scaffold provenance: new rows record `run_info.scaffold_fingerprint`, a
   per-provider hash of the prompt scaffold (shared prompt builder plus the
   provider's adapter script and spec). A recorded fingerprint that does not

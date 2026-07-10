@@ -72,6 +72,12 @@ def main(argv: list[str] | None = None) -> None:
     model_parser.add_argument("--preset", choices=PRESET_NAMES, help="smoke, standard, or benchmark seed/season panel")
     model_parser.add_argument("--config", help="JSON benchmark config file (overrides preset defaults)")
     model_parser.add_argument("--profile", choices=["tiny", "compact"], help="observation compaction profile")
+    model_parser.add_argument(
+        "--session",
+        action="store_true",
+        help="keep one adapter process alive per episode so the model retains its full "
+        "trajectory in context (a separate measurement condition; not sota-v1 eligible)",
+    )
     model_parser.add_argument("--seeds", nargs="+", type=int)
     model_parser.add_argument("--seasons", type=int)
     model_parser.add_argument(
@@ -228,6 +234,7 @@ def _run_info(command: str, agent: Any, config: BenchmarkConfig) -> dict[str, An
         "gm_bench_version": __version__,
         "benchmark_contract": benchmark_contract(),
         "scaffold_fingerprint": scaffold_fingerprint(metadata.get("provider", config.provider) or ""),
+        "session": bool(metadata.get("session", False)),
         "seed_panel": seed_panel_metadata(config.seeds, config.preset),
         "python_version": platform.python_version(),
         "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -330,6 +337,7 @@ def _model_command(args: argparse.Namespace) -> None:
         timeout=config.agent_timeout,
         profile=config.profile,
         extra_env=config.extra_env,
+        session=bool(getattr(args, "session", False)),
     )
     progress = make_progress_printer(config.verbose)
     result = evaluate_against_baselines(

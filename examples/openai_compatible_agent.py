@@ -37,10 +37,23 @@ except ModuleNotFoundError:
     )
 
 
+# Session mode (GM_BENCH_SESSION=1) keeps this process alive for a whole
+# episode, so the conversation accumulates across decision points: the model
+# sees its full trajectory instead of relying on the memo action. The process
+# is per-episode (the runner clones and restarts it per seed), so module
+# state needs no reset.
+SESSION_MODE = os.environ.get("GM_BENCH_SESSION") == "1"
+_SYSTEM_MESSAGE = {
+    "role": "system",
+    "content": "Return only a JSON object with an actions array of GM-Bench action objects.",
+}
+_history: list[dict[str, str]] = []
+
+
 def choose_actions(
     observation: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
-    if observation.get("phase") == "action_results":
+    if observation.get("phase") == "action_results" and not SESSION_MODE:
         return [{"type": "end_turn"}], None
     api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
     model = os.environ.get("LLM_MODEL", "gpt-4.1-mini")
@@ -49,16 +62,19 @@ def choose_actions(
     if not api_key:
         return fallback_actions(observation, "missing LLM_API_KEY or OPENAI_API_KEY"), None
 
+    if observation.get("phase") == "action_results":
+        user_content = (
+            "Results of your previous actions:\n"
+            + json.dumps(observation.get("action_results", []), sort_keys=True)
+            + "\nReply with a JSON object with an actions array; use end_turn to stop this window."
+        )
+    else:
+        user_content = build_prompt(observation)
+    messages = [_SYSTEM_MESSAGE, *(_history if SESSION_MODE else []), {"role": "user", "content": user_content}]
     payload = {
         "model": model,
         "temperature": float(os.environ.get("LLM_TEMPERATURE", "0.2")),
-        "messages": [
-            {
-                "role": "system",
-                "content": "Return only a JSON object with an actions array of GM-Bench action objects.",
-            },
-            {"role": "user", "content": build_prompt(observation)},
-        ],
+        "messages": messages,
     }
     request = urllib.request.Request(
         f"{base_url}/chat/completions",
@@ -82,6 +98,11 @@ def choose_actions(
             api_latency_ms=latency_ms,
         )
         content = data["choices"][0]["message"]["content"]
+        if SESSION_MODE:
+            # Only successful exchanges enter the history so a transient API
+            # failure does not leave a dangling unanswered user turn.
+            _history.append({"role": "user", "content": user_content})
+            _history.append({"role": "assistant", "content": content})
         return parse_actions(content), usage
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
