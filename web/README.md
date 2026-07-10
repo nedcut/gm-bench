@@ -1,13 +1,11 @@
 # GM-Bench Web
 
-A forward-facing landing site for GM-Bench, built with [Vite](https://vite.dev),
-React, TypeScript, and [Bun](https://bun.sh). It presents the benchmark to the
-outside world: what the decision loop looks like, the stdin/stdout agent
-protocol, reference baseline results, and a two-command quickstart.
+Landing site for GM-Bench: why the benchmark exists, the official leaderboard
+panel, the four-phase decision loop, adapters, and how to run / submit a row.
 
-All charts and tables are rendered from a static snapshot of real benchmark
-output committed at `src/data/snapshot.json`, so the site is fully static and
-deploys anywhere (GitHub Pages, Netlify, Cloudflare Pages, ...).
+Built with [Vite](https://vite.dev), React, TypeScript, and [Bun](https://bun.sh).
+The leaderboard table is rendered from static data at
+`src/data/leaderboard.json` (built from `results/leaderboard/` artifacts).
 
 ## Develop
 
@@ -24,15 +22,23 @@ bun run build     # type-checks and emits dist/
 bun run preview   # serve the production build locally
 ```
 
-## Refresh the results snapshot
+## Refresh the leaderboard
 
-The snapshot is produced by a deterministic evaluation of the `value` agent
-against the scripted baseline panel (`random`, `conservative`, `win-now`,
-`rebuild`). To regenerate it, run from the repository root:
+From the repository root, after adding or updating result JSON under
+`results/leaderboard/`:
+
+```bash
+python web/scripts/build_leaderboard.py
+```
+
+## Optional reference snapshot
+
+`src/data/snapshot.json` is a deterministic `value`-vs-baselines export used for
+local calibration demos. Regenerate with:
 
 ```bash
 python web/scripts/export_snapshot.py --seeds 1 2 3 4 5 --seasons 5
 ```
 
-Because the simulator is seeded, the same arguments always reproduce the same
-snapshot bytes (no wall-clock timestamps in the export).
+The public site no longer surfaces this panel as a second results story; the
+official board is the leaderboard preset (seeds 11–18).

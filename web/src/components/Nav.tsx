@@ -15,12 +15,13 @@ export function Logo({ size = 28 }: { size?: number }) {
 }
 
 const LINKS = [
+  { href: "#why", label: "Why" },
   { href: "#leaderboard", label: "Leaderboard" },
-  { href: "#results", label: "Results" },
   { href: "#how-it-works", label: "How it works" },
-  { href: "#adapters", label: "Adapters" },
-  { href: "#quickstart", label: "Quickstart" },
+  { href: "#quickstart", label: "Run" },
 ];
+
+const REPO = "https://github.com/nedcut/gm-bench";
 
 export default function Nav() {
   return (
@@ -29,7 +30,6 @@ export default function Nav() {
         <a href="#top" className="brand">
           <Logo />
           GM-Bench
-          <span className="brand-tag">MVP</span>
         </a>
         <nav className="nav-links">
           {LINKS.map((link) => (
@@ -37,6 +37,9 @@ export default function Nav() {
               {link.label}
             </a>
           ))}
+          <a className="nav-link-ext" href={REPO} target="_blank" rel="noreferrer">
+            GitHub
+          </a>
           <a className="nav-cta" href="#quickstart">
             Run the benchmark
           </a>

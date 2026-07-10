@@ -10,6 +10,10 @@ export const AGENT_COLORS: Record<string, string> = {
   codex: "#b8ff7d",
   ollama: "#e08ad4",
   opencode: "#9fd0ff",
+  cursor: "#7de3ff",
+  shrewd: "#7de3ff",
+  strategic: "#b8ff7d",
+  "pick-trader": "#34e0a1",
 };
 
 export function agentColor(agent: string): string {
