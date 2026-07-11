@@ -27,13 +27,13 @@
     },
     {
       "agent": "conservative",
-      "mean_score": 139.198,
-      "score_stddev": 18.367
+      "mean_score": 139.03,
+      "score_stddev": 18.297
     },
     {
       "agent": "rebuild",
-      "mean_score": 138.913,
-      "score_stddev": 16.054
+      "mean_score": 138.745,
+      "score_stddev": 15.887
     },
     {
       "agent": "random",
@@ -81,9 +81,11 @@
         17,
         18
       ],
+      "session": false,
       "significant": false,
-      "sota_v1_eligible": true,
+      "sota_v1_eligible": false,
       "sota_v1_issues": [
+        "run_info.benchmark_contract.contract_fingerprint must be '414522795636f9c0', got 'cf2607e59dba0c7f'",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate lift is not significant at 95% against the baseline panel",
         "candidate does not beat the strongest scripted baseline"
@@ -130,9 +132,11 @@
         17,
         18
       ],
+      "session": false,
       "significant": false,
       "sota_v1_eligible": false,
       "sota_v1_issues": [
+        "run_info.benchmark_contract.contract_fingerprint must be '414522795636f9c0', got 'cf2607e59dba0c7f'",
         "candidate decision_failure_rate 0.263 exceeds 0.020 for sota-v1",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
@@ -141,6 +145,107 @@
       ],
       "tokens_per_decision": 16095.0,
       "total_tokens": 7725618
+    },
+    {
+      "api_latency_s_per_decision": 18.75,
+      "baseline_panel_mean_score": 273.794,
+      "benchmark_version": "sota-v1",
+      "ci95": [
+        -136.695,
+        -99.863
+      ],
+      "contract_fingerprint": "414522795636f9c0",
+      "cost_per_episode_usd": null,
+      "cost_usd": null,
+      "decision_points": 480,
+      "decisions_with_usage": 480,
+      "fallback_rate": 0.0,
+      "harness_latency_s_per_decision": 21.39,
+      "id": "cursor:composer-2.5",
+      "illegal_actions": 66,
+      "lift_vs_best_baseline": -254.413,
+      "mean_score": 157.206,
+      "mean_strategy_score": 164.081,
+      "model": "composer-2.5",
+      "paired_lift": -116.588,
+      "protocol_penalty": 165.0,
+      "provider": "cursor",
+      "score_stddev": 35.798,
+      "seasons": 5,
+      "seed_panel": "public-leaderboard",
+      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
+      "seed_win_rate": 0.0,
+      "seeds": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "session": false,
+      "significant": true,
+      "sota_v1_eligible": true,
+      "sota_v1_issues": [
+        "candidate has illegal actions; score includes protocol penalties",
+        "candidate does not beat the strongest scripted baseline"
+      ],
+      "tokens_per_decision": 41853.3,
+      "total_tokens": 20089572
+    },
+    {
+      "api_latency_s_per_decision": 7.19,
+      "baseline_panel_mean_score": 273.794,
+      "benchmark_version": "sota-v1",
+      "ci95": [
+        -142.189,
+        -99.697
+      ],
+      "contract_fingerprint": "cf2607e59dba0c7f",
+      "cost_per_episode_usd": 0.3467,
+      "cost_usd": 8.3203,
+      "decision_points": 480,
+      "decisions_with_usage": 480,
+      "fallback_rate": 0.873,
+      "harness_latency_s_per_decision": 7.27,
+      "id": "claude:sonnet",
+      "illegal_actions": 41,
+      "lift_vs_best_baseline": -260.655,
+      "mean_score": 150.964,
+      "mean_strategy_score": 155.234,
+      "model": "sonnet",
+      "paired_lift": -122.831,
+      "protocol_penalty": 102.5,
+      "provider": "claude",
+      "score_stddev": 19.313,
+      "seasons": 5,
+      "seed_panel": "public-leaderboard",
+      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
+      "seed_win_rate": 0.0,
+      "seeds": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "session": false,
+      "significant": true,
+      "sota_v1_eligible": false,
+      "sota_v1_issues": [
+        "run_info.benchmark_contract.contract_fingerprint must be '414522795636f9c0', got 'cf2607e59dba0c7f'",
+        "candidate decision_failure_rate 0.873 exceeds 0.020 for sota-v1",
+        "candidate has illegal actions; score includes protocol penalties",
+        "candidate used adapter fallback/error output on at least one decision",
+        "candidate does not beat the strongest scripted baseline"
+      ],
+      "tokens_per_decision": 3429.6,
+      "total_tokens": 1646230
     },
     {
       "api_latency_s_per_decision": 125.54,
@@ -181,9 +286,11 @@
         17,
         18
       ],
+      "session": false,
       "significant": true,
       "sota_v1_eligible": false,
       "sota_v1_issues": [
+        "run_info.benchmark_contract.contract_fingerprint must be '414522795636f9c0', got 'cf2607e59dba0c7f'",
         "candidate decision_failure_rate 0.446 exceeds 0.020 for sota-v1",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
@@ -231,9 +338,11 @@
         17,
         18
       ],
+      "session": false,
       "significant": true,
       "sota_v1_eligible": false,
       "sota_v1_issues": [
+        "run_info.benchmark_contract.contract_fingerprint must be '414522795636f9c0', got 'cf2607e59dba0c7f'",
         "candidate decision_failure_rate 0.371 exceeds 0.020 for sota-v1",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
@@ -281,9 +390,11 @@
         17,
         18
       ],
+      "session": false,
       "significant": true,
       "sota_v1_eligible": false,
       "sota_v1_issues": [
+        "run_info.benchmark_contract.contract_fingerprint must be '414522795636f9c0', got 'cf2607e59dba0c7f'",
         "candidate decision_failure_rate 0.050 exceeds 0.020 for sota-v1",
         "run_info.scaffold_fingerprint missing: prompt scaffold unverified (pre-provenance artifact)",
         "candidate has illegal actions; score includes protocol penalties",
@@ -332,9 +443,11 @@
         17,
         18
       ],
+      "session": false,
       "significant": true,
       "sota_v1_eligible": false,
       "sota_v1_issues": [
+        "run_info.benchmark_contract.contract_fingerprint must be '414522795636f9c0', got 'cf2607e59dba0c7f'",
         "candidate decision_failure_rate 0.029 exceeds 0.020 for sota-v1",
         "run_info.scaffold_fingerprint missing: prompt scaffold unverified (pre-provenance artifact)",
         "candidate has illegal actions; score includes protocol penalties",
@@ -360,5 +473,5 @@
       18
     ]
   },
-  "updated": "2026-07-10"
+  "updated": "2026-07-11"
 }
