@@ -598,8 +598,7 @@ GM_BENCH_WORKERS=1 CLAUDE_MODEL=sonnet CLAUDE_MAX_BUDGET_USD=0.25 \
 ```
 
 Invalid parallel burn (kept for the lesson):
-`results/diagnostics/claude-sonnet-medium.parallel-fail.json`. Token breakdown:
-`logs/runs/claude-sonnet-token-usage.md`.
+`results/diagnostics/claude-sonnet-medium.parallel-fail.json`.
 
 Note: Codex cloud/API mode, Claude Code, and opencode-backed runs may send
 benchmark observations/prompts to external model providers. Local Codex OSS mode

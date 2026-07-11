@@ -39,9 +39,8 @@ default — leave it unset or force `GM_BENCH_WORKERS=1` for Claude. On 2026-07-
 parallel Sonnet leaderboard panel emptied a Claude Pro 5h usage limit in ~5
 minutes wall clock and left an invalid diagnostic
 (`results/diagnostics/claude-sonnet-medium.parallel-fail.json`, decision failure
-rate 0.873). Token log: `logs/runs/claude-sonnet-token-usage.md`. Prefer
-`--preset smoke` first; a clean serial sota-v1 panel is multi-hour quota spend,
-not a quick retry.
+rate 0.873). Prefer `--preset smoke` first; a clean serial sota-v1 panel is
+multi-hour quota spend, not a quick retry.
 
 For a held-out SOTA run, set a private leaderboard seed panel before running
 and validating. Keep the raw JSON local; it contains the exact seed ids needed
