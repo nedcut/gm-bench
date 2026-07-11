@@ -139,6 +139,17 @@ def test_parallel_run_many_matches_sequential_results() -> None:
     }
 
 
+def test_external_agents_default_to_serial_workers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Model adapters must not fan out across seeds — that burns provider quotas."""
+    monkeypatch.delenv("GM_BENCH_WORKERS", raising=False)
+    monkeypatch.setattr(runner_module.os, "cpu_count", lambda: 16)
+    external = ExternalProcessAgent("true", name="fake-model")
+    assert runner_module._default_workers(24, external) == 1
+    assert runner_module._default_workers(24, ValueAgent()) == 16
+    monkeypatch.setenv("GM_BENCH_WORKERS", "4")
+    assert runner_module._default_workers(24, external) == 4
+
+
 def test_cli_json_run() -> None:
     completed = subprocess.run(
         [

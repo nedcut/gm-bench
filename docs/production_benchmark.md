@@ -27,6 +27,22 @@ python -m gm_bench model \
   --json > results/leaderboard/<provider>-<model>.json
 ```
 
+Model / external-process adapters run **serially by default** (one episode at a
+time). Parallel fan-out across seeds×repeats will burn provider rate limits and
+fill rows with fallback `noop`s, which then fails the sota-v1 failure-rate gate.
+Opt into concurrency only when the provider can handle it:
+`GM_BENCH_WORKERS=N` or `--workers N`. Scripted in-process baselines still
+parallelize.
+
+**Claude is never a parallel provider.** `GM_BENCH_WORKERS` overrides the serial
+default — leave it unset or force `GM_BENCH_WORKERS=1` for Claude. On 2026-07-11 a
+parallel Sonnet leaderboard panel emptied a Claude Pro 5h usage limit in ~5
+minutes wall clock and left an invalid diagnostic
+(`results/diagnostics/claude-sonnet-medium.parallel-fail.json`, decision failure
+rate 0.873). Token log: `logs/runs/claude-sonnet-token-usage.md`. Prefer
+`--preset smoke` first; a clean serial sota-v1 panel is multi-hour quota spend,
+not a quick retry.
+
 For a held-out SOTA run, set a private leaderboard seed panel before running
 and validating. Keep the raw JSON local; it contains the exact seed ids needed
 for local reproduction. Publish only a redacted artifact, which preserves the

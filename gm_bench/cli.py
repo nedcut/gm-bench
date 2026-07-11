@@ -87,6 +87,16 @@ def main(argv: list[str] | None = None) -> None:
     )
     model_parser.add_argument("--baselines", nargs="+", choices=sorted(AGENTS))
     model_parser.add_argument("--agent-timeout", type=float)
+    model_parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help=(
+            "parallel episode workers for the candidate. Model/external adapters "
+            "default to 1 (serial) so provider rate limits are not burned; "
+            "scripted agents still fan out. Override with this flag or GM_BENCH_WORKERS."
+        ),
+    )
     model_parser.add_argument("--no-baseline-cache", action="store_true")
     model_parser.add_argument("--verbose", action="store_true", help="print per-decision progress to stderr")
     model_parser.add_argument("--json", action="store_true")
@@ -346,6 +356,7 @@ def _model_command(args: argparse.Namespace) -> None:
         config.seasons,
         config.baselines,
         repeats=config.repeats,
+        workers=getattr(args, "workers", None),
         use_baseline_cache=config.use_baseline_cache,
         progress=progress,
     )

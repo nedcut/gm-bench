@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from statistics import mean, pstdev
 from typing import Any, Callable
 
-from gm_bench.agents import AGENTS, Agent
+from gm_bench.agents import AGENTS, Agent, ExternalProcessAgent
 from gm_bench.baseline_cache import cache_key, default_cache_path, load_cache, put_cached_episode, save_cache
 from gm_bench.protocol import PHASES, EpisodeConfig
 from gm_bench.scoring import score_breakdown
@@ -235,7 +235,7 @@ def run_many(
         result = run_episode(episode_agent, seed=seed, seasons=seasons, progress=progress, config=config)
         return {**result.__dict__, "repeat": repeat}
 
-    max_workers = workers if workers is not None else _default_workers(len(jobs))
+    max_workers = workers if workers is not None else _default_workers(len(jobs), agent)
     if max_workers <= 1 or len(jobs) <= 1:
         episodes = [one(job) for job in jobs]
     else:
@@ -368,6 +368,7 @@ def evaluate_against_baselines(
     baseline_names: list[str] | None = None,
     *,
     repeats: int = 1,
+    workers: int | None = None,
     use_baseline_cache: bool = True,
     baseline_cache_path: str | os.PathLike[str] | None = None,
     progress: ProgressCallback | None = None,
@@ -376,7 +377,15 @@ def evaluate_against_baselines(
     # Repeats apply to the candidate only: scripted baselines are deterministic,
     # so re-running them would produce identical episodes.
     baselines = baseline_names or ["random", "conservative", "win-now", "rebuild", "value"]
-    candidate = run_many(agent, seeds=seeds, seasons=seasons, repeats=repeats, progress=progress, config=config)
+    candidate = run_many(
+        agent,
+        seeds=seeds,
+        seasons=seasons,
+        repeats=repeats,
+        workers=workers,
+        progress=progress,
+        config=config,
+    )
     baseline_results: list[dict[str, Any]] = []
     cache_hits = 0
     resolved_cache_path = baseline_cache_path if baseline_cache_path is not None else default_cache_path()
@@ -604,8 +613,21 @@ def make_progress_printer(verbose: bool = False) -> ProgressCallback | None:
     return _print
 
 
-def _default_workers(seed_count: int) -> int:
+def _is_rate_limited_agent(agent: Agent) -> bool:
+    """External / model adapters share a provider quota across concurrent jobs.
+
+    Fanning a leaderboard panel (seeds × repeats) across CPU-count workers will
+    burn subscription rate limits in minutes and fill episodes with fallback
+    noops — which then fail the sota-v1 decision-failure gate. Scripted in-process
+    agents are safe to parallelize; process-backed ones are not.
+    """
+    return isinstance(agent, (ExternalProcessAgent, PersistentProcessAgent))
+
+
+def _default_workers(job_count: int, agent: Agent | None = None) -> int:
     configured = os.environ.get("GM_BENCH_WORKERS")
-    if configured:
+    if configured is not None and configured != "":
         return max(1, int(configured))
-    return max(1, min(seed_count, os.cpu_count() or 1))
+    if agent is not None and _is_rate_limited_agent(agent):
+        return 1
+    return max(1, min(job_count, os.cpu_count() or 1))

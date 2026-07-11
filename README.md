@@ -88,6 +88,9 @@ LLM_API_KEY=... python -m gm_bench model \
   --model gpt-4.1-mini \
   --preset smoke
 
+# Model adapters run serially by default (safe for rate-limited CLIs).
+# Only raise concurrency if the provider can take it: --workers N or GM_BENCH_WORKERS=N.
+
 # Standard panel (3 seeds, 3 seasons)
 python -m gm_bench model \
   --provider openai \
@@ -552,10 +555,29 @@ CODEX_OSS=1 CODEX_LOCAL_PROVIDER=ollama CODEX_MODEL=gemma4:e4b python -m gm_benc
 ### Claude Code
 
 The Claude adapter uses `claude -p` with no tools, no session persistence, and
-the shared GM action JSON schema:
+the shared GM action JSON schema.
+
+**Quota warning (2026-07-11):** parallel episode fan-out burned a full Claude Pro
+5h usage limit in ~5 minutes and produced an invalid leaderboard row. Model
+adapters default to serial, but `GM_BENCH_WORKERS` / `--workers` can override that
+— for Claude always force serial, and never raise workers for a subscription CLI:
 
 ```bash
-CLAUDE_MODEL=sonnet python -m gm_bench run \
+# Smoke first (4 decisions) before any full panel
+GM_BENCH_WORKERS=1 CLAUDE_EFFORT=medium python -m gm_bench model \
+  --provider claude --model sonnet --preset smoke --verbose --json
+
+# Leaderboard: serial only. Budget a whole 5h window — this is hours, not minutes.
+GM_BENCH_WORKERS=1 CLAUDE_EFFORT=medium python -m gm_bench model \
+  --provider claude --model sonnet \
+  --preset leaderboard --repeats 3 \
+  --agent-timeout 300 --verbose --json --no-log
+```
+
+Direct adapter smoke without the model command:
+
+```bash
+GM_BENCH_WORKERS=1 CLAUDE_MODEL=sonnet python -m gm_bench run \
   --agent-cmd "python examples/claude_agent.py" \
   --agent-timeout 180 \
   --seeds 1 \
@@ -566,13 +588,18 @@ CLAUDE_MODEL=sonnet python -m gm_bench run \
 For a more controlled spend during early tests:
 
 ```bash
-CLAUDE_MODEL=sonnet CLAUDE_MAX_BUDGET_USD=0.25 python -m gm_bench evaluate \
+GM_BENCH_WORKERS=1 CLAUDE_MODEL=sonnet CLAUDE_MAX_BUDGET_USD=0.25 \
+  python -m gm_bench evaluate \
   --agent-cmd "python examples/claude_agent.py" \
   --agent-timeout 180 \
   --baselines random conservative win-now rebuild \
   --seeds 1 2 3 \
   --seasons 3
 ```
+
+Invalid parallel burn (kept for the lesson):
+`results/diagnostics/claude-sonnet-medium.parallel-fail.json`. Token breakdown:
+`logs/runs/claude-sonnet-token-usage.md`.
 
 Note: Codex cloud/API mode, Claude Code, and opencode-backed runs may send
 benchmark observations/prompts to external model providers. Local Codex OSS mode
