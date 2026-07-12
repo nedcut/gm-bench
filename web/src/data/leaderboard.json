@@ -147,6 +147,56 @@
       "total_tokens": 7725618
     },
     {
+      "api_latency_s_per_decision": 20.29,
+      "baseline_panel_mean_score": 273.794,
+      "benchmark_version": "sota-v1",
+      "ci95": [
+        -41.723,
+        -19.709
+      ],
+      "contract_fingerprint": "414522795636f9c0",
+      "cost_per_episode_usd": 0.5351,
+      "cost_usd": 12.843057,
+      "decision_points": 480,
+      "decisions_with_usage": 480,
+      "fallback_rate": 0.002,
+      "harness_latency_s_per_decision": 20.38,
+      "id": "codex:gpt-5.6-luna",
+      "illegal_actions": 101,
+      "lift_vs_best_baseline": -168.605,
+      "mean_score": 243.014,
+      "mean_strategy_score": 253.535,
+      "model": "gpt-5.6-luna",
+      "paired_lift": -30.781,
+      "protocol_penalty": 252.5,
+      "provider": "codex",
+      "score_stddev": 17.02,
+      "seasons": 5,
+      "seed_panel": "public-leaderboard",
+      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
+      "seed_win_rate": 0.0,
+      "seeds": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "session": false,
+      "significant": true,
+      "sota_v1_eligible": true,
+      "sota_v1_issues": [
+        "candidate has illegal actions; score includes protocol penalties",
+        "candidate used adapter fallback/error output on at least one decision",
+        "candidate does not beat the strongest scripted baseline"
+      ],
+      "tokens_per_decision": 22233.6,
+      "total_tokens": 10672132
+    },
+    {
       "api_latency_s_per_decision": 18.75,
       "baseline_panel_mean_score": 273.794,
       "benchmark_version": "sota-v1",
