@@ -17,6 +17,16 @@ export GEMINI_API_KEY=...        # GOOGLE_API_KEY is also accepted
 export OPENROUTER_API_KEY=...
 ```
 
+The CLI automatically loads `.env.local` and then `.env` from the current
+working directory. Existing shell variables take precedence, and `.env.local`
+takes precedence over `.env`. Both filenames are ignored by the repository.
+For example:
+
+```dotenv
+# .env.local
+OPENROUTER_API_KEY=...
+```
+
 List the installed provider lanes and defaults:
 
 ```bash

@@ -18,6 +18,7 @@ from gm_bench.baseline_cache import default_cache_path
 from gm_bench.benchmark_config import PRESET_NAMES, BenchmarkConfig, load_config, seed_panel_metadata
 from gm_bench.calibration import build_scoring_calibration
 from gm_bench.contract import benchmark_contract, scaffold_fingerprint
+from gm_bench.environment import load_environment_files
 from gm_bench.model_runs import (
     ModelRunAborted,
     default_checkpoint_path,
@@ -82,6 +83,7 @@ def _model_worker_environment(workers: int | None):
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_environment_files()
     parser = argparse.ArgumentParser(prog="gm-bench")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
