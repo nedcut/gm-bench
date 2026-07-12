@@ -23,7 +23,7 @@ def test_baseline_cache_tracks_the_score_affecting_contract() -> None:
 
 def test_provider_registry_resolves_openai() -> None:
     spec = resolve_provider("openai")
-    assert spec.model_env == "LLM_MODEL"
+    assert spec.model_env == "OPENAI_MODEL"
     agent = build_provider_agent("openai", model="gpt-test")
     assert agent.name == "openai:gpt-test"
 
@@ -35,6 +35,23 @@ def test_provider_registry_resolves_gemini() -> None:
     agent = build_provider_agent("gemini")
     assert agent.name == "gemini:gemini-3.5-flash"
     assert agent.metadata["profile"] == "compact"
+
+
+def test_provider_registry_resolves_direct_and_gateway_apis() -> None:
+    anthropic = build_provider_agent("anthropic")
+    assert anthropic.name == "anthropic:claude-sonnet-4-6"
+    assert anthropic.metadata["transport"] == "direct-api"
+
+    openrouter = build_provider_agent("openrouter", model="meta-llama/example")
+    assert openrouter.name == "openrouter:meta-llama/example"
+    assert openrouter.metadata["transport"] == "gateway-api"
+    assert openrouter.metadata["provider_options"] == {
+        "OPENROUTER_PROVIDER_SORT": "price",
+        "OPENROUTER_ALLOW_FALLBACKS": "false",
+        "OPENROUTER_REQUIRE_PARAMETERS": "false",
+        "OPENROUTER_DATA_COLLECTION": "deny",
+        "OPENROUTER_JSON_MODE": "false",
+    }
 
 
 def test_benchmark_config_applies_preset() -> None:
@@ -144,7 +161,7 @@ def test_cli_model_help_lists_provider_command() -> None:
     assert "--preset" in completed.stdout
 
 
-def test_cli_providers_lists_openai_and_gemini() -> None:
+def test_cli_providers_lists_api_providers() -> None:
     completed = subprocess.run(
         [sys.executable, "-m", "gm_bench", "providers"],
         text=True,
@@ -153,6 +170,23 @@ def test_cli_providers_lists_openai_and_gemini() -> None:
     )
     assert "openai" in completed.stdout
     assert "gemini" in completed.stdout
+    assert "anthropic" in completed.stdout
+    assert "openrouter" in completed.stdout
+
+
+def test_provider_help_reports_credential_names_without_values(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "do-not-print")
+    completed = subprocess.run(
+        [sys.executable, "-m", "gm_bench", "providers", "--json"],
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    payload = json.loads(completed.stdout)
+    openrouter = next(row for row in payload if row["provider"] == "openrouter")
+    assert openrouter["credential_env"] == ["OPENROUTER_API_KEY"]
+    assert openrouter["credential_present"] is True
+    assert "do-not-print" not in completed.stdout
 
 
 def test_cli_cache_baselines_json(tmp_path: Path) -> None:

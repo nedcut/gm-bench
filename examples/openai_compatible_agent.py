@@ -1,11 +1,11 @@
 """OpenAI-compatible chat-completions external agent for GM-Bench.
 
 Set:
-    LLM_API_KEY
-    LLM_MODEL
+    OPENAI_API_KEY
+    OPENAI_MODEL
 
 Optional:
-    LLM_API_BASE=https://api.openai.com/v1
+    OPENAI_API_BASE=https://api.openai.com/v1
 """
 
 from __future__ import annotations
@@ -55,12 +55,13 @@ def choose_actions(
 ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
     if observation.get("phase") == "action_results" and not SESSION_MODE:
         return [{"type": "end_turn"}], None
-    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
-    model = os.environ.get("LLM_MODEL", "gpt-4.1-mini")
-    base_url = os.environ.get("LLM_API_BASE", "https://api.openai.com/v1").rstrip("/")
-    timeout = resolve_call_timeout("LLM_TIMEOUT", 120.0)
+    api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("LLM_API_KEY")
+    model = os.environ.get("OPENAI_MODEL") or os.environ.get("LLM_MODEL", "gpt-5.4-mini")
+    base_url = os.environ.get("OPENAI_API_BASE") or os.environ.get("LLM_API_BASE", "https://api.openai.com/v1")
+    base_url = base_url.rstrip("/")
+    timeout = resolve_call_timeout("OPENAI_TIMEOUT", 120.0)
     if not api_key:
-        return fallback_actions(observation, "missing LLM_API_KEY or OPENAI_API_KEY"), None
+        return fallback_actions(observation, "missing OPENAI_API_KEY"), None
 
     if observation.get("phase") == "action_results":
         user_content = (
@@ -71,11 +72,10 @@ def choose_actions(
     else:
         user_content = build_prompt(observation)
     messages = [_SYSTEM_MESSAGE, *(_history if SESSION_MODE else []), {"role": "user", "content": user_content}]
-    payload = {
-        "model": model,
-        "temperature": float(os.environ.get("LLM_TEMPERATURE", "0.2")),
-        "messages": messages,
-    }
+    payload: dict[str, Any] = {"model": model, "messages": messages, "response_format": {"type": "json_object"}}
+    temperature = os.environ.get("OPENAI_TEMPERATURE") or os.environ.get("LLM_TEMPERATURE")
+    if temperature is not None:
+        payload["temperature"] = float(temperature)
     request = urllib.request.Request(
         f"{base_url}/chat/completions",
         data=json.dumps(payload).encode("utf-8"),
@@ -88,6 +88,8 @@ def choose_actions(
             data = json.loads(response.read().decode("utf-8"))
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         raw_usage = data.get("usage") or {}
+        prompt_details = raw_usage.get("prompt_tokens_details") or {}
+        completion_details = raw_usage.get("completion_tokens_details") or {}
         usage = make_usage(
             provider="openai",
             model=data.get("model", model),
@@ -97,6 +99,11 @@ def choose_actions(
             total_tokens=raw_usage.get("total_tokens"),
             api_latency_ms=latency_ms,
         )
+        assert usage is not None
+        if prompt_details.get("cached_tokens") is not None:
+            usage["cached_input_tokens"] = prompt_details["cached_tokens"]
+        if completion_details.get("reasoning_tokens") is not None:
+            usage["reasoning_tokens"] = completion_details["reasoning_tokens"]
         content = data["choices"][0]["message"]["content"]
         if SESSION_MODE:
             # Only successful exchanges enter the history so a transient API

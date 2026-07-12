@@ -323,6 +323,10 @@ def _run_info(command: str, agent: Any, config: BenchmarkConfig) -> dict[str, An
     }
     if "profile" in metadata:
         info["profile"] = metadata["profile"]
+    if metadata.get("transport"):
+        info["transport"] = metadata["transport"]
+    if metadata.get("provider_options"):
+        info["provider_options"] = metadata["provider_options"]
     return info
 
 
@@ -545,10 +549,11 @@ def _providers_command(args: argparse.Namespace) -> None:
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
         return
-    print("provider       model_env         default_model")
-    print("------------------------------------------------")
+    print("provider       transport       auth     model_env         default_model")
+    print("------------------------------------------------------------------------")
     for row in payload:
-        print(f"{row['provider']:<14}{row['model_env']:<18}{row['default_model']}")
+        auth = "ready" if row["credential_present"] else ("missing" if row["credential_env"] else "n/a")
+        print(f"{row['provider']:<14}{row['transport']:<16}{auth:<9}{row['model_env']:<18}{row['default_model']}")
 
 
 def _validate_result_command(args: argparse.Namespace) -> None:

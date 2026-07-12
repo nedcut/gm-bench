@@ -1,0 +1,13 @@
+{
+  "provider": "openrouter",
+  "model": "openai/gpt-5.4-mini",
+  "preset": "smoke",
+  "no_log": true,
+  "json": true,
+  "env": {
+    "OPENROUTER_PROVIDER_SORT": "price",
+    "OPENROUTER_ALLOW_FALLBACKS": "false",
+    "OPENROUTER_REQUIRE_PARAMETERS": "false",
+    "OPENROUTER_DATA_COLLECTION": "deny"
+  }
+}

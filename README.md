@@ -119,6 +119,11 @@ List supported providers:
 python -m gm_bench providers
 ```
 
+Direct OpenAI, Anthropic, Gemini, and OpenRouter setup—including reproducible
+OpenRouter routing controls—is documented in
+[`docs/api_provider_lanes.md`](docs/api_provider_lanes.md). API lanes are
+recorded separately from coding-harness and local-inference results.
+
 Precompute baseline scores so repeated model runs skip re-simulating scripted
 agents:
 

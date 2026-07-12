@@ -171,6 +171,55 @@ def test_sota_v1_policy_requires_full_usage() -> None:
     assert "candidate usage.cost_usd is required, use null only when pricing is unknown" in report.errors
 
 
+def test_openrouter_price_route_is_public_diagnostic_but_not_sota() -> None:
+    payload = _official_payload(repeats=3)
+    payload["agent"] = "openrouter:openai/gpt-test"
+    payload["candidate"]["agent"] = payload["agent"]
+    payload["run_info"].update(
+        {
+            "agent": payload["agent"],
+            "provider": "openrouter",
+            "model": "openai/gpt-test",
+            "scaffold_fingerprint": scaffold_fingerprint("openrouter"),
+            "provider_options": {
+                "OPENROUTER_PROVIDER_SORT": "price",
+                "OPENROUTER_ALLOW_FALLBACKS": "false",
+            },
+        }
+    )
+    payload["candidate"]["summary"]["usage"]["upstream_providers"] = ["OpenAI"]
+
+    public = validate_leaderboard_payload(payload, policy=PUBLIC_LEADERBOARD_POLICY)
+    assert public.ok
+    assert any("price-routed OpenRouter diagnostic" in warning for warning in public.warnings)
+
+    sota = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    assert not sota.ok
+    assert any("OPENROUTER_PROVIDER_ONLY" in error for error in sota.errors)
+
+
+def test_sota_v1_accepts_pinned_single_upstream_openrouter_route() -> None:
+    payload = _official_payload(repeats=3)
+    payload["agent"] = "openrouter:openai/gpt-test"
+    payload["candidate"]["agent"] = payload["agent"]
+    payload["run_info"].update(
+        {
+            "agent": payload["agent"],
+            "provider": "openrouter",
+            "model": "openai/gpt-test",
+            "scaffold_fingerprint": scaffold_fingerprint("openrouter"),
+            "provider_options": {
+                "OPENROUTER_PROVIDER_ONLY": "openai",
+                "OPENROUTER_ALLOW_FALLBACKS": "false",
+            },
+        }
+    )
+    payload["candidate"]["summary"]["usage"]["upstream_providers"] = ["OpenAI"]
+
+    report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    assert report.ok
+
+
 def test_sota_v1_policy_requires_contract_provenance() -> None:
     payload = _official_payload(repeats=3)
     del payload["run_info"]["benchmark_contract"]

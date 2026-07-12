@@ -194,6 +194,14 @@ def validate_leaderboard_payload(
                 errors.append("candidate usage must cover every decision point")
             if usage.get("cost_usd", "missing") == "missing":
                 errors.append("candidate usage.cost_usd is required, use null only when pricing is unknown")
+        if run_info.get("provider") == "openrouter":
+            _validate_openrouter_route(
+                errors,
+                warnings,
+                run_info,
+                usage,
+                strict=policy.name == SOTA_V1_POLICY_NAME,
+            )
 
     for baseline in baselines:
         name = baseline.get("agent", "unknown")
@@ -230,6 +238,32 @@ def validate_leaderboard_payload(
             warnings.append("candidate does not beat the strongest scripted baseline")
 
     return ValidationReport(policy=policy.name, errors=errors, warnings=warnings)
+
+
+def _validate_openrouter_route(
+    errors: list[str],
+    warnings: list[str],
+    run_info: dict[str, Any],
+    usage: dict[str, Any],
+    *,
+    strict: bool,
+) -> None:
+    """Keep flexible gateway rows visible without treating them as canonical."""
+    options = _dict(run_info.get("provider_options"))
+    only = str(options.get("OPENROUTER_PROVIDER_ONLY", "")).strip()
+    fallbacks = str(options.get("OPENROUTER_ALLOW_FALLBACKS", "")).lower()
+    upstreams = [str(value) for value in _list(usage.get("upstream_providers")) if value]
+    issues: list[str] = []
+    if not only:
+        issues.append("run_info.provider_options.OPENROUTER_PROVIDER_ONLY must pin an upstream provider")
+    if fallbacks not in {"false", "0", "no", "off"}:
+        issues.append("run_info.provider_options.OPENROUTER_ALLOW_FALLBACKS must be false")
+    if len(set(upstreams)) != 1:
+        issues.append("candidate usage must report exactly one OpenRouter upstream provider")
+    if strict:
+        errors.extend(issues)
+    else:
+        warnings.extend(f"price-routed OpenRouter diagnostic: {issue}" for issue in issues)
 
 
 def redact_leaderboard_payload(

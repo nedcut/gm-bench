@@ -15,7 +15,17 @@ from gm_bench.session import PersistentProcessAgent
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = ROOT / "examples"
 
-PROVIDER_NAMES = ("openai", "gemini", "ollama", "codex", "claude", "opencode", "cursor")
+PROVIDER_NAMES = (
+    "openai",
+    "anthropic",
+    "gemini",
+    "openrouter",
+    "ollama",
+    "codex",
+    "claude",
+    "opencode",
+    "cursor",
+)
 
 
 @dataclass(frozen=True)
@@ -26,17 +36,32 @@ class ProviderSpec:
     default_model: str
     default_timeout: float
     default_profile: str | None = None
+    transport: str = "coding-harness"
+    credential_env: tuple[str, ...] = ()
     extra_env: dict[str, str] = field(default_factory=dict)
+    provenance_env: tuple[str, ...] = ()
 
 
 PROVIDERS: dict[str, ProviderSpec] = {
     "openai": ProviderSpec(
         name="openai",
         script="openai_compatible_agent.py",
-        model_env="LLM_MODEL",
-        default_model="gpt-4.1-mini",
+        model_env="OPENAI_MODEL",
+        default_model="gpt-5.4-mini",
         default_timeout=120.0,
         default_profile="compact",
+        transport="direct-api",
+        credential_env=("OPENAI_API_KEY",),
+    ),
+    "anthropic": ProviderSpec(
+        name="anthropic",
+        script="anthropic_agent.py",
+        model_env="ANTHROPIC_MODEL",
+        default_model="claude-sonnet-4-6",
+        default_timeout=180.0,
+        default_profile="compact",
+        transport="direct-api",
+        credential_env=("ANTHROPIC_API_KEY",),
     ),
     "gemini": ProviderSpec(
         name="gemini",
@@ -45,6 +70,35 @@ PROVIDERS: dict[str, ProviderSpec] = {
         default_model="gemini-3.5-flash",
         default_timeout=180.0,
         default_profile="compact",
+        transport="direct-api",
+        credential_env=("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+    ),
+    "openrouter": ProviderSpec(
+        name="openrouter",
+        script="openrouter_agent.py",
+        model_env="OPENROUTER_MODEL",
+        default_model="openai/gpt-5.4-mini",
+        default_timeout=180.0,
+        default_profile="compact",
+        transport="gateway-api",
+        credential_env=("OPENROUTER_API_KEY",),
+        extra_env={
+            "OPENROUTER_PROVIDER_SORT": "price",
+            "OPENROUTER_ALLOW_FALLBACKS": "false",
+            "OPENROUTER_REQUIRE_PARAMETERS": "false",
+            "OPENROUTER_DATA_COLLECTION": "deny",
+            "OPENROUTER_JSON_MODE": "false",
+        },
+        provenance_env=(
+            "OPENROUTER_PROVIDER_ONLY",
+            "OPENROUTER_PROVIDER_SORT",
+            "OPENROUTER_ALLOW_FALLBACKS",
+            "OPENROUTER_REQUIRE_PARAMETERS",
+            "OPENROUTER_DATA_COLLECTION",
+            "OPENROUTER_ZDR",
+            "OPENROUTER_QUANTIZATIONS",
+            "OPENROUTER_JSON_MODE",
+        ),
     ),
     "ollama": ProviderSpec(
         name="ollama",
@@ -53,6 +107,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
         default_model="gemma4:e4b",
         default_timeout=240.0,
         default_profile="tiny",
+        transport="local-api",
     ),
     "codex": ProviderSpec(
         name="codex",
@@ -150,7 +205,15 @@ def build_provider_agent(
         "profile": resolved_profile,
         "agent_timeout": resolved_timeout,
         "session": session,
+        "transport": spec.transport,
     }
+    provider_options = {
+        key: env.get(key, os.environ.get(key))
+        for key in spec.provenance_env
+        if env.get(key, os.environ.get(key)) not in (None, "")
+    }
+    if provider_options:
+        agent.metadata["provider_options"] = provider_options
     return agent
 
 
@@ -163,6 +226,11 @@ def provider_help() -> list[dict[str, Any]]:
             "default_model": spec.default_model,
             "default_timeout": spec.default_timeout,
             "default_profile": spec.default_profile,
+            "transport": spec.transport,
+            "credential_env": list(spec.credential_env),
+            "credential_present": any(os.environ.get(name) for name in spec.credential_env)
+            if spec.credential_env
+            else None,
         }
         for spec in PROVIDERS.values()
     ]

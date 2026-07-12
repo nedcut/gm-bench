@@ -29,6 +29,7 @@ def test_provider_agent_carries_resolved_metadata(monkeypatch: pytest.MonkeyPatc
         "profile": "compact",
         "agent_timeout": 120.0,
         "session": False,
+        "transport": "direct-api",
     }
 
 
@@ -108,11 +109,12 @@ def test_cli_model_run_info_records_resolved_provider_metadata(monkeypatch: pyte
     run_info = captured["run_info"]
     assert run_info["command"] == "model"
     assert run_info["provider"] == "openai"
-    assert run_info["model"] == "gpt-4.1-mini"
+    assert run_info["model"] == "gpt-5.4-mini"
     # The smoke preset pins the compact profile even though a bare openai
     # default would also be compact; the point is the resolved value is stamped.
     assert run_info["profile"] == "compact"
     assert run_info["preset"] == "smoke"
+    assert run_info["transport"] == "direct-api"
     assert run_info["benchmark_contract"] == benchmark_contract()
     assert run_info["seed_panel"]["name"] == "custom"
 

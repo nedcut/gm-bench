@@ -221,6 +221,8 @@ def test_summarize_usage_merges_episode_blocks():
                 "cost_usd": 0.5,
                 "model": "m",
                 "provider": "p",
+                "upstream_provider": "A",
+                "upstream_providers": ["A", "B"],
             }
         },
         {
@@ -235,6 +237,8 @@ def test_summarize_usage_merges_episode_blocks():
                 "cost_usd": 1.0,
                 "model": "m",
                 "provider": "p",
+                "upstream_provider": "A",
+                "upstream_providers": ["A", "C"],
             }
         },
     ]
@@ -244,3 +248,5 @@ def test_summarize_usage_merges_episode_blocks():
     assert merged["harness_latency_ms"] == pytest.approx(60.0)
     assert merged["mean_tokens_per_decision"] == pytest.approx(440 / 6, abs=0.1)
     assert merged["model"] == "m"
+    assert merged["upstream_provider"] == "A"
+    assert merged["upstream_providers"] == ["A", "B", "C"]
