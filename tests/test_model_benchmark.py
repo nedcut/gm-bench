@@ -225,15 +225,20 @@ def test_cli_model_config_preserves_config_baselines(tmp_path: Path, monkeypatch
     class DummyAgent:
         name = "openai:gpt-test"
 
-    def fake_evaluate(agent, seeds, seasons, baselines, **kwargs):
-        del agent, kwargs
+    def fake_run(agent, seeds, seasons, repeats, **kwargs):
+        del agent, repeats, kwargs
         captured["seeds"] = seeds
         captured["seasons"] = seasons
+        return {"seeds": seeds, "seasons": seasons}
+
+    def fake_evaluate(candidate, baselines, **kwargs):
+        del candidate, kwargs
         captured["baselines"] = baselines
         return {}
 
     monkeypatch.setattr(cli_module, "build_provider_agent", lambda *args, **kwargs: DummyAgent())
-    monkeypatch.setattr(cli_module, "evaluate_against_baselines", fake_evaluate)
+    monkeypatch.setattr(cli_module, "run_resumable_candidate", fake_run)
+    monkeypatch.setattr(cli_module, "evaluate_resumable_candidate", fake_evaluate)
     monkeypatch.setattr(cli_module, "_maybe_log", lambda *args, **kwargs: None)
     monkeypatch.setattr(cli_module, "_print_evaluation", lambda result: None)
 
@@ -255,7 +260,12 @@ def test_cli_model_config_supplies_provider_without_flag(tmp_path: Path, monkeyp
         return DummyAgent()
 
     monkeypatch.setattr(cli_module, "build_provider_agent", fake_build)
-    monkeypatch.setattr(cli_module, "evaluate_against_baselines", lambda *args, **kwargs: {})
+    monkeypatch.setattr(
+        cli_module,
+        "run_resumable_candidate",
+        lambda _agent, seeds, seasons, _repeats, **_kwargs: {"seeds": seeds, "seasons": seasons},
+    )
+    monkeypatch.setattr(cli_module, "evaluate_resumable_candidate", lambda *args, **kwargs: {})
     monkeypatch.setattr(cli_module, "_maybe_log", lambda *args, **kwargs: None)
     monkeypatch.setattr(cli_module, "_print_evaluation", lambda result: None)
 
