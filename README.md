@@ -604,6 +604,24 @@ Note: Codex cloud/API mode, Claude Code, and opencode-backed runs may send
 benchmark observations/prompts to external model providers. Local Codex OSS mode
 with Ollama stays local.
 
+### Gemini API
+
+The Gemini adapter calls Google's native `generateContent` API with a
+`GEMINI_API_KEY` (or `GOOGLE_API_KEY`) and records native token usage. Start with
+the stable `gemini-3.5-flash` lane and keep the benchmark serial:
+
+```bash
+GEMINI_API_KEY=... GM_BENCH_WORKERS=1 python -m gm_bench model \
+  --provider gemini --model gemini-3.5-flash \
+  --preset smoke --verbose --json --no-log
+
+GEMINI_API_KEY=... GM_BENCH_WORKERS=1 python -m gm_bench model \
+  --provider gemini --model gemini-3.5-flash \
+  --preset leaderboard --repeats 3 \
+  --agent-timeout 180 --verbose --json --no-log \
+  > results/leaderboard/gemini-3.5-flash.json
+```
+
 ## Benchmark Philosophy
 
 This MVP is designed to test long-horizon strategic planning, resource

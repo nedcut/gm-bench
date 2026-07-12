@@ -15,7 +15,7 @@ from gm_bench.session import PersistentProcessAgent
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = ROOT / "examples"
 
-PROVIDER_NAMES = ("openai", "ollama", "codex", "claude", "opencode", "cursor")
+PROVIDER_NAMES = ("openai", "gemini", "ollama", "codex", "claude", "opencode", "cursor")
 
 
 @dataclass(frozen=True)
@@ -36,6 +36,14 @@ PROVIDERS: dict[str, ProviderSpec] = {
         model_env="LLM_MODEL",
         default_model="gpt-4.1-mini",
         default_timeout=120.0,
+        default_profile="compact",
+    ),
+    "gemini": ProviderSpec(
+        name="gemini",
+        script="gemini_agent.py",
+        model_env="GEMINI_MODEL",
+        default_model="gemini-3.5-flash",
+        default_timeout=180.0,
         default_profile="compact",
     ),
     "ollama": ProviderSpec(

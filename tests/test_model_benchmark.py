@@ -28,6 +28,15 @@ def test_provider_registry_resolves_openai() -> None:
     assert agent.name == "openai:gpt-test"
 
 
+def test_provider_registry_resolves_gemini() -> None:
+    spec = resolve_provider("gemini")
+    assert spec.model_env == "GEMINI_MODEL"
+    assert spec.default_model == "gemini-3.5-flash"
+    agent = build_provider_agent("gemini")
+    assert agent.name == "gemini:gemini-3.5-flash"
+    assert agent.metadata["profile"] == "compact"
+
+
 def test_benchmark_config_applies_preset() -> None:
     config = BenchmarkConfig()
     config.apply_preset("smoke")
@@ -135,7 +144,7 @@ def test_cli_model_help_lists_provider_command() -> None:
     assert "--preset" in completed.stdout
 
 
-def test_cli_providers_lists_openai() -> None:
+def test_cli_providers_lists_openai_and_gemini() -> None:
     completed = subprocess.run(
         [sys.executable, "-m", "gm_bench", "providers"],
         text=True,
@@ -143,6 +152,7 @@ def test_cli_providers_lists_openai() -> None:
         check=True,
     )
     assert "openai" in completed.stdout
+    assert "gemini" in completed.stdout
 
 
 def test_cli_cache_baselines_json(tmp_path: Path) -> None:
