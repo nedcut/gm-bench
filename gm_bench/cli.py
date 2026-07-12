@@ -373,6 +373,21 @@ def _model_command(args: argparse.Namespace) -> None:
         )
         if args.preset:
             config.apply_preset(args.preset)
+        # CLI flags must win over preset defaults (same as the --config path).
+        # Without this, `--preset leaderboard --seeds 12 13 …` silently re-runs
+        # the full public panel and destroys resume/partial-panel workflows.
+        if args.seeds is not None:
+            config.seeds = args.seeds
+        if args.seasons is not None:
+            config.seasons = args.seasons
+        if args.repeats is not None:
+            config.repeats = args.repeats
+        if args.baselines is not None:
+            config.baselines = args.baselines
+        if args.agent_timeout is not None:
+            config.agent_timeout = args.agent_timeout
+        if args.profile is not None:
+            config.profile = args.profile
     config.validate()
     if not config.provider:
         sys.exit('gm-bench model: no provider specified; pass --provider or set "provider" in the config file')
