@@ -8,6 +8,7 @@ from statistics import mean
 
 import pytest
 
+import gm_bench.cli as cli_module
 import gm_bench.runner as runner_module
 from examples.claude_agent import build_command as build_claude_command
 from examples.codex_agent import build_command as build_codex_command
@@ -15,6 +16,7 @@ from examples.gm_agent_common import build_prompt, parse_actions
 from gm_bench.agents import ExternalProcessAgent, RandomAgent, ValueAgent
 from gm_bench.gui import _parse_seeds, agent_standings, dashboard_payload, run_from_request, score_history
 from gm_bench.runner import evaluate_against_baselines, run_episode, run_many
+from gm_bench.session import PersistentProcessAgent
 from gm_bench.simulator import League
 from gm_bench.storage import log_payload
 
@@ -142,12 +144,14 @@ def test_parallel_run_many_matches_sequential_results() -> None:
 def test_external_agents_default_to_serial_workers(monkeypatch: pytest.MonkeyPatch) -> None:
     """Model adapters must not fan out across seeds — that burns provider quotas."""
     monkeypatch.delenv("GM_BENCH_WORKERS", raising=False)
-    monkeypatch.setattr(runner_module.os, "cpu_count", lambda: 16)
     external = ExternalProcessAgent("true", name="fake-model")
-    assert runner_module._default_workers(24, external) == 1
-    assert runner_module._default_workers(24, ValueAgent()) == 16
+    persistent = PersistentProcessAgent("true", name="fake-session")
+    assert cli_module._model_worker_count(external, None) == 1
+    assert cli_module._model_worker_count(persistent, None) == 1
+    assert cli_module._model_worker_count(ValueAgent(), None) is None
     monkeypatch.setenv("GM_BENCH_WORKERS", "4")
-    assert runner_module._default_workers(24, external) == 4
+    assert cli_module._model_worker_count(external, None) == 4
+    assert cli_module._model_worker_count(external, 2) == 2
 
 
 def test_cli_json_run() -> None:

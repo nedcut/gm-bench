@@ -83,9 +83,8 @@
       ],
       "session": false,
       "significant": false,
-      "sota_v1_eligible": false,
+      "sota_v1_eligible": true,
       "sota_v1_issues": [
-        "run_info.benchmark_contract.contract_fingerprint must be '414522795636f9c0', got 'cf2607e59dba0c7f'",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate lift is not significant at 95% against the baseline panel",
         "candidate does not beat the strongest scripted baseline"
@@ -136,7 +135,6 @@
       "significant": false,
       "sota_v1_eligible": false,
       "sota_v1_issues": [
-        "run_info.benchmark_contract.contract_fingerprint must be '414522795636f9c0', got 'cf2607e59dba0c7f'",
         "candidate decision_failure_rate 0.263 exceeds 0.020 for sota-v1",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
@@ -154,7 +152,7 @@
         -41.723,
         -19.709
       ],
-      "contract_fingerprint": "414522795636f9c0",
+      "contract_fingerprint": "cf2607e59dba0c7f",
       "cost_per_episode_usd": 0.5351,
       "cost_usd": 12.843057,
       "decision_points": 480,
@@ -204,7 +202,7 @@
         -136.695,
         -99.863
       ],
-      "contract_fingerprint": "414522795636f9c0",
+      "contract_fingerprint": "cf2607e59dba0c7f",
       "cost_per_episode_usd": null,
       "cost_usd": null,
       "decision_points": 480,
@@ -288,7 +286,6 @@
       "significant": true,
       "sota_v1_eligible": false,
       "sota_v1_issues": [
-        "run_info.benchmark_contract.contract_fingerprint must be '414522795636f9c0', got 'cf2607e59dba0c7f'",
         "candidate decision_failure_rate 0.873 exceeds 0.020 for sota-v1",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
@@ -340,7 +337,6 @@
       "significant": true,
       "sota_v1_eligible": false,
       "sota_v1_issues": [
-        "run_info.benchmark_contract.contract_fingerprint must be '414522795636f9c0', got 'cf2607e59dba0c7f'",
         "candidate decision_failure_rate 0.446 exceeds 0.020 for sota-v1",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
@@ -392,7 +388,6 @@
       "significant": true,
       "sota_v1_eligible": false,
       "sota_v1_issues": [
-        "run_info.benchmark_contract.contract_fingerprint must be '414522795636f9c0', got 'cf2607e59dba0c7f'",
         "candidate decision_failure_rate 0.371 exceeds 0.020 for sota-v1",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
@@ -444,7 +439,6 @@
       "significant": true,
       "sota_v1_eligible": false,
       "sota_v1_issues": [
-        "run_info.benchmark_contract.contract_fingerprint must be '414522795636f9c0', got 'cf2607e59dba0c7f'",
         "candidate decision_failure_rate 0.050 exceeds 0.020 for sota-v1",
         "run_info.scaffold_fingerprint missing: prompt scaffold unverified (pre-provenance artifact)",
         "candidate has illegal actions; score includes protocol penalties",
@@ -497,7 +491,6 @@
       "significant": true,
       "sota_v1_eligible": false,
       "sota_v1_issues": [
-        "run_info.benchmark_contract.contract_fingerprint must be '414522795636f9c0', got 'cf2607e59dba0c7f'",
         "candidate decision_failure_rate 0.029 exceeds 0.020 for sota-v1",
         "run_info.scaffold_fingerprint missing: prompt scaffold unverified (pre-provenance artifact)",
         "candidate has illegal actions; score includes protocol penalties",

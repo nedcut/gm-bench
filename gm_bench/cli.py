@@ -7,6 +7,7 @@ import json
 import os
 import platform
 import sys
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any
 
@@ -26,6 +27,7 @@ from gm_bench.official import (
 from gm_bench.oracle import OracleAgent
 from gm_bench.providers import PROVIDER_NAMES, build_provider_agent, provider_help
 from gm_bench.runner import evaluate_against_baselines, make_progress_printer, run_many, run_many_cached_baselines
+from gm_bench.session import PersistentProcessAgent
 from gm_bench.simulator import League
 from gm_bench.storage import DEFAULT_DB_PATH, log_payload
 from gm_bench.validity import run_validity_canaries
@@ -36,6 +38,39 @@ EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED = 60.0
 # The oracle is intentionally CLI-only.  Keeping it out of ``AGENTS`` means it
 # cannot become an official baseline or alter the frozen benchmark contract.
 CLI_AGENTS: dict[str, type[Any]] = {**AGENTS, "oracle": OracleAgent}
+
+
+def _model_worker_count(agent: Any, requested: int | None) -> int | None:
+    """Resolve model-command concurrency without changing the score contract.
+
+    Worker scheduling is harness policy, not simulator semantics, so this lives
+    outside ``runner.py`` (which is part of the frozen benchmark fingerprint).
+    """
+    if requested is not None:
+        return max(1, requested)
+    configured = os.environ.get("GM_BENCH_WORKERS")
+    if configured:
+        return max(1, int(configured))
+    if isinstance(agent, (ExternalProcessAgent, PersistentProcessAgent)):
+        return 1
+    return None
+
+
+@contextmanager
+def _model_worker_environment(workers: int | None):
+    """Temporarily pass model-command worker policy to the frozen runner."""
+    previous = os.environ.get("GM_BENCH_WORKERS")
+    try:
+        if workers is None:
+            os.environ.pop("GM_BENCH_WORKERS", None)
+        else:
+            os.environ["GM_BENCH_WORKERS"] = str(workers)
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("GM_BENCH_WORKERS", None)
+        else:
+            os.environ["GM_BENCH_WORKERS"] = previous
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -350,16 +385,17 @@ def _model_command(args: argparse.Namespace) -> None:
         session=bool(getattr(args, "session", False)),
     )
     progress = make_progress_printer(config.verbose)
-    result = evaluate_against_baselines(
-        agent,
-        config.seeds,
-        config.seasons,
-        config.baselines,
-        repeats=config.repeats,
-        workers=getattr(args, "workers", None),
-        use_baseline_cache=config.use_baseline_cache,
-        progress=progress,
-    )
+    workers = _model_worker_count(agent, getattr(args, "workers", None))
+    with _model_worker_environment(workers):
+        result = evaluate_against_baselines(
+            agent,
+            config.seeds,
+            config.seasons,
+            config.baselines,
+            repeats=config.repeats,
+            use_baseline_cache=config.use_baseline_cache,
+            progress=progress,
+        )
     result["run_info"] = _run_info("model", agent, config)
     run_id = _maybe_log(args, "model", result)
     if config.json_output:
