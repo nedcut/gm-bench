@@ -13,6 +13,7 @@ from typing import Any
 
 from gm_bench.agents import AGENTS, Agent
 from gm_bench.baseline_cache import default_cache_path
+from gm_bench.contract import benchmark_contract, scaffold_fingerprint
 from gm_bench.runner import (
     _episodes_payload,
     _paired_analysis,
@@ -110,6 +111,8 @@ def run_resumable_candidate(
     """Run missing seed/repeat episodes and atomically checkpoint each completion."""
     expected = {(seed, repeat) for seed in seeds for repeat in range(1, repeats + 1)}
     episodes: dict[tuple[int, int], dict[str, Any]] = {}
+    metadata = dict(getattr(agent, "metadata", {}))
+    provenance = _resume_provenance(metadata)
     sources = list(resume_sources or [])
     if resume_checkpoint and checkpoint_path.exists():
         sources.append(checkpoint_path)
@@ -118,15 +121,21 @@ def run_resumable_candidate(
             source,
             agent.name,
             seasons,
-            expected_metadata=getattr(agent, "metadata", {}),
+            expected_metadata=metadata,
+            expected_provenance=provenance,
         ):
             key = (int(episode["seed"]), int(episode.get("repeat") or 1))
             if key in expected and int(episode.get("failed_decisions", 0)) == 0:
+                if key in episodes and episodes[key] != episode:
+                    raise ModelRunAborted(
+                        f"resume sources contain conflicting successful episodes for seed {key[0]} repeat {key[1]}"
+                    )
                 episodes[key] = episode
 
     wrapped = FailFastAgent(agent, threshold=fail_fast)
-    metadata = dict(getattr(agent, "metadata", {}))
-    _write_checkpoint(checkpoint_path, wrapped.name, seeds, seasons, repeats, episodes, metadata, status="running")
+    _write_checkpoint(
+        checkpoint_path, wrapped.name, seeds, seasons, repeats, episodes, metadata, provenance, status="running"
+    )
     try:
         for seed in seeds:
             for repeat in range(1, repeats + 1):
@@ -137,7 +146,15 @@ def run_resumable_candidate(
                 episode = {**result.__dict__, "repeat": repeat}
                 episodes[key] = episode
                 _write_checkpoint(
-                    checkpoint_path, wrapped.name, seeds, seasons, repeats, episodes, metadata, status="running"
+                    checkpoint_path,
+                    wrapped.name,
+                    seeds,
+                    seasons,
+                    repeats,
+                    episodes,
+                    metadata,
+                    provenance,
+                    status="running",
                 )
     except BaseException as exc:
         _write_checkpoint(
@@ -148,13 +165,16 @@ def run_resumable_candidate(
             repeats,
             episodes,
             metadata,
+            provenance,
             status="aborted",
             error=str(exc),
         )
         raise
 
     ordered = [episodes[(seed, repeat)] for seed in seeds for repeat in range(1, repeats + 1)]
-    _write_checkpoint(checkpoint_path, wrapped.name, seeds, seasons, repeats, episodes, metadata, status="complete")
+    _write_checkpoint(
+        checkpoint_path, wrapped.name, seeds, seasons, repeats, episodes, metadata, provenance, status="complete"
+    )
     payload = _episodes_payload(wrapped.name, seeds, seasons, ordered)
     payload["repeats"] = repeats
     return payload
@@ -166,6 +186,7 @@ def _load_candidate_episodes(
     seasons: int,
     *,
     expected_metadata: dict[str, Any],
+    expected_provenance: dict[str, Any],
 ) -> list[dict[str, Any]]:
     payload = json.loads(path.read_text())
     candidate = payload.get("candidate", payload)
@@ -181,7 +202,23 @@ def _load_candidate_episodes(
             raise ModelRunAborted(
                 f"resume source {path} has {key}={source_metadata[key]!r}, expected {expected_metadata[key]!r}"
             )
+    if expected_provenance:
+        source_provenance = payload.get("provenance") or payload.get("run_info") or {}
+        if source_provenance.get("benchmark_contract") != expected_provenance["benchmark_contract"]:
+            raise ModelRunAborted(f"resume source {path} does not match the current benchmark contract")
+        if source_provenance.get("scaffold_fingerprint") != expected_provenance["scaffold_fingerprint"]:
+            raise ModelRunAborted(f"resume source {path} does not match the current provider scaffold")
     return list(candidate.get("episodes") or [])
+
+
+def _resume_provenance(metadata: dict[str, Any]) -> dict[str, Any]:
+    provider = metadata.get("provider")
+    if not provider:
+        return {}
+    return {
+        "benchmark_contract": benchmark_contract(),
+        "scaffold_fingerprint": scaffold_fingerprint(str(provider)),
+    }
 
 
 def _write_checkpoint(
@@ -192,6 +229,7 @@ def _write_checkpoint(
     repeats: int,
     episodes: dict[tuple[int, int], dict[str, Any]],
     metadata: dict[str, Any],
+    provenance: dict[str, Any],
     *,
     status: str,
     error: str | None = None,
@@ -205,6 +243,7 @@ def _write_checkpoint(
         "seasons": seasons,
         "repeats": repeats,
         "metadata": metadata,
+        "provenance": provenance,
         "episodes": [episodes[key] for key in sorted(episodes)],
         "completed": [{"seed": seed, "repeat": repeat} for seed, repeat in sorted(episodes)],
     }

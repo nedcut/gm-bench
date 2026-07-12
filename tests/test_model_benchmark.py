@@ -304,3 +304,17 @@ def test_baselines_from_cache_requires_full_seed_coverage(tmp_path: Path, monkey
     assert len(rows) == 1
     assert rows[0]["agent"] == "value"
     assert rows[0]["mean_score"] == pytest.approx(sum(bl.LEADERBOARD["seeds"]) / len(bl.LEADERBOARD["seeds"]))
+
+
+def test_leaderboard_selects_official_then_newest_diagnostic() -> None:
+    from web.scripts.build_leaderboard import select_model_payloads
+
+    old = {"agent": "claude:sonnet", "run_info": {"timestamp_utc": "2026-07-11T00:00:00+00:00"}}
+    new = {"agent": "claude:sonnet", "run_info": {"timestamp_utc": "2026-07-12T00:00:00+00:00"}}
+    other = {"agent": "cursor:composer", "run_info": {"timestamp_utc": "2026-07-10T00:00:00+00:00"}}
+
+    selected = select_model_payloads([(old, False, "old.json"), (new, False, "new.json"), (other, False, "other.json")])
+    assert selected == [new, other]
+
+    selected = select_model_payloads([(new, False, "new.json"), (old, True, "official.json")])
+    assert selected == [old]

@@ -42,6 +42,12 @@ minutes wall clock and left an invalid diagnostic
 rate 0.873). Prefer `--preset smoke` first; a clean serial sota-v1 panel is
 multi-hour quota spend, not a quick retry.
 
+Fresh-spawn serial model panels write an atomic checkpoint after every completed
+seed/repeat and stop after two consecutive adapter failures. Resume with
+`--resume` for the default checkpoint or add one or more `--resume-from PATH`
+result/checkpoint sources. Only zero-failure episodes with matching model,
+profile, benchmark-contract, and scaffold provenance are reused.
+
 For a held-out SOTA run, set a private leaderboard seed panel before running
 and validating. Keep the raw JSON local; it contains the exact seed ids needed
 for local reproduction. Publish only a redacted artifact, which preserves the

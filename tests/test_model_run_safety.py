@@ -38,6 +38,15 @@ class CountingValueAgent(Agent):
         return self.value.act(observation)
 
 
+class ProviderCountingAgent(CountingValueAgent):
+    metadata = {
+        "provider": "claude",
+        "model": "sonnet",
+        "profile": "compact",
+        "session": False,
+    }
+
+
 def test_fail_fast_agent_aborts_after_consecutive_failures() -> None:
     agent = FailFastAgent(FailAfterAgent(successful_calls=0), threshold=2)
     observation = {"unused": True}
@@ -105,4 +114,50 @@ def test_resume_rejects_mismatched_agent(tmp_path: Path) -> None:
             repeats=1,
             checkpoint_path=tmp_path / "checkpoint.json",
             resume_sources=[source],
+        )
+
+
+def test_resume_rejects_mismatched_contract(tmp_path: Path) -> None:
+    source = tmp_path / "stale.json"
+    prior = run_many(ValueAgent(), seeds=[1], seasons=1, workers=1)
+    prior["agent"] = "test:model"
+    prior["candidate"] = prior.copy()
+    prior["candidate"]["agent"] = "test:model"
+    prior["run_info"] = {
+        **ProviderCountingAgent.metadata,
+        "benchmark_contract": {"contract_fingerprint": "stale"},
+        "scaffold_fingerprint": "stale",
+    }
+    source.write_text(json.dumps(prior))
+
+    with pytest.raises(ModelRunAborted, match="current benchmark contract"):
+        run_resumable_candidate(
+            ProviderCountingAgent(),
+            seeds=[1],
+            seasons=1,
+            repeats=1,
+            checkpoint_path=tmp_path / "checkpoint.json",
+            resume_sources=[source],
+        )
+
+
+def test_resume_rejects_conflicting_successful_duplicates(tmp_path: Path) -> None:
+    prior = run_many(ValueAgent(), seeds=[1], seasons=1, workers=1)
+    prior["agent"] = "test:model"
+    prior["candidate"] = prior.copy()
+    prior["candidate"]["agent"] = "test:model"
+    first = tmp_path / "first.json"
+    second = tmp_path / "second.json"
+    first.write_text(json.dumps(prior))
+    prior["candidate"]["episodes"][0]["final_score"] += 1
+    second.write_text(json.dumps(prior))
+
+    with pytest.raises(ModelRunAborted, match="conflicting successful episodes"):
+        run_resumable_candidate(
+            CountingValueAgent(),
+            seeds=[1],
+            seasons=1,
+            repeats=1,
+            checkpoint_path=tmp_path / "checkpoint.json",
+            resume_sources=[first, second],
         )

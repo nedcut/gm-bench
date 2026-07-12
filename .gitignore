@@ -24,6 +24,7 @@ data/*.sqlite-journal
 data/*.sqlite-wal
 data/*.sqlite-shm
 data/baseline_cache.json
+data/model_checkpoints/
 
 .DS_Store
 Thumbs.db

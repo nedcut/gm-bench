@@ -600,6 +600,14 @@ GM_BENCH_WORKERS=1 CLAUDE_MODEL=sonnet CLAUDE_MAX_BUDGET_USD=0.25 \
 Invalid parallel burn (kept for the lesson):
 `results/diagnostics/claude-sonnet-medium.parallel-fail.json`.
 
+Model panels checkpoint every completed seed/repeat under
+`data/model_checkpoints/` and abort after two consecutive adapter failures.
+Use `--resume` to continue the matching checkpoint, or `--resume-from PATH`
+to reuse only zero-failure episodes from an earlier result. Resume sources must
+match the current provider, model, profile, benchmark contract, and prompt
+scaffold. `--preflight-only` checks provider authentication/tool availability
+without making a model request.
+
 Note: Codex cloud/API mode, Claude Code, and opencode-backed runs may send
 benchmark observations/prompts to external model providers. Local Codex OSS mode
 with Ollama stays local.

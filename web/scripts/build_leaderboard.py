@@ -10,7 +10,8 @@ Diagnostics are visible on the site for transparency, but are deliberately kept
 outside the official-artifact directory so the public-leaderboard CI gate remains
 meaningful.
 It writes ``web/src/data/leaderboard.json`` with one row per model plus the
-scripted-baseline reference panel. When no model results exist yet, the baseline
+scripted-baseline reference panel. Official artifacts take precedence over
+diagnostics for the same model; otherwise the newest diagnostic is shown. When no model results exist yet, the baseline
 panel is read from the current-contract cache or recomputed deterministically so
 the site never mixes historical model rows with stale reference scores.
 
@@ -167,16 +168,34 @@ def current_baselines() -> list[dict[str, Any]]:
     return sorted(rows, key=lambda row: row["mean_score"], reverse=True)
 
 
+def select_model_payloads(
+    artifacts: list[tuple[dict[str, Any], bool, str]],
+) -> list[dict[str, Any]]:
+    """Choose one row per agent: official first, otherwise newest diagnostic."""
+    selected: dict[str, tuple[tuple[bool, str, str], dict[str, Any]]] = {}
+    for payload, official, filename in artifacts:
+        agent = str(payload.get("agent") or "")
+        if not agent:
+            continue
+        timestamp = str((payload.get("run_info") or {}).get("timestamp_utc") or "")
+        priority = (official, timestamp, filename)
+        current = selected.get(agent)
+        if current is None or priority > current[0]:
+            selected[agent] = (priority, payload)
+    return [item[1] for item in selected.values()]
+
+
 def main() -> None:
-    payloads = []
+    artifacts: list[tuple[dict[str, Any], bool, str]] = []
     for directory in (RESULTS_DIR, DIAGNOSTICS_DIR):
         if not directory.exists():
             continue
         for path in sorted(directory.glob("*.json")):
             try:
-                payloads.append(json.loads(path.read_text()))
+                artifacts.append((json.loads(path.read_text()), directory == RESULTS_DIR, path.name))
             except json.JSONDecodeError:
                 print(f"skipping unparseable {path}", file=sys.stderr)
+    payloads = select_model_payloads(artifacts)
     models = sorted((model_row(payload) for payload in payloads), key=lambda row: row["mean_score"], reverse=True)
     baselines = current_baselines()
     dataset = {
