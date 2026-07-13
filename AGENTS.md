@@ -27,8 +27,8 @@ This repo has two products:
 - **Never parallelize Claude (or other subscription/rate-limited CLIs).** Model adapters
   default to serial (`workers=1`), but `GM_BENCH_WORKERS` / `--workers N` overrides that.
   On 2026-07-11 a Claude Sonnet leaderboard panel with parallel fan-out burned a full
-  Claude Pro **5h usage limit in ~5 minutes** and produced an invalid row
-  (`results/diagnostics/claude-sonnet-medium.parallel-fail.json`, fail_rate 0.873).
+  Claude Pro **5h usage limit in ~5 minutes** and produced an invalid result
+  (fail_rate 0.873; the multi-megabyte failed artifact was intentionally not retained).
   Always run Claude with explicit serial workers:
   `GM_BENCH_WORKERS=1` (and do not set a higher global `GM_BENCH_WORKERS` when Claude is
   next). Smoke with `--preset smoke` before any full panel. Full serial panel is hours

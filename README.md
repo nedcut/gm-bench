@@ -597,8 +597,8 @@ GM_BENCH_WORKERS=1 CLAUDE_MODEL=sonnet CLAUDE_MAX_BUDGET_USD=0.25 \
   --seasons 3
 ```
 
-Invalid parallel burn (kept for the lesson):
-`results/diagnostics/claude-sonnet-medium.parallel-fail.json`.
+The invalid parallel burn had a 0.873 decision-failure rate. Its multi-megabyte
+artifact is not retained; the operational lesson and serial guard remain here.
 
 Model panels checkpoint every completed seed/repeat under
 `data/model_checkpoints/` and abort after two consecutive adapter failures.

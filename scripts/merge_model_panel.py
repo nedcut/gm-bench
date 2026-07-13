@@ -5,13 +5,13 @@ Used to resume a leaderboard run after quota death: keep good seed episodes from
 an earlier artifact, drop failed seeds, add a continuation run, then recompute
 summary / paired / normalized blocks with the same helpers as live evaluate.
 
-Example (Claude Sonnet medium resume)::
+Example::
 
     python scripts/merge_model_panel.py \\
-      --base results/diagnostics/claude-sonnet-medium.serial-quota-fail.json \\
+      --base results/diagnostics/model-partial.json \\
       --keep-seeds 11 \\
-      --add results/diagnostics/claude-sonnet-medium.seeds-12-18.json \\
-      --output results/leaderboard/claude-sonnet-medium.json \\
+      --add results/diagnostics/model-continuation.json \\
+      --output results/leaderboard/provider-model.json \\
       --validate sota-v1
 """
 

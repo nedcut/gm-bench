@@ -37,9 +37,9 @@ parallelize.
 **Claude is never a parallel provider.** `GM_BENCH_WORKERS` overrides the serial
 default — leave it unset or force `GM_BENCH_WORKERS=1` for Claude. On 2026-07-11 a
 parallel Sonnet leaderboard panel emptied a Claude Pro 5h usage limit in ~5
-minutes wall clock and left an invalid diagnostic
-(`results/diagnostics/claude-sonnet-medium.parallel-fail.json`, decision failure
-rate 0.873). Prefer `--preset smoke` first; a clean serial sota-v1 panel is
+minutes wall clock and produced a 0.873 decision failure rate. The
+multi-megabyte failed artifact is intentionally not retained. Prefer
+`--preset smoke` first; a clean serial sota-v1 panel is
 multi-hour quota spend, not a quick retry.
 
 Fresh-spawn serial model panels write an atomic checkpoint after every completed
