@@ -7,7 +7,9 @@ import json
 import os
 import platform
 import sys
+from contextlib import contextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from gm_bench import __version__
@@ -16,6 +18,13 @@ from gm_bench.baseline_cache import default_cache_path
 from gm_bench.benchmark_config import PRESET_NAMES, BenchmarkConfig, load_config, seed_panel_metadata
 from gm_bench.calibration import build_scoring_calibration
 from gm_bench.contract import benchmark_contract, scaffold_fingerprint
+from gm_bench.model_runs import (
+    ModelRunAborted,
+    default_checkpoint_path,
+    evaluate_resumable_candidate,
+    preflight_provider,
+    run_resumable_candidate,
+)
 from gm_bench.official import (
     POLICIES,
     PUBLIC_LEADERBOARD_POLICY,
@@ -26,6 +35,7 @@ from gm_bench.official import (
 from gm_bench.oracle import OracleAgent
 from gm_bench.providers import PROVIDER_NAMES, build_provider_agent, provider_help
 from gm_bench.runner import evaluate_against_baselines, make_progress_printer, run_many, run_many_cached_baselines
+from gm_bench.session import PersistentProcessAgent
 from gm_bench.simulator import League
 from gm_bench.storage import DEFAULT_DB_PATH, log_payload
 from gm_bench.validity import run_validity_canaries
@@ -36,6 +46,39 @@ EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED = 60.0
 # The oracle is intentionally CLI-only.  Keeping it out of ``AGENTS`` means it
 # cannot become an official baseline or alter the frozen benchmark contract.
 CLI_AGENTS: dict[str, type[Any]] = {**AGENTS, "oracle": OracleAgent}
+
+
+def _model_worker_count(agent: Any, requested: int | None) -> int | None:
+    """Resolve model-command concurrency without changing the score contract.
+
+    Worker scheduling is harness policy, not simulator semantics, so this lives
+    outside ``runner.py`` (which is part of the frozen benchmark fingerprint).
+    """
+    if requested is not None:
+        return max(1, requested)
+    configured = os.environ.get("GM_BENCH_WORKERS")
+    if configured:
+        return max(1, int(configured))
+    if isinstance(agent, (ExternalProcessAgent, PersistentProcessAgent)):
+        return 1
+    return None
+
+
+@contextmanager
+def _model_worker_environment(workers: int | None):
+    """Temporarily pass model-command worker policy to the frozen runner."""
+    previous = os.environ.get("GM_BENCH_WORKERS")
+    try:
+        if workers is None:
+            os.environ.pop("GM_BENCH_WORKERS", None)
+        else:
+            os.environ["GM_BENCH_WORKERS"] = str(workers)
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("GM_BENCH_WORKERS", None)
+        else:
+            os.environ["GM_BENCH_WORKERS"] = previous
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -87,8 +130,47 @@ def main(argv: list[str] | None = None) -> None:
     )
     model_parser.add_argument("--baselines", nargs="+", choices=sorted(AGENTS))
     model_parser.add_argument("--agent-timeout", type=float)
+    model_parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help=(
+            "parallel episode workers for the candidate. Model/external adapters "
+            "default to 1 (serial) so provider rate limits are not burned; "
+            "scripted agents still fan out. Override with this flag or GM_BENCH_WORKERS."
+        ),
+    )
     model_parser.add_argument("--no-baseline-cache", action="store_true")
     model_parser.add_argument("--verbose", action="store_true", help="print per-decision progress to stderr")
+    model_parser.add_argument(
+        "--checkpoint",
+        type=Path,
+        help="durable per-episode checkpoint path (default: data/model_checkpoints/<agent>.json)",
+    )
+    model_parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="reuse zero-failure episodes from the matching --checkpoint file",
+    )
+    model_parser.add_argument(
+        "--resume-from",
+        action="append",
+        type=Path,
+        default=[],
+        help="reuse zero-failure seed/repeat episodes from an earlier result JSON (repeatable)",
+    )
+    model_parser.add_argument(
+        "--fail-fast",
+        type=int,
+        default=2,
+        metavar="N",
+        help="abort after N consecutive adapter failures (default: 2)",
+    )
+    model_parser.add_argument(
+        "--preflight-only",
+        action="store_true",
+        help="check provider authentication/tool availability without making a model request",
+    )
     model_parser.add_argument("--json", action="store_true")
     _add_logging_args(model_parser)
 
@@ -328,9 +410,31 @@ def _model_command(args: argparse.Namespace) -> None:
         )
         if args.preset:
             config.apply_preset(args.preset)
+        # CLI flags must win over preset defaults (same as the --config path).
+        # Without this, `--preset leaderboard --seeds 12 13 …` silently re-runs
+        # the full public panel and destroys resume/partial-panel workflows.
+        if args.seeds is not None:
+            config.seeds = args.seeds
+        if args.seasons is not None:
+            config.seasons = args.seasons
+        if args.repeats is not None:
+            config.repeats = args.repeats
+        if args.baselines is not None:
+            config.baselines = args.baselines
+        if args.agent_timeout is not None:
+            config.agent_timeout = args.agent_timeout
+        if args.profile is not None:
+            config.profile = args.profile
     config.validate()
     if not config.provider:
         sys.exit('gm-bench model: no provider specified; pass --provider or set "provider" in the config file')
+    try:
+        preflight_provider(config.provider)
+    except ModelRunAborted as exc:
+        sys.exit(f"gm-bench model: {exc}")
+    if args.preflight_only:
+        print(f"provider preflight ok: {config.provider}")
+        return
     agent = build_provider_agent(
         config.provider,
         model=config.model,
@@ -340,15 +444,44 @@ def _model_command(args: argparse.Namespace) -> None:
         session=bool(getattr(args, "session", False)),
     )
     progress = make_progress_printer(config.verbose)
-    result = evaluate_against_baselines(
-        agent,
-        config.seeds,
-        config.seasons,
-        config.baselines,
-        repeats=config.repeats,
-        use_baseline_cache=config.use_baseline_cache,
-        progress=progress,
-    )
+    workers = _model_worker_count(agent, getattr(args, "workers", None))
+    checkpoint = args.checkpoint or default_checkpoint_path(agent.name)
+    if config.provider == "claude" and workers is not None and workers > 1:
+        sys.exit("gm-bench model: Claude must run serially with --workers 1")
+    if bool(getattr(args, "session", False)) or (workers is not None and workers > 1):
+        if args.resume or args.resume_from or args.checkpoint:
+            sys.exit("gm-bench model: checkpoints require fresh-spawn serial execution")
+        with _model_worker_environment(workers):
+            result = evaluate_against_baselines(
+                agent,
+                config.seeds,
+                config.seasons,
+                config.baselines,
+                repeats=config.repeats,
+                use_baseline_cache=config.use_baseline_cache,
+                progress=progress,
+            )
+    else:
+        try:
+            with _model_worker_environment(1):
+                candidate = run_resumable_candidate(
+                    agent,
+                    config.seeds,
+                    config.seasons,
+                    config.repeats,
+                    checkpoint_path=checkpoint,
+                    resume_sources=args.resume_from,
+                    resume_checkpoint=args.resume,
+                    fail_fast=args.fail_fast,
+                    progress=progress,
+                )
+            result = evaluate_resumable_candidate(
+                candidate,
+                config.baselines,
+                use_baseline_cache=config.use_baseline_cache,
+            )
+        except ModelRunAborted as exc:
+            sys.exit(f"gm-bench model: {exc}\ncheckpoint: {checkpoint}")
     result["run_info"] = _run_info("model", agent, config)
     run_id = _maybe_log(args, "model", result)
     if config.json_output:

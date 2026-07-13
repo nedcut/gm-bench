@@ -88,6 +88,9 @@ LLM_API_KEY=... python -m gm_bench model \
   --model gpt-4.1-mini \
   --preset smoke
 
+# Model adapters run serially by default (safe for rate-limited CLIs).
+# Only raise concurrency if the provider can take it: --workers N or GM_BENCH_WORKERS=N.
+
 # Standard panel (3 seeds, 3 seasons)
 python -m gm_bench model \
   --provider openai \
@@ -552,10 +555,29 @@ CODEX_OSS=1 CODEX_LOCAL_PROVIDER=ollama CODEX_MODEL=gemma4:e4b python -m gm_benc
 ### Claude Code
 
 The Claude adapter uses `claude -p` with no tools, no session persistence, and
-the shared GM action JSON schema:
+the shared GM action JSON schema.
+
+**Quota warning (2026-07-11):** parallel episode fan-out burned a full Claude Pro
+5h usage limit in ~5 minutes and produced an invalid leaderboard row. Model
+adapters default to serial, but `GM_BENCH_WORKERS` / `--workers` can override that
+— for Claude always force serial, and never raise workers for a subscription CLI:
 
 ```bash
-CLAUDE_MODEL=sonnet python -m gm_bench run \
+# Smoke first (4 decisions) before any full panel
+GM_BENCH_WORKERS=1 CLAUDE_EFFORT=medium python -m gm_bench model \
+  --provider claude --model sonnet --preset smoke --verbose --json
+
+# Leaderboard: serial only. Budget a whole 5h window — this is hours, not minutes.
+GM_BENCH_WORKERS=1 CLAUDE_EFFORT=medium python -m gm_bench model \
+  --provider claude --model sonnet \
+  --preset leaderboard --repeats 3 \
+  --agent-timeout 300 --verbose --json --no-log
+```
+
+Direct adapter smoke without the model command:
+
+```bash
+GM_BENCH_WORKERS=1 CLAUDE_MODEL=sonnet python -m gm_bench run \
   --agent-cmd "python examples/claude_agent.py" \
   --agent-timeout 180 \
   --seeds 1 \
@@ -566,7 +588,8 @@ CLAUDE_MODEL=sonnet python -m gm_bench run \
 For a more controlled spend during early tests:
 
 ```bash
-CLAUDE_MODEL=sonnet CLAUDE_MAX_BUDGET_USD=0.25 python -m gm_bench evaluate \
+GM_BENCH_WORKERS=1 CLAUDE_MODEL=sonnet CLAUDE_MAX_BUDGET_USD=0.25 \
+  python -m gm_bench evaluate \
   --agent-cmd "python examples/claude_agent.py" \
   --agent-timeout 180 \
   --baselines random conservative win-now rebuild \
@@ -574,9 +597,38 @@ CLAUDE_MODEL=sonnet CLAUDE_MAX_BUDGET_USD=0.25 python -m gm_bench evaluate \
   --seasons 3
 ```
 
+The invalid parallel burn had a 0.873 decision-failure rate. Its multi-megabyte
+artifact is not retained; the operational lesson and serial guard remain here.
+
+Model panels checkpoint every completed seed/repeat under
+`data/model_checkpoints/` and abort after two consecutive adapter failures.
+Use `--resume` to continue the matching checkpoint, or `--resume-from PATH`
+to reuse only zero-failure episodes from an earlier result. Resume sources must
+match the current provider, model, profile, benchmark contract, and prompt
+scaffold. `--preflight-only` checks provider authentication/tool availability
+without making a model request.
+
 Note: Codex cloud/API mode, Claude Code, and opencode-backed runs may send
 benchmark observations/prompts to external model providers. Local Codex OSS mode
 with Ollama stays local.
+
+### Gemini API
+
+The Gemini adapter calls Google's native `generateContent` API with a
+`GEMINI_API_KEY` (or `GOOGLE_API_KEY`) and records native token usage. Start with
+the stable `gemini-3.5-flash` lane and keep the benchmark serial:
+
+```bash
+GEMINI_API_KEY=... GM_BENCH_WORKERS=1 python -m gm_bench model \
+  --provider gemini --model gemini-3.5-flash \
+  --preset smoke --verbose --json --no-log
+
+GEMINI_API_KEY=... GM_BENCH_WORKERS=1 python -m gm_bench model \
+  --provider gemini --model gemini-3.5-flash \
+  --preset leaderboard --repeats 3 \
+  --agent-timeout 180 --verbose --json --no-log \
+  > results/leaderboard/gemini-3.5-flash.json
+```
 
 ## Benchmark Philosophy
 

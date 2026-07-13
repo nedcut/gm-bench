@@ -98,7 +98,8 @@ def test_cli_model_run_info_records_resolved_provider_metadata(monkeypatch: pyte
     monkeypatch.delenv("GM_AGENT_PROFILE", raising=False)
     captured: dict[str, object] = {}
 
-    monkeypatch.setattr(cli_module, "evaluate_against_baselines", lambda *args, **kwargs: {})
+    monkeypatch.setattr(cli_module, "run_resumable_candidate", lambda *args, **kwargs: {})
+    monkeypatch.setattr(cli_module, "evaluate_resumable_candidate", lambda *args, **kwargs: {})
     monkeypatch.setattr(cli_module, "_maybe_log", lambda *args, **kwargs: None)
     monkeypatch.setattr(cli_module, "_print_evaluation", lambda result: captured.update(result))
 
@@ -120,7 +121,8 @@ def test_cli_model_run_info_records_private_seed_panel(monkeypatch: pytest.Monke
     monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-111")
     captured: dict[str, object] = {}
 
-    monkeypatch.setattr(cli_module, "evaluate_against_baselines", lambda *args, **kwargs: {})
+    monkeypatch.setattr(cli_module, "run_resumable_candidate", lambda *args, **kwargs: {})
+    monkeypatch.setattr(cli_module, "evaluate_resumable_candidate", lambda *args, **kwargs: {})
     monkeypatch.setattr(cli_module, "_maybe_log", lambda *args, **kwargs: None)
     monkeypatch.setattr(cli_module, "_print_evaluation", lambda result: captured.update(result))
 
