@@ -8,9 +8,9 @@ from gm_bench.runner import run_episode, run_many
 # Re-pinned after midseason became part of the default episode and generated
 # injuries began affecting player availability.
 GOLDEN_VALUE_SCORES_5_SEASONS = {
-    1: 319.261,
-    2: 471.201,
-    3: 438.532,
+    1: 338.254,
+    2: 335.497,
+    3: 473.162,
 }
 
 

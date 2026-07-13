@@ -35,6 +35,9 @@ TRADE_LIMIT_PER_PARTNER = 2
 MEMO_MAX_CHARS = 2000
 HARD_CAP_BUFFER = 8.0
 FA_RESERVATION_RANGE = (0.85, 1.0)
+ANNUAL_MARKET_INFLATION = 0.04
+CONTRACT_YEAR_PREMIUM = 0.02
+INCUMBENT_EXTENSION_DISCOUNT = 0.08
 REJECTED_OFFER_LIMIT_PER_WINDOW = 2
 SCOUT_POINTS_PER_SEASON = 3
 SCOUT_REPORT_NOISE = 1.5
@@ -116,6 +119,12 @@ class League:
                 "trade_limit_per_partner": TRADE_LIMIT_PER_PARTNER,
                 "fa_reservation_range": list(FA_RESERVATION_RANGE),
                 "rejected_offer_limit_per_window": REJECTED_OFFER_LIMIT_PER_WINDOW,
+                "contracts": {
+                    "annual_market_inflation": ANNUAL_MARKET_INFLATION,
+                    "additional_year_premium": CONTRACT_YEAR_PREMIUM,
+                    "incumbent_extension_discount": INCUMBENT_EXTENSION_DISCOUNT,
+                    "extension_eligibility_years_remaining": 1,
+                },
                 "pick_trading": {
                     "max_seasons_ahead": PICK_TRADE_MAX_SEASONS_AHEAD,
                     "pick_value_estimate": {
@@ -142,6 +151,10 @@ class League:
         if action_results:
             payload["action_results"] = action_results
         if full:
+            for player in payload["team"]["roster"]:
+                source = self.players[player["id"]]
+                if source.contract_years == 1:
+                    player["extension_quotes"] = self._contract_quotes(source, incumbent=True)
             payload["free_agents"] = [self._free_agent_public(player_id) for player_id in self.free_agents]
             payload["draft_class"] = [player.public_dict() for player in self.prospects.values()]
             payload["trade_market"] = self._trade_market_public()
@@ -176,6 +189,7 @@ class League:
     def _available_actions(self, phase: str) -> list[str]:
         actions = [
             "sign_free_agent",
+            "extend_contract",
             "release",
             "trade",
             "set_lineup",
@@ -222,6 +236,7 @@ class League:
         handlers = {
             "memo": self._memo,
             "sign_free_agent": self._sign_free_agent,
+            "extend_contract": self._extend_contract,
             "release": self._release,
             "trade": self._trade,
             "draft": self._draft,
@@ -524,13 +539,13 @@ class League:
                 action, phase, False, "player has broken off negotiations for this window", rejected_offer=True
             )
             return
-        if salary < self._fa_reservation(player_id):
+        if salary < self._contract_reservation(player_id, years=years):
             self._note_rejection(counterparty)
             self._record(
                 action,
                 phase,
                 False,
-                f"player declines the offer; the ask is {player.asking_salary:.2f}",
+                f"player declines the offer; the {years}-year quote is {self._contract_quote(player, years):.2f}",
                 rejected_offer=True,
             )
             return
@@ -540,6 +555,49 @@ class League:
         player.contract_years = years
         self.user_team.roster.append(player_id)
         self._record(action, phase, True, f"signed {player.name}")
+
+    def _extend_contract(self, action: dict[str, Any], phase: str) -> None:
+        player_id = int(action.get("player_id", -1))
+        years = int(action.get("years", 1))
+        salary = float(action.get("salary", 0.0))
+        if player_id not in self.user_team.roster or player_id not in self.players:
+            self._record(action, phase, False, "player is not on your roster")
+            return
+        player = self.players[player_id]
+        if player.contract_years != 1:
+            self._record(action, phase, False, "only players with one contract year remaining may be extended")
+            return
+        if years < 1 or years > 5:
+            self._record(action, phase, False, "contract years must be 1-5")
+            return
+        if salary <= 0:
+            self._record(action, phase, False, "salary must be a positive amount")
+            return
+        if self._payroll(self.user_team) - player.salary + salary > self.cap + HARD_CAP_BUFFER:
+            self._record(action, phase, False, "extension would exceed hard cap buffer")
+            return
+        counterparty = f"player:{player_id}"
+        if self._walkaway(counterparty):
+            self._record(
+                action, phase, False, "player has broken off negotiations for this window", rejected_offer=True
+            )
+            return
+        quote = self._contract_quote(player, years, incumbent=True)
+        if salary < self._contract_reservation(player_id, years=years, incumbent=True):
+            self._note_rejection(counterparty)
+            self._record(
+                action,
+                phase,
+                False,
+                f"player declines the extension; the {years}-year incumbent quote is {quote:.2f}",
+                rejected_offer=True,
+            )
+            return
+        player.salary = round(salary, 2)
+        # `years` is the new total term beginning now, not years added to the
+        # existing deal. This keeps all contracts within the five-year limit.
+        player.contract_years = years
+        self._record(action, phase, True, f"extended {player.name} for {years} year(s)")
 
     def _release(self, action: dict[str, Any], phase: str) -> None:
         player_id = int(action.get("player_id", -1))
@@ -808,12 +866,13 @@ class League:
         player_id = int(action.get("player_id", -1))
         if player_id not in self.waiver_wire:
             return self._record(action, phase, False, "player is not on the waiver wire")
-        if self._payroll(self.user_team) + self.players[player_id].asking_salary > self.cap + HARD_CAP_BUFFER:
+        player = self.players[player_id]
+        salary = self._contract_quote(player, 1)
+        if self._payroll(self.user_team) + salary > self.cap + HARD_CAP_BUFFER:
             return self._record(action, phase, False, "claim would exceed hard cap buffer")
         self.waiver_wire.remove(player_id)
-        player = self.players[player_id]
         player.team_id = self.user_team_id
-        player.salary = player.asking_salary
+        player.salary = salary
         player.contract_years = 1
         self.user_team.roster.append(player_id)
         return self._record(action, phase, True, f"claimed {player.name} from waivers")
@@ -921,7 +980,16 @@ class League:
     def _note_rejection(self, counterparty: str) -> None:
         self.window_walkaways[counterparty] = self.window_walkaways.get(counterparty, 0) + 1
 
-    def _fa_reservation(self, player_id: int) -> float:
+    def _contract_quote(self, player: Player, years: int, *, incumbent: bool = False) -> float:
+        market = player.asking_salary * (1.0 + ANNUAL_MARKET_INFLATION) ** max(0, self.season - 1)
+        term = 1.0 + CONTRACT_YEAR_PREMIUM * max(0, years - 1)
+        loyalty = 1.0 - INCUMBENT_EXTENSION_DISCOUNT if incumbent else 1.0
+        return round(market * term * loyalty, 2)
+
+    def _contract_quotes(self, player: Player, *, incumbent: bool = False) -> dict[str, float]:
+        return {str(years): self._contract_quote(player, years, incumbent=incumbent) for years in range(1, 6)}
+
+    def _contract_reservation(self, player_id: int, *, years: int = 1, incumbent: bool = False) -> float:
         """Hidden, deterministic minimum salary a free agent will accept.
 
         A per-player fraction of the asking price in FA_RESERVATION_RANGE,
@@ -932,7 +1000,11 @@ class League:
         """
         rng = random.Random(f"{self.seed}:{self.season}:reservation:{player_id}")
         low, high = FA_RESERVATION_RANGE
-        return self.players[player_id].asking_salary * rng.uniform(low, high)
+        return self._contract_quote(self.players[player_id], years, incumbent=incumbent) * rng.uniform(low, high)
+
+    def _fa_reservation(self, player_id: int) -> float:
+        """Backward-compatible one-year free-agent reservation helper."""
+        return self._contract_reservation(player_id)
 
     def _standings_public(self) -> list[dict[str, Any]]:
         return [
@@ -943,6 +1015,7 @@ class League:
                 "losses": team.losses,
                 "championships": team.championships,
                 "public_strength": round(self._team_strength(team, apply_injury_noise=False), 1),
+                "roster_count": len(team.roster),
                 "draft_picks": dict(sorted(team.draft_picks.items())),
             }
             for team in sorted(self.teams.values(), key=lambda item: item.wins, reverse=True)
@@ -950,12 +1023,16 @@ class League:
 
     def _free_agent_public(self, player_id: int) -> dict[str, Any]:
         player = self.players[player_id].public_dict()
-        player["asking_salary"] = self.players[player_id].asking_salary
+        source = self.players[player_id]
+        player["asking_salary"] = self._contract_quote(source, 1)
+        player["contract_quotes"] = self._contract_quotes(source)
         return player
 
     def _waiver_player_public(self, player_id: int) -> dict[str, Any]:
         player = self.players[player_id].public_dict()
-        player["asking_salary"] = self.players[player_id].asking_salary
+        source = self.players[player_id]
+        player["asking_salary"] = self._contract_quote(source, 1)
+        player["contract_quotes"] = self._contract_quotes(source)
         return player
 
     def _trade_market_public(self) -> list[dict[str, Any]]:
@@ -1172,7 +1249,7 @@ class League:
         for player in candidates[: needed * 2]:
             if needed <= 0:
                 break
-            ask = player.asking_salary
+            ask = self._contract_quote(player, 1)
             if self._payroll(team) + ask <= self.cap + 4.0:
                 self._sign_to_team(team, player, rng)
                 needed -= 1
@@ -1206,7 +1283,7 @@ class League:
                 waived = min((self.players[player_id] for player_id in team.roster), key=lambda item: item.asset_value)
                 if waived.overall + 2.0 >= player.overall:
                     continue
-            payroll_after = self._payroll(team) - (waived.salary if waived else 0.0) + player.asking_salary
+            payroll_after = self._payroll(team) - (waived.salary if waived else 0.0) + self._contract_quote(player, 1)
             if payroll_after > self.cap + 4.0:
                 continue
             if waived is not None:
@@ -1222,8 +1299,9 @@ class League:
         self.free_agents.remove(player.id)
         team.roster.append(player.id)
         player.team_id = team.id
-        player.salary = player.asking_salary
-        player.contract_years = rng.randint(1, 3)
+        years = rng.randint(1, 3)
+        player.salary = self._contract_quote(player, years)
+        player.contract_years = years
 
     def _opponent_trades(self) -> None:
         """One deadline round of one-for-one swaps between opponent teams.

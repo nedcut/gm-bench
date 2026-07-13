@@ -1,6 +1,7 @@
 """Session-lane wiring: provider construction, provenance, and validation."""
 
-from gm_bench.official import SOTA_V2_POLICY, validate_leaderboard_payload
+from gm_bench.official import SOTA_V3_POLICY as SOTA_V2_POLICY
+from gm_bench.official import validate_leaderboard_payload
 from gm_bench.providers import build_provider_agent
 from gm_bench.session import PersistentProcessAgent
 

@@ -209,8 +209,9 @@ still.
 
 Under the freeze:
 
-- New model rows run against the frozen contract; `validate-result` already
-  rejects rows whose fingerprint does not match the current source.
+- Historical v2 rows validate against the frozen `sota-v2` policy and its
+  pinned fingerprint; new model rows run against `sota-v3` and the current
+  source fingerprint.
 - Simulator, scoring, preset, or schema changes that alter the fingerprint do
   not amend `sota-v2` — they start a new claim lane (`sota-v3`) with its own
   re-cached baseline panel and reference means, exactly as `sota-v2` superseded
@@ -219,6 +220,11 @@ Under the freeze:
 - Changes that do not alter simulation or scoring behavior (CLI, docs,
   adapters, site) are free. A behavior-changing bug fix is a deliberate
   lane-versioning decision, not routine maintenance.
+
+`sota-v3` is the current development lane (fingerprint `c4d9207d13ffbffe`). It adds term-priced free-agent
+contracts and discounted incumbent extensions, and therefore requires fresh
+baseline caches and model rows. Nothing produced under v3 is v2-comparable or
+eligible for the v2 web table without an explicit future publication update.
 
 ## Seed-panel rotation and contamination
 

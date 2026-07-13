@@ -7,6 +7,12 @@ unless it is called out as a convention. Read
 [production_benchmark.md](production_benchmark.md) first for the two result tiers
 (`public-leaderboard`, `sota-v2`) and the contract freeze.
 
+> **Lane note:** the public site still serves the frozen `sota-v2` lane. The
+> current simulator produces `sota-v3`; validate new development runs with
+> `--policy sota-v3` and keep them in `results/diagnostics/` until a v3
+> publication workflow is explicitly opened. The v2 commands below are for
+> reproducing or validating artifacts built from the frozen v2 source.
+
 ## Produce the row
 
 Run the official configuration: `model` command, `leaderboard` preset, `compact`

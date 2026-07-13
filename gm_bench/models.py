@@ -8,6 +8,7 @@ from typing import Any, Literal
 Position = Literal["F", "D", "G"]
 ActionType = Literal[
     "sign_free_agent",
+    "extend_contract",
     "release",
     "trade",
     "accept_offer",

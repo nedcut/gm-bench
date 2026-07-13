@@ -14,6 +14,14 @@ from gm_bench.agent_utils import position_aware_lineup, public_asset_value
 from gm_bench.telemetry import normalize_usage
 
 
+def _contract_quote(player: dict[str, Any], years: int) -> float:
+    """Return the public guaranteed quote for a term, with v2 fallback."""
+    quotes = player.get("contract_quotes") or player.get("extension_quotes") or {}
+    if str(years) in quotes:
+        return float(quotes[str(years)])
+    return float(player["asking_salary"])
+
+
 class Agent(ABC):
     name = "agent"
 
@@ -90,16 +98,17 @@ class WinNowAgent(Agent):
         cap_room = observation["team"]["cap_room"]
         free_agents = sorted(observation["free_agents"], key=lambda player: player["overall"], reverse=True)
         for player in free_agents[:4]:
-            if player["asking_salary"] <= cap_room + 1.5 and player["overall"] >= 57:
+            salary = _contract_quote(player, 2)
+            if salary <= cap_room + 1.5 and player["overall"] >= 57:
                 actions.append(
                     {
                         "type": "sign_free_agent",
                         "player_id": player["id"],
                         "years": 2,
-                        "salary": player["asking_salary"],
+                        "salary": salary,
                     }
                 )
-                cap_room -= player["asking_salary"]
+                cap_room -= salary
         if observation["phase"] == "draft" and observation["draft_class"]:
             prospect = max(observation["draft_class"], key=lambda player: player["overall"])
             actions.append({"type": "draft", "prospect_id": prospect["id"]})
@@ -127,16 +136,17 @@ class RebuildAgent(Agent):
             reverse=True,
         )
         for player in prospects[:3]:
-            if player["age"] <= 25 and player["asking_salary"] <= cap_room:
+            salary = _contract_quote(player, 3)
+            if player["age"] <= 25 and salary <= cap_room:
                 actions.append(
                     {
                         "type": "sign_free_agent",
                         "player_id": player["id"],
                         "years": 3,
-                        "salary": player["asking_salary"],
+                        "salary": salary,
                     }
                 )
-                cap_room -= player["asking_salary"]
+                cap_room -= salary
         lineup = position_aware_lineup(
             observation["team"]["roster"], lambda player: player["potential"] * 0.65 + player["overall"] * 0.35
         )
@@ -153,17 +163,18 @@ class ValueAgent(Agent):
         cap_room = observation["team"]["cap_room"]
         free_agents = sorted(observation["free_agents"], key=public_asset_value, reverse=True)
         for player in free_agents[:5]:
-            if player["asking_salary"] <= cap_room and public_asset_value(player) > 7.0:
-                years = 3 if player["age"] <= 27 else 1
+            years = 3 if player["age"] <= 27 else 1
+            salary = _contract_quote(player, years)
+            if salary <= cap_room and public_asset_value(player) > 7.0:
                 actions.append(
                     {
                         "type": "sign_free_agent",
                         "player_id": player["id"],
                         "years": years,
-                        "salary": player["asking_salary"],
+                        "salary": salary,
                     }
                 )
-                cap_room -= player["asking_salary"]
+                cap_room -= salary
         if observation["phase"] == "draft" and observation["draft_class"]:
             prospect = max(observation["draft_class"], key=public_asset_value)
             actions.append({"type": "draft", "prospect_id": prospect["id"]})
@@ -231,17 +242,18 @@ class ShrewdAgent(Agent):
         fa_threshold = 5.0 if midseason else 6.0
         free_agents = sorted(observation["free_agents"], key=public_asset_value, reverse=True)
         for player in free_agents[:8]:
-            if player["asking_salary"] <= cap_room and public_asset_value(player) > fa_threshold:
-                years = 3 if player["age"] <= 27 else 1
+            years = 3 if player["age"] <= 27 else 1
+            salary = _contract_quote(player, years)
+            if salary <= cap_room and public_asset_value(player) > fa_threshold:
                 actions.append(
                     {
                         "type": "sign_free_agent",
                         "player_id": player["id"],
                         "years": years,
-                        "salary": player["asking_salary"],
+                        "salary": salary,
                     }
                 )
-                cap_room -= player["asking_salary"]
+                cap_room -= salary
 
         if observation["phase"] == "draft" and observation["draft_class"]:
             prospect = max(observation["draft_class"], key=public_asset_value)
@@ -292,6 +304,9 @@ class StrategicAgent(ShrewdAgent):
             self._apply_scouted_draft_choice(actions, observation)
 
         if phase == "preseason" and interaction_round == 0:
+            extension = self._extension_action(observation)
+            if extension is not None:
+                actions.insert(0, extension)
             actions.insert(
                 0,
                 {
@@ -320,6 +335,27 @@ class StrategicAgent(ShrewdAgent):
                 if pick_trade is not None:
                     actions.append(pick_trade)
         return actions
+
+    @staticmethod
+    def _extension_action(observation: dict[str, Any]) -> dict[str, Any] | None:
+        candidates = [
+            player
+            for player in observation["team"]["roster"]
+            if player.get("extension_quotes") and player["age"] <= 27 and public_asset_value(player) > 15.0
+        ]
+        for player in sorted(candidates, key=public_asset_value, reverse=True):
+            years = 3
+            salary = _contract_quote(player, years)
+            # Extend only when the loyalty quote is no more than a small cap
+            # step-up. This exercises retention without making it automatic.
+            if salary <= float(player["salary"]) + 1.0:
+                return {
+                    "type": "extend_contract",
+                    "player_id": player["id"],
+                    "years": years,
+                    "salary": salary,
+                }
+        return None
 
     @staticmethod
     def _scouted_value(player: dict[str, Any], reports: dict[str, Any]) -> float:
@@ -438,6 +474,15 @@ class StrategicAgent(ShrewdAgent):
             and offer["player"]["age"] <= 27
             and offer["player"]["salary"] <= available_cap_room
             and float(offer["estimated_price"]) <= pick_value_estimate * self.PICK_TRADE_PRICE_CEILING
+            and next(
+                (
+                    int(row.get("roster_count", 0))
+                    for row in observation["standings"]
+                    if row["team_id"] == offer["team_id"]
+                ),
+                0,
+            )
+            > 18
         ]
         if not candidates:
             return None

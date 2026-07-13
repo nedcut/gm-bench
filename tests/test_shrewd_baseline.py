@@ -22,10 +22,12 @@ def test_shrewd_beats_value_on_average_across_seed_panel() -> None:
     stop paying off *on average*, this test flags that shrewd is no longer a
     stronger reference than value.
     """
+    # Contract decisions compound over the official five-season horizon, so
+    # pin this ordering on the public panel rather than a shorter surrogate.
     lifts = [
-        run_episode(ShrewdAgent(), seed=seed, seasons=3).final_score
-        - run_episode(ValueAgent(), seed=seed, seasons=3).final_score
-        for seed in range(1, 11)
+        run_episode(ShrewdAgent(), seed=seed, seasons=5).final_score
+        - run_episode(ValueAgent(), seed=seed, seasons=5).final_score
+        for seed in range(11, 19)
     ]
     assert mean(lifts) > 0.0
     assert sum(1 for lift in lifts if lift >= 0) > len(lifts) / 2

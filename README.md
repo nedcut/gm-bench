@@ -22,7 +22,7 @@ The MVP includes:
   trades among themselves, visible in the transaction feed.
 - Baseline agents: random, conservative, win-now, rebuild, value, `shrewd`
   (cap hygiene plus development-aware lineups), and `strategic`, which also
-  scouts, evaluates incoming offers, and persists a plan memo. The strongest
+  scouts, evaluates incoming offers, and persists a plan memo. The
   `pick-trader` reference adds cap-aware future-pick acquisitions, while the
   red-team `exploit` canary replays known-degenerate strategies.
 - A scoring model that rewards wins, championships, future assets, prospects,
@@ -32,7 +32,7 @@ The MVP includes:
 - An external-process protocol for plugging in LLM agents, including a
   persistent `memo` scratchpad for carrying multi-season plans between
   decision points.
-- Protocol v2 (`gm-bench-v2`): four phases per season (including midseason
+- Protocol v3 (`gm-bench-v3`): strategic contract terms plus four phases per season (including midseason
   injuries and waivers), multi-round decision windows with query actions and
   same-turn `action_results`, trade negotiation (`accept_trade_offer` /
   `reject_trade_offer` / `counter_trade_offer`), tiered observations
@@ -93,6 +93,17 @@ fingerprint) for two fixes and one reporting requirement:
   Codex, Cursor, opencode), mean tokens/decision, and cost next to the score.
   The leaderboard site enforces this: every model row carries `lane` and
   `tokens_per_decision`.
+
+### v3 contract mechanics
+
+`sota-v3` (`gm-bench-v3`, `actions-v3`, `sim-v3`) makes contract term a
+front-office decision instead of a decorative field. Free-agent observations
+publish guaranteed quotes for every 1–5 year term. Market prices inflate 4%
+per season and each additional guaranteed year costs a 2% annual-salary
+premium, trading current cap space for protection from future market and
+development-driven price growth. Players with one year remaining also publish
+incumbent extension quotes with an 8% loyalty discount. `sota-v2` remains
+frozen and valid only for results carrying its historical fingerprint.
 
 ## Quickstart
 
@@ -247,7 +258,7 @@ bun run build  # static production build in web/dist/
 
 ## External Agent Protocol
 
-The default episode uses protocol v2 (`benchmark: "gm-bench-v2"` in every
+The default episode uses protocol v3 (`benchmark: "gm-bench-v3"` in every
 observation). Each season has four decision phases:
 
 - `preseason`
@@ -302,6 +313,7 @@ Each action is an object. Core moves:
 
 ```json
 {"type": "sign_free_agent", "player_id": 123, "years": 2, "salary": 4.2}
+{"type": "extend_contract", "player_id": 11, "years": 3, "salary": 5.6}
 {"type": "trade", "partner_team_id": 3, "give_player_ids": [11], "receive_player_ids": [87], "give_pick_seasons": [], "receive_pick_seasons": [4]}
 {"type": "draft", "prospect_id": 9001}
 {"type": "set_lineup", "player_ids": [1, 2, 3, 4, 5, 6]}

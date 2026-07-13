@@ -28,8 +28,12 @@ The MVP implements a compact hockey-style league:
 - Forwards, defense, and goalies.
 - Public overall and potential ratings.
 - Hidden true potential.
-- Salary cap and contract years.
-- Free agents with asking prices (free agents age and rust while unsigned).
+- Salary cap and strategic contract years: market prices inflate 4% per season,
+  and each extra guaranteed year carries a 2% salary premium.
+- Free agents with public 1–5 year contract quotes (free agents age and rust
+  while unsigned).
+- Discounted incumbent extensions for roster players entering the final year
+  of their contract.
 - Competitive free agency: opponent front offices sign free agents after
   every phase — filling roster needs and poaching standout players, waiving
   their least valuable player to make room when full — so the pool is never
@@ -51,7 +55,7 @@ The MVP implements a compact hockey-style league:
 
 ## Decision Interface
 
-The default episode uses protocol v2 (`gm-bench-v2`). At each season, agents
+The default episode uses protocol v3 (`gm-bench-v3`). At each season, agents
 receive observations for four phases:
 
 - `preseason`
@@ -81,6 +85,8 @@ Control:
 Core roster actions (apply immediately):
 
 - `sign_free_agent`
+- `extend_contract` (one-year-remaining incumbents only; `years` replaces the
+  current total term rather than adding to it)
 - `release`
 - `trade` (players and/or future draft picks via `give_pick_seasons` /
   `receive_pick_seasons`, up to 3 seasons ahead)

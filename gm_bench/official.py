@@ -20,9 +20,11 @@ from gm_bench.benchmark_config import (
 from gm_bench.contract import expected_contract, scaffold_fingerprint
 
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
+SOTA_V3_POLICY_NAME = "sota-v3"
 SOTA_V2_POLICY_NAME = "sota-v2"
 SOTA_V1_POLICY_NAME = "sota-v1"
 ARCHIVE_V1_POLICY_NAME = "archive-v1"
+CURRENT_STRICT_POLICY_NAMES = frozenset({SOTA_V2_POLICY_NAME, SOTA_V3_POLICY_NAME})
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 SOTA_V1_CONTRACT = {
@@ -33,6 +35,15 @@ SOTA_V1_CONTRACT = {
     "simulator_version": "sim-v1",
     "observation_version": "observation-v1",
     "contract_fingerprint": "cf2607e59dba0c7f",
+}
+SOTA_V2_CONTRACT = {
+    "benchmark_version": "sota-v2",
+    "action_protocol_version": "actions-v2",
+    "scoring_version": "score-v1",
+    "scoring_scale_fingerprint": "05a60ff4f691e734",
+    "simulator_version": "sim-v2",
+    "observation_version": "observation-v1",
+    "contract_fingerprint": "a65a4359ca3c6e64",
 }
 
 
@@ -61,6 +72,17 @@ PUBLIC_LEADERBOARD_POLICY = ResultPolicy(
     min_seed_count=1,
     max_decision_failure_rate=0.20,
 )
+SOTA_V3_POLICY = ResultPolicy(
+    name=SOTA_V3_POLICY_NAME,
+    min_repeats=3,
+    min_seed_count=len(PRESETS["leaderboard"]["seeds"]),
+    max_decision_failure_rate=0.02,
+    require_full_usage=True,
+    require_contract_provenance=True,
+    require_seed_panel_provenance=True,
+    expected_contract=expected_contract(),
+    max_failed_query_rate=1.0,
+)
 SOTA_V2_POLICY = ResultPolicy(
     name=SOTA_V2_POLICY_NAME,
     min_repeats=3,
@@ -68,7 +90,8 @@ SOTA_V2_POLICY = ResultPolicy(
     max_decision_failure_rate=0.02,
     require_contract_provenance=True,
     require_seed_panel_provenance=True,
-    expected_contract=expected_contract(),
+    expected_contract=SOTA_V2_CONTRACT,
+    validate_current_scaffold=False,
     max_failed_query_rate=1.0,
 )
 SOTA_V1_POLICY = ResultPolicy(
@@ -102,6 +125,7 @@ ARCHIVE_V1_POLICY = ResultPolicy(
 )
 POLICIES = {
     PUBLIC_LEADERBOARD_POLICY.name: PUBLIC_LEADERBOARD_POLICY,
+    SOTA_V3_POLICY.name: SOTA_V3_POLICY,
     SOTA_V1_POLICY.name: SOTA_V1_POLICY,
     SOTA_V2_POLICY.name: SOTA_V2_POLICY,
     ARCHIVE_V1_POLICY.name: ARCHIVE_V1_POLICY,
@@ -182,9 +206,9 @@ def validate_leaderboard_payload(
         elif run_info.get("scaffold_fingerprint"):
             warnings.append("historical scaffold fingerprint retained but cannot be re-derived from current source")
         if run_info.get("session"):
-            if policy.name == SOTA_V2_POLICY_NAME:
+            if policy.name in CURRENT_STRICT_POLICY_NAMES:
                 errors.append(
-                    "sota-v2 rows must be fresh-spawn (memo-only memory); "
+                    f"{policy.name} rows must be fresh-spawn (memo-only memory); "
                     "session-condition rows are a separate lane and not comparable"
                 )
             else:
@@ -215,7 +239,7 @@ def validate_leaderboard_payload(
 
     baselines = [_dict(result) for result in _list(payload.get("baselines"))]
     baseline_names = [result.get("agent") for result in baselines]
-    if policy.name == SOTA_V2_POLICY_NAME:
+    if policy.name in CURRENT_STRICT_POLICY_NAMES:
         _expect_equal(errors, "baselines", baseline_names, expected_baselines)
     else:
         if not baseline_names:
@@ -278,7 +302,7 @@ def validate_leaderboard_payload(
                 warnings,
                 run_info,
                 usage,
-                strict=policy.name == SOTA_V2_POLICY_NAME,
+                strict=policy.name in CURRENT_STRICT_POLICY_NAMES,
             )
 
     for baseline in baselines:
@@ -347,7 +371,7 @@ def _validate_openrouter_route(
 def redact_leaderboard_payload(
     payload: dict[str, Any],
     *,
-    policy: ResultPolicy = SOTA_V2_POLICY,
+    policy: ResultPolicy = SOTA_V3_POLICY,
 ) -> tuple[dict[str, Any], ValidationReport]:
     """Return a public-safe copy of a leaderboard payload.
 

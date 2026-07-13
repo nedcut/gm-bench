@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://gm-bench.dev/schemas/gm_action_list.schema.json",
-  "title": "GM-Bench Action List v2",
+  "title": "GM-Bench Action List v3",
   "description": "JSON array written to stdout by external agents (stdin/stdout protocol).",
   "type": "array",
   "maxItems": 24,
@@ -16,6 +16,7 @@
           "type": "string",
           "enum": [
             "sign_free_agent",
+            "extend_contract",
             "release",
             "trade",
             "draft",
@@ -67,6 +68,10 @@
       "allOf": [
         {
           "if": { "properties": { "type": { "const": "sign_free_agent" } } },
+          "then": { "required": ["player_id", "years", "salary"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "extend_contract" } } },
           "then": { "required": ["player_id", "years", "salary"] }
         },
         {

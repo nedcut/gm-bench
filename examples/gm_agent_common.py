@@ -104,6 +104,7 @@ def build_prompt(observation: dict[str, Any]) -> str:
         'Return ONLY a JSON object shaped like {"actions":[...]}. Do not use markdown. Do not explain.\n\n'
         "Core actions:\n"
         '{"type":"sign_free_agent","player_id":123,"years":1,"salary":2.5}\n'
+        '{"type":"extend_contract","player_id":88,"years":3,"salary":4.8}\n'
         '{"type":"draft","prospect_id":1010001}\n'
         '{"type":"trade","partner_team_id":3,"give_player_ids":[1],"receive_player_ids":[88],'
         '"give_pick_seasons":[],"receive_pick_seasons":[4]}\n'

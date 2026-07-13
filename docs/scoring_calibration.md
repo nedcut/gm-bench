@@ -89,8 +89,8 @@ is derived only from the published weights and clamps. GM-Bench validates it at
 import time, so changing a weight without declaring a new score version fails
 immediately instead of silently changing leaderboard meaning.
 
-The `sota-v2` benchmark contract (fingerprint `a65a4359ca3c6e64`, see
-[production_benchmark.md](production_benchmark.md)) does not touch `score-v1`:
+The frozen `sota-v2` benchmark contract (fingerprint `a65a4359ca3c6e64`, see
+[production_benchmark.md](production_benchmark.md)) did not touch `score-v1`:
 no scoring weight or clamp changed. The `sota-v1` → `sota-v2` bump was a
 protocol/simulator fix (`scout` accepting `prospect_id`) and a reporting
 addition (`failed_queries`), both orthogonal to `scoring.py`. `failed_queries`
@@ -98,7 +98,9 @@ is not a scoring term — declined query actions carry zero weight, the same as
 before, because querying is meant to be free. It is now reported in episode
 results, run summaries, and comparison blocks, but that is a visibility fix,
 not a scale change: two rows with the same `score-v1` fingerprint remain
-comparable regardless of how many queries either one failed.
+comparable regardless of how many queries either one failed. `sota-v3` also
+retains `score-v1`: contract pricing and extensions change decisions and
+resulting rosters, not any scoring weight or clamp.
 
 Reproduce the complete machine-readable scale and calibration:
 
@@ -124,51 +126,48 @@ also change strength, cap room, and wins.
 
 ## Reference-policy calibration
 
-The current `sota-v2` public panel (seeds 11-18, five seasons; contract
-fingerprint `a65a4359ca3c6e64`, protocol `gm-bench-v2` with midseason)
+The current `sota-v3` public panel (seeds 11-18, five seasons; fingerprint
+`c4d9207d13ffbffe`, protocol `gm-bench-v3` with midseason and strategic contract terms)
 produces:
 
 | Reference | Mean score | Illegal actions | Role |
 | --- | ---: | ---: | --- |
-| `pick-trader` | 411.619 | 0 | Strongest official scripted bar |
-| `strategic` | 402.025 | 0 | Scouting, offers, memo, and shrewd roster core |
-| `shrewd` | 371.769 | 0 | Cap hygiene and development-aware lineup core |
-| `value` | 354.619 | 0 | Public-value roster heuristic |
-| `win-now` | 275.834 | 0 | Short-horizon win maximizer |
-| `conservative` | 139.030 | 0 | Low-churn roster holder |
-| `rebuild` | 138.745 | 0 | Youth-oriented tear-down |
-| `random` | 96.715 | 0 | Floor / noise baseline |
+| `pick-trader` | 299.454 | 0 | Strategic policy plus conservative pick trades |
+| `strategic` | 304.415 | 0 | Scouting, offers, memo, extensions, and shrewd roster core |
+| `shrewd` | 358.633 | 0 | Strongest calibrated roster-management bar |
+| `value` | 329.869 | 0 | Public-value roster heuristic |
 
 The strategic policy's panel ablations are also deterministic:
 
 | Policy variant | Mean score | Change vs `strategic` |
 | --- | ---: | ---: |
-| Full `strategic` | 402.025 | 0.000 |
-| No scouting | 371.284 | -30.741 |
-| No incoming-offer policy | 395.539 | -6.486 |
-| No memo writes | 402.025 | 0.000 |
-| `shrewd` core only | 371.769 | -30.256 |
-| Pick trading enabled (`pick-trader`) | 411.619 | +9.594 |
+| Full `strategic` | 304.415 | 0.000 |
+| No scouting | 329.945 | +25.530 |
+| No incoming-offer policy | 304.870 | +0.455 |
+| No memo writes | 304.415 | 0.000 |
+| `shrewd` core only | 358.633 | +54.218 |
+| Pick trading enabled (`pick-trader`) | 299.454 | -4.961 |
 
 This is intentionally not presented as causal estimation: mechanics interact
-over five seasons. It is a regression calibration showing that scouting and
-selective offer handling have measurable decision value. The cap-aware pick
-policy also improves the panel mean, but remains separate so its marginal effect
-stays visible rather than being hidden inside `strategic`. Memo persistence is
-covered as protocol behavior but has zero direct effect for this deterministic
-reference, which can reconstruct its policy from the observation; its value as
-an LLM memory channel still requires model-backed evaluation.
+over five seasons. Under v3 the extra strategic surfaces do not monotonically
+raise this small scripted policy's score; no-scout and the shrewd core both
+outperform the full policy on this panel. That is calibration evidence, not a
+result to hide: protocol coverage and score superiority are separate claims.
+Memo persistence has zero direct effect for this deterministic reference,
+which can reconstruct its policy from the observation.
 `validate-contract` separately requires accepted
-memo, scout, offer-response, offer-acceptance, and pick-trade actions across
+memo, scout, offer-response, offer-acceptance, pick-trade, and
+contract-extension actions across
 minimum fractions of the official panel, so these mechanics cannot silently
 become dead protocol surface.
 
-### Ceiling reference
+### Hidden-information diagnostic
 
 `oracle` is a diagnostic-only hidden-information reference, not an official
-baseline and not part of the `sota-v2` baseline panel. On the same public panel
-(seeds 11-18, five seasons), it scores **431.150**, versus **411.619** for
-`pick-trader`: a **19.531-point** pick-trader-to-oracle gap.
+baseline and not part of the `sota-v3` baseline panel. On the same public panel
+(seeds 11-18, five seasons), it scores **297.811**, versus **299.454** for
+`pick-trader`. The 1.643-point reversal is well inside panel noise and warns
+that this partial oracle is not an optimization ceiling.
 
 The oracle begins with the `pick-trader` policy, then regenerates a draft
 class's deterministic `true_potential` from its seed and uses it only for
@@ -182,16 +181,13 @@ does not use their latent potential for its free-agent roster policy, so the
 measured result is conservative rather than a claim of globally optimal play.
 
 It does not predict injury draws, player-development rolls, game and playoff
-outcomes, or opponents' future actions. The gap is the strategic headroom that
-the benchmark can discriminate beyond its strongest public-information scripted
-policy; it is a ceiling reference, not a target for valid model submissions.
+outcomes, or opponents' future actions. It isolates a small set of
+hidden-information decisions; it is not a target for valid model submissions
+or a claim of globally optimal play.
 
-This gap is narrower than the 8-seed minimum detectable difference reported
+This difference is narrower than the 8-seed minimum detectable difference reported
 in the Robustness section below: at the current panel size, scores inside the
 pick-trader-to-oracle band cannot be statistically separated from each other.
-The band marks where strategic headroom exists, not where the current design
-can rank models; separating models inside it is a larger-panel concern for a
-future contract lane (`sota-v2` kept the 8-seed panel; not addressed yet).
 
 ## Robustness
 
@@ -203,7 +199,10 @@ python scripts/power_analysis.py --result results/leaderboard/ollama-gemma4-e4b.
 python scripts/weight_sensitivity.py
 ```
 
-On the current reference panel (seeds 11-18, five seasons), power analysis
+The following power and weight-sensitivity numbers are the frozen `sota-v2`
+analysis and are retained for historical interpretation; regenerate them from
+a v3 result artifact before making v3 ranking claims. On that v2 reference
+panel (seeds 11-18, five seasons), power analysis
 uses the scripted policies' centred same-seed differences as the empirical
 paired-noise distribution.  It uses three repeats and the supplied artifact's
 observed within-seed score SD of 15.037, simulates two model rows with a true
@@ -223,7 +222,7 @@ residuals, so they are design extrapolations rather than claims that new seed
 panels were directly measured.  Re-run the script with a different result JSON
 when evaluating a model with materially different repeat noise.
 
-For scale sensitivity, `weight_sensitivity.py` runs the scripted panel once,
+For the frozen v2 scale sensitivity, `weight_sensitivity.py` ran the scripted panel once,
 captures raw end-of-episode components through a diagnostic-only temporary
 wrapper around `runner.score_breakdown`, and restores the wrapper immediately.
 It then applies 200 independent draws, multiplying each score weight uniformly

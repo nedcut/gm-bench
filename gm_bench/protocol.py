@@ -7,13 +7,14 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-PROTOCOL_VERSION = "gm-bench-v2"
+PROTOCOL_VERSION = "gm-bench-v3"
 PHASES = ("preseason", "midseason", "trade_deadline", "draft")
 ObservationTier = Literal["summary", "full"]
 
 CORE_ACTION_TYPES = frozenset(
     {
         "sign_free_agent",
+        "extend_contract",
         "release",
         "trade",
         "draft",
