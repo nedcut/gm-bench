@@ -11,13 +11,16 @@ from gm_bench import model_runs
 from gm_bench.agents import Agent, ValueAgent
 from gm_bench.model_runs import (
     FailFastAgent,
+    FailFastSessionAgent,
     ModelRunAborted,
     _checkpoint_lock,
     evaluate_resumable_candidate,
+    fail_fast_agent,
     preflight_provider,
     run_resumable_candidate,
 )
 from gm_bench.runner import run_many
+from gm_bench.session import PersistentProcessAgent
 
 
 class FailAfterAgent(Agent):
@@ -246,3 +249,70 @@ def test_uncached_scripted_baselines_keep_normal_parallel_defaults(monkeypatch: 
     evaluate_resumable_candidate(candidate, ["value"], use_baseline_cache=False)
 
     assert seen_workers == [None]
+
+
+class ScriptedSessionAgent(PersistentProcessAgent):
+    """In-process session agent double: real class, no subprocess."""
+
+    def __init__(self) -> None:
+        super().__init__(command="true", name="test:session")
+        self.started: list[tuple[int, int]] = []
+        self.ended = 0
+        self.value = ValueAgent()
+
+    def start_episode(self, seed: int, seasons: int) -> None:
+        self.started.append((seed, seasons))
+
+    def end_episode(self) -> None:
+        self.ended += 1
+
+    def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        return self.value.act(observation), None
+
+    def act_on_results_with_usage(
+        self,
+        results: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        return [{"type": "noop"}], None
+
+    def clone(self) -> "ScriptedSessionAgent":
+        return self
+
+
+class FailingSessionAgent(ScriptedSessionAgent):
+    def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        return [{"type": "noop", "model_error": "session boom"}], None
+
+    def act_on_results_with_usage(
+        self,
+        results: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        return [{"type": "noop", "model_error": "session boom"}], None
+
+
+def test_fail_fast_factory_picks_session_wrapper_for_persistent_agents() -> None:
+    session_wrapped = fail_fast_agent(ScriptedSessionAgent(), 2)
+    plain_wrapped = fail_fast_agent(FailAfterAgent(successful_calls=0), 2)
+    # The frozen runner dispatches episode lifecycle on this isinstance check;
+    # losing it means the adapter process is never spawned.
+    assert isinstance(session_wrapped, PersistentProcessAgent)
+    assert isinstance(session_wrapped, FailFastSessionAgent)
+    assert isinstance(plain_wrapped, FailFastAgent)
+    assert not isinstance(plain_wrapped, PersistentProcessAgent)
+
+
+def test_wrapped_session_agent_still_gets_episode_lifecycle_from_runner() -> None:
+    inner = ScriptedSessionAgent()
+    wrapped = fail_fast_agent(inner, 2)
+    run_many(wrapped, seeds=[1], seasons=1, workers=1)
+    assert inner.started == [(1, 1)]
+    assert inner.ended == 1
+
+
+def test_session_fail_fast_counts_multi_round_results_and_shares_state_across_clones() -> None:
+    wrapped = fail_fast_agent(FailingSessionAgent(), 2)
+    actions, _usage = wrapped.act_with_usage({})
+    assert actions[0]["model_error"] == "session boom"
+    clone = wrapped.clone()
+    with pytest.raises(ModelRunAborted, match="2 consecutive model failures"):
+        clone.act_on_results_with_usage([])

@@ -21,10 +21,10 @@ from gm_bench.calibration import build_scoring_calibration
 from gm_bench.contract import benchmark_contract, scaffold_fingerprint
 from gm_bench.environment import load_environment_files
 from gm_bench.model_runs import (
-    FailFastAgent,
     ModelRunAborted,
     default_checkpoint_path,
     evaluate_resumable_candidate,
+    fail_fast_agent,
     preflight_provider,
     run_resumable_candidate,
 )
@@ -50,6 +50,13 @@ SERIAL_ONLY_PROVIDERS = {"claude", "codex", "cursor", "opencode"}
 # The oracle is intentionally CLI-only.  Keeping it out of ``AGENTS`` means it
 # cannot become an official baseline or alter the frozen benchmark contract.
 CLI_AGENTS: dict[str, type[Any]] = {**AGENTS, "oracle": OracleAgent}
+
+
+def _fail_fast_threshold(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("fail-fast threshold must be >= 1")
+    return parsed
 
 
 def _model_worker_count(agent: Any, requested: int | None) -> int | None:
@@ -169,7 +176,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     model_parser.add_argument(
         "--fail-fast",
-        type=int,
+        type=_fail_fast_threshold,
         default=2,
         metavar="N",
         help="abort after N consecutive adapter failures (default: 2)",
@@ -490,7 +497,7 @@ def _model_command(args: argparse.Namespace) -> None:
         try:
             with _model_worker_environment(workers):
                 result = evaluate_against_baselines(
-                    FailFastAgent(agent, threshold=args.fail_fast),
+                    fail_fast_agent(agent, args.fail_fast),
                     config.seeds,
                     config.seasons,
                     config.baselines,

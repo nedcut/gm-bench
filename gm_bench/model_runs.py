@@ -24,6 +24,7 @@ from gm_bench.runner import (
     run_many,
     run_many_cached_baselines,
 )
+from gm_bench.session import PersistentProcessAgent
 from gm_bench.telemetry import summarize_usage
 
 
@@ -31,18 +32,48 @@ class ModelRunAborted(RuntimeError):
     """Raised when consecutive adapter failures trip the model circuit breaker."""
 
 
+class _FailFastState:
+    """Thread-safe consecutive-failure counter shared by fail-fast wrappers."""
+
+    def __init__(self, threshold: int) -> None:
+        if threshold < 1:
+            raise ValueError("fail-fast threshold must be >= 1")
+        self.threshold = threshold
+        self.consecutive_failures = 0
+        self._lock = threading.Lock()
+
+    def record(self, actions: Any) -> None:
+        failed = not isinstance(actions, list) or any(
+            isinstance(action, dict) and ("error" in action or "model_error" in action) for action in actions
+        )
+        with self._lock:
+            if not failed:
+                self.consecutive_failures = 0
+                return
+            self.consecutive_failures += 1
+            if self.consecutive_failures >= self.threshold:
+                detail = _failure_detail(actions)
+                raise ModelRunAborted(
+                    f"aborting after {self.consecutive_failures} consecutive model failures: {detail}"
+                )
+
+
 class FailFastAgent(Agent):
     """Stop a panel after repeated adapter failures instead of burning quota."""
 
     def __init__(self, inner: Agent, threshold: int = 2) -> None:
-        if threshold < 1:
-            raise ValueError("fail-fast threshold must be >= 1")
         self.inner = inner
         self.name = inner.name
         self.metadata = getattr(inner, "metadata", {})
-        self.threshold = threshold
-        self.consecutive_failures = 0
-        self._state_lock = threading.Lock()
+        self._state = _FailFastState(threshold)
+
+    @property
+    def threshold(self) -> int:
+        return self._state.threshold
+
+    @property
+    def consecutive_failures(self) -> int:
+        return self._state.consecutive_failures
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
         actions, _usage = self.act_with_usage(observation)
@@ -50,21 +81,81 @@ class FailFastAgent(Agent):
 
     def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         actions, usage = self.inner.act_with_usage(observation)
-        failed = not isinstance(actions, list) or any(
-            isinstance(action, dict) and ("error" in action or "model_error" in action) for action in actions
-        )
-        with self._state_lock:
-            if not failed:
-                self.consecutive_failures = 0
-                return actions, usage
-
-            self.consecutive_failures += 1
-            if self.consecutive_failures >= self.threshold:
-                detail = _failure_detail(actions)
-                raise ModelRunAborted(
-                    f"aborting after {self.consecutive_failures} consecutive model failures: {detail}"
-                )
+        self._state.record(actions)
         return actions, usage
+
+
+class FailFastSessionAgent(PersistentProcessAgent):
+    """Fail-fast circuit breaker for session-lane (persistent process) agents.
+
+    The frozen runner dispatches on ``isinstance(agent, PersistentProcessAgent)``
+    for episode start/end, per-episode cloning, and multi-round result delivery,
+    and ``runner.py`` is a contract-fingerprint source that must not change.
+    Wrapping a session agent in the plain ``FailFastAgent`` would defeat those
+    checks (the adapter process would never be spawned), so this proxy subclass
+    keeps the type relationship while delegating everything to the inner agent.
+    Clones share one failure counter so a globally failing model trips the
+    breaker across episodes.
+    """
+
+    def __init__(
+        self,
+        inner: PersistentProcessAgent,
+        threshold: int = 2,
+        *,
+        _state: _FailFastState | None = None,
+    ) -> None:
+        # Deliberately no super().__init__(): every inherited method that touches
+        # process state is overridden to delegate to ``inner``.
+        self.inner = inner
+        self.name = inner.name
+        self.metadata = getattr(inner, "metadata", {})
+        self._state = _state or _FailFastState(threshold)
+
+    @property
+    def threshold(self) -> int:
+        return self._state.threshold
+
+    @property
+    def consecutive_failures(self) -> int:
+        return self._state.consecutive_failures
+
+    def start_episode(self, seed: int, seasons: int) -> None:
+        self.inner.start_episode(seed, seasons)
+
+    def end_episode(self) -> None:
+        self.inner.end_episode()
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        actions, _usage = self.act_with_usage(observation)
+        return actions
+
+    def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        actions, usage = self.inner.act_with_usage(observation)
+        self._state.record(actions)
+        return actions, usage
+
+    def act_on_results(self, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        actions, _usage = self.act_on_results_with_usage(results)
+        return actions
+
+    def act_on_results_with_usage(
+        self,
+        results: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        actions, usage = self.inner.act_on_results_with_usage(results)
+        self._state.record(actions)
+        return actions, usage
+
+    def clone(self) -> "FailFastSessionAgent":
+        return FailFastSessionAgent(self.inner.clone(), _state=self._state)
+
+
+def fail_fast_agent(agent: Agent, threshold: int) -> Agent:
+    """Wrap ``agent`` with the fail-fast breaker appropriate for its lane."""
+    if isinstance(agent, PersistentProcessAgent):
+        return FailFastSessionAgent(agent, threshold)
+    return FailFastAgent(agent, threshold)
 
 
 def _failure_detail(actions: Any) -> str:
@@ -192,7 +283,7 @@ def _run_resumable_candidate_locked(
                     )
                 episodes[key] = episode
 
-    wrapped = FailFastAgent(agent, threshold=fail_fast)
+    wrapped = fail_fast_agent(agent, fail_fast)
     _write_checkpoint(
         checkpoint_path, wrapped.name, seeds, seasons, repeats, episodes, metadata, provenance, status="running"
     )

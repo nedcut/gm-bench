@@ -150,3 +150,10 @@ def test_session_lane_honors_fail_fast(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(SystemExit, match="2 consecutive model failures"):
         cli.main(["model", "--provider", "openai", "--session", "--no-log"])
+
+
+def test_fail_fast_below_one_is_rejected_at_the_cli(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["model", "--provider", "openai", "--fail-fast", "0", "--no-log"])
+    assert excinfo.value.code == 2
+    assert "fail-fast threshold must be >= 1" in capsys.readouterr().err
