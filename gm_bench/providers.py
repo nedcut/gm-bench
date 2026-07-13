@@ -88,6 +88,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
             "OPENROUTER_REQUIRE_PARAMETERS": "false",
             "OPENROUTER_DATA_COLLECTION": "deny",
             "OPENROUTER_JSON_MODE": "false",
+            "OPENROUTER_MAX_TOKENS": "2048",
         },
         provenance_env=(
             "OPENROUTER_PROVIDER_ONLY",
@@ -98,6 +99,9 @@ PROVIDERS: dict[str, ProviderSpec] = {
             "OPENROUTER_ZDR",
             "OPENROUTER_QUANTIZATIONS",
             "OPENROUTER_JSON_MODE",
+            "OPENROUTER_MAX_TOKENS",
+            "OPENROUTER_REASONING_EFFORT",
+            "OPENROUTER_REASONING_MAX_TOKENS",
         ),
     ),
     "ollama": ProviderSpec(
@@ -179,8 +183,11 @@ def build_provider_agent(
         env["GM_AGENT_PROFILE"] = profile
     elif spec.default_profile and "GM_AGENT_PROFILE" not in os.environ:
         env["GM_AGENT_PROFILE"] = spec.default_profile
-    env.update(spec.extra_env)
-    # User-supplied env goes last so config files can override spec defaults.
+    # Precedence is config env > inherited shell env > provider defaults.
+    # Material controls must never silently replace an operator override.
+    for key, value in spec.extra_env.items():
+        env[key] = os.environ.get(key, value)
+    # Config-file env is the most explicit provider configuration.
     if extra_env:
         env.update(extra_env)
 

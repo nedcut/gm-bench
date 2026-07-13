@@ -56,13 +56,19 @@ GM_BENCH_WORKERS=1 python3 -m gm_bench model \
   --preset smoke --verbose --json --no-log
 ```
 
-The equivalent checked-in OpenRouter smoke config is
-`examples/openrouter.smoke.json`:
+The checked-in canonical Luna configs pin the complete execution condition:
 
 ```bash
-GM_BENCH_WORKERS=1 python3 -m gm_bench model \
-  --provider openrouter --config examples/openrouter.smoke.json
+python3 -m gm_bench model --config examples/openrouter.luna.smoke.json
+python3 -m gm_bench model --config examples/openrouter.luna.leaderboard.json
 ```
+
+The smoke exits nonzero on any failed or illegal decision, protocol penalty,
+missing usage/cost coverage, or ambiguous OpenRouter upstream. Both configs
+atomically persist the complete JSON artifact with `output`; terminal truncation
+cannot destroy the result. Explicit CLI flags override config values, config
+`env` overrides inherited shell values, and inherited shell values override
+provider defaults.
 
 ## OpenRouter routing policy
 
@@ -102,6 +108,9 @@ Available routing controls:
 | `OPENROUTER_ZDR` | unset | Require zero-data-retention endpoints |
 | `OPENROUTER_QUANTIZATIONS` | unset | Comma-separated allowed quantizations |
 | `OPENROUTER_JSON_MODE` | `false` | Request provider-native JSON-object mode |
+| `OPENROUTER_MAX_TOKENS` | `2048` | Maximum generated tokens per API call |
+| `OPENROUTER_REASONING_EFFORT` | unset | Requested reasoning effort |
+| `OPENROUTER_REASONING_MAX_TOKENS` | unset | Maximum reasoning-token budget |
 
 The resolved values are stamped into `run_info.provider_options`. OpenRouter
 responses additionally record the returned model, upstream provider,
@@ -134,6 +143,10 @@ questions.
 4. Keep `GM_BENCH_WORKERS=1` unless the provider and budget explicitly permit
    concurrency.
 5. Validate the resulting JSON with `validate-result` before publishing it.
+
+Leaderboard OpenRouter runs are rejected before the first paid call unless
+exactly one `OPENROUTER_PROVIDER_ONLY` value is set and fallbacks are disabled.
+The observed upstream must also match the requested upstream for a clean run.
 
 This setup intentionally does not run any paid model calls or create benchmark
 artifacts by itself.

@@ -64,6 +64,10 @@ def test_choose_actions_records_route_and_authoritative_cost(monkeypatch) -> Non
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     monkeypatch.setenv("OPENROUTER_PROVIDER_ONLY", "openai")
     monkeypatch.setenv("OPENROUTER_QUANTIZATIONS", "fp16,fp8")
+    monkeypatch.setenv("OPENROUTER_JSON_MODE", "true")
+    monkeypatch.setenv("OPENROUTER_MAX_TOKENS", "1024")
+    monkeypatch.setenv("OPENROUTER_REASONING_EFFORT", "medium")
+    monkeypatch.setenv("OPENROUTER_REASONING_MAX_TOKENS", "256")
     monkeypatch.setattr(openrouter_agent.urllib.request, "urlopen", fake_urlopen)
 
     actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
@@ -72,6 +76,9 @@ def test_choose_actions_records_route_and_authoritative_cost(monkeypatch) -> Non
     assert captured["payload"]["provider"]["only"] == ["openai"]
     assert captured["payload"]["provider"]["quantizations"] == ["fp16", "fp8"]
     assert captured["payload"]["provider"]["allow_fallbacks"] is False
+    assert captured["payload"]["response_format"] == {"type": "json_object"}
+    assert captured["payload"]["max_tokens"] == 1024
+    assert captured["payload"]["reasoning"] == {"effort": "medium", "max_tokens": 256}
     assert usage["provider"] == "openrouter"
     assert usage["upstream_provider"] == "OpenAI"
     assert usage["generation_id"] == "gen-test"
@@ -99,6 +106,25 @@ def test_choose_actions_network_filtered_and_config_errors_return_fallback(monke
     actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
     assert "api_error" in actions[0]["model_error"]
     assert usage["api_latency_ms"] >= 0
+
+
+def test_parse_failure_preserves_paid_usage(monkeypatch) -> None:
+    class Malformed(_Response):
+        def read(self) -> bytes:
+            payload = json.loads(super().read())
+            payload["choices"][0]["message"]["content"] = "not json"
+            return json.dumps(payload).encode()
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setattr(openrouter_agent.urllib.request, "urlopen", lambda *args, **kwargs: Malformed())
+    actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+
+    assert "model did not return" in actions[0]["model_error"]
+    assert usage["input_tokens"] == 100
+    assert usage["output_tokens"] == 20
+    assert usage["cost_usd"] == 0.00123
+    assert usage["generation_id"] == "gen-test"
+    assert usage["upstream_provider"] == "OpenAI"
 
     class EmptyChoices(_Response):
         def read(self) -> bytes:

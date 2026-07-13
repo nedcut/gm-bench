@@ -155,6 +155,7 @@ def summarize_usage(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     totals = {key: sum(int(block.get(key, 0)) for block in blocks) for key in _COUNT_KEYS}
     costs = [block["cost_usd"] for block in blocks if block.get("cost_usd") is not None]
     decisions_with_usage = sum(int(block.get("decisions_with_usage", 0)) for block in blocks)
+    cost_decisions = sum(int(block.get("cost_decisions", 0)) for block in blocks)
     harness_ms = sum(float(block.get("harness_latency_ms", 0.0)) for block in blocks)
     models = Counter(block["model"] for block in blocks if block.get("model"))
     providers = Counter(block["provider"] for block in blocks if block.get("provider"))
@@ -165,6 +166,7 @@ def summarize_usage(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     observed_upstreams.update(upstream_providers)
     return {
         "decisions_with_usage": decisions_with_usage,
+        "cost_decisions": cost_decisions,
         **totals,
         "api_latency_ms": round(sum(float(block.get("api_latency_ms", 0.0)) for block in blocks), 1),
         "harness_latency_ms": round(harness_ms, 1),

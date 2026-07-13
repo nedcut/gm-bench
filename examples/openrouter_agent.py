@@ -75,6 +75,7 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
         return fallback_actions(observation, "missing OPENROUTER_API_KEY"), None
 
     started = time.perf_counter()
+    usage: dict[str, Any] | None = None
     try:
         payload: dict[str, Any] = {
             "model": model,
@@ -86,6 +87,24 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
         }
         if _boolean("OPENROUTER_JSON_MODE", False):
             payload["response_format"] = {"type": "json_object"}
+        max_tokens = os.environ.get("OPENROUTER_MAX_TOKENS")
+        if max_tokens is not None:
+            resolved_max_tokens = int(max_tokens)
+            if resolved_max_tokens < 1:
+                raise ValueError("OPENROUTER_MAX_TOKENS must be >= 1")
+            payload["max_tokens"] = resolved_max_tokens
+        reasoning_effort = os.environ.get("OPENROUTER_REASONING_EFFORT")
+        reasoning_max = os.environ.get("OPENROUTER_REASONING_MAX_TOKENS")
+        if reasoning_effort or reasoning_max:
+            reasoning: dict[str, Any] = {}
+            if reasoning_effort:
+                reasoning["effort"] = reasoning_effort
+            if reasoning_max:
+                resolved_reasoning_max = int(reasoning_max)
+                if resolved_reasoning_max < 1:
+                    raise ValueError("OPENROUTER_REASONING_MAX_TOKENS must be >= 1")
+                reasoning["max_tokens"] = resolved_reasoning_max
+            payload["reasoning"] = reasoning
         temperature = os.environ.get("OPENROUTER_TEMPERATURE")
         if temperature is not None:
             payload["temperature"] = float(temperature)
@@ -126,10 +145,14 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
             if value is not None:
                 usage[key] = value
         content = data["choices"][0]["message"]["content"]
-        return parse_actions(content), usage
+        try:
+            return parse_actions(content), usage
+        except ValueError as exc:
+            return fallback_actions(observation, f"api_error: {exc}"), usage
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, IndexError, json.JSONDecodeError) as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
-        usage = make_usage(provider="openrouter", model=model, api_calls=1, api_latency_ms=latency_ms)
+        if usage is None:
+            usage = make_usage(provider="openrouter", model=model, api_calls=1, api_latency_ms=latency_ms)
         return fallback_actions(observation, f"api_error: {exc}"), usage
 
 
