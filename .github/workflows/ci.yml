@@ -50,7 +50,7 @@ jobs:
         run: python -m gm_bench validate-contract
       - name: Validate committed leaderboard results
         run: |
-          for result in results/leaderboard/*.json; do
+          find results/leaderboard -maxdepth 1 -type f -name '*.json' -print0 | while IFS= read -r -d '' result; do
             python -m gm_bench validate-result "$result" --policy public-leaderboard
           done
       - name: Exercise leaderboard builder

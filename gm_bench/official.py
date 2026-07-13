@@ -21,10 +21,18 @@ from gm_bench.contract import expected_contract, scaffold_fingerprint
 
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
 SOTA_V2_POLICY_NAME = "sota-v2"
-# Retained so `--policy sota-v1` resolves to the current strict policy and fails
-# with a contract-mismatch error rather than an unknown-policy error.
 SOTA_V1_POLICY_NAME = "sota-v1"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+SOTA_V1_CONTRACT = {
+    "benchmark_version": "sota-v1",
+    "action_protocol_version": "actions-v1",
+    "scoring_version": "score-v1",
+    "scoring_scale_fingerprint": "05a60ff4f691e734",
+    "simulator_version": "sim-v1",
+    "observation_version": "observation-v1",
+    "contract_fingerprint": "cf2607e59dba0c7f",
+}
 
 
 @dataclass(frozen=True)
@@ -36,6 +44,8 @@ class ResultPolicy:
     require_full_usage: bool = True
     require_contract_provenance: bool = False
     require_seed_panel_provenance: bool = False
+    expected_contract: dict[str, Any] | None = None
+    validate_current_scaffold: bool = True
 
 
 PUBLIC_LEADERBOARD_POLICY = ResultPolicy(
@@ -51,15 +61,23 @@ SOTA_V2_POLICY = ResultPolicy(
     max_decision_failure_rate=0.02,
     require_contract_provenance=True,
     require_seed_panel_provenance=True,
+    expected_contract=expected_contract(),
 )
-# Backward-compat alias so old symbol imports keep resolving to the strict policy.
-SOTA_V1_POLICY = SOTA_V2_POLICY
+SOTA_V1_POLICY = ResultPolicy(
+    name=SOTA_V1_POLICY_NAME,
+    min_repeats=3,
+    min_seed_count=len(PRESETS["leaderboard"]["seeds"]),
+    max_decision_failure_rate=0.02,
+    require_contract_provenance=True,
+    require_seed_panel_provenance=True,
+    expected_contract=SOTA_V1_CONTRACT,
+    # Historical adapter scaffolds are no longer present in the source tree.
+    validate_current_scaffold=False,
+)
 POLICIES = {
     PUBLIC_LEADERBOARD_POLICY.name: PUBLIC_LEADERBOARD_POLICY,
+    SOTA_V1_POLICY.name: SOTA_V1_POLICY,
     SOTA_V2_POLICY.name: SOTA_V2_POLICY,
-    # Old label maps to the current strict policy; results minted under the v1
-    # contract fail on the fingerprint mismatch instead of "unknown policy".
-    SOTA_V1_POLICY_NAME: SOTA_V2_POLICY,
 }
 REDACTED_SEEDS_SENTINEL = "<redacted>"
 
@@ -125,8 +143,17 @@ def validate_leaderboard_payload(
             errors.append("run_info.provider is required for official model results")
         if not run_info.get("model"):
             errors.append("run_info.model is required for official model results")
-        _validate_contract_provenance(errors, warnings, run_info, require=policy.require_contract_provenance)
-        _validate_scaffold_provenance(errors, warnings, run_info)
+        _validate_contract_provenance(
+            errors,
+            warnings,
+            run_info,
+            require=policy.require_contract_provenance,
+            expected=policy.expected_contract,
+        )
+        if policy.validate_current_scaffold:
+            _validate_scaffold_provenance(errors, warnings, run_info)
+        elif run_info.get("scaffold_fingerprint"):
+            warnings.append("historical scaffold fingerprint retained but cannot be re-derived from current source")
         if run_info.get("session"):
             if policy.name == SOTA_V2_POLICY_NAME:
                 errors.append(
@@ -444,9 +471,10 @@ def _validate_contract_provenance(
     run_info: dict[str, Any],
     *,
     require: bool,
+    expected: dict[str, Any] | None,
 ) -> None:
     contract = _dict(run_info.get("benchmark_contract"))
-    expected = expected_contract()
+    expected = expected or expected_contract()
     if not contract:
         message = "run_info.benchmark_contract is required for current-contract validation"
         if require:

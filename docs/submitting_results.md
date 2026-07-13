@@ -83,7 +83,7 @@ Both policies require these; the values are read straight from the payload:
 | Baseline panel | any known subset, no dupes | **exact** full panel: `random`, `conservative`, `win-now`, `rebuild`, `value`, `shrewd`, `strategic`, `pick-trader` |
 
 For `sota-v2`, `run_info.benchmark_contract` must match `expected_contract()` field
-for field — including `contract_fingerprint`, frozen at `1421425d6d4f9a86`. A row
+for field — including `contract_fingerprint`, frozen at `a65a4359ca3c6e64`. A row
 built against a different simulator/scoring/schema source is rejected, not merely
 flagged.
 

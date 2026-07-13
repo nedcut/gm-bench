@@ -39,6 +39,7 @@ from gm_bench.protocol import PHASES  # noqa: E402
 from gm_bench.runner import run_many  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
+ARCHIVE_DIR = RESULTS_DIR / "archive-v1"
 DIAGNOSTICS_DIR = ROOT / "results" / "diagnostics"
 OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard.json"
 LEADERBOARD = PRESETS["leaderboard"]
@@ -184,34 +185,39 @@ def current_baselines() -> list[dict[str, Any]]:
 
 
 def select_model_payloads(
-    artifacts: list[tuple[dict[str, Any], bool, str]],
+    artifacts: list[tuple[dict[str, Any], int, str]],
 ) -> list[dict[str, Any]]:
-    """Choose one row per agent: official first, otherwise newest diagnostic."""
-    selected: dict[str, tuple[tuple[bool, str, str], dict[str, Any]]] = {}
-    for payload, official, filename in artifacts:
+    """Choose one row per agent and contract, preferring canonical artifacts."""
+    selected: dict[tuple[str, str], tuple[tuple[int, str, str], dict[str, Any]]] = {}
+    for payload, source_priority, filename in artifacts:
         agent = str(payload.get("agent") or "")
         if not agent:
             continue
+        contract = (payload.get("run_info") or {}).get("benchmark_contract") or {}
+        benchmark_version = str(contract.get("benchmark_version") or "unknown")
         timestamp = str((payload.get("run_info") or {}).get("timestamp_utc") or "")
-        priority = (official, timestamp, filename)
-        current = selected.get(agent)
+        priority = (int(source_priority), timestamp, filename)
+        key = (agent, benchmark_version)
+        current = selected.get(key)
         if current is None or priority > current[0]:
-            selected[agent] = (priority, payload)
+            selected[key] = (priority, payload)
     return [item[1] for item in selected.values()]
 
 
 def main() -> None:
-    artifacts: list[tuple[dict[str, Any], bool, str]] = []
-    for directory in (RESULTS_DIR, DIAGNOSTICS_DIR):
+    artifacts: list[tuple[dict[str, Any], int, str]] = []
+    for directory, priority in ((RESULTS_DIR, 2), (ARCHIVE_DIR, 1), (DIAGNOSTICS_DIR, 0)):
         if not directory.exists():
             continue
         for path in sorted(directory.glob("*.json")):
             try:
-                artifacts.append((json.loads(path.read_text()), directory == RESULTS_DIR, path.name))
+                artifacts.append((json.loads(path.read_text()), priority, path.name))
             except json.JSONDecodeError:
                 print(f"skipping unparseable {path}", file=sys.stderr)
     payloads = select_model_payloads(artifacts)
-    models = sorted((model_row(payload) for payload in payloads), key=lambda row: row["mean_score"], reverse=True)
+    rows = sorted((model_row(payload) for payload in payloads), key=lambda row: row["mean_score"], reverse=True)
+    models = [row for row in rows if row.get("benchmark_version") == "sota-v2"]
+    archive_models = [row for row in rows if row.get("benchmark_version") != "sota-v2"]
     baselines = current_baselines()
     dataset = {
         "updated": date.today().isoformat(),
@@ -223,10 +229,14 @@ def main() -> None:
         },
         "baselines": baselines,
         "models": models,
+        "archive_models": archive_models,
     }
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(json.dumps(dataset, indent=2, sort_keys=True) + "\n")
-    print(f"wrote {OUTPUT_PATH} ({len(models)} model(s), {len(baselines)} baseline(s))")
+    print(
+        f"wrote {OUTPUT_PATH} ({len(models)} current model(s), "
+        f"{len(archive_models)} archived model(s), {len(baselines)} baseline(s))"
+    )
 
 
 if __name__ == "__main__":

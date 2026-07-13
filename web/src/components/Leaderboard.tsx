@@ -13,9 +13,9 @@ type Row =
   | { kind: "model"; rank: number; model: LeaderboardModel }
   | { kind: "baseline"; baseline: LeaderboardBaseline };
 
-function buildRows(data: LeaderboardData): Row[] {
-  const rows: Row[] = data.models.map((model, index) => ({ kind: "model", rank: index + 1, model }));
-  for (const baseline of data.baselines) {
+function buildRows(models: LeaderboardModel[], baselines: LeaderboardBaseline[]): Row[] {
+  const rows: Row[] = models.map((model, index) => ({ kind: "model", rank: index + 1, model }));
+  for (const baseline of baselines) {
     rows.push({ kind: "baseline", baseline });
   }
   return rows.sort((a, b) => {
@@ -32,7 +32,14 @@ function cost(model: LeaderboardModel): string {
   return `$${fmt(model.cost_per_episode_usd, 2)}`;
 }
 
-function statusTag(model: LeaderboardModel) {
+function statusTag(model: LeaderboardModel, historical = false) {
+  if (historical) {
+    return (
+      <span className="tag tag-dev" title="Produced under the superseded sota-v1 contract; not comparable to sota-v2">
+        archived v1
+      </span>
+    );
+  }
   const allIssues = model.sota_v2_issues ?? [];
   const issues = allIssues.join("\n");
   if (model.sota_v2_eligible) {
@@ -63,15 +70,30 @@ function laneLabel(model: LeaderboardModel): string {
   return model.lane === "cli-harness" ? "CLI harness" : "API";
 }
 
-function LeaderboardTable({ data }: { data: LeaderboardData }) {
-  const rows = buildRows(data);
+function LeaderboardTable({
+  data,
+  models = data.models,
+  baselines = data.baselines,
+  title = "Official leaderboard",
+  subtitle,
+  historical = false,
+}: {
+  data: LeaderboardData;
+  models?: LeaderboardModel[];
+  baselines?: LeaderboardBaseline[];
+  title?: string;
+  subtitle?: string;
+  historical?: boolean;
+}) {
+  const rows = buildRows(models, baselines);
   const maxScore = Math.max(...rows.map((row) => (row.kind === "model" ? row.model.mean_score : row.baseline.mean_score)));
   return (
     <div className="panel">
       <div className="panel-title">
-        <h3>Official leaderboard</h3>
+        <h3>{title}</h3>
         <span>
-          preset {data.preset.name} · {data.preset.seeds.length} seeds × {data.preset.seasons} seasons · updated {data.updated}
+          {subtitle ??
+            `preset ${data.preset.name} · ${data.preset.seeds.length} seeds × ${data.preset.seasons} seasons · updated ${data.updated}`}
         </span>
       </div>
       <div className="table-wrap">
@@ -140,7 +162,7 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
                       <span className="tag tag-candidate">{PROVIDER_LABELS[model.provider] ?? model.provider}</span>
                     </span>
                   </td>
-                  <td>{statusTag(model)}</td>
+                  <td>{statusTag(model, historical)}</td>
                   <td className="mono-dim">{laneLabel(model)}</td>
                   <td className="num score-strong">{fmt(model.mean_score, 1)}</td>
                   <td>
@@ -226,6 +248,16 @@ export default function Leaderboard({ data }: { data: LeaderboardData }) {
         </div>
         <LeaderboardTable data={data} />
         {data.models.length === 0 && <EmptyState />}
+        {data.archive_models.length > 0 && (
+          <LeaderboardTable
+            data={data}
+            models={data.archive_models}
+            baselines={[]}
+            title="Archived sota-v1 evidence"
+            subtitle="Historical only · affected by the v1 scout-contract defect · not comparable to sota-v2"
+            historical
+          />
+        )}
       </div>
     </section>
   );

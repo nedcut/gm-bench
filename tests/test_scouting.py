@@ -35,7 +35,7 @@ def test_scout_points_are_limited_and_reset_each_season():
     assert league.transactions[-1].accepted
 
 
-def test_rescouting_and_unknown_targets_are_illegal():
+def test_rescouting_fails_and_unknown_target_is_a_failed_query():
     league = League.new(seed=3)
     prospect_id = next(iter(league.prospects))
     league.apply_actions([{"type": "scout", "player_id": prospect_id}], "preseason")

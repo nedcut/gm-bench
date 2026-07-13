@@ -453,7 +453,9 @@ class League:
         team_id = int(action.get("team_id", -1))
         if team_id not in self.teams:
             valid = ", ".join(str(tid) for tid in sorted(self.teams))
-            return self._record(action, phase, False, f"unknown team id {team_id}; valid team ids: {valid}", penalize=False)
+            return self._record(
+                action, phase, False, f"unknown team id {team_id}; valid team ids: {valid}", penalize=False
+            )
         team = self.teams[team_id]
         data = {
             "team": team.public_dict(self.players, self.cap),

@@ -1,6 +1,9 @@
-"""Tests for the v2 contract version strings and policy aliasing."""
+"""Tests for current and historical contract policy registration."""
 
 from __future__ import annotations
+
+import json
+from pathlib import Path
 
 from gm_bench.contract import (
     ACTION_PROTOCOL_VERSION,
@@ -12,6 +15,7 @@ from gm_bench.official import (
     POLICIES,
     SOTA_V1_POLICY,
     SOTA_V2_POLICY,
+    validate_leaderboard_payload,
 )
 
 
@@ -27,11 +31,22 @@ def test_contract_reports_v2_version_strings() -> None:
     assert contract["scoring_version"] == "score-v1"
 
 
-def test_sota_v2_policy_registered_and_v1_label_aliases_to_it() -> None:
+def test_current_and_historical_sota_policies_are_distinct() -> None:
     assert SOTA_V2_POLICY.name == "sota-v2"
     assert POLICIES["sota-v2"] is SOTA_V2_POLICY
-    # The old label resolves to the current strict policy so `--policy sota-v1`
-    # fails on a contract mismatch, not an unknown-policy error.
-    assert POLICIES["sota-v1"] is SOTA_V2_POLICY
-    # The retained module symbol is an alias for the same object.
-    assert SOTA_V1_POLICY is SOTA_V2_POLICY
+    assert SOTA_V1_POLICY.name == "sota-v1"
+    assert POLICIES["sota-v1"] is SOTA_V1_POLICY
+    assert SOTA_V1_POLICY is not SOTA_V2_POLICY
+    assert SOTA_V1_POLICY.expected_contract["contract_fingerprint"] == "cf2607e59dba0c7f"
+
+
+def test_archived_v1_result_remains_auditable_but_not_v2_eligible() -> None:
+    path = Path("results/leaderboard/archive-v1/openrouter-gpt-5.6-luna.json")
+    payload = json.loads(path.read_text())
+
+    historical = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    current = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+
+    assert historical.ok
+    assert not current.ok
+    assert any("benchmark_version" in error for error in current.errors)

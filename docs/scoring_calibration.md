@@ -89,7 +89,7 @@ is derived only from the published weights and clamps. GM-Bench validates it at
 import time, so changing a weight without declaring a new score version fails
 immediately instead of silently changing leaderboard meaning.
 
-The `sota-v2` benchmark contract (fingerprint `1421425d6d4f9a86`, see
+The `sota-v2` benchmark contract (fingerprint `a65a4359ca3c6e64`, see
 [production_benchmark.md](production_benchmark.md)) does not touch `score-v1`:
 no scoring weight or clamp changed. The `sota-v1` → `sota-v2` bump was a
 protocol/simulator fix (`scout` accepting `prospect_id`) and a reporting
@@ -125,7 +125,7 @@ also change strength, cap room, and wins.
 ## Reference-policy calibration
 
 The current `sota-v2` public panel (seeds 11-18, five seasons; contract
-fingerprint `1421425d6d4f9a86`, protocol `gm-bench-v2` with midseason)
+fingerprint `a65a4359ca3c6e64`, protocol `gm-bench-v2` with midseason)
 produces:
 
 | Reference | Mean score | Illegal actions | Role |

@@ -4,9 +4,9 @@ GM-Bench has two result tiers:
 
 - `public-leaderboard`: a structurally valid public leaderboard result.
 - `sota-v2`: the stricter standard for claims about frontier model GM ability.
-  (`--policy sota-v1` still works: it now resolves to the same strict policy
-  object, so an old-contract row fails on the contract-fingerprint mismatch
-  instead of an unknown-policy error.)
+- `sota-v1`: the frozen historical validator for archived v1 evidence. It does
+  not make a v1 row comparable to v2; it only keeps the archived contract
+  independently auditable.
 
 The public leaderboard can show development and diagnostic rows, including local
 models that are below the scripted baselines. A `sota-v2` result is the minimum
@@ -14,8 +14,9 @@ bar for a result that should be compared as a serious model benchmark.
 
 Committed official artifacts belong in `results/leaderboard/` and must pass the
 `public-leaderboard` validator in CI. Ineligible runs that are retained for
-transparency belong in `results/diagnostics/`; the site builder includes those
-rows explicitly while preserving the official-artifact gate.
+transparency belong in `results/diagnostics/`. The site builder separates
+current v2 rows from explicitly archived pre-v2 evidence while preserving the
+official-artifact gate.
 
 ## SOTA-v2 Requirements
 
@@ -194,7 +195,7 @@ Invalid private runs stay local; do not publish them.
 ## Contract freeze
 
 The `sota-v2` leaderboard contract is **frozen at fingerprint
-`1421425d6d4f9a86`** (protocol `gm-bench-v2` with midseason, the full baseline
+`a65a4359ca3c6e64`** (protocol `gm-bench-v2` with midseason, the full baseline
 panel, public seeds 11–18) as of 2026-07-13. It supersedes `sota-v1`, frozen
 at fingerprint `cf2607e59dba0c7f`: under `sota-v1` the simulator accepted a
 `scout` action's `player_id` only, even though the scaffold prompt also
@@ -250,7 +251,7 @@ after seeing scores.
 
 Rotation changes the **panel**, not the **contract**. The private panel is
 supplied at run time and is *not* part of the contract fingerprint, so swapping
-it in and out does not touch the frozen `1421425d6d4f9a86` and does not start a
+it in and out does not touch the frozen `a65a4359ca3c6e64` and does not start a
 new claim lane. The validator recognizes the private panel by the `private-env`
 name plus a seed-count and SHA-256 that it re-derives from the local
 `GM_BENCH_PRIVATE_SEEDS` value (or, for redacted artifacts, the declared

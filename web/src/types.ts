@@ -119,6 +119,7 @@ export interface Leaderboard {
   };
   baselines: LeaderboardBaseline[];
   models: LeaderboardModel[];
+  archive_models: LeaderboardModel[];
 }
 
 export interface Snapshot {

@@ -2,7 +2,8 @@
 
 These artifacts (`claude-sonnet-medium.json`, `codex-gpt-5.6-luna-medium.json`,
 `cursor-composer-2.5.json`, `cursor-grok-4.5-xhigh.json`,
-`ollama-gemma4-e4b.json`, `ollama-qwen3-5-latest.json`) were produced under the
+`ollama-gemma4-e4b.json`, `ollama-qwen3-5-latest.json`,
+`openrouter-gpt-5.6-luna.json`) were produced under the
 `sota-v1` contract (`gm_bench.contract`: `sota-v1` / `actions-v1` / `sim-v1`,
 frozen at fingerprint `cf2607e59dba0c7f`). They were moved here when the
 contract bumped to `sota-v2` and are no longer current leaderboard rows.
@@ -43,3 +44,5 @@ and comparison blocks, so a run like this would no longer be silent.
   same model are not the same measurement.
 - Do not merge, re-normalize, or otherwise combine these rows with current
   `results/leaderboard/*.json` rows on the live leaderboard.
+- Archived rows remain structurally auditable with
+  `python -m gm_bench validate-result <path> --policy sota-v1`.
