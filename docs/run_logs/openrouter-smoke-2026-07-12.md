@@ -2,7 +2,7 @@
 
 ## Outcomes
 
-Three OpenRouter smoke attempts were made:
+Five OpenRouter smoke attempts were made:
 
 1. The initial GPT-5.4 Mini attempt reached OpenRouter, but OpenRouter rejected
    two requests with HTTP 402 (`Payment Required`). GM-Bench aborted as designed.
@@ -13,8 +13,13 @@ Three OpenRouter smoke attempts were made:
 3. HY3 Free was then invoked without a config file. Three decisions completed
    successfully through Novita at zero cost; the fourth decision timed out at
    GM-Bench's 120-second external-agent limit.
+4. The first GPT-5.6 Luna smoke completed all four API calls, but one response
+   did not contain a parseable JSON action array, producing one failed decision.
+5. A second Luna smoke completed all four decisions cleanly. A shell-level JSON
+   mode override was attempted, but resolved provenance still recorded JSON mode
+   as disabled, so the clean result must not be attributed to forced JSON mode.
 
-The paid GPT run proves that the OpenRouter transport and account are ready.
+The paid GPT runs prove that the OpenRouter transport and account are ready.
 The HY3 run proves the free route, response parsing, and telemetry work, but its
 25% decision failure rate is not a clean model smoke. None of these one-seed,
 one-repeat diagnostics is eligible for a leaderboard claim.
@@ -138,6 +143,67 @@ including generation IDs, token usage, zero-cost reporting, returned-model
 identity, and upstream-provider identity. Its long reasoning outputs and timeout
 make it a poor readiness gate for larger panels under the current timeout.
 
-The next meaningful step is a four-decision `openai/gpt-5.6-luna` smoke, using
-explicit flags without `examples/openrouter.smoke.json`. Do not begin a larger
-Luna panel until that smoke completes all four decisions with zero failures.
+## GPT-5.6 Luna smokes
+
+Initial command:
+
+```bash
+GM_BENCH_WORKERS=1 python3 -m gm_bench model \
+  --provider openrouter \
+  --model 'openai/gpt-5.6-luna' \
+  --preset smoke \
+  --no-log \
+  --json
+```
+
+Initial Luna summary:
+
+- Timestamp: `2026-07-13T01:45:27+00:00`
+- Returned model: `openai/gpt-5.6-luna-20260709`
+- Upstream provider: `OpenAI`
+- API calls: `4`; failed benchmark decisions: `1`
+- Failure: midseason response did not contain a parseable JSON action array
+- Input tokens with reported usage: `22,356`
+- Output tokens: `1,110`
+- Reasoning tokens: `901`
+- API latency: `23,527.9 ms`
+- Reported cost: `$0.034603`
+- Candidate score: `163.192`, with zero illegal actions and zero protocol
+  penalty; not publishable because one decision failed
+
+A retry attempted to enable JSON mode at the shell level:
+
+```bash
+GM_BENCH_WORKERS=1 OPENROUTER_JSON_MODE=true python3 -m gm_bench model \
+  --provider openrouter \
+  --model 'openai/gpt-5.6-luna' \
+  --preset smoke \
+  --no-log \
+  --json
+```
+
+However, `run_info.provider_options.OPENROUTER_JSON_MODE` remained `false`.
+Provider environment resolution therefore overrode the shell value, just as the
+config path had overridden the explicit model earlier. The retry is a clean
+ordinary Luna sample, not a forced-JSON-mode test.
+
+Clean Luna summary:
+
+- Timestamp: `2026-07-13T01:46:14+00:00`
+- Returned model: `openai/gpt-5.6-luna-20260709`
+- Upstream provider: `OpenAI`
+- Decisions: `4`; failures: `0`
+- Illegal actions: `0`; protocol penalty: `0.0`
+- Input tokens: `29,426` (`29,414` cached)
+- Output tokens: `1,229`
+- Reasoning tokens: `939`
+- API latency: `33,849.5 ms`
+- Total harness latency: `34,221.9 ms`
+- Reported cost: `$0.010328`
+- Candidate score: `163.192`; score lift over the smoke baseline panel:
+  `+40.161` (`+32.64%`)
+
+Total reported Luna smoke cost across both attempts was `$0.044931`. The clean
+retry establishes readiness for a larger Luna run, but the model/config and
+provider-option precedence behavior should be fixed or explicitly accounted for
+before constructing reusable multi-model configs.
