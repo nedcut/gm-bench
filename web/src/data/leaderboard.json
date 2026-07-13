@@ -65,6 +65,8 @@
     ]
   },
   "publication": {
+    "duplicate_cells": [],
+    "frozen_output_token_cap": null,
     "missing": [],
     "models": [],
     "planned_caps": [
@@ -75,7 +77,8 @@
     ],
     "points": [],
     "publishable_ranking": false,
-    "reason": "missing planned model-cap cells; no output-budget conclusion is permitted",
+    "reason": "no sweep models selected; no output-budget conclusion is permitted",
+    "rejected_artifacts": [],
     "schema_version": 1,
     "status": "incomplete"
   },

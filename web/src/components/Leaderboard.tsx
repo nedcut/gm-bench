@@ -248,6 +248,45 @@ function ArchiveNotice() {
   );
 }
 
+function MechanicBreakdown({ models }: { models: LeaderboardModel[] }) {
+  const mechanics = [
+    ["draft", "Draft/scouting"],
+    ["trades", "Trades"],
+    ["cap_free_agency", "Cap/free agency"],
+    ["lineup", "Lineup"],
+    ["information_memory", "Information/memory"],
+  ] as const;
+  return (
+    <div className="panel">
+      <div className="panel-title">
+        <h3>Protocol outcomes by mechanic</h3>
+        <span>accepted / rejected actions</span>
+      </div>
+      <div className="table-wrap">
+        <table className="leaderboard-table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              {mechanics.map(([key, label]) => <th className="num" key={key}>{label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {models.map((model) => (
+              <tr key={model.id}>
+                <td>{model.model}</td>
+                {mechanics.map(([key]) => {
+                  const outcome = model.mechanic_breakdown[key] ?? { accepted: 0, rejected: 0 };
+                  return <td className="num mono-dim" key={key}>{outcome.accepted} / {outcome.rejected}</td>;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function Leaderboard({ data }: { data: LeaderboardData }) {
   return (
     <section className="section" id="leaderboard">
@@ -283,8 +322,9 @@ export default function Leaderboard({ data }: { data: LeaderboardData }) {
             Oracle {fmt(data.headroom.oracle, 1)} · pick-trader {fmt(data.headroom.pick_trader, 1)} · best eligible API model {data.headroom.best_model === null ? "pending" : fmt(data.headroom.best_model, 1)} · random {fmt(data.headroom.random, 1)}
           </p>
         </div>
-        <LeaderboardTable data={data} />
-        {data.models.length === 0 && <EmptyState />}
+        {data.publication.publishable_ranking && <LeaderboardTable data={data} />}
+        {data.publication.publishable_ranking && data.models.length > 0 && <MechanicBreakdown models={data.models} />}
+        {data.publication.publishable_ranking && data.models.length === 0 && <EmptyState />}
         {data.cli_harness_models.length > 0 && (
           <>
             <p style={{ maxWidth: 760 }}>

@@ -23,7 +23,8 @@ new protocol—not a ranking.
 The `sota-v2` publication answers those failures directly. It fixes scouting,
 separates API and coding-harness lanes, reports input and output tokens rather
 than hiding output inside a total dominated by prompts, permits exactly one
-measured JSON repair, and shows failures by strategic mechanic. The headline
+measured JSON repair, and reports accepted and rejected actions by strategic
+mechanic. The headline
 ranking will exist only if score saturates at a defensible output budget. If it
 does not, the result will be score-versus-budget curves instead.
 

@@ -14,8 +14,13 @@ at least two API models spanning the expected quality range.
 3. Run the `leaderboard` preset with three repeats and the same `compact`
    observation profile. Set the provider-specific cap in config `env`
    (`OPENAI_MAX_TOKENS`, `ANTHROPIC_MAX_TOKENS`,
-   `GEMINI_MAX_OUTPUT_TOKENS`, or `OPENROUTER_MAX_TOKENS`). An uncapped cell
-   omits that variable.
+   `GEMINI_MAX_OUTPUT_TOKENS`, or `OPENROUTER_MAX_TOKENS`) and set
+   `GM_BENCH_OUTPUT_BUDGET_CELL` to the matching integer. For the uncapped
+   cell, set `GM_BENCH_OUTPUT_BUDGET_CELL=uncapped`; a provider API that
+   requires a maximum may still receive its largest supported value. The
+   analyzer records that effective provider cap separately from the planned
+   matrix cell, so a missing environment variable cannot masquerade as a
+   deliberate uncapped run.
 4. Analyze locally without provider access:
 
    ```bash
@@ -27,7 +32,9 @@ The analyzer accepts only `sota-v2` API transports, records each source
 artifact hash, reports input and output tokens separately, and lists every
 missing model-cap cell. It never promotes a complete matrix directly: a human
 must inspect score-vs-output curves and freeze either a saturation cap or a
-fixed-budget curve policy in `config/sota_v2_lane.json`.
+fixed-budget curve policy in `config/sota_v2_lane.json`. A single-number
+ranking requires `output_budget_status` to be `frozen-saturation` or
+`frozen-fixed-budget` and `output_token_cap` to be the chosen positive integer.
 
 ## Frozen publication lanes
 

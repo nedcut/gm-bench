@@ -91,7 +91,6 @@ def _merge_usage(left: dict[str, Any], right: dict[str, Any] | None) -> dict[str
         "reasoning_tokens",
         "total_tokens",
         "api_latency_ms",
-        "cost_usd",
     ):
         if key in left or key in right:
             merged[key] = round(float(left.get(key, 0)) + float(right.get(key, 0)), 6)
@@ -100,6 +99,19 @@ def _merge_usage(left: dict[str, Any], right: dict[str, Any] | None) -> dict[str
     for key in ("provider", "model", "upstream_provider", "generation_id"):
         if right.get(key):
             merged[key] = right[key]
+    # Adapter-reported cost is authoritative only when both calls reported it.
+    # Otherwise aggregate_usage can estimate from the merged token totals.
+    if "cost_usd" in left and "cost_usd" in right:
+        merged["cost_usd"] = round(float(left["cost_usd"]) + float(right["cost_usd"]), 6)
+    else:
+        merged.pop("cost_usd", None)
+    upstreams = {str(value) for value in (left.get("upstream_provider"), right.get("upstream_provider")) if value}
+    upstreams.update(str(value) for value in left.get("upstream_providers", []) if value)
+    upstreams.update(str(value) for value in right.get("upstream_providers", []) if value)
+    if upstreams:
+        merged["upstream_providers"] = sorted(upstreams)
+        if len(upstreams) != 1:
+            merged.pop("upstream_provider", None)
     return merged
 
 
@@ -287,6 +299,9 @@ def build_provider_agent(
         for key in spec.provenance_env
         if env.get(key, os.environ.get(key)) not in (None, "")
     }
+    budget_cell = env.get("GM_BENCH_OUTPUT_BUDGET_CELL", os.environ.get("GM_BENCH_OUTPUT_BUDGET_CELL"))
+    if budget_cell not in (None, ""):
+        provider_options["GM_BENCH_OUTPUT_BUDGET_CELL"] = budget_cell
     provider_options["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] = env["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"]
     if provider_options:
         agent.metadata["provider_options"] = provider_options

@@ -72,6 +72,7 @@ export interface LeaderboardModel {
   model: string;
   provider: string;
   lane?: "api" | "cli-harness";
+  output_token_cap: number | null;
   mean_score: number;
   score_stddev: number;
   mean_strategy_score: number | null;
@@ -130,6 +131,7 @@ export interface Leaderboard {
     publishable_ranking: boolean;
     reason: string;
     planned_caps: Array<number | null>;
+    frozen_output_token_cap: number | null;
   };
   headroom: {
     oracle: number;

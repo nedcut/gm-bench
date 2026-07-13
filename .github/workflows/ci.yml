@@ -52,7 +52,7 @@ jobs:
         run: |
           count=0
           while IFS= read -r -d '' result; do
-            python -m gm_bench validate-result "$result" --policy public-leaderboard
+            python -m gm_bench validate-result "$result" --policy sota-v2
             count=$((count + 1))
           done < <(find results/leaderboard -maxdepth 1 -type f -name '*.json' -print0)
           echo "validated $count current leaderboard result(s)"

@@ -81,11 +81,40 @@ def test_external_agent_bounded_protocol_repair(monkeypatch: pytest.MonkeyPatch)
     assert usage["protocol_repairs_succeeded"] == 1
 
 
+def test_protocol_repair_preserves_route_changes_and_does_not_publish_partial_cost() -> None:
+    from gm_bench.providers import _merge_usage
+
+    merged = _merge_usage(
+        {
+            "api_calls": 1,
+            "input_tokens": 100,
+            "output_tokens": 10,
+            "cost_usd": 0.1,
+            "upstream_provider": "provider-a",
+        },
+        {
+            "api_calls": 1,
+            "input_tokens": 120,
+            "output_tokens": 12,
+            "upstream_provider": "provider-b",
+        },
+    )
+
+    assert merged["api_calls"] == 2
+    assert merged["input_tokens"] == 220
+    assert merged["output_tokens"] == 22
+    assert "cost_usd" not in merged
+    assert "upstream_provider" not in merged
+    assert merged["upstream_providers"] == ["provider-a", "provider-b"]
+
+
 def test_provider_environment_precedence(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENROUTER_JSON_MODE", "true")
+    monkeypatch.setenv("GM_BENCH_OUTPUT_BUDGET_CELL", "uncapped")
     inherited = build_provider_agent("openrouter", model="test")
     assert inherited.env["OPENROUTER_JSON_MODE"] == "true"
     assert inherited.metadata["provider_options"]["OPENROUTER_JSON_MODE"] == "true"
+    assert inherited.metadata["provider_options"]["GM_BENCH_OUTPUT_BUDGET_CELL"] == "uncapped"
 
     configured = build_provider_agent("openrouter", model="test", extra_env={"OPENROUTER_JSON_MODE": "false"})
     assert configured.env["OPENROUTER_JSON_MODE"] == "false"

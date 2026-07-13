@@ -127,6 +127,10 @@ def aggregate_usage(records: list[dict[str, Any]]) -> dict[str, Any]:
     models = Counter(record["model"] for record in records if record.get("model"))
     providers = Counter(record["provider"] for record in records if record.get("provider"))
     upstream_providers = Counter(record["upstream_provider"] for record in records if record.get("upstream_provider"))
+    observed_upstreams = {
+        str(upstream) for record in records for upstream in (record.get("upstream_providers") or []) if upstream
+    }
+    observed_upstreams.update(str(record["upstream_provider"]) for record in records if record.get("upstream_provider"))
     # A multi-round decision window emits one usage record per round; coverage
     # must count decision points, not rounds, or extra rounds on one decision
     # would mask missing usage on another (and pass the sota-v2 coverage gate).
@@ -144,7 +148,7 @@ def aggregate_usage(records: list[dict[str, Any]]) -> dict[str, Any]:
         "model": models.most_common(1)[0][0] if models else None,
         "provider": providers.most_common(1)[0][0] if providers else None,
         "upstream_provider": upstream_providers.most_common(1)[0][0] if upstream_providers else None,
-        "upstream_providers": sorted(upstream_providers),
+        "upstream_providers": sorted(observed_upstreams),
     }
 
 

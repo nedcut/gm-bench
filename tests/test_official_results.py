@@ -18,6 +18,7 @@ from gm_bench.official import (
     redact_leaderboard_payload,
     validate_leaderboard_payload,
 )
+from scripts.analyze_output_budget import analyze
 from web.scripts.build_leaderboard import model_row
 
 
@@ -223,6 +224,30 @@ def test_sota_v2_policy_requires_full_usage() -> None:
     report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert not report.ok
     assert "candidate usage.cost_usd is required, use null only when pricing is unknown" in report.errors
+
+
+def test_output_budget_analysis_rejects_duplicate_cells() -> None:
+    payload = _official_payload(repeats=3)
+    payload["run_info"]["transport"] = "direct-api"
+    payload["run_info"]["provider_options"] = {
+        "OPENAI_MAX_TOKENS": "256",
+        "GM_BENCH_OUTPUT_BUDGET_CELL": "256",
+    }
+    usage = payload["candidate"]["summary"]["usage"]
+    usage.update({"input_tokens": 1000, "output_tokens": 500})
+    config = {
+        "contract": "sota-v2",
+        "models": ["gpt-test"],
+        "output_token_caps": [256],
+        "repeats": 3,
+        "decision_rule": {"minimum_models": 1},
+    }
+
+    result = analyze(config, [payload, payload])
+
+    assert result["status"] == "incomplete"
+    assert result["publishable_ranking"] is False
+    assert result["duplicate_cells"] == [{"model": "gpt-test", "output_token_cap": 256}]
 
 
 def test_openrouter_price_route_is_public_diagnostic_but_not_sota() -> None:

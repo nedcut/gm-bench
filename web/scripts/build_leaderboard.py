@@ -36,8 +36,8 @@ from gm_bench.baseline_cache import cache_key, load_cache  # noqa: E402
 from gm_bench.benchmark_config import PRESETS, PRIVATE_LEADERBOARD_PANEL_NAME  # noqa: E402
 from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
 from gm_bench.oracle import OracleAgent  # noqa: E402
-from gm_bench.publication import mechanic_breakdown  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
+from gm_bench.publication import mechanic_breakdown  # noqa: E402
 from gm_bench.runner import run_many  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
@@ -56,6 +56,31 @@ def _lane(provider: str, transport: str | None) -> str:
     if transport:
         return "cli-harness" if transport == "coding-harness" else "api"
     return "cli-harness" if provider in CLI_HARNESS_PROVIDERS else "api"
+
+
+def _output_token_cap(run_info: dict[str, Any]) -> int | None:
+    options = run_info.get("provider_options") or {}
+    budget_cell = options.get("GM_BENCH_OUTPUT_BUDGET_CELL")
+    if budget_cell not in (None, ""):
+        if budget_cell == "uncapped":
+            return None
+        try:
+            return int(budget_cell)
+        except (TypeError, ValueError):
+            return None
+    names = (
+        "OPENAI_MAX_TOKENS",
+        "ANTHROPIC_MAX_TOKENS",
+        "GEMINI_MAX_OUTPUT_TOKENS",
+        "OPENROUTER_MAX_TOKENS",
+    )
+    values = [options[name] for name in names if options.get(name) not in (None, "")]
+    if len(values) != 1:
+        return None
+    try:
+        return int(values[0])
+    except (TypeError, ValueError):
+        return None
 
 
 def model_row(payload: dict[str, Any]) -> dict[str, Any]:
@@ -84,6 +109,7 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
         "model": model_name,
         "provider": provider,
         "lane": _lane(provider, run_info.get("transport")),
+        "output_token_cap": _output_token_cap(run_info),
         "mean_score": summary["mean_score"],
         "score_stddev": summary["score_stddev"],
         "mean_strategy_score": summary.get("mean_strategy_score"),
@@ -229,7 +255,30 @@ def main() -> None:
     # a thousand silently-rejected lookups and others none, so their scores are not
     # comparable to each other. See results/leaderboard/archive-v1/README.md.
     current_rows = [row for row in rows if row.get("benchmark_version") == "sota-v2"]
-    models = [row for row in current_rows if row.get("lane") == "api"]
+    analysis = json.loads((ROOT / "results" / "analysis" / "output-budget-sweep.json").read_text())
+    lane_config = json.loads((ROOT / "config" / "sota_v2_lane.json").read_text())
+    frozen_statuses = {"frozen-saturation", "frozen-fixed-budget"}
+    frozen_cap = lane_config.get("output_token_cap")
+    publishable_ranking = (
+        analysis.get("status") == "complete-needs-interpretation"
+        and lane_config.get("output_budget_status") in frozen_statuses
+        and isinstance(frozen_cap, int)
+        and frozen_cap > 0
+    )
+    publication = {
+        **analysis,
+        "publishable_ranking": publishable_ranking,
+        "frozen_output_token_cap": frozen_cap if publishable_ranking else None,
+    }
+    if not publishable_ranking and analysis.get("status") == "complete-needs-interpretation":
+        publication["reason"] = "sweep complete; inspect curves and freeze a fixed API-lane cap before ranking"
+    models = [
+        row
+        for row in current_rows
+        if row.get("lane") == "api"
+        and row.get("sota_v2_eligible")
+        and (not publishable_ranking or row.get("output_token_cap") == frozen_cap)
+    ]
     cli_harness_models = [row for row in current_rows if row.get("lane") == "cli-harness"]
     skipped = [row for row in rows if row.get("benchmark_version") != "sota-v2"]
     for row in skipped:
@@ -240,11 +289,10 @@ def main() -> None:
     baselines = current_baselines()
     oracle = run_many(OracleAgent(), seeds=list(LEADERBOARD["seeds"]), seasons=int(LEADERBOARD["seasons"]), workers=1)
     baseline_by_name = {row["agent"]: row["mean_score"] for row in baselines}
-    eligible_models = [row for row in models if row.get("sota_v2_eligible")]
     headroom = {
         "oracle": oracle["summary"]["mean_score"],
         "pick_trader": baseline_by_name.get("pick-trader"),
-        "best_model": max((row["mean_score"] for row in eligible_models), default=None),
+        "best_model": max((row["mean_score"] for row in models), default=None) if publishable_ranking else None,
         "random": baseline_by_name.get("random"),
     }
     # Derived from the artifacts, never from the wall clock: the committed
@@ -265,7 +313,7 @@ def main() -> None:
         "baselines": baselines,
         "models": models,
         "cli_harness_models": cli_harness_models,
-        "publication": json.loads((ROOT / "results" / "analysis" / "output-budget-sweep.json").read_text()),
+        "publication": publication,
         "headroom": headroom,
     }
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
