@@ -59,7 +59,10 @@ def _model_worker_count(agent: Any, requested: int | None) -> int | None:
         return max(1, requested)
     configured = os.environ.get("GM_BENCH_WORKERS")
     if configured:
-        return max(1, int(configured))
+        try:
+            return max(1, int(configured))
+        except ValueError:
+            sys.exit("gm-bench model: GM_BENCH_WORKERS must be an integer")
     if isinstance(agent, (ExternalProcessAgent, PersistentProcessAgent)):
         return 1
     return None

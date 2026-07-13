@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import urllib.error
 
 from examples import openai_compatible_agent
 
@@ -63,3 +64,36 @@ def test_choose_actions_without_key_marks_fallback(monkeypatch) -> None:
 
     assert "missing OPENAI_API_KEY" in actions[0]["model_error"]
     assert usage is None
+
+
+def test_json_mode_can_be_disabled(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_urlopen(request: object, **kwargs: object) -> _Response:
+        del kwargs
+        captured["payload"] = json.loads(request.data.decode())
+        return _Response()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_JSON_MODE", "false")
+    monkeypatch.setattr(openai_compatible_agent.urllib.request, "urlopen", fake_urlopen)
+
+    openai_compatible_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+    assert "response_format" not in captured["payload"]
+
+
+def test_choose_actions_network_and_config_errors_return_measured_fallback(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(
+        openai_compatible_agent.urllib.request,
+        "urlopen",
+        lambda *args, **kwargs: (_ for _ in ()).throw(urllib.error.URLError("offline")),
+    )
+    actions, usage = openai_compatible_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+    assert "api_error" in actions[0]["model_error"]
+    assert usage["api_latency_ms"] >= 0
+
+    monkeypatch.setenv("OPENAI_TEMPERATURE", "invalid")
+    actions, usage = openai_compatible_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+    assert "api_error" in actions[0]["model_error"]
+    assert usage["api_latency_ms"] >= 0

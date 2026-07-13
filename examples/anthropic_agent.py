@@ -45,27 +45,27 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
     if not api_key:
         return fallback_actions(observation, "missing ANTHROPIC_API_KEY"), None
 
-    payload: dict[str, Any] = {
-        "model": model,
-        "max_tokens": int(os.environ.get("ANTHROPIC_MAX_TOKENS", "4096")),
-        "system": "Return only a JSON object with an actions array of GM-Bench action objects.",
-        "messages": [{"role": "user", "content": build_prompt(observation)}],
-    }
-    temperature = os.environ.get("ANTHROPIC_TEMPERATURE")
-    if temperature is not None:
-        payload["temperature"] = float(temperature)
-    request = urllib.request.Request(
-        f"{base_url}/messages",
-        data=json.dumps(payload).encode(),
-        headers={
-            "Content-Type": "application/json",
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-        },
-        method="POST",
-    )
     started = time.perf_counter()
     try:
+        payload: dict[str, Any] = {
+            "model": model,
+            "max_tokens": int(os.environ.get("ANTHROPIC_MAX_TOKENS", "4096")),
+            "system": "Return only a JSON object with an actions array of GM-Bench action objects.",
+            "messages": [{"role": "user", "content": build_prompt(observation)}],
+        }
+        temperature = os.environ.get("ANTHROPIC_TEMPERATURE")
+        if temperature is not None:
+            payload["temperature"] = float(temperature)
+        request = urllib.request.Request(
+            f"{base_url}/messages",
+            data=json.dumps(payload).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+            },
+            method="POST",
+        )
         with urllib.request.urlopen(request, timeout=timeout) as response:
             data = json.loads(response.read().decode())
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)

@@ -45,25 +45,25 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
     if not api_key:
         return fallback_actions(observation, "missing GEMINI_API_KEY or GOOGLE_API_KEY"), None
 
-    payload = {
-        "systemInstruction": {
-            "parts": [{"text": "Return only a JSON object with an actions array of GM-Bench action objects."}]
-        },
-        "contents": [{"role": "user", "parts": [{"text": build_prompt(observation)}]}],
-        "generationConfig": {
-            "temperature": float(os.environ.get("GEMINI_TEMPERATURE", "0.2")),
-            "responseMimeType": "application/json",
-        },
-    }
-    encoded_model = urllib.parse.quote(model, safe="")
-    request = urllib.request.Request(
-        f"{base_url}/models/{encoded_model}:generateContent",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
-        method="POST",
-    )
     started = time.perf_counter()
     try:
+        payload = {
+            "systemInstruction": {
+                "parts": [{"text": "Return only a JSON object with an actions array of GM-Bench action objects."}]
+            },
+            "contents": [{"role": "user", "parts": [{"text": build_prompt(observation)}]}],
+            "generationConfig": {
+                "temperature": float(os.environ.get("GEMINI_TEMPERATURE", "0.2")),
+                "responseMimeType": "application/json",
+            },
+        }
+        encoded_model = urllib.parse.quote(model, safe="")
+        request = urllib.request.Request(
+            f"{base_url}/models/{encoded_model}:generateContent",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
+            method="POST",
+        )
         with urllib.request.urlopen(request, timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8"))
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
@@ -87,7 +87,7 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
         parts = data["candidates"][0]["content"]["parts"]
         content = "".join(part.get("text", "") for part in parts if isinstance(part, dict))
         return parse_actions(content), usage
-    except (urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
+    except (urllib.error.URLError, TimeoutError, ValueError, KeyError, IndexError, json.JSONDecodeError) as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         usage = make_usage(provider="gemini", model=model, api_calls=1, api_latency_ms=latency_ms)
         return fallback_actions(observation, f"api_error: {exc}"), usage

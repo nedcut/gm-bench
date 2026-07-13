@@ -72,18 +72,20 @@ def choose_actions(
     else:
         user_content = build_prompt(observation)
     messages = [_SYSTEM_MESSAGE, *(_history if SESSION_MODE else []), {"role": "user", "content": user_content}]
-    payload: dict[str, Any] = {"model": model, "messages": messages, "response_format": {"type": "json_object"}}
-    temperature = os.environ.get("OPENAI_TEMPERATURE") or os.environ.get("LLM_TEMPERATURE")
-    if temperature is not None:
-        payload["temperature"] = float(temperature)
-    request = urllib.request.Request(
-        f"{base_url}/chat/completions",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-        method="POST",
-    )
     started = time.perf_counter()
     try:
+        payload: dict[str, Any] = {"model": model, "messages": messages}
+        if os.environ.get("OPENAI_JSON_MODE", "true").strip().lower() in {"1", "true", "yes", "on"}:
+            payload["response_format"] = {"type": "json_object"}
+        temperature = os.environ.get("OPENAI_TEMPERATURE") or os.environ.get("LLM_TEMPERATURE")
+        if temperature is not None:
+            payload["temperature"] = float(temperature)
+        request = urllib.request.Request(
+            f"{base_url}/chat/completions",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+            method="POST",
+        )
         with urllib.request.urlopen(request, timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8"))
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
@@ -111,7 +113,7 @@ def choose_actions(
             _history.append({"role": "user", "content": user_content})
             _history.append({"role": "assistant", "content": content})
         return parse_actions(content), usage
-    except (urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
+    except (urllib.error.URLError, TimeoutError, ValueError, KeyError, IndexError, json.JSONDecodeError) as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         usage = make_usage(provider="openai", model=model, api_calls=1, api_latency_ms=latency_ms)
         return fallback_actions(observation, f"api_error: {exc}"), usage

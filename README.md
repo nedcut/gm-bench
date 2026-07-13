@@ -52,7 +52,7 @@ locally (integrity for a known panel, not secrecy). Use `redact-result` before
 publishing private-panel artifacts so the seed list is not committed.
 
 ```bash
-LLM_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \
+OPENAI_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \
   --preset leaderboard --repeats 3 --json > results/leaderboard/openai-gpt-5.4.json
 python -m gm_bench validate-result results/leaderboard/openai-gpt-5.4.json \
   --policy sota-v1
@@ -83,9 +83,9 @@ panel, and compares against scripted baselines with paired lift statistics.
 
 ```bash
 # Quick smoke test (1 seed, 1 season, 4 LLM calls)
-LLM_API_KEY=... python -m gm_bench model \
+OPENAI_API_KEY=... python -m gm_bench model \
   --provider openai \
-  --model gpt-4.1-mini \
+  --model gpt-5.4-mini \
   --preset smoke
 
 # Model adapters run serially by default (safe for rate-limited CLIs).
@@ -94,7 +94,7 @@ LLM_API_KEY=... python -m gm_bench model \
 # Standard panel (3 seeds, 3 seasons)
 python -m gm_bench model \
   --provider openai \
-  --model gpt-4.1-mini \
+  --model gpt-5.4-mini \
   --preset standard \
   --json
 
@@ -110,7 +110,7 @@ Reproducible JSON configs live in `examples/` (the config supplies the provider,
 so no extra flags are needed):
 
 ```bash
-LLM_API_KEY=... python -m gm_bench model --config examples/benchmark.smoke.json
+OPENAI_API_KEY=... python -m gm_bench model --config examples/benchmark.smoke.json
 ```
 
 List supported providers:
@@ -486,7 +486,7 @@ python -m gm_bench evaluate \
 Or use the built-in provider shortcut:
 
 ```bash
-LLM_API_KEY=... python -m gm_bench model --provider openai --model gpt-4.1-mini --preset standard
+OPENAI_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4-mini --preset standard
 ```
 
 For non-OpenAI-compatible providers, set:

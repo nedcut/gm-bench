@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import urllib.error
 
 from examples import anthropic_agent
 
@@ -60,3 +61,20 @@ def test_choose_actions_without_key_marks_fallback(monkeypatch) -> None:
 
     assert "missing ANTHROPIC_API_KEY" in actions[0]["model_error"]
     assert usage is None
+
+
+def test_choose_actions_network_and_config_errors_return_measured_fallback(monkeypatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(
+        anthropic_agent.urllib.request,
+        "urlopen",
+        lambda *args, **kwargs: (_ for _ in ()).throw(urllib.error.URLError("offline")),
+    )
+    actions, usage = anthropic_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+    assert "api_error" in actions[0]["model_error"]
+    assert usage["api_latency_ms"] >= 0
+
+    monkeypatch.setenv("ANTHROPIC_MAX_TOKENS", "invalid")
+    actions, usage = anthropic_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+    assert "api_error" in actions[0]["model_error"]
+    assert usage["api_latency_ms"] >= 0

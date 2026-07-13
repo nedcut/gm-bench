@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import urllib.error
 
 from examples import openrouter_agent
 
@@ -86,3 +87,29 @@ def test_choose_actions_without_key_marks_fallback(monkeypatch) -> None:
 
     assert "missing OPENROUTER_API_KEY" in actions[0]["model_error"]
     assert usage is None
+
+
+def test_choose_actions_network_filtered_and_config_errors_return_fallback(monkeypatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setattr(
+        openrouter_agent.urllib.request,
+        "urlopen",
+        lambda *args, **kwargs: (_ for _ in ()).throw(urllib.error.URLError("offline")),
+    )
+    actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+    assert "api_error" in actions[0]["model_error"]
+    assert usage["api_latency_ms"] >= 0
+
+    class EmptyChoices(_Response):
+        def read(self) -> bytes:
+            return b'{"choices":[],"usage":{"total_tokens":10}}'
+
+    monkeypatch.setattr(openrouter_agent.urllib.request, "urlopen", lambda *args, **kwargs: EmptyChoices())
+    actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+    assert "api_error" in actions[0]["model_error"]
+    assert usage["api_latency_ms"] >= 0
+
+    monkeypatch.setenv("OPENROUTER_TEMPERATURE", "invalid")
+    actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+    assert "api_error" in actions[0]["model_error"]
+    assert usage["api_latency_ms"] >= 0

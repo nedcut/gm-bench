@@ -74,32 +74,32 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
     if not api_key:
         return fallback_actions(observation, "missing OPENROUTER_API_KEY"), None
 
-    payload: dict[str, Any] = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": "Return only a JSON object with an actions array."},
-            {"role": "user", "content": build_prompt(observation)},
-        ],
-        "provider": provider_preferences(),
-    }
-    if _boolean("OPENROUTER_JSON_MODE", False):
-        payload["response_format"] = {"type": "json_object"}
-    temperature = os.environ.get("OPENROUTER_TEMPERATURE")
-    if temperature is not None:
-        payload["temperature"] = float(temperature)
-    request = urllib.request.Request(
-        f"{base_url}/chat/completions",
-        data=json.dumps(payload).encode(),
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-            "HTTP-Referer": "https://github.com/nedcut/gm-bench",
-            "X-OpenRouter-Title": "GM-Bench",
-        },
-        method="POST",
-    )
     started = time.perf_counter()
     try:
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": "Return only a JSON object with an actions array."},
+                {"role": "user", "content": build_prompt(observation)},
+            ],
+            "provider": provider_preferences(),
+        }
+        if _boolean("OPENROUTER_JSON_MODE", False):
+            payload["response_format"] = {"type": "json_object"}
+        temperature = os.environ.get("OPENROUTER_TEMPERATURE")
+        if temperature is not None:
+            payload["temperature"] = float(temperature)
+        request = urllib.request.Request(
+            f"{base_url}/chat/completions",
+            data=json.dumps(payload).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+                "HTTP-Referer": "https://github.com/nedcut/gm-bench",
+                "X-OpenRouter-Title": "GM-Bench",
+            },
+            method="POST",
+        )
         with urllib.request.urlopen(request, timeout=timeout) as response:
             data = json.loads(response.read().decode())
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
@@ -127,7 +127,7 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
                 usage[key] = value
         content = data["choices"][0]["message"]["content"]
         return parse_actions(content), usage
-    except (urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
+    except (urllib.error.URLError, TimeoutError, ValueError, KeyError, IndexError, json.JSONDecodeError) as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         usage = make_usage(provider="openrouter", model=model, api_calls=1, api_latency_ms=latency_ms)
         return fallback_actions(observation, f"api_error: {exc}"), usage

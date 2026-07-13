@@ -154,6 +154,13 @@ def test_external_agents_default_to_serial_workers(monkeypatch: pytest.MonkeyPat
     assert cli_module._model_worker_count(external, 2) == 2
 
 
+def test_invalid_worker_environment_has_cli_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GM_BENCH_WORKERS", "many")
+    external = ExternalProcessAgent("true", name="fake-model")
+    with pytest.raises(SystemExit, match="GM_BENCH_WORKERS must be an integer"):
+        cli_module._model_worker_count(external, None)
+
+
 def test_cli_json_run() -> None:
     completed = subprocess.run(
         [
