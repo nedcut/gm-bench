@@ -21,6 +21,7 @@ from gm_bench.calibration import build_scoring_calibration
 from gm_bench.contract import benchmark_contract, scaffold_fingerprint
 from gm_bench.environment import load_environment_files
 from gm_bench.model_runs import (
+    FailFastAgent,
     ModelRunAborted,
     default_checkpoint_path,
     evaluate_resumable_candidate,
@@ -44,6 +45,7 @@ from gm_bench.validity import run_validity_canaries
 
 EXTERNAL_AGENT_TIMEOUT_DEFAULT = 120.0
 EXTERNAL_AGENT_TIMEOUT_MIN_RECOMMENDED = 60.0
+SERIAL_ONLY_PROVIDERS = {"claude", "codex", "cursor", "opencode"}
 
 # The oracle is intentionally CLI-only.  Keeping it out of ``AGENTS`` means it
 # cannot become an official baseline or alter the frozen benchmark contract.
@@ -480,21 +482,24 @@ def _model_command(args: argparse.Namespace) -> None:
     progress = make_progress_printer(config.verbose)
     workers = _model_worker_count(agent, resolved_workers)
     checkpoint = args.checkpoint or default_checkpoint_path(agent.name)
-    if config.provider == "claude" and workers is not None and workers > 1:
-        sys.exit("gm-bench model: Claude must run serially with --workers 1")
+    if config.provider in SERIAL_ONLY_PROVIDERS and workers is not None and workers > 1:
+        sys.exit(f"gm-bench model: {config.provider} must run serially with --workers 1")
     if bool(getattr(args, "session", False)) or (workers is not None and workers > 1):
         if args.resume or args.resume_from or args.checkpoint:
             sys.exit("gm-bench model: checkpoints require fresh-spawn serial execution")
-        with _model_worker_environment(workers):
-            result = evaluate_against_baselines(
-                agent,
-                config.seeds,
-                config.seasons,
-                config.baselines,
-                repeats=config.repeats,
-                use_baseline_cache=config.use_baseline_cache,
-                progress=progress,
-            )
+        try:
+            with _model_worker_environment(workers):
+                result = evaluate_against_baselines(
+                    FailFastAgent(agent, threshold=args.fail_fast),
+                    config.seeds,
+                    config.seasons,
+                    config.baselines,
+                    repeats=config.repeats,
+                    use_baseline_cache=config.use_baseline_cache,
+                    progress=progress,
+                )
+        except ModelRunAborted as exc:
+            sys.exit(f"gm-bench model: {exc}")
     else:
         try:
             with _model_worker_environment(1):

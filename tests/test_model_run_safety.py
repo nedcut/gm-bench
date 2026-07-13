@@ -1,13 +1,22 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from gm_bench import model_runs
 from gm_bench.agents import Agent, ValueAgent
-from gm_bench.model_runs import FailFastAgent, ModelRunAborted, run_resumable_candidate
+from gm_bench.model_runs import (
+    FailFastAgent,
+    ModelRunAborted,
+    _checkpoint_lock,
+    evaluate_resumable_candidate,
+    preflight_provider,
+    run_resumable_candidate,
+)
 from gm_bench.runner import run_many
 
 
@@ -161,3 +170,79 @@ def test_resume_rejects_conflicting_successful_duplicates(tmp_path: Path) -> Non
             checkpoint_path=tmp_path / "checkpoint.json",
             resume_sources=[first, second],
         )
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        "not json",
+        "[]",
+        '{"candidate": []}',
+        '{"agent": "test:model", "seasons": "bad", "episodes": []}',
+        '{"agent": "test:model", "seasons": 1, "metadata": [], "episodes": []}',
+        '{"agent": "test:model", "seasons": 1, "episodes": {}}',
+        '{"agent": "test:model", "seasons": 1, "episodes": [{}]}',
+    ],
+)
+def test_resume_rejects_malformed_payloads(tmp_path: Path, payload: str) -> None:
+    source = tmp_path / "malformed.json"
+    source.write_text(payload)
+
+    with pytest.raises(ModelRunAborted, match="resume source"):
+        run_resumable_candidate(
+            CountingValueAgent(),
+            seeds=[1],
+            seasons=1,
+            repeats=1,
+            checkpoint_path=tmp_path / "checkpoint.json",
+            resume_sources=[source],
+        )
+
+
+def test_checkpoint_lock_rejects_a_concurrent_writer(tmp_path: Path) -> None:
+    checkpoint = tmp_path / "checkpoint.json"
+
+    with _checkpoint_lock(checkpoint):
+        with pytest.raises(ModelRunAborted, match="already in use"):
+            run_resumable_candidate(
+                CountingValueAgent(),
+                seeds=[1],
+                seasons=1,
+                repeats=1,
+                checkpoint_path=checkpoint,
+            )
+
+
+def test_claude_preflight_normalizes_missing_binary(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(model_runs.shutil, "which", lambda executable: None)
+
+    with pytest.raises(ModelRunAborted, match="not installed"):
+        preflight_provider("claude")
+
+
+def test_claude_preflight_normalizes_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(model_runs.shutil, "which", lambda executable: "/usr/bin/claude")
+
+    def timeout(*args: object, **kwargs: object) -> None:
+        raise subprocess.TimeoutExpired("claude", 15)
+
+    monkeypatch.setattr(model_runs.subprocess, "run", timeout)
+
+    with pytest.raises(ModelRunAborted, match="timed out"):
+        preflight_provider("claude")
+
+
+def test_uncached_scripted_baselines_keep_normal_parallel_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    candidate = run_many(ValueAgent(), seeds=[1], seasons=1, workers=1)
+    seen_workers: list[int | None] = []
+    original = model_runs.run_many
+
+    def capture(*args: object, **kwargs: object) -> dict[str, Any]:
+        seen_workers.append(kwargs.get("workers"))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(model_runs, "run_many", capture)
+
+    evaluate_resumable_candidate(candidate, ["value"], use_baseline_cache=False)
+
+    assert seen_workers == [None]

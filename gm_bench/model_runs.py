@@ -7,6 +7,8 @@ import os
 import re
 import shutil
 import subprocess
+import threading
+from contextlib import contextmanager
 from pathlib import Path
 from statistics import mean
 from typing import Any
@@ -40,6 +42,7 @@ class FailFastAgent(Agent):
         self.metadata = getattr(inner, "metadata", {})
         self.threshold = threshold
         self.consecutive_failures = 0
+        self._state_lock = threading.Lock()
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
         actions, _usage = self.act_with_usage(observation)
@@ -50,14 +53,17 @@ class FailFastAgent(Agent):
         failed = not isinstance(actions, list) or any(
             isinstance(action, dict) and ("error" in action or "model_error" in action) for action in actions
         )
-        if not failed:
-            self.consecutive_failures = 0
-            return actions, usage
+        with self._state_lock:
+            if not failed:
+                self.consecutive_failures = 0
+                return actions, usage
 
-        self.consecutive_failures += 1
-        if self.consecutive_failures >= self.threshold:
-            detail = _failure_detail(actions)
-            raise ModelRunAborted(f"aborting after {self.consecutive_failures} consecutive model failures: {detail}")
+            self.consecutive_failures += 1
+            if self.consecutive_failures >= self.threshold:
+                detail = _failure_detail(actions)
+                raise ModelRunAborted(
+                    f"aborting after {self.consecutive_failures} consecutive model failures: {detail}"
+                )
         return actions, usage
 
 
@@ -74,9 +80,17 @@ def _failure_detail(actions: Any) -> str:
 def preflight_provider(provider: str) -> None:
     """Perform credential/tool checks without making a billed model request."""
     if provider == "claude":
-        completed = subprocess.run(
-            ["claude", "auth", "status"], text=True, capture_output=True, check=False, timeout=15
-        )
+        executable = shutil.which("claude")
+        if executable is None:
+            raise ModelRunAborted("claude preflight failed: `claude` is not installed")
+        try:
+            completed = subprocess.run(
+                [executable, "auth", "status"], text=True, capture_output=True, check=False, timeout=15
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise ModelRunAborted("Claude auth preflight timed out after 15 seconds") from exc
+        except OSError as exc:
+            raise ModelRunAborted(f"Claude auth preflight could not start: {exc}") from exc
         try:
             status = json.loads(completed.stdout)
         except json.JSONDecodeError as exc:
@@ -109,6 +123,52 @@ def run_resumable_candidate(
     progress=None,
 ) -> dict[str, Any]:
     """Run missing seed/repeat episodes and atomically checkpoint each completion."""
+    with _checkpoint_lock(checkpoint_path):
+        return _run_resumable_candidate_locked(
+            agent,
+            seeds,
+            seasons,
+            repeats,
+            checkpoint_path=checkpoint_path,
+            resume_sources=resume_sources,
+            resume_checkpoint=resume_checkpoint,
+            fail_fast=fail_fast,
+            progress=progress,
+        )
+
+
+@contextmanager
+def _checkpoint_lock(path: Path):
+    """Reject concurrent model runs targeting the same checkpoint."""
+    import fcntl
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise ModelRunAborted(f"checkpoint is already in use by another model run: {path}") from exc
+        os.ftruncate(descriptor, 0)
+        os.write(descriptor, f"pid={os.getpid()}\n".encode())
+        yield
+    finally:
+        os.close(descriptor)
+
+
+def _run_resumable_candidate_locked(
+    agent: Agent,
+    seeds: list[int],
+    seasons: int,
+    repeats: int,
+    *,
+    checkpoint_path: Path,
+    resume_sources: list[Path] | None = None,
+    resume_checkpoint: bool = False,
+    fail_fast: int = 2,
+    progress=None,
+) -> dict[str, Any]:
     expected = {(seed, repeat) for seed in seeds for repeat in range(1, repeats + 1)}
     episodes: dict[tuple[int, int], dict[str, Any]] = {}
     metadata = dict(getattr(agent, "metadata", {}))
@@ -188,27 +248,59 @@ def _load_candidate_episodes(
     expected_metadata: dict[str, Any],
     expected_provenance: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    payload = json.loads(path.read_text())
+    try:
+        payload = json.loads(path.read_text())
+    except OSError as exc:
+        raise ModelRunAborted(f"cannot read resume source {path}: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise ModelRunAborted(f"resume source {path} is not valid JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ModelRunAborted(f"resume source {path} must contain a JSON object")
     candidate = payload.get("candidate", payload)
+    if not isinstance(candidate, dict):
+        raise ModelRunAborted(f"resume source {path} candidate must be a JSON object")
     source_agent = candidate.get("agent") or payload.get("agent")
     source_seasons = candidate.get("seasons") or payload.get("seasons")
     if source_agent != agent_name:
         raise ModelRunAborted(f"resume source {path} is for {source_agent}, expected {agent_name}")
-    if int(source_seasons or 0) != seasons:
+    try:
+        parsed_seasons = int(source_seasons or 0)
+    except (TypeError, ValueError) as exc:
+        raise ModelRunAborted(f"resume source {path} has invalid seasons={source_seasons!r}") from exc
+    if parsed_seasons != seasons:
         raise ModelRunAborted(f"resume source {path} has {source_seasons} seasons, expected {seasons}")
-    source_metadata = payload.get("metadata") or payload.get("run_info") or {}
+    source_metadata = payload.get("metadata")
+    if source_metadata is None:
+        source_metadata = payload.get("run_info")
+    if source_metadata is None:
+        source_metadata = {}
+    if not isinstance(source_metadata, dict):
+        raise ModelRunAborted(f"resume source {path} metadata must be a JSON object")
     for key in ("provider", "model", "profile", "session"):
         if key in source_metadata and key in expected_metadata and source_metadata[key] != expected_metadata[key]:
             raise ModelRunAborted(
                 f"resume source {path} has {key}={source_metadata[key]!r}, expected {expected_metadata[key]!r}"
             )
     if expected_provenance:
-        source_provenance = payload.get("provenance") or payload.get("run_info") or {}
+        source_provenance = payload.get("provenance")
+        if source_provenance is None:
+            source_provenance = payload.get("run_info")
+        if source_provenance is None:
+            source_provenance = {}
+        if not isinstance(source_provenance, dict):
+            raise ModelRunAborted(f"resume source {path} provenance must be a JSON object")
         if source_provenance.get("benchmark_contract") != expected_provenance["benchmark_contract"]:
             raise ModelRunAborted(f"resume source {path} does not match the current benchmark contract")
         if source_provenance.get("scaffold_fingerprint") != expected_provenance["scaffold_fingerprint"]:
             raise ModelRunAborted(f"resume source {path} does not match the current provider scaffold")
-    return list(candidate.get("episodes") or [])
+    episodes = candidate.get("episodes")
+    if episodes is None:
+        episodes = []
+    if not isinstance(episodes, list) or any(not isinstance(episode, dict) for episode in episodes):
+        raise ModelRunAborted(f"resume source {path} episodes must be a list of JSON objects")
+    if any("seed" not in episode for episode in episodes):
+        raise ModelRunAborted(f"resume source {path} contains an episode without a seed")
+    return episodes
 
 
 def _resume_provenance(metadata: dict[str, Any]) -> dict[str, Any]:
@@ -271,7 +363,7 @@ def evaluate_resumable_candidate(
             payload, hits = run_many_cached_baselines(name, seeds, seasons, cache_path=cache_path, use_cache=True)
             cache_hits += hits
         else:
-            payload = run_many(AGENTS[name](), seeds=seeds, seasons=seasons, workers=1)
+            payload = run_many(AGENTS[name](), seeds=seeds, seasons=seasons, workers=None)
         baselines.append(payload)
     baseline_scores = [_precise_mean_score(result) for result in baselines]
     baseline_mean = mean(baseline_scores) if baseline_scores else 0.0
