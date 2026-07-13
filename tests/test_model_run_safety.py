@@ -316,3 +316,35 @@ def test_session_fail_fast_counts_multi_round_results_and_shares_state_across_cl
     clone = wrapped.clone()
     with pytest.raises(ModelRunAborted, match="2 consecutive model failures"):
         clone.act_on_results_with_usage([])
+
+
+def test_session_fail_fast_wrapper_covers_the_whole_persistent_agent_surface() -> None:
+    # FailFastSessionAgent subclasses PersistentProcessAgent for the runner's
+    # isinstance dispatch but skips super().__init__(), so it owns none of the
+    # process state its inherited methods assume. Every public method must
+    # therefore be explicitly overridden to delegate to ``inner``. This test
+    # fails the moment someone adds a method to PersistentProcessAgent without
+    # overriding it here -- which would otherwise surface as an AttributeError
+    # mid-run, after the quota is spent.
+    inherited = {
+        name
+        for name in vars(PersistentProcessAgent)
+        if not name.startswith("_") and callable(getattr(PersistentProcessAgent, name))
+    }
+    overridden = set(vars(FailFastSessionAgent))
+    missing = inherited - overridden
+    assert not missing, (
+        f"FailFastSessionAgent inherits {sorted(missing)} from PersistentProcessAgent without overriding them; "
+        "they would run against process state this wrapper never initialized"
+    )
+
+
+def test_session_fail_fast_wrapper_delegates_unknown_attributes_to_inner() -> None:
+    # Backstop for the above: even an un-overridden attribute resolves against
+    # the real agent rather than exploding.
+    inner = ScriptedSessionAgent()
+    inner.transport = "stdio"
+    wrapped = fail_fast_agent(inner, 2)
+    assert wrapped.transport == "stdio"
+    with pytest.raises(AttributeError):
+        _ = wrapped.definitely_not_a_real_attribute

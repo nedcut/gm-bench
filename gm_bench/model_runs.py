@@ -33,7 +33,16 @@ class ModelRunAborted(RuntimeError):
 
 
 class _FailFastState:
-    """Thread-safe consecutive-failure counter shared by fail-fast wrappers."""
+    """Thread-safe consecutive-failure counter shared by fail-fast wrappers.
+
+    "Consecutive" is exact in the serial lane. With parallel workers or session
+    clones, every wrapper shares one counter, so it means "N failures with no
+    success in between, in the order calls happened to land" -- the failures may
+    come from different episodes. That is deliberate: the breaker exists to stop
+    a globally broken model (bad key, dead adapter, wrong model id) from burning
+    a whole panel's quota, and a globally broken model fails everywhere at once.
+    A model that merely fails intermittently keeps resetting the counter.
+    """
 
     def __init__(self, threshold: int) -> None:
         if threshold < 1:
@@ -111,6 +120,22 @@ class FailFastSessionAgent(PersistentProcessAgent):
         self.name = inner.name
         self.metadata = getattr(inner, "metadata", {})
         self._state = _state or _FailFastState(threshold)
+
+    def __getattr__(self, name: str) -> Any:
+        # Backstop for the no-super().__init__() trick above. Without it, any
+        # method added to PersistentProcessAgent that we forget to override here
+        # would find the inherited implementation, reach for process state this
+        # instance never initialized, and AttributeError mid-run -- after the
+        # quota is already spent. Delegating unknown attributes to ``inner``
+        # makes the failure mode "works, via the real agent" instead.
+        # __getattr__ only fires for attributes normal lookup misses, so the
+        # explicit overrides below still win.
+        if name == "inner":
+            # Never delegate the delegate: if ``inner`` itself is missing (an
+            # instance built without __init__, e.g. by copy/pickle), looking it
+            # up through here would recurse until the stack blows.
+            raise AttributeError(name)
+        return getattr(self.inner, name)
 
     @property
     def threshold(self) -> int:

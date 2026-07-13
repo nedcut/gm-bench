@@ -179,7 +179,11 @@ def main(argv: list[str] | None = None) -> None:
         type=_fail_fast_threshold,
         default=2,
         metavar="N",
-        help="abort after N consecutive adapter failures (default: 2)",
+        help=(
+            "abort after N consecutive adapter failures (default: 2); with --workers > 1 the counter "
+            "is shared across workers, so N failures with no success in between trips it regardless of "
+            "which episode they came from"
+        ),
     )
     model_parser.add_argument(
         "--preflight-only",
