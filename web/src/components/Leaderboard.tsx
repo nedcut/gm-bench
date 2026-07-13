@@ -63,13 +63,21 @@ function laneLabel(model: LeaderboardModel): string {
   return model.lane === "cli-harness" ? "CLI harness" : "API";
 }
 
-function LeaderboardTable({ data }: { data: LeaderboardData }) {
-  const rows = buildRows(data.models, data.baselines);
+function LeaderboardTable({
+  data,
+  title = "Official API leaderboard",
+  includeBaselines = true,
+}: {
+  data: LeaderboardData;
+  title?: string;
+  includeBaselines?: boolean;
+}) {
+  const rows = buildRows(data.models, includeBaselines ? data.baselines : []);
   const maxScore = Math.max(...rows.map((row) => (row.kind === "model" ? row.model.mean_score : row.baseline.mean_score)));
   return (
     <div className="panel">
       <div className="panel-title">
-        <h3>Official leaderboard</h3>
+        <h3>{title}</h3>
         <span>
           {`preset ${data.preset.name} · ${data.preset.seeds.length} seeds × ${data.preset.seasons} seasons`}
           {data.updated ? ` · updated ${data.updated}` : ""}
@@ -87,7 +95,8 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
               <th></th>
               <th className="num">Lift vs panel</th>
               <th className="num">Fallback</th>
-              <th className="num">Tok/decision</th>
+              <th className="num">Input/dec</th>
+              <th className="num">Output/dec</th>
               <th className="num">Cost/episode</th>
               <th className="num">Latency</th>
             </tr>
@@ -125,6 +134,7 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
                     <td className="num mono-dim">—</td>
                     <td className="num mono-dim">—</td>
                     <td className="num mono-dim">0</td>
+                    <td className="num mono-dim">0</td>
                     <td className="num mono-dim">$0</td>
                     <td className="num mono-dim">—</td>
                   </tr>
@@ -161,7 +171,8 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
                     {model.significant ? " ✓" : ""}
                   </td>
                   <td className="num mono-dim">{pct(model.fallback_rate)}</td>
-                  <td className="num mono-dim">{model.tokens_per_decision === null ? "—" : fmt(model.tokens_per_decision, 0)}</td>
+                  <td className="num mono-dim">{model.input_tokens_per_decision === null ? "—" : fmt(model.input_tokens_per_decision, 0)}</td>
+                  <td className="num mono-dim">{model.output_tokens_per_decision === null ? "—" : fmt(model.output_tokens_per_decision, 0)}</td>
                   <td className="num mono-dim">{cost(model)}</td>
                   <td className="num mono-dim">
                     {model.api_latency_s_per_decision === null ? "—" : `${fmt(model.api_latency_s_per_decision, 1)}s`}
@@ -250,8 +261,42 @@ export default function Leaderboard({ data }: { data: LeaderboardData }) {
             reference rows: <strong>pick-trader</strong> is the serious scripted bar to beat, <strong>random</strong> the floor.
           </p>
         </div>
+        {!data.publication.publishable_ranking && (
+          <div className="panel">
+            <div className="panel-title">
+              <h3>Ranking withheld: output-budget sweep incomplete</h3>
+              <span>{data.publication.status}</span>
+            </div>
+            <p style={{ maxWidth: 760 }}>{data.publication.reason}</p>
+            <p style={{ maxWidth: 760 }}>
+              Planned caps: {data.publication.planned_caps.map((cap) => cap ?? "uncapped").join(" / ")} output tokens.
+              The site will publish a fixed-cap ranking only after score saturation is demonstrated; otherwise it will publish curves.
+            </p>
+          </div>
+        )}
+        <div className="panel">
+          <div className="panel-title">
+            <h3>Benchmark headroom</h3>
+            <span>hidden-information ceiling to random floor</span>
+          </div>
+          <p className="mono-dim">
+            Oracle {fmt(data.headroom.oracle, 1)} · pick-trader {fmt(data.headroom.pick_trader, 1)} · best eligible API model {data.headroom.best_model === null ? "pending" : fmt(data.headroom.best_model, 1)} · random {fmt(data.headroom.random, 1)}
+          </p>
+        </div>
         <LeaderboardTable data={data} />
         {data.models.length === 0 && <EmptyState />}
+        {data.cli_harness_models.length > 0 && (
+          <>
+            <p style={{ maxWidth: 760 }}>
+              Coding-harness rows are excluded from the API ranking because their tool loops, context, retries, and cost reporting are uncontrolled.
+            </p>
+            <LeaderboardTable
+              data={{ ...data, models: data.cli_harness_models }}
+              title="Separate coding-harness lane"
+              includeBaselines={false}
+            />
+          </>
+        )}
         <ArchiveNotice />
       </div>
     </section>

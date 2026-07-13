@@ -35,6 +35,8 @@ from gm_bench.agents import AGENTS  # noqa: E402
 from gm_bench.baseline_cache import cache_key, load_cache  # noqa: E402
 from gm_bench.benchmark_config import PRESETS, PRIVATE_LEADERBOARD_PANEL_NAME  # noqa: E402
 from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
+from gm_bench.oracle import OracleAgent  # noqa: E402
+from gm_bench.publication import mechanic_breakdown  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
 from gm_bench.runner import run_many  # noqa: E402
 
@@ -95,6 +97,12 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
         "illegal_actions": summary.get("illegal_actions", 0),
         "total_tokens": usage.get("total_tokens", 0),
         "tokens_per_decision": round(usage.get("total_tokens", 0) / decisions, 1) if decisions else None,
+        "input_tokens_per_decision": round(usage.get("input_tokens", 0) / decisions, 1) if decisions else None,
+        "output_tokens_per_decision": round(usage.get("output_tokens", 0) / decisions, 1) if decisions else None,
+        "protocol_repair_attempts": usage.get("protocol_repair_attempts", 0),
+        "protocol_repairs_succeeded": usage.get("protocol_repairs_succeeded", 0),
+        "mechanic_breakdown": (payload.get("publication") or {}).get("mechanic_breakdown")
+        or mechanic_breakdown((payload.get("candidate") or {}).get("episodes", [])),
         "failed_queries": summary.get("failed_queries", 0),
         "cost_usd": cost,
         "cost_per_episode_usd": round(cost / episodes, 4) if cost is not None and episodes else None,
@@ -220,7 +228,9 @@ def main() -> None:
     # scout-contract break, not as a ranking: the defect cost some candidates over
     # a thousand silently-rejected lookups and others none, so their scores are not
     # comparable to each other. See results/leaderboard/archive-v1/README.md.
-    models = [row for row in rows if row.get("benchmark_version") == "sota-v2"]
+    current_rows = [row for row in rows if row.get("benchmark_version") == "sota-v2"]
+    models = [row for row in current_rows if row.get("lane") == "api"]
+    cli_harness_models = [row for row in current_rows if row.get("lane") == "cli-harness"]
     skipped = [row for row in rows if row.get("benchmark_version") != "sota-v2"]
     for row in skipped:
         print(
@@ -228,6 +238,15 @@ def main() -> None:
             file=sys.stderr,
         )
     baselines = current_baselines()
+    oracle = run_many(OracleAgent(), seeds=list(LEADERBOARD["seeds"]), seasons=int(LEADERBOARD["seasons"]), workers=1)
+    baseline_by_name = {row["agent"]: row["mean_score"] for row in baselines}
+    eligible_models = [row for row in models if row.get("sota_v2_eligible")]
+    headroom = {
+        "oracle": oracle["summary"]["mean_score"],
+        "pick_trader": baseline_by_name.get("pick-trader"),
+        "best_model": max((row["mean_score"] for row in eligible_models), default=None),
+        "random": baseline_by_name.get("random"),
+    }
     # Derived from the artifacts, never from the wall clock: the committed
     # leaderboard.json must be a pure function of the committed inputs, or the
     # CI reproducibility gate would go red every time the date rolls over. It is
@@ -245,6 +264,9 @@ def main() -> None:
         },
         "baselines": baselines,
         "models": models,
+        "cli_harness_models": cli_harness_models,
+        "publication": json.loads((ROOT / "results" / "analysis" / "output-budget-sweep.json").read_text()),
+        "headroom": headroom,
     }
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(json.dumps(dataset, indent=2, sort_keys=True) + "\n")

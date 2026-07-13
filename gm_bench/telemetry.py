@@ -25,6 +25,8 @@ _COUNT_KEYS = (
     "output_tokens",
     "reasoning_tokens",
     "total_tokens",
+    "protocol_repair_attempts",
+    "protocol_repairs_succeeded",
 )
 _FLOAT_KEYS = ("api_latency_ms", "cost_usd")
 _TEXT_KEYS = ("provider", "model", "upstream_provider", "generation_id")
@@ -172,6 +174,12 @@ def summarize_usage(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "harness_latency_ms": round(harness_ms, 1),
         "cost_usd": round(sum(costs), 6) if costs else None,
         "mean_tokens_per_decision": round(totals["total_tokens"] / decisions_with_usage, 1)
+        if decisions_with_usage
+        else 0.0,
+        "mean_input_tokens_per_decision": round(totals["input_tokens"] / decisions_with_usage, 1)
+        if decisions_with_usage
+        else 0.0,
+        "mean_output_tokens_per_decision": round(totals["output_tokens"] / decisions_with_usage, 1)
         if decisions_with_usage
         else 0.0,
         "model": models.most_common(1)[0][0] if models else None,

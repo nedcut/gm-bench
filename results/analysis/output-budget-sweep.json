@@ -1,0 +1,15 @@
+{
+  "missing": [],
+  "models": [],
+  "planned_caps": [
+    256,
+    1024,
+    4096,
+    null
+  ],
+  "points": [],
+  "publishable_ranking": false,
+  "reason": "missing planned model-cap cells; no output-budget conclusion is permitted",
+  "schema_version": 1,
+  "status": "incomplete"
+}

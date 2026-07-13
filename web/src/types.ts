@@ -85,6 +85,11 @@ export interface LeaderboardModel {
   illegal_actions: number;
   total_tokens: number;
   tokens_per_decision: number | null;
+  input_tokens_per_decision: number | null;
+  output_tokens_per_decision: number | null;
+  protocol_repair_attempts: number;
+  protocol_repairs_succeeded: number;
+  mechanic_breakdown: Record<string, { accepted: number; rejected: number }>;
   failed_queries?: number;
   cost_usd: number | null;
   cost_per_episode_usd: number | null;
@@ -119,6 +124,19 @@ export interface Leaderboard {
   };
   baselines: LeaderboardBaseline[];
   models: LeaderboardModel[];
+  cli_harness_models: LeaderboardModel[];
+  publication: {
+    status: string;
+    publishable_ranking: boolean;
+    reason: string;
+    planned_caps: Array<number | null>;
+  };
+  headroom: {
+    oracle: number;
+    pick_trader: number;
+    best_model: number | null;
+    random: number;
+  };
 }
 
 export interface Snapshot {

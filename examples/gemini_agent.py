@@ -57,6 +57,9 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
                 "responseMimeType": "application/json",
             },
         }
+        max_output_tokens = os.environ.get("GEMINI_MAX_OUTPUT_TOKENS")
+        if max_output_tokens is not None:
+            payload["generationConfig"]["maxOutputTokens"] = int(max_output_tokens)
         encoded_model = urllib.parse.quote(model, safe="")
         request = urllib.request.Request(
             f"{base_url}/models/{encoded_model}:generateContent",

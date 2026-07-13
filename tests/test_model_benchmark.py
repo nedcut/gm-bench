@@ -51,8 +51,34 @@ def test_provider_registry_resolves_direct_and_gateway_apis() -> None:
         "OPENROUTER_REQUIRE_PARAMETERS": "false",
         "OPENROUTER_DATA_COLLECTION": "deny",
         "OPENROUTER_JSON_MODE": "false",
-        "OPENROUTER_MAX_TOKENS": "2048",
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
     }
+
+
+def test_external_agent_bounded_protocol_repair(monkeypatch: pytest.MonkeyPatch) -> None:
+    from gm_bench.agents import ExternalProcessAgent
+    from gm_bench.providers import ProtocolRepairAgent
+
+    calls: list[dict] = []
+
+    def fake_run(*args, **kwargs):
+        observation = json.loads(kwargs["input"])
+        calls.append(observation)
+        actions = [{"type": "noop", "model_error": "invalid JSON"}] if len(calls) == 1 else [{"type": "noop"}]
+        return subprocess.CompletedProcess(
+            args[0], 0, json.dumps({"actions": actions, "usage": {"api_calls": 1, "output_tokens": 10}}), ""
+        )
+
+    monkeypatch.setattr("gm_bench.agents.subprocess.run", fake_run)
+    agent = ProtocolRepairAgent(ExternalProcessAgent("fake"), attempts=1)
+    actions, usage = agent.act_with_usage({"phase": "draft"})
+
+    assert actions == [{"type": "noop"}]
+    assert calls[1]["protocol_repair"]["attempt"] == 1
+    assert usage["api_calls"] == 2
+    assert usage["output_tokens"] == 20
+    assert usage["protocol_repair_attempts"] == 1
+    assert usage["protocol_repairs_succeeded"] == 1
 
 
 def test_provider_environment_precedence(monkeypatch: pytest.MonkeyPatch) -> None:

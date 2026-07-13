@@ -30,6 +30,8 @@ def test_provider_agent_carries_resolved_metadata(monkeypatch: pytest.MonkeyPatc
         "agent_timeout": 120.0,
         "session": False,
         "transport": "direct-api",
+        "protocol_repair_attempts": 1,
+        "provider_options": {"GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"},
     }
 
 

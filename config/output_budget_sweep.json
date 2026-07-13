@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "contract": "sota-v2",
+  "lane": "api",
+  "profile": "compact",
+  "output_token_caps": [256, 1024, 4096, null],
+  "models": [],
+  "repeats": 3,
+  "preset": "leaderboard",
+  "decision_rule": {
+    "minimum_models": 2,
+    "saturation_relative_gain": 0.05,
+    "saturation_score_points": 10.0
+  },
+  "status": "awaiting-model-selection-and-runs"
+}

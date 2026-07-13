@@ -56,6 +56,19 @@ jobs:
             count=$((count + 1))
           done < <(find results/leaderboard -maxdepth 1 -type f -name '*.json' -print0)
           echo "validated $count current leaderboard result(s)"
+      - name: Enforce compact publication artifacts
+        run: |
+          while IFS= read -r -d '' result; do
+            python - "$result" <<'PY'
+          import json, pathlib, sys
+          path = pathlib.Path(sys.argv[1])
+          payload = json.loads(path.read_text())
+          publication = payload.get("publication") or {}
+          assert publication.get("format") == "gm-bench-result-summary-v1", f"{path}: run compact-result before committing"
+          assert publication.get("traces_included") is False, f"{path}: traces must not be committed"
+          assert path.stat().st_size < 1_000_000, f"{path}: artifact exceeds 1 MB"
+          PY
+          done < <(find results/leaderboard -maxdepth 1 -type f -name '*.json' -print0)
       - name: Verify archived v1 evidence
         # `archive-v1` asserts these are authentic v1 artifacts on the frozen
         # contract. It deliberately does NOT assert they were leaderboard-eligible

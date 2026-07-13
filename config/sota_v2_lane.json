@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "contract": "sota-v2",
+  "headline_lane": "api",
+  "observation_profile": "compact",
+  "session": false,
+  "protocol_repair_attempts": 1,
+  "output_token_cap": null,
+  "output_budget_status": "pending-sweep",
+  "cli_harness_policy": "separate-table",
+  "cost_policy": "required-for-api-null-for-subscription-cli"
+}

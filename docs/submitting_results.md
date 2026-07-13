@@ -45,7 +45,9 @@ per-episode detail, and `paired.per_seed` rows.
 ## Validate before you submit
 
 ```bash
-python -m gm_bench validate-result results/leaderboard/<name>.json --policy sota-v2
+python -m gm_bench validate-result /tmp/<name>.raw.json --policy sota-v2
+python -m gm_bench compact-result /tmp/<name>.raw.json \
+  --output results/leaderboard/<name>.json --policy sota-v2
 ```
 
 Use `--policy public-leaderboard` for a development/diagnostic row. Exit code is
@@ -144,3 +146,10 @@ reliable enough to compare — not that the model is good. Interpret it next to 
 paired lift, `pick-trader` lift, seed win rate, sign-flip p-value, illegal-action
 count, failed-query count, fallback rate, lane (API vs. CLI harness), tokens/decision,
 and cost, as described in production_benchmark.md.
+
+The raw artifact is the audit source and should be retained outside git (for
+example as a release asset). `compact-result` removes observations,
+transactions, season traces, and per-decision telemetry while preserving
+summary statistics, per-seed/repeat scores, aggregate usage, provenance, and a
+SHA-256 of the canonical raw payload. CI rejects current leaderboard artifacts
+that are not compact or exceed 1 MB.
