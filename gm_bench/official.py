@@ -22,6 +22,7 @@ from gm_bench.contract import expected_contract, scaffold_fingerprint
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
 SOTA_V2_POLICY_NAME = "sota-v2"
 SOTA_V1_POLICY_NAME = "sota-v1"
+ARCHIVE_V1_POLICY_NAME = "archive-v1"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 SOTA_V1_CONTRACT = {
@@ -46,6 +47,12 @@ class ResultPolicy:
     require_seed_panel_provenance: bool = False
     expected_contract: dict[str, Any] | None = None
     validate_current_scaffold: bool = True
+    # Failed queries (misfired scout/inspect lookups) carry no protocol penalty,
+    # so a model can silently burn its decision budget on them -- the v1 scout
+    # contract break did exactly that. Warn early, and let strict policies refuse
+    # a row whose lookups fail more often than it makes decisions.
+    warn_failed_query_rate: float = 0.25
+    max_failed_query_rate: float | None = None
 
 
 PUBLIC_LEADERBOARD_POLICY = ResultPolicy(
@@ -62,6 +69,7 @@ SOTA_V2_POLICY = ResultPolicy(
     require_contract_provenance=True,
     require_seed_panel_provenance=True,
     expected_contract=expected_contract(),
+    max_failed_query_rate=1.0,
 )
 SOTA_V1_POLICY = ResultPolicy(
     name=SOTA_V1_POLICY_NAME,
@@ -74,10 +82,29 @@ SOTA_V1_POLICY = ResultPolicy(
     # Historical adapter scaffolds are no longer present in the source tree.
     validate_current_scaffold=False,
 )
+# Verifiability, not eligibility. `archive-v1` answers "is this a genuine v1
+# artifact, produced under the frozen v1 contract on the declared seed panel?"
+# -- deliberately not "was it good enough to rank?", which is what `sota-v1`
+# answers. Conflating the two would force a choice between deleting real
+# evidence and letting the archive drift off its contract: two archived rows
+# (ollama-gemma4-e4b, ollama-qwen3-5-latest) shipped under the looser public
+# bar and never cleared sota-v1's failure-rate gate. They are still authentic
+# v1 artifacts, and the archive exists to preserve them, not to endorse them.
+ARCHIVE_V1_POLICY = ResultPolicy(
+    name=ARCHIVE_V1_POLICY_NAME,
+    min_repeats=1,
+    min_seed_count=1,
+    max_decision_failure_rate=PUBLIC_LEADERBOARD_POLICY.max_decision_failure_rate,
+    require_contract_provenance=True,
+    require_seed_panel_provenance=True,
+    expected_contract=SOTA_V1_CONTRACT,
+    validate_current_scaffold=False,
+)
 POLICIES = {
     PUBLIC_LEADERBOARD_POLICY.name: PUBLIC_LEADERBOARD_POLICY,
     SOTA_V1_POLICY.name: SOTA_V1_POLICY,
     SOTA_V2_POLICY.name: SOTA_V2_POLICY,
+    ARCHIVE_V1_POLICY.name: ARCHIVE_V1_POLICY,
 }
 REDACTED_SEEDS_SENTINEL = "<redacted>"
 
@@ -224,11 +251,21 @@ def validate_leaderboard_payload(
         if int(summary.get("failed_decisions", 0) or 0):
             warnings.append("candidate used adapter fallback/error output on at least one decision")
         failed_queries = int(summary.get("failed_queries", 0) or 0)
-        if decisions and failed_queries > decisions:
-            warnings.append(
-                f"candidate has {failed_queries} failed queries across {decisions} decisions; "
-                "misfired scout/inspect lookups may indicate the model is not reading query errors"
+        if decisions:
+            failed_query_rate = failed_queries / decisions
+            detail = (
+                f"candidate has {failed_queries} failed queries across {decisions} decisions "
+                f"({failed_query_rate:.2f} per decision)"
             )
+            if policy.max_failed_query_rate is not None and failed_query_rate > policy.max_failed_query_rate:
+                errors.append(
+                    f"{detail}, exceeding {policy.max_failed_query_rate:.2f} for {policy.name}; "
+                    "the candidate is spending its decision budget on lookups that never resolve"
+                )
+            elif failed_query_rate > policy.warn_failed_query_rate:
+                warnings.append(
+                    f"{detail}; misfired scout/inspect lookups may indicate the model is not reading query errors"
+                )
         usage = _dict(summary.get("usage"))
         if policy.require_full_usage and decisions:
             if int(usage.get("decisions_with_usage", 0) or 0) != decisions:

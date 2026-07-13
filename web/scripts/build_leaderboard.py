@@ -1,17 +1,18 @@
 """Build the public leaderboard dataset for the GM-Bench site.
 
-Reads official ``results/leaderboard/*.json`` artifacts and explicitly marked
-``results/diagnostics/*.json`` artifacts. Official artifacts are either the saved output of
+Reads official ``results/leaderboard/*.json`` artifacts -- and *only* those. An
+artifact's provenance is the directory it lives in, never a field inside it, so
+neither ``results/diagnostics/`` nor the ``archive-v1/`` forensic set can reach
+the published table. Official artifacts are either the saved output of
 
     python -m gm_bench model --provider <p> --model <m> --preset leaderboard --repeats 3 --json > results/leaderboard/<name>.json
 
 or a redacted private-panel artifact from ``python -m gm_bench redact-result``.
-Diagnostics are visible on the site for transparency, but are deliberately kept
-outside the official-artifact directory so the public-leaderboard CI gate remains
-meaningful.
+Only rows on the current ``sota-v2`` contract are published; anything else is
+skipped with a note on stderr.
+
 It writes ``web/src/data/leaderboard.json`` with one row per model plus the
-scripted-baseline reference panel. Official artifacts take precedence over
-diagnostics for the same model; otherwise the newest diagnostic is shown. When no model results exist yet, the baseline
+scripted-baseline reference panel. When no model results exist yet, the baseline
 panel is read from the current-contract cache or recomputed deterministically so
 the site never mixes historical model rows with stale reference scores.
 
@@ -24,7 +25,6 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -39,8 +39,6 @@ from gm_bench.protocol import PHASES  # noqa: E402
 from gm_bench.runner import run_many  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
-ARCHIVE_DIR = RESULTS_DIR / "archive-v1"
-DIAGNOSTICS_DIR = ROOT / "results" / "diagnostics"
 OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard.json"
 LEADERBOARD = PRESETS["leaderboard"]
 # Providers that run a model through a coding-agent CLI harness (own tool loop,
@@ -205,22 +203,40 @@ def select_model_payloads(
 
 
 def main() -> None:
+    # Published rows come from RESULTS_DIR only. Provenance is the directory an
+    # artifact lives in, never a field inside it: selecting on benchmark_version
+    # alone would promote a *diagnostic* sota-v2 run into the official table
+    # without it ever clearing the official gate.
     artifacts: list[tuple[dict[str, Any], int, str]] = []
-    for directory, priority in ((RESULTS_DIR, 2), (ARCHIVE_DIR, 1), (DIAGNOSTICS_DIR, 0)):
-        if not directory.exists():
-            continue
-        for path in sorted(directory.glob("*.json")):
+    if RESULTS_DIR.exists():
+        for path in sorted(RESULTS_DIR.glob("*.json")):
             try:
-                artifacts.append((json.loads(path.read_text()), priority, path.name))
+                artifacts.append((json.loads(path.read_text()), 2, path.name))
             except json.JSONDecodeError:
                 print(f"skipping unparseable {path}", file=sys.stderr)
     payloads = select_model_payloads(artifacts)
     rows = sorted((model_row(payload) for payload in payloads), key=lambda row: row["mean_score"], reverse=True)
+    # The sota-v1 rows in ARCHIVE_DIR are retained as forensic evidence of the v1
+    # scout-contract break, not as a ranking: the defect cost some candidates over
+    # a thousand silently-rejected lookups and others none, so their scores are not
+    # comparable to each other. See results/leaderboard/archive-v1/README.md.
     models = [row for row in rows if row.get("benchmark_version") == "sota-v2"]
-    archive_models = [row for row in rows if row.get("benchmark_version") != "sota-v2"]
+    skipped = [row for row in rows if row.get("benchmark_version") != "sota-v2"]
+    for row in skipped:
+        print(
+            f"skipping {row.get('model')}: benchmark_version={row.get('benchmark_version')!r} is not sota-v2",
+            file=sys.stderr,
+        )
     baselines = current_baselines()
+    # Derived from the artifacts, never from the wall clock: the committed
+    # leaderboard.json must be a pure function of the committed inputs, or the
+    # CI reproducibility gate would go red every time the date rolls over. It is
+    # also the more honest field -- the data was last updated when a run landed,
+    # not when someone happened to rebuild the site.
+    timestamps = [str((payload.get("run_info") or {}).get("timestamp_utc") or "") for payload in payloads]
+    updated = max((stamp for stamp in timestamps if stamp), default="")[:10]
     dataset = {
-        "updated": date.today().isoformat(),
+        "updated": updated,
         "preset": {
             "name": "leaderboard",
             "seeds": LEADERBOARD["seeds"],
@@ -229,14 +245,10 @@ def main() -> None:
         },
         "baselines": baselines,
         "models": models,
-        "archive_models": archive_models,
     }
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(json.dumps(dataset, indent=2, sort_keys=True) + "\n")
-    print(
-        f"wrote {OUTPUT_PATH} ({len(models)} current model(s), "
-        f"{len(archive_models)} archived model(s), {len(baselines)} baseline(s))"
-    )
+    print(f"wrote {OUTPUT_PATH} ({len(models)} current model(s), {len(baselines)} baseline(s))")
 
 
 if __name__ == "__main__":

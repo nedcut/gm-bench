@@ -9,8 +9,11 @@ from gm_bench import cli as cli_module
 from gm_bench.benchmark_config import PRESETS, PRIVATE_SEEDS_ENV, seed_panel_metadata
 from gm_bench.contract import benchmark_contract, scaffold_fingerprint
 from gm_bench.official import (
+    ARCHIVE_V1_POLICY,
     PUBLIC_LEADERBOARD_POLICY,
     REDACTED_SEEDS_SENTINEL,
+    SOTA_V1_CONTRACT,
+    SOTA_V1_POLICY,
     SOTA_V2_POLICY,
     redact_leaderboard_payload,
     validate_leaderboard_payload,
@@ -155,6 +158,57 @@ def test_sota_v2_policy_rejects_high_failure_rate() -> None:
     report = validate_leaderboard_payload(_official_payload(repeats=3, failure_rate=0.05), policy=SOTA_V2_POLICY)
     assert not report.ok
     assert any("decision_failure_rate" in error for error in report.errors)
+
+
+def test_sota_v2_policy_rejects_runaway_failed_queries() -> None:
+    # The v1 scout-contract break produced 1,124 silently-rejected lookups across
+    # 480 decisions (2.34/decision) while reporting a clean summary. That row must
+    # not be publishable again.
+    payload = _official_payload(repeats=3)
+    decisions = int(payload["candidate"]["summary"]["decisions"])
+    payload["candidate"]["summary"]["failed_queries"] = decisions * 2 + 1
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+    assert not report.ok
+    assert any("failed queries" in error for error in report.errors)
+
+
+def test_failed_queries_warn_below_the_hard_gate() -> None:
+    payload = _official_payload(repeats=3)
+    decisions = int(payload["candidate"]["summary"]["decisions"])
+    payload["candidate"]["summary"]["failed_queries"] = int(decisions * 0.5)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+    assert report.ok
+    assert any("failed queries" in warning for warning in report.warnings)
+
+    # A handful of misfired lookups is normal exploration, not a signal.
+    payload["candidate"]["summary"]["failed_queries"] = int(decisions * 0.1)
+    quiet = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+    assert quiet.ok
+    assert not any("failed queries" in warning for warning in quiet.warnings)
+
+
+def test_archive_v1_policy_asserts_provenance_not_eligibility() -> None:
+    # `archive-v1` exists to prove an artifact is a genuine v1 artifact. It must
+    # accept rows that never cleared the strict sota-v1 bar -- two real archived
+    # rows (ollama-gemma4-e4b, ollama-qwen3-5-latest) did not -- because the
+    # archive preserves evidence rather than endorsing it.
+    payload = _official_payload(repeats=3, failure_rate=0.05)
+    payload["run_info"]["benchmark_contract"] = dict(SOTA_V1_CONTRACT)
+
+    lenient = validate_leaderboard_payload(payload, policy=ARCHIVE_V1_POLICY)
+    assert lenient.ok, lenient.errors
+
+    strict = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    assert not strict.ok
+    assert any("decision_failure_rate" in error for error in strict.errors)
+
+
+def test_archive_v1_policy_rejects_a_non_v1_artifact() -> None:
+    # The archive must not silently drift onto a newer contract.
+    payload = _official_payload(repeats=3)  # carries the current (v2) contract
+    report = validate_leaderboard_payload(payload, policy=ARCHIVE_V1_POLICY)
+    assert not report.ok
+    assert any("contract" in error.lower() for error in report.errors)
 
 
 def test_sota_v2_policy_requires_full_usage() -> None:

@@ -50,8 +50,33 @@ jobs:
         run: python -m gm_bench validate-contract
       - name: Validate committed leaderboard results
         run: |
-          find results/leaderboard -maxdepth 1 -type f -name '*.json' -print0 | while IFS= read -r -d '' result; do
+          count=0
+          while IFS= read -r -d '' result; do
             python -m gm_bench validate-result "$result" --policy public-leaderboard
-          done
-      - name: Exercise leaderboard builder
-        run: python web/scripts/build_leaderboard.py
+            count=$((count + 1))
+          done < <(find results/leaderboard -maxdepth 1 -type f -name '*.json' -print0)
+          echo "validated $count current leaderboard result(s)"
+      - name: Verify archived v1 evidence
+        # `archive-v1` asserts these are authentic v1 artifacts on the frozen
+        # contract. It deliberately does NOT assert they were leaderboard-eligible
+        # -- they are evidence of the v1 scout-contract break, not a ranking.
+        run: |
+          count=0
+          while IFS= read -r -d '' result; do
+            python -m gm_bench validate-result "$result" --policy archive-v1
+            count=$((count + 1))
+          done < <(find results/leaderboard/archive-v1 -maxdepth 1 -type f -name '*.json' -print0)
+          if [ "$count" -eq 0 ]; then
+            echo "::error::no archived v1 evidence found; the archive must stay verifiable"
+            exit 1
+          fi
+          echo "verified $count archived v1 artifact(s)"
+      - name: Leaderboard site data is reproducible from committed artifacts
+        # Guards against site data built from untracked local files: the committed
+        # leaderboard.json must be exactly what the builder emits from this tree.
+        run: |
+          python web/scripts/build_leaderboard.py
+          if ! git diff --exit-code -- web/src/data/leaderboard.json; then
+            echo "::error::web/src/data/leaderboard.json is stale or was built from artifacts that are not committed; re-run python web/scripts/build_leaderboard.py and commit the result"
+            exit 1
+          fi

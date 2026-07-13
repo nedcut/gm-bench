@@ -32,14 +32,7 @@ function cost(model: LeaderboardModel): string {
   return `$${fmt(model.cost_per_episode_usd, 2)}`;
 }
 
-function statusTag(model: LeaderboardModel, historical = false) {
-  if (historical) {
-    return (
-      <span className="tag tag-dev" title="Produced under the superseded sota-v1 contract; not comparable to sota-v2">
-        archived v1
-      </span>
-    );
-  }
+function statusTag(model: LeaderboardModel) {
   const allIssues = model.sota_v2_issues ?? [];
   const issues = allIssues.join("\n");
   if (model.sota_v2_eligible) {
@@ -70,30 +63,16 @@ function laneLabel(model: LeaderboardModel): string {
   return model.lane === "cli-harness" ? "CLI harness" : "API";
 }
 
-function LeaderboardTable({
-  data,
-  models = data.models,
-  baselines = data.baselines,
-  title = "Official leaderboard",
-  subtitle,
-  historical = false,
-}: {
-  data: LeaderboardData;
-  models?: LeaderboardModel[];
-  baselines?: LeaderboardBaseline[];
-  title?: string;
-  subtitle?: string;
-  historical?: boolean;
-}) {
-  const rows = buildRows(models, baselines);
+function LeaderboardTable({ data }: { data: LeaderboardData }) {
+  const rows = buildRows(data.models, data.baselines);
   const maxScore = Math.max(...rows.map((row) => (row.kind === "model" ? row.model.mean_score : row.baseline.mean_score)));
   return (
     <div className="panel">
       <div className="panel-title">
-        <h3>{title}</h3>
+        <h3>Official leaderboard</h3>
         <span>
-          {subtitle ??
-            `preset ${data.preset.name} · ${data.preset.seeds.length} seeds × ${data.preset.seasons} seasons · updated ${data.updated}`}
+          {`preset ${data.preset.name} · ${data.preset.seeds.length} seeds × ${data.preset.seasons} seasons`}
+          {data.updated ? ` · updated ${data.updated}` : ""}
         </span>
       </div>
       <div className="table-wrap">
@@ -162,7 +141,7 @@ function LeaderboardTable({
                       <span className="tag tag-candidate">{PROVIDER_LABELS[model.provider] ?? model.provider}</span>
                     </span>
                   </td>
-                  <td>{statusTag(model, historical)}</td>
+                  <td>{statusTag(model)}</td>
                   <td className="mono-dim">{laneLabel(model)}</td>
                   <td className="num score-strong">{fmt(model.mean_score, 1)}</td>
                   <td>
@@ -233,6 +212,31 @@ python web/scripts/build_leaderboard.py`}
   );
 }
 
+function ArchiveNotice() {
+  return (
+    <div className="panel">
+      <div className="panel-title">
+        <h3>Withdrawn: the sota-v1 results</h3>
+        <span>retained as evidence · not a ranking</span>
+      </div>
+      <p style={{ maxWidth: 640 }}>
+        Every score published under the previous <code>sota-v1</code> contract has been withdrawn. The
+        scaffold prompt documented <code>{`{"type":"scout","prospect_id":N}`}</code> as a valid action,
+        but the simulator only ever read <code>player_id</code> and silently rejected the documented
+        form. The rejections carried no protocol penalty, so they never appeared in any summary.
+      </p>
+      <p style={{ maxWidth: 640 }}>
+        The defect did not fall evenly. It cost some candidates over a thousand silently-rejected
+        lookups and others none at all, while the scripted baselines — which used{" "}
+        <code>player_id</code> — were untouched. The v1 table was therefore not a valid ranking of
+        the models in it, and no caveat makes it one. The raw artifacts remain in{" "}
+        <code>results/leaderboard/archive-v1/</code> as evidence of the defect, and the board above
+        refills as <code>sota-v2</code> runs land.
+      </p>
+    </div>
+  );
+}
+
 export default function Leaderboard({ data }: { data: LeaderboardData }) {
   return (
     <section className="section" id="leaderboard">
@@ -248,16 +252,7 @@ export default function Leaderboard({ data }: { data: LeaderboardData }) {
         </div>
         <LeaderboardTable data={data} />
         {data.models.length === 0 && <EmptyState />}
-        {data.archive_models.length > 0 && (
-          <LeaderboardTable
-            data={data}
-            models={data.archive_models}
-            baselines={[]}
-            title="Archived sota-v1 evidence"
-            subtitle="Historical only · affected by the v1 scout-contract defect · not comparable to sota-v2"
-            historical
-          />
-        )}
+        <ArchiveNotice />
       </div>
     </section>
   );
