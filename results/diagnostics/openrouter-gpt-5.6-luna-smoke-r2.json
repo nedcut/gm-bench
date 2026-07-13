@@ -1,0 +1,2434 @@
+{
+  "agent": "openrouter:openai/gpt-5.6-luna-20260709",
+  "baseline_cache": {
+    "enabled": true,
+    "hits": 4,
+    "path": "/Users/nedcutler/Documents/Code/gm_bench/data/baseline_cache.json",
+    "total": 4
+  },
+  "baselines": [
+    {
+      "agent": "random",
+      "episodes": [
+        {
+          "agent": "random",
+          "championships": 0,
+          "decisions": 4,
+          "failed_decisions": 0,
+          "final_score": 126.067,
+          "illegal_actions": 0,
+          "max_decision_seconds": 0.0001,
+          "mean_decision_seconds": 0.0,
+          "memo_writes": 0,
+          "protocol_penalty": 0.0,
+          "rejected_offers": 0,
+          "season_summaries": [
+            {
+              "cap_room": 23.3,
+              "champion_team_id": 1,
+              "losses": 19,
+              "payroll": 62.7,
+              "playoff_rounds": 2,
+              "score_after_season": 102.69,
+              "season": 1,
+              "wins": 14
+            }
+          ],
+          "seasons": 1,
+          "seed": 1,
+          "strategy_score": 126.067,
+          "transactions": [
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  23,
+                  19,
+                  18,
+                  15,
+                  22,
+                  16,
+                  14,
+                  20,
+                  9,
+                  10,
+                  3,
+                  6,
+                  5,
+                  4,
+                  2,
+                  7,
+                  8,
+                  12
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "preseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  17,
+                  21,
+                  23,
+                  13,
+                  11,
+                  10,
+                  20,
+                  12,
+                  19,
+                  18,
+                  7,
+                  4,
+                  5,
+                  3,
+                  2,
+                  16,
+                  22,
+                  8
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "midseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_id": 234,
+                "salary": 0.7,
+                "type": "sign_free_agent",
+                "years": 1
+              },
+              "message": "signed Pax Berg",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  19,
+                  17,
+                  13,
+                  10,
+                  16,
+                  9,
+                  12,
+                  22,
+                  18,
+                  21,
+                  5,
+                  7,
+                  3,
+                  6,
+                  2,
+                  11,
+                  20,
+                  23
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  39
+                ],
+                "partner_team_id": 3,
+                "receive_player_ids": [
+                  82
+                ],
+                "type": "trade"
+              },
+              "message": "Austin Jackals traded Drew Ivers to Calgary Peaks for Cal Anders",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 1
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  50
+                ],
+                "partner_team_id": 11,
+                "receive_player_ids": [
+                  259
+                ],
+                "type": "trade"
+              },
+              "message": "Boston Harbors traded Alex Lund to Seattle Surge for Kai Grant",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 2
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  107
+                ],
+                "partner_team_id": 5,
+                "receive_player_ids": [
+                  312
+                ],
+                "type": "trade"
+              },
+              "message": "Chicago Steel traded Hugo Vale to Denver Comets for Milo Lund",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 4
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  158
+                ],
+                "partner_team_id": 8,
+                "receive_player_ids": [
+                  300
+                ],
+                "type": "trade"
+              },
+              "message": "Halifax Schooners traded Gabe Keller to Montreal Saints for Owen Chen",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 6
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010006,
+                "type": "draft"
+              },
+              "message": "Denver Comets drafted Gabe Hayes",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 5
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010012,
+                "type": "draft"
+              },
+              "message": "Boston Harbors drafted Finn Grant",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 2
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010009,
+                "type": "draft"
+              },
+              "message": "Calgary Peaks drafted Gabe Frost",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 3
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  16,
+                  20,
+                  9,
+                  22,
+                  21,
+                  14,
+                  13,
+                  17,
+                  15,
+                  23,
+                  7,
+                  6,
+                  234,
+                  3,
+                  2,
+                  12,
+                  18,
+                  8
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010015,
+                "type": "draft"
+              },
+              "message": "drafted Quin Chen",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010027,
+                "type": "draft"
+              },
+              "message": "Montreal Saints drafted Nico Keller",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 8
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010001,
+                "type": "draft"
+              },
+              "message": "Chicago Steel drafted Pax Keller",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 4
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010038,
+                "type": "draft"
+              },
+              "message": "Miami Palms drafted Leo Anders",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 7
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010002,
+                "type": "draft"
+              },
+              "message": "Nashville Sound drafted Milo Quill",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 9
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010058,
+                "type": "draft"
+              },
+              "message": "Portland Pines drafted Rafi Frost",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 10
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010029,
+                "type": "draft"
+              },
+              "message": "Seattle Surge drafted Gabe Mason",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 11
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010014,
+                "type": "draft"
+              },
+              "message": "Austin Jackals drafted Quin Frost",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 1
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010042,
+                "type": "draft"
+              },
+              "message": "Halifax Schooners drafted Quin Hayes",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 6
+            }
+          ],
+          "usage": {
+            "api_calls": 0,
+            "api_latency_ms": 0,
+            "cached_input_tokens": 0,
+            "cost_decisions": 0,
+            "cost_usd": null,
+            "decisions_with_usage": 0,
+            "harness_latency_ms": 0.0,
+            "input_tokens": 0,
+            "model": null,
+            "output_tokens": 0,
+            "per_decision": [],
+            "provider": null,
+            "reasoning_tokens": 0,
+            "total_tokens": 0,
+            "upstream_provider": null,
+            "upstream_providers": []
+          },
+          "wins": 14
+        }
+      ],
+      "seasons": 1,
+      "seeds": [
+        1
+      ],
+      "summary": {
+        "championships": 0,
+        "decision_failure_rate": 0.0,
+        "decisions": 4,
+        "failed_decisions": 0,
+        "illegal_actions": 0,
+        "mean_score": 126.067,
+        "mean_strategy_score": 126.067,
+        "mean_total_wins": 14,
+        "memo_writes": 0,
+        "rejected_offers": 0,
+        "score_stddev": 0.0,
+        "total_protocol_penalty": 0.0,
+        "usage": {
+          "api_calls": 0,
+          "api_latency_ms": 0.0,
+          "cached_input_tokens": 0,
+          "cost_decisions": 0,
+          "cost_usd": null,
+          "decisions_with_usage": 0,
+          "harness_latency_ms": 0.0,
+          "input_tokens": 0,
+          "mean_tokens_per_decision": 0.0,
+          "model": null,
+          "output_tokens": 0,
+          "provider": null,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "upstream_provider": null,
+          "upstream_providers": []
+        },
+        "within_seed_score_stddev": 0.0
+      }
+    },
+    {
+      "agent": "conservative",
+      "episodes": [
+        {
+          "agent": "conservative",
+          "championships": 0,
+          "decisions": 4,
+          "failed_decisions": 0,
+          "final_score": 106.413,
+          "illegal_actions": 0,
+          "max_decision_seconds": 0.0,
+          "mean_decision_seconds": 0.0,
+          "memo_writes": 0,
+          "protocol_penalty": 0.0,
+          "rejected_offers": 0,
+          "season_summaries": [
+            {
+              "cap_room": 23.3,
+              "champion_team_id": 11,
+              "losses": 15,
+              "payroll": 62.7,
+              "playoff_rounds": 0,
+              "score_after_season": 99.356,
+              "season": 1,
+              "wins": 18
+            }
+          ],
+          "seasons": 1,
+          "seed": 1,
+          "strategy_score": 106.413,
+          "transactions": [
+            {
+              "accepted": true,
+              "action": {
+                "player_id": 308,
+                "salary": 0.7,
+                "type": "sign_free_agent",
+                "years": 1
+              },
+              "message": "signed Owen Novak",
+              "phase": "preseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  20,
+                  21,
+                  13,
+                  12,
+                  9,
+                  18,
+                  23,
+                  14,
+                  16,
+                  10,
+                  8,
+                  4,
+                  5,
+                  3,
+                  1,
+                  2,
+                  11,
+                  22
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "preseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_id": 302,
+                "salary": 0.7,
+                "type": "sign_free_agent",
+                "years": 1
+              },
+              "message": "signed Alex Frost",
+              "phase": "midseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  20,
+                  21,
+                  13,
+                  12,
+                  9,
+                  18,
+                  23,
+                  14,
+                  16,
+                  10,
+                  8,
+                  4,
+                  5,
+                  3,
+                  1,
+                  2,
+                  11,
+                  22
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "midseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_id": 171,
+                "salary": 0.7,
+                "type": "sign_free_agent",
+                "years": 1
+              },
+              "message": "signed Jules Price",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  20,
+                  21,
+                  13,
+                  12,
+                  9,
+                  18,
+                  23,
+                  14,
+                  16,
+                  10,
+                  8,
+                  4,
+                  5,
+                  3,
+                  1,
+                  2,
+                  11,
+                  22
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  39
+                ],
+                "partner_team_id": 3,
+                "receive_player_ids": [
+                  82
+                ],
+                "type": "trade"
+              },
+              "message": "Austin Jackals traded Drew Ivers to Calgary Peaks for Cal Anders",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 1
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  50
+                ],
+                "partner_team_id": 11,
+                "receive_player_ids": [
+                  259
+                ],
+                "type": "trade"
+              },
+              "message": "Boston Harbors traded Alex Lund to Seattle Surge for Kai Grant",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 2
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  107
+                ],
+                "partner_team_id": 5,
+                "receive_player_ids": [
+                  312
+                ],
+                "type": "trade"
+              },
+              "message": "Chicago Steel traded Hugo Vale to Denver Comets for Milo Lund",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 4
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  158
+                ],
+                "partner_team_id": 8,
+                "receive_player_ids": [
+                  300
+                ],
+                "type": "trade"
+              },
+              "message": "Halifax Schooners traded Gabe Keller to Montreal Saints for Owen Chen",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 6
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010006,
+                "type": "draft"
+              },
+              "message": "Denver Comets drafted Gabe Hayes",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 5
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010012,
+                "type": "draft"
+              },
+              "message": "Boston Harbors drafted Finn Grant",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 2
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010009,
+                "type": "draft"
+              },
+              "message": "Calgary Peaks drafted Gabe Frost",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 3
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010027,
+                "type": "draft"
+              },
+              "message": "Montreal Saints drafted Nico Keller",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 8
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_id": 307,
+                "salary": 0.7,
+                "type": "sign_free_agent",
+                "years": 1
+              },
+              "message": "signed Drew Evans",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010042,
+                "type": "draft"
+              },
+              "message": "drafted Quin Hayes",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  20,
+                  21,
+                  13,
+                  12,
+                  9,
+                  18,
+                  23,
+                  14,
+                  16,
+                  10,
+                  8,
+                  4,
+                  5,
+                  3,
+                  1,
+                  2,
+                  11,
+                  22
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010001,
+                "type": "draft"
+              },
+              "message": "Chicago Steel drafted Pax Keller",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 4
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010038,
+                "type": "draft"
+              },
+              "message": "Miami Palms drafted Leo Anders",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 7
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010002,
+                "type": "draft"
+              },
+              "message": "Nashville Sound drafted Milo Quill",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 9
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010058,
+                "type": "draft"
+              },
+              "message": "Portland Pines drafted Rafi Frost",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 10
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010029,
+                "type": "draft"
+              },
+              "message": "Seattle Surge drafted Gabe Mason",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 11
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010014,
+                "type": "draft"
+              },
+              "message": "Austin Jackals drafted Quin Frost",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 1
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010015,
+                "type": "draft"
+              },
+              "message": "Halifax Schooners drafted Quin Chen",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 6
+            }
+          ],
+          "usage": {
+            "api_calls": 0,
+            "api_latency_ms": 0,
+            "cached_input_tokens": 0,
+            "cost_decisions": 0,
+            "cost_usd": null,
+            "decisions_with_usage": 0,
+            "harness_latency_ms": 0.0,
+            "input_tokens": 0,
+            "model": null,
+            "output_tokens": 0,
+            "per_decision": [],
+            "provider": null,
+            "reasoning_tokens": 0,
+            "total_tokens": 0,
+            "upstream_provider": null,
+            "upstream_providers": []
+          },
+          "wins": 18
+        }
+      ],
+      "seasons": 1,
+      "seeds": [
+        1
+      ],
+      "summary": {
+        "championships": 0,
+        "decision_failure_rate": 0.0,
+        "decisions": 4,
+        "failed_decisions": 0,
+        "illegal_actions": 0,
+        "mean_score": 106.413,
+        "mean_strategy_score": 106.413,
+        "mean_total_wins": 18,
+        "memo_writes": 0,
+        "rejected_offers": 0,
+        "score_stddev": 0.0,
+        "total_protocol_penalty": 0.0,
+        "usage": {
+          "api_calls": 0,
+          "api_latency_ms": 0.0,
+          "cached_input_tokens": 0,
+          "cost_decisions": 0,
+          "cost_usd": null,
+          "decisions_with_usage": 0,
+          "harness_latency_ms": 0.0,
+          "input_tokens": 0,
+          "mean_tokens_per_decision": 0.0,
+          "model": null,
+          "output_tokens": 0,
+          "provider": null,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "upstream_provider": null,
+          "upstream_providers": []
+        },
+        "within_seed_score_stddev": 0.0
+      }
+    },
+    {
+      "agent": "win-now",
+      "episodes": [
+        {
+          "agent": "win-now",
+          "championships": 0,
+          "decisions": 4,
+          "failed_decisions": 0,
+          "final_score": 135.041,
+          "illegal_actions": 0,
+          "max_decision_seconds": 0.0,
+          "mean_decision_seconds": 0.0,
+          "memo_writes": 0,
+          "protocol_penalty": 0.0,
+          "rejected_offers": 0,
+          "season_summaries": [
+            {
+              "cap_room": -0.26,
+              "champion_team_id": 5,
+              "losses": 13,
+              "payroll": 86.26,
+              "playoff_rounds": 2,
+              "score_after_season": 109.145,
+              "season": 1,
+              "wins": 20
+            }
+          ],
+          "seasons": 1,
+          "seed": 1,
+          "strategy_score": 135.041,
+          "transactions": [
+            {
+              "accepted": true,
+              "action": {
+                "player_id": 304,
+                "salary": 7.04,
+                "type": "sign_free_agent",
+                "years": 2
+              },
+              "message": "signed Ivan Price",
+              "phase": "preseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_id": 278,
+                "salary": 6.36,
+                "type": "sign_free_agent",
+                "years": 2
+              },
+              "message": "signed Finn Keller",
+              "phase": "preseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_id": 298,
+                "salary": 5.5,
+                "type": "sign_free_agent",
+                "years": 2
+              },
+              "message": "signed Drew Stone",
+              "phase": "preseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_id": 286,
+                "salary": 4.66,
+                "type": "sign_free_agent",
+                "years": 2
+              },
+              "message": "signed Nico Grant",
+              "phase": "preseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  20,
+                  21,
+                  13,
+                  12,
+                  9,
+                  18,
+                  23,
+                  14,
+                  16,
+                  10,
+                  8,
+                  4,
+                  5,
+                  3,
+                  1,
+                  2,
+                  11,
+                  22
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "preseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  304,
+                  278,
+                  298,
+                  20,
+                  286,
+                  21,
+                  13,
+                  12,
+                  9,
+                  18,
+                  8,
+                  4,
+                  5,
+                  3,
+                  1,
+                  23,
+                  14,
+                  2
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "midseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  304,
+                  278,
+                  298,
+                  20,
+                  286,
+                  21,
+                  13,
+                  12,
+                  9,
+                  18,
+                  8,
+                  4,
+                  5,
+                  3,
+                  1,
+                  23,
+                  14,
+                  2
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  39
+                ],
+                "partner_team_id": 3,
+                "receive_player_ids": [
+                  82
+                ],
+                "type": "trade"
+              },
+              "message": "Austin Jackals traded Drew Ivers to Calgary Peaks for Cal Anders",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 1
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  312
+                ],
+                "partner_team_id": 4,
+                "receive_player_ids": [
+                  107
+                ],
+                "type": "trade"
+              },
+              "message": "Boston Harbors traded Milo Lund to Chicago Steel for Hugo Vale",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 2
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  136
+                ],
+                "partner_team_id": 11,
+                "receive_player_ids": [
+                  266
+                ],
+                "type": "trade"
+              },
+              "message": "Denver Comets traded Ben Quill to Seattle Surge for Jules Reed",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 5
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010006,
+                "type": "draft"
+              },
+              "message": "Calgary Peaks drafted Gabe Hayes",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 3
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010012,
+                "type": "draft"
+              },
+              "message": "Nashville Sound drafted Finn Grant",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 9
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010009,
+                "type": "draft"
+              },
+              "message": "Boston Harbors drafted Gabe Frost",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 2
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010027,
+                "type": "draft"
+              },
+              "message": "Chicago Steel drafted Nico Keller",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 4
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010001,
+                "type": "draft"
+              },
+              "message": "Denver Comets drafted Pax Keller",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 5
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010038,
+                "type": "draft"
+              },
+              "message": "Austin Jackals drafted Leo Anders",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 1
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010002,
+                "type": "draft"
+              },
+              "message": "Halifax Schooners drafted Milo Quill",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 6
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010058,
+                "type": "draft"
+              },
+              "message": "Miami Palms drafted Rafi Frost",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 7
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010029,
+                "type": "draft"
+              },
+              "message": "Portland Pines drafted Gabe Mason",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 10
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010033,
+                "type": "draft"
+              },
+              "message": "drafted Jules Novak",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  304,
+                  278,
+                  298,
+                  20,
+                  286,
+                  21,
+                  13,
+                  12,
+                  9,
+                  18,
+                  8,
+                  4,
+                  5,
+                  3,
+                  1,
+                  23,
+                  14,
+                  2
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010014,
+                "type": "draft"
+              },
+              "message": "Montreal Saints drafted Quin Frost",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 8
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010042,
+                "type": "draft"
+              },
+              "message": "Seattle Surge drafted Quin Hayes",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 11
+            }
+          ],
+          "usage": {
+            "api_calls": 0,
+            "api_latency_ms": 0,
+            "cached_input_tokens": 0,
+            "cost_decisions": 0,
+            "cost_usd": null,
+            "decisions_with_usage": 0,
+            "harness_latency_ms": 0.0,
+            "input_tokens": 0,
+            "model": null,
+            "output_tokens": 0,
+            "per_decision": [],
+            "provider": null,
+            "reasoning_tokens": 0,
+            "total_tokens": 0,
+            "upstream_provider": null,
+            "upstream_providers": []
+          },
+          "wins": 20
+        }
+      ],
+      "seasons": 1,
+      "seeds": [
+        1
+      ],
+      "summary": {
+        "championships": 0,
+        "decision_failure_rate": 0.0,
+        "decisions": 4,
+        "failed_decisions": 0,
+        "illegal_actions": 0,
+        "mean_score": 135.041,
+        "mean_strategy_score": 135.041,
+        "mean_total_wins": 20,
+        "memo_writes": 0,
+        "rejected_offers": 0,
+        "score_stddev": 0.0,
+        "total_protocol_penalty": 0.0,
+        "usage": {
+          "api_calls": 0,
+          "api_latency_ms": 0.0,
+          "cached_input_tokens": 0,
+          "cost_decisions": 0,
+          "cost_usd": null,
+          "decisions_with_usage": 0,
+          "harness_latency_ms": 0.0,
+          "input_tokens": 0,
+          "mean_tokens_per_decision": 0.0,
+          "model": null,
+          "output_tokens": 0,
+          "provider": null,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "upstream_provider": null,
+          "upstream_providers": []
+        },
+        "within_seed_score_stddev": 0.0
+      }
+    },
+    {
+      "agent": "rebuild",
+      "episodes": [
+        {
+          "agent": "rebuild",
+          "championships": 0,
+          "decisions": 4,
+          "failed_decisions": 0,
+          "final_score": 124.604,
+          "illegal_actions": 0,
+          "max_decision_seconds": 0.0,
+          "mean_decision_seconds": 0.0,
+          "memo_writes": 0,
+          "protocol_penalty": 0.0,
+          "rejected_offers": 0,
+          "season_summaries": [
+            {
+              "cap_room": 21.2,
+              "champion_team_id": 1,
+              "losses": 18,
+              "payroll": 64.8,
+              "playoff_rounds": 2,
+              "score_after_season": 100.808,
+              "season": 1,
+              "wins": 15
+            }
+          ],
+          "seasons": 1,
+          "seed": 1,
+          "strategy_score": 124.604,
+          "transactions": [
+            {
+              "accepted": true,
+              "action": {
+                "player_id": 307,
+                "salary": 0.7,
+                "type": "sign_free_agent",
+                "years": 3
+              },
+              "message": "signed Drew Evans",
+              "phase": "preseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  20,
+                  18,
+                  12,
+                  13,
+                  22,
+                  23,
+                  21,
+                  14,
+                  15,
+                  10,
+                  8,
+                  4,
+                  6,
+                  5,
+                  1,
+                  2,
+                  3,
+                  7
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "preseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_id": 142,
+                "salary": 0.7,
+                "type": "sign_free_agent",
+                "years": 3
+              },
+              "message": "signed Theo Keller",
+              "phase": "midseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_id": 171,
+                "salary": 0.7,
+                "type": "sign_free_agent",
+                "years": 3
+              },
+              "message": "signed Jules Price",
+              "phase": "midseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  20,
+                  18,
+                  12,
+                  13,
+                  22,
+                  23,
+                  21,
+                  14,
+                  15,
+                  10,
+                  8,
+                  4,
+                  6,
+                  5,
+                  1,
+                  2,
+                  3,
+                  7
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "midseason",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  20,
+                  18,
+                  12,
+                  13,
+                  22,
+                  23,
+                  21,
+                  14,
+                  15,
+                  10,
+                  8,
+                  4,
+                  6,
+                  5,
+                  1,
+                  2,
+                  3,
+                  7
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  39
+                ],
+                "partner_team_id": 3,
+                "receive_player_ids": [
+                  82
+                ],
+                "type": "trade"
+              },
+              "message": "Austin Jackals traded Drew Ivers to Calgary Peaks for Cal Anders",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 1
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  50
+                ],
+                "partner_team_id": 11,
+                "receive_player_ids": [
+                  259
+                ],
+                "type": "trade"
+              },
+              "message": "Boston Harbors traded Alex Lund to Seattle Surge for Kai Grant",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 2
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  107
+                ],
+                "partner_team_id": 5,
+                "receive_player_ids": [
+                  312
+                ],
+                "type": "trade"
+              },
+              "message": "Chicago Steel traded Hugo Vale to Denver Comets for Milo Lund",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 4
+            },
+            {
+              "accepted": true,
+              "action": {
+                "give_player_ids": [
+                  158
+                ],
+                "partner_team_id": 8,
+                "receive_player_ids": [
+                  300
+                ],
+                "type": "trade"
+              },
+              "message": "Halifax Schooners traded Gabe Keller to Montreal Saints for Owen Chen",
+              "phase": "trade_deadline",
+              "season": 1,
+              "team_id": 6
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010006,
+                "type": "draft"
+              },
+              "message": "Boston Harbors drafted Gabe Hayes",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 2
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010012,
+                "type": "draft"
+              },
+              "message": "Denver Comets drafted Finn Grant",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 5
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010009,
+                "type": "draft"
+              },
+              "message": "Calgary Peaks drafted Gabe Frost",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 3
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010042,
+                "type": "draft"
+              },
+              "message": "drafted Quin Hayes",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "player_ids": [
+                  20,
+                  18,
+                  12,
+                  13,
+                  22,
+                  23,
+                  21,
+                  14,
+                  15,
+                  10,
+                  8,
+                  4,
+                  6,
+                  5,
+                  1,
+                  2,
+                  3,
+                  7
+                ],
+                "type": "set_lineup"
+              },
+              "message": "lineup set",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 0
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010027,
+                "type": "draft"
+              },
+              "message": "Montreal Saints drafted Nico Keller",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 8
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010001,
+                "type": "draft"
+              },
+              "message": "Miami Palms drafted Pax Keller",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 7
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010038,
+                "type": "draft"
+              },
+              "message": "Nashville Sound drafted Leo Anders",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 9
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010002,
+                "type": "draft"
+              },
+              "message": "Portland Pines drafted Milo Quill",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 10
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010058,
+                "type": "draft"
+              },
+              "message": "Austin Jackals drafted Rafi Frost",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 1
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010029,
+                "type": "draft"
+              },
+              "message": "Seattle Surge drafted Gabe Mason",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 11
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010014,
+                "type": "draft"
+              },
+              "message": "Chicago Steel drafted Quin Frost",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 4
+            },
+            {
+              "accepted": true,
+              "action": {
+                "prospect_id": 1010015,
+                "type": "draft"
+              },
+              "message": "Halifax Schooners drafted Quin Chen",
+              "phase": "draft",
+              "season": 1,
+              "team_id": 6
+            }
+          ],
+          "usage": {
+            "api_calls": 0,
+            "api_latency_ms": 0,
+            "cached_input_tokens": 0,
+            "cost_decisions": 0,
+            "cost_usd": null,
+            "decisions_with_usage": 0,
+            "harness_latency_ms": 0.0,
+            "input_tokens": 0,
+            "model": null,
+            "output_tokens": 0,
+            "per_decision": [],
+            "provider": null,
+            "reasoning_tokens": 0,
+            "total_tokens": 0,
+            "upstream_provider": null,
+            "upstream_providers": []
+          },
+          "wins": 15
+        }
+      ],
+      "seasons": 1,
+      "seeds": [
+        1
+      ],
+      "summary": {
+        "championships": 0,
+        "decision_failure_rate": 0.0,
+        "decisions": 4,
+        "failed_decisions": 0,
+        "illegal_actions": 0,
+        "mean_score": 124.604,
+        "mean_strategy_score": 124.604,
+        "mean_total_wins": 15,
+        "memo_writes": 0,
+        "rejected_offers": 0,
+        "score_stddev": 0.0,
+        "total_protocol_penalty": 0.0,
+        "usage": {
+          "api_calls": 0,
+          "api_latency_ms": 0.0,
+          "cached_input_tokens": 0,
+          "cost_decisions": 0,
+          "cost_usd": null,
+          "decisions_with_usage": 0,
+          "harness_latency_ms": 0.0,
+          "input_tokens": 0,
+          "mean_tokens_per_decision": 0.0,
+          "model": null,
+          "output_tokens": 0,
+          "provider": null,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "upstream_provider": null,
+          "upstream_providers": []
+        },
+        "within_seed_score_stddev": 0.0
+      }
+    }
+  ],
+  "candidate": {
+    "agent": "openrouter:openai/gpt-5.6-luna-20260709",
+    "episodes": [
+      {
+        "agent": "openrouter:openai/gpt-5.6-luna-20260709",
+        "championships": 1,
+        "decisions": 4,
+        "failed_decisions": 0,
+        "final_score": 163.192,
+        "illegal_actions": 0,
+        "max_decision_seconds": 6.3662,
+        "mean_decision_seconds": 5.0243,
+        "memo_writes": 0,
+        "protocol_penalty": 0.0,
+        "rejected_offers": 0,
+        "repeat": 1,
+        "season_summaries": [
+          {
+            "cap_room": 23.99,
+            "champion_team_id": 0,
+            "losses": 15,
+            "payroll": 62.01,
+            "playoff_rounds": 3,
+            "score_after_season": 129.136,
+            "season": 1,
+            "wins": 18
+          }
+        ],
+        "seasons": 1,
+        "seed": 1,
+        "strategy_score": 163.192,
+        "transactions": [
+          {
+            "accepted": false,
+            "action": {
+              "prospect_id": 1010006,
+              "type": "scout"
+            },
+            "message": "no such player or prospect to scout",
+            "phase": "preseason",
+            "season": 1,
+            "team_id": 0
+          },
+          {
+            "accepted": false,
+            "action": {
+              "prospect_id": 1010009,
+              "type": "scout"
+            },
+            "message": "no such player or prospect to scout",
+            "phase": "preseason",
+            "season": 1,
+            "team_id": 0
+          },
+          {
+            "accepted": false,
+            "action": {
+              "prospect_id": 1010001,
+              "type": "scout"
+            },
+            "message": "no such player or prospect to scout",
+            "phase": "preseason",
+            "season": 1,
+            "team_id": 0
+          },
+          {
+            "accepted": true,
+            "action": {
+              "type": "end_turn"
+            },
+            "message": "turn ended",
+            "phase": "preseason",
+            "season": 1,
+            "team_id": 0
+          },
+          {
+            "accepted": false,
+            "action": {
+              "prospect_id": 1010006,
+              "type": "scout"
+            },
+            "message": "no such player or prospect to scout",
+            "phase": "midseason",
+            "season": 1,
+            "team_id": 0
+          },
+          {
+            "accepted": false,
+            "action": {
+              "prospect_id": 1010012,
+              "type": "scout"
+            },
+            "message": "no such player or prospect to scout",
+            "phase": "midseason",
+            "season": 1,
+            "team_id": 0
+          },
+          {
+            "accepted": false,
+            "action": {
+              "prospect_id": 1010009,
+              "type": "scout"
+            },
+            "message": "no such player or prospect to scout",
+            "phase": "midseason",
+            "season": 1,
+            "team_id": 0
+          },
+          {
+            "accepted": true,
+            "action": {
+              "player_ids": [
+                20,
+                21,
+                13,
+                12,
+                9,
+                18,
+                23,
+                14,
+                16,
+                10,
+                8,
+                4,
+                5,
+                3,
+                1,
+                2,
+                11,
+                22
+              ],
+              "type": "set_lineup"
+            },
+            "message": "lineup set",
+            "phase": "midseason",
+            "season": 1,
+            "team_id": 0
+          },
+          {
+            "accepted": true,
+            "action": {
+              "type": "end_turn"
+            },
+            "message": "turn ended",
+            "phase": "midseason",
+            "season": 1,
+            "team_id": 0
+          },
+          {
+            "accepted": true,
+            "action": {
+              "offer_id": "offer-9-1-trade_deadline-229-7",
+              "type": "accept_trade_offer"
+            },
+            "message": "accepted offer from Nashville Sound",
+            "phase": "trade_deadline",
+            "season": 1,
+            "team_id": 0
+          },
+          {
+            "accepted": true,
+            "action": {
+              "player_ids": [
+                20,
+                21,
+                13,
+                12,
+                9,
+                18,
+                23,
+                14,
+                16,
+                10,
+                8,
+                4,
+                5,
+                3,
+                1,
+                2,
+                11,
+                22
+              ],
+              "type": "set_lineup"
+            },
+            "message": "lineup set",
+            "phase": "trade_deadline",
+            "season": 1,
+            "team_id": 0
+          },
+          {
+            "accepted": true,
+            "action": {
+              "give_player_ids": [
+                39
+              ],
+              "partner_team_id": 3,
+              "receive_player_ids": [
+                82
+              ],
+              "type": "trade"
+            },
+            "message": "Austin Jackals traded Drew Ivers to Calgary Peaks for Cal Anders",
+            "phase": "trade_deadline",
+            "season": 1,
+            "team_id": 1
+          },
+          {
+            "accepted": true,
+            "action": {
+              "give_player_ids": [
+                50
+              ],
+              "partner_team_id": 11,
+              "receive_player_ids": [
+                259
+              ],
+              "type": "trade"
+            },
+            "message": "Boston Harbors traded Alex Lund to Seattle Surge for Kai Grant",
+            "phase": "trade_deadline",
+            "season": 1,
+            "team_id": 2
+          },
+          {
+            "accepted": true,
+            "action": {
+              "give_player_ids": [
+                107
+              ],
+              "partner_team_id": 5,
+              "receive_player_ids": [
+                312
+              ],
+              "type": "trade"
+            },
+            "message": "Chicago Steel traded Hugo Vale to Denver Comets for Milo Lund",
+            "phase": "trade_deadline",
+            "season": 1,
+            "team_id": 4
+          },
+          {
+            "accepted": true,
+            "action": {
+              "give_player_ids": [
+                158
+              ],
+              "partner_team_id": 8,
+              "receive_player_ids": [
+                300
+              ],
+              "type": "trade"
+            },
+            "message": "Halifax Schooners traded Gabe Keller to Montreal Saints for Owen Chen",
+            "phase": "trade_deadline",
+            "season": 1,
+            "team_id": 6
+          },
+          {
+            "accepted": true,
+            "action": {
+              "prospect_id": 1010006,
+              "type": "draft"
+            },
+            "message": "Denver Comets drafted Gabe Hayes",
+            "phase": "draft",
+            "season": 1,
+            "team_id": 5
+          },
+          {
+            "accepted": true,
+            "action": {
+              "prospect_id": 1010012,
+              "type": "draft"
+            },
+            "message": "Boston Harbors drafted Finn Grant",
+            "phase": "draft",
+            "season": 1,
+            "team_id": 2
+          },
+          {
+            "accepted": true,
+            "action": {
+              "prospect_id": 1010009,
+              "type": "draft"
+            },
+            "message": "Calgary Peaks drafted Gabe Frost",
+            "phase": "draft",
+            "season": 1,
+            "team_id": 3
+          },
+          {
+            "accepted": true,
+            "action": {
+              "prospect_id": 1010027,
+              "type": "draft"
+            },
+            "message": "Montreal Saints drafted Nico Keller",
+            "phase": "draft",
+            "season": 1,
+            "team_id": 8
+          },
+          {
+            "accepted": false,
+            "action": {
+              "prospect_id": 1010001,
+              "type": "scout"
+            },
+            "message": "no such player or prospect to scout",
+            "phase": "draft",
+            "season": 1,
+            "team_id": 0
+          },
+          {
+            "accepted": true,
+            "action": {
+              "type": "end_turn"
+            },
+            "message": "turn ended",
+            "phase": "draft",
+            "season": 1,
+            "team_id": 0
+          },
+          {
+            "accepted": true,
+            "action": {
+              "prospect_id": 1010001,
+              "type": "draft"
+            },
+            "message": "Chicago Steel drafted Pax Keller",
+            "phase": "draft",
+            "season": 1,
+            "team_id": 4
+          },
+          {
+            "accepted": true,
+            "action": {
+              "prospect_id": 1010038,
+              "type": "draft"
+            },
+            "message": "Miami Palms drafted Leo Anders",
+            "phase": "draft",
+            "season": 1,
+            "team_id": 7
+          },
+          {
+            "accepted": true,
+            "action": {
+              "prospect_id": 1010002,
+              "type": "draft"
+            },
+            "message": "Nashville Sound drafted Milo Quill",
+            "phase": "draft",
+            "season": 1,
+            "team_id": 9
+          },
+          {
+            "accepted": true,
+            "action": {
+              "prospect_id": 1010058,
+              "type": "draft"
+            },
+            "message": "Portland Pines drafted Rafi Frost",
+            "phase": "draft",
+            "season": 1,
+            "team_id": 10
+          },
+          {
+            "accepted": true,
+            "action": {
+              "prospect_id": 1010029,
+              "type": "draft"
+            },
+            "message": "Seattle Surge drafted Gabe Mason",
+            "phase": "draft",
+            "season": 1,
+            "team_id": 11
+          },
+          {
+            "accepted": true,
+            "action": {
+              "prospect_id": 1010014,
+              "type": "draft"
+            },
+            "message": "Austin Jackals drafted Quin Frost",
+            "phase": "draft",
+            "season": 1,
+            "team_id": 1
+          },
+          {
+            "accepted": true,
+            "action": {
+              "prospect_id": 1010042,
+              "type": "draft"
+            },
+            "message": "Halifax Schooners drafted Quin Hayes",
+            "phase": "draft",
+            "season": 1,
+            "team_id": 6
+          }
+        ],
+        "usage": {
+          "api_calls": 4,
+          "api_latency_ms": 19721.7,
+          "cached_input_tokens": 29414,
+          "cost_decisions": 4,
+          "cost_usd": 0.009884,
+          "decisions_with_usage": 4,
+          "harness_latency_ms": 20097.1,
+          "input_tokens": 29426,
+          "model": "openai/gpt-5.6-luna-20260709",
+          "output_tokens": 1155,
+          "per_decision": [
+            {
+              "api_calls": 1,
+              "api_latency_ms": 5936.9,
+              "cached_input_tokens": 7061,
+              "cost_usd": 0.002131,
+              "generation_id": "gen-1783909838-dDrFAPFI7idSt1XiYNHH",
+              "input_tokens": 7064,
+              "interaction_round": 0,
+              "model": "openai/gpt-5.6-luna-20260709",
+              "output_tokens": 237,
+              "phase": "preseason",
+              "provider": "openrouter",
+              "reasoning_tokens": 179,
+              "season": 1,
+              "total_tokens": 7301,
+              "upstream_provider": "OpenAI"
+            },
+            {
+              "api_calls": 1,
+              "api_latency_ms": 6262.9,
+              "cached_input_tokens": 7067,
+              "cost_usd": 0.003902,
+              "generation_id": "gen-1783909844-B8Xj4Rp54y9JJWLY3NoW",
+              "input_tokens": 7070,
+              "interaction_round": 0,
+              "model": "openai/gpt-5.6-luna-20260709",
+              "output_tokens": 532,
+              "phase": "midseason",
+              "provider": "openrouter",
+              "reasoning_tokens": 428,
+              "season": 1,
+              "total_tokens": 7602,
+              "upstream_provider": "OpenAI"
+            },
+            {
+              "api_calls": 1,
+              "api_latency_ms": 2990.6,
+              "cached_input_tokens": 7760,
+              "cost_usd": 0.002525,
+              "generation_id": "gen-1783909851-P536U3gvofx8wMzjFkTk",
+              "input_tokens": 7763,
+              "interaction_round": 0,
+              "model": "openai/gpt-5.6-luna-20260709",
+              "output_tokens": 291,
+              "phase": "trade_deadline",
+              "provider": "openrouter",
+              "reasoning_tokens": 209,
+              "season": 1,
+              "total_tokens": 8054,
+              "upstream_provider": "OpenAI"
+            },
+            {
+              "api_calls": 1,
+              "api_latency_ms": 4531.3,
+              "cached_input_tokens": 7526,
+              "cost_usd": 0.001326,
+              "generation_id": "gen-1783909854-bGCWCGj7lvsk8VkgcR0w",
+              "input_tokens": 7529,
+              "interaction_round": 0,
+              "model": "openai/gpt-5.6-luna-20260709",
+              "output_tokens": 95,
+              "phase": "draft",
+              "provider": "openrouter",
+              "reasoning_tokens": 63,
+              "season": 1,
+              "total_tokens": 7624,
+              "upstream_provider": "OpenAI"
+            }
+          ],
+          "provider": "openrouter",
+          "reasoning_tokens": 879,
+          "total_tokens": 30581,
+          "upstream_provider": "OpenAI",
+          "upstream_providers": [
+            "OpenAI"
+          ]
+        },
+        "wins": 18
+      }
+    ],
+    "repeats": 1,
+    "seasons": 1,
+    "seeds": [
+      1
+    ],
+    "summary": {
+      "championships": 1,
+      "decision_failure_rate": 0.0,
+      "decisions": 4,
+      "failed_decisions": 0,
+      "illegal_actions": 0,
+      "mean_score": 163.192,
+      "mean_strategy_score": 163.192,
+      "mean_total_wins": 18,
+      "memo_writes": 0,
+      "rejected_offers": 0,
+      "score_stddev": 0.0,
+      "total_protocol_penalty": 0.0,
+      "usage": {
+        "api_calls": 4,
+        "api_latency_ms": 19721.7,
+        "cached_input_tokens": 29414,
+        "cost_decisions": 4,
+        "cost_usd": 0.009884,
+        "decisions_with_usage": 4,
+        "harness_latency_ms": 20097.1,
+        "input_tokens": 29426,
+        "mean_tokens_per_decision": 7645.2,
+        "model": "openai/gpt-5.6-luna-20260709",
+        "output_tokens": 1155,
+        "provider": "openrouter",
+        "reasoning_tokens": 879,
+        "total_tokens": 30581,
+        "upstream_provider": "OpenAI",
+        "upstream_providers": [
+          "OpenAI"
+        ]
+      },
+      "within_seed_score_stddev": 0.0
+    }
+  },
+  "normalized": {
+    "baseline_illegal_actions": 0,
+    "baseline_panel_mean_score": 123.031,
+    "baseline_panel_mean_strategy_score": 123.031,
+    "baseline_panel_total_protocol_penalty": 0.0,
+    "candidate_decision_failure_rate": 0.0,
+    "candidate_decisions": 4,
+    "candidate_failed_decisions": 0,
+    "candidate_illegal_actions": 0,
+    "candidate_mean_score": 163.192,
+    "candidate_mean_strategy_score": 163.192,
+    "candidate_memo_writes": 0,
+    "candidate_protocol_penalty": 0.0,
+    "candidate_rejected_offers": 0,
+    "candidate_usage": {
+      "api_calls": 4,
+      "api_latency_ms": 19721.7,
+      "cached_input_tokens": 29414,
+      "cost_decisions": 4,
+      "cost_usd": 0.009884,
+      "decisions_with_usage": 4,
+      "harness_latency_ms": 20097.1,
+      "input_tokens": 29426,
+      "mean_tokens_per_decision": 7645.2,
+      "model": "openai/gpt-5.6-luna-20260709",
+      "output_tokens": 1155,
+      "provider": "openrouter",
+      "reasoning_tokens": 879,
+      "total_tokens": 30581,
+      "upstream_provider": "OpenAI",
+      "upstream_providers": [
+        "OpenAI"
+      ]
+    },
+    "score_lift": 40.161,
+    "score_lift_pct": 32.64
+  },
+  "paired": {
+    "best_baseline": {
+      "agent": "win-now",
+      "mean_score": 135.041,
+      "paired_lift_mean": 28.151,
+      "seed_win_rate": 1.0
+    },
+    "candidate_seed_win_rate": 1.0,
+    "num_seeds": 1,
+    "paired_lift_ci95": [
+      40.161,
+      40.161
+    ],
+    "paired_lift_mean": 40.161,
+    "paired_lift_stddev": 0.0,
+    "per_seed": [
+      {
+        "baseline_panel_score": 123.031,
+        "candidate_score": 163.192,
+        "lift": 40.161,
+        "seed": 1
+      }
+    ],
+    "sign_flip_p_value": null,
+    "significant_at_95": false
+  },
+  "run_info": {
+    "agent": "openrouter:openai/gpt-5.6-luna-20260709",
+    "agent_timeout": 120.0,
+    "benchmark_contract": {
+      "action_protocol_version": "actions-v1",
+      "benchmark_version": "sota-v1",
+      "contract_fingerprint": "cf2607e59dba0c7f",
+      "observation_version": "observation-v1",
+      "scoring_scale_fingerprint": "05a60ff4f691e734",
+      "scoring_version": "score-v1",
+      "simulator_version": "sim-v1"
+    },
+    "command": "model",
+    "gm_bench_version": "0.1.0",
+    "model": "openai/gpt-5.6-luna-20260709",
+    "preset": "smoke",
+    "profile": "compact",
+    "provider": "openrouter",
+    "provider_options": {
+      "OPENROUTER_ALLOW_FALLBACKS": "false",
+      "OPENROUTER_DATA_COLLECTION": "deny",
+      "OPENROUTER_JSON_MODE": "true",
+      "OPENROUTER_MAX_TOKENS": "2048",
+      "OPENROUTER_PROVIDER_ONLY": "OpenAI",
+      "OPENROUTER_PROVIDER_SORT": "price",
+      "OPENROUTER_REASONING_EFFORT": "medium",
+      "OPENROUTER_REQUIRE_PARAMETERS": "true"
+    },
+    "python_version": "3.12.7",
+    "scaffold_fingerprint": "2968ad2aeb6cd036",
+    "seed_panel": {
+      "count": 1,
+      "name": "custom",
+      "preset": "smoke",
+      "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+    },
+    "session": false,
+    "timestamp_utc": "2026-07-13T02:30:58+00:00",
+    "transport": "gateway-api"
+  },
+  "seasons": 1,
+  "seeds": [
+    1
+  ]
+}
