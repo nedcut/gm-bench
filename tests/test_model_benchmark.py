@@ -51,7 +51,35 @@ def test_provider_registry_resolves_direct_and_gateway_apis() -> None:
         "OPENROUTER_REQUIRE_PARAMETERS": "false",
         "OPENROUTER_DATA_COLLECTION": "deny",
         "OPENROUTER_JSON_MODE": "false",
+        "OPENROUTER_MAX_TOKENS": "2048",
     }
+
+
+def test_provider_environment_precedence(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENROUTER_JSON_MODE", "true")
+    inherited = build_provider_agent("openrouter", model="test")
+    assert inherited.env["OPENROUTER_JSON_MODE"] == "true"
+    assert inherited.metadata["provider_options"]["OPENROUTER_JSON_MODE"] == "true"
+
+    configured = build_provider_agent("openrouter", model="test", extra_env={"OPENROUTER_JSON_MODE": "false"})
+    assert configured.env["OPENROUTER_JSON_MODE"] == "false"
+    assert configured.metadata["provider_options"]["OPENROUTER_JSON_MODE"] == "false"
+
+
+def test_luna_configs_pin_reproducible_execution() -> None:
+    for name, preset in (
+        ("openrouter.luna.smoke.json", "smoke"),
+        ("openrouter.luna.leaderboard.json", "leaderboard"),
+    ):
+        config = load_config(Path("examples") / name)
+        payload = json.loads((Path("examples") / name).read_text())
+        assert config.model == "openai/gpt-5.6-luna-20260709"
+        assert config.preset == preset
+        assert payload["workers"] == 1
+        assert payload["require_clean"] is True
+        assert config.extra_env["OPENROUTER_PROVIDER_ONLY"] == "OpenAI"
+        assert config.extra_env["OPENROUTER_JSON_MODE"] == "true"
+        assert config.extra_env["OPENROUTER_MAX_TOKENS"] == "2048"
 
 
 def test_benchmark_config_applies_preset() -> None:

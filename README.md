@@ -124,6 +124,13 @@ OpenRouter routing controls—is documented in
 [`docs/api_provider_lanes.md`](docs/api_provider_lanes.md). API lanes are
 recorded separately from coding-harness and local-inference results.
 
+Canonical GPT-5.6 Luna smoke (serial, upstream-pinned, JSON-constrained, and
+atomically persisted):
+
+```bash
+python3 -m gm_bench model --config examples/openrouter.luna.smoke.json
+```
+
 Precompute baseline scores so repeated model runs skip re-simulating scripted
 agents:
 

@@ -7,6 +7,7 @@ import json
 import os
 import platform
 import sys
+import tempfile
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -177,7 +178,13 @@ def main(argv: list[str] | None = None) -> None:
         help="check provider authentication/tool availability without making a model request",
     )
     model_parser.add_argument("--json", action="store_true")
-    _add_logging_args(model_parser)
+    model_parser.add_argument("--output", type=Path, help="atomically write the full JSON result artifact")
+    model_parser.add_argument(
+        "--require-clean",
+        action="store_true",
+        help="exit nonzero unless every model decision succeeds with complete usage and cost metadata",
+    )
+    _add_logging_args(model_parser, db_default=None)
 
     cache_parser = subparsers.add_parser("cache-baselines", help="precompute scripted baseline scores for reuse")
     cache_parser.add_argument("--preset", choices=PRESET_NAMES, help="apply a seed/season/baseline preset")
@@ -379,10 +386,14 @@ def _evaluate_command(args: argparse.Namespace) -> None:
 
 
 def _model_command(args: argparse.Namespace) -> None:
+    execution_options: dict[str, Any] = {}
     if args.config:
         config = load_config(args.config)
-        config.provider = config.provider or args.provider
-        config.model = config.model or args.model
+        execution_options = _load_model_execution_options(Path(args.config))
+        if args.provider is not None:
+            config.provider = args.provider
+        if args.model is not None:
+            config.model = args.model
         if args.preset:
             config.apply_preset(args.preset)
         if args.seeds:
@@ -400,6 +411,8 @@ def _model_command(args: argparse.Namespace) -> None:
         config.verbose = config.verbose or args.verbose
         config.json_output = config.json_output or args.json
         config.no_log = config.no_log or args.no_log
+        if args.db is not None:
+            config.db = args.db
         config.use_baseline_cache = config.use_baseline_cache and not args.no_baseline_cache
     else:
         config = BenchmarkConfig(
@@ -435,6 +448,15 @@ def _model_command(args: argparse.Namespace) -> None:
         if args.profile is not None:
             config.profile = args.profile
     config.validate()
+    resolved_output = args.output or (
+        Path(str(execution_options["output"])) if execution_options.get("output") else None
+    )
+    resolved_workers = args.workers
+    if resolved_workers is None and execution_options.get("workers") is not None:
+        resolved_workers = int(execution_options["workers"])
+    if resolved_workers is not None and resolved_workers < 1:
+        sys.exit("gm-bench model: workers must be >= 1")
+    require_clean = args.require_clean or bool(execution_options.get("require_clean", False))
     if not config.provider:
         sys.exit('gm-bench model: no provider specified; pass --provider or set "provider" in the config file')
     try:
@@ -452,8 +474,11 @@ def _model_command(args: argparse.Namespace) -> None:
         extra_env=config.extra_env,
         session=bool(getattr(args, "session", False)),
     )
+    route_errors = _openrouter_route_config_errors(agent, config.preset)
+    if route_errors:
+        sys.exit("gm-bench model: invalid canonical OpenRouter route: " + "; ".join(route_errors))
     progress = make_progress_printer(config.verbose)
-    workers = _model_worker_count(agent, getattr(args, "workers", None))
+    workers = _model_worker_count(agent, resolved_workers)
     checkpoint = args.checkpoint or default_checkpoint_path(agent.name)
     if config.provider == "claude" and workers is not None and workers > 1:
         sys.exit("gm-bench model: Claude must run serially with --workers 1")
@@ -492,12 +517,20 @@ def _model_command(args: argparse.Namespace) -> None:
         except ModelRunAborted as exc:
             sys.exit(f"gm-bench model: {exc}\ncheckpoint: {checkpoint}")
     result["run_info"] = _run_info("model", agent, config)
-    run_id = _maybe_log(args, "model", result)
+    resolved_db = config.db or str(DEFAULT_DB_PATH)
+    run_id = None if config.no_log else log_payload("model", result, resolved_db)
+    if resolved_output:
+        _write_json_atomic(resolved_output, result)
     if config.json_output:
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
         _print_evaluation(result)
-    _print_log_line(run_id, args)
+    if run_id:
+        line = f"logged_run_id={run_id} db={resolved_db}"
+        print(line, file=sys.stderr if config.json_output else sys.stdout)
+    clean_errors = _model_clean_errors(result) if require_clean or config.preset == "smoke" else []
+    if clean_errors:
+        sys.exit("gm-bench model: clean-run requirements failed: " + "; ".join(clean_errors))
 
 
 def _cache_baselines_command(args: argparse.Namespace) -> None:
@@ -724,13 +757,85 @@ def _resolve_agent_from_config(config: BenchmarkConfig) -> Any:
     return CLI_AGENTS[config.agent]()
 
 
-def _add_logging_args(parser: argparse.ArgumentParser) -> None:
+def _add_logging_args(parser: argparse.ArgumentParser, *, db_default: str | None = str(DEFAULT_DB_PATH)) -> None:
     parser.add_argument(
         "--db",
-        default=os.environ.get("GM_BENCH_DB", str(DEFAULT_DB_PATH)),
+        default=os.environ.get("GM_BENCH_DB", db_default),
         help="SQLite database path for automatic run logging",
     )
     parser.add_argument("--no-log", action="store_true", help="disable automatic SQLite run logging")
+
+
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    """Durably replace a result artifact without exposing a partial JSON file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    temporary_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
+            temporary_name = handle.name
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_name, path)
+    finally:
+        if temporary_name:
+            Path(temporary_name).unlink(missing_ok=True)
+
+
+def _load_model_execution_options(path: Path) -> dict[str, Any]:
+    """Read harness-only config without changing the frozen score contract."""
+    payload = json.loads(path.read_text())
+    if not isinstance(payload, dict):
+        return {}
+    return {key: payload[key] for key in ("output", "workers", "require_clean") if key in payload}
+
+
+def _model_clean_errors(result: dict[str, Any]) -> list[str]:
+    """Return actionable reasons a paid/model smoke is not execution-clean."""
+    if not isinstance(result.get("candidate"), dict):
+        return []
+    summary = (result.get("candidate") or {}).get("summary") or {}
+    usage = summary.get("usage") or {}
+    decisions = int(summary.get("decisions", 0) or 0)
+    errors: list[str] = []
+    if int(summary.get("failed_decisions", 0) or 0):
+        errors.append(f"failed_decisions={summary.get('failed_decisions')}")
+    if int(summary.get("illegal_actions", 0) or 0):
+        errors.append(f"illegal_actions={summary.get('illegal_actions')}")
+    if float(summary.get("total_protocol_penalty", 0.0) or 0.0):
+        errors.append(f"protocol_penalty={summary.get('total_protocol_penalty')}")
+    if int(usage.get("decisions_with_usage", 0) or 0) != decisions:
+        errors.append(f"usage_coverage={usage.get('decisions_with_usage', 0)}/{decisions}")
+    if int(usage.get("cost_decisions", 0) or 0) != decisions:
+        errors.append(f"cost_coverage={usage.get('cost_decisions', 0)}/{decisions}")
+    for key in ("model", "provider"):
+        if not usage.get(key):
+            errors.append(f"missing_usage_{key}")
+    run_info = result.get("run_info") or {}
+    if run_info.get("provider") == "openrouter" and len(usage.get("upstream_providers") or []) != 1:
+        errors.append("OpenRouter requires exactly one observed upstream provider")
+    if run_info.get("provider") == "openrouter":
+        requested = str((run_info.get("provider_options") or {}).get("OPENROUTER_PROVIDER_ONLY", "")).strip()
+        observed = [str(value) for value in usage.get("upstream_providers") or []]
+        if requested and len(observed) == 1 and observed[0].casefold() != requested.casefold():
+            errors.append(f"OpenRouter upstream mismatch: requested {requested!r}, observed {observed[0]!r}")
+    return errors
+
+
+def _openrouter_route_config_errors(agent: Any, preset: str | None) -> list[str]:
+    """Reject non-canonical leaderboard routing before it can spend money."""
+    metadata = getattr(agent, "metadata", None) or {}
+    if metadata.get("provider") != "openrouter" or preset != "leaderboard":
+        return []
+    options = metadata.get("provider_options") or {}
+    only = [value.strip() for value in str(options.get("OPENROUTER_PROVIDER_ONLY", "")).split(",") if value.strip()]
+    errors: list[str] = []
+    if len(only) != 1:
+        errors.append("OPENROUTER_PROVIDER_ONLY must name exactly one upstream provider")
+    if str(options.get("OPENROUTER_ALLOW_FALLBACKS", "")).casefold() not in {"false", "0", "no", "off"}:
+        errors.append("OPENROUTER_ALLOW_FALLBACKS must be false")
+    return errors
 
 
 def _maybe_log(args: argparse.Namespace, command: str, payload: Any) -> str | None:
