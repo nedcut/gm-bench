@@ -126,7 +126,7 @@ an explicit **in-context condition**: the OpenAI-compatible adapter accumulates
 the episode conversation (each observation and the model's reply) so the model
 retains its full trajectory in context instead of externalizing plans through
 `memo`. Session rows record `run_info.session: true`, are labeled on the
-leaderboard, and are not `sota-v1` eligible — the frozen contract lane is
+leaderboard, and are not `sota-v2` eligible — the frozen contract lane is
 fresh-spawn/memo-only, and the delta between the two conditions is itself a
 measurement: what explicit memory management costs a model versus free
 continuity.
@@ -330,4 +330,4 @@ Completed in v2 (now the default episode):
 - Tiered observations (`full` / `summary`)
 - Persistent agent subprocess sessions (`GM_BENCH_SESSION=1`)
 - Private evaluation seeds, leaderboard package, contract fingerprint, and
-  `sota-v1` official-result validation (see [production_benchmark.md](production_benchmark.md))
+  `sota-v2` official-result validation (see [production_benchmark.md](production_benchmark.md))

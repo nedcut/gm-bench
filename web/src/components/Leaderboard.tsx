@@ -33,26 +33,34 @@ function cost(model: LeaderboardModel): string {
 }
 
 function statusTag(model: LeaderboardModel) {
-  const issues = model.sota_v1_issues.join("\n");
-  if (model.sota_v1_eligible) {
+  const allIssues = model.sota_v2_issues ?? [];
+  const issues = allIssues.join("\n");
+  if (model.sota_v2_eligible) {
     return (
       <span className="status-stack">
-        <span className="tag tag-official" title={issues || "validated as sota-v1"}>
-          sota-v1
+        <span className="tag tag-official" title={issues || "validated as sota-v2"}>
+          sota-v2
         </span>
-        {model.sota_v1_issues.length > 0 && (
+        {allIssues.length > 0 && (
           <span className="tag tag-warn" title={issues}>
-            {model.sota_v1_issues.length} warning{model.sota_v1_issues.length === 1 ? "" : "s"}
+            {allIssues.length} warning{allIssues.length === 1 ? "" : "s"}
           </span>
         )}
       </span>
     );
   }
   return (
-    <span className="tag tag-dev" title={issues || "not validated as sota-v1"}>
+    <span className="tag tag-dev" title={issues || "not validated as sota-v2"}>
       diagnostic
     </span>
   );
+}
+
+function laneLabel(model: LeaderboardModel): string {
+  if (!model.lane) {
+    return "—";
+  }
+  return model.lane === "cli-harness" ? "CLI harness" : "API";
 }
 
 function LeaderboardTable({ data }: { data: LeaderboardData }) {
@@ -73,6 +81,7 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
               <th>#</th>
               <th>Model</th>
               <th>Status</th>
+              <th>Lane</th>
               <th className="num">Score</th>
               <th></th>
               <th className="num">Lift vs panel</th>
@@ -98,6 +107,7 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
                     <td>
                       <span className="tag tag-baseline">baseline</span>
                     </td>
+                    <td className="mono-dim">—</td>
                     <td className="num mono-dim">{fmt(row.baseline.mean_score, 1)}</td>
                     <td>
                       <div className="bar-track">
@@ -131,6 +141,7 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
                     </span>
                   </td>
                   <td>{statusTag(model)}</td>
+                  <td className="mono-dim">{laneLabel(model)}</td>
                   <td className="num score-strong">{fmt(model.mean_score, 1)}</td>
                   <td>
                     <div className="bar-track">
@@ -161,7 +172,7 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
         </table>
       </div>
       <div className="legend">
-        <span>sota-v1 = 3 repeats, official seed panel, full usage, low fallback, full baseline panel</span>
+        <span>sota-v2 = 3 repeats, official seed panel, full usage, low fallback, full baseline panel</span>
         <span>seed-panel hash is an integrity check for a known panel, not a secrecy mechanism</span>
         <span>contract fingerprint pins simulator, scoring, preset, and action schemas</span>
         <span>eligible rows may still show warnings (illegal actions, fallback, insignificant lift)</span>
@@ -169,6 +180,8 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
         <span>✓ lift significant at 95% (paired bootstrap)</span>
         <span>fallback = decisions answered by the adapter's fallback policy, not the model</span>
         <span>cost from measured tokens × published prices; CLI lanes report their own cost</span>
+        <span>lane = CLI harness (codex/claude/cursor/opencode, own tool loop and scaffold) vs direct API call — not comparable to each other</span>
+        <span>tokens/decision tracks published score closely; read score next to lane, tokens/decision, and cost, not alone</span>
       </div>
     </div>
   );
@@ -190,7 +203,7 @@ function EmptyState() {
         <code>
           {`LLM_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \\
   --preset leaderboard --repeats 3 --json > results/leaderboard/openai-gpt-5.4.json
-python -m gm_bench validate-result results/leaderboard/openai-gpt-5.4.json --policy sota-v1
+python -m gm_bench validate-result results/leaderboard/openai-gpt-5.4.json --policy sota-v2
 python web/scripts/build_leaderboard.py`}
         </code>
       </pre>

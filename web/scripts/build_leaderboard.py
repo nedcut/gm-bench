@@ -34,7 +34,7 @@ sys.path.insert(0, str(ROOT))
 from gm_bench.agents import AGENTS  # noqa: E402
 from gm_bench.baseline_cache import cache_key, load_cache  # noqa: E402
 from gm_bench.benchmark_config import PRESETS, PRIVATE_LEADERBOARD_PANEL_NAME  # noqa: E402
-from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V1_POLICY, validate_leaderboard_payload  # noqa: E402
+from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
 from gm_bench.runner import run_many  # noqa: E402
 
@@ -42,6 +42,19 @@ RESULTS_DIR = ROOT / "results" / "leaderboard"
 DIAGNOSTICS_DIR = ROOT / "results" / "diagnostics"
 OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard.json"
 LEADERBOARD = PRESETS["leaderboard"]
+# Providers that run a model through a coding-agent CLI harness (own tool loop,
+# own prompt scaffold, own retry/session behavior) rather than a direct API
+# call. Score and cost are not comparable across lanes even for the same
+# underlying model, so the lane must travel with every published row. This is
+# a fallback for external `--agent-cmd` rows with no `run_info.transport`;
+# built-in providers should always carry a transport (see gm_bench/providers.py).
+CLI_HARNESS_PROVIDERS = {"codex", "claude", "cursor", "opencode"}
+
+
+def _lane(provider: str, transport: str | None) -> str:
+    if transport:
+        return "cli-harness" if transport == "coding-harness" else "api"
+    return "cli-harness" if provider in CLI_HARNESS_PROVIDERS else "api"
 
 
 def model_row(payload: dict[str, Any]) -> dict[str, Any]:
@@ -69,6 +82,7 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
         "id": agent,
         "model": model_name,
         "provider": provider,
+        "lane": _lane(provider, run_info.get("transport")),
         "mean_score": summary["mean_score"],
         "score_stddev": summary["score_stddev"],
         "mean_strategy_score": summary.get("mean_strategy_score"),
@@ -82,6 +96,7 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
         "illegal_actions": summary.get("illegal_actions", 0),
         "total_tokens": usage.get("total_tokens", 0),
         "tokens_per_decision": round(usage.get("total_tokens", 0) / decisions, 1) if decisions else None,
+        "failed_queries": summary.get("failed_queries", 0),
         "cost_usd": cost,
         "cost_per_episode_usd": round(cost / episodes, 4) if cost is not None and episodes else None,
         "api_latency_s_per_decision": round(usage.get("api_latency_ms", 0.0) / 1000.0 / decisions, 2)
@@ -100,15 +115,15 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
         "contract_fingerprint": contract.get("contract_fingerprint"),
         "seed_panel": seed_panel.get("name"),
         "seed_panel_hash": seed_panel.get("sha256"),
-        "sota_v1_eligible": bool(sota_report.get("ok")),
-        "sota_v1_issues": [*sota_report.get("errors", []), *sota_report.get("warnings", [])],
+        "sota_v2_eligible": bool(sota_report.get("ok")),
+        "sota_v2_issues": [*sota_report.get("errors", []), *sota_report.get("warnings", [])],
     }
 
 
 def _sota_report(payload: dict[str, Any]) -> dict[str, Any]:
     """Always recompute eligibility; never trust embedded validation_reports."""
 
-    return validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY).to_dict()
+    return validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY).to_dict()
 
 
 def _redacted_episode_count(payload: dict[str, Any]) -> int:

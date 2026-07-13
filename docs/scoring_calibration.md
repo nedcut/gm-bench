@@ -89,6 +89,17 @@ is derived only from the published weights and clamps. GM-Bench validates it at
 import time, so changing a weight without declaring a new score version fails
 immediately instead of silently changing leaderboard meaning.
 
+The `sota-v2` benchmark contract (fingerprint `1421425d6d4f9a86`, see
+[production_benchmark.md](production_benchmark.md)) does not touch `score-v1`:
+no scoring weight or clamp changed. The `sota-v1` → `sota-v2` bump was a
+protocol/simulator fix (`scout` accepting `prospect_id`) and a reporting
+addition (`failed_queries`), both orthogonal to `scoring.py`. `failed_queries`
+is not a scoring term — declined query actions carry zero weight, the same as
+before, because querying is meant to be free. It is now reported in episode
+results, run summaries, and comparison blocks, but that is a visibility fix,
+not a scale change: two rows with the same `score-v1` fingerprint remain
+comparable regardless of how many queries either one failed.
+
 Reproduce the complete machine-readable scale and calibration:
 
 ```bash
@@ -113,8 +124,9 @@ also change strength, cap room, and wins.
 
 ## Reference-policy calibration
 
-The current `sota-v1` public panel (seeds 11-18, five seasons; contract
-fingerprint `cf2607e59dba…`, protocol `gm-bench-v2` with midseason) produces:
+The current `sota-v2` public panel (seeds 11-18, five seasons; contract
+fingerprint `1421425d6d4f9a86`, protocol `gm-bench-v2` with midseason)
+produces:
 
 | Reference | Mean score | Illegal actions | Role |
 | --- | ---: | ---: | --- |
@@ -154,7 +166,7 @@ become dead protocol surface.
 ### Ceiling reference
 
 `oracle` is a diagnostic-only hidden-information reference, not an official
-baseline and not part of the `sota-v1` baseline panel. On the same public panel
+baseline and not part of the `sota-v2` baseline panel. On the same public panel
 (seeds 11-18, five seasons), it scores **431.150**, versus **411.619** for
 `pick-trader`: a **19.531-point** pick-trader-to-oracle gap.
 
@@ -178,8 +190,8 @@ This gap is narrower than the 8-seed minimum detectable difference reported
 in the Robustness section below: at the current panel size, scores inside the
 pick-trader-to-oracle band cannot be statistically separated from each other.
 The band marks where strategic headroom exists, not where the current design
-can rank models; separating models inside it is a larger-panel (`sota-v2`)
-concern.
+can rank models; separating models inside it is a larger-panel concern for a
+future contract lane (`sota-v2` kept the 8-seed panel; not addressed yet).
 
 ## Robustness
 
@@ -223,5 +235,5 @@ mean 0.971, median 1.000, and 5th--95th percentile range 0.929--1.000.
 
 Per-episode score components are not persisted in result artifacts, so weight
 sensitivity for model rows cannot be recomputed post-hoc.  Persisting them
-would touch the frozen runner contract and is therefore a `sota-v2` item, not
-part of this score-v1 analysis tooling.
+would touch the frozen runner contract and is therefore a future contract-lane
+item (not part of `sota-v2`), not part of this score-v1 analysis tooling.

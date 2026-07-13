@@ -148,7 +148,7 @@ def test_historical_baseline_panel_is_diagnostic_but_not_sota() -> None:
 def test_sota_v1_policy_requires_repeats() -> None:
     report = validate_leaderboard_payload(_official_payload(repeats=1), policy=SOTA_V1_POLICY)
     assert not report.ok
-    assert "candidate.repeats must be >= 3 for sota-v1" in report.errors
+    assert "candidate.repeats must be >= 3 for sota-v2" in report.errors
 
 
 def test_sota_v1_policy_rejects_high_failure_rate() -> None:
@@ -262,7 +262,7 @@ def test_sota_v1_policy_rejects_too_small_private_panel(monkeypatch: pytest.Monk
         policy=SOTA_V1_POLICY,
     )
     assert not report.ok
-    assert "seeds must contain at least 8 seed(s) for sota-v1" in report.errors
+    assert "seeds must contain at least 8 seed(s) for sota-v2" in report.errors
 
 
 def test_sota_v1_policy_rejects_private_panel_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -289,7 +289,7 @@ def test_redact_leaderboard_payload_removes_private_seed_details(monkeypatch: py
     redacted, report = redact_leaderboard_payload(_official_payload(repeats=3, seeds=private_seeds))
 
     assert report.ok
-    assert redacted["validation_reports"]["sota-v1"]["ok"] is True
+    assert redacted["validation_reports"]["sota-v2"]["ok"] is True
     assert redacted["redaction"]["applied"] is True
     assert redacted["seeds"] == REDACTED_SEEDS_SENTINEL
     assert redacted["candidate"]["seeds"] == REDACTED_SEEDS_SENTINEL
@@ -311,7 +311,7 @@ def test_cli_redact_result_writes_public_safe_artifact(tmp_path: Path, monkeypat
     payload = json.loads(redacted_path.read_text())
     assert payload["seeds"] == REDACTED_SEEDS_SENTINEL
     assert payload["candidate"]["episodes"] == []
-    assert payload["validation_reports"]["sota-v1"]["ok"] is True
+    assert payload["validation_reports"]["sota-v2"]["ok"] is True
 
 
 def test_leaderboard_builder_accepts_redacted_private_artifact(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -328,17 +328,17 @@ def test_leaderboard_builder_accepts_redacted_private_artifact(monkeypatch: pyte
 
     assert row["seeds"] is None
     assert row["seed_panel"] == "private-env"
-    assert row["sota_v1_eligible"] is True
-    assert row["sota_v1_issues"] == []
+    assert row["sota_v2_eligible"] is True
+    assert row["sota_v2_issues"] == []
 
 
 def test_leaderboard_builder_revalidates_forged_sota_report() -> None:
     payload = _official_payload(repeats=1, failure_rate=0.05)
-    payload["validation_reports"] = {"sota-v1": {"ok": True, "errors": []}}
+    payload["validation_reports"] = {"sota-v2": {"ok": True, "errors": []}}
 
     row = model_row(payload)
 
-    assert row["sota_v1_eligible"] is False
+    assert row["sota_v2_eligible"] is False
 
 
 def test_leaderboard_builder_rejects_forged_redacted_sota_report() -> None:
@@ -366,7 +366,7 @@ def test_leaderboard_builder_rejects_forged_redacted_sota_report() -> None:
     assert any("decision_failure_rate" in error for error in report.errors)
 
     row = model_row(payload)
-    assert row["sota_v1_eligible"] is False
+    assert row["sota_v2_eligible"] is False
 
 
 def test_sota_v1_policy_accepts_valid_redacted_private_artifact(monkeypatch: pytest.MonkeyPatch) -> None:

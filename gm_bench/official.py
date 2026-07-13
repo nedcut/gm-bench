@@ -20,6 +20,9 @@ from gm_bench.benchmark_config import (
 from gm_bench.contract import expected_contract, scaffold_fingerprint
 
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
+SOTA_V2_POLICY_NAME = "sota-v2"
+# Retained so `--policy sota-v1` resolves to the current strict policy and fails
+# with a contract-mismatch error rather than an unknown-policy error.
 SOTA_V1_POLICY_NAME = "sota-v1"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -41,17 +44,22 @@ PUBLIC_LEADERBOARD_POLICY = ResultPolicy(
     min_seed_count=1,
     max_decision_failure_rate=0.20,
 )
-SOTA_V1_POLICY = ResultPolicy(
-    name=SOTA_V1_POLICY_NAME,
+SOTA_V2_POLICY = ResultPolicy(
+    name=SOTA_V2_POLICY_NAME,
     min_repeats=3,
     min_seed_count=len(PRESETS["leaderboard"]["seeds"]),
     max_decision_failure_rate=0.02,
     require_contract_provenance=True,
     require_seed_panel_provenance=True,
 )
+# Backward-compat alias so old symbol imports keep resolving to the strict policy.
+SOTA_V1_POLICY = SOTA_V2_POLICY
 POLICIES = {
     PUBLIC_LEADERBOARD_POLICY.name: PUBLIC_LEADERBOARD_POLICY,
-    SOTA_V1_POLICY.name: SOTA_V1_POLICY,
+    SOTA_V2_POLICY.name: SOTA_V2_POLICY,
+    # Old label maps to the current strict policy; results minted under the v1
+    # contract fail on the fingerprint mismatch instead of "unknown policy".
+    SOTA_V1_POLICY_NAME: SOTA_V2_POLICY,
 }
 REDACTED_SEEDS_SENTINEL = "<redacted>"
 
@@ -120,9 +128,9 @@ def validate_leaderboard_payload(
         _validate_contract_provenance(errors, warnings, run_info, require=policy.require_contract_provenance)
         _validate_scaffold_provenance(errors, warnings, run_info)
         if run_info.get("session"):
-            if policy.name == SOTA_V1_POLICY_NAME:
+            if policy.name == SOTA_V2_POLICY_NAME:
                 errors.append(
-                    "sota-v1 rows must be fresh-spawn (memo-only memory); "
+                    "sota-v2 rows must be fresh-spawn (memo-only memory); "
                     "session-condition rows are a separate lane and not comparable"
                 )
             else:
@@ -153,7 +161,7 @@ def validate_leaderboard_payload(
 
     baselines = [_dict(result) for result in _list(payload.get("baselines"))]
     baseline_names = [result.get("agent") for result in baselines]
-    if policy.name == SOTA_V1_POLICY_NAME:
+    if policy.name == SOTA_V2_POLICY_NAME:
         _expect_equal(errors, "baselines", baseline_names, expected_baselines)
     else:
         if not baseline_names:
@@ -188,6 +196,12 @@ def validate_leaderboard_payload(
             warnings.append("candidate has illegal actions; score includes protocol penalties")
         if int(summary.get("failed_decisions", 0) or 0):
             warnings.append("candidate used adapter fallback/error output on at least one decision")
+        failed_queries = int(summary.get("failed_queries", 0) or 0)
+        if decisions and failed_queries > decisions:
+            warnings.append(
+                f"candidate has {failed_queries} failed queries across {decisions} decisions; "
+                "misfired scout/inspect lookups may indicate the model is not reading query errors"
+            )
         usage = _dict(summary.get("usage"))
         if policy.require_full_usage and decisions:
             if int(usage.get("decisions_with_usage", 0) or 0) != decisions:
@@ -200,7 +214,7 @@ def validate_leaderboard_payload(
                 warnings,
                 run_info,
                 usage,
-                strict=policy.name == SOTA_V1_POLICY_NAME,
+                strict=policy.name == SOTA_V2_POLICY_NAME,
             )
 
     for baseline in baselines:
@@ -269,7 +283,7 @@ def _validate_openrouter_route(
 def redact_leaderboard_payload(
     payload: dict[str, Any],
     *,
-    policy: ResultPolicy = SOTA_V1_POLICY,
+    policy: ResultPolicy = SOTA_V2_POLICY,
 ) -> tuple[dict[str, Any], ValidationReport]:
     """Return a public-safe copy of a leaderboard payload.
 

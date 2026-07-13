@@ -30,7 +30,7 @@ from gm_bench.model_runs import (
 from gm_bench.official import (
     POLICIES,
     PUBLIC_LEADERBOARD_POLICY,
-    SOTA_V1_POLICY,
+    SOTA_V2_POLICY,
     redact_leaderboard_payload,
     validate_leaderboard_payload,
 )
@@ -125,7 +125,7 @@ def main(argv: list[str] | None = None) -> None:
         "--session",
         action="store_true",
         help="keep one adapter process alive per episode so the model retains its full "
-        "trajectory in context (a separate measurement condition; not sota-v1 eligible)",
+        "trajectory in context (a separate measurement condition; not sota-v2 eligible)",
     )
     model_parser.add_argument("--seeds", nargs="+", type=int)
     model_parser.add_argument("--seasons", type=int)
@@ -221,7 +221,7 @@ def main(argv: list[str] | None = None) -> None:
     redact_parser.add_argument(
         "--policy",
         choices=sorted(POLICIES),
-        default=SOTA_V1_POLICY.name,
+        default=SOTA_V2_POLICY.name,
         help="validation policy to record before redaction",
     )
 
