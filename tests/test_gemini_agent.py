@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import urllib.error
 
 from examples import gemini_agent
 
@@ -67,3 +68,29 @@ def test_choose_actions_without_key_returns_measured_fallback(monkeypatch) -> No
     assert actions[0]["type"] == "noop"
     assert "missing GEMINI_API_KEY" in actions[0]["model_error"]
     assert usage is None
+
+
+def test_choose_actions_network_filtered_and_config_errors_return_fallback(monkeypatch) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr(
+        gemini_agent.urllib.request,
+        "urlopen",
+        lambda *args, **kwargs: (_ for _ in ()).throw(urllib.error.URLError("offline")),
+    )
+    actions, usage = gemini_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+    assert "api_error" in actions[0]["model_error"]
+    assert usage["api_latency_ms"] >= 0
+
+    class EmptyCandidates(_Response):
+        def read(self) -> bytes:
+            return b'{"candidates":[],"usageMetadata":{"totalTokenCount":10}}'
+
+    monkeypatch.setattr(gemini_agent.urllib.request, "urlopen", lambda *args, **kwargs: EmptyCandidates())
+    actions, usage = gemini_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+    assert "api_error" in actions[0]["model_error"]
+    assert usage["api_latency_ms"] >= 0
+
+    monkeypatch.setenv("GEMINI_TEMPERATURE", "invalid")
+    actions, usage = gemini_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+    assert "api_error" in actions[0]["model_error"]
+    assert usage["api_latency_ms"] >= 0

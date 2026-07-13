@@ -18,6 +18,7 @@ from gm_bench.baseline_cache import default_cache_path
 from gm_bench.benchmark_config import PRESET_NAMES, BenchmarkConfig, load_config, seed_panel_metadata
 from gm_bench.calibration import build_scoring_calibration
 from gm_bench.contract import benchmark_contract, scaffold_fingerprint
+from gm_bench.environment import load_environment_files
 from gm_bench.model_runs import (
     ModelRunAborted,
     default_checkpoint_path,
@@ -58,7 +59,10 @@ def _model_worker_count(agent: Any, requested: int | None) -> int | None:
         return max(1, requested)
     configured = os.environ.get("GM_BENCH_WORKERS")
     if configured:
-        return max(1, int(configured))
+        try:
+            return max(1, int(configured))
+        except ValueError:
+            sys.exit("gm-bench model: GM_BENCH_WORKERS must be an integer")
     if isinstance(agent, (ExternalProcessAgent, PersistentProcessAgent)):
         return 1
     return None
@@ -82,6 +86,7 @@ def _model_worker_environment(workers: int | None):
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_environment_files()
     parser = argparse.ArgumentParser(prog="gm-bench")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -323,6 +328,10 @@ def _run_info(command: str, agent: Any, config: BenchmarkConfig) -> dict[str, An
     }
     if "profile" in metadata:
         info["profile"] = metadata["profile"]
+    if metadata.get("transport"):
+        info["transport"] = metadata["transport"]
+    if metadata.get("provider_options"):
+        info["provider_options"] = metadata["provider_options"]
     return info
 
 
@@ -545,10 +554,11 @@ def _providers_command(args: argparse.Namespace) -> None:
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
         return
-    print("provider       model_env         default_model")
-    print("------------------------------------------------")
+    print("provider       transport       auth     model_env         default_model")
+    print("------------------------------------------------------------------------")
     for row in payload:
-        print(f"{row['provider']:<14}{row['model_env']:<18}{row['default_model']}")
+        auth = "ready" if row["credential_present"] else ("missing" if row["credential_env"] else "n/a")
+        print(f"{row['provider']:<14}{row['transport']:<16}{auth:<9}{row['model_env']:<18}{row['default_model']}")
 
 
 def _validate_result_command(args: argparse.Namespace) -> None:

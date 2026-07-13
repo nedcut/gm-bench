@@ -18,9 +18,16 @@ from typing import Any
 _PACKAGE_DIR = Path(__file__).resolve().parent
 DEFAULT_PRICING_PATH = _PACKAGE_DIR / "pricing.json"
 
-_COUNT_KEYS = ("api_calls", "input_tokens", "output_tokens", "total_tokens")
+_COUNT_KEYS = (
+    "api_calls",
+    "input_tokens",
+    "cached_input_tokens",
+    "output_tokens",
+    "reasoning_tokens",
+    "total_tokens",
+)
 _FLOAT_KEYS = ("api_latency_ms", "cost_usd")
-_TEXT_KEYS = ("provider", "model")
+_TEXT_KEYS = ("provider", "model", "upstream_provider", "generation_id")
 
 
 def normalize_usage(raw: Any) -> dict[str, Any] | None:
@@ -117,6 +124,7 @@ def aggregate_usage(records: list[dict[str, Any]]) -> dict[str, Any]:
     costs = [cost for cost in (estimate_cost_usd(record) for record in records) if cost is not None]
     models = Counter(record["model"] for record in records if record.get("model"))
     providers = Counter(record["provider"] for record in records if record.get("provider"))
+    upstream_providers = Counter(record["upstream_provider"] for record in records if record.get("upstream_provider"))
     # A multi-round decision window emits one usage record per round; coverage
     # must count decision points, not rounds, or extra rounds on one decision
     # would mask missing usage on another (and pass the sota-v1 coverage gate).
@@ -133,6 +141,8 @@ def aggregate_usage(records: list[dict[str, Any]]) -> dict[str, Any]:
         "cost_decisions": len(costs),
         "model": models.most_common(1)[0][0] if models else None,
         "provider": providers.most_common(1)[0][0] if providers else None,
+        "upstream_provider": upstream_providers.most_common(1)[0][0] if upstream_providers else None,
+        "upstream_providers": sorted(upstream_providers),
     }
 
 
@@ -148,6 +158,11 @@ def summarize_usage(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     harness_ms = sum(float(block.get("harness_latency_ms", 0.0)) for block in blocks)
     models = Counter(block["model"] for block in blocks if block.get("model"))
     providers = Counter(block["provider"] for block in blocks if block.get("provider"))
+    upstream_providers = Counter(block["upstream_provider"] for block in blocks if block.get("upstream_provider"))
+    observed_upstreams = {
+        str(upstream) for block in blocks for upstream in (block.get("upstream_providers") or []) if upstream
+    }
+    observed_upstreams.update(upstream_providers)
     return {
         "decisions_with_usage": decisions_with_usage,
         **totals,
@@ -159,4 +174,6 @@ def summarize_usage(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         else 0.0,
         "model": models.most_common(1)[0][0] if models else None,
         "provider": providers.most_common(1)[0][0] if providers else None,
+        "upstream_provider": upstream_providers.most_common(1)[0][0] if upstream_providers else None,
+        "upstream_providers": sorted(observed_upstreams),
     }
