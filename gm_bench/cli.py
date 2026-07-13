@@ -801,10 +801,6 @@ def _model_clean_errors(result: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     if int(summary.get("failed_decisions", 0) or 0):
         errors.append(f"failed_decisions={summary.get('failed_decisions')}")
-    if int(summary.get("illegal_actions", 0) or 0):
-        errors.append(f"illegal_actions={summary.get('illegal_actions')}")
-    if float(summary.get("total_protocol_penalty", 0.0) or 0.0):
-        errors.append(f"protocol_penalty={summary.get('total_protocol_penalty')}")
     if int(usage.get("decisions_with_usage", 0) or 0) != decisions:
         errors.append(f"usage_coverage={usage.get('decisions_with_usage', 0)}/{decisions}")
     if int(usage.get("cost_decisions", 0) or 0) != decisions:

@@ -18,15 +18,15 @@ class _DummyAgent:
     }
 
 
-def _evaluation(*, failed: int = 0) -> dict[str, object]:
+def _evaluation(*, failed: int = 0, illegal: int = 0, penalty: float = 0.0) -> dict[str, object]:
     decisions = 4
     return {
         "candidate": {
             "summary": {
                 "decisions": decisions,
                 "failed_decisions": failed,
-                "illegal_actions": 0,
-                "total_protocol_penalty": 0.0,
+                "illegal_actions": illegal,
+                "total_protocol_penalty": penalty,
                 "usage": {
                     "decisions_with_usage": decisions,
                     "cost_decisions": decisions,
@@ -96,6 +96,13 @@ def test_failed_smoke_exits_nonzero_after_atomic_output(tmp_path: Path, monkeypa
         )
 
     assert json.loads(output.read_text())["candidate"]["summary"]["failed_decisions"] == 1
+
+
+def test_clean_gate_keeps_illegal_actions_as_scored_model_outcomes() -> None:
+    result = _evaluation(illegal=2, penalty=5.0)
+    result["run_info"] = {"provider": "openai"}
+
+    assert cli._model_clean_errors(result) == []
 
 
 def test_leaderboard_openrouter_requires_canonical_pin() -> None:

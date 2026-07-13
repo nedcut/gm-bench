@@ -63,12 +63,13 @@ python3 -m gm_bench model --config examples/openrouter.luna.smoke.json
 python3 -m gm_bench model --config examples/openrouter.luna.leaderboard.json
 ```
 
-The smoke exits nonzero on any failed or illegal decision, protocol penalty,
-missing usage/cost coverage, or ambiguous OpenRouter upstream. Both configs
-atomically persist the complete JSON artifact with `output`; terminal truncation
-cannot destroy the result. Explicit CLI flags override config values, config
-`env` overrides inherited shell values, and inherited shell values override
-provider defaults.
+The smoke exits nonzero on model/adapter failures, missing usage or cost
+coverage, or ambiguous OpenRouter routing. Illegal strategic actions and their
+protocol penalties remain valid model outcomes and stay in the scored result.
+Both configs atomically persist the complete JSON artifact with `output`;
+terminal truncation cannot destroy the result. Explicit CLI flags override
+config values, config `env` overrides inherited shell values, and inherited
+shell values override provider defaults.
 
 ## OpenRouter routing policy
 
