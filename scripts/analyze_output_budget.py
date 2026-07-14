@@ -48,7 +48,11 @@ def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str,
             reasons.append("benchmark contract does not match sweep config")
         if transport not in {"direct-api", "gateway-api", "local-api"}:
             reasons.append("transport is not an API lane")
-        if wanted_models and model not in wanted_models:
+        if not wanted_models:
+            # Empty models means "awaiting selection", not "discover from artifacts".
+            # Still validate/reject each fed artifact so bad cells are visible.
+            reasons.append("sweep config has no models selected")
+        elif model not in wanted_models:
             continue
         candidate = payload.get("candidate") or {}
         if int(candidate.get("repeats", 1) or 1) != int(config.get("repeats", 1)):
@@ -58,13 +62,18 @@ def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str,
         if len(cap_options) > 1:
             reasons.append("multiple output-cap options are recorded")
         raw_cap = cap_options[0][1] if len(cap_options) == 1 else None
-        effective_cap = _parse_cap(raw_cap, reasons, "provider output cap")
+        # Distinguish "provider recorded no max" from "cell parse failed" so an
+        # uncapped cell with a numeric provider max is rejected symmetrically.
+        provider_cap_absent = len(cap_options) == 0
+        effective_cap = None if provider_cap_absent else _parse_cap(raw_cap, reasons, "provider output cap")
         cell_label = options.get("GM_BENCH_OUTPUT_BUDGET_CELL")
         if cell_label in (None, ""):
             reasons.append("missing GM_BENCH_OUTPUT_BUDGET_CELL provenance")
         cap = _parse_cap(cell_label, reasons, "output-budget cell")
-        if cap is not None and effective_cap != cap:
+        if not provider_cap_absent and effective_cap != cap:
             reasons.append("output-budget cell does not match the provider output cap")
+        if provider_cap_absent and cap is not None:
+            reasons.append("output-budget cell is capped but the provider recorded no output max")
         summary = (payload.get("candidate") or {}).get("summary") or {}
         usage = summary.get("usage") or {}
         decisions = int(summary.get("decisions") or 0)
@@ -92,7 +101,9 @@ def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str,
                 "raw_artifact_sha256": (payload.get("publication") or {}).get("raw_artifact_sha256"),
             }
         )
-    models = sorted(wanted_models or {point["model"] for point in points})
+    # Never invent models from artifacts: an empty config stays incomplete until
+    # operators explicitly select the 2–3 sweep models.
+    models = sorted(wanted_models)
     present = {(point["model"], point["output_token_cap"]) for point in points}
     duplicate_cells = sorted(
         [
@@ -106,14 +117,15 @@ def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str,
         {"model": model, "output_token_cap": cap} for model in models for cap in caps if (model, cap) not in present
     ]
     complete = (
-        len(models) >= int(config["decision_rule"]["minimum_models"])
+        bool(wanted_models)
+        and len(models) >= int(config["decision_rule"]["minimum_models"])
         and not missing
         and not duplicate_cells
         and not rejected
     )
     if complete:
         reason = "sweep complete; inspect curves and freeze the lane cap before ranking"
-    elif not models:
+    elif not wanted_models:
         reason = "no sweep models selected; no output-budget conclusion is permitted"
     elif rejected:
         reason = "one or more artifacts were rejected; no output-budget conclusion is permitted"

@@ -73,10 +73,18 @@ class ProtocolRepairAgent(Agent):
 
 
 def _model_format_failed(actions: Any) -> bool:
+    """True only for JSON/schema format failures worth a bounded repair retry.
+
+    Deliberately does **not** match the generic fallback
+    ``"model produced no usable actions"`` — that string contains ``action``
+    but is not a format error, and treating it as one would burn an extra API
+    call and inflate tokens/cost.
+    """
     if not isinstance(actions, list):
         return False
+    needles = ("json", "schema", "not a list", "parse", "decode")
     messages = [str(action.get("model_error", "")).lower() for action in actions if isinstance(action, dict)]
-    return any("json" in message or "action" in message for message in messages)
+    return any(any(needle in message for needle in needles) for message in messages)
 
 
 def _merge_usage(left: dict[str, Any], right: dict[str, Any] | None) -> dict[str, Any]:
@@ -268,6 +276,13 @@ def build_provider_agent(
     # Config-file env is the most explicit provider configuration.
     if extra_env:
         env.update(extra_env)
+    # Cap repair attempts at the frozen headline lane (1). Operators may set 0
+    # to disable, but cannot open an unbounded second-chance compute advantage.
+    try:
+        repair_attempts = int(env.get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", "1"))
+    except (TypeError, ValueError):
+        repair_attempts = 1
+    env["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] = str(max(0, min(1, repair_attempts)))
 
     command = f"{shlex.quote(sys.executable)} {shlex.quote(str(script_path))}"
     display_name = f"{spec.name}:{resolved_model}"

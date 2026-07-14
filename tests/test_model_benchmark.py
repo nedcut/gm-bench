@@ -55,6 +55,20 @@ def test_provider_registry_resolves_direct_and_gateway_apis() -> None:
     }
 
 
+def test_protocol_repair_ignores_generic_no_usable_actions_fallback() -> None:
+    from gm_bench.providers import _model_format_failed
+
+    assert _model_format_failed([{"type": "noop", "model_error": "invalid JSON"}])
+    assert not _model_format_failed([{"type": "noop", "model_error": "model produced no usable actions"}])
+
+
+def test_build_provider_agent_clamps_repair_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", "9")
+    agent = build_provider_agent("openai", model="gpt-test")
+    assert agent.metadata["protocol_repair_attempts"] == 1
+    assert agent.metadata["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "1"
+
+
 def test_external_agent_bounded_protocol_repair(monkeypatch: pytest.MonkeyPatch) -> None:
     from gm_bench.agents import ExternalProcessAgent
     from gm_bench.providers import ProtocolRepairAgent

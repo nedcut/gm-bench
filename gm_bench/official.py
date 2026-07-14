@@ -192,6 +192,21 @@ def validate_leaderboard_payload(
                     "session-condition row: model retains full trajectory in context; "
                     "not comparable with fresh-spawn rows"
                 )
+        if policy.name == SOTA_V2_POLICY_NAME:
+            repair_attempts = run_info.get("protocol_repair_attempts")
+            option_repair = (run_info.get("provider_options") or {}).get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS")
+            for label, raw in (("protocol_repair_attempts", repair_attempts), ("provider_options", option_repair)):
+                if raw in (None, ""):
+                    continue
+                try:
+                    parsed = int(raw)
+                except (TypeError, ValueError):
+                    errors.append(f"run_info.{label} repair attempts must be an integer")
+                    continue
+                if parsed > 1:
+                    errors.append(
+                        f"sota-v2 allows at most one protocol-repair attempt; got {parsed} via {label}"
+                    )
         expected_seeds, expected_seed_count = _resolve_expected_seeds(
             errors,
             warnings,

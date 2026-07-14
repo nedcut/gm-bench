@@ -309,7 +309,10 @@ export default function Leaderboard({ data }: { data: LeaderboardData }) {
             <p style={{ maxWidth: 760 }}>{data.publication.reason}</p>
             <p style={{ maxWidth: 760 }}>
               Planned caps: {data.publication.planned_caps.map((cap) => cap ?? "uncapped").join(" / ")} output tokens.
-              The site will publish a fixed-cap ranking only after score saturation is demonstrated; otherwise it will publish curves.
+              The site will publish a fixed-cap ranking only after score saturation is demonstrated and
+              config/sota_v2_lane.json freezes a positive integer output_token_cap. Until then, inspect
+              results/analysis/output-budget-sweep.json (and docs/output_budget_sweep.md) for the
+              score-vs-budget curves — the public table stays withheld.
             </p>
           </div>
         )}
