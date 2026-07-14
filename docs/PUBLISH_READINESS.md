@@ -88,9 +88,9 @@ of the frozen v2 evidence package.
   `3b7a14fc9a4d573fe09e87575a255034e5e1ba9a` on 2026-07-14.
 - [x] Merge the #58/#59 state into the publication branch; retarget #61 to
   `main` before final review.
-- [ ] Confirm the frozen `sota-v2` contract fingerprint and score fingerprint
+- [x] Confirm the frozen `sota-v2` contract fingerprint and score fingerprint
   match the published documentation and generated artifacts.
-- [ ] Run the complete local release gate on the merged state:
+- [x] Run the complete local release gate on the merged state:
 
   ```bash
   python3 -m pytest -q
@@ -101,8 +101,9 @@ of the frozen v2 evidence package.
   cd web && ~/.bun/bin/bun run lint && ~/.bun/bin/bun run build
   ```
 
-- [ ] Verify every archived v1 artifact with the historical `sota-v1` policy.
-- [ ] Confirm the current v2 leaderboard is empty rather than populated with
+- [x] Verify every archived v1 artifact with the historical `archive-v1`
+  authenticity policy; strict `sota-v1` remains an eligibility question.
+- [x] Confirm the current v2 leaderboard is empty rather than populated with
   invalid, diagnostic, or historical rows.
 - [ ] Confirm `results/diagnostics/`, `results/leaderboard/`, and archived result
   directories have distinct, documented meanings.
