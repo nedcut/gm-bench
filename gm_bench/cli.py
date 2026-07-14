@@ -673,9 +673,7 @@ def _redact_result_command(args: argparse.Namespace) -> None:
         "traces_included": False,
         "mechanic_breakdown": mechanic_breakdown((payload.get("candidate") or {}).get("episodes", [])),
     }
-    with open(args.output, "w") as handle:
-        json.dump(redacted, handle, indent=2, sort_keys=True)
-        handle.write("\n")
+    _write_json_atomic(Path(args.output), redacted)
     print(f"ok: policy={report.policy} wrote {args.output}")
 
 
@@ -692,7 +690,10 @@ def _compact_result_command(args: argparse.Namespace) -> None:
         for error in report.errors:
             print(f"error: {error}")
         sys.exit(f"invalid: policy={report.policy}; not writing {args.output}")
-    compact = compact_result(payload)
+    try:
+        compact = compact_result(payload)
+    except ValueError as exc:
+        raise SystemExit(f"gm-bench compact-result: {exc}") from exc
     _write_json_atomic(Path(args.output), compact)
     print(f"ok: policy={report.policy} wrote {args.output}")
 

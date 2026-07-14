@@ -25,6 +25,13 @@ ROOT = Path(__file__).resolve().parents[1]
 SWEEP_CONFIG = ROOT / "config" / "output_budget_sweep.json"
 PANEL_CONFIG = ROOT / "config" / "sota_v2_models.json"
 LANE_CONFIG = ROOT / "config" / "sota_v2_lane.json"
+PRICING_CONFIG = ROOT / "config" / "openrouter_pricing_snapshot.json"
+
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from gm_bench.benchmark_config import PRESETS  # noqa: E402
+from gm_bench.protocol import PHASES  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -68,7 +75,10 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
         config = _read_json(SWEEP_CONFIG)
         models = list(config.get("models") or [])
         _validate_models(models)
-        caps = [cap] if cap is not None else ([256] if phase == "smoke" else list(config["output_token_caps"]))
+        configured_caps = list(config["output_token_caps"])
+        if cap is not None and cap not in configured_caps:
+            raise ValueError(f"requested cap {cap} is not in the pre-registered sweep {configured_caps}")
+        caps = [cap] if cap is not None else ([configured_caps[0]] if phase == "smoke" else configured_caps)
         preset = "smoke" if phase == "smoke" else str(config["preset"])
         repeats = 1 if phase == "smoke" else int(config["repeats"])
         cells = [
@@ -243,7 +253,7 @@ def _budget_start(run_dir: Path, env: dict[str, str]) -> float:
         return float(_read_json(path)["starting_total_usage_usd"])
     usage = _openrouter_usage_usd(env)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"starting_total_usage_usd": usage}, indent=2, sort_keys=True) + "\n")
+    _write_json_atomic(path, {"starting_total_usage_usd": usage})
     return usage
 
 
@@ -267,6 +277,56 @@ def _measured_spend_usd(run_dir: Path, env: dict[str, str], budget_start: float)
     # weakens the guard.
     account_delta = max(0.0, _openrouter_usage_usd(env) - budget_start)
     return max(account_delta, _artifact_spend_usd(run_dir))
+
+
+def _cell_reservation_usd(cell: Cell) -> float:
+    if not isinstance(cell.cap, int) or cell.cap < 1:
+        raise ValueError("paid publication cells require a positive bounded output cap")
+    pricing = _read_json(PRICING_CONFIG)
+    rates = (pricing.get("models") or {}).get(cell.model)
+    if not isinstance(rates, dict):
+        raise ValueError(f"missing committed pricing for {cell.model}")
+    assumptions = pricing["planning_assumptions"]
+    preset = PRESETS[cell.preset]
+    decisions = len(preset["seeds"]) * int(preset["seasons"]) * len(PHASES) * cell.repeats
+    input_tokens = int(assumptions["input_tokens_per_decision"])
+    prompt = decisions * input_tokens * float(rates["prompt"])
+    completion = decisions * cell.cap * float(rates["completion"])
+    return round(prompt + completion, 6)
+
+
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    temporary = path.with_name(f".{path.name}.tmp")
+    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    temporary.replace(path)
+
+
+def _reserve_cell(run_dir: Path, cell: Cell, measured_spend: float, ceiling: float) -> float:
+    path = run_dir / "openrouter-reservations.json"
+    payload = _read_json(path) if path.exists() else {"schema_version": 1, "cells": {}}
+    reservations = payload.setdefault("cells", {})
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    reserved_total = sum(float(value["reserved_usd"]) for value in reservations.values())
+    if stem in reservations:
+        committed = max(measured_spend, reserved_total)
+        if committed > ceiling:
+            raise SystemExit(f"spend ceiling exceeded by existing reservations: ${committed:.4f}")
+        return committed
+    reservation = _cell_reservation_usd(cell)
+    committed = max(measured_spend, reserved_total)
+    if committed + reservation > ceiling:
+        raise SystemExit(
+            f"cell reservation would exceed spend ceiling: ${committed:.4f} + ${reservation:.4f} > ${ceiling:.4f}"
+        )
+    reservations[stem] = {
+        "experiment_id": cell.experiment_id,
+        "model": cell.model,
+        "output_token_cap": cell.cap,
+        "reserved_usd": reservation,
+    }
+    _write_json_atomic(path, payload)
+    print(f"reserved ${reservation:.4f} for {stem}; cumulative conservative commitment ${committed + reservation:.4f}")
+    return committed + reservation
 
 
 def _print_command(cell: Cell, command: list[str]) -> None:
@@ -327,6 +387,7 @@ def main(argv: list[str] | None = None) -> int:
             spent = _measured_spend_usd(run_dir, env, budget_start)
             if spent >= args.max_spend_usd:
                 raise SystemExit(f"spend ceiling reached: ${spent:.4f} >= ${args.max_spend_usd:.4f}")
+            _reserve_cell(run_dir, cell, spent, args.max_spend_usd)
         try:
             try:
                 subprocess.run(command, cwd=ROOT, env=env, check=True)

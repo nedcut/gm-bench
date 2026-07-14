@@ -48,6 +48,12 @@ def test_compact_result_removes_traces_and_hashes_raw_payload() -> None:
     assert episode["usage"] == {"total_tokens": 100}
 
 
+def test_compact_result_rejects_already_compacted_artifact() -> None:
+    compact = compact_result(_payload())
+    with pytest.raises(ValueError, match="already has publication metadata"):
+        compact_result(compact)
+
+
 def test_budget_analysis_refuses_empty_sweep(tmp_path: Path) -> None:
     output = tmp_path / "analysis.json"
     subprocess.run(["python3", "scripts/analyze_output_budget.py", "--output", str(output)], check=True)

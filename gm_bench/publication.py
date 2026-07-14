@@ -22,6 +22,8 @@ def canonical_sha256(payload: dict[str, Any]) -> str:
 
 def compact_result(payload: dict[str, Any]) -> dict[str, Any]:
     """Return a validator-compatible artifact without verbose episode traces."""
+    if payload.get("publication"):
+        raise ValueError("input already has publication metadata; compact the original raw artifact")
     result = copy.deepcopy(payload)
     for label in ("candidate", "baselines"):
         blocks = [result.get(label)] if label == "candidate" else result.get(label, [])

@@ -43,7 +43,10 @@ The exact endpoint snapshots, retry/exclusion/stopping rule, primary endpoint,
 and operator-approval requirement live in `config/publication_protocol.json`.
 The reproducible planning and token-ceiling estimates live in
 `results/analysis/output-budget-cost-estimate.json`. Paid runs require an
-explicit `--max-spend-usd` argument.
+explicit `--max-spend-usd` argument. The runner reserves each cell's committed
+output-ceiling estimate before launch and retains that reservation after a
+failure; live account and artifact telemetry remain the final guard against
+price or input-token drift.
 
 As of 2026-07-14, all three selected models completed the standardized smoke
 with matching pinned routes, zero failed decisions, zero protocol repairs,
@@ -65,6 +68,11 @@ official run.
 - A failed first response repaired into valid JSON counts its full token and
   latency spend, but no longer becomes a strategy failure. Repair is bounded
   at one attempt, recorded in provenance and usage, and cannot loop.
+- OpenRouter completion responses expose the observed upstream provider, not
+  the endpoint snapshot name. The runner therefore validates the exact healthy
+  endpoint snapshot and capabilities immediately before the cell, while the
+  artifact independently attests the observed provider. This does not prove an
+  endpoint identifier that OpenRouter does not return.
 
 ## Artifact publication
 

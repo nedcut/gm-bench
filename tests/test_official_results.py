@@ -125,6 +125,8 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
             "benchmark_contract": benchmark_contract(),
             "scaffold_fingerprint": scaffold_fingerprint("openai"),
             "seed_panel": seed_panel_metadata(seeds, "leaderboard"),
+            "protocol_repair_attempts": 1,
+            "provider_options": {"GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"},
         },
     }
 
@@ -234,6 +236,19 @@ def test_sota_v2_policy_requires_full_usage() -> None:
     assert "candidate usage.cost_usd is required, use null only when pricing is unknown" in report.errors
 
 
+@pytest.mark.parametrize(
+    ("run_value", "option_value"),
+    [(None, "1"), (1, None), (-1, "-1"), (2, "2"), (0, "1"), ("bad", "1")],
+)
+def test_sota_v2_requires_matching_bounded_repair_provenance(run_value: object, option_value: object) -> None:
+    payload = _official_payload(repeats=3)
+    payload["run_info"]["protocol_repair_attempts"] = run_value
+    payload["run_info"]["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] = option_value
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+    assert not report.ok
+    assert any("repair" in error for error in report.errors)
+
+
 def test_output_budget_analysis_rejects_duplicate_cells() -> None:
     payload = _official_payload(repeats=3)
     payload["run_info"]["profile"] = "compact"
@@ -241,6 +256,7 @@ def test_output_budget_analysis_rejects_duplicate_cells() -> None:
     payload["run_info"]["provider_options"] = {
         "OPENAI_MAX_TOKENS": "256",
         "GM_BENCH_OUTPUT_BUDGET_CELL": "256",
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
     }
     usage = payload["candidate"]["summary"]["usage"]
     usage.update({"input_tokens": 1000, "output_tokens": 500, "cost_decisions": usage["decisions_with_usage"]})
@@ -311,6 +327,7 @@ def test_sota_v2_accepts_pinned_single_upstream_openrouter_route() -> None:
                 "OPENROUTER_PROVIDER_ONLY": "openai",
                 "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-test-20260714",
                 "OPENROUTER_ALLOW_FALLBACKS": "false",
+                "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
             },
         }
     )
@@ -334,6 +351,7 @@ def test_sota_v2_rejects_openrouter_upstream_that_differs_from_pin() -> None:
                 "OPENROUTER_PROVIDER_ONLY": "OpenAI",
                 "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-test-20260714",
                 "OPENROUTER_ALLOW_FALLBACKS": "false",
+                "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
             },
         }
     )

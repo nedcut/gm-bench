@@ -211,16 +211,22 @@ def validate_leaderboard_payload(
         if strict_v2_lane:
             repair_attempts = run_info.get("protocol_repair_attempts")
             option_repair = (run_info.get("provider_options") or {}).get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS")
+            parsed_repairs: dict[str, int] = {}
             for label, raw in (("protocol_repair_attempts", repair_attempts), ("provider_options", option_repair)):
                 if raw in (None, ""):
+                    errors.append(f"run_info.{label} repair attempts are required for sota-v2")
                     continue
                 try:
                     parsed = int(raw)
                 except (TypeError, ValueError):
                     errors.append(f"run_info.{label} repair attempts must be an integer")
                     continue
-                if parsed > 1:
-                    errors.append(f"sota-v2 allows at most one protocol-repair attempt; got {parsed} via {label}")
+                if not 0 <= parsed <= 1:
+                    errors.append(f"sota-v2 repair attempts must be between zero and one; got {parsed} via {label}")
+                    continue
+                parsed_repairs[label] = parsed
+            if len(parsed_repairs) == 2 and len(set(parsed_repairs.values())) != 1:
+                errors.append("run_info protocol-repair provenance values must match")
         expected_seeds, expected_seed_count = _resolve_expected_seeds(
             errors,
             warnings,

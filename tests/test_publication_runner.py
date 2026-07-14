@@ -8,7 +8,9 @@ import pytest
 
 from scripts.run_publication_matrix import (
     _artifact_spend_usd,
+    _cell_reservation_usd,
     _endpoint_issues,
+    _reserve_cell,
     build_cells,
     cell_command,
     cell_environment,
@@ -37,6 +39,11 @@ def test_bounded_cell_overrides_inherited_provider_cap(monkeypatch: pytest.Monke
     env = cell_environment(cell)
     assert env["OPENROUTER_MAX_TOKENS"] == "16384"
     assert env["GM_BENCH_OUTPUT_BUDGET_CELL"] == "16384"
+
+
+def test_runner_rejects_cap_outside_pre_registered_sweep() -> None:
+    with pytest.raises(ValueError, match="not in the pre-registered sweep"):
+        build_cells("sweep", cap=999)
 
 
 def test_smoke_is_clean_and_resumes_existing_checkpoint(tmp_path: Path) -> None:
@@ -79,6 +86,15 @@ def test_paid_openrouter_run_requires_explicit_spend_ceiling(
         )
     assert exc.value.code == 2
     assert "require an explicit --max-spend-usd ceiling" in capsys.readouterr().err
+
+
+def test_cell_reservation_blocks_launch_before_ceiling_overrun(tmp_path: Path) -> None:
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.4-mini-openai", cap=1024)[0]
+    reservation = _cell_reservation_usd(cell)
+    assert 0 < reservation < 1
+    with pytest.raises(SystemExit, match="reservation would exceed"):
+        _reserve_cell(tmp_path, cell, measured_spend=0.99, ceiling=1.0)
+    assert not (tmp_path / "openrouter-reservations.json").exists()
 
 
 def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:

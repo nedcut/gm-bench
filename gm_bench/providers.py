@@ -83,7 +83,11 @@ def _model_format_failed(actions: Any) -> bool:
     if not isinstance(actions, list):
         return False
     needles = ("json", "schema", "not a list", "parse", "decode")
-    messages = [str(action.get("model_error", "")).lower() for action in actions if isinstance(action, dict)]
+    messages = [
+        str(action.get("model_error") or action.get("error") or "").lower()
+        for action in actions
+        if isinstance(action, dict)
+    ]
     return any(any(needle in message for needle in needles) for message in messages)
 
 

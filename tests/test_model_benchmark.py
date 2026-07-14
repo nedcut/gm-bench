@@ -59,6 +59,7 @@ def test_protocol_repair_ignores_generic_no_usable_actions_fallback() -> None:
     from gm_bench.providers import _model_format_failed
 
     assert _model_format_failed([{"type": "noop", "model_error": "invalid JSON"}])
+    assert _model_format_failed([{"type": "noop", "error": "external agent returned invalid JSON"}])
     assert not _model_format_failed([{"type": "noop", "model_error": "model produced no usable actions"}])
 
 

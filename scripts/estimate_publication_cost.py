@@ -5,11 +5,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
-from gm_bench.benchmark_config import PRESETS
-from gm_bench.protocol import PHASES
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from gm_bench.benchmark_config import PRESETS  # noqa: E402
+from gm_bench.protocol import PHASES  # noqa: E402
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -24,7 +29,11 @@ def estimate(
 ) -> dict[str, Any]:
     assumptions = pricing["planning_assumptions"]
     input_tokens = int(assumptions["input_tokens_per_decision"])
-    expected_output = int(expected_output_tokens or assumptions["expected_output_tokens_per_decision"])
+    if expected_output_tokens is not None and expected_output_tokens <= 0:
+        raise ValueError("expected_output_tokens must be positive")
+    expected_output = int(
+        assumptions["expected_output_tokens_per_decision"] if expected_output_tokens is None else expected_output_tokens
+    )
     preset = PRESETS[str(sweep["preset"])]
     decisions = len(preset["seeds"]) * int(preset["seasons"]) * len(PHASES) * int(sweep["repeats"])
     runtime_observations = pricing.get("runtime_observations") or {}

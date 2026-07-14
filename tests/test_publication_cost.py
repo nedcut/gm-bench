@@ -27,3 +27,11 @@ def test_cost_estimator_rejects_unbounded_cells() -> None:
     sweep["output_token_caps"][-1] = None
     with pytest.raises(ValueError, match="positive bounded cap"):
         estimate(sweep, pricing)
+
+
+@pytest.mark.parametrize("value", [0, -1])
+def test_cost_estimator_rejects_non_positive_output_override(value: int) -> None:
+    sweep = json.loads(Path("config/output_budget_sweep.json").read_text())
+    pricing = json.loads(Path("config/openrouter_pricing_snapshot.json").read_text())
+    with pytest.raises(ValueError, match="must be positive"):
+        estimate(sweep, pricing, expected_output_tokens=value)

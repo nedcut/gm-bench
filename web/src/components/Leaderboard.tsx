@@ -281,7 +281,7 @@ function MechanicBreakdown({ models }: { models: LeaderboardModel[] }) {
               <tr key={model.id}>
                 <td>{model.model}</td>
                 {mechanics.map(([key]) => {
-                  const outcome = model.mechanic_breakdown[key] ?? { accepted: 0, rejected: 0 };
+                  const outcome = model.mechanic_breakdown?.[key] ?? { accepted: 0, rejected: 0 };
                   return <td className="num mono-dim" key={key}>{outcome.accepted} / {outcome.rejected}</td>;
                 })}
               </tr>

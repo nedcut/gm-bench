@@ -110,9 +110,11 @@ def _publication_identity_issues(payload: dict[str, Any], config: dict[str, Any]
     options = run_info.get("provider_options") or {}
     expected_options = {
         **(config.get("shared_fixed_options") or {}),
-        "OPENROUTER_PROVIDER_ONLY": registered.get("upstream_provider"),
-        "OPENROUTER_EXPECTED_ENDPOINT_NAME": registered.get("endpoint_name"),
     }
+    if registered.get("upstream_provider") not in (None, ""):
+        expected_options["OPENROUTER_PROVIDER_ONLY"] = registered["upstream_provider"]
+    if registered.get("endpoint_name") not in (None, ""):
+        expected_options["OPENROUTER_EXPECTED_ENDPOINT_NAME"] = registered["endpoint_name"]
     for key, expected in expected_options.items():
         if str(options.get(key, "")) != str(expected):
             issues.append(f"provider option {key} does not match the pre-registered value")
@@ -121,7 +123,7 @@ def _publication_identity_issues(payload: dict[str, Any], config: dict[str, Any]
             issues.append(f"provider option {key} must be absent for the headline lane")
     observed = sorted({str(value) for value in usage.get("upstream_providers") or [] if value})
     expected_upstream = str(registered.get("upstream_provider") or "")
-    if [value.casefold() for value in observed] != [expected_upstream.casefold()]:
+    if expected_upstream and [value.casefold() for value in observed] != [expected_upstream.casefold()]:
         issues.append("observed upstream provider does not match the pre-registered route")
     decisions = int(summary.get("decisions") or 0)
     if usage.get("cost_usd") is None:
@@ -353,7 +355,10 @@ def main() -> None:
     publishable_ranking = bool(publication["publishable_ranking"])
     cli_harness_models = [row for row in current_rows if row.get("lane") == "cli-harness"]
     excluded_models = [
-        {"id": row.get("id"), "issues": row.get("publication_issues") or row.get("sota_v2_issues") or []}
+        {
+            "id": row.get("id"),
+            "issues": list(row.get("publication_issues") or []) + list(row.get("sota_v2_issues") or []),
+        }
         for row in current_rows
         if row.get("lane") == "api" and not row.get("publication_eligible")
     ]

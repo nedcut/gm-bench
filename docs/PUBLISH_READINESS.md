@@ -186,11 +186,12 @@ request:
 python3 scripts/run_publication_matrix.py sweep --preflight-only
 ```
 
-Run the cheapest pre-registered smoke first. The spend guard uses the larger of
-completed-artifact cost telemetry and the OpenRouter account delta, and stops
-between cells. It cannot claw back a single unexpectedly expensive provider
-request, so keep smoke output caps small and inspect account usage after every
-cell:
+Run the cheapest pre-registered smoke first. Before a cell launches, the spend
+guard reserves its output-ceiling cost from the committed price snapshot; it
+also uses the larger of completed-artifact telemetry and the OpenRouter account
+delta. Reservations survive failed cells. Price drift or input growth can still
+make actual cost exceed an estimate, so keep smoke caps small and inspect account
+usage after every cell:
 
 ```bash
 python3 scripts/run_publication_matrix.py smoke \
@@ -223,7 +224,7 @@ cap and a frozen policy status. The driver enforces that lock.
   valid result is not a reason to rerun a model.
 - [x] Target 8–12 models covering frontier, mid-tier, smaller, and open-weight
   models where technically and financially practical.
-- [x] Record exact model identifiers, dated endpoint names, and upstream routes;
+- [x] Record exact model identifiers, endpoint snapshot names, and upstream routes;
   never collapse distinct snapshots
   under a generic family name.
 - [x] Keep the headline lane API-only, fresh-spawn, `compact`, and under the

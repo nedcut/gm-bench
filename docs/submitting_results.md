@@ -45,8 +45,8 @@ per-episode detail, and `paired.per_seed` rows.
 ## Validate before you submit
 
 ```bash
-python -m gm_bench validate-result /tmp/<name>.raw.json --policy sota-v2
-python -m gm_bench compact-result /tmp/<name>.raw.json \
+python3 -m gm_bench validate-result /tmp/<name>.raw.json --policy sota-v2
+python3 -m gm_bench compact-result /tmp/<name>.raw.json \
   --output results/leaderboard/<name>.json --policy sota-v2
 ```
 
@@ -108,7 +108,8 @@ not being `pick-trader`.
 
 ## What to put in the PR
 
-- **Public-panel run:** the full result JSON in `results/leaderboard/<name>.json`.
+- **Public-panel run:** the `compact-result` output in
+  `results/leaderboard/<name>.json`; retain the full raw result outside git.
   Committed artifacts in that directory must pass the `public-leaderboard` validator
   in CI.
 - **Private-panel run:** the **redacted** artifact only
