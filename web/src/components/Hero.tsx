@@ -109,7 +109,9 @@ export default function Hero({ leaderboard }: { leaderboard: LeaderboardData }) 
         `${bestModel.model.slice(0, 14)} = ${fmt(bestModel.mean_score, 1)}`,
         `vs pick-trader = ${gap >= 0 ? "+" : ""}${fmt(gap, 1)}`,
         "",
-        "// honest read: models are still below the bar",
+        gap >= 0
+          ? "// honest read: a model has cleared the bar"
+          : "// honest read: models are still below the bar",
       );
     } else {
       next.push("// no model rows yet — submit a run");
