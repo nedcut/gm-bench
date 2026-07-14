@@ -12,9 +12,10 @@ Only rows on the current ``sota-v2`` contract are published; anything else is
 skipped with a note on stderr.
 
 It writes ``web/src/data/leaderboard.json`` with one row per model plus the
-scripted-baseline reference panel. When no model results exist yet, the baseline
-panel is read from the current-contract cache or recomputed deterministically so
-the site never mixes historical model rows with stale reference scores.
+scripted-baseline reference panel. The public site remains on the frozen v2
+lane while v3 is developed, so that panel is pinned below rather than
+recomputed by the current v3 simulator. Recomputing would silently label v3
+scores as v2 evidence.
 
 Usage (from the repository root):
 
@@ -31,12 +32,10 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from gm_bench.agents import AGENTS  # noqa: E402
 from gm_bench.baseline_cache import cache_key, load_cache  # noqa: E402
 from gm_bench.benchmark_config import PRESETS, PRIVATE_LEADERBOARD_PANEL_NAME  # noqa: E402
 from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
-from gm_bench.runner import run_many  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
 OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard.json"
@@ -48,6 +47,16 @@ LEADERBOARD = PRESETS["leaderboard"]
 # a fallback for external `--agent-cmd` rows with no `run_info.transport`;
 # built-in providers should always carry a transport (see gm_bench/providers.py).
 CLI_HARNESS_PROVIDERS = {"codex", "claude", "cursor", "opencode"}
+FROZEN_SOTA_V2_BASELINES = (
+    {"agent": "pick-trader", "mean_score": 411.619, "score_stddev": 50.64},
+    {"agent": "strategic", "mean_score": 402.025, "score_stddev": 49.4},
+    {"agent": "shrewd", "mean_score": 371.769, "score_stddev": 47.86},
+    {"agent": "value", "mean_score": 354.619, "score_stddev": 31.492},
+    {"agent": "win-now", "mean_score": 275.834, "score_stddev": 45.055},
+    {"agent": "conservative", "mean_score": 139.03, "score_stddev": 18.297},
+    {"agent": "rebuild", "mean_score": 138.745, "score_stddev": 15.887},
+    {"agent": "random", "mean_score": 96.715, "score_stddev": 18.063},
+)
 
 
 def _lane(provider: str, transport: str | None) -> str:
@@ -138,8 +147,8 @@ def _redacted_episode_count(payload: dict[str, Any]) -> int:
 def baselines_from_cache() -> list[dict[str, Any]]:
     """Load baseline rows that have complete seed coverage in the cache.
 
-    Partial cache hits are ignored so ``current_baselines()`` recomputes rather
-    than publishing a mean over a subset of seeds.
+    Partial cache hits are ignored. This remains useful for diagnostics, but
+    the frozen v2 public builder does not consume a current v3 cache.
     """
     cache = load_cache()
     rows = []
@@ -161,25 +170,13 @@ def baselines_from_cache() -> list[dict[str, Any]]:
 
 
 def current_baselines() -> list[dict[str, Any]]:
-    rows = baselines_from_cache()
-    cached_agents = {row["agent"] for row in rows}
-    for agent_name in LEADERBOARD["baselines"]:
-        if agent_name in cached_agents:
-            continue
-        result = run_many(
-            AGENTS[agent_name](),
-            seeds=list(LEADERBOARD["seeds"]),
-            seasons=int(LEADERBOARD["seasons"]),
-            workers=1,
-        )
-        rows.append(
-            {
-                "agent": agent_name,
-                "mean_score": result["summary"]["mean_score"],
-                "score_stddev": result["summary"]["score_stddev"],
-            }
-        )
-    return sorted(rows, key=lambda row: row["mean_score"], reverse=True)
+    """Return the frozen v2 reference panel shown on the v2 public site."""
+
+    expected = set(LEADERBOARD["baselines"])
+    actual = [row["agent"] for row in FROZEN_SOTA_V2_BASELINES]
+    if set(actual) != expected or len(actual) != len(expected):
+        raise RuntimeError(f"frozen sota-v2 baseline panel drifted: expected {expected!r}, got {actual!r}")
+    return [dict(row) for row in FROZEN_SOTA_V2_BASELINES]
 
 
 def select_model_payloads(

@@ -123,13 +123,15 @@
             "annual_market_inflation",
             "additional_year_premium",
             "incumbent_extension_discount",
-            "extension_eligibility_years_remaining"
+            "extension_eligibility_years_remaining",
+            "extension_minimum_contract_age_seasons"
           ],
           "properties": {
             "annual_market_inflation": { "type": "number", "minimum": 0 },
             "additional_year_premium": { "type": "number", "minimum": 0 },
             "incumbent_extension_discount": { "type": "number", "minimum": 0, "maximum": 1 },
-            "extension_eligibility_years_remaining": { "type": "integer", "minimum": 1 }
+            "extension_eligibility_years_remaining": { "type": "integer", "minimum": 1 },
+            "extension_minimum_contract_age_seasons": { "type": "integer", "minimum": 1 }
           }
         },
         "scouting": {

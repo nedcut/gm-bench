@@ -98,5 +98,6 @@ def test_reports_persist_across_seasons():
 def test_scouting_does_not_perturb_scripted_scores():
     """Scout RNG is stream-isolated: a non-scouting run must be unchanged."""
     baseline = run_episode(ValueAgent(), seed=1, seasons=5)
-    # Midseason is now in the default episode; golden moved with P3+P5+P6.
+    # Pin the current v3 golden while proving scout's isolated RNG is not
+    # responsible for any movement in a non-scouting policy.
     assert baseline.final_score == 338.254

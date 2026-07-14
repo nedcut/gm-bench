@@ -50,6 +50,10 @@ class Player:
     contract_years: int
     team_id: int | None
     injury_risk: float
+    # Hidden provenance used to prevent a newly signed short-term contract
+    # from being converted immediately into a discounted incumbent extension.
+    # Generated opening-roster contracts predate season 1.
+    contract_signed_season: int = 0
     morale: float = 0.0
     drafted_round: int | None = None
     injured_games: int = 0

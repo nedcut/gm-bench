@@ -32,8 +32,10 @@ The MVP implements a compact hockey-style league:
   and each extra guaranteed year carries a 2% salary premium.
 - Free agents with public 1–5 year contract quotes (free agents age and rust
   while unsigned).
-- Discounted incumbent extensions for roster players entering the final year
-  of their contract.
+- Discounted 2–5 year incumbent extensions for roster players entering the
+  final year of a contract signed before the current season. This makes a
+  one-year free-agent deal a real retention risk instead of an immediate route
+  around the multi-year free-agent price.
 - Competitive free agency: opponent front offices sign free agents after
   every phase — filling roster needs and poaching standout players, waiving
   their least valuable player to make room when full — so the pool is never
@@ -85,8 +87,9 @@ Control:
 Core roster actions (apply immediately):
 
 - `sign_free_agent`
-- `extend_contract` (one-year-remaining incumbents only; `years` replaces the
-  current total term rather than adding to it)
+- `extend_contract` (2–5 years; one-year-remaining incumbents whose current
+  deal predates the season only; `years` replaces the current total term rather
+  than adding to it)
 - `release`
 - `trade` (players and/or future draft picks via `give_pick_seasons` /
   `receive_pick_seasons`, up to 3 seasons ahead)

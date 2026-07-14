@@ -221,7 +221,7 @@ Under the freeze:
   adapters, site) are free. A behavior-changing bug fix is a deliberate
   lane-versioning decision, not routine maintenance.
 
-`sota-v3` is the current development lane (fingerprint `c4d9207d13ffbffe`). It adds term-priced free-agent
+`sota-v3` is the current development lane (fingerprint `1a5939e91bb2a6e7`). It adds term-priced free-agent
 contracts and discounted incumbent extensions, and therefore requires fresh
 baseline caches and model rows. Nothing produced under v3 is v2-comparable or
 eligible for the v2 web table without an explicit future publication update.

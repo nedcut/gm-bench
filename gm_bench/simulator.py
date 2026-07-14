@@ -124,6 +124,7 @@ class League:
                     "additional_year_premium": CONTRACT_YEAR_PREMIUM,
                     "incumbent_extension_discount": INCUMBENT_EXTENSION_DISCOUNT,
                     "extension_eligibility_years_remaining": 1,
+                    "extension_minimum_contract_age_seasons": 1,
                 },
                 "pick_trading": {
                     "max_seasons_ahead": PICK_TRADE_MAX_SEASONS_AHEAD,
@@ -153,7 +154,7 @@ class League:
         if full:
             for player in payload["team"]["roster"]:
                 source = self.players[player["id"]]
-                if source.contract_years == 1:
+                if self._extension_eligible(source):
                     player["extension_quotes"] = self._contract_quotes(source, incumbent=True)
             payload["free_agents"] = [self._free_agent_public(player_id) for player_id in self.free_agents]
             payload["draft_class"] = [player.public_dict() for player in self.prospects.values()]
@@ -280,6 +281,7 @@ class League:
             if team.id == self.user_team_id:
                 continue
             if phase == "preseason":
+                self._opponent_extensions(team)
                 self._trim_expiring_contracts(team, rng)
             self._opponent_signings(team, rng)
         if phase == "trade_deadline":
@@ -431,6 +433,7 @@ class League:
             player.team_id = None
             player.salary = 0.0
             player.contract_years = 0
+            player.contract_signed_season = 0
             if player.id not in self.waiver_wire:
                 self.waiver_wire.append(player.id)
 
@@ -482,12 +485,19 @@ class League:
         player_id = int(action.get("player_id", -1))
         if player_id not in self.players:
             return self._record(action, phase, False, f"unknown player id {player_id}", penalize=False)
+        player = self.players[player_id]
+        public = player.public_dict()
+        if self._extension_eligible(player) and player_id in self.user_team.roster:
+            public["extension_quotes"] = self._contract_quotes(player, incumbent=True)
+        if player_id in self.free_agents or player_id in self.waiver_wire:
+            public["asking_salary"] = self._contract_quote(player, 1)
+            public["contract_quotes"] = self._contract_quotes(player)
         return self._record(
             action,
             phase,
             True,
-            f"inspected {self.players[player_id].name}",
-            data={"player": self.players[player_id].public_dict()},
+            f"inspected {player.name}",
+            data={"player": public},
             penalize=False,
         )
 
@@ -553,6 +563,7 @@ class League:
         player.team_id = self.user_team_id
         player.salary = round(salary, 2)
         player.contract_years = years
+        player.contract_signed_season = self.season
         self.user_team.roster.append(player_id)
         self._record(action, phase, True, f"signed {player.name}")
 
@@ -564,11 +575,16 @@ class League:
             self._record(action, phase, False, "player is not on your roster")
             return
         player = self.players[player_id]
-        if player.contract_years != 1:
-            self._record(action, phase, False, "only players with one contract year remaining may be extended")
+        if not self._extension_eligible(player):
+            self._record(
+                action,
+                phase,
+                False,
+                "only incumbent players on a contract signed before this season with one year remaining may be extended",
+            )
             return
-        if years < 1 or years > 5:
-            self._record(action, phase, False, "contract years must be 1-5")
+        if years < 2 or years > 5:
+            self._record(action, phase, False, "extension years must be 2-5")
             return
         if salary <= 0:
             self._record(action, phase, False, "salary must be a positive amount")
@@ -597,6 +613,7 @@ class League:
         # `years` is the new total term beginning now, not years added to the
         # existing deal. This keeps all contracts within the five-year limit.
         player.contract_years = years
+        player.contract_signed_season = self.season
         self._record(action, phase, True, f"extended {player.name} for {years} year(s)")
 
     def _release(self, action: dict[str, Any], phase: str) -> None:
@@ -611,6 +628,7 @@ class League:
         self._remove_from_team(self.user_team, player_id)
         player.team_id = None
         player.contract_years = 0
+        player.contract_signed_season = 0
         player.salary = 0.0
         self.free_agents.append(player_id)
         self._record(action, phase, True, f"released {player.name}")
@@ -874,6 +892,7 @@ class League:
         player.team_id = self.user_team_id
         player.salary = salary
         player.contract_years = 1
+        player.contract_signed_season = self.season
         self.user_team.roster.append(player_id)
         return self._record(action, phase, True, f"claimed {player.name} from waivers")
 
@@ -989,6 +1008,15 @@ class League:
     def _contract_quotes(self, player: Player, *, incumbent: bool = False) -> dict[str, float]:
         return {str(years): self._contract_quote(player, years, incumbent=incumbent) for years in range(1, 6)}
 
+    def _extension_eligible(self, player: Player) -> bool:
+        """Return whether a final-year contract predates this season.
+
+        Without provenance, an agent can sign a one-year free-agent deal and
+        immediately replace it with a discounted five-year extension, making
+        every multi-year free-agent quote strictly dominated.
+        """
+        return player.contract_years == 1 and player.contract_signed_season < self.season
+
     def _contract_reservation(self, player_id: int, *, years: int = 1, incumbent: bool = False) -> float:
         """Hidden, deterministic minimum salary a free agent will accept.
 
@@ -1102,6 +1130,7 @@ class League:
         prospect.team_id = team.id
         prospect.salary = 0.95
         prospect.contract_years = 3
+        prospect.contract_signed_season = self.season
         prospect.drafted_round = 1
         self.players[prospect.id] = prospect
         team.roster.append(prospect.id)
@@ -1228,6 +1257,7 @@ class League:
                 player.team_id = None
                 player.salary = 0.0
                 player.contract_years = 0
+                player.contract_signed_season = 0
                 self.free_agents.append(player.id)
 
     def _trim_expiring_contracts(self, team: Team, rng: random.Random) -> None:
@@ -1239,6 +1269,7 @@ class League:
             player.team_id = None
             player.salary = 0.0
             player.contract_years = 0
+            player.contract_signed_season = 0
             self.free_agents.append(player.id)
 
     def _opponent_signings(self, team: Team, rng: random.Random) -> None:
@@ -1254,6 +1285,42 @@ class League:
                 self._sign_to_team(team, player, rng)
                 needed -= 1
         self._opponent_opportunistic_signing(team, rng)
+
+    def _opponent_extensions(self, team: Team) -> None:
+        """Give opponent front offices the same incumbent retention surface.
+
+        The policy is deterministic and consumes no league RNG, so merely
+        evaluating contract quotes cannot perturb game or development draws.
+        """
+        candidates = sorted(
+            (
+                self.players[player_id]
+                for player_id in team.roster
+                if self._extension_eligible(self.players[player_id])
+                and self.players[player_id].age <= 27
+                and self.players[player_id].asset_value > 40.0
+            ),
+            key=lambda player: (player.asset_value, player.overall, -player.id),
+            reverse=True,
+        )
+        for player in candidates:
+            years = 3
+            salary = self._contract_quote(player, years, incumbent=True)
+            if salary > player.salary + 1.0:
+                continue
+            if self._payroll(team) - player.salary + salary > self.cap + 4.0:
+                continue
+            player.salary = salary
+            player.contract_years = years
+            player.contract_signed_season = self.season
+            self._record(
+                {"type": "extend_contract", "player_id": player.id, "years": years, "salary": salary},
+                "preseason",
+                True,
+                f"{team.name} extended {player.name} for {years} year(s)",
+                team_id=team.id,
+            )
+            break
 
     def _opponent_opportunistic_signing(self, team: Team, rng: random.Random) -> None:
         """Sign one clear upgrade over the team's weakest dressed player.
@@ -1291,6 +1358,7 @@ class League:
                 waived.team_id = None
                 waived.salary = 0.0
                 waived.contract_years = 0
+                waived.contract_signed_season = 0
                 self.free_agents.append(waived.id)
             self._sign_to_team(team, player, rng)
             return
@@ -1302,6 +1370,7 @@ class League:
         years = rng.randint(1, 3)
         player.salary = self._contract_quote(player, years)
         player.contract_years = years
+        player.contract_signed_season = self.season
 
     def _opponent_trades(self) -> None:
         """One deadline round of one-for-one swaps between opponent teams.

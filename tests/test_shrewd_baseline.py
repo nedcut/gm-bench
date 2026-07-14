@@ -16,7 +16,7 @@ def test_shrewd_beats_value_on_average_across_seed_panel() -> None:
     """Shrewd must beat value on the panel mean, not on every seed.
 
     Its development-weighted lineups are a horizon bet that loses individual
-    seeds (a wider 30-seed sweep shows ~7/30 losses but a +7 mean lift), so
+    seeds (a wider 30-seed v3 sweep remains positive on average), so
     per-seed dominance would be an overfit claim. This pins the honest one:
     if a rules or scoring change makes the cap hygiene and youth dressing
     stop paying off *on average*, this test flags that shrewd is no longer a

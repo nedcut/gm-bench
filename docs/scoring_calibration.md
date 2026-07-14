@@ -127,31 +127,33 @@ also change strength, cap room, and wins.
 ## Reference-policy calibration
 
 The current `sota-v3` public panel (seeds 11-18, five seasons; fingerprint
-`c4d9207d13ffbffe`, protocol `gm-bench-v3` with midseason and strategic contract terms)
+`1a5939e91bb2a6e7`, protocol `gm-bench-v3` with midseason and strategic contract terms)
 produces:
 
 | Reference | Mean score | Illegal actions | Role |
 | --- | ---: | ---: | --- |
-| `pick-trader` | 299.454 | 0 | Strategic policy plus conservative pick trades |
-| `strategic` | 304.415 | 0 | Scouting, offers, memo, extensions, and shrewd roster core |
-| `shrewd` | 358.633 | 0 | Strongest calibrated roster-management bar |
-| `value` | 329.869 | 0 | Public-value roster heuristic |
+| `pick-trader` | 324.123 | 0 | Strategic policy plus conservative pick trades |
+| `strategic` | 326.296 | 0 | Scouting, offers, memo, extensions, and shrewd roster core |
+| `shrewd` | 353.292 | 0 | Strongest calibrated roster-management bar |
+| `value` | 327.673 | 0 | Public-value roster heuristic |
 
 The strategic policy's panel ablations are also deterministic:
 
 | Policy variant | Mean score | Change vs `strategic` |
 | --- | ---: | ---: |
-| Full `strategic` | 304.415 | 0.000 |
-| No scouting | 329.945 | +25.530 |
-| No incoming-offer policy | 304.870 | +0.455 |
-| No memo writes | 304.415 | 0.000 |
-| `shrewd` core only | 358.633 | +54.218 |
-| Pick trading enabled (`pick-trader`) | 299.454 | -4.961 |
+| Full `strategic` | 326.296 | 0.000 |
+| No scouting | 326.469 | +0.173 |
+| No incoming-offer policy | 318.012 | -8.284 |
+| No memo writes | 326.296 | 0.000 |
+| `shrewd` core only | 353.292 | +26.996 |
+| Pick trading enabled (`pick-trader`) | 324.123 | -2.173 |
 
 This is intentionally not presented as causal estimation: mechanics interact
 over five seasons. Under v3 the extra strategic surfaces do not monotonically
-raise this small scripted policy's score; no-scout and the shrewd core both
-outperform the full policy on this panel. That is calibration evidence, not a
+raise this small scripted policy's score: the shrewd core substantially
+outperforms the full protocol-coverage policy, while disabling offer handling
+lowers the mean and the no-scout ablation is effectively flat. Conservative
+pick trading also lowers this panel mean. That is calibration evidence, not a
 result to hide: protocol coverage and score superiority are separate claims.
 Memo persistence has zero direct effect for this deterministic reference,
 which can reconstruct its policy from the observation.
@@ -165,9 +167,9 @@ become dead protocol surface.
 
 `oracle` is a diagnostic-only hidden-information reference, not an official
 baseline and not part of the `sota-v3` baseline panel. On the same public panel
-(seeds 11-18, five seasons), it scores **297.811**, versus **299.454** for
-`pick-trader`. The 1.643-point reversal is well inside panel noise and warns
-that this partial oracle is not an optimization ceiling.
+(seeds 11-18, five seasons), it scores **336.928**, versus **324.123** for
+`pick-trader`. The 12.805-point gap is still inside the panel's minimum
+detectable difference and this partial oracle is not an optimization ceiling.
 
 The oracle begins with the `pick-trader` policy, then regenerates a draft
 class's deterministic `true_potential` from its seed and uses it only for

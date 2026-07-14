@@ -101,8 +101,9 @@ front-office decision instead of a decorative field. Free-agent observations
 publish guaranteed quotes for every 1–5 year term. Market prices inflate 4%
 per season and each additional guaranteed year costs a 2% annual-salary
 premium, trading current cap space for protection from future market and
-development-driven price growth. Players with one year remaining also publish
-incumbent extension quotes with an 8% loyalty discount. `sota-v2` remains
+development-driven price growth. Players with one year remaining on a deal
+signed before the current season also publish 2–5 year incumbent extension
+quotes with an 8% loyalty discount. `sota-v2` remains
 frozen and valid only for results carrying its historical fingerprint.
 
 ## Quickstart

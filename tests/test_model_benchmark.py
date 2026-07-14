@@ -368,6 +368,15 @@ def test_baselines_from_cache_requires_full_seed_coverage(tmp_path: Path, monkey
     assert rows[0]["mean_score"] == pytest.approx(sum(bl.LEADERBOARD["seeds"]) / len(bl.LEADERBOARD["seeds"]))
 
 
+def test_public_builder_keeps_frozen_v2_baselines_while_v3_is_current() -> None:
+    from gm_bench.contract import BENCHMARK_VERSION
+    from web.scripts import build_leaderboard as bl
+
+    assert BENCHMARK_VERSION == "sota-v3"
+    assert bl.current_baselines() == [dict(row) for row in bl.FROZEN_SOTA_V2_BASELINES]
+    assert bl.current_baselines()[0]["mean_score"] == 411.619
+
+
 def test_leaderboard_selects_official_then_newest_diagnostic() -> None:
     from web.scripts.build_leaderboard import select_model_payloads
 

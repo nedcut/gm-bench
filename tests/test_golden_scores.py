@@ -5,8 +5,8 @@ from __future__ import annotations
 from gm_bench.agents import RandomAgent, ValueAgent
 from gm_bench.runner import run_episode, run_many
 
-# Re-pinned after midseason became part of the default episode and generated
-# injuries began affecting player availability.
+# Re-pinned for sota-v3 after strategic term pricing and deterministic
+# opponent incumbent retention changed the free-agent market.
 GOLDEN_VALUE_SCORES_5_SEASONS = {
     1: 338.254,
     2: 335.497,

@@ -124,6 +124,9 @@ def build_prompt(observation: dict[str, Any]) -> str:
         '{"type":"end_turn"} to finish an information-gathering round\n'
         '{"type":"noop"}\n\n'
         "Observations may be summary-tier: use inspect/list/scout before committing. "
+        "Free-agent contract_quotes and incumbent extension_quotes are guaranteed acceptance prices by term. "
+        "Only final-year contracts signed before the current season are extension-eligible; inspect a roster player "
+        "to retrieve extension_quotes in summary tier. Extensions must be 2-5 years. "
         "Public potential ratings are noisy; scout (limited points per season, see rules.scouting) buys a "
         "near-true potential reading, echoed forever in scout_reports — most valuable before drafting or big trades.\n"
         "Opponents may send you trade offers in incoming_offers; accept, reject, or counter them. "

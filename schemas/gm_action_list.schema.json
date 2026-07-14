@@ -72,7 +72,10 @@
         },
         {
           "if": { "properties": { "type": { "const": "extend_contract" } } },
-          "then": { "required": ["player_id", "years", "salary"] }
+          "then": {
+            "required": ["player_id", "years", "salary"],
+            "properties": { "years": { "minimum": 2 } }
+          }
         },
         {
           "if": { "properties": { "type": { "const": "release" } } },

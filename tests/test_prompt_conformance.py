@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import jsonschema
+import pytest
 
 from examples.gm_agent_common import build_prompt
 from gm_bench.simulator import League
@@ -60,6 +61,14 @@ def _build_examples() -> list[dict[str, Any]]:
 def test_every_prompt_example_validates_against_action_schema() -> None:
     for example in _build_examples():
         jsonschema.validate(example, _ACTION_SCHEMA)
+
+
+def test_one_year_extension_is_rejected_by_the_action_schema() -> None:
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(
+            {"type": "extend_contract", "player_id": 1, "years": 1, "salary": 2.0},
+            _ACTION_SCHEMA,
+        )
 
 
 def test_scout_prompt_examples_are_accepted_by_the_simulator() -> None:
