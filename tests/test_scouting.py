@@ -86,6 +86,17 @@ def test_unknown_scout_target_is_a_failed_query_not_illegal():
     assert league.failed_queries == failed_before + 1
 
 
+def test_malformed_memo_does_not_increment_failed_queries():
+    """Memo is non-penalized but not a query — keep it out of failed_queries."""
+    league = League.new(seed=3)
+    failed_before = league.failed_queries
+    illegal_before = league.illegal_actions
+    league.apply_actions([{"type": "memo", "text": 42}], "preseason")
+    assert league.failed_queries == failed_before
+    assert league.illegal_actions == illegal_before
+    assert not league.transactions[-1].accepted
+
+
 def test_reports_persist_across_seasons():
     league = League.new(seed=3)
     prospect_id = next(iter(league.prospects))

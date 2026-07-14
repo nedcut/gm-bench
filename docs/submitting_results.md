@@ -98,10 +98,11 @@ Seed-panel provenance (`run_info.seed_panel`) must name one of two identities;
 ### Warnings do not block, but travel with the row
 
 These are recorded as warnings, keep the row eligible, and surface on the site
-(`sota_v2_issues`): illegal actions present, more failed queries than decisions
-(misfired scout/inspect lookups), any adapter fallback/error decisions, lift not
-significant at 95%, candidate not beating the strongest baseline, or the
-strongest baseline not being `pick-trader`.
+(`sota_v2_issues`): illegal actions present, failed-query rate above 0.25
+(misfired scout/inspect lookups; rates above 1.0 are a hard `sota-v2` error,
+not a warning), any adapter fallback/error decisions, lift not significant at
+95%, candidate not beating the strongest baseline, or the strongest baseline
+not being `pick-trader`.
 
 ## What to put in the PR
 

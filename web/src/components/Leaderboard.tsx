@@ -87,6 +87,7 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
               <th></th>
               <th className="num">Lift vs panel</th>
               <th className="num">Fallback</th>
+              <th className="num">Failed queries</th>
               <th className="num">Tok/decision</th>
               <th className="num">Cost/episode</th>
               <th className="num">Latency</th>
@@ -125,6 +126,7 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
                     <td className="num mono-dim">—</td>
                     <td className="num mono-dim">—</td>
                     <td className="num mono-dim">0</td>
+                    <td className="num mono-dim">0</td>
                     <td className="num mono-dim">$0</td>
                     <td className="num mono-dim">—</td>
                   </tr>
@@ -161,6 +163,9 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
                     {model.significant ? " ✓" : ""}
                   </td>
                   <td className="num mono-dim">{pct(model.fallback_rate)}</td>
+                  <td className="num mono-dim">
+                    {model.failed_queries === undefined ? "—" : model.failed_queries}
+                  </td>
                   <td className="num mono-dim">{model.tokens_per_decision === null ? "—" : fmt(model.tokens_per_decision, 0)}</td>
                   <td className="num mono-dim">{cost(model)}</td>
                   <td className="num mono-dim">
@@ -180,6 +185,7 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
         <span>diagnostic rows are useful evidence, but not frontier-model claims</span>
         <span>✓ lift significant at 95% (paired bootstrap)</span>
         <span>fallback = decisions answered by the adapter's fallback policy, not the model</span>
+        <span>failed queries = scout/inspect/list_free_agents declines with no protocol penalty; rates above 1.0/decision fail sota-v2</span>
         <span>cost from measured tokens × published prices; CLI lanes report their own cost</span>
         <span>lane = CLI harness (codex/claude/cursor/opencode, own tool loop and scaffold) vs direct API call — not comparable to each other</span>
         <span>tokens/decision tracks published score closely; read score next to lane, tokens/decision, and cost, not alone</span>
