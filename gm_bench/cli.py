@@ -181,8 +181,8 @@ def main(argv: list[str] | None = None) -> None:
         metavar="N",
         help=(
             "abort after N consecutive adapter failures (default: 2); with --workers > 1 the counter "
-            "is shared across workers, so N failures with no success in between trips it regardless of "
-            "which episode they came from"
+            "is shared across workers (N failures with no success in between trips it regardless of "
+            "episode), but abort is best-effort — in-flight workers are not cancelled"
         ),
     )
     model_parser.add_argument(

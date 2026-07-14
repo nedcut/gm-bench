@@ -42,6 +42,11 @@ class _FailFastState:
     a globally broken model (bad key, dead adapter, wrong model id) from burning
     a whole panel's quota, and a globally broken model fails everywhere at once.
     A model that merely fails intermittently keeps resetting the counter.
+
+    Under ``--workers > 1``, abort is best-effort: ``run_many`` uses ordered
+    ``executor.map`` and does not cancel in-flight futures when this raises, so
+    sibling workers can still finish their current episode after the breaker
+    trips. Serial and session lanes (``workers=1``) abort immediately.
     """
 
     def __init__(self, threshold: int) -> None:
