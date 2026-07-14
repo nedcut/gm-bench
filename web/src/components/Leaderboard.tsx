@@ -13,9 +13,9 @@ type Row =
   | { kind: "model"; rank: number; model: LeaderboardModel }
   | { kind: "baseline"; baseline: LeaderboardBaseline };
 
-function buildRows(data: LeaderboardData): Row[] {
-  const rows: Row[] = data.models.map((model, index) => ({ kind: "model", rank: index + 1, model }));
-  for (const baseline of data.baselines) {
+function buildRows(models: LeaderboardModel[], baselines: LeaderboardBaseline[]): Row[] {
+  const rows: Row[] = models.map((model, index) => ({ kind: "model", rank: index + 1, model }));
+  for (const baseline of baselines) {
     rows.push({ kind: "baseline", baseline });
   }
   return rows.sort((a, b) => {
@@ -33,37 +33,46 @@ function cost(model: LeaderboardModel): string {
 }
 
 function statusTag(model: LeaderboardModel) {
-  const issues = model.sota_v1_issues.join("\n");
-  if (model.sota_v1_eligible) {
+  const allIssues = model.sota_v2_issues ?? [];
+  const issues = allIssues.join("\n");
+  if (model.sota_v2_eligible) {
     return (
       <span className="status-stack">
-        <span className="tag tag-official" title={issues || "validated as sota-v1"}>
-          sota-v1
+        <span className="tag tag-official" title={issues || "validated as sota-v2"}>
+          sota-v2
         </span>
-        {model.sota_v1_issues.length > 0 && (
+        {allIssues.length > 0 && (
           <span className="tag tag-warn" title={issues}>
-            {model.sota_v1_issues.length} warning{model.sota_v1_issues.length === 1 ? "" : "s"}
+            {allIssues.length} warning{allIssues.length === 1 ? "" : "s"}
           </span>
         )}
       </span>
     );
   }
   return (
-    <span className="tag tag-dev" title={issues || "not validated as sota-v1"}>
+    <span className="tag tag-dev" title={issues || "not validated as sota-v2"}>
       diagnostic
     </span>
   );
 }
 
+function laneLabel(model: LeaderboardModel): string {
+  if (!model.lane) {
+    return "—";
+  }
+  return model.lane === "cli-harness" ? "CLI harness" : "API";
+}
+
 function LeaderboardTable({ data }: { data: LeaderboardData }) {
-  const rows = buildRows(data);
+  const rows = buildRows(data.models, data.baselines);
   const maxScore = Math.max(...rows.map((row) => (row.kind === "model" ? row.model.mean_score : row.baseline.mean_score)));
   return (
     <div className="panel">
       <div className="panel-title">
         <h3>Official leaderboard</h3>
         <span>
-          preset {data.preset.name} · {data.preset.seeds.length} seeds × {data.preset.seasons} seasons · updated {data.updated}
+          {`preset ${data.preset.name} · ${data.preset.seeds.length} seeds × ${data.preset.seasons} seasons`}
+          {data.updated ? ` · updated ${data.updated}` : ""}
         </span>
       </div>
       <div className="table-wrap">
@@ -73,10 +82,12 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
               <th>#</th>
               <th>Model</th>
               <th>Status</th>
+              <th>Lane</th>
               <th className="num">Score</th>
               <th></th>
               <th className="num">Lift vs panel</th>
               <th className="num">Fallback</th>
+              <th className="num">Failed queries</th>
               <th className="num">Tok/decision</th>
               <th className="num">Cost/episode</th>
               <th className="num">Latency</th>
@@ -98,6 +109,7 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
                     <td>
                       <span className="tag tag-baseline">baseline</span>
                     </td>
+                    <td className="mono-dim">—</td>
                     <td className="num mono-dim">{fmt(row.baseline.mean_score, 1)}</td>
                     <td>
                       <div className="bar-track">
@@ -113,6 +125,7 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
                     </td>
                     <td className="num mono-dim">—</td>
                     <td className="num mono-dim">—</td>
+                    <td className="num mono-dim">0</td>
                     <td className="num mono-dim">0</td>
                     <td className="num mono-dim">$0</td>
                     <td className="num mono-dim">—</td>
@@ -131,6 +144,7 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
                     </span>
                   </td>
                   <td>{statusTag(model)}</td>
+                  <td className="mono-dim">{laneLabel(model)}</td>
                   <td className="num score-strong">{fmt(model.mean_score, 1)}</td>
                   <td>
                     <div className="bar-track">
@@ -149,6 +163,9 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
                     {model.significant ? " ✓" : ""}
                   </td>
                   <td className="num mono-dim">{pct(model.fallback_rate)}</td>
+                  <td className="num mono-dim">
+                    {model.failed_queries === undefined ? "—" : model.failed_queries}
+                  </td>
                   <td className="num mono-dim">{model.tokens_per_decision === null ? "—" : fmt(model.tokens_per_decision, 0)}</td>
                   <td className="num mono-dim">{cost(model)}</td>
                   <td className="num mono-dim">
@@ -161,14 +178,17 @@ function LeaderboardTable({ data }: { data: LeaderboardData }) {
         </table>
       </div>
       <div className="legend">
-        <span>sota-v1 = 3 repeats, official seed panel, full usage, low fallback, full baseline panel</span>
+        <span>sota-v2 = 3 repeats, official seed panel, full usage, low fallback, full baseline panel</span>
         <span>seed-panel hash is an integrity check for a known panel, not a secrecy mechanism</span>
         <span>contract fingerprint pins simulator, scoring, preset, and action schemas</span>
         <span>eligible rows may still show warnings (illegal actions, fallback, insignificant lift)</span>
         <span>diagnostic rows are useful evidence, but not frontier-model claims</span>
         <span>✓ lift significant at 95% (paired bootstrap)</span>
         <span>fallback = decisions answered by the adapter's fallback policy, not the model</span>
+        <span>failed queries = scout/inspect/list_free_agents declines with no protocol penalty; rates above 1.0/decision fail sota-v2</span>
         <span>cost from measured tokens × published prices; CLI lanes report their own cost</span>
+        <span>lane = CLI harness (codex/claude/cursor/opencode, own tool loop and scaffold) vs direct API call — not comparable to each other</span>
+        <span>tokens/decision tracks published score closely; read score next to lane, tokens/decision, and cost, not alone</span>
       </div>
     </div>
   );
@@ -190,10 +210,35 @@ function EmptyState() {
         <code>
           {`LLM_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \\
   --preset leaderboard --repeats 3 --json > results/leaderboard/openai-gpt-5.4.json
-python -m gm_bench validate-result results/leaderboard/openai-gpt-5.4.json --policy sota-v1
+python -m gm_bench validate-result results/leaderboard/openai-gpt-5.4.json --policy sota-v2
 python web/scripts/build_leaderboard.py`}
         </code>
       </pre>
+    </div>
+  );
+}
+
+function ArchiveNotice() {
+  return (
+    <div className="panel">
+      <div className="panel-title">
+        <h3>Withdrawn: the sota-v1 results</h3>
+        <span>retained as evidence · not a ranking</span>
+      </div>
+      <p style={{ maxWidth: 640 }}>
+        Every score published under the previous <code>sota-v1</code> contract has been withdrawn. The
+        scaffold prompt documented <code>{`{"type":"scout","prospect_id":N}`}</code> as a valid action,
+        but the simulator only ever read <code>player_id</code> and silently rejected the documented
+        form. The rejections carried no protocol penalty, so they never appeared in any summary.
+      </p>
+      <p style={{ maxWidth: 640 }}>
+        The defect did not fall evenly. It cost some candidates over a thousand silently-rejected
+        lookups and others none at all, while the scripted baselines — which used{" "}
+        <code>player_id</code> — were untouched. The v1 table was therefore not a valid ranking of
+        the models in it, and no caveat makes it one. The raw artifacts remain in{" "}
+        <code>results/leaderboard/archive-v1/</code> as evidence of the defect, and the board above
+        refills as <code>sota-v2</code> runs land.
+      </p>
     </div>
   );
 }
@@ -213,6 +258,7 @@ export default function Leaderboard({ data }: { data: LeaderboardData }) {
         </div>
         <LeaderboardTable data={data} />
         {data.models.length === 0 && <EmptyState />}
+        <ArchiveNotice />
       </div>
     </section>
   );

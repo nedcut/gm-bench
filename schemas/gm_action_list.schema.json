@@ -99,7 +99,7 @@
         },
         {
           "if": { "properties": { "type": { "const": "scout" } } },
-          "then": { "required": ["player_id"] }
+          "then": { "anyOf": [{ "required": ["player_id"] }, { "required": ["prospect_id"] }] }
         },
         {
           "if": { "properties": { "type": { "const": "accept_trade_offer" } } },

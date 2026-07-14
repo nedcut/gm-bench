@@ -24,6 +24,7 @@ from gm_bench.protocol import (
     NON_PENALIZED_TYPES,
     PARTIAL_SEASON_FRACTION,
     PROTOCOL_VERSION,
+    QUERY_ACTION_TYPES,
     ActionResult,
     ObservationTier,
 )
@@ -58,6 +59,7 @@ class League:
     summaries: list[SeasonSummary] = field(default_factory=list)
     illegal_actions: int = 0
     rejected_offers: int = 0
+    failed_queries: int = 0
     rng_state_offset: int = 0
     agent_memo: str = ""
     partner_trades: dict[int, int] = field(default_factory=dict)
@@ -426,10 +428,15 @@ class League:
         point spent early keeps paying off. Noise is seeded per player (not via
         `_rng`), so scouting never perturbs the league's RNG stream.
         """
-        player_id = int(action.get("player_id", -1))
+        # The scaffold advertises both keys; players and prospects share one id
+        # namespace, so accept either and resolve against both pools.
+        raw_id = action.get("player_id")
+        if raw_id is None:
+            raw_id = action.get("prospect_id", -1)
+        player_id = int(raw_id)
         target = self.players.get(player_id) or self.prospects.get(player_id)
         if target is None:
-            self._record(action, phase, False, "no such player or prospect to scout")
+            self._record(action, phase, False, f"no player or prospect with id {player_id} to scout")
             return
         if player_id in self.scout_reports:
             self._record(action, phase, False, "player already scouted; see scout_reports")
@@ -445,7 +452,10 @@ class League:
     def _inspect_team(self, action: dict[str, Any], phase: str) -> ActionResult:
         team_id = int(action.get("team_id", -1))
         if team_id not in self.teams:
-            return self._record(action, phase, False, "unknown team id", penalize=False)
+            valid = ", ".join(str(tid) for tid in sorted(self.teams))
+            return self._record(
+                action, phase, False, f"unknown team id {team_id}; valid team ids: {valid}", penalize=False
+            )
         team = self.teams[team_id]
         data = {
             "team": team.public_dict(self.players, self.cap),
@@ -456,7 +466,7 @@ class League:
     def _inspect_player(self, action: dict[str, Any], phase: str) -> ActionResult:
         player_id = int(action.get("player_id", -1))
         if player_id not in self.players:
-            return self._record(action, phase, False, "unknown player id", penalize=False)
+            return self._record(action, phase, False, f"unknown player id {player_id}", penalize=False)
         return self._record(
             action,
             phase,
@@ -892,6 +902,13 @@ class League:
                 )
                 if should_penalize:
                     self.illegal_actions += 1
+                elif action.get("type", "") in QUERY_ACTION_TYPES:
+                    # Failed queries (scout/inspect/list_free_agents): no
+                    # protocol penalty, but tracked so a run of misfired
+                    # lookups is not invisible in the summary. Other
+                    # non-penalized declines (e.g. malformed memo text) are
+                    # not queries and stay out of this diagnostic.
+                    self.failed_queries += 1
         self.transactions.append(Transaction(self.season, phase, team_id, action, accepted, message))
         if team_id == self.user_team_id:
             self._action_results.append(result)

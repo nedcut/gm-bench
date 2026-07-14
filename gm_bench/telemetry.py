@@ -127,7 +127,7 @@ def aggregate_usage(records: list[dict[str, Any]]) -> dict[str, Any]:
     upstream_providers = Counter(record["upstream_provider"] for record in records if record.get("upstream_provider"))
     # A multi-round decision window emits one usage record per round; coverage
     # must count decision points, not rounds, or extra rounds on one decision
-    # would mask missing usage on another (and pass the sota-v1 coverage gate).
+    # would mask missing usage on another (and pass the sota-v2 coverage gate).
     decision_keys = {
         (record["season"], record["phase"])
         for record in records

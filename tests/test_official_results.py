@@ -9,9 +9,12 @@ from gm_bench import cli as cli_module
 from gm_bench.benchmark_config import PRESETS, PRIVATE_SEEDS_ENV, seed_panel_metadata
 from gm_bench.contract import benchmark_contract, scaffold_fingerprint
 from gm_bench.official import (
+    ARCHIVE_V1_POLICY,
     PUBLIC_LEADERBOARD_POLICY,
     REDACTED_SEEDS_SENTINEL,
+    SOTA_V1_CONTRACT,
     SOTA_V1_POLICY,
+    SOTA_V2_POLICY,
     redact_leaderboard_payload,
     validate_leaderboard_payload,
 )
@@ -140,33 +143,84 @@ def test_historical_baseline_panel_is_diagnostic_but_not_sota() -> None:
     assert public_report.ok
     assert "historical baseline panel differs from the current official panel" in public_report.warnings
 
-    sota_report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    sota_report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert not sota_report.ok
     assert any(error.startswith("baselines must be") for error in sota_report.errors)
 
 
-def test_sota_v1_policy_requires_repeats() -> None:
-    report = validate_leaderboard_payload(_official_payload(repeats=1), policy=SOTA_V1_POLICY)
+def test_sota_v2_policy_requires_repeats() -> None:
+    report = validate_leaderboard_payload(_official_payload(repeats=1), policy=SOTA_V2_POLICY)
     assert not report.ok
-    assert "candidate.repeats must be >= 3 for sota-v1" in report.errors
+    assert "candidate.repeats must be >= 3 for sota-v2" in report.errors
 
 
-def test_sota_v1_policy_rejects_high_failure_rate() -> None:
-    report = validate_leaderboard_payload(_official_payload(repeats=3, failure_rate=0.05), policy=SOTA_V1_POLICY)
+def test_sota_v2_policy_rejects_high_failure_rate() -> None:
+    report = validate_leaderboard_payload(_official_payload(repeats=3, failure_rate=0.05), policy=SOTA_V2_POLICY)
     assert not report.ok
     assert any("decision_failure_rate" in error for error in report.errors)
 
 
-def test_sota_v1_policy_requires_full_usage() -> None:
+def test_sota_v2_policy_rejects_runaway_failed_queries() -> None:
+    # The v1 scout-contract break produced 1,124 silently-rejected lookups across
+    # 480 decisions (2.34/decision) while reporting a clean summary. That row must
+    # not be publishable again.
+    payload = _official_payload(repeats=3)
+    decisions = int(payload["candidate"]["summary"]["decisions"])
+    payload["candidate"]["summary"]["failed_queries"] = decisions * 2 + 1
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+    assert not report.ok
+    assert any("failed queries" in error for error in report.errors)
+
+
+def test_failed_queries_warn_below_the_hard_gate() -> None:
+    payload = _official_payload(repeats=3)
+    decisions = int(payload["candidate"]["summary"]["decisions"])
+    payload["candidate"]["summary"]["failed_queries"] = int(decisions * 0.5)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+    assert report.ok
+    assert any("failed queries" in warning for warning in report.warnings)
+
+    # A handful of misfired lookups is normal exploration, not a signal.
+    payload["candidate"]["summary"]["failed_queries"] = int(decisions * 0.1)
+    quiet = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+    assert quiet.ok
+    assert not any("failed queries" in warning for warning in quiet.warnings)
+
+
+def test_archive_v1_policy_asserts_provenance_not_eligibility() -> None:
+    # `archive-v1` exists to prove an artifact is a genuine v1 artifact. It must
+    # accept rows that never cleared the strict sota-v1 bar -- two real archived
+    # rows (ollama-gemma4-e4b, ollama-qwen3-5-latest) did not -- because the
+    # archive preserves evidence rather than endorsing it.
+    payload = _official_payload(repeats=3, failure_rate=0.05)
+    payload["run_info"]["benchmark_contract"] = dict(SOTA_V1_CONTRACT)
+
+    lenient = validate_leaderboard_payload(payload, policy=ARCHIVE_V1_POLICY)
+    assert lenient.ok, lenient.errors
+
+    strict = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    assert not strict.ok
+    assert any("decision_failure_rate" in error for error in strict.errors)
+
+
+def test_archive_v1_policy_rejects_a_non_v1_artifact() -> None:
+    # The archive must not silently drift onto a newer contract.
+    payload = _official_payload(repeats=3)  # carries the current (v2) contract
+    report = validate_leaderboard_payload(payload, policy=ARCHIVE_V1_POLICY)
+    assert not report.ok
+    assert any("contract" in error.lower() for error in report.errors)
+
+
+def test_sota_v2_policy_requires_full_usage() -> None:
     payload = _official_payload(repeats=3)
     payload["candidate"]["summary"]["usage"]["decisions_with_usage"] = 0
-    report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert not report.ok
     assert "candidate usage must cover every decision point" in report.errors
 
     payload = _official_payload(repeats=3)
     payload["candidate"]["summary"]["usage"]["cost_usd"] = "missing"
-    report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert not report.ok
     assert "candidate usage.cost_usd is required, use null only when pricing is unknown" in report.errors
 
@@ -193,12 +247,12 @@ def test_openrouter_price_route_is_public_diagnostic_but_not_sota() -> None:
     assert public.ok
     assert any("price-routed OpenRouter diagnostic" in warning for warning in public.warnings)
 
-    sota = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    sota = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert not sota.ok
     assert any("OPENROUTER_PROVIDER_ONLY" in error for error in sota.errors)
 
 
-def test_sota_v1_accepts_pinned_single_upstream_openrouter_route() -> None:
+def test_sota_v2_accepts_pinned_single_upstream_openrouter_route() -> None:
     payload = _official_payload(repeats=3)
     payload["agent"] = "openrouter:openai/gpt-test"
     payload["candidate"]["agent"] = payload["agent"]
@@ -216,69 +270,69 @@ def test_sota_v1_accepts_pinned_single_upstream_openrouter_route() -> None:
     )
     payload["candidate"]["summary"]["usage"]["upstream_providers"] = ["OpenAI"]
 
-    report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert report.ok
 
 
-def test_sota_v1_policy_requires_contract_provenance() -> None:
+def test_sota_v2_policy_requires_contract_provenance() -> None:
     payload = _official_payload(repeats=3)
     del payload["run_info"]["benchmark_contract"]
-    report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert not report.ok
     assert "run_info.benchmark_contract is required for current-contract validation" in report.errors
 
 
-def test_sota_v1_policy_requires_seed_panel_provenance() -> None:
+def test_sota_v2_policy_requires_seed_panel_provenance() -> None:
     payload = _official_payload(repeats=3)
     del payload["run_info"]["seed_panel"]
-    report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert not report.ok
     assert "run_info.seed_panel is required for official seed-panel validation" in report.errors
 
 
-def test_sota_v1_policy_rejects_contract_fingerprint_mismatch() -> None:
+def test_sota_v2_policy_rejects_contract_fingerprint_mismatch() -> None:
     payload = _official_payload(repeats=3)
     payload["run_info"]["benchmark_contract"]["contract_fingerprint"] = "stale"
-    report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert not report.ok
     assert any("contract_fingerprint" in error for error in report.errors)
 
 
-def test_sota_v1_policy_accepts_private_panel_when_env_matches(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sota_v2_policy_accepts_private_panel_when_env_matches(monkeypatch: pytest.MonkeyPatch) -> None:
     private_seeds = [101, 102, 110, 111, 112, 113, 114, 115]
     monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-115")
     report = validate_leaderboard_payload(
         _official_payload(repeats=3, seeds=private_seeds),
-        policy=SOTA_V1_POLICY,
+        policy=SOTA_V2_POLICY,
     )
     assert report.ok
 
 
-def test_sota_v1_policy_rejects_too_small_private_panel(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sota_v2_policy_rejects_too_small_private_panel(monkeypatch: pytest.MonkeyPatch) -> None:
     private_seeds = [101, 102, 110, 111]
     monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-111")
     report = validate_leaderboard_payload(
         _official_payload(repeats=3, seeds=private_seeds),
-        policy=SOTA_V1_POLICY,
+        policy=SOTA_V2_POLICY,
     )
     assert not report.ok
-    assert "seeds must contain at least 8 seed(s) for sota-v1" in report.errors
+    assert "seeds must contain at least 8 seed(s) for sota-v2" in report.errors
 
 
-def test_sota_v1_policy_rejects_private_panel_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sota_v2_policy_rejects_private_panel_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
     private_seeds = [101, 102, 110, 111, 112, 113, 114, 115]
     monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-115")
     payload = _official_payload(repeats=3, seeds=private_seeds)
     monkeypatch.delenv(PRIVATE_SEEDS_ENV)
-    report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert not report.ok
     assert f"{PRIVATE_SEEDS_ENV} is required to validate a private leaderboard seed panel" in report.errors
 
 
-def test_sota_v1_policy_rejects_seed_panel_hash_mismatch() -> None:
+def test_sota_v2_policy_rejects_seed_panel_hash_mismatch() -> None:
     payload = _official_payload(repeats=3)
     payload["run_info"]["seed_panel"]["sha256"] = "stale"
-    report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert not report.ok
     assert any("seed_panel.sha256" in error for error in report.errors)
 
@@ -289,7 +343,7 @@ def test_redact_leaderboard_payload_removes_private_seed_details(monkeypatch: py
     redacted, report = redact_leaderboard_payload(_official_payload(repeats=3, seeds=private_seeds))
 
     assert report.ok
-    assert redacted["validation_reports"]["sota-v1"]["ok"] is True
+    assert redacted["validation_reports"]["sota-v2"]["ok"] is True
     assert redacted["redaction"]["applied"] is True
     assert redacted["seeds"] == REDACTED_SEEDS_SENTINEL
     assert redacted["candidate"]["seeds"] == REDACTED_SEEDS_SENTINEL
@@ -311,7 +365,7 @@ def test_cli_redact_result_writes_public_safe_artifact(tmp_path: Path, monkeypat
     payload = json.loads(redacted_path.read_text())
     assert payload["seeds"] == REDACTED_SEEDS_SENTINEL
     assert payload["candidate"]["episodes"] == []
-    assert payload["validation_reports"]["sota-v1"]["ok"] is True
+    assert payload["validation_reports"]["sota-v2"]["ok"] is True
 
 
 def test_leaderboard_builder_accepts_redacted_private_artifact(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -321,24 +375,24 @@ def test_leaderboard_builder_accepts_redacted_private_artifact(monkeypatch: pyte
     monkeypatch.delenv(PRIVATE_SEEDS_ENV)
 
     # Revalidation must succeed without the private seed env: only the commitment remains.
-    report = validate_leaderboard_payload(redacted, policy=SOTA_V1_POLICY)
+    report = validate_leaderboard_payload(redacted, policy=SOTA_V2_POLICY)
     assert report.ok
 
     row = model_row(redacted)
 
     assert row["seeds"] is None
     assert row["seed_panel"] == "private-env"
-    assert row["sota_v1_eligible"] is True
-    assert row["sota_v1_issues"] == []
+    assert row["sota_v2_eligible"] is True
+    assert row["sota_v2_issues"] == []
 
 
 def test_leaderboard_builder_revalidates_forged_sota_report() -> None:
     payload = _official_payload(repeats=1, failure_rate=0.05)
-    payload["validation_reports"] = {"sota-v1": {"ok": True, "errors": []}}
+    payload["validation_reports"] = {"sota-v2": {"ok": True, "errors": []}}
 
     row = model_row(payload)
 
-    assert row["sota_v1_eligible"] is False
+    assert row["sota_v2_eligible"] is False
 
 
 def test_leaderboard_builder_rejects_forged_redacted_sota_report() -> None:
@@ -358,25 +412,25 @@ def test_leaderboard_builder_rejects_forged_redacted_sota_report() -> None:
         "preset": "leaderboard",
     }
     payload["redaction"] = {"applied": True, "seed_panel": "private-env", "removed": ["seeds"]}
-    payload["validation_reports"] = {"sota-v1": {"policy": "sota-v1", "ok": True, "errors": [], "warnings": []}}
+    payload["validation_reports"] = {"sota-v2": {"policy": "sota-v2", "ok": True, "errors": [], "warnings": []}}
 
-    report = validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert not report.ok
     assert any("candidate.repeats" in error for error in report.errors)
     assert any("decision_failure_rate" in error for error in report.errors)
 
     row = model_row(payload)
-    assert row["sota_v1_eligible"] is False
+    assert row["sota_v2_eligible"] is False
 
 
-def test_sota_v1_policy_accepts_valid_redacted_private_artifact(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sota_v2_policy_accepts_valid_redacted_private_artifact(monkeypatch: pytest.MonkeyPatch) -> None:
     private_seeds = [101, 102, 110, 111, 112, 113, 114, 115]
     monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-115")
     redacted, report = redact_leaderboard_payload(_official_payload(repeats=3, seeds=private_seeds))
     assert report.ok
     monkeypatch.delenv(PRIVATE_SEEDS_ENV)
 
-    revalidated = validate_leaderboard_payload(redacted, policy=SOTA_V1_POLICY)
+    revalidated = validate_leaderboard_payload(redacted, policy=SOTA_V2_POLICY)
     assert revalidated.ok
 
 

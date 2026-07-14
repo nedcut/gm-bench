@@ -380,3 +380,8 @@ def test_leaderboard_selects_official_then_newest_diagnostic() -> None:
 
     selected = select_model_payloads([(new, False, "new.json"), (old, True, "official.json")])
     assert selected == [old]
+
+    current = {**new, "run_info": {"benchmark_contract": {"benchmark_version": "sota-v2"}}}
+    historical = {**old, "run_info": {"benchmark_contract": {"benchmark_version": "sota-v1"}}}
+    selected = select_model_payloads([(current, 2, "current.json"), (historical, 1, "archive.json")])
+    assert selected == [current, historical]

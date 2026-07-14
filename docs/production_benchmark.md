@@ -3,20 +3,24 @@
 GM-Bench has two result tiers:
 
 - `public-leaderboard`: a structurally valid public leaderboard result.
-- `sota-v1`: the stricter standard for claims about frontier model GM ability.
+- `sota-v2`: the stricter standard for claims about frontier model GM ability.
+- `sota-v1`: the frozen historical validator for archived v1 evidence. It does
+  not make a v1 row comparable to v2; it only keeps the archived contract
+  independently auditable.
 
 The public leaderboard can show development and diagnostic rows, including local
-models that are below the scripted baselines. A `sota-v1` result is the minimum
+models that are below the scripted baselines. A `sota-v2` result is the minimum
 bar for a result that should be compared as a serious model benchmark.
 
 Committed official artifacts belong in `results/leaderboard/` and must pass the
 `public-leaderboard` validator in CI. Ineligible runs that are retained for
-transparency belong in `results/diagnostics/`; the site builder includes those
-rows explicitly while preserving the official-artifact gate.
+transparency belong in `results/diagnostics/`. The site builder separates
+current v2 rows from explicitly archived pre-v2 evidence while preserving the
+official-artifact gate.
 
-## SOTA-v1 Requirements
+## SOTA-v2 Requirements
 
-A `sota-v1` result must be produced by:
+A `sota-v2` result must be produced by:
 
 ```bash
 python -m gm_bench model \
@@ -29,7 +33,7 @@ python -m gm_bench model \
 
 Model / external-process adapters run **serially by default** (one episode at a
 time). Parallel fan-out across seeds×repeats will burn provider rate limits and
-fill rows with fallback `noop`s, which then fails the sota-v1 failure-rate gate.
+fill rows with fallback `noop`s, which then fails the sota-v2 failure-rate gate.
 Opt into concurrency only when the provider can handle it:
 `GM_BENCH_WORKERS=N` or `--workers N`. Scripted in-process baselines still
 parallelize.
@@ -39,7 +43,7 @@ default — leave it unset or force `GM_BENCH_WORKERS=1` for Claude. On 2026-07-
 parallel Sonnet leaderboard panel emptied a Claude Pro 5h usage limit in ~5
 minutes wall clock and produced a 0.873 decision failure rate. The
 multi-megabyte failed artifact is intentionally not retained. Prefer
-`--preset smoke` first; a clean serial sota-v1 panel is
+`--preset smoke` first; a clean serial sota-v2 panel is
 multi-hour quota spend, not a quick retry.
 
 Fresh-spawn serial model panels write an atomic checkpoint after every completed
@@ -66,7 +70,7 @@ python -m gm_bench model \
 python -m gm_bench redact-result \
   /tmp/gm-bench-<provider>-<model>-private.raw.json \
   --output results/leaderboard/<provider>-<model>-private.redacted.json \
-  --policy sota-v1
+  --policy sota-v2
 ```
 
 It must also satisfy the machine validator:
@@ -74,10 +78,10 @@ It must also satisfy the machine validator:
 ```bash
 python -m gm_bench validate-result \
   results/leaderboard/<provider>-<model>.json \
-  --policy sota-v1
+  --policy sota-v2
 ```
 
-Before publishing SOTA-v1 claims from a new source contract, run the benchmark
+Before publishing SOTA-v2 claims from a new source contract, run the benchmark
 validity canaries:
 
 ```bash
@@ -110,7 +114,7 @@ The validator enforces:
 - An official seed panel: either the public held-back `leaderboard` panel, or
   a private panel proven by the local `GM_BENCH_PRIVATE_SEEDS` value.
 - Five seasons per seed.
-- The full v1 baseline panel: `random`, `conservative`, `win-now`, `rebuild`,
+- The full baseline panel: `random`, `conservative`, `win-now`, `rebuild`,
   `value`, `shrewd`, `strategic`, and `pick-trader`.
 - At least 3 candidate repeats per seed, so model sampling noise is observable.
 - Full usage telemetry for every decision point.
@@ -120,7 +124,7 @@ The validator enforces:
 - Fresh-spawn condition: `run_info.session` must be absent or false. Session
   rows (`--session`, model keeps its full trajectory in context) are a separate
   labeled condition — publishable, but never comparable with memo-only rows and
-  never `sota-v1`.
+  never `sota-v2`.
 - Scaffold provenance: new rows record `run_info.scaffold_fingerprint`, a
   per-provider hash of the prompt scaffold (shared prompt builder plus the
   provider's adapter script and spec). A recorded fingerprint that does not
@@ -133,30 +137,90 @@ Warnings are still attached to otherwise valid results when the model has
 illegal actions, any adapter fallback/error decisions, insignificant lift, or a
 failure to beat the strongest scripted baseline. Those warnings are not hidden:
 the public leaderboard builder always revalidates eligibility (it never trusts
-embedded `validation_reports`), carries `sota_v1_eligible` and
-`sota_v1_issues` into `web/src/data/leaderboard.json`, and the UI surfaces
+embedded `validation_reports`), carries `sota_v2_eligible` and
+`sota_v2_issues` into `web/src/data/leaderboard.json`, and the UI surfaces
 warning counts on otherwise eligible rows. Contract version/fingerprint and
 seed-panel name/hash are included when present.
+
+### `failed_queries`
+
+`scout`, `inspect_team`, `inspect_player`, and `list_free_agents`
+(`gm_bench/protocol.py` `QUERY_ACTION_TYPES`) are declined without a protocol
+penalty when the lookup target doesn't resolve — querying is free, so a bad
+query shouldn't cost score the way an illegal mutating action does. Under
+`sota-v1` that meant failed queries were invisible: they showed up nowhere in
+episode results, run summaries, or comparison blocks, no matter how many
+there were. `episode.failed_queries`, `summary.failed_queries`, and
+`candidate.summary.failed_queries` in comparison output now count them
+explicitly, the same way `illegal_actions` is counted.
+
+Failed queries are zero-penalty by design, but runaway rates are gated by
+`failed_queries / decisions`:
+
+- **warning** above `warn_failed_query_rate` (**0.25**): the model is misfiring
+  lookups often enough that it may not be reading query errors back before
+  retrying.
+- **hard error under `sota-v2`** above `max_failed_query_rate` (**1.0**): more
+  failed lookups than decisions on average. That row is **ineligible**, not a
+  soft diagnostic — under v1 this is exactly how the scout contract break hid
+  itself (Luna ~2.3 failed queries/decision).
+
+A `sota-v2` row can still be eligible with the warning alone; crossing the
+hard gate fails validation.
+
+### Reporting requirements
+
+Score alone is not a fair comparison: within this leaderboard, published
+score tracks tokens/decision almost monotonically. Any published score claim
+— a leaderboard row, a table in a writeup, a comparison in an issue — must be
+accompanied by:
+
+- **Lane**: direct API vs. a coding-agent CLI harness (Claude Code, Codex,
+  Cursor, opencode). `run_info.transport` records this
+  (`direct-api` / `gateway-api` / `coding-harness` / `local-api`); the site
+  collapses it to `lane: cli-harness | api`. A CLI harness brings its own tool
+  loop, retry behavior, and prompt scaffold on top of the model, so a harness
+  row and a direct-API row for the "same" model are not the same measurement.
+- **Mean tokens/decision**: `candidate_mean_tokens_per_decision` in
+  comparison output, `tokens_per_decision` on the site. This is the strongest
+  available proxy for how much compute a row spent per decision.
+- **Cost**: `usage.cost_usd` (from `gm_bench/pricing.json` or adapter-reported
+  cost), and `cost_per_episode_usd` on the site.
+- **Reasoning-effort / output-cap settings**: whatever the provider exposes
+  (`OPENROUTER_REASONING_EFFORT`, `OPENROUTER_MAX_TOKENS`, a CLI's own
+  `--profile`/effort flag, etc.), recorded in `run_info.provider_options`.
+
+Omitting any of these turns a score into an unfalsifiable claim: a higher
+score with no compute context could just mean more tokens were spent, not
+that the model is a better GM.
 
 `redact-result` only writes an output file when the selected policy passes.
 Invalid private runs stay local; do not publish them.
 
 ## Contract freeze
 
-The `sota-v1` leaderboard contract is **frozen at fingerprint
-`cf2607e59dba0c7f`** (protocol `gm-bench-v2` with midseason, the full v1
-baseline panel, public seeds 11–18) as of 2026-07-09. Every contract change so
-far has invalidated all prior model rows; a leaderboard only accumulates
-comparable results while the contract holds still.
+The `sota-v2` leaderboard contract is **frozen at fingerprint
+`a65a4359ca3c6e64`** (protocol `gm-bench-v2` with midseason, the full baseline
+panel, public seeds 11–18) as of 2026-07-13. It supersedes `sota-v1`, frozen
+at fingerprint `cf2607e59dba0c7f`: under `sota-v1` the simulator accepted a
+`scout` action's `player_id` only, even though the scaffold prompt also
+documented `prospect_id`, and never surfaced failed query actions in any
+summary (see
+[`results/leaderboard/archive-v1/README.md`](../results/leaderboard/archive-v1/README.md)
+for the affected rows and their effect on candidate-vs-baseline comparisons).
+Every contract change so far has invalidated all prior model rows; a
+leaderboard only accumulates comparable results while the contract holds
+still.
 
 Under the freeze:
 
 - New model rows run against the frozen contract; `validate-result` already
   rejects rows whose fingerprint does not match the current source.
 - Simulator, scoring, preset, or schema changes that alter the fingerprint do
-  not amend `sota-v1` — they start a new claim lane (`sota-v2`) with its own
-  re-cached baseline panel and reference means. Existing `sota-v1` rows stay
-  published and comparable with each other under their own contract.
+  not amend `sota-v2` — they start a new claim lane (`sota-v3`) with its own
+  re-cached baseline panel and reference means, exactly as `sota-v2` superseded
+  `sota-v1`. Existing `sota-v2` rows stay published and comparable with each
+  other under their own contract.
 - Changes that do not alter simulation or scoring behavior (CLI, docs,
   adapters, site) are free. A behavior-changing bug fix is a deliberate
   lane-versioning decision, not routine maintenance.
@@ -176,7 +240,7 @@ after seeing scores.
 - The private evaluation panel rotates **quarterly**. Each rotation picks a new
   held-out seed list (kept out of the repo, supplied at run time via
   `GM_BENCH_PRIVATE_SEEDS`) with at least as many seeds as the public panel —
-  `sota-v1` requires `len(PRESETS["leaderboard"]["seeds"])` seeds (currently 8),
+  `sota-v2` requires `len(PRESETS["leaderboard"]["seeds"])` seeds (currently 8),
   so a short panel is rejected.
 - Before the quarter's runs, publish a **salted commitment** to the new panel
   using `scripts/seed_panel_commitment.py commit`. The salt stays local (the
@@ -192,7 +256,7 @@ after seeing scores.
 
 Rotation changes the **panel**, not the **contract**. The private panel is
 supplied at run time and is *not* part of the contract fingerprint, so swapping
-it in and out does not touch the frozen `cf2607e59dba0c7f` and does not start a
+it in and out does not touch the frozen `a65a4359ca3c6e64` and does not start a
 new claim lane. The validator recognizes the private panel by the `private-env`
 name plus a seed-count and SHA-256 that it re-derives from the local
 `GM_BENCH_PRIVATE_SEEDS` value (or, for redacted artifacts, the declared
@@ -202,7 +266,7 @@ There is one sharp edge, enforced by the code and not to be papered over: the
 public panel (seeds 11–18) lives in `gm_bench/benchmark_config.py`, which **is**
 one of the contract-fingerprint sources (`gm_bench/contract.py`,
 `_CONTRACT_SOURCES`). Editing the canonical public panel changes the fingerprint
-and therefore ends `sota-v1` and opens `sota-v2` — it is a deliberate lane
+and therefore ends `sota-v2` and opens `sota-v3` — it is a deliberate lane
 version bump, not a free rotation. The validator also hardcodes exactly two
 official panel identities: `public-leaderboard` (must equal 11–18) and
 `private-env`. `custom` panels are rejected outright.
@@ -239,17 +303,21 @@ which the leaderboard builder carries through. Read the labels as:
 
 ## Interpretation
 
-Passing `sota-v1` does not mean the model is good. It means the result was run
+Passing `sota-v2` does not mean the model is good. It means the result was run
 on the official contract and is reliable enough to discuss. A model-backed
 result still needs to be interpreted next to:
 
 - mean score and paired lift against the baseline panel,
-- lift against `pick-trader`, the strongest v1 scripted baseline,
+- lift against `pick-trader`, the strongest scripted baseline,
 - seed win rate,
 - confidence interval and sign-flip p-value,
 - illegal-action count,
+- failed-query count,
 - fallback/error decision rate,
-- token usage, dollar cost, and latency.
+- lane (direct API vs. CLI harness), token usage, dollar cost, and latency.
 
-Results that fail `sota-v1` may still be useful diagnostics, but they should not
-be used as evidence about state-of-the-art GM skill.
+None of these is optional context: score alone, without lane and
+tokens/decision next to it, is not a comparable claim (see "Reporting
+requirements" above). Results that fail `sota-v2` may still be useful
+diagnostics, but they should not be used as evidence about state-of-the-art
+GM skill.
