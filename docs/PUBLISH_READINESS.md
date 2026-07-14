@@ -10,8 +10,8 @@
 **Last reviewed:** 2026-07-14
 **Current target:** Publish a validated `sota-v2` leaderboard, accompanying blog
 post, GitHub release, and public site.  
-**Current state:** Publication-capable infrastructure; definitive `sota-v2`
-experiment not yet complete.  
+**Current state:** Publication runner and gates are merged to `main`; the
+definitive `sota-v2` experiment has not yet started.
 **Current weekly focus:** [#63 — Publication sprint: freeze and ship GM-Bench
 `sota-v2`](https://github.com/nedcut/gm-bench/issues/63)  
 **Broader roadmap:** [#60 — Roadmap to a publishable leaderboard + blog
@@ -118,9 +118,9 @@ and the safe execution path needed for expensive model panels.
 This phase decides whether a single-number ranking is scientifically coherent.
 It must happen before the larger model panel.
 
-- [ ] Land or finalize the infrastructure in [#61 — publishable leaderboard
+- [x] Land or finalize the infrastructure in [#61 — publishable leaderboard
   pipeline](https://github.com/nedcut/gm-bench/pull/61).
-- [ ] Obtain an independent review of #61 after it leaves draft; resolve or
+- [x] Obtain an independent review of #61 after it leaves draft; resolve or
   explicitly disposition every substantive finding before expensive runs begin.
 - [x] Select three API models before seeing sweep results.
 - [x] Record exact provider/model IDs in `config/output_budget_sweep.json`.
@@ -500,7 +500,7 @@ than pasting large outputs.
 | --- | --- | --- | --- | --- |
 | 2026-07-14 | `sota-v2` contract transition | Merged | [#58](https://github.com/nedcut/gm-bench/pull/58) | Corrected scout behavior, surfaced failed queries, archived v1 evidence. |
 | 2026-07-14 | Model-run recovery hardening | Merged | [#59](https://github.com/nedcut/gm-bench/pull/59) | Serial safety, fail-fast, locking, checkpoint validation, atomic merge. |
-| 2026-07-14 | Publication pipeline | In progress | [#61](https://github.com/nedcut/gm-bench/pull/61) | Models/routes pre-registered and release gates hardened; paid sweep and model panel remain. |
+| 2026-07-14 | Publication pipeline | Merged | [#61](https://github.com/nedcut/gm-bench/pull/61) | Independent review complete; all findings addressed or dispositioned. Paid sweep and model panel remain. |
 | 2026-07-13 | Strategic contract mechanics | Deferred v3 draft | [#62](https://github.com/nedcut/gm-bench/pull/62) | Keep separate until v2 publication is complete. |
 | 2026-07-14 | Initial OpenRouter smoke | Superseded diagnostic | Qwen 1,024/4,096; GPT-5.4 mini 4,096 | Provider-default reasoning made Qwen consume its output allowance without usable content. This exposed the need to standardize reasoning and JSON settings; these scores are not benchmark evidence. |
 | 2026-07-14 | Standardized sweep smoke | Complete | Qwen 3.5 9B, GPT-5.4 mini, MiniMax M3 at 1,024 | Each model completed 4/4 decisions on its exact pinned route with reasoning disabled, zero failed decisions, zero repairs, and complete usage/cost telemetry. Combined artifact cost was under $0.04. Do not treat smoke scores as benchmark evidence. |
