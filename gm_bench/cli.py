@@ -37,6 +37,7 @@ from gm_bench.official import (
 )
 from gm_bench.oracle import OracleAgent
 from gm_bench.providers import PROVIDER_NAMES, build_provider_agent, provider_help
+from gm_bench.publication import PUBLICATION_FORMAT, canonical_sha256, compact_result, mechanic_breakdown
 from gm_bench.runner import evaluate_against_baselines, make_progress_printer, run_many, run_many_cached_baselines
 from gm_bench.session import PersistentProcessAgent
 from gm_bench.simulator import League
@@ -238,6 +239,16 @@ def main(argv: list[str] | None = None) -> None:
         help="validation policy to record before redaction",
     )
 
+    compact_parser = subparsers.add_parser(
+        "compact-result",
+        help="strip bulky traces while retaining validator-compatible per-seed evidence",
+    )
+    compact_parser.add_argument("path", help="raw model result JSON")
+    compact_parser.add_argument("--output", required=True, help="path for the compact publication artifact")
+    compact_parser.add_argument(
+        "--policy", choices=sorted(POLICIES), default=SOTA_V2_POLICY.name, help="policy that must pass before writing"
+    )
+
     validate_contract_parser = subparsers.add_parser(
         "validate-contract",
         help="run benchmark validity canaries against the official contract",
@@ -279,6 +290,8 @@ def main(argv: list[str] | None = None) -> None:
         _validate_result_command(args)
     elif args.command == "redact-result":
         _redact_result_command(args)
+    elif args.command == "compact-result":
+        _compact_result_command(args)
     elif args.command == "validate-contract":
         _validate_contract_command(args)
     elif args.command == "calibrate-score":
@@ -654,9 +667,34 @@ def _redact_result_command(args: argparse.Namespace) -> None:
     if not report.ok:
         print(f"invalid: policy={report.policy}; not writing {args.output}")
         sys.exit(1)
-    with open(args.output, "w") as handle:
-        json.dump(redacted, handle, indent=2, sort_keys=True)
-        handle.write("\n")
+    redacted["publication"] = {
+        "format": PUBLICATION_FORMAT,
+        "raw_artifact_sha256": canonical_sha256(payload),
+        "traces_included": False,
+        "mechanic_breakdown": mechanic_breakdown((payload.get("candidate") or {}).get("episodes", [])),
+    }
+    _write_json_atomic(Path(args.output), redacted)
+    print(f"ok: policy={report.policy} wrote {args.output}")
+
+
+def _compact_result_command(args: argparse.Namespace) -> None:
+    try:
+        with open(args.path) as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        sys.exit(f"gm-bench compact-result: cannot read {args.path}: {exc}")
+    if not isinstance(payload, dict):
+        sys.exit("gm-bench compact-result: result JSON must be an object")
+    report = validate_leaderboard_payload(payload, policy=POLICIES[args.policy])
+    if not report.ok:
+        for error in report.errors:
+            print(f"error: {error}")
+        sys.exit(f"invalid: policy={report.policy}; not writing {args.output}")
+    try:
+        compact = compact_result(payload)
+    except ValueError as exc:
+        raise SystemExit(f"gm-bench compact-result: {exc}") from exc
+    _write_json_atomic(Path(args.output), compact)
     print(f"ok: policy={report.policy} wrote {args.output}")
 
 
@@ -845,6 +883,8 @@ def _openrouter_route_config_errors(agent: Any, preset: str | None) -> list[str]
     errors: list[str] = []
     if len(only) != 1:
         errors.append("OPENROUTER_PROVIDER_ONLY must name exactly one upstream provider")
+    if not str(options.get("OPENROUTER_EXPECTED_ENDPOINT_NAME", "")).strip():
+        errors.append("OPENROUTER_EXPECTED_ENDPOINT_NAME must pin an exact endpoint")
     if str(options.get("OPENROUTER_ALLOW_FALLBACKS", "")).casefold() not in {"false", "0", "no", "off"}:
         errors.append("OPENROUTER_ALLOW_FALLBACKS must be false")
     return errors

@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "contract": "sota-v2",
+  "lane": "api",
+  "profile": "compact",
+  "output_token_caps": [256, 1024, 4096, 16384],
+  "models": [
+    {
+      "id": "openrouter-qwen3.5-9b-siliconflow",
+      "provider": "openrouter",
+      "model": "qwen/qwen3.5-9b",
+      "transport": "gateway-api",
+      "upstream_provider": "SiliconFlow",
+      "endpoint_name": "SiliconFlow | qwen/qwen3.5-9b-20260310",
+      "fixed_options": {
+        "OPENROUTER_PROVIDER_ONLY": "SiliconFlow",
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": "SiliconFlow | qwen/qwen3.5-9b-20260310",
+        "OPENROUTER_PROVIDER_SORT": "price",
+        "OPENROUTER_ALLOW_FALLBACKS": "false",
+        "OPENROUTER_REQUIRE_PARAMETERS": "true",
+        "OPENROUTER_DATA_COLLECTION": "deny",
+        "OPENROUTER_JSON_MODE": "true",
+        "OPENROUTER_REASONING_EFFORT": "none",
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_MAX_TOKENS",
+        "OPENROUTER_TEMPERATURE",
+        "OPENROUTER_QUANTIZATIONS",
+        "OPENROUTER_ZDR"
+      ]
+    },
+    {
+      "id": "openrouter-gpt-5.4-mini-openai",
+      "provider": "openrouter",
+      "model": "openai/gpt-5.4-mini",
+      "transport": "gateway-api",
+      "upstream_provider": "OpenAI",
+      "endpoint_name": "OpenAI | openai/gpt-5.4-mini-20260317",
+      "fixed_options": {
+        "OPENROUTER_PROVIDER_ONLY": "OpenAI",
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-5.4-mini-20260317",
+        "OPENROUTER_PROVIDER_SORT": "price",
+        "OPENROUTER_ALLOW_FALLBACKS": "false",
+        "OPENROUTER_REQUIRE_PARAMETERS": "true",
+        "OPENROUTER_DATA_COLLECTION": "deny",
+        "OPENROUTER_JSON_MODE": "true",
+        "OPENROUTER_REASONING_EFFORT": "none",
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_MAX_TOKENS",
+        "OPENROUTER_TEMPERATURE",
+        "OPENROUTER_QUANTIZATIONS",
+        "OPENROUTER_ZDR"
+      ]
+    },
+    {
+      "id": "openrouter-minimax-m3-minimax",
+      "provider": "openrouter",
+      "model": "minimax/minimax-m3",
+      "transport": "gateway-api",
+      "upstream_provider": "Minimax",
+      "endpoint_name": "Minimax | minimax/minimax-m3-20260531",
+      "fixed_options": {
+        "OPENROUTER_PROVIDER_ONLY": "Minimax",
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": "Minimax | minimax/minimax-m3-20260531",
+        "OPENROUTER_PROVIDER_SORT": "price",
+        "OPENROUTER_ALLOW_FALLBACKS": "false",
+        "OPENROUTER_REQUIRE_PARAMETERS": "true",
+        "OPENROUTER_DATA_COLLECTION": "deny",
+        "OPENROUTER_JSON_MODE": "true",
+        "OPENROUTER_REASONING_EFFORT": "none",
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_MAX_TOKENS",
+        "OPENROUTER_TEMPERATURE",
+        "OPENROUTER_QUANTIZATIONS",
+        "OPENROUTER_ZDR"
+      ]
+    }
+  ],
+  "repeats": 3,
+  "preset": "leaderboard",
+  "decision_rule": {
+    "required_models": 3,
+    "material_gain_relative": 0.05,
+    "material_gain_score_points": 10.0,
+    "non_saturation_output_token_cap": 16384
+  },
+  "require_complete_cost": true,
+  "selection_frozen_at_utc": "2026-07-14T23:10:09Z",
+  "selection_rationale": "small open model, mid-tier OpenAI model, and capable low-cost MiniMax model span expected capability while keeping the pre-publication sensitivity study financially practical",
+  "protocol_amendment": "Before any official sweep cell, replaced provider-dependent uncapped with a common 16,384-token ceiling; standardized JSON mode and reasoning disabled; replaced Grok with MiniMax based on ex-ante cost and verified privacy/parameter compatibility, not score.",
+  "status": "awaiting-runs"
+}

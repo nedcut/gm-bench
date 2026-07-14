@@ -10,6 +10,7 @@ from gm_bench.benchmark_config import PRESETS, PRIVATE_SEEDS_ENV, seed_panel_met
 from gm_bench.contract import benchmark_contract, scaffold_fingerprint
 from gm_bench.official import (
     ARCHIVE_V1_POLICY,
+    OUTPUT_BUDGET_SWEEP_POLICY,
     PUBLIC_LEADERBOARD_POLICY,
     REDACTED_SEEDS_SENTINEL,
     SOTA_V1_CONTRACT,
@@ -18,6 +19,7 @@ from gm_bench.official import (
     redact_leaderboard_payload,
     validate_leaderboard_payload,
 )
+from scripts.analyze_output_budget import analyze
 from web.scripts.build_leaderboard import model_row
 
 
@@ -123,6 +125,8 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
             "benchmark_contract": benchmark_contract(),
             "scaffold_fingerprint": scaffold_fingerprint("openai"),
             "seed_panel": seed_panel_metadata(seeds, "leaderboard"),
+            "protocol_repair_attempts": 1,
+            "provider_options": {"GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"},
         },
     }
 
@@ -130,6 +134,13 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
 def test_public_leaderboard_policy_accepts_single_repeat_payload() -> None:
     report = validate_leaderboard_payload(_official_payload(), policy=PUBLIC_LEADERBOARD_POLICY)
     assert report.ok
+
+
+def test_output_budget_policy_preserves_high_failure_cells() -> None:
+    payload = _official_payload(repeats=3, failure_rate=1.0)
+    report = validate_leaderboard_payload(payload, policy=OUTPUT_BUDGET_SWEEP_POLICY)
+    assert report.ok
+    assert any("adapter fallback" in warning for warning in report.warnings)
 
 
 def test_historical_baseline_panel_is_diagnostic_but_not_sota() -> None:
@@ -225,6 +236,56 @@ def test_sota_v2_policy_requires_full_usage() -> None:
     assert "candidate usage.cost_usd is required, use null only when pricing is unknown" in report.errors
 
 
+@pytest.mark.parametrize(
+    ("run_value", "option_value"),
+    [(None, "1"), (1, None), (-1, "-1"), (2, "2"), (0, "1"), ("bad", "1")],
+)
+def test_sota_v2_requires_matching_bounded_repair_provenance(run_value: object, option_value: object) -> None:
+    payload = _official_payload(repeats=3)
+    payload["run_info"]["protocol_repair_attempts"] = run_value
+    payload["run_info"]["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] = option_value
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+    assert not report.ok
+    assert any("repair" in error for error in report.errors)
+
+
+def test_output_budget_analysis_rejects_duplicate_cells() -> None:
+    payload = _official_payload(repeats=3)
+    payload["run_info"]["profile"] = "compact"
+    payload["run_info"]["transport"] = "direct-api"
+    payload["run_info"]["provider_options"] = {
+        "OPENAI_MAX_TOKENS": "256",
+        "GM_BENCH_OUTPUT_BUDGET_CELL": "256",
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+    }
+    usage = payload["candidate"]["summary"]["usage"]
+    usage.update({"input_tokens": 1000, "output_tokens": 500, "cost_decisions": usage["decisions_with_usage"]})
+    config = {
+        "contract": "sota-v2",
+        "profile": "compact",
+        "preset": "leaderboard",
+        "models": [
+            {
+                "id": "openai-gpt-test",
+                "provider": payload["run_info"]["provider"],
+                "model": "gpt-test",
+                "transport": "direct-api",
+                "fixed_options": {},
+                "absent_options": [],
+            }
+        ],
+        "output_token_caps": [256],
+        "repeats": 3,
+        "decision_rule": {"required_models": 1},
+    }
+
+    result = analyze(config, [payload, payload])
+
+    assert result["status"] == "incomplete"
+    assert result["publishable_ranking"] is False
+    assert result["duplicate_cells"] == [{"experiment_id": "openai-gpt-test", "output_token_cap": 256}]
+
+
 def test_openrouter_price_route_is_public_diagnostic_but_not_sota() -> None:
     payload = _official_payload(repeats=3)
     payload["agent"] = "openrouter:openai/gpt-test"
@@ -264,7 +325,9 @@ def test_sota_v2_accepts_pinned_single_upstream_openrouter_route() -> None:
             "scaffold_fingerprint": scaffold_fingerprint("openrouter"),
             "provider_options": {
                 "OPENROUTER_PROVIDER_ONLY": "openai",
+                "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-test-20260714",
                 "OPENROUTER_ALLOW_FALLBACKS": "false",
+                "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
             },
         }
     )
@@ -272,6 +335,32 @@ def test_sota_v2_accepts_pinned_single_upstream_openrouter_route() -> None:
 
     report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert report.ok
+
+
+def test_sota_v2_rejects_openrouter_upstream_that_differs_from_pin() -> None:
+    payload = _official_payload(repeats=3)
+    payload["agent"] = "openrouter:openai/gpt-test"
+    payload["candidate"]["agent"] = payload["agent"]
+    payload["run_info"].update(
+        {
+            "agent": payload["agent"],
+            "provider": "openrouter",
+            "model": "openai/gpt-test",
+            "scaffold_fingerprint": scaffold_fingerprint("openrouter"),
+            "provider_options": {
+                "OPENROUTER_PROVIDER_ONLY": "OpenAI",
+                "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-test-20260714",
+                "OPENROUTER_ALLOW_FALLBACKS": "false",
+                "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+            },
+        }
+    )
+    payload["candidate"]["summary"]["usage"]["upstream_providers"] = ["Azure"]
+
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+
+    assert not report.ok
+    assert any("does not match" in error for error in report.errors)
 
 
 def test_sota_v2_policy_requires_contract_provenance() -> None:

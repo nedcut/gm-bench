@@ -118,6 +118,67 @@ def test_aggregate_usage_empty():
     assert block["cost_usd"] is None
 
 
+def test_cost_coverage_counts_decision_points_not_multi_round_calls():
+    records = [
+        {
+            "provider": "openai",
+            "model": "gpt-5.4",
+            "season": 1,
+            "phase": "preseason",
+            "input_tokens": 100,
+            "output_tokens": 10,
+            "cost_usd": 0.01,
+        },
+        {
+            "provider": "openai",
+            "model": "gpt-5.4",
+            "season": 1,
+            "phase": "preseason",
+            "input_tokens": 120,
+            "output_tokens": 12,
+            "cost_usd": 0.02,
+        },
+        {
+            "provider": "openai",
+            "model": "gpt-5.4",
+            "season": 1,
+            "phase": "draft",
+            "input_tokens": 100,
+            "output_tokens": 10,
+            "cost_usd": 0.01,
+        },
+    ]
+    block = aggregate_usage(records)
+    assert block["decisions_with_usage"] == 2
+    assert block["cost_decisions"] == 2
+    assert block["cost_usd"] == pytest.approx(0.04)
+
+
+def test_cost_coverage_rejects_partially_priced_multi_round_decision():
+    records = [
+        {
+            "provider": "unpriced-provider",
+            "model": "unpriced-model",
+            "season": 1,
+            "phase": "preseason",
+            "input_tokens": 100,
+            "output_tokens": 10,
+            "cost_usd": 0.01,
+        },
+        {
+            "provider": "unpriced-provider",
+            "model": "unpriced-model",
+            "season": 1,
+            "phase": "preseason",
+            "input_tokens": 120,
+            "output_tokens": 12,
+        },
+    ]
+    block = aggregate_usage(records)
+    assert block["decisions_with_usage"] == 1
+    assert block["cost_decisions"] == 0
+
+
 def test_external_process_agent_parses_envelope(tmp_path):
     script = tmp_path / "agent.py"
     script.write_text(

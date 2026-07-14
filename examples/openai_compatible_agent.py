@@ -77,6 +77,9 @@ def choose_actions(
         payload: dict[str, Any] = {"model": model, "messages": messages}
         if os.environ.get("OPENAI_JSON_MODE", "true").strip().lower() in {"1", "true", "yes", "on"}:
             payload["response_format"] = {"type": "json_object"}
+        max_tokens = os.environ.get("OPENAI_MAX_TOKENS")
+        if max_tokens is not None:
+            payload["max_tokens"] = int(max_tokens)
         temperature = os.environ.get("OPENAI_TEMPERATURE") or os.environ.get("LLM_TEMPERATURE")
         if temperature is not None:
             payload["temperature"] = float(temperature)

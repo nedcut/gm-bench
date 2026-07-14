@@ -42,6 +42,91 @@ class ProviderSpec:
     provenance_env: tuple[str, ...] = ()
 
 
+class ProtocolRepairAgent(Agent):
+    """One bounded retry for adapter formatting failures, outside score contract."""
+
+    def __init__(self, wrapped: Agent, attempts: int = 1) -> None:
+        self.wrapped = wrapped
+        self.attempts = attempts
+        self.name = wrapped.name
+        self.env = getattr(wrapped, "env", None)
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        actions, _usage = self.act_with_usage(observation)
+        return actions
+
+    def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        actions, usage = self.wrapped.act_with_usage(observation)
+        if not _model_format_failed(actions) or not usage or not usage.get("api_calls"):
+            return actions, usage
+        merged = dict(usage)
+        for attempt in range(1, self.attempts + 1):
+            retry_observation = dict(observation)
+            retry_observation["protocol_repair"] = {"attempt": attempt}
+            actions, retry_usage = self.wrapped.act_with_usage(retry_observation)
+            merged = _merge_usage(merged, retry_usage)
+            merged["protocol_repair_attempts"] = attempt
+            if not _model_format_failed(actions):
+                merged["protocol_repairs_succeeded"] = 1
+                break
+        return actions, merged
+
+
+def _model_format_failed(actions: Any) -> bool:
+    """True only for JSON/schema format failures worth a bounded repair retry.
+
+    Deliberately does **not** match the generic fallback
+    ``"model produced no usable actions"`` — that string contains ``action``
+    but is not a format error, and treating it as one would burn an extra API
+    call and inflate tokens/cost.
+    """
+    if not isinstance(actions, list):
+        return False
+    needles = ("json", "schema", "not a list", "parse", "decode")
+    messages = [
+        str(action.get("model_error") or action.get("error") or "").lower()
+        for action in actions
+        if isinstance(action, dict)
+    ]
+    return any(any(needle in message for needle in needles) for message in messages)
+
+
+def _merge_usage(left: dict[str, Any], right: dict[str, Any] | None) -> dict[str, Any]:
+    if not right:
+        return left
+    merged = dict(left)
+    for key in (
+        "api_calls",
+        "input_tokens",
+        "cached_input_tokens",
+        "output_tokens",
+        "reasoning_tokens",
+        "total_tokens",
+        "api_latency_ms",
+    ):
+        if key in left or key in right:
+            merged[key] = round(float(left.get(key, 0)) + float(right.get(key, 0)), 6)
+            if key not in {"api_latency_ms", "cost_usd"}:
+                merged[key] = int(merged[key])
+    for key in ("provider", "model", "upstream_provider", "generation_id"):
+        if right.get(key):
+            merged[key] = right[key]
+    # Adapter-reported cost is authoritative only when both calls reported it.
+    # Otherwise aggregate_usage can estimate from the merged token totals.
+    if "cost_usd" in left and "cost_usd" in right:
+        merged["cost_usd"] = round(float(left["cost_usd"]) + float(right["cost_usd"]), 6)
+    else:
+        merged.pop("cost_usd", None)
+    upstreams = {str(value) for value in (left.get("upstream_provider"), right.get("upstream_provider")) if value}
+    upstreams.update(str(value) for value in left.get("upstream_providers", []) if value)
+    upstreams.update(str(value) for value in right.get("upstream_providers", []) if value)
+    if upstreams:
+        merged["upstream_providers"] = sorted(upstreams)
+        if len(upstreams) != 1:
+            merged.pop("upstream_provider", None)
+    return merged
+
+
 PROVIDERS: dict[str, ProviderSpec] = {
     "openai": ProviderSpec(
         name="openai",
@@ -52,6 +137,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
         default_profile="compact",
         transport="direct-api",
         credential_env=("OPENAI_API_KEY",),
+        provenance_env=("OPENAI_MAX_TOKENS", "OPENAI_TEMPERATURE", "OPENAI_JSON_MODE"),
     ),
     "anthropic": ProviderSpec(
         name="anthropic",
@@ -62,6 +148,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
         default_profile="compact",
         transport="direct-api",
         credential_env=("ANTHROPIC_API_KEY",),
+        provenance_env=("ANTHROPIC_MAX_TOKENS", "ANTHROPIC_TEMPERATURE"),
     ),
     "gemini": ProviderSpec(
         name="gemini",
@@ -72,6 +159,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
         default_profile="compact",
         transport="direct-api",
         credential_env=("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+        provenance_env=("GEMINI_MAX_OUTPUT_TOKENS", "GEMINI_TEMPERATURE"),
     ),
     "openrouter": ProviderSpec(
         name="openrouter",
@@ -88,10 +176,10 @@ PROVIDERS: dict[str, ProviderSpec] = {
             "OPENROUTER_REQUIRE_PARAMETERS": "false",
             "OPENROUTER_DATA_COLLECTION": "deny",
             "OPENROUTER_JSON_MODE": "false",
-            "OPENROUTER_MAX_TOKENS": "2048",
         },
         provenance_env=(
             "OPENROUTER_PROVIDER_ONLY",
+            "OPENROUTER_EXPECTED_ENDPOINT_NAME",
             "OPENROUTER_PROVIDER_SORT",
             "OPENROUTER_ALLOW_FALLBACKS",
             "OPENROUTER_REQUIRE_PARAMETERS",
@@ -178,6 +266,9 @@ def build_provider_agent(
         # Adapters derive their per-call backend timeout from the harness
         # decision budget unless an explicit adapter timeout env is set.
         "GM_BENCH_AGENT_TIMEOUT": str(resolved_timeout),
+        # One bounded retry is enough to separate JSON-format competence from
+        # strategy without creating an open-ended compute advantage.
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
     }
     if profile is not None:
         env["GM_AGENT_PROFILE"] = profile
@@ -190,6 +281,13 @@ def build_provider_agent(
     # Config-file env is the most explicit provider configuration.
     if extra_env:
         env.update(extra_env)
+    # Cap repair attempts at the frozen headline lane (1). Operators may set 0
+    # to disable, but cannot open an unbounded second-chance compute advantage.
+    try:
+        repair_attempts = int(env.get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", "1"))
+    except (TypeError, ValueError):
+        repair_attempts = 1
+    env["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] = str(max(0, min(1, repair_attempts)))
 
     command = f"{shlex.quote(sys.executable)} {shlex.quote(str(script_path))}"
     display_name = f"{spec.name}:{resolved_model}"
@@ -200,7 +298,8 @@ def build_provider_agent(
         # metadata and provenance so the two are never silently compared.
         agent: Agent = PersistentProcessAgent(command, timeout_seconds=resolved_timeout, env=env, name=display_name)
     else:
-        agent = ExternalProcessAgent(command, timeout_seconds=resolved_timeout, env=env, name=display_name)
+        base_agent = ExternalProcessAgent(command, timeout_seconds=resolved_timeout, env=env, name=display_name)
+        agent = ProtocolRepairAgent(base_agent, attempts=int(env["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"]))
     # Resolve the profile exactly as the adapter subprocess will see it
     # (per-agent env overrides the inherited environment; gm_agent_common
     # defaults to "compact" when unset), so results can record what the model
@@ -213,12 +312,17 @@ def build_provider_agent(
         "agent_timeout": resolved_timeout,
         "session": session,
         "transport": spec.transport,
+        "protocol_repair_attempts": int(env["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"]),
     }
     provider_options = {
         key: env.get(key, os.environ.get(key))
         for key in spec.provenance_env
         if env.get(key, os.environ.get(key)) not in (None, "")
     }
+    budget_cell = env.get("GM_BENCH_OUTPUT_BUDGET_CELL", os.environ.get("GM_BENCH_OUTPUT_BUDGET_CELL"))
+    if budget_cell not in (None, ""):
+        provider_options["GM_BENCH_OUTPUT_BUDGET_CELL"] = budget_cell
+    provider_options["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] = env["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"]
     if provider_options:
         agent.metadata["provider_options"] = provider_options
     return agent

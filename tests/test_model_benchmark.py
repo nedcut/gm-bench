@@ -51,15 +51,85 @@ def test_provider_registry_resolves_direct_and_gateway_apis() -> None:
         "OPENROUTER_REQUIRE_PARAMETERS": "false",
         "OPENROUTER_DATA_COLLECTION": "deny",
         "OPENROUTER_JSON_MODE": "false",
-        "OPENROUTER_MAX_TOKENS": "2048",
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
     }
+
+
+def test_protocol_repair_ignores_generic_no_usable_actions_fallback() -> None:
+    from gm_bench.providers import _model_format_failed
+
+    assert _model_format_failed([{"type": "noop", "model_error": "invalid JSON"}])
+    assert _model_format_failed([{"type": "noop", "error": "external agent returned invalid JSON"}])
+    assert not _model_format_failed([{"type": "noop", "model_error": "model produced no usable actions"}])
+
+
+def test_build_provider_agent_clamps_repair_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", "9")
+    agent = build_provider_agent("openai", model="gpt-test")
+    assert agent.metadata["protocol_repair_attempts"] == 1
+    assert agent.metadata["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "1"
+
+
+def test_external_agent_bounded_protocol_repair(monkeypatch: pytest.MonkeyPatch) -> None:
+    from gm_bench.agents import ExternalProcessAgent
+    from gm_bench.providers import ProtocolRepairAgent
+
+    calls: list[dict] = []
+
+    def fake_run(*args, **kwargs):
+        observation = json.loads(kwargs["input"])
+        calls.append(observation)
+        actions = [{"type": "noop", "model_error": "invalid JSON"}] if len(calls) == 1 else [{"type": "noop"}]
+        return subprocess.CompletedProcess(
+            args[0], 0, json.dumps({"actions": actions, "usage": {"api_calls": 1, "output_tokens": 10}}), ""
+        )
+
+    monkeypatch.setattr("gm_bench.agents.subprocess.run", fake_run)
+    agent = ProtocolRepairAgent(ExternalProcessAgent("fake"), attempts=1)
+    actions, usage = agent.act_with_usage({"phase": "draft"})
+
+    assert actions == [{"type": "noop"}]
+    assert calls[1]["protocol_repair"]["attempt"] == 1
+    assert usage["api_calls"] == 2
+    assert usage["output_tokens"] == 20
+    assert usage["protocol_repair_attempts"] == 1
+    assert usage["protocol_repairs_succeeded"] == 1
+
+
+def test_protocol_repair_preserves_route_changes_and_does_not_publish_partial_cost() -> None:
+    from gm_bench.providers import _merge_usage
+
+    merged = _merge_usage(
+        {
+            "api_calls": 1,
+            "input_tokens": 100,
+            "output_tokens": 10,
+            "cost_usd": 0.1,
+            "upstream_provider": "provider-a",
+        },
+        {
+            "api_calls": 1,
+            "input_tokens": 120,
+            "output_tokens": 12,
+            "upstream_provider": "provider-b",
+        },
+    )
+
+    assert merged["api_calls"] == 2
+    assert merged["input_tokens"] == 220
+    assert merged["output_tokens"] == 22
+    assert "cost_usd" not in merged
+    assert "upstream_provider" not in merged
+    assert merged["upstream_providers"] == ["provider-a", "provider-b"]
 
 
 def test_provider_environment_precedence(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENROUTER_JSON_MODE", "true")
+    monkeypatch.setenv("GM_BENCH_OUTPUT_BUDGET_CELL", "uncapped")
     inherited = build_provider_agent("openrouter", model="test")
     assert inherited.env["OPENROUTER_JSON_MODE"] == "true"
     assert inherited.metadata["provider_options"]["OPENROUTER_JSON_MODE"] == "true"
+    assert inherited.metadata["provider_options"]["GM_BENCH_OUTPUT_BUDGET_CELL"] == "uncapped"
 
     configured = build_provider_agent("openrouter", model="test", extra_env={"OPENROUTER_JSON_MODE": "false"})
     assert configured.env["OPENROUTER_JSON_MODE"] == "false"

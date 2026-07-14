@@ -52,10 +52,49 @@ jobs:
         run: |
           count=0
           while IFS= read -r -d '' result; do
-            python -m gm_bench validate-result "$result" --policy public-leaderboard
+            python -m gm_bench validate-result "$result" --policy sota-v2
             count=$((count + 1))
           done < <(find results/leaderboard -maxdepth 1 -type f -name '*.json' -print0)
           echo "validated $count current leaderboard result(s)"
+      - name: Enforce compact publication artifacts
+        run: |
+          while IFS= read -r -d '' result; do
+            python - "$result" <<'PY'
+          import json, pathlib, sys
+          path = pathlib.Path(sys.argv[1])
+          payload = json.loads(path.read_text())
+          publication = payload.get("publication") or {}
+          assert publication.get("format") == "gm-bench-result-summary-v1", f"{path}: run compact-result before committing"
+          assert publication.get("traces_included") is False, f"{path}: traces must not be committed"
+          assert path.stat().st_size < 1_000_000, f"{path}: artifact exceeds 1 MB"
+          for bucket in (payload.get("candidate"), *(payload.get("baselines") or [])):
+              if not isinstance(bucket, dict):
+                  continue
+              for episode in bucket.get("episodes") or []:
+                  assert "transactions" not in episode, f"{path}: episode traces must not be committed"
+                  assert "season_summaries" not in episode, f"{path}: season summaries must not be committed"
+                  usage = episode.get("usage")
+                  if isinstance(usage, dict):
+                      assert "per_decision" not in usage, f"{path}: per_decision usage must not be committed"
+          PY
+          done < <(find results/leaderboard -maxdepth 1 -type f -name '*.json' -print0)
+      - name: Output-budget analysis is reproducible
+        # Publishing keys off analysis.status; regenerate from the committed
+        # sweep config (+ optional cell artifacts) and refuse hand-edited status.
+        run: |
+          mapfile -d '' cells < <(find results/analysis/output-budget-cells -type f -name '*.json' -print0 2>/dev/null || true)
+          python scripts/analyze_output_budget.py "${cells[@]}" --output /tmp/output-budget-sweep.regen.json
+          if ! diff -u results/analysis/output-budget-sweep.json /tmp/output-budget-sweep.regen.json; then
+            echo "::error::results/analysis/output-budget-sweep.json is stale or hand-edited; re-run scripts/analyze_output_budget.py and commit the result"
+            exit 1
+          fi
+      - name: Publication cost estimate is reproducible
+        run: |
+          python scripts/estimate_publication_cost.py --output /tmp/output-budget-cost.regen.json
+          if ! diff -u results/analysis/output-budget-cost-estimate.json /tmp/output-budget-cost.regen.json; then
+            echo "::error::results/analysis/output-budget-cost-estimate.json is stale; regenerate it from the committed protocol and pricing snapshot"
+            exit 1
+          fi
       - name: Verify archived v1 evidence
         # `archive-v1` asserts these are authentic v1 artifacts on the frozen
         # contract. It deliberately does NOT assert they were leaderboard-eligible

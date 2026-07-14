@@ -25,6 +25,8 @@ _COUNT_KEYS = (
     "output_tokens",
     "reasoning_tokens",
     "total_tokens",
+    "protocol_repair_attempts",
+    "protocol_repairs_succeeded",
 )
 _FLOAT_KEYS = ("api_latency_ms", "cost_usd")
 _TEXT_KEYS = ("provider", "model", "upstream_provider", "generation_id")
@@ -121,10 +123,15 @@ def estimate_cost_usd(usage: dict[str, Any]) -> float | None:
 def aggregate_usage(records: list[dict[str, Any]]) -> dict[str, Any]:
     """Fold per-decision usage records into one episode-level block."""
     totals = {key: sum(int(record.get(key, 0)) for record in records) for key in _COUNT_KEYS}
-    costs = [cost for cost in (estimate_cost_usd(record) for record in records) if cost is not None]
+    priced_records = [(record, estimate_cost_usd(record)) for record in records]
+    costs = [cost for _record, cost in priced_records if cost is not None]
     models = Counter(record["model"] for record in records if record.get("model"))
     providers = Counter(record["provider"] for record in records if record.get("provider"))
     upstream_providers = Counter(record["upstream_provider"] for record in records if record.get("upstream_provider"))
+    observed_upstreams = {
+        str(upstream) for record in records for upstream in (record.get("upstream_providers") or []) if upstream
+    }
+    observed_upstreams.update(str(record["upstream_provider"]) for record in records if record.get("upstream_provider"))
     # A multi-round decision window emits one usage record per round; coverage
     # must count decision points, not rounds, or extra rounds on one decision
     # would mask missing usage on another (and pass the sota-v2 coverage gate).
@@ -133,16 +140,23 @@ def aggregate_usage(records: list[dict[str, Any]]) -> dict[str, Any]:
         for record in records
         if record.get("season") is not None and record.get("phase")
     }
+    costs_by_decision: dict[tuple[Any, Any], list[float | None]] = {}
+    for record, cost in priced_records:
+        if record.get("season") is not None and record.get("phase"):
+            costs_by_decision.setdefault((record["season"], record["phase"]), []).append(cost)
+    cost_decision_keys = {
+        key for key, decision_costs in costs_by_decision.items() if all(c is not None for c in decision_costs)
+    }
     return {
         "decisions_with_usage": len(decision_keys) if decision_keys else len(records),
         **totals,
         "api_latency_ms": round(sum(float(record.get("api_latency_ms", 0.0)) for record in records), 1),
         "cost_usd": round(sum(costs), 6) if costs else None,
-        "cost_decisions": len(costs),
+        "cost_decisions": len(cost_decision_keys) if decision_keys else len(costs),
         "model": models.most_common(1)[0][0] if models else None,
         "provider": providers.most_common(1)[0][0] if providers else None,
         "upstream_provider": upstream_providers.most_common(1)[0][0] if upstream_providers else None,
-        "upstream_providers": sorted(upstream_providers),
+        "upstream_providers": sorted(observed_upstreams),
     }
 
 
@@ -172,6 +186,12 @@ def summarize_usage(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "harness_latency_ms": round(harness_ms, 1),
         "cost_usd": round(sum(costs), 6) if costs else None,
         "mean_tokens_per_decision": round(totals["total_tokens"] / decisions_with_usage, 1)
+        if decisions_with_usage
+        else 0.0,
+        "mean_input_tokens_per_decision": round(totals["input_tokens"] / decisions_with_usage, 1)
+        if decisions_with_usage
+        else 0.0,
+        "mean_output_tokens_per_decision": round(totals["output_tokens"] / decisions_with_usage, 1)
         if decisions_with_usage
         else 0.0,
         "model": models.most_common(1)[0][0] if models else None,

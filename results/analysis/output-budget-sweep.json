@@ -1,0 +1,144 @@
+{
+  "config_errors": [],
+  "decision_recommendation": null,
+  "duplicate_cells": [],
+  "missing": [
+    {
+      "experiment_id": "openrouter-gpt-5.4-mini-openai",
+      "output_token_cap": 256
+    },
+    {
+      "experiment_id": "openrouter-gpt-5.4-mini-openai",
+      "output_token_cap": 1024
+    },
+    {
+      "experiment_id": "openrouter-gpt-5.4-mini-openai",
+      "output_token_cap": 4096
+    },
+    {
+      "experiment_id": "openrouter-gpt-5.4-mini-openai",
+      "output_token_cap": 16384
+    },
+    {
+      "experiment_id": "openrouter-minimax-m3-minimax",
+      "output_token_cap": 256
+    },
+    {
+      "experiment_id": "openrouter-minimax-m3-minimax",
+      "output_token_cap": 1024
+    },
+    {
+      "experiment_id": "openrouter-minimax-m3-minimax",
+      "output_token_cap": 4096
+    },
+    {
+      "experiment_id": "openrouter-minimax-m3-minimax",
+      "output_token_cap": 16384
+    },
+    {
+      "experiment_id": "openrouter-qwen3.5-9b-siliconflow",
+      "output_token_cap": 256
+    },
+    {
+      "experiment_id": "openrouter-qwen3.5-9b-siliconflow",
+      "output_token_cap": 1024
+    },
+    {
+      "experiment_id": "openrouter-qwen3.5-9b-siliconflow",
+      "output_token_cap": 4096
+    },
+    {
+      "experiment_id": "openrouter-qwen3.5-9b-siliconflow",
+      "output_token_cap": 16384
+    }
+  ],
+  "models": [
+    {
+      "absent_options": [
+        "OPENROUTER_REASONING_MAX_TOKENS",
+        "OPENROUTER_TEMPERATURE",
+        "OPENROUTER_QUANTIZATIONS",
+        "OPENROUTER_ZDR"
+      ],
+      "endpoint_name": "SiliconFlow | qwen/qwen3.5-9b-20260310",
+      "fixed_options": {
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+        "OPENROUTER_ALLOW_FALLBACKS": "false",
+        "OPENROUTER_DATA_COLLECTION": "deny",
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": "SiliconFlow | qwen/qwen3.5-9b-20260310",
+        "OPENROUTER_JSON_MODE": "true",
+        "OPENROUTER_PROVIDER_ONLY": "SiliconFlow",
+        "OPENROUTER_PROVIDER_SORT": "price",
+        "OPENROUTER_REASONING_EFFORT": "none",
+        "OPENROUTER_REQUIRE_PARAMETERS": "true"
+      },
+      "id": "openrouter-qwen3.5-9b-siliconflow",
+      "model": "qwen/qwen3.5-9b",
+      "provider": "openrouter",
+      "transport": "gateway-api",
+      "upstream_provider": "SiliconFlow"
+    },
+    {
+      "absent_options": [
+        "OPENROUTER_REASONING_MAX_TOKENS",
+        "OPENROUTER_TEMPERATURE",
+        "OPENROUTER_QUANTIZATIONS",
+        "OPENROUTER_ZDR"
+      ],
+      "endpoint_name": "OpenAI | openai/gpt-5.4-mini-20260317",
+      "fixed_options": {
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+        "OPENROUTER_ALLOW_FALLBACKS": "false",
+        "OPENROUTER_DATA_COLLECTION": "deny",
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-5.4-mini-20260317",
+        "OPENROUTER_JSON_MODE": "true",
+        "OPENROUTER_PROVIDER_ONLY": "OpenAI",
+        "OPENROUTER_PROVIDER_SORT": "price",
+        "OPENROUTER_REASONING_EFFORT": "none",
+        "OPENROUTER_REQUIRE_PARAMETERS": "true"
+      },
+      "id": "openrouter-gpt-5.4-mini-openai",
+      "model": "openai/gpt-5.4-mini",
+      "provider": "openrouter",
+      "transport": "gateway-api",
+      "upstream_provider": "OpenAI"
+    },
+    {
+      "absent_options": [
+        "OPENROUTER_REASONING_MAX_TOKENS",
+        "OPENROUTER_TEMPERATURE",
+        "OPENROUTER_QUANTIZATIONS",
+        "OPENROUTER_ZDR"
+      ],
+      "endpoint_name": "Minimax | minimax/minimax-m3-20260531",
+      "fixed_options": {
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+        "OPENROUTER_ALLOW_FALLBACKS": "false",
+        "OPENROUTER_DATA_COLLECTION": "deny",
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": "Minimax | minimax/minimax-m3-20260531",
+        "OPENROUTER_JSON_MODE": "true",
+        "OPENROUTER_PROVIDER_ONLY": "Minimax",
+        "OPENROUTER_PROVIDER_SORT": "price",
+        "OPENROUTER_REASONING_EFFORT": "none",
+        "OPENROUTER_REQUIRE_PARAMETERS": "true"
+      },
+      "id": "openrouter-minimax-m3-minimax",
+      "model": "minimax/minimax-m3",
+      "provider": "openrouter",
+      "transport": "gateway-api",
+      "upstream_provider": "Minimax"
+    }
+  ],
+  "planned_caps": [
+    256,
+    1024,
+    4096,
+    16384
+  ],
+  "points": [],
+  "publishable_ranking": false,
+  "reason": "missing planned model-cap cells; no output-budget conclusion is permitted",
+  "rejected_artifacts": [],
+  "schema_version": 1,
+  "status": "incomplete"
+}

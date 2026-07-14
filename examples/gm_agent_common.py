@@ -98,7 +98,13 @@ def build_prompt(observation: dict[str, Any]) -> str:
     compact = compact_observation(observation)
     roster = (observation.get("team") or {}).get("roster") or []
     fallback_lineup = position_aware_lineup(roster) if roster else []
-    return (
+    repair = observation.get("protocol_repair") or {}
+    repair_prefix = (
+        "PROTOCOL REPAIR: the previous response was invalid. Output only one valid JSON object; no prose or markdown.\n\n"
+        if repair
+        else ""
+    )
+    return repair_prefix + (
         "You are controlling a fictional hockey team in GM-Bench. "
         "Choose legal front-office actions that maximize long-term benchmark score: wins, playoffs, titles, young assets, cap health, and valid decisions.\n\n"
         'Return ONLY a JSON object shaped like {"actions":[...]}. Do not use markdown. Do not explain.\n\n'
@@ -153,7 +159,9 @@ def build_prompt(observation: dict[str, Any]) -> str:
     )
 
 
-def parse_actions(text: str) -> list[dict[str, Any]]:
+def parse_actions(text: Any) -> list[dict[str, Any]]:
+    if not isinstance(text, str):
+        raise ValueError(f"model response content must be a string, got {type(text).__name__}")
     stripped = strip_terminal_codes(text).strip()
     try:
         parsed = json.loads(stripped)

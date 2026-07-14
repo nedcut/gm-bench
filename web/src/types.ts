@@ -72,6 +72,7 @@ export interface LeaderboardModel {
   model: string;
   provider: string;
   lane?: "api" | "cli-harness";
+  output_token_cap: number | null;
   mean_score: number;
   score_stddev: number;
   mean_strategy_score: number | null;
@@ -85,6 +86,11 @@ export interface LeaderboardModel {
   illegal_actions: number;
   total_tokens: number;
   tokens_per_decision: number | null;
+  input_tokens_per_decision: number | null;
+  output_tokens_per_decision: number | null;
+  protocol_repair_attempts: number;
+  protocol_repairs_succeeded: number;
+  mechanic_breakdown: Record<string, { accepted: number; rejected: number }>;
   failed_queries?: number;
   cost_usd: number | null;
   cost_per_episode_usd: number | null;
@@ -101,6 +107,8 @@ export interface LeaderboardModel {
   seed_panel_hash: string | null;
   sota_v2_eligible?: boolean;
   sota_v2_issues?: string[];
+  publication_eligible?: boolean;
+  publication_issues?: string[];
 }
 
 export interface LeaderboardBaseline {
@@ -119,6 +127,23 @@ export interface Leaderboard {
   };
   baselines: LeaderboardBaseline[];
   models: LeaderboardModel[];
+  cli_harness_models: LeaderboardModel[];
+  excluded_models: Array<{ id: string | null; issues: string[] }>;
+  publication: {
+    status: string;
+    publishable_ranking: boolean;
+    reason: string;
+    planned_caps: Array<number | null>;
+    frozen_output_token_cap: number | null;
+    eligible_headline_models: number;
+    minimum_headline_models: number;
+  };
+  headroom: {
+    oracle: number;
+    pick_trader: number;
+    best_model: number | null;
+    random: number;
+  };
 }
 
 export interface Snapshot {

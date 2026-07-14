@@ -53,9 +53,11 @@ publishing private-panel artifacts so the seed list is not committed.
 
 ```bash
 OPENAI_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \
-  --preset leaderboard --repeats 3 --json > results/leaderboard/openai-gpt-5.4.json
-python -m gm_bench validate-result results/leaderboard/openai-gpt-5.4.json \
+  --preset leaderboard --repeats 3 --json > /tmp/openai-gpt-5.4.raw.json
+python -m gm_bench validate-result /tmp/openai-gpt-5.4.raw.json \
   --policy sota-v2
+python -m gm_bench compact-result /tmp/openai-gpt-5.4.raw.json \
+  --output results/leaderboard/openai-gpt-5.4.json --policy sota-v2
 python -m gm_bench validate-contract
 python -m gm_bench calibrate-score --json
 python web/scripts/build_leaderboard.py   # refresh web/src/data/leaderboard.json
@@ -64,6 +66,15 @@ cd web && bun install && bun run dev      # local site
 
 The site in `web/` deploys to GitHub Pages automatically on pushes to `main`
 (`.github/workflows/pages.yml`).
+
+The headline table is intentionally gated on the output-budget sweep in
+[`config/output_budget_sweep.json`](config/output_budget_sweep.json). Analyze
+completed cells without making API calls using
+`python scripts/analyze_output_budget.py <artifacts...> --output
+results/analysis/output-budget-sweep.json`. Until the matrix is complete and
+the API lane cap is frozen in [`config/sota_v2_lane.json`](config/sota_v2_lane.json),
+the generated site data says `publishable_ranking: false`. Coding-harness rows
+are always emitted to a separate table from the API headline lane.
 
 ### v2 changes
 
