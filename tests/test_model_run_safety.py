@@ -1,14 +1,26 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from gm_bench import model_runs
 from gm_bench.agents import Agent, ValueAgent
-from gm_bench.model_runs import FailFastAgent, ModelRunAborted, run_resumable_candidate
+from gm_bench.model_runs import (
+    FailFastAgent,
+    FailFastSessionAgent,
+    ModelRunAborted,
+    _checkpoint_lock,
+    evaluate_resumable_candidate,
+    fail_fast_agent,
+    preflight_provider,
+    run_resumable_candidate,
+)
 from gm_bench.runner import run_many
+from gm_bench.session import PersistentProcessAgent
 
 
 class FailAfterAgent(Agent):
@@ -161,3 +173,178 @@ def test_resume_rejects_conflicting_successful_duplicates(tmp_path: Path) -> Non
             checkpoint_path=tmp_path / "checkpoint.json",
             resume_sources=[first, second],
         )
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        "not json",
+        "[]",
+        '{"candidate": []}',
+        '{"agent": "test:model", "seasons": "bad", "episodes": []}',
+        '{"agent": "test:model", "seasons": 1, "metadata": [], "episodes": []}',
+        '{"agent": "test:model", "seasons": 1, "episodes": {}}',
+        '{"agent": "test:model", "seasons": 1, "episodes": [{}]}',
+    ],
+)
+def test_resume_rejects_malformed_payloads(tmp_path: Path, payload: str) -> None:
+    source = tmp_path / "malformed.json"
+    source.write_text(payload)
+
+    with pytest.raises(ModelRunAborted, match="resume source"):
+        run_resumable_candidate(
+            CountingValueAgent(),
+            seeds=[1],
+            seasons=1,
+            repeats=1,
+            checkpoint_path=tmp_path / "checkpoint.json",
+            resume_sources=[source],
+        )
+
+
+def test_checkpoint_lock_rejects_a_concurrent_writer(tmp_path: Path) -> None:
+    checkpoint = tmp_path / "checkpoint.json"
+
+    with _checkpoint_lock(checkpoint):
+        with pytest.raises(ModelRunAborted, match="already in use"):
+            run_resumable_candidate(
+                CountingValueAgent(),
+                seeds=[1],
+                seasons=1,
+                repeats=1,
+                checkpoint_path=checkpoint,
+            )
+
+
+def test_claude_preflight_normalizes_missing_binary(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(model_runs.shutil, "which", lambda executable: None)
+
+    with pytest.raises(ModelRunAborted, match="not installed"):
+        preflight_provider("claude")
+
+
+def test_claude_preflight_normalizes_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(model_runs.shutil, "which", lambda executable: "/usr/bin/claude")
+
+    def timeout(*args: object, **kwargs: object) -> None:
+        raise subprocess.TimeoutExpired("claude", 15)
+
+    monkeypatch.setattr(model_runs.subprocess, "run", timeout)
+
+    with pytest.raises(ModelRunAborted, match="timed out"):
+        preflight_provider("claude")
+
+
+def test_uncached_scripted_baselines_keep_normal_parallel_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    candidate = run_many(ValueAgent(), seeds=[1], seasons=1, workers=1)
+    seen_workers: list[int | None] = []
+    original = model_runs.run_many
+
+    def capture(*args: object, **kwargs: object) -> dict[str, Any]:
+        seen_workers.append(kwargs.get("workers"))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(model_runs, "run_many", capture)
+
+    evaluate_resumable_candidate(candidate, ["value"], use_baseline_cache=False)
+
+    assert seen_workers == [None]
+
+
+class ScriptedSessionAgent(PersistentProcessAgent):
+    """In-process session agent double: real class, no subprocess."""
+
+    def __init__(self) -> None:
+        super().__init__(command="true", name="test:session")
+        self.started: list[tuple[int, int]] = []
+        self.ended = 0
+        self.value = ValueAgent()
+
+    def start_episode(self, seed: int, seasons: int) -> None:
+        self.started.append((seed, seasons))
+
+    def end_episode(self) -> None:
+        self.ended += 1
+
+    def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        return self.value.act(observation), None
+
+    def act_on_results_with_usage(
+        self,
+        results: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        return [{"type": "noop"}], None
+
+    def clone(self) -> "ScriptedSessionAgent":
+        return self
+
+
+class FailingSessionAgent(ScriptedSessionAgent):
+    def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        return [{"type": "noop", "model_error": "session boom"}], None
+
+    def act_on_results_with_usage(
+        self,
+        results: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        return [{"type": "noop", "model_error": "session boom"}], None
+
+
+def test_fail_fast_factory_picks_session_wrapper_for_persistent_agents() -> None:
+    session_wrapped = fail_fast_agent(ScriptedSessionAgent(), 2)
+    plain_wrapped = fail_fast_agent(FailAfterAgent(successful_calls=0), 2)
+    # The frozen runner dispatches episode lifecycle on this isinstance check;
+    # losing it means the adapter process is never spawned.
+    assert isinstance(session_wrapped, PersistentProcessAgent)
+    assert isinstance(session_wrapped, FailFastSessionAgent)
+    assert isinstance(plain_wrapped, FailFastAgent)
+    assert not isinstance(plain_wrapped, PersistentProcessAgent)
+
+
+def test_wrapped_session_agent_still_gets_episode_lifecycle_from_runner() -> None:
+    inner = ScriptedSessionAgent()
+    wrapped = fail_fast_agent(inner, 2)
+    run_many(wrapped, seeds=[1], seasons=1, workers=1)
+    assert inner.started == [(1, 1)]
+    assert inner.ended == 1
+
+
+def test_session_fail_fast_counts_multi_round_results_and_shares_state_across_clones() -> None:
+    wrapped = fail_fast_agent(FailingSessionAgent(), 2)
+    actions, _usage = wrapped.act_with_usage({})
+    assert actions[0]["model_error"] == "session boom"
+    clone = wrapped.clone()
+    with pytest.raises(ModelRunAborted, match="2 consecutive model failures"):
+        clone.act_on_results_with_usage([])
+
+
+def test_session_fail_fast_wrapper_covers_the_whole_persistent_agent_surface() -> None:
+    # FailFastSessionAgent subclasses PersistentProcessAgent for the runner's
+    # isinstance dispatch but skips super().__init__(), so it owns none of the
+    # process state its inherited methods assume. Every public method must
+    # therefore be explicitly overridden to delegate to ``inner``. This test
+    # fails the moment someone adds a method to PersistentProcessAgent without
+    # overriding it here -- which would otherwise surface as an AttributeError
+    # mid-run, after the quota is spent.
+    inherited = {
+        name
+        for name in vars(PersistentProcessAgent)
+        if not name.startswith("_") and callable(getattr(PersistentProcessAgent, name))
+    }
+    overridden = set(vars(FailFastSessionAgent))
+    missing = inherited - overridden
+    assert not missing, (
+        f"FailFastSessionAgent inherits {sorted(missing)} from PersistentProcessAgent without overriding them; "
+        "they would run against process state this wrapper never initialized"
+    )
+
+
+def test_session_fail_fast_wrapper_delegates_unknown_attributes_to_inner() -> None:
+    # Backstop for the above: even an un-overridden attribute resolves against
+    # the real agent rather than exploding.
+    inner = ScriptedSessionAgent()
+    inner.transport = "stdio"
+    wrapped = fail_fast_agent(inner, 2)
+    assert wrapped.transport == "stdio"
+    with pytest.raises(AttributeError):
+        _ = wrapped.definitely_not_a_real_attribute

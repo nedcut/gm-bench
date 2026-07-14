@@ -158,9 +158,7 @@ def merge_payloads(
     run_info["resume"] = {
         "merged_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "kept_seeds": list(keep_seeds),
-        "added_seed_sets": [
-            sorted({int(ep["seed"]) for ep in _episodes(payload)}) for payload in additions
-        ],
+        "added_seed_sets": [sorted({int(ep["seed"]) for ep in _episodes(payload)}) for payload in additions],
         "note": "episodes stitched offline after quota interruption; summary/paired recomputed",
     }
 
@@ -170,8 +168,7 @@ def merge_payloads(
         "seeds": list(seed_order),
         "candidate": candidate,
         "baselines": baselines,
-        "baseline_cache": base.get("baseline_cache")
-        or (additions[0].get("baseline_cache") if additions else None),
+        "baseline_cache": base.get("baseline_cache") or (additions[0].get("baseline_cache") if additions else None),
         "normalized": _rebuild_normalized(list(seed_order), candidate, baselines),
         "paired": _paired_analysis(list(seed_order), candidate, baselines),
         "run_info": run_info,
@@ -226,15 +223,6 @@ def main() -> None:
         expected_seeds=expected,
     )
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(merged, indent=args.indent, sort_keys=True) + "\n")
-    summary = merged["candidate"]["summary"]
-    print(
-        f"wrote {args.output} seeds={merged['seeds']} episodes={len(merged['candidate']['episodes'])} "
-        f"mean={summary['mean_score']} fail_rate={summary['decision_failure_rate']} "
-        f"failed={summary['failed_decisions']}/{summary['decisions']}"
-    )
-
     if args.validate:
         report = validate_leaderboard_payload(merged, policy=POLICIES[args.validate])
         print(f"validate {args.validate}: ok={report.ok}")
@@ -244,6 +232,17 @@ def main() -> None:
             print(f"  warning: {warn}")
         if not report.ok:
             raise SystemExit(1)
+
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = args.output.with_suffix(args.output.suffix + ".tmp")
+    temporary.write_text(json.dumps(merged, indent=args.indent, sort_keys=True) + "\n")
+    temporary.replace(args.output)
+    summary = merged["candidate"]["summary"]
+    print(
+        f"wrote {args.output} seeds={merged['seeds']} episodes={len(merged['candidate']['episodes'])} "
+        f"mean={summary['mean_score']} fail_rate={summary['decision_failure_rate']} "
+        f"failed={summary['failed_decisions']}/{summary['decisions']}"
+    )
 
 
 if __name__ == "__main__":
