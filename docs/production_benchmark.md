@@ -154,14 +154,19 @@ there were. `episode.failed_queries`, `summary.failed_queries`, and
 `candidate.summary.failed_queries` in comparison output now count them
 explicitly, the same way `illegal_actions` is counted.
 
-The validator adds a warning — not an error, since failed queries are
-zero-penalty by design — when `candidate_failed_queries` exceeds the
-candidate's decision count: that ratio means the model is issuing more than
-one failed lookup per decision on average, which usually means it isn't
-reading the query error back before retrying (or is stuck resubmitting the
-same malformed lookup). A `sota-v2` row can still be eligible with this
-warning; it's a diagnostic signal about the model's query behavior, not a
-contract violation.
+Failed queries are zero-penalty by design, but runaway rates are gated by
+`failed_queries / decisions`:
+
+- **warning** above `warn_failed_query_rate` (**0.25**): the model is misfiring
+  lookups often enough that it may not be reading query errors back before
+  retrying.
+- **hard error under `sota-v2`** above `max_failed_query_rate` (**1.0**): more
+  failed lookups than decisions on average. That row is **ineligible**, not a
+  soft diagnostic — under v1 this is exactly how the scout contract break hid
+  itself (Luna ~2.3 failed queries/decision).
+
+A `sota-v2` row can still be eligible with the warning alone; crossing the
+hard gate fails validation.
 
 ### Reporting requirements
 

@@ -7,6 +7,8 @@ import os
 import re
 import shutil
 import subprocess
+import threading
+from contextlib import contextmanager
 from pathlib import Path
 from statistics import mean
 from typing import Any
@@ -22,6 +24,7 @@ from gm_bench.runner import (
     run_many,
     run_many_cached_baselines,
 )
+from gm_bench.session import PersistentProcessAgent
 from gm_bench.telemetry import summarize_usage
 
 
@@ -29,17 +32,62 @@ class ModelRunAborted(RuntimeError):
     """Raised when consecutive adapter failures trip the model circuit breaker."""
 
 
+class _FailFastState:
+    """Thread-safe consecutive-failure counter shared by fail-fast wrappers.
+
+    "Consecutive" is exact in the serial lane. With parallel workers or session
+    clones, every wrapper shares one counter, so it means "N failures with no
+    success in between, in the order calls happened to land" -- the failures may
+    come from different episodes. That is deliberate: the breaker exists to stop
+    a globally broken model (bad key, dead adapter, wrong model id) from burning
+    a whole panel's quota, and a globally broken model fails everywhere at once.
+    A model that merely fails intermittently keeps resetting the counter.
+
+    Under ``--workers > 1``, abort is best-effort: ``run_many`` uses ordered
+    ``executor.map`` and does not cancel in-flight futures when this raises, so
+    sibling workers can still finish their current episode after the breaker
+    trips. Serial and session lanes (``workers=1``) abort immediately.
+    """
+
+    def __init__(self, threshold: int) -> None:
+        if threshold < 1:
+            raise ValueError("fail-fast threshold must be >= 1")
+        self.threshold = threshold
+        self.consecutive_failures = 0
+        self._lock = threading.Lock()
+
+    def record(self, actions: Any) -> None:
+        failed = not isinstance(actions, list) or any(
+            isinstance(action, dict) and ("error" in action or "model_error" in action) for action in actions
+        )
+        with self._lock:
+            if not failed:
+                self.consecutive_failures = 0
+                return
+            self.consecutive_failures += 1
+            if self.consecutive_failures >= self.threshold:
+                detail = _failure_detail(actions)
+                raise ModelRunAborted(
+                    f"aborting after {self.consecutive_failures} consecutive model failures: {detail}"
+                )
+
+
 class FailFastAgent(Agent):
     """Stop a panel after repeated adapter failures instead of burning quota."""
 
     def __init__(self, inner: Agent, threshold: int = 2) -> None:
-        if threshold < 1:
-            raise ValueError("fail-fast threshold must be >= 1")
         self.inner = inner
         self.name = inner.name
         self.metadata = getattr(inner, "metadata", {})
-        self.threshold = threshold
-        self.consecutive_failures = 0
+        self._state = _FailFastState(threshold)
+
+    @property
+    def threshold(self) -> int:
+        return self._state.threshold
+
+    @property
+    def consecutive_failures(self) -> int:
+        return self._state.consecutive_failures
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
         actions, _usage = self.act_with_usage(observation)
@@ -47,18 +95,97 @@ class FailFastAgent(Agent):
 
     def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         actions, usage = self.inner.act_with_usage(observation)
-        failed = not isinstance(actions, list) or any(
-            isinstance(action, dict) and ("error" in action or "model_error" in action) for action in actions
-        )
-        if not failed:
-            self.consecutive_failures = 0
-            return actions, usage
-
-        self.consecutive_failures += 1
-        if self.consecutive_failures >= self.threshold:
-            detail = _failure_detail(actions)
-            raise ModelRunAborted(f"aborting after {self.consecutive_failures} consecutive model failures: {detail}")
+        self._state.record(actions)
         return actions, usage
+
+
+class FailFastSessionAgent(PersistentProcessAgent):
+    """Fail-fast circuit breaker for session-lane (persistent process) agents.
+
+    The frozen runner dispatches on ``isinstance(agent, PersistentProcessAgent)``
+    for episode start/end, per-episode cloning, and multi-round result delivery,
+    and ``runner.py`` is a contract-fingerprint source that must not change.
+    Wrapping a session agent in the plain ``FailFastAgent`` would defeat those
+    checks (the adapter process would never be spawned), so this proxy subclass
+    keeps the type relationship while delegating everything to the inner agent.
+    Clones share one failure counter so a globally failing model trips the
+    breaker across episodes.
+    """
+
+    def __init__(
+        self,
+        inner: PersistentProcessAgent,
+        threshold: int = 2,
+        *,
+        _state: _FailFastState | None = None,
+    ) -> None:
+        # Deliberately no super().__init__(): every inherited method that touches
+        # process state is overridden to delegate to ``inner``.
+        self.inner = inner
+        self.name = inner.name
+        self.metadata = getattr(inner, "metadata", {})
+        self._state = _state or _FailFastState(threshold)
+
+    def __getattr__(self, name: str) -> Any:
+        # Backstop for the no-super().__init__() trick above. Without it, any
+        # method added to PersistentProcessAgent that we forget to override here
+        # would find the inherited implementation, reach for process state this
+        # instance never initialized, and AttributeError mid-run -- after the
+        # quota is already spent. Delegating unknown attributes to ``inner``
+        # makes the failure mode "works, via the real agent" instead.
+        # __getattr__ only fires for attributes normal lookup misses, so the
+        # explicit overrides below still win.
+        if name == "inner":
+            # Never delegate the delegate: if ``inner`` itself is missing (an
+            # instance built without __init__, e.g. by copy/pickle), looking it
+            # up through here would recurse until the stack blows.
+            raise AttributeError(name)
+        return getattr(self.inner, name)
+
+    @property
+    def threshold(self) -> int:
+        return self._state.threshold
+
+    @property
+    def consecutive_failures(self) -> int:
+        return self._state.consecutive_failures
+
+    def start_episode(self, seed: int, seasons: int) -> None:
+        self.inner.start_episode(seed, seasons)
+
+    def end_episode(self) -> None:
+        self.inner.end_episode()
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        actions, _usage = self.act_with_usage(observation)
+        return actions
+
+    def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        actions, usage = self.inner.act_with_usage(observation)
+        self._state.record(actions)
+        return actions, usage
+
+    def act_on_results(self, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        actions, _usage = self.act_on_results_with_usage(results)
+        return actions
+
+    def act_on_results_with_usage(
+        self,
+        results: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        actions, usage = self.inner.act_on_results_with_usage(results)
+        self._state.record(actions)
+        return actions, usage
+
+    def clone(self) -> "FailFastSessionAgent":
+        return FailFastSessionAgent(self.inner.clone(), _state=self._state)
+
+
+def fail_fast_agent(agent: Agent, threshold: int) -> Agent:
+    """Wrap ``agent`` with the fail-fast breaker appropriate for its lane."""
+    if isinstance(agent, PersistentProcessAgent):
+        return FailFastSessionAgent(agent, threshold)
+    return FailFastAgent(agent, threshold)
 
 
 def _failure_detail(actions: Any) -> str:
@@ -74,9 +201,17 @@ def _failure_detail(actions: Any) -> str:
 def preflight_provider(provider: str) -> None:
     """Perform credential/tool checks without making a billed model request."""
     if provider == "claude":
-        completed = subprocess.run(
-            ["claude", "auth", "status"], text=True, capture_output=True, check=False, timeout=15
-        )
+        executable = shutil.which("claude")
+        if executable is None:
+            raise ModelRunAborted("claude preflight failed: `claude` is not installed")
+        try:
+            completed = subprocess.run(
+                [executable, "auth", "status"], text=True, capture_output=True, check=False, timeout=15
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise ModelRunAborted("Claude auth preflight timed out after 15 seconds") from exc
+        except OSError as exc:
+            raise ModelRunAborted(f"Claude auth preflight could not start: {exc}") from exc
         try:
             status = json.loads(completed.stdout)
         except json.JSONDecodeError as exc:
@@ -109,6 +244,52 @@ def run_resumable_candidate(
     progress=None,
 ) -> dict[str, Any]:
     """Run missing seed/repeat episodes and atomically checkpoint each completion."""
+    with _checkpoint_lock(checkpoint_path):
+        return _run_resumable_candidate_locked(
+            agent,
+            seeds,
+            seasons,
+            repeats,
+            checkpoint_path=checkpoint_path,
+            resume_sources=resume_sources,
+            resume_checkpoint=resume_checkpoint,
+            fail_fast=fail_fast,
+            progress=progress,
+        )
+
+
+@contextmanager
+def _checkpoint_lock(path: Path):
+    """Reject concurrent model runs targeting the same checkpoint."""
+    import fcntl
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise ModelRunAborted(f"checkpoint is already in use by another model run: {path}") from exc
+        os.ftruncate(descriptor, 0)
+        os.write(descriptor, f"pid={os.getpid()}\n".encode())
+        yield
+    finally:
+        os.close(descriptor)
+
+
+def _run_resumable_candidate_locked(
+    agent: Agent,
+    seeds: list[int],
+    seasons: int,
+    repeats: int,
+    *,
+    checkpoint_path: Path,
+    resume_sources: list[Path] | None = None,
+    resume_checkpoint: bool = False,
+    fail_fast: int = 2,
+    progress=None,
+) -> dict[str, Any]:
     expected = {(seed, repeat) for seed in seeds for repeat in range(1, repeats + 1)}
     episodes: dict[tuple[int, int], dict[str, Any]] = {}
     metadata = dict(getattr(agent, "metadata", {}))
@@ -132,7 +313,7 @@ def run_resumable_candidate(
                     )
                 episodes[key] = episode
 
-    wrapped = FailFastAgent(agent, threshold=fail_fast)
+    wrapped = fail_fast_agent(agent, fail_fast)
     _write_checkpoint(
         checkpoint_path, wrapped.name, seeds, seasons, repeats, episodes, metadata, provenance, status="running"
     )
@@ -188,27 +369,59 @@ def _load_candidate_episodes(
     expected_metadata: dict[str, Any],
     expected_provenance: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    payload = json.loads(path.read_text())
+    try:
+        payload = json.loads(path.read_text())
+    except OSError as exc:
+        raise ModelRunAborted(f"cannot read resume source {path}: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise ModelRunAborted(f"resume source {path} is not valid JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ModelRunAborted(f"resume source {path} must contain a JSON object")
     candidate = payload.get("candidate", payload)
+    if not isinstance(candidate, dict):
+        raise ModelRunAborted(f"resume source {path} candidate must be a JSON object")
     source_agent = candidate.get("agent") or payload.get("agent")
     source_seasons = candidate.get("seasons") or payload.get("seasons")
     if source_agent != agent_name:
         raise ModelRunAborted(f"resume source {path} is for {source_agent}, expected {agent_name}")
-    if int(source_seasons or 0) != seasons:
+    try:
+        parsed_seasons = int(source_seasons or 0)
+    except (TypeError, ValueError) as exc:
+        raise ModelRunAborted(f"resume source {path} has invalid seasons={source_seasons!r}") from exc
+    if parsed_seasons != seasons:
         raise ModelRunAborted(f"resume source {path} has {source_seasons} seasons, expected {seasons}")
-    source_metadata = payload.get("metadata") or payload.get("run_info") or {}
+    source_metadata = payload.get("metadata")
+    if source_metadata is None:
+        source_metadata = payload.get("run_info")
+    if source_metadata is None:
+        source_metadata = {}
+    if not isinstance(source_metadata, dict):
+        raise ModelRunAborted(f"resume source {path} metadata must be a JSON object")
     for key in ("provider", "model", "profile", "session"):
         if key in source_metadata and key in expected_metadata and source_metadata[key] != expected_metadata[key]:
             raise ModelRunAborted(
                 f"resume source {path} has {key}={source_metadata[key]!r}, expected {expected_metadata[key]!r}"
             )
     if expected_provenance:
-        source_provenance = payload.get("provenance") or payload.get("run_info") or {}
+        source_provenance = payload.get("provenance")
+        if source_provenance is None:
+            source_provenance = payload.get("run_info")
+        if source_provenance is None:
+            source_provenance = {}
+        if not isinstance(source_provenance, dict):
+            raise ModelRunAborted(f"resume source {path} provenance must be a JSON object")
         if source_provenance.get("benchmark_contract") != expected_provenance["benchmark_contract"]:
             raise ModelRunAborted(f"resume source {path} does not match the current benchmark contract")
         if source_provenance.get("scaffold_fingerprint") != expected_provenance["scaffold_fingerprint"]:
             raise ModelRunAborted(f"resume source {path} does not match the current provider scaffold")
-    return list(candidate.get("episodes") or [])
+    episodes = candidate.get("episodes")
+    if episodes is None:
+        episodes = []
+    if not isinstance(episodes, list) or any(not isinstance(episode, dict) for episode in episodes):
+        raise ModelRunAborted(f"resume source {path} episodes must be a list of JSON objects")
+    if any("seed" not in episode for episode in episodes):
+        raise ModelRunAborted(f"resume source {path} contains an episode without a seed")
+    return episodes
 
 
 def _resume_provenance(metadata: dict[str, Any]) -> dict[str, Any]:
@@ -271,7 +484,7 @@ def evaluate_resumable_candidate(
             payload, hits = run_many_cached_baselines(name, seeds, seasons, cache_path=cache_path, use_cache=True)
             cache_hits += hits
         else:
-            payload = run_many(AGENTS[name](), seeds=seeds, seasons=seasons, workers=1)
+            payload = run_many(AGENTS[name](), seeds=seeds, seasons=seasons, workers=None)
         baselines.append(payload)
     baseline_scores = [_precise_mean_score(result) for result in baselines]
     baseline_mean = mean(baseline_scores) if baseline_scores else 0.0

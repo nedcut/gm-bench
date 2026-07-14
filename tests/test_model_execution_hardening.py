@@ -18,6 +18,11 @@ class _DummyAgent:
     }
 
 
+class _FailingAgent(_DummyAgent):
+    def act_with_usage(self, observation: dict[str, object]) -> tuple[list[dict[str, str]], None]:
+        return [{"type": "noop", "model_error": "quota exhausted"}], None
+
+
 def _evaluation(*, failed: int = 0, illegal: int = 0, penalty: float = 0.0) -> dict[str, object]:
     decisions = 4
     return {
@@ -122,3 +127,33 @@ def test_atomic_output_replaces_existing_file(tmp_path: Path) -> None:
     path.write_text("stale")
     cli._write_json_atomic(path, {"ok": True})
     assert json.loads(path.read_text()) == {"ok": True}
+
+
+@pytest.mark.parametrize("provider", ["claude", "codex", "cursor", "opencode"])
+def test_subscription_cli_providers_reject_parallel_workers(provider: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli, "preflight_provider", lambda selected: None)
+    monkeypatch.setattr(cli, "build_provider_agent", lambda *args, **kwargs: _DummyAgent())
+
+    with pytest.raises(SystemExit, match="must run serially"):
+        cli.main(["model", "--provider", provider, "--workers", "2", "--no-log"])
+
+
+def test_session_lane_honors_fail_fast(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli, "preflight_provider", lambda selected: None)
+    monkeypatch.setattr(cli, "build_provider_agent", lambda *args, **kwargs: _FailingAgent())
+
+    def exercise(agent: object, *args: object, **kwargs: object) -> None:
+        agent.act_with_usage({})
+        agent.act_with_usage({})
+
+    monkeypatch.setattr(cli, "evaluate_against_baselines", exercise)
+
+    with pytest.raises(SystemExit, match="2 consecutive model failures"):
+        cli.main(["model", "--provider", "openai", "--session", "--no-log"])
+
+
+def test_fail_fast_below_one_is_rejected_at_the_cli(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["model", "--provider", "openai", "--fail-fast", "0", "--no-log"])
+    assert excinfo.value.code == 2
+    assert "fail-fast threshold must be >= 1" in capsys.readouterr().err
