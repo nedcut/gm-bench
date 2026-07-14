@@ -7,7 +7,7 @@ from gm_bench.runner import run_many
 
 
 def test_oracle_preserves_frozen_contract_fingerprint() -> None:
-    assert contract_fingerprint() == "1a5939e91bb2a6e7"
+    assert contract_fingerprint() == "75818ce1be557ef3"
     assert "oracle" not in AGENTS
 
 

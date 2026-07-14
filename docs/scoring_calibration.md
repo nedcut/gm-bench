@@ -127,7 +127,7 @@ also change strength, cap room, and wins.
 ## Reference-policy calibration
 
 The current `sota-v3` public panel (seeds 11-18, five seasons; fingerprint
-`1a5939e91bb2a6e7`, protocol `gm-bench-v3` with midseason and strategic contract terms)
+`75818ce1be557ef3`, protocol `gm-bench-v3` with midseason and strategic contract terms)
 produces:
 
 | Reference | Mean score | Illegal actions | Role |

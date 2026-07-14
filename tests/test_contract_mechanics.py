@@ -24,6 +24,17 @@ def test_contract_quotes_trade_current_cost_for_long_term_certainty() -> None:
     assert league._contract_quote(player, 1) > first_year_quote
 
 
+def test_incumbent_loyalty_does_not_cancel_max_term_premium() -> None:
+    """Extension length must stay strategically distinct after the loyalty discount."""
+    league = League.new(seed=24)
+    player = league.players[league.free_agents[0]]
+    fa1 = league._contract_quote(player, 1)
+    inc5 = league._contract_quote(player, 5, incumbent=True)
+
+    assert inc5 > fa1 * 1.04
+    assert league._contract_quote(player, 5, incumbent=True) < league._contract_quote(player, 5)
+
+
 def test_expiring_player_gets_public_discounted_extension_quotes() -> None:
     league = League.new(seed=24)
     player = _expiring_player(league)

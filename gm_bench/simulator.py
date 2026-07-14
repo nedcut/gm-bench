@@ -37,7 +37,9 @@ HARD_CAP_BUFFER = 8.0
 FA_RESERVATION_RANGE = (0.85, 1.0)
 ANNUAL_MARKET_INFLATION = 0.04
 CONTRACT_YEAR_PREMIUM = 0.02
-INCUMBENT_EXTENSION_DISCOUNT = 0.08
+# Keep loyalty below the 4-year term premium so INC5 stays materially above FA1
+# (8% loyalty previously cancelled the 8% max-term premium and collapsed length choice).
+INCUMBENT_EXTENSION_DISCOUNT = 0.03
 REJECTED_OFFER_LIMIT_PER_WINDOW = 2
 SCOUT_POINTS_PER_SEASON = 3
 SCOUT_REPORT_NOISE = 1.5
