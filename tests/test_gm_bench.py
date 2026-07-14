@@ -56,6 +56,40 @@ def test_trade_market_uses_public_estimates_not_hidden_asset_value() -> None:
         assert offer["estimated_price"] == League._public_trade_estimate(player)
 
 
+class _BadQueryAgent(ValueAgent):
+    """Plays a valid strategy but always tacks on two doomed lookups per turn.
+
+    The queries reference ids that cannot exist, so every one is a non-penalized
+    failed query — the invisible-failure class that motivated the counter.
+    """
+
+    name = "bad-query"
+
+    def act(self, observation):  # type: ignore[override]
+        actions = super().act(observation)
+        return [
+            {"type": "scout", "player_id": 999999999},
+            {"type": "inspect_team", "team_id": 987654},
+            *actions,
+        ]
+
+
+def test_failed_queries_surface_in_episode_and_summary_without_illegal_actions() -> None:
+    payload = run_episode(_BadQueryAgent(), seed=4, seasons=2)
+    # Two failed queries per decision point, none of them a protocol violation.
+    total_decisions = payload.decisions
+    assert payload.failed_queries == 2 * total_decisions
+    assert payload.illegal_actions == 0
+
+    run = run_many(_BadQueryAgent(), seeds=[4, 5], seasons=2)
+    episode = run["episodes"][0]
+    assert episode["failed_queries"] > 0
+    assert "failed_queries" in run["summary"]
+    assert run["summary"]["failed_queries"] == sum(ep["failed_queries"] for ep in run["episodes"])
+    assert run["summary"]["failed_queries"] > 0
+    assert run["summary"]["illegal_actions"] == 0
+
+
 def test_invalid_actions_are_penalized() -> None:
     league = League.new(seed=3)
     league.apply_actions([{"type": "sign_free_agent", "player_id": -999, "salary": 1, "years": 1}], "preseason")

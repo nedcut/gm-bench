@@ -522,6 +522,8 @@ def evaluate_resumable_candidate(
             "candidate_decision_failure_rate": summary.get("decision_failure_rate", 0.0),
             "candidate_memo_writes": summary.get("memo_writes", 0),
             "candidate_rejected_offers": summary.get("rejected_offers", 0),
+            "candidate_failed_queries": summary.get("failed_queries", 0),
+            "candidate_mean_tokens_per_decision": (summary.get("usage") or {}).get("mean_tokens_per_decision"),
             "candidate_usage": summary.get("usage", summarize_usage([])),
         },
         "paired": _paired_analysis(seeds, candidate, baselines),

@@ -46,7 +46,7 @@ full baseline panel; `GM_BENCH_PRIVATE_SEEDS` swaps in a private panel). Every
 run records usage telemetry — tokens, dollar cost (from `gm_bench/pricing.json`
 or adapter-reported cost), and per-decision latency — alongside scores. Results
 intended for serious frontier-model comparison should pass the stricter
-`sota-v1` validator in [`docs/production_benchmark.md`](docs/production_benchmark.md).
+`sota-v2` validator in [`docs/production_benchmark.md`](docs/production_benchmark.md).
 Runs also stamp a seed-panel hash so private held-out panels can be verified
 locally (integrity for a known panel, not secrecy). Use `redact-result` before
 publishing private-panel artifacts so the seed list is not committed.
@@ -55,7 +55,7 @@ publishing private-panel artifacts so the seed list is not committed.
 OPENAI_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \
   --preset leaderboard --repeats 3 --json > results/leaderboard/openai-gpt-5.4.json
 python -m gm_bench validate-result results/leaderboard/openai-gpt-5.4.json \
-  --policy sota-v1
+  --policy sota-v2
 python -m gm_bench validate-contract
 python -m gm_bench calibrate-score --json
 python web/scripts/build_leaderboard.py   # refresh web/src/data/leaderboard.json
@@ -64,6 +64,35 @@ cd web && bun install && bun run dev      # local site
 
 The site in `web/` deploys to GitHub Pages automatically on pushes to `main`
 (`.github/workflows/pages.yml`).
+
+### v2 changes
+
+The contract bumped to `sota-v2` (`actions-v2` / `sim-v2`, new contract
+fingerprint) for two fixes and one reporting requirement:
+
+- **Scout contract fixed.** The scaffold prompt has always documented
+  `{"type":"scout","player_id":88}` *and*
+  `{"type":"scout","prospect_id":1010001}`, but the `sim-v1` simulator only
+  read `player_id` and rejected `prospect_id` with "no such player or
+  prospect to scout." Models that followed the prompt's own example got a
+  misleading error instead of intel — 1,124 times in one 24-episode run —
+  while scripted baselines, which always use `player_id`, scouted
+  successfully. `scout` now accepts either key. See
+  [`results/leaderboard/archive-v1/README.md`](results/leaderboard/archive-v1/README.md)
+  for the affected rows.
+- **`failed_queries` is now first-class.** Failed `scout` / `inspect_team` /
+  `inspect_player` / `list_free_agents` calls are non-penalized (querying is
+  free), but under `sota-v1` they were also invisible: they appeared nowhere
+  in episode or run summaries. `failed_queries` is now counted alongside
+  `illegal_actions` in every summary and comparison block, so a run full of
+  misfired lookups is visible even though it costs no score.
+- **Published tables must show compute alongside score.** Score tracks
+  tokens/decision almost monotonically across published rows, so a bare score
+  is not a fair comparison. Any published table or claim must show the
+  execution lane (direct API vs. a coding-agent CLI harness — Claude Code,
+  Codex, Cursor, opencode), mean tokens/decision, and cost next to the score.
+  The leaderboard site enforces this: every model row carries `lane` and
+  `tokens_per_decision`.
 
 ## Quickstart
 

@@ -15,9 +15,9 @@ from typing import Any
 
 from gm_bench.scoring import SCORING_VERSION, scoring_scale_fingerprint
 
-BENCHMARK_VERSION = "sota-v1"
-ACTION_PROTOCOL_VERSION = "actions-v1"
-SIMULATOR_VERSION = "sim-v1"
+BENCHMARK_VERSION = "sota-v2"
+ACTION_PROTOCOL_VERSION = "actions-v2"
+SIMULATOR_VERSION = "sim-v2"
 OBSERVATION_VERSION = "observation-v1"
 
 _ROOT = Path(__file__).resolve().parents[1]

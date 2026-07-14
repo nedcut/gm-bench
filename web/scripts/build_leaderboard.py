@@ -1,17 +1,18 @@
 """Build the public leaderboard dataset for the GM-Bench site.
 
-Reads official ``results/leaderboard/*.json`` artifacts and explicitly marked
-``results/diagnostics/*.json`` artifacts. Official artifacts are either the saved output of
+Reads official ``results/leaderboard/*.json`` artifacts -- and *only* those. An
+artifact's provenance is the directory it lives in, never a field inside it, so
+neither ``results/diagnostics/`` nor the ``archive-v1/`` forensic set can reach
+the published table. Official artifacts are either the saved output of
 
     python -m gm_bench model --provider <p> --model <m> --preset leaderboard --repeats 3 --json > results/leaderboard/<name>.json
 
 or a redacted private-panel artifact from ``python -m gm_bench redact-result``.
-Diagnostics are visible on the site for transparency, but are deliberately kept
-outside the official-artifact directory so the public-leaderboard CI gate remains
-meaningful.
+Only rows on the current ``sota-v2`` contract are published; anything else is
+skipped with a note on stderr.
+
 It writes ``web/src/data/leaderboard.json`` with one row per model plus the
-scripted-baseline reference panel. Official artifacts take precedence over
-diagnostics for the same model; otherwise the newest diagnostic is shown. When no model results exist yet, the baseline
+scripted-baseline reference panel. When no model results exist yet, the baseline
 panel is read from the current-contract cache or recomputed deterministically so
 the site never mixes historical model rows with stale reference scores.
 
@@ -24,7 +25,6 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -34,14 +34,26 @@ sys.path.insert(0, str(ROOT))
 from gm_bench.agents import AGENTS  # noqa: E402
 from gm_bench.baseline_cache import cache_key, load_cache  # noqa: E402
 from gm_bench.benchmark_config import PRESETS, PRIVATE_LEADERBOARD_PANEL_NAME  # noqa: E402
-from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V1_POLICY, validate_leaderboard_payload  # noqa: E402
+from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
 from gm_bench.runner import run_many  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
-DIAGNOSTICS_DIR = ROOT / "results" / "diagnostics"
 OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard.json"
 LEADERBOARD = PRESETS["leaderboard"]
+# Providers that run a model through a coding-agent CLI harness (own tool loop,
+# own prompt scaffold, own retry/session behavior) rather than a direct API
+# call. Score and cost are not comparable across lanes even for the same
+# underlying model, so the lane must travel with every published row. This is
+# a fallback for external `--agent-cmd` rows with no `run_info.transport`;
+# built-in providers should always carry a transport (see gm_bench/providers.py).
+CLI_HARNESS_PROVIDERS = {"codex", "claude", "cursor", "opencode"}
+
+
+def _lane(provider: str, transport: str | None) -> str:
+    if transport:
+        return "cli-harness" if transport == "coding-harness" else "api"
+    return "cli-harness" if provider in CLI_HARNESS_PROVIDERS else "api"
 
 
 def model_row(payload: dict[str, Any]) -> dict[str, Any]:
@@ -69,6 +81,7 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
         "id": agent,
         "model": model_name,
         "provider": provider,
+        "lane": _lane(provider, run_info.get("transport")),
         "mean_score": summary["mean_score"],
         "score_stddev": summary["score_stddev"],
         "mean_strategy_score": summary.get("mean_strategy_score"),
@@ -82,6 +95,7 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
         "illegal_actions": summary.get("illegal_actions", 0),
         "total_tokens": usage.get("total_tokens", 0),
         "tokens_per_decision": round(usage.get("total_tokens", 0) / decisions, 1) if decisions else None,
+        "failed_queries": summary.get("failed_queries", 0),
         "cost_usd": cost,
         "cost_per_episode_usd": round(cost / episodes, 4) if cost is not None and episodes else None,
         "api_latency_s_per_decision": round(usage.get("api_latency_ms", 0.0) / 1000.0 / decisions, 2)
@@ -100,15 +114,15 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
         "contract_fingerprint": contract.get("contract_fingerprint"),
         "seed_panel": seed_panel.get("name"),
         "seed_panel_hash": seed_panel.get("sha256"),
-        "sota_v1_eligible": bool(sota_report.get("ok")),
-        "sota_v1_issues": [*sota_report.get("errors", []), *sota_report.get("warnings", [])],
+        "sota_v2_eligible": bool(sota_report.get("ok")),
+        "sota_v2_issues": [*sota_report.get("errors", []), *sota_report.get("warnings", [])],
     }
 
 
 def _sota_report(payload: dict[str, Any]) -> dict[str, Any]:
     """Always recompute eligibility; never trust embedded validation_reports."""
 
-    return validate_leaderboard_payload(payload, policy=SOTA_V1_POLICY).to_dict()
+    return validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY).to_dict()
 
 
 def _redacted_episode_count(payload: dict[str, Any]) -> int:
@@ -169,37 +183,60 @@ def current_baselines() -> list[dict[str, Any]]:
 
 
 def select_model_payloads(
-    artifacts: list[tuple[dict[str, Any], bool, str]],
+    artifacts: list[tuple[dict[str, Any], int, str]],
 ) -> list[dict[str, Any]]:
-    """Choose one row per agent: official first, otherwise newest diagnostic."""
-    selected: dict[str, tuple[tuple[bool, str, str], dict[str, Any]]] = {}
-    for payload, official, filename in artifacts:
+    """Choose one row per agent and contract, preferring canonical artifacts."""
+    selected: dict[tuple[str, str], tuple[tuple[int, str, str], dict[str, Any]]] = {}
+    for payload, source_priority, filename in artifacts:
         agent = str(payload.get("agent") or "")
         if not agent:
             continue
+        contract = (payload.get("run_info") or {}).get("benchmark_contract") or {}
+        benchmark_version = str(contract.get("benchmark_version") or "unknown")
         timestamp = str((payload.get("run_info") or {}).get("timestamp_utc") or "")
-        priority = (official, timestamp, filename)
-        current = selected.get(agent)
+        priority = (int(source_priority), timestamp, filename)
+        key = (agent, benchmark_version)
+        current = selected.get(key)
         if current is None or priority > current[0]:
-            selected[agent] = (priority, payload)
+            selected[key] = (priority, payload)
     return [item[1] for item in selected.values()]
 
 
 def main() -> None:
-    artifacts: list[tuple[dict[str, Any], bool, str]] = []
-    for directory in (RESULTS_DIR, DIAGNOSTICS_DIR):
-        if not directory.exists():
-            continue
-        for path in sorted(directory.glob("*.json")):
+    # Published rows come from RESULTS_DIR only. Provenance is the directory an
+    # artifact lives in, never a field inside it: selecting on benchmark_version
+    # alone would promote a *diagnostic* sota-v2 run into the official table
+    # without it ever clearing the official gate.
+    artifacts: list[tuple[dict[str, Any], int, str]] = []
+    if RESULTS_DIR.exists():
+        for path in sorted(RESULTS_DIR.glob("*.json")):
             try:
-                artifacts.append((json.loads(path.read_text()), directory == RESULTS_DIR, path.name))
+                artifacts.append((json.loads(path.read_text()), 2, path.name))
             except json.JSONDecodeError:
                 print(f"skipping unparseable {path}", file=sys.stderr)
     payloads = select_model_payloads(artifacts)
-    models = sorted((model_row(payload) for payload in payloads), key=lambda row: row["mean_score"], reverse=True)
+    rows = sorted((model_row(payload) for payload in payloads), key=lambda row: row["mean_score"], reverse=True)
+    # The sota-v1 rows in ARCHIVE_DIR are retained as forensic evidence of the v1
+    # scout-contract break, not as a ranking: the defect cost some candidates over
+    # a thousand silently-rejected lookups and others none, so their scores are not
+    # comparable to each other. See results/leaderboard/archive-v1/README.md.
+    models = [row for row in rows if row.get("benchmark_version") == "sota-v2"]
+    skipped = [row for row in rows if row.get("benchmark_version") != "sota-v2"]
+    for row in skipped:
+        print(
+            f"skipping {row.get('model')}: benchmark_version={row.get('benchmark_version')!r} is not sota-v2",
+            file=sys.stderr,
+        )
     baselines = current_baselines()
+    # Derived from the artifacts, never from the wall clock: the committed
+    # leaderboard.json must be a pure function of the committed inputs, or the
+    # CI reproducibility gate would go red every time the date rolls over. It is
+    # also the more honest field -- the data was last updated when a run landed,
+    # not when someone happened to rebuild the site.
+    timestamps = [str((payload.get("run_info") or {}).get("timestamp_utc") or "") for payload in payloads]
+    updated = max((stamp for stamp in timestamps if stamp), default="")[:10]
     dataset = {
-        "updated": date.today().isoformat(),
+        "updated": updated,
         "preset": {
             "name": "leaderboard",
             "seeds": LEADERBOARD["seeds"],
@@ -211,7 +248,7 @@ def main() -> None:
     }
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(json.dumps(dataset, indent=2, sort_keys=True) + "\n")
-    print(f"wrote {OUTPUT_PATH} ({len(models)} model(s), {len(baselines)} baseline(s))")
+    print(f"wrote {OUTPUT_PATH} ({len(models)} current model(s), {len(baselines)} baseline(s))")
 
 
 if __name__ == "__main__":

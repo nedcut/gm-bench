@@ -20,8 +20,20 @@ from gm_bench.benchmark_config import (
 from gm_bench.contract import expected_contract, scaffold_fingerprint
 
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
+SOTA_V2_POLICY_NAME = "sota-v2"
 SOTA_V1_POLICY_NAME = "sota-v1"
+ARCHIVE_V1_POLICY_NAME = "archive-v1"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+SOTA_V1_CONTRACT = {
+    "benchmark_version": "sota-v1",
+    "action_protocol_version": "actions-v1",
+    "scoring_version": "score-v1",
+    "scoring_scale_fingerprint": "05a60ff4f691e734",
+    "simulator_version": "sim-v1",
+    "observation_version": "observation-v1",
+    "contract_fingerprint": "cf2607e59dba0c7f",
+}
 
 
 @dataclass(frozen=True)
@@ -33,6 +45,14 @@ class ResultPolicy:
     require_full_usage: bool = True
     require_contract_provenance: bool = False
     require_seed_panel_provenance: bool = False
+    expected_contract: dict[str, Any] | None = None
+    validate_current_scaffold: bool = True
+    # Failed queries (misfired scout/inspect lookups) carry no protocol penalty,
+    # so a model can silently burn its decision budget on them -- the v1 scout
+    # contract break did exactly that. Warn early, and let strict policies refuse
+    # a row whose lookups fail more often than it makes decisions.
+    warn_failed_query_rate: float = 0.25
+    max_failed_query_rate: float | None = None
 
 
 PUBLIC_LEADERBOARD_POLICY = ResultPolicy(
@@ -41,6 +61,16 @@ PUBLIC_LEADERBOARD_POLICY = ResultPolicy(
     min_seed_count=1,
     max_decision_failure_rate=0.20,
 )
+SOTA_V2_POLICY = ResultPolicy(
+    name=SOTA_V2_POLICY_NAME,
+    min_repeats=3,
+    min_seed_count=len(PRESETS["leaderboard"]["seeds"]),
+    max_decision_failure_rate=0.02,
+    require_contract_provenance=True,
+    require_seed_panel_provenance=True,
+    expected_contract=expected_contract(),
+    max_failed_query_rate=1.0,
+)
 SOTA_V1_POLICY = ResultPolicy(
     name=SOTA_V1_POLICY_NAME,
     min_repeats=3,
@@ -48,10 +78,33 @@ SOTA_V1_POLICY = ResultPolicy(
     max_decision_failure_rate=0.02,
     require_contract_provenance=True,
     require_seed_panel_provenance=True,
+    expected_contract=SOTA_V1_CONTRACT,
+    # Historical adapter scaffolds are no longer present in the source tree.
+    validate_current_scaffold=False,
+)
+# Verifiability, not eligibility. `archive-v1` answers "is this a genuine v1
+# artifact, produced under the frozen v1 contract on the declared seed panel?"
+# -- deliberately not "was it good enough to rank?", which is what `sota-v1`
+# answers. Conflating the two would force a choice between deleting real
+# evidence and letting the archive drift off its contract: two archived rows
+# (ollama-gemma4-e4b, ollama-qwen3-5-latest) shipped under the looser public
+# bar and never cleared sota-v1's failure-rate gate. They are still authentic
+# v1 artifacts, and the archive exists to preserve them, not to endorse them.
+ARCHIVE_V1_POLICY = ResultPolicy(
+    name=ARCHIVE_V1_POLICY_NAME,
+    min_repeats=1,
+    min_seed_count=1,
+    max_decision_failure_rate=PUBLIC_LEADERBOARD_POLICY.max_decision_failure_rate,
+    require_contract_provenance=True,
+    require_seed_panel_provenance=True,
+    expected_contract=SOTA_V1_CONTRACT,
+    validate_current_scaffold=False,
 )
 POLICIES = {
     PUBLIC_LEADERBOARD_POLICY.name: PUBLIC_LEADERBOARD_POLICY,
     SOTA_V1_POLICY.name: SOTA_V1_POLICY,
+    SOTA_V2_POLICY.name: SOTA_V2_POLICY,
+    ARCHIVE_V1_POLICY.name: ARCHIVE_V1_POLICY,
 }
 REDACTED_SEEDS_SENTINEL = "<redacted>"
 
@@ -117,12 +170,21 @@ def validate_leaderboard_payload(
             errors.append("run_info.provider is required for official model results")
         if not run_info.get("model"):
             errors.append("run_info.model is required for official model results")
-        _validate_contract_provenance(errors, warnings, run_info, require=policy.require_contract_provenance)
-        _validate_scaffold_provenance(errors, warnings, run_info)
+        _validate_contract_provenance(
+            errors,
+            warnings,
+            run_info,
+            require=policy.require_contract_provenance,
+            expected=policy.expected_contract,
+        )
+        if policy.validate_current_scaffold:
+            _validate_scaffold_provenance(errors, warnings, run_info)
+        elif run_info.get("scaffold_fingerprint"):
+            warnings.append("historical scaffold fingerprint retained but cannot be re-derived from current source")
         if run_info.get("session"):
-            if policy.name == SOTA_V1_POLICY_NAME:
+            if policy.name == SOTA_V2_POLICY_NAME:
                 errors.append(
-                    "sota-v1 rows must be fresh-spawn (memo-only memory); "
+                    "sota-v2 rows must be fresh-spawn (memo-only memory); "
                     "session-condition rows are a separate lane and not comparable"
                 )
             else:
@@ -153,7 +215,7 @@ def validate_leaderboard_payload(
 
     baselines = [_dict(result) for result in _list(payload.get("baselines"))]
     baseline_names = [result.get("agent") for result in baselines]
-    if policy.name == SOTA_V1_POLICY_NAME:
+    if policy.name == SOTA_V2_POLICY_NAME:
         _expect_equal(errors, "baselines", baseline_names, expected_baselines)
     else:
         if not baseline_names:
@@ -188,6 +250,22 @@ def validate_leaderboard_payload(
             warnings.append("candidate has illegal actions; score includes protocol penalties")
         if int(summary.get("failed_decisions", 0) or 0):
             warnings.append("candidate used adapter fallback/error output on at least one decision")
+        failed_queries = int(summary.get("failed_queries", 0) or 0)
+        if decisions:
+            failed_query_rate = failed_queries / decisions
+            detail = (
+                f"candidate has {failed_queries} failed queries across {decisions} decisions "
+                f"({failed_query_rate:.2f} per decision)"
+            )
+            if policy.max_failed_query_rate is not None and failed_query_rate > policy.max_failed_query_rate:
+                errors.append(
+                    f"{detail}, exceeding {policy.max_failed_query_rate:.2f} for {policy.name}; "
+                    "the candidate is spending its decision budget on lookups that never resolve"
+                )
+            elif failed_query_rate > policy.warn_failed_query_rate:
+                warnings.append(
+                    f"{detail}; misfired scout/inspect lookups may indicate the model is not reading query errors"
+                )
         usage = _dict(summary.get("usage"))
         if policy.require_full_usage and decisions:
             if int(usage.get("decisions_with_usage", 0) or 0) != decisions:
@@ -200,7 +278,7 @@ def validate_leaderboard_payload(
                 warnings,
                 run_info,
                 usage,
-                strict=policy.name == SOTA_V1_POLICY_NAME,
+                strict=policy.name == SOTA_V2_POLICY_NAME,
             )
 
     for baseline in baselines:
@@ -269,7 +347,7 @@ def _validate_openrouter_route(
 def redact_leaderboard_payload(
     payload: dict[str, Any],
     *,
-    policy: ResultPolicy = SOTA_V1_POLICY,
+    policy: ResultPolicy = SOTA_V2_POLICY,
 ) -> tuple[dict[str, Any], ValidationReport]:
     """Return a public-safe copy of a leaderboard payload.
 
@@ -430,9 +508,10 @@ def _validate_contract_provenance(
     run_info: dict[str, Any],
     *,
     require: bool,
+    expected: dict[str, Any] | None,
 ) -> None:
     contract = _dict(run_info.get("benchmark_contract"))
-    expected = expected_contract()
+    expected = expected or expected_contract()
     if not contract:
         message = "run_info.benchmark_contract is required for current-contract validation"
         if require:

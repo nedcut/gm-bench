@@ -71,6 +71,7 @@ export interface LeaderboardModel {
   id: string;
   model: string;
   provider: string;
+  lane?: "api" | "cli-harness";
   mean_score: number;
   score_stddev: number;
   mean_strategy_score: number | null;
@@ -84,6 +85,7 @@ export interface LeaderboardModel {
   illegal_actions: number;
   total_tokens: number;
   tokens_per_decision: number | null;
+  failed_queries?: number;
   cost_usd: number | null;
   cost_per_episode_usd: number | null;
   api_latency_s_per_decision: number | null;
@@ -97,8 +99,8 @@ export interface LeaderboardModel {
   contract_fingerprint: string | null;
   seed_panel: string | null;
   seed_panel_hash: string | null;
-  sota_v1_eligible: boolean;
-  sota_v1_issues: string[];
+  sota_v2_eligible?: boolean;
+  sota_v2_issues?: string[];
 }
 
 export interface LeaderboardBaseline {
