@@ -118,7 +118,8 @@ def test_leaderboard_openrouter_requires_canonical_pin() -> None:
         }
 
     assert cli._openrouter_route_config_errors(Agent(), "leaderboard") == [
-        "OPENROUTER_PROVIDER_ONLY must name exactly one upstream provider"
+        "OPENROUTER_PROVIDER_ONLY must name exactly one upstream provider",
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME must pin an exact endpoint",
     ]
 
 

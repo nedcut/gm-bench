@@ -882,6 +882,8 @@ def _openrouter_route_config_errors(agent: Any, preset: str | None) -> list[str]
     errors: list[str] = []
     if len(only) != 1:
         errors.append("OPENROUTER_PROVIDER_ONLY must name exactly one upstream provider")
+    if not str(options.get("OPENROUTER_EXPECTED_ENDPOINT_NAME", "")).strip():
+        errors.append("OPENROUTER_EXPECTED_ENDPOINT_NAME must pin an exact endpoint")
     if str(options.get("OPENROUTER_ALLOW_FALLBACKS", "")).casefold() not in {"false", "0", "no", "off"}:
         errors.append("OPENROUTER_ALLOW_FALLBACKS must be false")
     return errors

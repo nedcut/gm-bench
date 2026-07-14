@@ -88,6 +88,13 @@ jobs:
             echo "::error::results/analysis/output-budget-sweep.json is stale or hand-edited; re-run scripts/analyze_output_budget.py and commit the result"
             exit 1
           fi
+      - name: Publication cost estimate is reproducible
+        run: |
+          python scripts/estimate_publication_cost.py --output /tmp/output-budget-cost.regen.json
+          if ! diff -u results/analysis/output-budget-cost-estimate.json /tmp/output-budget-cost.regen.json; then
+            echo "::error::results/analysis/output-budget-cost-estimate.json is stale; regenerate it from the committed protocol and pricing snapshot"
+            exit 1
+          fi
       - name: Verify archived v1 evidence
         # `archive-v1` asserts these are authentic v1 artifacts on the frozen
         # contract. It deliberately does NOT assert they were leaderboard-eligible

@@ -260,7 +260,7 @@ def test_output_budget_analysis_rejects_duplicate_cells() -> None:
         ],
         "output_token_caps": [256],
         "repeats": 3,
-        "decision_rule": {"minimum_models": 1},
+        "decision_rule": {"required_models": 1},
     }
 
     result = analyze(config, [payload, payload])
@@ -309,6 +309,7 @@ def test_sota_v2_accepts_pinned_single_upstream_openrouter_route() -> None:
             "scaffold_fingerprint": scaffold_fingerprint("openrouter"),
             "provider_options": {
                 "OPENROUTER_PROVIDER_ONLY": "openai",
+                "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-test-20260714",
                 "OPENROUTER_ALLOW_FALLBACKS": "false",
             },
         }
@@ -331,6 +332,7 @@ def test_sota_v2_rejects_openrouter_upstream_that_differs_from_pin() -> None:
             "scaffold_fingerprint": scaffold_fingerprint("openrouter"),
             "provider_options": {
                 "OPENROUTER_PROVIDER_ONLY": "OpenAI",
+                "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-test-20260714",
                 "OPENROUTER_ALLOW_FALLBACKS": "false",
             },
         }

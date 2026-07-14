@@ -54,6 +54,14 @@ def _model_specs(config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str
         if not isinstance(fixed_options, dict) or not isinstance(absent_options, list):
             errors.append(f"models[{index}] fixed_options must be an object and absent_options must be a list")
             continue
+        if provider == "openrouter":
+            endpoint_name = str(spec.get("endpoint_name") or "").strip()
+            expected_option = str(fixed_options.get("OPENROUTER_EXPECTED_ENDPOINT_NAME") or "").strip()
+            if not endpoint_name or expected_option != endpoint_name:
+                errors.append(
+                    f"models[{index}] must freeze endpoint_name and matching "
+                    "OPENROUTER_EXPECTED_ENDPOINT_NAME provenance"
+                )
         overlap = set(fixed_options).intersection(str(value) for value in absent_options)
         if overlap:
             errors.append(f"models[{index}] options cannot be both fixed and absent: {sorted(overlap)!r}")
@@ -128,6 +136,8 @@ def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str,
             reasons.append("output cap is not in the planned sweep")
         if decisions <= 0:
             reasons.append("candidate has no decision points")
+        if not isinstance(summary.get("mean_score"), int | float):
+            reasons.append("candidate summary does not report a numeric mean_score")
         for key in ("input_tokens", "output_tokens"):
             if key not in usage:
                 reasons.append(f"candidate usage does not report {key}")
@@ -192,7 +202,7 @@ def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str,
     complete = (
         bool(specs)
         and not config_errors
-        and len(specs) >= int(config["decision_rule"]["minimum_models"])
+        and len(specs) == int(config["decision_rule"]["required_models"])
         and not missing
         and not duplicate_cells
         and not rejected
@@ -209,6 +219,7 @@ def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str,
         reason = "duplicate model-cap cells must be resolved before interpreting the sweep"
     else:
         reason = "missing planned model-cap cells; no output-budget conclusion is permitted"
+    recommendation = _decision_recommendation(config, points) if complete else None
     return {
         "schema_version": 1,
         "status": "complete-needs-interpretation" if complete else "incomplete",
@@ -228,6 +239,54 @@ def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str,
                 row["output_token_cap"] or 0,
             ),
         ),
+        "decision_recommendation": recommendation,
+    }
+
+
+def _decision_recommendation(config: dict[str, Any], points: list[dict[str, Any]]) -> dict[str, Any]:
+    rule = config["decision_rule"]
+    caps = sorted(int(cap) for cap in config["output_token_caps"])
+    by_cell = {(point["experiment_id"], int(point["output_token_cap"])): point for point in points}
+    experiment_ids = sorted({str(point["experiment_id"]) for point in points})
+    absolute = float(rule["material_gain_score_points"])
+    relative = float(rule["material_gain_relative"])
+    comparisons: list[dict[str, Any]] = []
+    for cap in caps[:-1]:
+        model_rows = []
+        material_models = 0
+        for experiment_id in experiment_ids:
+            lower = float(by_cell[(experiment_id, cap)]["mean_score"])
+            threshold = max(absolute, abs(lower) * relative)
+            gains = {
+                str(higher): round(float(by_cell[(experiment_id, higher)]["mean_score"]) - lower, 6)
+                for higher in caps
+                if higher > cap
+            }
+            material = any(gain >= threshold for gain in gains.values())
+            material_models += int(material)
+            model_rows.append(
+                {
+                    "experiment_id": experiment_id,
+                    "lower_cap_mean_score": lower,
+                    "material_gain_threshold": round(threshold, 6),
+                    "gains_to_higher_caps": gains,
+                    "material_gain_observed": material,
+                }
+            )
+        comparisons.append({"output_token_cap": cap, "material_models": material_models, "models": model_rows})
+        if material_models == 0:
+            return {
+                "output_budget_status": "frozen-saturation",
+                "output_token_cap": cap,
+                "rule": "lowest cap with no material gain for any selected model at any higher tested cap",
+                "comparisons": comparisons,
+            }
+    fallback = int(rule["non_saturation_output_token_cap"])
+    return {
+        "output_budget_status": "frozen-fixed-budget",
+        "output_token_cap": fallback,
+        "rule": "no lower cap saturated; freeze the pre-registered highest common cap and publish curves",
+        "comparisons": comparisons,
     }
 
 

@@ -66,7 +66,7 @@ The project is publish-ready only when all four gates pass.
 | Core engineering | Strong | Deterministic simulator, adapters, CLI, GUI, site, tests, and CI are substantial. |
 | Reproducibility | Strong | Contract fingerprints, seed provenance, compact artifacts, and validators are in place or staged. |
 | Benchmark validity | Strong but scoped | Scripted references, exploit canaries, oracle headroom, calibration, and mechanic coverage exist. |
-| Compute comparability | In progress | Three sweep models, four cap cells, exact routes, and the decision rule are pre-registered; no paid sweep cells are complete. |
+| Compute comparability | Ready to measure | Three sweep models, four bounded cap cells, exact routes, fixed protocol, and a deterministic decision rule are pre-registered; all three standardized smokes passed, but no official sweep cells are complete. |
 | Current model evidence | Blocked | The active `sota-v2` leaderboard has no eligible model rows. |
 | Statistical evidence | Partially ready | Paired analysis and power tooling exist; final model results do not. |
 | External validation | Missing | No independent reproduction or third-party result has been recorded. |
@@ -105,8 +105,10 @@ of the frozen v2 evidence package.
   authenticity policy; strict `sota-v1` remains an eligibility question.
 - [x] Confirm the current v2 leaderboard is empty rather than populated with
   invalid, diagnostic, or historical rows.
-- [ ] Confirm `results/diagnostics/`, `results/leaderboard/`, and archived result
-  directories have distinct, documented meanings.
+- [x] Confirm `results/diagnostics/`, `results/leaderboard/`, and archived result
+  directories have distinct, documented meanings in
+  `docs/production_benchmark.md`, `docs/submitting_results.md`, and the archive
+  README.
 
 **Exit condition:** `main` contains a stable, frozen, fully green v2 benchmark
 and the safe execution path needed for expensive model panels.
@@ -126,18 +128,23 @@ It must happen before the larger model panel.
   models likely to behave similarly.
 - [x] Freeze provider routing, reasoning-effort settings, temperature, scaffold,
   observation profile, repair policy, and fresh-spawn condition.
-- [x] Predeclare the primary endpoint and saturation decision rule. Record the
-  final permitted retry, exclusion, and stopping wording before paid runs.
-- [ ] Freeze the permitted retry
-  conditions, exclusion rules, and stopping rule before seeing sweep outcomes.
-- [ ] Distinguish infrastructure/provider failures that permit a resumed run from
+- [x] Predeclare the primary endpoint and deterministic saturation decision rule.
+- [x] Freeze the permitted retry conditions, exclusion rules, and stopping rule
+  in `config/publication_protocol.json` before seeing sweep outcomes.
+- [x] Distinguish infrastructure/provider failures that permit a resumed run from
   poor model behavior that must remain part of the measured result.
-- [ ] Estimate and record expected cost, runtime, concurrency, and quota before
-  starting.
-- [ ] Run a serial smoke test for every model/cap combination.
-- [ ] Run the complete 256 / 1,024 / 4,096 / uncapped matrix with three repeats
+- [x] Estimate and record expected cost, runtime, serial concurrency, and quota
+  in `results/analysis/output-budget-cost-estimate.json`: $27 planning,
+  $32.40 with cost contingency, $94.51 token-ceiling contingency, 8.96 observed
+  serial API-hours, and 13.44 hours with runtime contingency.
+- [x] Run one standardized 1,024-token serial smoke for every selected sweep
+  model, plus live metadata preflight for the full cap matrix. All three passed
+  with the pinned route, reasoning disabled, zero failed decisions, zero
+  repairs, and complete cost telemetry.
+- [ ] Run the complete 256 / 1,024 / 4,096 / 16,384 matrix with three repeats
   on the official panel.
-- [ ] Record the effective provider cap for the nominally uncapped cell.
+- [x] Remove the provider-dependent uncapped cell before official runs; use the
+  same bounded 16,384-token high cell for all selected models.
 - [ ] Preserve raw artifacts and logs outside git; do not discard failed cells.
 - [ ] Analyze completed cells with `scripts/analyze_output_budget.py`.
 - [x] Confirm in automated tests that the analyzer rejects missing, duplicate,
@@ -193,7 +200,8 @@ python3 scripts/run_publication_matrix.py smoke \
   --max-spend-usd 5
 ```
 
-Only after every smoke and the recorded cost estimate are acceptable, run the
+Only after every standardized smoke and the recorded cost estimate are
+acceptable, run the
 pre-registered sweep into a new run directory. The driver creates atomic raw
 artifacts and per-cell checkpoints, uses validated resume when a checkpoint
 already exists, and refuses to fan out workers:
@@ -211,17 +219,22 @@ cap and a frozen policy status. The driver enforces that lock.
 
 - [x] Pre-register 11 exact provider/model/route identities in
   `config/sota_v2_models.json` before full results are visible.
-- [ ] Pre-register the full-panel rerun and exclusion policy. A disappointing
+- [x] Pre-register the full-panel rerun and exclusion policy. A disappointing
   valid result is not a reason to rerun a model.
-- [ ] Target 8–12 models covering frontier, mid-tier, smaller, and local/open
+- [x] Target 8–12 models covering frontier, mid-tier, smaller, and open-weight
   models where technically and financially practical.
-- [ ] Record exact model identifiers and dates; never collapse distinct snapshots
+- [x] Record exact model identifiers, dated endpoint names, and upstream routes;
+  never collapse distinct snapshots
   under a generic family name.
-- [ ] Keep the headline lane API-only, fresh-spawn, `compact`, and under the
+- [x] Keep the headline lane API-only, fresh-spawn, `compact`, and under the
   frozen output policy.
-- [ ] Keep coding-agent CLI harnesses in a separate diagnostic table.
+- [x] Keep coding-agent CLI harnesses in a separate diagnostic table.
 - [ ] Never parallelize Claude or another subscription/rate-limited CLI.
-- [ ] Smoke-test every provider/model combination before a full panel.
+- [x] Verify all 11 pre-registered provider/model routes can accept the common
+  privacy, parameter, JSON, reasoning-off, and bounded-output policy. Replace
+  incompatible routes before any official sweep result existed.
+- [ ] Run a benchmark-level smoke for every provider/model combination after the
+  sweep freezes the shared cap and immediately before the full panel.
 - [ ] Use serial execution, fail-fast behavior, atomic checkpoints, and validated
   resume rather than restarting completed episodes.
 - [ ] Run all eight official seeds, five seasons, and three candidate repeats.
@@ -473,6 +486,9 @@ decision and why.
 | 2026-07-13 | Keep strategic contract mechanics in v3. | Making contract length meaningful changes simulator behavior and reference scores. | Publish frozen v2 evidence before merging v3 behavior changes. |
 | 2026-07-14 | Pre-register a three-model output-budget sweep and an 11-model headline panel. | The selected panel spans a small open model, mid-tier models, and frontier families while preserving exact OpenRouter upstream routing. | Do not substitute models or routes after results are visible; record any unavoidable provider withdrawal as an exclusion. |
 | 2026-07-14 | Require eight publication-eligible headline rows before emitting a ranking. | A tiny or partially successful panel would invite selection bias and overstate coverage. | The generated public JSON contains no model ranking until the frozen compute lane and minimum panel both pass. |
+| 2026-07-14 | Replace the provider-dependent uncapped sweep cell with a common 16,384-token ceiling. | Upstreams expose different maxima, so “uncapped” was neither compute-comparable nor financially bounded. No official sweep cell had run. | Every sweep cell now has a common explicit cap and the runner requires a spend ceiling. |
+| 2026-07-14 | Standardize JSON mode on and reasoning off, and replace four incompatible headline routes before results. | Live route probes found mandatory reasoning on Grok, Gemini, and Kimi, and an incompatible data-retention policy on DeepSeek. Replacements were selected on route compatibility and panel coverage, not score. | All 11 registered routes can accept one common protocol; exact endpoint names remain pinned and checked before calls. |
+| 2026-07-14 | Freeze the output-budget decision, rerun, exclusion, stopping, and budget rules in `config/publication_protocol.json`. | Post-result discretion would create researcher degrees of freedom and selection bias. | The analyzer emits the predeclared cap recommendation; valid poor behavior cannot be rerun away. |
 
 ## Experiment and release log
 
@@ -485,7 +501,10 @@ than pasting large outputs.
 | 2026-07-14 | Model-run recovery hardening | Merged | [#59](https://github.com/nedcut/gm-bench/pull/59) | Serial safety, fail-fast, locking, checkpoint validation, atomic merge. |
 | 2026-07-14 | Publication pipeline | In progress | [#61](https://github.com/nedcut/gm-bench/pull/61) | Models/routes pre-registered and release gates hardened; paid sweep and model panel remain. |
 | 2026-07-13 | Strategic contract mechanics | Deferred v3 draft | [#62](https://github.com/nedcut/gm-bench/pull/62) | Keep separate until v2 publication is complete. |
-| 2026-07-14 | OpenRouter smoke | Local evidence complete | Qwen 1,024/4,096; GPT-5.4 mini 4,096 | Pinned-route Qwen exhausted its output allowance in reasoning on all decisions at 1,024 and three of four at 4,096; these are measured protocol failures, not infrastructure aborts. GPT-5.4 mini completed 4/4 decisions cleanly at 4,096 with complete route, usage, and cost telemetry. Total raw artifact cost across these completed smokes was under $0.04. Do not treat smoke scores as benchmark evidence. |
+| 2026-07-14 | Initial OpenRouter smoke | Superseded diagnostic | Qwen 1,024/4,096; GPT-5.4 mini 4,096 | Provider-default reasoning made Qwen consume its output allowance without usable content. This exposed the need to standardize reasoning and JSON settings; these scores are not benchmark evidence. |
+| 2026-07-14 | Standardized sweep smoke | Complete | Qwen 3.5 9B, GPT-5.4 mini, MiniMax M3 at 1,024 | Each model completed 4/4 decisions on its exact pinned route with reasoning disabled, zero failed decisions, zero repairs, and complete usage/cost telemetry. Combined artifact cost was under $0.04. Do not treat smoke scores as benchmark evidence. |
+| 2026-07-14 | Full-panel route compatibility | Complete for current snapshot | `config/sota_v2_models.json` | All 11 exact routes accepted the common privacy/parameter policy; four incompatible original choices were replaced before official results. Endpoint health is rechecked by the runner because provider state can drift. |
+| 2026-07-14 | Sweep cost/runtime plan | Complete | `results/analysis/output-budget-cost-estimate.json` | Planning estimate $27; cost contingency $32.40; token-ceiling contingency $94.51; projected 8.96 serial API-hours or 13.44 with runtime contingency. Operator approval is still explicit at invocation. |
 
 ## Living-document maintenance checklist
 

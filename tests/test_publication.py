@@ -158,7 +158,7 @@ def test_budget_analysis_rejects_mixed_pre_registered_provenance(monkeypatch: py
         "output_token_caps": [256],
         "repeats": 3,
         "require_complete_cost": True,
-        "decision_rule": {"minimum_models": 1},
+        "decision_rule": {"required_models": 1},
         "models": [
             {
                 "id": "openrouter-demo",
@@ -227,6 +227,7 @@ def test_publication_model_registry_is_consistent_with_sweep() -> None:
     assert 8 <= len(models) <= 12
     assert len({row["id"] for row in models}) == len(models)
     assert len(identities) == len(models)
+    assert len({row["endpoint_name"] for row in models}) == len(models)
     assert lane["model_registry"] == "config/sota_v2_models.json"
     assert lane["minimum_headline_models"] >= 8
 
@@ -238,6 +239,7 @@ def test_publication_model_registry_is_consistent_with_sweep() -> None:
         expected_options = {
             **registry["shared_fixed_options"],
             "OPENROUTER_PROVIDER_ONLY": registry_model["upstream_provider"],
+            "OPENROUTER_EXPECTED_ENDPOINT_NAME": registry_model["endpoint_name"],
         }
         assert sweep_model["fixed_options"] == expected_options
         assert sweep_model["absent_options"] == registry["shared_absent_options"]
@@ -285,3 +287,37 @@ def test_publication_gate_rejects_wrong_cap_and_unregistered_rows() -> None:
     models, report = publication_gate(rows, analysis, lane)
     assert models == []
     assert report["publishable_ranking"] is False
+
+
+def test_budget_decision_rule_is_deterministic() -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("analyze_output_budget", Path("scripts/analyze_output_budget.py"))
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    config = {
+        "output_token_caps": [256, 1024, 4096],
+        "decision_rule": {
+            "material_gain_score_points": 10.0,
+            "material_gain_relative": 0.05,
+            "non_saturation_output_token_cap": 4096,
+        },
+    }
+    saturated_points = [
+        {"experiment_id": model, "output_token_cap": cap, "mean_score": score}
+        for model in ("a", "b")
+        for cap, score in ((256, 100.0), (1024, 112.0), (4096, 114.0))
+    ]
+    saturated = module._decision_recommendation(config, saturated_points)
+    assert saturated["output_budget_status"] == "frozen-saturation"
+    assert saturated["output_token_cap"] == 1024
+
+    elastic_points = [
+        {"experiment_id": model, "output_token_cap": cap, "mean_score": score}
+        for model in ("a", "b")
+        for cap, score in ((256, 100.0), (1024, 115.0), (4096, 130.0))
+    ]
+    elastic = module._decision_recommendation(config, elastic_points)
+    assert elastic["output_budget_status"] == "frozen-fixed-budget"
+    assert elastic["output_token_cap"] == 4096

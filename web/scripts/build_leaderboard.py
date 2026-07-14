@@ -111,6 +111,7 @@ def _publication_identity_issues(payload: dict[str, Any], config: dict[str, Any]
     expected_options = {
         **(config.get("shared_fixed_options") or {}),
         "OPENROUTER_PROVIDER_ONLY": registered.get("upstream_provider"),
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": registered.get("endpoint_name"),
     }
     for key, expected in expected_options.items():
         if str(options.get(key, "")) != str(expected):

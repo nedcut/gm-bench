@@ -14,8 +14,10 @@ import json
 import os
 import subprocess
 import sys
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +36,7 @@ class Cell:
     preset: str
     repeats: int
     cap: int | None
+    endpoint_name: str
     fixed_options: dict[str, str]
     absent_options: tuple[str, ...]
 
@@ -77,6 +80,7 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
                 preset=preset,
                 repeats=repeats,
                 cap=cell_cap,
+                endpoint_name=str(model.get("endpoint_name") or ""),
                 fixed_options={str(key): str(value) for key, value in (model.get("fixed_options") or {}).items()},
                 absent_options=tuple(str(value) for value in model.get("absent_options") or []),
             )
@@ -105,7 +109,12 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
                 preset=str(config["preset"]),
                 repeats=int(config["repeats"]),
                 cap=frozen_cap,
-                fixed_options={**shared, "OPENROUTER_PROVIDER_ONLY": str(model["upstream_provider"])},
+                endpoint_name=str(model.get("endpoint_name") or ""),
+                fixed_options={
+                    **shared,
+                    "OPENROUTER_PROVIDER_ONLY": str(model["upstream_provider"]),
+                    "OPENROUTER_EXPECTED_ENDPOINT_NAME": str(model["endpoint_name"]),
+                },
                 absent_options=tuple(str(value) for value in config.get("shared_absent_options") or []),
             )
             for model in models
@@ -185,6 +194,49 @@ def _openrouter_usage_usd(env: dict[str, str]) -> float:
     return float(payload["data"]["total_usage"])
 
 
+def _endpoint_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
+    endpoints = (payload.get("data") or {}).get("endpoints") or []
+    expected_provider = cell.fixed_options.get("OPENROUTER_PROVIDER_ONLY", "")
+    matches = [
+        endpoint
+        for endpoint in endpoints
+        if endpoint.get("provider_name") == expected_provider
+        and endpoint.get("name") == cell.endpoint_name
+        and endpoint.get("status") == 0
+    ]
+    if not cell.endpoint_name:
+        return ["pre-registered OpenRouter endpoint_name is empty"]
+    if not matches:
+        return [f"no healthy OpenRouter endpoint matches provider={expected_provider!r} name={cell.endpoint_name!r}"]
+    required = {"max_tokens", "response_format", "reasoning"}
+    capable = []
+    for endpoint in matches:
+        supported = set(endpoint.get("supported_parameters") or [])
+        maximum = endpoint.get("max_completion_tokens")
+        cap_fits = cell.cap is None or maximum is None or (isinstance(maximum, int) and cell.cap <= maximum)
+        if required <= supported and cap_fits:
+            capable.append(endpoint)
+    if not capable:
+        return [f"matching endpoint cannot honor required parameters {sorted(required)!r} and cap={cell.cap_label}"]
+    return []
+
+
+@lru_cache(maxsize=32)
+def _openrouter_endpoints(model: str) -> dict[str, Any]:
+    request = urllib.request.Request(
+        f"https://openrouter.ai/api/v1/models/{model}/endpoints",
+        headers={"User-Agent": "gm-bench-publication-runner/1"},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed HTTPS endpoint
+        return json.load(response)
+
+
+def _validate_openrouter_endpoint(cell: Cell) -> None:
+    issues = _endpoint_issues(cell, _openrouter_endpoints(cell.model))
+    if issues:
+        raise RuntimeError("; ".join(issues))
+
+
 def _budget_start(run_dir: Path, env: dict[str, str]) -> float:
     path = run_dir / "openrouter-budget.json"
     if path.exists():
@@ -240,6 +292,13 @@ def main(argv: list[str] | None = None) -> int:
         cells = build_cells(args.phase, args.model_id, args.cap)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         parser.error(str(exc))
+    if (
+        not args.dry_run
+        and not args.preflight_only
+        and any(cell.provider == "openrouter" for cell in cells)
+        and args.max_spend_usd is None
+    ):
+        parser.error("paid OpenRouter runs require an explicit --max-spend-usd ceiling")
     run_dir = args.run_dir.resolve()
     for directory in (run_dir / "raw", run_dir / "checkpoints"):
         if not args.dry_run:
@@ -251,6 +310,18 @@ def main(argv: list[str] | None = None) -> int:
         _print_command(cell, command)
         if args.dry_run:
             continue
+        if cell.provider == "openrouter":
+            try:
+                _validate_openrouter_endpoint(cell)
+            except (
+                RuntimeError,
+                urllib.error.URLError,
+                TimeoutError,
+                ValueError,
+                KeyError,
+                json.JSONDecodeError,
+            ) as exc:
+                raise SystemExit(f"OpenRouter endpoint preflight failed for {cell.experiment_id}: {exc}") from exc
         if args.max_spend_usd is not None and cell.provider == "openrouter":
             budget_start = budget_start if budget_start is not None else _budget_start(run_dir, env)
             spent = _measured_spend_usd(run_dir, env, budget_start)

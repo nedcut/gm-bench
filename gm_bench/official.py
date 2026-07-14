@@ -358,11 +358,14 @@ def _validate_openrouter_route(
     """Keep flexible gateway rows visible without treating them as canonical."""
     options = _dict(run_info.get("provider_options"))
     only = str(options.get("OPENROUTER_PROVIDER_ONLY", "")).strip()
+    expected_endpoint = str(options.get("OPENROUTER_EXPECTED_ENDPOINT_NAME", "")).strip()
     fallbacks = str(options.get("OPENROUTER_ALLOW_FALLBACKS", "")).lower()
     upstreams = [str(value) for value in _list(usage.get("upstream_providers")) if value]
     issues: list[str] = []
     if not only:
         issues.append("run_info.provider_options.OPENROUTER_PROVIDER_ONLY must pin an upstream provider")
+    if not expected_endpoint:
+        issues.append("run_info.provider_options.OPENROUTER_EXPECTED_ENDPOINT_NAME must pin an exact endpoint")
     if fallbacks not in {"false", "0", "no", "off"}:
         issues.append("run_info.provider_options.OPENROUTER_ALLOW_FALLBACKS must be false")
     if len(set(upstreams)) != 1:
