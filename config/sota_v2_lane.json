@@ -5,6 +5,8 @@
   "observation_profile": "compact",
   "session": false,
   "protocol_repair_attempts": 1,
+  "model_registry": "config/sota_v2_models.json",
+  "minimum_headline_models": 8,
   "output_token_cap": null,
   "output_budget_status": "pending-sweep",
   "cli_harness_policy": "separate-table",

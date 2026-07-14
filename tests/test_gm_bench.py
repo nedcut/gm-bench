@@ -310,6 +310,11 @@ def test_model_action_parser_rejects_untyped_objects() -> None:
     raise AssertionError("parser should reject JSON objects without typed actions")
 
 
+def test_model_action_parser_rejects_null_content_as_protocol_failure() -> None:
+    with pytest.raises(ValueError, match="must be a string, got NoneType"):
+        parse_actions(None)
+
+
 def test_model_action_parser_aliases_action_type_key() -> None:
     # Some models emit {"action_type": ...} instead of {"type": ...}; the
     # mechanical rename preserves the decision and drops the stale key.

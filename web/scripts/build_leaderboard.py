@@ -42,6 +42,7 @@ from gm_bench.runner import run_many  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
 OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard.json"
+MODEL_CONFIG_PATH = ROOT / "config" / "sota_v2_models.json"
 LEADERBOARD = PRESETS["leaderboard"]
 # Providers that run a model through a coding-agent CLI harness (own tool loop,
 # own prompt scaffold, own retry/session behavior) rather than a direct API
@@ -83,7 +84,53 @@ def _output_token_cap(run_info: dict[str, Any]) -> int | None:
         return None
 
 
-def model_row(payload: dict[str, Any]) -> dict[str, Any]:
+def _publication_identity_issues(payload: dict[str, Any], config: dict[str, Any]) -> list[str]:
+    run_info = payload.get("run_info") or {}
+    summary = (payload.get("candidate") or {}).get("summary") or {}
+    usage = summary.get("usage") or {}
+    provider = str(run_info.get("provider") or "")
+    model = str(run_info.get("model") or "")
+    registered = next(
+        (
+            spec
+            for spec in config.get("models") or []
+            if spec.get("provider") == provider and spec.get("model") == model
+        ),
+        None,
+    )
+    if registered is None:
+        return [f"provider/model is not pre-registered in {MODEL_CONFIG_PATH.relative_to(ROOT)}"]
+    issues: list[str] = []
+    if run_info.get("transport") != registered.get("transport"):
+        issues.append("transport does not match the pre-registered model lane")
+    if run_info.get("profile") != config.get("profile"):
+        issues.append("observation profile does not match the pre-registered model lane")
+    if bool(run_info.get("session")) != bool(config.get("session")):
+        issues.append("session condition does not match the pre-registered model lane")
+    options = run_info.get("provider_options") or {}
+    expected_options = {
+        **(config.get("shared_fixed_options") or {}),
+        "OPENROUTER_PROVIDER_ONLY": registered.get("upstream_provider"),
+    }
+    for key, expected in expected_options.items():
+        if str(options.get(key, "")) != str(expected):
+            issues.append(f"provider option {key} does not match the pre-registered value")
+    for key in config.get("shared_absent_options") or []:
+        if options.get(str(key)) not in (None, ""):
+            issues.append(f"provider option {key} must be absent for the headline lane")
+    observed = sorted({str(value) for value in usage.get("upstream_providers") or [] if value})
+    expected_upstream = str(registered.get("upstream_provider") or "")
+    if [value.casefold() for value in observed] != [expected_upstream.casefold()]:
+        issues.append("observed upstream provider does not match the pre-registered route")
+    decisions = int(summary.get("decisions") or 0)
+    if usage.get("cost_usd") is None:
+        issues.append("API headline rows require numeric cost telemetry")
+    if int(usage.get("cost_decisions") or 0) != decisions:
+        issues.append("cost telemetry must cover every decision")
+    return issues
+
+
+def model_row(payload: dict[str, Any], publication_config: dict[str, Any] | None = None) -> dict[str, Any]:
     summary = payload["candidate"]["summary"]
     usage = summary.get("usage") or {}
     paired = payload.get("paired") or {}
@@ -92,6 +139,7 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
     contract = run_info.get("benchmark_contract") or {}
     seed_panel = run_info.get("seed_panel") or {}
     sota_report = _sota_report(payload)
+    publication_issues = _publication_identity_issues(payload, publication_config) if publication_config else []
     decisions = summary.get("decisions", 0)
     agent = payload.get("agent", "unknown")
     provider, _, model_name = agent.partition(":")
@@ -150,6 +198,8 @@ def model_row(payload: dict[str, Any]) -> dict[str, Any]:
         "seed_panel_hash": seed_panel.get("sha256"),
         "sota_v2_eligible": bool(sota_report.get("ok")),
         "sota_v2_issues": [*sota_report.get("errors", []), *sota_report.get("warnings", [])],
+        "publication_eligible": bool(sota_report.get("ok")) and not publication_issues,
+        "publication_issues": publication_issues,
     }
 
 
@@ -236,6 +286,42 @@ def select_model_payloads(
     return [item[1] for item in selected.values()]
 
 
+def publication_gate(
+    rows: list[dict[str, Any]], analysis: dict[str, Any], lane_config: dict[str, Any]
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Return only publishable rows plus an explicit gate report."""
+
+    frozen_statuses = {"frozen-saturation", "frozen-fixed-budget"}
+    frozen_cap = lane_config.get("output_token_cap")
+    lane_frozen = (
+        analysis.get("status") == "complete-needs-interpretation"
+        and lane_config.get("output_budget_status") in frozen_statuses
+        and isinstance(frozen_cap, int)
+        and frozen_cap > 0
+    )
+    candidates = [
+        row
+        for row in rows
+        if row.get("lane") == "api" and row.get("publication_eligible") and row.get("output_token_cap") == frozen_cap
+    ]
+    minimum_models = int(lane_config.get("minimum_headline_models") or 0)
+    publishable = lane_frozen and len(candidates) >= minimum_models
+    publication = {
+        **analysis,
+        "publishable_ranking": publishable,
+        "frozen_output_token_cap": frozen_cap if lane_frozen else None,
+        "eligible_headline_models": len(candidates),
+        "minimum_headline_models": minimum_models,
+    }
+    if lane_frozen and not publishable:
+        publication["reason"] = (
+            f"frozen lane has {len(candidates)} eligible headline models; at least {minimum_models} are required"
+        )
+    elif not publishable and analysis.get("status") == "complete-needs-interpretation":
+        publication["reason"] = "sweep complete; inspect curves and freeze a fixed API-lane cap before ranking"
+    return (candidates if publishable else []), publication
+
+
 def main() -> None:
     # Published rows come from RESULTS_DIR only. Provenance is the directory an
     # artifact lives in, never a field inside it: selecting on benchmark_version
@@ -249,7 +335,12 @@ def main() -> None:
             except json.JSONDecodeError:
                 print(f"skipping unparseable {path}", file=sys.stderr)
     payloads = select_model_payloads(artifacts)
-    rows = sorted((model_row(payload) for payload in payloads), key=lambda row: row["mean_score"], reverse=True)
+    model_config = json.loads(MODEL_CONFIG_PATH.read_text())
+    rows = sorted(
+        (model_row(payload, model_config) for payload in payloads),
+        key=lambda row: row["mean_score"],
+        reverse=True,
+    )
     # The sota-v1 rows in ARCHIVE_DIR are retained as forensic evidence of the v1
     # scout-contract break, not as a ranking: the defect cost some candidates over
     # a thousand silently-rejected lookups and others none, so their scores are not
@@ -257,29 +348,14 @@ def main() -> None:
     current_rows = [row for row in rows if row.get("benchmark_version") == "sota-v2"]
     analysis = json.loads((ROOT / "results" / "analysis" / "output-budget-sweep.json").read_text())
     lane_config = json.loads((ROOT / "config" / "sota_v2_lane.json").read_text())
-    frozen_statuses = {"frozen-saturation", "frozen-fixed-budget"}
-    frozen_cap = lane_config.get("output_token_cap")
-    publishable_ranking = (
-        analysis.get("status") == "complete-needs-interpretation"
-        and lane_config.get("output_budget_status") in frozen_statuses
-        and isinstance(frozen_cap, int)
-        and frozen_cap > 0
-    )
-    publication = {
-        **analysis,
-        "publishable_ranking": publishable_ranking,
-        "frozen_output_token_cap": frozen_cap if publishable_ranking else None,
-    }
-    if not publishable_ranking and analysis.get("status") == "complete-needs-interpretation":
-        publication["reason"] = "sweep complete; inspect curves and freeze a fixed API-lane cap before ranking"
-    models = [
-        row
-        for row in current_rows
-        if row.get("lane") == "api"
-        and row.get("sota_v2_eligible")
-        and (not publishable_ranking or row.get("output_token_cap") == frozen_cap)
-    ]
+    models, publication = publication_gate(current_rows, analysis, lane_config)
+    publishable_ranking = bool(publication["publishable_ranking"])
     cli_harness_models = [row for row in current_rows if row.get("lane") == "cli-harness"]
+    excluded_models = [
+        {"id": row.get("id"), "issues": row.get("publication_issues") or row.get("sota_v2_issues") or []}
+        for row in current_rows
+        if row.get("lane") == "api" and not row.get("publication_eligible")
+    ]
     skipped = [row for row in rows if row.get("benchmark_version") != "sota-v2"]
     for row in skipped:
         print(
@@ -313,6 +389,7 @@ def main() -> None:
         "baselines": baselines,
         "models": models,
         "cli_harness_models": cli_harness_models,
+        "excluded_models": excluded_models,
         "publication": publication,
         "headroom": headroom,
     }

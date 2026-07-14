@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "contract": "sota-v2",
+  "lane": "api",
+  "provider": "openrouter",
+  "profile": "compact",
+  "session": false,
+  "preset": "leaderboard",
+  "repeats": 3,
+  "selection_frozen_at_utc": "2026-07-14T22:40:00Z",
+  "selection_policy": "Exact model IDs and one pinned OpenRouter upstream per model; no provider fallback, explicit output cap after the sweep, one bounded protocol repair.",
+  "models": [
+    {"id": "openrouter-gpt-5.6-luna-openai", "provider": "openrouter", "model": "openai/gpt-5.6-luna", "transport": "gateway-api", "upstream_provider": "OpenAI"},
+    {"id": "openrouter-gpt-5.4-mini-openai", "provider": "openrouter", "model": "openai/gpt-5.4-mini", "transport": "gateway-api", "upstream_provider": "OpenAI"},
+    {"id": "openrouter-grok-4.5-xai", "provider": "openrouter", "model": "x-ai/grok-4.5", "transport": "gateway-api", "upstream_provider": "xAI"},
+    {"id": "openrouter-claude-sonnet-5-anthropic", "provider": "openrouter", "model": "anthropic/claude-sonnet-5", "transport": "gateway-api", "upstream_provider": "Anthropic"},
+    {"id": "openrouter-gemini-3.5-flash-google", "provider": "openrouter", "model": "google/gemini-3.5-flash", "transport": "gateway-api", "upstream_provider": "Google"},
+    {"id": "openrouter-qwen3.7-plus-alibaba", "provider": "openrouter", "model": "qwen/qwen3.7-plus", "transport": "gateway-api", "upstream_provider": "Alibaba"},
+    {"id": "openrouter-deepseek-v4-pro-deepseek", "provider": "openrouter", "model": "deepseek/deepseek-v4-pro", "transport": "gateway-api", "upstream_provider": "DeepSeek"},
+    {"id": "openrouter-mistral-medium-3.5-mistral", "provider": "openrouter", "model": "mistralai/mistral-medium-3-5", "transport": "gateway-api", "upstream_provider": "Mistral"},
+    {"id": "openrouter-kimi-k2.7-code-ambient", "provider": "openrouter", "model": "moonshotai/kimi-k2.7-code", "transport": "gateway-api", "upstream_provider": "Ambient"},
+    {"id": "openrouter-minimax-m3-minimax", "provider": "openrouter", "model": "minimax/minimax-m3", "transport": "gateway-api", "upstream_provider": "Minimax"},
+    {"id": "openrouter-qwen3.5-9b-siliconflow", "provider": "openrouter", "model": "qwen/qwen3.5-9b", "transport": "gateway-api", "upstream_provider": "SiliconFlow"}
+  ],
+  "shared_fixed_options": {
+    "OPENROUTER_PROVIDER_SORT": "price",
+    "OPENROUTER_ALLOW_FALLBACKS": "false",
+    "OPENROUTER_REQUIRE_PARAMETERS": "false",
+    "OPENROUTER_DATA_COLLECTION": "deny",
+    "OPENROUTER_JSON_MODE": "false",
+    "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"
+  },
+  "shared_absent_options": [
+    "OPENROUTER_REASONING_EFFORT",
+    "OPENROUTER_REASONING_MAX_TOKENS",
+    "OPENROUTER_TEMPERATURE",
+    "OPENROUTER_QUANTIZATIONS",
+    "OPENROUTER_ZDR"
+  ],
+  "output_token_cap": null,
+  "output_budget_status": "pending-sweep"
+}

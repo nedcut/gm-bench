@@ -159,7 +159,9 @@ def build_prompt(observation: dict[str, Any]) -> str:
     )
 
 
-def parse_actions(text: str) -> list[dict[str, Any]]:
+def parse_actions(text: Any) -> list[dict[str, Any]]:
+    if not isinstance(text, str):
+        raise ValueError(f"model response content must be a string, got {type(text).__name__}")
     stripped = strip_terminal_codes(text).strip()
     try:
         parsed = json.loads(stripped)

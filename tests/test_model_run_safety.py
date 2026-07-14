@@ -68,6 +68,20 @@ def test_fail_fast_agent_aborts_after_consecutive_failures() -> None:
         agent.act_with_usage(observation)
 
 
+def test_fail_fast_agent_preserves_protocol_failures_as_model_behavior() -> None:
+    class ProtocolFailureAgent(Agent):
+        name = "protocol-failure"
+
+        def act(self, observation):
+            return [{"type": "noop", "model_error": "protocol_error: null content"}]
+
+    agent = FailFastAgent(ProtocolFailureAgent(), threshold=2)
+    for _ in range(5):
+        actions, _usage = agent.act_with_usage({"unused": True})
+        assert actions[0]["model_error"].startswith("protocol_error:")
+    assert agent.consecutive_failures == 0
+
+
 def test_resumable_run_checkpoints_completed_repeats_before_abort(tmp_path: Path) -> None:
     checkpoint = tmp_path / "checkpoint.json"
     # One one-season episode is four decisions. Seed 1 completes, then seed 2

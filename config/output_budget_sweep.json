@@ -4,7 +4,77 @@
   "lane": "api",
   "profile": "compact",
   "output_token_caps": [256, 1024, 4096, null],
-  "models": [],
+  "models": [
+    {
+      "id": "openrouter-qwen3.5-9b-siliconflow",
+      "provider": "openrouter",
+      "model": "qwen/qwen3.5-9b",
+      "transport": "gateway-api",
+      "upstream_provider": "SiliconFlow",
+      "fixed_options": {
+        "OPENROUTER_PROVIDER_ONLY": "SiliconFlow",
+        "OPENROUTER_PROVIDER_SORT": "price",
+        "OPENROUTER_ALLOW_FALLBACKS": "false",
+        "OPENROUTER_REQUIRE_PARAMETERS": "false",
+        "OPENROUTER_DATA_COLLECTION": "deny",
+        "OPENROUTER_JSON_MODE": "false",
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT",
+        "OPENROUTER_REASONING_MAX_TOKENS",
+        "OPENROUTER_TEMPERATURE",
+        "OPENROUTER_QUANTIZATIONS",
+        "OPENROUTER_ZDR"
+      ]
+    },
+    {
+      "id": "openrouter-gpt-5.4-mini-openai",
+      "provider": "openrouter",
+      "model": "openai/gpt-5.4-mini",
+      "transport": "gateway-api",
+      "upstream_provider": "OpenAI",
+      "fixed_options": {
+        "OPENROUTER_PROVIDER_ONLY": "OpenAI",
+        "OPENROUTER_PROVIDER_SORT": "price",
+        "OPENROUTER_ALLOW_FALLBACKS": "false",
+        "OPENROUTER_REQUIRE_PARAMETERS": "false",
+        "OPENROUTER_DATA_COLLECTION": "deny",
+        "OPENROUTER_JSON_MODE": "false",
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT",
+        "OPENROUTER_REASONING_MAX_TOKENS",
+        "OPENROUTER_TEMPERATURE",
+        "OPENROUTER_QUANTIZATIONS",
+        "OPENROUTER_ZDR"
+      ]
+    },
+    {
+      "id": "openrouter-grok-4.5-xai",
+      "provider": "openrouter",
+      "model": "x-ai/grok-4.5",
+      "transport": "gateway-api",
+      "upstream_provider": "xAI",
+      "fixed_options": {
+        "OPENROUTER_PROVIDER_ONLY": "xAI",
+        "OPENROUTER_PROVIDER_SORT": "price",
+        "OPENROUTER_ALLOW_FALLBACKS": "false",
+        "OPENROUTER_REQUIRE_PARAMETERS": "false",
+        "OPENROUTER_DATA_COLLECTION": "deny",
+        "OPENROUTER_JSON_MODE": "false",
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT",
+        "OPENROUTER_REASONING_MAX_TOKENS",
+        "OPENROUTER_TEMPERATURE",
+        "OPENROUTER_QUANTIZATIONS",
+        "OPENROUTER_ZDR"
+      ]
+    }
+  ],
   "repeats": 3,
   "preset": "leaderboard",
   "decision_rule": {
@@ -12,5 +82,8 @@
     "saturation_relative_gain": 0.05,
     "saturation_score_points": 10.0
   },
-  "status": "awaiting-model-selection-and-runs"
+  "require_complete_cost": true,
+  "selection_frozen_at_utc": "2026-07-14T22:40:00Z",
+  "selection_rationale": "small open model, mid-tier OpenAI model, and frontier xAI model spanning expected capability",
+  "status": "awaiting-runs"
 }

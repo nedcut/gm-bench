@@ -57,9 +57,7 @@ class _FailFastState:
         self._lock = threading.Lock()
 
     def record(self, actions: Any) -> None:
-        failed = not isinstance(actions, list) or any(
-            isinstance(action, dict) and ("error" in action or "model_error" in action) for action in actions
-        )
+        failed = not isinstance(actions, list) or any(_trips_circuit_breaker(action) for action in actions)
         with self._lock:
             if not failed:
                 self.consecutive_failures = 0
@@ -70,6 +68,17 @@ class _FailFastState:
                 raise ModelRunAborted(
                     f"aborting after {self.consecutive_failures} consecutive model failures: {detail}"
                 )
+
+
+def _trips_circuit_breaker(action: Any) -> bool:
+    if not isinstance(action, dict):
+        return False
+    marker = action.get("error") or action.get("model_error")
+    if marker is None:
+        return False
+    # Protocol-invalid model output is a measured outcome, especially in the
+    # output-budget sweep. Infrastructure failures still trip the breaker.
+    return not str(marker).startswith("protocol_error:")
 
 
 class FailFastAgent(Agent):

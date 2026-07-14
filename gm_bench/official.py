@@ -21,6 +21,7 @@ from gm_bench.contract import expected_contract, scaffold_fingerprint
 
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
 SOTA_V2_POLICY_NAME = "sota-v2"
+OUTPUT_BUDGET_SWEEP_POLICY_NAME = "output-budget-sweep"
 SOTA_V1_POLICY_NAME = "sota-v1"
 ARCHIVE_V1_POLICY_NAME = "archive-v1"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -71,6 +72,19 @@ SOTA_V2_POLICY = ResultPolicy(
     expected_contract=expected_contract(),
     max_failed_query_rate=1.0,
 )
+OUTPUT_BUDGET_SWEEP_POLICY = ResultPolicy(
+    name=OUTPUT_BUDGET_SWEEP_POLICY_NAME,
+    min_repeats=3,
+    min_seed_count=len(PRESETS["leaderboard"]["seeds"]),
+    # Failure rate is an outcome of deliberately constrained output cells. A
+    # low cap that prevents a model from emitting usable JSON must remain in
+    # the sweep rather than disappearing as an invalid or missing cell.
+    max_decision_failure_rate=1.0,
+    require_contract_provenance=True,
+    require_seed_panel_provenance=True,
+    expected_contract=expected_contract(),
+    max_failed_query_rate=1.0,
+)
 SOTA_V1_POLICY = ResultPolicy(
     name=SOTA_V1_POLICY_NAME,
     min_repeats=3,
@@ -102,6 +116,7 @@ ARCHIVE_V1_POLICY = ResultPolicy(
 )
 POLICIES = {
     PUBLIC_LEADERBOARD_POLICY.name: PUBLIC_LEADERBOARD_POLICY,
+    OUTPUT_BUDGET_SWEEP_POLICY.name: OUTPUT_BUDGET_SWEEP_POLICY,
     SOTA_V1_POLICY.name: SOTA_V1_POLICY,
     SOTA_V2_POLICY.name: SOTA_V2_POLICY,
     ARCHIVE_V1_POLICY.name: ARCHIVE_V1_POLICY,
@@ -181,8 +196,9 @@ def validate_leaderboard_payload(
             _validate_scaffold_provenance(errors, warnings, run_info)
         elif run_info.get("scaffold_fingerprint"):
             warnings.append("historical scaffold fingerprint retained but cannot be re-derived from current source")
+        strict_v2_lane = policy.name in {SOTA_V2_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME}
         if run_info.get("session"):
-            if policy.name == SOTA_V2_POLICY_NAME:
+            if strict_v2_lane:
                 errors.append(
                     "sota-v2 rows must be fresh-spawn (memo-only memory); "
                     "session-condition rows are a separate lane and not comparable"
@@ -192,7 +208,7 @@ def validate_leaderboard_payload(
                     "session-condition row: model retains full trajectory in context; "
                     "not comparable with fresh-spawn rows"
                 )
-        if policy.name == SOTA_V2_POLICY_NAME:
+        if strict_v2_lane:
             repair_attempts = run_info.get("protocol_repair_attempts")
             option_repair = (run_info.get("provider_options") or {}).get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS")
             for label, raw in (("protocol_repair_attempts", repair_attempts), ("provider_options", option_repair)):
@@ -204,9 +220,7 @@ def validate_leaderboard_payload(
                     errors.append(f"run_info.{label} repair attempts must be an integer")
                     continue
                 if parsed > 1:
-                    errors.append(
-                        f"sota-v2 allows at most one protocol-repair attempt; got {parsed} via {label}"
-                    )
+                    errors.append(f"sota-v2 allows at most one protocol-repair attempt; got {parsed} via {label}")
         expected_seeds, expected_seed_count = _resolve_expected_seeds(
             errors,
             warnings,
@@ -230,7 +244,7 @@ def validate_leaderboard_payload(
 
     baselines = [_dict(result) for result in _list(payload.get("baselines"))]
     baseline_names = [result.get("agent") for result in baselines]
-    if policy.name == SOTA_V2_POLICY_NAME:
+    if policy.name in {SOTA_V2_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME}:
         _expect_equal(errors, "baselines", baseline_names, expected_baselines)
     else:
         if not baseline_names:
@@ -293,7 +307,7 @@ def validate_leaderboard_payload(
                 warnings,
                 run_info,
                 usage,
-                strict=policy.name == SOTA_V2_POLICY_NAME,
+                strict=policy.name in {SOTA_V2_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME},
             )
 
     for baseline in baselines:
@@ -353,6 +367,11 @@ def _validate_openrouter_route(
         issues.append("run_info.provider_options.OPENROUTER_ALLOW_FALLBACKS must be false")
     if len(set(upstreams)) != 1:
         issues.append("candidate usage must report exactly one OpenRouter upstream provider")
+    elif only and upstreams[0].casefold() != only.casefold():
+        issues.append(
+            "candidate usage upstream provider does not match "
+            f"OPENROUTER_PROVIDER_ONLY: requested {only!r}, observed {upstreams[0]!r}"
+        )
     if strict:
         errors.extend(issues)
     else:

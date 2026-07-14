@@ -7,7 +7,7 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-07-13  
+**Last reviewed:** 2026-07-14
 **Current target:** Publish a validated `sota-v2` leaderboard, accompanying blog
 post, GitHub release, and public site.  
 **Current state:** Publication-capable infrastructure; definitive `sota-v2`
@@ -66,7 +66,7 @@ The project is publish-ready only when all four gates pass.
 | Core engineering | Strong | Deterministic simulator, adapters, CLI, GUI, site, tests, and CI are substantial. |
 | Reproducibility | Strong | Contract fingerprints, seed provenance, compact artifacts, and validators are in place or staged. |
 | Benchmark validity | Strong but scoped | Scripted references, exploit canaries, oracle headroom, calibration, and mechanic coverage exist. |
-| Compute comparability | Blocked | Output-budget sweep is planned but has no selected models or completed cells. |
+| Compute comparability | In progress | Three sweep models, four cap cells, exact routes, and the decision rule are pre-registered; no paid sweep cells are complete. |
 | Current model evidence | Blocked | The active `sota-v2` leaderboard has no eligible model rows. |
 | Statistical evidence | Partially ready | Paired analysis and power tooling exist; final model results do not. |
 | External validation | Missing | No independent reproduction or third-party result has been recorded. |
@@ -80,11 +80,14 @@ of the frozen v2 evidence package.
 
 ### Phase 0 — stabilize the v2 base
 
-- [ ] Merge [#58 — GM-Bench v2](https://github.com/nedcut/gm-bench/pull/58)
-  after a final live review of its head SHA, checks, and mergeability.
-- [ ] Merge [#59 — model-run hardening](https://github.com/nedcut/gm-bench/pull/59)
-  after the same live verification.
-- [ ] Rebase or retarget dependent work onto the merged `main` state.
+- [x] Merge [#58 — GM-Bench v2](https://github.com/nedcut/gm-bench/pull/58)
+  after a final live review of its head SHA, checks, and mergeability. Merged as
+  `7ee1c920e6b86434b6e71a0ae055e0b47443f5d2` on 2026-07-14.
+- [x] Merge [#59 — model-run hardening](https://github.com/nedcut/gm-bench/pull/59)
+  after the same live verification. Merged as
+  `3b7a14fc9a4d573fe09e87575a255034e5e1ba9a` on 2026-07-14.
+- [x] Merge the #58/#59 state into the publication branch; retarget #61 to
+  `main` before final review.
 - [ ] Confirm the frozen `sota-v2` contract fingerprint and score fingerprint
   match the published documentation and generated artifacts.
 - [ ] Run the complete local release gate on the merged state:
@@ -116,13 +119,15 @@ It must happen before the larger model panel.
   pipeline](https://github.com/nedcut/gm-bench/pull/61).
 - [ ] Obtain an independent review of #61 after it leaves draft; resolve or
   explicitly disposition every substantive finding before expensive runs begin.
-- [ ] Select two or three API models before seeing sweep results.
-- [ ] Record exact provider/model IDs in `config/output_budget_sweep.json`.
-- [ ] Choose models that span expected capability rather than only frontier
+- [x] Select three API models before seeing sweep results.
+- [x] Record exact provider/model IDs in `config/output_budget_sweep.json`.
+- [x] Choose models that span expected capability rather than only frontier
   models likely to behave similarly.
-- [ ] Freeze provider routing, reasoning-effort settings, temperature, scaffold,
+- [x] Freeze provider routing, reasoning-effort settings, temperature, scaffold,
   observation profile, repair policy, and fresh-spawn condition.
-- [ ] Predeclare the primary endpoint, saturation decision rule, permitted retry
+- [x] Predeclare the primary endpoint and saturation decision rule. Record the
+  final permitted retry, exclusion, and stopping wording before paid runs.
+- [ ] Freeze the permitted retry
   conditions, exclusion rules, and stopping rule before seeing sweep outcomes.
 - [ ] Distinguish infrastructure/provider failures that permit a resumed run from
   poor model behavior that must remain part of the measured result.
@@ -133,8 +138,9 @@ It must happen before the larger model panel.
   on the official panel.
 - [ ] Record the effective provider cap for the nominally uncapped cell.
 - [ ] Preserve raw artifacts and logs outside git; do not discard failed cells.
-- [ ] Analyze all cells with `scripts/analyze_output_budget.py`.
-- [ ] Confirm the analyzer rejects missing, duplicate, wrong-lane, wrong-repeat,
+- [ ] Analyze completed cells with `scripts/analyze_output_budget.py`.
+- [x] Confirm in automated tests that the analyzer rejects missing, duplicate,
+  mixed-provenance, wrong-route, wrong-lane, wrong-repeat,
   incomplete-telemetry, and invalid-contract cells.
 - [ ] Inspect score versus actual output tokens, not just configured caps.
 - [ ] Inspect protocol failure and repair rates at each cap.
@@ -156,9 +162,54 @@ Then freeze exactly one publication policy:
 **Exit condition:** the official API lane has a documented and frozen compute
 policy supported by completed sweep evidence.
 
+#### Safe execution workflow
+
+All model calls are serial. Inspect the exact commands and non-secret provider
+options first:
+
+```bash
+python3 scripts/run_publication_matrix.py sweep --dry-run
+```
+
+Source credentials locally, then run authentication preflight without a model
+request:
+
+```bash
+python3 scripts/run_publication_matrix.py sweep --preflight-only
+```
+
+Run the cheapest pre-registered smoke first. The spend guard uses the larger of
+completed-artifact cost telemetry and the OpenRouter account delta, and stops
+between cells. It cannot claw back a single unexpectedly expensive provider
+request, so keep smoke output caps small and inspect account usage after every
+cell:
+
+```bash
+python3 scripts/run_publication_matrix.py smoke \
+  --model-id openrouter-qwen3.5-9b-siliconflow \
+  --cap 256 \
+  --run-dir data/publication-runs/smoke-2026-07-14 \
+  --max-spend-usd 5
+```
+
+Only after every smoke and the recorded cost estimate are acceptable, run the
+pre-registered sweep into a new run directory. The driver creates atomic raw
+artifacts and per-cell checkpoints, uses validated resume when a checkpoint
+already exists, and refuses to fan out workers:
+
+```bash
+python3 scripts/run_publication_matrix.py sweep \
+  --run-dir data/publication-runs/output-budget-v2 \
+  --max-spend-usd <approved-sweep-budget>
+```
+
+Do not run `panel` until `config/sota_v2_lane.json` records a positive frozen
+cap and a frozen policy status. The driver enforces that lock.
+
 ### Phase 2 — run the publishable model panel
 
-- [ ] Pre-register the intended model list before full results are visible.
+- [x] Pre-register 11 exact provider/model/route identities in
+  `config/sota_v2_models.json` before full results are visible.
 - [ ] Pre-register the full-panel rerun and exclusion policy. A disappointing
   valid result is not a reason to rerun a model.
 - [ ] Target 8–12 models covering frontier, mid-tier, smaller, and local/open
@@ -184,6 +235,8 @@ policy supported by completed sweep evidence.
 - [ ] Publish raw public-panel traces as release assets so results are auditable.
 - [ ] Preserve provider errors and incomplete attempts as diagnostic evidence.
 - [ ] Regenerate the leaderboard from source artifacts; do not hand-copy scores.
+- [x] Require at least eight eligible, registered, route-matched, cost-complete
+  headline rows before the generated JSON can expose a ranking.
 
 For every headline model, report at least:
 
@@ -417,6 +470,8 @@ decision and why.
 | 2026-07-13 | Separate API and coding-harness lanes. | Archived rows mixed provider API behavior with uncontrolled CLI harness context and very different output usage. | API becomes the headline lane; CLI harnesses remain diagnostic. |
 | 2026-07-13 | Withhold the v2 ranking pending an output-budget sweep. | Archived scores tracked output allowance strongly enough to confound model comparison. | Run the planned cap matrix and freeze a compute policy before the full panel. |
 | 2026-07-13 | Keep strategic contract mechanics in v3. | Making contract length meaningful changes simulator behavior and reference scores. | Publish frozen v2 evidence before merging v3 behavior changes. |
+| 2026-07-14 | Pre-register a three-model output-budget sweep and an 11-model headline panel. | The selected panel spans a small open model, mid-tier models, and frontier families while preserving exact OpenRouter upstream routing. | Do not substitute models or routes after results are visible; record any unavoidable provider withdrawal as an exclusion. |
+| 2026-07-14 | Require eight publication-eligible headline rows before emitting a ranking. | A tiny or partially successful panel would invite selection bias and overstate coverage. | The generated public JSON contains no model ranking until the frozen compute lane and minimum panel both pass. |
 
 ## Experiment and release log
 
@@ -425,10 +480,11 @@ than pasting large outputs.
 
 | Date | Item | Status | Artifact / PR | Notes |
 | --- | --- | --- | --- | --- |
-| 2026-07-13 | `sota-v2` contract transition | In review | [#58](https://github.com/nedcut/gm-bench/pull/58) | Corrected scout behavior, surfaced failed queries, archived v1 evidence. |
-| 2026-07-13 | Model-run recovery hardening | In review | [#59](https://github.com/nedcut/gm-bench/pull/59) | Serial safety, fail-fast, locking, checkpoint validation, atomic merge. |
-| 2026-07-13 | Publication pipeline | Draft | [#61](https://github.com/nedcut/gm-bench/pull/61) | Infrastructure present; paid sweep and model panel remain. |
+| 2026-07-14 | `sota-v2` contract transition | Merged | [#58](https://github.com/nedcut/gm-bench/pull/58) | Corrected scout behavior, surfaced failed queries, archived v1 evidence. |
+| 2026-07-14 | Model-run recovery hardening | Merged | [#59](https://github.com/nedcut/gm-bench/pull/59) | Serial safety, fail-fast, locking, checkpoint validation, atomic merge. |
+| 2026-07-14 | Publication pipeline | In progress | [#61](https://github.com/nedcut/gm-bench/pull/61) | Models/routes pre-registered and release gates hardened; paid sweep and model panel remain. |
 | 2026-07-13 | Strategic contract mechanics | Deferred v3 draft | [#62](https://github.com/nedcut/gm-bench/pull/62) | Keep separate until v2 publication is complete. |
+| 2026-07-14 | OpenRouter smoke | Local evidence complete | Qwen 1,024/4,096; GPT-5.4 mini 4,096 | Pinned-route Qwen exhausted its output allowance in reasoning on all decisions at 1,024 and three of four at 4,096; these are measured protocol failures, not infrastructure aborts. GPT-5.4 mini completed 4/4 decisions cleanly at 4,096 with complete route, usage, and cost telemetry. Total raw artifact cost across these completed smokes was under $0.04. Do not treat smoke scores as benchmark evidence. |
 
 ## Living-document maintenance checklist
 

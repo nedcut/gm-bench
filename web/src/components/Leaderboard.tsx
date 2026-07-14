@@ -309,7 +309,7 @@ export default function Leaderboard({ data }: { data: LeaderboardData }) {
         {!data.publication.publishable_ranking && (
           <div className="panel">
             <div className="panel-title">
-              <h3>Ranking withheld: output-budget sweep incomplete</h3>
+              <h3>Ranking withheld: publication gate incomplete</h3>
               <span>{data.publication.status}</span>
             </div>
             <p style={{ maxWidth: 760 }}>{data.publication.reason}</p>

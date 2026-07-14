@@ -107,6 +107,8 @@ export interface LeaderboardModel {
   seed_panel_hash: string | null;
   sota_v2_eligible?: boolean;
   sota_v2_issues?: string[];
+  publication_eligible?: boolean;
+  publication_issues?: string[];
 }
 
 export interface LeaderboardBaseline {
@@ -126,12 +128,15 @@ export interface Leaderboard {
   baselines: LeaderboardBaseline[];
   models: LeaderboardModel[];
   cli_harness_models: LeaderboardModel[];
+  excluded_models: Array<{ id: string | null; issues: string[] }>;
   publication: {
     status: string;
     publishable_ranking: boolean;
     reason: string;
     planned_caps: Array<number | null>;
     frozen_output_token_cap: number | null;
+    eligible_headline_models: number;
+    minimum_headline_models: number;
   };
   headroom: {
     oracle: number;

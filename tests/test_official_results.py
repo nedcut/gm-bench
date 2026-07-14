@@ -10,6 +10,7 @@ from gm_bench.benchmark_config import PRESETS, PRIVATE_SEEDS_ENV, seed_panel_met
 from gm_bench.contract import benchmark_contract, scaffold_fingerprint
 from gm_bench.official import (
     ARCHIVE_V1_POLICY,
+    OUTPUT_BUDGET_SWEEP_POLICY,
     PUBLIC_LEADERBOARD_POLICY,
     REDACTED_SEEDS_SENTINEL,
     SOTA_V1_CONTRACT,
@@ -133,6 +134,13 @@ def test_public_leaderboard_policy_accepts_single_repeat_payload() -> None:
     assert report.ok
 
 
+def test_output_budget_policy_preserves_high_failure_cells() -> None:
+    payload = _official_payload(repeats=3, failure_rate=1.0)
+    report = validate_leaderboard_payload(payload, policy=OUTPUT_BUDGET_SWEEP_POLICY)
+    assert report.ok
+    assert any("adapter fallback" in warning for warning in report.warnings)
+
+
 def test_historical_baseline_panel_is_diagnostic_but_not_sota() -> None:
     payload = _official_payload(repeats=3)
     payload["baselines"] = [
@@ -228,16 +236,28 @@ def test_sota_v2_policy_requires_full_usage() -> None:
 
 def test_output_budget_analysis_rejects_duplicate_cells() -> None:
     payload = _official_payload(repeats=3)
+    payload["run_info"]["profile"] = "compact"
     payload["run_info"]["transport"] = "direct-api"
     payload["run_info"]["provider_options"] = {
         "OPENAI_MAX_TOKENS": "256",
         "GM_BENCH_OUTPUT_BUDGET_CELL": "256",
     }
     usage = payload["candidate"]["summary"]["usage"]
-    usage.update({"input_tokens": 1000, "output_tokens": 500})
+    usage.update({"input_tokens": 1000, "output_tokens": 500, "cost_decisions": usage["decisions_with_usage"]})
     config = {
         "contract": "sota-v2",
-        "models": ["gpt-test"],
+        "profile": "compact",
+        "preset": "leaderboard",
+        "models": [
+            {
+                "id": "openai-gpt-test",
+                "provider": payload["run_info"]["provider"],
+                "model": "gpt-test",
+                "transport": "direct-api",
+                "fixed_options": {},
+                "absent_options": [],
+            }
+        ],
         "output_token_caps": [256],
         "repeats": 3,
         "decision_rule": {"minimum_models": 1},
@@ -247,7 +267,7 @@ def test_output_budget_analysis_rejects_duplicate_cells() -> None:
 
     assert result["status"] == "incomplete"
     assert result["publishable_ranking"] is False
-    assert result["duplicate_cells"] == [{"model": "gpt-test", "output_token_cap": 256}]
+    assert result["duplicate_cells"] == [{"experiment_id": "openai-gpt-test", "output_token_cap": 256}]
 
 
 def test_openrouter_price_route_is_public_diagnostic_but_not_sota() -> None:
@@ -297,6 +317,30 @@ def test_sota_v2_accepts_pinned_single_upstream_openrouter_route() -> None:
 
     report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert report.ok
+
+
+def test_sota_v2_rejects_openrouter_upstream_that_differs_from_pin() -> None:
+    payload = _official_payload(repeats=3)
+    payload["agent"] = "openrouter:openai/gpt-test"
+    payload["candidate"]["agent"] = payload["agent"]
+    payload["run_info"].update(
+        {
+            "agent": payload["agent"],
+            "provider": "openrouter",
+            "model": "openai/gpt-test",
+            "scaffold_fingerprint": scaffold_fingerprint("openrouter"),
+            "provider_options": {
+                "OPENROUTER_PROVIDER_ONLY": "OpenAI",
+                "OPENROUTER_ALLOW_FALLBACKS": "false",
+            },
+        }
+    )
+    payload["candidate"]["summary"]["usage"]["upstream_providers"] = ["Azure"]
+
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+
+    assert not report.ok
+    assert any("does not match" in error for error in report.errors)
 
 
 def test_sota_v2_policy_requires_contract_provenance() -> None:

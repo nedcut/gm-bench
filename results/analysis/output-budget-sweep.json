@@ -1,7 +1,127 @@
 {
+  "config_errors": [],
   "duplicate_cells": [],
-  "missing": [],
-  "models": [],
+  "missing": [
+    {
+      "experiment_id": "openrouter-gpt-5.4-mini-openai",
+      "output_token_cap": 256
+    },
+    {
+      "experiment_id": "openrouter-gpt-5.4-mini-openai",
+      "output_token_cap": 1024
+    },
+    {
+      "experiment_id": "openrouter-gpt-5.4-mini-openai",
+      "output_token_cap": 4096
+    },
+    {
+      "experiment_id": "openrouter-gpt-5.4-mini-openai",
+      "output_token_cap": null
+    },
+    {
+      "experiment_id": "openrouter-grok-4.5-xai",
+      "output_token_cap": 256
+    },
+    {
+      "experiment_id": "openrouter-grok-4.5-xai",
+      "output_token_cap": 1024
+    },
+    {
+      "experiment_id": "openrouter-grok-4.5-xai",
+      "output_token_cap": 4096
+    },
+    {
+      "experiment_id": "openrouter-grok-4.5-xai",
+      "output_token_cap": null
+    },
+    {
+      "experiment_id": "openrouter-qwen3.5-9b-siliconflow",
+      "output_token_cap": 256
+    },
+    {
+      "experiment_id": "openrouter-qwen3.5-9b-siliconflow",
+      "output_token_cap": 1024
+    },
+    {
+      "experiment_id": "openrouter-qwen3.5-9b-siliconflow",
+      "output_token_cap": 4096
+    },
+    {
+      "experiment_id": "openrouter-qwen3.5-9b-siliconflow",
+      "output_token_cap": null
+    }
+  ],
+  "models": [
+    {
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT",
+        "OPENROUTER_REASONING_MAX_TOKENS",
+        "OPENROUTER_TEMPERATURE",
+        "OPENROUTER_QUANTIZATIONS",
+        "OPENROUTER_ZDR"
+      ],
+      "fixed_options": {
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+        "OPENROUTER_ALLOW_FALLBACKS": "false",
+        "OPENROUTER_DATA_COLLECTION": "deny",
+        "OPENROUTER_JSON_MODE": "false",
+        "OPENROUTER_PROVIDER_ONLY": "SiliconFlow",
+        "OPENROUTER_PROVIDER_SORT": "price",
+        "OPENROUTER_REQUIRE_PARAMETERS": "false"
+      },
+      "id": "openrouter-qwen3.5-9b-siliconflow",
+      "model": "qwen/qwen3.5-9b",
+      "provider": "openrouter",
+      "transport": "gateway-api",
+      "upstream_provider": "SiliconFlow"
+    },
+    {
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT",
+        "OPENROUTER_REASONING_MAX_TOKENS",
+        "OPENROUTER_TEMPERATURE",
+        "OPENROUTER_QUANTIZATIONS",
+        "OPENROUTER_ZDR"
+      ],
+      "fixed_options": {
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+        "OPENROUTER_ALLOW_FALLBACKS": "false",
+        "OPENROUTER_DATA_COLLECTION": "deny",
+        "OPENROUTER_JSON_MODE": "false",
+        "OPENROUTER_PROVIDER_ONLY": "OpenAI",
+        "OPENROUTER_PROVIDER_SORT": "price",
+        "OPENROUTER_REQUIRE_PARAMETERS": "false"
+      },
+      "id": "openrouter-gpt-5.4-mini-openai",
+      "model": "openai/gpt-5.4-mini",
+      "provider": "openrouter",
+      "transport": "gateway-api",
+      "upstream_provider": "OpenAI"
+    },
+    {
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT",
+        "OPENROUTER_REASONING_MAX_TOKENS",
+        "OPENROUTER_TEMPERATURE",
+        "OPENROUTER_QUANTIZATIONS",
+        "OPENROUTER_ZDR"
+      ],
+      "fixed_options": {
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+        "OPENROUTER_ALLOW_FALLBACKS": "false",
+        "OPENROUTER_DATA_COLLECTION": "deny",
+        "OPENROUTER_JSON_MODE": "false",
+        "OPENROUTER_PROVIDER_ONLY": "xAI",
+        "OPENROUTER_PROVIDER_SORT": "price",
+        "OPENROUTER_REQUIRE_PARAMETERS": "false"
+      },
+      "id": "openrouter-grok-4.5-xai",
+      "model": "x-ai/grok-4.5",
+      "provider": "openrouter",
+      "transport": "gateway-api",
+      "upstream_provider": "xAI"
+    }
+  ],
   "planned_caps": [
     256,
     1024,
@@ -10,7 +130,7 @@
   ],
   "points": [],
   "publishable_ranking": false,
-  "reason": "no sweep models selected; no output-budget conclusion is permitted",
+  "reason": "missing planned model-cap cells; no output-budget conclusion is permitted",
   "rejected_artifacts": [],
   "schema_version": 1,
   "status": "incomplete"

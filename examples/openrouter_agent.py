@@ -148,7 +148,10 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
         try:
             return parse_actions(content), usage
         except ValueError as exc:
-            return fallback_actions(observation, f"api_error: {exc}"), usage
+            # An authenticated, metered response with unusable content is model
+            # protocol behavior, not provider infrastructure failure. Keep it
+            # as a scored failed decision without tripping the quota breaker.
+            return fallback_actions(observation, f"protocol_error: {exc}"), usage
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, IndexError, json.JSONDecodeError) as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         if usage is None:

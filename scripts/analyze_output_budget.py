@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from gm_bench.official import SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
+from gm_bench.official import OUTPUT_BUDGET_SWEEP_POLICY, validate_leaderboard_payload  # noqa: E402
 
 CAP_OPTION_NAMES = {
     "OPENAI_MAX_TOKENS",
@@ -29,35 +29,78 @@ CAP_OPTION_NAMES = {
 }
 
 
+def _model_specs(config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+    specs: list[dict[str, Any]] = []
+    errors: list[str] = []
+    seen_ids: set[str] = set()
+    seen_identities: set[tuple[str, str]] = set()
+    for index, raw in enumerate(config.get("models") or []):
+        if not isinstance(raw, dict):
+            errors.append(f"models[{index}] must be an object with id/provider/model provenance")
+            continue
+        spec = dict(raw)
+        experiment_id = str(spec.get("id") or "").strip()
+        provider = str(spec.get("provider") or "").strip()
+        model = str(spec.get("model") or "").strip()
+        if not experiment_id or not provider or not model:
+            errors.append(f"models[{index}] requires non-empty id, provider, and model")
+            continue
+        if experiment_id in seen_ids:
+            errors.append(f"duplicate experiment id: {experiment_id}")
+        if (provider, model) in seen_identities:
+            errors.append(f"duplicate provider/model identity: {provider}:{model}")
+        fixed_options = spec.get("fixed_options") or {}
+        absent_options = spec.get("absent_options") or []
+        if not isinstance(fixed_options, dict) or not isinstance(absent_options, list):
+            errors.append(f"models[{index}] fixed_options must be an object and absent_options must be a list")
+            continue
+        overlap = set(fixed_options).intersection(str(value) for value in absent_options)
+        if overlap:
+            errors.append(f"models[{index}] options cannot be both fixed and absent: {sorted(overlap)!r}")
+        seen_ids.add(experiment_id)
+        seen_identities.add((provider, model))
+        specs.append(spec)
+    return specs, errors
+
+
 def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str, Any]:
     caps = config["output_token_caps"]
-    wanted_models = set(config.get("models") or [])
+    specs, config_errors = _model_specs(config)
+    specs_by_identity = {(str(spec["provider"]), str(spec["model"])): spec for spec in specs}
     points: list[dict[str, Any]] = []
     rejected: list[dict[str, Any]] = []
     for payload in payloads:
         info = payload.get("run_info") or {}
         contract = info.get("benchmark_contract") or {}
         transport = info.get("transport")
+        provider = str(info.get("provider") or "")
         model = str(info.get("model") or "")
+        spec = specs_by_identity.get((provider, model))
+        if spec is None:
+            continue
         artifact_sha256 = _sha(payload)
         reasons: list[str] = []
-        report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+        report = validate_leaderboard_payload(payload, policy=OUTPUT_BUDGET_SWEEP_POLICY)
         if not report.ok:
-            reasons.append("artifact does not pass sota-v2 validation")
+            reasons.append("artifact does not pass output-budget-sweep validation")
         if contract.get("benchmark_version") != config.get("contract"):
             reasons.append("benchmark contract does not match sweep config")
-        if transport not in {"direct-api", "gateway-api", "local-api"}:
-            reasons.append("transport is not an API lane")
-        if not wanted_models:
-            # Empty models means "awaiting selection", not "discover from artifacts".
-            # Still validate/reject each fed artifact so bad cells are visible.
-            reasons.append("sweep config has no models selected")
-        elif model not in wanted_models:
-            continue
+        if transport != spec.get("transport"):
+            reasons.append(f"transport does not match pre-registered value {spec.get('transport')!r}")
+        if info.get("profile") != config.get("profile"):
+            reasons.append("observation profile does not match sweep config")
+        if info.get("preset") != config.get("preset"):
+            reasons.append("preset does not match sweep config")
         candidate = payload.get("candidate") or {}
         if int(candidate.get("repeats", 1) or 1) != int(config.get("repeats", 1)):
             reasons.append("repeat count does not match sweep config")
         options = info.get("provider_options") or {}
+        for key, expected in (spec.get("fixed_options") or {}).items():
+            if str(options.get(key, "")) != str(expected):
+                reasons.append(f"provider option {key} does not match pre-registered value")
+        for key in spec.get("absent_options") or []:
+            if options.get(str(key)) not in (None, ""):
+                reasons.append(f"provider option {key} must be absent for this experiment")
         cap_options = [(key, options[key]) for key in CAP_OPTION_NAMES if options.get(key) not in (None, "")]
         if len(cap_options) > 1:
             reasons.append("multiple output-cap options are recorded")
@@ -77,6 +120,10 @@ def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str,
         summary = (payload.get("candidate") or {}).get("summary") or {}
         usage = summary.get("usage") or {}
         decisions = int(summary.get("decisions") or 0)
+        expected_upstream = str(spec.get("upstream_provider") or "").strip()
+        observed_upstreams = sorted({str(value) for value in usage.get("upstream_providers") or [] if value})
+        if expected_upstream and [value.casefold() for value in observed_upstreams] != [expected_upstream.casefold()]:
+            reasons.append("observed upstream provider does not match the pre-registered route")
         if cap not in caps:
             reasons.append("output cap is not in the planned sweep")
         if decisions <= 0:
@@ -84,49 +131,78 @@ def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str,
         for key in ("input_tokens", "output_tokens"):
             if key not in usage:
                 reasons.append(f"candidate usage does not report {key}")
+        if config.get("require_complete_cost", True):
+            if usage.get("cost_usd") is None:
+                reasons.append("candidate usage does not report a numeric cost")
+            if int(usage.get("cost_decisions") or 0) != decisions:
+                reasons.append("candidate cost telemetry does not cover every decision")
         if reasons:
-            rejected.append({"model": model or None, "artifact_sha256": artifact_sha256, "reasons": reasons})
+            rejected.append(
+                {
+                    "experiment_id": spec["id"],
+                    "provider": provider,
+                    "model": model,
+                    "artifact_sha256": artifact_sha256,
+                    "reasons": reasons,
+                }
+            )
             continue
+        paired = payload.get("paired") or {}
         points.append(
             {
+                "experiment_id": spec["id"],
                 "model": model,
-                "provider": info.get("provider"),
+                "provider": provider,
+                "upstream_provider": observed_upstreams[0] if observed_upstreams else None,
                 "output_token_cap": cap,
                 "effective_provider_output_token_cap": effective_cap,
                 "mean_score": summary.get("mean_score"),
                 "input_tokens_per_decision": _per_decision(usage, "input_tokens", decisions),
                 "output_tokens_per_decision": _per_decision(usage, "output_tokens", decisions),
+                "cost_usd": usage.get("cost_usd"),
+                "cost_per_decision_usd": round(float(usage.get("cost_usd")) / decisions, 6) if decisions else None,
+                "api_latency_s_per_decision": round(float(usage.get("api_latency_ms", 0)) / decisions / 1000, 3)
+                if decisions
+                else None,
+                "protocol_repair_attempts": int(usage.get("protocol_repair_attempts") or 0),
                 "decision_failure_rate": summary.get("decision_failure_rate"),
+                "score_lift": (payload.get("normalized") or {}).get("score_lift"),
+                "sign_flip_p_value": paired.get("sign_flip_p_value"),
                 "artifact_sha256": artifact_sha256,
                 "raw_artifact_sha256": (payload.get("publication") or {}).get("raw_artifact_sha256"),
             }
         )
-    # Never invent models from artifacts: an empty config stays incomplete until
-    # operators explicitly select the 2–3 sweep models.
-    models = sorted(wanted_models)
-    present = {(point["model"], point["output_token_cap"]) for point in points}
+    experiment_ids = sorted(str(spec["id"]) for spec in specs)
+    present = {(point["experiment_id"], point["output_token_cap"]) for point in points}
     duplicate_cells = sorted(
         [
-            {"model": model, "output_token_cap": cap}
-            for model, cap in present
-            if sum(1 for point in points if (point["model"], point["output_token_cap"]) == (model, cap)) > 1
+            {"experiment_id": experiment_id, "output_token_cap": cap}
+            for experiment_id, cap in present
+            if sum(1 for point in points if (point["experiment_id"], point["output_token_cap"]) == (experiment_id, cap))
+            > 1
         ],
-        key=lambda row: (row["model"], row["output_token_cap"] is None, row["output_token_cap"] or 0),
+        key=lambda row: (row["experiment_id"], row["output_token_cap"] is None, row["output_token_cap"] or 0),
     )
     missing = [
-        {"model": model, "output_token_cap": cap} for model in models for cap in caps if (model, cap) not in present
+        {"experiment_id": experiment_id, "output_token_cap": cap}
+        for experiment_id in experiment_ids
+        for cap in caps
+        if (experiment_id, cap) not in present
     ]
     complete = (
-        bool(wanted_models)
-        and len(models) >= int(config["decision_rule"]["minimum_models"])
+        bool(specs)
+        and not config_errors
+        and len(specs) >= int(config["decision_rule"]["minimum_models"])
         and not missing
         and not duplicate_cells
         and not rejected
     )
     if complete:
         reason = "sweep complete; inspect curves and freeze the lane cap before ranking"
-    elif not wanted_models:
+    elif not specs:
         reason = "no sweep models selected; no output-budget conclusion is permitted"
+    elif config_errors:
+        reason = "sweep configuration is invalid; no output-budget conclusion is permitted"
     elif rejected:
         reason = "one or more artifacts were rejected; no output-budget conclusion is permitted"
     elif duplicate_cells:
@@ -139,12 +215,18 @@ def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str,
         "publishable_ranking": False,
         "reason": reason,
         "planned_caps": caps,
-        "models": models,
+        "models": specs,
+        "config_errors": config_errors,
         "missing": missing,
         "duplicate_cells": duplicate_cells,
         "rejected_artifacts": rejected,
         "points": sorted(
-            points, key=lambda row: (row["model"], row["output_token_cap"] is None, row["output_token_cap"] or 0)
+            points,
+            key=lambda row: (
+                row["experiment_id"],
+                row["output_token_cap"] is None,
+                row["output_token_cap"] or 0,
+            ),
         ),
     }
 
