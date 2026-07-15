@@ -4,19 +4,19 @@
   "duplicate_cells": [],
   "missing": [
     {
-      "experiment_id": "openrouter-gpt-5.4-mini-openai",
+      "experiment_id": "openrouter-gpt-5.6-luna-openai",
       "output_token_cap": 256
     },
     {
-      "experiment_id": "openrouter-gpt-5.4-mini-openai",
+      "experiment_id": "openrouter-gpt-5.6-luna-openai",
       "output_token_cap": 1024
     },
     {
-      "experiment_id": "openrouter-gpt-5.4-mini-openai",
+      "experiment_id": "openrouter-gpt-5.6-luna-openai",
       "output_token_cap": 4096
     },
     {
-      "experiment_id": "openrouter-gpt-5.4-mini-openai",
+      "experiment_id": "openrouter-gpt-5.6-luna-openai",
       "output_token_cap": 16384
     },
     {
@@ -36,19 +36,19 @@
       "output_token_cap": 16384
     },
     {
-      "experiment_id": "openrouter-qwen3.5-9b-siliconflow",
+      "experiment_id": "openrouter-qwen3.5-9b-deepinfra",
       "output_token_cap": 256
     },
     {
-      "experiment_id": "openrouter-qwen3.5-9b-siliconflow",
+      "experiment_id": "openrouter-qwen3.5-9b-deepinfra",
       "output_token_cap": 1024
     },
     {
-      "experiment_id": "openrouter-qwen3.5-9b-siliconflow",
+      "experiment_id": "openrouter-qwen3.5-9b-deepinfra",
       "output_token_cap": 4096
     },
     {
-      "experiment_id": "openrouter-qwen3.5-9b-siliconflow",
+      "experiment_id": "openrouter-qwen3.5-9b-deepinfra",
       "output_token_cap": 16384
     }
   ],
@@ -60,23 +60,23 @@
         "OPENROUTER_QUANTIZATIONS",
         "OPENROUTER_ZDR"
       ],
-      "endpoint_name": "SiliconFlow | qwen/qwen3.5-9b-20260310",
+      "endpoint_name": "DeepInfra | qwen/qwen3.5-9b-20260310",
       "fixed_options": {
         "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
         "OPENROUTER_ALLOW_FALLBACKS": "false",
         "OPENROUTER_DATA_COLLECTION": "deny",
-        "OPENROUTER_EXPECTED_ENDPOINT_NAME": "SiliconFlow | qwen/qwen3.5-9b-20260310",
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": "DeepInfra | qwen/qwen3.5-9b-20260310",
         "OPENROUTER_JSON_MODE": "true",
-        "OPENROUTER_PROVIDER_ONLY": "SiliconFlow",
+        "OPENROUTER_PROVIDER_ONLY": "DeepInfra",
         "OPENROUTER_PROVIDER_SORT": "price",
         "OPENROUTER_REASONING_EFFORT": "none",
         "OPENROUTER_REQUIRE_PARAMETERS": "true"
       },
-      "id": "openrouter-qwen3.5-9b-siliconflow",
+      "id": "openrouter-qwen3.5-9b-deepinfra",
       "model": "qwen/qwen3.5-9b",
       "provider": "openrouter",
       "transport": "gateway-api",
-      "upstream_provider": "SiliconFlow"
+      "upstream_provider": "DeepInfra"
     },
     {
       "absent_options": [
@@ -85,20 +85,20 @@
         "OPENROUTER_QUANTIZATIONS",
         "OPENROUTER_ZDR"
       ],
-      "endpoint_name": "OpenAI | openai/gpt-5.4-mini-20260317",
+      "endpoint_name": "OpenAI | openai/gpt-5.6-luna-20260709",
       "fixed_options": {
         "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
         "OPENROUTER_ALLOW_FALLBACKS": "false",
         "OPENROUTER_DATA_COLLECTION": "deny",
-        "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-5.4-mini-20260317",
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-5.6-luna-20260709",
         "OPENROUTER_JSON_MODE": "true",
         "OPENROUTER_PROVIDER_ONLY": "OpenAI",
         "OPENROUTER_PROVIDER_SORT": "price",
         "OPENROUTER_REASONING_EFFORT": "none",
         "OPENROUTER_REQUIRE_PARAMETERS": "true"
       },
-      "id": "openrouter-gpt-5.4-mini-openai",
-      "model": "openai/gpt-5.4-mini",
+      "id": "openrouter-gpt-5.6-luna-openai",
+      "model": "openai/gpt-5.6-luna",
       "provider": "openrouter",
       "transport": "gateway-api",
       "upstream_provider": "OpenAI"
