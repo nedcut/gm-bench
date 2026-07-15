@@ -117,6 +117,8 @@ def test_cli_model_run_info_records_resolved_provider_metadata(monkeypatch: pyte
     assert run_info["profile"] == "compact"
     assert run_info["preset"] == "smoke"
     assert run_info["transport"] == "direct-api"
+    assert run_info["protocol_repair_attempts"] == 1
+    assert run_info["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "1"
     assert run_info["benchmark_contract"] == benchmark_contract()
     assert run_info["seed_panel"]["name"] == "custom"
 

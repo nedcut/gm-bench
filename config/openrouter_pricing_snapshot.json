@@ -11,11 +11,11 @@
     "runtime_contingency_multiplier": 1.5
   },
   "runtime_observations": {
-    "source": "standardized local 1,024-token MiniMax smoke, pre-route-change Qwen smoke, and the latest four-decision Luna route smoke; refresh Luna and the changed Qwen route before their official cells",
-    "observed_at_utc": "2026-07-14T23:24:00Z",
+    "source": "standardized local 1,024-token Luna and MiniMax smokes plus the pre-route-change Qwen smoke; refresh the changed Qwen route before its official cells",
+    "observed_at_utc": "2026-07-15T01:22:44Z",
     "api_seconds_per_decision": {
       "minimax/minimax-m3": 2.546,
-      "openai/gpt-5.6-luna": 4.93,
+      "openai/gpt-5.6-luna": 1.981,
       "qwen/qwen3.5-9b": 11.622
     }
   },

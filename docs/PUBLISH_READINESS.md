@@ -136,12 +136,12 @@ It must happen before the larger model panel.
 - [x] Estimate and record expected cost, runtime, serial concurrency, and quota
   in `results/analysis/output-budget-cost-estimate.json`: $33.25 planning,
   $39.90 with cost contingency, $98.28 token-ceiling reservation ($117.94 with
-  contingency), 10.20 provisional serial API-hours, and 15.30 hours with
+  contingency), 8.60 provisional serial API-hours, and 12.90 hours with
   runtime contingency. Refresh the runtime portion after current-route smokes.
-- [ ] Refresh the standardized 1,024-token serial smokes for GPT-5.6 Luna and
-  the changed DeepInfra Qwen route before their first official cells. MiniMax
-  remains current; the previous Qwen smoke used the now-unavailable SiliconFlow
-  route. Keep live metadata preflight for the full cap matrix.
+- [ ] Refresh the standardized 1,024-token serial smoke for the changed
+  DeepInfra Qwen route before its first official cell. Luna and MiniMax are
+  current; the previous Qwen smoke used the now-unavailable SiliconFlow route.
+  Keep live metadata preflight for the full cap matrix.
 - [ ] Run the complete 256 / 1,024 / 4,096 / 16,384 matrix with three repeats
   on the official panel.
 - [x] Remove the provider-dependent uncapped cell before official runs; use the
@@ -530,7 +530,8 @@ than pasting large outputs.
 | 2026-07-14 | Initial OpenRouter smoke | Superseded diagnostic | Qwen 1,024/4,096; GPT-5.4 mini 4,096 | Provider-default reasoning made Qwen consume its output allowance without usable content. This exposed the need to standardize reasoning and JSON settings; these scores are not benchmark evidence. |
 | 2026-07-14 | Standardized sweep smoke | Partly superseded | Qwen 3.5 9B, GPT-5.4 mini, MiniMax M3 at 1,024 | The Qwen smoke used the now-unavailable SiliconFlow route and GPT-5.4 Mini left the sweep before official results. MiniMax remains current. Refresh Luna and DeepInfra Qwen before their first official cells. Do not treat smoke scores as benchmark evidence. |
 | 2026-07-14 | Full-panel route compatibility | Complete for current snapshot | `config/sota_v2_models.json` | All 11 exact routes accepted the common privacy/parameter policy; four incompatible original choices were replaced before official results. Endpoint health is rechecked by the runner because provider state can drift. |
-| 2026-07-15 | Sweep cost/runtime plan | Provisional pending refreshed smokes | `results/analysis/output-budget-cost-estimate.json` | With Luna replacing GPT-5.4 Mini: planning estimate $33.25; cost contingency $39.90; token-ceiling reservation $98.28 ($117.94 with contingency); provisional 10.20 serial API-hours or 15.30 with runtime contingency. Refresh runtime observations after current-route smokes. |
+| 2026-07-15 | GPT-5.6 Luna standardized smoke | Complete | raw SHA-256 `e8f83c6516cb3cc8105b173c826c1b5d91314a487b729f9b06b8fc6beda2bc8f` | Exact OpenAI route, reasoning off, 4/4 decisions with complete telemetry, zero repairs or failed decisions, 593 output tokens, $0.0494 cost, and 7.9 seconds API time. Four illegal actions and the resulting 10-point penalty are retained as measured model behavior. |
+| 2026-07-15 | Sweep cost/runtime plan | Provisional pending refreshed Qwen smoke | `results/analysis/output-budget-cost-estimate.json` | With Luna replacing GPT-5.4 Mini: planning estimate $33.25; cost contingency $39.90; token-ceiling reservation $98.28 ($117.94 with contingency). Luna runtime is current; refresh the total runtime estimate after the changed Qwen route smoke. |
 
 ## Living-document maintenance checklist
 

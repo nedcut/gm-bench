@@ -19,8 +19,8 @@ def test_committed_sweep_cost_is_bounded_and_reproducible() -> None:
     assert result["token_ceiling_total_usd"] == pytest.approx(98.28)
     assert result["token_ceiling_total_usd"] < 100.0
     assert result["token_ceiling_total_with_contingency_usd"] == pytest.approx(117.94)
-    assert result["projected_serial_api_hours"] == pytest.approx(10.2)
-    assert result["projected_serial_api_hours_with_contingency"] == pytest.approx(15.3)
+    assert result["projected_serial_api_hours"] == pytest.approx(8.6)
+    assert result["projected_serial_api_hours_with_contingency"] == pytest.approx(12.9)
 
 
 def test_cost_estimator_rejects_unbounded_cells() -> None:
