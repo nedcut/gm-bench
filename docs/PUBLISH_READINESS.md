@@ -134,13 +134,14 @@ It must happen before the larger model panel.
 - [x] Distinguish infrastructure/provider failures that permit a resumed run from
   poor model behavior that must remain part of the measured result.
 - [x] Estimate and record expected cost, runtime, serial concurrency, and quota
-  in `results/analysis/output-budget-cost-estimate.json`: $27 planning,
-  $32.40 with cost contingency, $94.51 token-ceiling contingency, 8.96 observed
-  serial API-hours, and 13.44 hours with runtime contingency.
-- [x] Run one standardized 1,024-token serial smoke for every selected sweep
-  model, plus live metadata preflight for the full cap matrix. All three passed
-  with the pinned route, reasoning disabled, zero failed decisions, zero
-  repairs, and complete cost telemetry.
+  in `results/analysis/output-budget-cost-estimate.json`: $33.25 planning,
+  $39.90 with cost contingency, $98.28 token-ceiling reservation ($117.94 with
+  contingency), 10.20 provisional serial API-hours, and 15.30 hours with
+  runtime contingency. Refresh the runtime portion after current-route smokes.
+- [ ] Refresh the standardized 1,024-token serial smokes for GPT-5.6 Luna and
+  the changed DeepInfra Qwen route before their first official cells. MiniMax
+  remains current; the previous Qwen smoke used the now-unavailable SiliconFlow
+  route. Keep live metadata preflight for the full cap matrix.
 - [ ] Run the complete 256 / 1,024 / 4,096 / 16,384 matrix with three repeats
   on the official panel.
 - [x] Remove the provider-dependent uncapped cell before official runs; use the
@@ -195,7 +196,7 @@ usage after every cell:
 
 ```bash
 python3 scripts/run_publication_matrix.py smoke \
-  --model-id openrouter-qwen3.5-9b-siliconflow \
+  --model-id openrouter-qwen3.5-9b-deepinfra \
   --cap 256 \
   --run-dir data/publication-runs/smoke-2026-07-14 \
   --max-spend-usd 5
@@ -224,6 +225,29 @@ cap and a frozen policy status. The driver enforces that lock.
   valid result is not a reason to rerun a model.
 - [x] Target 8–12 models covering frontier, mid-tier, smaller, and open-weight
   models where technically and financially practical.
+
+The finalized headline panel is:
+
+| Model | Pinned upstream | Panel role |
+| --- | --- | --- |
+| GPT-5.6 Luna | OpenAI | Frontier OpenAI anchor and frontier sweep model |
+| GPT-5.4 Mini | OpenAI | Smaller, more economical OpenAI comparison |
+| GLM 5.2 | StreamLake | Large non-US frontier-family comparison |
+| Claude Sonnet 5 | Anthropic | Frontier Anthropic anchor |
+| Nemotron 3 Ultra 550B | Together | Large open-weight-family comparison |
+| Qwen 3.7 Plus | Alibaba | Large Qwen-family comparison |
+| Claude Haiku 4.5 | Anthropic | Efficient Anthropic comparison |
+| Mistral Medium 3.5 | Mistral | Mid-tier European-family comparison |
+| Mistral Small 4 (`2603`) | Mistral | Small/efficient Mistral comparison |
+| MiniMax M3 | MiniMax | Capable low-cost model and sweep anchor |
+| Qwen 3.5 9B | DeepInfra | Small open model and sweep floor |
+
+Gemini, Grok, Kimi, and DeepSeek are not silent omissions: the live pre-result
+compatibility probes could not put their candidate routes into the same
+reasoning-off, JSON, privacy, and pinned-provider lane. They may appear later in
+a separately specified lane, but they must not be mixed into this ranking with
+different execution conditions.
+
 - [x] Record exact model identifiers, endpoint snapshot names, and upstream routes;
   never collapse distinct snapshots
   under a generic family name.
@@ -490,6 +514,7 @@ decision and why.
 | 2026-07-14 | Replace the provider-dependent uncapped sweep cell with a common 16,384-token ceiling. | Upstreams expose different maxima, so “uncapped” was neither compute-comparable nor financially bounded. No official sweep cell had run. | Every sweep cell now has a common explicit cap and the runner requires a spend ceiling. |
 | 2026-07-14 | Standardize JSON mode on and reasoning off, and replace four incompatible headline routes before results. | Live route probes found mandatory reasoning on Grok, Gemini, and Kimi, and an incompatible data-retention policy on DeepSeek. Replacements were selected on route compatibility and panel coverage, not score. | All 11 registered routes can accept one common protocol; exact endpoint names remain pinned and checked before calls. |
 | 2026-07-14 | Freeze the output-budget decision, rerun, exclusion, stopping, and budget rules in `config/publication_protocol.json`. | Post-result discretion would create researcher degrees of freedom and selection bias. | The analyzer emits the predeclared cap recommendation; valid poor behavior cannot be rerun away. |
+| 2026-07-15 | Finalize the 11-model panel and make GPT-5.6 Luna the frontier sweep model. | No official sweep cell existed. The live preflight found the pinned SiliconFlow Qwen and DeepInfra Nemotron endpoints unavailable; healthy DeepInfra Qwen and Together Nemotron endpoints support the common lane. Luna replaced GPT-5.4 Mini in the sweep so the requested first full run contributes to the predeclared compute study instead of becoming a disposable diagnostic. | The headline model identities remain unchanged; two exact routes change, and the sweep now spans small open, capable low-cost, and frontier models. Re-smoke changed routes before their official cells. |
 
 ## Experiment and release log
 
@@ -503,9 +528,9 @@ than pasting large outputs.
 | 2026-07-14 | Publication pipeline | Merged | [#61](https://github.com/nedcut/gm-bench/pull/61) | Independent review complete; all findings addressed or dispositioned. Paid sweep and model panel remain. |
 | 2026-07-13 | Strategic contract mechanics | Deferred v3 draft | [#62](https://github.com/nedcut/gm-bench/pull/62) | Keep separate until v2 publication is complete. |
 | 2026-07-14 | Initial OpenRouter smoke | Superseded diagnostic | Qwen 1,024/4,096; GPT-5.4 mini 4,096 | Provider-default reasoning made Qwen consume its output allowance without usable content. This exposed the need to standardize reasoning and JSON settings; these scores are not benchmark evidence. |
-| 2026-07-14 | Standardized sweep smoke | Complete | Qwen 3.5 9B, GPT-5.4 mini, MiniMax M3 at 1,024 | Each model completed 4/4 decisions on its exact pinned route with reasoning disabled, zero failed decisions, zero repairs, and complete usage/cost telemetry. Combined artifact cost was under $0.04. Do not treat smoke scores as benchmark evidence. |
+| 2026-07-14 | Standardized sweep smoke | Partly superseded | Qwen 3.5 9B, GPT-5.4 mini, MiniMax M3 at 1,024 | The Qwen smoke used the now-unavailable SiliconFlow route and GPT-5.4 Mini left the sweep before official results. MiniMax remains current. Refresh Luna and DeepInfra Qwen before their first official cells. Do not treat smoke scores as benchmark evidence. |
 | 2026-07-14 | Full-panel route compatibility | Complete for current snapshot | `config/sota_v2_models.json` | All 11 exact routes accepted the common privacy/parameter policy; four incompatible original choices were replaced before official results. Endpoint health is rechecked by the runner because provider state can drift. |
-| 2026-07-14 | Sweep cost/runtime plan | Complete | `results/analysis/output-budget-cost-estimate.json` | Planning estimate $27; cost contingency $32.40; token-ceiling contingency $94.51; projected 8.96 serial API-hours or 13.44 with runtime contingency. Operator approval is still explicit at invocation. |
+| 2026-07-15 | Sweep cost/runtime plan | Provisional pending refreshed smokes | `results/analysis/output-budget-cost-estimate.json` | With Luna replacing GPT-5.4 Mini: planning estimate $33.25; cost contingency $39.90; token-ceiling reservation $98.28 ($117.94 with contingency); provisional 10.20 serial API-hours or 15.30 with runtime contingency. Refresh runtime observations after current-route smokes. |
 
 ## Living-document maintenance checklist
 
