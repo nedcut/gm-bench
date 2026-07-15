@@ -363,6 +363,8 @@ def _run_info(command: str, agent: Any, config: BenchmarkConfig) -> dict[str, An
         info["profile"] = metadata["profile"]
     if metadata.get("transport"):
         info["transport"] = metadata["transport"]
+    if "protocol_repair_attempts" in metadata:
+        info["protocol_repair_attempts"] = metadata["protocol_repair_attempts"]
     if metadata.get("provider_options"):
         info["provider_options"] = metadata["provider_options"]
     return info

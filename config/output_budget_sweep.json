@@ -6,15 +6,15 @@
   "output_token_caps": [256, 1024, 4096, 16384],
   "models": [
     {
-      "id": "openrouter-qwen3.5-9b-siliconflow",
+      "id": "openrouter-qwen3.5-9b-deepinfra",
       "provider": "openrouter",
       "model": "qwen/qwen3.5-9b",
       "transport": "gateway-api",
-      "upstream_provider": "SiliconFlow",
-      "endpoint_name": "SiliconFlow | qwen/qwen3.5-9b-20260310",
+      "upstream_provider": "DeepInfra",
+      "endpoint_name": "DeepInfra | qwen/qwen3.5-9b-20260310",
       "fixed_options": {
-        "OPENROUTER_PROVIDER_ONLY": "SiliconFlow",
-        "OPENROUTER_EXPECTED_ENDPOINT_NAME": "SiliconFlow | qwen/qwen3.5-9b-20260310",
+        "OPENROUTER_PROVIDER_ONLY": "DeepInfra",
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": "DeepInfra | qwen/qwen3.5-9b-20260310",
         "OPENROUTER_PROVIDER_SORT": "price",
         "OPENROUTER_ALLOW_FALLBACKS": "false",
         "OPENROUTER_REQUIRE_PARAMETERS": "true",
@@ -31,15 +31,15 @@
       ]
     },
     {
-      "id": "openrouter-gpt-5.4-mini-openai",
+      "id": "openrouter-gpt-5.6-luna-openai",
       "provider": "openrouter",
-      "model": "openai/gpt-5.4-mini",
+      "model": "openai/gpt-5.6-luna",
       "transport": "gateway-api",
       "upstream_provider": "OpenAI",
-      "endpoint_name": "OpenAI | openai/gpt-5.4-mini-20260317",
+      "endpoint_name": "OpenAI | openai/gpt-5.6-luna-20260709",
       "fixed_options": {
         "OPENROUTER_PROVIDER_ONLY": "OpenAI",
-        "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-5.4-mini-20260317",
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-5.6-luna-20260709",
         "OPENROUTER_PROVIDER_SORT": "price",
         "OPENROUTER_ALLOW_FALLBACKS": "false",
         "OPENROUTER_REQUIRE_PARAMETERS": "true",
@@ -90,8 +90,8 @@
     "non_saturation_output_token_cap": 16384
   },
   "require_complete_cost": true,
-  "selection_frozen_at_utc": "2026-07-14T23:10:09Z",
-  "selection_rationale": "small open model, mid-tier OpenAI model, and capable low-cost MiniMax model span expected capability while keeping the pre-publication sensitivity study financially practical",
-  "protocol_amendment": "Before any official sweep cell, replaced provider-dependent uncapped with a common 16,384-token ceiling; standardized JSON mode and reasoning disabled; replaced Grok with MiniMax based on ex-ante cost and verified privacy/parameter compatibility, not score.",
+  "selection_frozen_at_utc": "2026-07-15T01:18:55Z",
+  "selection_rationale": "small open Qwen, capable low-cost MiniMax, and frontier GPT-5.6 Luna span model scale and expected capability; Luna replaced GPT-5.4 Mini before any official sweep cell so the first requested full run contributes directly to the compute-sensitivity study",
+  "protocol_amendment": "Before any official sweep cell, replaced provider-dependent uncapped with a common 16,384-token ceiling; standardized JSON mode and reasoning disabled; replaced Grok with MiniMax based on ex-ante cost and verified privacy/parameter compatibility, not score. On the final live preflight, moved Qwen 3.5 9B from unavailable SiliconFlow to healthy DeepInfra and replaced GPT-5.4 Mini with GPT-5.6 Luna before any sweep result existed.",
   "status": "awaiting-runs"
 }

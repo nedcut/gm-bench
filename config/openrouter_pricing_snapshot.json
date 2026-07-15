@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checked_at_utc": "2026-07-14T23:10:09Z",
+  "checked_at_utc": "2026-07-15T01:18:55Z",
   "source": "https://openrouter.ai/api/v1/models",
   "currency": "USD",
   "rates_are_per_token": true,
@@ -11,11 +11,11 @@
     "runtime_contingency_multiplier": 1.5
   },
   "runtime_observations": {
-    "source": "standardized local smoke runs at a 1,024-token cap; four decisions per model; API latency only",
-    "observed_at_utc": "2026-07-14T23:24:00Z",
+    "source": "standardized local 1,024-token Luna and MiniMax smokes plus the pre-route-change Qwen smoke; refresh the changed Qwen route before its official cells",
+    "observed_at_utc": "2026-07-15T01:22:44Z",
     "api_seconds_per_decision": {
       "minimax/minimax-m3": 2.546,
-      "openai/gpt-5.4-mini": 2.621,
+      "openai/gpt-5.6-luna": 1.981,
       "qwen/qwen3.5-9b": 11.622
     }
   },
@@ -25,7 +25,7 @@
     "minimax/minimax-m3": {"prompt": 0.0000003, "completion": 0.0000012},
     "mistralai/mistral-medium-3-5": {"prompt": 0.0000015, "completion": 0.0000075},
     "mistralai/mistral-small-2603": {"prompt": 0.00000015, "completion": 0.0000006},
-    "nvidia/nemotron-3-ultra-550b-a55b": {"prompt": 0.0000005, "completion": 0.0000022},
+    "nvidia/nemotron-3-ultra-550b-a55b": {"prompt": 0.0000006, "completion": 0.0000036},
     "openai/gpt-5.4-mini": {"prompt": 0.00000075, "completion": 0.0000045},
     "openai/gpt-5.6-luna": {"prompt": 0.000001, "completion": 0.000006},
     "qwen/qwen3.5-9b": {"prompt": 0.0000001, "completion": 0.00000015},

@@ -47,7 +47,7 @@ def test_runner_rejects_cap_outside_pre_registered_sweep() -> None:
 
 
 def test_smoke_is_clean_and_resumes_existing_checkpoint(tmp_path: Path) -> None:
-    cell = build_cells("smoke", model_id="openrouter-qwen3.5-9b-siliconflow")[0]
+    cell = build_cells("smoke", model_id="openrouter-qwen3.5-9b-deepinfra")[0]
     command = cell_command(cell, tmp_path)
     assert cell.preset == "smoke"
     assert cell.repeats == 1
@@ -79,7 +79,7 @@ def test_paid_openrouter_run_requires_explicit_spend_ceiling(
             [
                 "smoke",
                 "--model-id",
-                "openrouter-qwen3.5-9b-siliconflow",
+                "openrouter-qwen3.5-9b-deepinfra",
                 "--run-dir",
                 str(tmp_path),
             ]
@@ -89,7 +89,7 @@ def test_paid_openrouter_run_requires_explicit_spend_ceiling(
 
 
 def test_cell_reservation_blocks_launch_before_ceiling_overrun(tmp_path: Path) -> None:
-    cell = build_cells("smoke", model_id="openrouter-gpt-5.4-mini-openai", cap=1024)[0]
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=1024)[0]
     reservation = _cell_reservation_usd(cell)
     assert 0 < reservation < 1
     with pytest.raises(SystemExit, match="reservation would exceed"):
@@ -98,12 +98,12 @@ def test_cell_reservation_blocks_launch_before_ceiling_overrun(tmp_path: Path) -
 
 
 def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
-    cell = build_cells("smoke", model_id="openrouter-qwen3.5-9b-siliconflow", cap=1024)[0]
+    cell = build_cells("smoke", model_id="openrouter-qwen3.5-9b-deepinfra", cap=1024)[0]
     valid = {
         "data": {
             "endpoints": [
                 {
-                    "provider_name": "SiliconFlow",
+                    "provider_name": "DeepInfra",
                     "name": cell.endpoint_name,
                     "status": 0,
                     "max_completion_tokens": 4096,
@@ -113,7 +113,7 @@ def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
         }
     }
     assert _endpoint_issues(cell, valid) == []
-    valid["data"]["endpoints"][0]["name"] = "SiliconFlow | replaced-snapshot"
+    valid["data"]["endpoints"][0]["name"] = "DeepInfra | replaced-snapshot"
     assert "no healthy OpenRouter endpoint" in _endpoint_issues(cell, valid)[0]
     valid["data"]["endpoints"][0]["name"] = cell.endpoint_name
     valid["data"]["endpoints"][0]["supported_parameters"] = ["max_tokens", "response_format"]
