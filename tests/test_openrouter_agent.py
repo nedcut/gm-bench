@@ -87,6 +87,26 @@ def test_choose_actions_records_route_and_authoritative_cost(monkeypatch) -> Non
     assert usage["cost_usd"] == 0.00123
 
 
+def test_choose_actions_can_disable_reasoning_without_effort_mapping(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_urlopen(request: object, **kwargs: object) -> _Response:
+        del kwargs
+        captured["payload"] = json.loads(request.data.decode())
+        return _Response()
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setenv("OPENROUTER_REASONING_ENABLED", "false")
+    monkeypatch.delenv("OPENROUTER_REASONING_EFFORT", raising=False)
+    monkeypatch.delenv("OPENROUTER_REASONING_MAX_TOKENS", raising=False)
+    monkeypatch.setattr(openrouter_agent.urllib.request, "urlopen", fake_urlopen)
+
+    actions, _ = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+
+    assert actions == [{"type": "noop"}]
+    assert captured["payload"]["reasoning"] == {"enabled": False}
+
+
 def test_choose_actions_without_key_marks_fallback(monkeypatch) -> None:
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
 

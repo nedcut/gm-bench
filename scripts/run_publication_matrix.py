@@ -105,6 +105,8 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
         frozen_cap = lane.get("output_token_cap")
         if lane.get("output_budget_status") not in {"frozen-saturation", "frozen-fixed-budget"}:
             raise ValueError("full panel is locked until config/sota_v2_lane.json freezes the output-budget policy")
+        if config.get("selection_status") != "frozen":
+            raise ValueError("full panel is locked until config/sota_v2_models.json freezes the model registry")
         if not isinstance(frozen_cap, int) or frozen_cap < 1:
             raise ValueError("full panel requires a positive frozen output_token_cap")
         if cap is not None and cap != frozen_cap:
@@ -352,6 +354,10 @@ def main(argv: list[str] | None = None) -> int:
         cells = build_cells(args.phase, args.model_id, args.cap)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         parser.error(str(exc))
+    if args.phase == "sweep" and not args.dry_run and not args.preflight_only:
+        sweep_status = str(_read_json(SWEEP_CONFIG).get("status") or "")
+        if sweep_status != "awaiting-runs":
+            parser.error(f"paid sweep is locked while config/output_budget_sweep.json status is {sweep_status!r}")
     if (
         not args.dry_run
         and not args.preflight_only

@@ -7,20 +7,30 @@
   "session": false,
   "preset": "leaderboard",
   "repeats": 3,
-  "selection_frozen_at_utc": "2026-07-15T01:18:55Z",
-  "selection_policy": "Exact model IDs, dated endpoint names, and one pinned OpenRouter upstream per model; no provider fallback, JSON response mode, reasoning disabled, explicit output cap after the sweep, one bounded protocol repair.",
+  "selection_status": "provisional-awaiting-route-smokes",
+  "selection_frozen_at_utc": null,
+  "catalog_checked_at_utc": "2026-07-15T20:41:27Z",
+  "selection_policy": "One current model per major compatible family, plus one small open efficiency floor; exact model IDs, dated endpoint names, and one pinned OpenRouter upstream per model; no provider fallback, JSON response mode, reasoning explicitly disabled with reasoning.enabled=false, explicit output cap after policy review, one bounded protocol repair.",
   "models": [
-    {"id": "openrouter-gpt-5.6-luna-openai", "provider": "openrouter", "model": "openai/gpt-5.6-luna", "transport": "gateway-api", "upstream_provider": "OpenAI", "endpoint_name": "OpenAI | openai/gpt-5.6-luna-20260709"},
-    {"id": "openrouter-gpt-5.4-mini-openai", "provider": "openrouter", "model": "openai/gpt-5.4-mini", "transport": "gateway-api", "upstream_provider": "OpenAI", "endpoint_name": "OpenAI | openai/gpt-5.4-mini-20260317"},
-    {"id": "openrouter-glm-5.2-streamlake", "provider": "openrouter", "model": "z-ai/glm-5.2", "transport": "gateway-api", "upstream_provider": "StreamLake", "endpoint_name": "StreamLake | z-ai/glm-5.2-20260616"},
-    {"id": "openrouter-claude-sonnet-5-anthropic", "provider": "openrouter", "model": "anthropic/claude-sonnet-5", "transport": "gateway-api", "upstream_provider": "Anthropic", "endpoint_name": "Anthropic | anthropic/claude-sonnet-5-20260630"},
-    {"id": "openrouter-nemotron-3-ultra-together", "provider": "openrouter", "model": "nvidia/nemotron-3-ultra-550b-a55b", "transport": "gateway-api", "upstream_provider": "Together", "endpoint_name": "Together | nvidia/nemotron-3-ultra-550b-a55b-20260604"},
-    {"id": "openrouter-qwen3.7-plus-alibaba", "provider": "openrouter", "model": "qwen/qwen3.7-plus", "transport": "gateway-api", "upstream_provider": "Alibaba", "endpoint_name": "Alibaba | qwen/qwen3.7-plus-20260602"},
-    {"id": "openrouter-claude-haiku-4.5-anthropic", "provider": "openrouter", "model": "anthropic/claude-haiku-4.5", "transport": "gateway-api", "upstream_provider": "Anthropic", "endpoint_name": "Anthropic | anthropic/claude-4.5-haiku-20251001"},
-    {"id": "openrouter-mistral-medium-3.5-mistral", "provider": "openrouter", "model": "mistralai/mistral-medium-3-5", "transport": "gateway-api", "upstream_provider": "Mistral", "endpoint_name": "Mistral | mistralai/mistral-medium-3.5-20260430"},
-    {"id": "openrouter-mistral-small-2603-mistral", "provider": "openrouter", "model": "mistralai/mistral-small-2603", "transport": "gateway-api", "upstream_provider": "Mistral", "endpoint_name": "Mistral | mistralai/mistral-small-2603"},
-    {"id": "openrouter-minimax-m3-minimax", "provider": "openrouter", "model": "minimax/minimax-m3", "transport": "gateway-api", "upstream_provider": "Minimax", "endpoint_name": "Minimax | minimax/minimax-m3-20260531"},
-    {"id": "openrouter-qwen3.5-9b-deepinfra", "provider": "openrouter", "model": "qwen/qwen3.5-9b", "transport": "gateway-api", "upstream_provider": "DeepInfra", "endpoint_name": "DeepInfra | qwen/qwen3.5-9b-20260310"}
+    {"id": "openrouter-gpt-5.6-luna-openai", "provider": "openrouter", "model": "openai/gpt-5.6-luna", "transport": "gateway-api", "upstream_provider": "OpenAI", "endpoint_name": "OpenAI | openai/gpt-5.6-luna-20260709", "role": "frontier OpenAI anchor"},
+    {"id": "openrouter-claude-sonnet-5-anthropic", "provider": "openrouter", "model": "anthropic/claude-sonnet-5", "transport": "gateway-api", "upstream_provider": "Anthropic", "endpoint_name": "Anthropic | anthropic/claude-sonnet-5-20260630", "role": "frontier Anthropic anchor"},
+    {"id": "openrouter-deepseek-v4-pro-deepinfra", "provider": "openrouter", "model": "deepseek/deepseek-v4-pro", "transport": "gateway-api", "upstream_provider": "DeepInfra", "endpoint_name": "DeepInfra | deepseek/deepseek-v4-pro-20260423", "role": "DeepSeek family anchor"},
+    {"id": "openrouter-kimi-k2.6-deepinfra", "provider": "openrouter", "model": "moonshotai/kimi-k2.6", "transport": "gateway-api", "upstream_provider": "DeepInfra", "endpoint_name": "DeepInfra | moonshotai/kimi-k2.6-20260420", "role": "Moonshot family anchor"},
+    {"id": "openrouter-glm-5.2-streamlake", "provider": "openrouter", "model": "z-ai/glm-5.2", "transport": "gateway-api", "upstream_provider": "StreamLake", "endpoint_name": "StreamLake | z-ai/glm-5.2-20260616", "role": "Z.ai family anchor"},
+    {"id": "openrouter-qwen3.7-plus-alibaba", "provider": "openrouter", "model": "qwen/qwen3.7-plus", "transport": "gateway-api", "upstream_provider": "Alibaba", "endpoint_name": "Alibaba | qwen/qwen3.7-plus-20260602", "role": "large Qwen family anchor"},
+    {"id": "openrouter-minimax-m3-minimax", "provider": "openrouter", "model": "minimax/minimax-m3", "transport": "gateway-api", "upstream_provider": "Minimax", "endpoint_name": "Minimax | minimax/minimax-m3-20260531", "role": "capable low-cost anchor"},
+    {"id": "openrouter-mistral-medium-3.5-mistral", "provider": "openrouter", "model": "mistralai/mistral-medium-3-5", "transport": "gateway-api", "upstream_provider": "Mistral", "endpoint_name": "Mistral | mistralai/mistral-medium-3.5-20260430", "role": "European model-family anchor"},
+    {"id": "openrouter-nemotron-3-nano-deepinfra", "provider": "openrouter", "model": "nvidia/nemotron-3-nano-30b-a3b", "transport": "gateway-api", "upstream_provider": "DeepInfra", "endpoint_name": "DeepInfra | nvidia/nemotron-3-nano-30b-a3b", "role": "small NVIDIA open-weight anchor"},
+    {"id": "openrouter-qwen3.5-9b-deepinfra", "provider": "openrouter", "model": "qwen/qwen3.5-9b", "transport": "gateway-api", "upstream_provider": "DeepInfra", "endpoint_name": "DeepInfra | qwen/qwen3.5-9b-20260310", "role": "small open efficiency floor and sweep anchor"}
+  ],
+  "changed_routes_pending_smoke": [
+    "openrouter-deepseek-v4-pro-deepinfra",
+    "openrouter-kimi-k2.6-deepinfra",
+    "openrouter-nemotron-3-nano-deepinfra"
+  ],
+  "explicit_exclusions": [
+    {"model": "google/gemini-3.1-pro-preview", "reason": "OpenRouter catalog marks reasoning mandatory; incompatible with the reasoning-disabled headline lane"},
+    {"model": "x-ai/grok-4.5", "reason": "OpenRouter catalog marks reasoning mandatory; incompatible with the reasoning-disabled headline lane"}
   ],
   "shared_fixed_options": {
     "OPENROUTER_PROVIDER_SORT": "price",
@@ -28,10 +38,11 @@
     "OPENROUTER_REQUIRE_PARAMETERS": "true",
     "OPENROUTER_DATA_COLLECTION": "deny",
     "OPENROUTER_JSON_MODE": "true",
-    "OPENROUTER_REASONING_EFFORT": "none",
+    "OPENROUTER_REASONING_ENABLED": "false",
     "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"
   },
   "shared_absent_options": [
+    "OPENROUTER_REASONING_EFFORT",
     "OPENROUTER_REASONING_MAX_TOKENS",
     "OPENROUTER_TEMPERATURE",
     "OPENROUTER_QUANTIZATIONS",

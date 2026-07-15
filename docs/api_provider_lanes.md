@@ -110,6 +110,7 @@ Available routing controls:
 | `OPENROUTER_QUANTIZATIONS` | unset | Comma-separated allowed quantizations |
 | `OPENROUTER_JSON_MODE` | `false` | Request provider-native JSON-object mode |
 | `OPENROUTER_MAX_TOKENS` | `2048` | Maximum generated tokens per API call |
+| `OPENROUTER_REASONING_ENABLED` | unset | Explicitly enable or disable reasoning without provider-specific effort mapping |
 | `OPENROUTER_REASONING_EFFORT` | unset | Requested reasoning effort |
 | `OPENROUTER_REASONING_MAX_TOKENS` | unset | Maximum reasoning-token budget |
 

@@ -2,8 +2,16 @@
 
 The `sota-v2` contract fixes simulation and scoring. It does not by itself make
 two model rows compute-comparable. The publication lane therefore remains
-blocked until the planned 256 / 1,024 / 4,096 / 16,384 sweep is complete for
-all three pre-registered API models spanning the expected quality range.
+blocked until one output policy is explicitly re-frozen.
+
+**Current status (2026-07-15): paused for policy review.** The first Luna cell
+was superseded after a scaffold defect was found, and its 154 output
+tokens/decision at a 1,024-token ceiling raised a second question: whether the
+four-cap matrix measures a meaningful compute axis when reasoning is disabled,
+or merely repeats a non-binding JSON response limit. The paid runner now blocks
+the sweep while `config/output_budget_sweep.json` is `paused-policy-review`.
+The project must choose and predeclare either the matrix below or one generous
+safety ceiling with actual token and cost efficiency reported for every row.
 
 ## Run protocol
 
@@ -48,14 +56,10 @@ output-ceiling estimate before launch and retains that reservation after a
 failure; live account and artifact telemetry remain the final guard against
 price or input-token drift.
 
-As of 2026-07-14, all three selected models completed the standardized smoke
-with matching pinned routes, zero failed decisions, zero protocol repairs,
-complete cost coverage, and reasoning disabled. The cost artifact projects
-about $27 at the planning assumption, $32.40 with cost contingency, and a
-$94.51 token-ceiling contingency. Observed smoke latency projects 8.96 serial
-API-hours, or 13.44 hours with runtime contingency. These are planning numbers,
-not a promise: recheck live pricing and endpoint health immediately before the
-official run.
+The committed cost artifact still reproduces the superseded 12-cell plan for
+auditability; it is not current spend guidance. Regenerate it only after the
+policy is re-frozen, then recheck live pricing, endpoint health, and smoke
+latency immediately before any official run.
 
 ## Frozen publication lanes
 

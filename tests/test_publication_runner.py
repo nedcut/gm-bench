@@ -88,6 +88,13 @@ def test_paid_openrouter_run_requires_explicit_spend_ceiling(
     assert "require an explicit --max-spend-usd ceiling" in capsys.readouterr().err
 
 
+def test_paid_sweep_is_locked_while_policy_is_under_review(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["sweep", "--run-dir", str(tmp_path), "--max-spend-usd", "10"])
+    assert exc.value.code == 2
+    assert "paid sweep is locked" in capsys.readouterr().err
+
+
 def test_cell_reservation_blocks_launch_before_ceiling_overrun(tmp_path: Path) -> None:
     cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=1024)[0]
     reservation = _cell_reservation_usd(cell)

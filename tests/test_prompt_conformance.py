@@ -46,25 +46,61 @@ def _extract_action_examples(prompt: str) -> list[dict[str, Any]]:
     return examples
 
 
-def _build_examples() -> list[dict[str, Any]]:
-    prompt = build_prompt(League.new(seed=42).observation("preseason"))
+def _build_examples(phase: str = "preseason") -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    league = League.new(seed=42)
+    if phase == "trade_deadline":
+        league.prepare_trade_deadline()
+    observation = league.observation(phase)
+    prompt = build_prompt(observation)
     examples = _extract_action_examples(prompt)
     # Guard the guard: if extraction silently found nothing, the schema assertion
-    # below would vacuously pass. The prompt lists well over a dozen actions.
-    assert len(examples) >= 15, f"expected many extracted examples, got {len(examples)}"
+    # below would vacuously pass. Every phase has a substantial action catalog.
+    assert len(examples) >= 10, f"expected many extracted examples, got {len(examples)}"
     types = {example["type"] for example in examples}
     assert "scout" in types
-    return examples
+    return observation, examples
 
 
 def test_every_prompt_example_validates_against_action_schema() -> None:
-    for example in _build_examples():
-        jsonschema.validate(example, _ACTION_SCHEMA)
+    for phase in ("preseason", "midseason", "trade_deadline", "draft"):
+        _, examples = _build_examples(phase)
+        for example in examples:
+            jsonschema.validate(example, _ACTION_SCHEMA)
+
+
+def test_prompt_only_advertises_action_examples_available_in_current_phase() -> None:
+    for phase in ("preseason", "midseason", "trade_deadline", "draft"):
+        observation, examples = _build_examples(phase)
+        advertised = {example["type"] for example in examples}
+        assert advertised <= set(observation["available_actions"])
+
+
+def test_phase_specific_examples_do_not_prime_unavailable_actions() -> None:
+    _, preseason = _build_examples("preseason")
+    _, midseason = _build_examples("midseason")
+    _, draft = _build_examples("draft")
+
+    assert "draft" not in {example["type"] for example in preseason}
+    assert "claim_waiver" not in {example["type"] for example in preseason}
+    assert "claim_waiver" in {example["type"] for example in midseason}
+    assert "draft" in {example["type"] for example in draft}
+
+
+def test_prompt_states_current_draft_action_limit() -> None:
+    league = League.new(seed=42)
+    prompt = build_prompt(league.observation("draft"))
+    assert "Emit only action types listed in available_actions" in prompt
+    assert "emit at most 1 draft action" in prompt
+
+    league.user_team.draft_picks[league.season] = 0
+    prompt = build_prompt(league.observation("draft"))
+    assert "emit at most 0 draft actions" in prompt
 
 
 def test_scout_prompt_examples_are_accepted_by_the_simulator() -> None:
     """Each scout example, with its id adapted to a real target, must be accepted."""
-    scout_examples = [example for example in _build_examples() if example["type"] == "scout"]
+    _, examples = _build_examples()
+    scout_examples = [example for example in examples if example["type"] == "scout"]
     # The prompt advertises both keys; both must survive execution.
     assert {key for example in scout_examples for key in ("player_id", "prospect_id") if key in example} == {
         "player_id",

@@ -234,6 +234,15 @@ def test_publication_model_registry_is_consistent_with_sweep() -> None:
     assert len({row["id"] for row in models}) == len(models)
     assert len(identities) == len(models)
     assert len({row["endpoint_name"] for row in models}) == len(models)
+    assert registry["selection_status"] == "provisional-awaiting-route-smokes"
+    assert registry["selection_frozen_at_utc"] is None
+    assert registry["shared_fixed_options"]["OPENROUTER_REASONING_ENABLED"] == "false"
+    assert "OPENROUTER_REASONING_EFFORT" in registry["shared_absent_options"]
+    assert {row["model"] for row in registry["explicit_exclusions"]} == {
+        "google/gemini-3.1-pro-preview",
+        "x-ai/grok-4.5",
+    }
+    assert set(registry["changed_routes_pending_smoke"]) <= {row["id"] for row in models}
     assert lane["model_registry"] == "config/sota_v2_models.json"
     assert lane["minimum_headline_models"] >= 8
 

@@ -125,6 +125,7 @@
     "models": [
       {
         "absent_options": [
+          "OPENROUTER_REASONING_EFFORT",
           "OPENROUTER_REASONING_MAX_TOKENS",
           "OPENROUTER_TEMPERATURE",
           "OPENROUTER_QUANTIZATIONS",
@@ -139,7 +140,7 @@
           "OPENROUTER_JSON_MODE": "true",
           "OPENROUTER_PROVIDER_ONLY": "DeepInfra",
           "OPENROUTER_PROVIDER_SORT": "price",
-          "OPENROUTER_REASONING_EFFORT": "none",
+          "OPENROUTER_REASONING_ENABLED": "false",
           "OPENROUTER_REQUIRE_PARAMETERS": "true"
         },
         "id": "openrouter-qwen3.5-9b-deepinfra",
@@ -150,6 +151,7 @@
       },
       {
         "absent_options": [
+          "OPENROUTER_REASONING_EFFORT",
           "OPENROUTER_REASONING_MAX_TOKENS",
           "OPENROUTER_TEMPERATURE",
           "OPENROUTER_QUANTIZATIONS",
@@ -164,7 +166,7 @@
           "OPENROUTER_JSON_MODE": "true",
           "OPENROUTER_PROVIDER_ONLY": "OpenAI",
           "OPENROUTER_PROVIDER_SORT": "price",
-          "OPENROUTER_REASONING_EFFORT": "none",
+          "OPENROUTER_REASONING_ENABLED": "false",
           "OPENROUTER_REQUIRE_PARAMETERS": "true"
         },
         "id": "openrouter-gpt-5.6-luna-openai",
@@ -175,6 +177,7 @@
       },
       {
         "absent_options": [
+          "OPENROUTER_REASONING_EFFORT",
           "OPENROUTER_REASONING_MAX_TOKENS",
           "OPENROUTER_TEMPERATURE",
           "OPENROUTER_QUANTIZATIONS",
@@ -189,7 +192,7 @@
           "OPENROUTER_JSON_MODE": "true",
           "OPENROUTER_PROVIDER_ONLY": "Minimax",
           "OPENROUTER_PROVIDER_SORT": "price",
-          "OPENROUTER_REASONING_EFFORT": "none",
+          "OPENROUTER_REASONING_ENABLED": "false",
           "OPENROUTER_REQUIRE_PARAMETERS": "true"
         },
         "id": "openrouter-minimax-m3-minimax",

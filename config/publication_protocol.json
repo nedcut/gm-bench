@@ -20,6 +20,12 @@
     "non_saturation_rule": "If no cap saturates, freeze the highest common tested cap (16,384) for the headline table and present the score-versus-budget curves as a primary limitation.",
     "human_override": "forbidden after official sweep results are visible; amend this file before running any official cell"
   },
+  "experiment_reset_2026_07_15": {
+    "reason": "The first Luna smoke and 1,024-token cell exposed phase-ambiguous global action examples in the shared prompt scaffold. The prompt advertised draft actions outside the draft phase even though available_actions did not.",
+    "scope": "Supersede every result with the prior scaffold fingerprint, including the completed Luna cell; preserve those raw artifacts as diagnostic evidence; restart all accepted publication evidence under one hardened scaffold fingerprint.",
+    "selection_guard": "The revised model registry remains provisional until every changed route passes the common parameter, privacy, JSON, and reasoning-disabled smoke checks.",
+    "compute_guard": "No replacement official sweep cell may run while config/output_budget_sweep.json is paused-policy-review."
+  },
   "rerun_policy": {
     "maximum_infrastructure_attempts_per_cell": 2,
     "resume_exact_checkpoint": true,
