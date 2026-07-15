@@ -71,16 +71,48 @@ def _validate_models(models: list[dict[str, Any]]) -> None:
 
 
 def build_cells(phase: str, model_id: str | None = None, cap: int | None = None) -> list[Cell]:
-    if phase in {"smoke", "sweep"}:
+    if phase == "smoke":
+        config = _read_json(PANEL_CONFIG)
+        lane = _read_json(LANE_CONFIG)
+        models = list(config.get("models") or [])
+        _validate_models(models)
+        frozen_cap = lane.get("output_token_cap")
+        if lane.get("output_policy_basis") != "fixed-safety-ceiling":
+            raise ValueError("panel smoke is locked until the fixed safety ceiling is frozen")
+        if not isinstance(frozen_cap, int) or frozen_cap < 1:
+            raise ValueError("panel smoke requires a positive frozen output_token_cap")
+        if cap is not None and cap != frozen_cap:
+            raise ValueError(f"requested cap {cap} differs from frozen panel smoke cap {frozen_cap}")
+        shared = {str(key): str(value) for key, value in (config.get("shared_fixed_options") or {}).items()}
+        cells = [
+            Cell(
+                experiment_id=str(model["id"]),
+                provider=str(model["provider"]),
+                model=str(model["model"]),
+                profile=str(config["profile"]),
+                preset="smoke",
+                repeats=1,
+                cap=frozen_cap,
+                endpoint_name=str(model.get("endpoint_name") or ""),
+                fixed_options={
+                    **shared,
+                    "OPENROUTER_PROVIDER_ONLY": str(model["upstream_provider"]),
+                    "OPENROUTER_EXPECTED_ENDPOINT_NAME": str(model["endpoint_name"]),
+                },
+                absent_options=tuple(str(value) for value in config.get("shared_absent_options") or []),
+            )
+            for model in models
+        ]
+    elif phase == "sweep":
         config = _read_json(SWEEP_CONFIG)
         models = list(config.get("models") or [])
         _validate_models(models)
         configured_caps = list(config["output_token_caps"])
         if cap is not None and cap not in configured_caps:
             raise ValueError(f"requested cap {cap} is not in the pre-registered sweep {configured_caps}")
-        caps = [cap] if cap is not None else ([configured_caps[0]] if phase == "smoke" else configured_caps)
-        preset = "smoke" if phase == "smoke" else str(config["preset"])
-        repeats = 1 if phase == "smoke" else int(config["repeats"])
+        caps = [cap] if cap is not None else configured_caps
+        preset = str(config["preset"])
+        repeats = int(config["repeats"])
         cells = [
             Cell(
                 experiment_id=str(model["id"]),

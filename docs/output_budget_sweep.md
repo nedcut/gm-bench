@@ -1,82 +1,70 @@
-# Output-budget sweep and lane freeze
+# Output policy and retired budget sweep
 
-The `sota-v2` contract fixes simulation and scoring. It does not by itself make
-two model rows compute-comparable. The publication lane therefore remains
-blocked until one output policy is explicitly re-frozen.
+**Current policy (frozen 2026-07-15):** the `sota-v2` API headline lane uses a
+common 1,024-output-token safety ceiling with reasoning disabled. Actual input
+tokens, output tokens, cost, and latency are reported as secondary efficiency
+metrics; they do not change the benchmark score.
 
-**Current status (2026-07-15): paused for policy review.** The first Luna cell
-was superseded after a scaffold defect was found, and its 154 output
-tokens/decision at a 1,024-token ceiling raised a second question: whether the
-four-cap matrix measures a meaningful compute axis when reasoning is disabled,
-or merely repeats a non-binding JSON response limit. The paid runner now blocks
-the sweep while `config/output_budget_sweep.json` is `paused-policy-review`.
-The project must choose and predeclare either the matrix below or one generous
-safety ceiling with actual token and cost efficiency reported for every row.
+The earlier 256 / 1,024 / 4,096 / 16,384 experiment was retired before any
+replacement official cell ran. Its config, analyzer, and diagnostic artifacts
+remain in the repository for auditability, but the matrix is neither runnable as
+a paid phase nor required by the publication gate.
 
-## Run protocol
+## Why the project changed course
 
-1. Select 2–3 models and commit their exact IDs to
-   `config/output_budget_sweep.json` before seeing results.
-2. Run one standardized `--preset smoke` per selected model at 1,024 tokens to
-   catch authentication, formatting, routing, and usage failures. Then use the
-   runner's endpoint preflight for the full cap matrix. Repeating a smoke at
-   every cap adds cost without replacing the official sweep; low-cap protocol
-   failures are expected measurements, not infrastructure blockers. Never
-   parallelize subscription CLIs.
-3. Run the `leaderboard` preset with three repeats and the same `compact`
-   observation profile. Set the provider-specific cap in config `env`
-   (`OPENAI_MAX_TOKENS`, `ANTHROPIC_MAX_TOKENS`,
-   `GEMINI_MAX_OUTPUT_TOKENS`, or `OPENROUTER_MAX_TOKENS`) and set
-   `GM_BENCH_OUTPUT_BUDGET_CELL` to the matching integer. Every cell is bounded
-   at a common value. A provider-dependent “uncapped” cell was deliberately
-   removed before official runs because different upstream maxima are neither
-   financially safe nor compute-comparable.
-4. Analyze locally without provider access:
+The superseded GPT-5.6 Luna run made 601 successful API calls at a 1,024-token
+ceiling. Per-call output usage was p50 121, p95 210, p99 264, and max 299; no
+call reached the ceiling, and reasoning-token usage was zero. In this compact
+JSON-action protocol, varying the maximum response length would therefore
+mostly vary a non-binding safety limit rather than a clear inference-compute
+treatment.
 
-   ```bash
-   python scripts/analyze_output_budget.py /path/to/cells/*.json \
-     --output results/analysis/output-budget-sweep.json
-   ```
+This evidence does **not** promote the old Luna score: that run used the
+superseded prompt scaffold. It only supports the operational conclusion that
+1,024 left substantial output headroom.
 
-The analyzer accepts only frozen-contract API transports under the dedicated
-failure-tolerant `output-budget-sweep` policy, records each source
-artifact hash, reports input and output tokens separately, and lists every
-missing model-cap cell. It never promotes a complete matrix directly: a human
-must inspect score-vs-output curves and freeze either a saturation cap or a
-fixed-budget curve policy in `config/sota_v2_lane.json`. A single-number
-ranking requires `output_budget_status` to be `frozen-saturation` or
-`frozen-fixed-budget` and `output_token_cap` to be the chosen positive integer.
+## Pre-full-panel cap-pressure rule
 
-The exact endpoint snapshots, retry/exclusion/stopping rule, primary endpoint,
-and operator-approval requirement live in `config/publication_protocol.json`.
-The reproducible planning and token-ceiling estimates live in
-`results/analysis/output-budget-cost-estimate.json`. Paid runs require an
-explicit `--max-spend-usd` argument. The runner reserves each cell's committed
-output-ceiling estimate before launch and retains that reservation after a
-failure; live account and artifact telemetry remain the final guard against
-price or input-token drift.
+Before any full-panel result is run:
 
-The committed cost artifact still reproduces the superseded 12-cell plan for
-auditability; it is not current spend guidance. Regenerate it only after the
-policy is re-frozen, then recheck live pricing, endpoint health, and smoke
-latency immediately before any official run.
+1. Smoke all ten models in `config/sota_v2_models.json` serially at 1,024.
+2. Verify exact route, required parameters, JSON behavior, reasoning disabled,
+   complete token/cost telemetry, and clean completion.
+3. Inspect per-call output usage and truncation evidence.
+4. If any call emits at least 768 output tokens (75% of the cap), or provider or
+   adapter telemetry indicates cap-induced truncation, raise the **entire** API
+   lane to 2,048 and repeat affected smokes before any full result.
+5. Do not change the common cap after any full-panel score is visible.
 
-## Frozen publication lanes
+The 75% trigger is deliberately conservative: it detects meaningful cap
+pressure before expensive evidence is generated without treating every model's
+natural verbosity as benchmark compute.
 
-- The headline ranking is API-only, fresh-spawn, `compact`, with one bounded
-  protocol-repair attempt. Every row reports input/decision,
-  output/decision, repair attempts, failure rate, and cost.
-- Codex, Claude Code, Cursor, and opencode are coding harnesses with
-  uncontrolled context/tool loops and often no cost telemetry. Their rows are
-  useful, but the site builder emits them separately as `cli_harness_models`.
-- A failed first response repaired into valid JSON counts its full token and
-  latency spend, but no longer becomes a strategy failure. Repair is bounded
-  at one attempt, recorded in provenance and usage, and cannot loop.
-- OpenRouter completion responses expose the observed upstream provider, not
-  the endpoint snapshot name. The runner therefore validates the exact healthy
-  endpoint snapshot and capabilities immediately before the cell, while the
-  artifact independently attests the observed provider. This does not prove an
-  endpoint identifier that OpenRouter does not return.
+Inspect the exact no-spend plan with:
+
+```bash
+python3 scripts/run_publication_matrix.py smoke --dry-run
+```
+
+Paid calls require an explicit `--max-spend-usd` ceiling and remain serial. The
+operator should run one model at a time, inspect its artifact, and then approve
+the next cell. A dry run or endpoint-only preflight does not contact a paid
+model.
+
+## Frozen publication lane
+
+- Headline rows are API-only, fresh-spawn, `compact`, with one bounded protocol
+  repair and exactly 1,024 maximum output tokens per call.
+- Reasoning is explicitly disabled with `reasoning.enabled=false`; reasoning
+  effort and reasoning-token caps are absent.
+- Every row reports score, failures, illegal actions, input/output tokens,
+  latency, and cost. Token efficiency is interpretive evidence, not a hidden
+  score adjustment.
+- Codex, Claude Code, Cursor, and opencode remain a separate CLI-harness table
+  because their context/tool loops and cost telemetry are not comparable to the
+  API lane.
+- The site still withholds the headline ranking until at least eight
+  pre-registered, strictly eligible rows exist at the frozen common cap.
 
 ## Artifact publication
 
@@ -84,3 +72,9 @@ Keep raw traces outside git as release assets. Run `gm-bench compact-result`
 only after strict validation; it retains per-seed/repeat outcomes and aggregate
 usage plus a canonical raw-artifact SHA-256. CI requires the compact format and
 caps committed current rows at 1 MB.
+
+`config/output_budget_sweep.json` and
+`results/analysis/output-budget-cost-estimate.json` describe the retired design.
+Do not use the old cost artifact as current spend guidance. Replace it with a
+fixed-panel estimate after the ten route smokes provide current latency and
+usage evidence.

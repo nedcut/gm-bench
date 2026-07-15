@@ -73,6 +73,7 @@ def _model_specs(config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str
 
 def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str, Any]:
     caps = config["output_token_caps"]
+    retired = str(config.get("status") or "").startswith("retired-")
     specs, config_errors = _model_specs(config)
     specs_by_identity = {(str(spec["provider"]), str(spec["model"])): spec for spec in specs}
     points: list[dict[str, Any]] = []
@@ -193,21 +194,28 @@ def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str,
         ],
         key=lambda row: (row["experiment_id"], row["output_token_cap"] is None, row["output_token_cap"] or 0),
     )
-    missing = [
-        {"experiment_id": experiment_id, "output_token_cap": cap}
-        for experiment_id in experiment_ids
-        for cap in caps
-        if (experiment_id, cap) not in present
-    ]
+    missing = (
+        []
+        if retired
+        else [
+            {"experiment_id": experiment_id, "output_token_cap": cap}
+            for experiment_id in experiment_ids
+            for cap in caps
+            if (experiment_id, cap) not in present
+        ]
+    )
     complete = (
-        bool(specs)
+        not retired
+        and bool(specs)
         and not config_errors
         and len(specs) == int(config["decision_rule"]["required_models"])
         and not missing
         and not duplicate_cells
         and not rejected
     )
-    if complete:
+    if retired:
+        reason = "four-cap sweep retired before replacement official cells; fixed safety ceiling governs publication"
+    elif complete:
         reason = "sweep complete; inspect curves and freeze the lane cap before ranking"
     elif not specs:
         reason = "no sweep models selected; no output-budget conclusion is permitted"
@@ -219,10 +227,10 @@ def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str,
         reason = "duplicate model-cap cells must be resolved before interpreting the sweep"
     else:
         reason = "missing planned model-cap cells; no output-budget conclusion is permitted"
-    recommendation = _decision_recommendation(config, points) if complete else None
+    recommendation = _decision_recommendation(config, points) if complete and not retired else None
     return {
         "schema_version": 1,
-        "status": "complete-needs-interpretation" if complete else "incomplete",
+        "status": "retired" if retired else ("complete-needs-interpretation" if complete else "incomplete"),
         "publishable_ranking": False,
         "reason": reason,
         "planned_caps": caps,

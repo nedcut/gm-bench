@@ -6,7 +6,7 @@
     "expected_output_tokens_per_decision": 1024,
     "input_tokens_per_decision": 8000,
     "runtime_contingency_multiplier": 1.5,
-    "runtime_observation_source": "standardized local 1,024-token Luna and MiniMax smokes plus the pre-route-change Qwen smoke; refresh the changed Qwen route before its official cells",
+    "runtime_observation_source": "legacy standardized 1,024-token Luna, MiniMax, and Qwen observations; use only for conservative reservations and refresh every registered route through the fixed-cap smoke gate before the full panel",
     "runtime_observed_at_utc": "2026-07-15T01:22:44Z",
     "serial_workers": 1
   },

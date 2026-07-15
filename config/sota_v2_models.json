@@ -10,7 +10,7 @@
   "selection_status": "provisional-awaiting-route-smokes",
   "selection_frozen_at_utc": null,
   "catalog_checked_at_utc": "2026-07-15T20:41:27Z",
-  "selection_policy": "One current model per major compatible family, plus one small open efficiency floor; exact model IDs, dated endpoint names, and one pinned OpenRouter upstream per model; no provider fallback, JSON response mode, reasoning explicitly disabled with reasoning.enabled=false, explicit output cap after policy review, one bounded protocol repair.",
+  "selection_policy": "One current model per major compatible family, plus one small open efficiency floor; exact model IDs, dated endpoint names, and one pinned OpenRouter upstream per model; no provider fallback, JSON response mode, reasoning explicitly disabled with reasoning.enabled=false, a common 1,024-token safety ceiling, one bounded protocol repair.",
   "models": [
     {"id": "openrouter-gpt-5.6-luna-openai", "provider": "openrouter", "model": "openai/gpt-5.6-luna", "transport": "gateway-api", "upstream_provider": "OpenAI", "endpoint_name": "OpenAI | openai/gpt-5.6-luna-20260709", "role": "frontier OpenAI anchor"},
     {"id": "openrouter-claude-sonnet-5-anthropic", "provider": "openrouter", "model": "anthropic/claude-sonnet-5", "transport": "gateway-api", "upstream_provider": "Anthropic", "endpoint_name": "Anthropic | anthropic/claude-sonnet-5-20260630", "role": "frontier Anthropic anchor"},
@@ -21,12 +21,24 @@
     {"id": "openrouter-minimax-m3-minimax", "provider": "openrouter", "model": "minimax/minimax-m3", "transport": "gateway-api", "upstream_provider": "Minimax", "endpoint_name": "Minimax | minimax/minimax-m3-20260531", "role": "capable low-cost anchor"},
     {"id": "openrouter-mistral-medium-3.5-mistral", "provider": "openrouter", "model": "mistralai/mistral-medium-3-5", "transport": "gateway-api", "upstream_provider": "Mistral", "endpoint_name": "Mistral | mistralai/mistral-medium-3.5-20260430", "role": "European model-family anchor"},
     {"id": "openrouter-nemotron-3-nano-deepinfra", "provider": "openrouter", "model": "nvidia/nemotron-3-nano-30b-a3b", "transport": "gateway-api", "upstream_provider": "DeepInfra", "endpoint_name": "DeepInfra | nvidia/nemotron-3-nano-30b-a3b", "role": "small NVIDIA open-weight anchor"},
-    {"id": "openrouter-qwen3.5-9b-deepinfra", "provider": "openrouter", "model": "qwen/qwen3.5-9b", "transport": "gateway-api", "upstream_provider": "DeepInfra", "endpoint_name": "DeepInfra | qwen/qwen3.5-9b-20260310", "role": "small open efficiency floor and sweep anchor"}
+    {"id": "openrouter-qwen3.5-9b-deepinfra", "provider": "openrouter", "model": "qwen/qwen3.5-9b", "transport": "gateway-api", "upstream_provider": "DeepInfra", "endpoint_name": "DeepInfra | qwen/qwen3.5-9b-20260310", "role": "small open efficiency floor"}
   ],
   "changed_routes_pending_smoke": [
     "openrouter-deepseek-v4-pro-deepinfra",
     "openrouter-kimi-k2.6-deepinfra",
     "openrouter-nemotron-3-nano-deepinfra"
+  ],
+  "required_smokes": [
+    "openrouter-gpt-5.6-luna-openai",
+    "openrouter-claude-sonnet-5-anthropic",
+    "openrouter-deepseek-v4-pro-deepinfra",
+    "openrouter-kimi-k2.6-deepinfra",
+    "openrouter-glm-5.2-streamlake",
+    "openrouter-qwen3.7-plus-alibaba",
+    "openrouter-minimax-m3-minimax",
+    "openrouter-mistral-medium-3.5-mistral",
+    "openrouter-nemotron-3-nano-deepinfra",
+    "openrouter-qwen3.5-9b-deepinfra"
   ],
   "explicit_exclusions": [
     {"model": "google/gemini-3.1-pro-preview", "reason": "OpenRouter catalog marks reasoning mandatory; incompatible with the reasoning-disabled headline lane"},
@@ -48,6 +60,7 @@
     "OPENROUTER_QUANTIZATIONS",
     "OPENROUTER_ZDR"
   ],
-  "output_token_cap": null,
-  "output_budget_status": "pending-sweep"
+  "output_token_cap": 1024,
+  "output_budget_status": "frozen-fixed-budget",
+  "output_policy_basis": "fixed-safety-ceiling"
 }

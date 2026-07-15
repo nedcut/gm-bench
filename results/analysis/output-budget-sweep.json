@@ -2,56 +2,7 @@
   "config_errors": [],
   "decision_recommendation": null,
   "duplicate_cells": [],
-  "missing": [
-    {
-      "experiment_id": "openrouter-gpt-5.6-luna-openai",
-      "output_token_cap": 256
-    },
-    {
-      "experiment_id": "openrouter-gpt-5.6-luna-openai",
-      "output_token_cap": 1024
-    },
-    {
-      "experiment_id": "openrouter-gpt-5.6-luna-openai",
-      "output_token_cap": 4096
-    },
-    {
-      "experiment_id": "openrouter-gpt-5.6-luna-openai",
-      "output_token_cap": 16384
-    },
-    {
-      "experiment_id": "openrouter-minimax-m3-minimax",
-      "output_token_cap": 256
-    },
-    {
-      "experiment_id": "openrouter-minimax-m3-minimax",
-      "output_token_cap": 1024
-    },
-    {
-      "experiment_id": "openrouter-minimax-m3-minimax",
-      "output_token_cap": 4096
-    },
-    {
-      "experiment_id": "openrouter-minimax-m3-minimax",
-      "output_token_cap": 16384
-    },
-    {
-      "experiment_id": "openrouter-qwen3.5-9b-deepinfra",
-      "output_token_cap": 256
-    },
-    {
-      "experiment_id": "openrouter-qwen3.5-9b-deepinfra",
-      "output_token_cap": 1024
-    },
-    {
-      "experiment_id": "openrouter-qwen3.5-9b-deepinfra",
-      "output_token_cap": 4096
-    },
-    {
-      "experiment_id": "openrouter-qwen3.5-9b-deepinfra",
-      "output_token_cap": 16384
-    }
-  ],
+  "missing": [],
   "models": [
     {
       "absent_options": [
@@ -140,8 +91,8 @@
   ],
   "points": [],
   "publishable_ranking": false,
-  "reason": "missing planned model-cap cells; no output-budget conclusion is permitted",
+  "reason": "four-cap sweep retired before replacement official cells; fixed safety ceiling governs publication",
   "rejected_artifacts": [],
   "schema_version": 1,
-  "status": "incomplete"
+  "status": "retired"
 }

@@ -1,8 +1,8 @@
 # Frontier models versus long-horizon asset management
 
-> Draft. Publication is blocked until `results/analysis/output-budget-sweep.json`
-> reports a complete matrix and the API lane is frozen. No v1 score below is a
-> current ranking.
+> Draft. Publication is blocked until the fixed-cap API panel contains at least
+> eight strictly eligible registered models. No v1 score below is a current
+> ranking.
 
 GM-Bench asks an agent to run the same procedurally generated hockey franchise
 for five seasons: manage cap, negotiate trades, scout and draft prospects, and
@@ -24,16 +24,19 @@ The `sota-v2` publication answers those failures directly. It fixes scouting,
 separates API and coding-harness lanes, reports input and output tokens rather
 than hiding output inside a total dominated by prompts, permits exactly one
 measured JSON repair, and reports accepted and rejected actions by strategic
-mechanic. The headline
-ranking will exist only if score saturates at a defensible output budget. If it
-does not, the result will be score-versus-budget curves instead.
+mechanic. The headline lane uses the same 1,024-token safety ceiling with
+reasoning disabled for every model. Before any full result, all registered
+models must pass a smoke audit; a call reaching 768 output tokens or showing
+cap-induced truncation raises the whole lane to 2,048. Actual token, cost, and
+latency efficiency are reported beside score rather than folded into it.
 
 The scale will show four anchors: the hidden-information Oracle diagnostic,
 the strongest honest scripted policy (`pick-trader`), the best eligible API
 model, and `random`. This makes both model progress and remaining benchmark
 headroom visible. The central question is not “can an LLM emit plausible GM
-prose?” It is how much inference compute it needs to beat a few hundred lines
-of transparent heuristic at compounding, long-horizon asset allocation.
+prose?” It is which model-plus-standardized-scaffold systems can beat a few
+hundred lines of transparent heuristic at compounding, long-horizon asset
+allocation under one fixed response budget.
 
 ## Results
 

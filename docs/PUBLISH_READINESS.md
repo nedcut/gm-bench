@@ -7,11 +7,12 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-07-14
+**Last reviewed:** 2026-07-15
 **Current target:** Publish a validated `sota-v2` leaderboard, accompanying blog
 post, GitHub release, and public site.  
-**Current state:** Publication runner and gates are merged to `main`; the
-definitive `sota-v2` experiment has not yet started.
+**Current state:** Publication runner and gates are merged to `main`; scaffold
+hardening and the fixed output-safety policy are staged in draft PR #66. The
+definitive `sota-v2` model panel has not yet started.
 **Current weekly focus:** [#63 — Publication sprint: freeze and ship GM-Bench
 `sota-v2`](https://github.com/nedcut/gm-bench/issues/63)  
 **Broader roadmap:** [#60 — Roadmap to a publishable leaderboard + blog
@@ -23,8 +24,9 @@ GM-Bench is viable as a focused benchmark for comparing models and agent
 scaffolds on synthetic, long-horizon resource allocation in a frozen sports
 management environment. It is already strong enough to be a flagship AI/ML
 portfolio project. It is not yet ready for a headline model-ranking claim
-because the current `sota-v2` leaderboard has no eligible model rows and the
-output-budget confound has not been resolved.
+because the current `sota-v2` leaderboard has no eligible model rows. The
+compute policy is now frozen, but every registered route must pass the common
+smoke gate before any full-panel result is generated.
 
 The strongest story is not merely that GM-Bench runs LLMs through a simulator.
 It is that the project:
@@ -50,8 +52,8 @@ enough.
 
 1. **Benchmark gate:** the simulator, scoring, schemas, baselines, seed panel,
    and validation policy are frozen and machine-checkable.
-2. **Evidence gate:** the output-budget study and model panel are complete,
-   comparable, statistically reported, and validated.
+2. **Evidence gate:** the fixed-cap model panel is complete, comparable,
+   statistically reported, and validated.
 3. **Claim gate:** every public statement is supported by the evidence and stays
    within the benchmark's actual scope.
 4. **Presentation gate:** a new reader can understand, run, audit, and cite the
@@ -66,7 +68,7 @@ The project is publish-ready only when all four gates pass.
 | Core engineering | Strong | Deterministic simulator, adapters, CLI, GUI, site, tests, and CI are substantial. |
 | Reproducibility | Strong | Contract fingerprints, seed provenance, compact artifacts, and validators are in place or staged. |
 | Benchmark validity | Strong but scoped | Scripted references, exploit canaries, oracle headroom, calibration, and mechanic coverage exist. |
-| Compute comparability | Ready to measure | Three sweep models, four bounded cap cells, exact routes, fixed protocol, and a deterministic decision rule are pre-registered; all three standardized smokes passed, but no official sweep cells are complete. |
+| Compute comparability | Policy frozen; smoke validation pending | The API lane has a common 1,024-token safety ceiling, reasoning disabled, exact routes, a pre-full-panel 75% cap-pressure rule, and actual token-efficiency reporting. All ten current routes still require standardized smokes. |
 | Current model evidence | Blocked | The active `sota-v2` leaderboard has no eligible model rows. |
 | Statistical evidence | Partially ready | Paired analysis and power tooling exist; final model results do not. |
 | External validation | Missing | No independent reproduction or third-party result has been recorded. |
@@ -113,81 +115,69 @@ of the frozen v2 evidence package.
 **Exit condition:** `main` contains a stable, frozen, fully green v2 benchmark
 and the safe execution path needed for expensive model panels.
 
-### Phase 1 — finish the output-budget study
+### Phase 1 — validate and freeze the fixed-cap panel
 
-This phase decides whether a single-number ranking is scientifically coherent.
-It must happen before the larger model panel.
+This phase proves that the common safety ceiling and registered routes work
+before any full-panel score is visible.
 
 - [x] Land or finalize the infrastructure in [#61 — publishable leaderboard
   pipeline](https://github.com/nedcut/gm-bench/pull/61).
 - [x] Obtain an independent review of #61 after it leaves draft; resolve or
   explicitly disposition every substantive finding before expensive runs begin.
-- [x] Select three API models before seeing sweep results.
-- [x] Record exact provider/model IDs in `config/output_budget_sweep.json`.
-- [x] Choose models that span expected capability rather than only frontier
-  models likely to behave similarly.
+- [x] Retain the earlier three-model/four-cap design and analyzer as auditable
+  history without treating it as an active publication prerequisite.
 - [ ] Re-freeze provider routing, reasoning settings, temperature, hardened
   scaffold, observation profile, repair policy, and fresh-spawn condition.
-- [x] Predeclare the primary endpoint and deterministic saturation decision rule.
+- [x] Freeze a common 1,024-token safety ceiling with reasoning disabled.
+- [x] Predeclare the primary endpoint and the 75% cap-pressure rule: raise the
+  entire lane to 2,048 before full results if any smoke call reaches 768 output
+  tokens or shows cap-induced truncation.
 - [x] Freeze the permitted retry conditions, exclusion rules, and stopping rule
   in `config/publication_protocol.json` before seeing sweep outcomes.
 - [x] Distinguish infrastructure/provider failures that permit a resumed run from
   poor model behavior that must remain part of the measured result.
-- [ ] Re-estimate and record expected cost, runtime, serial concurrency, and quota
-  in `results/analysis/output-budget-cost-estimate.json`: $33.25 planning,
-  $39.90 with cost contingency, $98.28 token-ceiling reservation ($117.94 with
-  contingency), 8.60 provisional serial API-hours, and 12.90 hours with
-  runtime contingency. Those figures describe the superseded four-cap plan;
-  regenerate them after the output-policy decision and current-route smokes.
-- [ ] Refresh the standardized 1,024-token serial smoke for the changed
-  DeepInfra Qwen route before its first official cell. Luna and MiniMax are
-  current; the previous Qwen smoke used the now-unavailable SiliconFlow route.
-  Keep live metadata preflight for the full cap matrix.
-- [ ] Decide whether to retain the complete 256 / 1,024 / 4,096 / 16,384 matrix
-  or replace it with one generous non-binding safety ceiling plus observed
-  token-efficiency reporting. Paid sweep execution is locked until this is
-  resolved in `config/output_budget_sweep.json`.
-- [x] Remove the provider-dependent uncapped cell before official runs; use the
-  same bounded 16,384-token high cell for all selected models.
+- [ ] Smoke all ten provisional models serially at 1,024 using the hardened
+  scaffold. Start with dry-run and endpoint preflight; then run one paid model,
+  inspect it, and approve the next rather than launching the set blindly.
+- [ ] Verify each smoke's exact route, JSON behavior, reasoning-off provenance,
+  repair/failure telemetry, cost coverage, per-call output distribution, and
+  absence of truncation.
+- [ ] If the cap-pressure rule fires, amend the whole lane to 2,048 and repeat
+  affected smokes before any full-panel result. Do not make this decision after
+  seeing full scores.
+- [ ] Freeze the provisional model registry only after all ten routes pass.
+- [ ] Re-estimate and record expected full-panel cost, runtime, serial
+  concurrency, and quota after the smokes. The existing cost artifact describes
+  the retired 12-cell plan and is not current spend guidance.
 - [ ] Preserve raw artifacts and logs outside git; do not discard failed cells.
-- [ ] Analyze completed cells with `scripts/analyze_output_budget.py`.
-- [x] Confirm in automated tests that the analyzer rejects missing, duplicate,
-  mixed-provenance, wrong-route, wrong-lane, wrong-repeat,
+- [x] Confirm in automated tests that the retired analyzer still rejects
+  missing, duplicate, mixed-provenance, wrong-route, wrong-lane, wrong-repeat,
   incomplete-telemetry, and invalid-contract cells.
-- [ ] Inspect score versus actual output tokens, not just configured caps.
-- [ ] Inspect protocol failure and repair rates at each cap.
-- [ ] Record the interpretation in this document before running the full panel.
-
-Then freeze exactly one publication policy:
-
-- [ ] **Saturation outcome:** freeze the lowest defensible cap at which further
-  compute produces no material score improvement; or
-- [ ] **Compute-elastic outcome:** freeze a common budget for the headline table
-  and publish score-versus-budget curves as the primary result.
-
-- [ ] Update `config/sota_v2_lane.json` from `pending-sweep` to the frozen policy.
-- [ ] Record the rationale, decision date, evidence artifact hash, and known
+- [x] Update `config/sota_v2_lane.json` to `frozen-fixed-budget` with the explicit
+  `fixed-safety-ceiling` basis.
+- [x] Record the rationale, decision date, pre-full-panel trigger, and known
   limitations in the decision log below.
 - [ ] Regenerate the site and confirm it still refuses to publish a ranking if
   any publication prerequisite is missing.
 
-**Exit condition:** the official API lane has a documented and frozen compute
-policy supported by completed sweep evidence.
+**Exit condition:** the official API lane has a documented fixed-cap policy,
+all ten registered-model smokes pass without a cap-pressure trigger, the model
+registry is frozen, and the full-panel cost plan is refreshed.
 
 #### Safe execution workflow
 
 All model calls are serial. Inspect the exact commands and non-secret provider
-options first:
+all ten smoke commands first:
 
 ```bash
-python3 scripts/run_publication_matrix.py sweep --dry-run
+python3 scripts/run_publication_matrix.py smoke --dry-run
 ```
 
-Source credentials locally, then run authentication preflight without a model
-request:
+Source credentials locally, then run endpoint/parameter preflight without a
+model request:
 
 ```bash
-python3 scripts/run_publication_matrix.py sweep --preflight-only
+python3 scripts/run_publication_matrix.py smoke --preflight-only
 ```
 
 Run the cheapest pre-registered smoke first. Before a cell launches, the spend
@@ -195,30 +185,29 @@ guard reserves its output-ceiling cost from the committed price snapshot; it
 also uses the larger of completed-artifact telemetry and the OpenRouter account
 delta. Reservations survive failed cells. Price drift or input growth can still
 make actual cost exceed an estimate, so keep smoke caps small and inspect account
-usage after every cell:
+usage and cap pressure after every cell:
 
 ```bash
 python3 scripts/run_publication_matrix.py smoke \
   --model-id openrouter-qwen3.5-9b-deepinfra \
-  --cap 256 \
-  --run-dir data/publication-runs/smoke-2026-07-14 \
+  --run-dir data/publication-runs/smoke-fixed-1024-2026-07-15 \
   --max-spend-usd 5
 ```
 
-Only after every standardized smoke and the recorded cost estimate are
-acceptable, run the
-pre-registered sweep into a new run directory. The driver creates atomic raw
-artifacts and per-cell checkpoints, uses validated resume when a checkpoint
-already exists, and refuses to fan out workers:
+Repeat one registered model at a time. Only after all ten standardized smokes,
+the cap-pressure audit, and the refreshed cost estimate are acceptable should
+the model registry be frozen and the full panel begin. The driver creates
+atomic raw artifacts and per-cell checkpoints, uses validated resume when a
+checkpoint already exists, and refuses to fan out workers:
 
 ```bash
-python3 scripts/run_publication_matrix.py sweep \
-  --run-dir data/publication-runs/output-budget-v2 \
-  --max-spend-usd <approved-sweep-budget>
+python3 scripts/run_publication_matrix.py panel \
+  --run-dir data/publication-runs/sota-v2-fixed-1024 \
+  --max-spend-usd <approved-panel-budget>
 ```
 
-Do not run `panel` until `config/sota_v2_lane.json` records a positive frozen
-cap and a frozen policy status. The driver enforces that lock.
+Do not run `panel` until `config/sota_v2_models.json` records a frozen registry.
+The driver enforces that lock.
 
 ### Phase 2 — run the publishable model panel
 
@@ -233,16 +222,16 @@ The provisional restarted headline panel is:
 
 | Model | Pinned upstream | Panel role |
 | --- | --- | --- |
-| GPT-5.6 Luna | OpenAI | Frontier OpenAI anchor and frontier sweep model |
+| GPT-5.6 Luna | OpenAI | Frontier OpenAI anchor |
 | Claude Sonnet 5 | Anthropic | Frontier Anthropic anchor |
 | DeepSeek V4 Pro | DeepInfra | DeepSeek-family anchor; changed route requires smoke |
 | Kimi K2.6 | DeepInfra | Moonshot-family anchor; changed route requires smoke |
 | GLM 5.2 | StreamLake | Z.ai-family anchor |
 | Qwen 3.7 Plus | Alibaba | Large Qwen-family comparison |
 | Mistral Medium 3.5 | Mistral | Mid-tier European-family comparison |
-| MiniMax M3 | MiniMax | Capable low-cost model and sweep anchor |
+| MiniMax M3 | MiniMax | Capable low-cost model |
 | Nemotron 3 Nano 30B A3B | DeepInfra | Small NVIDIA open-weight anchor; changed route requires smoke |
-| Qwen 3.5 9B | DeepInfra | Small open model and sweep floor |
+| Qwen 3.5 9B | DeepInfra | Small open efficiency floor |
 
 Gemini 3.1 Pro Preview and Grok 4.5 remain explicit exclusions because the live
 OpenRouter catalog marks reasoning as mandatory for both; mixing them into a
@@ -260,8 +249,8 @@ privacy, pinned-provider, and `reasoning.enabled=false` request end to end.
 - [ ] Never parallelize Claude or another subscription/rate-limited CLI.
 - [ ] Verify all 10 provisional provider/model routes can accept the common
   privacy, parameter, JSON, reasoning-off, and bounded-output policy.
-- [ ] Run a benchmark-level smoke for every provider/model combination after the
-  sweep freezes the shared cap and immediately before the full panel.
+- [ ] Run a benchmark-level smoke for every provider/model combination at the
+  shared frozen cap immediately before the full panel.
 - [ ] Use serial execution, fail-fast behavior, atomic checkpoints, and validated
   resume rather than restarting completed episodes.
 - [ ] Run all eight official seeds, five seasons, and three candidate repeats.
@@ -338,7 +327,8 @@ or is narrowed to reflect any discrepancy.
 - [ ] Separate protocol competence from strategic competence.
 - [ ] Treat JSON failures, query failures, and repair behavior as measurements,
   not invisible noise.
-- [ ] Discuss compute elasticity before presenting a ranking.
+- [ ] Discuss the fixed output-safety policy and observed token efficiency before
+  presenting a ranking.
 - [ ] Describe the hand-designed scoring function and its construct-validity
   limits.
 - [ ] Explain why score components were chosen and show calibration/sensitivity.
@@ -354,14 +344,15 @@ or is narrowed to reflect any discrepancy.
 
 Recommended framing:
 
-> How much inference compute does an LLM need to beat a transparent heuristic at
-> long-horizon asset management?
+> Which current model-plus-standardized-scaffold systems can beat a transparent
+> heuristic at long-horizon asset management under one fixed response budget?
 
 Claims that may be supportable after the study:
 
 - At a stated output budget, model X did or did not outperform transparent
   scripted references on the frozen GM-Bench v2 environment.
-- Performance did or did not saturate over the tested output-budget range.
+- Models differed in observed token, cost, and latency efficiency under the same
+  output safety ceiling.
 - Models showed specific strengths or weaknesses across measured mechanics.
 - API and coding-harness conditions produced materially different results and
   should be treated as different evaluation lanes.
@@ -381,7 +372,8 @@ Claims to avoid:
 - [ ] Lead the blog with the research question and the measurement problem, not
   with implementation history.
 - [ ] Explain the simulator and decision loop with one compact diagram.
-- [ ] Show the output-budget result before the final model ranking.
+- [ ] Explain the fixed 1,024-token safety policy and cap-pressure audit before
+  the final model ranking.
 - [ ] Show Oracle → `pick-trader` → best eligible model → `random` headroom.
 - [ ] Include cost and compute beside score in every model table.
 - [ ] Include uncertainty and failure telemetry, not only means.
@@ -448,7 +440,8 @@ Before pressing publish, answer each question with evidence:
 
 - [ ] Is the benchmark contract frozen and identified by fingerprint?
 - [ ] Can a clean clone reproduce the scripted calibration and validity suite?
-- [ ] Did the output-budget study determine the presentation policy?
+- [ ] Was the fixed output-safety policy validated across every registered model
+  before full-panel scores were generated?
 - [ ] Is every headline model row strictly eligible and compute-comparable?
 - [ ] Are raw public traces and compact artifacts available and hash-linked?
 - [ ] Are private-panel claims properly committed, redacted, and scoped?
@@ -520,6 +513,7 @@ decision and why.
 | 2026-07-15 | Reset publication evidence after the first Luna forensic audit. | All 890 Luna penalties were attributable, but 688 came from draft attempts encouraged by global prompt examples that appeared even when `draft` was absent from `available_actions`; the smoke had shown the same signal. | Preserve the prior artifact as diagnostic evidence, harden the shared scaffold, invalidate its old scaffold fingerprint, and restart every publication row symmetrically. |
 | 2026-07-15 | Reopen model selection and express reasoning-off as `reasoning.enabled=false`. | The current OpenRouter catalog exposes non-mandatory reasoning for Kimi and DeepSeek but mandatory reasoning for Gemini 3.1 Pro and Grok 4.5. A boolean off switch is more portable than provider-specific `effort=none`. | The panel becomes a provisional 10-model, nine-lab set; Kimi, DeepSeek, and Nemotron Nano enter pending route smokes, while mandatory-reasoning Gemini and Grok remain explicit exclusions. |
 | 2026-07-15 | Pause the four-cap output sweep for policy review. | Luna averaged only 154 output tokens per decision at a 1,024-token ceiling with reasoning disabled, so the existing 12-cell matrix may spend more to study a mostly non-binding response limit rather than strategic compute. | The runner blocks paid sweep cells until the project chooses between a cap experiment and one generous safety ceiling with token-efficiency reporting. |
+| 2026-07-15 | Retire the four-cap sweep and freeze a 1,024-token safety ceiling. | In 601 superseded Luna API calls, output-token usage was p50 121, p95 210, p99 264, max 299, with zero calls at 1,024 and zero reasoning tokens. The cap was operationally non-binding even though the old score remains invalid under the new scaffold. | Smoke all ten registered models at 1,024. If any call reaches 768 tokens or shows cap-induced truncation, raise the entire lane to 2,048 before any full-panel result. Report actual token efficiency as a secondary metric. |
 
 ## Experiment and release log
 
@@ -537,7 +531,7 @@ than pasting large outputs.
 | 2026-07-14 | Full-panel route compatibility | Superseded | `config/sota_v2_models.json` | Applied to the previous 11-model registry. The revised 10-model registry is provisional pending changed-route smokes. |
 | 2026-07-15 | GPT-5.6 Luna standardized smoke | Superseded diagnostic | raw SHA-256 `e8f83c6516cb3cc8105b173c826c1b5d91314a487b729f9b06b8fc6beda2bc8f` | Exact OpenAI route and complete telemetry remain useful, but all four illegal actions were preseason draft attempts primed by the old global action catalog. |
 | 2026-07-15 | GPT-5.6 Luna 1,024-token sweep cell | Superseded diagnostic | canonical SHA-256 `b681bdc56f3d176d194c9c1e20cc688be4ef4b58f7669862fb2268af99a0e37a`; byte SHA-256 `74d342c5d4c799524dadd6f668350eede67b8b74e5522833723e25ab4f50480b` | The run remains operationally valid and auditable, but its scaffold fingerprint is intentionally invalidated. It cannot count toward the restarted sweep or headline panel. |
-| 2026-07-15 | Sweep cost/runtime plan | Superseded pending policy decision | `results/analysis/output-budget-cost-estimate.json` | The prior figures describe the paused 12-cell matrix. Regenerate only after the output-budget policy is re-frozen. |
+| 2026-07-15 | Sweep cost/runtime plan | Superseded by fixed-cap policy | `results/analysis/output-budget-cost-estimate.json` | The prior figures describe the retired 12-cell matrix. Replace with a full-panel estimate after all ten route smokes. |
 
 ## Living-document maintenance checklist
 

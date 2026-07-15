@@ -11,7 +11,7 @@
     "runtime_contingency_multiplier": 1.5
   },
   "runtime_observations": {
-    "source": "standardized local 1,024-token Luna and MiniMax smokes plus the pre-route-change Qwen smoke; refresh the changed Qwen route before its official cells",
+    "source": "legacy standardized 1,024-token Luna, MiniMax, and Qwen observations; use only for conservative reservations and refresh every registered route through the fixed-cap smoke gate before the full panel",
     "observed_at_utc": "2026-07-15T01:22:44Z",
     "api_seconds_per_decision": {
       "minimax/minimax-m3": 2.546,

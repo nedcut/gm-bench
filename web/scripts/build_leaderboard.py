@@ -290,14 +290,20 @@ def select_model_payloads(
 
 
 def publication_gate(
-    rows: list[dict[str, Any]], analysis: dict[str, Any], lane_config: dict[str, Any]
+    rows: list[dict[str, Any]],
+    analysis: dict[str, Any],
+    lane_config: dict[str, Any],
+    model_config: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Return only publishable rows plus an explicit gate report."""
 
     frozen_statuses = {"frozen-saturation", "frozen-fixed-budget"}
     frozen_cap = lane_config.get("output_token_cap")
+    policy_basis = lane_config.get("output_policy_basis")
+    fixed_safety_ceiling = policy_basis == "fixed-safety-ceiling"
+    registry_frozen = model_config.get("selection_status") == "frozen"
     lane_frozen = (
-        analysis.get("status") == "complete-needs-interpretation"
+        (fixed_safety_ceiling or analysis.get("status") == "complete-needs-interpretation")
         and lane_config.get("output_budget_status") in frozen_statuses
         and isinstance(frozen_cap, int)
         and frozen_cap > 0
@@ -308,15 +314,19 @@ def publication_gate(
         if row.get("lane") == "api" and row.get("publication_eligible") and row.get("output_token_cap") == frozen_cap
     ]
     minimum_models = int(lane_config.get("minimum_headline_models") or 0)
-    publishable = lane_frozen and len(candidates) >= minimum_models
+    publishable = lane_frozen and registry_frozen and len(candidates) >= minimum_models
     publication = {
         **analysis,
         "publishable_ranking": publishable,
         "frozen_output_token_cap": frozen_cap if lane_frozen else None,
+        "output_policy_basis": policy_basis,
+        "model_registry_frozen": registry_frozen,
         "eligible_headline_models": len(candidates),
         "minimum_headline_models": minimum_models,
     }
-    if lane_frozen and not publishable:
+    if not registry_frozen:
+        publication["reason"] = "model registry remains provisional until every registered route passes its smoke"
+    elif lane_frozen and not publishable:
         publication["reason"] = (
             f"frozen lane has {len(candidates)} eligible headline models; at least {minimum_models} are required"
         )
@@ -351,7 +361,7 @@ def main() -> None:
     current_rows = [row for row in rows if row.get("benchmark_version") == "sota-v2"]
     analysis = json.loads((ROOT / "results" / "analysis" / "output-budget-sweep.json").read_text())
     lane_config = json.loads((ROOT / "config" / "sota_v2_lane.json").read_text())
-    models, publication = publication_gate(current_rows, analysis, lane_config)
+    models, publication = publication_gate(current_rows, analysis, lane_config, model_config)
     publishable_ranking = bool(publication["publishable_ranking"])
     cli_harness_models = [row for row in current_rows if row.get("lane") == "cli-harness"]
     excluded_models = [

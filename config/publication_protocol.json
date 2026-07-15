@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "frozen_at_utc": "2026-07-14T23:10:09Z",
+  "frozen_at_utc": "2026-07-15T21:17:38Z",
   "primary_endpoint": "candidate.summary.mean_score under score-v1",
   "secondary_endpoints": [
     "paired lift versus the full baseline panel",
@@ -11,20 +11,26 @@
     "cost and latency per decision",
     "per-mechanic accepted and rejected outcomes"
   ],
-  "output_budget_decision_rule": {
-    "required_models": 3,
-    "material_gain_score_points": 10.0,
-    "material_gain_relative": 0.05,
-    "relative_denominator": "absolute lower-cap mean score",
-    "saturation_rule": "Choose the lowest cap for which no selected model gains at least max(10 score points, 5% of the absolute lower-cap score) at any higher tested cap.",
-    "non_saturation_rule": "If no cap saturates, freeze the highest common tested cap (16,384) for the headline table and present the score-versus-budget curves as a primary limitation.",
-    "human_override": "forbidden after official sweep results are visible; amend this file before running any official cell"
+  "output_policy": {
+    "status": "frozen-fixed-budget",
+    "basis": "fixed-safety-ceiling",
+    "output_token_cap": 1024,
+    "reasoning_enabled": false,
+    "rationale": "The superseded Luna run recorded 601 API calls with output-token p50 121, p95 210, p99 264, maximum 299, and zero calls at the 1,024-token ceiling. With reasoning disabled and compact JSON actions, a four-cap score sweep would mostly vary a non-binding response limit rather than a defensible inference-compute treatment.",
+    "pre_full_panel_cap_pressure_rule": "Smoke every registered model at 1,024 before any full-panel result. If any smoke API call emits at least 768 output tokens, or provider or adapter telemetry shows cap-induced truncation, amend the common lane to 2,048 and repeat affected smokes before running any full-panel score. Do not change the cap after full-panel scores are visible.",
+    "efficiency_reporting": "Report actual input tokens, output tokens, cost, and latency per decision as secondary metrics. They do not alter the benchmark score.",
+    "human_override": "forbidden after any full-panel result is visible; amend this file and the lane config before running an official full-panel cell"
+  },
+  "superseded_output_budget_decision_rule": {
+    "status": "retired-before-replacement-official-cells",
+    "tested_caps": [256, 1024, 4096, 16384],
+    "reason": "Replaced by the fixed safety ceiling after the superseded Luna trace demonstrated substantial headroom at 1,024 with reasoning disabled."
   },
   "experiment_reset_2026_07_15": {
     "reason": "The first Luna smoke and 1,024-token cell exposed phase-ambiguous global action examples in the shared prompt scaffold. The prompt advertised draft actions outside the draft phase even though available_actions did not.",
     "scope": "Supersede every result with the prior scaffold fingerprint, including the completed Luna cell; preserve those raw artifacts as diagnostic evidence; restart all accepted publication evidence under one hardened scaffold fingerprint.",
     "selection_guard": "The revised model registry remains provisional until every changed route passes the common parameter, privacy, JSON, and reasoning-disabled smoke checks.",
-    "compute_guard": "No replacement official sweep cell may run while config/output_budget_sweep.json is paused-policy-review."
+    "compute_guard": "The retired four-cap sweep may not run. All ten registered models must pass the common 1,024-token smoke and the predeclared cap-pressure check before any full-panel result."
   },
   "rerun_policy": {
     "maximum_infrastructure_attempts_per_cell": 2,
@@ -42,7 +48,7 @@
     "failed_attempt_record": "retain checkpoint, stderr/log summary, account-cost delta, reason, and timestamp"
   },
   "exclusion_policy": {
-    "sweep": "No model or cap exclusions; all 12 pre-registered cells are required. A withdrawn endpoint blocks the sweep and must be reported rather than substituted after results are visible.",
+    "retired_sweep": "The 12-cell sweep was retired before replacement official cells. Its config and prior diagnostic artifacts remain for auditability and cannot be promoted into the fixed-cap headline lane.",
     "headline_panel": "Publish only pre-registered rows. Endpoint withdrawal or persistent route/telemetry failure after two infrastructure attempts may be documented as an exclusion; do not substitute a new model after results are visible.",
     "minimum_headline_models": 8
   },
@@ -52,14 +58,14 @@
     "stop_before_next_cell_when_spend_ceiling_reached": true,
     "stop_on_route_or_endpoint_snapshot_drift": true,
     "stop_on_missing_cost_or_usage_coverage": true,
-    "official_sweep_completion": "12 accepted cells and zero rejected, duplicate, or missing cells",
+    "smoke_completion": "10 accepted registered-model smokes at the common cap, with zero cap-pressure or truncation triggers; otherwise amend the whole lane to 2,048 before any full-panel result",
     "headline_completion": "at least 8 strictly sota-v2 eligible pre-registered rows at the frozen cap"
   },
   "budget_policy": {
     "operator_must_pass_max_spend_usd": true,
-    "recommended_sweep_ceiling_usd": 100.0,
-    "approval_note": "The recommended ceiling is not authorization to spend. The operator explicitly approves spend by invoking the runner with --max-spend-usd.",
-    "cost_estimate_artifact": "results/analysis/output-budget-cost-estimate.json"
+    "approval_note": "A planning estimate is not authorization to spend. The operator explicitly approves spend by invoking the runner with --max-spend-usd.",
+    "cost_estimate_artifact": "results/analysis/output-budget-cost-estimate.json",
+    "cost_estimate_status": "superseded-four-cap-plan; replace after all-model smoke telemetry"
   },
   "multiple_comparisons": "Per-model p-values are descriptive. Claims about a best model require family-wise interpretation across the full registered panel; emphasize effect sizes and confidence intervals rather than isolated p<0.05 labels.",
   "private_panel_policy": "The first release may claim reproducible public-panel evidence only. A stronger contamination-resistant claim requires a separately salted pre-commitment and private-panel run before private results are inspected."

@@ -58,8 +58,9 @@ def test_budget_analysis_refuses_empty_sweep(tmp_path: Path) -> None:
     output = tmp_path / "analysis.json"
     subprocess.run(["python3", "scripts/analyze_output_budget.py", "--output", str(output)], check=True)
     result = json.loads(output.read_text())
-    assert result["status"] == "incomplete"
+    assert result["status"] == "retired"
     assert result["publishable_ranking"] is False
+    assert result["missing"] == []
 
 
 def test_budget_analysis_does_not_discover_models_when_config_empty(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -87,7 +88,7 @@ def test_budget_analysis_does_not_discover_models_when_config_empty(monkeypatch:
         },
     }
     result = module.analyze(config, [payload])
-    assert result["status"] == "incomplete"
+    assert result["status"] == "retired"
     assert result["models"] == []
     assert result["points"] == []
 
@@ -236,6 +237,9 @@ def test_publication_model_registry_is_consistent_with_sweep() -> None:
     assert len({row["endpoint_name"] for row in models}) == len(models)
     assert registry["selection_status"] == "provisional-awaiting-route-smokes"
     assert registry["selection_frozen_at_utc"] is None
+    assert registry["output_token_cap"] == lane["output_token_cap"] == 1024
+    assert registry["output_budget_status"] == lane["output_budget_status"] == "frozen-fixed-budget"
+    assert registry["output_policy_basis"] == lane["output_policy_basis"] == "fixed-safety-ceiling"
     assert registry["shared_fixed_options"]["OPENROUTER_REASONING_ENABLED"] == "false"
     assert "OPENROUTER_REASONING_EFFORT" in registry["shared_absent_options"]
     assert {row["model"] for row in registry["explicit_exclusions"]} == {
@@ -243,6 +247,7 @@ def test_publication_model_registry_is_consistent_with_sweep() -> None:
         "x-ai/grok-4.5",
     }
     assert set(registry["changed_routes_pending_smoke"]) <= {row["id"] for row in models}
+    assert set(registry["required_smokes"]) == {row["id"] for row in models}
     assert lane["model_registry"] == "config/sota_v2_models.json"
     assert lane["minimum_headline_models"] >= 8
 
@@ -269,19 +274,20 @@ def test_publication_gate_withholds_rows_until_minimum_panel_is_eligible() -> No
         "output_token_cap": 1024,
         "minimum_headline_models": 2,
     }
+    registry = {"selection_status": "frozen"}
     eligible = {
         "id": "one",
         "lane": "api",
         "publication_eligible": True,
         "output_token_cap": 1024,
     }
-    models, report = publication_gate([eligible], analysis, lane)
+    models, report = publication_gate([eligible], analysis, lane, registry)
     assert models == []
     assert report["publishable_ranking"] is False
     assert report["eligible_headline_models"] == 1
 
     second = {**eligible, "id": "two"}
-    models, report = publication_gate([eligible, second], analysis, lane)
+    models, report = publication_gate([eligible, second], analysis, lane, registry)
     assert models == [eligible, second]
     assert report["publishable_ranking"] is True
 
@@ -299,9 +305,56 @@ def test_publication_gate_rejects_wrong_cap_and_unregistered_rows() -> None:
         {"lane": "api", "publication_eligible": True, "output_token_cap": 4096},
         {"lane": "api", "publication_eligible": False, "output_token_cap": 1024},
     ]
-    models, report = publication_gate(rows, analysis, lane)
+    models, report = publication_gate(rows, analysis, lane, {"selection_status": "frozen"})
     assert models == []
     assert report["publishable_ranking"] is False
+
+
+def test_publication_gate_accepts_fixed_safety_policy_without_completed_sweep() -> None:
+    from web.scripts.build_leaderboard import publication_gate
+
+    analysis = {"status": "incomplete", "reason": "retired sweep"}
+    lane = {
+        "output_budget_status": "frozen-fixed-budget",
+        "output_policy_basis": "fixed-safety-ceiling",
+        "output_token_cap": 1024,
+        "minimum_headline_models": 1,
+    }
+    eligible = {
+        "id": "one",
+        "lane": "api",
+        "publication_eligible": True,
+        "output_token_cap": 1024,
+    }
+    models, report = publication_gate([eligible], analysis, lane, {"selection_status": "frozen"})
+    assert models == [eligible]
+    assert report["publishable_ranking"] is True
+    assert report["output_policy_basis"] == "fixed-safety-ceiling"
+
+
+def test_publication_gate_rejects_provisional_model_registry() -> None:
+    from web.scripts.build_leaderboard import publication_gate
+
+    analysis = {"status": "incomplete"}
+    lane = {
+        "output_budget_status": "frozen-fixed-budget",
+        "output_policy_basis": "fixed-safety-ceiling",
+        "output_token_cap": 1024,
+        "minimum_headline_models": 1,
+    }
+    eligible = {
+        "id": "one",
+        "lane": "api",
+        "publication_eligible": True,
+        "output_token_cap": 1024,
+    }
+    models, report = publication_gate(
+        [eligible], analysis, lane, {"selection_status": "provisional-awaiting-route-smokes"}
+    )
+    assert models == []
+    assert report["publishable_ranking"] is False
+    assert report["model_registry_frozen"] is False
+    assert "provisional" in report["reason"]
 
 
 def test_budget_decision_rule_is_deterministic() -> None:
