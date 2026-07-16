@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Generate a conservative, reproducible cost estimate for publication runs."""
+"""Generate the fixed-panel publication cost estimate from committed inputs."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import sys
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,12 @@ if str(ROOT) not in sys.path:
 from gm_bench.benchmark_config import PRESETS  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
 
+RUNTIME_STATUS = "pending-smoke-telemetry"
+RUNTIME_NOTE = (
+    "Regenerate this artifact from accepted smoke telemetry before approving the full panel; "
+    "latency is reported only for models with committed observations."
+)
+
 
 def _read(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text())
@@ -24,90 +31,149 @@ def _read(path: Path) -> dict[str, Any]:
     return payload
 
 
+def _decimal(value: Any) -> Decimal:
+    return Decimal(str(value))
+
+
 def estimate(
-    sweep: dict[str, Any], pricing: dict[str, Any], *, expected_output_tokens: int | None = None
+    models_config: dict[str, Any],
+    lane_config: dict[str, Any],
+    pricing: dict[str, Any],
 ) -> dict[str, Any]:
+    """Estimate the registered fixed panel and its required smoke gate."""
+    models = models_config["models"]
+    if not isinstance(models, list) or not models:
+        raise ValueError("models config must register at least one model")
+    if models_config.get("preset") != "leaderboard":
+        raise ValueError("fixed-panel estimate requires the leaderboard preset")
+    if models_config.get("contract") != lane_config.get("contract"):
+        raise ValueError("model registry and lane contract must match")
+
     assumptions = pricing["planning_assumptions"]
     input_tokens = int(assumptions["input_tokens_per_decision"])
-    if expected_output_tokens is not None and expected_output_tokens <= 0:
-        raise ValueError("expected_output_tokens must be positive")
-    expected_output = int(
-        assumptions["expected_output_tokens_per_decision"] if expected_output_tokens is None else expected_output_tokens
+    output_tokens = int(assumptions["expected_output_tokens_per_decision"])
+    if int(models_config["output_token_cap"]) != int(lane_config["output_token_cap"]):
+        raise ValueError("model registry and lane output-token caps must match")
+    if output_tokens != int(lane_config["output_token_cap"]):
+        raise ValueError("planning output tokens must match the fixed lane cap")
+
+    leaderboard = PRESETS["leaderboard"]
+    smoke = PRESETS["smoke"]
+    repeats = int(models_config["repeats"])
+    panel_decisions_per_model = (
+        len(leaderboard["seeds"])
+        * int(leaderboard["seasons"])
+        * len(PHASES)
+        * repeats
     )
-    preset = PRESETS[str(sweep["preset"])]
-    decisions = len(preset["seeds"]) * int(preset["seasons"]) * len(PHASES) * int(sweep["repeats"])
+    smoke_decisions_per_run = len(smoke["seeds"]) * int(smoke["seasons"]) * len(PHASES)
+    model_count = len(models)
+    panel_calls = model_count * panel_decisions_per_model
+    smoke_calls = model_count * smoke_decisions_per_run
+
     runtime_observations = pricing.get("runtime_observations") or {}
     runtime_by_model = runtime_observations.get("api_seconds_per_decision") or {}
     rows: list[dict[str, Any]] = []
-    for model in sweep["models"]:
-        rates = pricing["models"].get(model["model"])
+    panel_costs: list[Decimal] = []
+    smoke_costs: list[Decimal] = []
+    observed_latency: dict[str, float] = {}
+    for model in models:
+        model_name = model["model"]
+        rates = pricing["models"].get(model_name)
         if not rates:
-            raise ValueError(f"missing pricing for {model['model']}")
-        runtime_seconds = runtime_by_model.get(model["model"])
-        if not isinstance(runtime_seconds, int | float) or runtime_seconds <= 0:
-            raise ValueError(f"missing positive runtime observation for {model['model']}")
-        for cap in sweep["output_token_caps"]:
-            if not isinstance(cap, int) or cap < 1:
-                raise ValueError("cost estimation requires every sweep cell to have a positive bounded cap")
-            planning_output = min(cap, expected_output)
-            prompt_cost = decisions * input_tokens * float(rates["prompt"])
-            planning_completion_cost = decisions * planning_output * float(rates["completion"])
-            ceiling_completion_cost = decisions * cap * float(rates["completion"])
-            rows.append(
-                {
-                    "experiment_id": model["id"],
-                    "model": model["model"],
-                    "output_token_cap": cap,
-                    "decisions": decisions,
-                    "planning_output_tokens_per_decision": planning_output,
-                    "planning_cost_usd": round(prompt_cost + planning_completion_cost, 2),
-                    "token_ceiling_cost_usd": round(prompt_cost + ceiling_completion_cost, 2),
-                    "observed_smoke_api_seconds_per_decision": runtime_seconds,
-                    "projected_serial_api_hours": round(decisions * float(runtime_seconds) / 3600, 2),
-                }
-            )
-    planning_total = sum(row["planning_cost_usd"] for row in rows)
-    ceiling_total = sum(row["token_ceiling_cost_usd"] for row in rows)
-    cost_contingency = float(assumptions["cost_contingency_multiplier"])
-    runtime_contingency = float(assumptions["runtime_contingency_multiplier"])
-    runtime_total_hours = sum(row["projected_serial_api_hours"] for row in rows)
+            raise ValueError(f"missing pricing for {model_name}")
+        per_decision_cost = input_tokens * _decimal(rates["prompt"]) + output_tokens * _decimal(
+            rates["completion"]
+        )
+        panel_cost = panel_decisions_per_model * per_decision_cost
+        smoke_cost = smoke_decisions_per_run * per_decision_cost
+        panel_costs.append(panel_cost)
+        smoke_costs.append(smoke_cost)
+        row = {
+            "experiment_id": model["id"],
+            "model": model_name,
+            "cost_per_decision_usd": float(per_decision_cost),
+            "panel_calls": panel_decisions_per_model,
+            "panel_cost_usd": float(panel_cost),
+            "smoke_calls": smoke_decisions_per_run,
+            "smoke_cost_usd": float(smoke_cost),
+        }
+        runtime_seconds = runtime_by_model.get(model_name)
+        if isinstance(runtime_seconds, int | float) and runtime_seconds > 0:
+            row["observed_api_seconds_per_decision"] = runtime_seconds
+            observed_latency[model_name] = runtime_seconds
+        rows.append(row)
+
+    panel_cost = sum(panel_costs, Decimal())
+    smoke_cost = sum(smoke_costs, Decimal())
+    total_cost = panel_cost + smoke_cost
+    contingency = _decimal(assumptions["cost_contingency_multiplier"])
     return {
-        "schema_version": 1,
+        "schema_version": 2,
+        "supersedes": {
+            "artifact": "retired 12-cell output-budget sweep estimate",
+            "description": (
+                "Replaces the four-cap, three-model sweep estimate with the registered "
+                "ten-model fixed 1,024-token panel and its required smoke gate."
+            ),
+        },
         "pricing_checked_at_utc": pricing["checked_at_utc"],
         "assumptions": {
             "input_tokens_per_decision": input_tokens,
-            "expected_output_tokens_per_decision": expected_output,
-            "decisions_per_cell": decisions,
+            "output_tokens_per_decision": output_tokens,
+            "cost_contingency_multiplier": float(contingency),
+            "rates_are_per_token": bool(pricing["rates_are_per_token"]),
+            "panel_preset": "leaderboard",
+            "panel_seed_count": len(leaderboard["seeds"]),
+            "panel_seasons": int(leaderboard["seasons"]),
+            "panel_repeats": repeats,
+            "phase_count": len(PHASES),
+            "smoke_preset": "smoke",
+            "smoke_seed_count": len(smoke["seeds"]),
+            "smoke_seasons": int(smoke["seasons"]),
             "serial_workers": 1,
-            "cost_contingency_multiplier": cost_contingency,
-            "runtime_contingency_multiplier": runtime_contingency,
-            "runtime_observation_source": runtime_observations.get("source"),
-            "runtime_observed_at_utc": runtime_observations.get("observed_at_utc"),
-            "caveat": "Provider prices, actual tokens, and latency can change. Recheck before paid runs; the spend guard remains mandatory.",
+            "caveat": (
+                "Provider prices and actual token usage can change. Recheck before paid "
+                "runs; the operator spend guard remains mandatory."
+            ),
         },
-        "cells": rows,
-        "planning_total_usd": round(planning_total, 2),
-        "planning_total_with_contingency_usd": round(planning_total * cost_contingency, 2),
-        "token_ceiling_total_usd": round(ceiling_total, 2),
-        "token_ceiling_total_with_contingency_usd": round(ceiling_total * cost_contingency, 2),
-        "projected_serial_api_hours": round(runtime_total_hours, 2),
-        "projected_serial_api_hours_with_contingency": round(runtime_total_hours * runtime_contingency, 2),
+        "calls": {
+            "model_count": model_count,
+            "panel_decisions_per_model": panel_decisions_per_model,
+            "panel_calls": panel_calls,
+            "smoke_runs": model_count,
+            "smoke_decisions_per_run": smoke_decisions_per_run,
+            "smoke_calls": smoke_calls,
+            "total_calls": panel_calls + smoke_calls,
+        },
+        "models": rows,
+        "costs_usd": {
+            "panel": float(panel_cost),
+            "smoke": float(smoke_cost),
+            "total_unrounded": float(total_cost),
+            "total_with_1_2x_contingency": float(total_cost * contingency),
+        },
+        "runtime": {
+            "status": RUNTIME_STATUS,
+            "note": RUNTIME_NOTE,
+            "observation_source": runtime_observations.get("source"),
+            "observed_at_utc": runtime_observations.get("observed_at_utc"),
+            "observed_api_seconds_per_decision_by_model": observed_latency,
+        },
     }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--sweep-config", type=Path, default=Path("config/output_budget_sweep.json"))
+    parser.add_argument("--models-config", type=Path, default=Path("config/sota_v2_models.json"))
+    parser.add_argument("--lane-config", type=Path, default=Path("config/sota_v2_lane.json"))
     parser.add_argument("--pricing", type=Path, default=Path("config/openrouter_pricing_snapshot.json"))
-    parser.add_argument("--expected-output-tokens", type=int)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    if args.expected_output_tokens is not None and args.expected_output_tokens < 1:
-        parser.error("--expected-output-tokens must be positive")
     result = estimate(
-        _read(args.sweep_config),
+        _read(args.models_config),
+        _read(args.lane_config),
         _read(args.pricing),
-        expected_output_tokens=args.expected_output_tokens,
     )
     rendered = json.dumps(result, indent=2, sort_keys=True) + "\n"
     if args.output:

@@ -25,6 +25,9 @@ data/*.sqlite-wal
 data/*.sqlite-shm
 data/baseline_cache.json
 data/model_checkpoints/
+# Raw paid-run evidence stays outside git (docs/PUBLISH_READINESS.md requires
+# hash-linked preservation, not committed artifacts).
+data/publication-runs/
 
 .DS_Store
 Thumbs.db
