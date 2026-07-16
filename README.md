@@ -67,14 +67,15 @@ cd web && bun install && bun run dev      # local site
 The site in `web/` deploys to GitHub Pages automatically on pushes to `main`
 (`.github/workflows/pages.yml`).
 
-The headline table is intentionally gated on the output-budget sweep in
-[`config/output_budget_sweep.json`](config/output_budget_sweep.json). Analyze
-completed cells without making API calls using
-`python scripts/analyze_output_budget.py <artifacts...> --output
-results/analysis/output-budget-sweep.json`. Until the matrix is complete and
-the API lane cap is frozen in [`config/sota_v2_lane.json`](config/sota_v2_lane.json),
-the generated site data says `publishable_ranking: false`. Coding-harness rows
-are always emitted to a separate table from the API headline lane.
+The headline API lane uses the common 1,024-token safety ceiling frozen in
+[`config/sota_v2_lane.json`](config/sota_v2_lane.json), with reasoning disabled
+and actual token/cost efficiency reported beside score. The earlier four-cap
+study in [`config/output_budget_sweep.json`](config/output_budget_sweep.json) is
+retained for auditability but retired as a publication prerequisite. Until all
+registered routes pass the common smoke, the registry is frozen, and at least
+eight strictly eligible fixed-cap rows exist, the generated site data says
+`publishable_ranking: false`. Coding-harness rows are always emitted to a
+separate table from the API headline lane.
 
 ### v2 changes
 

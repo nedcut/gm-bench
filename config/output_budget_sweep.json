@@ -20,10 +20,11 @@
         "OPENROUTER_REQUIRE_PARAMETERS": "true",
         "OPENROUTER_DATA_COLLECTION": "deny",
         "OPENROUTER_JSON_MODE": "true",
-        "OPENROUTER_REASONING_EFFORT": "none",
+        "OPENROUTER_REASONING_ENABLED": "false",
         "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"
       },
       "absent_options": [
+        "OPENROUTER_REASONING_EFFORT",
         "OPENROUTER_REASONING_MAX_TOKENS",
         "OPENROUTER_TEMPERATURE",
         "OPENROUTER_QUANTIZATIONS",
@@ -45,10 +46,11 @@
         "OPENROUTER_REQUIRE_PARAMETERS": "true",
         "OPENROUTER_DATA_COLLECTION": "deny",
         "OPENROUTER_JSON_MODE": "true",
-        "OPENROUTER_REASONING_EFFORT": "none",
+        "OPENROUTER_REASONING_ENABLED": "false",
         "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"
       },
       "absent_options": [
+        "OPENROUTER_REASONING_EFFORT",
         "OPENROUTER_REASONING_MAX_TOKENS",
         "OPENROUTER_TEMPERATURE",
         "OPENROUTER_QUANTIZATIONS",
@@ -70,10 +72,11 @@
         "OPENROUTER_REQUIRE_PARAMETERS": "true",
         "OPENROUTER_DATA_COLLECTION": "deny",
         "OPENROUTER_JSON_MODE": "true",
-        "OPENROUTER_REASONING_EFFORT": "none",
+        "OPENROUTER_REASONING_ENABLED": "false",
         "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"
       },
       "absent_options": [
+        "OPENROUTER_REASONING_EFFORT",
         "OPENROUTER_REASONING_MAX_TOKENS",
         "OPENROUTER_TEMPERATURE",
         "OPENROUTER_QUANTIZATIONS",
@@ -90,8 +93,15 @@
     "non_saturation_output_token_cap": 16384
   },
   "require_complete_cost": true,
-  "selection_frozen_at_utc": "2026-07-15T01:18:55Z",
-  "selection_rationale": "small open Qwen, capable low-cost MiniMax, and frontier GPT-5.6 Luna span model scale and expected capability; Luna replaced GPT-5.4 Mini before any official sweep cell so the first requested full run contributes directly to the compute-sensitivity study",
-  "protocol_amendment": "Before any official sweep cell, replaced provider-dependent uncapped with a common 16,384-token ceiling; standardized JSON mode and reasoning disabled; replaced Grok with MiniMax based on ex-ante cost and verified privacy/parameter compatibility, not score. On the final live preflight, moved Qwen 3.5 9B from unavailable SiliconFlow to healthy DeepInfra and replaced GPT-5.4 Mini with GPT-5.6 Luna before any sweep result existed.",
-  "status": "awaiting-runs"
+  "selection_frozen_at_utc": null,
+  "selection_rationale": "Retained for auditability: small open Qwen, capable low-cost MiniMax, and frontier GPT-5.6 Luna spanned model scale and expected capability in the superseded four-cap design.",
+  "protocol_amendment": "The first Luna cell exposed phase-ambiguous scaffold examples and is superseded as diagnostic evidence. On 2026-07-15 the project retired the four-cap experiment before any replacement official cell and froze a common 1,024-token safety ceiling instead. Observed token efficiency is a secondary metric, not an experimental axis.",
+  "replacement_policy": {
+    "config": "config/sota_v2_lane.json",
+    "output_token_cap": 1024,
+    "reasoning_enabled": false,
+    "pre_full_panel_cap_pressure_threshold_tokens": 768,
+    "fallback_output_token_cap": 2048
+  },
+  "status": "retired-fixed-safety-cap"
 }

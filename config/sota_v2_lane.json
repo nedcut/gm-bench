@@ -7,8 +7,14 @@
   "protocol_repair_attempts": 1,
   "model_registry": "config/sota_v2_models.json",
   "minimum_headline_models": 8,
-  "output_token_cap": null,
-  "output_budget_status": "pending-sweep",
+  "output_token_cap": 1024,
+  "output_budget_status": "frozen-fixed-budget",
+  "output_policy_basis": "fixed-safety-ceiling",
+  "cap_pressure_threshold_fraction": 0.75,
+  "cap_pressure_threshold_tokens": 768,
+  "fallback_output_token_cap": 2048,
+  "cap_pressure_rule": "Before any full-panel result is run, raise the common lane cap to 2048 if any registered-model smoke emits at least 768 output tokens in one API call or shows provider or adapter evidence of cap-induced truncation. Do not change the cap after full-panel scores are visible.",
+  "token_efficiency_policy": "Report observed input tokens, output tokens, cost, and latency per decision as secondary efficiency metrics; do not include them in the benchmark score.",
   "cli_harness_policy": "separate-table",
   "cost_policy": "required-for-api-null-for-subscription-cli"
 }

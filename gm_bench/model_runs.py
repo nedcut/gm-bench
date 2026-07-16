@@ -76,8 +76,8 @@ def _trips_circuit_breaker(action: Any) -> bool:
     marker = action.get("error") or action.get("model_error")
     if marker is None:
         return False
-    # Protocol-invalid model output is a measured outcome, especially in the
-    # output-budget sweep. Infrastructure failures still trip the breaker.
+    # Protocol-invalid model output is a measured benchmark outcome.
+    # Infrastructure failures still trip the breaker.
     return not str(marker).startswith("protocol_error:")
 
 

@@ -188,6 +188,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
             "OPENROUTER_QUANTIZATIONS",
             "OPENROUTER_JSON_MODE",
             "OPENROUTER_MAX_TOKENS",
+            "OPENROUTER_REASONING_ENABLED",
             "OPENROUTER_REASONING_EFFORT",
             "OPENROUTER_REASONING_MAX_TOKENS",
         ),

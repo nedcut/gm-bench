@@ -93,10 +93,13 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
             if resolved_max_tokens < 1:
                 raise ValueError("OPENROUTER_MAX_TOKENS must be >= 1")
             payload["max_tokens"] = resolved_max_tokens
+        reasoning_enabled = os.environ.get("OPENROUTER_REASONING_ENABLED")
         reasoning_effort = os.environ.get("OPENROUTER_REASONING_EFFORT")
         reasoning_max = os.environ.get("OPENROUTER_REASONING_MAX_TOKENS")
-        if reasoning_effort or reasoning_max:
+        if reasoning_enabled is not None or reasoning_effort or reasoning_max:
             reasoning: dict[str, Any] = {}
+            if reasoning_enabled is not None:
+                reasoning["enabled"] = _boolean("OPENROUTER_REASONING_ENABLED", False)
             if reasoning_effort:
                 reasoning["effort"] = reasoning_effort
             if reasoning_max:

@@ -22,6 +22,93 @@ DecideResult = list[dict[str, Any]] | tuple[list[dict[str, Any]], dict[str, Any]
 DecideFn = Callable[[dict[str, Any]], DecideResult]
 
 
+_ACTION_EXAMPLES: tuple[tuple[str, str, str], ...] = (
+    ("Core actions", "sign_free_agent", '{"type":"sign_free_agent","player_id":123,"years":1,"salary":2.5}'),
+    ("Core actions", "draft", '{"type":"draft","prospect_id":1010001}'),
+    (
+        "Core actions",
+        "trade",
+        '{"type":"trade","partner_team_id":3,"give_player_ids":[1],"receive_player_ids":[88],'
+        '"give_pick_seasons":[],"receive_pick_seasons":[4]}',
+    ),
+    ("Core actions", "release", '{"type":"release","player_id":1}'),
+    ("Core actions", "set_lineup", '{"type":"set_lineup","player_ids":[18 unique roster player ids]}'),
+    ("Core actions", "claim_waiver", '{"type":"claim_waiver","player_id":55}'),
+    ("Core actions", "memo", '{"type":"memo","text":"plan notes carried to your next decision"}'),
+    ("Information actions", "inspect_team", '{"type":"inspect_team","team_id":3}'),
+    ("Information actions", "inspect_player", '{"type":"inspect_player","player_id":88}'),
+    (
+        "Information actions",
+        "list_free_agents",
+        '{"type":"list_free_agents","position":"F","min_overall":55,"limit":12}',
+    ),
+    (
+        "Information actions",
+        "scout",
+        '{"type":"scout","player_id":88} or {"type":"scout","prospect_id":1010001}',
+    ),
+    (
+        "Incoming trade negotiation",
+        "accept_trade_offer",
+        '{"type":"accept_trade_offer","offer_id":"offer-3-1-trade_deadline-12-34"}',
+    ),
+    (
+        "Incoming trade negotiation",
+        "reject_trade_offer",
+        '{"type":"reject_trade_offer","offer_id":"offer-3-1-trade_deadline-12-34"}',
+    ),
+    (
+        "Incoming trade negotiation",
+        "counter_trade_offer",
+        '{"type":"counter_trade_offer","offer_id":"offer-3-1-trade_deadline-12-34",'
+        '"give_player_ids":[2],"receive_player_ids":[9]}',
+    ),
+    ("Control actions", "end_turn", '{"type":"end_turn"} to finish an information-gathering round'),
+    ("Control actions", "noop", '{"type":"noop"}'),
+)
+
+
+def _current_pick_count(compact: dict[str, Any]) -> int:
+    season = compact.get("season")
+    picks = (compact.get("team") or {}).get("draft_picks") or {}
+    value = picks.get(season, picks.get(str(season), 0))
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _render_action_guide(compact: dict[str, Any]) -> str:
+    available = [str(value) for value in compact.get("available_actions") or []]
+    available_set = set(available)
+    phase = compact.get("phase")
+    season = compact.get("season")
+    lines = [
+        f"CURRENT DECISION: season {season}, phase {phase}.",
+        "Emit only action types listed in available_actions for this decision; any other action type is illegal.",
+        f"available_actions: {json.dumps(available)}",
+        "Examples below show JSON shape only; use IDs from the current observation and never copy placeholder IDs.",
+    ]
+    if "draft" in available_set:
+        pick_count = _current_pick_count(compact)
+        noun = "action" if pick_count == 1 else "actions"
+        lines.append(
+            f"You own {pick_count} current-season draft pick(s); emit at most {pick_count} draft {noun} in this "
+            "decision, and do not retry after action_results reports that no current-season pick remains."
+        )
+    lines.append("")
+
+    current_section: str | None = None
+    for section, action_type, example in _ACTION_EXAMPLES:
+        if action_type not in available_set:
+            continue
+        if section != current_section:
+            lines.append(f"{section} available now:")
+            current_section = section
+        lines.append(example)
+    return "\n".join(lines) + "\n\n"
+
+
 def compact_observation(observation: dict[str, Any]) -> dict[str, Any]:
     profile = os.environ.get("GM_AGENT_PROFILE", "compact")
     if profile == "tiny":
@@ -108,26 +195,8 @@ def build_prompt(observation: dict[str, Any]) -> str:
         "You are controlling a fictional hockey team in GM-Bench. "
         "Choose legal front-office actions that maximize long-term benchmark score: wins, playoffs, titles, young assets, cap health, and valid decisions.\n\n"
         'Return ONLY a JSON object shaped like {"actions":[...]}. Do not use markdown. Do not explain.\n\n'
-        "Core actions:\n"
-        '{"type":"sign_free_agent","player_id":123,"years":1,"salary":2.5}\n'
-        '{"type":"draft","prospect_id":1010001}\n'
-        '{"type":"trade","partner_team_id":3,"give_player_ids":[1],"receive_player_ids":[88],'
-        '"give_pick_seasons":[],"receive_pick_seasons":[4]}\n'
-        '{"type":"release","player_id":1}\n'
-        '{"type":"set_lineup","player_ids":[18 unique roster player ids]}\n'
-        '{"type":"claim_waiver","player_id":55}\n'
-        '{"type":"memo","text":"plan notes carried to your next decision"}\n'
-        "Information actions (same-turn results appear in action_results on the next round):\n"
-        '{"type":"inspect_team","team_id":3}\n'
-        '{"type":"inspect_player","player_id":88}\n'
-        '{"type":"list_free_agents","position":"F","min_overall":55,"limit":12}\n'
-        '{"type":"scout","player_id":88} or {"type":"scout","prospect_id":1010001}\n'
-        "Incoming trade negotiation:\n"
-        '{"type":"accept_trade_offer","offer_id":"offer-3-1-preseason-12-34"}\n'
-        '{"type":"reject_trade_offer","offer_id":"offer-3-1-preseason-12-34"}\n'
-        '{"type":"counter_trade_offer","offer_id":"offer-3-1-preseason-12-34","give_player_ids":[2],"receive_player_ids":[9]}\n'
-        '{"type":"end_turn"} to finish an information-gathering round\n'
-        '{"type":"noop"}\n\n'
+        + _render_action_guide(compact)
+        + "Information-action results appear in action_results on the next interaction round.\n"
         "Observations may be summary-tier: use inspect/list/scout before committing. "
         "Public potential ratings are noisy; scout (limited points per season, see rules.scouting) buys a "
         "near-true potential reading, echoed forever in scout_reports — most valuable before drafting or big trades.\n"

@@ -47,18 +47,25 @@ def test_runner_rejects_cap_outside_pre_registered_sweep() -> None:
 
 
 def test_smoke_is_clean_and_resumes_existing_checkpoint(tmp_path: Path) -> None:
+    assert len(build_cells("smoke")) == 10
     cell = build_cells("smoke", model_id="openrouter-qwen3.5-9b-deepinfra")[0]
     command = cell_command(cell, tmp_path)
     assert cell.preset == "smoke"
     assert cell.repeats == 1
+    assert cell.cap == 1024
     assert "--require-clean" in command
-    checkpoint = tmp_path / "checkpoints" / f"{cell.experiment_id}--256.json"
+    checkpoint = tmp_path / "checkpoints" / f"{cell.experiment_id}--1024.json"
     checkpoint.parent.mkdir(parents=True)
     checkpoint.touch()
     assert "--resume" in cell_command(cell, tmp_path)
 
 
-def test_panel_is_locked_until_lane_cap_is_frozen() -> None:
+def test_smoke_rejects_cap_that_differs_from_frozen_lane() -> None:
+    with pytest.raises(ValueError, match="differs from frozen panel smoke cap"):
+        build_cells("smoke", cap=2048)
+
+
+def test_panel_is_locked_until_model_registry_is_frozen() -> None:
     with pytest.raises(ValueError, match="locked until"):
         build_cells("panel")
 
@@ -86,6 +93,13 @@ def test_paid_openrouter_run_requires_explicit_spend_ceiling(
         )
     assert exc.value.code == 2
     assert "require an explicit --max-spend-usd ceiling" in capsys.readouterr().err
+
+
+def test_paid_sweep_is_locked_after_policy_is_retired(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["sweep", "--run-dir", str(tmp_path), "--max-spend-usd", "10"])
+    assert exc.value.code == 2
+    assert "paid sweep is locked" in capsys.readouterr().err
 
 
 def test_cell_reservation_blocks_launch_before_ceiling_overrun(tmp_path: Path) -> None:
