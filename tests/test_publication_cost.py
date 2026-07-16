@@ -44,9 +44,7 @@ def test_costs_sum_unrounded_rows_before_contingency() -> None:
         round(row["smoke_cost_usd"], 2) for row in rows
     )
     assert costs["total_unrounded"] != pytest.approx(cents_first_total)
-    assert costs["total_with_1_2x_contingency"] == pytest.approx(
-        costs["total_unrounded"] * 1.2
-    )
+    assert costs["total_with_1_2x_contingency"] == pytest.approx(costs["total_unrounded"] * 1.2)
 
 
 def test_runtime_is_pending_with_latency_only_where_observed() -> None:

@@ -4,8 +4,13 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
+import pytest
+
+import scripts.analyze_publication_panel as publication_analysis
 from scripts.analyze_publication_panel import (
+    analyze,
     assign_tiers,
     bootstrap_mean_ci,
     holm_adjust,
@@ -121,3 +126,97 @@ def test_zero_artifact_path_reports_cleanly_without_writing_output(tmp_path: Pat
     assert result["eligible_model_count"] == 0
     assert len(result["missing_models"]) == result["registered_model_count"] == 10
     assert not output.exists()
+
+
+def _frozen_registry() -> dict:
+    return {
+        "selection_status": "frozen",
+        "contract": "sota-v2",
+        "preset": "leaderboard",
+        "profile": "compact",
+        "repeats": 3,
+        "output_token_cap": 1024,
+        "shared_fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
+        "shared_absent_options": ["OPENROUTER_TEMPERATURE"],
+        "models": [
+            {
+                "id": "demo",
+                "provider": "openrouter",
+                "model": "demo/model",
+                "transport": "gateway-api",
+                "upstream_provider": "DemoProvider",
+                "endpoint_name": "DemoProvider | demo/model-20260716",
+            }
+        ],
+    }
+
+
+def _registered_payload() -> dict:
+    payload = _payload(
+        {11: [10.0, 11.0, 12.0], 12: [20.0, 21.0, 22.0]},
+        {11: 9.0, 12: 19.0},
+    )
+    payload["run_info"].update(
+        {
+            "transport": "gateway-api",
+            "profile": "compact",
+            "preset": "leaderboard",
+            "benchmark_contract": {"benchmark_version": "sota-v2"},
+            "provider_options": {
+                "OPENROUTER_REASONING_ENABLED": "false",
+                "OPENROUTER_PROVIDER_ONLY": "DemoProvider",
+                "OPENROUTER_EXPECTED_ENDPOINT_NAME": "DemoProvider | demo/model-20260716",
+                "OPENROUTER_MAX_TOKENS": "1024",
+                "GM_BENCH_OUTPUT_BUDGET_CELL": "1024",
+            },
+        }
+    )
+    payload["candidate"]["summary"] = {"usage": {"upstream_providers": ["DemoProvider"]}}
+    return payload
+
+
+def test_analysis_rejects_artifact_from_unregistered_route(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    payload = _registered_payload()
+    payload["run_info"]["provider_options"]["OPENROUTER_PROVIDER_ONLY"] = "WrongProvider"
+
+    result = analyze(_frozen_registry(), [payload])
+
+    assert result["status"] == "no-eligible-artifacts"
+    assert result["eligible_model_count"] == 0
+    assert any("OPENROUTER_PROVIDER_ONLY" in reason for reason in result["rejected_artifacts"][0]["reasons"])
+
+
+def test_analysis_binds_eligible_row_to_raw_artifact_hash(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    payload = _registered_payload()
+    payload["publication"] = {"raw_artifact_sha256": "a" * 64}
+
+    result = analyze(_frozen_registry(), [payload])
+
+    assert result["status"] == "complete"
+    assert len(result["models"][0]["artifact_sha256"]) == 64
+    assert result["models"][0]["raw_artifact_sha256"] == "a" * 64
+
+
+def test_analysis_rejects_invalid_raw_artifact_hash(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    payload = _registered_payload()
+    payload["publication"] = {"raw_artifact_sha256": "not-a-hash"}
+
+    result = analyze(_frozen_registry(), [payload])
+
+    assert result["status"] == "no-eligible-artifacts"
+    assert any("raw_artifact_sha256" in reason for reason in result["rejected_artifacts"][0]["reasons"])

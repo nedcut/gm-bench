@@ -13,6 +13,7 @@ import argparse
 import json
 import math
 import random
+import re
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -30,6 +31,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from gm_bench.official import SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
+from gm_bench.publication import canonical_sha256  # noqa: E402
 
 
 def bootstrap_mean_ci(
@@ -184,17 +186,40 @@ def per_seed_pick_trader_lifts(payload: Mapping[str, Any], *, expected_repeats: 
     return rows
 
 
-def _registry_specs(registry: Mapping[str, Any]) -> tuple[list[dict[str, str]], list[str]]:
-    specs: list[dict[str, str]] = []
+def _registry_specs(registry: Mapping[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+    specs: list[dict[str, Any]] = []
     errors: list[str] = []
+    if registry.get("selection_status") != "frozen":
+        errors.append("model registry selection_status must be frozen")
+    if registry.get("contract") != "sota-v2":
+        errors.append("model registry contract must be 'sota-v2'")
+    if registry.get("preset") != "leaderboard":
+        errors.append("model registry preset must be 'leaderboard'")
+    shared_fixed_options = registry.get("shared_fixed_options") or {}
+    shared_absent_options = registry.get("shared_absent_options") or []
+    if not isinstance(shared_fixed_options, Mapping):
+        errors.append("model registry shared_fixed_options must be an object")
+        shared_fixed_options = {}
+    if not isinstance(shared_absent_options, list):
+        errors.append("model registry shared_absent_options must be a list")
+        shared_absent_options = []
     seen_ids: set[str] = set()
     seen_identities: set[tuple[str, str]] = set()
-    for index, row in enumerate(registry.get("models") or []):
+    for index, raw in enumerate(registry.get("models") or []):
+        if not isinstance(raw, Mapping):
+            errors.append(f"models[{index}] must be an object")
+            continue
+        row = dict(raw)
         model_id = str(row.get("id") or "").strip()
         provider = str(row.get("provider") or "").strip()
         model = str(row.get("model") or "").strip()
-        if not model_id or not provider or not model:
-            errors.append(f"models[{index}] requires id, provider, and model")
+        transport = str(row.get("transport") or "").strip()
+        upstream_provider = str(row.get("upstream_provider") or "").strip()
+        endpoint_name = str(row.get("endpoint_name") or "").strip()
+        if not all((model_id, provider, model, transport, upstream_provider, endpoint_name)):
+            errors.append(
+                f"models[{index}] requires id, provider, model, transport, upstream_provider, and endpoint_name"
+            )
             continue
         if model_id in seen_ids:
             errors.append(f"duplicate registered model id: {model_id}")
@@ -202,8 +227,62 @@ def _registry_specs(registry: Mapping[str, Any]) -> tuple[list[dict[str, str]], 
             errors.append(f"duplicate registered provider/model identity: {provider}:{model}")
         seen_ids.add(model_id)
         seen_identities.add((provider, model))
-        specs.append({"id": model_id, "provider": provider, "model": model})
+        specs.append(
+            {
+                **row,
+                "id": model_id,
+                "provider": provider,
+                "model": model,
+                "transport": transport,
+                "upstream_provider": upstream_provider,
+                "endpoint_name": endpoint_name,
+                "fixed_options": {
+                    **dict(shared_fixed_options),
+                    "OPENROUTER_PROVIDER_ONLY": upstream_provider,
+                    "OPENROUTER_EXPECTED_ENDPOINT_NAME": endpoint_name,
+                    "OPENROUTER_MAX_TOKENS": str(registry.get("output_token_cap")),
+                    "GM_BENCH_OUTPUT_BUDGET_CELL": str(registry.get("output_token_cap")),
+                },
+                "absent_options": [str(value) for value in shared_absent_options],
+            }
+        )
     return specs, errors
+
+
+def _registered_lane_issues(
+    payload: Mapping[str, Any],
+    registry: Mapping[str, Any],
+    spec: Mapping[str, Any],
+) -> list[str]:
+    """Reject artifacts that are valid in general but not from the frozen route."""
+    issues: list[str] = []
+    run_info = payload.get("run_info") or {}
+    if run_info.get("transport") != spec.get("transport"):
+        issues.append("transport does not match the registered route")
+    if run_info.get("profile") != registry.get("profile"):
+        issues.append("profile does not match the registered lane")
+    if run_info.get("preset") != registry.get("preset"):
+        issues.append("preset does not match the registered lane")
+    contract = run_info.get("benchmark_contract") or {}
+    if contract.get("benchmark_version") != registry.get("contract"):
+        issues.append("benchmark contract does not match the registered lane")
+
+    options = run_info.get("provider_options") or {}
+    if not isinstance(options, Mapping):
+        return [*issues, "run_info.provider_options must be an object"]
+    for key, expected in (spec.get("fixed_options") or {}).items():
+        if str(options.get(key, "")) != str(expected):
+            issues.append(f"provider option {key} does not match the registered value")
+    for key in spec.get("absent_options") or []:
+        if options.get(key) not in (None, ""):
+            issues.append(f"provider option {key} must be absent")
+
+    usage = ((payload.get("candidate") or {}).get("summary") or {}).get("usage") or {}
+    observed_upstreams = sorted({str(value) for value in usage.get("upstream_providers") or [] if value})
+    expected_upstream = str(spec.get("upstream_provider") or "")
+    if [value.casefold() for value in observed_upstreams] != [expected_upstream.casefold()]:
+        issues.append("observed upstream provider does not match the registered route")
+    return issues
 
 
 def analyze(registry: Mapping[str, Any], payloads: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
@@ -214,6 +293,9 @@ def analyze(registry: Mapping[str, Any], payloads: Sequence[Mapping[str, Any]]) 
     rejected: list[dict[str, Any]] = []
 
     for index, payload in enumerate(payloads):
+        artifact_sha256 = canonical_sha256(dict(payload))
+        publication = payload.get("publication") or {}
+        raw_artifact_sha256 = publication.get("raw_artifact_sha256") if isinstance(publication, Mapping) else None
         run_info = payload.get("run_info") or {}
         identity = (str(run_info.get("provider") or ""), str(run_info.get("model") or ""))
         spec = specs_by_identity.get(identity)
@@ -223,6 +305,11 @@ def analyze(registry: Mapping[str, Any], payloads: Sequence[Mapping[str, Any]]) 
         report = validate_leaderboard_payload(dict(payload), policy=SOTA_V2_POLICY)
         if not report.ok:
             reasons.extend(report.errors)
+        reasons.extend(_registered_lane_issues(payload, registry, spec))
+        if raw_artifact_sha256 is not None and (
+            not isinstance(raw_artifact_sha256, str) or re.fullmatch(r"[0-9a-f]{64}", raw_artifact_sha256) is None
+        ):
+            reasons.append("publication.raw_artifact_sha256 must be a 64-character lowercase hex digest")
         try:
             per_seed = per_seed_pick_trader_lifts(
                 payload,
@@ -247,6 +334,8 @@ def analyze(registry: Mapping[str, Any], payloads: Sequence[Mapping[str, Any]]) 
                 "bootstrap_ci95": [round(ci_low, 6), round(ci_high, 6)],
                 "sign_flip_p_value": sign_flip_p_value(lifts),
                 "seed_win_rate": round(sum(lift > 0.0 for lift in lifts) / len(lifts), 6),
+                "artifact_sha256": artifact_sha256,
+                "raw_artifact_sha256": raw_artifact_sha256 or artifact_sha256,
             }
         )
 

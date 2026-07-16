@@ -65,7 +65,7 @@
     "operator_must_pass_max_spend_usd": true,
     "approval_note": "A planning estimate is not authorization to spend. The operator explicitly approves spend by invoking the runner with --max-spend-usd.",
     "cost_estimate_artifact": "results/analysis/output-budget-cost-estimate.json",
-    "cost_estimate_status": "superseded-four-cap-plan; replace after all-model smoke telemetry"
+    "cost_estimate_status": "fixed-panel estimate committed; refresh from accepted all-model smoke telemetry before panel approval"
   },
   "statistical_analysis_plan": {
     "frozen_at_utc": "2026-07-16T01:51:32Z",
