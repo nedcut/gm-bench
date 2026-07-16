@@ -73,7 +73,7 @@ def _model_specs(config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str
 
 def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str, Any]:
     caps = config["output_token_caps"]
-    retired = str(config.get("status") or "").startswith("retired-")
+    retired = str(config.get("status") or "").startswith("retired")
     specs, config_errors = _model_specs(config)
     specs_by_identity = {(str(spec["provider"]), str(spec["model"])): spec for spec in specs}
     points: list[dict[str, Any]] = []
@@ -227,7 +227,7 @@ def analyze(config: dict[str, Any], payloads: list[dict[str, Any]]) -> dict[str,
         reason = "duplicate model-cap cells must be resolved before interpreting the sweep"
     else:
         reason = "missing planned model-cap cells; no output-budget conclusion is permitted"
-    recommendation = _decision_recommendation(config, points) if complete and not retired else None
+    recommendation = _decision_recommendation(config, points) if complete else None
     return {
         "schema_version": 1,
         "status": "retired" if retired else ("complete-needs-interpretation" if complete else "incomplete"),

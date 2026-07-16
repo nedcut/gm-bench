@@ -27,8 +27,12 @@ measured JSON repair, and reports accepted and rejected actions by strategic
 mechanic. The headline lane uses the same 1,024-token safety ceiling with
 reasoning disabled for every model. Before any full result, all registered
 models must pass a smoke audit; a call reaching 768 output tokens or showing
-cap-induced truncation raises the whole lane to 2,048. Actual token, cost, and
-latency efficiency are reported beside score rather than folded into it.
+cap-induced truncation raises the whole lane to 2,048. The smoke audit selects
+that single cap—1,024 by default, or 2,048 if the trigger fires—and the chosen
+cap is then frozen for the entire published lane, so every headline number
+shares one response budget rather than mixing 1,024- and 2,048-token results.
+Actual token, cost, and latency efficiency are reported beside score rather than
+folded into it.
 
 The scale will show four anchors: the hidden-information Oracle diagnostic,
 the strongest honest scripted policy (`pick-trader`), the best eligible API
