@@ -4,7 +4,6 @@
   "primary_endpoint": "candidate.summary.mean_score under score-v1",
   "secondary_endpoints": [
     "paired lift versus the full baseline panel",
-    "paired lift versus pick-trader",
     "decision failure rate",
     "illegal actions and protocol penalty",
     "input and output tokens per decision",
@@ -66,18 +65,25 @@
     "operator_must_pass_max_spend_usd": true,
     "approval_note": "A planning estimate is not authorization to spend. The operator explicitly approves spend by invoking the runner with --max-spend-usd.",
     "cost_estimate_artifact": "results/analysis/output-budget-cost-estimate.json",
-    "cost_estimate_status": "superseded-four-cap-plan; replace after all-model smoke telemetry"
+    "cost_estimate_status": "fixed-panel estimate committed; refresh from accepted all-model smoke telemetry before panel approval"
   },
   "statistical_analysis_plan": {
     "frozen_at_utc": "2026-07-16T01:51:32Z",
     "unit_of_inference": "Eight public seeds are the sample; three repeats per seed are nested within seeds and only reduce model-sampling noise. All per-seed lifts are reported.",
-    "primary_contrast": "One per model: the paired lift versus the full baseline-panel mean, using the per-seed candidate mean over repeats.",
+    "primary_contrast": "One per model: the paired lift versus the named pick-trader baseline, using the per-seed candidate mean over three repeats minus the same seed's pick-trader score.",
+    "headline_claim_contrast": "paired lift versus pick-trader",
     "multiplicity": "Holm-Bonferroni correction across the 10 registered models for the primary contrast family; per-model uncorrected p-values are descriptive only.",
     "inference_labels": "Sign-flip permutation p-values are exact only under a symmetry assumption and are labeled descriptive; the n=8 percentile-bootstrap CI is descriptive and its significant_at_95 flag must not be used as a headline claim.",
-    "ranking_rule": "Publish tiers, not ordinal ranks. Models whose Holm-adjusted primary contrasts and paired-lift intervals overlap are reported as one tier; no model-vs-model superiority claim without a predeclared contrast.",
+    "ranking_rule": "Publish tiers, not ordinal ranks. Models whose Holm-adjusted pick-trader primary contrasts and paired-lift intervals overlap are reported as one tier; no model-vs-model superiority claim without a predeclared contrast.",
     "power_disclosure": "The predeclared minimum detectable difference (~62 points from docs/scoring_calibration.md) exceeds the oracle-to-pick-trader headroom (~19.5), so a null result between adjacent models is uninformative and must be reported as such.",
     "temperature_policy": "Temperature is intentionally omitted from every request; pinned endpoints apply their defaults, and repeats measure the resulting sampling variance. This is a frozen, predeclared choice — not an oversight.",
-    "registry_exclusion_criteria": "Technical incompatibility only: endpoint withdrawal, mandatory reasoning, unsupported JSON mode or max_tokens, or persistent infrastructure failure after two attempts. Model behavior — poor scores, protocol failures, truncation-free high usage — never removes a registered model."
+    "registry_exclusion_criteria": "Technical incompatibility only: endpoint withdrawal, mandatory reasoning, unsupported JSON mode or max_tokens, or persistent infrastructure failure after two attempts. Model behavior — poor scores, protocol failures, truncation-free high usage — never removes a registered model.",
+    "amendment_2026_07_16": {
+      "amended_at_utc": "2026-07-16T16:49:33Z",
+      "evidence_state": "pre-data; no accepted sota-v2 smoke manifest and no full-panel model result existed",
+      "superseded_primary_contrast": "paired lift versus the full baseline-panel mean",
+      "rationale": "The full baseline-panel mean includes random and other weak reference policies, so a model could pass the primary test while losing to every competent heuristic. The predeclared research question asks whether current model-plus-scaffold systems beat the transparent pick-trader bar. Full-panel lift remains a secondary descriptive endpoint. No observed sota-v2 model score motivated this amendment."
+    }
   },
   "multiple_comparisons": "Per-model p-values are descriptive. Claims about a best model require family-wise interpretation across the full registered panel; emphasize effect sizes and confidence intervals rather than isolated p<0.05 labels.",
   "private_panel_policy": "The first release may claim reproducible public-panel evidence only. A stronger contamination-resistant claim requires a separately salted pre-commitment and private-panel run before private results are inspected."
