@@ -233,7 +233,7 @@ def _openrouter_usage_usd(env: dict[str, str]) -> float:
         "https://openrouter.ai/api/v1/credits",
         headers={"Authorization": f"Bearer {key}", "User-Agent": "gm-bench-publication-runner/1"},
     )
-    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed HTTPS endpoint
+    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed HTTPS endpoint  # nosemgrep
         payload = json.load(response)
     return float(payload["data"]["total_usage"])
 
@@ -271,7 +271,7 @@ def _openrouter_endpoints(model: str) -> dict[str, Any]:
         f"https://openrouter.ai/api/v1/models/{model}/endpoints",
         headers={"User-Agent": "gm-bench-publication-runner/1"},
     )
-    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed HTTPS endpoint
+    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed HTTPS endpoint  # nosemgrep
         return json.load(response)
 
 

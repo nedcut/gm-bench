@@ -89,6 +89,7 @@ def choose_actions(
             headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
             method="POST",
         )
+        # Fixed provider HTTPS endpoint from operator config, not attacker-controlled input.  # nosemgrep
         with urllib.request.urlopen(request, timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8"))
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)

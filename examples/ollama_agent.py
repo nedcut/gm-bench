@@ -219,6 +219,7 @@ def generate_http(
     )
     started = time.perf_counter()
     try:
+        # Fixed local/provider HTTP endpoint from operator config, not attacker-controlled input.  # nosemgrep
         with urllib.request.urlopen(request, timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:

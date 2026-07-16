@@ -67,6 +67,7 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
             headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
             method="POST",
         )
+        # Fixed provider HTTPS endpoint from operator config, not attacker-controlled input.  # nosemgrep
         with urllib.request.urlopen(request, timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8"))
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
