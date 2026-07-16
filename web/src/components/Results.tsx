@@ -17,7 +17,6 @@ function StandingsTable({ snapshot }: { snapshot: Snapshot }) {
         <table>
           <thead>
             <tr>
-              <th>#</th>
               <th>Agent</th>
               <th className="num">Mean score</th>
               <th></th>
@@ -28,12 +27,14 @@ function StandingsTable({ snapshot }: { snapshot: Snapshot }) {
             </tr>
           </thead>
           <tbody>
-            {standings.map((row, index) => (
+            {standings.map((row) => (
               <tr key={row.agent} className={row.agent === config.candidate ? "is-candidate" : ""}>
-                <td className="mono-dim">{index + 1}</td>
                 <td>
                   <span className="agent-cell">
-                    <i className="agent-chip" style={{ background: agentColor(row.agent) }} />
+                    <i
+                      className="agent-chip"
+                      style={{ background: row.agent === config.candidate ? "#155B9A" : agentColor(row.agent) }}
+                    />
                     {row.agent}
                     <span className={`tag ${row.agent === config.candidate ? "tag-candidate" : "tag-baseline"}`}>
                       {row.agent === config.candidate ? "candidate" : "baseline"}
@@ -47,8 +48,8 @@ function StandingsTable({ snapshot }: { snapshot: Snapshot }) {
                       className="bar-fill"
                       style={{
                         width: `${(row.mean_score / maxScore) * 100}%`,
-                        background: agentColor(row.agent),
-                        opacity: 0.85,
+                        background: row.agent === config.candidate ? "#155B9A" : agentColor(row.agent),
+                        opacity: row.agent === config.candidate ? 1 : 0.55,
                       }}
                     />
                   </div>
@@ -69,28 +70,16 @@ function StandingsTable({ snapshot }: { snapshot: Snapshot }) {
 function Verdict({ snapshot }: { snapshot: Snapshot }) {
   const { normalized, paired } = snapshot;
   return (
-    <div className="panel verdict">
+    <div className="panel">
       <div className="panel-title">
         <h3>Paired evaluation verdict</h3>
-        <span>value vs panel</span>
+        <span>value vs panel · descriptive</span>
       </div>
-      <div>
-        <div className="verdict-big">
-          +{fmt(paired.paired_lift_mean, 1)}
-          <small>paired lift</small>
-        </div>
-        {paired.significant_at_95 && (
-          <p style={{ marginTop: 10 }}>
-            <span className="sig-pill">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 6 9 17l-5-5" />
-              </svg>
-              significant at 95%
-            </span>
-          </p>
-        )}
+      <div className="verdict-big">
+        +{fmt(paired.paired_lift_mean, 1)}
+        <small>paired lift</small>
       </div>
-      <div>
+      <div style={{ marginTop: 14 }}>
         <div className="verdict-row">
           <span>Candidate mean score</span>
           <strong>{fmt(normalized.candidate_mean_score, 1)}</strong>
@@ -122,21 +111,25 @@ function Verdict({ snapshot }: { snapshot: Snapshot }) {
           <strong>{normalized.candidate_illegal_actions}</strong>
         </div>
       </div>
+      <div className="legend">
+        <span>intervals are descriptive — the frozen analysis plan reserves significance language for the Holm-corrected family</span>
+      </div>
     </div>
   );
 }
 
 export default function Results({ snapshot }: { snapshot: Snapshot }) {
   return (
-    <section className="section" id="results">
+    <section className="section" id="reference">
       <div className="shell">
         <div className="section-head">
-          <p className="section-kicker">Reference results</p>
-          <h2>Scripted baselines set the bar. Beat them on identical seeds.</h2>
+          <p className="kicker">Reference run</p>
+          <h2>How a result reads, demonstrated on scripted agents.</h2>
           <p>
-            Every agent plays the exact same league generations. Per-seed differencing cancels
-            league luck, and a deterministic bootstrap puts a confidence interval on the lift —
-            so a handful of seeds still gives an honest read on skill.
+            Every agent plays the exact same league generations. Per-seed differencing cancels league
+            luck, and a deterministic bootstrap puts an interval on the lift. This reference run pits
+            the scripted <code>value</code> agent against the panel — the same report every model row
+            gets.
           </p>
         </div>
         <div className="results-grid">

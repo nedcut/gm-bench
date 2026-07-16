@@ -109,6 +109,8 @@ export interface LeaderboardModel {
   sota_v2_issues?: string[];
   publication_eligible?: boolean;
   publication_issues?: string[];
+  /** Display tier from CI-overlap grouping — the frozen plan publishes tiers, not ordinal ranks. */
+  tier?: number;
 }
 
 export interface LeaderboardBaseline {
@@ -119,6 +121,15 @@ export interface LeaderboardBaseline {
 
 export interface Leaderboard {
   updated: string;
+  contract?: {
+    benchmark_version: string;
+    contract_fingerprint: string;
+    scoring_version?: string;
+    simulator_version?: string;
+    action_protocol_version?: string;
+    observation_version?: string;
+    scoring_scale_fingerprint?: string;
+  };
   preset: {
     name: string;
     seeds: number[];
@@ -135,6 +146,9 @@ export interface Leaderboard {
     reason: string;
     planned_caps: Array<number | null>;
     frozen_output_token_cap: number | null;
+    output_policy_basis?: string;
+    model_registry_frozen?: boolean;
+    smoke_gate_issues?: string[] | null;
     eligible_headline_models: number;
     minimum_headline_models: number;
   };

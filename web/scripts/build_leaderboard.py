@@ -34,6 +34,7 @@ sys.path.insert(0, str(ROOT))
 from gm_bench.agents import AGENTS  # noqa: E402
 from gm_bench.baseline_cache import cache_key, load_cache  # noqa: E402
 from gm_bench.benchmark_config import PRESETS, PRIVATE_LEADERBOARD_PANEL_NAME  # noqa: E402
+from gm_bench.contract import benchmark_contract  # noqa: E402
 from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
 from gm_bench.oracle import OracleAgent  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
@@ -290,6 +291,36 @@ def select_model_payloads(
     return [item[1] for item in selected.values()]
 
 
+def assign_tiers(rows: list[dict[str, Any]]) -> None:
+    """Assign display tiers per the frozen ranking rule: tiers, not ordinal ranks.
+
+    ``config/publication_protocol.json`` freezes the presentation as tiers —
+    models whose Holm-adjusted primary contrasts *and* paired-lift intervals
+    overlap report as one tier, with no ordinal rank column. Holm-adjusted
+    contrasts only exist once the final analysis artifact is generated, so the
+    committed dataset groups adjacent rows (sorted by mean score) whenever
+    their paired-lift 95% intervals overlap. That can only merge more rows
+    than the final rule (which requires both conditions), so the displayed
+    tiers never claim a separation the frozen analysis has not established.
+    Rows without an interval cannot establish overlap and open a new tier.
+    """
+    previous: tuple[float, float] | None = None
+    tier = 0
+    for row in rows:
+        ci = row.get("ci95")
+        current = (float(ci[0]), float(ci[1])) if isinstance(ci, list) and len(ci) == 2 else None
+        overlaps = (
+            previous is not None
+            and current is not None
+            and current[0] <= previous[1]
+            and current[1] >= previous[0]
+        )
+        if not overlaps:
+            tier += 1
+        row["tier"] = tier
+        previous = current
+
+
 def _headline_identity(row: dict[str, Any]) -> Any:
     provider = row.get("provider")
     model = row.get("model")
@@ -418,6 +449,7 @@ def main() -> None:
         protocol_minimum=protocol_minimum,
     )
     publishable_ranking = bool(publication["publishable_ranking"])
+    assign_tiers(models)
     cli_harness_models = [row for row in current_rows if row.get("lane") == "cli-harness"]
     excluded_models = [
         {
@@ -451,6 +483,7 @@ def main() -> None:
     updated = max((stamp for stamp in timestamps if stamp), default="")[:10]
     dataset = {
         "updated": updated,
+        "contract": benchmark_contract(),
         "preset": {
             "name": "leaderboard",
             "seeds": LEADERBOARD["seeds"],

@@ -47,12 +47,12 @@ export default function Quickstart() {
     <section className="section" id="quickstart">
       <div className="shell">
         <div className="section-head">
-          <p className="section-kicker">Quickstart</p>
-          <h2>From clone to leaderboard in two commands.</h2>
+          <p className="kicker">Quickstart</p>
+          <h2>From clone to scoreboard in two commands.</h2>
           <p>
             Start with the scripted baselines to calibrate, then plug in your own agent with
-            <code style={{ color: "var(--accent)" }}> --agent-cmd</code>. JSON Schemas for the
-            observation and action protocol ship in <code>schemas/</code>.
+            <code> --agent-cmd</code>. JSON Schemas for the observation and action protocol ship in{" "}
+            <code>schemas/</code>.
           </p>
         </div>
         <div className="quickstart-grid">

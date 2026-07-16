@@ -1,29 +1,15 @@
-import type { Leaderboard as LeaderboardData, LeaderboardBaseline, LeaderboardModel } from "../types";
-import { agentColor, fmt, pct } from "../lib";
+import type { Leaderboard as LeaderboardData, LeaderboardModel } from "../types";
+import { agentColor, COLOR, fmt, pct } from "../lib";
 
 const PROVIDER_LABELS: Record<string, string> = {
   openai: "OpenAI API",
+  openrouter: "OpenRouter",
   claude: "Claude Code",
   codex: "Codex CLI",
+  cursor: "Cursor CLI",
   ollama: "Ollama (local)",
   opencode: "opencode",
 };
-
-type Row =
-  | { kind: "model"; rank: number; model: LeaderboardModel }
-  | { kind: "baseline"; baseline: LeaderboardBaseline };
-
-function buildRows(models: LeaderboardModel[], baselines: LeaderboardBaseline[]): Row[] {
-  const rows: Row[] = models.map((model, index) => ({ kind: "model", rank: index + 1, model }));
-  for (const baseline of baselines) {
-    rows.push({ kind: "baseline", baseline });
-  }
-  return rows.sort((a, b) => {
-    const scoreA = a.kind === "model" ? a.model.mean_score : a.baseline.mean_score;
-    const scoreB = b.kind === "model" ? b.model.mean_score : b.baseline.mean_score;
-    return scoreB - scoreA;
-  });
-}
 
 function cost(model: LeaderboardModel): string {
   if (model.cost_per_episode_usd === null) {
@@ -50,50 +36,55 @@ function statusTag(model: LeaderboardModel) {
     );
   }
   return (
-    <span className="tag tag-dev" title={issues || "not validated as sota-v2"}>
+    <span className="tag tag-warn" title={issues || "not validated as sota-v2"}>
       diagnostic
     </span>
   );
 }
 
-function laneLabel(model: LeaderboardModel): string {
-  if (!model.lane) {
+function liftCell(model: LeaderboardModel): string {
+  if (model.paired_lift === null) {
     return "—";
   }
-  return model.lane === "cli-harness" ? "CLI harness" : "API";
+  const lift = `${model.paired_lift >= 0 ? "+" : ""}${fmt(model.paired_lift, 1)}`;
+  const ci = model.ci95;
+  if (!ci || ci.length !== 2) {
+    return lift;
+  }
+  return `${lift} [${fmt(ci[0], 1)}, ${fmt(ci[1], 1)}]`;
 }
 
-function LeaderboardTable({
+function ModelTable({
   data,
-  title = "Official API leaderboard",
-  includeBaselines = true,
+  models,
+  title,
+  subtitle,
+  withTiers,
 }: {
   data: LeaderboardData;
-  title?: string;
-  includeBaselines?: boolean;
+  models: LeaderboardModel[];
+  title: string;
+  subtitle: string;
+  withTiers: boolean;
 }) {
-  const rows = buildRows(data.models, includeBaselines ? data.baselines : []);
-  const maxScore = Math.max(...rows.map((row) => (row.kind === "model" ? row.model.mean_score : row.baseline.mean_score)));
+  const maxScore = Math.max(data.headroom.oracle, ...models.map((model) => model.mean_score));
+  let previousTier: number | undefined;
   return (
     <div className="panel">
       <div className="panel-title">
         <h3>{title}</h3>
-        <span>
-          {`preset ${data.preset.name} · ${data.preset.seeds.length} seeds × ${data.preset.seasons} seasons`}
-          {data.updated ? ` · updated ${data.updated}` : ""}
-        </span>
+        <span>{subtitle}</span>
       </div>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>#</th>
+              {withTiers && <th>Tier</th>}
               <th>Model</th>
               <th>Status</th>
-              <th>Lane</th>
               <th className="num">Score</th>
               <th></th>
-              <th className="num">Lift vs panel</th>
+              <th className="num">Lift vs panel [95% CI]</th>
               <th className="num">Fallback</th>
               <th className="num">Failed queries</th>
               <th className="num">Input/dec</th>
@@ -103,81 +94,39 @@ function LeaderboardTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => {
-              if (row.kind === "baseline") {
-                return (
-                  <tr key={`baseline-${row.baseline.agent}`} className="is-reference">
-                    <td className="mono-dim">·</td>
-                    <td>
-                      <span className="agent-cell">
-                        <i className="agent-chip" style={{ background: agentColor(row.baseline.agent) }} />
-                        {row.baseline.agent}
-                        <span className="tag tag-baseline">scripted baseline</span>
-                      </span>
-                    </td>
-                    <td>
-                      <span className="tag tag-baseline">baseline</span>
-                    </td>
-                    <td className="mono-dim">—</td>
-                    <td className="num mono-dim">{fmt(row.baseline.mean_score, 1)}</td>
-                    <td>
-                      <div className="bar-track">
-                        <div
-                          className="bar-fill"
-                          style={{
-                            width: `${(row.baseline.mean_score / maxScore) * 100}%`,
-                            background: agentColor(row.baseline.agent),
-                            opacity: 0.35,
-                          }}
-                        />
-                      </div>
-                    </td>
-                    <td className="num mono-dim">—</td>
-                    <td className="num mono-dim">—</td>
-                    <td className="num mono-dim">0</td>
-                    <td className="num mono-dim">0</td>
-                    <td className="num mono-dim">0</td>
-                    <td className="num mono-dim">$0</td>
-                    <td className="num mono-dim">—</td>
-                  </tr>
-                );
-              }
-              const { model, rank } = row;
+            {models.map((model) => {
+              const tierStarts = withTiers && model.tier !== previousTier;
+              previousTier = model.tier;
               return (
-                <tr key={model.id}>
-                  <td className="mono-dim">{rank}</td>
+                <tr key={model.id} className={tierStarts && model.tier !== 1 ? "tier-start" : ""}>
+                  {withTiers && (
+                    <td>{tierStarts ? <span className="tier-chip">Tier {model.tier}</span> : <span className="mono-dim">·</span>}</td>
+                  )}
                   <td>
                     <span className="agent-cell">
-                      <i className="agent-chip" style={{ background: agentColor(model.provider) }} />
                       {model.model}
                       <span className="tag tag-candidate">{PROVIDER_LABELS[model.provider] ?? model.provider}</span>
                     </span>
                   </td>
                   <td>{statusTag(model)}</td>
-                  <td className="mono-dim">{laneLabel(model)}</td>
                   <td className="num score-strong">{fmt(model.mean_score, 1)}</td>
                   <td>
                     <div className="bar-track">
                       <div
                         className="bar-fill"
-                        style={{
-                          width: `${(model.mean_score / maxScore) * 100}%`,
-                          background: agentColor(model.provider),
-                          opacity: 0.85,
-                        }}
+                        style={{ width: `${Math.max(0, (model.mean_score / maxScore) * 100)}%`, background: COLOR.blue }}
                       />
                     </div>
                   </td>
-                  <td className="num mono-dim">
-                    {model.paired_lift === null ? "—" : `${model.paired_lift >= 0 ? "+" : ""}${fmt(model.paired_lift, 1)}`}
-                    {model.significant ? " ✓" : ""}
-                  </td>
+                  <td className="num mono-dim">{liftCell(model)}</td>
                   <td className="num mono-dim">{pct(model.fallback_rate)}</td>
+                  <td className="num mono-dim">{model.failed_queries === undefined ? "—" : model.failed_queries}</td>
                   <td className="num mono-dim">
-                    {model.failed_queries === undefined ? "—" : model.failed_queries}
+                    {model.input_tokens_per_decision === null ? "—" : fmt(model.input_tokens_per_decision, 0)}
                   </td>
-                  <td className="num mono-dim">{model.input_tokens_per_decision === null ? "—" : fmt(model.input_tokens_per_decision, 0)}</td>
-                  <td className="num mono-dim">{model.output_tokens_per_decision === null ? "—" : fmt(model.output_tokens_per_decision, 0)}</td>
+                  <td className="num mono-dim">
+                    {model.output_tokens_per_decision === null ? "—" : fmt(model.output_tokens_per_decision, 0)}
+                  </td>
                   <td className="num mono-dim">{cost(model)}</td>
                   <td className="num mono-dim">
                     {model.api_latency_s_per_decision === null ? "—" : `${fmt(model.api_latency_s_per_decision, 1)}s`}
@@ -189,42 +138,128 @@ function LeaderboardTable({
         </table>
       </div>
       <div className="legend">
-        <span>sota-v2 = 3 repeats, official seed panel, full usage, low fallback, full baseline panel</span>
-        <span>seed-panel hash is an integrity check for a known panel, not a secrecy mechanism</span>
-        <span>contract fingerprint pins simulator, scoring, preset, and action schemas</span>
-        <span>eligible rows may still show warnings (illegal actions, fallback, insignificant lift)</span>
-        <span>diagnostic rows are useful evidence, but not frontier-model claims</span>
-        <span>✓ lift significant at 95% (paired bootstrap)</span>
+        {withTiers ? (
+          <>
+            <span>tiers group models whose paired-lift 95% intervals overlap — order inside a tier is display order, not a claim</span>
+            <span>per-model intervals are descriptive; family-wise claims follow the frozen Holm-corrected analysis plan</span>
+          </>
+        ) : (
+          <span>observational lane — uncontrolled tool loops, context, and retries; no tiers, not comparable to the API lane</span>
+        )}
+        <span>lift vs panel = paired per-seed difference against the full scripted-baseline mean</span>
         <span>fallback = decisions answered by the adapter's fallback policy, not the model</span>
-        <span>failed queries = scout/inspect/list_free_agents declines with no protocol penalty; rates above 1.0/decision fail sota-v2</span>
-        <span>cost from measured tokens × published prices; CLI lanes report their own cost</span>
-        <span>lane = CLI harness (codex/claude/cursor/opencode, own tool loop and scaffold) vs direct API call — not comparable to each other</span>
-        <span>output tokens/decision tracks published score closely; read score next to lane, input/output tokens, and cost, not alone</span>
+        <span>cost from measured tokens × published prices; read score next to input/output tokens and cost, never alone</span>
       </div>
     </div>
   );
 }
 
-function EmptyState() {
+function BarTable({ data }: { data: LeaderboardData }) {
+  const rows = [
+    { agent: "oracle", mean_score: data.headroom.oracle, score_stddev: null as number | null, kind: "ceiling" },
+    ...data.baselines.map((baseline) => ({
+      agent: baseline.agent,
+      mean_score: baseline.mean_score,
+      score_stddev: baseline.score_stddev as number | null,
+      kind: baseline.agent === "pick-trader" ? "bar" : "baseline",
+    })),
+  ];
+  const maxScore = data.headroom.oracle;
   return (
     <div className="panel">
       <div className="panel-title">
-        <h3>Model runs land here</h3>
-        <span>telemetry is wired — the board fills as official runs complete</span>
+        <h3>The bar, measured</h3>
+        <span>
+          scripted panel · preset {data.preset.name} · {data.preset.seeds.length} seeds × {data.preset.seasons} seasons
+          {data.updated ? ` · updated ${data.updated}` : ""}
+        </span>
       </div>
-      <p style={{ maxWidth: 640 }}>
-        Every leaderboard run records objective score with paired-lift confidence intervals,
-        plus tokens, dollar cost, and latency for every decision the model makes. Run one lane
-        and rebuild:
-      </p>
-      <pre>
-        <code>
-          {`LLM_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \\
-  --preset leaderboard --repeats 3 --json > results/leaderboard/openai-gpt-5.4.json
-python -m gm_bench validate-result results/leaderboard/openai-gpt-5.4.json --policy sota-v2
-python web/scripts/build_leaderboard.py`}
-        </code>
-      </pre>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th></th>
+              <th className="num">Mean score</th>
+              <th className="num">σ</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.agent} className={row.kind === "bar" ? "is-bar" : row.kind === "ceiling" ? "is-ceiling" : ""}>
+                <td>
+                  <span className="agent-cell">
+                    <i className="agent-chip" style={{ background: agentColor(row.agent) }} />
+                    {row.agent}
+                  </span>
+                </td>
+                <td>
+                  {row.kind === "bar" && <span className="tag tag-bar">the red line</span>}
+                  {row.kind === "ceiling" && <span className="tag tag-baseline">hidden-information ceiling</span>}
+                  {row.kind === "baseline" && <span className="tag tag-baseline">scripted</span>}
+                </td>
+                <td className="num score-strong">{fmt(row.mean_score, 1)}</td>
+                <td className="num mono-dim">{row.score_stddev === null ? "—" : fmt(row.score_stddev, 1)}</td>
+                <td>
+                  <div className="bar-track">
+                    <div
+                      className="bar-fill"
+                      style={{ width: `${(row.mean_score / maxScore) * 100}%`, background: agentColor(row.agent), opacity: row.kind === "baseline" ? 0.55 : 0.9 }}
+                    />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="legend">
+        <span>every model row is paired against these exact seeds — the panel is the control group</span>
+        <span>the oracle sees hidden information no legal agent can; it bounds what the score can express</span>
+      </div>
+    </div>
+  );
+}
+
+function Gate({ data }: { data: LeaderboardData }) {
+  const { publication } = data;
+  const laneFrozen = publication.frozen_output_token_cap !== null;
+  const registryFrozen = publication.model_registry_frozen === true;
+  const smokesDone = publication.smoke_gate_issues != null && publication.smoke_gate_issues.length === 0;
+  const rowsMet = publication.eligible_headline_models >= publication.minimum_headline_models;
+  const checks = [
+    { done: laneFrozen, label: `compute policy frozen (${publication.frozen_output_token_cap ?? "—"}-token ceiling)` },
+    { done: registryFrozen, label: "model registry frozen" },
+    { done: smokesDone, label: "every registered route smoke-verified" },
+    {
+      done: rowsMet,
+      label: `≥${publication.minimum_headline_models} strictly eligible rows (${publication.eligible_headline_models} today)`,
+    },
+  ];
+  return (
+    <div className="gate">
+      <div>
+        <h3>No ranking yet — that is the protocol working</h3>
+        <p>
+          The previous version of this table was withdrawn when a contract defect was found to
+          penalize some models and not others. The v2 board therefore publishes nothing until every
+          gate below is machine-verified: {publication.reason}.
+        </p>
+        <p>
+          Scores cannot influence the protocol — the contract, compute policy, model registry, and
+          statistical analysis plan freeze <em>before</em> official runs, and a valid poor result is
+          never re-run.
+        </p>
+        <div className="gate-checks">
+          {checks.map((check) => (
+            <span key={check.label} className={check.done ? "done" : "todo"}>
+              {check.label}
+            </span>
+          ))}
+        </div>
+      </div>
+      <span className="stamp">Withheld by design</span>
     </div>
   );
 }
@@ -236,19 +271,17 @@ function ArchiveNotice() {
         <h3>Withdrawn: the sota-v1 results</h3>
         <span>retained as evidence · not a ranking</span>
       </div>
-      <p style={{ maxWidth: 640 }}>
-        Every score published under the previous <code>sota-v1</code> contract has been withdrawn. The
-        scaffold prompt documented <code>{`{"type":"scout","prospect_id":N}`}</code> as a valid action,
-        but the simulator only ever read <code>player_id</code> and silently rejected the documented
-        form. The rejections carried no protocol penalty, so they never appeared in any summary.
+      <p>
+        Every score published under the previous <code>sota-v1</code> contract has been withdrawn.
+        The scaffold prompt documented <code>{`{"type":"scout","prospect_id":N}`}</code> as a valid
+        action, but the simulator only ever read <code>player_id</code> and silently rejected the
+        documented form — with no protocol penalty, so the rejections never appeared in any summary.
       </p>
-      <p style={{ maxWidth: 640 }}>
+      <p>
         The defect did not fall evenly. It cost some candidates over a thousand silently-rejected
-        lookups and others none at all, while the scripted baselines — which used{" "}
-        <code>player_id</code> — were untouched. The v1 table was therefore not a valid ranking of
-        the models in it, and no caveat makes it one. The raw artifacts remain in{" "}
-        <code>results/leaderboard/archive-v1/</code> as evidence of the defect, and the board above
-        refills as <code>sota-v2</code> runs land.
+        lookups and others none at all, while the scripted baselines were untouched. The v1 table was
+        therefore not a valid ranking of the models in it, and no caveat makes it one. The raw
+        artifacts remain in <code>results/leaderboard/archive-v1/</code> as evidence of the defect.
       </p>
     </div>
   );
@@ -269,11 +302,15 @@ function MechanicBreakdown({ models }: { models: LeaderboardModel[] }) {
         <span>accepted / rejected actions</span>
       </div>
       <div className="table-wrap">
-        <table className="leaderboard-table">
+        <table>
           <thead>
             <tr>
               <th>Model</th>
-              {mechanics.map(([key, label]) => <th className="num" key={key}>{label}</th>)}
+              {mechanics.map(([key, label]) => (
+                <th className="num" key={key}>
+                  {label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -282,7 +319,11 @@ function MechanicBreakdown({ models }: { models: LeaderboardModel[] }) {
                 <td>{model.model}</td>
                 {mechanics.map(([key]) => {
                   const outcome = model.mechanic_breakdown?.[key] ?? { accepted: 0, rejected: 0 };
-                  return <td className="num mono-dim" key={key}>{outcome.accepted} / {outcome.rejected}</td>;
+                  return (
+                    <td className="num mono-dim" key={key}>
+                      {outcome.accepted} / {outcome.rejected}
+                    </td>
+                  );
                 })}
               </tr>
             ))}
@@ -294,58 +335,53 @@ function MechanicBreakdown({ models }: { models: LeaderboardModel[] }) {
 }
 
 export default function Leaderboard({ data }: { data: LeaderboardData }) {
+  const publishable = data.publication.publishable_ranking;
   return (
     <section className="section" id="leaderboard">
       <div className="shell">
         <div className="section-head">
-          <p className="section-kicker">Leaderboard</p>
-          <h2>Scores, cost, and speed — measured, not estimated.</h2>
+          <p className="kicker">The board</p>
+          <h2>Tiers, not ranks. Evidence, not vibes.</h2>
           <p>
-            Models manage the same franchises over the same {data.preset.seeds.length} seeds for {data.preset.seasons} seasons
-            ({data.preset.decision_points_per_episode} decisions per franchise). Scripted baselines are shown as
-            reference rows: <strong>pick-trader</strong> is the serious scripted bar to beat, <strong>random</strong> the floor.
+            Models manage the same franchises over the same {data.preset.seeds.length} seeds for{" "}
+            {data.preset.seasons} seasons ({data.preset.decision_points_per_episode} decisions per
+            franchise), paired per-seed against the scripted panel. The frozen analysis plan
+            publishes overlapping-uncertainty <strong>tiers</strong> — never an ordinal #1.
           </p>
         </div>
-        {!data.publication.publishable_ranking && (
-          <div className="panel">
-            <div className="panel-title">
-              <h3>Ranking withheld: publication gate incomplete</h3>
-              <span>{data.publication.status}</span>
-            </div>
-            <p style={{ maxWidth: 760 }}>{data.publication.reason}</p>
-            <p style={{ maxWidth: 760 }}>
-              The API lane uses a common 1,024-token safety ceiling with reasoning disabled. The retired
-              four-cap study remains auditable in results/analysis/output-budget-sweep.json, but is not a
-              publication prerequisite. The public table stays withheld until the registered model panel
-              clears provenance validation and the minimum eligible-row requirement.
-            </p>
-          </div>
+        {!publishable && <Gate data={data} />}
+        {publishable && (
+          <ModelTable
+            data={data}
+            models={data.models}
+            title="Official API leaderboard"
+            subtitle={`frozen ${data.publication.frozen_output_token_cap?.toLocaleString("en-US")}-token ceiling · reasoning off · ${data.updated ? `updated ${data.updated}` : "sota-v2"}`}
+            withTiers
+          />
         )}
-        <div className="panel">
-          <div className="panel-title">
-            <h3>Benchmark headroom</h3>
-            <span>hidden-information ceiling to random floor</span>
-          </div>
-          <p className="mono-dim">
-            Oracle {fmt(data.headroom.oracle, 1)} · pick-trader {fmt(data.headroom.pick_trader, 1)} · best eligible API model {data.headroom.best_model === null ? "pending" : fmt(data.headroom.best_model, 1)} · random {fmt(data.headroom.random, 1)}
-          </p>
+        {publishable && data.models.length > 0 && <MechanicBreakdown models={data.models} />}
+        <div style={{ marginTop: 20 }}>
+          <BarTable data={data} />
         </div>
-        {data.publication.publishable_ranking && <LeaderboardTable data={data} />}
-        {data.publication.publishable_ranking && data.models.length > 0 && <MechanicBreakdown models={data.models} />}
-        {data.publication.publishable_ranking && data.models.length === 0 && <EmptyState />}
         {data.cli_harness_models.length > 0 && (
           <>
-            <p style={{ maxWidth: 760 }}>
-              Coding-harness rows are excluded from the API ranking because their tool loops, context, retries, and cost reporting are uncontrolled.
+            <p className="lane-note" style={{ marginTop: 20 }}>
+              Coding-harness rows run the same episodes through a CLI agent's own tool loop, context,
+              and retries. That harness is part of what gets measured, so these rows live in their own
+              observational table and never mix with the API lane.
             </p>
-            <LeaderboardTable
-              data={{ ...data, models: data.cli_harness_models }}
-              title="Separate coding-harness lane"
-              includeBaselines={false}
+            <ModelTable
+              data={data}
+              models={data.cli_harness_models}
+              title="Coding-harness lane"
+              subtitle="observational · separate table by design"
+              withTiers={false}
             />
           </>
         )}
-        <ArchiveNotice />
+        <div style={{ marginTop: 20 }}>
+          <ArchiveNotice />
+        </div>
       </div>
     </section>
   );
