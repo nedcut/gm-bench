@@ -456,6 +456,13 @@ def _record_smoke_issues(
         issues.append("artifact decision_failure_rate must be zero")
     usage = summary.get("usage")
     usage = usage if isinstance(usage, dict) else {}
+    if usage.get("decisions_with_usage") != expected_decisions:
+        issues.append(f"artifact usage must cover all {expected_decisions} smoke decision points")
+    if usage.get("cost_decisions") != expected_decisions:
+        issues.append(f"artifact cost telemetry must cover all {expected_decisions} smoke decision points")
+    for key in ("provider", "model"):
+        if not usage.get(key):
+            issues.append(f"artifact usage is missing {key}")
     api_calls = usage.get("api_calls")
     if not isinstance(api_calls, int) or isinstance(api_calls, bool) or api_calls < 1:
         issues.append("artifact must record at least one API call")
