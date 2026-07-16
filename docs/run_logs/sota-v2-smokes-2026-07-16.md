@@ -17,6 +17,7 @@ poor model response is never rerun merely to obtain a cleaner result.
 | DeepSeek V4 Pro | DeepInfra | Infrastructure attempt 1 aborted | $0 incremental | Two consecutive `HTTP 429 Too Many Requests` responses before a complete episode. Checkpoint retained; one infrastructure retry remains and should not be attempted immediately against the same rate limit. |
 | GPT-5.6 Luna | OpenAI | Accepted | $0.039452 | 4/4 decisions, zero failures or repairs, 4/4 finish reasons, zero truncations or reasoning tokens, peak 144 output tokens. Recorded in `config/sota_v2_smoke_manifest.json`. |
 | Mistral Medium 3.5 | Mistral | Accepted | $0.056330 | 4/4 decisions, zero failures or repairs, 4/4 finish reasons, zero truncations or reasoning tokens, peak 299 output tokens. One illegal action remains measured model behavior and does not invalidate smoke infrastructure. Recorded in `config/sota_v2_smoke_manifest.json`. |
+| Claude Sonnet 5 | Anthropic | Preflight attempt 1 blocked | $0 | The exact registered Anthropic endpoint remains in the catalog but currently reports unhealthy status `-2`; healthy Azure, Bedrock, and Google routes are not permitted substitutes. No reservation or model request was made. Retry only if the pinned Anthropic endpoint returns healthy. |
 
 Current artifact-reported run-directory spend: **$0.171930**. The conservative
 reservation ledger additionally retains the failed Nemotron attempt.
