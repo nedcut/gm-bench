@@ -100,7 +100,9 @@ def _ensure_episode_usage_columns(connection: sqlite3.Connection) -> None:
     existing = {row[1] for row in connection.execute("PRAGMA table_info(episodes)")}
     for name, column_type in (("total_tokens", "INTEGER"), ("cost_usd", "REAL"), ("usage_json", "TEXT")):
         if name not in existing:
-            connection.execute(f"ALTER TABLE episodes ADD COLUMN {name} {column_type}")
+            # Identifiers come from the hardcoded tuple above, not user input; SQLite
+            # cannot bind DDL identifiers as parameters.
+            connection.execute(f"ALTER TABLE episodes ADD COLUMN {name} {column_type}")  # nosemgrep
 
 
 def _insert_agent_payload(connection: sqlite3.Connection, run_id: str, payload: Any) -> None:

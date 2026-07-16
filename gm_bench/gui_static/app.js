@@ -318,6 +318,8 @@ function formatDate(value) {
 }
 
 function escapeHtml(value) {
+  // Minimal HTML-entity escaper for the local-only GUI; this function is the sanitizer.
+  // nosemgrep
   return String(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
