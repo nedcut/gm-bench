@@ -11,6 +11,7 @@ poor model response is never rerun merely to obtain a cleaner result.
 | Qwen 3.5 9B | DeepInfra | Accepted | $0.004227 | 4/4 decisions, zero failures or repairs, 5/5 finish reasons, zero truncations or reasoning tokens, peak 428 output tokens. Recorded in `config/sota_v2_smoke_manifest.json`. |
 | Nemotron 3 Nano 30B A3B | DeepInfra | Infrastructure attempt 1 aborted | $0 incremental | Two consecutive `HTTP 405 Method Not Allowed` responses before a complete episode. The exact endpoint still appeared healthy and parameter-capable in the live OpenRouter catalog. Checkpoint retained; one infrastructure retry remains. |
 | MiniMax M3 | MiniMax | Completed, ineligible | $0.011866 | 4/4 metered decisions but one failed decision: the draft response was not a JSON action array and the one bounded repair also failed, causing one fallback. Zero truncations or reasoning tokens; peak 261 output tokens. Frozen policy forbids a rerun for this model behavior. |
+| Qwen 3.7 Plus | Alibaba | Accepted | $0.013661 | 4/4 decisions, zero failures or repairs, 5/5 finish reasons, zero truncations or reasoning tokens, peak 271 output tokens. Recorded in `config/sota_v2_smoke_manifest.json`. |
 
-Current artifact-reported run-directory spend: **$0.016093**. The conservative
+Current artifact-reported run-directory spend: **$0.029754**. The conservative
 reservation ledger additionally retains the failed Nemotron attempt.
