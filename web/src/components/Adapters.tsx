@@ -36,7 +36,7 @@ export default function Adapters() {
     <section className="section" id="adapters">
       <div className="shell">
         <div className="section-head">
-          <p className="section-kicker">Bring your own model</p>
+          <p className="kicker">Bring your own model</p>
           <h2>Adapters for the tools you already run.</h2>
           <p>
             Every adapter speaks the same observation/action schema, so results are comparable
@@ -46,10 +46,7 @@ export default function Adapters() {
         <div className="adapter-grid">
           {ADAPTERS.map((adapter) => (
             <article key={adapter.name} className="adapter-card">
-              <h4>
-                <i />
-                {adapter.name}
-              </h4>
+              <h4>{adapter.name}</h4>
               <p>{adapter.body}</p>
               <code>{adapter.snippet}</code>
             </article>

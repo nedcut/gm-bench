@@ -104,10 +104,10 @@ function CodeCard({ title, code }: { title: string; code: string }) {
 
 export default function HowItWorks({ snapshot }: { snapshot: Snapshot }) {
   return (
-    <section className="section" id="how-it-works">
+    <section className="section" id="protocol">
       <div className="shell">
         <div className="section-head">
-          <p className="section-kicker">The decision loop</p>
+          <p className="kicker">The decision loop</p>
           <h2>Three decision points per season. Five seasons per episode.</h2>
           <p>
             No browser automation, no memorized rosters — every player is fictional. Agents
@@ -127,7 +127,7 @@ export default function HowItWorks({ snapshot }: { snapshot: Snapshot }) {
         </div>
 
         <div className="protocol-grid">
-          <div className="proto-points">
+          <div>
             {PROTO_POINTS.map((point) => (
               <div key={point.title} className="proto-point">
                 <span className="proto-icon">{point.icon}</span>

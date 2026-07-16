@@ -42,6 +42,15 @@
     }
   ],
   "cli_harness_models": [],
+  "contract": {
+    "action_protocol_version": "actions-v2",
+    "benchmark_version": "sota-v2",
+    "contract_fingerprint": "558e8f35ea1d66b9",
+    "observation_version": "observation-v1",
+    "scoring_scale_fingerprint": "05a60ff4f691e734",
+    "scoring_version": "score-v1",
+    "simulator_version": "sim-v2"
+  },
   "excluded_models": [],
   "headroom": {
     "best_model": null,
@@ -156,6 +165,10 @@
       }
     ],
     "output_policy_basis": "fixed-safety-ceiling",
+    "panel_analysis_issues": [
+      "publication panel analysis artifact is missing"
+    ],
+    "panel_analysis_ready": false,
     "planned_caps": [
       256,
       1024,

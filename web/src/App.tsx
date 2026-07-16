@@ -4,6 +4,7 @@ import type { Leaderboard as LeaderboardData, Snapshot } from "./types";
 import Nav from "./components/Nav";
 import Hero from "./components/Hero";
 import Leaderboard from "./components/Leaderboard";
+import Integrity from "./components/Integrity";
 import Results from "./components/Results";
 import HowItWorks from "./components/HowItWorks";
 import Adapters from "./components/Adapters";
@@ -18,14 +19,15 @@ export default function App() {
     <>
       <Nav />
       <main>
-        <Hero snapshot={snapshot} />
+        <Hero data={leaderboard} />
         <Leaderboard data={leaderboard} />
-        <Results snapshot={snapshot} />
+        <Integrity data={leaderboard} />
         <HowItWorks snapshot={snapshot} />
+        <Results snapshot={snapshot} />
         <Adapters />
         <Quickstart />
       </main>
-      <Footer snapshot={snapshot} />
+      <Footer data={leaderboard} />
     </>
   );
 }

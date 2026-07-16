@@ -265,6 +265,27 @@ def test_publication_model_registry_is_consistent_with_sweep() -> None:
         assert sweep_model["absent_options"] == registry["shared_absent_options"]
 
 
+def _panel_analysis(rows: list[dict], *, family_size: int = 0) -> dict:
+    models = []
+    for index, row in enumerate(rows, start=1):
+        analysis_row = {
+            "model_id": row["id"],
+            "tier": index,
+            "holm_adjusted_p_value": 0.5,
+            "holm_reject_at_0_05": False,
+        }
+        if row.get("provider") and row.get("model"):
+            analysis_row.update({"provider": row["provider"], "model": row["model"]})
+        if row.get("raw_artifact_sha256"):
+            analysis_row["raw_artifact_sha256"] = row["raw_artifact_sha256"]
+        models.append(analysis_row)
+    return {
+        "eligible_model_count": len(models),
+        "holm_family_size": family_size,
+        "models": models,
+    }
+
+
 def test_publication_gate_withholds_rows_until_minimum_panel_is_eligible() -> None:
     from web.scripts.build_leaderboard import publication_gate
 
@@ -281,7 +302,7 @@ def test_publication_gate_withholds_rows_until_minimum_panel_is_eligible() -> No
         "publication_eligible": True,
         "output_token_cap": 1024,
     }
-    models, report = publication_gate([eligible], analysis, lane, registry)
+    models, report = publication_gate([eligible], analysis, lane, registry, panel_analysis=_panel_analysis([eligible]))
     assert models == []
     assert report["publishable_ranking"] is False
     assert report["eligible_headline_models"] == 1
@@ -289,7 +310,13 @@ def test_publication_gate_withholds_rows_until_minimum_panel_is_eligible() -> No
     assert report["smoke_gate_issues"] is None
 
     second = {**eligible, "id": "two"}
-    models, report = publication_gate([eligible, second], analysis, lane, registry)
+    models, report = publication_gate(
+        [eligible, second],
+        analysis,
+        lane,
+        registry,
+        panel_analysis=_panel_analysis([eligible, second]),
+    )
     assert models == [eligible, second]
     assert report["publishable_ranking"] is True
     assert report["eligible_headline_models"] == 2
@@ -330,7 +357,13 @@ def test_publication_gate_accepts_fixed_safety_policy_without_completed_sweep() 
         "publication_eligible": True,
         "output_token_cap": 1024,
     }
-    models, report = publication_gate([eligible], analysis, lane, {"selection_status": "frozen"})
+    models, report = publication_gate(
+        [eligible],
+        analysis,
+        lane,
+        {"selection_status": "frozen"},
+        panel_analysis=_panel_analysis([eligible]),
+    )
     assert models == [eligible]
     assert report["publishable_ranking"] is True
     assert report["output_policy_basis"] == "fixed-safety-ceiling"
@@ -382,7 +415,14 @@ def test_publication_gate_rejects_aliased_rows_for_one_model() -> None:
         }
         for index in range(8)
     ]
-    models, report = publication_gate(rows, analysis, lane, {"selection_status": "frozen"}, smoke_issues=[])
+    models, report = publication_gate(
+        rows,
+        analysis,
+        lane,
+        {"selection_status": "frozen"},
+        panel_analysis=_panel_analysis(rows),
+        smoke_issues=[],
+    )
     assert models == []
     assert report["publishable_ranking"] is False
     assert report["eligible_headline_models"] == 1
@@ -418,12 +458,55 @@ def test_publication_gate_publishes_distinct_provider_model_identities() -> None
             "output_token_cap": 1024,
         },
     ]
-    models, report = publication_gate(rows, analysis, lane, {"selection_status": "frozen"}, smoke_issues=[])
+    models, report = publication_gate(
+        rows,
+        analysis,
+        lane,
+        {"selection_status": "frozen"},
+        panel_analysis=_panel_analysis(rows),
+        smoke_issues=[],
+    )
     assert models == rows
     assert report["publishable_ranking"] is True
     assert report["eligible_headline_models"] == 2
     assert report["duplicate_headline_rows"] == 0
     assert report["smoke_gate_issues"] == []
+
+
+def test_publication_gate_rejects_analysis_for_different_artifact() -> None:
+    from web.scripts.build_leaderboard import publication_gate
+
+    analysis = {"status": "incomplete"}
+    lane = {
+        "output_budget_status": "frozen-fixed-budget",
+        "output_policy_basis": "fixed-safety-ceiling",
+        "output_token_cap": 1024,
+        "minimum_headline_models": 1,
+    }
+    row = {
+        "id": "one",
+        "provider": "openrouter",
+        "model": "demo/one",
+        "lane": "api",
+        "publication_eligible": True,
+        "output_token_cap": 1024,
+        "raw_artifact_sha256": "a" * 64,
+    }
+    panel_analysis = _panel_analysis([row])
+    panel_analysis["models"][0]["raw_artifact_sha256"] = "b" * 64
+
+    models, report = publication_gate(
+        [row],
+        analysis,
+        lane,
+        {"selection_status": "frozen"},
+        panel_analysis=panel_analysis,
+        smoke_issues=[],
+    )
+
+    assert models == []
+    assert report["panel_analysis_ready"] is False
+    assert "hash" in report["reason"]
 
 
 def test_publication_gate_blocks_on_incomplete_smoke_evidence() -> None:

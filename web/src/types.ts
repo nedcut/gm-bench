@@ -109,6 +109,14 @@ export interface LeaderboardModel {
   sota_v2_issues?: string[];
   publication_eligible?: boolean;
   publication_issues?: string[];
+  artifact_sha256?: string;
+  raw_artifact_sha256?: string;
+}
+
+export interface TieredLeaderboardModel extends LeaderboardModel {
+  tier: number;
+  holm_adjusted_p_value: number;
+  holm_reject_at_0_05: boolean | null;
 }
 
 export interface LeaderboardBaseline {
@@ -119,6 +127,15 @@ export interface LeaderboardBaseline {
 
 export interface Leaderboard {
   updated: string;
+  contract?: {
+    benchmark_version: string;
+    contract_fingerprint: string;
+    scoring_version?: string;
+    simulator_version?: string;
+    action_protocol_version?: string;
+    observation_version?: string;
+    scoring_scale_fingerprint?: string;
+  };
   preset: {
     name: string;
     seeds: number[];
@@ -126,7 +143,7 @@ export interface Leaderboard {
     decision_points_per_episode: number;
   };
   baselines: LeaderboardBaseline[];
-  models: LeaderboardModel[];
+  models: TieredLeaderboardModel[];
   cli_harness_models: LeaderboardModel[];
   excluded_models: Array<{ id: string | null; issues: string[] }>;
   publication: {
@@ -135,6 +152,11 @@ export interface Leaderboard {
     reason: string;
     planned_caps: Array<number | null>;
     frozen_output_token_cap: number | null;
+    output_policy_basis?: string;
+    model_registry_frozen?: boolean;
+    smoke_gate_issues?: string[] | null;
+    panel_analysis_ready?: boolean;
+    panel_analysis_issues?: string[];
     eligible_headline_models: number;
     minimum_headline_models: number;
   };
