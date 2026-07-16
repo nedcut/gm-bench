@@ -14,6 +14,7 @@ poor model response is never rerun merely to obtain a cleaner result.
 | Qwen 3.7 Plus | Alibaba | Accepted | $0.013661 | 4/4 decisions, zero failures or repairs, 5/5 finish reasons, zero truncations or reasoning tokens, peak 271 output tokens. Recorded in `config/sota_v2_smoke_manifest.json`. |
 | Kimi K2.6 | DeepInfra | Accepted | $0.024844 | 4/4 decisions, zero failures or repairs, 4/4 finish reasons, zero truncations or reasoning tokens, peak 289 output tokens. The changed route passed and was recorded in `config/sota_v2_smoke_manifest.json`. |
 | GLM 5.2 | StreamLake | Completed, ineligible | $0.021550 | 4/4 metered decisions but one failed decision: the model JSON did not contain typed actions and the one bounded repair also failed, causing one fallback. Zero truncations or reasoning tokens; peak 414 output tokens. Frozen policy forbids a rerun for this model behavior. |
+| DeepSeek V4 Pro | DeepInfra | Infrastructure attempt 1 aborted | $0 incremental | Two consecutive `HTTP 429 Too Many Requests` responses before a complete episode. Checkpoint retained; one infrastructure retry remains and should not be attempted immediately against the same rate limit. |
 
 Current artifact-reported run-directory spend: **$0.076148**. The conservative
 reservation ledger additionally retains the failed Nemotron attempt.
