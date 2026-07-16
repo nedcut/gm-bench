@@ -106,8 +106,8 @@ def _valid_smoke_artifact(registry: dict, lane: dict, model: dict) -> dict:
                     "model": model["model"],
                     "decisions_with_usage": 4,
                     "cost_decisions": 4,
-                    "api_calls": 2,
-                    "calls_with_finish_reason": 2,
+                    "api_calls": 4,
+                    "calls_with_finish_reason": 4,
                     "truncated_calls": 0,
                     "max_output_tokens_per_call": 100,
                     "reasoning_tokens": 0,
@@ -290,8 +290,10 @@ def test_record_smoke_refuses_summary_only_artifact(
     [
         ("decisions_with_usage", 1, "usage must cover all 4"),
         ("cost_decisions", 0, "cost telemetry must cover all 4"),
-        ("provider", None, "usage is missing provider"),
-        ("model", None, "usage is missing model"),
+        ("provider", None, "usage provider does not match"),
+        ("model", None, "usage model does not match"),
+        ("provider", "other", "usage provider does not match"),
+        ("model", "other/model", "usage model does not match"),
     ],
 )
 def test_record_smoke_refuses_incomplete_execution_telemetry(
@@ -324,6 +326,38 @@ def test_record_smoke_refuses_incomplete_execution_telemetry(
         == 1
     )
     assert message in capsys.readouterr().err
+    assert not manifest_path.exists()
+
+
+def test_record_smoke_refuses_too_few_api_calls(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    model = registry["models"][0]
+    artifact = _valid_smoke_artifact(registry, lane, model)
+    usage = artifact["candidate"]["summary"]["usage"]
+    usage["api_calls"] = 1
+    usage["calls_with_finish_reason"] = 1
+    artifact_path = tmp_path / "too-few-api-calls.json"
+    artifact_path.write_text(json.dumps(artifact))
+
+    assert (
+        main(
+            [
+                "record-smoke",
+                "--model-id",
+                model["id"],
+                "--artifact",
+                str(artifact_path),
+                "--manifest",
+                str(manifest_path),
+            ]
+        )
+        == 1
+    )
+    assert "at least 4 API calls" in capsys.readouterr().err
     assert not manifest_path.exists()
 
 

@@ -461,11 +461,11 @@ def _record_smoke_issues(
     if usage.get("cost_decisions") != expected_decisions:
         issues.append(f"artifact cost telemetry must cover all {expected_decisions} smoke decision points")
     for key in ("provider", "model"):
-        if not usage.get(key):
-            issues.append(f"artifact usage is missing {key}")
+        if usage.get(key) != entry.get(key):
+            issues.append(f"artifact usage {key} does not match the registered route")
     api_calls = usage.get("api_calls")
-    if not isinstance(api_calls, int) or isinstance(api_calls, bool) or api_calls < 1:
-        issues.append("artifact must record at least one API call")
+    if not isinstance(api_calls, int) or isinstance(api_calls, bool) or api_calls < expected_decisions:
+        issues.append(f"artifact must record at least {expected_decisions} API calls")
     calls_with_finish_reason = usage.get("calls_with_finish_reason")
     if calls_with_finish_reason != api_calls:
         issues.append("artifact finish-reason telemetry must cover every API call")
