@@ -9,7 +9,7 @@ poor model response is never rerun merely to obtain a cleaner result.
 | Model | Route | Outcome | Cost | Evidence |
 | --- | --- | --- | ---: | --- |
 | Qwen 3.5 9B | DeepInfra | Accepted | $0.004227 | 4/4 decisions, zero failures or repairs, 5/5 finish reasons, zero truncations or reasoning tokens, peak 428 output tokens. Recorded in `config/sota_v2_smoke_manifest.json`. |
-| Nemotron 3 Nano 30B A3B | DeepInfra | Infrastructure attempt 1 aborted | $0 incremental | Two consecutive `HTTP 405 Method Not Allowed` responses before a complete episode. The exact endpoint still appeared healthy and parameter-capable in the live OpenRouter catalog. Checkpoint retained; one infrastructure retry remains. |
+| Nemotron 3 Nano 30B A3B | DeepInfra | Infrastructure retries exhausted | $0 artifact-reported | Both permitted serial attempts aborted after two consecutive `HTTP 405 Method Not Allowed` responses before a complete episode. Immediately before attempt 2, the exact endpoint reported healthy status `0`, 99.46% five-minute uptime, and support for the required parameters in OpenRouter's live catalog. The checkpoint and conservative reservations are retained; the frozen route will not be substituted or retried. |
 | MiniMax M3 | MiniMax | Completed, ineligible | $0.011866 | 4/4 metered decisions but one failed decision: the draft response was not a JSON action array and the one bounded repair also failed, causing one fallback. Zero truncations or reasoning tokens; peak 261 output tokens. Frozen policy forbids a rerun for this model behavior. |
 | Qwen 3.7 Plus | Alibaba | Accepted | $0.013661 | 4/4 decisions, zero failures or repairs, 5/5 finish reasons, zero truncations or reasoning tokens, peak 271 output tokens. Recorded in `config/sota_v2_smoke_manifest.json`. |
 | Kimi K2.6 | DeepInfra | Accepted | $0.024844 | 4/4 decisions, zero failures or repairs, 4/4 finish reasons, zero truncations or reasoning tokens, peak 289 output tokens. The changed route passed and was recorded in `config/sota_v2_smoke_manifest.json`. |
@@ -20,4 +20,4 @@ poor model response is never rerun merely to obtain a cleaner result.
 | Claude Sonnet 5 | Anthropic | Preflight attempt 1 blocked | $0 | The exact registered Anthropic endpoint remains in the catalog but currently reports unhealthy status `-2`; healthy Azure, Bedrock, and Google routes are not permitted substitutes. No reservation or model request was made. Retry only if the pinned Anthropic endpoint returns healthy. |
 
 Current artifact-reported run-directory spend: **$0.223441**. The conservative
-reservation ledger additionally retains the failed Nemotron attempt.
+reservation ledger additionally retains both failed Nemotron attempts.
