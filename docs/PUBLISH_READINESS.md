@@ -7,12 +7,13 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-07-15
+**Last reviewed:** 2026-07-16
 **Current target:** Publish a validated `sota-v2` leaderboard, accompanying blog
 post, GitHub release, and public site.  
-**Current state:** Publication runner and gates are merged to `main`; scaffold
-hardening and the fixed output-safety policy are staged in draft PR #66. The
-definitive `sota-v2` model panel has not yet started.
+**Current state:** Scaffold hardening and the fixed output-safety policy merged
+in #66 (`c500e26`); #70 and #71 subsequently landed the machine-enforced smoke
+gate. The ten-model registry remains provisional, and no accepted smoke manifest
+or eligible panel row exists.
 **Current weekly focus:** [#63 — Publication sprint: freeze and ship GM-Bench
 `sota-v2`](https://github.com/nedcut/gm-bench/issues/63)  
 **Broader roadmap:** [#60 — Roadmap to a publishable leaderboard + blog
@@ -66,7 +67,7 @@ The project is publish-ready only when all four gates pass.
 | Area | Status | Assessment |
 | --- | --- | --- |
 | Core engineering | Strong | Deterministic simulator, adapters, CLI, GUI, site, tests, and CI are substantial. |
-| Reproducibility | Strong | Contract fingerprints, seed provenance, compact artifacts, and validators are in place or staged. |
+| Reproducibility | Strong | Contract fingerprints, seed provenance, compact artifacts, and validators are in place. |
 | Benchmark validity | Strong but scoped | Scripted references, exploit canaries, oracle headroom, calibration, and mechanic coverage exist. |
 | Compute comparability | Policy frozen; smoke validation pending | The API lane has a common 1,024-token safety ceiling, reasoning disabled, exact routes, a pre-full-panel 75% cap-pressure rule, and actual token-efficiency reporting. All ten current routes still require standardized smokes. |
 | Current model evidence | Blocked | The active `sota-v2` leaderboard has no eligible model rows. |
@@ -126,8 +127,11 @@ before any full-panel score is visible.
   explicitly disposition every substantive finding before expensive runs begin.
 - [x] Retain the earlier three-model/four-cap design and analyzer as auditable
   history without treating it as an active publication prerequisite.
-- [ ] Re-freeze provider routing, reasoning settings, temperature, hardened
-  scaffold, observation profile, repair policy, and fresh-spawn condition.
+- [x] Freeze common lane and scaffold conditions: reasoning disabled,
+  temperature omitted, hardened scaffold, compact profile, one repair, and
+  fresh-spawn execution.
+- [ ] Freeze exact model routes and the registry only after all ten smokes are
+  accepted.
 - [x] Freeze a common 1,024-token safety ceiling with reasoning disabled.
 - [x] Predeclare the primary endpoint and the 75% cap-pressure rule: raise the
   entire lane to 2,048 before full results if any smoke call reaches 768 output
@@ -168,8 +172,8 @@ registry is frozen, and the full-panel cost plan is refreshed.
 
 #### Safe execution workflow
 
-All model calls are serial. Inspect the exact commands and non-secret provider
-all ten smoke commands first:
+All model calls are serial. Inspect all ten smoke commands and their non-secret
+provider options first.
 
 ```bash
 python3 scripts/run_publication_matrix.py smoke --dry-run
@@ -532,6 +536,7 @@ decision and why.
 | 2026-07-15 | Retire the four-cap sweep and freeze a 1,024-token safety ceiling. | In 601 superseded Luna API calls, output-token usage was p50 121, p95 210, p99 264, max 299, with zero calls at 1,024 and zero reasoning tokens. The cap was operationally non-binding even though the old score remains invalid under the new scaffold. | Smoke all ten registered models at 1,024. If any call reaches 768 tokens or shows cap-induced truncation, raise the entire lane to 2,048 before any full-panel result. Report actual token efficiency as a secondary metric. |
 | 2026-07-15 | Machine-enforce the pre-panel smoke gate and unique-row counting. | Review found the panel and ranking were unlockable by editing status strings and by row aliasing: `selection_status` "frozen" was accepted as smoke completion, and duplicate aliases for one model could satisfy the eight-row floor. | Panel and `publishable_ranking` now require recorded, accepted smoke-manifest entries per registered model, count by unique registered model identity, and can never require fewer rows than the protocol's pre-registered minimum floor. |
 | 2026-07-15 | Re-fingerprint the v2 contract and OpenRouter scaffold before any accepted evidence. | `failed_queries` narrowed to unresolved lookups plus ambiguous-scout rejection changed the contract (`a65a4359ca3c6e64` → `558e8f35ea1d66b9`), and per-call `finish_reason`/`native_finish_reason` recording made cap-induced truncation auditable (scaffold `317371cf66b436fe` → `d7321ad9d0a739b4`). No accepted smoke or eligible row existed, so nothing was invalidated. | All ten route smokes must run under the new fingerprints, and the statistical analysis plan is frozen pre-data in `config/publication_protocol.json`. |
+| 2026-07-16 | Amend the headline contrast to paired lift versus pick-trader. | The full baseline-panel mean includes random and other weak references, so clearing it would not show that a model-plus-scaffold system beats the transparent competent heuristic bar. No accepted `sota-v2` smoke manifest, eligible panel row, or observed full-panel score existed when this was amended. | Pick-trader is the Holm-adjusted primary contrast; full-panel lift remains a secondary descriptive endpoint, and publication still uses tiers rather than ordinal ranks. |
 
 ## Experiment and release log
 
@@ -558,7 +563,7 @@ Update this file when any of the following happens:
 
 - [ ] A relevant PR merges, closes, rebases, or changes scope.
 - [ ] The frozen contract, scaffold, provider route, or publication lane changes.
-- [ ] A sweep cell or model panel completes or fails.
+- [ ] A registered-model smoke or model-panel cell completes or fails.
 - [ ] A result becomes eligible, diagnostic, withdrawn, or superseded.
 - [ ] Cost, runtime, quota, or provider limitations change the execution plan.
 - [ ] An external reviewer or reproducer finds a problem.

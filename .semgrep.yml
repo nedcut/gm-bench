@@ -1,0 +1,91 @@
+rules:
+  # These three rules preserve the pinned upstream definitions and IDs. The
+  # pattern-not clauses are the narrow, reviewed exceptions from PR #67.
+  - id: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+    patterns:
+      - pattern-not: urllib.$W("...")
+      - pattern-not: urllib.request.$W("...")
+      - pattern-not: $OPENER.$W("...")
+      - pattern-not: urllib.request.urlopen(request, timeout=timeout)
+      - pattern-either:
+          - pattern: urllib.urlopen(...)
+          - pattern: urllib.request.urlopen(...)
+          - pattern: urllib.urlretrieve(...)
+          - pattern: urllib.request.urlretrieve(...)
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      $OPENER = urllib.URLopener(...)
+                      ...
+                  - pattern-inside: |
+                      $OPENER = urllib.request.URLopener(...)
+                      ...
+                  - pattern-inside: |
+                      $OPENER = urllib.FancyURLopener(...)
+                      ...
+                  - pattern-inside: |
+                      $OPENER = urllib.request.FancyURLopener(...)
+                      ...
+              - pattern-either:
+                  - pattern: $OPENER.open(...)
+                  - pattern: $OPENER.retrieve(...)
+    message: >-
+      Detected a dynamic value being used with urllib. urllib supports 'file://'
+      schemes, so audit uses to ensure user data cannot control the URL.
+    severity: WARNING
+    languages: [python]
+
+  - id: python.lang.security.audit.formatted-sql-query.formatted-sql-query
+    message: Detected possible formatted SQL query. Use parameterized queries instead.
+    severity: WARNING
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: $DB.execute("..." % ...)
+          - pattern: $DB.execute("...".format(...))
+          - pattern: $DB.execute(f"...")
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      $SQL = "..." % ...
+                      ...
+                  - pattern-inside: |
+                      $SQL = "...".format(...)
+                      ...
+                  - pattern-inside: |
+                      $SQL = f"...{$X}..."
+                      ...
+              - pattern: $DB.execute($SQL)
+      - pattern-not: connection.execute(f"ALTER TABLE episodes ADD COLUMN {name} {column_type}")
+
+  - id: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
+    message: Avoid formatted raw SQL; use bound parameters or SQLAlchemy expressions.
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: $CONNECTION.execute($SQL + ..., ...)
+          - pattern: $CONNECTION.execute($SQL % (...), ...)
+          - pattern: $CONNECTION.execute($SQL.format(...), ...)
+          - pattern: $CONNECTION.execute(f"...{...}...", ...)
+          - patterns:
+              - pattern-inside: |
+                  $QUERY = $SQL + ...
+                  ...
+              - pattern: $CONNECTION.execute($QUERY, ...)
+          - patterns:
+              - pattern-inside: |
+                  $QUERY = $SQL % (...)
+                  ...
+              - pattern: $CONNECTION.execute($QUERY, ...)
+          - patterns:
+              - pattern-inside: |
+                  $QUERY = $SQL.format(...)
+                  ...
+              - pattern: $CONNECTION.execute($QUERY, ...)
+          - patterns:
+              - pattern-inside: |
+                  $QUERY = f"...{...}..."
+                  ...
+              - pattern: $CONNECTION.execute($QUERY, ...)
+      - pattern-not: connection.execute(f"ALTER TABLE episodes ADD COLUMN {name} {column_type}")

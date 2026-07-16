@@ -103,9 +103,9 @@ jobs:
           fi
       - name: Publication cost estimate is reproducible
         run: |
-          python scripts/estimate_publication_cost.py --output /tmp/output-budget-cost.regen.json
-          if ! diff -u results/analysis/output-budget-cost-estimate.json /tmp/output-budget-cost.regen.json; then
-            echo "::error::results/analysis/output-budget-cost-estimate.json is stale; regenerate it from the committed protocol and pricing snapshot"
+          python scripts/estimate_publication_cost.py --output /tmp/fixed-panel-cost.regen.json
+          if ! diff -u results/analysis/output-budget-cost-estimate.json /tmp/fixed-panel-cost.regen.json; then
+            echo "::error::results/analysis/output-budget-cost-estimate.json is stale; regenerate the fixed-panel estimate from the committed registry, lane, and pricing snapshot"
             exit 1
           fi
       - name: Verify archived v1 evidence
