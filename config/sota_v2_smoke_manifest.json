@@ -1,5 +1,28 @@
 {
   "entries": {
+    "openrouter-gpt-5.6-luna-openai": {
+      "accepted": true,
+      "api_calls": 4,
+      "artifact_path": "data/publication-runs/smoke-fixed-1024-2026-07-16/raw/openrouter-gpt-5.6-luna-openai--1024.json",
+      "artifact_sha256": "192dab547c6502ea56970152fe0c2a06c397b856c400546c75645b369bf9861b",
+      "calls_with_finish_reason": 4,
+      "contract_fingerprint": "558e8f35ea1d66b9",
+      "cost_decisions": 4,
+      "decision_failure_rate": 0.0,
+      "decisions_with_usage": 4,
+      "endpoint_name": "OpenAI | openai/gpt-5.6-luna-20260709",
+      "max_output_tokens_per_call": 144,
+      "model": "openai/gpt-5.6-luna",
+      "output_token_cap": 1024,
+      "protocol_repair_attempts": 0,
+      "protocol_repairs_succeeded": 0,
+      "provider": "openrouter",
+      "reasoning_tokens": 0,
+      "recorded_at_utc": "2026-07-16T18:11:35+00:00",
+      "scaffold_fingerprint": "d7321ad9d0a739b4",
+      "truncated_calls": 0,
+      "upstream_provider": "OpenAI"
+    },
     "openrouter-kimi-k2.6-deepinfra": {
       "accepted": true,
       "api_calls": 4,
