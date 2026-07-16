@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 
 from gm_bench.agents import AGENTS, Agent, ExternalProcessAgent
+from gm_bench.providers import _merge_usage
 from gm_bench.runner import run_episode, run_many, summarize_episodes
 from gm_bench.telemetry import (
     aggregate_usage,
@@ -159,6 +160,29 @@ def test_aggregate_usage_tracks_finish_reason_truncation():
     assert block["calls_with_finish_reason"] == 2
     assert block["truncated_calls"] == 1
     assert block["max_output_tokens_per_call"] == 300
+
+
+def test_protocol_repair_preserves_per_call_finish_reason_telemetry():
+    merged = _merge_usage(
+        {
+            "api_calls": 1,
+            "output_tokens": 300,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+        },
+        {
+            "api_calls": 1,
+            "output_tokens": 600,
+            "finish_reason": "length",
+            "native_finish_reason": "length",
+        },
+    )
+    block = aggregate_usage([{**merged, "season": 1, "phase": "draft"}])
+
+    assert block["api_calls"] == 2
+    assert block["calls_with_finish_reason"] == 2
+    assert block["truncated_calls"] == 1
+    assert block["max_output_tokens_per_call"] == 600
 
 
 def test_aggregate_usage_counts_native_finish_reason_truncation():

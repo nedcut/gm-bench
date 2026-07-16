@@ -32,6 +32,7 @@ def _valid_manifest(registry: dict, lane: dict) -> dict:
                 "truncated_calls": 0,
                 "max_output_tokens_per_call": 100,
                 "reasoning_tokens": 0,
+                "decision_failure_rate": 0,
                 "contract_fingerprint": contract_fingerprint(),
                 "scaffold_fingerprint": scaffold_fingerprint(model["provider"]),
                 "artifact_sha256": "a" * 64,
@@ -62,6 +63,8 @@ def test_complete_valid_smoke_manifest_has_no_issues() -> None:
         ("truncated", "cap-induced truncation"),
         ("wrong-cap", "not frozen"),
         ("peak", "cap-pressure threshold"),
+        ("failed-decisions", "decision_failure_rate must be zero"),
+        ("invalid-sha", "raw artifact sha256"),
         ("wrong-scaffold", "different prompt scaffold"),
     ],
 )
@@ -80,6 +83,10 @@ def test_invalid_smoke_entry_reports_issue(mutation: str, message: str) -> None:
         entry["output_token_cap"] = lane["output_token_cap"] * 2
     elif mutation == "peak":
         entry["max_output_tokens_per_call"] = lane["cap_pressure_threshold_tokens"]
+    elif mutation == "failed-decisions":
+        entry["decision_failure_rate"] = 0.5
+    elif mutation == "invalid-sha":
+        entry["artifact_sha256"] = "z" * 64
     else:
         entry["scaffold_fingerprint"] = "wrong"
     assert any(message in issue for issue in smoke_manifest_issues(manifest, registry, lane))

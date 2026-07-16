@@ -149,20 +149,28 @@ def aggregate_usage(records: list[dict[str, Any]]) -> dict[str, Any]:
     cost_decision_keys = {
         key for key, decision_costs in costs_by_decision.items() if all(c is not None for c in decision_costs)
     }
-    finish_reasons = [str(record["finish_reason"]) for record in records if record.get("finish_reason")]
+    calls_with_finish_reason = sum(
+        int(record.get("calls_with_finish_reason", int(bool(record.get("finish_reason"))))) for record in records
+    )
     truncated_calls = sum(
-        1
+        int(
+            record.get(
+                "truncated_calls",
+                int(
+                    str(record.get("finish_reason") or "").lower() in _TRUNCATION_FINISH_REASONS
+                    or str(record.get("native_finish_reason") or "").lower() in _TRUNCATION_FINISH_REASONS
+                ),
+            )
+        )
         for record in records
-        if str(record.get("finish_reason") or "").lower() in _TRUNCATION_FINISH_REASONS
-        or str(record.get("native_finish_reason") or "").lower() in _TRUNCATION_FINISH_REASONS
     )
     return {
         "decisions_with_usage": len(decision_keys) if decision_keys else len(records),
         **totals,
-        "calls_with_finish_reason": len(finish_reasons),
+        "calls_with_finish_reason": calls_with_finish_reason,
         "truncated_calls": truncated_calls,
         "max_output_tokens_per_call": max(
-            (int(record["output_tokens"]) for record in records if record.get("output_tokens") is not None),
+            (int(record.get("max_output_tokens_per_call", record.get("output_tokens", 0))) for record in records),
             default=0,
         ),
         "api_latency_ms": round(sum(float(record.get("api_latency_ms", 0.0)) for record in records), 1),

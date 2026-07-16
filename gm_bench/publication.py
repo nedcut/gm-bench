@@ -10,6 +10,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
 from typing import Any
 
 PUBLICATION_FORMAT = "gm-bench-result-summary-v1"
@@ -93,6 +94,8 @@ def smoke_manifest_issues(
         return ["smoke manifest is missing; record every registered-model smoke before the panel"]
     if manifest.get("format") != SMOKE_MANIFEST_FORMAT:
         issues.append(f"smoke manifest format must be {SMOKE_MANIFEST_FORMAT!r}")
+    if manifest.get("schema_version") != 1:
+        issues.append("smoke manifest schema_version must be 1")
     entries = manifest.get("entries")
     entries = entries if isinstance(entries, dict) else {}
     frozen_cap = lane.get("output_token_cap")
@@ -110,6 +113,8 @@ def smoke_manifest_issues(
         prefix = f"smoke manifest entry {model_id!r}"
         if entry.get("accepted") is not True:
             issues.append(f"{prefix} is not accepted")
+        if entry.get("decision_failure_rate") != 0:
+            issues.append(f"{prefix} decision_failure_rate must be zero")
         for key in ("provider", "model", "upstream_provider", "endpoint_name"):
             if entry.get(key) != model.get(key):
                 issues.append(f"{prefix} {key} does not match the registered route")
@@ -138,7 +143,7 @@ def smoke_manifest_issues(
         if expected_scaffold is not None and entry.get("scaffold_fingerprint") != expected_scaffold:
             issues.append(f"{prefix} was recorded under a different prompt scaffold")
         artifact_sha = entry.get("artifact_sha256")
-        if not isinstance(artifact_sha, str) or len(artifact_sha) != 64:
+        if not isinstance(artifact_sha, str) or re.fullmatch(r"[0-9a-f]{64}", artifact_sha) is None:
             issues.append(f"{prefix} must record the raw artifact sha256")
     return issues
 

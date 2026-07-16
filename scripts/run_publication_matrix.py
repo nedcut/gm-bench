@@ -382,6 +382,17 @@ def _record_smoke_issues(
     if run_info.get("profile") != registry.get("profile"):
         issues.append("artifact profile does not match the registered profile")
 
+    smoke = PRESETS["smoke"]
+    expected_seeds = list(smoke["seeds"])
+    expected_seasons = int(smoke["seasons"])
+    expected_decisions = len(expected_seeds) * expected_seasons * len(PHASES)
+    if artifact.get("publication") is not None:
+        issues.append("artifact must be the original raw smoke result, not a compact publication artifact")
+    if artifact.get("seeds") != expected_seeds:
+        issues.append(f"artifact seeds must match the smoke preset: {expected_seeds}")
+    if artifact.get("seasons") != expected_seasons:
+        issues.append(f"artifact seasons must match the smoke preset: {expected_seasons}")
+
     provider_options = run_info.get("provider_options")
     provider_options = provider_options if isinstance(provider_options, dict) else {}
     expected_options = {
@@ -410,8 +421,37 @@ def _record_smoke_issues(
 
     candidate = artifact.get("candidate")
     candidate = candidate if isinstance(candidate, dict) else {}
+    if candidate.get("repeats") != 1:
+        issues.append("artifact candidate repeats must be one for the smoke preset")
+    if candidate.get("seasons") != expected_seasons:
+        issues.append(f"artifact candidate seasons must be {expected_seasons}")
+    episodes = candidate.get("episodes")
+    if not isinstance(episodes, list) or len(episodes) != len(expected_seeds):
+        issues.append(f"artifact candidate must contain {len(expected_seeds)} complete smoke episode(s)")
+    else:
+        expected_pairs = {(seed, 1) for seed in expected_seeds}
+        observed_pairs = {
+            (episode.get("seed"), episode.get("repeat", 1))
+            for episode in episodes
+            if isinstance(episode, dict)
+        }
+        if observed_pairs != expected_pairs:
+            issues.append("artifact candidate episodes do not match the smoke seed/repeat panel")
+        for episode in episodes:
+            if not isinstance(episode, dict):
+                continue
+            if episode.get("seasons") != expected_seasons:
+                issues.append("artifact candidate episode has the wrong season count")
+            if episode.get("decisions") != expected_seasons * len(PHASES):
+                issues.append("artifact candidate episode does not contain every smoke decision point")
+            if episode.get("failed_decisions") != 0:
+                issues.append("artifact candidate episode contains failed decisions")
     summary = candidate.get("summary") or {}
     summary = summary if isinstance(summary, dict) else {}
+    if summary.get("decisions") != expected_decisions:
+        issues.append(f"artifact candidate summary decisions must be {expected_decisions}")
+    if summary.get("failed_decisions") != 0:
+        issues.append("artifact candidate summary failed_decisions must be zero")
     if summary.get("decision_failure_rate") != 0:
         issues.append("artifact decision_failure_rate must be zero")
     usage = summary.get("usage")

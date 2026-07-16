@@ -69,6 +69,8 @@ def _valid_manifest(registry: dict, lane: dict) -> dict:
 
 def _valid_smoke_artifact(registry: dict, lane: dict, model: dict) -> dict:
     return {
+        "seeds": [1],
+        "seasons": 1,
         "run_info": {
             "provider": model["provider"],
             "model": model["model"],
@@ -84,7 +86,20 @@ def _valid_smoke_artifact(registry: dict, lane: dict, model: dict) -> dict:
             "scaffold_fingerprint": scaffold_fingerprint(model["provider"]),
         },
         "candidate": {
+            "seasons": 1,
+            "repeats": 1,
+            "episodes": [
+                {
+                    "seed": 1,
+                    "repeat": 1,
+                    "seasons": 1,
+                    "decisions": 4,
+                    "failed_decisions": 0,
+                }
+            ],
             "summary": {
+                "decisions": 4,
+                "failed_decisions": 0,
                 "decision_failure_rate": 0,
                 "usage": {
                     "api_calls": 2,
@@ -94,7 +109,7 @@ def _valid_smoke_artifact(registry: dict, lane: dict, model: dict) -> dict:
                     "reasoning_tokens": 0,
                     "upstream_providers": [model["upstream_provider"].lower()],
                 },
-            }
+            },
         },
     }
 
@@ -234,6 +249,36 @@ def test_record_smoke_writes_accepted_manifest_entry(
     assert entry["accepted"] is True
     assert entry["artifact_sha256"] == expected_sha
     assert entry["artifact_path"] == str(artifact_path)
+
+
+def test_record_smoke_refuses_summary_only_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    model = registry["models"][0]
+    artifact = _valid_smoke_artifact(registry, lane, model)
+    del artifact["candidate"]["episodes"]
+    artifact_path = tmp_path / "incomplete-smoke.json"
+    artifact_path.write_text(json.dumps(artifact))
+
+    assert (
+        main(
+            [
+                "record-smoke",
+                "--model-id",
+                model["id"],
+                "--artifact",
+                str(artifact_path),
+                "--manifest",
+                str(manifest_path),
+            ]
+        )
+        == 1
+    )
+    assert "complete smoke episode" in capsys.readouterr().err
+    assert not manifest_path.exists()
 
 
 @pytest.mark.parametrize(
