@@ -119,8 +119,8 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
             },
             method="POST",
         )
-        # Fixed provider HTTPS endpoint from operator config, not attacker-controlled input.
-        with urllib.request.urlopen(request, timeout=timeout) as response:  # nosemgrep
+        # Fixed provider HTTPS endpoint from operator config, not attacker-controlled input.  # nosemgrep
+        with urllib.request.urlopen(request, timeout=timeout) as response:
             data = json.loads(response.read().decode())
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         raw_usage = data.get("usage") or {}
