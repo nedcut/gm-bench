@@ -15,6 +15,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -29,6 +30,7 @@ PANEL_CONFIG = ROOT / "config" / "sota_v2_models.json"
 LANE_CONFIG = ROOT / "config" / "sota_v2_lane.json"
 PRICING_CONFIG = ROOT / "config" / "openrouter_pricing_snapshot.json"
 SMOKE_MANIFEST = ROOT / "config" / "sota_v2_smoke_manifest.json"
+RUN_STATE_FORMAT = "gm-bench-publication-run-v1"
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -359,6 +361,263 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
+def _read_json_if_valid(path: Path) -> dict[str, Any] | None:
+    try:
+        return _read_json(path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def _write_run_state(run_dir: Path, phase: str, cells: list[Cell], spend_ceiling_usd: float | None) -> None:
+    path = run_dir / "run-state.json"
+    existing = _read_json_if_valid(path) or {}
+    launched = {str(value) for value in existing.get("launched_model_ids") or [] if isinstance(value, str) and value}
+    launched.update(cell.experiment_id for cell in cells)
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    payload = {
+        "format": RUN_STATE_FORMAT,
+        "schema_version": 1,
+        "phase": phase,
+        "output_token_cap": cells[0].cap if cells else None,
+        "started_at_utc": existing.get("started_at_utc") or now,
+        "updated_at_utc": now,
+        "launched_model_ids": sorted(launched),
+        "spend_ceiling_usd": spend_ceiling_usd,
+    }
+    _write_json_atomic(path, payload)
+
+
+def _checkpoint_process_alive(path: Path) -> bool:
+    import fcntl
+
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    try:
+        descriptor = os.open(lock_path, os.O_RDONLY)
+    except OSError:
+        return False
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        return False
+    finally:
+        os.close(descriptor)
+
+
+def _payload_cost_usd(payload: dict[str, Any] | None) -> float | None:
+    if not payload:
+        return None
+    candidate = payload.get("candidate")
+    if isinstance(candidate, dict):
+        summary = candidate.get("summary")
+        usage = summary.get("usage") if isinstance(summary, dict) else None
+        if isinstance(usage, dict) and usage.get("cost_usd") is not None:
+            try:
+                return float(usage["cost_usd"])
+            except (TypeError, ValueError):
+                return None
+    costs = []
+    for episode in payload.get("episodes") or []:
+        usage = episode.get("usage") if isinstance(episode, dict) else None
+        if isinstance(usage, dict) and usage.get("cost_usd") is not None:
+            try:
+                costs.append(float(usage["cost_usd"]))
+            except (TypeError, ValueError):
+                continue
+    return sum(costs) if costs else None
+
+
+def _expected_progress(
+    run_state: dict[str, Any], checkpoint: dict[str, Any] | None, raw: dict[str, Any] | None
+) -> tuple[int, int | None, int, int | None]:
+    source = checkpoint or raw or {}
+    completed = source.get("completed")
+    if isinstance(completed, list):
+        completed_episodes = len(completed)
+    else:
+        candidate = raw.get("candidate") if raw else None
+        episodes = candidate.get("episodes") if isinstance(candidate, dict) else None
+        completed_episodes = len(episodes) if isinstance(episodes, list) else 0
+
+    seeds = source.get("seeds")
+    repeats = source.get("repeats")
+    seasons = source.get("seasons")
+    if raw and isinstance(raw.get("candidate"), dict):
+        repeats = repeats or raw["candidate"].get("repeats")
+        seasons = seasons or raw["candidate"].get("seasons")
+    total_episodes = None
+    if isinstance(seeds, list) and isinstance(repeats, int):
+        total_episodes = len(seeds) * repeats
+    elif run_state.get("phase") == "smoke":
+        total_episodes = 1
+        seasons = seasons or 1
+    elif run_state.get("phase") == "panel":
+        registry = _read_json_if_valid(PANEL_CONFIG) or {}
+        preset = PRESETS.get(str(registry.get("preset") or "leaderboard"), {})
+        total_episodes = len(preset.get("seeds") or []) * int(registry.get("repeats") or 0)
+        seasons = seasons or int(preset.get("seasons") or 0)
+
+    decisions_per_episode = int(seasons or 0) * len(PHASES)
+    completed_decisions = completed_episodes * decisions_per_episode
+    total_decisions = total_episodes * decisions_per_episode if total_episodes is not None else None
+    return completed_episodes, total_episodes, completed_decisions, total_decisions
+
+
+def publication_run_status(run_dir: Path, manifest_path: Path = SMOKE_MANIFEST) -> dict[str, Any]:
+    run_dir = run_dir.resolve()
+    registry = _read_json(PANEL_CONFIG)
+    run_state = _read_json_if_valid(run_dir / "run-state.json") or {}
+    cap = int(run_state.get("output_token_cap") or registry["output_token_cap"])
+    manifest = _read_json_if_valid(manifest_path) or {}
+    manifest_entries = manifest.get("entries") if isinstance(manifest.get("entries"), dict) else {}
+    reservations_payload = _read_json_if_valid(run_dir / "openrouter-reservations.json") or {}
+    reservations = reservations_payload.get("cells")
+    reservations = reservations if isinstance(reservations, dict) else {}
+
+    rows = []
+    for model in registry.get("models") or []:
+        model_id = str(model["id"])
+        stem = f"{model_id}--{cap}"
+        checkpoint_path = run_dir / "checkpoints" / f"{stem}.json"
+        raw_path = run_dir / "raw" / f"{stem}.json"
+        checkpoint = _read_json_if_valid(checkpoint_path)
+        raw = _read_json_if_valid(raw_path)
+        manifest_entry = manifest_entries.get(model_id)
+        reservation = reservations.get(stem)
+        smoke_accepted = isinstance(manifest_entry, dict) and manifest_entry.get("accepted") is True
+
+        if run_state.get("phase") == "smoke" and smoke_accepted:
+            state = "accepted"
+        elif raw_path.exists() and raw is None:
+            state = "invalid-raw"
+        elif raw is not None:
+            state = "complete"
+        elif checkpoint_path.exists() and checkpoint is None:
+            state = "invalid-checkpoint"
+        elif checkpoint is not None:
+            checkpoint_state = str(checkpoint.get("status") or "unknown")
+            if checkpoint_state == "running":
+                state = "running" if _checkpoint_process_alive(checkpoint_path) else "interrupted"
+            else:
+                state = checkpoint_state
+        elif isinstance(reservation, dict):
+            state = "reserved"
+        else:
+            state = "queued"
+
+        completed, total, completed_decisions, total_decisions = _expected_progress(run_state, checkpoint, raw)
+        if state in {"complete", "accepted"} and total is not None:
+            completed = total
+            completed_decisions = total_decisions or completed_decisions
+        mtimes = [path.stat().st_mtime for path in (checkpoint_path, raw_path) if path.exists()]
+        rows.append(
+            {
+                "model_id": model_id,
+                "model": model.get("model"),
+                "state": state,
+                "smoke_accepted": smoke_accepted,
+                "completed_episodes": completed,
+                "total_episodes": total,
+                "completed_decisions": completed_decisions,
+                "total_decisions": total_decisions,
+                "cost_usd": _payload_cost_usd(raw or checkpoint),
+                "reserved_usd": (
+                    float(reservation["reserved_usd"])
+                    if isinstance(reservation, dict) and reservation.get("reserved_usd") is not None
+                    else None
+                ),
+                "updated_at_epoch": max(mtimes) if mtimes else None,
+                "error": checkpoint.get("error") if isinstance(checkpoint, dict) else None,
+            }
+        )
+
+    artifact_spend = _artifact_spend_usd(run_dir)
+    reserved_spend = sum(
+        float(value.get("reserved_usd") or 0.0) for value in reservations.values() if isinstance(value, dict)
+    )
+    return {
+        "format": "gm-bench-publication-status-v1",
+        "run_dir": str(run_dir),
+        "phase": run_state.get("phase") or "unknown",
+        "output_token_cap": run_state.get("output_token_cap") or cap,
+        "started_at_utc": run_state.get("started_at_utc"),
+        "spend_ceiling_usd": run_state.get("spend_ceiling_usd"),
+        "artifact_spend_usd": round(artifact_spend, 6),
+        "reserved_spend_usd": round(reserved_spend, 6),
+        "total_cells": len(rows),
+        "accepted_smokes": sum(row["smoke_accepted"] for row in rows),
+        "active_cells": sum(row["state"] == "running" for row in rows),
+        "completed_cells": sum(row["state"] in {"complete", "accepted"} for row in rows),
+        "rows": rows,
+    }
+
+
+def _format_progress(completed: int, total: int | None) -> str:
+    return f"{completed}/{total}" if total is not None else str(completed)
+
+
+def _format_age(timestamp: float | None) -> str:
+    if timestamp is None:
+        return "-"
+    seconds = max(0, int(time.time() - timestamp))
+    if seconds < 60:
+        return f"{seconds}s"
+    if seconds < 3600:
+        return f"{seconds // 60}m"
+    return f"{seconds // 3600}h"
+
+
+def render_publication_status(status: dict[str, Any]) -> str:
+    ceiling = status.get("spend_ceiling_usd")
+    ceiling_text = f"${float(ceiling):.4f}" if ceiling is not None else "not recorded"
+    lines = [
+        "GM-Bench publication run",
+        f"dir: {status['run_dir']}",
+        (
+            f"phase: {status['phase']}  cap: {status['output_token_cap']}  "
+            f"active: {status['active_cells']}  "
+            f"complete: {status['completed_cells']}/{status['total_cells']}  "
+            f"accepted smokes: {status['accepted_smokes']}/{status['total_cells']}"
+        ),
+        (
+            f"spend: ${status['artifact_spend_usd']:.4f} in artifacts  "
+            f"${status['reserved_spend_usd']:.4f} reserved  ceiling: {ceiling_text}"
+        ),
+        "",
+        f"{'MODEL':<42} {'STATE':<18} {'EPISODES':>9} {'DECISIONS':>10} {'COST':>9} {'UPDATED':>8}",
+        "-" * 102,
+    ]
+    for row in status["rows"]:
+        cost = f"${row['cost_usd']:.4f}" if row["cost_usd"] is not None else "-"
+        lines.append(
+            f"{row['model_id'][:42]:<42} {row['state']:<18} "
+            f"{_format_progress(row['completed_episodes'], row['total_episodes']):>9} "
+            f"{_format_progress(row['completed_decisions'], row['total_decisions']):>10} "
+            f"{cost:>9} {_format_age(row['updated_at_epoch']):>8}"
+        )
+        if row.get("error"):
+            lines.append(f"  error: {str(row['error']).splitlines()[0][:92]}")
+    return "\n".join(lines)
+
+
+def _status_command(run_dir: Path, manifest_path: Path, *, watch: bool, interval: float, as_json: bool) -> int:
+    try:
+        while True:
+            status = publication_run_status(run_dir, manifest_path)
+            rendered = json.dumps(status, sort_keys=True) if as_json else render_publication_status(status)
+            if watch and sys.stdout.isatty() and not as_json:
+                print("\033[2J\033[H", end="")
+            print(rendered, flush=True)
+            if not watch:
+                return 0
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print()
+        return 0
+
+
 def _record_smoke_issues(
     artifact: dict[str, Any],
     model_id: str,
@@ -431,9 +690,7 @@ def _record_smoke_issues(
     else:
         expected_pairs = {(seed, 1) for seed in expected_seeds}
         observed_pairs = {
-            (episode.get("seed"), episode.get("repeat", 1))
-            for episode in episodes
-            if isinstance(episode, dict)
+            (episode.get("seed"), episode.get("repeat", 1)) for episode in episodes if isinstance(episode, dict)
         }
         if observed_pairs != expected_pairs:
             issues.append("artifact candidate episodes do not match the smoke seed/repeat panel")
@@ -613,7 +870,7 @@ def _print_command(cell: Cell, command: list[str]) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("phase", choices=["smoke", "sweep", "panel", "record-smoke"])
+    parser.add_argument("phase", choices=["smoke", "sweep", "panel", "record-smoke", "status"])
     parser.add_argument("--model-id")
     parser.add_argument("--artifact", type=Path)
     parser.add_argument("--manifest", type=Path, default=SMOKE_MANIFEST)
@@ -622,7 +879,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--max-spend-usd", type=float)
+    parser.add_argument("--watch", action="store_true", help="refresh publication status until interrupted")
+    parser.add_argument("--interval", type=float, default=2.0, help="watch refresh interval in seconds")
+    parser.add_argument("--json", action="store_true", help="emit status as JSON")
     args = parser.parse_args(argv)
+    if args.phase == "status":
+        if args.interval <= 0:
+            parser.error("--interval must be positive")
+        return _status_command(args.run_dir, args.manifest, watch=args.watch, interval=args.interval, as_json=args.json)
     if args.phase == "record-smoke":
         if not args.model_id:
             parser.error("record-smoke requires --model-id")
@@ -650,6 +914,8 @@ def main(argv: list[str] | None = None) -> int:
     for directory in (run_dir / "raw", run_dir / "checkpoints"):
         if not args.dry_run:
             directory.mkdir(parents=True, exist_ok=True)
+    if not args.dry_run and not args.preflight_only:
+        _write_run_state(run_dir, args.phase, cells, args.max_spend_usd)
     budget_start: float | None = None
     for cell in cells:
         env = cell_environment(cell)

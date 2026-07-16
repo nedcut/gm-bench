@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -14,10 +15,13 @@ from scripts.run_publication_matrix import (
     _cell_reservation_usd,
     _endpoint_issues,
     _reserve_cell,
+    _write_run_state,
     build_cells,
     cell_command,
     cell_environment,
     main,
+    publication_run_status,
+    render_publication_status,
 )
 
 
@@ -540,3 +544,108 @@ def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
     valid["data"]["endpoints"][0]["name"] = cell.endpoint_name
     valid["data"]["endpoints"][0]["supported_parameters"] = ["max_tokens", "response_format"]
     assert "cannot honor required parameters" in _endpoint_issues(cell, valid)[0]
+
+
+def test_publication_status_tracks_active_progress_spend_and_ceiling(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import fcntl
+
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    cell = build_cells("smoke", model_id=registry["models"][0]["id"])[0]
+    _write_run_state(tmp_path, "smoke", [cell], 1.0)
+    checkpoint_path = tmp_path / "checkpoints" / f"{cell.experiment_id}--{lane['output_token_cap']}.json"
+    checkpoint_path.parent.mkdir(parents=True)
+    checkpoint_path.write_text(
+        json.dumps(
+            {
+                "format": "gm-bench-model-checkpoint-v1",
+                "status": "running",
+                "seeds": [1],
+                "seasons": 1,
+                "repeats": 1,
+                "completed": [],
+                "episodes": [],
+            }
+        )
+    )
+    lock_path = checkpoint_path.with_suffix(".json.lock")
+    lock_path.write_text(f"pid={os.getpid()}\n")
+    lock_descriptor = os.open(lock_path, os.O_RDONLY)
+    fcntl.flock(lock_descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    reservations = tmp_path / "openrouter-reservations.json"
+    reservations.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "cells": {
+                    f"{cell.experiment_id}--1024": {
+                        "experiment_id": cell.experiment_id,
+                        "reserved_usd": 0.01,
+                    }
+                },
+            }
+        )
+    )
+
+    try:
+        status = publication_run_status(tmp_path, manifest_path)
+        row = next(row for row in status["rows"] if row["model_id"] == cell.experiment_id)
+        assert status["phase"] == "smoke"
+        assert status["spend_ceiling_usd"] == 1.0
+        assert status["active_cells"] == 1
+        assert status["reserved_spend_usd"] == 0.01
+        assert row["state"] == "running"
+        assert (row["completed_episodes"], row["total_episodes"]) == (0, 1)
+        assert (row["completed_decisions"], row["total_decisions"]) == (0, 4)
+    finally:
+        os.close(lock_descriptor)
+
+
+def test_publication_status_distinguishes_complete_and_accepted_smokes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    first, second = registry["models"][:2]
+    _write_run_state(tmp_path, "smoke", [build_cells("smoke")[0]], 1.0)
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir(parents=True)
+    for model, cost in ((first, 0.01), (second, 0.02)):
+        artifact = _valid_smoke_artifact(registry, lane, model)
+        artifact["candidate"]["summary"]["usage"]["cost_usd"] = cost
+        (raw_dir / f"{model['id']}--1024.json").write_text(json.dumps(artifact))
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
+
+    status = publication_run_status(tmp_path, manifest_path)
+    rows = {row["model_id"]: row for row in status["rows"]}
+    assert rows[first["id"]]["state"] == "accepted"
+    assert rows[first["id"]]["completed_decisions"] == 4
+    assert status["artifact_spend_usd"] == pytest.approx(0.03)
+    assert status["accepted_smokes"] == 10
+    assert "accepted smokes: 10/10" in render_publication_status(status)
+
+
+def test_panel_status_keeps_smoke_acceptance_separate_from_panel_progress(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry, _lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    cell = build_cells("smoke")[0]
+    _write_run_state(tmp_path, "panel", [cell], 60.0)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, _lane)))
+
+    status = publication_run_status(tmp_path, manifest_path)
+    assert status["accepted_smokes"] == 10
+    assert status["completed_cells"] == 0
+    assert {row["state"] for row in status["rows"]} == {"queued"}
+    assert {row["total_episodes"] for row in status["rows"]} == {24}
+    assert {row["total_decisions"] for row in status["rows"]} == {480}
+
+
+def test_status_command_prints_snapshot_without_creating_run_files(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["status", "--run-dir", str(tmp_path)]) == 0
+    output = capsys.readouterr().out
+    assert "GM-Bench publication run" in output
+    assert "openrouter-gpt-5.6-luna-openai" in output
+    assert list(tmp_path.iterdir()) == []

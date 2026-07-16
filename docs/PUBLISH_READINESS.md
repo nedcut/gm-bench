@@ -200,6 +200,20 @@ python3 scripts/run_publication_matrix.py smoke \
   --max-spend-usd 5
 ```
 
+In a second terminal, use the read-only monitor for live episode progress,
+active/interrupted state, accepted-smoke state, artifact-reported cost, and
+reserved spend. The runner checkpoints after every seed/repeat episode, so the
+display updates at that durable boundary:
+
+```bash
+python3 scripts/run_publication_matrix.py status \
+  --run-dir data/publication-runs/smoke-fixed-1024-2026-07-15 \
+  --watch
+```
+
+Omit `--watch` for a one-shot status table, or add `--json` for machine-readable
+status suitable for logs and other wrappers.
+
 After each smoke passes inspection, record it so the machine-enforced manifest
 accepts the route. The command validates route, options, fingerprints, zero
 failures, complete finish-reason coverage, absence of truncation, and peak
