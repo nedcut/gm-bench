@@ -140,15 +140,20 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
             api_latency_ms=latency_ms,
         )
         assert usage is not None
+        choice = data["choices"][0]
         for key, value in {
             "upstream_provider": data.get("provider"),
             "generation_id": data.get("id"),
             "cached_input_tokens": prompt_details.get("cached_tokens"),
             "reasoning_tokens": completion_details.get("reasoning_tokens"),
+            # Truncation auditability: the cap-pressure rule needs per-call
+            # evidence that no response hit the frozen output ceiling.
+            "finish_reason": choice.get("finish_reason"),
+            "native_finish_reason": choice.get("native_finish_reason"),
         }.items():
             if value is not None:
                 usage[key] = value
-        content = data["choices"][0]["message"]["content"]
+        content = choice["message"]["content"]
         try:
             return parse_actions(content), usage
         except ValueError as exc:

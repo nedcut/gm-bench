@@ -69,6 +69,7 @@
     "config_errors": [],
     "decision_recommendation": null,
     "duplicate_cells": [],
+    "duplicate_headline_rows": 0,
     "eligible_headline_models": 0,
     "frozen_output_token_cap": 1024,
     "minimum_headline_models": 8,
@@ -166,6 +167,9 @@
     "reason": "model registry remains provisional until every registered route passes its smoke",
     "rejected_artifacts": [],
     "schema_version": 1,
+    "smoke_gate_issues": [
+      "smoke manifest is missing; record every registered-model smoke before the panel"
+    ],
     "status": "retired"
   },
   "updated": ""

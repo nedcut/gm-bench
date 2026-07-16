@@ -37,12 +37,13 @@ from gm_bench.benchmark_config import PRESETS, PRIVATE_LEADERBOARD_PANEL_NAME  #
 from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
 from gm_bench.oracle import OracleAgent  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
-from gm_bench.publication import mechanic_breakdown  # noqa: E402
+from gm_bench.publication import mechanic_breakdown, smoke_manifest_issues  # noqa: E402
 from gm_bench.runner import run_many  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
 OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard.json"
 MODEL_CONFIG_PATH = ROOT / "config" / "sota_v2_models.json"
+PROTOCOL_CONFIG_PATH = ROOT / "config" / "publication_protocol.json"
 LEADERBOARD = PRESETS["leaderboard"]
 # Providers that run a model through a coding-agent CLI harness (own tool loop,
 # own prompt scaffold, own retry/session behavior) rather than a direct API
@@ -289,11 +290,22 @@ def select_model_payloads(
     return [item[1] for item in selected.values()]
 
 
+def _headline_identity(row: dict[str, Any]) -> Any:
+    provider = row.get("provider")
+    model = row.get("model")
+    if provider and model:
+        return (provider, model)
+    return row.get("id")
+
+
 def publication_gate(
     rows: list[dict[str, Any]],
     analysis: dict[str, Any],
     lane_config: dict[str, Any],
     model_config: dict[str, Any],
+    *,
+    smoke_issues: list[str] | None = None,
+    protocol_minimum: int | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Return only publishable rows plus an explicit gate report."""
 
@@ -313,22 +325,45 @@ def publication_gate(
         for row in rows
         if row.get("lane") == "api" and row.get("publication_eligible") and row.get("output_token_cap") == frozen_cap
     ]
-    minimum_models = int(lane_config.get("minimum_headline_models") or 0)
-    publishable = lane_frozen and registry_frozen and len(candidates) >= minimum_models
+    identities = {_headline_identity(row) for row in candidates}
+    unique_models = len(identities)
+    duplicate_headline_rows = len(candidates) - unique_models
+    minimum_models = max(int(lane_config.get("minimum_headline_models") or 0), protocol_minimum or 0)
+    smoke_ok = smoke_issues is None or smoke_issues == []
+    publishable = (
+        lane_frozen
+        and registry_frozen
+        and smoke_ok
+        and duplicate_headline_rows == 0
+        and unique_models >= minimum_models
+    )
+    if smoke_issues is None:
+        smoke_gate_issues: list[str] | None = None
+    else:
+        smoke_gate_issues = list(smoke_issues[:10])
     publication = {
         **analysis,
         "publishable_ranking": publishable,
         "frozen_output_token_cap": frozen_cap if lane_frozen else None,
         "output_policy_basis": policy_basis,
         "model_registry_frozen": registry_frozen,
-        "eligible_headline_models": len(candidates),
+        "eligible_headline_models": unique_models,
+        "duplicate_headline_rows": duplicate_headline_rows,
         "minimum_headline_models": minimum_models,
+        "smoke_gate_issues": smoke_gate_issues,
     }
     if not registry_frozen:
         publication["reason"] = "model registry remains provisional until every registered route passes its smoke"
+    elif smoke_issues:
+        publication["reason"] = f"pre-panel smoke evidence is incomplete: {smoke_issues[0]}"
+    elif lane_frozen and duplicate_headline_rows > 0:
+        publication["reason"] = (
+            "frozen lane has duplicate eligible rows for one registered model; "
+            f"{duplicate_headline_rows} duplicate row(s) among {len(candidates)} candidates"
+        )
     elif lane_frozen and not publishable:
         publication["reason"] = (
-            f"frozen lane has {len(candidates)} eligible headline models; at least {minimum_models} are required"
+            f"frozen lane has {unique_models} eligible headline models; at least {minimum_models} are required"
         )
     elif not publishable and analysis.get("status") == "complete-needs-interpretation":
         publication["reason"] = "sweep complete; inspect curves and freeze a fixed API-lane cap before ranking"
@@ -361,7 +396,27 @@ def main() -> None:
     current_rows = [row for row in rows if row.get("benchmark_version") == "sota-v2"]
     analysis = json.loads((ROOT / "results" / "analysis" / "output-budget-sweep.json").read_text())
     lane_config = json.loads((ROOT / "config" / "sota_v2_lane.json").read_text())
-    models, publication = publication_gate(current_rows, analysis, lane_config, model_config)
+    protocol = json.loads(PROTOCOL_CONFIG_PATH.read_text())
+    protocol_minimum = int((protocol.get("exclusion_policy") or {}).get("minimum_headline_models") or 0)
+    manifest_rel = str(lane_config.get("smoke_manifest") or "config/sota_v2_smoke_manifest.json")
+    manifest_path = ROOT / manifest_rel
+    manifest: dict[str, Any] | None = None
+    if manifest_path.is_file():
+        try:
+            loaded = json.loads(manifest_path.read_text())
+        except json.JSONDecodeError:
+            loaded = None
+        if isinstance(loaded, dict):
+            manifest = loaded
+    smoke_issues = smoke_manifest_issues(manifest, model_config, lane_config)
+    models, publication = publication_gate(
+        current_rows,
+        analysis,
+        lane_config,
+        model_config,
+        smoke_issues=smoke_issues,
+        protocol_minimum=protocol_minimum,
+    )
     publishable_ranking = bool(publication["publishable_ranking"])
     cli_harness_models = [row for row in current_rows if row.get("lane") == "cli-harness"]
     excluded_models = [

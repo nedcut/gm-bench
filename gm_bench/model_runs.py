@@ -235,8 +235,15 @@ def preflight_provider(provider: str) -> None:
         raise ModelRunAborted(f"{provider} preflight failed: `{executable}` is not installed")
 
 
-def default_checkpoint_path(agent_name: str) -> Path:
-    safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "-", agent_name).strip("-")
+def default_checkpoint_path(agent_name: str, metadata: dict[str, Any] | None = None) -> Path:
+    parts = [agent_name]
+    if metadata is not None:
+        profile = metadata.get("profile")
+        if profile:
+            parts.append(str(profile))
+        if metadata.get("session"):
+            parts.append("session")
+    safe_name = "--".join(re.sub(r"[^A-Za-z0-9_.-]+", "-", part).strip("-") for part in parts)
     return Path("data/model_checkpoints") / f"{safe_name}.json"
 
 
@@ -406,11 +413,34 @@ def _load_candidate_episodes(
         source_metadata = {}
     if not isinstance(source_metadata, dict):
         raise ModelRunAborted(f"resume source {path} metadata must be a JSON object")
-    for key in ("provider", "model", "profile", "session"):
-        if key in source_metadata and key in expected_metadata and source_metadata[key] != expected_metadata[key]:
+    for key in ("provider", "model", "profile", "session", "transport"):
+        if key not in expected_metadata:
+            continue
+        if key not in source_metadata:
+            raise ModelRunAborted(f"resume source {path} metadata is missing {key}")
+        if source_metadata[key] != expected_metadata[key]:
             raise ModelRunAborted(
                 f"resume source {path} has {key}={source_metadata[key]!r}, expected {expected_metadata[key]!r}"
             )
+    expected_provider_options = expected_metadata.get("provider_options")
+    if isinstance(expected_provider_options, dict) and expected_provider_options:
+        normalized_expected = {str(key): str(value) for key, value in expected_provider_options.items()}
+        source_provider_options = source_metadata.get("provider_options")
+        if not isinstance(source_provider_options, dict):
+            first_key = next(iter(normalized_expected))
+            raise ModelRunAborted(f"resume source {path} metadata is missing provider_options key {first_key!r}")
+        normalized_source = {str(key): str(value) for key, value in source_provider_options.items()}
+        if normalized_source != normalized_expected:
+            for key in sorted(normalized_expected.keys() | normalized_source.keys()):
+                if key not in normalized_source:
+                    raise ModelRunAborted(f"resume source {path} provider_options is missing key {key!r}")
+                if key not in normalized_expected:
+                    raise ModelRunAborted(f"resume source {path} provider_options has unexpected key {key!r}")
+                if normalized_source[key] != normalized_expected[key]:
+                    raise ModelRunAborted(
+                        f"resume source {path} has provider_options[{key!r}]={normalized_source[key]!r}, "
+                        f"expected {normalized_expected[key]!r}"
+                    )
     if expected_provenance:
         source_provenance = payload.get("provenance")
         if source_provenance is None:
@@ -532,6 +562,7 @@ def evaluate_resumable_candidate(
             "candidate_memo_writes": summary.get("memo_writes", 0),
             "candidate_rejected_offers": summary.get("rejected_offers", 0),
             "candidate_failed_queries": summary.get("failed_queries", 0),
+            "candidate_query_declines": summary.get("query_declines", 0),
             "candidate_mean_tokens_per_decision": (summary.get("usage") or {}).get("mean_tokens_per_decision"),
             "candidate_usage": summary.get("usage", summarize_usage([])),
         },

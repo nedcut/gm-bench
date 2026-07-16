@@ -507,7 +507,7 @@ def _model_command(args: argparse.Namespace) -> None:
         sys.exit("gm-bench model: invalid canonical OpenRouter route: " + "; ".join(route_errors))
     progress = make_progress_printer(config.verbose)
     workers = _model_worker_count(agent, resolved_workers)
-    checkpoint = args.checkpoint or default_checkpoint_path(agent.name)
+    checkpoint = args.checkpoint or default_checkpoint_path(agent.name, getattr(agent, "metadata", None))
     if config.provider in SERIAL_ONLY_PROVIDERS and workers is not None and workers > 1:
         sys.exit(f"gm-bench model: {config.provider} must run serially with --workers 1")
     if bool(getattr(args, "session", False)) or (workers is not None and workers > 1):
@@ -972,9 +972,13 @@ def _print_table(results: list[dict[str, Any]]) -> None:
 def _print_evaluation(result: dict[str, Any]) -> None:
     normalized = result["normalized"]
     print(f"agent={result['agent']} seasons={result['seasons']} seeds={result['seeds']}")
+    failed_queries = normalized.get("candidate_failed_queries", 0)
+    query_declines = normalized.get("candidate_query_declines", 0)
     print(
-        "candidate_mean={candidate_mean_score} strategy={candidate_mean_strategy_score} protocol_penalty={candidate_protocol_penalty} baseline_panel_mean={baseline_panel_mean_score} lift={score_lift} lift_pct={score_lift_pct}% illegal={candidate_illegal_actions} rejected_offers={candidate_rejected_offers}".format(
-            **normalized
+        "candidate_mean={candidate_mean_score} strategy={candidate_mean_strategy_score} protocol_penalty={candidate_protocol_penalty} baseline_panel_mean={baseline_panel_mean_score} lift={score_lift} lift_pct={score_lift_pct}% illegal={candidate_illegal_actions} rejected_offers={candidate_rejected_offers} failed_queries={failed_queries} query_declines={query_declines}".format(
+            **normalized,
+            failed_queries=failed_queries,
+            query_declines=query_declines,
         )
     )
     print(_reliability_line(result["candidate"]))

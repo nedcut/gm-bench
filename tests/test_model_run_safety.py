@@ -59,6 +59,21 @@ class ProviderCountingAgent(CountingValueAgent):
     }
 
 
+class MetadataCountingAgent(CountingValueAgent):
+    def __init__(self, metadata: dict[str, Any]) -> None:
+        super().__init__()
+        self.metadata = metadata
+
+
+def _write_resume_source(path: Path, metadata: dict[str, Any]) -> None:
+    prior = run_many(ValueAgent(), seeds=[1], seasons=1, workers=1)
+    prior["agent"] = "test:model"
+    prior["candidate"] = prior.copy()
+    prior["candidate"]["agent"] = "test:model"
+    prior["run_info"] = {**metadata, **model_runs._resume_provenance(metadata)}
+    path.write_text(json.dumps(prior))
+
+
 def test_fail_fast_agent_aborts_after_consecutive_failures() -> None:
     agent = FailFastAgent(FailAfterAgent(successful_calls=0), threshold=2)
     observation = {"unused": True}
@@ -141,6 +156,124 @@ def test_resume_rejects_mismatched_agent(tmp_path: Path) -> None:
             checkpoint_path=tmp_path / "checkpoint.json",
             resume_sources=[source],
         )
+
+
+def test_resume_rejects_missing_expected_profile(tmp_path: Path) -> None:
+    source = tmp_path / "missing-profile.json"
+    expected_metadata = {
+        "provider": "claude",
+        "model": "sonnet",
+        "profile": "compact",
+        "session": False,
+    }
+    source_metadata = dict(expected_metadata)
+    del source_metadata["profile"]
+    _write_resume_source(source, source_metadata)
+
+    with pytest.raises(ModelRunAborted, match="missing profile"):
+        run_resumable_candidate(
+            MetadataCountingAgent(expected_metadata),
+            seeds=[1],
+            seasons=1,
+            repeats=1,
+            checkpoint_path=tmp_path / "checkpoint.json",
+            resume_sources=[source],
+        )
+
+
+def test_resume_rejects_differing_provider_option(tmp_path: Path) -> None:
+    source = tmp_path / "different-provider-option.json"
+    expected_metadata = {
+        "provider": "claude",
+        "model": "sonnet",
+        "profile": "compact",
+        "session": False,
+        "provider_options": {"OPENROUTER_MAX_TOKENS": "2048"},
+    }
+    source_metadata = {
+        **expected_metadata,
+        "provider_options": {"OPENROUTER_MAX_TOKENS": "1024"},
+    }
+    _write_resume_source(source, source_metadata)
+
+    with pytest.raises(ModelRunAborted, match="OPENROUTER_MAX_TOKENS"):
+        run_resumable_candidate(
+            MetadataCountingAgent(expected_metadata),
+            seeds=[1],
+            seasons=1,
+            repeats=1,
+            checkpoint_path=tmp_path / "checkpoint.json",
+            resume_sources=[source],
+        )
+
+
+def test_resume_rejects_missing_provider_options(tmp_path: Path) -> None:
+    source = tmp_path / "missing-provider-options.json"
+    expected_metadata = {
+        "provider": "claude",
+        "model": "sonnet",
+        "profile": "compact",
+        "session": False,
+        "provider_options": {"OPENROUTER_MAX_TOKENS": "2048"},
+    }
+    source_metadata = {key: value for key, value in expected_metadata.items() if key != "provider_options"}
+    _write_resume_source(source, source_metadata)
+
+    with pytest.raises(ModelRunAborted, match="OPENROUTER_MAX_TOKENS"):
+        run_resumable_candidate(
+            MetadataCountingAgent(expected_metadata),
+            seeds=[1],
+            seasons=1,
+            repeats=1,
+            checkpoint_path=tmp_path / "checkpoint.json",
+            resume_sources=[source],
+        )
+
+
+def test_resume_accepts_string_normalized_provider_options(tmp_path: Path) -> None:
+    source = tmp_path / "normalized-provider-options.json"
+    expected_metadata = {
+        "provider": "claude",
+        "model": "sonnet",
+        "profile": "compact",
+        "session": False,
+        "provider_options": {"OPENROUTER_MAX_TOKENS": "1024"},
+    }
+    source_metadata = {
+        **expected_metadata,
+        "provider_options": {"OPENROUTER_MAX_TOKENS": 1024},
+    }
+    _write_resume_source(source, source_metadata)
+    agent = MetadataCountingAgent(expected_metadata)
+
+    result = run_resumable_candidate(
+        agent,
+        seeds=[1],
+        seasons=1,
+        repeats=1,
+        checkpoint_path=tmp_path / "checkpoint.json",
+        resume_sources=[source],
+    )
+
+    assert agent.calls == 0
+    assert len(result["episodes"]) == 1
+
+
+def test_default_checkpoint_path_separates_profile_and_session_lanes() -> None:
+    default = model_runs.default_checkpoint_path("openrouter:openai/gpt-5.6-luna")
+    compact = model_runs.default_checkpoint_path(
+        "openrouter:openai/gpt-5.6-luna",
+        {"profile": "compact", "session": False},
+    )
+    compact_session = model_runs.default_checkpoint_path(
+        "openrouter:openai/gpt-5.6-luna",
+        {"profile": "compact", "session": True},
+    )
+
+    assert default.name == "openrouter-openai-gpt-5.6-luna.json"
+    assert compact.name == "openrouter-openai-gpt-5.6-luna--compact.json"
+    assert compact_session.name == "openrouter-openai-gpt-5.6-luna--compact--session.json"
+    assert len({default, compact, compact_session}) == 3
 
 
 def test_resume_rejects_mismatched_contract(tmp_path: Path) -> None:

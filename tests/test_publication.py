@@ -285,11 +285,15 @@ def test_publication_gate_withholds_rows_until_minimum_panel_is_eligible() -> No
     assert models == []
     assert report["publishable_ranking"] is False
     assert report["eligible_headline_models"] == 1
+    assert report["duplicate_headline_rows"] == 0
+    assert report["smoke_gate_issues"] is None
 
     second = {**eligible, "id": "two"}
     models, report = publication_gate([eligible, second], analysis, lane, registry)
     assert models == [eligible, second]
     assert report["publishable_ranking"] is True
+    assert report["eligible_headline_models"] == 2
+    assert report["duplicate_headline_rows"] == 0
 
 
 def test_publication_gate_rejects_wrong_cap_and_unregistered_rows() -> None:
@@ -355,6 +359,139 @@ def test_publication_gate_rejects_provisional_model_registry() -> None:
     assert report["publishable_ranking"] is False
     assert report["model_registry_frozen"] is False
     assert "provisional" in report["reason"]
+
+
+def test_publication_gate_rejects_aliased_rows_for_one_model() -> None:
+    from web.scripts.build_leaderboard import publication_gate
+
+    analysis = {"status": "incomplete"}
+    lane = {
+        "output_budget_status": "frozen-fixed-budget",
+        "output_policy_basis": "fixed-safety-ceiling",
+        "output_token_cap": 1024,
+        "minimum_headline_models": 8,
+    }
+    rows = [
+        {
+            "id": f"alias-{index}",
+            "provider": "openrouter",
+            "model": "demo/model",
+            "lane": "api",
+            "publication_eligible": True,
+            "output_token_cap": 1024,
+        }
+        for index in range(8)
+    ]
+    models, report = publication_gate(rows, analysis, lane, {"selection_status": "frozen"}, smoke_issues=[])
+    assert models == []
+    assert report["publishable_ranking"] is False
+    assert report["eligible_headline_models"] == 1
+    assert report["duplicate_headline_rows"] == 7
+    assert "duplicate" in report["reason"]
+
+
+def test_publication_gate_publishes_distinct_provider_model_identities() -> None:
+    from web.scripts.build_leaderboard import publication_gate
+
+    analysis = {"status": "incomplete"}
+    lane = {
+        "output_budget_status": "frozen-fixed-budget",
+        "output_policy_basis": "fixed-safety-ceiling",
+        "output_token_cap": 1024,
+        "minimum_headline_models": 2,
+    }
+    rows = [
+        {
+            "id": "a",
+            "provider": "openrouter",
+            "model": "demo/one",
+            "lane": "api",
+            "publication_eligible": True,
+            "output_token_cap": 1024,
+        },
+        {
+            "id": "b",
+            "provider": "openrouter",
+            "model": "demo/two",
+            "lane": "api",
+            "publication_eligible": True,
+            "output_token_cap": 1024,
+        },
+    ]
+    models, report = publication_gate(rows, analysis, lane, {"selection_status": "frozen"}, smoke_issues=[])
+    assert models == rows
+    assert report["publishable_ranking"] is True
+    assert report["eligible_headline_models"] == 2
+    assert report["duplicate_headline_rows"] == 0
+    assert report["smoke_gate_issues"] == []
+
+
+def test_publication_gate_blocks_on_incomplete_smoke_evidence() -> None:
+    from web.scripts.build_leaderboard import publication_gate
+
+    analysis = {"status": "incomplete"}
+    lane = {
+        "output_budget_status": "frozen-fixed-budget",
+        "output_policy_basis": "fixed-safety-ceiling",
+        "output_token_cap": 1024,
+        "minimum_headline_models": 1,
+    }
+    eligible = {
+        "id": "one",
+        "provider": "openrouter",
+        "model": "demo/one",
+        "lane": "api",
+        "publication_eligible": True,
+        "output_token_cap": 1024,
+    }
+    smoke_issues = ["smoke manifest is missing; record every registered-model smoke before the panel"]
+    models, report = publication_gate(
+        [eligible],
+        analysis,
+        lane,
+        {"selection_status": "frozen"},
+        smoke_issues=smoke_issues,
+    )
+    assert models == []
+    assert report["publishable_ranking"] is False
+    assert "smoke evidence" in report["reason"]
+    assert report["smoke_gate_issues"] == smoke_issues
+
+
+def test_publication_gate_protocol_minimum_overrides_lower_lane_floor() -> None:
+    from web.scripts.build_leaderboard import publication_gate
+
+    analysis = {"status": "incomplete"}
+    lane = {
+        "output_budget_status": "frozen-fixed-budget",
+        "output_policy_basis": "fixed-safety-ceiling",
+        "output_token_cap": 1024,
+        "minimum_headline_models": 2,
+    }
+    rows = [
+        {
+            "id": f"m{index}",
+            "provider": "openrouter",
+            "model": f"demo/{index}",
+            "lane": "api",
+            "publication_eligible": True,
+            "output_token_cap": 1024,
+        }
+        for index in range(2)
+    ]
+    models, report = publication_gate(
+        rows,
+        analysis,
+        lane,
+        {"selection_status": "frozen"},
+        smoke_issues=[],
+        protocol_minimum=8,
+    )
+    assert models == []
+    assert report["publishable_ranking"] is False
+    assert report["minimum_headline_models"] == 8
+    assert report["eligible_headline_models"] == 2
+    assert "at least 8" in report["reason"]
 
 
 def test_budget_decision_rule_is_deterministic() -> None:

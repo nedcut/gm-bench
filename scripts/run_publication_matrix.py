@@ -10,6 +10,7 @@ inspect every command and environment value without contacting a provider.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -17,6 +18,7 @@ import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -26,12 +28,15 @@ SWEEP_CONFIG = ROOT / "config" / "output_budget_sweep.json"
 PANEL_CONFIG = ROOT / "config" / "sota_v2_models.json"
 LANE_CONFIG = ROOT / "config" / "sota_v2_lane.json"
 PRICING_CONFIG = ROOT / "config" / "openrouter_pricing_snapshot.json"
+SMOKE_MANIFEST = ROOT / "config" / "sota_v2_smoke_manifest.json"
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from gm_bench.benchmark_config import PRESETS  # noqa: E402
+from gm_bench.contract import contract_fingerprint, scaffold_fingerprint  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
+from gm_bench.publication import SMOKE_MANIFEST_FORMAT, smoke_manifest_issues  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -68,6 +73,18 @@ def _validate_models(models: list[dict[str, Any]]) -> None:
         raise ValueError("every model requires non-empty id, provider, and model")
     if len(set(ids)) != len(ids) or len(set(identities)) != len(identities):
         raise ValueError("publication model ids and provider/model identities must be unique")
+
+
+def _smoke_manifest_path(lane: dict[str, Any]) -> Path:
+    configured = lane.get("smoke_manifest")
+    return ROOT / str(configured) if configured else SMOKE_MANIFEST
+
+
+def _read_optional_json(path: Path) -> dict[str, Any] | None:
+    try:
+        return _read_json(path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
 
 
 def build_cells(phase: str, model_id: str | None = None, cap: int | None = None) -> list[Cell]:
@@ -141,6 +158,13 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
             raise ValueError("full panel is locked until config/sota_v2_models.json freezes the model registry")
         if not isinstance(frozen_cap, int) or frozen_cap < 1:
             raise ValueError("full panel requires a positive frozen output_token_cap")
+        manifest = _read_optional_json(_smoke_manifest_path(lane))
+        manifest_issues = smoke_manifest_issues(manifest, config, lane)
+        if manifest_issues:
+            raise ValueError(
+                "full panel is locked until every registered smoke is recorded and accepted: "
+                + "; ".join(manifest_issues)
+            )
         if cap is not None and cap != frozen_cap:
             raise ValueError(f"requested cap {cap} differs from frozen panel cap {frozen_cap}")
         shared = {str(key): str(value) for key, value in (config.get("shared_fixed_options") or {}).items()}
@@ -335,6 +359,152 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
+def _record_smoke_issues(
+    artifact: dict[str, Any],
+    model_id: str,
+    registry: dict[str, Any],
+    lane: dict[str, Any],
+) -> tuple[list[str], dict[str, Any] | None]:
+    models = [model for model in registry.get("models") or [] if isinstance(model, dict)]
+    entry = next((model for model in models if model.get("id") == model_id), None)
+    if entry is None:
+        return [f"unknown model id: {model_id}"], None
+
+    issues: list[str] = []
+    run_info = artifact.get("run_info")
+    run_info = run_info if isinstance(run_info, dict) else {}
+    if run_info.get("provider") != entry.get("provider"):
+        issues.append("artifact provider does not match the registered provider")
+    if run_info.get("model") != entry.get("model"):
+        issues.append("artifact model does not match the registered model")
+    if run_info.get("preset") != "smoke":
+        issues.append("artifact preset must be 'smoke'")
+    if run_info.get("profile") != registry.get("profile"):
+        issues.append("artifact profile does not match the registered profile")
+
+    provider_options = run_info.get("provider_options")
+    provider_options = provider_options if isinstance(provider_options, dict) else {}
+    expected_options = {
+        **(registry.get("shared_fixed_options") or {}),
+        "OPENROUTER_PROVIDER_ONLY": entry.get("upstream_provider"),
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": entry.get("endpoint_name"),
+    }
+    for key, value in expected_options.items():
+        if provider_options.get(key) != value:
+            issues.append(f"artifact provider option {key} does not match the registered value")
+    for key in registry.get("shared_absent_options") or []:
+        if provider_options.get(key) not in (None, ""):
+            issues.append(f"artifact provider option {key} must be absent")
+
+    frozen_cap = lane.get("output_token_cap")
+    if provider_options.get("GM_BENCH_OUTPUT_BUDGET_CELL") != str(frozen_cap):
+        issues.append("artifact output-budget cell does not match the frozen cap")
+    benchmark_contract = run_info.get("benchmark_contract")
+    benchmark_contract = benchmark_contract if isinstance(benchmark_contract, dict) else {}
+    current_contract = contract_fingerprint()
+    current_scaffold = scaffold_fingerprint(str(entry.get("provider") or ""))
+    if benchmark_contract.get("contract_fingerprint") != current_contract:
+        issues.append("artifact was recorded under a different benchmark contract")
+    if run_info.get("scaffold_fingerprint") != current_scaffold:
+        issues.append("artifact was recorded under a different prompt scaffold")
+
+    candidate = artifact.get("candidate")
+    candidate = candidate if isinstance(candidate, dict) else {}
+    summary = candidate.get("summary") or {}
+    summary = summary if isinstance(summary, dict) else {}
+    if summary.get("decision_failure_rate") != 0:
+        issues.append("artifact decision_failure_rate must be zero")
+    usage = summary.get("usage")
+    usage = usage if isinstance(usage, dict) else {}
+    api_calls = usage.get("api_calls")
+    if not isinstance(api_calls, int) or isinstance(api_calls, bool) or api_calls < 1:
+        issues.append("artifact must record at least one API call")
+    calls_with_finish_reason = usage.get("calls_with_finish_reason")
+    if calls_with_finish_reason != api_calls:
+        issues.append("artifact finish-reason telemetry must cover every API call")
+    truncated_calls = usage.get("truncated_calls")
+    if truncated_calls != 0:
+        issues.append("artifact shows cap-induced truncation")
+    reasoning_tokens = usage.get("reasoning_tokens")
+    if reasoning_tokens not in (None, 0):
+        issues.append("artifact recorded reasoning tokens in the reasoning-disabled lane")
+    max_output = usage.get("max_output_tokens_per_call")
+    threshold = lane.get("cap_pressure_threshold_tokens")
+    if not isinstance(max_output, int) or isinstance(max_output, bool):
+        issues.append("artifact is missing max_output_tokens_per_call")
+    elif isinstance(threshold, int) and max_output >= threshold:
+        issues.append(
+            f"artifact peaked at {max_output} output tokens, at or above the {threshold}-token cap-pressure threshold"
+        )
+    observed_upstreams = usage.get("upstream_providers")
+    expected_upstream = str(entry.get("upstream_provider") or "").casefold()
+    if (
+        not isinstance(observed_upstreams, list)
+        or len(observed_upstreams) != 1
+        or not isinstance(observed_upstreams[0], str)
+        or observed_upstreams[0].casefold() != expected_upstream
+    ):
+        issues.append("artifact upstream provider does not match the registered route")
+    return issues, entry
+
+
+def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> int:
+    try:
+        artifact_bytes = artifact_path.read_bytes()
+        artifact = json.loads(artifact_bytes)
+        if not isinstance(artifact, dict):
+            raise ValueError("artifact must contain a JSON object")
+        registry = _read_json(PANEL_CONFIG)
+        lane = _read_json(LANE_CONFIG)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"record-smoke: {exc}", file=sys.stderr)
+        return 1
+
+    issues, entry = _record_smoke_issues(artifact, model_id, registry, lane)
+    if issues:
+        for issue in issues:
+            print(issue, file=sys.stderr)
+        return 1
+    assert entry is not None
+
+    if manifest_path.exists():
+        try:
+            manifest = _read_json(manifest_path)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"record-smoke: cannot update existing manifest: {exc}", file=sys.stderr)
+            return 1
+        if manifest.get("format") != SMOKE_MANIFEST_FORMAT or not isinstance(manifest.get("entries"), dict):
+            print("record-smoke: existing manifest has an unsupported format", file=sys.stderr)
+            return 1
+    else:
+        manifest = {"format": SMOKE_MANIFEST_FORMAT, "schema_version": 1, "entries": {}}
+
+    usage = artifact["candidate"]["summary"]["usage"]
+    run_info = artifact["run_info"]
+    manifest["entries"][model_id] = {
+        "provider": entry["provider"],
+        "model": entry["model"],
+        "upstream_provider": entry["upstream_provider"],
+        "endpoint_name": entry["endpoint_name"],
+        "output_token_cap": int(lane["output_token_cap"]),
+        "api_calls": usage["api_calls"],
+        "calls_with_finish_reason": usage["calls_with_finish_reason"],
+        "truncated_calls": usage["truncated_calls"],
+        "max_output_tokens_per_call": usage["max_output_tokens_per_call"],
+        "reasoning_tokens": usage.get("reasoning_tokens") or 0,
+        "decision_failure_rate": artifact["candidate"]["summary"]["decision_failure_rate"],
+        "contract_fingerprint": run_info["benchmark_contract"]["contract_fingerprint"],
+        "scaffold_fingerprint": run_info["scaffold_fingerprint"],
+        "artifact_sha256": hashlib.sha256(artifact_bytes).hexdigest(),
+        "artifact_path": str(artifact_path),
+        "recorded_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "accepted": True,
+    }
+    _write_json_atomic(manifest_path, manifest)
+    print(f"recorded accepted smoke for {model_id} in {manifest_path}")
+    return 0
+
+
 def _reserve_cell(run_dir: Path, cell: Cell, measured_spend: float, ceiling: float) -> float:
     path = run_dir / "openrouter-reservations.json"
     payload = _read_json(path) if path.exists() else {"schema_version": 1, "cells": {}}
@@ -342,10 +512,21 @@ def _reserve_cell(run_dir: Path, cell: Cell, measured_spend: float, ceiling: flo
     stem = f"{cell.experiment_id}--{cell.cap_label}"
     reserved_total = sum(float(value["reserved_usd"]) for value in reservations.values())
     if stem in reservations:
+        reservation = _cell_reservation_usd(cell)
         committed = max(measured_spend, reserved_total)
-        if committed > ceiling:
-            raise SystemExit(f"spend ceiling exceeded by existing reservations: ${committed:.4f}")
-        return committed
+        if committed + reservation > ceiling:
+            raise SystemExit(
+                f"retry reservation would exceed spend ceiling: ${committed:.4f} + ${reservation:.4f} > ${ceiling:.4f}"
+            )
+        stored = reservations[stem]
+        stored["reserved_usd"] = float(stored["reserved_usd"]) + reservation
+        stored["attempts"] = int(stored.get("attempts") or 1) + 1
+        _write_json_atomic(path, payload)
+        print(
+            f"reserved retry ${reservation:.4f} for {stem}; "
+            f"cumulative conservative commitment ${committed + reservation:.4f}"
+        )
+        return committed + reservation
     reservation = _cell_reservation_usd(cell)
     committed = max(measured_spend, reserved_total)
     if committed + reservation > ceiling:
@@ -357,6 +538,7 @@ def _reserve_cell(run_dir: Path, cell: Cell, measured_spend: float, ceiling: flo
         "model": cell.model,
         "output_token_cap": cell.cap,
         "reserved_usd": reservation,
+        "attempts": 1,
     }
     _write_json_atomic(path, payload)
     print(f"reserved ${reservation:.4f} for {stem}; cumulative conservative commitment ${committed + reservation:.4f}")
@@ -372,14 +554,22 @@ def _print_command(cell: Cell, command: list[str]) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("phase", choices=["smoke", "sweep", "panel"])
+    parser.add_argument("phase", choices=["smoke", "sweep", "panel", "record-smoke"])
     parser.add_argument("--model-id")
+    parser.add_argument("--artifact", type=Path)
+    parser.add_argument("--manifest", type=Path, default=SMOKE_MANIFEST)
     parser.add_argument("--cap", type=int)
     parser.add_argument("--run-dir", type=Path, default=Path("data/publication-runs"))
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--max-spend-usd", type=float)
     args = parser.parse_args(argv)
+    if args.phase == "record-smoke":
+        if not args.model_id:
+            parser.error("record-smoke requires --model-id")
+        if args.artifact is None:
+            parser.error("record-smoke requires --artifact")
+        return _record_smoke(args.model_id, args.artifact, args.manifest)
     if args.max_spend_usd is not None and args.max_spend_usd <= 0:
         parser.error("--max-spend-usd must be positive")
     try:

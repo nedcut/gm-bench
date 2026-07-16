@@ -46,6 +46,7 @@ class ResultPolicy:
     require_full_usage: bool = True
     require_contract_provenance: bool = False
     require_seed_panel_provenance: bool = False
+    require_scaffold_provenance: bool = False
     expected_contract: dict[str, Any] | None = None
     validate_current_scaffold: bool = True
     # Failed queries (misfired scout/inspect lookups) carry no protocol penalty,
@@ -69,6 +70,7 @@ SOTA_V2_POLICY = ResultPolicy(
     max_decision_failure_rate=0.02,
     require_contract_provenance=True,
     require_seed_panel_provenance=True,
+    require_scaffold_provenance=True,
     expected_contract=expected_contract(),
     max_failed_query_rate=1.0,
 )
@@ -82,6 +84,7 @@ OUTPUT_BUDGET_SWEEP_POLICY = ResultPolicy(
     max_decision_failure_rate=1.0,
     require_contract_provenance=True,
     require_seed_panel_provenance=True,
+    require_scaffold_provenance=True,
     expected_contract=expected_contract(),
     max_failed_query_rate=1.0,
 )
@@ -193,7 +196,13 @@ def validate_leaderboard_payload(
             expected=policy.expected_contract,
         )
         if policy.validate_current_scaffold:
-            _validate_scaffold_provenance(errors, warnings, run_info)
+            _validate_scaffold_provenance(
+                errors,
+                warnings,
+                run_info,
+                require=policy.require_scaffold_provenance,
+                policy_name=policy.name,
+            )
         elif run_info.get("scaffold_fingerprint"):
             warnings.append("historical scaffold fingerprint retained but cannot be re-derived from current source")
         strict_v2_lane = policy.name in {SOTA_V2_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME}
@@ -572,6 +581,9 @@ def _validate_scaffold_provenance(
     errors: list[str],
     warnings: list[str],
     run_info: dict[str, Any],
+    *,
+    require: bool = False,
+    policy_name: str = "",
 ) -> None:
     """Check the row's prompt scaffold matches the current source.
 
@@ -583,12 +595,22 @@ def _validate_scaffold_provenance(
     provider = str(run_info.get("provider") or "")
     expected = scaffold_fingerprint(provider)
     if recorded is None:
-        warnings.append("run_info.scaffold_fingerprint missing: prompt scaffold unverified (pre-provenance artifact)")
+        if require:
+            errors.append(
+                f"run_info.scaffold_fingerprint is required for {policy_name} rows; "
+                "the prompt scaffold must be attested"
+            )
+        else:
+            warnings.append(
+                "run_info.scaffold_fingerprint missing: prompt scaffold unverified (pre-provenance artifact)"
+            )
         return
     if expected is None:
-        warnings.append(
-            f"run_info.provider {provider!r} is not a built-in provider; scaffold fingerprint cannot be checked"
-        )
+        message = f"run_info.provider {provider!r} is not a built-in provider; scaffold fingerprint cannot be checked"
+        if require:
+            errors.append(message)
+        else:
+            warnings.append(message)
         return
     if recorded != expected:
         errors.append(

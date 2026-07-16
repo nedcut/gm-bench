@@ -371,6 +371,18 @@ def test_sota_v2_policy_requires_contract_provenance() -> None:
     assert "run_info.benchmark_contract is required for current-contract validation" in report.errors
 
 
+def test_sota_v2_policy_rejects_missing_scaffold_fingerprint() -> None:
+    payload = _official_payload(repeats=3)
+    del payload["run_info"]["scaffold_fingerprint"]
+    sota_report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+    assert not sota_report.ok
+    assert any("scaffold_fingerprint is required for sota-v2 rows" in error for error in sota_report.errors)
+
+    public_report = validate_leaderboard_payload(payload, policy=PUBLIC_LEADERBOARD_POLICY)
+    assert public_report.ok
+    assert any("scaffold_fingerprint missing" in warning for warning in public_report.warnings)
+
+
 def test_sota_v2_policy_requires_seed_panel_provenance() -> None:
     payload = _official_payload(repeats=3)
     del payload["run_info"]["seed_panel"]

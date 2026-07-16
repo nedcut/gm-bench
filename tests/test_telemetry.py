@@ -43,6 +43,24 @@ def test_normalize_usage_accepts_known_keys_and_derives_total():
     assert usage == {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15, "provider": "openai"}
 
 
+def test_normalize_usage_retains_finish_reason_strings():
+    usage = normalize_usage(
+        {
+            "input_tokens": 10,
+            "output_tokens": 5,
+            "finish_reason": "stop",
+            "native_finish_reason": "MAX_TOKENS",
+            "finish_reason_bad": 42,
+            "native_finish_reason_bad": None,
+        }
+    )
+    assert usage is not None
+    assert usage["finish_reason"] == "stop"
+    assert usage["native_finish_reason"] == "MAX_TOKENS"
+    assert "finish_reason_bad" not in usage
+    assert "native_finish_reason_bad" not in usage
+
+
 def test_normalize_usage_rejects_garbage():
     assert normalize_usage(None) is None
     assert normalize_usage("tokens") is None
@@ -116,6 +134,47 @@ def test_aggregate_usage_empty():
     block = aggregate_usage([])
     assert block["decisions_with_usage"] == 0
     assert block["cost_usd"] is None
+
+
+def test_aggregate_usage_tracks_finish_reason_truncation():
+    records = [
+        {
+            "provider": "openai",
+            "model": "gpt-5.4",
+            "season": 1,
+            "phase": "preseason",
+            "output_tokens": 100,
+            "finish_reason": "stop",
+        },
+        {
+            "provider": "openai",
+            "model": "gpt-5.4",
+            "season": 1,
+            "phase": "draft",
+            "output_tokens": 300,
+            "finish_reason": "length",
+        },
+    ]
+    block = aggregate_usage(records)
+    assert block["calls_with_finish_reason"] == 2
+    assert block["truncated_calls"] == 1
+    assert block["max_output_tokens_per_call"] == 300
+
+
+def test_aggregate_usage_counts_native_finish_reason_truncation():
+    records = [
+        {
+            "provider": "openai",
+            "model": "gpt-5.4",
+            "season": 1,
+            "phase": "preseason",
+            "output_tokens": 50,
+            "native_finish_reason": "MAX_TOKENS",
+        },
+    ]
+    block = aggregate_usage(records)
+    assert block["calls_with_finish_reason"] == 0
+    assert block["truncated_calls"] == 1
 
 
 def test_cost_coverage_counts_decision_points_not_multi_round_calls():
@@ -311,3 +370,25 @@ def test_summarize_usage_merges_episode_blocks():
     assert merged["model"] == "m"
     assert merged["upstream_provider"] == "A"
     assert merged["upstream_providers"] == ["A", "B", "C"]
+
+
+def test_summarize_usage_merges_finish_reason_metrics():
+    episodes = [
+        {
+            "usage": {
+                "decisions_with_usage": 2,
+                "truncated_calls": 1,
+                "max_output_tokens_per_call": 300,
+            }
+        },
+        {
+            "usage": {
+                "decisions_with_usage": 2,
+                "truncated_calls": 2,
+                "max_output_tokens_per_call": 150,
+            }
+        },
+    ]
+    merged = summarize_usage(episodes)
+    assert merged["truncated_calls"] == 3
+    assert merged["max_output_tokens_per_call"] == 300

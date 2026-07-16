@@ -23,12 +23,14 @@ def test_scout_report_is_near_true_potential():
 def test_scout_points_are_limited_and_reset_each_season():
     league = League.new(seed=3)
     targets = list(league.prospects)[: SCOUT_POINTS_PER_SEASON + 1]
+    declines_before = league.query_declines
     for player_id in targets[:SCOUT_POINTS_PER_SEASON]:
         league.apply_actions([{"type": "scout", "player_id": player_id}], "preseason")
         assert league.transactions[-1].accepted
     league.apply_actions([{"type": "scout", "player_id": targets[-1]}], "preseason")
     assert not league.transactions[-1].accepted
     assert "no scouting points left" in league.transactions[-1].message
+    assert league.query_declines == declines_before + 1
     league.simulate_season()
     roster_target = league.user_team.roster[0]
     league.apply_actions([{"type": "scout", "player_id": roster_target}], "preseason")
@@ -38,14 +40,19 @@ def test_scout_points_are_limited_and_reset_each_season():
 def test_rescouting_fails_and_unknown_target_is_a_failed_query():
     league = League.new(seed=3)
     prospect_id = next(iter(league.prospects))
+    failed_before = league.failed_queries
+    declines_before = league.query_declines
     league.apply_actions([{"type": "scout", "player_id": prospect_id}], "preseason")
     league.apply_actions([{"type": "scout", "player_id": prospect_id}], "preseason")
     assert not league.transactions[-1].accepted
     assert "already scouted" in league.transactions[-1].message
+    assert league.query_declines == declines_before + 1
+    assert league.failed_queries == failed_before
     league.apply_actions([{"type": "scout", "player_id": 999999999}], "preseason")
     assert not league.transactions[-1].accepted
     # Failed scouts consume no points.
     assert league.scout_points_used == 1
+    assert league.failed_queries == failed_before + 1
 
 
 def test_scout_accepts_prospect_id_alias():
@@ -111,3 +118,34 @@ def test_scouting_does_not_perturb_scripted_scores():
     baseline = run_episode(ValueAgent(), seed=1, seasons=5)
     # Midseason is now in the default episode; golden moved with P3+P5+P6.
     assert baseline.final_score == 319.261
+
+
+def test_ambiguous_scout_target_increments_failed_queries_not_declines():
+    league = League.new(seed=3)
+    prospect_id = next(iter(league.prospects))
+    roster_player_id = league.user_team.roster[0]
+    assert prospect_id != roster_player_id
+    points_before = league.scout_points_used
+    failed_before = league.failed_queries
+    declines_before = league.query_declines
+    league.apply_actions(
+        [{"type": "scout", "player_id": roster_player_id, "prospect_id": prospect_id}],
+        "preseason",
+    )
+    transaction = league.transactions[-1]
+    assert not transaction.accepted
+    assert "ambiguous" in transaction.message
+    assert league.scout_points_used == points_before
+    assert league.failed_queries == failed_before + 1
+    assert league.query_declines == declines_before
+
+
+def test_scout_accepts_matching_player_id_and_prospect_id():
+    league = League.new(seed=3)
+    prospect_id = next(iter(league.prospects))
+    league.apply_actions(
+        [{"type": "scout", "player_id": prospect_id, "prospect_id": prospect_id}],
+        "preseason",
+    )
+    assert league.transactions[-1].accepted
+    assert prospect_id in league.scout_reports

@@ -6,6 +6,7 @@
   "session": false,
   "protocol_repair_attempts": 1,
   "model_registry": "config/sota_v2_models.json",
+  "smoke_manifest": "config/sota_v2_smoke_manifest.json",
   "minimum_headline_models": 8,
   "output_token_cap": 1024,
   "output_budget_status": "frozen-fixed-budget",
