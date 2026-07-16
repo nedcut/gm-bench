@@ -27,8 +27,10 @@ def _valid_manifest(registry: dict, lane: dict) -> dict:
                 "upstream_provider": model["upstream_provider"],
                 "endpoint_name": model["endpoint_name"],
                 "output_token_cap": lane["output_token_cap"],
-                "api_calls": 2,
-                "calls_with_finish_reason": 2,
+                "api_calls": 4,
+                "calls_with_finish_reason": 4,
+                "decisions_with_usage": 4,
+                "cost_decisions": 4,
                 "truncated_calls": 0,
                 "max_output_tokens_per_call": 100,
                 "reasoning_tokens": 0,
@@ -65,6 +67,9 @@ def test_complete_valid_smoke_manifest_has_no_issues() -> None:
         ("peak", "cap-pressure threshold"),
         ("failed-decisions", "decision_failure_rate must be zero"),
         ("invalid-sha", "raw artifact sha256"),
+        ("incomplete-calls", "at least 4 API calls"),
+        ("incomplete-usage", "usage must cover all 4"),
+        ("incomplete-cost", "cost telemetry must cover all 4"),
         ("wrong-scaffold", "different prompt scaffold"),
     ],
 )
@@ -87,6 +92,13 @@ def test_invalid_smoke_entry_reports_issue(mutation: str, message: str) -> None:
         entry["decision_failure_rate"] = 0.5
     elif mutation == "invalid-sha":
         entry["artifact_sha256"] = "z" * 64
+    elif mutation == "incomplete-calls":
+        entry["api_calls"] = 1
+        entry["calls_with_finish_reason"] = 1
+    elif mutation == "incomplete-usage":
+        entry["decisions_with_usage"] = 1
+    elif mutation == "incomplete-cost":
+        entry["cost_decisions"] = 0
     else:
         entry["scaffold_fingerprint"] = "wrong"
     assert any(message in issue for issue in smoke_manifest_issues(manifest, registry, lane))

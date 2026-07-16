@@ -87,7 +87,9 @@ def smoke_manifest_issues(
     current scaffold and contract, with complete finish-reason telemetry and
     no cap-pressure or truncation trigger.
     """
+    from gm_bench.benchmark_config import PRESETS
     from gm_bench.contract import contract_fingerprint, scaffold_fingerprint
+    from gm_bench.protocol import PHASES
 
     issues: list[str] = []
     if not isinstance(manifest, dict) or not manifest:
@@ -100,6 +102,8 @@ def smoke_manifest_issues(
     entries = entries if isinstance(entries, dict) else {}
     frozen_cap = lane.get("output_token_cap")
     threshold = lane.get("cap_pressure_threshold_tokens")
+    smoke = PRESETS["smoke"]
+    expected_decisions = len(smoke["seeds"]) * int(smoke["seasons"]) * len(PHASES)
     models = [model for model in registry.get("models") or [] if isinstance(model, dict)]
     registered_ids = {str(model.get("id")) for model in models}
     for stale in sorted(set(entries) - registered_ids):
@@ -121,10 +125,14 @@ def smoke_manifest_issues(
         if entry.get("output_token_cap") != frozen_cap:
             issues.append(f"{prefix} was recorded at cap {entry.get('output_token_cap')!r}, not frozen {frozen_cap!r}")
         api_calls = int(entry.get("api_calls") or 0)
-        if api_calls < 1:
-            issues.append(f"{prefix} records no API calls")
+        if api_calls < expected_decisions:
+            issues.append(f"{prefix} must record at least {expected_decisions} API calls")
         if int(entry.get("calls_with_finish_reason") or 0) != api_calls:
             issues.append(f"{prefix} finish-reason telemetry does not cover every API call")
+        if entry.get("decisions_with_usage") != expected_decisions:
+            issues.append(f"{prefix} usage must cover all {expected_decisions} smoke decision points")
+        if entry.get("cost_decisions") != expected_decisions:
+            issues.append(f"{prefix} cost telemetry must cover all {expected_decisions} smoke decision points")
         if int(entry.get("truncated_calls") or 0):
             issues.append(f"{prefix} shows cap-induced truncation; apply the cap-pressure rule before the panel")
         max_output = entry.get("max_output_tokens_per_call")

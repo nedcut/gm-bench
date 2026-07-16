@@ -536,6 +536,8 @@ def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> in
         "output_token_cap": int(lane["output_token_cap"]),
         "api_calls": usage["api_calls"],
         "calls_with_finish_reason": usage["calls_with_finish_reason"],
+        "decisions_with_usage": usage["decisions_with_usage"],
+        "cost_decisions": usage["cost_decisions"],
         "truncated_calls": usage["truncated_calls"],
         "max_output_tokens_per_call": usage["max_output_tokens_per_call"],
         "reasoning_tokens": usage.get("reasoning_tokens") or 0,

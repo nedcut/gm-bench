@@ -49,8 +49,10 @@ def _valid_manifest(registry: dict, lane: dict) -> dict:
             "upstream_provider": model["upstream_provider"],
             "endpoint_name": model["endpoint_name"],
             "output_token_cap": lane["output_token_cap"],
-            "api_calls": 2,
-            "calls_with_finish_reason": 2,
+            "api_calls": 4,
+            "calls_with_finish_reason": 4,
+            "decisions_with_usage": 4,
+            "cost_decisions": 4,
             "truncated_calls": 0,
             "max_output_tokens_per_call": 100,
             "reasoning_tokens": 0,
@@ -253,6 +255,8 @@ def test_record_smoke_writes_accepted_manifest_entry(
     assert entry["accepted"] is True
     assert entry["artifact_sha256"] == expected_sha
     assert entry["artifact_path"] == str(artifact_path)
+    assert entry["decisions_with_usage"] == 4
+    assert entry["cost_decisions"] == 4
 
 
 def test_record_smoke_refuses_summary_only_artifact(
