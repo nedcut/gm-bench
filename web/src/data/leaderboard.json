@@ -181,7 +181,10 @@
     "rejected_artifacts": [],
     "schema_version": 1,
     "smoke_gate_issues": [
-      "smoke manifest is missing; record every registered-model smoke before the panel"
+      "registered model 'openrouter-claude-sonnet-5-anthropic' has no smoke manifest entry",
+      "registered model 'openrouter-glm-5.2-streamlake' has no smoke manifest entry",
+      "registered model 'openrouter-minimax-m3-minimax' has no smoke manifest entry",
+      "registered model 'openrouter-nemotron-3-nano-deepinfra' has no smoke manifest entry"
     ],
     "status": "retired"
   },
