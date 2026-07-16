@@ -36,12 +36,13 @@ jobs:
       - name: Fetch pinned Semgrep community ruleset
         env:
           SEMGREP_RULESET_URL: https://semgrep.dev/c/p/default
-          SEMGREP_RULESET_SHA256: 8075ccfc7b741e551537dc5d41f68135797872d9340b7fac6264274d9a54f408
+          SEMGREP_RULESET_SEMANTIC_SHA256: eb794d5d07d89c6fca7157a5a0c0641979980482fe10ee2efd386a57882fc063
         run: |
           curl --fail --location --retry 3 --silent --show-error \
             "$SEMGREP_RULESET_URL" --output semgrep-default.yml
-          echo "$SEMGREP_RULESET_SHA256  semgrep-default.yml" | sha256sum --check -
-          python scripts/prepare_semgrep_ruleset.py semgrep-default.yml semgrep-base.yml
+          python scripts/prepare_semgrep_ruleset.py \
+            --expected-semantic-sha256 "$SEMGREP_RULESET_SEMANTIC_SHA256" \
+            semgrep-default.yml semgrep-base.yml
       - name: Run Semgrep
         run: >-
           semgrep scan --config semgrep-base.yml --config .semgrep.yml
