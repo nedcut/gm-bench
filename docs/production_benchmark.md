@@ -154,6 +154,17 @@ there were. `episode.failed_queries`, `summary.failed_queries`, and
 `candidate.summary.failed_queries` in comparison output now count them
 explicitly, the same way `illegal_actions` is counted.
 
+As of the `558e8f35ea1d66b9` re-freeze, `failed_queries` is narrowed to count
+only lookups that never resolve — an unknown id, or a `scout` action whose
+`player_id` and `prospect_id` disagree (ambiguous targets are now rejected as
+unresolvable rather than silently preferring `player_id`). Operational refusals
+of a *valid* target — "already scouted", "no scouting points left" — are no
+longer conflated with lookup failures: they are counted separately in the new
+`query_declines` counter (`episode.query_declines`, `summary.query_declines`,
+and `candidate.summary.query_declines`). `query_declines` is diagnostic only
+and does **not** feed the failed-query eligibility gate below; only genuine
+unresolved lookups can push a row toward that gate.
+
 Failed queries are zero-penalty by design, but runaway rates are gated by
 `failed_queries / decisions`:
 
@@ -200,7 +211,7 @@ Invalid private runs stay local; do not publish them.
 ## Contract freeze
 
 The `sota-v2` leaderboard contract is **frozen at fingerprint
-`a65a4359ca3c6e64`** (protocol `gm-bench-v2` with midseason, the full baseline
+`558e8f35ea1d66b9`** (protocol `gm-bench-v2` with midseason, the full baseline
 panel, public seeds 11–18) as of 2026-07-13. It supersedes `sota-v1`, frozen
 at fingerprint `cf2607e59dba0c7f`: under `sota-v1` the simulator accepted a
 `scout` action's `player_id` only, even though the scaffold prompt also
@@ -256,7 +267,7 @@ after seeing scores.
 
 Rotation changes the **panel**, not the **contract**. The private panel is
 supplied at run time and is *not* part of the contract fingerprint, so swapping
-it in and out does not touch the frozen `a65a4359ca3c6e64` and does not start a
+it in and out does not touch the frozen `558e8f35ea1d66b9` and does not start a
 new claim lane. The validator recognizes the private panel by the `private-env`
 name plus a seed-count and SHA-256 that it re-derives from the local
 `GM_BENCH_PRIVATE_SEEDS` value (or, for redacted artifacts, the declared

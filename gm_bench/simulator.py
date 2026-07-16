@@ -60,6 +60,7 @@ class League:
     illegal_actions: int = 0
     rejected_offers: int = 0
     failed_queries: int = 0
+    query_declines: int = 0
     rng_state_offset: int = 0
     agent_memo: str = ""
     partner_trades: dict[int, int] = field(default_factory=dict)
@@ -430,19 +431,28 @@ class League:
         """
         # The scaffold advertises both keys; players and prospects share one id
         # namespace, so accept either and resolve against both pools.
-        raw_id = action.get("player_id")
-        if raw_id is None:
-            raw_id = action.get("prospect_id", -1)
-        player_id = int(raw_id)
+        raw_player_id = action.get("player_id")
+        raw_prospect_id = action.get("prospect_id")
+        if raw_player_id is not None and raw_prospect_id is not None and raw_player_id != raw_prospect_id:
+            self._record(
+                action,
+                phase,
+                False,
+                f"ambiguous scout target: player_id={raw_player_id} and prospect_id={raw_prospect_id} disagree; "
+                "send exactly one id",
+            )
+            return
+        raw_id = raw_player_id if raw_player_id is not None else raw_prospect_id
+        player_id = int(raw_id if raw_id is not None else -1)
         target = self.players.get(player_id) or self.prospects.get(player_id)
         if target is None:
             self._record(action, phase, False, f"no player or prospect with id {player_id} to scout")
             return
         if player_id in self.scout_reports:
-            self._record(action, phase, False, "player already scouted; see scout_reports")
+            self._record(action, phase, False, "player already scouted; see scout_reports", query_decline=True)
             return
         if self.scout_points_used >= SCOUT_POINTS_PER_SEASON:
-            self._record(action, phase, False, "no scouting points left this season")
+            self._record(action, phase, False, "no scouting points left this season", query_decline=True)
             return
         noise = random.Random(f"{self.seed}:scout:{player_id}").uniform(-SCOUT_REPORT_NOISE, SCOUT_REPORT_NOISE)
         self.scout_points_used += 1
@@ -885,6 +895,7 @@ class League:
         *,
         data: dict[str, Any] | None = None,
         penalize: bool | None = None,
+        query_decline: bool = False,
     ) -> ActionResult:
         """Log an action. Declines that hinge on hidden valuations are counted as
         ``rejected_offers`` (legitimate negotiation, no protocol penalty); every
@@ -903,12 +914,18 @@ class League:
                 if should_penalize:
                     self.illegal_actions += 1
                 elif action.get("type", "") in QUERY_ACTION_TYPES:
-                    # Failed queries (scout/inspect/list_free_agents): no
-                    # protocol penalty, but tracked so a run of misfired
-                    # lookups is not invisible in the summary. Other
-                    # non-penalized declines (e.g. malformed memo text) are
-                    # not queries and stay out of this diagnostic.
-                    self.failed_queries += 1
+                    # Non-penalized query declines split into two diagnostics so
+                    # the sota-v2 failed-query gate measures only genuinely
+                    # unresolved lookups: ``query_declines`` counts operational
+                    # refusals of a valid target (already scouted, no points
+                    # left), while ``failed_queries`` counts lookups that never
+                    # resolved (unknown/ambiguous ids). Other non-penalized
+                    # declines (e.g. malformed memo text) are not queries and
+                    # stay out of both.
+                    if query_decline:
+                        self.query_declines += 1
+                    else:
+                        self.failed_queries += 1
         self.transactions.append(Transaction(self.season, phase, team_id, action, accepted, message))
         if team_id == self.user_team_id:
             self._action_results.append(result)

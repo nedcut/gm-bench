@@ -29,7 +29,9 @@ _COUNT_KEYS = (
     "protocol_repairs_succeeded",
 )
 _FLOAT_KEYS = ("api_latency_ms", "cost_usd")
-_TEXT_KEYS = ("provider", "model", "upstream_provider", "generation_id")
+_TEXT_KEYS = ("provider", "model", "upstream_provider", "generation_id", "finish_reason", "native_finish_reason")
+# Finish reasons that mean the provider cut the response at the output ceiling.
+_TRUNCATION_FINISH_REASONS = frozenset({"length", "max_tokens", "max_output_tokens"})
 
 
 def normalize_usage(raw: Any) -> dict[str, Any] | None:
@@ -147,9 +149,22 @@ def aggregate_usage(records: list[dict[str, Any]]) -> dict[str, Any]:
     cost_decision_keys = {
         key for key, decision_costs in costs_by_decision.items() if all(c is not None for c in decision_costs)
     }
+    finish_reasons = [str(record["finish_reason"]) for record in records if record.get("finish_reason")]
+    truncated_calls = sum(
+        1
+        for record in records
+        if str(record.get("finish_reason") or "").lower() in _TRUNCATION_FINISH_REASONS
+        or str(record.get("native_finish_reason") or "").lower() in _TRUNCATION_FINISH_REASONS
+    )
     return {
         "decisions_with_usage": len(decision_keys) if decision_keys else len(records),
         **totals,
+        "calls_with_finish_reason": len(finish_reasons),
+        "truncated_calls": truncated_calls,
+        "max_output_tokens_per_call": max(
+            (int(record["output_tokens"]) for record in records if record.get("output_tokens") is not None),
+            default=0,
+        ),
         "api_latency_ms": round(sum(float(record.get("api_latency_ms", 0.0)) for record in records), 1),
         "cost_usd": round(sum(costs), 6) if costs else None,
         "cost_decisions": len(cost_decision_keys) if decision_keys else len(costs),
@@ -182,6 +197,12 @@ def summarize_usage(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "decisions_with_usage": decisions_with_usage,
         "cost_decisions": cost_decisions,
         **totals,
+        "calls_with_finish_reason": sum(int(block.get("calls_with_finish_reason", 0)) for block in blocks),
+        "truncated_calls": sum(int(block.get("truncated_calls", 0)) for block in blocks),
+        "max_output_tokens_per_call": max(
+            (int(block.get("max_output_tokens_per_call", 0)) for block in blocks),
+            default=0,
+        ),
         "api_latency_ms": round(sum(float(block.get("api_latency_ms", 0.0)) for block in blocks), 1),
         "harness_latency_ms": round(harness_ms, 1),
         "cost_usd": round(sum(costs), 6) if costs else None,

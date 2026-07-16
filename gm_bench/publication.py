@@ -56,6 +56,7 @@ def _compact_episode(episode: Any) -> dict[str, Any]:
         "decisions",
         "failed_decisions",
         "failed_queries",
+        "query_declines",
         "memo_writes",
         "rejected_offers",
     )
@@ -65,6 +66,81 @@ def _compact_episode(episode: Any) -> dict[str, Any]:
     if usage:
         compact["usage"] = usage
     return compact
+
+
+SMOKE_MANIFEST_FORMAT = "gm-bench-smoke-manifest-v1"
+# OpenAI-style finish reasons that mean the response hit the output ceiling.
+TRUNCATION_FINISH_REASONS = frozenset({"length", "max_tokens", "max_output_tokens"})
+
+
+def smoke_manifest_issues(
+    manifest: dict[str, Any] | None,
+    registry: dict[str, Any],
+    lane: dict[str, Any],
+) -> list[str]:
+    """Machine-check the pre-panel smoke evidence against the frozen lane.
+
+    The full panel (and any published ranking) must not be unlockable by
+    editing a status string: every registered model needs an accepted smoke
+    manifest entry recorded from a real artifact, at the frozen cap, under the
+    current scaffold and contract, with complete finish-reason telemetry and
+    no cap-pressure or truncation trigger.
+    """
+    from gm_bench.contract import contract_fingerprint, scaffold_fingerprint
+
+    issues: list[str] = []
+    if not isinstance(manifest, dict) or not manifest:
+        return ["smoke manifest is missing; record every registered-model smoke before the panel"]
+    if manifest.get("format") != SMOKE_MANIFEST_FORMAT:
+        issues.append(f"smoke manifest format must be {SMOKE_MANIFEST_FORMAT!r}")
+    entries = manifest.get("entries")
+    entries = entries if isinstance(entries, dict) else {}
+    frozen_cap = lane.get("output_token_cap")
+    threshold = lane.get("cap_pressure_threshold_tokens")
+    models = [model for model in registry.get("models") or [] if isinstance(model, dict)]
+    registered_ids = {str(model.get("id")) for model in models}
+    for stale in sorted(set(entries) - registered_ids):
+        issues.append(f"smoke manifest entry {stale!r} is not in the current model registry")
+    for model in models:
+        model_id = str(model.get("id"))
+        entry = entries.get(model_id)
+        if not isinstance(entry, dict):
+            issues.append(f"registered model {model_id!r} has no smoke manifest entry")
+            continue
+        prefix = f"smoke manifest entry {model_id!r}"
+        if entry.get("accepted") is not True:
+            issues.append(f"{prefix} is not accepted")
+        for key in ("provider", "model", "upstream_provider", "endpoint_name"):
+            if entry.get(key) != model.get(key):
+                issues.append(f"{prefix} {key} does not match the registered route")
+        if entry.get("output_token_cap") != frozen_cap:
+            issues.append(f"{prefix} was recorded at cap {entry.get('output_token_cap')!r}, not frozen {frozen_cap!r}")
+        api_calls = int(entry.get("api_calls") or 0)
+        if api_calls < 1:
+            issues.append(f"{prefix} records no API calls")
+        if int(entry.get("calls_with_finish_reason") or 0) != api_calls:
+            issues.append(f"{prefix} finish-reason telemetry does not cover every API call")
+        if int(entry.get("truncated_calls") or 0):
+            issues.append(f"{prefix} shows cap-induced truncation; apply the cap-pressure rule before the panel")
+        max_output = entry.get("max_output_tokens_per_call")
+        if not isinstance(max_output, int):
+            issues.append(f"{prefix} is missing max_output_tokens_per_call")
+        elif isinstance(threshold, int) and max_output >= threshold:
+            issues.append(
+                f"{prefix} peaked at {max_output} output tokens, at or above the "
+                f"{threshold}-token cap-pressure threshold; apply the cap-pressure rule before the panel"
+            )
+        if int(entry.get("reasoning_tokens") or 0):
+            issues.append(f"{prefix} recorded reasoning tokens in the reasoning-disabled lane")
+        if entry.get("contract_fingerprint") != contract_fingerprint():
+            issues.append(f"{prefix} was recorded under a different benchmark contract")
+        expected_scaffold = scaffold_fingerprint(str(model.get("provider") or ""))
+        if expected_scaffold is not None and entry.get("scaffold_fingerprint") != expected_scaffold:
+            issues.append(f"{prefix} was recorded under a different prompt scaffold")
+        artifact_sha = entry.get("artifact_sha256")
+        if not isinstance(artifact_sha, str) or len(artifact_sha) != 64:
+            issues.append(f"{prefix} must record the raw artifact sha256")
+    return issues
 
 
 def mechanic_breakdown(episodes: list[dict[str, Any]]) -> dict[str, dict[str, int]]:

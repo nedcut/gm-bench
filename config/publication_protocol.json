@@ -50,6 +50,7 @@
   "exclusion_policy": {
     "retired_sweep": "The 12-cell sweep was retired before replacement official cells. Its config and prior diagnostic artifacts remain for auditability and cannot be promoted into the fixed-cap headline lane.",
     "headline_panel": "Publish only pre-registered rows. Endpoint withdrawal or persistent route/telemetry failure after two infrastructure attempts may be documented as an exclusion; do not substitute a new model after results are visible.",
+    "headline_row_counting": "The minimum-headline-model floor is counted by unique registered model identity, never by rows; aliases or duplicate rows for the same identity cannot satisfy the floor.",
     "minimum_headline_models": 8
   },
   "stopping_policy": {
@@ -58,7 +59,7 @@
     "stop_before_next_cell_when_spend_ceiling_reached": true,
     "stop_on_route_or_endpoint_snapshot_drift": true,
     "stop_on_missing_cost_or_usage_coverage": true,
-    "smoke_completion": "10 accepted registered-model smokes at the common cap, with zero cap-pressure or truncation triggers; otherwise amend the whole lane to 2,048 before any full-panel result",
+    "smoke_completion": "10 accepted registered-model smokes at the common cap, with zero cap-pressure or truncation triggers; otherwise amend the whole lane to 2,048 before any full-panel result. Acceptance is machine-checked: each smoke must be recorded via `scripts/run_publication_matrix.py record-smoke` as an accepted entry in config/sota_v2_smoke_manifest.json, and the panel phase refuses to run until every registered model has one.",
     "headline_completion": "at least 8 strictly sota-v2 eligible pre-registered rows at the frozen cap"
   },
   "budget_policy": {
@@ -66,6 +67,17 @@
     "approval_note": "A planning estimate is not authorization to spend. The operator explicitly approves spend by invoking the runner with --max-spend-usd.",
     "cost_estimate_artifact": "results/analysis/output-budget-cost-estimate.json",
     "cost_estimate_status": "superseded-four-cap-plan; replace after all-model smoke telemetry"
+  },
+  "statistical_analysis_plan": {
+    "frozen_at_utc": "2026-07-16T01:51:32Z",
+    "unit_of_inference": "Eight public seeds are the sample; three repeats per seed are nested within seeds and only reduce model-sampling noise. All per-seed lifts are reported.",
+    "primary_contrast": "One per model: the paired lift versus the full baseline-panel mean, using the per-seed candidate mean over repeats.",
+    "multiplicity": "Holm-Bonferroni correction across the 10 registered models for the primary contrast family; per-model uncorrected p-values are descriptive only.",
+    "inference_labels": "Sign-flip permutation p-values are exact only under a symmetry assumption and are labeled descriptive; the n=8 percentile-bootstrap CI is descriptive and its significant_at_95 flag must not be used as a headline claim.",
+    "ranking_rule": "Publish tiers, not ordinal ranks. Models whose Holm-adjusted primary contrasts and paired-lift intervals overlap are reported as one tier; no model-vs-model superiority claim without a predeclared contrast.",
+    "power_disclosure": "The predeclared minimum detectable difference (~62 points from docs/scoring_calibration.md) exceeds the oracle-to-pick-trader headroom (~19.5), so a null result between adjacent models is uninformative and must be reported as such.",
+    "temperature_policy": "Temperature is intentionally omitted from every request; pinned endpoints apply their defaults, and repeats measure the resulting sampling variance. This is a frozen, predeclared choice — not an oversight.",
+    "registry_exclusion_criteria": "Technical incompatibility only: endpoint withdrawal, mandatory reasoning, unsupported JSON mode or max_tokens, or persistent infrastructure failure after two attempts. Model behavior — poor scores, protocol failures, truncation-free high usage — never removes a registered model."
   },
   "multiple_comparisons": "Per-model p-values are descriptive. Claims about a best model require family-wise interpretation across the full registered panel; emphasize effect sizes and confidence intervals rather than isolated p<0.05 labels.",
   "private_panel_policy": "The first release may claim reproducible public-panel evidence only. A stronger contamination-resistant claim requires a separately salted pre-commitment and private-panel run before private results are inspected."

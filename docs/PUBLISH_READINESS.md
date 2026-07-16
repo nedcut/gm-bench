@@ -141,7 +141,9 @@ before any full-panel score is visible.
   inspect it, and approve the next rather than launching the set blindly.
 - [ ] Verify each smoke's exact route, JSON behavior, reasoning-off provenance,
   repair/failure telemetry, cost coverage, per-call output distribution, and
-  absence of truncation.
+  absence of truncation. Then record it with `run_publication_matrix.py
+  record-smoke` so the machine-enforced manifest accepts it; the panel phase
+  refuses to run until every registered model has an accepted entry.
 - [ ] If the cap-pressure rule fires, amend the whole lane to 2,048 and repeat
   affected smokes before any full-panel result. Do not make this decision after
   seeing full scores.
@@ -194,9 +196,23 @@ python3 scripts/run_publication_matrix.py smoke \
   --max-spend-usd 5
 ```
 
+After each smoke passes inspection, record it so the machine-enforced manifest
+accepts the route. The command validates route, options, fingerprints, zero
+failures, complete finish-reason coverage, absence of truncation, and peak
+output tokens below 768 before writing an accepted entry to
+`config/sota_v2_smoke_manifest.json`:
+
+```bash
+python3 scripts/run_publication_matrix.py record-smoke \
+  --model-id openrouter-qwen3.5-9b-deepinfra \
+  --artifact data/publication-runs/smoke-fixed-1024-2026-07-15/raw.json
+```
+
 Repeat one registered model at a time. Only after all ten standardized smokes,
 the cap-pressure audit, and the refreshed cost estimate are acceptable should
-the model registry be frozen and the full panel begin. The driver creates
+the model registry be frozen and the full panel begin. The `panel` phase now
+refuses to run unless every registered model has an accepted manifest entry;
+editing `selection_status` to "frozen" is no longer sufficient. The driver creates
 atomic raw artifacts and per-cell checkpoints, uses validated resume when a
 checkpoint already exists, and refuses to fan out workers:
 
@@ -514,6 +530,8 @@ decision and why.
 | 2026-07-15 | Reopen model selection and express reasoning-off as `reasoning.enabled=false`. | The current OpenRouter catalog exposes non-mandatory reasoning for Kimi and DeepSeek but mandatory reasoning for Gemini 3.1 Pro and Grok 4.5. A boolean off switch is more portable than provider-specific `effort=none`. | The panel becomes a provisional 10-model, nine-lab set; Kimi, DeepSeek, and Nemotron Nano enter pending route smokes, while mandatory-reasoning Gemini and Grok remain explicit exclusions. |
 | 2026-07-15 | Pause the four-cap output sweep for policy review. | Luna averaged only 154 output tokens per decision at a 1,024-token ceiling with reasoning disabled, so the existing 12-cell matrix may spend more to study a mostly non-binding response limit rather than strategic compute. | The runner blocks paid sweep cells until the project chooses between a cap experiment and one generous safety ceiling with token-efficiency reporting. |
 | 2026-07-15 | Retire the four-cap sweep and freeze a 1,024-token safety ceiling. | In 601 superseded Luna API calls, output-token usage was p50 121, p95 210, p99 264, max 299, with zero calls at 1,024 and zero reasoning tokens. The cap was operationally non-binding even though the old score remains invalid under the new scaffold. | Smoke all ten registered models at 1,024. If any call reaches 768 tokens or shows cap-induced truncation, raise the entire lane to 2,048 before any full-panel result. Report actual token efficiency as a secondary metric. |
+| 2026-07-15 | Machine-enforce the pre-panel smoke gate and unique-row counting. | Review found the panel and ranking were unlockable by editing status strings and by row aliasing: `selection_status` "frozen" was accepted as smoke completion, and duplicate aliases for one model could satisfy the eight-row floor. | Panel and `publishable_ranking` now require recorded, accepted smoke-manifest entries per registered model, count by unique registered model identity, and can never require fewer rows than the protocol's pre-registered minimum floor. |
+| 2026-07-15 | Re-fingerprint the v2 contract and OpenRouter scaffold before any accepted evidence. | `failed_queries` narrowed to unresolved lookups plus ambiguous-scout rejection changed the contract (`a65a4359ca3c6e64` → `558e8f35ea1d66b9`), and per-call `finish_reason`/`native_finish_reason` recording made cap-induced truncation auditable (scaffold `317371cf66b436fe` → `d7321ad9d0a739b4`). No accepted smoke or eligible row existed, so nothing was invalidated. | All ten route smokes must run under the new fingerprints, and the statistical analysis plan is frozen pre-data in `config/publication_protocol.json`. |
 
 ## Experiment and release log
 
@@ -532,6 +550,7 @@ than pasting large outputs.
 | 2026-07-15 | GPT-5.6 Luna standardized smoke | Superseded diagnostic | raw SHA-256 `e8f83c6516cb3cc8105b173c826c1b5d91314a487b729f9b06b8fc6beda2bc8f` | Exact OpenAI route and complete telemetry remain useful, but all four illegal actions were preseason draft attempts primed by the old global action catalog. |
 | 2026-07-15 | GPT-5.6 Luna 1,024-token sweep cell | Superseded diagnostic | canonical SHA-256 `b681bdc56f3d176d194c9c1e20cc688be4ef4b58f7669862fb2268af99a0e37a`; byte SHA-256 `74d342c5d4c799524dadd6f668350eede67b8b74e5522833723e25ab4f50480b` | The run remains operationally valid and auditable, but its scaffold fingerprint is intentionally invalidated. It cannot count toward the restarted sweep or headline panel. |
 | 2026-07-15 | Sweep cost/runtime plan | Superseded by fixed-cap policy | `results/analysis/output-budget-cost-estimate.json` | The prior figures describe the retired 12-cell matrix. Replace with a full-panel estimate after all ten route smokes. |
+| 2026-07-15 | Statistical analysis plan | Frozen | `config/publication_protocol.json` | Pre-registered pre-data: unit of inference, primary paired contrast, Holm-Bonferroni multiplicity, descriptive inference labels, tiered ranking, power disclosure, temperature policy, and registry exclusion criteria. |
 
 ## Living-document maintenance checklist
 

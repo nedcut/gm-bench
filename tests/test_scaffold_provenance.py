@@ -53,3 +53,45 @@ def test_validator_warns_on_unknown_provider_with_fingerprint() -> None:
     _validate_scaffold_provenance(errors, warnings, {"provider": "someones-fork", "scaffold_fingerprint": "abc"})
     assert not errors
     assert any("not a built-in provider" in w for w in warnings)
+
+
+def test_validator_errors_when_fingerprint_missing_with_require() -> None:
+    errors: list[str] = []
+    warnings: list[str] = []
+    _validate_scaffold_provenance(
+        errors,
+        warnings,
+        {"provider": "ollama"},
+        require=True,
+        policy_name="sota-v2",
+    )
+    assert not warnings
+    assert any("scaffold_fingerprint is required for sota-v2 rows" in e for e in errors)
+
+
+def test_validator_errors_on_unknown_provider_with_require() -> None:
+    errors: list[str] = []
+    warnings: list[str] = []
+    _validate_scaffold_provenance(
+        errors,
+        warnings,
+        {"provider": "someones-fork", "scaffold_fingerprint": "abc"},
+        require=True,
+        policy_name="sota-v2",
+    )
+    assert not warnings
+    assert any("not a built-in provider" in e for e in errors)
+
+
+def test_validator_accepts_current_fingerprint_with_require() -> None:
+    errors: list[str] = []
+    warnings: list[str] = []
+    _validate_scaffold_provenance(
+        errors,
+        warnings,
+        {"provider": "ollama", "scaffold_fingerprint": scaffold_fingerprint("ollama")},
+        require=True,
+        policy_name="sota-v2",
+    )
+    assert not errors
+    assert not warnings

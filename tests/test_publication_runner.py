@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
 
 import pytest
 
+import scripts.run_publication_matrix as publication_runner
+from gm_bench.contract import contract_fingerprint, scaffold_fingerprint
 from scripts.run_publication_matrix import (
     _artifact_spend_usd,
     _cell_reservation_usd,
@@ -16,6 +19,84 @@ from scripts.run_publication_matrix import (
     cell_environment,
     main,
 )
+
+
+def _frozen_panel_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[dict, dict, Path]:
+    registry = json.loads(Path("config/sota_v2_models.json").read_text())
+    registry["selection_status"] = "frozen"
+    lane = json.loads(Path("config/sota_v2_lane.json").read_text())
+    lane.pop("smoke_manifest", None)
+    registry_path = tmp_path / "models.json"
+    lane_path = tmp_path / "lane.json"
+    manifest_path = tmp_path / "smokes.json"
+    registry_path.write_text(json.dumps(registry))
+    lane_path.write_text(json.dumps(lane))
+    monkeypatch.setattr(publication_runner, "PANEL_CONFIG", registry_path)
+    monkeypatch.setattr(publication_runner, "LANE_CONFIG", lane_path)
+    monkeypatch.setattr(publication_runner, "SMOKE_MANIFEST", manifest_path)
+    return registry, lane, manifest_path
+
+
+def _valid_manifest(registry: dict, lane: dict) -> dict:
+    entries = {}
+    for model in registry["models"]:
+        entries[model["id"]] = {
+            "provider": model["provider"],
+            "model": model["model"],
+            "upstream_provider": model["upstream_provider"],
+            "endpoint_name": model["endpoint_name"],
+            "output_token_cap": lane["output_token_cap"],
+            "api_calls": 2,
+            "calls_with_finish_reason": 2,
+            "truncated_calls": 0,
+            "max_output_tokens_per_call": 100,
+            "reasoning_tokens": 0,
+            "decision_failure_rate": 0,
+            "contract_fingerprint": contract_fingerprint(),
+            "scaffold_fingerprint": scaffold_fingerprint(model["provider"]),
+            "artifact_sha256": "a" * 64,
+            "accepted": True,
+        }
+    return {
+        "format": "gm-bench-smoke-manifest-v1",
+        "schema_version": 1,
+        "entries": entries,
+    }
+
+
+def _valid_smoke_artifact(registry: dict, lane: dict, model: dict) -> dict:
+    return {
+        "run_info": {
+            "provider": model["provider"],
+            "model": model["model"],
+            "profile": registry["profile"],
+            "preset": "smoke",
+            "provider_options": {
+                **registry["shared_fixed_options"],
+                "OPENROUTER_PROVIDER_ONLY": model["upstream_provider"],
+                "OPENROUTER_EXPECTED_ENDPOINT_NAME": model["endpoint_name"],
+                "GM_BENCH_OUTPUT_BUDGET_CELL": str(lane["output_token_cap"]),
+            },
+            "benchmark_contract": {"contract_fingerprint": contract_fingerprint()},
+            "scaffold_fingerprint": scaffold_fingerprint(model["provider"]),
+        },
+        "candidate": {
+            "summary": {
+                "decision_failure_rate": 0,
+                "usage": {
+                    "api_calls": 2,
+                    "calls_with_finish_reason": 2,
+                    "truncated_calls": 0,
+                    "max_output_tokens_per_call": 100,
+                    "reasoning_tokens": 0,
+                    "upstream_providers": [model["upstream_provider"].lower()],
+                },
+            }
+        },
+    }
 
 
 def test_sweep_matrix_is_pre_registered_and_serial(tmp_path: Path) -> None:
@@ -70,6 +151,138 @@ def test_panel_is_locked_until_model_registry_is_frozen() -> None:
         build_cells("panel")
 
 
+def test_panel_stays_locked_when_frozen_registry_has_no_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _frozen_panel_files(tmp_path, monkeypatch)
+    with pytest.raises(ValueError, match="smoke manifest is missing"):
+        build_cells("panel")
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("missing", "has no smoke manifest entry"),
+        ("not-accepted", "is not accepted"),
+        ("truncated", "cap-induced truncation"),
+        ("wrong-cap", "not frozen"),
+        ("peak", "cap-pressure threshold"),
+        ("wrong-scaffold", "different prompt scaffold"),
+    ],
+)
+def test_panel_stays_locked_for_invalid_smoke_entry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+    message: str,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest = _valid_manifest(registry, lane)
+    model_id = registry["models"][0]["id"]
+    if mutation == "missing":
+        del manifest["entries"][model_id]
+    elif mutation == "not-accepted":
+        manifest["entries"][model_id]["accepted"] = False
+    elif mutation == "truncated":
+        manifest["entries"][model_id]["truncated_calls"] = 1
+    elif mutation == "wrong-cap":
+        manifest["entries"][model_id]["output_token_cap"] = 2048
+    elif mutation == "peak":
+        manifest["entries"][model_id]["max_output_tokens_per_call"] = 768
+    else:
+        manifest["entries"][model_id]["scaffold_fingerprint"] = "wrong"
+    manifest_path.write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match=message):
+        build_cells("panel")
+
+
+def test_panel_unlocks_with_complete_valid_smoke_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
+    assert len(build_cells("panel")) == 10
+
+
+def test_record_smoke_writes_accepted_manifest_entry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    model = registry["models"][0]
+    artifact_path = tmp_path / "raw-smoke.json"
+    artifact_path.write_text(json.dumps(_valid_smoke_artifact(registry, lane, model)))
+    expected_sha = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+
+    assert (
+        main(
+            [
+                "record-smoke",
+                "--model-id",
+                model["id"],
+                "--artifact",
+                str(artifact_path),
+                "--manifest",
+                str(manifest_path),
+            ]
+        )
+        == 0
+    )
+    entry = json.loads(manifest_path.read_text())["entries"][model["id"]]
+    assert entry["accepted"] is True
+    assert entry["artifact_sha256"] == expected_sha
+    assert entry["artifact_path"] == str(artifact_path)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("truncated_calls", 1, "cap-induced truncation"),
+        ("max_output_tokens_per_call", 768, "cap-pressure threshold"),
+        ("scaffold_fingerprint", "wrong", "different prompt scaffold"),
+        ("decision_failure_rate", 0.1, "decision_failure_rate must be zero"),
+    ],
+)
+def test_record_smoke_refuses_invalid_artifact_without_writing_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    field: str,
+    value: object,
+    message: str,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    model = registry["models"][0]
+    artifact = _valid_smoke_artifact(registry, lane, model)
+    if field == "scaffold_fingerprint":
+        artifact["run_info"][field] = value
+    elif field == "decision_failure_rate":
+        artifact["candidate"]["summary"][field] = value
+    else:
+        artifact["candidate"]["summary"]["usage"][field] = value
+    artifact_path = tmp_path / f"{field}.json"
+    artifact_path.write_text(json.dumps(artifact))
+
+    assert (
+        main(
+            [
+                "record-smoke",
+                "--model-id",
+                model["id"],
+                "--artifact",
+                str(artifact_path),
+                "--manifest",
+                str(manifest_path),
+            ]
+        )
+        == 1
+    )
+    assert message in capsys.readouterr().err
+    assert not manifest_path.exists()
+
+
 def test_artifact_spend_uses_completed_result_telemetry(tmp_path: Path) -> None:
     raw = tmp_path / "raw"
     raw.mkdir()
@@ -109,6 +322,36 @@ def test_cell_reservation_blocks_launch_before_ceiling_overrun(tmp_path: Path) -
     with pytest.raises(SystemExit, match="reservation would exceed"):
         _reserve_cell(tmp_path, cell, measured_spend=0.99, ceiling=1.0)
     assert not (tmp_path / "openrouter-reservations.json").exists()
+
+
+def test_retry_reservation_accounts_for_fresh_full_attempt(tmp_path: Path) -> None:
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=1024)[0]
+    reservation = _cell_reservation_usd(cell)
+    path = tmp_path / "openrouter-reservations.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "cells": {
+                    f"{cell.experiment_id}--1024": {
+                        "experiment_id": cell.experiment_id,
+                        "model": cell.model,
+                        "output_token_cap": 1024,
+                        "reserved_usd": reservation,
+                        "attempts": 1,
+                    }
+                },
+            }
+        )
+    )
+    with pytest.raises(SystemExit, match="retry reservation would exceed"):
+        _reserve_cell(tmp_path, cell, measured_spend=0.9, ceiling=0.9 + reservation / 2)
+
+    committed = _reserve_cell(tmp_path, cell, measured_spend=0.1, ceiling=reservation * 2 + 0.1)
+    stored = json.loads(path.read_text())["cells"][f"{cell.experiment_id}--1024"]
+    assert committed == pytest.approx(0.1 + reservation)
+    assert stored["reserved_usd"] == pytest.approx(reservation * 2)
+    assert stored["attempts"] == 2
 
 
 def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
