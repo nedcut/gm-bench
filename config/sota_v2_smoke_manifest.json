@@ -1,0 +1,29 @@
+{
+  "entries": {
+    "openrouter-qwen3.5-9b-deepinfra": {
+      "accepted": true,
+      "api_calls": 5,
+      "artifact_path": "data/publication-runs/smoke-fixed-1024-2026-07-16/raw/openrouter-qwen3.5-9b-deepinfra--1024.json",
+      "artifact_sha256": "7294be814c0a4deb274cd9fc94a58d0d34378c19286e42dfc25ac5a044dcbc5e",
+      "calls_with_finish_reason": 5,
+      "contract_fingerprint": "558e8f35ea1d66b9",
+      "cost_decisions": 4,
+      "decision_failure_rate": 0.0,
+      "decisions_with_usage": 4,
+      "endpoint_name": "DeepInfra | qwen/qwen3.5-9b-20260310",
+      "max_output_tokens_per_call": 428,
+      "model": "qwen/qwen3.5-9b",
+      "output_token_cap": 1024,
+      "protocol_repair_attempts": 0,
+      "protocol_repairs_succeeded": 0,
+      "provider": "openrouter",
+      "reasoning_tokens": 0,
+      "recorded_at_utc": "2026-07-16T17:58:14+00:00",
+      "scaffold_fingerprint": "d7321ad9d0a739b4",
+      "truncated_calls": 0,
+      "upstream_provider": "DeepInfra"
+    }
+  },
+  "format": "gm-bench-smoke-manifest-v1",
+  "schema_version": 1
+}
