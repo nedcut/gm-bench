@@ -215,10 +215,23 @@ def _registry_specs(registry: Mapping[str, Any]) -> tuple[list[dict[str, Any]], 
         model = str(row.get("model") or "").strip()
         transport = str(row.get("transport") or "").strip()
         upstream_provider = str(row.get("upstream_provider") or "").strip()
+        upstream_provider_slug = str(row.get("upstream_provider_slug") or "").strip()
+        endpoint_tag = str(row.get("endpoint_tag") or "").strip()
         endpoint_name = str(row.get("endpoint_name") or "").strip()
-        if not all((model_id, provider, model, transport, upstream_provider, endpoint_name)):
+        if not all(
+            (
+                model_id,
+                provider,
+                model,
+                transport,
+                upstream_provider,
+                upstream_provider_slug,
+                endpoint_tag,
+                endpoint_name,
+            )
+        ):
             errors.append(
-                f"models[{index}] requires id, provider, model, transport, upstream_provider, and endpoint_name"
+                f"models[{index}] requires id, provider, model, transport, upstream provider identity, endpoint tag, and endpoint_name"
             )
             continue
         if model_id in seen_ids:
@@ -235,15 +248,23 @@ def _registry_specs(registry: Mapping[str, Any]) -> tuple[list[dict[str, Any]], 
                 "model": model,
                 "transport": transport,
                 "upstream_provider": upstream_provider,
+                "upstream_provider_slug": upstream_provider_slug,
+                "endpoint_tag": endpoint_tag,
                 "endpoint_name": endpoint_name,
                 "fixed_options": {
                     **dict(shared_fixed_options),
-                    "OPENROUTER_PROVIDER_ONLY": upstream_provider,
+                    **dict(row.get("fixed_options") or {}),
+                    "OPENROUTER_PROVIDER_ONLY": upstream_provider_slug,
+                    "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER": upstream_provider,
                     "OPENROUTER_EXPECTED_ENDPOINT_NAME": endpoint_name,
                     "OPENROUTER_MAX_TOKENS": str(registry.get("output_token_cap")),
                     "GM_BENCH_OUTPUT_BUDGET_CELL": str(registry.get("output_token_cap")),
                 },
-                "absent_options": [str(value) for value in shared_absent_options],
+                "absent_options": [
+                    str(value)
+                    for value in [*shared_absent_options, *(row.get("absent_options") or [])]
+                    if str(value) not in {**dict(shared_fixed_options), **dict(row.get("fixed_options") or {})}
+                ],
             }
         )
     return specs, errors

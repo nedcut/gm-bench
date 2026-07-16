@@ -119,7 +119,16 @@ def smoke_manifest_issues(
             issues.append(f"{prefix} is not accepted")
         if entry.get("decision_failure_rate") != 0:
             issues.append(f"{prefix} decision_failure_rate must be zero")
-        for key in ("provider", "model", "upstream_provider", "endpoint_name"):
+        for key in (
+            "provider",
+            "model",
+            "upstream_provider",
+            "upstream_provider_slug",
+            "endpoint_tag",
+            "endpoint_name",
+            "reasoning_policy",
+            "reasoning_effort",
+        ):
             if entry.get(key) != model.get(key):
                 issues.append(f"{prefix} {key} does not match the registered route")
         if entry.get("output_token_cap") != frozen_cap:
@@ -151,8 +160,11 @@ def smoke_manifest_issues(
                 f"{prefix} peaked at {max_output} output tokens, at or above the "
                 f"{threshold}-token cap-pressure threshold; apply the cap-pressure rule before the panel"
             )
-        if int(entry.get("reasoning_tokens") or 0):
-            issues.append(f"{prefix} recorded reasoning tokens in the reasoning-disabled lane")
+        reasoning_tokens = entry.get("reasoning_tokens")
+        if model.get("reasoning_policy") == "disabled" and int(reasoning_tokens or 0):
+            issues.append(f"{prefix} recorded reasoning tokens for a reasoning-disabled model")
+        if model.get("reasoning_policy") == "mandatory-minimum" and not isinstance(reasoning_tokens, int):
+            issues.append(f"{prefix} is missing reasoning-token telemetry for a mandatory-reasoning model")
         if entry.get("contract_fingerprint") != contract_fingerprint():
             issues.append(f"{prefix} was recorded under a different benchmark contract")
         expected_scaffold = scaffold_fingerprint(str(model.get("provider") or ""))

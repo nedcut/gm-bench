@@ -32,6 +32,7 @@ def _frozen_panel_files(
     registry = json.loads(Path("config/sota_v2_models.json").read_text())
     registry["selection_status"] = "frozen"
     lane = json.loads(Path("config/sota_v2_lane.json").read_text())
+    lane["output_budget_status"] = "frozen-native-reasoning-cap"
     lane.pop("smoke_manifest", None)
     registry_path = tmp_path / "models.json"
     lane_path = tmp_path / "lane.json"
@@ -51,7 +52,11 @@ def _valid_manifest(registry: dict, lane: dict) -> dict:
             "provider": model["provider"],
             "model": model["model"],
             "upstream_provider": model["upstream_provider"],
+            "upstream_provider_slug": model["upstream_provider_slug"],
+            "endpoint_tag": model["endpoint_tag"],
             "endpoint_name": model["endpoint_name"],
+            "reasoning_policy": model["reasoning_policy"],
+            "reasoning_effort": model["reasoning_effort"],
             "output_token_cap": lane["output_token_cap"],
             "api_calls": 4,
             "calls_with_finish_reason": 4,
@@ -84,7 +89,9 @@ def _valid_smoke_artifact(registry: dict, lane: dict, model: dict) -> dict:
             "preset": "smoke",
             "provider_options": {
                 **registry["shared_fixed_options"],
-                "OPENROUTER_PROVIDER_ONLY": model["upstream_provider"],
+                **model["fixed_options"],
+                "OPENROUTER_PROVIDER_ONLY": model["upstream_provider_slug"],
+                "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER": model["upstream_provider"],
                 "OPENROUTER_EXPECTED_ENDPOINT_NAME": model["endpoint_name"],
                 "GM_BENCH_OUTPUT_BUDGET_CELL": str(lane["output_token_cap"]),
             },
@@ -155,14 +162,14 @@ def test_runner_rejects_cap_outside_pre_registered_sweep() -> None:
 
 
 def test_smoke_is_clean_and_resumes_existing_checkpoint(tmp_path: Path) -> None:
-    assert len(build_cells("smoke")) == 10
-    cell = build_cells("smoke", model_id="openrouter-qwen3.5-9b-deepinfra")[0]
+    assert len(build_cells("smoke")) == 12
+    cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba")[0]
     command = cell_command(cell, tmp_path)
     assert cell.preset == "smoke"
     assert cell.repeats == 1
-    assert cell.cap == 1024
+    assert cell.cap == 4096
     assert "--require-clean" in command
-    checkpoint = tmp_path / "checkpoints" / f"{cell.experiment_id}--1024.json"
+    checkpoint = tmp_path / "checkpoints" / f"{cell.experiment_id}--4096.json"
     checkpoint.parent.mkdir(parents=True)
     checkpoint.touch()
     assert "--resume" in cell_command(cell, tmp_path)
@@ -170,7 +177,18 @@ def test_smoke_is_clean_and_resumes_existing_checkpoint(tmp_path: Path) -> None:
 
 def test_smoke_rejects_cap_that_differs_from_frozen_lane() -> None:
     with pytest.raises(ValueError, match="differs from frozen panel smoke cap"):
-        build_cells("smoke", cap=2048)
+        build_cells("smoke", cap=1024)
+
+
+def test_smoke_applies_each_models_registered_reasoning_policy() -> None:
+    disabled = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai")[0]
+    mandatory = build_cells("smoke", model_id="openrouter-kimi-k3-moonshot")[0]
+
+    assert disabled.fixed_options["OPENROUTER_REASONING_ENABLED"] == "false"
+    assert "OPENROUTER_REASONING_EFFORT" in disabled.absent_options
+    assert mandatory.fixed_options["OPENROUTER_REASONING_ENABLED"] == "true"
+    assert mandatory.fixed_options["OPENROUTER_REASONING_EFFORT"] == "max"
+    assert mandatory.fixed_options["OPENROUTER_PROVIDER_ONLY"] == "moonshotai/int4"
 
 
 def test_panel_is_locked_until_model_registry_is_frozen() -> None:
@@ -214,9 +232,9 @@ def test_panel_stays_locked_for_invalid_smoke_entry(
     elif mutation == "truncated":
         manifest["entries"][model_id]["truncated_calls"] = 1
     elif mutation == "wrong-cap":
-        manifest["entries"][model_id]["output_token_cap"] = 2048
+        manifest["entries"][model_id]["output_token_cap"] = 1024
     elif mutation == "peak":
-        manifest["entries"][model_id]["max_output_tokens_per_call"] = 768
+        manifest["entries"][model_id]["max_output_tokens_per_call"] = 3072
     else:
         manifest["entries"][model_id]["scaffold_fingerprint"] = "wrong"
     manifest_path.write_text(json.dumps(manifest))
@@ -230,7 +248,7 @@ def test_panel_unlocks_with_complete_valid_smoke_manifest(
 ) -> None:
     registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
     manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
-    assert len(build_cells("panel")) == 10
+    assert len(build_cells("panel")) == 12
 
 
 def test_record_smoke_writes_accepted_manifest_entry(
@@ -409,7 +427,7 @@ def test_record_smoke_requires_call_telemetry_for_protocol_repairs(
     ("field", "value", "message"),
     [
         ("truncated_calls", 1, "cap-induced truncation"),
-        ("max_output_tokens_per_call", 768, "cap-pressure threshold"),
+        ("max_output_tokens_per_call", 3072, "cap-pressure threshold"),
         ("scaffold_fingerprint", "wrong", "different prompt scaffold"),
         ("decision_failure_rate", 0.1, "decision_failure_rate must be zero"),
     ],
@@ -468,7 +486,7 @@ def test_paid_openrouter_run_requires_explicit_spend_ceiling(
             [
                 "smoke",
                 "--model-id",
-                "openrouter-qwen3.5-9b-deepinfra",
+                "openrouter-qwen3.7-plus-alibaba",
                 "--run-dir",
                 str(tmp_path),
             ]
@@ -485,7 +503,7 @@ def test_paid_sweep_is_locked_after_policy_is_retired(tmp_path: Path, capsys: py
 
 
 def test_cell_reservation_blocks_launch_before_ceiling_overrun(tmp_path: Path) -> None:
-    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=1024)[0]
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=4096)[0]
     reservation = _cell_reservation_usd(cell)
     assert 0 < reservation < 1
     with pytest.raises(SystemExit, match="reservation would exceed"):
@@ -494,7 +512,7 @@ def test_cell_reservation_blocks_launch_before_ceiling_overrun(tmp_path: Path) -
 
 
 def test_retry_reservation_accounts_for_fresh_full_attempt(tmp_path: Path) -> None:
-    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=1024)[0]
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=4096)[0]
     reservation = _cell_reservation_usd(cell)
     path = tmp_path / "openrouter-reservations.json"
     path.write_text(
@@ -502,10 +520,10 @@ def test_retry_reservation_accounts_for_fresh_full_attempt(tmp_path: Path) -> No
             {
                 "schema_version": 1,
                 "cells": {
-                    f"{cell.experiment_id}--1024": {
+                    f"{cell.experiment_id}--4096": {
                         "experiment_id": cell.experiment_id,
                         "model": cell.model,
-                        "output_token_cap": 1024,
+                        "output_token_cap": 4096,
                         "reserved_usd": reservation,
                         "attempts": 1,
                     }
@@ -517,29 +535,33 @@ def test_retry_reservation_accounts_for_fresh_full_attempt(tmp_path: Path) -> No
         _reserve_cell(tmp_path, cell, measured_spend=0.9, ceiling=0.9 + reservation / 2)
 
     committed = _reserve_cell(tmp_path, cell, measured_spend=0.1, ceiling=reservation * 2 + 0.1)
-    stored = json.loads(path.read_text())["cells"][f"{cell.experiment_id}--1024"]
-    assert committed == pytest.approx(0.1 + reservation)
+    stored = json.loads(path.read_text())["cells"][f"{cell.experiment_id}--4096"]
+    assert committed == pytest.approx(reservation * 2)
     assert stored["reserved_usd"] == pytest.approx(reservation * 2)
     assert stored["attempts"] == 2
 
 
 def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
-    cell = build_cells("smoke", model_id="openrouter-qwen3.5-9b-deepinfra", cap=1024)[0]
+    cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba", cap=4096)[0]
     valid = {
         "data": {
             "endpoints": [
                 {
-                    "provider_name": "DeepInfra",
+                    "provider_name": "Alibaba",
+                    "tag": "alibaba",
                     "name": cell.endpoint_name,
                     "status": 0,
-                    "max_completion_tokens": 4096,
+                    "max_completion_tokens": 65536,
                     "supported_parameters": ["max_tokens", "response_format", "reasoning"],
                 }
             ]
         }
     }
     assert _endpoint_issues(cell, valid) == []
-    valid["data"]["endpoints"][0]["name"] = "DeepInfra | replaced-snapshot"
+    valid["data"]["endpoints"][0]["tag"] = "alibaba/other-tier"
+    assert "no healthy OpenRouter endpoint" in _endpoint_issues(cell, valid)[0]
+    valid["data"]["endpoints"][0]["tag"] = "alibaba"
+    valid["data"]["endpoints"][0]["name"] = "Alibaba | replaced-snapshot"
     assert "no healthy OpenRouter endpoint" in _endpoint_issues(cell, valid)[0]
     valid["data"]["endpoints"][0]["name"] = cell.endpoint_name
     valid["data"]["endpoints"][0]["supported_parameters"] = ["max_tokens", "response_format"]
@@ -621,8 +643,8 @@ def test_publication_status_distinguishes_complete_and_accepted_smokes(
     assert rows[first["id"]]["state"] == "accepted"
     assert rows[first["id"]]["completed_decisions"] == 4
     assert status["artifact_spend_usd"] == pytest.approx(0.03)
-    assert status["accepted_smokes"] == 10
-    assert "accepted smokes: 10/10" in render_publication_status(status)
+    assert status["accepted_smokes"] == 12
+    assert "accepted smokes: 12/12" in render_publication_status(status)
 
 
 def test_panel_status_keeps_smoke_acceptance_separate_from_panel_progress(
@@ -634,7 +656,7 @@ def test_panel_status_keeps_smoke_acceptance_separate_from_panel_progress(
     manifest_path.write_text(json.dumps(_valid_manifest(registry, _lane)))
 
     status = publication_run_status(tmp_path, manifest_path)
-    assert status["accepted_smokes"] == 10
+    assert status["accepted_smokes"] == 12
     assert status["completed_cells"] == 0
     assert {row["state"] for row in status["rows"]} == {"queued"}
     assert {row["total_episodes"] for row in status["rows"]} == {24}

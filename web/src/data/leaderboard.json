@@ -80,7 +80,7 @@
     "duplicate_cells": [],
     "duplicate_headline_rows": 0,
     "eligible_headline_models": 0,
-    "frozen_output_token_cap": 1024,
+    "frozen_output_token_cap": null,
     "minimum_headline_models": 8,
     "missing": [],
     "model_registry_frozen": false,
@@ -164,7 +164,7 @@
         "upstream_provider": "Minimax"
       }
     ],
-    "output_policy_basis": "fixed-safety-ceiling",
+    "output_policy_basis": "common-safety-ceiling-with-native-minimum-reasoning",
     "panel_analysis_issues": [
       "publication panel analysis artifact is missing"
     ],
@@ -181,10 +181,16 @@
     "rejected_artifacts": [],
     "schema_version": 1,
     "smoke_gate_issues": [
-      "registered model 'openrouter-claude-sonnet-5-anthropic' has no smoke manifest entry",
-      "registered model 'openrouter-glm-5.2-streamlake' has no smoke manifest entry",
+      "registered model 'openrouter-gpt-5.6-luna-openai' has no smoke manifest entry",
+      "registered model 'openrouter-claude-sonnet-5-bedrock' has no smoke manifest entry",
+      "registered model 'openrouter-gemini-3.5-flash-google-ai-studio' has no smoke manifest entry",
+      "registered model 'openrouter-grok-4.5-xai' has no smoke manifest entry",
+      "registered model 'openrouter-muse-spark-1.1-meta' has no smoke manifest entry",
+      "registered model 'openrouter-glm-5.2-zai' has no smoke manifest entry",
+      "registered model 'openrouter-kimi-k3-moonshot' has no smoke manifest entry",
+      "registered model 'openrouter-nemotron-3-ultra-together' has no smoke manifest entry",
       "registered model 'openrouter-minimax-m3-minimax' has no smoke manifest entry",
-      "registered model 'openrouter-nemotron-3-nano-deepinfra' has no smoke manifest entry"
+      "registered model 'openrouter-qwen3.7-plus-alibaba' has no smoke manifest entry"
     ],
     "status": "retired"
   },

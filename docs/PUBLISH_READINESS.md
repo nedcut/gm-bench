@@ -10,10 +10,11 @@
 **Last reviewed:** 2026-07-16
 **Current target:** Publish a validated `sota-v2` leaderboard, accompanying blog
 post, GitHub release, and public site.  
-**Current state:** Scaffold hardening and the fixed output-safety policy merged
-in #66 (`c500e26`); #70 and #71 subsequently landed the machine-enforced smoke
-gate. The ten-model registry remains provisional, and no accepted smoke manifest
-or eligible panel row exists.
+**Current state:** The user deliberately replaced the stale ten-model panel on
+2026-07-16 before any full-panel score existed. The new twelve-model registry is
+provisional, uses exact OpenRouter endpoint tags, and requires fresh 4,096-token
+native-minimum-reasoning smokes. Earlier 1,024-token smokes are retained only as
+superseded operational evidence.
 **Current weekly focus:** [#63 — Publication sprint: freeze and ship GM-Bench
 `sota-v2`](https://github.com/nedcut/gm-bench/issues/63)  
 **Broader roadmap:** [#60 — Roadmap to a publishable leaderboard + blog
@@ -26,8 +27,9 @@ scaffolds on synthetic, long-horizon resource allocation in a frozen sports
 management environment. It is already strong enough to be a flagship AI/ML
 portfolio project. It is not yet ready for a headline model-ranking claim
 because the current `sota-v2` leaderboard has no eligible model rows. The
-compute policy is now frozen, but every registered route must pass the common
-smoke gate before any full-panel result is generated.
+compute policy is now provisionally amended, and every registered route must
+pass the common smoke gate before it can be frozen or generate a full-panel
+result.
 
 The strongest story is not merely that GM-Bench runs LLMs through a simulator.
 It is that the project:
@@ -69,7 +71,7 @@ The project is publish-ready only when all four gates pass.
 | Core engineering | Strong | Deterministic simulator, adapters, CLI, GUI, site, tests, and CI are substantial. |
 | Reproducibility | Strong | Contract fingerprints, seed provenance, compact artifacts, and validators are in place. |
 | Benchmark validity | Strong but scoped | Scripted references, exploit canaries, oracle headroom, calibration, and mechanic coverage exist. |
-| Compute comparability | Policy frozen; smoke validation pending | The API lane has a common 1,024-token safety ceiling, reasoning disabled, exact routes, a pre-full-panel 75% cap-pressure rule, and actual token-efficiency reporting. All ten current routes still require standardized smokes. |
+| Compute comparability | Revised policy; smoke validation pending | The API lane has a common 4,096-token total-output ceiling, native-minimum reasoning, exact provider slugs and endpoint tags, a pre-full-panel 75% cap-pressure rule, and actual reasoning/token-efficiency reporting. All twelve routes require fresh smokes. |
 | Current model evidence | Blocked | The active `sota-v2` leaderboard has no eligible model rows. |
 | Statistical evidence | Partially ready | Paired analysis and power tooling exist; final model results do not. |
 | External validation | Missing | No independent reproduction or third-party result has been recorded. |
@@ -127,31 +129,31 @@ before any full-panel score is visible.
   explicitly disposition every substantive finding before expensive runs begin.
 - [x] Retain the earlier three-model/four-cap design and analyzer as auditable
   history without treating it as an active publication prerequisite.
-- [x] Freeze common lane and scaffold conditions: reasoning disabled,
-  temperature omitted, hardened scaffold, compact profile, one repair, and
-  fresh-spawn execution.
-- [ ] Freeze exact model routes and the registry only after all ten smokes are
+- [x] Freeze common scaffold conditions: temperature omitted, hardened
+  scaffold, compact profile, one repair, and fresh-spawn execution.
+- [ ] Freeze exact model routes and the registry only after all twelve smokes are
   accepted.
-- [x] Freeze a common 1,024-token safety ceiling with reasoning disabled.
-- [x] Predeclare the primary endpoint and the 75% cap-pressure rule: raise the
-  entire lane to 2,048 before full results if any smoke call reaches 768 output
-  tokens or shows cap-induced truncation.
+- [ ] Validate the provisional common 4,096-token safety ceiling with
+  native-minimum reasoning.
+- [x] Predeclare exact provider slugs/tags and the 75% cap-pressure rule: raise
+  the entire lane to 8,192 before full results if any smoke call reaches 3,072
+  total output tokens or shows cap-induced truncation.
 - [x] Freeze the permitted retry conditions, exclusion rules, and stopping rule
   in `config/publication_protocol.json` before seeing sweep outcomes.
 - [x] Distinguish infrastructure/provider failures that permit a resumed run from
   poor model behavior that must remain part of the measured result.
-- [ ] Smoke all ten provisional models serially at 1,024 using the hardened
+- [ ] Smoke all twelve provisional models serially at 4,096 using the hardened
   scaffold. Start with dry-run and endpoint preflight; then run one paid model,
   inspect it, and approve the next rather than launching the set blindly.
-- [ ] Verify each smoke's exact route, JSON behavior, reasoning-off provenance,
+- [ ] Verify each smoke's exact route, JSON behavior, registered reasoning provenance,
   repair/failure telemetry, cost coverage, per-call output distribution, and
   absence of truncation. Then record it with `run_publication_matrix.py
   record-smoke` so the machine-enforced manifest accepts it; the panel phase
   refuses to run until every registered model has an accepted entry.
-- [ ] If the cap-pressure rule fires, amend the whole lane to 2,048 and repeat
+- [ ] If the cap-pressure rule fires, amend the whole lane to 8,192 and repeat
   affected smokes before any full-panel result. Do not make this decision after
   seeing full scores.
-- [ ] Freeze the provisional model registry only after all ten routes pass.
+- [ ] Freeze the provisional model registry only after all twelve routes pass.
 - [ ] Re-estimate and record expected full-panel cost, runtime, serial
   concurrency, and quota after the smokes. The existing cost artifact describes
   the retired 12-cell plan and is not current spend guidance.
@@ -159,20 +161,20 @@ before any full-panel score is visible.
 - [x] Confirm in automated tests that the retired analyzer still rejects
   missing, duplicate, mixed-provenance, wrong-route, wrong-lane, wrong-repeat,
   incomplete-telemetry, and invalid-contract cells.
-- [x] Update `config/sota_v2_lane.json` to `frozen-fixed-budget` with the explicit
-  `fixed-safety-ceiling` basis.
+- [ ] Update `config/sota_v2_lane.json` to `frozen-native-reasoning-cap` only
+  after the twelve smokes clear the cap-pressure audit.
 - [x] Record the rationale, decision date, pre-full-panel trigger, and known
   limitations in the decision log below.
 - [ ] Regenerate the site and confirm it still refuses to publish a ranking if
   any publication prerequisite is missing.
 
 **Exit condition:** the official API lane has a documented fixed-cap policy,
-all ten registered-model smokes pass without a cap-pressure trigger, the model
+all twelve registered-model smokes pass without a cap-pressure trigger, the model
 registry is frozen, and the full-panel cost plan is refreshed.
 
 #### Safe execution workflow
 
-All model calls are serial. Inspect all ten smoke commands and their non-secret
+All model calls are serial. Inspect all twelve smoke commands and their non-secret
 provider options first.
 
 ```bash
@@ -195,8 +197,8 @@ usage and cap pressure after every cell:
 
 ```bash
 python3 scripts/run_publication_matrix.py smoke \
-  --model-id openrouter-qwen3.5-9b-deepinfra \
-  --run-dir data/publication-runs/smoke-fixed-1024-2026-07-15 \
+  --model-id openrouter-qwen3.7-plus-alibaba \
+  --run-dir data/publication-runs/smoke-native-4096-2026-07-16 \
   --max-spend-usd 5
 ```
 
@@ -207,7 +209,7 @@ display updates at that durable boundary:
 
 ```bash
 python3 scripts/run_publication_matrix.py status \
-  --run-dir data/publication-runs/smoke-fixed-1024-2026-07-15 \
+  --run-dir data/publication-runs/smoke-native-4096-2026-07-16 \
   --watch
 ```
 
@@ -217,16 +219,16 @@ status suitable for logs and other wrappers.
 After each smoke passes inspection, record it so the machine-enforced manifest
 accepts the route. The command validates route, options, fingerprints, zero
 failures, complete finish-reason coverage, absence of truncation, and peak
-output tokens below 768 before writing an accepted entry to
+total output tokens below 3,072 before writing an accepted entry to
 `config/sota_v2_smoke_manifest.json`:
 
 ```bash
 python3 scripts/run_publication_matrix.py record-smoke \
-  --model-id openrouter-qwen3.5-9b-deepinfra \
-  --artifact data/publication-runs/smoke-fixed-1024-2026-07-15/raw/openrouter-qwen3.5-9b-deepinfra--1024.json
+  --model-id openrouter-qwen3.7-plus-alibaba \
+  --artifact data/publication-runs/smoke-native-4096-2026-07-16/raw/openrouter-qwen3.7-plus-alibaba--4096.json
 ```
 
-Repeat one registered model at a time. Only after all ten standardized smokes,
+Repeat one registered model at a time. Only after all twelve standardized smokes,
 the cap-pressure audit, and the refreshed cost estimate are acceptable should
 the model registry be frozen and the full panel begin. The `panel` phase now
 refuses to run unless every registered model has an accepted manifest entry;
@@ -236,7 +238,7 @@ checkpoint already exists, and refuses to fan out workers:
 
 ```bash
 python3 scripts/run_publication_matrix.py panel \
-  --run-dir data/publication-runs/sota-v2-fixed-1024 \
+  --run-dir data/publication-runs/sota-v2-native-4096 \
   --max-spend-usd <approved-panel-budget>
 ```
 
@@ -245,7 +247,7 @@ The driver enforces that lock.
 
 ### Phase 2 — run the publishable model panel
 
-- [ ] Freeze the revised 10-model provider/model/route registry in
+- [ ] Freeze the revised 12-model provider/model/route registry in
   `config/sota_v2_models.json` after changed-route smokes pass.
 - [x] Pre-register the full-panel rerun and exclusion policy. A disappointing
   valid result is not a reason to rerun a model.
@@ -257,22 +259,23 @@ The provisional restarted headline panel is:
 | Model | Pinned upstream | Panel role |
 | --- | --- | --- |
 | GPT-5.6 Luna | OpenAI | Frontier OpenAI anchor |
-| Claude Sonnet 5 | Anthropic | Frontier Anthropic anchor |
-| DeepSeek V4 Pro | DeepInfra | DeepSeek-family anchor; changed route requires smoke |
-| Kimi K2.6 | DeepInfra | Moonshot-family anchor; changed route requires smoke |
-| GLM 5.2 | StreamLake | Z.ai-family anchor |
-| Qwen 3.7 Plus | Alibaba | Large Qwen-family comparison |
-| Mistral Medium 3.5 | Mistral | Mid-tier European-family comparison |
-| MiniMax M3 | MiniMax | Capable low-cost model |
-| Nemotron 3 Nano 30B A3B | DeepInfra | Small NVIDIA open-weight anchor; changed route requires smoke |
-| Qwen 3.5 9B | DeepInfra | Small open efficiency floor |
+| Claude Sonnet 5 | Amazon Bedrock global | Anthropic frontier anchor; direct Anthropic route was unhealthy at revision time |
+| Gemini 3.5 Flash | Google AI Studio | Google fast frontier anchor; mandatory `minimal` reasoning |
+| Grok 4.5 | xAI | xAI frontier anchor; mandatory `low` reasoning |
+| Muse Spark 1.1 | Meta | Meta frontier anchor; mandatory `minimal` reasoning |
+| GLM 5.2 | Z.AI FP8 | First-party open-weight anchor |
+| Kimi K3 | Moonshot AI INT4 | New Moonshot frontier anchor; mandatory `max` is its only exposed effort |
+| Nemotron 3 Ultra | Together | NVIDIA frontier open-weight anchor; selected over cheaper FP4 route |
+| MiniMax M3 | MiniMax FP8 | First-party open-weight anchor |
+| Qwen 3.7 Plus | Alibaba | Qwen frontier open-weight anchor |
+| DeepSeek V4 Pro | DeepSeek | First-party open-weight anchor |
+| Mistral Medium 3.5 | Mistral | European open-weight anchor |
 
-Gemini 3.1 Pro Preview and Grok 4.5 remain explicit exclusions because the live
-OpenRouter catalog marks reasoning as mandatory for both; mixing them into a
-reasoning-disabled headline lane would change the measured system. Kimi and
-DeepSeek now expose non-mandatory reasoning and compatible DeepInfra routes in
-the catalog. They are provisional until a paid smoke proves the common JSON,
-privacy, pinned-provider, and `reasoning.enabled=false` request end to end.
+The mixed reasoning policy is explicit rather than hidden: reasoning is off for
+the eight optional-reasoning models and set to the lowest catalog-supported
+effort for the four mandatory-reasoning models. Scores remain comparable as
+model-plus-native-inference systems, while reasoning tokens, cost, and latency
+must be reported beside score.
 
 - [x] Record exact model identifiers, endpoint snapshot names, and upstream routes;
   never collapse distinct snapshots
@@ -281,8 +284,8 @@ privacy, pinned-provider, and `reasoning.enabled=false` request end to end.
   frozen output policy.
 - [x] Keep coding-agent CLI harnesses in a separate diagnostic table.
 - [ ] Never parallelize Claude or another subscription/rate-limited CLI.
-- [ ] Verify all 10 provisional provider/model routes can accept the common
-  privacy, parameter, JSON, reasoning-off, and bounded-output policy.
+- [ ] Verify all 12 provisional provider/model routes can accept the common
+  privacy, parameter, JSON, registered reasoning, and bounded-output policy.
 - [ ] Run a benchmark-level smoke for every provider/model combination at the
   shared frozen cap immediately before the full panel.
 - [ ] Use serial execution, fail-fast behavior, atomic checkpoints, and validated
@@ -406,7 +409,7 @@ Claims to avoid:
 - [ ] Lead the blog with the research question and the measurement problem, not
   with implementation history.
 - [ ] Explain the simulator and decision loop with one compact diagram.
-- [ ] Explain the fixed 1,024-token safety policy and cap-pressure audit before
+- [ ] Explain the provisional 4,096-token native-reasoning policy and cap-pressure audit before
   the final model ranking.
 - [ ] Show Oracle → `pick-trader` → best eligible model → `random` headroom.
 - [ ] Include cost and compute beside score in every model table.
@@ -551,6 +554,7 @@ decision and why.
 | 2026-07-15 | Machine-enforce the pre-panel smoke gate and unique-row counting. | Review found the panel and ranking were unlockable by editing status strings and by row aliasing: `selection_status` "frozen" was accepted as smoke completion, and duplicate aliases for one model could satisfy the eight-row floor. | Panel and `publishable_ranking` now require recorded, accepted smoke-manifest entries per registered model, count by unique registered model identity, and can never require fewer rows than the protocol's pre-registered minimum floor. |
 | 2026-07-15 | Re-fingerprint the v2 contract and OpenRouter scaffold before any accepted evidence. | `failed_queries` narrowed to unresolved lookups plus ambiguous-scout rejection changed the contract (`a65a4359ca3c6e64` → `558e8f35ea1d66b9`), and per-call `finish_reason`/`native_finish_reason` recording made cap-induced truncation auditable (scaffold `317371cf66b436fe` → `d7321ad9d0a739b4`). No accepted smoke or eligible row existed, so nothing was invalidated. | All ten route smokes must run under the new fingerprints, and the statistical analysis plan is frozen pre-data in `config/publication_protocol.json`. |
 | 2026-07-16 | Amend the headline contrast to paired lift versus pick-trader. | The full baseline-panel mean includes random and other weak references, so clearing it would not show that a model-plus-scaffold system beats the transparent competent heuristic bar. No accepted `sota-v2` smoke manifest, eligible panel row, or observed full-panel score existed when this was amended. | Pick-trader is the Holm-adjusted primary contrast; full-panel lift remains a secondary descriptive endpoint, and publication still uses tiers rather than ordinal ranks. |
+| 2026-07-16 | Replace the stale ten-model panel with the user-curated twelve-model frontier panel. | No full-panel score existed. Live OpenRouter catalog and endpoint checks confirmed all requested models, but Gemini 3.5 Flash, Grok 4.5, Muse Spark 1.1, and newly released Kimi K3 require reasoning. | Reset the smoke manifest; pin provider slugs plus endpoint tags; use native-minimum reasoning and a provisional common 4,096-token cap; require all twelve fresh smokes before freezing. |
 
 ## Experiment and release log
 
@@ -569,6 +573,7 @@ than pasting large outputs.
 | 2026-07-15 | GPT-5.6 Luna standardized smoke | Superseded diagnostic | raw SHA-256 `e8f83c6516cb3cc8105b173c826c1b5d91314a487b729f9b06b8fc6beda2bc8f` | Exact OpenAI route and complete telemetry remain useful, but all four illegal actions were preseason draft attempts primed by the old global action catalog. |
 | 2026-07-15 | GPT-5.6 Luna 1,024-token sweep cell | Superseded diagnostic | canonical SHA-256 `b681bdc56f3d176d194c9c1e20cc688be4ef4b58f7669862fb2268af99a0e37a`; byte SHA-256 `74d342c5d4c799524dadd6f668350eede67b8b74e5522833723e25ab4f50480b` | The run remains operationally valid and auditable, but its scaffold fingerprint is intentionally invalidated. It cannot count toward the restarted sweep or headline panel. |
 | 2026-07-15 | Sweep cost/runtime plan | Superseded by fixed-cap policy | `results/analysis/output-budget-cost-estimate.json` | The prior figures describe the retired 12-cell matrix. Replace with a full-panel estimate after all ten route smokes. |
+| 2026-07-16 | First fixed-1,024 smoke series | Superseded by deliberate panel revision | `docs/run_logs/sota-v2-smokes-2026-07-16.md` | Six routes were accepted, two completed with protocol failures, Nemotron Nano exhausted infrastructure retries, and Claude direct remained unhealthy. The evidence remains auditable but cannot unlock the revised 4,096-token native-reasoning panel. |
 | 2026-07-15 | Statistical analysis plan | Frozen | `config/publication_protocol.json` | Pre-registered pre-data: unit of inference, primary paired contrast, Holm-Bonferroni multiplicity, descriptive inference labels, tiered ranking, power disclosure, temperature policy, and registry exclusion criteria. |
 
 ## Living-document maintenance checklist

@@ -224,7 +224,7 @@ def test_budget_analysis_rejects_mixed_pre_registered_provenance(monkeypatch: py
     assert any("cost telemetry" in reason for reason in reasons)
 
 
-def test_publication_model_registry_is_consistent_with_sweep() -> None:
+def test_publication_model_registry_is_consistent_with_revised_lane() -> None:
     sweep = json.loads(Path("config/output_budget_sweep.json").read_text())
     registry = json.loads(Path("config/sota_v2_models.json").read_text())
     lane = json.loads(Path("config/sota_v2_lane.json").read_text())
@@ -237,32 +237,33 @@ def test_publication_model_registry_is_consistent_with_sweep() -> None:
     assert len({row["endpoint_name"] for row in models}) == len(models)
     assert registry["selection_status"] == "provisional-awaiting-route-smokes"
     assert registry["selection_frozen_at_utc"] is None
-    assert registry["output_token_cap"] == lane["output_token_cap"] == 1024
-    assert registry["output_budget_status"] == lane["output_budget_status"] == "frozen-fixed-budget"
-    assert registry["output_policy_basis"] == lane["output_policy_basis"] == "fixed-safety-ceiling"
-    assert registry["shared_fixed_options"]["OPENROUTER_REASONING_ENABLED"] == "false"
-    assert "OPENROUTER_REASONING_EFFORT" in registry["shared_absent_options"]
-    assert {row["model"] for row in registry["explicit_exclusions"]} == {
-        "google/gemini-3.1-pro-preview",
-        "x-ai/grok-4.5",
-    }
+    assert registry["output_token_cap"] == lane["output_token_cap"] == 4096
+    assert registry["output_budget_status"] == lane["output_budget_status"] == "provisional-native-reasoning-smoke"
+    assert (
+        registry["output_policy_basis"]
+        == lane["output_policy_basis"]
+        == "common-safety-ceiling-with-native-minimum-reasoning"
+    )
+    assert {row["cohort"] for row in models} == {"big-american-lab-proprietary", "open-weight"}
+    assert sum(row["cohort"] == "big-american-lab-proprietary" for row in models) == 5
+    assert sum(row["cohort"] == "open-weight" for row in models) == 7
+    assert registry["explicit_exclusions"] == []
     assert set(registry["changed_routes_pending_smoke"]) <= {row["id"] for row in models}
     assert set(registry["required_smokes"]) == {row["id"] for row in models}
     assert lane["model_registry"] == "config/sota_v2_models.json"
     assert lane["minimum_headline_models"] >= 8
 
-    for sweep_model in sweep["models"]:
-        registry_model = identities[(sweep_model["provider"], sweep_model["model"])]
-        assert sweep_model["id"] == registry_model["id"]
-        assert sweep_model["transport"] == registry_model["transport"]
-        assert sweep_model["upstream_provider"] == registry_model["upstream_provider"]
-        expected_options = {
-            **registry["shared_fixed_options"],
-            "OPENROUTER_PROVIDER_ONLY": registry_model["upstream_provider"],
-            "OPENROUTER_EXPECTED_ENDPOINT_NAME": registry_model["endpoint_name"],
-        }
-        assert sweep_model["fixed_options"] == expected_options
-        assert sweep_model["absent_options"] == registry["shared_absent_options"]
+    assert sweep["status"] == "retired-fixed-safety-cap"
+    for model in models:
+        assert model["upstream_provider_slug"] == model["endpoint_tag"]
+        assert model["fixed_options"]["OPENROUTER_REASONING_ENABLED"] in {"true", "false"}
+        if model["reasoning_policy"] == "mandatory-minimum":
+            assert model["reasoning_effort"] in {"minimal", "low", "max"}
+            assert model["fixed_options"]["OPENROUTER_REASONING_EFFORT"] == model["reasoning_effort"]
+        else:
+            assert model["reasoning_policy"] == "disabled"
+            assert model["reasoning_effort"] is None
+            assert "OPENROUTER_REASONING_EFFORT" in model["absent_options"]
 
 
 def _panel_analysis(rows: list[dict], *, family_size: int = 0) -> dict:

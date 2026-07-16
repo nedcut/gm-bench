@@ -113,15 +113,20 @@ def _publication_identity_issues(payload: dict[str, Any], config: dict[str, Any]
     options = run_info.get("provider_options") or {}
     expected_options = {
         **(config.get("shared_fixed_options") or {}),
+        **(registered.get("fixed_options") or {}),
     }
     if registered.get("upstream_provider") not in (None, ""):
-        expected_options["OPENROUTER_PROVIDER_ONLY"] = registered["upstream_provider"]
+        expected_options["OPENROUTER_PROVIDER_ONLY"] = registered["upstream_provider_slug"]
+        expected_options["OPENROUTER_EXPECTED_UPSTREAM_PROVIDER"] = registered["upstream_provider"]
     if registered.get("endpoint_name") not in (None, ""):
         expected_options["OPENROUTER_EXPECTED_ENDPOINT_NAME"] = registered["endpoint_name"]
     for key, expected in expected_options.items():
         if str(options.get(key, "")) != str(expected):
             issues.append(f"provider option {key} does not match the pre-registered value")
-    for key in config.get("shared_absent_options") or []:
+    absent_options = [*(config.get("shared_absent_options") or []), *(registered.get("absent_options") or [])]
+    for key in absent_options:
+        if key in expected_options:
+            continue
         if options.get(str(key)) not in (None, ""):
             issues.append(f"provider option {key} must be absent for the headline lane")
     observed = sorted({str(value) for value in usage.get("upstream_providers") or [] if value})

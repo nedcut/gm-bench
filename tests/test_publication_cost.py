@@ -18,15 +18,15 @@ def _committed_inputs() -> tuple[dict, dict, dict]:
 def test_fixed_panel_and_smoke_call_counts() -> None:
     result = estimate(*_committed_inputs())
 
-    assert len(result["models"]) == 10
+    assert len(result["models"]) == 12
     assert result["calls"] == {
-        "model_count": 10,
+        "model_count": 12,
         "panel_decisions_per_model": 480,
-        "panel_calls": 4_800,
-        "smoke_runs": 10,
+        "panel_calls": 5_760,
+        "smoke_runs": 12,
         "smoke_decisions_per_run": 4,
-        "smoke_calls": 40,
-        "total_calls": 4_840,
+        "smoke_calls": 48,
+        "total_calls": 5_808,
     }
 
 
@@ -53,7 +53,6 @@ def test_runtime_is_pending_with_latency_only_where_observed() -> None:
     observed = {
         "openai/gpt-5.6-luna": 1.981,
         "minimax/minimax-m3": 2.546,
-        "qwen/qwen3.5-9b": 11.622,
     }
 
     assert runtime["status"] == RUNTIME_STATUS == "pending-smoke-telemetry"

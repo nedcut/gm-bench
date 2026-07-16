@@ -124,7 +124,7 @@ def test_zero_artifact_path_reports_cleanly_without_writing_output(tmp_path: Pat
     result = json.loads(completed.stdout)
     assert result["status"] == "no-eligible-artifacts"
     assert result["eligible_model_count"] == 0
-    assert len(result["missing_models"]) == result["registered_model_count"] == 10
+    assert len(result["missing_models"]) == result["registered_model_count"] == 12
     assert not output.exists()
 
 
@@ -145,7 +145,11 @@ def _frozen_registry() -> dict:
                 "model": "demo/model",
                 "transport": "gateway-api",
                 "upstream_provider": "DemoProvider",
+                "upstream_provider_slug": "demo-provider/fp8",
+                "endpoint_tag": "demo-provider/fp8",
                 "endpoint_name": "DemoProvider | demo/model-20260716",
+                "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
+                "absent_options": [],
             }
         ],
     }
@@ -164,7 +168,8 @@ def _registered_payload() -> dict:
             "benchmark_contract": {"benchmark_version": "sota-v2"},
             "provider_options": {
                 "OPENROUTER_REASONING_ENABLED": "false",
-                "OPENROUTER_PROVIDER_ONLY": "DemoProvider",
+                "OPENROUTER_PROVIDER_ONLY": "demo-provider/fp8",
+                "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER": "DemoProvider",
                 "OPENROUTER_EXPECTED_ENDPOINT_NAME": "DemoProvider | demo/model-20260716",
                 "OPENROUTER_MAX_TOKENS": "1024",
                 "GM_BENCH_OUTPUT_BUDGET_CELL": "1024",

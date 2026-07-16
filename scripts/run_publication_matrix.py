@@ -50,6 +50,8 @@ class Cell:
     preset: str
     repeats: int
     cap: int | None
+    upstream_provider: str
+    endpoint_tag: str
     endpoint_name: str
     fixed_options: dict[str, str]
     absent_options: tuple[str, ...]
@@ -66,7 +68,7 @@ def _read_json(path: Path) -> dict[str, Any]:
     return payload
 
 
-def _validate_models(models: list[dict[str, Any]]) -> None:
+def _validate_models(models: list[dict[str, Any]], *, exact_routes: bool = True) -> None:
     if not models:
         raise ValueError("publication matrix contains no models")
     ids = [str(model.get("id") or "") for model in models]
@@ -75,11 +77,47 @@ def _validate_models(models: list[dict[str, Any]]) -> None:
         raise ValueError("every model requires non-empty id, provider, and model")
     if len(set(ids)) != len(ids) or len(set(identities)) != len(identities):
         raise ValueError("publication model ids and provider/model identities must be unique")
+    if not exact_routes:
+        return
+    for model in models:
+        required = ("upstream_provider", "upstream_provider_slug", "endpoint_tag", "endpoint_name")
+        if any(not str(model.get(key) or "").strip() for key in required):
+            raise ValueError(f"publication model {model.get('id')!r} is missing exact endpoint identity")
+        policy = model.get("reasoning_policy")
+        options = model.get("fixed_options") or {}
+        if policy == "disabled":
+            if options.get("OPENROUTER_REASONING_ENABLED") != "false" or model.get("reasoning_effort") is not None:
+                raise ValueError(f"publication model {model.get('id')!r} has an invalid disabled reasoning policy")
+        elif policy == "mandatory-minimum":
+            effort = model.get("reasoning_effort")
+            if (
+                options.get("OPENROUTER_REASONING_ENABLED") != "true"
+                or options.get("OPENROUTER_REASONING_EFFORT") != effort
+            ):
+                raise ValueError(f"publication model {model.get('id')!r} has an invalid mandatory reasoning policy")
+        else:
+            raise ValueError(f"publication model {model.get('id')!r} has an unknown reasoning policy")
 
 
 def _smoke_manifest_path(lane: dict[str, Any]) -> Path:
     configured = lane.get("smoke_manifest")
     return ROOT / str(configured) if configured else SMOKE_MANIFEST
+
+
+def _registered_fixed_options(config: dict[str, Any], model: dict[str, Any]) -> dict[str, str]:
+    return {
+        **{str(key): str(value) for key, value in (config.get("shared_fixed_options") or {}).items()},
+        **{str(key): str(value) for key, value in (model.get("fixed_options") or {}).items()},
+        "OPENROUTER_PROVIDER_ONLY": str(model["upstream_provider_slug"]),
+        "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER": str(model["upstream_provider"]),
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": str(model["endpoint_name"]),
+    }
+
+
+def _registered_absent_options(config: dict[str, Any], model: dict[str, Any]) -> tuple[str, ...]:
+    fixed = _registered_fixed_options(config, model)
+    values = [*(config.get("shared_absent_options") or []), *(model.get("absent_options") or [])]
+    return tuple(dict.fromkeys(str(value) for value in values if str(value) not in fixed))
 
 
 def _read_optional_json(path: Path) -> dict[str, Any] | None:
@@ -96,13 +134,15 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
         models = list(config.get("models") or [])
         _validate_models(models)
         frozen_cap = lane.get("output_token_cap")
-        if lane.get("output_policy_basis") != "fixed-safety-ceiling":
+        if lane.get("output_policy_basis") not in {
+            "fixed-safety-ceiling",
+            "common-safety-ceiling-with-native-minimum-reasoning",
+        }:
             raise ValueError("panel smoke is locked until the fixed safety ceiling is frozen")
         if not isinstance(frozen_cap, int) or frozen_cap < 1:
             raise ValueError("panel smoke requires a positive frozen output_token_cap")
         if cap is not None and cap != frozen_cap:
             raise ValueError(f"requested cap {cap} differs from frozen panel smoke cap {frozen_cap}")
-        shared = {str(key): str(value) for key, value in (config.get("shared_fixed_options") or {}).items()}
         cells = [
             Cell(
                 experiment_id=str(model["id"]),
@@ -112,20 +152,18 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
                 preset="smoke",
                 repeats=1,
                 cap=frozen_cap,
+                upstream_provider=str(model["upstream_provider"]),
+                endpoint_tag=str(model["endpoint_tag"]),
                 endpoint_name=str(model.get("endpoint_name") or ""),
-                fixed_options={
-                    **shared,
-                    "OPENROUTER_PROVIDER_ONLY": str(model["upstream_provider"]),
-                    "OPENROUTER_EXPECTED_ENDPOINT_NAME": str(model["endpoint_name"]),
-                },
-                absent_options=tuple(str(value) for value in config.get("shared_absent_options") or []),
+                fixed_options=_registered_fixed_options(config, model),
+                absent_options=_registered_absent_options(config, model),
             )
             for model in models
         ]
     elif phase == "sweep":
         config = _read_json(SWEEP_CONFIG)
         models = list(config.get("models") or [])
-        _validate_models(models)
+        _validate_models(models, exact_routes=False)
         configured_caps = list(config["output_token_caps"])
         if cap is not None and cap not in configured_caps:
             raise ValueError(f"requested cap {cap} is not in the pre-registered sweep {configured_caps}")
@@ -141,6 +179,8 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
                 preset=preset,
                 repeats=repeats,
                 cap=cell_cap,
+                upstream_provider=str(model["upstream_provider"]),
+                endpoint_tag=str(model.get("endpoint_tag") or ""),
                 endpoint_name=str(model.get("endpoint_name") or ""),
                 fixed_options={str(key): str(value) for key, value in (model.get("fixed_options") or {}).items()},
                 absent_options=tuple(str(value) for value in model.get("absent_options") or []),
@@ -154,7 +194,11 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
         models = list(config.get("models") or [])
         _validate_models(models)
         frozen_cap = lane.get("output_token_cap")
-        if lane.get("output_budget_status") not in {"frozen-saturation", "frozen-fixed-budget"}:
+        if lane.get("output_budget_status") not in {
+            "frozen-saturation",
+            "frozen-fixed-budget",
+            "frozen-native-reasoning-cap",
+        }:
             raise ValueError("full panel is locked until config/sota_v2_lane.json freezes the output-budget policy")
         if config.get("selection_status") != "frozen":
             raise ValueError("full panel is locked until config/sota_v2_models.json freezes the model registry")
@@ -169,7 +213,6 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
             )
         if cap is not None and cap != frozen_cap:
             raise ValueError(f"requested cap {cap} differs from frozen panel cap {frozen_cap}")
-        shared = {str(key): str(value) for key, value in (config.get("shared_fixed_options") or {}).items()}
         cells = [
             Cell(
                 experiment_id=str(model["id"]),
@@ -179,13 +222,11 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
                 preset=str(config["preset"]),
                 repeats=int(config["repeats"]),
                 cap=frozen_cap,
+                upstream_provider=str(model["upstream_provider"]),
+                endpoint_tag=str(model["endpoint_tag"]),
                 endpoint_name=str(model.get("endpoint_name") or ""),
-                fixed_options={
-                    **shared,
-                    "OPENROUTER_PROVIDER_ONLY": str(model["upstream_provider"]),
-                    "OPENROUTER_EXPECTED_ENDPOINT_NAME": str(model["endpoint_name"]),
-                },
-                absent_options=tuple(str(value) for value in config.get("shared_absent_options") or []),
+                fixed_options=_registered_fixed_options(config, model),
+                absent_options=_registered_absent_options(config, model),
             )
             for model in models
         ]
@@ -266,18 +307,22 @@ def _openrouter_usage_usd(env: dict[str, str]) -> float:
 
 def _endpoint_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
     endpoints = (payload.get("data") or {}).get("endpoints") or []
-    expected_provider = cell.fixed_options.get("OPENROUTER_PROVIDER_ONLY", "")
+    expected_provider = cell.upstream_provider
     matches = [
         endpoint
         for endpoint in endpoints
         if endpoint.get("provider_name") == expected_provider
+        and endpoint.get("tag") == cell.endpoint_tag
         and endpoint.get("name") == cell.endpoint_name
         and endpoint.get("status") == 0
     ]
     if not cell.endpoint_name:
         return ["pre-registered OpenRouter endpoint_name is empty"]
     if not matches:
-        return [f"no healthy OpenRouter endpoint matches provider={expected_provider!r} name={cell.endpoint_name!r}"]
+        return [
+            "no healthy OpenRouter endpoint matches "
+            f"provider={expected_provider!r} tag={cell.endpoint_tag!r} name={cell.endpoint_name!r}"
+        ]
     required = {"max_tokens", "response_format", "reasoning"}
     capable = []
     for endpoint in matches:
@@ -655,14 +700,12 @@ def _record_smoke_issues(
     provider_options = run_info.get("provider_options")
     provider_options = provider_options if isinstance(provider_options, dict) else {}
     expected_options = {
-        **(registry.get("shared_fixed_options") or {}),
-        "OPENROUTER_PROVIDER_ONLY": entry.get("upstream_provider"),
-        "OPENROUTER_EXPECTED_ENDPOINT_NAME": entry.get("endpoint_name"),
+        **_registered_fixed_options(registry, entry),
     }
     for key, value in expected_options.items():
         if provider_options.get(key) != value:
             issues.append(f"artifact provider option {key} does not match the registered value")
-    for key in registry.get("shared_absent_options") or []:
+    for key in _registered_absent_options(registry, entry):
         if provider_options.get(key) not in (None, ""):
             issues.append(f"artifact provider option {key} must be absent")
 
@@ -738,8 +781,10 @@ def _record_smoke_issues(
     if truncated_calls != 0:
         issues.append("artifact shows cap-induced truncation")
     reasoning_tokens = usage.get("reasoning_tokens")
-    if reasoning_tokens not in (None, 0):
-        issues.append("artifact recorded reasoning tokens in the reasoning-disabled lane")
+    if entry.get("reasoning_policy") == "disabled" and reasoning_tokens not in (None, 0):
+        issues.append("artifact recorded reasoning tokens for a reasoning-disabled model")
+    if entry.get("reasoning_policy") == "mandatory-minimum" and not isinstance(reasoning_tokens, int):
+        issues.append("artifact is missing reasoning-token telemetry for a mandatory-reasoning model")
     max_output = usage.get("max_output_tokens_per_call")
     threshold = lane.get("cap_pressure_threshold_tokens")
     if not isinstance(max_output, int) or isinstance(max_output, bool):
@@ -797,6 +842,8 @@ def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> in
         "provider": entry["provider"],
         "model": entry["model"],
         "upstream_provider": entry["upstream_provider"],
+        "upstream_provider_slug": entry["upstream_provider_slug"],
+        "endpoint_tag": entry["endpoint_tag"],
         "endpoint_name": entry["endpoint_name"],
         "output_token_cap": int(lane["output_token_cap"]),
         "api_calls": usage["api_calls"],
@@ -808,6 +855,8 @@ def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> in
         "truncated_calls": usage["truncated_calls"],
         "max_output_tokens_per_call": usage["max_output_tokens_per_call"],
         "reasoning_tokens": usage.get("reasoning_tokens") or 0,
+        "reasoning_policy": entry["reasoning_policy"],
+        "reasoning_effort": entry.get("reasoning_effort"),
         "decision_failure_rate": artifact["candidate"]["summary"]["decision_failure_rate"],
         "contract_fingerprint": run_info["benchmark_contract"]["contract_fingerprint"],
         "scaffold_fingerprint": run_info["scaffold_fingerprint"],

@@ -373,6 +373,7 @@ def _validate_openrouter_route(
     """Keep flexible gateway rows visible without treating them as canonical."""
     options = _dict(run_info.get("provider_options"))
     only = str(options.get("OPENROUTER_PROVIDER_ONLY", "")).strip()
+    expected_upstream = str(options.get("OPENROUTER_EXPECTED_UPSTREAM_PROVIDER") or only).strip()
     expected_endpoint = str(options.get("OPENROUTER_EXPECTED_ENDPOINT_NAME", "")).strip()
     fallbacks = str(options.get("OPENROUTER_ALLOW_FALLBACKS", "")).lower()
     upstreams = [str(value) for value in _list(usage.get("upstream_providers")) if value]
@@ -385,10 +386,10 @@ def _validate_openrouter_route(
         issues.append("run_info.provider_options.OPENROUTER_ALLOW_FALLBACKS must be false")
     if len(set(upstreams)) != 1:
         issues.append("candidate usage must report exactly one OpenRouter upstream provider")
-    elif only and upstreams[0].casefold() != only.casefold():
+    elif expected_upstream and upstreams[0].casefold() != expected_upstream.casefold():
         issues.append(
             "candidate usage upstream provider does not match "
-            f"OPENROUTER_PROVIDER_ONLY: requested {only!r}, observed {upstreams[0]!r}"
+            f"the registered route: requested {expected_upstream!r}, observed {upstreams[0]!r}"
         )
     if strict:
         errors.extend(issues)

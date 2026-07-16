@@ -3,7 +3,7 @@
     "caveat": "Provider prices and actual token usage can change. Recheck before paid runs; the operator spend guard remains mandatory.",
     "cost_contingency_multiplier": 1.2,
     "input_tokens_per_decision": 8000,
-    "output_tokens_per_decision": 1024,
+    "output_tokens_per_decision": 4096,
     "panel_preset": "leaderboard",
     "panel_repeats": 3,
     "panel_seasons": 5,
@@ -16,123 +16,139 @@
     "smoke_seed_count": 1
   },
   "calls": {
-    "model_count": 10,
-    "panel_calls": 4800,
+    "model_count": 12,
+    "panel_calls": 5760,
     "panel_decisions_per_model": 480,
-    "smoke_calls": 40,
+    "smoke_calls": 48,
     "smoke_decisions_per_run": 4,
-    "smoke_runs": 10,
-    "total_calls": 4840
+    "smoke_runs": 12,
+    "total_calls": 5808
   },
   "costs_usd": {
-    "panel": 48.9489408,
-    "smoke": 0.40790784,
-    "total_unrounded": 49.35684864,
-    "total_with_1_2x_contingency": 59.228218368
+    "panel": 194.627328,
+    "smoke": 1.6218944,
+    "total_unrounded": 196.2492224,
+    "total_with_1_2x_contingency": 235.49906688
   },
   "models": [
     {
-      "cost_per_decision_usd": 0.014144,
+      "cost_per_decision_usd": 0.032576,
       "experiment_id": "openrouter-gpt-5.6-luna-openai",
       "model": "openai/gpt-5.6-luna",
       "observed_api_seconds_per_decision": 1.981,
       "panel_calls": 480,
-      "panel_cost_usd": 6.78912,
+      "panel_cost_usd": 15.63648,
       "smoke_calls": 4,
-      "smoke_cost_usd": 0.056576
+      "smoke_cost_usd": 0.130304
     },
     {
-      "cost_per_decision_usd": 0.02624,
-      "experiment_id": "openrouter-claude-sonnet-5-anthropic",
+      "cost_per_decision_usd": 0.05696,
+      "experiment_id": "openrouter-claude-sonnet-5-bedrock",
       "model": "anthropic/claude-sonnet-5",
       "panel_calls": 480,
-      "panel_cost_usd": 12.5952,
+      "panel_cost_usd": 27.3408,
       "smoke_calls": 4,
-      "smoke_cost_usd": 0.10496
+      "smoke_cost_usd": 0.22784
     },
     {
-      "cost_per_decision_usd": 0.0130624,
-      "experiment_id": "openrouter-deepseek-v4-pro-deepinfra",
-      "model": "deepseek/deepseek-v4-pro",
+      "cost_per_decision_usd": 0.048864,
+      "experiment_id": "openrouter-gemini-3.5-flash-google-ai-studio",
+      "model": "google/gemini-3.5-flash",
       "panel_calls": 480,
-      "panel_cost_usd": 6.269952,
+      "panel_cost_usd": 23.45472,
       "smoke_calls": 4,
-      "smoke_cost_usd": 0.0522496
+      "smoke_cost_usd": 0.195456
     },
     {
-      "cost_per_decision_usd": 0.009584,
-      "experiment_id": "openrouter-kimi-k2.6-deepinfra",
-      "model": "moonshotai/kimi-k2.6",
+      "cost_per_decision_usd": 0.040576,
+      "experiment_id": "openrouter-grok-4.5-xai",
+      "model": "x-ai/grok-4.5",
       "panel_calls": 480,
-      "panel_cost_usd": 4.60032,
+      "panel_cost_usd": 19.47648,
       "smoke_calls": 4,
-      "smoke_cost_usd": 0.038336
+      "smoke_cost_usd": 0.162304
     },
     {
-      "cost_per_decision_usd": 0.01020864,
-      "experiment_id": "openrouter-glm-5.2-streamlake",
+      "cost_per_decision_usd": 0.027408,
+      "experiment_id": "openrouter-muse-spark-1.1-meta",
+      "model": "meta/muse-spark-1.1",
+      "panel_calls": 480,
+      "panel_cost_usd": 13.15584,
+      "smoke_calls": 4,
+      "smoke_cost_usd": 0.109632
+    },
+    {
+      "cost_per_decision_usd": 0.0292224,
+      "experiment_id": "openrouter-glm-5.2-zai",
       "model": "z-ai/glm-5.2",
       "panel_calls": 480,
-      "panel_cost_usd": 4.9001472,
+      "panel_cost_usd": 14.026752,
       "smoke_calls": 4,
-      "smoke_cost_usd": 0.04083456
+      "smoke_cost_usd": 0.1168896
     },
     {
-      "cost_per_decision_usd": 0.00387072,
-      "experiment_id": "openrouter-qwen3.7-plus-alibaba",
-      "model": "qwen/qwen3.7-plus",
+      "cost_per_decision_usd": 0.08544,
+      "experiment_id": "openrouter-kimi-k3-moonshot",
+      "model": "moonshotai/kimi-k3",
       "panel_calls": 480,
-      "panel_cost_usd": 1.8579456,
+      "panel_cost_usd": 41.0112,
       "smoke_calls": 4,
-      "smoke_cost_usd": 0.01548288
+      "smoke_cost_usd": 0.34176
     },
     {
-      "cost_per_decision_usd": 0.0036288,
+      "cost_per_decision_usd": 0.0195456,
+      "experiment_id": "openrouter-nemotron-3-ultra-together",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "panel_calls": 480,
+      "panel_cost_usd": 9.381888,
+      "smoke_calls": 4,
+      "smoke_cost_usd": 0.0781824
+    },
+    {
+      "cost_per_decision_usd": 0.0073152,
       "experiment_id": "openrouter-minimax-m3-minimax",
       "model": "minimax/minimax-m3",
       "observed_api_seconds_per_decision": 2.546,
       "panel_calls": 480,
-      "panel_cost_usd": 1.741824,
+      "panel_cost_usd": 3.511296,
       "smoke_calls": 4,
-      "smoke_cost_usd": 0.0145152
+      "smoke_cost_usd": 0.0292608
     },
     {
-      "cost_per_decision_usd": 0.01968,
+      "cost_per_decision_usd": 0.00780288,
+      "experiment_id": "openrouter-qwen3.7-plus-alibaba",
+      "model": "qwen/qwen3.7-plus",
+      "panel_calls": 480,
+      "panel_cost_usd": 3.7453824,
+      "smoke_calls": 4,
+      "smoke_cost_usd": 0.03121152
+    },
+    {
+      "cost_per_decision_usd": 0.00704352,
+      "experiment_id": "openrouter-deepseek-v4-pro-deepseek",
+      "model": "deepseek/deepseek-v4-pro",
+      "panel_calls": 480,
+      "panel_cost_usd": 3.3808896,
+      "smoke_calls": 4,
+      "smoke_cost_usd": 0.02817408
+    },
+    {
+      "cost_per_decision_usd": 0.04272,
       "experiment_id": "openrouter-mistral-medium-3.5-mistral",
       "model": "mistralai/mistral-medium-3-5",
       "panel_calls": 480,
-      "panel_cost_usd": 9.4464,
+      "panel_cost_usd": 20.5056,
       "smoke_calls": 4,
-      "smoke_cost_usd": 0.07872
-    },
-    {
-      "cost_per_decision_usd": 0.0006048,
-      "experiment_id": "openrouter-nemotron-3-nano-deepinfra",
-      "model": "nvidia/nemotron-3-nano-30b-a3b",
-      "panel_calls": 480,
-      "panel_cost_usd": 0.290304,
-      "smoke_calls": 4,
-      "smoke_cost_usd": 0.0024192
-    },
-    {
-      "cost_per_decision_usd": 0.0009536,
-      "experiment_id": "openrouter-qwen3.5-9b-deepinfra",
-      "model": "qwen/qwen3.5-9b",
-      "observed_api_seconds_per_decision": 11.622,
-      "panel_calls": 480,
-      "panel_cost_usd": 0.457728,
-      "smoke_calls": 4,
-      "smoke_cost_usd": 0.0038144
+      "smoke_cost_usd": 0.17088
     }
   ],
-  "pricing_checked_at_utc": "2026-07-15T20:41:27Z",
+  "pricing_checked_at_utc": "2026-07-16T19:13:11Z",
   "runtime": {
     "note": "Regenerate this artifact from accepted smoke telemetry before approving the full panel; latency is reported only for models with committed observations.",
-    "observation_source": "legacy standardized 1,024-token Luna, MiniMax, and Qwen observations; use only for conservative reservations and refresh every registered route through the fixed-cap smoke gate before the full panel",
+    "observation_source": "legacy standardized 1,024-token Luna, MiniMax, and Qwen observations; use only for conservative reservations and replace with 4,096-token native-minimum-reasoning smoke observations before the full panel",
     "observed_api_seconds_per_decision_by_model": {
       "minimax/minimax-m3": 2.546,
-      "openai/gpt-5.6-luna": 1.981,
-      "qwen/qwen3.5-9b": 11.622
+      "openai/gpt-5.6-luna": 1.981
     },
     "observed_at_utc": "2026-07-15T01:22:44Z",
     "status": "pending-smoke-telemetry"
@@ -140,6 +156,6 @@
   "schema_version": 2,
   "supersedes": {
     "artifact": "retired 12-cell output-budget sweep estimate",
-    "description": "Replaces the four-cap, three-model sweep estimate with the registered ten-model fixed 1,024-token panel and its required smoke gate."
+    "description": "Replaces the four-cap, three-model sweep estimate with the registered 12-model fixed 4,096-token panel and its required smoke gate."
   }
 }

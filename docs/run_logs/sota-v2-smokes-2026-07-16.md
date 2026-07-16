@@ -1,5 +1,10 @@
 # sota-v2 fixed-cap smoke ledger — 2026-07-16
 
+> **Superseded:** On 2026-07-16 the user deliberately replaced this ten-model,
+> reasoning-disabled, 1,024-token panel before any full-panel score existed.
+> These outcomes remain operational evidence but cannot satisfy the revised
+> twelve-model, native-minimum-reasoning smoke gate.
+
 This ledger summarizes the serial pre-panel smokes under the frozen 1,024-token,
 reasoning-disabled API lane. Raw artifacts, checkpoints, and provider-attempt
 evidence remain under

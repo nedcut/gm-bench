@@ -1,8 +1,10 @@
 # Output policy and retired budget sweep
 
-**Current policy (frozen 2026-07-15):** the `sota-v2` API headline lane uses a
-common 1,024-output-token safety ceiling with reasoning disabled. Actual input
-tokens, output tokens, cost, and latency are reported as secondary efficiency
+**Current policy (provisional revision 2026-07-16):** the `sota-v2` API headline
+lane uses a common 4,096-total-output-token safety ceiling and native-minimum
+reasoning. Reasoning is disabled where optional; models for which OpenRouter
+marks reasoning mandatory use their lowest supported effort. Actual input,
+output, and reasoning tokens, cost, and latency are secondary efficiency
 metrics; they do not change the benchmark score.
 
 The earlier 256 / 1,024 / 4,096 / 16,384 experiment was retired before any
@@ -21,19 +23,22 @@ treatment.
 
 This evidence does **not** promote the old Luna score: that run used the
 superseded prompt scaffold. It only supports the operational conclusion that
-1,024 left substantial output headroom.
+1,024 left substantial output headroom for reasoning-disabled models. It does
+not establish a safe cap for Kimi K3 or the other mandatory-reasoning models in
+the revised panel.
 
 ## Pre-full-panel cap-pressure rule
 
 Before any full-panel result is run:
 
-1. Smoke all ten models in `config/sota_v2_models.json` serially at 1,024.
-2. Verify exact route, required parameters, JSON behavior, reasoning disabled,
-   complete token/cost telemetry, and clean completion.
+1. Smoke all twelve models in `config/sota_v2_models.json` serially at 4,096.
+2. Verify exact provider slug, endpoint tag and snapshot, required parameters,
+   JSON behavior, the registered per-model reasoning policy, complete
+   token/cost telemetry, and clean completion.
 3. Inspect per-call output usage and truncation evidence.
-4. If any call emits at least 768 output tokens (75% of the cap), or provider or
+4. If any call emits at least 3,072 total output tokens (75% of the cap), or provider or
    adapter telemetry indicates cap-induced truncation, raise the **entire** API
-   lane to 2,048 and repeat affected smokes before any full result.
+   lane to 8,192 and repeat affected smokes before any full result.
 5. Do not change the common cap after any full-panel score is visible.
 
 The 75% trigger is deliberately conservative: it detects meaningful cap
@@ -54,9 +59,10 @@ model.
 ## Frozen publication lane
 
 - Headline rows are API-only, fresh-spawn, `compact`, with one bounded protocol
-  repair and exactly 1,024 maximum output tokens per call.
-- Reasoning is explicitly disabled with `reasoning.enabled=false`; reasoning
-  effort and reasoning-token caps are absent.
+  repair and exactly 4,096 maximum total output tokens per call.
+- Reasoning is disabled with `reasoning.enabled=false` where optional. Gemini
+  3.5 Flash and Muse Spark 1.1 use `minimal`, Grok 4.5 uses `low`, and Kimi K3
+  uses its only supported effort, `max`.
 - Every row reports score, failures, illegal actions, input/output tokens,
   latency, and cost. Token efficiency is interpretive evidence, not a hidden
   score adjustment.
@@ -73,8 +79,7 @@ only after strict validation; it retains per-seed/repeat outcomes and aggregate
 usage plus a canonical raw-artifact SHA-256. CI requires the compact format and
 caps committed current rows at 1 MB.
 
-`config/output_budget_sweep.json` and
-`results/analysis/output-budget-cost-estimate.json` describe the retired design.
-Do not use the old cost artifact as current spend guidance. Replace it with a
-fixed-panel estimate after the ten route smokes provide current latency and
-usage evidence.
+`config/output_budget_sweep.json` describes the retired four-cap design.
+`results/analysis/output-budget-cost-estimate.json` must be regenerated from the
+current twelve-model registry and refreshed again after the route smokes provide
+current latency and usage evidence.

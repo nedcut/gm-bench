@@ -60,12 +60,7 @@ def estimate(
     leaderboard = PRESETS["leaderboard"]
     smoke = PRESETS["smoke"]
     repeats = int(models_config["repeats"])
-    panel_decisions_per_model = (
-        len(leaderboard["seeds"])
-        * int(leaderboard["seasons"])
-        * len(PHASES)
-        * repeats
-    )
+    panel_decisions_per_model = len(leaderboard["seeds"]) * int(leaderboard["seasons"]) * len(PHASES) * repeats
     smoke_decisions_per_run = len(smoke["seeds"]) * int(smoke["seasons"]) * len(PHASES)
     model_count = len(models)
     panel_calls = model_count * panel_decisions_per_model
@@ -82,9 +77,7 @@ def estimate(
         rates = pricing["models"].get(model_name)
         if not rates:
             raise ValueError(f"missing pricing for {model_name}")
-        per_decision_cost = input_tokens * _decimal(rates["prompt"]) + output_tokens * _decimal(
-            rates["completion"]
-        )
+        per_decision_cost = input_tokens * _decimal(rates["prompt"]) + output_tokens * _decimal(rates["completion"])
         panel_cost = panel_decisions_per_model * per_decision_cost
         smoke_cost = smoke_decisions_per_run * per_decision_cost
         panel_costs.append(panel_cost)
@@ -114,7 +107,7 @@ def estimate(
             "artifact": "retired 12-cell output-budget sweep estimate",
             "description": (
                 "Replaces the four-cap, three-model sweep estimate with the registered "
-                "ten-model fixed 1,024-token panel and its required smoke gate."
+                f"{len(models)}-model fixed {lane_config['output_token_cap']:,}-token panel and its required smoke gate."
             ),
         },
         "pricing_checked_at_utc": pricing["checked_at_utc"],
