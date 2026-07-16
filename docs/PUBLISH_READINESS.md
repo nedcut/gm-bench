@@ -205,7 +205,7 @@ output tokens below 768 before writing an accepted entry to
 ```bash
 python3 scripts/run_publication_matrix.py record-smoke \
   --model-id openrouter-qwen3.5-9b-deepinfra \
-  --artifact data/publication-runs/smoke-fixed-1024-2026-07-15/raw.json
+  --artifact data/publication-runs/smoke-fixed-1024-2026-07-15/raw/openrouter-qwen3.5-9b-deepinfra--1024.json
 ```
 
 Repeat one registered model at a time. Only after all ten standardized smokes,

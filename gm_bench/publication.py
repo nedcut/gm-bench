@@ -10,6 +10,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
 from typing import Any
 
 PUBLICATION_FORMAT = "gm-bench-result-summary-v1"
@@ -86,17 +87,23 @@ def smoke_manifest_issues(
     current scaffold and contract, with complete finish-reason telemetry and
     no cap-pressure or truncation trigger.
     """
+    from gm_bench.benchmark_config import PRESETS
     from gm_bench.contract import contract_fingerprint, scaffold_fingerprint
+    from gm_bench.protocol import PHASES
 
     issues: list[str] = []
     if not isinstance(manifest, dict) or not manifest:
         return ["smoke manifest is missing; record every registered-model smoke before the panel"]
     if manifest.get("format") != SMOKE_MANIFEST_FORMAT:
         issues.append(f"smoke manifest format must be {SMOKE_MANIFEST_FORMAT!r}")
+    if manifest.get("schema_version") != 1:
+        issues.append("smoke manifest schema_version must be 1")
     entries = manifest.get("entries")
     entries = entries if isinstance(entries, dict) else {}
     frozen_cap = lane.get("output_token_cap")
     threshold = lane.get("cap_pressure_threshold_tokens")
+    smoke = PRESETS["smoke"]
+    expected_decisions = len(smoke["seeds"]) * int(smoke["seasons"]) * len(PHASES)
     models = [model for model in registry.get("models") or [] if isinstance(model, dict)]
     registered_ids = {str(model.get("id")) for model in models}
     for stale in sorted(set(entries) - registered_ids):
@@ -110,16 +117,30 @@ def smoke_manifest_issues(
         prefix = f"smoke manifest entry {model_id!r}"
         if entry.get("accepted") is not True:
             issues.append(f"{prefix} is not accepted")
+        if entry.get("decision_failure_rate") != 0:
+            issues.append(f"{prefix} decision_failure_rate must be zero")
         for key in ("provider", "model", "upstream_provider", "endpoint_name"):
             if entry.get(key) != model.get(key):
                 issues.append(f"{prefix} {key} does not match the registered route")
         if entry.get("output_token_cap") != frozen_cap:
             issues.append(f"{prefix} was recorded at cap {entry.get('output_token_cap')!r}, not frozen {frozen_cap!r}")
+        repair_attempts = entry.get("protocol_repair_attempts", 0)
+        repair_successes = entry.get("protocol_repairs_succeeded", 0)
+        if not isinstance(repair_attempts, int) or isinstance(repair_attempts, bool) or repair_attempts < 0:
+            issues.append(f"{prefix} protocol_repair_attempts must be a non-negative integer")
+            repair_attempts = 0
+        if repair_successes != repair_attempts:
+            issues.append(f"{prefix} successful protocol repairs must match repair attempts")
         api_calls = int(entry.get("api_calls") or 0)
-        if api_calls < 1:
-            issues.append(f"{prefix} records no API calls")
+        minimum_api_calls = expected_decisions + repair_attempts
+        if api_calls < minimum_api_calls:
+            issues.append(f"{prefix} must record at least {minimum_api_calls} API calls for its decisions and repairs")
         if int(entry.get("calls_with_finish_reason") or 0) != api_calls:
             issues.append(f"{prefix} finish-reason telemetry does not cover every API call")
+        if entry.get("decisions_with_usage") != expected_decisions:
+            issues.append(f"{prefix} usage must cover all {expected_decisions} smoke decision points")
+        if entry.get("cost_decisions") != expected_decisions:
+            issues.append(f"{prefix} cost telemetry must cover all {expected_decisions} smoke decision points")
         if int(entry.get("truncated_calls") or 0):
             issues.append(f"{prefix} shows cap-induced truncation; apply the cap-pressure rule before the panel")
         max_output = entry.get("max_output_tokens_per_call")
@@ -138,7 +159,7 @@ def smoke_manifest_issues(
         if expected_scaffold is not None and entry.get("scaffold_fingerprint") != expected_scaffold:
             issues.append(f"{prefix} was recorded under a different prompt scaffold")
         artifact_sha = entry.get("artifact_sha256")
-        if not isinstance(artifact_sha, str) or len(artifact_sha) != 64:
+        if not isinstance(artifact_sha, str) or re.fullmatch(r"[0-9a-f]{64}", artifact_sha) is None:
             issues.append(f"{prefix} must record the raw artifact sha256")
     return issues
 

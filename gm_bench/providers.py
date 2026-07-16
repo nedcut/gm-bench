@@ -111,6 +111,33 @@ def _merge_usage(left: dict[str, Any], right: dict[str, Any] | None) -> dict[str
     for key in ("provider", "model", "upstream_provider", "generation_id"):
         if right.get(key):
             merged[key] = right[key]
+    truncation_reasons = {"length", "max_tokens", "max_output_tokens"}
+
+    def finish_reason_count(usage: dict[str, Any]) -> int:
+        if "calls_with_finish_reason" in usage:
+            return int(usage["calls_with_finish_reason"])
+        return int(bool(usage.get("finish_reason")))
+
+    def truncated_call_count(usage: dict[str, Any]) -> int:
+        if "truncated_calls" in usage:
+            return int(usage["truncated_calls"])
+        reasons = (usage.get("finish_reason"), usage.get("native_finish_reason"))
+        return int(any(str(reason or "").lower() in truncation_reasons for reason in reasons))
+
+    def max_output_tokens_per_call(usage: dict[str, Any]) -> int:
+        if "max_output_tokens_per_call" in usage:
+            return int(usage["max_output_tokens_per_call"])
+        return int(usage.get("output_tokens") or 0)
+
+    # A protocol repair folds multiple provider calls into one decision-level
+    # record. Preserve the per-call audit fields instead of treating the summed
+    # token count and first finish reason as if they described one call.
+    merged["calls_with_finish_reason"] = finish_reason_count(left) + finish_reason_count(right)
+    merged["truncated_calls"] = truncated_call_count(left) + truncated_call_count(right)
+    merged["max_output_tokens_per_call"] = max(
+        max_output_tokens_per_call(left),
+        max_output_tokens_per_call(right),
+    )
     # Adapter-reported cost is authoritative only when both calls reported it.
     # Otherwise aggregate_usage can estimate from the merged token totals.
     if "cost_usd" in left and "cost_usd" in right:

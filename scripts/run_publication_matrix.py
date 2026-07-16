@@ -382,6 +382,17 @@ def _record_smoke_issues(
     if run_info.get("profile") != registry.get("profile"):
         issues.append("artifact profile does not match the registered profile")
 
+    smoke = PRESETS["smoke"]
+    expected_seeds = list(smoke["seeds"])
+    expected_seasons = int(smoke["seasons"])
+    expected_decisions = len(expected_seeds) * expected_seasons * len(PHASES)
+    if artifact.get("publication") is not None:
+        issues.append("artifact must be the original raw smoke result, not a compact publication artifact")
+    if artifact.get("seeds") != expected_seeds:
+        issues.append(f"artifact seeds must match the smoke preset: {expected_seeds}")
+    if artifact.get("seasons") != expected_seasons:
+        issues.append(f"artifact seasons must match the smoke preset: {expected_seasons}")
+
     provider_options = run_info.get("provider_options")
     provider_options = provider_options if isinstance(provider_options, dict) else {}
     expected_options = {
@@ -410,15 +421,59 @@ def _record_smoke_issues(
 
     candidate = artifact.get("candidate")
     candidate = candidate if isinstance(candidate, dict) else {}
+    if candidate.get("repeats") != 1:
+        issues.append("artifact candidate repeats must be one for the smoke preset")
+    if candidate.get("seasons") != expected_seasons:
+        issues.append(f"artifact candidate seasons must be {expected_seasons}")
+    episodes = candidate.get("episodes")
+    if not isinstance(episodes, list) or len(episodes) != len(expected_seeds):
+        issues.append(f"artifact candidate must contain {len(expected_seeds)} complete smoke episode(s)")
+    else:
+        expected_pairs = {(seed, 1) for seed in expected_seeds}
+        observed_pairs = {
+            (episode.get("seed"), episode.get("repeat", 1))
+            for episode in episodes
+            if isinstance(episode, dict)
+        }
+        if observed_pairs != expected_pairs:
+            issues.append("artifact candidate episodes do not match the smoke seed/repeat panel")
+        for episode in episodes:
+            if not isinstance(episode, dict):
+                continue
+            if episode.get("seasons") != expected_seasons:
+                issues.append("artifact candidate episode has the wrong season count")
+            if episode.get("decisions") != expected_seasons * len(PHASES):
+                issues.append("artifact candidate episode does not contain every smoke decision point")
+            if episode.get("failed_decisions") != 0:
+                issues.append("artifact candidate episode contains failed decisions")
     summary = candidate.get("summary") or {}
     summary = summary if isinstance(summary, dict) else {}
+    if summary.get("decisions") != expected_decisions:
+        issues.append(f"artifact candidate summary decisions must be {expected_decisions}")
+    if summary.get("failed_decisions") != 0:
+        issues.append("artifact candidate summary failed_decisions must be zero")
     if summary.get("decision_failure_rate") != 0:
         issues.append("artifact decision_failure_rate must be zero")
     usage = summary.get("usage")
     usage = usage if isinstance(usage, dict) else {}
+    if usage.get("decisions_with_usage") != expected_decisions:
+        issues.append(f"artifact usage must cover all {expected_decisions} smoke decision points")
+    if usage.get("cost_decisions") != expected_decisions:
+        issues.append(f"artifact cost telemetry must cover all {expected_decisions} smoke decision points")
+    for key in ("provider", "model"):
+        if usage.get(key) != entry.get(key):
+            issues.append(f"artifact usage {key} does not match the registered route")
+    repair_attempts = usage.get("protocol_repair_attempts", 0)
+    repair_successes = usage.get("protocol_repairs_succeeded", 0)
+    if not isinstance(repair_attempts, int) or isinstance(repair_attempts, bool) or repair_attempts < 0:
+        issues.append("artifact protocol_repair_attempts must be a non-negative integer")
+        repair_attempts = 0
+    if repair_successes != repair_attempts:
+        issues.append("artifact successful protocol repairs must match repair attempts")
     api_calls = usage.get("api_calls")
-    if not isinstance(api_calls, int) or isinstance(api_calls, bool) or api_calls < 1:
-        issues.append("artifact must record at least one API call")
+    minimum_api_calls = expected_decisions + repair_attempts
+    if not isinstance(api_calls, int) or isinstance(api_calls, bool) or api_calls < minimum_api_calls:
+        issues.append(f"artifact must record at least {minimum_api_calls} API calls for its decisions and repairs")
     calls_with_finish_reason = usage.get("calls_with_finish_reason")
     if calls_with_finish_reason != api_calls:
         issues.append("artifact finish-reason telemetry must cover every API call")
@@ -489,6 +544,10 @@ def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> in
         "output_token_cap": int(lane["output_token_cap"]),
         "api_calls": usage["api_calls"],
         "calls_with_finish_reason": usage["calls_with_finish_reason"],
+        "decisions_with_usage": usage["decisions_with_usage"],
+        "cost_decisions": usage["cost_decisions"],
+        "protocol_repair_attempts": usage.get("protocol_repair_attempts", 0),
+        "protocol_repairs_succeeded": usage.get("protocol_repairs_succeeded", 0),
         "truncated_calls": usage["truncated_calls"],
         "max_output_tokens_per_call": usage["max_output_tokens_per_call"],
         "reasoning_tokens": usage.get("reasoning_tokens") or 0,
