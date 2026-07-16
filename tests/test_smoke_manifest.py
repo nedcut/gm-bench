@@ -31,6 +31,8 @@ def _valid_manifest(registry: dict, lane: dict) -> dict:
                 "calls_with_finish_reason": 4,
                 "decisions_with_usage": 4,
                 "cost_decisions": 4,
+                "protocol_repair_attempts": 0,
+                "protocol_repairs_succeeded": 0,
                 "truncated_calls": 0,
                 "max_output_tokens_per_call": 100,
                 "reasoning_tokens": 0,
@@ -70,6 +72,7 @@ def test_complete_valid_smoke_manifest_has_no_issues() -> None:
         ("incomplete-calls", "at least 4 API calls"),
         ("incomplete-usage", "usage must cover all 4"),
         ("incomplete-cost", "cost telemetry must cover all 4"),
+        ("uncovered-repair", "at least 5 API calls"),
         ("wrong-scaffold", "different prompt scaffold"),
     ],
 )
@@ -99,6 +102,9 @@ def test_invalid_smoke_entry_reports_issue(mutation: str, message: str) -> None:
         entry["decisions_with_usage"] = 1
     elif mutation == "incomplete-cost":
         entry["cost_decisions"] = 0
+    elif mutation == "uncovered-repair":
+        entry["protocol_repair_attempts"] = 1
+        entry["protocol_repairs_succeeded"] = 1
     else:
         entry["scaffold_fingerprint"] = "wrong"
     assert any(message in issue for issue in smoke_manifest_issues(manifest, registry, lane))

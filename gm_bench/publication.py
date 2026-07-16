@@ -124,9 +124,17 @@ def smoke_manifest_issues(
                 issues.append(f"{prefix} {key} does not match the registered route")
         if entry.get("output_token_cap") != frozen_cap:
             issues.append(f"{prefix} was recorded at cap {entry.get('output_token_cap')!r}, not frozen {frozen_cap!r}")
+        repair_attempts = entry.get("protocol_repair_attempts", 0)
+        repair_successes = entry.get("protocol_repairs_succeeded", 0)
+        if not isinstance(repair_attempts, int) or isinstance(repair_attempts, bool) or repair_attempts < 0:
+            issues.append(f"{prefix} protocol_repair_attempts must be a non-negative integer")
+            repair_attempts = 0
+        if repair_successes != repair_attempts:
+            issues.append(f"{prefix} successful protocol repairs must match repair attempts")
         api_calls = int(entry.get("api_calls") or 0)
-        if api_calls < expected_decisions:
-            issues.append(f"{prefix} must record at least {expected_decisions} API calls")
+        minimum_api_calls = expected_decisions + repair_attempts
+        if api_calls < minimum_api_calls:
+            issues.append(f"{prefix} must record at least {minimum_api_calls} API calls for its decisions and repairs")
         if int(entry.get("calls_with_finish_reason") or 0) != api_calls:
             issues.append(f"{prefix} finish-reason telemetry does not cover every API call")
         if entry.get("decisions_with_usage") != expected_decisions:

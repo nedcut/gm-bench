@@ -463,9 +463,17 @@ def _record_smoke_issues(
     for key in ("provider", "model"):
         if usage.get(key) != entry.get(key):
             issues.append(f"artifact usage {key} does not match the registered route")
+    repair_attempts = usage.get("protocol_repair_attempts", 0)
+    repair_successes = usage.get("protocol_repairs_succeeded", 0)
+    if not isinstance(repair_attempts, int) or isinstance(repair_attempts, bool) or repair_attempts < 0:
+        issues.append("artifact protocol_repair_attempts must be a non-negative integer")
+        repair_attempts = 0
+    if repair_successes != repair_attempts:
+        issues.append("artifact successful protocol repairs must match repair attempts")
     api_calls = usage.get("api_calls")
-    if not isinstance(api_calls, int) or isinstance(api_calls, bool) or api_calls < expected_decisions:
-        issues.append(f"artifact must record at least {expected_decisions} API calls")
+    minimum_api_calls = expected_decisions + repair_attempts
+    if not isinstance(api_calls, int) or isinstance(api_calls, bool) or api_calls < minimum_api_calls:
+        issues.append(f"artifact must record at least {minimum_api_calls} API calls for its decisions and repairs")
     calls_with_finish_reason = usage.get("calls_with_finish_reason")
     if calls_with_finish_reason != api_calls:
         issues.append("artifact finish-reason telemetry must cover every API call")
@@ -538,6 +546,8 @@ def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> in
         "calls_with_finish_reason": usage["calls_with_finish_reason"],
         "decisions_with_usage": usage["decisions_with_usage"],
         "cost_decisions": usage["cost_decisions"],
+        "protocol_repair_attempts": usage.get("protocol_repair_attempts", 0),
+        "protocol_repairs_succeeded": usage.get("protocol_repairs_succeeded", 0),
         "truncated_calls": usage["truncated_calls"],
         "max_output_tokens_per_call": usage["max_output_tokens_per_call"],
         "reasoning_tokens": usage.get("reasoning_tokens") or 0,

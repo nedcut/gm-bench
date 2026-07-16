@@ -108,6 +108,8 @@ def _valid_smoke_artifact(registry: dict, lane: dict, model: dict) -> dict:
                     "model": model["model"],
                     "decisions_with_usage": 4,
                     "cost_decisions": 4,
+                    "protocol_repair_attempts": 0,
+                    "protocol_repairs_succeeded": 0,
                     "api_calls": 4,
                     "calls_with_finish_reason": 4,
                     "truncated_calls": 0,
@@ -257,6 +259,8 @@ def test_record_smoke_writes_accepted_manifest_entry(
     assert entry["artifact_path"] == str(artifact_path)
     assert entry["decisions_with_usage"] == 4
     assert entry["cost_decisions"] == 4
+    assert entry["protocol_repair_attempts"] == 0
+    assert entry["protocol_repairs_succeeded"] == 0
 
 
 def test_record_smoke_refuses_summary_only_artifact(
@@ -362,6 +366,38 @@ def test_record_smoke_refuses_too_few_api_calls(
         == 1
     )
     assert "at least 4 API calls" in capsys.readouterr().err
+    assert not manifest_path.exists()
+
+
+def test_record_smoke_requires_call_telemetry_for_protocol_repairs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    model = registry["models"][0]
+    artifact = _valid_smoke_artifact(registry, lane, model)
+    usage = artifact["candidate"]["summary"]["usage"]
+    usage["protocol_repair_attempts"] = 1
+    usage["protocol_repairs_succeeded"] = 1
+    artifact_path = tmp_path / "repair-without-call-telemetry.json"
+    artifact_path.write_text(json.dumps(artifact))
+
+    assert (
+        main(
+            [
+                "record-smoke",
+                "--model-id",
+                model["id"],
+                "--artifact",
+                str(artifact_path),
+                "--manifest",
+                str(manifest_path),
+            ]
+        )
+        == 1
+    )
+    assert "at least 5 API calls" in capsys.readouterr().err
     assert not manifest_path.exists()
 
 
