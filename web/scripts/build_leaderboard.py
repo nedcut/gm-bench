@@ -38,13 +38,14 @@ from gm_bench.contract import benchmark_contract  # noqa: E402
 from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
 from gm_bench.oracle import OracleAgent  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
-from gm_bench.publication import mechanic_breakdown, smoke_manifest_issues  # noqa: E402
+from gm_bench.publication import canonical_sha256, mechanic_breakdown, smoke_manifest_issues  # noqa: E402
 from gm_bench.runner import run_many  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
 OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard.json"
 MODEL_CONFIG_PATH = ROOT / "config" / "sota_v2_models.json"
 PROTOCOL_CONFIG_PATH = ROOT / "config" / "publication_protocol.json"
+PANEL_ANALYSIS_PATH = ROOT / "results" / "analysis" / "publication-panel-analysis.json"
 LEADERBOARD = PRESETS["leaderboard"]
 # Providers that run a model through a coding-agent CLI harness (own tool loop,
 # own prompt scaffold, own retry/session behavior) rather than a direct API
@@ -205,6 +206,9 @@ def model_row(payload: dict[str, Any], publication_config: dict[str, Any] | None
         "sota_v2_issues": [*sota_report.get("errors", []), *sota_report.get("warnings", [])],
         "publication_eligible": bool(sota_report.get("ok")) and not publication_issues,
         "publication_issues": publication_issues,
+        "artifact_sha256": canonical_sha256(payload),
+        "raw_artifact_sha256": (payload.get("publication") or {}).get("raw_artifact_sha256")
+        or canonical_sha256(payload),
     }
 
 
@@ -291,34 +295,57 @@ def select_model_payloads(
     return [item[1] for item in selected.values()]
 
 
-def assign_tiers(rows: list[dict[str, Any]]) -> None:
-    """Assign display tiers per the frozen ranking rule: tiers, not ordinal ranks.
+def _analysis_identity(row: dict[str, Any]) -> Any:
+    provider = row.get("provider")
+    model = row.get("model")
+    if provider and model:
+        return (provider, model)
+    return row.get("model_id") or row.get("id")
 
-    ``config/publication_protocol.json`` freezes the presentation as tiers —
-    models whose Holm-adjusted primary contrasts *and* paired-lift intervals
-    overlap report as one tier, with no ordinal rank column. Holm-adjusted
-    contrasts only exist once the final analysis artifact is generated, so the
-    committed dataset groups adjacent rows (sorted by mean score) whenever
-    their paired-lift 95% intervals overlap. That can only merge more rows
-    than the final rule (which requires both conditions), so the displayed
-    tiers never claim a separation the frozen analysis has not established.
-    Rows without an interval cannot establish overlap and open a new tier.
-    """
-    previous: tuple[float, float] | None = None
-    tier = 0
-    for row in rows:
-        ci = row.get("ci95")
-        current = (float(ci[0]), float(ci[1])) if isinstance(ci, list) and len(ci) == 2 else None
-        overlaps = (
-            previous is not None
-            and current is not None
-            and current[0] <= previous[1]
-            and current[1] >= previous[0]
-        )
-        if not overlaps:
-            tier += 1
-        row["tier"] = tier
-        previous = current
+
+def _panel_analysis_rows(
+    candidates: list[dict[str, Any]],
+    panel_analysis: dict[str, Any] | None,
+    *,
+    family_size: int,
+    minimum_models: int,
+) -> tuple[dict[Any, dict[str, Any]], list[str]]:
+    """Bind final tiers and Holm results to the exact candidate artifacts."""
+    issues: list[str] = []
+    if not isinstance(panel_analysis, dict):
+        return {}, ["publication panel analysis artifact is missing"]
+    analysis_rows = panel_analysis.get("models")
+    if not isinstance(analysis_rows, list):
+        return {}, ["publication panel analysis has no model rows"]
+    if panel_analysis.get("holm_family_size") != family_size:
+        issues.append("publication panel analysis uses the wrong Holm family size")
+    if int(panel_analysis.get("eligible_model_count") or 0) < minimum_models:
+        issues.append("publication panel analysis does not cover the minimum headline panel")
+    by_identity: dict[Any, dict[str, Any]] = {}
+    for row in analysis_rows:
+        if not isinstance(row, dict):
+            issues.append("publication panel analysis contains a malformed model row")
+            continue
+        identity = _analysis_identity(row)
+        if not identity or identity in by_identity:
+            issues.append("publication panel analysis contains a missing or duplicate model identity")
+            continue
+        if not isinstance(row.get("tier"), int) or row.get("holm_adjusted_p_value") is None:
+            issues.append("publication panel analysis row is missing its final tier or Holm result")
+        by_identity[identity] = row
+
+    candidate_identities = {_headline_identity(row) for row in candidates}
+    if set(by_identity) != candidate_identities:
+        issues.append("publication panel analysis rows do not match the eligible headline rows")
+    for candidate in candidates:
+        analysis_row = by_identity.get(_headline_identity(candidate))
+        if analysis_row is None:
+            continue
+        candidate_hash = candidate.get("raw_artifact_sha256")
+        analysis_hash = analysis_row.get("raw_artifact_sha256")
+        if candidate_hash is not None and candidate_hash != analysis_hash:
+            issues.append(f"publication analysis artifact hash does not match {candidate.get('id')!r}")
+    return by_identity, issues
 
 
 def _headline_identity(row: dict[str, Any]) -> Any:
@@ -335,6 +362,7 @@ def publication_gate(
     lane_config: dict[str, Any],
     model_config: dict[str, Any],
     *,
+    panel_analysis: dict[str, Any] | None = None,
     smoke_issues: list[str] | None = None,
     protocol_minimum: int | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -360,6 +388,13 @@ def publication_gate(
     unique_models = len(identities)
     duplicate_headline_rows = len(candidates) - unique_models
     minimum_models = max(int(lane_config.get("minimum_headline_models") or 0), protocol_minimum or 0)
+    analysis_rows, panel_analysis_issues = _panel_analysis_rows(
+        candidates,
+        panel_analysis,
+        family_size=len(model_config.get("models") or []),
+        minimum_models=minimum_models,
+    )
+    panel_analysis_ready = not panel_analysis_issues
     smoke_ok = smoke_issues is None or smoke_issues == []
     publishable = (
         lane_frozen
@@ -367,6 +402,7 @@ def publication_gate(
         and smoke_ok
         and duplicate_headline_rows == 0
         and unique_models >= minimum_models
+        and panel_analysis_ready
     )
     if smoke_issues is None:
         smoke_gate_issues: list[str] | None = None
@@ -382,6 +418,8 @@ def publication_gate(
         "duplicate_headline_rows": duplicate_headline_rows,
         "minimum_headline_models": minimum_models,
         "smoke_gate_issues": smoke_gate_issues,
+        "panel_analysis_ready": panel_analysis_ready,
+        "panel_analysis_issues": panel_analysis_issues[:10],
     }
     if not registry_frozen:
         publication["reason"] = "model registry remains provisional until every registered route passes its smoke"
@@ -392,12 +430,20 @@ def publication_gate(
             "frozen lane has duplicate eligible rows for one registered model; "
             f"{duplicate_headline_rows} duplicate row(s) among {len(candidates)} candidates"
         )
-    elif lane_frozen and not publishable:
+    elif lane_frozen and unique_models < minimum_models:
         publication["reason"] = (
             f"frozen lane has {unique_models} eligible headline models; at least {minimum_models} are required"
         )
+    elif not panel_analysis_ready:
+        publication["reason"] = f"final Holm-adjusted panel analysis is incomplete: {panel_analysis_issues[0]}"
     elif not publishable and analysis.get("status") == "complete-needs-interpretation":
         publication["reason"] = "sweep complete; inspect curves and freeze a fixed API-lane cap before ranking"
+    if publishable:
+        for row in candidates:
+            final = analysis_rows[_headline_identity(row)]
+            row["tier"] = final["tier"]
+            row["holm_adjusted_p_value"] = final["holm_adjusted_p_value"]
+            row["holm_reject_at_0_05"] = final.get("holm_reject_at_0_05")
     return (candidates if publishable else []), publication
 
 
@@ -440,16 +486,24 @@ def main() -> None:
         if isinstance(loaded, dict):
             manifest = loaded
     smoke_issues = smoke_manifest_issues(manifest, model_config, lane_config)
+    panel_analysis: dict[str, Any] | None = None
+    if PANEL_ANALYSIS_PATH.is_file():
+        try:
+            loaded_analysis = json.loads(PANEL_ANALYSIS_PATH.read_text())
+        except json.JSONDecodeError:
+            loaded_analysis = None
+        if isinstance(loaded_analysis, dict):
+            panel_analysis = loaded_analysis
     models, publication = publication_gate(
         current_rows,
         analysis,
         lane_config,
         model_config,
+        panel_analysis=panel_analysis,
         smoke_issues=smoke_issues,
         protocol_minimum=protocol_minimum,
     )
     publishable_ranking = bool(publication["publishable_ranking"])
-    assign_tiers(models)
     cli_harness_models = [row for row in current_rows if row.get("lane") == "cli-harness"]
     excluded_models = [
         {

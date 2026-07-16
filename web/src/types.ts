@@ -109,8 +109,14 @@ export interface LeaderboardModel {
   sota_v2_issues?: string[];
   publication_eligible?: boolean;
   publication_issues?: string[];
-  /** Display tier from CI-overlap grouping — the frozen plan publishes tiers, not ordinal ranks. */
-  tier?: number;
+  artifact_sha256?: string;
+  raw_artifact_sha256?: string;
+}
+
+export interface TieredLeaderboardModel extends LeaderboardModel {
+  tier: number;
+  holm_adjusted_p_value: number;
+  holm_reject_at_0_05: boolean | null;
 }
 
 export interface LeaderboardBaseline {
@@ -137,7 +143,7 @@ export interface Leaderboard {
     decision_points_per_episode: number;
   };
   baselines: LeaderboardBaseline[];
-  models: LeaderboardModel[];
+  models: TieredLeaderboardModel[];
   cli_harness_models: LeaderboardModel[];
   excluded_models: Array<{ id: string | null; issues: string[] }>;
   publication: {
@@ -149,6 +155,8 @@ export interface Leaderboard {
     output_policy_basis?: string;
     model_registry_frozen?: boolean;
     smoke_gate_issues?: string[] | null;
+    panel_analysis_ready?: boolean;
+    panel_analysis_issues?: string[];
     eligible_headline_models: number;
     minimum_headline_models: number;
   };

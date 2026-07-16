@@ -83,6 +83,7 @@ export default function Ladder({ data }: { data: LeaderboardData }) {
   });
 
   const pending = data.publication;
+  const rowsState = pending.publishable_ranking ? "published" : "withheld until the publication gate clears";
   const ticks = Array.from({ length: Math.floor(domainMax / 100) + 1 }, (_, index) => index * 100);
 
   return (
@@ -99,7 +100,7 @@ export default function Ladder({ data }: { data: LeaderboardData }) {
           className="ladder-svg"
           viewBox={`0 0 ${W} ${H}`}
           role="img"
-          aria-label="Score ladder: every scripted baseline and the oracle ceiling on one axis; model rows are withheld until the publication gate clears. The same numbers appear in the table below."
+          aria-label={`Score ladder: every scripted baseline and the oracle ceiling on one axis; model rows are ${rowsState}. The same numbers appear in the table below.`}
           onMouseLeave={() => setTip(null)}
         >
           <defs>
@@ -160,9 +161,21 @@ export default function Ladder({ data }: { data: LeaderboardData }) {
               <g
                 key={marker.name}
                 className="rise"
+                role="button"
+                tabIndex={0}
+                aria-label={`${marker.name}: score ${fmt(marker.score, 1)}. ${marker.note}`}
                 style={{ animationDelay: `${0.08 * index}s` }}
                 onMouseEnter={() => setTip({ x: marker.x, y: marker.labelY, name: marker.name, score: marker.score, note: marker.note })}
                 onMouseLeave={() => setTip(null)}
+                onFocus={() => setTip({ x: marker.x, y: marker.labelY, name: marker.name, score: marker.score, note: marker.note })}
+                onBlur={() => setTip(null)}
+                onClick={() => setTip({ x: marker.x, y: marker.labelY, name: marker.name, score: marker.score, note: marker.note })}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setTip({ x: marker.x, y: marker.labelY, name: marker.name, score: marker.score, note: marker.note });
+                  }
+                }}
               >
                 <line
                   x1={marker.x}

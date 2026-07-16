@@ -3,6 +3,7 @@ import type { Leaderboard as LeaderboardData } from "../types";
 export default function Integrity({ data }: { data: LeaderboardData }) {
   const contract = data.contract;
   const cap = data.publication.frozen_output_token_cap;
+  const registryFrozen = data.publication.model_registry_frozen === true;
   return (
     <section className="section section-alt" id="integrity">
       <div className="shell">
@@ -10,9 +11,9 @@ export default function Integrity({ data }: { data: LeaderboardData }) {
           <p className="kicker">Integrity</p>
           <h2>The measurement is pre-registered.</h2>
           <p>
-            Everything that could bend a result under score pressure is frozen and fingerprinted
-            before a single official run — so the numbers that eventually land here cannot have
-            shaped the rules that produced them.
+            The score-affecting contract and statistical plan are frozen and fingerprinted before
+            official results. Route selection remains visibly pending until every registered smoke
+            clears the gate below.
           </p>
         </div>
         <div className="fact-grid">
@@ -26,11 +27,15 @@ export default function Integrity({ data }: { data: LeaderboardData }) {
           </div>
           <div className="fact">
             <h4>Fixed compute policy</h4>
-            <p>
-              One common {cap ? cap.toLocaleString("en-US") : "—"}-token output ceiling, reasoning
-              off, JSON mode on, exact provider routes pinned. The v1 table ranked output budgets,
-              not models; v2 holds compute constant.
-            </p>
+            {cap ? (
+              <p>
+                One common {cap.toLocaleString("en-US")}-token output ceiling, reasoning off, JSON
+                mode on; exact provider routes are {registryFrozen ? "pinned" : "pending smoke verification"}.
+                The v1 table ranked output budgets, not models; v2 holds compute constant.
+              </p>
+            ) : (
+              <p>The common compute policy is still pending and no fixed-ceiling claim is published.</p>
+            )}
           </div>
           <div className="fact">
             <h4>Tiers, not ranks</h4>

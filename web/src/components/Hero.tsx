@@ -4,6 +4,7 @@ import Ladder from "./Ladder";
 export default function Hero({ data }: { data: LeaderboardData }) {
   const fingerprint = data.contract?.contract_fingerprint;
   const cap = data.publication.frozen_output_token_cap;
+  const registryFrozen = data.publication.model_registry_frozen === true;
   return (
     <section className="hero" id="top">
       <div className="shell">
@@ -35,9 +36,10 @@ export default function Hero({ data }: { data: LeaderboardData }) {
           {cap && (
             <>
               {" "}
-              · <b>{cap.toLocaleString("en-US")}-token</b> output ceiling · reasoning off · pinned routes
+              · <b>{cap.toLocaleString("en-US")}-token</b> output ceiling · reasoning off
             </>
           )}
+          {registryFrozen ? " · routes pinned" : " · routes pending smoke verification"}
         </p>
       </div>
       <div className="shell">

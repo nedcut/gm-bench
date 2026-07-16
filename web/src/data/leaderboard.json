@@ -165,6 +165,10 @@
       }
     ],
     "output_policy_basis": "fixed-safety-ceiling",
+    "panel_analysis_issues": [
+      "publication panel analysis artifact is missing"
+    ],
+    "panel_analysis_ready": false,
     "planned_caps": [
       256,
       1024,

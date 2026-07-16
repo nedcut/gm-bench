@@ -79,28 +79,40 @@ export function LiftChart({ snapshot }: { snapshot: Snapshot }) {
             const candidateY = yScale(row.candidate_score, max);
             const panelY = yScale(row.baseline_panel_score, max);
             const baseY = yScale(0, max);
+            const showTip = () =>
+              setTip({
+                x: cx,
+                y: Math.min(candidateY, panelY),
+                lines: [
+                  `seed ${row.seed}`,
+                  `candidate ${fmt(row.candidate_score, 1)}`,
+                  `panel ${fmt(row.baseline_panel_score, 1)}`,
+                  `lift ${row.lift >= 0 ? "+" : ""}${fmt(row.lift, 1)}`,
+                ],
+              });
             return (
               <g
                 key={row.seed}
-                onMouseEnter={() =>
-                  setTip({
-                    x: cx,
-                    y: Math.min(candidateY, panelY),
-                    lines: [
-                      `seed ${row.seed}`,
-                      `candidate ${fmt(row.candidate_score, 1)}`,
-                      `panel ${fmt(row.baseline_panel_score, 1)}`,
-                      `lift ${row.lift >= 0 ? "+" : ""}${fmt(row.lift, 1)}`,
-                    ],
-                  })
-                }
+                role="button"
+                tabIndex={0}
+                aria-label={`Seed ${row.seed}: candidate ${fmt(row.candidate_score, 1)}, panel ${fmt(row.baseline_panel_score, 1)}, lift ${row.lift >= 0 ? "+" : ""}${fmt(row.lift, 1)}`}
+                onMouseEnter={showTip}
                 onMouseLeave={() => setTip(null)}
+                onFocus={showTip}
+                onBlur={() => setTip(null)}
+                onClick={showTip}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    showTip();
+                  }
+                }}
               >
                 <rect x={cx - band / 2} y={PAD.top} width={band} height={H - PAD.top - PAD.bottom} fill="transparent" />
                 <rect x={cx - barWidth - 3} y={panelY} width={barWidth} height={baseY - panelY} rx="2" fill={COLOR.red} opacity="0.75" />
                 <rect x={cx + 3} y={candidateY} width={barWidth} height={baseY - candidateY} rx="2" fill={COLOR.blue} />
                 <text x={cx + 3 + barWidth / 2} y={candidateY - 6} textAnchor="middle" fontSize="10" fill={COLOR.blue} fontFamily="IBM Plex Mono, monospace">
-                  +{Math.round(row.lift)}
+                  {row.lift >= 0 ? "+" : ""}{Math.round(row.lift)}
                 </text>
                 <text x={cx} y={H - PAD.bottom + 18} textAnchor="middle" fontSize="10.5" fill={COLOR.faint} fontFamily="IBM Plex Mono, monospace">
                   seed {row.seed}
@@ -160,11 +172,9 @@ export function SeasonTraceChart({ snapshot }: { snapshot: Snapshot }) {
         >
           <GridLines max={max} />
           <path d={path} fill="none" stroke={COLOR.blue} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-          {points.map(({ x, y, row }) => (
-            <g
-              key={row.season}
-              onMouseEnter={() =>
-                setTip({
+          {points.map(({ x, y, row }) => {
+            const showTip = () =>
+              setTip({
                   x,
                   y,
                   lines: [
@@ -172,9 +182,24 @@ export function SeasonTraceChart({ snapshot }: { snapshot: Snapshot }) {
                     `score ${fmt(row.score_after_season, 1)}`,
                     `cap room $${fmt(row.cap_room, 1)}M${row.champion ? " · champion" : ""}`,
                   ],
-                })
-              }
+                });
+            return (
+            <g
+              key={row.season}
+              role="button"
+              tabIndex={0}
+              aria-label={`Season ${row.season}: record ${row.wins}-${row.losses}, score ${fmt(row.score_after_season, 1)}, cap room $${fmt(row.cap_room, 1)}M${row.champion ? ", champion" : ""}`}
+              onMouseEnter={showTip}
               onMouseLeave={() => setTip(null)}
+              onFocus={showTip}
+              onBlur={() => setTip(null)}
+              onClick={showTip}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  showTip();
+                }
+              }}
             >
               <rect x={x - band / 2} y={PAD.top} width={band} height={H - PAD.top - PAD.bottom} fill="transparent" />
               {row.champion && (
@@ -190,7 +215,8 @@ export function SeasonTraceChart({ snapshot }: { snapshot: Snapshot }) {
                 {row.wins}-{row.losses}
               </text>
             </g>
-          ))}
+            );
+          })}
         </svg>
         <TipBox tip={tip} />
       </div>

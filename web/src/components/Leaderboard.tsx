@@ -1,4 +1,4 @@
-import type { Leaderboard as LeaderboardData, LeaderboardModel } from "../types";
+import type { Leaderboard as LeaderboardData, LeaderboardModel, TieredLeaderboardModel } from "../types";
 import { agentColor, COLOR, fmt, pct } from "../lib";
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -62,7 +62,7 @@ function ModelTable({
   withTiers,
 }: {
   data: LeaderboardData;
-  models: LeaderboardModel[];
+  models: Array<LeaderboardModel | TieredLeaderboardModel>;
   title: string;
   subtitle: string;
   withTiers: boolean;
@@ -95,12 +95,17 @@ function ModelTable({
           </thead>
           <tbody>
             {models.map((model) => {
-              const tierStarts = withTiers && model.tier !== previousTier;
-              previousTier = model.tier;
+              const tier = "tier" in model ? model.tier : undefined;
+              const tierStarts = withTiers && tier !== previousTier;
+              previousTier = tier;
+              const latency =
+                model.lane === "cli-harness"
+                  ? model.harness_latency_s_per_decision
+                  : model.api_latency_s_per_decision;
               return (
-                <tr key={model.id} className={tierStarts && model.tier !== 1 ? "tier-start" : ""}>
+                <tr key={model.id} className={tierStarts && tier !== 1 ? "tier-start" : ""}>
                   {withTiers && (
-                    <td>{tierStarts ? <span className="tier-chip">Tier {model.tier}</span> : <span className="mono-dim">·</span>}</td>
+                    <td>{tierStarts ? <span className="tier-chip">Tier {tier}</span> : <span className="mono-dim">·</span>}</td>
                   )}
                   <td>
                     <span className="agent-cell">
@@ -129,7 +134,7 @@ function ModelTable({
                   </td>
                   <td className="num mono-dim">{cost(model)}</td>
                   <td className="num mono-dim">
-                    {model.api_latency_s_per_decision === null ? "—" : `${fmt(model.api_latency_s_per_decision, 1)}s`}
+                    {latency === null ? "—" : `${fmt(latency, 1)}s`}
                   </td>
                 </tr>
               );
@@ -228,6 +233,7 @@ function Gate({ data }: { data: LeaderboardData }) {
   const registryFrozen = publication.model_registry_frozen === true;
   const smokesDone = publication.smoke_gate_issues != null && publication.smoke_gate_issues.length === 0;
   const rowsMet = publication.eligible_headline_models >= publication.minimum_headline_models;
+  const analysisDone = publication.panel_analysis_ready === true;
   const checks = [
     { done: laneFrozen, label: `compute policy frozen (${publication.frozen_output_token_cap ?? "—"}-token ceiling)` },
     { done: registryFrozen, label: "model registry frozen" },
@@ -236,6 +242,7 @@ function Gate({ data }: { data: LeaderboardData }) {
       done: rowsMet,
       label: `≥${publication.minimum_headline_models} strictly eligible rows (${publication.eligible_headline_models} today)`,
     },
+    { done: analysisDone, label: "Holm-adjusted panel analysis bound to the exact artifacts" },
   ];
   return (
     <div className="gate">
