@@ -33,8 +33,20 @@ jobs:
           python-version: "3.12"
       - name: Install Semgrep
         run: pip install "semgrep==1.170.0"
+      - name: Fetch pinned Semgrep community ruleset
+        env:
+          SEMGREP_RULESET_URL: https://semgrep.dev/c/p/default
+          SEMGREP_RULESET_SHA256: 8075ccfc7b741e551537dc5d41f68135797872d9340b7fac6264274d9a54f408
+        run: |
+          curl --fail --location --retry 3 --silent --show-error \
+            "$SEMGREP_RULESET_URL" --output semgrep-default.yml
+          echo "$SEMGREP_RULESET_SHA256  semgrep-default.yml" | sha256sum --check -
+          python scripts/prepare_semgrep_ruleset.py semgrep-default.yml semgrep-base.yml
       - name: Run Semgrep
-        run: semgrep scan --config .semgrep.yml --error --sarif --output=semgrep.sarif
+        run: >-
+          semgrep scan --config semgrep-base.yml --config .semgrep.yml
+          --no-rewrite-rule-ids
+          --error --sarif --output=semgrep.sarif
       - name: Upload SARIF to code scanning
         if: always()
         uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
