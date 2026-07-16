@@ -34,10 +34,7 @@ jobs:
       - name: Install Semgrep
         run: pip install "semgrep==1.170.0"
       - name: Run Semgrep
-        # Findings are surfaced in the Security tab rather than blocking CI;
-        # promote to blocking once the baseline is triaged.
-        continue-on-error: true
-        run: semgrep scan --config auto --sarif --output=semgrep.sarif
+        run: semgrep scan --config .semgrep.yml --error --sarif --output=semgrep.sarif
       - name: Upload SARIF to code scanning
         if: always()
         uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4

@@ -1,0 +1,61 @@
+rules:
+  - id: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+    message: >-
+      Detected a dynamic value being used with urllib. Audit the URL source so
+      untrusted input cannot select local files or unexpected endpoints.
+    severity: WARNING
+    languages: [python]
+    pattern-either:
+      - pattern: urllib.request.urlopen(...)
+      - pattern: urllib.urlopen(...)
+    paths:
+      exclude:
+        # Fixed provider/local endpoints come from operator config, not attacker-controlled input.
+        - /examples/anthropic_agent.py
+        - /examples/gemini_agent.py
+        - /examples/ollama_agent.py
+        - /examples/openai_compatible_agent.py
+        - /examples/openrouter_agent.py
+        - /scripts/run_publication_matrix.py
+
+  - id: python.lang.security.audit.formatted-sql-query.formatted-sql-query
+    message: Detected possible formatted SQL query. Use parameterized queries instead.
+    severity: WARNING
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: $CONNECTION.execute(f"...")
+          - pattern: $CONNECTION.executemany(f"...", ...)
+          - pattern: $CURSOR.execute(f"...", ...)
+          - pattern: $CURSOR.executemany(f"...", ...)
+    paths:
+      exclude:
+        # Identifiers are hardcoded SQLite DDL values and cannot be bound as parameters.
+        - /gm_bench/storage.py
+
+  - id: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
+    message: >-
+      Avoid formatted raw SQL. Use bound parameters or SQLAlchemy expression
+      constructs for values that may be influenced by untrusted input.
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: $CONNECTION.execute(f"...")
+          - pattern: $CONNECTION.executemany(f"...", ...)
+    paths:
+      exclude:
+        # Identifiers are hardcoded SQLite DDL values and cannot be bound as parameters.
+        - /gm_bench/storage.py
+
+  - id: javascript.audit.detect-replaceall-sanitization.detect-replaceall-sanitization
+    message: >-
+      Review replaceAll-based sanitization carefully; incomplete escaping can
+      leave attacker-controlled markup active.
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern: $VALUE.replaceAll(...)
+    paths:
+      exclude:
+        # escapeHtml is the local GUI's complete HTML-entity sanitizer.
+        - /gm_bench/gui_static/app.js
