@@ -231,14 +231,14 @@ def test_publication_model_registry_is_consistent_with_revised_lane() -> None:
 
     models = registry["models"]
     identities = {(row["provider"], row["model"]): row for row in models}
-    assert len(models) == 13
+    assert len(models) == 10
     assert len({row["id"] for row in models}) == len(models)
     assert len(identities) == len(models)
     assert len({row["endpoint_name"] for row in models}) == len(models)
-    assert registry["selection_status"] == "provisional-awaiting-route-smokes"
-    assert registry["selection_frozen_at_utc"] is None
+    assert registry["selection_status"] == "frozen"
+    assert registry["selection_frozen_at_utc"] == "2026-07-17T19:43:55Z"
     assert registry["output_token_cap"] == lane["output_token_cap"] == 4096
-    assert registry["output_budget_status"] == lane["output_budget_status"] == "provisional-native-reasoning-smoke"
+    assert registry["output_budget_status"] == lane["output_budget_status"] == "frozen-native-reasoning-cap"
     assert (
         registry["output_policy_basis"]
         == lane["output_policy_basis"]
@@ -246,8 +246,12 @@ def test_publication_model_registry_is_consistent_with_revised_lane() -> None:
     )
     assert {row["cohort"] for row in models} == {"big-american-lab-proprietary", "open-weight"}
     assert sum(row["cohort"] == "big-american-lab-proprietary" for row in models) == 5
-    assert sum(row["cohort"] == "open-weight" for row in models) == 8
-    assert registry["explicit_exclusions"] == []
+    assert sum(row["cohort"] == "open-weight" for row in models) == 5
+    assert {row["model"] for row in registry["explicit_exclusions"]} == {
+        "moonshotai/kimi-k3",
+        "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "deepseek/deepseek-v4-pro",
+    }
     assert set(registry["changed_routes_pending_smoke"]) <= {row["id"] for row in models}
     assert set(registry["required_smokes"]) == {row["id"] for row in models}
     assert lane["model_registry"] == "config/sota_v2_models.json"

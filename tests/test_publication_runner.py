@@ -162,7 +162,7 @@ def test_runner_rejects_cap_outside_pre_registered_sweep() -> None:
 
 
 def test_smoke_is_clean_and_resumes_existing_checkpoint(tmp_path: Path) -> None:
-    assert len(build_cells("smoke")) == 13
+    assert len(build_cells("smoke")) == 10
     cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba")[0]
     command = cell_command(cell, tmp_path)
     assert cell.preset == "smoke"
@@ -175,6 +175,25 @@ def test_smoke_is_clean_and_resumes_existing_checkpoint(tmp_path: Path) -> None:
     assert "--resume" in cell_command(cell, tmp_path)
 
 
+def test_smoke_reuses_only_existing_artifact_that_passes_current_gate(tmp_path: Path) -> None:
+    registry = json.loads(Path("config/sota_v2_models.json").read_text())
+    lane = json.loads(Path("config/sota_v2_lane.json").read_text())
+    model = registry["models"][0]
+    cell = build_cells("smoke", model_id=model["id"])[0]
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    artifact_path = raw / f"{cell.experiment_id}--{cell.cap_label}.json"
+
+    assert publication_runner._reusable_smoke_artifact(cell, tmp_path) is None
+    artifact = _valid_smoke_artifact(registry, lane, model)
+    artifact_path.write_text(json.dumps(artifact))
+    assert publication_runner._reusable_smoke_artifact(cell, tmp_path) == artifact_path
+
+    artifact["candidate"]["summary"]["failed_decisions"] = 1
+    artifact_path.write_text(json.dumps(artifact))
+    assert publication_runner._reusable_smoke_artifact(cell, tmp_path) is None
+
+
 def test_smoke_rejects_cap_that_differs_from_frozen_lane() -> None:
     with pytest.raises(ValueError, match="differs from frozen panel smoke cap"):
         build_cells("smoke", cap=1024)
@@ -182,18 +201,17 @@ def test_smoke_rejects_cap_that_differs_from_frozen_lane() -> None:
 
 def test_smoke_applies_each_models_registered_reasoning_policy() -> None:
     disabled = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai")[0]
-    mandatory = build_cells("smoke", model_id="openrouter-kimi-k3-moonshot")[0]
+    mandatory = build_cells("smoke", model_id="openrouter-gemini-3.5-flash-google-ai-studio")[0]
 
     assert disabled.fixed_options["OPENROUTER_REASONING_ENABLED"] == "false"
     assert "OPENROUTER_REASONING_EFFORT" in disabled.absent_options
     assert mandatory.fixed_options["OPENROUTER_REASONING_ENABLED"] == "true"
-    assert mandatory.fixed_options["OPENROUTER_REASONING_EFFORT"] == "max"
-    assert mandatory.fixed_options["OPENROUTER_PROVIDER_ONLY"] == "moonshotai/int4"
+    assert mandatory.fixed_options["OPENROUTER_REASONING_EFFORT"] == "minimal"
+    assert mandatory.fixed_options["OPENROUTER_PROVIDER_ONLY"] == "google-ai-studio"
 
 
-def test_panel_is_locked_until_model_registry_is_frozen() -> None:
-    with pytest.raises(ValueError, match="locked until"):
-        build_cells("panel")
+def test_committed_panel_is_unlocked_after_registry_and_smoke_freeze() -> None:
+    assert len(build_cells("panel")) == 10
 
 
 def test_panel_stays_locked_when_frozen_registry_has_no_manifest(
@@ -248,7 +266,7 @@ def test_panel_unlocks_with_complete_valid_smoke_manifest(
 ) -> None:
     registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
     manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
-    assert len(build_cells("panel")) == 13
+    assert len(build_cells("panel")) == 10
 
 
 def test_record_smoke_writes_accepted_manifest_entry(
@@ -663,8 +681,8 @@ def test_publication_status_distinguishes_complete_and_accepted_smokes(
     assert rows[first["id"]]["state"] == "accepted"
     assert rows[first["id"]]["completed_decisions"] == 4
     assert status["artifact_spend_usd"] == pytest.approx(0.03)
-    assert status["accepted_smokes"] == 13
-    assert "accepted smokes: 13/13" in render_publication_status(status)
+    assert status["accepted_smokes"] == 10
+    assert "accepted smokes: 10/10" in render_publication_status(status)
 
 
 def test_panel_status_keeps_smoke_acceptance_separate_from_panel_progress(
@@ -676,7 +694,7 @@ def test_panel_status_keeps_smoke_acceptance_separate_from_panel_progress(
     manifest_path.write_text(json.dumps(_valid_manifest(registry, _lane)))
 
     status = publication_run_status(tmp_path, manifest_path)
-    assert status["accepted_smokes"] == 13
+    assert status["accepted_smokes"] == 10
     assert status["completed_cells"] == 0
     assert {row["state"] for row in status["rows"]} == {"queued"}
     assert {row["total_episodes"] for row in status["rows"]} == {24}

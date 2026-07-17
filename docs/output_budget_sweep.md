@@ -31,7 +31,7 @@ the revised panel.
 
 Before any full-panel result is run:
 
-1. Smoke all thirteen models in `config/sota_v2_models.json` serially at 4,096.
+1. Smoke all ten phase-one models in `config/sota_v2_models.json` serially at 4,096.
 2. Verify exact provider slug, endpoint tag and snapshot, required parameters,
    JSON behavior, the registered per-model reasoning policy, complete
    token/cost telemetry, and clean completion.
@@ -81,5 +81,5 @@ caps committed current rows at 1 MB.
 
 `config/output_budget_sweep.json` describes the retired four-cap design.
 `results/analysis/output-budget-cost-estimate.json` must be regenerated from the
-current thirteen-model registry and refreshed again after the route smokes provide
+current ten-model registry and refreshed again after the route smokes provide
 current latency and usage evidence.

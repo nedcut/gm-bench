@@ -11,7 +11,7 @@
 **Current target:** Publish a validated `sota-v2` leaderboard, accompanying blog
 post, GitHub release, and public site.  
 **Current state:** The user deliberately replaced the stale ten-model panel on
-2026-07-16 before any full-panel score existed. The new thirteen-model registry is
+2026-07-16 before any full-panel score existed. The phase-one ten-model registry is
 provisional, uses exact OpenRouter endpoint tags, and requires fresh 4,096-token
 native-minimum-reasoning smokes. Earlier 1,024-token smokes are retained only as
 superseded operational evidence.
@@ -71,7 +71,7 @@ The project is publish-ready only when all four gates pass.
 | Core engineering | Strong | Deterministic simulator, adapters, CLI, GUI, site, tests, and CI are substantial. |
 | Reproducibility | Strong | Contract fingerprints, seed provenance, compact artifacts, and validators are in place. |
 | Benchmark validity | Strong but scoped | Scripted references, exploit canaries, oracle headroom, calibration, and mechanic coverage exist. |
-| Compute comparability | Revised policy; smoke validation pending | The API lane has a common 4,096-token total-output ceiling, native-minimum reasoning, exact provider slugs and endpoint tags, a pre-full-panel 75% cap-pressure rule, and actual reasoning/token-efficiency reporting. All thirteen routes require fresh smokes. |
+| Compute comparability | Frozen for phase one | The API lane has a common 4,096-token total-output ceiling, native-minimum reasoning, exact provider slugs and endpoint tags, a pre-full-panel 75% cap-pressure rule, and actual reasoning/token-efficiency reporting. All ten phase-one routes passed and were accepted; Kimi K3 and the unavailable Nemotron and DeepSeek routes are retained as exclusion evidence. |
 | Current model evidence | Blocked | The active `sota-v2` leaderboard has no eligible model rows. |
 | Statistical evidence | Partially ready | Paired analysis and power tooling exist; final model results do not. |
 | External validation | Missing | No independent reproduction or third-party result has been recorded. |
@@ -131,7 +131,7 @@ before any full-panel score is visible.
   history without treating it as an active publication prerequisite.
 - [x] Freeze common scaffold conditions: temperature omitted, hardened
   scaffold, compact profile, one repair, and fresh-spawn execution.
-- [ ] Freeze exact model routes and the registry only after all thirteen smokes are
+- [x] Freeze exact model routes and the registry only after all ten phase-one smokes are
   accepted.
 - [ ] Validate the provisional common 4,096-token safety ceiling with
   native-minimum reasoning.
@@ -142,7 +142,7 @@ before any full-panel score is visible.
   in `config/publication_protocol.json` before seeing sweep outcomes.
 - [x] Distinguish infrastructure/provider failures that permit a resumed run from
   poor model behavior that must remain part of the measured result.
-- [ ] Smoke all thirteen provisional models serially at 4,096 using the hardened
+- [x] Smoke all ten provisional phase-one models serially at 4,096 using the hardened
   scaffold. Start with dry-run and endpoint preflight; then run one paid model,
   inspect it, and approve the next rather than launching the set blindly.
 - [ ] Verify each smoke's exact route, JSON behavior, registered reasoning provenance,
@@ -153,7 +153,7 @@ before any full-panel score is visible.
 - [ ] If the cap-pressure rule fires, amend the whole lane to 8,192 and repeat
   affected smokes before any full-panel result. Do not make this decision after
   seeing full scores.
-- [ ] Freeze the provisional model registry only after all thirteen routes pass.
+- [x] Freeze the provisional model registry only after all ten phase-one routes pass.
 - [ ] Re-estimate and record expected full-panel cost, runtime, serial
   concurrency, and quota after the smokes. The existing cost artifact describes
   the retired 12-cell plan and is not current spend guidance.
@@ -162,19 +162,19 @@ before any full-panel score is visible.
   missing, duplicate, mixed-provenance, wrong-route, wrong-lane, wrong-repeat,
   incomplete-telemetry, and invalid-contract cells.
 - [ ] Update `config/sota_v2_lane.json` to `frozen-native-reasoning-cap` only
-  after the thirteen smokes clear the cap-pressure audit.
+  after the ten phase-one smokes clear the cap-pressure audit.
 - [x] Record the rationale, decision date, pre-full-panel trigger, and known
   limitations in the decision log below.
 - [ ] Regenerate the site and confirm it still refuses to publish a ranking if
   any publication prerequisite is missing.
 
 **Exit condition:** the official API lane has a documented fixed-cap policy,
-all thirteen registered-model smokes pass without a cap-pressure trigger, the model
+all ten phase-one registered-model smokes pass without a cap-pressure trigger, the model
 registry is frozen, and the full-panel cost plan is refreshed.
 
 #### Safe execution workflow
 
-All model calls are serial. Inspect all thirteen smoke commands and their non-secret
+All model calls are serial. Inspect all ten phase-one smoke commands and their non-secret
 provider options first.
 
 ```bash
@@ -228,7 +228,7 @@ python3 scripts/run_publication_matrix.py record-smoke \
   --artifact data/publication-runs/smoke-native-4096-2026-07-16/raw/openrouter-qwen3.7-plus-alibaba--4096.json
 ```
 
-Repeat one registered model at a time. Only after all thirteen standardized smokes,
+Repeat one registered model at a time. Only after all ten phase-one standardized smokes,
 the cap-pressure audit, and the refreshed cost estimate are acceptable should
 the model registry be frozen and the full panel begin. The `panel` phase now
 refuses to run unless every registered model has an accepted manifest entry;
@@ -247,7 +247,7 @@ The driver enforces that lock.
 
 ### Phase 2 — run the publishable model panel
 
-- [ ] Freeze the revised 13-model provider/model/route registry in
+- [x] Freeze the revised 10-model phase-one provider/model/route registry in
   `config/sota_v2_models.json` after changed-route smokes pass.
 - [x] Pre-register the full-panel rerun and exclusion policy. A disappointing
   valid result is not a reason to rerun a model.
@@ -264,16 +264,14 @@ The provisional restarted headline panel is:
 | Grok 4.5 | xAI | xAI frontier anchor; mandatory `low` reasoning |
 | Muse Spark 1.1 | Meta | Meta frontier anchor; mandatory `minimal` reasoning |
 | GLM 5.2 | Z.AI FP8 | First-party open-weight anchor |
-| Kimi K3 | Moonshot AI INT4 | New Moonshot frontier anchor; mandatory `max` is its only exposed effort |
-| Nemotron 3 Ultra | Together | NVIDIA frontier open-weight anchor; selected over cheaper FP4 route |
 | MiniMax M3 | MiniMax FP8 | First-party open-weight anchor |
 | Qwen 3.7 Plus | Alibaba | Qwen frontier open-weight anchor |
-| DeepSeek V4 Pro | DeepSeek | First-party open-weight anchor |
 | Mistral Medium 3.5 | Mistral | European open-weight anchor |
+| Tencent HY3 | Novita free | Temporary free route expiring July 21; prompt-only JSON because the endpoint does not advertise `response_format` |
 
 The mixed reasoning policy is explicit rather than hidden: reasoning is off for
-the eight optional-reasoning models and set to the lowest catalog-supported
-effort for the four mandatory-reasoning models. Scores remain comparable as
+the seven optional-reasoning models and set to the lowest catalog-supported
+effort for the three mandatory-reasoning models. Scores remain comparable as
 model-plus-native-inference systems, while reasoning tokens, cost, and latency
 must be reported beside score.
 
@@ -284,7 +282,7 @@ must be reported beside score.
   frozen output policy.
 - [x] Keep coding-agent CLI harnesses in a separate diagnostic table.
 - [ ] Never parallelize Claude or another subscription/rate-limited CLI.
-- [ ] Verify all 13 provisional provider/model routes can accept the common
+- [x] Verify all 10 provisional phase-one provider/model routes can accept the common
   privacy, parameter, JSON, registered reasoning, and bounded-output policy.
 - [ ] Run a benchmark-level smoke for every provider/model combination at the
   shared frozen cap immediately before the full panel.
@@ -556,6 +554,11 @@ decision and why.
 | 2026-07-16 | Amend the headline contrast to paired lift versus pick-trader. | The full baseline-panel mean includes random and other weak references, so clearing it would not show that a model-plus-scaffold system beats the transparent competent heuristic bar. No accepted `sota-v2` smoke manifest, eligible panel row, or observed full-panel score existed when this was amended. | Pick-trader is the Holm-adjusted primary contrast; full-panel lift remains a secondary descriptive endpoint, and publication still uses tiers rather than ordinal ranks. |
 | 2026-07-16 | Replace the stale ten-model panel with the user-curated twelve-model frontier panel. | No full-panel score existed. Live OpenRouter catalog and endpoint checks confirmed all requested models, but Gemini 3.5 Flash, Grok 4.5, Muse Spark 1.1, and newly released Kimi K3 require reasoning. | Reset the smoke manifest; pin provider slugs plus endpoint tags; use native-minimum reasoning and a provisional common 4,096-token cap; require all twelve fresh smokes before freezing. |
 | 2026-07-17 | Add Tencent HY3 on OpenRouter's free Novita route before smoke execution. | The live catalog exposed `tencent/hy3:free` at zero input and output cost with one exact healthy Novita endpoint, optional reasoning, and a July 21 catalog expiration. The route advertises structured outputs but not the `response_format` parameter used by the other routes. No revised-panel smoke or full-panel score existed. | Expand the provisional registry and multiplicity family to thirteen, keep reasoning and JSON response mode disabled for HY3, rely on the same explicit JSON-only prompt plus clean-smoke gate, and retain the pinned dated free endpoint rather than silently falling back after it expires. |
+| 2026-07-17 | Park Kimi K3 for the under-$100 phase-one panel after its first clean-gate smoke. | At mandatory `max` reasoning, two of four calls hit the 4,096-token ceiling and were truncated; the episode had two failed decisions, 13,275 reasoning tokens, 100.264 seconds per decision, and $0.301296 cost. Raising the common lane to 8,192 would invalidate the six clean 4,096-token smokes and push the conservative one-repeat plan beyond the phase-one budget. | Preserve the raw Kimi artifact as diagnostic evidence, prohibit a phase-one rerun, return the registry and Holm family to twelve models, and continue the untouched routes at 4,096. |
+| 2026-07-17 | Switch Nemotron 3 Ultra from paid Together to the exact free Nvidia route before its first smoke. | OpenRouter's live catalog exposed `nvidia/nemotron-3-ultra-550b-a55b:free` at zero input/output cost on one healthy first-party Nvidia endpoint with no listed expiration. It supports optional reasoning but does not advertise `response_format`. | Pin the dated Nvidia free endpoint with fallbacks and reasoning disabled, use prompt-only JSON plus the clean-smoke gate, and regenerate the cost plan before continuing. |
+| 2026-07-17 | Park the listed-free Nemotron 3 Ultra route after bounded infrastructure failure. | The exact Nvidia endpoint passed live catalog and authentication preflight, then both permitted real chat-completion attempts returned `HTTP 404 Not Found`. Fail-fast stopped before a complete episode and OpenRouter reported no incremental spend. | Preserve the checkpoint as infrastructure evidence, do not retry or silently substitute the paid Together route, reduce the phase-one registry and Holm family to eleven, and continue the untouched models. |
+| 2026-07-17 | Park DeepSeek V4 Pro after the same bounded infrastructure failure. | The exact first-party DeepSeek route passed live catalog and authentication preflight, then both permitted real chat-completion attempts returned `HTTP 404 Not Found`. Fail-fast stopped before a complete episode and OpenRouter reported no incremental spend. | Preserve the checkpoint, do not retry or substitute a different route, reduce the phase-one registry and Holm family to ten, and continue Mistral and HY3. |
+| 2026-07-17 | Freeze the ten-model phase-one registry and 4,096-token lane after the accepted smoke gate. | All ten registered models completed four decisions with zero failed decisions and zero truncations. Peak per-call output was 1,432 tokens, below the 3,072 cap-pressure trigger. Artifact-reported spend was $0.728909 against a $2 ceiling. | Record all ten manifest entries, freeze the registry and native-reasoning cap, retain excluded-model diagnostics, regenerate the cost plan, and unlock panel dry-runs without starting paid panel cells. |
 
 ## Experiment and release log
 

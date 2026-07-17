@@ -124,7 +124,7 @@ def test_zero_artifact_path_reports_cleanly_without_writing_output(tmp_path: Pat
     result = json.loads(completed.stdout)
     assert result["status"] == "no-eligible-artifacts"
     assert result["eligible_model_count"] == 0
-    assert len(result["missing_models"]) == result["registered_model_count"] == 13
+    assert len(result["missing_models"]) == result["registered_model_count"] == 10
     assert not output.exists()
 
 

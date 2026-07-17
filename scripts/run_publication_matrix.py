@@ -873,6 +873,19 @@ def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> in
     return 0
 
 
+def _reusable_smoke_artifact(cell: Cell, run_dir: Path) -> Path | None:
+    """Return an existing raw smoke only when it still passes the current gate."""
+    artifact_path = run_dir / "raw" / f"{cell.experiment_id}--{cell.cap_label}.json"
+    try:
+        artifact = _read_json(artifact_path)
+        registry = _read_json(PANEL_CONFIG)
+        lane = _read_json(LANE_CONFIG)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+    issues, _entry = _record_smoke_issues(artifact, cell.experiment_id, registry, lane)
+    return artifact_path if not issues else None
+
+
 def _reserve_cell(run_dir: Path, cell: Cell, measured_spend: float, ceiling: float) -> float:
     path = run_dir / "openrouter-reservations.json"
     payload = _read_json(path) if path.exists() else {"schema_version": 1, "cells": {}}
@@ -979,6 +992,11 @@ def main(argv: list[str] | None = None) -> int:
         _print_command(cell, command)
         if args.dry_run:
             continue
+        if args.phase == "smoke":
+            reusable = _reusable_smoke_artifact(cell, run_dir)
+            if reusable is not None:
+                print(f"reusing clean completed smoke without another reservation or provider call: {reusable}")
+                continue
         if cell.provider == "openrouter":
             try:
                 _validate_openrouter_endpoint(cell)

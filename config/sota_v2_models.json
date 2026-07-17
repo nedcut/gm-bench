@@ -7,11 +7,11 @@
   "session": false,
   "preset": "leaderboard",
   "repeats": 3,
-  "selection_status": "provisional-awaiting-route-smokes",
-  "selection_frozen_at_utc": null,
-  "selection_revision": "2026-07-17-add-tencent-hy3-free",
-  "catalog_checked_at_utc": "2026-07-17T19:17:26Z",
-  "selection_policy": "User-curated current frontier panel: five large American-lab proprietary models and eight leading open-weight models. Every OpenRouter route pins an exact provider slug, endpoint tag, and dated endpoint name with fallbacks disabled. Models run at native-minimum reasoning: disabled when optional and the lowest catalog-supported effort when mandatory.",
+  "selection_status": "frozen",
+  "selection_frozen_at_utc": "2026-07-17T19:43:55Z",
+  "selection_revision": "2026-07-17-phase-one-after-smoke-exclusions",
+  "catalog_checked_at_utc": "2026-07-17T19:37:57Z",
+  "selection_policy": "User-curated current frontier panel: five large American-lab proprietary models and five leading open-weight models. Every OpenRouter route pins an exact provider slug, endpoint tag, and dated endpoint name with fallbacks disabled. Models run at native-minimum reasoning: disabled when optional and the lowest catalog-supported effort when mandatory. Kimi K3 is parked after its clean smoke failed and demonstrated cap pressure; the exact Nemotron 3 Ultra and DeepSeek V4 Pro routes are parked after bounded HTTP 404 infrastructure failures.",
   "models": [
     {
       "id": "openrouter-gpt-5.6-luna-openai",
@@ -110,38 +110,6 @@
       "role": "Z.ai open-weight anchor on first-party FP8 route"
     },
     {
-      "id": "openrouter-kimi-k3-moonshot",
-      "provider": "openrouter",
-      "model": "moonshotai/kimi-k3",
-      "transport": "gateway-api",
-      "cohort": "open-weight",
-      "upstream_provider": "Moonshot AI",
-      "upstream_provider_slug": "moonshotai/int4",
-      "endpoint_tag": "moonshotai/int4",
-      "endpoint_name": "Moonshot AI | moonshotai/kimi-k3-20260715",
-      "reasoning_policy": "mandatory-minimum",
-      "reasoning_effort": "max",
-      "fixed_options": {"OPENROUTER_REASONING_ENABLED": "true", "OPENROUTER_REASONING_EFFORT": "max"},
-      "absent_options": [],
-      "role": "Moonshot open-weight frontier anchor; only catalog-supported reasoning effort is max"
-    },
-    {
-      "id": "openrouter-nemotron-3-ultra-together",
-      "provider": "openrouter",
-      "model": "nvidia/nemotron-3-ultra-550b-a55b",
-      "transport": "gateway-api",
-      "cohort": "open-weight",
-      "upstream_provider": "Together",
-      "upstream_provider_slug": "together",
-      "endpoint_tag": "together",
-      "endpoint_name": "Together | nvidia/nemotron-3-ultra-550b-a55b-20260604",
-      "reasoning_policy": "disabled",
-      "reasoning_effort": null,
-      "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
-      "absent_options": ["OPENROUTER_REASONING_EFFORT"],
-      "role": "NVIDIA open-weight frontier anchor on the highest-uptime non-FP4 route"
-    },
-    {
       "id": "openrouter-minimax-m3-minimax",
       "provider": "openrouter",
       "model": "minimax/minimax-m3",
@@ -172,22 +140,6 @@
       "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
       "absent_options": ["OPENROUTER_REASONING_EFFORT"],
       "role": "Qwen open-weight frontier anchor"
-    },
-    {
-      "id": "openrouter-deepseek-v4-pro-deepseek",
-      "provider": "openrouter",
-      "model": "deepseek/deepseek-v4-pro",
-      "transport": "gateway-api",
-      "cohort": "open-weight",
-      "upstream_provider": "DeepSeek",
-      "upstream_provider_slug": "deepseek",
-      "endpoint_tag": "deepseek",
-      "endpoint_name": "DeepSeek | deepseek/deepseek-v4-pro-20260423",
-      "reasoning_policy": "disabled",
-      "reasoning_effort": null,
-      "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
-      "absent_options": ["OPENROUTER_REASONING_EFFORT"],
-      "role": "DeepSeek open-weight frontier anchor on first-party route"
     },
     {
       "id": "openrouter-mistral-medium-3.5-mistral",
@@ -232,17 +184,7 @@
     {"model": "anthropic/claude-opus-4.8", "status": "later date"},
     {"model": "anthropic/fable-5", "status": "later date"}
   ],
-  "changed_routes_pending_smoke": [
-    "openrouter-claude-sonnet-5-bedrock",
-    "openrouter-gemini-3.5-flash-google-ai-studio",
-    "openrouter-grok-4.5-xai",
-    "openrouter-muse-spark-1.1-meta",
-    "openrouter-glm-5.2-zai",
-    "openrouter-kimi-k3-moonshot",
-    "openrouter-nemotron-3-ultra-together",
-    "openrouter-deepseek-v4-pro-deepseek",
-    "openrouter-tencent-hy3-free-novita"
-  ],
+  "changed_routes_pending_smoke": [],
   "required_smokes": [
     "openrouter-gpt-5.6-luna-openai",
     "openrouter-claude-sonnet-5-bedrock",
@@ -250,15 +192,25 @@
     "openrouter-grok-4.5-xai",
     "openrouter-muse-spark-1.1-meta",
     "openrouter-glm-5.2-zai",
-    "openrouter-kimi-k3-moonshot",
-    "openrouter-nemotron-3-ultra-together",
     "openrouter-minimax-m3-minimax",
     "openrouter-qwen3.7-plus-alibaba",
-    "openrouter-deepseek-v4-pro-deepseek",
     "openrouter-mistral-medium-3.5-mistral",
     "openrouter-tencent-hy3-free-novita"
   ],
-  "explicit_exclusions": [],
+  "explicit_exclusions": [
+    {
+      "model": "moonshotai/kimi-k3",
+      "reason": "Phase-one smoke at mandatory max reasoning hit the 4,096-token ceiling in two calls, produced two truncated responses and two failed decisions, and cost $0.301296. Preserve the raw artifact as diagnostic evidence; do not rerun under the under-$100 phase-one budget."
+    },
+    {
+      "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "reason": "The exact healthy Nvidia free route passed catalog and authentication preflight but returned HTTP 404 twice on real chat-completion calls. Preserve the checkpoint as infrastructure evidence; do not retry or substitute the paid route in phase one."
+    },
+    {
+      "model": "deepseek/deepseek-v4-pro",
+      "reason": "The exact healthy first-party route passed catalog and authentication preflight but returned HTTP 404 twice on real chat-completion calls. Preserve the checkpoint as infrastructure evidence; do not retry or substitute another route in phase one."
+    }
+  ],
   "shared_fixed_options": {
     "OPENROUTER_PROVIDER_SORT": "price",
     "OPENROUTER_ALLOW_FALLBACKS": "false",
@@ -274,6 +226,6 @@
     "OPENROUTER_ZDR"
   ],
   "output_token_cap": 4096,
-  "output_budget_status": "provisional-native-reasoning-smoke",
+  "output_budget_status": "frozen-native-reasoning-cap",
   "output_policy_basis": "common-safety-ceiling-with-native-minimum-reasoning"
 }
