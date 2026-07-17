@@ -37,6 +37,7 @@ if str(ROOT) not in sys.path:
 
 from gm_bench.benchmark_config import PRESETS  # noqa: E402
 from gm_bench.contract import contract_fingerprint, scaffold_fingerprint  # noqa: E402
+from gm_bench.environment import load_environment_files  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
 from gm_bench.publication import SMOKE_MANIFEST_FORMAT, smoke_manifest_issues  # noqa: E402
 
@@ -323,7 +324,9 @@ def _endpoint_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
             "no healthy OpenRouter endpoint matches "
             f"provider={expected_provider!r} tag={cell.endpoint_tag!r} name={cell.endpoint_name!r}"
         ]
-    required = {"max_tokens", "response_format", "reasoning"}
+    required = {"max_tokens", "reasoning"}
+    if cell.fixed_options.get("OPENROUTER_JSON_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}:
+        required.add("response_format")
     capable = []
     for endpoint in matches:
         supported = set(endpoint.get("supported_parameters") or [])
@@ -918,6 +921,10 @@ def _print_command(cell: Cell, command: list[str]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # The child CLI loads these files too, but the parent needs the provider key
+    # to query account usage and enforce the operator's spend ceiling before it
+    # launches any model process.
+    load_environment_files(ROOT)
     parser = argparse.ArgumentParser()
     parser.add_argument("phase", choices=["smoke", "sweep", "panel", "record-smoke", "status"])
     parser.add_argument("--model-id")

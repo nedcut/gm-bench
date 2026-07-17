@@ -231,7 +231,7 @@ def test_publication_model_registry_is_consistent_with_revised_lane() -> None:
 
     models = registry["models"]
     identities = {(row["provider"], row["model"]): row for row in models}
-    assert 8 <= len(models) <= 12
+    assert len(models) == 13
     assert len({row["id"] for row in models}) == len(models)
     assert len(identities) == len(models)
     assert len({row["endpoint_name"] for row in models}) == len(models)
@@ -246,7 +246,7 @@ def test_publication_model_registry_is_consistent_with_revised_lane() -> None:
     )
     assert {row["cohort"] for row in models} == {"big-american-lab-proprietary", "open-weight"}
     assert sum(row["cohort"] == "big-american-lab-proprietary" for row in models) == 5
-    assert sum(row["cohort"] == "open-weight" for row in models) == 7
+    assert sum(row["cohort"] == "open-weight" for row in models) == 8
     assert registry["explicit_exclusions"] == []
     assert set(registry["changed_routes_pending_smoke"]) <= {row["id"] for row in models}
     assert set(registry["required_smokes"]) == {row["id"] for row in models}

@@ -162,7 +162,7 @@ def test_runner_rejects_cap_outside_pre_registered_sweep() -> None:
 
 
 def test_smoke_is_clean_and_resumes_existing_checkpoint(tmp_path: Path) -> None:
-    assert len(build_cells("smoke")) == 12
+    assert len(build_cells("smoke")) == 13
     cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba")[0]
     command = cell_command(cell, tmp_path)
     assert cell.preset == "smoke"
@@ -248,7 +248,7 @@ def test_panel_unlocks_with_complete_valid_smoke_manifest(
 ) -> None:
     registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
     manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
-    assert len(build_cells("panel")) == 12
+    assert len(build_cells("panel")) == 13
 
 
 def test_record_smoke_writes_accepted_manifest_entry(
@@ -568,6 +568,26 @@ def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
     assert "cannot honor required parameters" in _endpoint_issues(cell, valid)[0]
 
 
+def test_endpoint_preflight_allows_registered_prompt_only_json_route() -> None:
+    cell = build_cells("smoke", model_id="openrouter-tencent-hy3-free-novita", cap=4096)[0]
+    assert cell.fixed_options["OPENROUTER_JSON_MODE"] == "false"
+    payload = {
+        "data": {
+            "endpoints": [
+                {
+                    "provider_name": "Novita",
+                    "tag": "novita",
+                    "name": cell.endpoint_name,
+                    "status": 0,
+                    "max_completion_tokens": 262144,
+                    "supported_parameters": ["max_tokens", "reasoning", "structured_outputs"],
+                }
+            ]
+        }
+    }
+    assert _endpoint_issues(cell, payload) == []
+
+
 def test_publication_status_tracks_active_progress_spend_and_ceiling(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -643,8 +663,8 @@ def test_publication_status_distinguishes_complete_and_accepted_smokes(
     assert rows[first["id"]]["state"] == "accepted"
     assert rows[first["id"]]["completed_decisions"] == 4
     assert status["artifact_spend_usd"] == pytest.approx(0.03)
-    assert status["accepted_smokes"] == 12
-    assert "accepted smokes: 12/12" in render_publication_status(status)
+    assert status["accepted_smokes"] == 13
+    assert "accepted smokes: 13/13" in render_publication_status(status)
 
 
 def test_panel_status_keeps_smoke_acceptance_separate_from_panel_progress(
@@ -656,7 +676,7 @@ def test_panel_status_keeps_smoke_acceptance_separate_from_panel_progress(
     manifest_path.write_text(json.dumps(_valid_manifest(registry, _lane)))
 
     status = publication_run_status(tmp_path, manifest_path)
-    assert status["accepted_smokes"] == 12
+    assert status["accepted_smokes"] == 13
     assert status["completed_cells"] == 0
     assert {row["state"] for row in status["rows"]} == {"queued"}
     assert {row["total_episodes"] for row in status["rows"]} == {24}

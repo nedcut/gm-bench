@@ -18,15 +18,15 @@ def _committed_inputs() -> tuple[dict, dict, dict]:
 def test_fixed_panel_and_smoke_call_counts() -> None:
     result = estimate(*_committed_inputs())
 
-    assert len(result["models"]) == 12
+    assert len(result["models"]) == 13
     assert result["calls"] == {
-        "model_count": 12,
+        "model_count": 13,
         "panel_decisions_per_model": 480,
-        "panel_calls": 5_760,
-        "smoke_runs": 12,
+        "panel_calls": 6_240,
+        "smoke_runs": 13,
         "smoke_decisions_per_run": 4,
-        "smoke_calls": 48,
-        "total_calls": 5_808,
+        "smoke_calls": 52,
+        "total_calls": 6_292,
     }
 
 

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checked_at_utc": "2026-07-16T19:13:11Z",
+  "checked_at_utc": "2026-07-17T19:17:26Z",
   "source": "https://openrouter.ai/api/v1/models and per-model /endpoints responses",
   "currency": "USD",
   "rates_are_per_token": true,
@@ -30,6 +30,7 @@
     "nvidia/nemotron-3-ultra-550b-a55b": {"prompt": 0.0000006, "completion": 0.0000036},
     "openai/gpt-5.6-luna": {"prompt": 0.000001, "completion": 0.000006},
     "qwen/qwen3.7-plus": {"prompt": 0.00000032, "completion": 0.00000128},
+    "tencent/hy3:free": {"prompt": 0, "completion": 0},
     "x-ai/grok-4.5": {"prompt": 0.000002, "completion": 0.000006},
     "z-ai/glm-5.2": {"prompt": 0.0000014, "completion": 0.0000044}
   }

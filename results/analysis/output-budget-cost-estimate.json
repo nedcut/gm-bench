@@ -16,13 +16,13 @@
     "smoke_seed_count": 1
   },
   "calls": {
-    "model_count": 12,
-    "panel_calls": 5760,
+    "model_count": 13,
+    "panel_calls": 6240,
     "panel_decisions_per_model": 480,
-    "smoke_calls": 48,
+    "smoke_calls": 52,
     "smoke_decisions_per_run": 4,
-    "smoke_runs": 12,
-    "total_calls": 5808
+    "smoke_runs": 13,
+    "total_calls": 6292
   },
   "costs_usd": {
     "panel": 194.627328,
@@ -140,9 +140,18 @@
       "panel_cost_usd": 20.5056,
       "smoke_calls": 4,
       "smoke_cost_usd": 0.17088
+    },
+    {
+      "cost_per_decision_usd": 0.0,
+      "experiment_id": "openrouter-tencent-hy3-free-novita",
+      "model": "tencent/hy3:free",
+      "panel_calls": 480,
+      "panel_cost_usd": 0.0,
+      "smoke_calls": 4,
+      "smoke_cost_usd": 0.0
     }
   ],
-  "pricing_checked_at_utc": "2026-07-16T19:13:11Z",
+  "pricing_checked_at_utc": "2026-07-17T19:17:26Z",
   "runtime": {
     "note": "Regenerate this artifact from accepted smoke telemetry before approving the full panel; latency is reported only for models with committed observations.",
     "observation_source": "legacy standardized 1,024-token Luna, MiniMax, and Qwen observations; use only for conservative reservations and replace with 4,096-token native-minimum-reasoning smoke observations before the full panel",
@@ -156,6 +165,6 @@
   "schema_version": 2,
   "supersedes": {
     "artifact": "retired 12-cell output-budget sweep estimate",
-    "description": "Replaces the four-cap, three-model sweep estimate with the registered 12-model fixed 4,096-token panel and its required smoke gate."
+    "description": "Replaces the four-cap, three-model sweep estimate with the registered 13-model fixed 4,096-token panel and its required smoke gate."
   }
 }

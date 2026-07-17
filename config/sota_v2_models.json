@@ -9,9 +9,9 @@
   "repeats": 3,
   "selection_status": "provisional-awaiting-route-smokes",
   "selection_frozen_at_utc": null,
-  "selection_revision": "2026-07-16-user-curated-frontier-panel",
-  "catalog_checked_at_utc": "2026-07-16T19:13:11Z",
-  "selection_policy": "User-curated current frontier panel: five large American-lab proprietary models and seven leading open-weight models. Every OpenRouter route pins an exact provider slug, endpoint tag, and dated endpoint name with fallbacks disabled. Models run at native-minimum reasoning: disabled when optional and the lowest catalog-supported effort when mandatory.",
+  "selection_revision": "2026-07-17-add-tencent-hy3-free",
+  "catalog_checked_at_utc": "2026-07-17T19:17:26Z",
+  "selection_policy": "User-curated current frontier panel: five large American-lab proprietary models and eight leading open-weight models. Every OpenRouter route pins an exact provider slug, endpoint tag, and dated endpoint name with fallbacks disabled. Models run at native-minimum reasoning: disabled when optional and the lowest catalog-supported effort when mandatory.",
   "models": [
     {
       "id": "openrouter-gpt-5.6-luna-openai",
@@ -204,6 +204,26 @@
       "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
       "absent_options": ["OPENROUTER_REASONING_EFFORT"],
       "role": "Mistral open-weight European anchor"
+    },
+    {
+      "id": "openrouter-tencent-hy3-free-novita",
+      "provider": "openrouter",
+      "model": "tencent/hy3:free",
+      "transport": "gateway-api",
+      "cohort": "open-weight",
+      "upstream_provider": "Novita",
+      "upstream_provider_slug": "novita",
+      "endpoint_tag": "novita",
+      "endpoint_name": "Novita | tencent/hy3-20260706:free",
+      "catalog_expiration_date": "2026-07-21",
+      "reasoning_policy": "disabled",
+      "reasoning_effort": null,
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false",
+        "OPENROUTER_JSON_MODE": "false"
+      },
+      "absent_options": ["OPENROUTER_REASONING_EFFORT"],
+      "role": "Tencent open-weight frontier anchor on OpenRouter's temporary free Novita route; prompt-only JSON because the endpoint does not advertise response_format"
     }
   ],
   "future_models": [
@@ -220,7 +240,8 @@
     "openrouter-glm-5.2-zai",
     "openrouter-kimi-k3-moonshot",
     "openrouter-nemotron-3-ultra-together",
-    "openrouter-deepseek-v4-pro-deepseek"
+    "openrouter-deepseek-v4-pro-deepseek",
+    "openrouter-tencent-hy3-free-novita"
   ],
   "required_smokes": [
     "openrouter-gpt-5.6-luna-openai",
@@ -234,7 +255,8 @@
     "openrouter-minimax-m3-minimax",
     "openrouter-qwen3.7-plus-alibaba",
     "openrouter-deepseek-v4-pro-deepseek",
-    "openrouter-mistral-medium-3.5-mistral"
+    "openrouter-mistral-medium-3.5-mistral",
+    "openrouter-tencent-hy3-free-novita"
   ],
   "explicit_exclusions": [],
   "shared_fixed_options": {
