@@ -291,6 +291,56 @@ def _panel_analysis(rows: list[dict], *, family_size: int = 0) -> dict:
     }
 
 
+def test_publication_identity_issues_flags_missing_upstream_slug_without_crashing() -> None:
+    from web.scripts.build_leaderboard import _publication_identity_issues
+
+    config = {
+        "profile": "compact",
+        "session": False,
+        "shared_fixed_options": {},
+        "shared_absent_options": [],
+        "models": [
+            {
+                "provider": "openrouter",
+                "model": "demo/model",
+                "transport": "gateway-api",
+                "upstream_provider": "Demo",
+                # upstream_provider_slug intentionally omitted: a registered
+                # model can declare upstream_provider without a slug.
+                "endpoint_name": "",
+                "fixed_options": {},
+                "absent_options": [],
+            }
+        ],
+    }
+    payload = {
+        "run_info": {
+            "provider": "openrouter",
+            "model": "demo/model",
+            "transport": "gateway-api",
+            "profile": "compact",
+            "session": False,
+            "provider_options": {
+                "OPENROUTER_PROVIDER_ONLY": "demo",
+                "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER": "Demo",
+            },
+        },
+        "candidate": {
+            "summary": {
+                "decisions": 4,
+                "usage": {
+                    "cost_usd": 0.01,
+                    "cost_decisions": 4,
+                    "upstream_providers": ["demo"],
+                },
+            }
+        },
+    }
+
+    issues = _publication_identity_issues(payload, config)
+    assert any("OPENROUTER_PROVIDER_ONLY" in issue for issue in issues)
+
+
 def test_publication_gate_withholds_rows_until_minimum_panel_is_eligible() -> None:
     from web.scripts.build_leaderboard import publication_gate
 
@@ -326,6 +376,38 @@ def test_publication_gate_withholds_rows_until_minimum_panel_is_eligible() -> No
     assert report["publishable_ranking"] is True
     assert report["eligible_headline_models"] == 2
     assert report["duplicate_headline_rows"] == 0
+
+
+def test_publication_gate_recognizes_frozen_native_reasoning_cap_status() -> None:
+    """A new frozen-* status string must not silently stop cap detection."""
+    from web.scripts.build_leaderboard import publication_gate
+
+    analysis = {"status": "retired"}
+    lane = {
+        "output_budget_status": "frozen-native-reasoning-cap",
+        "output_policy_basis": "common-safety-ceiling-with-native-minimum-reasoning",
+        "output_token_cap": 4096,
+        "minimum_headline_models": 1,
+    }
+    eligible = {
+        "id": "one",
+        "provider": "openrouter",
+        "model": "demo/one",
+        "lane": "api",
+        "publication_eligible": True,
+        "output_token_cap": 4096,
+    }
+    models, report = publication_gate(
+        [eligible],
+        analysis,
+        lane,
+        {"selection_status": "frozen"},
+        panel_analysis=_panel_analysis([eligible]),
+        smoke_issues=[],
+    )
+    assert models == [eligible]
+    assert report["frozen_output_token_cap"] == 4096
+    assert report["publishable_ranking"] is True
 
 
 def test_publication_gate_rejects_wrong_cap_and_unregistered_rows() -> None:

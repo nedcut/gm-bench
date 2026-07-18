@@ -11,12 +11,19 @@
     "runtime_contingency_multiplier": 1.5
   },
   "runtime_observations": {
-    "source": "legacy standardized 1,024-token Luna, MiniMax, and Qwen observations; use only for conservative reservations and replace with 4,096-token native-minimum-reasoning smoke observations before the full panel",
-    "observed_at_utc": "2026-07-15T01:22:44Z",
+    "source": "accepted 4,096-token native-minimum-reasoning smokes, 2026-07-17 (data/publication-runs/smoke-frontier-4096-2026-07-17/); see docs/run_logs/sota-v2-smokes-2026-07-17.md",
+    "observed_at_utc": "2026-07-17T19:42:44Z",
     "api_seconds_per_decision": {
-      "minimax/minimax-m3": 2.546,
-      "openai/gpt-5.6-luna": 1.981,
-      "qwen/qwen3.5-9b": 11.622
+      "anthropic/claude-sonnet-5": 8.657,
+      "google/gemini-3.5-flash": 1.497,
+      "meta/muse-spark-1.1": 13.827,
+      "minimax/minimax-m3": 2.955,
+      "mistralai/mistral-medium-3-5": 2.464,
+      "openai/gpt-5.6-luna": 4.759,
+      "qwen/qwen3.7-plus": 3.586,
+      "tencent/hy3:free": 4.087,
+      "x-ai/grok-4.5": 7.683,
+      "z-ai/glm-5.2": 6.656
     }
   },
   "models": {

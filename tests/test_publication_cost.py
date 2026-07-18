@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.estimate_publication_cost import RUNTIME_NOTE, RUNTIME_STATUS, estimate
+from scripts.estimate_publication_cost import RUNTIME_NOTE_COMPLETE, RUNTIME_STATUS_COMPLETE, estimate
 
 
 def _committed_inputs() -> tuple[dict, dict, dict]:
@@ -47,21 +47,19 @@ def test_costs_sum_unrounded_rows_before_contingency() -> None:
     assert costs["total_with_1_2x_contingency"] == pytest.approx(costs["total_unrounded"] * 1.2)
 
 
-def test_runtime_is_pending_with_latency_only_where_observed() -> None:
+def test_runtime_is_complete_once_every_registered_model_has_a_smoke_observation() -> None:
     result = estimate(*_committed_inputs())
     runtime = result["runtime"]
-    observed = {
-        "openai/gpt-5.6-luna": 1.981,
-        "minimax/minimax-m3": 2.546,
-    }
 
-    assert runtime["status"] == RUNTIME_STATUS == "pending-smoke-telemetry"
-    assert runtime["note"] == RUNTIME_NOTE
-    assert "before approving the full panel" in runtime["note"]
-    assert runtime["observed_api_seconds_per_decision_by_model"] == observed
+    assert runtime["status"] == RUNTIME_STATUS_COMPLETE == "complete-from-accepted-smokes"
+    assert runtime["note"] == RUNTIME_NOTE_COMPLETE
+    assert "4,096" in runtime["observation_source"]
+    assert "2026-07-17" in runtime["observation_source"]
+    model_names = {row["model"] for row in result["models"]}
+    assert set(runtime["observed_api_seconds_per_decision_by_model"]) == model_names
     rows_with_latency = {
         row["model"]: row["observed_api_seconds_per_decision"]
         for row in result["models"]
         if "observed_api_seconds_per_decision" in row
     }
-    assert rows_with_latency == observed
+    assert rows_with_latency == runtime["observed_api_seconds_per_decision_by_model"]

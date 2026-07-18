@@ -54,6 +54,10 @@ LEADERBOARD = PRESETS["leaderboard"]
 # a fallback for external `--agent-cmd` rows with no `run_info.transport`;
 # built-in providers should always carry a transport (see gm_bench/providers.py).
 CLI_HARNESS_PROVIDERS = {"codex", "claude", "cursor", "opencode"}
+# Output-policy bases that a completed smoke gate can freeze the lane under;
+# kept in sync with the equivalent allow-list in build_cells() (the "smoke"
+# branch) in scripts/run_publication_matrix.py.
+FROZEN_OUTPUT_POLICY_BASES = {"fixed-safety-ceiling", "common-safety-ceiling-with-native-minimum-reasoning"}
 
 
 def _lane(provider: str, transport: str | None) -> str:
@@ -116,7 +120,10 @@ def _publication_identity_issues(payload: dict[str, Any], config: dict[str, Any]
         **(registered.get("fixed_options") or {}),
     }
     if registered.get("upstream_provider") not in (None, ""):
-        expected_options["OPENROUTER_PROVIDER_ONLY"] = registered["upstream_provider_slug"]
+        # .get(), not indexing: a registered model can declare upstream_provider
+        # without a slug, and that mismatch must surface as a gate issue below
+        # rather than crash the builder or silently skip the check.
+        expected_options["OPENROUTER_PROVIDER_ONLY"] = registered.get("upstream_provider_slug")
         expected_options["OPENROUTER_EXPECTED_UPSTREAM_PROVIDER"] = registered["upstream_provider"]
     if registered.get("endpoint_name") not in (None, ""):
         expected_options["OPENROUTER_EXPECTED_ENDPOINT_NAME"] = registered["endpoint_name"]
@@ -373,16 +380,19 @@ def publication_gate(
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Return only publishable rows plus an explicit gate report."""
 
-    frozen_statuses = {"frozen-saturation", "frozen-fixed-budget"}
     frozen_cap = lane_config.get("output_token_cap")
     policy_basis = lane_config.get("output_policy_basis")
-    fixed_safety_ceiling = policy_basis == "fixed-safety-ceiling"
+    policy_frozen = (
+        policy_basis in FROZEN_OUTPUT_POLICY_BASES or analysis.get("status") == "complete-needs-interpretation"
+    )
     registry_frozen = model_config.get("selection_status") == "frozen"
+    # Recognize any "frozen-*" status rather than an enumerated set: the lane
+    # has moved through frozen-saturation, frozen-fixed-budget, and now
+    # frozen-native-reasoning-cap, and an enumerated set silently stops
+    # detecting freezes each time a new frozen status string is introduced.
+    output_budget_status = str(lane_config.get("output_budget_status") or "")
     lane_frozen = (
-        (fixed_safety_ceiling or analysis.get("status") == "complete-needs-interpretation")
-        and lane_config.get("output_budget_status") in frozen_statuses
-        and isinstance(frozen_cap, int)
-        and frozen_cap > 0
+        policy_frozen and output_budget_status.startswith("frozen") and isinstance(frozen_cap, int) and frozen_cap > 0
     )
     candidates = [
         row
@@ -425,6 +435,13 @@ def publication_gate(
         "smoke_gate_issues": smoke_gate_issues,
         "panel_analysis_ready": panel_analysis_ready,
         "panel_analysis_issues": panel_analysis_issues[:10],
+        # `analysis` is the retired output-budget sweep artifact; its own
+        # "models" field is that sweep's three-model panel and must not leak
+        # into the gate report as if it described the current registry.
+        "models": [
+            {"id": model.get("id"), "provider": model.get("provider"), "model": model.get("model")}
+            for model in model_config.get("models") or []
+        ],
     }
     if not registry_frozen:
         publication["reason"] = "model registry remains provisional until every registered route passes its smoke"

@@ -87,12 +87,17 @@ def _validate_models(models: list[dict[str, Any]], *, exact_routes: bool = True)
         policy = model.get("reasoning_policy")
         options = model.get("fixed_options") or {}
         if policy == "disabled":
-            if options.get("OPENROUTER_REASONING_ENABLED") != "false" or model.get("reasoning_effort") is not None:
+            if (
+                options.get("OPENROUTER_REASONING_ENABLED") != "false"
+                or options.get("OPENROUTER_REASONING_EFFORT") is not None
+                or model.get("reasoning_effort") is not None
+            ):
                 raise ValueError(f"publication model {model.get('id')!r} has an invalid disabled reasoning policy")
         elif policy == "mandatory-minimum":
             effort = model.get("reasoning_effort")
             if (
-                options.get("OPENROUTER_REASONING_ENABLED") != "true"
+                not effort
+                or options.get("OPENROUTER_REASONING_ENABLED") != "true"
                 or options.get("OPENROUTER_REASONING_EFFORT") != effort
             ):
                 raise ValueError(f"publication model {model.get('id')!r} has an invalid mandatory reasoning policy")
@@ -536,9 +541,7 @@ def publication_run_status(run_dir: Path, manifest_path: Path = SMOKE_MANIFEST) 
         reservation = reservations.get(stem)
         smoke_accepted = isinstance(manifest_entry, dict) and manifest_entry.get("accepted") is True
 
-        if run_state.get("phase") == "smoke" and smoke_accepted:
-            state = "accepted"
-        elif raw_path.exists() and raw is None:
+        if raw_path.exists() and raw is None:
             state = "invalid-raw"
         elif raw is not None:
             state = "complete"
@@ -554,6 +557,17 @@ def publication_run_status(run_dir: Path, manifest_path: Path = SMOKE_MANIFEST) 
             state = "reserved"
         else:
             state = "queued"
+        # A manifest acceptance only upgrades *this run's own* completed cell to
+        # "accepted"; it never substitutes for the current run/cap's raw
+        # artifact, so a stale or wrong-cap manifest entry cannot mask a cell
+        # that this run directory has not actually produced.
+        if (
+            run_state.get("phase") == "smoke"
+            and state == "complete"
+            and smoke_accepted
+            and manifest_entry.get("output_token_cap") == cap
+        ):
+            state = "accepted"
 
         completed, total, completed_decisions, total_decisions = _expected_progress(run_state, checkpoint, raw)
         if state in {"complete", "accepted"} and total is not None:
@@ -786,7 +800,9 @@ def _record_smoke_issues(
     reasoning_tokens = usage.get("reasoning_tokens")
     if entry.get("reasoning_policy") == "disabled" and reasoning_tokens not in (None, 0):
         issues.append("artifact recorded reasoning tokens for a reasoning-disabled model")
-    if entry.get("reasoning_policy") == "mandatory-minimum" and not isinstance(reasoning_tokens, int):
+    if entry.get("reasoning_policy") == "mandatory-minimum" and (
+        not isinstance(reasoning_tokens, int) or isinstance(reasoning_tokens, bool) or reasoning_tokens < 0
+    ):
         issues.append("artifact is missing reasoning-token telemetry for a mandatory-reasoning model")
     max_output = usage.get("max_output_tokens_per_call")
     threshold = lane.get("cap_pressure_threshold_tokens")
@@ -891,25 +907,35 @@ def _reserve_cell(run_dir: Path, cell: Cell, measured_spend: float, ceiling: flo
     payload = _read_json(path) if path.exists() else {"schema_version": 1, "cells": {}}
     reservations = payload.setdefault("cells", {})
     stem = f"{cell.experiment_id}--{cell.cap_label}"
-    reserved_total = sum(float(value["reserved_usd"]) for value in reservations.values())
+    # Only unsettled attempts remain a conservative liability. Successful
+    # cells are replaced by their measured account/artifact spend so historical
+    # worst-case reservations cannot prematurely stop a healthy serial panel.
+    reserved_total = sum(
+        float(value["reserved_usd"]) for value in reservations.values() if value.get("status") != "settled"
+    )
+    reservation = _cell_reservation_usd(cell)
     if stem in reservations:
-        reservation = _cell_reservation_usd(cell)
-        committed = max(measured_spend, reserved_total)
+        committed = measured_spend + reserved_total
         if committed + reservation > ceiling:
             raise SystemExit(
                 f"retry reservation would exceed spend ceiling: ${committed:.4f} + ${reservation:.4f} > ${ceiling:.4f}"
             )
         stored = reservations[stem]
-        stored["reserved_usd"] = float(stored["reserved_usd"]) + reservation
+        stored["reserved_usd"] = (
+            float(stored.get("reserved_usd") or 0) + reservation if stored.get("status") != "settled" else reservation
+        )
+        stored["total_reserved_usd"] = float(stored.get("total_reserved_usd") or 0) + reservation
         stored["attempts"] = int(stored.get("attempts") or 1) + 1
+        stored["status"] = "active"
+        stored.pop("settled_at_utc", None)
+        stored.pop("measured_run_spend_usd", None)
         _write_json_atomic(path, payload)
         print(
             f"reserved retry ${reservation:.4f} for {stem}; "
             f"cumulative conservative commitment ${committed + reservation:.4f}"
         )
         return committed + reservation
-    reservation = _cell_reservation_usd(cell)
-    committed = max(measured_spend, reserved_total)
+    committed = measured_spend + reserved_total
     if committed + reservation > ceiling:
         raise SystemExit(
             f"cell reservation would exceed spend ceiling: ${committed:.4f} + ${reservation:.4f} > ${ceiling:.4f}"
@@ -919,11 +945,30 @@ def _reserve_cell(run_dir: Path, cell: Cell, measured_spend: float, ceiling: flo
         "model": cell.model,
         "output_token_cap": cell.cap,
         "reserved_usd": reservation,
+        "total_reserved_usd": reservation,
         "attempts": 1,
+        "status": "active",
     }
     _write_json_atomic(path, payload)
     print(f"reserved ${reservation:.4f} for {stem}; cumulative conservative commitment ${committed + reservation:.4f}")
     return committed + reservation
+
+
+def _settle_cell_reservation(run_dir: Path, cell: Cell, measured_spend: float) -> None:
+    """Release a successful cell's worst-case reservation in favor of measured spend."""
+    path = run_dir / "openrouter-reservations.json"
+    if not path.exists():
+        return
+    payload = _read_json(path)
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    stored = (payload.get("cells") or {}).get(stem)
+    if not isinstance(stored, dict):
+        return
+    stored["reserved_usd"] = 0.0
+    stored["status"] = "settled"
+    stored["settled_at_utc"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    stored["measured_run_spend_usd"] = measured_spend
+    _write_json_atomic(path, payload)
 
 
 def _print_command(cell: Cell, command: list[str]) -> None:
@@ -992,7 +1037,7 @@ def main(argv: list[str] | None = None) -> int:
         _print_command(cell, command)
         if args.dry_run:
             continue
-        if args.phase == "smoke":
+        if args.phase == "smoke" and not args.preflight_only:
             reusable = _reusable_smoke_artifact(cell, run_dir)
             if reusable is not None:
                 print(f"reusing clean completed smoke without another reservation or provider call: {reusable}")
@@ -1015,9 +1060,11 @@ def main(argv: list[str] | None = None) -> int:
             if spent >= args.max_spend_usd:
                 raise SystemExit(f"spend ceiling reached: ${spent:.4f} >= ${args.max_spend_usd:.4f}")
             _reserve_cell(run_dir, cell, spent, args.max_spend_usd)
+        cell_succeeded = False
         try:
             try:
                 subprocess.run(command, cwd=ROOT, env=env, check=True)
+                cell_succeeded = True
             except subprocess.CalledProcessError as exc:
                 raise SystemExit(
                     f"publication cell failed: {cell.experiment_id} cap={cell.cap_label} exit={exc.returncode}"
@@ -1027,6 +1074,8 @@ def main(argv: list[str] | None = None) -> int:
             # Report the post-cell delta even when the child exits nonzero.
             if args.max_spend_usd is not None and cell.provider == "openrouter":
                 spent = _measured_spend_usd(run_dir, env, float(budget_start))
+                if cell_succeeded:
+                    _settle_cell_reservation(run_dir, cell, spent)
                 print(f"measured OpenRouter spend for this run directory: ${spent:.4f}")
                 if spent > args.max_spend_usd:
                     raise SystemExit(f"spend ceiling exceeded after attempted cell: ${spent:.4f}")

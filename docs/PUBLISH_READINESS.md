@@ -7,14 +7,15 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-07-16
+**Last reviewed:** 2026-07-18
 **Current target:** Publish a validated `sota-v2` leaderboard, accompanying blog
 post, GitHub release, and public site.  
-**Current state:** The user deliberately replaced the stale ten-model panel on
-2026-07-16 before any full-panel score existed. The phase-one ten-model registry is
-provisional, uses exact OpenRouter endpoint tags, and requires fresh 4,096-token
-native-minimum-reasoning smokes. Earlier 1,024-token smokes are retained only as
-superseded operational evidence.
+**Current state:** The phase-one ten-model registry is frozen as of 2026-07-17,
+uses exact OpenRouter endpoint tags, and completed its fresh 4,096-token
+native-minimum-reasoning smoke gate; all ten registered routes are accepted with
+zero failures, zero truncations, and no cap-pressure trigger. Earlier 1,024-token
+smokes are retained only as superseded operational evidence. The full panel run
+is the remaining blocker before any eligible model row exists.
 **Current weekly focus:** [#63 — Publication sprint: freeze and ship GM-Bench
 `sota-v2`](https://github.com/nedcut/gm-bench/issues/63)  
 **Broader roadmap:** [#60 — Roadmap to a publishable leaderboard + blog
@@ -27,9 +28,9 @@ scaffolds on synthetic, long-horizon resource allocation in a frozen sports
 management environment. It is already strong enough to be a flagship AI/ML
 portfolio project. It is not yet ready for a headline model-ranking claim
 because the current `sota-v2` leaderboard has no eligible model rows. The
-compute policy is now provisionally amended, and every registered route must
-pass the common smoke gate before it can be frozen or generate a full-panel
-result.
+compute policy is frozen at a 4,096-token native-minimum-reasoning ceiling, and
+every registered route has passed the common smoke gate; the remaining blocker
+is running the paid full panel itself.
 
 The strongest story is not merely that GM-Bench runs LLMs through a simulator.
 It is that the project:
@@ -559,6 +560,7 @@ decision and why.
 | 2026-07-17 | Park the listed-free Nemotron 3 Ultra route after bounded infrastructure failure. | The exact Nvidia endpoint passed live catalog and authentication preflight, then both permitted real chat-completion attempts returned `HTTP 404 Not Found`. Fail-fast stopped before a complete episode and OpenRouter reported no incremental spend. | Preserve the checkpoint as infrastructure evidence, do not retry or silently substitute the paid Together route, reduce the phase-one registry and Holm family to eleven, and continue the untouched models. |
 | 2026-07-17 | Park DeepSeek V4 Pro after the same bounded infrastructure failure. | The exact first-party DeepSeek route passed live catalog and authentication preflight, then both permitted real chat-completion attempts returned `HTTP 404 Not Found`. Fail-fast stopped before a complete episode and OpenRouter reported no incremental spend. | Preserve the checkpoint, do not retry or substitute a different route, reduce the phase-one registry and Holm family to ten, and continue Mistral and HY3. |
 | 2026-07-17 | Freeze the ten-model phase-one registry and 4,096-token lane after the accepted smoke gate. | All ten registered models completed four decisions with zero failed decisions and zero truncations. Peak per-call output was 1,432 tokens, below the 3,072 cap-pressure trigger. Artifact-reported spend was $0.728909 against a $2 ceiling. | Record all ten manifest entries, freeze the registry and native-reasoning cap, retain excluded-model diagnostics, regenerate the cost plan, and unlock panel dry-runs without starting paid panel cells. |
+| 2026-07-18 | Settle successful serial-cell reservations against measured spend. | The runner retained every historical worst-case reservation, so a healthy panel could stop against cumulative hypothetical spend even after completed artifacts and the OpenRouter account established a much lower real cost. | Mark successful-cell reservations settled after post-cell spend measurement, keep failed/interrupted reservations active, and evaluate each next cell against measured spend plus only unresolved liabilities. |
 
 ## Experiment and release log
 
