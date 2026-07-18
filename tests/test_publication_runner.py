@@ -348,6 +348,22 @@ def test_panel_unlocks_with_complete_valid_smoke_manifest(
     assert len(build_cells("panel")) == 10
 
 
+@pytest.mark.parametrize("bad_reasoning_tokens", [True, -1])
+def test_panel_stays_locked_for_invalid_manifest_reasoning_tokens(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    bad_reasoning_tokens: object,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest = _valid_manifest(registry, lane)
+    model = next(m for m in registry["models"] if m["reasoning_policy"] == "mandatory-minimum")
+    manifest["entries"][model["id"]]["reasoning_tokens"] = bad_reasoning_tokens
+    manifest_path.write_text(json.dumps(manifest))
+
+    with pytest.raises(ValueError, match="missing reasoning-token telemetry"):
+        build_cells("panel")
+
+
 def test_record_smoke_writes_accepted_manifest_entry(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
