@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "frozen_at_utc": "2026-07-15T21:17:38Z",
+  "last_amended_at_utc": "2026-07-18T21:11:17Z",
   "primary_endpoint": "candidate.summary.mean_score under score-v1",
   "secondary_endpoints": [
     "paired lift versus the full baseline panel",
@@ -11,14 +12,22 @@
     "per-mechanic accepted and rejected outcomes"
   ],
   "output_policy": {
-    "status": "frozen-fixed-budget",
-    "basis": "fixed-safety-ceiling",
-    "output_token_cap": 1024,
-    "reasoning_enabled": false,
-    "rationale": "The superseded Luna run recorded 601 API calls with output-token p50 121, p95 210, p99 264, maximum 299, and zero calls at the 1,024-token ceiling. With reasoning disabled and compact JSON actions, a four-cap score sweep would mostly vary a non-binding response limit rather than a defensible inference-compute treatment.",
-    "pre_full_panel_cap_pressure_rule": "Smoke every registered model at 1,024 before any full-panel result. If any smoke API call emits at least 768 output tokens, or provider or adapter telemetry shows cap-induced truncation, amend the common lane to 2,048 and repeat affected smokes before running any full-panel score. Do not change the cap after full-panel scores are visible.",
+    "status": "frozen-native-reasoning-cap",
+    "basis": "common-safety-ceiling-with-native-minimum-reasoning",
+    "output_token_cap": 4096,
+    "cap_pressure_threshold_tokens": 3072,
+    "fallback_output_token_cap": 8192,
+    "reasoning_policy": "native-minimum",
+    "rationale": "The user-curated phase-one frontier panel requires native-minimum reasoning: disabled where optional and the lowest supported effort where mandatory. All ten accepted exact-route smokes completed cleanly at a common 4,096-token total-output ceiling, with a maximum per-call output of 1,432 tokens and no truncation or cap-pressure trigger.",
+    "pre_full_panel_cap_pressure_rule": "Before any full-panel result, smoke every registered model at 4,096 total output tokens. If any smoke API call emits at least 3,072 total output tokens, including reported reasoning tokens, or shows provider or adapter evidence of cap-induced truncation, amend the whole lane to 8,192 and repeat affected smokes before running a full-panel score. Do not change the cap after full-panel scores are visible.",
     "efficiency_reporting": "Report actual input tokens, output tokens, cost, and latency per decision as secondary metrics. They do not alter the benchmark score.",
-    "human_override": "forbidden after any full-panel result is visible; amend this file and the lane config before running an official full-panel cell"
+    "human_override": "forbidden after any full-panel result is visible; amend this file and the lane config before running an official full-panel cell",
+    "amendment_2026_07_18": {
+      "amended_at_utc": "2026-07-18T21:11:17Z",
+      "evidence_state": "pre-data; no full-panel model result existed",
+      "superseded_policy": "retired 1,024-token reasoning-disabled safety ceiling with a 768-token trigger and 2,048-token fallback",
+      "rationale": "Reconcile this pre-registration document with the already frozen and smoke-validated 4,096-token native-minimum-reasoning lane before any full-panel result. This records the existing machine-enforced policy and does not react to panel scores."
+    }
   },
   "superseded_output_budget_decision_rule": {
     "status": "retired-before-replacement-official-cells",
@@ -58,14 +67,14 @@
     "stop_before_next_cell_when_spend_ceiling_reached": true,
     "stop_on_route_or_endpoint_snapshot_drift": true,
     "stop_on_missing_cost_or_usage_coverage": true,
-    "smoke_completion": "10 accepted registered-model smokes at the common cap, with zero cap-pressure or truncation triggers; otherwise amend the whole lane to 2,048 before any full-panel result. Acceptance is machine-checked: each smoke must be recorded via `scripts/run_publication_matrix.py record-smoke` as an accepted entry in config/sota_v2_smoke_manifest.json, and the panel phase refuses to run until every registered model has one.",
+    "smoke_completion": "10 accepted registered-model smokes at the common 4,096-token cap, with zero 3,072-token cap-pressure or truncation triggers; otherwise amend the whole lane to 8,192 before any full-panel result. Acceptance is machine-checked: each smoke must be recorded via `scripts/run_publication_matrix.py record-smoke` as an accepted entry in config/sota_v2_smoke_manifest.json, and the panel phase refuses to run until every registered model has one.",
     "headline_completion": "at least 8 strictly sota-v2 eligible pre-registered rows at the frozen cap"
   },
   "budget_policy": {
     "operator_must_pass_max_spend_usd": true,
     "approval_note": "A planning estimate is not authorization to spend. The operator explicitly approves spend by invoking the runner with --max-spend-usd.",
     "cost_estimate_artifact": "results/analysis/output-budget-cost-estimate.json",
-    "cost_estimate_status": "fixed-panel estimate committed; refresh from accepted all-model smoke telemetry before panel approval"
+    "cost_estimate_status": "fixed-panel estimate refreshed from accepted all-model smoke telemetry; serial reservations include every configured repair attempt plus the committed 1.2x cost contingency"
   },
   "statistical_analysis_plan": {
     "frozen_at_utc": "2026-07-16T01:51:32Z",

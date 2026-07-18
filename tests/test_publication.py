@@ -228,6 +228,7 @@ def test_publication_model_registry_is_consistent_with_revised_lane() -> None:
     sweep = json.loads(Path("config/output_budget_sweep.json").read_text())
     registry = json.loads(Path("config/sota_v2_models.json").read_text())
     lane = json.loads(Path("config/sota_v2_lane.json").read_text())
+    protocol = json.loads(Path("config/publication_protocol.json").read_text())
 
     models = registry["models"]
     identities = {(row["provider"], row["model"]): row for row in models}
@@ -257,6 +258,14 @@ def test_publication_model_registry_is_consistent_with_revised_lane() -> None:
     assert set(registry["required_smokes"]) == {row["id"] for row in models}
     assert lane["model_registry"] == "config/sota_v2_models.json"
     assert lane["minimum_headline_models"] >= 8
+
+    output_policy = protocol["output_policy"]
+    assert output_policy["status"] == lane["output_budget_status"]
+    assert output_policy["basis"] == lane["output_policy_basis"]
+    assert output_policy["reasoning_policy"] == lane["reasoning_policy"]
+    assert output_policy["output_token_cap"] == lane["output_token_cap"]
+    assert output_policy["cap_pressure_threshold_tokens"] == lane["cap_pressure_threshold_tokens"]
+    assert output_policy["fallback_output_token_cap"] == lane["fallback_output_token_cap"]
 
     glm = identities[("openrouter", "z-ai/glm-5.2")]
     assert glm["id"] == "openrouter-glm-5.2-novita"

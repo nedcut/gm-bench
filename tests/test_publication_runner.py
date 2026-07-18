@@ -656,6 +656,18 @@ def test_cell_reservation_blocks_launch_before_ceiling_overrun(tmp_path: Path) -
     assert not (tmp_path / "openrouter-reservations.json").exists()
 
 
+def test_cell_reservation_covers_repairs_and_cost_contingency() -> None:
+    cell = build_cells("panel", model_id="openrouter-gpt-5.6-luna-openai")[0]
+    pricing = json.loads(Path("config/openrouter_pricing_snapshot.json").read_text())
+    assumptions = pricing["planning_assumptions"]
+    rates = pricing["models"][cell.model]
+    decisions = 8 * 5 * 4 * 3
+    base = decisions * (assumptions["input_tokens_per_decision"] * rates["prompt"] + cell.cap * rates["completion"])
+
+    assert cell.fixed_options["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "1"
+    assert _cell_reservation_usd(cell) == pytest.approx(base * 2 * assumptions["cost_contingency_multiplier"], abs=1e-6)
+
+
 def test_retry_reservation_accounts_for_fresh_full_attempt(tmp_path: Path) -> None:
     cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=4096)[0]
     reservation = _cell_reservation_usd(cell)
