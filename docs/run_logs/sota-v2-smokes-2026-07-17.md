@@ -8,7 +8,9 @@ Git under `data/publication-runs/smoke-frontier-4096-2026-07-17/`.
 
 All ten registered models completed four decisions with zero failed decisions,
 zero truncations, complete cost/finish-reason telemetry, and the exact pinned
-upstream route. Artifact-reported spend was **$0.728909**.
+upstream route. Accepted-route artifact spend was **$0.427613**. Total smoke
+campaign spend was **$0.728909** including the excluded $0.301296 Kimi K3
+diagnostic described below.
 
 | Model | Cost | Peak output tokens per call |
 | --- | ---: | ---: |

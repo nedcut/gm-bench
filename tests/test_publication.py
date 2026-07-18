@@ -236,7 +236,8 @@ def test_publication_model_registry_is_consistent_with_revised_lane() -> None:
     assert len(identities) == len(models)
     assert len({row["endpoint_name"] for row in models}) == len(models)
     assert registry["selection_status"] == "frozen"
-    assert registry["selection_frozen_at_utc"] == "2026-07-17T19:43:55Z"
+    assert registry["selection_frozen_at_utc"] == "2026-07-18T19:50:59Z"
+    assert registry["selection_revision"] == "2026-07-18-glm-novita-route-amendment"
     assert registry["output_token_cap"] == lane["output_token_cap"] == 4096
     assert registry["output_budget_status"] == lane["output_budget_status"] == "frozen-native-reasoning-cap"
     assert (
@@ -256,6 +257,11 @@ def test_publication_model_registry_is_consistent_with_revised_lane() -> None:
     assert set(registry["required_smokes"]) == {row["id"] for row in models}
     assert lane["model_registry"] == "config/sota_v2_models.json"
     assert lane["minimum_headline_models"] >= 8
+
+    glm = identities[("openrouter", "z-ai/glm-5.2")]
+    assert glm["id"] == "openrouter-glm-5.2-novita"
+    assert glm["upstream_provider"] == "Novita"
+    assert glm["endpoint_tag"] == "novita/fp8"
 
     assert sweep["status"] == "retired-fixed-safety-cap"
     for model in models:

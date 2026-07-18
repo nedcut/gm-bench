@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checked_at_utc": "2026-07-17T19:37:57Z",
+  "checked_at_utc": "2026-07-18T19:50:59Z",
   "source": "https://openrouter.ai/api/v1/models and per-model /endpoints responses",
   "currency": "USD",
   "rates_are_per_token": true,
@@ -11,8 +11,8 @@
     "runtime_contingency_multiplier": 1.5
   },
   "runtime_observations": {
-    "source": "accepted 4,096-token native-minimum-reasoning smokes, 2026-07-17 (data/publication-runs/smoke-frontier-4096-2026-07-17/); see docs/run_logs/sota-v2-smokes-2026-07-17.md",
-    "observed_at_utc": "2026-07-17T19:42:44Z",
+    "source": "accepted 4,096-token native-minimum-reasoning smokes from 2026-07-17 plus the 2026-07-18 GLM 5.2 Novita route amendment; see docs/run_logs/sota-v2-smokes-2026-07-17.md and docs/run_logs/sota-v2-glm-novita-amendment-2026-07-18.md",
+    "observed_at_utc": "2026-07-18T19:52:17Z",
     "api_seconds_per_decision": {
       "anthropic/claude-sonnet-5": 8.657,
       "google/gemini-3.5-flash": 1.497,
@@ -23,7 +23,7 @@
       "qwen/qwen3.7-plus": 3.586,
       "tencent/hy3:free": 4.087,
       "x-ai/grok-4.5": 7.683,
-      "z-ai/glm-5.2": 6.656
+      "z-ai/glm-5.2": 8.045
     }
   },
   "models": {
@@ -39,6 +39,6 @@
     "qwen/qwen3.7-plus": {"prompt": 0.00000032, "completion": 0.00000128},
     "tencent/hy3:free": {"prompt": 0, "completion": 0},
     "x-ai/grok-4.5": {"prompt": 0.000002, "completion": 0.000006},
-    "z-ai/glm-5.2": {"prompt": 0.0000014, "completion": 0.0000044}
+    "z-ai/glm-5.2": {"prompt": 0.0000002758, "completion": 0.0000008668}
   }
 }

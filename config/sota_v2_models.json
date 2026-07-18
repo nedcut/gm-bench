@@ -8,9 +8,9 @@
   "preset": "leaderboard",
   "repeats": 3,
   "selection_status": "frozen",
-  "selection_frozen_at_utc": "2026-07-17T19:43:55Z",
-  "selection_revision": "2026-07-17-phase-one-after-smoke-exclusions",
-  "catalog_checked_at_utc": "2026-07-17T19:37:57Z",
+  "selection_frozen_at_utc": "2026-07-18T19:50:59Z",
+  "selection_revision": "2026-07-18-glm-novita-route-amendment",
+  "catalog_checked_at_utc": "2026-07-18T19:50:59Z",
   "selection_policy": "User-curated current frontier panel: five large American-lab proprietary models and five leading open-weight models. Every OpenRouter route pins an exact provider slug, endpoint tag, and dated endpoint name with fallbacks disabled. Models run at native-minimum reasoning: disabled when optional and the lowest catalog-supported effort when mandatory. Kimi K3 is parked after its clean smoke failed and demonstrated cap pressure; the exact Nemotron 3 Ultra and DeepSeek V4 Pro routes are parked after bounded HTTP 404 infrastructure failures.",
   "models": [
     {
@@ -94,20 +94,20 @@
       "role": "Meta proprietary frontier anchor"
     },
     {
-      "id": "openrouter-glm-5.2-zai",
+      "id": "openrouter-glm-5.2-novita",
       "provider": "openrouter",
       "model": "z-ai/glm-5.2",
       "transport": "gateway-api",
       "cohort": "open-weight",
-      "upstream_provider": "Z.AI",
-      "upstream_provider_slug": "z-ai/fp8",
-      "endpoint_tag": "z-ai/fp8",
-      "endpoint_name": "Z.AI | z-ai/glm-5.2-20260616",
+      "upstream_provider": "Novita",
+      "upstream_provider_slug": "novita/fp8",
+      "endpoint_tag": "novita/fp8",
+      "endpoint_name": "Novita | z-ai/glm-5.2-20260616",
       "reasoning_policy": "disabled",
       "reasoning_effort": null,
       "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
       "absent_options": ["OPENROUTER_REASONING_EFFORT"],
-      "role": "Z.ai open-weight anchor on first-party FP8 route"
+      "role": "Z.ai open-weight anchor on healthy Novita FP8 route; replaces the unhealthy first-party endpoint"
     },
     {
       "id": "openrouter-minimax-m3-minimax",
@@ -191,7 +191,7 @@
     "openrouter-gemini-3.5-flash-google-ai-studio",
     "openrouter-grok-4.5-xai",
     "openrouter-muse-spark-1.1-meta",
-    "openrouter-glm-5.2-zai",
+    "openrouter-glm-5.2-novita",
     "openrouter-minimax-m3-minimax",
     "openrouter-qwen3.7-plus-alibaba",
     "openrouter-mistral-medium-3.5-mistral",

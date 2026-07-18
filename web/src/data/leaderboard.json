@@ -111,7 +111,7 @@
         "provider": "openrouter"
       },
       {
-        "id": "openrouter-glm-5.2-zai",
+        "id": "openrouter-glm-5.2-novita",
         "model": "z-ai/glm-5.2",
         "provider": "openrouter"
       },
