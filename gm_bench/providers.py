@@ -206,6 +206,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
         },
         provenance_env=(
             "OPENROUTER_PROVIDER_ONLY",
+            "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER",
             "OPENROUTER_EXPECTED_ENDPOINT_NAME",
             "OPENROUTER_PROVIDER_SORT",
             "OPENROUTER_ALLOW_FALLBACKS",

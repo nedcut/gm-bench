@@ -868,7 +868,10 @@ def _model_clean_errors(result: dict[str, Any]) -> list[str]:
     if run_info.get("provider") == "openrouter" and len(usage.get("upstream_providers") or []) != 1:
         errors.append("OpenRouter requires exactly one observed upstream provider")
     if run_info.get("provider") == "openrouter":
-        requested = str((run_info.get("provider_options") or {}).get("OPENROUTER_PROVIDER_ONLY", "")).strip()
+        options = run_info.get("provider_options") or {}
+        requested = str(
+            options.get("OPENROUTER_EXPECTED_UPSTREAM_PROVIDER") or options.get("OPENROUTER_PROVIDER_ONLY", "")
+        ).strip()
         observed = [str(value) for value in usage.get("upstream_providers") or []]
         if requested and len(observed) == 1 and observed[0].casefold() != requested.casefold():
             errors.append(f"OpenRouter upstream mismatch: requested {requested!r}, observed {observed[0]!r}")

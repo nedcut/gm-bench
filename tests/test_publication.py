@@ -224,45 +224,50 @@ def test_budget_analysis_rejects_mixed_pre_registered_provenance(monkeypatch: py
     assert any("cost telemetry" in reason for reason in reasons)
 
 
-def test_publication_model_registry_is_consistent_with_sweep() -> None:
+def test_publication_model_registry_is_consistent_with_revised_lane() -> None:
     sweep = json.loads(Path("config/output_budget_sweep.json").read_text())
     registry = json.loads(Path("config/sota_v2_models.json").read_text())
     lane = json.loads(Path("config/sota_v2_lane.json").read_text())
 
     models = registry["models"]
     identities = {(row["provider"], row["model"]): row for row in models}
-    assert 8 <= len(models) <= 12
+    assert len(models) == 10
     assert len({row["id"] for row in models}) == len(models)
     assert len(identities) == len(models)
     assert len({row["endpoint_name"] for row in models}) == len(models)
-    assert registry["selection_status"] == "provisional-awaiting-route-smokes"
-    assert registry["selection_frozen_at_utc"] is None
-    assert registry["output_token_cap"] == lane["output_token_cap"] == 1024
-    assert registry["output_budget_status"] == lane["output_budget_status"] == "frozen-fixed-budget"
-    assert registry["output_policy_basis"] == lane["output_policy_basis"] == "fixed-safety-ceiling"
-    assert registry["shared_fixed_options"]["OPENROUTER_REASONING_ENABLED"] == "false"
-    assert "OPENROUTER_REASONING_EFFORT" in registry["shared_absent_options"]
+    assert registry["selection_status"] == "frozen"
+    assert registry["selection_frozen_at_utc"] == "2026-07-17T19:43:55Z"
+    assert registry["output_token_cap"] == lane["output_token_cap"] == 4096
+    assert registry["output_budget_status"] == lane["output_budget_status"] == "frozen-native-reasoning-cap"
+    assert (
+        registry["output_policy_basis"]
+        == lane["output_policy_basis"]
+        == "common-safety-ceiling-with-native-minimum-reasoning"
+    )
+    assert {row["cohort"] for row in models} == {"big-american-lab-proprietary", "open-weight"}
+    assert sum(row["cohort"] == "big-american-lab-proprietary" for row in models) == 5
+    assert sum(row["cohort"] == "open-weight" for row in models) == 5
     assert {row["model"] for row in registry["explicit_exclusions"]} == {
-        "google/gemini-3.1-pro-preview",
-        "x-ai/grok-4.5",
+        "moonshotai/kimi-k3",
+        "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "deepseek/deepseek-v4-pro",
     }
     assert set(registry["changed_routes_pending_smoke"]) <= {row["id"] for row in models}
     assert set(registry["required_smokes"]) == {row["id"] for row in models}
     assert lane["model_registry"] == "config/sota_v2_models.json"
     assert lane["minimum_headline_models"] >= 8
 
-    for sweep_model in sweep["models"]:
-        registry_model = identities[(sweep_model["provider"], sweep_model["model"])]
-        assert sweep_model["id"] == registry_model["id"]
-        assert sweep_model["transport"] == registry_model["transport"]
-        assert sweep_model["upstream_provider"] == registry_model["upstream_provider"]
-        expected_options = {
-            **registry["shared_fixed_options"],
-            "OPENROUTER_PROVIDER_ONLY": registry_model["upstream_provider"],
-            "OPENROUTER_EXPECTED_ENDPOINT_NAME": registry_model["endpoint_name"],
-        }
-        assert sweep_model["fixed_options"] == expected_options
-        assert sweep_model["absent_options"] == registry["shared_absent_options"]
+    assert sweep["status"] == "retired-fixed-safety-cap"
+    for model in models:
+        assert model["upstream_provider_slug"] == model["endpoint_tag"]
+        assert model["fixed_options"]["OPENROUTER_REASONING_ENABLED"] in {"true", "false"}
+        if model["reasoning_policy"] == "mandatory-minimum":
+            assert model["reasoning_effort"] in {"minimal", "low", "max"}
+            assert model["fixed_options"]["OPENROUTER_REASONING_EFFORT"] == model["reasoning_effort"]
+        else:
+            assert model["reasoning_policy"] == "disabled"
+            assert model["reasoning_effort"] is None
+            assert "OPENROUTER_REASONING_EFFORT" in model["absent_options"]
 
 
 def _panel_analysis(rows: list[dict], *, family_size: int = 0) -> dict:
@@ -284,6 +289,56 @@ def _panel_analysis(rows: list[dict], *, family_size: int = 0) -> dict:
         "holm_family_size": family_size,
         "models": models,
     }
+
+
+def test_publication_identity_issues_flags_missing_upstream_slug_without_crashing() -> None:
+    from web.scripts.build_leaderboard import _publication_identity_issues
+
+    config = {
+        "profile": "compact",
+        "session": False,
+        "shared_fixed_options": {},
+        "shared_absent_options": [],
+        "models": [
+            {
+                "provider": "openrouter",
+                "model": "demo/model",
+                "transport": "gateway-api",
+                "upstream_provider": "Demo",
+                # upstream_provider_slug intentionally omitted: a registered
+                # model can declare upstream_provider without a slug.
+                "endpoint_name": "",
+                "fixed_options": {},
+                "absent_options": [],
+            }
+        ],
+    }
+    payload = {
+        "run_info": {
+            "provider": "openrouter",
+            "model": "demo/model",
+            "transport": "gateway-api",
+            "profile": "compact",
+            "session": False,
+            "provider_options": {
+                "OPENROUTER_PROVIDER_ONLY": "demo",
+                "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER": "Demo",
+            },
+        },
+        "candidate": {
+            "summary": {
+                "decisions": 4,
+                "usage": {
+                    "cost_usd": 0.01,
+                    "cost_decisions": 4,
+                    "upstream_providers": ["demo"],
+                },
+            }
+        },
+    }
+
+    issues = _publication_identity_issues(payload, config)
+    assert any("OPENROUTER_PROVIDER_ONLY" in issue for issue in issues)
 
 
 def test_publication_gate_withholds_rows_until_minimum_panel_is_eligible() -> None:
@@ -321,6 +376,38 @@ def test_publication_gate_withholds_rows_until_minimum_panel_is_eligible() -> No
     assert report["publishable_ranking"] is True
     assert report["eligible_headline_models"] == 2
     assert report["duplicate_headline_rows"] == 0
+
+
+def test_publication_gate_recognizes_frozen_native_reasoning_cap_status() -> None:
+    """A new frozen-* status string must not silently stop cap detection."""
+    from web.scripts.build_leaderboard import publication_gate
+
+    analysis = {"status": "retired"}
+    lane = {
+        "output_budget_status": "frozen-native-reasoning-cap",
+        "output_policy_basis": "common-safety-ceiling-with-native-minimum-reasoning",
+        "output_token_cap": 4096,
+        "minimum_headline_models": 1,
+    }
+    eligible = {
+        "id": "one",
+        "provider": "openrouter",
+        "model": "demo/one",
+        "lane": "api",
+        "publication_eligible": True,
+        "output_token_cap": 4096,
+    }
+    models, report = publication_gate(
+        [eligible],
+        analysis,
+        lane,
+        {"selection_status": "frozen"},
+        panel_analysis=_panel_analysis([eligible]),
+        smoke_issues=[],
+    )
+    assert models == [eligible]
+    assert report["frozen_output_token_cap"] == 4096
+    assert report["publishable_ranking"] is True
 
 
 def test_publication_gate_rejects_wrong_cap_and_unregistered_rows() -> None:

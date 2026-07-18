@@ -1,38 +1,44 @@
 {
   "schema_version": 1,
-  "checked_at_utc": "2026-07-15T20:41:27Z",
+  "checked_at_utc": "2026-07-17T19:37:57Z",
   "source": "https://openrouter.ai/api/v1/models and per-model /endpoints responses",
   "currency": "USD",
   "rates_are_per_token": true,
   "planning_assumptions": {
     "input_tokens_per_decision": 8000,
-    "expected_output_tokens_per_decision": 1024,
+    "expected_output_tokens_per_decision": 4096,
     "cost_contingency_multiplier": 1.2,
     "runtime_contingency_multiplier": 1.5
   },
   "runtime_observations": {
-    "source": "legacy standardized 1,024-token Luna, MiniMax, and Qwen observations; use only for conservative reservations and refresh every registered route through the fixed-cap smoke gate before the full panel",
-    "observed_at_utc": "2026-07-15T01:22:44Z",
+    "source": "accepted 4,096-token native-minimum-reasoning smokes, 2026-07-17 (data/publication-runs/smoke-frontier-4096-2026-07-17/); see docs/run_logs/sota-v2-smokes-2026-07-17.md",
+    "observed_at_utc": "2026-07-17T19:42:44Z",
     "api_seconds_per_decision": {
-      "minimax/minimax-m3": 2.546,
-      "openai/gpt-5.6-luna": 1.981,
-      "qwen/qwen3.5-9b": 11.622
+      "anthropic/claude-sonnet-5": 8.657,
+      "google/gemini-3.5-flash": 1.497,
+      "meta/muse-spark-1.1": 13.827,
+      "minimax/minimax-m3": 2.955,
+      "mistralai/mistral-medium-3-5": 2.464,
+      "openai/gpt-5.6-luna": 4.759,
+      "qwen/qwen3.7-plus": 3.586,
+      "tencent/hy3:free": 4.087,
+      "x-ai/grok-4.5": 7.683,
+      "z-ai/glm-5.2": 6.656
     }
   },
   "models": {
     "anthropic/claude-sonnet-5": {"prompt": 0.000002, "completion": 0.00001},
-    "anthropic/claude-haiku-4.5": {"prompt": 0.000001, "completion": 0.000005},
-    "deepseek/deepseek-v4-pro": {"prompt": 0.0000013, "completion": 0.0000026},
+    "deepseek/deepseek-v4-pro": {"prompt": 0.000000435, "completion": 0.00000087},
+    "google/gemini-3.5-flash": {"prompt": 0.0000015, "completion": 0.000009},
+    "meta/muse-spark-1.1": {"prompt": 0.00000125, "completion": 0.00000425},
     "minimax/minimax-m3": {"prompt": 0.0000003, "completion": 0.0000012},
-    "moonshotai/kimi-k2.6": {"prompt": 0.00000075, "completion": 0.0000035},
+    "moonshotai/kimi-k3": {"prompt": 0.000003, "completion": 0.000015},
     "mistralai/mistral-medium-3-5": {"prompt": 0.0000015, "completion": 0.0000075},
-    "mistralai/mistral-small-2603": {"prompt": 0.00000015, "completion": 0.0000006},
-    "nvidia/nemotron-3-nano-30b-a3b": {"prompt": 0.00000005, "completion": 0.0000002},
-    "nvidia/nemotron-3-ultra-550b-a55b": {"prompt": 0.0000006, "completion": 0.0000036},
-    "openai/gpt-5.4-mini": {"prompt": 0.00000075, "completion": 0.0000045},
+    "nvidia/nemotron-3-ultra-550b-a55b:free": {"prompt": 0, "completion": 0},
     "openai/gpt-5.6-luna": {"prompt": 0.000001, "completion": 0.000006},
-    "qwen/qwen3.5-9b": {"prompt": 0.0000001, "completion": 0.00000015},
     "qwen/qwen3.7-plus": {"prompt": 0.00000032, "completion": 0.00000128},
-    "z-ai/glm-5.2": {"prompt": 0.00000091, "completion": 0.00000286}
+    "tencent/hy3:free": {"prompt": 0, "completion": 0},
+    "x-ai/grok-4.5": {"prompt": 0.000002, "completion": 0.000006},
+    "z-ai/glm-5.2": {"prompt": 0.0000014, "completion": 0.0000044}
   }
 }

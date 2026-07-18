@@ -67,9 +67,11 @@ cd web && bun install && bun run dev      # local site
 The site in `web/` deploys to GitHub Pages automatically on pushes to `main`
 (`.github/workflows/pages.yml`).
 
-The headline API lane uses the common 1,024-token safety ceiling frozen in
-[`config/sota_v2_lane.json`](config/sota_v2_lane.json), with reasoning disabled
-and actual token/cost efficiency reported beside score. The earlier four-cap
+The provisional headline API lane uses the common 4,096-token safety ceiling in
+[`config/sota_v2_lane.json`](config/sota_v2_lane.json), with native-minimum
+reasoning and actual token/cost efficiency reported beside score. Reasoning is
+disabled where optional and set to the lowest OpenRouter-supported effort where
+mandatory. The earlier four-cap
 study in [`config/output_budget_sweep.json`](config/output_budget_sweep.json) is
 retained for auditability but retired as a publication prerequisite. Until all
 registered routes pass the common smoke, the registry is frozen, and at least

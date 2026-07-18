@@ -29,7 +29,7 @@
     "reason": "The first Luna smoke and 1,024-token cell exposed phase-ambiguous global action examples in the shared prompt scaffold. The prompt advertised draft actions outside the draft phase even though available_actions did not.",
     "scope": "Supersede every result with the prior scaffold fingerprint, including the completed Luna cell; preserve those raw artifacts as diagnostic evidence; restart all accepted publication evidence under one hardened scaffold fingerprint.",
     "selection_guard": "The revised model registry remains provisional until every changed route passes the common parameter, privacy, JSON, and reasoning-disabled smoke checks.",
-    "compute_guard": "The retired four-cap sweep may not run. All ten registered models must pass the common 1,024-token smoke and the predeclared cap-pressure check before any full-panel result."
+    "compute_guard": "The retired four-cap sweep may not run. All ten phase-one registered models must pass the common 4,096-token smoke and the predeclared cap-pressure check before any full-panel result. Kimi K3 and the unavailable Nemotron 3 Ultra and DeepSeek V4 Pro routes are retained as exclusion evidence and may not be rerun in phase one."
   },
   "rerun_policy": {
     "maximum_infrastructure_attempts_per_cell": 2,
@@ -72,7 +72,7 @@
     "unit_of_inference": "Eight public seeds are the sample; three repeats per seed are nested within seeds and only reduce model-sampling noise. All per-seed lifts are reported.",
     "primary_contrast": "One per model: the paired lift versus the named pick-trader baseline, using the per-seed candidate mean over three repeats minus the same seed's pick-trader score.",
     "headline_claim_contrast": "paired lift versus pick-trader",
-    "multiplicity": "Holm-Bonferroni correction across the 10 registered models for the primary contrast family; per-model uncorrected p-values are descriptive only.",
+    "multiplicity": "Holm-Bonferroni correction across the 10 phase-one registered models for the primary contrast family; per-model uncorrected p-values are descriptive only.",
     "inference_labels": "Sign-flip permutation p-values are exact only under a symmetry assumption and are labeled descriptive; the n=8 percentile-bootstrap CI is descriptive and its significant_at_95 flag must not be used as a headline claim.",
     "ranking_rule": "Publish tiers, not ordinal ranks. Models whose Holm-adjusted pick-trader primary contrasts and paired-lift intervals overlap are reported as one tier; no model-vs-model superiority claim without a predeclared contrast.",
     "power_disclosure": "The predeclared minimum detectable difference (~62 points from docs/scoring_calibration.md) exceeds the oracle-to-pick-trader headroom (~19.5), so a null result between adjacent models is uninformative and must be reported as such.",

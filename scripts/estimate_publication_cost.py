@@ -17,10 +17,15 @@ if str(ROOT) not in sys.path:
 from gm_bench.benchmark_config import PRESETS  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
 
-RUNTIME_STATUS = "pending-smoke-telemetry"
-RUNTIME_NOTE = (
+RUNTIME_STATUS_PENDING = "pending-smoke-telemetry"
+RUNTIME_STATUS_COMPLETE = "complete-from-accepted-smokes"
+RUNTIME_NOTE_PENDING = (
     "Regenerate this artifact from accepted smoke telemetry before approving the full panel; "
     "latency is reported only for models with committed observations."
+)
+RUNTIME_NOTE_COMPLETE = (
+    "Runtime observations are sourced from every currently registered model's accepted smoke; "
+    "recheck before paid full-panel runs if pricing, routes, or prompts change."
 )
 
 
@@ -60,12 +65,7 @@ def estimate(
     leaderboard = PRESETS["leaderboard"]
     smoke = PRESETS["smoke"]
     repeats = int(models_config["repeats"])
-    panel_decisions_per_model = (
-        len(leaderboard["seeds"])
-        * int(leaderboard["seasons"])
-        * len(PHASES)
-        * repeats
-    )
+    panel_decisions_per_model = len(leaderboard["seeds"]) * int(leaderboard["seasons"]) * len(PHASES) * repeats
     smoke_decisions_per_run = len(smoke["seeds"]) * int(smoke["seasons"]) * len(PHASES)
     model_count = len(models)
     panel_calls = model_count * panel_decisions_per_model
@@ -82,9 +82,7 @@ def estimate(
         rates = pricing["models"].get(model_name)
         if not rates:
             raise ValueError(f"missing pricing for {model_name}")
-        per_decision_cost = input_tokens * _decimal(rates["prompt"]) + output_tokens * _decimal(
-            rates["completion"]
-        )
+        per_decision_cost = input_tokens * _decimal(rates["prompt"]) + output_tokens * _decimal(rates["completion"])
         panel_cost = panel_decisions_per_model * per_decision_cost
         smoke_cost = smoke_decisions_per_run * per_decision_cost
         panel_costs.append(panel_cost)
@@ -108,13 +106,19 @@ def estimate(
     smoke_cost = sum(smoke_costs, Decimal())
     total_cost = panel_cost + smoke_cost
     contingency = _decimal(assumptions["cost_contingency_multiplier"])
+    # "Complete" only once every currently registered model (not just a subset
+    # left over from a prior registry) has an observation; otherwise stay
+    # pending so a partial refresh can't be mistaken for full coverage.
+    runtime_complete = bool(models) and {model["model"] for model in models} <= set(observed_latency)
+    runtime_status = RUNTIME_STATUS_COMPLETE if runtime_complete else RUNTIME_STATUS_PENDING
+    runtime_note = RUNTIME_NOTE_COMPLETE if runtime_complete else RUNTIME_NOTE_PENDING
     return {
         "schema_version": 2,
         "supersedes": {
             "artifact": "retired 12-cell output-budget sweep estimate",
             "description": (
                 "Replaces the four-cap, three-model sweep estimate with the registered "
-                "ten-model fixed 1,024-token panel and its required smoke gate."
+                f"{len(models)}-model fixed {lane_config['output_token_cap']:,}-token panel and its required smoke gate."
             ),
         },
         "pricing_checked_at_utc": pricing["checked_at_utc"],
@@ -154,8 +158,8 @@ def estimate(
             "total_with_1_2x_contingency": float(total_cost * contingency),
         },
         "runtime": {
-            "status": RUNTIME_STATUS,
-            "note": RUNTIME_NOTE,
+            "status": runtime_status,
+            "note": runtime_note,
             "observation_source": runtime_observations.get("source"),
             "observed_at_utc": runtime_observations.get("observed_at_utc"),
             "observed_api_seconds_per_decision_by_model": observed_latency,

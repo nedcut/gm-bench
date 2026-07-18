@@ -15,6 +15,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -29,12 +30,14 @@ PANEL_CONFIG = ROOT / "config" / "sota_v2_models.json"
 LANE_CONFIG = ROOT / "config" / "sota_v2_lane.json"
 PRICING_CONFIG = ROOT / "config" / "openrouter_pricing_snapshot.json"
 SMOKE_MANIFEST = ROOT / "config" / "sota_v2_smoke_manifest.json"
+RUN_STATE_FORMAT = "gm-bench-publication-run-v1"
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from gm_bench.benchmark_config import PRESETS  # noqa: E402
 from gm_bench.contract import contract_fingerprint, scaffold_fingerprint  # noqa: E402
+from gm_bench.environment import load_environment_files  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
 from gm_bench.publication import SMOKE_MANIFEST_FORMAT, smoke_manifest_issues  # noqa: E402
 
@@ -48,6 +51,8 @@ class Cell:
     preset: str
     repeats: int
     cap: int | None
+    upstream_provider: str
+    endpoint_tag: str
     endpoint_name: str
     fixed_options: dict[str, str]
     absent_options: tuple[str, ...]
@@ -64,7 +69,7 @@ def _read_json(path: Path) -> dict[str, Any]:
     return payload
 
 
-def _validate_models(models: list[dict[str, Any]]) -> None:
+def _validate_models(models: list[dict[str, Any]], *, exact_routes: bool = True) -> None:
     if not models:
         raise ValueError("publication matrix contains no models")
     ids = [str(model.get("id") or "") for model in models]
@@ -73,11 +78,52 @@ def _validate_models(models: list[dict[str, Any]]) -> None:
         raise ValueError("every model requires non-empty id, provider, and model")
     if len(set(ids)) != len(ids) or len(set(identities)) != len(identities):
         raise ValueError("publication model ids and provider/model identities must be unique")
+    if not exact_routes:
+        return
+    for model in models:
+        required = ("upstream_provider", "upstream_provider_slug", "endpoint_tag", "endpoint_name")
+        if any(not str(model.get(key) or "").strip() for key in required):
+            raise ValueError(f"publication model {model.get('id')!r} is missing exact endpoint identity")
+        policy = model.get("reasoning_policy")
+        options = model.get("fixed_options") or {}
+        if policy == "disabled":
+            if (
+                options.get("OPENROUTER_REASONING_ENABLED") != "false"
+                or options.get("OPENROUTER_REASONING_EFFORT") is not None
+                or model.get("reasoning_effort") is not None
+            ):
+                raise ValueError(f"publication model {model.get('id')!r} has an invalid disabled reasoning policy")
+        elif policy == "mandatory-minimum":
+            effort = model.get("reasoning_effort")
+            if (
+                not effort
+                or options.get("OPENROUTER_REASONING_ENABLED") != "true"
+                or options.get("OPENROUTER_REASONING_EFFORT") != effort
+            ):
+                raise ValueError(f"publication model {model.get('id')!r} has an invalid mandatory reasoning policy")
+        else:
+            raise ValueError(f"publication model {model.get('id')!r} has an unknown reasoning policy")
 
 
 def _smoke_manifest_path(lane: dict[str, Any]) -> Path:
     configured = lane.get("smoke_manifest")
     return ROOT / str(configured) if configured else SMOKE_MANIFEST
+
+
+def _registered_fixed_options(config: dict[str, Any], model: dict[str, Any]) -> dict[str, str]:
+    return {
+        **{str(key): str(value) for key, value in (config.get("shared_fixed_options") or {}).items()},
+        **{str(key): str(value) for key, value in (model.get("fixed_options") or {}).items()},
+        "OPENROUTER_PROVIDER_ONLY": str(model["upstream_provider_slug"]),
+        "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER": str(model["upstream_provider"]),
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": str(model["endpoint_name"]),
+    }
+
+
+def _registered_absent_options(config: dict[str, Any], model: dict[str, Any]) -> tuple[str, ...]:
+    fixed = _registered_fixed_options(config, model)
+    values = [*(config.get("shared_absent_options") or []), *(model.get("absent_options") or [])]
+    return tuple(dict.fromkeys(str(value) for value in values if str(value) not in fixed))
 
 
 def _read_optional_json(path: Path) -> dict[str, Any] | None:
@@ -94,13 +140,15 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
         models = list(config.get("models") or [])
         _validate_models(models)
         frozen_cap = lane.get("output_token_cap")
-        if lane.get("output_policy_basis") != "fixed-safety-ceiling":
+        if lane.get("output_policy_basis") not in {
+            "fixed-safety-ceiling",
+            "common-safety-ceiling-with-native-minimum-reasoning",
+        }:
             raise ValueError("panel smoke is locked until the fixed safety ceiling is frozen")
         if not isinstance(frozen_cap, int) or frozen_cap < 1:
             raise ValueError("panel smoke requires a positive frozen output_token_cap")
         if cap is not None and cap != frozen_cap:
             raise ValueError(f"requested cap {cap} differs from frozen panel smoke cap {frozen_cap}")
-        shared = {str(key): str(value) for key, value in (config.get("shared_fixed_options") or {}).items()}
         cells = [
             Cell(
                 experiment_id=str(model["id"]),
@@ -110,20 +158,18 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
                 preset="smoke",
                 repeats=1,
                 cap=frozen_cap,
+                upstream_provider=str(model["upstream_provider"]),
+                endpoint_tag=str(model["endpoint_tag"]),
                 endpoint_name=str(model.get("endpoint_name") or ""),
-                fixed_options={
-                    **shared,
-                    "OPENROUTER_PROVIDER_ONLY": str(model["upstream_provider"]),
-                    "OPENROUTER_EXPECTED_ENDPOINT_NAME": str(model["endpoint_name"]),
-                },
-                absent_options=tuple(str(value) for value in config.get("shared_absent_options") or []),
+                fixed_options=_registered_fixed_options(config, model),
+                absent_options=_registered_absent_options(config, model),
             )
             for model in models
         ]
     elif phase == "sweep":
         config = _read_json(SWEEP_CONFIG)
         models = list(config.get("models") or [])
-        _validate_models(models)
+        _validate_models(models, exact_routes=False)
         configured_caps = list(config["output_token_caps"])
         if cap is not None and cap not in configured_caps:
             raise ValueError(f"requested cap {cap} is not in the pre-registered sweep {configured_caps}")
@@ -139,6 +185,8 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
                 preset=preset,
                 repeats=repeats,
                 cap=cell_cap,
+                upstream_provider=str(model["upstream_provider"]),
+                endpoint_tag=str(model.get("endpoint_tag") or ""),
                 endpoint_name=str(model.get("endpoint_name") or ""),
                 fixed_options={str(key): str(value) for key, value in (model.get("fixed_options") or {}).items()},
                 absent_options=tuple(str(value) for value in model.get("absent_options") or []),
@@ -152,7 +200,11 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
         models = list(config.get("models") or [])
         _validate_models(models)
         frozen_cap = lane.get("output_token_cap")
-        if lane.get("output_budget_status") not in {"frozen-saturation", "frozen-fixed-budget"}:
+        if lane.get("output_budget_status") not in {
+            "frozen-saturation",
+            "frozen-fixed-budget",
+            "frozen-native-reasoning-cap",
+        }:
             raise ValueError("full panel is locked until config/sota_v2_lane.json freezes the output-budget policy")
         if config.get("selection_status") != "frozen":
             raise ValueError("full panel is locked until config/sota_v2_models.json freezes the model registry")
@@ -167,7 +219,6 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
             )
         if cap is not None and cap != frozen_cap:
             raise ValueError(f"requested cap {cap} differs from frozen panel cap {frozen_cap}")
-        shared = {str(key): str(value) for key, value in (config.get("shared_fixed_options") or {}).items()}
         cells = [
             Cell(
                 experiment_id=str(model["id"]),
@@ -177,13 +228,11 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
                 preset=str(config["preset"]),
                 repeats=int(config["repeats"]),
                 cap=frozen_cap,
+                upstream_provider=str(model["upstream_provider"]),
+                endpoint_tag=str(model["endpoint_tag"]),
                 endpoint_name=str(model.get("endpoint_name") or ""),
-                fixed_options={
-                    **shared,
-                    "OPENROUTER_PROVIDER_ONLY": str(model["upstream_provider"]),
-                    "OPENROUTER_EXPECTED_ENDPOINT_NAME": str(model["endpoint_name"]),
-                },
-                absent_options=tuple(str(value) for value in config.get("shared_absent_options") or []),
+                fixed_options=_registered_fixed_options(config, model),
+                absent_options=_registered_absent_options(config, model),
             )
             for model in models
         ]
@@ -264,19 +313,25 @@ def _openrouter_usage_usd(env: dict[str, str]) -> float:
 
 def _endpoint_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
     endpoints = (payload.get("data") or {}).get("endpoints") or []
-    expected_provider = cell.fixed_options.get("OPENROUTER_PROVIDER_ONLY", "")
+    expected_provider = cell.upstream_provider
     matches = [
         endpoint
         for endpoint in endpoints
         if endpoint.get("provider_name") == expected_provider
+        and endpoint.get("tag") == cell.endpoint_tag
         and endpoint.get("name") == cell.endpoint_name
         and endpoint.get("status") == 0
     ]
     if not cell.endpoint_name:
         return ["pre-registered OpenRouter endpoint_name is empty"]
     if not matches:
-        return [f"no healthy OpenRouter endpoint matches provider={expected_provider!r} name={cell.endpoint_name!r}"]
-    required = {"max_tokens", "response_format", "reasoning"}
+        return [
+            "no healthy OpenRouter endpoint matches "
+            f"provider={expected_provider!r} tag={cell.endpoint_tag!r} name={cell.endpoint_name!r}"
+        ]
+    required = {"max_tokens", "reasoning"}
+    if cell.fixed_options.get("OPENROUTER_JSON_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}:
+        required.add("response_format")
     capable = []
     for endpoint in matches:
         supported = set(endpoint.get("supported_parameters") or [])
@@ -359,6 +414,272 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
+def _read_json_if_valid(path: Path) -> dict[str, Any] | None:
+    try:
+        return _read_json(path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def _write_run_state(run_dir: Path, phase: str, cells: list[Cell], spend_ceiling_usd: float | None) -> None:
+    path = run_dir / "run-state.json"
+    existing = _read_json_if_valid(path) or {}
+    launched = {str(value) for value in existing.get("launched_model_ids") or [] if isinstance(value, str) and value}
+    launched.update(cell.experiment_id for cell in cells)
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    payload = {
+        "format": RUN_STATE_FORMAT,
+        "schema_version": 1,
+        "phase": phase,
+        "output_token_cap": cells[0].cap if cells else None,
+        "started_at_utc": existing.get("started_at_utc") or now,
+        "updated_at_utc": now,
+        "launched_model_ids": sorted(launched),
+        "spend_ceiling_usd": spend_ceiling_usd,
+    }
+    _write_json_atomic(path, payload)
+
+
+def _checkpoint_process_alive(path: Path) -> bool:
+    import fcntl
+
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    try:
+        descriptor = os.open(lock_path, os.O_RDONLY)
+    except OSError:
+        return False
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        return False
+    finally:
+        os.close(descriptor)
+
+
+def _payload_cost_usd(payload: dict[str, Any] | None) -> float | None:
+    if not payload:
+        return None
+    candidate = payload.get("candidate")
+    if isinstance(candidate, dict):
+        summary = candidate.get("summary")
+        usage = summary.get("usage") if isinstance(summary, dict) else None
+        if isinstance(usage, dict) and usage.get("cost_usd") is not None:
+            try:
+                return float(usage["cost_usd"])
+            except (TypeError, ValueError):
+                return None
+    costs = []
+    for episode in payload.get("episodes") or []:
+        usage = episode.get("usage") if isinstance(episode, dict) else None
+        if isinstance(usage, dict) and usage.get("cost_usd") is not None:
+            try:
+                costs.append(float(usage["cost_usd"]))
+            except (TypeError, ValueError):
+                continue
+    return sum(costs) if costs else None
+
+
+def _expected_progress(
+    run_state: dict[str, Any], checkpoint: dict[str, Any] | None, raw: dict[str, Any] | None
+) -> tuple[int, int | None, int, int | None]:
+    source = checkpoint or raw or {}
+    completed = source.get("completed")
+    if isinstance(completed, list):
+        completed_episodes = len(completed)
+    else:
+        candidate = raw.get("candidate") if raw else None
+        episodes = candidate.get("episodes") if isinstance(candidate, dict) else None
+        completed_episodes = len(episodes) if isinstance(episodes, list) else 0
+
+    seeds = source.get("seeds")
+    repeats = source.get("repeats")
+    seasons = source.get("seasons")
+    if raw and isinstance(raw.get("candidate"), dict):
+        repeats = repeats or raw["candidate"].get("repeats")
+        seasons = seasons or raw["candidate"].get("seasons")
+    total_episodes = None
+    if isinstance(seeds, list) and isinstance(repeats, int):
+        total_episodes = len(seeds) * repeats
+    elif run_state.get("phase") == "smoke":
+        total_episodes = 1
+        seasons = seasons or 1
+    elif run_state.get("phase") == "panel":
+        registry = _read_json_if_valid(PANEL_CONFIG) or {}
+        preset = PRESETS.get(str(registry.get("preset") or "leaderboard"), {})
+        total_episodes = len(preset.get("seeds") or []) * int(registry.get("repeats") or 0)
+        seasons = seasons or int(preset.get("seasons") or 0)
+
+    decisions_per_episode = int(seasons or 0) * len(PHASES)
+    completed_decisions = completed_episodes * decisions_per_episode
+    total_decisions = total_episodes * decisions_per_episode if total_episodes is not None else None
+    return completed_episodes, total_episodes, completed_decisions, total_decisions
+
+
+def publication_run_status(run_dir: Path, manifest_path: Path = SMOKE_MANIFEST) -> dict[str, Any]:
+    run_dir = run_dir.resolve()
+    registry = _read_json(PANEL_CONFIG)
+    run_state = _read_json_if_valid(run_dir / "run-state.json") or {}
+    cap = int(run_state.get("output_token_cap") or registry["output_token_cap"])
+    manifest = _read_json_if_valid(manifest_path) or {}
+    manifest_entries = manifest.get("entries") if isinstance(manifest.get("entries"), dict) else {}
+    reservations_payload = _read_json_if_valid(run_dir / "openrouter-reservations.json") or {}
+    reservations = reservations_payload.get("cells")
+    reservations = reservations if isinstance(reservations, dict) else {}
+
+    rows = []
+    for model in registry.get("models") or []:
+        model_id = str(model["id"])
+        stem = f"{model_id}--{cap}"
+        checkpoint_path = run_dir / "checkpoints" / f"{stem}.json"
+        raw_path = run_dir / "raw" / f"{stem}.json"
+        checkpoint = _read_json_if_valid(checkpoint_path)
+        raw = _read_json_if_valid(raw_path)
+        manifest_entry = manifest_entries.get(model_id)
+        reservation = reservations.get(stem)
+        smoke_accepted = isinstance(manifest_entry, dict) and manifest_entry.get("accepted") is True
+
+        if raw_path.exists() and raw is None:
+            state = "invalid-raw"
+        elif raw is not None:
+            state = "complete"
+        elif checkpoint_path.exists() and checkpoint is None:
+            state = "invalid-checkpoint"
+        elif checkpoint is not None:
+            checkpoint_state = str(checkpoint.get("status") or "unknown")
+            if checkpoint_state == "running":
+                state = "running" if _checkpoint_process_alive(checkpoint_path) else "interrupted"
+            else:
+                state = checkpoint_state
+        elif isinstance(reservation, dict):
+            state = "reserved"
+        else:
+            state = "queued"
+        # A manifest acceptance only upgrades *this run's own* completed cell to
+        # "accepted"; it never substitutes for the current run/cap's raw
+        # artifact, so a stale or wrong-cap manifest entry cannot mask a cell
+        # that this run directory has not actually produced.
+        if (
+            run_state.get("phase") == "smoke"
+            and state == "complete"
+            and smoke_accepted
+            and manifest_entry.get("output_token_cap") == cap
+        ):
+            state = "accepted"
+
+        completed, total, completed_decisions, total_decisions = _expected_progress(run_state, checkpoint, raw)
+        if state in {"complete", "accepted"} and total is not None:
+            completed = total
+            completed_decisions = total_decisions or completed_decisions
+        mtimes = [path.stat().st_mtime for path in (checkpoint_path, raw_path) if path.exists()]
+        rows.append(
+            {
+                "model_id": model_id,
+                "model": model.get("model"),
+                "state": state,
+                "smoke_accepted": smoke_accepted,
+                "completed_episodes": completed,
+                "total_episodes": total,
+                "completed_decisions": completed_decisions,
+                "total_decisions": total_decisions,
+                "cost_usd": _payload_cost_usd(raw or checkpoint),
+                "reserved_usd": (
+                    float(reservation["reserved_usd"])
+                    if isinstance(reservation, dict) and reservation.get("reserved_usd") is not None
+                    else None
+                ),
+                "updated_at_epoch": max(mtimes) if mtimes else None,
+                "error": checkpoint.get("error") if isinstance(checkpoint, dict) else None,
+            }
+        )
+
+    artifact_spend = _artifact_spend_usd(run_dir)
+    reserved_spend = sum(
+        float(value.get("reserved_usd") or 0.0) for value in reservations.values() if isinstance(value, dict)
+    )
+    return {
+        "format": "gm-bench-publication-status-v1",
+        "run_dir": str(run_dir),
+        "phase": run_state.get("phase") or "unknown",
+        "output_token_cap": run_state.get("output_token_cap") or cap,
+        "started_at_utc": run_state.get("started_at_utc"),
+        "spend_ceiling_usd": run_state.get("spend_ceiling_usd"),
+        "artifact_spend_usd": round(artifact_spend, 6),
+        "reserved_spend_usd": round(reserved_spend, 6),
+        "total_cells": len(rows),
+        "accepted_smokes": sum(row["smoke_accepted"] for row in rows),
+        "active_cells": sum(row["state"] == "running" for row in rows),
+        "completed_cells": sum(row["state"] in {"complete", "accepted"} for row in rows),
+        "rows": rows,
+    }
+
+
+def _format_progress(completed: int, total: int | None) -> str:
+    return f"{completed}/{total}" if total is not None else str(completed)
+
+
+def _format_age(timestamp: float | None) -> str:
+    if timestamp is None:
+        return "-"
+    seconds = max(0, int(time.time() - timestamp))
+    if seconds < 60:
+        return f"{seconds}s"
+    if seconds < 3600:
+        return f"{seconds // 60}m"
+    return f"{seconds // 3600}h"
+
+
+def render_publication_status(status: dict[str, Any]) -> str:
+    ceiling = status.get("spend_ceiling_usd")
+    ceiling_text = f"${float(ceiling):.4f}" if ceiling is not None else "not recorded"
+    lines = [
+        "GM-Bench publication run",
+        f"dir: {status['run_dir']}",
+        (
+            f"phase: {status['phase']}  cap: {status['output_token_cap']}  "
+            f"active: {status['active_cells']}  "
+            f"complete: {status['completed_cells']}/{status['total_cells']}  "
+            f"accepted smokes: {status['accepted_smokes']}/{status['total_cells']}"
+        ),
+        (
+            f"spend: ${status['artifact_spend_usd']:.4f} in artifacts  "
+            f"${status['reserved_spend_usd']:.4f} reserved  ceiling: {ceiling_text}"
+        ),
+        "",
+        f"{'MODEL':<42} {'STATE':<18} {'EPISODES':>9} {'DECISIONS':>10} {'COST':>9} {'UPDATED':>8}",
+        "-" * 102,
+    ]
+    for row in status["rows"]:
+        cost = f"${row['cost_usd']:.4f}" if row["cost_usd"] is not None else "-"
+        lines.append(
+            f"{row['model_id'][:42]:<42} {row['state']:<18} "
+            f"{_format_progress(row['completed_episodes'], row['total_episodes']):>9} "
+            f"{_format_progress(row['completed_decisions'], row['total_decisions']):>10} "
+            f"{cost:>9} {_format_age(row['updated_at_epoch']):>8}"
+        )
+        if row.get("error"):
+            lines.append(f"  error: {str(row['error']).splitlines()[0][:92]}")
+    return "\n".join(lines)
+
+
+def _status_command(run_dir: Path, manifest_path: Path, *, watch: bool, interval: float, as_json: bool) -> int:
+    try:
+        while True:
+            status = publication_run_status(run_dir, manifest_path)
+            rendered = json.dumps(status, sort_keys=True) if as_json else render_publication_status(status)
+            if watch and sys.stdout.isatty() and not as_json:
+                print("\033[2J\033[H", end="")
+            print(rendered, flush=True)
+            if not watch:
+                return 0
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print()
+        return 0
+
+
 def _record_smoke_issues(
     artifact: dict[str, Any],
     model_id: str,
@@ -396,14 +717,12 @@ def _record_smoke_issues(
     provider_options = run_info.get("provider_options")
     provider_options = provider_options if isinstance(provider_options, dict) else {}
     expected_options = {
-        **(registry.get("shared_fixed_options") or {}),
-        "OPENROUTER_PROVIDER_ONLY": entry.get("upstream_provider"),
-        "OPENROUTER_EXPECTED_ENDPOINT_NAME": entry.get("endpoint_name"),
+        **_registered_fixed_options(registry, entry),
     }
     for key, value in expected_options.items():
         if provider_options.get(key) != value:
             issues.append(f"artifact provider option {key} does not match the registered value")
-    for key in registry.get("shared_absent_options") or []:
+    for key in _registered_absent_options(registry, entry):
         if provider_options.get(key) not in (None, ""):
             issues.append(f"artifact provider option {key} must be absent")
 
@@ -431,9 +750,7 @@ def _record_smoke_issues(
     else:
         expected_pairs = {(seed, 1) for seed in expected_seeds}
         observed_pairs = {
-            (episode.get("seed"), episode.get("repeat", 1))
-            for episode in episodes
-            if isinstance(episode, dict)
+            (episode.get("seed"), episode.get("repeat", 1)) for episode in episodes if isinstance(episode, dict)
         }
         if observed_pairs != expected_pairs:
             issues.append("artifact candidate episodes do not match the smoke seed/repeat panel")
@@ -481,8 +798,12 @@ def _record_smoke_issues(
     if truncated_calls != 0:
         issues.append("artifact shows cap-induced truncation")
     reasoning_tokens = usage.get("reasoning_tokens")
-    if reasoning_tokens not in (None, 0):
-        issues.append("artifact recorded reasoning tokens in the reasoning-disabled lane")
+    if entry.get("reasoning_policy") == "disabled" and reasoning_tokens not in (None, 0):
+        issues.append("artifact recorded reasoning tokens for a reasoning-disabled model")
+    if entry.get("reasoning_policy") == "mandatory-minimum" and (
+        not isinstance(reasoning_tokens, int) or isinstance(reasoning_tokens, bool) or reasoning_tokens < 0
+    ):
+        issues.append("artifact is missing reasoning-token telemetry for a mandatory-reasoning model")
     max_output = usage.get("max_output_tokens_per_call")
     threshold = lane.get("cap_pressure_threshold_tokens")
     if not isinstance(max_output, int) or isinstance(max_output, bool):
@@ -540,6 +861,8 @@ def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> in
         "provider": entry["provider"],
         "model": entry["model"],
         "upstream_provider": entry["upstream_provider"],
+        "upstream_provider_slug": entry["upstream_provider_slug"],
+        "endpoint_tag": entry["endpoint_tag"],
         "endpoint_name": entry["endpoint_name"],
         "output_token_cap": int(lane["output_token_cap"]),
         "api_calls": usage["api_calls"],
@@ -551,6 +874,8 @@ def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> in
         "truncated_calls": usage["truncated_calls"],
         "max_output_tokens_per_call": usage["max_output_tokens_per_call"],
         "reasoning_tokens": usage.get("reasoning_tokens") or 0,
+        "reasoning_policy": entry["reasoning_policy"],
+        "reasoning_effort": entry.get("reasoning_effort"),
         "decision_failure_rate": artifact["candidate"]["summary"]["decision_failure_rate"],
         "contract_fingerprint": run_info["benchmark_contract"]["contract_fingerprint"],
         "scaffold_fingerprint": run_info["scaffold_fingerprint"],
@@ -564,30 +889,53 @@ def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> in
     return 0
 
 
+def _reusable_smoke_artifact(cell: Cell, run_dir: Path) -> Path | None:
+    """Return an existing raw smoke only when it still passes the current gate."""
+    artifact_path = run_dir / "raw" / f"{cell.experiment_id}--{cell.cap_label}.json"
+    try:
+        artifact = _read_json(artifact_path)
+        registry = _read_json(PANEL_CONFIG)
+        lane = _read_json(LANE_CONFIG)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+    issues, _entry = _record_smoke_issues(artifact, cell.experiment_id, registry, lane)
+    return artifact_path if not issues else None
+
+
 def _reserve_cell(run_dir: Path, cell: Cell, measured_spend: float, ceiling: float) -> float:
     path = run_dir / "openrouter-reservations.json"
     payload = _read_json(path) if path.exists() else {"schema_version": 1, "cells": {}}
     reservations = payload.setdefault("cells", {})
     stem = f"{cell.experiment_id}--{cell.cap_label}"
-    reserved_total = sum(float(value["reserved_usd"]) for value in reservations.values())
+    # Only unsettled attempts remain a conservative liability. Successful
+    # cells are replaced by their measured account/artifact spend so historical
+    # worst-case reservations cannot prematurely stop a healthy serial panel.
+    reserved_total = sum(
+        float(value["reserved_usd"]) for value in reservations.values() if value.get("status") != "settled"
+    )
+    reservation = _cell_reservation_usd(cell)
     if stem in reservations:
-        reservation = _cell_reservation_usd(cell)
-        committed = max(measured_spend, reserved_total)
+        committed = measured_spend + reserved_total
         if committed + reservation > ceiling:
             raise SystemExit(
                 f"retry reservation would exceed spend ceiling: ${committed:.4f} + ${reservation:.4f} > ${ceiling:.4f}"
             )
         stored = reservations[stem]
-        stored["reserved_usd"] = float(stored["reserved_usd"]) + reservation
+        stored["reserved_usd"] = (
+            float(stored.get("reserved_usd") or 0) + reservation if stored.get("status") != "settled" else reservation
+        )
+        stored["total_reserved_usd"] = float(stored.get("total_reserved_usd") or 0) + reservation
         stored["attempts"] = int(stored.get("attempts") or 1) + 1
+        stored["status"] = "active"
+        stored.pop("settled_at_utc", None)
+        stored.pop("measured_run_spend_usd", None)
         _write_json_atomic(path, payload)
         print(
             f"reserved retry ${reservation:.4f} for {stem}; "
             f"cumulative conservative commitment ${committed + reservation:.4f}"
         )
         return committed + reservation
-    reservation = _cell_reservation_usd(cell)
-    committed = max(measured_spend, reserved_total)
+    committed = measured_spend + reserved_total
     if committed + reservation > ceiling:
         raise SystemExit(
             f"cell reservation would exceed spend ceiling: ${committed:.4f} + ${reservation:.4f} > ${ceiling:.4f}"
@@ -597,11 +945,30 @@ def _reserve_cell(run_dir: Path, cell: Cell, measured_spend: float, ceiling: flo
         "model": cell.model,
         "output_token_cap": cell.cap,
         "reserved_usd": reservation,
+        "total_reserved_usd": reservation,
         "attempts": 1,
+        "status": "active",
     }
     _write_json_atomic(path, payload)
     print(f"reserved ${reservation:.4f} for {stem}; cumulative conservative commitment ${committed + reservation:.4f}")
     return committed + reservation
+
+
+def _settle_cell_reservation(run_dir: Path, cell: Cell, measured_spend: float) -> None:
+    """Release a successful cell's worst-case reservation in favor of measured spend."""
+    path = run_dir / "openrouter-reservations.json"
+    if not path.exists():
+        return
+    payload = _read_json(path)
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    stored = (payload.get("cells") or {}).get(stem)
+    if not isinstance(stored, dict):
+        return
+    stored["reserved_usd"] = 0.0
+    stored["status"] = "settled"
+    stored["settled_at_utc"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    stored["measured_run_spend_usd"] = measured_spend
+    _write_json_atomic(path, payload)
 
 
 def _print_command(cell: Cell, command: list[str]) -> None:
@@ -612,8 +979,12 @@ def _print_command(cell: Cell, command: list[str]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # The child CLI loads these files too, but the parent needs the provider key
+    # to query account usage and enforce the operator's spend ceiling before it
+    # launches any model process.
+    load_environment_files(ROOT)
     parser = argparse.ArgumentParser()
-    parser.add_argument("phase", choices=["smoke", "sweep", "panel", "record-smoke"])
+    parser.add_argument("phase", choices=["smoke", "sweep", "panel", "record-smoke", "status"])
     parser.add_argument("--model-id")
     parser.add_argument("--artifact", type=Path)
     parser.add_argument("--manifest", type=Path, default=SMOKE_MANIFEST)
@@ -622,7 +993,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--max-spend-usd", type=float)
+    parser.add_argument("--watch", action="store_true", help="refresh publication status until interrupted")
+    parser.add_argument("--interval", type=float, default=2.0, help="watch refresh interval in seconds")
+    parser.add_argument("--json", action="store_true", help="emit status as JSON")
     args = parser.parse_args(argv)
+    if args.phase == "status":
+        if args.interval <= 0:
+            parser.error("--interval must be positive")
+        return _status_command(args.run_dir, args.manifest, watch=args.watch, interval=args.interval, as_json=args.json)
     if args.phase == "record-smoke":
         if not args.model_id:
             parser.error("record-smoke requires --model-id")
@@ -650,6 +1028,8 @@ def main(argv: list[str] | None = None) -> int:
     for directory in (run_dir / "raw", run_dir / "checkpoints"):
         if not args.dry_run:
             directory.mkdir(parents=True, exist_ok=True)
+    if not args.dry_run and not args.preflight_only:
+        _write_run_state(run_dir, args.phase, cells, args.max_spend_usd)
     budget_start: float | None = None
     for cell in cells:
         env = cell_environment(cell)
@@ -657,6 +1037,11 @@ def main(argv: list[str] | None = None) -> int:
         _print_command(cell, command)
         if args.dry_run:
             continue
+        if args.phase == "smoke" and not args.preflight_only:
+            reusable = _reusable_smoke_artifact(cell, run_dir)
+            if reusable is not None:
+                print(f"reusing clean completed smoke without another reservation or provider call: {reusable}")
+                continue
         if cell.provider == "openrouter":
             try:
                 _validate_openrouter_endpoint(cell)
@@ -675,9 +1060,11 @@ def main(argv: list[str] | None = None) -> int:
             if spent >= args.max_spend_usd:
                 raise SystemExit(f"spend ceiling reached: ${spent:.4f} >= ${args.max_spend_usd:.4f}")
             _reserve_cell(run_dir, cell, spent, args.max_spend_usd)
+        cell_succeeded = False
         try:
             try:
                 subprocess.run(command, cwd=ROOT, env=env, check=True)
+                cell_succeeded = True
             except subprocess.CalledProcessError as exc:
                 raise SystemExit(
                     f"publication cell failed: {cell.experiment_id} cap={cell.cap_label} exit={exc.returncode}"
@@ -687,6 +1074,8 @@ def main(argv: list[str] | None = None) -> int:
             # Report the post-cell delta even when the child exits nonzero.
             if args.max_spend_usd is not None and cell.provider == "openrouter":
                 spent = _measured_spend_usd(run_dir, env, float(budget_start))
+                if cell_succeeded:
+                    _settle_cell_reservation(run_dir, cell, spent)
                 print(f"measured OpenRouter spend for this run directory: ${spent:.4f}")
                 if spent > args.max_spend_usd:
                     raise SystemExit(f"spend ceiling exceeded after attempted cell: ${spent:.4f}")

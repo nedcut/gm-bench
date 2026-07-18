@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -14,10 +16,14 @@ from scripts.run_publication_matrix import (
     _cell_reservation_usd,
     _endpoint_issues,
     _reserve_cell,
+    _settle_cell_reservation,
+    _write_run_state,
     build_cells,
     cell_command,
     cell_environment,
     main,
+    publication_run_status,
+    render_publication_status,
 )
 
 
@@ -28,6 +34,7 @@ def _frozen_panel_files(
     registry = json.loads(Path("config/sota_v2_models.json").read_text())
     registry["selection_status"] = "frozen"
     lane = json.loads(Path("config/sota_v2_lane.json").read_text())
+    lane["output_budget_status"] = "frozen-native-reasoning-cap"
     lane.pop("smoke_manifest", None)
     registry_path = tmp_path / "models.json"
     lane_path = tmp_path / "lane.json"
@@ -47,7 +54,11 @@ def _valid_manifest(registry: dict, lane: dict) -> dict:
             "provider": model["provider"],
             "model": model["model"],
             "upstream_provider": model["upstream_provider"],
+            "upstream_provider_slug": model["upstream_provider_slug"],
+            "endpoint_tag": model["endpoint_tag"],
             "endpoint_name": model["endpoint_name"],
+            "reasoning_policy": model["reasoning_policy"],
+            "reasoning_effort": model["reasoning_effort"],
             "output_token_cap": lane["output_token_cap"],
             "api_calls": 4,
             "calls_with_finish_reason": 4,
@@ -80,7 +91,9 @@ def _valid_smoke_artifact(registry: dict, lane: dict, model: dict) -> dict:
             "preset": "smoke",
             "provider_options": {
                 **registry["shared_fixed_options"],
-                "OPENROUTER_PROVIDER_ONLY": model["upstream_provider"],
+                **model["fixed_options"],
+                "OPENROUTER_PROVIDER_ONLY": model["upstream_provider_slug"],
+                "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER": model["upstream_provider"],
                 "OPENROUTER_EXPECTED_ENDPOINT_NAME": model["endpoint_name"],
                 "GM_BENCH_OUTPUT_BUDGET_CELL": str(lane["output_token_cap"]),
             },
@@ -152,26 +165,132 @@ def test_runner_rejects_cap_outside_pre_registered_sweep() -> None:
 
 def test_smoke_is_clean_and_resumes_existing_checkpoint(tmp_path: Path) -> None:
     assert len(build_cells("smoke")) == 10
-    cell = build_cells("smoke", model_id="openrouter-qwen3.5-9b-deepinfra")[0]
+    cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba")[0]
     command = cell_command(cell, tmp_path)
     assert cell.preset == "smoke"
     assert cell.repeats == 1
-    assert cell.cap == 1024
+    assert cell.cap == 4096
     assert "--require-clean" in command
-    checkpoint = tmp_path / "checkpoints" / f"{cell.experiment_id}--1024.json"
+    checkpoint = tmp_path / "checkpoints" / f"{cell.experiment_id}--4096.json"
     checkpoint.parent.mkdir(parents=True)
     checkpoint.touch()
     assert "--resume" in cell_command(cell, tmp_path)
 
 
+def test_smoke_reuses_only_existing_artifact_that_passes_current_gate(tmp_path: Path) -> None:
+    registry = json.loads(Path("config/sota_v2_models.json").read_text())
+    lane = json.loads(Path("config/sota_v2_lane.json").read_text())
+    model = registry["models"][0]
+    cell = build_cells("smoke", model_id=model["id"])[0]
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    artifact_path = raw / f"{cell.experiment_id}--{cell.cap_label}.json"
+
+    assert publication_runner._reusable_smoke_artifact(cell, tmp_path) is None
+    artifact = _valid_smoke_artifact(registry, lane, model)
+    artifact_path.write_text(json.dumps(artifact))
+    assert publication_runner._reusable_smoke_artifact(cell, tmp_path) == artifact_path
+
+    artifact["candidate"]["summary"]["failed_decisions"] = 1
+    artifact_path.write_text(json.dumps(artifact))
+    assert publication_runner._reusable_smoke_artifact(cell, tmp_path) is None
+
+
+def test_preflight_only_still_validates_endpoint_despite_reusable_smoke_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--preflight-only must never take the cached-artifact shortcut that skips it."""
+    registry = json.loads(Path("config/sota_v2_models.json").read_text())
+    lane = json.loads(Path("config/sota_v2_lane.json").read_text())
+    model = registry["models"][0]
+    cell = build_cells("smoke", model_id=model["id"])[0]
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    artifact_path = raw_dir / f"{cell.experiment_id}--{cell.cap_label}.json"
+    artifact_path.write_text(json.dumps(_valid_smoke_artifact(registry, lane, model)))
+    assert publication_runner._reusable_smoke_artifact(cell, tmp_path) == artifact_path
+
+    validated: list[str] = []
+    monkeypatch.setattr(
+        publication_runner,
+        "_validate_openrouter_endpoint",
+        lambda cell: validated.append(cell.experiment_id),
+    )
+    monkeypatch.setattr(
+        publication_runner.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args=args, returncode=0),
+    )
+
+    assert (
+        main(
+            [
+                "smoke",
+                "--model-id",
+                model["id"],
+                "--run-dir",
+                str(tmp_path),
+                "--preflight-only",
+            ]
+        )
+        == 0
+    )
+    assert validated == [cell.experiment_id]
+
+
 def test_smoke_rejects_cap_that_differs_from_frozen_lane() -> None:
     with pytest.raises(ValueError, match="differs from frozen panel smoke cap"):
-        build_cells("smoke", cap=2048)
+        build_cells("smoke", cap=1024)
 
 
-def test_panel_is_locked_until_model_registry_is_frozen() -> None:
-    with pytest.raises(ValueError, match="locked until"):
-        build_cells("panel")
+def test_smoke_applies_each_models_registered_reasoning_policy() -> None:
+    disabled = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai")[0]
+    mandatory = build_cells("smoke", model_id="openrouter-gemini-3.5-flash-google-ai-studio")[0]
+
+    assert disabled.fixed_options["OPENROUTER_REASONING_ENABLED"] == "false"
+    assert "OPENROUTER_REASONING_EFFORT" in disabled.absent_options
+    assert mandatory.fixed_options["OPENROUTER_REASONING_ENABLED"] == "true"
+    assert mandatory.fixed_options["OPENROUTER_REASONING_EFFORT"] == "minimal"
+    assert mandatory.fixed_options["OPENROUTER_PROVIDER_ONLY"] == "google-ai-studio"
+
+
+def _minimal_registered_model(**overrides: object) -> dict:
+    model = {
+        "id": "test-model",
+        "provider": "openrouter",
+        "model": "test/model",
+        "upstream_provider": "Test",
+        "upstream_provider_slug": "test",
+        "endpoint_tag": "test",
+        "endpoint_name": "Test | test/model",
+        "reasoning_policy": "disabled",
+        "reasoning_effort": None,
+        "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
+    }
+    model.update(overrides)
+    return model
+
+
+def test_validate_models_rejects_disabled_policy_with_a_fixed_reasoning_effort() -> None:
+    model = _minimal_registered_model(
+        fixed_options={"OPENROUTER_REASONING_ENABLED": "false", "OPENROUTER_REASONING_EFFORT": "minimal"}
+    )
+    with pytest.raises(ValueError, match="invalid disabled reasoning policy"):
+        publication_runner._validate_models([model])
+
+
+def test_validate_models_rejects_mandatory_minimum_policy_with_no_effort_declared() -> None:
+    model = _minimal_registered_model(
+        reasoning_policy="mandatory-minimum",
+        reasoning_effort=None,
+        fixed_options={"OPENROUTER_REASONING_ENABLED": "true"},
+    )
+    with pytest.raises(ValueError, match="invalid mandatory reasoning policy"):
+        publication_runner._validate_models([model])
+
+
+def test_committed_panel_is_unlocked_after_registry_and_smoke_freeze() -> None:
+    assert len(build_cells("panel")) == 10
 
 
 def test_panel_stays_locked_when_frozen_registry_has_no_manifest(
@@ -210,9 +329,9 @@ def test_panel_stays_locked_for_invalid_smoke_entry(
     elif mutation == "truncated":
         manifest["entries"][model_id]["truncated_calls"] = 1
     elif mutation == "wrong-cap":
-        manifest["entries"][model_id]["output_token_cap"] = 2048
+        manifest["entries"][model_id]["output_token_cap"] = 1024
     elif mutation == "peak":
-        manifest["entries"][model_id]["max_output_tokens_per_call"] = 768
+        manifest["entries"][model_id]["max_output_tokens_per_call"] = 3072
     else:
         manifest["entries"][model_id]["scaffold_fingerprint"] = "wrong"
     manifest_path.write_text(json.dumps(manifest))
@@ -227,6 +346,22 @@ def test_panel_unlocks_with_complete_valid_smoke_manifest(
     registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
     manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
     assert len(build_cells("panel")) == 10
+
+
+@pytest.mark.parametrize("bad_reasoning_tokens", [True, -1])
+def test_panel_stays_locked_for_invalid_manifest_reasoning_tokens(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    bad_reasoning_tokens: object,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest = _valid_manifest(registry, lane)
+    model = next(m for m in registry["models"] if m["reasoning_policy"] == "mandatory-minimum")
+    manifest["entries"][model["id"]]["reasoning_tokens"] = bad_reasoning_tokens
+    manifest_path.write_text(json.dumps(manifest))
+
+    with pytest.raises(ValueError, match="missing reasoning-token telemetry"):
+        build_cells("panel")
 
 
 def test_record_smoke_writes_accepted_manifest_entry(
@@ -405,7 +540,7 @@ def test_record_smoke_requires_call_telemetry_for_protocol_repairs(
     ("field", "value", "message"),
     [
         ("truncated_calls", 1, "cap-induced truncation"),
-        ("max_output_tokens_per_call", 768, "cap-pressure threshold"),
+        ("max_output_tokens_per_call", 3072, "cap-pressure threshold"),
         ("scaffold_fingerprint", "wrong", "different prompt scaffold"),
         ("decision_failure_rate", 0.1, "decision_failure_rate must be zero"),
     ],
@@ -448,6 +583,38 @@ def test_record_smoke_refuses_invalid_artifact_without_writing_manifest(
     assert not manifest_path.exists()
 
 
+@pytest.mark.parametrize("bad_reasoning_tokens", [True, -1])
+def test_record_smoke_refuses_invalid_reasoning_token_telemetry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    bad_reasoning_tokens: object,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    model = next(m for m in registry["models"] if m["reasoning_policy"] == "mandatory-minimum")
+    artifact = _valid_smoke_artifact(registry, lane, model)
+    artifact["candidate"]["summary"]["usage"]["reasoning_tokens"] = bad_reasoning_tokens
+    artifact_path = tmp_path / "bad-reasoning-tokens.json"
+    artifact_path.write_text(json.dumps(artifact))
+
+    assert (
+        main(
+            [
+                "record-smoke",
+                "--model-id",
+                model["id"],
+                "--artifact",
+                str(artifact_path),
+                "--manifest",
+                str(manifest_path),
+            ]
+        )
+        == 1
+    )
+    assert "missing reasoning-token telemetry" in capsys.readouterr().err
+    assert not manifest_path.exists()
+
+
 def test_artifact_spend_uses_completed_result_telemetry(tmp_path: Path) -> None:
     raw = tmp_path / "raw"
     raw.mkdir()
@@ -464,7 +631,7 @@ def test_paid_openrouter_run_requires_explicit_spend_ceiling(
             [
                 "smoke",
                 "--model-id",
-                "openrouter-qwen3.5-9b-deepinfra",
+                "openrouter-qwen3.7-plus-alibaba",
                 "--run-dir",
                 str(tmp_path),
             ]
@@ -481,7 +648,7 @@ def test_paid_sweep_is_locked_after_policy_is_retired(tmp_path: Path, capsys: py
 
 
 def test_cell_reservation_blocks_launch_before_ceiling_overrun(tmp_path: Path) -> None:
-    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=1024)[0]
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=4096)[0]
     reservation = _cell_reservation_usd(cell)
     assert 0 < reservation < 1
     with pytest.raises(SystemExit, match="reservation would exceed"):
@@ -490,7 +657,7 @@ def test_cell_reservation_blocks_launch_before_ceiling_overrun(tmp_path: Path) -
 
 
 def test_retry_reservation_accounts_for_fresh_full_attempt(tmp_path: Path) -> None:
-    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=1024)[0]
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=4096)[0]
     reservation = _cell_reservation_usd(cell)
     path = tmp_path / "openrouter-reservations.json"
     path.write_text(
@@ -498,10 +665,10 @@ def test_retry_reservation_accounts_for_fresh_full_attempt(tmp_path: Path) -> No
             {
                 "schema_version": 1,
                 "cells": {
-                    f"{cell.experiment_id}--1024": {
+                    f"{cell.experiment_id}--4096": {
                         "experiment_id": cell.experiment_id,
                         "model": cell.model,
-                        "output_token_cap": 1024,
+                        "output_token_cap": 4096,
                         "reserved_usd": reservation,
                         "attempts": 1,
                     }
@@ -513,30 +680,236 @@ def test_retry_reservation_accounts_for_fresh_full_attempt(tmp_path: Path) -> No
         _reserve_cell(tmp_path, cell, measured_spend=0.9, ceiling=0.9 + reservation / 2)
 
     committed = _reserve_cell(tmp_path, cell, measured_spend=0.1, ceiling=reservation * 2 + 0.1)
-    stored = json.loads(path.read_text())["cells"][f"{cell.experiment_id}--1024"]
-    assert committed == pytest.approx(0.1 + reservation)
+    stored = json.loads(path.read_text())["cells"][f"{cell.experiment_id}--4096"]
+    assert committed == pytest.approx(reservation * 2 + 0.1)
     assert stored["reserved_usd"] == pytest.approx(reservation * 2)
+    assert stored["status"] == "active"
     assert stored["attempts"] == 2
 
 
+def test_successful_cell_settlement_releases_reservation_for_next_cell(tmp_path: Path) -> None:
+    first = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai")[0]
+    second = build_cells("smoke", model_id="openrouter-claude-sonnet-5-bedrock")[0]
+    first_reservation = _cell_reservation_usd(first)
+    second_reservation = _cell_reservation_usd(second)
+
+    _reserve_cell(tmp_path, first, measured_spend=0.0, ceiling=first_reservation + 0.01)
+    _settle_cell_reservation(tmp_path, first, measured_spend=0.02)
+    committed = _reserve_cell(
+        tmp_path,
+        second,
+        measured_spend=0.02,
+        ceiling=0.02 + second_reservation + 0.01,
+    )
+
+    cells = json.loads((tmp_path / "openrouter-reservations.json").read_text())["cells"]
+    assert cells[f"{first.experiment_id}--4096"]["reserved_usd"] == 0
+    assert cells[f"{first.experiment_id}--4096"]["status"] == "settled"
+    assert cells[f"{second.experiment_id}--4096"]["status"] == "active"
+    assert committed == pytest.approx(0.02 + second_reservation)
+
+
+def test_unsettled_failed_attempt_remains_part_of_next_reservation_guard(tmp_path: Path) -> None:
+    first = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai")[0]
+    second = build_cells("smoke", model_id="openrouter-claude-sonnet-5-bedrock")[0]
+    first_reservation = _cell_reservation_usd(first)
+    second_reservation = _cell_reservation_usd(second)
+    _reserve_cell(tmp_path, first, measured_spend=0.0, ceiling=first_reservation + 0.01)
+
+    with pytest.raises(SystemExit, match="reservation would exceed"):
+        _reserve_cell(
+            tmp_path,
+            second,
+            measured_spend=0.02,
+            ceiling=0.02 + second_reservation + first_reservation / 2,
+        )
+
+
 def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
-    cell = build_cells("smoke", model_id="openrouter-qwen3.5-9b-deepinfra", cap=1024)[0]
+    cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba", cap=4096)[0]
     valid = {
         "data": {
             "endpoints": [
                 {
-                    "provider_name": "DeepInfra",
+                    "provider_name": "Alibaba",
+                    "tag": "alibaba",
                     "name": cell.endpoint_name,
                     "status": 0,
-                    "max_completion_tokens": 4096,
+                    "max_completion_tokens": 65536,
                     "supported_parameters": ["max_tokens", "response_format", "reasoning"],
                 }
             ]
         }
     }
     assert _endpoint_issues(cell, valid) == []
-    valid["data"]["endpoints"][0]["name"] = "DeepInfra | replaced-snapshot"
+    valid["data"]["endpoints"][0]["tag"] = "alibaba/other-tier"
+    assert "no healthy OpenRouter endpoint" in _endpoint_issues(cell, valid)[0]
+    valid["data"]["endpoints"][0]["tag"] = "alibaba"
+    valid["data"]["endpoints"][0]["name"] = "Alibaba | replaced-snapshot"
     assert "no healthy OpenRouter endpoint" in _endpoint_issues(cell, valid)[0]
     valid["data"]["endpoints"][0]["name"] = cell.endpoint_name
     valid["data"]["endpoints"][0]["supported_parameters"] = ["max_tokens", "response_format"]
     assert "cannot honor required parameters" in _endpoint_issues(cell, valid)[0]
+
+
+def test_endpoint_preflight_allows_registered_prompt_only_json_route() -> None:
+    cell = build_cells("smoke", model_id="openrouter-tencent-hy3-free-novita", cap=4096)[0]
+    assert cell.fixed_options["OPENROUTER_JSON_MODE"] == "false"
+    payload = {
+        "data": {
+            "endpoints": [
+                {
+                    "provider_name": "Novita",
+                    "tag": "novita",
+                    "name": cell.endpoint_name,
+                    "status": 0,
+                    "max_completion_tokens": 262144,
+                    "supported_parameters": ["max_tokens", "reasoning", "structured_outputs"],
+                }
+            ]
+        }
+    }
+    assert _endpoint_issues(cell, payload) == []
+
+
+def test_publication_status_tracks_active_progress_spend_and_ceiling(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import fcntl
+
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    cell = build_cells("smoke", model_id=registry["models"][0]["id"])[0]
+    _write_run_state(tmp_path, "smoke", [cell], 1.0)
+    checkpoint_path = tmp_path / "checkpoints" / f"{cell.experiment_id}--{lane['output_token_cap']}.json"
+    checkpoint_path.parent.mkdir(parents=True)
+    checkpoint_path.write_text(
+        json.dumps(
+            {
+                "format": "gm-bench-model-checkpoint-v1",
+                "status": "running",
+                "seeds": [1],
+                "seasons": 1,
+                "repeats": 1,
+                "completed": [],
+                "episodes": [],
+            }
+        )
+    )
+    lock_path = checkpoint_path.with_suffix(".json.lock")
+    lock_path.write_text(f"pid={os.getpid()}\n")
+    lock_descriptor = os.open(lock_path, os.O_RDONLY)
+    fcntl.flock(lock_descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    reservations = tmp_path / "openrouter-reservations.json"
+    reservations.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "cells": {
+                    f"{cell.experiment_id}--{cell.cap_label}": {
+                        "experiment_id": cell.experiment_id,
+                        "reserved_usd": 0.01,
+                    }
+                },
+            }
+        )
+    )
+
+    try:
+        status = publication_run_status(tmp_path, manifest_path)
+        row = next(row for row in status["rows"] if row["model_id"] == cell.experiment_id)
+        assert status["phase"] == "smoke"
+        assert status["spend_ceiling_usd"] == 1.0
+        assert status["active_cells"] == 1
+        assert status["reserved_spend_usd"] == 0.01
+        assert row["state"] == "running"
+        assert row["reserved_usd"] == pytest.approx(0.01)
+        assert (row["completed_episodes"], row["total_episodes"]) == (0, 1)
+        assert (row["completed_decisions"], row["total_decisions"]) == (0, 4)
+    finally:
+        os.close(lock_descriptor)
+
+
+def test_publication_status_distinguishes_complete_and_accepted_smokes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    first, second = registry["models"][:2]
+    _write_run_state(tmp_path, "smoke", [build_cells("smoke")[0]], 1.0)
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir(parents=True)
+    for model, cost in ((first, 0.01), (second, 0.02)):
+        artifact = _valid_smoke_artifact(registry, lane, model)
+        artifact["candidate"]["summary"]["usage"]["cost_usd"] = cost
+        (raw_dir / f"{model['id']}--{lane['output_token_cap']}.json").write_text(json.dumps(artifact))
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
+
+    status = publication_run_status(tmp_path, manifest_path)
+    rows = {row["model_id"]: row for row in status["rows"]}
+    assert rows[first["id"]]["state"] == "accepted"
+    assert rows[first["id"]]["completed_decisions"] == 4
+    assert status["artifact_spend_usd"] == pytest.approx(0.03)
+    assert status["accepted_smokes"] == 10
+    assert "accepted smokes: 10/10" in render_publication_status(status)
+
+
+def test_publication_status_does_not_mark_accepted_without_this_runs_raw_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An accepted manifest entry must not stand in for this run/cap's own artifact."""
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    model = registry["models"][0]
+    _write_run_state(tmp_path, "smoke", [build_cells("smoke")[0]], 1.0)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
+
+    status = publication_run_status(tmp_path, manifest_path)
+    row = next(row for row in status["rows"] if row["model_id"] == model["id"])
+    assert row["state"] == "queued"
+    assert row["smoke_accepted"] is True
+
+
+def test_publication_status_does_not_promote_complete_state_on_stale_manifest_cap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A manifest entry accepted at a different cap must not upgrade this cell's state."""
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    model = registry["models"][0]
+    _write_run_state(tmp_path, "smoke", [build_cells("smoke")[0]], 1.0)
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir(parents=True)
+    artifact = _valid_smoke_artifact(registry, lane, model)
+    (raw_dir / f"{model['id']}--{lane['output_token_cap']}.json").write_text(json.dumps(artifact))
+
+    manifest = _valid_manifest(registry, lane)
+    manifest["entries"][model["id"]]["output_token_cap"] = lane["output_token_cap"] + 1
+    manifest_path.write_text(json.dumps(manifest))
+
+    status = publication_run_status(tmp_path, manifest_path)
+    row = next(row for row in status["rows"] if row["model_id"] == model["id"])
+    assert row["state"] == "complete"
+    assert row["smoke_accepted"] is True
+
+
+def test_panel_status_keeps_smoke_acceptance_separate_from_panel_progress(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry, _lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    cell = build_cells("smoke")[0]
+    _write_run_state(tmp_path, "panel", [cell], 60.0)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, _lane)))
+
+    status = publication_run_status(tmp_path, manifest_path)
+    assert status["accepted_smokes"] == 10
+    assert status["completed_cells"] == 0
+    assert {row["state"] for row in status["rows"]} == {"queued"}
+    assert {row["total_episodes"] for row in status["rows"]} == {24}
+    assert {row["total_decisions"] for row in status["rows"]} == {480}
+
+
+def test_status_command_prints_snapshot_without_creating_run_files(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["status", "--run-dir", str(tmp_path)]) == 0
+    output = capsys.readouterr().out
+    assert "GM-Bench publication run" in output
+    assert "openrouter-gpt-5.6-luna-openai" in output
+    assert list(tmp_path.iterdir()) == []
