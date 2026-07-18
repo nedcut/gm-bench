@@ -25,10 +25,10 @@
     "total_calls": 4840
   },
   "costs_usd": {
-    "panel": 140.8533504,
-    "smoke": 1.17377792,
-    "total_unrounded": 142.02712832,
-    "total_with_1_2x_contingency": 170.432553984
+    "panel": 129.589868544,
+    "smoke": 1.0799155712,
+    "total_unrounded": 130.6697841152,
+    "total_with_1_2x_contingency": 156.80374093824
   },
   "models": [
     {
@@ -82,14 +82,14 @@
       "smoke_cost_usd": 0.109632
     },
     {
-      "cost_per_decision_usd": 0.0292224,
-      "experiment_id": "openrouter-glm-5.2-zai",
+      "cost_per_decision_usd": 0.0057568128,
+      "experiment_id": "openrouter-glm-5.2-novita",
       "model": "z-ai/glm-5.2",
-      "observed_api_seconds_per_decision": 6.656,
+      "observed_api_seconds_per_decision": 8.045,
       "panel_calls": 480,
-      "panel_cost_usd": 14.026752,
+      "panel_cost_usd": 2.763270144,
       "smoke_calls": 4,
-      "smoke_cost_usd": 0.1168896
+      "smoke_cost_usd": 0.0230272512
     },
     {
       "cost_per_decision_usd": 0.0073152,
@@ -132,10 +132,10 @@
       "smoke_cost_usd": 0.0
     }
   ],
-  "pricing_checked_at_utc": "2026-07-17T19:37:57Z",
+  "pricing_checked_at_utc": "2026-07-18T19:50:59Z",
   "runtime": {
     "note": "Runtime observations are sourced from every currently registered model's accepted smoke; recheck before paid full-panel runs if pricing, routes, or prompts change.",
-    "observation_source": "accepted 4,096-token native-minimum-reasoning smokes, 2026-07-17 (data/publication-runs/smoke-frontier-4096-2026-07-17/); see docs/run_logs/sota-v2-smokes-2026-07-17.md",
+    "observation_source": "accepted 4,096-token native-minimum-reasoning smokes from 2026-07-17 plus the 2026-07-18 GLM 5.2 Novita route amendment; see docs/run_logs/sota-v2-smokes-2026-07-17.md and docs/run_logs/sota-v2-glm-novita-amendment-2026-07-18.md",
     "observed_api_seconds_per_decision_by_model": {
       "anthropic/claude-sonnet-5": 8.657,
       "google/gemini-3.5-flash": 1.497,
@@ -146,9 +146,9 @@
       "qwen/qwen3.7-plus": 3.586,
       "tencent/hy3:free": 4.087,
       "x-ai/grok-4.5": 7.683,
-      "z-ai/glm-5.2": 6.656
+      "z-ai/glm-5.2": 8.045
     },
-    "observed_at_utc": "2026-07-17T19:42:44Z",
+    "observed_at_utc": "2026-07-18T19:52:17Z",
     "status": "complete-from-accepted-smokes"
   },
   "schema_version": 2,

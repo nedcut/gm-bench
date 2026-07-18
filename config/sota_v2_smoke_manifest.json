@@ -54,19 +54,19 @@
       "upstream_provider": "Google AI Studio",
       "upstream_provider_slug": "google-ai-studio"
     },
-    "openrouter-glm-5.2-zai": {
+    "openrouter-glm-5.2-novita": {
       "accepted": true,
       "api_calls": 4,
-      "artifact_path": "data/publication-runs/smoke-frontier-4096-2026-07-17/raw/openrouter-glm-5.2-zai--4096.json",
-      "artifact_sha256": "37da29291723f868a10668cbbe9c667108693800227d56f058db38a1ec61cb18",
+      "artifact_path": "data/publication-runs/smoke-glm-novita-4096-2026-07-18/raw/openrouter-glm-5.2-novita--4096.json",
+      "artifact_sha256": "244ae595503e2288ac4051c5f8c10b9ebff46eb159924b14a668c43541e88c52",
       "calls_with_finish_reason": 4,
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_decisions": 4,
       "decision_failure_rate": 0.0,
       "decisions_with_usage": 4,
-      "endpoint_name": "Z.AI | z-ai/glm-5.2-20260616",
-      "endpoint_tag": "z-ai/fp8",
-      "max_output_tokens_per_call": 311,
+      "endpoint_name": "Novita | z-ai/glm-5.2-20260616",
+      "endpoint_tag": "novita/fp8",
+      "max_output_tokens_per_call": 325,
       "model": "z-ai/glm-5.2",
       "output_token_cap": 4096,
       "protocol_repair_attempts": 0,
@@ -75,11 +75,11 @@
       "reasoning_effort": null,
       "reasoning_policy": "disabled",
       "reasoning_tokens": 0,
-      "recorded_at_utc": "2026-07-17T19:43:25+00:00",
+      "recorded_at_utc": "2026-07-18T19:52:17+00:00",
       "scaffold_fingerprint": "d7321ad9d0a739b4",
       "truncated_calls": 0,
-      "upstream_provider": "Z.AI",
-      "upstream_provider_slug": "z-ai/fp8"
+      "upstream_provider": "Novita",
+      "upstream_provider_slug": "novita/fp8"
     },
     "openrouter-gpt-5.6-luna-openai": {
       "accepted": true,

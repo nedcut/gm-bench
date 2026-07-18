@@ -10,10 +10,12 @@
 **Last reviewed:** 2026-07-18
 **Current target:** Publish a validated `sota-v2` leaderboard, accompanying blog
 post, GitHub release, and public site.  
-**Current state:** The phase-one ten-model registry is frozen as of 2026-07-17,
+**Current state:** The phase-one ten-model registry is frozen as amended on 2026-07-18,
 uses exact OpenRouter endpoint tags, and completed its fresh 4,096-token
 native-minimum-reasoning smoke gate; all ten registered routes are accepted with
-zero failures, zero truncations, and no cap-pressure trigger. Earlier 1,024-token
+zero failures, zero truncations, and no cap-pressure trigger. GLM 5.2 moved from
+the unhealthy first-party Z.AI endpoint to an exact Novita FP8 route and passed
+a fresh replacement smoke. Earlier 1,024-token
 smokes are retained only as superseded operational evidence. The full panel run
 is the remaining blocker before any eligible model row exists.
 **Current weekly focus:** [#63 — Publication sprint: freeze and ship GM-Bench
@@ -264,7 +266,7 @@ The provisional restarted headline panel is:
 | Gemini 3.5 Flash | Google AI Studio | Google fast frontier anchor; mandatory `minimal` reasoning |
 | Grok 4.5 | xAI | xAI frontier anchor; mandatory `low` reasoning |
 | Muse Spark 1.1 | Meta | Meta frontier anchor; mandatory `minimal` reasoning |
-| GLM 5.2 | Z.AI FP8 | First-party open-weight anchor |
+| GLM 5.2 | Novita FP8 | Open-weight anchor; replacement for the unhealthy first-party Z.AI route |
 | MiniMax M3 | MiniMax FP8 | First-party open-weight anchor |
 | Qwen 3.7 Plus | Alibaba | Qwen frontier open-weight anchor |
 | Mistral Medium 3.5 | Mistral | European open-weight anchor |
@@ -559,8 +561,9 @@ decision and why.
 | 2026-07-17 | Switch Nemotron 3 Ultra from paid Together to the exact free Nvidia route before its first smoke. | OpenRouter's live catalog exposed `nvidia/nemotron-3-ultra-550b-a55b:free` at zero input/output cost on one healthy first-party Nvidia endpoint with no listed expiration. It supports optional reasoning but does not advertise `response_format`. | Pin the dated Nvidia free endpoint with fallbacks and reasoning disabled, use prompt-only JSON plus the clean-smoke gate, and regenerate the cost plan before continuing. |
 | 2026-07-17 | Park the listed-free Nemotron 3 Ultra route after bounded infrastructure failure. | The exact Nvidia endpoint passed live catalog and authentication preflight, then both permitted real chat-completion attempts returned `HTTP 404 Not Found`. Fail-fast stopped before a complete episode and OpenRouter reported no incremental spend. | Preserve the checkpoint as infrastructure evidence, do not retry or silently substitute the paid Together route, reduce the phase-one registry and Holm family to eleven, and continue the untouched models. |
 | 2026-07-17 | Park DeepSeek V4 Pro after the same bounded infrastructure failure. | The exact first-party DeepSeek route passed live catalog and authentication preflight, then both permitted real chat-completion attempts returned `HTTP 404 Not Found`. Fail-fast stopped before a complete episode and OpenRouter reported no incremental spend. | Preserve the checkpoint, do not retry or substitute a different route, reduce the phase-one registry and Holm family to ten, and continue Mistral and HY3. |
-| 2026-07-17 | Freeze the ten-model phase-one registry and 4,096-token lane after the accepted smoke gate. | All ten registered models completed four decisions with zero failed decisions and zero truncations. Peak per-call output was 1,432 tokens, below the 3,072 cap-pressure trigger. Artifact-reported spend was $0.728909 against a $2 ceiling. | Record all ten manifest entries, freeze the registry and native-reasoning cap, retain excluded-model diagnostics, regenerate the cost plan, and unlock panel dry-runs without starting paid panel cells. |
+| 2026-07-17 | Freeze the ten-model phase-one registry and 4,096-token lane after the accepted smoke gate. | All ten registered models completed four decisions with zero failed decisions and zero truncations. Peak per-call output was 1,432 tokens, below the 3,072 cap-pressure trigger. Accepted-route artifact spend was $0.427613; total campaign spend was $0.728909 including the excluded Kimi diagnostic. | Record all ten manifest entries, freeze the registry and native-reasoning cap, retain excluded-model diagnostics, regenerate the cost plan, and unlock panel dry-runs without starting paid panel cells. |
 | 2026-07-18 | Settle successful serial-cell reservations against measured spend. | The runner retained every historical worst-case reservation, so a healthy panel could stop against cumulative hypothetical spend even after completed artifacts and the OpenRouter account established a much lower real cost. | Mark successful-cell reservations settled after post-cell spend measurement, keep failed/interrupted reservations active, and evaluate each next cell against measured spend plus only unresolved liabilities. |
+| 2026-07-18 | Amend GLM 5.2 from the unhealthy first-party Z.AI FP8 endpoint to Novita FP8. | The frozen `z-ai/fp8` endpoint remained at OpenRouter status `-2` across repeated launch preflights, while the exact dated Novita FP8 endpoint was healthy and advertised the common lane parameters. No full-panel GLM result existed. | Pin `novita/fp8`, replace rather than reuse the Z.AI smoke entry, refresh route pricing/runtime evidence, and require a clean exact-route smoke before restoring panel unlock. The replacement smoke completed 4/4 decisions with zero failures or truncations for $0.009225. |
 
 ## Experiment and release log
 
