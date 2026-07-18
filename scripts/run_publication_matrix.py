@@ -403,9 +403,17 @@ def _cell_reservation_usd(cell: Cell) -> float:
     preset = PRESETS[cell.preset]
     decisions = len(preset["seeds"]) * int(preset["seasons"]) * len(PHASES) * cell.repeats
     input_tokens = int(assumptions["input_tokens_per_decision"])
+    repair_attempts = int(cell.fixed_options.get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", "0"))
+    contingency = float(assumptions["cost_contingency_multiplier"])
+    if input_tokens < 1 or repair_attempts < 0 or contingency < 1:
+        raise ValueError("publication reservation assumptions must be positive and conservative")
     prompt = decisions * input_tokens * float(rates["prompt"])
     completion = decisions * cell.cap * float(rates["completion"])
-    return round(prompt + completion, 6)
+    # Reserve every configured repair as another full-price call, then apply
+    # the committed planning contingency. The guard still acts at cell
+    # boundaries, so this deliberately overstates the likely liability before
+    # a cell is allowed to start.
+    return round((prompt + completion) * (1 + repair_attempts) * contingency, 6)
 
 
 def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
@@ -927,6 +935,12 @@ def _reserve_cell(run_dir: Path, cell: Cell, measured_spend: float, ceiling: flo
         stored["total_reserved_usd"] = float(stored.get("total_reserved_usd") or 0) + reservation
         stored["attempts"] = int(stored.get("attempts") or 1) + 1
         stored["status"] = "active"
+        stored["protocol_repair_attempts_reserved_per_decision"] = int(
+            cell.fixed_options.get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", "0")
+        )
+        stored["cost_contingency_multiplier"] = float(
+            _read_json(PRICING_CONFIG)["planning_assumptions"]["cost_contingency_multiplier"]
+        )
         stored.pop("settled_at_utc", None)
         stored.pop("measured_run_spend_usd", None)
         _write_json_atomic(path, payload)
@@ -948,6 +962,12 @@ def _reserve_cell(run_dir: Path, cell: Cell, measured_spend: float, ceiling: flo
         "total_reserved_usd": reservation,
         "attempts": 1,
         "status": "active",
+        "protocol_repair_attempts_reserved_per_decision": int(
+            cell.fixed_options.get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", "0")
+        ),
+        "cost_contingency_multiplier": float(
+            _read_json(PRICING_CONFIG)["planning_assumptions"]["cost_contingency_multiplier"]
+        ),
     }
     _write_json_atomic(path, payload)
     print(f"reserved ${reservation:.4f} for {stem}; cumulative conservative commitment ${committed + reservation:.4f}")
