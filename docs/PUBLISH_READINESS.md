@@ -7,17 +7,18 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-07-18
+**Last reviewed:** 2026-07-19
 **Current target:** Publish a validated `sota-v2` leaderboard, accompanying blog
 post, GitHub release, and public site.  
-**Current state:** The phase-one ten-model registry is frozen as amended on 2026-07-18,
-uses exact OpenRouter endpoint tags, and completed its fresh 4,096-token
-native-minimum-reasoning smoke gate; all ten registered routes are accepted with
-zero failures, zero truncations, and no cap-pressure trigger. GLM 5.2 moved from
-the unhealthy first-party Z.AI endpoint to an exact Novita FP8 route and passed
-a fresh replacement smoke. Earlier 1,024-token
-smokes are retained only as superseded operational evidence. The full panel run
-is the remaining blocker before any eligible model row exists.
+**Current state:** The frozen phase-one public panel is complete. Eight of ten
+registered models produced route-matched, cost-complete `sota-v2` rows at the
+shared 4,096-token native-minimum-reasoning cap, clearing the predeclared
+minimum. Grok 4.5 and Mistral Medium 3.5 completed but remain diagnostic because
+their artifacts lacked complete usage or cost coverage. The generated site now
+exposes the eight eligible rows. All models overlap in one uncertainty tier,
+and every eligible model trails `pick-trader`; the remaining release work is
+claim review, raw public-trace packaging, presentation polish, and independent
+reproduction rather than more phase-one model runs.
 **Current weekly focus:** [#63 — Publication sprint: freeze and ship GM-Bench
 `sota-v2`](https://github.com/nedcut/gm-bench/issues/63)  
 **Broader roadmap:** [#60 — Roadmap to a publishable leaderboard + blog
@@ -28,11 +29,12 @@ post](https://github.com/nedcut/gm-bench/issues/60)
 GM-Bench is viable as a focused benchmark for comparing models and agent
 scaffolds on synthetic, long-horizon resource allocation in a frozen sports
 management environment. It is already strong enough to be a flagship AI/ML
-portfolio project. It is not yet ready for a headline model-ranking claim
-because the current `sota-v2` leaderboard has no eligible model rows. The
-compute policy is frozen at a 4,096-token native-minimum-reasoning ceiling, and
-every registered route has passed the common smoke gate; the remaining blocker
-is running the paid full panel itself.
+portfolio project. The public `sota-v2` evidence gate is now satisfied with
+eight eligible rows under the frozen 4,096-token native-minimum-reasoning lane.
+The evidence does not support an ordinal model ranking: all eight rows occupy
+one overlapping uncertainty tier, and none beats the transparent `pick-trader`
+baseline. A public release still needs raw trace assets, claim review,
+presentation polish, and independent reproduction.
 
 The strongest story is not merely that GM-Bench runs LLMs through a simulator.
 It is that the project:
@@ -75,11 +77,11 @@ The project is publish-ready only when all four gates pass.
 | Reproducibility | Strong | Contract fingerprints, seed provenance, compact artifacts, and validators are in place. |
 | Benchmark validity | Strong but scoped | Scripted references, exploit canaries, oracle headroom, calibration, and mechanic coverage exist. |
 | Compute comparability | Frozen for phase one | The API lane has a common 4,096-token total-output ceiling, native-minimum reasoning, exact provider slugs and endpoint tags, a pre-full-panel 75% cap-pressure rule, and actual reasoning/token-efficiency reporting. All ten phase-one routes passed and were accepted; Kimi K3 and the unavailable Nemotron and DeepSeek routes are retained as exclusion evidence. |
-| Current model evidence | Blocked | The active `sota-v2` leaderboard has no eligible model rows. |
-| Statistical evidence | Partially ready | Paired analysis and power tooling exist; final model results do not. |
+| Current model evidence | Public panel complete | Eight registered, route-matched, cost-complete `sota-v2` rows clear the publication floor; Grok and Mistral are retained as diagnostics. |
+| Statistical evidence | Ready but low-resolution | Seed-paired intervals, exact sign-flip tests, full-family Holm adjustment, and overlap tiers are generated. All eight rows share one tier and trail `pick-trader`. |
 | External validation | Missing | No independent reproduction or third-party result has been recorded. |
 | GitHub presentation | Needs polish | Repository metadata, release packaging, README framing, and final site still need work. |
-| Blog | Scaffolded | The honest narrative exists, but results must be generated from validated data. |
+| Blog | Scaffolded | The validated results now exist; the narrative still needs its final evidence-backed update. |
 
 ## Critical path
 
@@ -284,44 +286,46 @@ must be reported beside score.
 - [x] Keep the headline lane API-only, fresh-spawn, `compact`, and under the
   frozen output policy.
 - [x] Keep coding-agent CLI harnesses in a separate diagnostic table.
-- [ ] Never parallelize Claude or another subscription/rate-limited CLI.
+- [x] Never parallelize Claude or another subscription/rate-limited CLI; the
+  phase-one API cells ran serially with one worker.
 - [x] Verify all 10 provisional phase-one provider/model routes can accept the common
   privacy, parameter, JSON, registered reasoning, and bounded-output policy.
-- [ ] Run a benchmark-level smoke for every provider/model combination at the
+- [x] Run a benchmark-level smoke for every provider/model combination at the
   shared frozen cap immediately before the full panel.
-- [ ] Use serial execution, fail-fast behavior, atomic checkpoints, and validated
+- [x] Use serial execution, fail-fast behavior, atomic checkpoints, and validated
   resume rather than restarting completed episodes.
-- [ ] Run all eight official seeds, five seasons, and three candidate repeats.
-- [ ] Use the full official baseline panel.
-- [ ] Require complete input/output token, latency, failure, repair, route, and
-  cost telemetry for every API decision.
-- [ ] Reject or quarantine any row that does not pass strict `sota-v2` validation.
+- [x] Run all eight official seeds, five seasons, and three candidate repeats.
+- [x] Use the full official baseline panel.
+- [x] Require complete input/output token, latency, failure, repair, route, and
+  cost telemetry for every headline API decision; quarantine rows that fail.
+- [x] Reject or quarantine any row that does not pass strict `sota-v2` validation.
 - [ ] Put interesting but ineligible rows in `results/diagnostics/`, never in the
-  headline table.
-- [ ] Compact only after strict validation and preserve the raw-artifact hash.
-- [ ] Keep committed result artifacts under the CI size limit.
+  headline table. Mistral's compact diagnostic is committed; Grok's
+  non-compactable raw diagnostic still needs release-asset packaging.
+- [x] Compact only after strict validation and preserve the raw-artifact hash.
+- [x] Keep committed result artifacts under the CI size limit.
 - [ ] Publish raw public-panel traces as release assets so results are auditable.
-- [ ] Preserve provider errors and incomplete attempts as diagnostic evidence.
-- [ ] Regenerate the leaderboard from source artifacts; do not hand-copy scores.
+- [x] Preserve provider errors and incomplete attempts as diagnostic evidence.
+- [x] Regenerate the leaderboard from source artifacts; do not hand-copy scores.
 - [x] Require at least eight eligible, registered, route-matched, cost-complete
   headline rows before the generated JSON can expose a ranking.
 
 For every headline model, report at least:
 
-- [ ] mean score and score standard deviation;
-- [ ] an uncertainty interval for the mean or paired lift, with its method;
-- [ ] lift versus the full baseline-panel mean;
-- [ ] lift versus `pick-trader`;
-- [ ] per-seed win rate and paired sign-flip p-value;
-- [ ] input tokens per decision and output tokens per decision;
-- [ ] total cost and cost per episode;
-- [ ] illegal actions, failed queries, adapter failures, and repair attempts;
-- [ ] execution lane, provider route, model snapshot, and scaffold fingerprint;
-- [ ] result contract and seed-panel identity; and
-- [ ] per-mechanic outcomes for drafting, trades, free agency, cap management,
+- [x] mean score and score standard deviation;
+- [x] an uncertainty interval for the mean or paired lift, with its method;
+- [x] lift versus the full baseline-panel mean;
+- [x] lift versus `pick-trader`;
+- [x] per-seed win rate and paired sign-flip p-value;
+- [x] input tokens per decision and output tokens per decision;
+- [x] total cost and cost per episode;
+- [x] illegal actions, failed queries, adapter failures, and repair attempts;
+- [x] execution lane, provider route, model snapshot, and scaffold fingerprint;
+- [x] result contract and seed-panel identity; and
+- [x] per-mechanic outcomes for drafting, trades, free agency, cap management,
   scouting, and lineup decisions where supported.
 
-- [ ] State how multiple model comparisons are handled. If adjusted inferential
+- [x] State how multiple model comparisons are handled. If adjusted inferential
   claims are not justified at this sample size, label per-model p-values as
   descriptive and emphasize effect sizes and uncertainty instead.
 
@@ -405,8 +409,8 @@ Claims to avoid:
 
 ### Phase 5 — blog, site, and durable artifacts
 
-- [ ] Generate all tables and headline numbers from validated artifacts.
-- [ ] Keep a visible “last updated” date and contract version on the site.
+- [x] Generate all tables and headline numbers from validated artifacts.
+- [x] Keep a visible “last updated” date and contract version on the site.
 - [ ] Lead the blog with the research question and the measurement problem, not
   with implementation history.
 - [ ] Explain the simulator and decision loop with one compact diagram.
