@@ -299,6 +299,9 @@ def _registered_lane_issues(
             issues.append(f"provider option {key} must be absent")
 
     usage = ((payload.get("candidate") or {}).get("summary") or {}).get("usage") or {}
+    decisions = ((payload.get("candidate") or {}).get("summary") or {}).get("decisions")
+    if not isinstance(decisions, int) or usage.get("cost_decisions") != decisions:
+        issues.append("candidate cost telemetry must cover every decision point")
     observed_upstreams = sorted({str(value) for value in usage.get("upstream_providers") or [] if value})
     expected_upstream = str(spec.get("upstream_provider") or "")
     if [value.casefold() for value in observed_upstreams] != [expected_upstream.casefold()]:

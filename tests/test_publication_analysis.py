@@ -176,7 +176,10 @@ def _registered_payload() -> dict:
             },
         }
     )
-    payload["candidate"]["summary"] = {"usage": {"upstream_providers": ["DemoProvider"]}}
+    payload["candidate"]["summary"] = {
+        "decisions": 6,
+        "usage": {"cost_decisions": 6, "upstream_providers": ["DemoProvider"]},
+    }
     return payload
 
 
@@ -194,6 +197,21 @@ def test_analysis_rejects_artifact_from_unregistered_route(monkeypatch: pytest.M
     assert result["status"] == "no-eligible-artifacts"
     assert result["eligible_model_count"] == 0
     assert any("OPENROUTER_PROVIDER_ONLY" in reason for reason in result["rejected_artifacts"][0]["reasons"])
+
+
+def test_analysis_rejects_incomplete_cost_telemetry(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    payload = _registered_payload()
+    payload["candidate"]["summary"]["usage"]["cost_decisions"] = 5
+
+    result = analyze(_frozen_registry(), [payload])
+
+    assert result["eligible_model_count"] == 0
+    assert "candidate cost telemetry must cover every decision point" in result["rejected_artifacts"][0]["reasons"]
 
 
 def test_analysis_binds_eligible_row_to_raw_artifact_hash(monkeypatch: pytest.MonkeyPatch) -> None:
