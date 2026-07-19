@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -15,6 +16,9 @@ from scripts.run_publication_matrix import (
     _artifact_spend_usd,
     _cell_reservation_usd,
     _endpoint_issues,
+    _panel_artifact_issues,
+    _record_failed_cell_reservation,
+    _record_ineligible_cell_reservation,
     _reserve_cell,
     _settle_cell_reservation,
     _write_run_state,
@@ -699,6 +703,67 @@ def test_retry_reservation_accounts_for_fresh_full_attempt(tmp_path: Path) -> No
     assert stored["attempts"] == 2
 
 
+def test_retry_reservation_enforces_frozen_attempt_limit(tmp_path: Path) -> None:
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=4096)[0]
+    reservation = _cell_reservation_usd(cell)
+    path = tmp_path / "openrouter-reservations.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "cells": {
+                    f"{cell.experiment_id}--4096": {
+                        "experiment_id": cell.experiment_id,
+                        "model": cell.model,
+                        "output_token_cap": 4096,
+                        "reserved_usd": reservation * 2,
+                        "attempts": 2,
+                        "status": "active",
+                    }
+                },
+            }
+        )
+    )
+
+    with pytest.raises(SystemExit, match="attempt limit reached"):
+        _reserve_cell(tmp_path, cell, measured_spend=0.1, ceiling=100.0)
+    assert json.loads(path.read_text())["cells"][f"{cell.experiment_id}--4096"]["attempts"] == 2
+
+
+def test_second_failed_attempt_becomes_terminal_exclusion_and_releases_reservation(tmp_path: Path) -> None:
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=4096)[0]
+
+    _reserve_cell(tmp_path, cell, measured_spend=0.0, ceiling=100.0)
+    _record_failed_cell_reservation(tmp_path, cell, measured_spend=0.01, error="network failure one")
+    _reserve_cell(tmp_path, cell, measured_spend=0.01, ceiling=100.0)
+    _record_failed_cell_reservation(tmp_path, cell, measured_spend=0.02, error="network failure two")
+
+    stored = json.loads((tmp_path / "openrouter-reservations.json").read_text())["cells"][f"{cell.experiment_id}--4096"]
+    assert stored["attempts"] == 2
+    assert stored["status"] == "excluded"
+    assert stored["reserved_usd"] == 0
+    assert [attempt["status"] for attempt in stored["attempt_history"]] == ["failed", "failed"]
+    assert stored["last_failure"] == "network failure two"
+
+
+def test_completed_ineligible_cell_releases_reservation_without_becoming_retryable(tmp_path: Path) -> None:
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=4096)[0]
+    _reserve_cell(tmp_path, cell, measured_spend=0.0, ceiling=100.0)
+
+    _record_ineligible_cell_reservation(
+        tmp_path,
+        cell,
+        measured_spend=0.02,
+        error="candidate usage must cover every decision point",
+    )
+
+    stored = json.loads((tmp_path / "openrouter-reservations.json").read_text())["cells"][f"{cell.experiment_id}--4096"]
+    assert stored["status"] == "ineligible"
+    assert stored["reserved_usd"] == 0
+    assert stored["attempt_history"][-1]["status"] == "ineligible"
+    assert stored["ineligibility_reason"] == "candidate usage must cover every decision point"
+
+
 def test_successful_cell_settlement_releases_reservation_for_next_cell(tmp_path: Path) -> None:
     first = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai")[0]
     second = build_cells("smoke", model_id="openrouter-claude-sonnet-5-bedrock")[0]
@@ -735,6 +800,150 @@ def test_unsettled_failed_attempt_remains_part_of_next_reservation_guard(tmp_pat
             measured_spend=0.02,
             ceiling=0.02 + second_reservation + first_reservation / 2,
         )
+
+
+def test_panel_artifact_gate_requires_complete_cost_and_registered_route_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cell = build_cells("panel", model_id="openrouter-grok-4.5-xai")[0]
+    artifact = {
+        "run_info": {
+            "provider": cell.provider,
+            "model": cell.model,
+            "profile": cell.profile,
+            "preset": cell.preset,
+            "provider_options": {
+                **cell.fixed_options,
+                "GM_BENCH_OUTPUT_BUDGET_CELL": cell.cap_label,
+            },
+        },
+        "candidate": {
+            "summary": {
+                "decisions": 480,
+                "usage": {
+                    "decisions_with_usage": 480,
+                    "cost_decisions": 480,
+                    "upstream_providers": [cell.upstream_provider],
+                },
+            }
+        },
+    }
+    monkeypatch.setattr(
+        publication_runner,
+        "validate_leaderboard_payload",
+        lambda *args, **kwargs: SimpleNamespace(errors=[]),
+    )
+
+    assert _panel_artifact_issues(cell, artifact) == []
+    artifact["candidate"]["summary"]["usage"]["cost_decisions"] = 474
+    assert "candidate cost telemetry must cover every decision point" in _panel_artifact_issues(cell, artifact)
+    artifact["candidate"]["summary"]["usage"]["cost_decisions"] = 480
+    artifact["candidate"]["summary"]["usage"]["upstream_providers"] = ["Other"]
+    assert "observed upstream provider does not match the registered route" in _panel_artifact_issues(cell, artifact)
+
+
+def test_existing_ineligible_panel_artifact_is_not_reused_or_overwritten(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cell = build_cells("panel", model_id="openrouter-grok-4.5-xai")[0]
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    artifact_path = raw_dir / f"{cell.experiment_id}--{cell.cap_label}.json"
+    artifact_path.write_text(json.dumps({"candidate": {"summary": {"decisions": 480, "usage": {}}}}))
+    monkeypatch.setattr(
+        publication_runner,
+        "_panel_artifact_issues",
+        lambda *args, **kwargs: ["candidate usage must cover every decision point"],
+    )
+
+    existing, issues = publication_runner._existing_panel_artifact(cell, tmp_path)
+    assert existing == artifact_path
+    assert issues == ["candidate usage must cover every decision point"]
+
+
+def test_panel_run_records_existing_ineligible_artifact_without_provider_call(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
+    cell = build_cells("panel", model_id=registry["models"][0]["id"])[0]
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    (raw_dir / f"{cell.experiment_id}--{cell.cap_label}.json").write_text(json.dumps({}))
+    monkeypatch.setattr(
+        publication_runner,
+        "_panel_artifact_issues",
+        lambda *args, **kwargs: ["candidate usage must cover every decision point"],
+    )
+    monkeypatch.setattr(
+        publication_runner.subprocess,
+        "run",
+        lambda *args, **kwargs: pytest.fail("an existing ineligible artifact must not be rerun"),
+    )
+
+    with pytest.raises(SystemExit, match="existing panel artifact failed the publication gate"):
+        main(
+            [
+                "panel",
+                "--model-id",
+                cell.experiment_id,
+                "--run-dir",
+                str(tmp_path),
+                "--max-spend-usd",
+                "95",
+            ]
+        )
+
+    run_state = json.loads((tmp_path / "run-state.json").read_text())
+    assert run_state["cell_outcomes"][cell.experiment_id]["status"] == "ineligible"
+
+
+def test_panel_run_rejects_ineligible_artifact_before_settlement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
+    model = registry["models"][0]
+    cell = build_cells("panel", model_id=model["id"])[0]
+    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", lambda _cell: None)
+    monkeypatch.setattr(publication_runner, "_openrouter_usage_usd", lambda _env: 0.0)
+    monkeypatch.setattr(
+        publication_runner,
+        "_panel_artifact_issues",
+        lambda *args, **kwargs: ["candidate usage must cover every decision point"],
+    )
+
+    def complete_child(*args: object, **kwargs: object) -> subprocess.CompletedProcess:
+        raw_dir = tmp_path / "raw"
+        raw_dir.mkdir(exist_ok=True)
+        (raw_dir / f"{cell.experiment_id}--{cell.cap_label}.json").write_text(json.dumps({}))
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr(publication_runner.subprocess, "run", complete_child)
+
+    with pytest.raises(SystemExit, match="failed the publication gate"):
+        main(
+            [
+                "panel",
+                "--model-id",
+                cell.experiment_id,
+                "--run-dir",
+                str(tmp_path),
+                "--max-spend-usd",
+                "95",
+            ]
+        )
+
+    reservation = json.loads((tmp_path / "openrouter-reservations.json").read_text())["cells"][
+        f"{cell.experiment_id}--{cell.cap_label}"
+    ]
+    assert reservation["status"] == "ineligible"
+    assert reservation["reserved_usd"] == 0
+    run_state = json.loads((tmp_path / "run-state.json").read_text())
+    assert run_state["cell_outcomes"][cell.experiment_id]["status"] == "ineligible"
 
 
 def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
@@ -915,6 +1124,30 @@ def test_panel_status_keeps_smoke_acceptance_separate_from_panel_progress(
     assert {row["state"] for row in status["rows"]} == {"queued"}
     assert {row["total_episodes"] for row in status["rows"]} == {24}
     assert {row["total_decisions"] for row in status["rows"]} == {480}
+
+
+def test_panel_status_surfaces_recorded_ineligible_outcome(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
+    cell = build_cells("panel", model_id=registry["models"][0]["id"])[0]
+    _write_run_state(tmp_path, "panel", [cell], 95.0)
+    run_state_path = tmp_path / "run-state.json"
+    run_state = json.loads(run_state_path.read_text())
+    run_state["cell_outcomes"][cell.experiment_id] = {
+        "status": "ineligible",
+        "error": "candidate usage must cover every decision point",
+    }
+    run_state_path.write_text(json.dumps(run_state))
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir(parents=True)
+    (raw_dir / f"{cell.experiment_id}--{lane['output_token_cap']}.json").write_text(
+        json.dumps(_valid_smoke_artifact(registry, lane, registry["models"][0]))
+    )
+
+    status = publication_run_status(tmp_path, manifest_path)
+    row = next(row for row in status["rows"] if row["model_id"] == cell.experiment_id)
+    assert row["state"] == "ineligible"
+    assert row["error"] == "candidate usage must cover every decision point"
 
 
 def test_status_command_prints_snapshot_without_creating_run_files(
