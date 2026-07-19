@@ -1332,7 +1332,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise SystemExit(
                     f"publication cell failed: {cell.experiment_id} cap={cell.cap_label} exit={exc.returncode}"
                 ) from exc
-            if args.phase == "panel":
+            if args.phase == "panel" and not args.preflight_only:
                 artifact_path = run_dir / "raw" / f"{cell.experiment_id}--{cell.cap_label}.json"
                 try:
                     artifact = _read_json(artifact_path)

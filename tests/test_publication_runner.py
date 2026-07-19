@@ -946,6 +946,36 @@ def test_panel_run_rejects_ineligible_artifact_before_settlement(
     assert run_state["cell_outcomes"][cell.experiment_id]["status"] == "ineligible"
 
 
+def test_panel_preflight_does_not_require_a_completed_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
+    cell = build_cells("panel", model_id=registry["models"][0]["id"])[0]
+    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", lambda _cell: None)
+    monkeypatch.setattr(
+        publication_runner.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args=args, returncode=0),
+    )
+
+    assert (
+        main(
+            [
+                "panel",
+                "--model-id",
+                cell.experiment_id,
+                "--run-dir",
+                str(tmp_path),
+                "--preflight-only",
+            ]
+        )
+        == 0
+    )
+    assert not (tmp_path / "run-state.json").exists()
+
+
 def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
     cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba", cap=4096)[0]
     valid = {
