@@ -2,6 +2,30 @@
 
 This snapshot records the benchmark results generated during the MVP build.
 
+> **Phase-one public panel (2026-07-19, `sota-v2`):** Eight of ten
+> pre-registered OpenRouter cells passed the frozen 4,096-token lane, exact-route,
+> and complete-telemetry gates. Scores are shown with compute because output use
+> is part of the comparison context.
+>
+> | Model | Mean | Stddev | Lift vs `pick-trader` | Tokens / decision | Cost | Illegal |
+> | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+> | Muse Spark 1.1 | 231.851 | 39.764 | -179.768 | 10,084.2 | $7.5863 | 51 |
+> | GLM 5.2 | 217.539 | 37.736 | -194.080 | 10,764.4 | $1.2812 | 168 |
+> | Gemini 3.5 Flash | 215.624 | 33.263 | -195.995 | 8,770.7 | $6.3205 | 18 |
+> | Tencent HY3 | 195.841 | 17.328 | -215.778 | 7,743.3 | $0.0000 | 10 |
+> | Qwen 3.7 Plus | 175.520 | 26.355 | -236.099 | 8,039.6 | $1.2938 | 136 |
+> | GPT-5.6 Luna | 173.926 | 24.839 | -237.693 | 7,611.2 | $4.6802 | 126 |
+> | Claude Sonnet 5 | 142.143 | 25.552 | -269.475 | 9,944.4 | $11.0544 | 44 |
+> | MiniMax M3 | 129.880 | 27.051 | -281.739 | 8,728.2 | $1.2371 | 14 |
+>
+> These rows are one overlapping uncertainty tier, not an ordinal model ranking.
+> Each raw sign-flip result is descriptive; after Holm adjustment across the full
+> ten-model registered family, every adjusted p-value is 0.078125. All eight
+> eligible models trail `pick-trader` (411.619). Grok 4.5 and Mistral Medium 3.5
+> completed but were excluded from the headline table for incomplete usage/cost
+> coverage; their evidence remains diagnostic. The machine-generated analysis is
+> in `results/analysis/publication-panel-analysis.json`.
+
 > **Note (2026-07-08/09, protocol v2 / contract `cf2607e59dba`):** Midseason,
 > multi-round interaction, functional injuries, and the full v1 baseline panel
 > (`strategic`, `pick-trader`) are now on `main`. SOTA-v1 claims must use this
@@ -263,4 +287,3 @@ paid/external providers while creating the repository.
 | Claude Code | `CLAUDE_MODEL=opus CLAUDE_EFFORT=high` | 1 | 1 | 94.428 | 16 | 0 | 13 | Real model run using Claude CLI `opus` alias. |
 | Claude Code | `CLAUDE_MODEL=claude-opus-4.8 CLAUDE_EFFORT=high` | 1 | 1 | 110.534 | 14 | 0 | 0 | Did not reach model; Claude reported Opus 4 retired on 2026-06-15. |
 | Ollama | `OLLAMA_MODEL=gemma4:e4b` | 1 | 1 | 105.534 | 14 | 0 | 2 | Local model run, slow but model-driven. |
-

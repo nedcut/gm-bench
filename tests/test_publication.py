@@ -22,7 +22,16 @@ def _payload() -> dict:
         "season_summaries": [{"season": 1}],
         "usage": {"total_tokens": 100, "per_decision": [{"input_tokens": 4}]},
     }
-    return {"candidate": {"episodes": [episode]}, "baselines": [{"episodes": [episode]}]}
+    return {
+        "baseline_cache": {
+            "enabled": True,
+            "hits": 1,
+            "path": "/Users/example/project/data/baseline_cache.json",
+            "total": 1,
+        },
+        "candidate": {"episodes": [episode]},
+        "baselines": [{"episodes": [episode]}],
+    }
 
 
 def test_compact_result_removes_traces_and_hashes_raw_payload() -> None:
@@ -46,6 +55,7 @@ def test_compact_result_removes_traces_and_hashes_raw_payload() -> None:
     assert "transactions" not in episode
     assert "season_summaries" not in episode
     assert episode["usage"] == {"total_tokens": 100}
+    assert compact["baseline_cache"] == {"enabled": True, "hits": 1, "total": 1}
 
 
 def test_compact_result_rejects_already_compacted_artifact() -> None:

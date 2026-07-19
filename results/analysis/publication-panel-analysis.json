@@ -1,0 +1,574 @@
+{
+  "bootstrap": {
+    "iterations": 10000,
+    "label": "descriptive percentile 95% CI",
+    "seed": 20260716
+  },
+  "config_errors": [],
+  "eligible_model_count": 8,
+  "holm_family_size": 10,
+  "missing_models": [
+    "openrouter-grok-4.5-xai",
+    "openrouter-mistral-medium-3.5-mistral"
+  ],
+  "models": [
+    {
+      "artifact_sha256": "7b664cbd57aab8975905a08ff057cf528211fd67efc52aac0ffde5b6d829e030",
+      "bootstrap_ci95": [
+        -209.560916,
+        -147.19875
+      ],
+      "holm_adjusted_p_value": 0.078125,
+      "holm_reject_at_0_05": false,
+      "mean_lift": -179.768,
+      "model": "meta/muse-spark-1.1",
+      "model_id": "openrouter-muse-spark-1.1-meta",
+      "per_seed": [
+        {
+          "candidate_mean_over_repeats": 248.494,
+          "lift": -207.231,
+          "pick_trader_score": 455.725,
+          "seed": 11
+        },
+        {
+          "candidate_mean_over_repeats": 305.737333,
+          "lift": -128.458667,
+          "pick_trader_score": 434.196,
+          "seed": 12
+        },
+        {
+          "candidate_mean_over_repeats": 274.606667,
+          "lift": -186.477333,
+          "pick_trader_score": 461.084,
+          "seed": 13
+        },
+        {
+          "candidate_mean_over_repeats": 222.253667,
+          "lift": -236.772333,
+          "pick_trader_score": 459.026,
+          "seed": 14
+        },
+        {
+          "candidate_mean_over_repeats": 188.619667,
+          "lift": -175.967333,
+          "pick_trader_score": 364.587,
+          "seed": 15
+        },
+        {
+          "candidate_mean_over_repeats": 181.748667,
+          "lift": -232.558333,
+          "pick_trader_score": 414.307,
+          "seed": 16
+        },
+        {
+          "candidate_mean_over_repeats": 207.929667,
+          "lift": -99.133333,
+          "pick_trader_score": 307.063,
+          "seed": 17
+        },
+        {
+          "candidate_mean_over_repeats": 225.417333,
+          "lift": -171.545667,
+          "pick_trader_score": 396.963,
+          "seed": 18
+        }
+      ],
+      "provider": "openrouter",
+      "raw_artifact_sha256": "7b664cbd57aab8975905a08ff057cf528211fd67efc52aac0ffde5b6d829e030",
+      "seed_win_rate": 0.0,
+      "sign_flip_p_value": 0.0078125,
+      "tier": 1
+    },
+    {
+      "artifact_sha256": "36d1ed42d44f97041253f162d8173d82d58b1ba12c58131ffd510bd180df0727",
+      "bootstrap_ci95": [
+        -239.071375,
+        -144.18575
+      ],
+      "holm_adjusted_p_value": 0.078125,
+      "holm_reject_at_0_05": false,
+      "mean_lift": -194.079625,
+      "model": "z-ai/glm-5.2",
+      "model_id": "openrouter-glm-5.2-novita",
+      "per_seed": [
+        {
+          "candidate_mean_over_repeats": 198.909,
+          "lift": -256.816,
+          "pick_trader_score": 455.725,
+          "seed": 11
+        },
+        {
+          "candidate_mean_over_repeats": 210.673,
+          "lift": -223.523,
+          "pick_trader_score": 434.196,
+          "seed": 12
+        },
+        {
+          "candidate_mean_over_repeats": 216.247,
+          "lift": -244.837,
+          "pick_trader_score": 461.084,
+          "seed": 13
+        },
+        {
+          "candidate_mean_over_repeats": 235.725,
+          "lift": -223.301,
+          "pick_trader_score": 459.026,
+          "seed": 14
+        },
+        {
+          "candidate_mean_over_repeats": 200.563333,
+          "lift": -164.023667,
+          "pick_trader_score": 364.587,
+          "seed": 15
+        },
+        {
+          "candidate_mean_over_repeats": 147.347333,
+          "lift": -266.959667,
+          "pick_trader_score": 414.307,
+          "seed": 16
+        },
+        {
+          "candidate_mean_over_repeats": 244.639667,
+          "lift": -62.423333,
+          "pick_trader_score": 307.063,
+          "seed": 17
+        },
+        {
+          "candidate_mean_over_repeats": 286.209667,
+          "lift": -110.753333,
+          "pick_trader_score": 396.963,
+          "seed": 18
+        }
+      ],
+      "provider": "openrouter",
+      "raw_artifact_sha256": "36d1ed42d44f97041253f162d8173d82d58b1ba12c58131ffd510bd180df0727",
+      "seed_win_rate": 0.0,
+      "sign_flip_p_value": 0.0078125,
+      "tier": 1
+    },
+    {
+      "artifact_sha256": "2fd28b3ab507e76dc512ead32564b0328635b5b66f0a330d71a470f3b1b8a786",
+      "bootstrap_ci95": [
+        -241.056333,
+        -143.75275
+      ],
+      "holm_adjusted_p_value": 0.078125,
+      "holm_reject_at_0_05": false,
+      "mean_lift": -195.994875,
+      "model": "google/gemini-3.5-flash",
+      "model_id": "openrouter-gemini-3.5-flash-google-ai-studio",
+      "per_seed": [
+        {
+          "candidate_mean_over_repeats": 179.596333,
+          "lift": -276.128667,
+          "pick_trader_score": 455.725,
+          "seed": 11
+        },
+        {
+          "candidate_mean_over_repeats": 228.073,
+          "lift": -206.123,
+          "pick_trader_score": 434.196,
+          "seed": 12
+        },
+        {
+          "candidate_mean_over_repeats": 218.597,
+          "lift": -242.487,
+          "pick_trader_score": 461.084,
+          "seed": 13
+        },
+        {
+          "candidate_mean_over_repeats": 187.538333,
+          "lift": -271.487667,
+          "pick_trader_score": 459.026,
+          "seed": 14
+        },
+        {
+          "candidate_mean_over_repeats": 161.742333,
+          "lift": -202.844667,
+          "pick_trader_score": 364.587,
+          "seed": 15
+        },
+        {
+          "candidate_mean_over_repeats": 249.007,
+          "lift": -165.3,
+          "pick_trader_score": 414.307,
+          "seed": 16
+        },
+        {
+          "candidate_mean_over_repeats": 259.947333,
+          "lift": -47.115667,
+          "pick_trader_score": 307.063,
+          "seed": 17
+        },
+        {
+          "candidate_mean_over_repeats": 240.490667,
+          "lift": -156.472333,
+          "pick_trader_score": 396.963,
+          "seed": 18
+        }
+      ],
+      "provider": "openrouter",
+      "raw_artifact_sha256": "2fd28b3ab507e76dc512ead32564b0328635b5b66f0a330d71a470f3b1b8a786",
+      "seed_win_rate": 0.0,
+      "sign_flip_p_value": 0.0078125,
+      "tier": 1
+    },
+    {
+      "artifact_sha256": "e4fdd8876e631be94466352fe23e795d122b3a85e70dbb30b0c2c84951935eec",
+      "bootstrap_ci95": [
+        -252.634708,
+        -179.442375
+      ],
+      "holm_adjusted_p_value": 0.078125,
+      "holm_reject_at_0_05": false,
+      "mean_lift": -215.777958,
+      "model": "tencent/hy3:free",
+      "model_id": "openrouter-tencent-hy3-free-novita",
+      "per_seed": [
+        {
+          "candidate_mean_over_repeats": 175.823333,
+          "lift": -279.901667,
+          "pick_trader_score": 455.725,
+          "seed": 11
+        },
+        {
+          "candidate_mean_over_repeats": 206.049667,
+          "lift": -228.146333,
+          "pick_trader_score": 434.196,
+          "seed": 12
+        },
+        {
+          "candidate_mean_over_repeats": 169.768667,
+          "lift": -291.315333,
+          "pick_trader_score": 461.084,
+          "seed": 13
+        },
+        {
+          "candidate_mean_over_repeats": 213.246667,
+          "lift": -245.779333,
+          "pick_trader_score": 459.026,
+          "seed": 14
+        },
+        {
+          "candidate_mean_over_repeats": 188.015333,
+          "lift": -176.571667,
+          "pick_trader_score": 364.587,
+          "seed": 15
+        },
+        {
+          "candidate_mean_over_repeats": 218.39,
+          "lift": -195.917,
+          "pick_trader_score": 414.307,
+          "seed": 16
+        },
+        {
+          "candidate_mean_over_repeats": 184.724,
+          "lift": -122.339,
+          "pick_trader_score": 307.063,
+          "seed": 17
+        },
+        {
+          "candidate_mean_over_repeats": 210.709667,
+          "lift": -186.253333,
+          "pick_trader_score": 396.963,
+          "seed": 18
+        }
+      ],
+      "provider": "openrouter",
+      "raw_artifact_sha256": "e4fdd8876e631be94466352fe23e795d122b3a85e70dbb30b0c2c84951935eec",
+      "seed_win_rate": 0.0,
+      "sign_flip_p_value": 0.0078125,
+      "tier": 1
+    },
+    {
+      "artifact_sha256": "e544be5ae70d7bbb5b228fab3742d07e89504a286a3ca244a01eb68924acf6c3",
+      "bootstrap_ci95": [
+        -277.546,
+        -187.278
+      ],
+      "holm_adjusted_p_value": 0.078125,
+      "holm_reject_at_0_05": false,
+      "mean_lift": -236.099167,
+      "model": "qwen/qwen3.7-plus",
+      "model_id": "openrouter-qwen3.7-plus-alibaba",
+      "per_seed": [
+        {
+          "candidate_mean_over_repeats": 147.156333,
+          "lift": -308.568667,
+          "pick_trader_score": 455.725,
+          "seed": 11
+        },
+        {
+          "candidate_mean_over_repeats": 162.474333,
+          "lift": -271.721667,
+          "pick_trader_score": 434.196,
+          "seed": 12
+        },
+        {
+          "candidate_mean_over_repeats": 165.137,
+          "lift": -295.947,
+          "pick_trader_score": 461.084,
+          "seed": 13
+        },
+        {
+          "candidate_mean_over_repeats": 213.920333,
+          "lift": -245.105667,
+          "pick_trader_score": 459.026,
+          "seed": 14
+        },
+        {
+          "candidate_mean_over_repeats": 175.608,
+          "lift": -188.979,
+          "pick_trader_score": 364.587,
+          "seed": 15
+        },
+        {
+          "candidate_mean_over_repeats": 140.678,
+          "lift": -273.629,
+          "pick_trader_score": 414.307,
+          "seed": 16
+        },
+        {
+          "candidate_mean_over_repeats": 217.295,
+          "lift": -89.768,
+          "pick_trader_score": 307.063,
+          "seed": 17
+        },
+        {
+          "candidate_mean_over_repeats": 181.888667,
+          "lift": -215.074333,
+          "pick_trader_score": 396.963,
+          "seed": 18
+        }
+      ],
+      "provider": "openrouter",
+      "raw_artifact_sha256": "e544be5ae70d7bbb5b228fab3742d07e89504a286a3ca244a01eb68924acf6c3",
+      "seed_win_rate": 0.0,
+      "sign_flip_p_value": 0.0078125,
+      "tier": 1
+    },
+    {
+      "artifact_sha256": "1af66b6e0e0f6f492e10d29b5e27635e0a0187781a512262cbfdc1e6b847ac81",
+      "bootstrap_ci95": [
+        -273.144667,
+        -200.7945
+      ],
+      "holm_adjusted_p_value": 0.078125,
+      "holm_reject_at_0_05": false,
+      "mean_lift": -237.693083,
+      "model": "openai/gpt-5.6-luna",
+      "model_id": "openrouter-gpt-5.6-luna-openai",
+      "per_seed": [
+        {
+          "candidate_mean_over_repeats": 137.160333,
+          "lift": -318.564667,
+          "pick_trader_score": 455.725,
+          "seed": 11
+        },
+        {
+          "candidate_mean_over_repeats": 226.219667,
+          "lift": -207.976333,
+          "pick_trader_score": 434.196,
+          "seed": 12
+        },
+        {
+          "candidate_mean_over_repeats": 168.027,
+          "lift": -293.057,
+          "pick_trader_score": 461.084,
+          "seed": 13
+        },
+        {
+          "candidate_mean_over_repeats": 194.436333,
+          "lift": -264.589667,
+          "pick_trader_score": 459.026,
+          "seed": 14
+        },
+        {
+          "candidate_mean_over_repeats": 155.724,
+          "lift": -208.863,
+          "pick_trader_score": 364.587,
+          "seed": 15
+        },
+        {
+          "candidate_mean_over_repeats": 167.974667,
+          "lift": -246.332333,
+          "pick_trader_score": 414.307,
+          "seed": 16
+        },
+        {
+          "candidate_mean_over_repeats": 168.773,
+          "lift": -138.29,
+          "pick_trader_score": 307.063,
+          "seed": 17
+        },
+        {
+          "candidate_mean_over_repeats": 173.091333,
+          "lift": -223.871667,
+          "pick_trader_score": 396.963,
+          "seed": 18
+        }
+      ],
+      "provider": "openrouter",
+      "raw_artifact_sha256": "1af66b6e0e0f6f492e10d29b5e27635e0a0187781a512262cbfdc1e6b847ac81",
+      "seed_win_rate": 0.0,
+      "sign_flip_p_value": 0.0078125,
+      "tier": 1
+    },
+    {
+      "artifact_sha256": "f2e1057f7e72a99bb556b30c058ccc827eb7316bff287d075f2061cee244d799",
+      "bootstrap_ci95": [
+        -316.991292,
+        -217.256625
+      ],
+      "holm_adjusted_p_value": 0.078125,
+      "holm_reject_at_0_05": false,
+      "mean_lift": -269.475375,
+      "model": "anthropic/claude-sonnet-5",
+      "model_id": "openrouter-claude-sonnet-5-bedrock",
+      "per_seed": [
+        {
+          "candidate_mean_over_repeats": 116.985,
+          "lift": -338.74,
+          "pick_trader_score": 455.725,
+          "seed": 11
+        },
+        {
+          "candidate_mean_over_repeats": 172.292333,
+          "lift": -261.903667,
+          "pick_trader_score": 434.196,
+          "seed": 12
+        },
+        {
+          "candidate_mean_over_repeats": 112.787333,
+          "lift": -348.296667,
+          "pick_trader_score": 461.084,
+          "seed": 13
+        },
+        {
+          "candidate_mean_over_repeats": 124.900333,
+          "lift": -334.125667,
+          "pick_trader_score": 459.026,
+          "seed": 14
+        },
+        {
+          "candidate_mean_over_repeats": 166.97,
+          "lift": -197.617,
+          "pick_trader_score": 364.587,
+          "seed": 15
+        },
+        {
+          "candidate_mean_over_repeats": 118.29,
+          "lift": -296.017,
+          "pick_trader_score": 414.307,
+          "seed": 16
+        },
+        {
+          "candidate_mean_over_repeats": 178.447333,
+          "lift": -128.615667,
+          "pick_trader_score": 307.063,
+          "seed": 17
+        },
+        {
+          "candidate_mean_over_repeats": 146.475667,
+          "lift": -250.487333,
+          "pick_trader_score": 396.963,
+          "seed": 18
+        }
+      ],
+      "provider": "openrouter",
+      "raw_artifact_sha256": "f2e1057f7e72a99bb556b30c058ccc827eb7316bff287d075f2061cee244d799",
+      "seed_win_rate": 0.0,
+      "sign_flip_p_value": 0.0078125,
+      "tier": 1
+    },
+    {
+      "artifact_sha256": "29a94c23afe74508bdf3e82e4d79697d508de4a715b865c99a6317805f75c32f",
+      "bootstrap_ci95": [
+        -329.425375,
+        -229.092667
+      ],
+      "holm_adjusted_p_value": 0.078125,
+      "holm_reject_at_0_05": false,
+      "mean_lift": -281.738875,
+      "model": "minimax/minimax-m3",
+      "model_id": "openrouter-minimax-m3-minimax",
+      "per_seed": [
+        {
+          "candidate_mean_over_repeats": 98.365,
+          "lift": -357.36,
+          "pick_trader_score": 455.725,
+          "seed": 11
+        },
+        {
+          "candidate_mean_over_repeats": 144.612333,
+          "lift": -289.583667,
+          "pick_trader_score": 434.196,
+          "seed": 12
+        },
+        {
+          "candidate_mean_over_repeats": 107.610667,
+          "lift": -353.473333,
+          "pick_trader_score": 461.084,
+          "seed": 13
+        },
+        {
+          "candidate_mean_over_repeats": 120.417333,
+          "lift": -338.608667,
+          "pick_trader_score": 459.026,
+          "seed": 14
+        },
+        {
+          "candidate_mean_over_repeats": 177.757,
+          "lift": -186.83,
+          "pick_trader_score": 364.587,
+          "seed": 15
+        },
+        {
+          "candidate_mean_over_repeats": 99.804,
+          "lift": -314.503,
+          "pick_trader_score": 414.307,
+          "seed": 16
+        },
+        {
+          "candidate_mean_over_repeats": 159.197333,
+          "lift": -147.865667,
+          "pick_trader_score": 307.063,
+          "seed": 17
+        },
+        {
+          "candidate_mean_over_repeats": 131.276333,
+          "lift": -265.686667,
+          "pick_trader_score": 396.963,
+          "seed": 18
+        }
+      ],
+      "provider": "openrouter",
+      "raw_artifact_sha256": "29a94c23afe74508bdf3e82e4d79697d508de4a715b865c99a6317805f75c32f",
+      "seed_win_rate": 0.0,
+      "sign_flip_p_value": 0.0078125,
+      "tier": 1
+    }
+  ],
+  "primary_contrast": "paired lift versus pick-trader",
+  "registered_model_count": 10,
+  "rejected_artifacts": [
+    {
+      "artifact_index": 4,
+      "model_id": "openrouter-grok-4.5-xai",
+      "reasons": [
+        "candidate usage must cover every decision point",
+        "candidate cost telemetry must cover every decision point"
+      ]
+    },
+    {
+      "artifact_index": 6,
+      "model_id": "openrouter-mistral-medium-3.5-mistral",
+      "reasons": [
+        "candidate cost telemetry must cover every decision point"
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "sign_flip_inference": "descriptive; exact under the symmetry assumption",
+  "status": "partial"
+}

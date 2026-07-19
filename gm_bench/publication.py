@@ -26,6 +26,11 @@ def compact_result(payload: dict[str, Any]) -> dict[str, Any]:
     if payload.get("publication"):
         raise ValueError("input already has publication metadata; compact the original raw artifact")
     result = copy.deepcopy(payload)
+    baseline_cache = result.get("baseline_cache")
+    if isinstance(baseline_cache, dict):
+        # The raw artifact may record an absolute local cache path for operator
+        # diagnostics. It is machine-specific and adds no publication evidence.
+        baseline_cache.pop("path", None)
     for label in ("candidate", "baselines"):
         blocks = [result.get(label)] if label == "candidate" else result.get(label, [])
         for block in blocks:
