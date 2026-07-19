@@ -29,6 +29,7 @@ SWEEP_CONFIG = ROOT / "config" / "output_budget_sweep.json"
 PANEL_CONFIG = ROOT / "config" / "sota_v2_models.json"
 LANE_CONFIG = ROOT / "config" / "sota_v2_lane.json"
 PRICING_CONFIG = ROOT / "config" / "openrouter_pricing_snapshot.json"
+PROTOCOL_CONFIG = ROOT / "config" / "publication_protocol.json"
 SMOKE_MANIFEST = ROOT / "config" / "sota_v2_smoke_manifest.json"
 RUN_STATE_FORMAT = "gm-bench-publication-run-v1"
 
@@ -38,6 +39,7 @@ if str(ROOT) not in sys.path:
 from gm_bench.benchmark_config import PRESETS  # noqa: E402
 from gm_bench.contract import contract_fingerprint, scaffold_fingerprint  # noqa: E402
 from gm_bench.environment import load_environment_files  # noqa: E402
+from gm_bench.official import SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
 from gm_bench.publication import SMOKE_MANIFEST_FORMAT, smoke_manifest_issues  # noqa: E402
 
@@ -444,7 +446,22 @@ def _write_run_state(run_dir: Path, phase: str, cells: list[Cell], spend_ceiling
         "updated_at_utc": now,
         "launched_model_ids": sorted(launched),
         "spend_ceiling_usd": spend_ceiling_usd,
+        "cell_outcomes": existing.get("cell_outcomes") or {},
     }
+    _write_json_atomic(path, payload)
+
+
+def _record_run_cell_outcome(run_dir: Path, cell: Cell, status: str, error: str | None = None) -> None:
+    path = run_dir / "run-state.json"
+    payload = _read_json_if_valid(path)
+    if payload is None:
+        return
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    outcome = {"status": status, "updated_at_utc": now}
+    if error:
+        outcome["error"] = error
+    payload.setdefault("cell_outcomes", {})[cell.experiment_id] = outcome
+    payload["updated_at_utc"] = now
     _write_json_atomic(path, payload)
 
 
@@ -536,6 +553,8 @@ def publication_run_status(run_dir: Path, manifest_path: Path = SMOKE_MANIFEST) 
     reservations_payload = _read_json_if_valid(run_dir / "openrouter-reservations.json") or {}
     reservations = reservations_payload.get("cells")
     reservations = reservations if isinstance(reservations, dict) else {}
+    cell_outcomes = run_state.get("cell_outcomes")
+    cell_outcomes = cell_outcomes if isinstance(cell_outcomes, dict) else {}
 
     rows = []
     for model in registry.get("models") or []:
@@ -547,6 +566,8 @@ def publication_run_status(run_dir: Path, manifest_path: Path = SMOKE_MANIFEST) 
         raw = _read_json_if_valid(raw_path)
         manifest_entry = manifest_entries.get(model_id)
         reservation = reservations.get(stem)
+        outcome = cell_outcomes.get(model_id)
+        outcome = outcome if isinstance(outcome, dict) else {}
         smoke_accepted = isinstance(manifest_entry, dict) and manifest_entry.get("accepted") is True
 
         if raw_path.exists() and raw is None:
@@ -565,6 +586,8 @@ def publication_run_status(run_dir: Path, manifest_path: Path = SMOKE_MANIFEST) 
             state = "reserved"
         else:
             state = "queued"
+        if outcome.get("status") in {"aborted", "excluded", "ineligible"}:
+            state = str(outcome["status"])
         # A manifest acceptance only upgrades *this run's own* completed cell to
         # "accepted"; it never substitutes for the current run/cap's raw
         # artifact, so a stale or wrong-cap manifest entry cannot mask a cell
@@ -599,7 +622,7 @@ def publication_run_status(run_dir: Path, manifest_path: Path = SMOKE_MANIFEST) 
                     else None
                 ),
                 "updated_at_epoch": max(mtimes) if mtimes else None,
-                "error": checkpoint.get("error") if isinstance(checkpoint, dict) else None,
+                "error": outcome.get("error") or (checkpoint.get("error") if isinstance(checkpoint, dict) else None),
             }
         )
 
@@ -910,6 +933,97 @@ def _reusable_smoke_artifact(cell: Cell, run_dir: Path) -> Path | None:
     return artifact_path if not issues else None
 
 
+def _panel_artifact_issues(cell: Cell, artifact: dict[str, Any]) -> list[str]:
+    """Return blocking publication and registered-route issues for one panel artifact."""
+    issues = list(validate_leaderboard_payload(artifact, policy=SOTA_V2_POLICY).errors)
+    run_info = artifact.get("run_info")
+    run_info = run_info if isinstance(run_info, dict) else {}
+    for key, expected in (
+        ("provider", cell.provider),
+        ("model", cell.model),
+        ("profile", cell.profile),
+        ("preset", cell.preset),
+    ):
+        if run_info.get(key) != expected:
+            issues.append(f"artifact {key} does not match the registered cell")
+
+    provider_options = run_info.get("provider_options")
+    provider_options = provider_options if isinstance(provider_options, dict) else {}
+    expected_options = {**cell.fixed_options, "GM_BENCH_OUTPUT_BUDGET_CELL": cell.cap_label}
+    for key, expected in expected_options.items():
+        if str(provider_options.get(key, "")) != str(expected):
+            issues.append(f"artifact provider option {key} does not match the registered value")
+    for key in cell.absent_options:
+        if provider_options.get(key) not in (None, ""):
+            issues.append(f"artifact provider option {key} must be absent")
+
+    candidate = artifact.get("candidate")
+    candidate = candidate if isinstance(candidate, dict) else {}
+    summary = candidate.get("summary")
+    summary = summary if isinstance(summary, dict) else {}
+    decisions = summary.get("decisions")
+    usage = summary.get("usage")
+    usage = usage if isinstance(usage, dict) else {}
+    if not isinstance(decisions, int) or usage.get("cost_decisions") != decisions:
+        issues.append("candidate cost telemetry must cover every decision point")
+    observed_upstreams = sorted({str(value) for value in usage.get("upstream_providers") or [] if value})
+    if [value.casefold() for value in observed_upstreams] != [cell.upstream_provider.casefold()]:
+        issues.append("observed upstream provider does not match the registered route")
+    return list(dict.fromkeys(issues))
+
+
+def _existing_panel_artifact(cell: Cell, run_dir: Path) -> tuple[Path | None, list[str]]:
+    path = run_dir / "raw" / f"{cell.experiment_id}--{cell.cap_label}.json"
+    if not path.exists():
+        return None, []
+    try:
+        artifact = _read_json(path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return path, [f"cannot read existing panel artifact: {exc}"]
+    return path, _panel_artifact_issues(cell, artifact)
+
+
+def _maximum_infrastructure_attempts() -> int:
+    protocol = _read_json(PROTOCOL_CONFIG)
+    attempts = int((protocol.get("rerun_policy") or {}).get("maximum_infrastructure_attempts_per_cell") or 0)
+    if attempts < 1:
+        raise ValueError("publication protocol must allow at least one infrastructure attempt per cell")
+    return attempts
+
+
+def _checkpoint_failure_detail(run_dir: Path, cell: Cell) -> str | None:
+    path = run_dir / "checkpoints" / f"{cell.experiment_id}--{cell.cap_label}.json"
+    payload = _read_json_if_valid(path)
+    error = payload.get("error") if payload else None
+    return str(error) if error else None
+
+
+def _append_legacy_attempt_history(
+    stored: dict[str, Any], run_dir: Path, cell: Cell, measured_spend: float
+) -> list[dict[str, Any]]:
+    history = stored.setdefault("attempt_history", [])
+    attempts = int(stored.get("attempts") or 0)
+    if history or attempts < 1:
+        return history
+    checkpoint = run_dir / "checkpoints" / f"{cell.experiment_id}--{cell.cap_label}.json"
+    finished = None
+    try:
+        finished = datetime.fromtimestamp(checkpoint.stat().st_mtime, timezone.utc).isoformat(timespec="seconds")
+    except OSError:
+        pass
+    history.append(
+        {
+            "attempt": attempts,
+            "status": "failed",
+            "legacy_record": True,
+            "finished_at_utc": finished,
+            "measured_run_spend_usd": measured_spend,
+            "error": _checkpoint_failure_detail(run_dir, cell) or "prior attempt failed before outcome logging",
+        }
+    )
+    return history
+
+
 def _reserve_cell(run_dir: Path, cell: Cell, measured_spend: float, ceiling: float) -> float:
     path = run_dir / "openrouter-reservations.json"
     payload = _read_json(path) if path.exists() else {"schema_version": 1, "cells": {}}
@@ -919,22 +1033,40 @@ def _reserve_cell(run_dir: Path, cell: Cell, measured_spend: float, ceiling: flo
     # cells are replaced by their measured account/artifact spend so historical
     # worst-case reservations cannot prematurely stop a healthy serial panel.
     reserved_total = sum(
-        float(value["reserved_usd"]) for value in reservations.values() if value.get("status") != "settled"
+        float(value["reserved_usd"])
+        for value in reservations.values()
+        if value.get("status") not in {"settled", "excluded"}
     )
     reservation = _cell_reservation_usd(cell)
     if stem in reservations:
+        stored = reservations[stem]
+        prior_attempts = int(stored.get("attempts") or 0)
+        maximum_attempts = _maximum_infrastructure_attempts()
+        if stored.get("status") != "settled" and prior_attempts >= maximum_attempts:
+            raise SystemExit(f"infrastructure attempt limit reached for {stem}: {prior_attempts}/{maximum_attempts}")
         committed = measured_spend + reserved_total
         if committed + reservation > ceiling:
             raise SystemExit(
                 f"retry reservation would exceed spend ceiling: ${committed:.4f} + ${reservation:.4f} > ${ceiling:.4f}"
             )
-        stored = reservations[stem]
+        history = _append_legacy_attempt_history(stored, run_dir, cell, measured_spend)
         stored["reserved_usd"] = (
-            float(stored.get("reserved_usd") or 0) + reservation if stored.get("status") != "settled" else reservation
+            float(stored.get("reserved_usd") or 0) + reservation
+            if stored.get("status") not in {"settled", "excluded"}
+            else reservation
         )
         stored["total_reserved_usd"] = float(stored.get("total_reserved_usd") or 0) + reservation
-        stored["attempts"] = int(stored.get("attempts") or 1) + 1
+        stored["attempts"] = prior_attempts + 1
         stored["status"] = "active"
+        history.append(
+            {
+                "attempt": stored["attempts"],
+                "status": "active",
+                "started_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "reserved_usd": reservation,
+                "measured_run_spend_before_usd": measured_spend,
+            }
+        )
         stored["protocol_repair_attempts_reserved_per_decision"] = int(
             cell.fixed_options.get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", "0")
         )
@@ -968,6 +1100,15 @@ def _reserve_cell(run_dir: Path, cell: Cell, measured_spend: float, ceiling: flo
         "cost_contingency_multiplier": float(
             _read_json(PRICING_CONFIG)["planning_assumptions"]["cost_contingency_multiplier"]
         ),
+        "attempt_history": [
+            {
+                "attempt": 1,
+                "status": "active",
+                "started_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "reserved_usd": reservation,
+                "measured_run_spend_before_usd": measured_spend,
+            }
+        ],
     }
     _write_json_atomic(path, payload)
     print(f"reserved ${reservation:.4f} for {stem}; cumulative conservative commitment ${committed + reservation:.4f}")
@@ -987,6 +1128,88 @@ def _settle_cell_reservation(run_dir: Path, cell: Cell, measured_spend: float) -
     stored["reserved_usd"] = 0.0
     stored["status"] = "settled"
     stored["settled_at_utc"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    stored["measured_run_spend_usd"] = measured_spend
+    history = stored.get("attempt_history") or []
+    if history and history[-1].get("status") == "active":
+        history[-1].update(
+            {
+                "status": "succeeded",
+                "finished_at_utc": stored["settled_at_utc"],
+                "measured_run_spend_usd": measured_spend,
+            }
+        )
+    _write_json_atomic(path, payload)
+
+
+def _record_failed_cell_reservation(
+    run_dir: Path,
+    cell: Cell,
+    measured_spend: float,
+    error: str,
+) -> None:
+    """Record a failed attempt and release liability after the frozen retry limit."""
+    path = run_dir / "openrouter-reservations.json"
+    if not path.exists():
+        return
+    payload = _read_json(path)
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    stored = (payload.get("cells") or {}).get(stem)
+    if not isinstance(stored, dict):
+        return
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    history = stored.get("attempt_history") or []
+    if history and history[-1].get("status") == "active":
+        history[-1].update(
+            {
+                "status": "failed",
+                "finished_at_utc": now,
+                "measured_run_spend_usd": measured_spend,
+                "error": error,
+            }
+        )
+    stored["last_failure_at_utc"] = now
+    stored["last_failure"] = error
+    stored["measured_run_spend_usd"] = measured_spend
+    if int(stored.get("attempts") or 0) >= _maximum_infrastructure_attempts():
+        stored["reserved_usd"] = 0.0
+        stored["status"] = "excluded"
+        stored["excluded_at_utc"] = now
+        stored["exclusion_reason"] = "infrastructure attempt limit reached"
+    else:
+        stored["status"] = "active"
+    _write_json_atomic(path, payload)
+
+
+def _record_ineligible_cell_reservation(
+    run_dir: Path,
+    cell: Cell,
+    measured_spend: float,
+    error: str,
+) -> None:
+    """Release a completed cell reservation while retaining its rejected artifact."""
+    path = run_dir / "openrouter-reservations.json"
+    if not path.exists():
+        return
+    payload = _read_json(path)
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    stored = (payload.get("cells") or {}).get(stem)
+    if not isinstance(stored, dict):
+        return
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    history = stored.get("attempt_history") or []
+    if history and history[-1].get("status") == "active":
+        history[-1].update(
+            {
+                "status": "ineligible",
+                "finished_at_utc": now,
+                "measured_run_spend_usd": measured_spend,
+                "error": error,
+            }
+        )
+    stored["reserved_usd"] = 0.0
+    stored["status"] = "ineligible"
+    stored["ineligible_at_utc"] = now
+    stored["ineligibility_reason"] = error
     stored["measured_run_spend_usd"] = measured_spend
     _write_json_atomic(path, payload)
 
@@ -1062,6 +1285,24 @@ def main(argv: list[str] | None = None) -> int:
             if reusable is not None:
                 print(f"reusing clean completed smoke without another reservation or provider call: {reusable}")
                 continue
+        if args.phase == "panel" and not args.preflight_only:
+            existing, existing_issues = _existing_panel_artifact(cell, run_dir)
+            if existing is not None:
+                if existing_issues:
+                    failure = "existing panel artifact failed the publication gate: " + "; ".join(existing_issues)
+                    measured = _artifact_spend_usd(run_dir)
+                    _record_ineligible_cell_reservation(run_dir, cell, measured, failure)
+                    _record_run_cell_outcome(run_dir, cell, "ineligible", failure)
+                    raise SystemExit(
+                        f"existing panel artifact failed the publication gate for {cell.experiment_id}: "
+                        + "; ".join(existing_issues)
+                    )
+                print(
+                    f"reusing eligible completed panel artifact without another reservation or provider call: {existing}"
+                )
+                _settle_cell_reservation(run_dir, cell, _artifact_spend_usd(run_dir))
+                _record_run_cell_outcome(run_dir, cell, "complete")
+                continue
         if cell.provider == "openrouter":
             try:
                 _validate_openrouter_endpoint(cell)
@@ -1081,14 +1322,29 @@ def main(argv: list[str] | None = None) -> int:
                 raise SystemExit(f"spend ceiling reached: ${spent:.4f} >= ${args.max_spend_usd:.4f}")
             _reserve_cell(run_dir, cell, spent, args.max_spend_usd)
         cell_succeeded = False
+        cell_error: str | None = None
+        cell_ineligible = False
         try:
             try:
                 subprocess.run(command, cwd=ROOT, env=env, check=True)
-                cell_succeeded = True
             except subprocess.CalledProcessError as exc:
+                cell_error = _checkpoint_failure_detail(run_dir, cell) or f"child process exited {exc.returncode}"
                 raise SystemExit(
                     f"publication cell failed: {cell.experiment_id} cap={cell.cap_label} exit={exc.returncode}"
                 ) from exc
+            if args.phase == "panel" and not args.preflight_only:
+                artifact_path = run_dir / "raw" / f"{cell.experiment_id}--{cell.cap_label}.json"
+                try:
+                    artifact = _read_json(artifact_path)
+                except (OSError, ValueError, json.JSONDecodeError) as exc:
+                    cell_error = f"completed panel cell did not produce a readable raw artifact: {exc}"
+                    raise SystemExit(cell_error) from exc
+                issues = _panel_artifact_issues(cell, artifact)
+                if issues:
+                    cell_error = "completed panel artifact failed the publication gate: " + "; ".join(issues)
+                    cell_ineligible = True
+                    raise SystemExit(cell_error)
+            cell_succeeded = True
         finally:
             # Provider failures are exactly when spend visibility matters most.
             # Report the post-cell delta even when the child exits nonzero.
@@ -1096,6 +1352,18 @@ def main(argv: list[str] | None = None) -> int:
                 spent = _measured_spend_usd(run_dir, env, float(budget_start))
                 if cell_succeeded:
                     _settle_cell_reservation(run_dir, cell, spent)
+                    _record_run_cell_outcome(run_dir, cell, "complete")
+                else:
+                    failure = cell_error or _checkpoint_failure_detail(run_dir, cell) or "publication cell failed"
+                    if cell_ineligible:
+                        _record_ineligible_cell_reservation(run_dir, cell, spent, failure)
+                        state = "ineligible"
+                    else:
+                        _record_failed_cell_reservation(run_dir, cell, spent, failure)
+                        reservation = _read_json_if_valid(run_dir / "openrouter-reservations.json") or {}
+                        stored = (reservation.get("cells") or {}).get(f"{cell.experiment_id}--{cell.cap_label}") or {}
+                        state = "excluded" if stored.get("status") == "excluded" else "aborted"
+                    _record_run_cell_outcome(run_dir, cell, state, failure)
                 print(f"measured OpenRouter spend for this run directory: ${spent:.4f}")
                 if spent > args.max_spend_usd:
                     raise SystemExit(f"spend ceiling exceeded after attempted cell: ${spent:.4f}")
