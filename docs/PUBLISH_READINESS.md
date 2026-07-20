@@ -51,7 +51,8 @@ It is that the project:
 
 That combination demonstrates benchmark design, simulation, agent evaluation,
 statistical reasoning, reliability engineering, and scientific judgment. The
-remaining work is to finish one frozen experiment and present it clearly.
+remaining work is to package, independently verify, and present the frozen
+experiment clearly.
 
 ## What “publish-ready” means
 
@@ -138,7 +139,7 @@ before any full-panel score is visible.
   scaffold, compact profile, one repair, and fresh-spawn execution.
 - [x] Freeze exact model routes and the registry only after all ten phase-one smokes are
   accepted.
-- [ ] Validate the provisional common 4,096-token safety ceiling with
+- [x] Validate the provisional common 4,096-token safety ceiling with
   native-minimum reasoning.
 - [x] Predeclare exact provider slugs/tags and the 75% cap-pressure rule: raise
   the entire lane to 8,192 before full results if any smoke call reaches 3,072
@@ -150,27 +151,29 @@ before any full-panel score is visible.
 - [x] Smoke all ten provisional phase-one models serially at 4,096 using the hardened
   scaffold. Start with dry-run and endpoint preflight; then run one paid model,
   inspect it, and approve the next rather than launching the set blindly.
-- [ ] Verify each smoke's exact route, JSON behavior, registered reasoning provenance,
+- [x] Verify each smoke's exact route, JSON behavior, registered reasoning provenance,
   repair/failure telemetry, cost coverage, per-call output distribution, and
   absence of truncation. Then record it with `run_publication_matrix.py
   record-smoke` so the machine-enforced manifest accepts it; the panel phase
   refuses to run until every registered model has an accepted entry.
-- [ ] If the cap-pressure rule fires, amend the whole lane to 8,192 and repeat
-  affected smokes before any full-panel result. Do not make this decision after
-  seeing full scores.
+- [x] Apply the cap-pressure rule before full results. It did not fire: the
+  maximum smoke output was 1,432 tokens, below the 3,072-token trigger, so the
+  lane remained at 4,096.
 - [x] Freeze the provisional model registry only after all ten phase-one routes pass.
-- [ ] Re-estimate and record expected full-panel cost, runtime, serial
-  concurrency, and quota after the smokes. The existing cost artifact describes
-  the retired 12-cell plan and is not current spend guidance.
-- [ ] Preserve raw artifacts and logs outside git; do not discard failed cells.
+- [x] Re-estimate and record expected full-panel cost, runtime, serial
+  concurrency, and quota after the smokes. Final raw artifact cost was
+  $48.993235 across all ten completed cells; measured account spend was
+  approximately $49.06.
+- [x] Preserve raw artifacts and final run metadata outside git; package them as
+  hash-linked release assets without discarding diagnostic cells.
 - [x] Confirm in automated tests that the retired analyzer still rejects
   missing, duplicate, mixed-provenance, wrong-route, wrong-lane, wrong-repeat,
   incomplete-telemetry, and invalid-contract cells.
-- [ ] Update `config/sota_v2_lane.json` to `frozen-native-reasoning-cap` only
+- [x] Update `config/sota_v2_lane.json` to `frozen-native-reasoning-cap` only
   after the ten phase-one smokes clear the cap-pressure audit.
 - [x] Record the rationale, decision date, pre-full-panel trigger, and known
   limitations in the decision log below.
-- [ ] Regenerate the site and confirm it still refuses to publish a ranking if
+- [x] Regenerate the site and confirm it still refuses to publish a ranking if
   any publication prerequisite is missing.
 
 **Exit condition:** the official API lane has a documented fixed-cap policy,
@@ -437,15 +440,15 @@ to raw evidence without relying on trust in the author.
 
 ### Phase 6 — GitHub and portfolio presentation
 
-- [ ] Replace “GM-Bench MVP” with a confident, accurate project name and one-line
+- [x] Replace “GM-Bench MVP” with a confident, accurate project name and one-line
   description.
 - [ ] Add a concise GitHub repository description.
 - [ ] Add the deployed site as the repository homepage.
 - [ ] Add relevant topics such as `llm-evaluation`, `agents`, `benchmark`,
   `simulation`, `sports-analytics`, and `reproducible-research`.
-- [ ] Put the primary result or honest “results pending” state near the top of the
+- [x] Put the primary result or honest “results pending” state near the top of the
   README.
-- [ ] Add a five-minute quickstart that works from a clean clone without provider
+- [x] Add a five-minute release-verification path that works from a clean clone without provider
   credentials.
 - [ ] Add a separate provider-backed quickstart with explicit cost expectations.
 - [ ] Add an architecture or evaluation-flow diagram.
@@ -568,6 +571,7 @@ decision and why.
 | 2026-07-17 | Freeze the ten-model phase-one registry and 4,096-token lane after the accepted smoke gate. | All ten registered models completed four decisions with zero failed decisions and zero truncations. Peak per-call output was 1,432 tokens, below the 3,072 cap-pressure trigger. Accepted-route artifact spend was $0.427613; total campaign spend was $0.728909 including the excluded Kimi diagnostic. | Record all ten manifest entries, freeze the registry and native-reasoning cap, retain excluded-model diagnostics, regenerate the cost plan, and unlock panel dry-runs without starting paid panel cells. |
 | 2026-07-18 | Settle successful serial-cell reservations against measured spend. | The runner retained every historical worst-case reservation, so a healthy panel could stop against cumulative hypothetical spend even after completed artifacts and the OpenRouter account established a much lower real cost. | Mark successful-cell reservations settled after post-cell spend measurement, keep failed/interrupted reservations active, and evaluate each next cell against measured spend plus only unresolved liabilities. |
 | 2026-07-18 | Amend GLM 5.2 from the unhealthy first-party Z.AI FP8 endpoint to Novita FP8. | The frozen `z-ai/fp8` endpoint remained at OpenRouter status `-2` across repeated launch preflights, while the exact dated Novita FP8 endpoint was healthy and advertised the common lane parameters. No full-panel GLM result existed. | Pin `novita/fp8`, replace rather than reuse the Z.AI smoke entry, refresh route pricing/runtime evidence, and require a clean exact-route smoke before restoring panel unlock. The replacement smoke completed 4/4 decisions with zero failures or truncations for $0.009225. |
+| 2026-07-19 | Publish eight eligible phase-one rows without an ordinal winner claim. | Eight of ten registered cells passed exact-route and complete-cost gates. Grok recorded usage for 476/480 decisions and cost for 474/480; Mistral recorded cost for 479/480 after one fallback. All eight eligible seed-paired intervals form one connected tier, and every Holm-adjusted primary contrast is 0.078125. | Publish the eight eligible rows as one uncertainty tier, retain Grok and Mistral as diagnostics, do not rerun completed cells, and attach exact raw evidence plus checksums to the tagged release. |
 | 2026-07-18 | Reconcile the frozen publication protocol and reserve repair-call contingency before launch. | Independent Fable 5 review found that the runner and lane correctly enforced 4,096/3,072/8,192 native-minimum reasoning, but `publication_protocol.json` still described the retired 1,024/768/2,048 policy. It also noted that the prior reservation covered only primary calls even though one bounded repair is configured. No full-panel result existed. | Record the current lane as an explicit pre-data protocol amendment. Reserve one full-price call for every configured repair attempt and apply the committed 1.2x cost contingency before admitting each serial cell. Use a sub-$100 operator ceiling and monitor measured spend after every cell. |
 
 ## Experiment and release log

@@ -1,9 +1,23 @@
-# GM-Bench MVP
+# GM-Bench
 
 GM-Bench is a small, deterministic sports general-manager benchmark inspired by
 front-office dynasty games. Agents manage a fictional hockey-style league over
 multiple seasons by making roster, trade, free-agency, draft, and lineup
 decisions through a JSON-compatible API.
+
+## Phase-one result
+
+Eight pre-registered model systems produced strict `sota-v2` rows under one
+frozen 4,096-token API lane. Every eligible model trailed the transparent
+`pick-trader` heuristic (411.619), and all eight model uncertainty intervals
+form one overlapping tier—so the evidence supports no ordinal “best model”
+claim. Muse Spark 1.1 had the highest observed model mean at 231.851. Grok 4.5
+and Mistral Medium 3.5 completed but were excluded from the headline table for
+incomplete usage/cost coverage.
+
+Read the [phase-one findings](docs/blog/sota-v2-findings.md), inspect the
+[generated analysis](results/analysis/publication-panel-analysis.json), or
+follow the [clean-clone reproduction guide](docs/REPRODUCING_SOTA_V2_RELEASE.md).
 
 The MVP includes:
 
@@ -67,17 +81,17 @@ cd web && bun install && bun run dev      # local site
 The site in `web/` deploys to GitHub Pages automatically on pushes to `main`
 (`.github/workflows/pages.yml`).
 
-The provisional headline API lane uses the common 4,096-token safety ceiling in
+The frozen phase-one headline API lane uses the common 4,096-token safety ceiling in
 [`config/sota_v2_lane.json`](config/sota_v2_lane.json), with native-minimum
 reasoning and actual token/cost efficiency reported beside score. Reasoning is
 disabled where optional and set to the lowest OpenRouter-supported effort where
 mandatory. The earlier four-cap
 study in [`config/output_budget_sweep.json`](config/output_budget_sweep.json) is
-retained for auditability but retired as a publication prerequisite. Until all
-registered routes pass the common smoke, the registry is frozen, and at least
-eight strictly eligible fixed-cap rows exist, the generated site data says
-`publishable_ranking: false`. Coding-harness rows are always emitted to a
-separate table from the API headline lane.
+retained for auditability but retired as a publication prerequisite. The common
+smoke and eight-model minimum gates are now satisfied; generated site data
+reports `publishable_ranking: true`. That flag permits the evidence table to be
+shown, but the overlapping uncertainty tier still forbids an ordinal winner
+claim. Coding-harness rows remain separate from the API headline lane.
 
 ### v2 changes
 

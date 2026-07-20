@@ -1,0 +1,318 @@
+{
+  "archive_name": "gm-bench-sota-v2-phase-one-raw-2026-07-19.zip",
+  "artifacts": [
+    {
+      "compact_artifact": "results/leaderboard/openrouter-gpt-5.6-luna-openai.json",
+      "compact_raw_artifact_sha256": "1af66b6e0e0f6f492e10d29b5e27635e0a0187781a512262cbfdc1e6b847ac81",
+      "cost_decisions": 480,
+      "cost_usd": 4.680175,
+      "decisions": 480,
+      "decisions_with_usage": 480,
+      "mean_score": 173.926,
+      "model": "openai/gpt-5.6-luna",
+      "model_id": "openrouter-gpt-5.6-luna-openai",
+      "provider": "openrouter",
+      "raw_bytes": 4997542,
+      "raw_canonical_sha256": "1af66b6e0e0f6f492e10d29b5e27635e0a0187781a512262cbfdc1e6b847ac81",
+      "raw_path": "raw/openrouter-gpt-5.6-luna-openai--4096.json",
+      "raw_sha256": "88f6b7c4c3994b105214620d0512589f28ef1a39a1696fc2887a5bb2083aea03",
+      "rejection_reasons": [],
+      "status": "headline",
+      "upstream_provider": "OpenAI"
+    },
+    {
+      "compact_artifact": "results/leaderboard/openrouter-claude-sonnet-5-bedrock.json",
+      "compact_raw_artifact_sha256": "f2e1057f7e72a99bb556b30c058ccc827eb7316bff287d075f2061cee244d799",
+      "cost_decisions": 480,
+      "cost_usd": 11.05436,
+      "decisions": 480,
+      "decisions_with_usage": 480,
+      "mean_score": 142.143,
+      "model": "anthropic/claude-sonnet-5",
+      "model_id": "openrouter-claude-sonnet-5-bedrock",
+      "provider": "openrouter",
+      "raw_bytes": 5192889,
+      "raw_canonical_sha256": "f2e1057f7e72a99bb556b30c058ccc827eb7316bff287d075f2061cee244d799",
+      "raw_path": "raw/openrouter-claude-sonnet-5-bedrock--4096.json",
+      "raw_sha256": "0984245289740c083d4d454051b23fbbccccb0918cda1468b06dd8da25b8d39f",
+      "rejection_reasons": [],
+      "status": "headline",
+      "upstream_provider": "Amazon Bedrock"
+    },
+    {
+      "compact_artifact": "results/leaderboard/openrouter-gemini-3.5-flash-google-ai-studio.json",
+      "compact_raw_artifact_sha256": "2fd28b3ab507e76dc512ead32564b0328635b5b66f0a330d71a470f3b1b8a786",
+      "cost_decisions": 480,
+      "cost_usd": 6.320513,
+      "decisions": 480,
+      "decisions_with_usage": 480,
+      "mean_score": 215.624,
+      "model": "google/gemini-3.5-flash",
+      "model_id": "openrouter-gemini-3.5-flash-google-ai-studio",
+      "provider": "openrouter",
+      "raw_bytes": 4650686,
+      "raw_canonical_sha256": "2fd28b3ab507e76dc512ead32564b0328635b5b66f0a330d71a470f3b1b8a786",
+      "raw_path": "raw/openrouter-gemini-3.5-flash-google-ai-studio--4096.json",
+      "raw_sha256": "e16be82e32007620fd7d144faa4f2312ab06eae1a5f0e2f03f4a66466284743e",
+      "rejection_reasons": [],
+      "status": "headline",
+      "upstream_provider": "Google AI Studio"
+    },
+    {
+      "compact_artifact": null,
+      "compact_raw_artifact_sha256": null,
+      "cost_decisions": 474,
+      "cost_usd": 8.561192,
+      "decisions": 480,
+      "decisions_with_usage": 476,
+      "mean_score": 176.081,
+      "model": "x-ai/grok-4.5",
+      "model_id": "openrouter-grok-4.5-xai",
+      "provider": "openrouter",
+      "raw_bytes": 5160010,
+      "raw_canonical_sha256": "0f2960ca86368c9f6f87d4d45adf4a42768544b08036127a5007e01c58a7dd35",
+      "raw_path": "raw/openrouter-grok-4.5-xai--4096.json",
+      "raw_sha256": "b1eb5857b23d11ce173847148580f84c8c186d94178fd41feed1dfa570df040d",
+      "rejection_reasons": [
+        "candidate usage must cover every decision point",
+        "candidate cost telemetry must cover every decision point"
+      ],
+      "status": "diagnostic",
+      "upstream_provider": "xAI"
+    },
+    {
+      "compact_artifact": "results/leaderboard/openrouter-muse-spark-1.1-meta.json",
+      "compact_raw_artifact_sha256": "7b664cbd57aab8975905a08ff057cf528211fd67efc52aac0ffde5b6d829e030",
+      "cost_decisions": 480,
+      "cost_usd": 7.586279,
+      "decisions": 480,
+      "decisions_with_usage": 480,
+      "mean_score": 231.851,
+      "model": "meta/muse-spark-1.1",
+      "model_id": "openrouter-muse-spark-1.1-meta",
+      "provider": "openrouter",
+      "raw_bytes": 5281954,
+      "raw_canonical_sha256": "7b664cbd57aab8975905a08ff057cf528211fd67efc52aac0ffde5b6d829e030",
+      "raw_path": "raw/openrouter-muse-spark-1.1-meta--4096.json",
+      "raw_sha256": "5c4a10a44f5252d9cfd384d96ef2d058bcbdca01095c4b3e0245edb66dc0ba4c",
+      "rejection_reasons": [],
+      "status": "headline",
+      "upstream_provider": "Meta"
+    },
+    {
+      "compact_artifact": "results/leaderboard/openrouter-glm-5.2-novita.json",
+      "compact_raw_artifact_sha256": "36d1ed42d44f97041253f162d8173d82d58b1ba12c58131ffd510bd180df0727",
+      "cost_decisions": 480,
+      "cost_usd": 1.281193,
+      "decisions": 480,
+      "decisions_with_usage": 480,
+      "mean_score": 217.539,
+      "model": "z-ai/glm-5.2",
+      "model_id": "openrouter-glm-5.2-novita",
+      "provider": "openrouter",
+      "raw_bytes": 5714758,
+      "raw_canonical_sha256": "36d1ed42d44f97041253f162d8173d82d58b1ba12c58131ffd510bd180df0727",
+      "raw_path": "raw/openrouter-glm-5.2-novita--4096.json",
+      "raw_sha256": "9c806be35410a4c44dc06c72c0d12d100738f57b62daa366fb584f8a54259f9f",
+      "rejection_reasons": [],
+      "status": "headline",
+      "upstream_provider": "Novita"
+    },
+    {
+      "compact_artifact": "results/leaderboard/openrouter-minimax-m3-minimax.json",
+      "compact_raw_artifact_sha256": "29a94c23afe74508bdf3e82e4d79697d508de4a715b865c99a6317805f75c32f",
+      "cost_decisions": 480,
+      "cost_usd": 1.237149,
+      "decisions": 480,
+      "decisions_with_usage": 480,
+      "mean_score": 129.88,
+      "model": "minimax/minimax-m3",
+      "model_id": "openrouter-minimax-m3-minimax",
+      "provider": "openrouter",
+      "raw_bytes": 4858524,
+      "raw_canonical_sha256": "29a94c23afe74508bdf3e82e4d79697d508de4a715b865c99a6317805f75c32f",
+      "raw_path": "raw/openrouter-minimax-m3-minimax--4096.json",
+      "raw_sha256": "db3bb00f2d98bc22368438bd182975a3df69bc6d772f10877c3dc613e8fdba04",
+      "rejection_reasons": [],
+      "status": "headline",
+      "upstream_provider": "Minimax"
+    },
+    {
+      "compact_artifact": "results/leaderboard/openrouter-qwen3.7-plus-alibaba.json",
+      "compact_raw_artifact_sha256": "e544be5ae70d7bbb5b228fab3742d07e89504a286a3ca244a01eb68924acf6c3",
+      "cost_decisions": 480,
+      "cost_usd": 1.293793,
+      "decisions": 480,
+      "decisions_with_usage": 480,
+      "mean_score": 175.52,
+      "model": "qwen/qwen3.7-plus",
+      "model_id": "openrouter-qwen3.7-plus-alibaba",
+      "provider": "openrouter",
+      "raw_bytes": 4907682,
+      "raw_canonical_sha256": "e544be5ae70d7bbb5b228fab3742d07e89504a286a3ca244a01eb68924acf6c3",
+      "raw_path": "raw/openrouter-qwen3.7-plus-alibaba--4096.json",
+      "raw_sha256": "13b31bf544eb93549c3f237d5db1c04e0ae72d0ade3bfc9e14d190d4ac10540e",
+      "rejection_reasons": [],
+      "status": "headline",
+      "upstream_provider": "Alibaba"
+    },
+    {
+      "compact_artifact": "results/diagnostics/openrouter-mistral-medium-3.5-mistral.json",
+      "compact_raw_artifact_sha256": "f04e5c6fc5d01d2368d1c52eb3c8cdfe43674ad476fbfc28b598d8f29690b6cc",
+      "cost_decisions": 479,
+      "cost_usd": 6.978581,
+      "decisions": 480,
+      "decisions_with_usage": 480,
+      "mean_score": 138.362,
+      "model": "mistralai/mistral-medium-3-5",
+      "model_id": "openrouter-mistral-medium-3.5-mistral",
+      "provider": "openrouter",
+      "raw_bytes": 5060576,
+      "raw_canonical_sha256": "f04e5c6fc5d01d2368d1c52eb3c8cdfe43674ad476fbfc28b598d8f29690b6cc",
+      "raw_path": "raw/openrouter-mistral-medium-3.5-mistral--4096.json",
+      "raw_sha256": "43067518dd55d4914142b5ebcdb71b25385052000a44fb6951d597caf5dc31dd",
+      "rejection_reasons": [
+        "candidate cost telemetry must cover every decision point"
+      ],
+      "status": "diagnostic",
+      "upstream_provider": "Mistral"
+    },
+    {
+      "compact_artifact": "results/leaderboard/openrouter-tencent-hy3-free-novita.json",
+      "compact_raw_artifact_sha256": "e4fdd8876e631be94466352fe23e795d122b3a85e70dbb30b0c2c84951935eec",
+      "cost_decisions": 480,
+      "cost_usd": 0.0,
+      "decisions": 480,
+      "decisions_with_usage": 480,
+      "mean_score": 195.841,
+      "model": "tencent/hy3:free",
+      "model_id": "openrouter-tencent-hy3-free-novita",
+      "provider": "openrouter",
+      "raw_bytes": 4909835,
+      "raw_canonical_sha256": "e4fdd8876e631be94466352fe23e795d122b3a85e70dbb30b0c2c84951935eec",
+      "raw_path": "raw/openrouter-tencent-hy3-free-novita--4096.json",
+      "raw_sha256": "7c93f1d3bbe3e90e6a4aef03766c23e460ce15c43f5a92452c0b46d415fa2a52",
+      "rejection_reasons": [],
+      "status": "headline",
+      "upstream_provider": "Novita"
+    }
+  ],
+  "contract": "sota-v2",
+  "diagnostic_models": 2,
+  "eligible_headline_models": 8,
+  "files": [
+    {
+      "bytes": 9869,
+      "path": "config/publication_protocol.json",
+      "role": "frozen-config",
+      "sha256": "fa549234d134f8c29536b23d463accbb568af13e81f1b4bebb26060c70df50ef"
+    },
+    {
+      "bytes": 1521,
+      "path": "config/sota_v2_lane.json",
+      "role": "frozen-config",
+      "sha256": "e1f6afb733a0afa0ac287b2cabcaf39ddd0f9908780b6e0cb6071cdcde00cc06"
+    },
+    {
+      "bytes": 10062,
+      "path": "config/sota_v2_models.json",
+      "role": "frozen-config",
+      "sha256": "3a401275e5658a7596dc897418083928c9a0200a1e78f46e26ac0428b0c24f91"
+    },
+    {
+      "bytes": 11442,
+      "path": "config/sota_v2_smoke_manifest.json",
+      "role": "frozen-config",
+      "sha256": "ad55b3d07c2e772479a6647a1faf63a19412b70ac8ba9f4569a7d571d95e033f"
+    },
+    {
+      "bytes": 5192889,
+      "path": "raw/openrouter-claude-sonnet-5-bedrock--4096.json",
+      "role": "raw-public-trace",
+      "sha256": "0984245289740c083d4d454051b23fbbccccb0918cda1468b06dd8da25b8d39f"
+    },
+    {
+      "bytes": 4650686,
+      "path": "raw/openrouter-gemini-3.5-flash-google-ai-studio--4096.json",
+      "role": "raw-public-trace",
+      "sha256": "e16be82e32007620fd7d144faa4f2312ab06eae1a5f0e2f03f4a66466284743e"
+    },
+    {
+      "bytes": 5714758,
+      "path": "raw/openrouter-glm-5.2-novita--4096.json",
+      "role": "raw-public-trace",
+      "sha256": "9c806be35410a4c44dc06c72c0d12d100738f57b62daa366fb584f8a54259f9f"
+    },
+    {
+      "bytes": 4997542,
+      "path": "raw/openrouter-gpt-5.6-luna-openai--4096.json",
+      "role": "raw-public-trace",
+      "sha256": "88f6b7c4c3994b105214620d0512589f28ef1a39a1696fc2887a5bb2083aea03"
+    },
+    {
+      "bytes": 5160010,
+      "path": "raw/openrouter-grok-4.5-xai--4096.json",
+      "role": "raw-public-trace",
+      "sha256": "b1eb5857b23d11ce173847148580f84c8c186d94178fd41feed1dfa570df040d"
+    },
+    {
+      "bytes": 4858524,
+      "path": "raw/openrouter-minimax-m3-minimax--4096.json",
+      "role": "raw-public-trace",
+      "sha256": "db3bb00f2d98bc22368438bd182975a3df69bc6d772f10877c3dc613e8fdba04"
+    },
+    {
+      "bytes": 5060576,
+      "path": "raw/openrouter-mistral-medium-3.5-mistral--4096.json",
+      "role": "raw-public-trace",
+      "sha256": "43067518dd55d4914142b5ebcdb71b25385052000a44fb6951d597caf5dc31dd"
+    },
+    {
+      "bytes": 5281954,
+      "path": "raw/openrouter-muse-spark-1.1-meta--4096.json",
+      "role": "raw-public-trace",
+      "sha256": "5c4a10a44f5252d9cfd384d96ef2d058bcbdca01095c4b3e0245edb66dc0ba4c"
+    },
+    {
+      "bytes": 4907682,
+      "path": "raw/openrouter-qwen3.7-plus-alibaba--4096.json",
+      "role": "raw-public-trace",
+      "sha256": "13b31bf544eb93549c3f237d5db1c04e0ae72d0ade3bfc9e14d190d4ac10540e"
+    },
+    {
+      "bytes": 4909835,
+      "path": "raw/openrouter-tencent-hy3-free-novita--4096.json",
+      "role": "raw-public-trace",
+      "sha256": "7c93f1d3bbe3e90e6a4aef03766c23e460ce15c43f5a92452c0b46d415fa2a52"
+    },
+    {
+      "bytes": 16418,
+      "path": "results/analysis/publication-panel-analysis.json",
+      "role": "panel-analysis",
+      "sha256": "c8d3ff83df153ea2f01553312db0ae0be80858403b7dee6a32a628ba6a6ca4bd"
+    },
+    {
+      "bytes": 6872,
+      "path": "run-metadata/openrouter-reservations.json",
+      "role": "run-metadata",
+      "sha256": "35c145eea21e5253849d4bde3bcc080de6a6ab6b33a2c3096545edfe86cc0c94"
+    },
+    {
+      "bytes": 1388,
+      "path": "run-metadata/run-state.json",
+      "role": "run-metadata",
+      "sha256": "ad9eb0ddd26005287e7a9f5a13f3ff0eb44122f83bf0ef82beecd9fcc7a203f7"
+    }
+  ],
+  "format": "gm-bench-publication-release-v1",
+  "notes": [
+    "Raw artifacts are immutable evidence and hash-link to committed compact rows where available.",
+    "Raw operator diagnostics may contain machine-local cache paths; compact publication artifacts do not.",
+    "No ordinal model ranking is supported: all eligible rows occupy one overlapping uncertainty tier."
+  ],
+  "output_token_cap": 4096,
+  "registered_models": 10,
+  "release_date": "2026-07-19",
+  "release_id": "sota-v2-phase-one-2026-07-19",
+  "schema_version": 1
+}
