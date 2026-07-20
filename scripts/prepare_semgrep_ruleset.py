@@ -14,6 +14,7 @@ RULES_REPLACED_BY_LOCAL_OVERRIDES = frozenset(
         "python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected",
         "python.lang.security.audit.formatted-sql-query.formatted-sql-query",
         "python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query",
+        "html.security.audit.missing-integrity.missing-integrity",
     }
 )
 

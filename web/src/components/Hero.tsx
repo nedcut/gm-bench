@@ -8,7 +8,15 @@ export default function Hero({ data }: { data: LeaderboardData }) {
   return (
     <section className="hero" id="top">
       <div className="shell">
-        <p className="hero-eyebrow">A pre-registered front-office benchmark for LLM agents</p>
+        <p className="hero-eyebrow">
+          <span>A pre-registered front-office benchmark for LLM agents</span>
+          <a href="https://github.com/nedcut">By Ned Cutler</a>
+        </p>
+        <a className="hero-result" href="#leaderboard">
+          <span>Phase-one result</span>
+          <strong>{data.models.length} models tested. 0 beat the scripted bar.</strong>
+          <i aria-hidden="true">View evidence →</i>
+        </a>
         <h1>
           Can a language model out-manage a <span className="bar-word">scripted front office</span>?
         </h1>
@@ -22,8 +30,14 @@ export default function Hero({ data }: { data: LeaderboardData }) {
           <a className="btn-primary" href="#leaderboard">
             See the board
           </a>
-          <a className="btn-ghost" href="#protocol">
-            Read the protocol
+          <a
+            className="btn-ghost"
+            href="https://github.com/nedcut/gm-bench/blob/main/docs/blog/sota-v2-findings.md"
+          >
+            Read the findings
+          </a>
+          <a className="btn-text" href="https://github.com/nedcut/gm-bench/releases/tag/sota-v2-phase-one-2026-07-19">
+            Open the evidence release
           </a>
         </div>
         <p className="hero-facts">

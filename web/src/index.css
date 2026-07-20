@@ -10,7 +10,7 @@
   --card: #ffffff;
   --ink: #0c1d2e;
   --steel: #51697e;
-  --faint: #8aa0b2;
+  --faint: #5a7185;
   --red: #c8102e;
   --red-soft: rgba(200, 16, 46, 0.07);
   --blue: #155b9a;
@@ -30,6 +30,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body {
@@ -39,6 +40,7 @@ body {
   font-size: 16.5px;
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
 }
 
 ::selection {
@@ -169,10 +171,41 @@ h2,
   }
 }
 
+@media (max-width: 480px) {
+  .shell {
+    padding-inline: 16px;
+  }
+
+  .brand {
+    gap: 7px;
+    font-size: 18px;
+    white-space: nowrap;
+  }
+
+  .brand svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .brand-tag {
+    display: none;
+  }
+
+  .nav-links {
+    gap: 0;
+  }
+
+  .nav-cta {
+    padding: 7px 10px 8px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+}
+
 /* ---------- hero ---------- */
 
 .hero {
-  padding: 84px 0 40px;
+  padding: 62px 0 40px;
 }
 
 .hero-eyebrow {
@@ -184,7 +217,7 @@ h2,
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--steel);
-  margin-bottom: 26px;
+  margin-bottom: 16px;
 }
 
 .hero-eyebrow::before {
@@ -194,10 +227,54 @@ h2,
   background: var(--red);
 }
 
+.hero-eyebrow a {
+  color: var(--ink);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.hero-eyebrow a:hover {
+  color: var(--blue);
+  border-color: var(--blue);
+}
+
 .hero h1 {
-  font-size: clamp(52px, 9vw, 108px);
-  max-width: 15ch;
+  font-size: clamp(52px, 7.6vw, 94px);
+  max-width: 17ch;
   margin-bottom: 26px;
+}
+
+.hero-result {
+  display: flex;
+  align-items: baseline;
+  width: fit-content;
+  gap: 10px 14px;
+  margin-bottom: 24px;
+  padding: 8px 12px 9px;
+  border-left: 3px solid var(--red);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: var(--font-mono);
+}
+
+.hero-result span,
+.hero-result i {
+  color: var(--steel);
+  font-size: 10.5px;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-result strong {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.hero-result:hover strong,
+.hero-result:hover i {
+  color: var(--blue);
 }
 
 .hero h1 .bar-word {
@@ -235,6 +312,46 @@ h2,
   letter-spacing: 0.05em;
   border-radius: 4px;
   padding: 10px 22px 11px;
+}
+
+.btn-text {
+  align-self: center;
+  padding: 8px 4px;
+  color: var(--steel);
+  border-bottom: 1px solid var(--line-strong);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.btn-text:hover {
+  color: var(--blue);
+  border-color: var(--blue);
+}
+
+@media (max-width: 620px) {
+  .hero {
+    padding-top: 44px;
+  }
+
+  .hero-result {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+  }
+
+  .hero-eyebrow {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .hero-result strong {
+    font-size: 17px;
+  }
 }
 
 .btn-primary {
@@ -446,6 +563,27 @@ h2,
   color: var(--faint);
 }
 
+.panel-title-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 14px;
+}
+
+.telemetry-toggle {
+  color: var(--blue);
+  border-bottom: 1px solid var(--blue);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.telemetry-toggle:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
 .panel > p {
   font-size: 15.5px;
   color: var(--steel);
@@ -462,6 +600,11 @@ h2,
 
 .table-wrap {
   overflow-x: auto;
+}
+
+.table-wrap:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
 }
 
 table {
@@ -1122,6 +1265,23 @@ tbody tr.tier-start td {
   align-items: center;
 }
 
+.footer-brand {
+  display: grid;
+  gap: 5px;
+}
+
+.footer-brand > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footer .byline {
+  width: fit-content;
+  margin-left: 32px;
+  color: var(--ink);
+}
+
 .footer a {
   color: var(--steel);
   border-bottom: 1px solid var(--line-strong);
@@ -1134,6 +1294,7 @@ tbody tr.tier-start td {
 
 .footer-links {
   display: flex;
+  flex-wrap: wrap;
   gap: 22px;
 }
 

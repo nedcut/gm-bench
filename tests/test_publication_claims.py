@@ -46,3 +46,18 @@ def test_public_claim_surfaces_use_the_frozen_lane_and_current_gate() -> None:
     assert "1,024-token safety ceiling" not in blog
     assert "`publishable_ranking: true`" in readme
     assert "no ordinal \u201cbest model\u201d claim" in " ".join(readme.split())
+
+
+def test_employer_facing_site_links_current_evidence_and_metadata() -> None:
+    hero = Path("web/src/components/Hero.tsx").read_text()
+    footer = Path("web/src/components/Footer.tsx").read_text()
+    index = Path("web/index.html").read_text()
+
+    assert "0 beat the scripted bar" in hero
+    assert "sota-v2-phase-one-2026-07-19" in hero
+    assert "Built by Ned Cutler" in footer
+    assert "REPRODUCING_SOTA_V2_RELEASE.md" in footer
+    assert 'href="%BASE_URL%favicon.svg"' in index
+    assert 'rel="canonical" href="https://nedcut.github.io/gm-bench/"' in index
+    assert 'property="og:title"' in index
+    assert "leaderboard that stays empty" not in index

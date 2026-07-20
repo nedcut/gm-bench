@@ -1,5 +1,6 @@
+import { useState } from "react";
 import type { Leaderboard as LeaderboardData, LeaderboardModel, TieredLeaderboardModel } from "../types";
-import { agentColor, COLOR, fmt, pct } from "../lib";
+import { agentColor, fmt, pct } from "../lib";
 
 const PROVIDER_LABELS: Record<string, string> = {
   openai: "OpenAI API",
@@ -28,8 +29,12 @@ function statusTag(model: LeaderboardModel) {
           sota-v2
         </span>
         {allIssues.length > 0 && (
-          <span className="tag tag-warn" title={issues}>
-            {allIssues.length} warning{allIssues.length === 1 ? "" : "s"}
+          <span
+            className="tag tag-warn"
+            title={issues}
+            aria-label={`${allIssues.length} protocol flags: ${issues}`}
+          >
+            {allIssues.length} flag{allIssues.length === 1 ? "" : "s"}
           </span>
         )}
       </span>
@@ -55,42 +60,53 @@ function liftCell(model: LeaderboardModel): string {
 }
 
 function ModelTable({
-  data,
   models,
   title,
   subtitle,
   withTiers,
 }: {
-  data: LeaderboardData;
   models: Array<LeaderboardModel | TieredLeaderboardModel>;
   title: string;
   subtitle: string;
   withTiers: boolean;
 }) {
-  const maxScore = Math.max(data.headroom.oracle, ...models.map((model) => model.mean_score));
+  const [showTelemetry, setShowTelemetry] = useState(false);
   let previousTier: number | undefined;
   return (
     <div className="panel">
       <div className="panel-title">
         <h3>{title}</h3>
-        <span>{subtitle}</span>
+        <div className="panel-title-actions">
+          <span>{subtitle}</span>
+          <button
+            className="telemetry-toggle"
+            type="button"
+            aria-expanded={showTelemetry}
+            onClick={() => setShowTelemetry((visible) => !visible)}
+          >
+            {showTelemetry ? "Hide full telemetry" : "Show full telemetry"}
+          </button>
+        </div>
       </div>
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0} role="region" aria-label={`${title} table`}>
         <table>
           <thead>
             <tr>
               {withTiers && <th>Tier</th>}
               <th>Model</th>
-              <th>Status</th>
               <th className="num">Score</th>
-              <th></th>
               <th className="num">Lift vs panel [95% CI]</th>
-              <th className="num">Fallback</th>
-              <th className="num">Failed queries</th>
-              <th className="num">Input/dec</th>
-              <th className="num">Output/dec</th>
               <th className="num">Cost/episode</th>
-              <th className="num">Latency</th>
+              <th>Status</th>
+              {showTelemetry && (
+                <>
+                  <th className="num">Fallback</th>
+                  <th className="num">Failed queries</th>
+                  <th className="num">Input/dec</th>
+                  <th className="num">Output/dec</th>
+                  <th className="num">Latency</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -113,29 +129,27 @@ function ModelTable({
                       <span className="tag tag-candidate">{PROVIDER_LABELS[model.provider] ?? model.provider}</span>
                     </span>
                   </td>
-                  <td>{statusTag(model)}</td>
                   <td className="num score-strong">{fmt(model.mean_score, 1)}</td>
-                  <td>
-                    <div className="bar-track">
-                      <div
-                        className="bar-fill"
-                        style={{ width: `${Math.max(0, (model.mean_score / maxScore) * 100)}%`, background: COLOR.blue }}
-                      />
-                    </div>
-                  </td>
                   <td className="num mono-dim">{liftCell(model)}</td>
-                  <td className="num mono-dim">{pct(model.fallback_rate)}</td>
-                  <td className="num mono-dim">{model.failed_queries === undefined ? "—" : model.failed_queries}</td>
-                  <td className="num mono-dim">
-                    {model.input_tokens_per_decision === null ? "—" : fmt(model.input_tokens_per_decision, 0)}
-                  </td>
-                  <td className="num mono-dim">
-                    {model.output_tokens_per_decision === null ? "—" : fmt(model.output_tokens_per_decision, 0)}
-                  </td>
                   <td className="num mono-dim">{cost(model)}</td>
-                  <td className="num mono-dim">
-                    {latency === null ? "—" : `${fmt(latency, 1)}s`}
-                  </td>
+                  <td>{statusTag(model)}</td>
+                  {showTelemetry && (
+                    <>
+                      <td className="num mono-dim">{pct(model.fallback_rate)}</td>
+                      <td className="num mono-dim">
+                        {model.failed_queries === undefined ? "—" : model.failed_queries}
+                      </td>
+                      <td className="num mono-dim">
+                        {model.input_tokens_per_decision === null ? "—" : fmt(model.input_tokens_per_decision, 0)}
+                      </td>
+                      <td className="num mono-dim">
+                        {model.output_tokens_per_decision === null ? "—" : fmt(model.output_tokens_per_decision, 0)}
+                      </td>
+                      <td className="num mono-dim">
+                        {latency === null ? "—" : `${fmt(latency, 1)}s`}
+                      </td>
+                    </>
+                  )}
                 </tr>
               );
             })}
@@ -152,6 +166,7 @@ function ModelTable({
           <span>observational lane — uncontrolled tool loops, context, and retries; no tiers, not comparable to the API lane</span>
         )}
         <span>lift vs panel = paired per-seed difference against the full scripted-baseline mean</span>
+        <span>flags are visible protocol observations; eligible rows still passed every frozen publication gate</span>
         <span>fallback = decisions answered by the adapter's fallback policy, not the model</span>
         <span>cost from measured tokens × published prices; read score next to input/output tokens and cost, never alone</span>
       </div>
@@ -359,7 +374,6 @@ export default function Leaderboard({ data }: { data: LeaderboardData }) {
         {!publishable && <Gate data={data} />}
         {publishable && (
           <ModelTable
-            data={data}
             models={data.models}
             title="Official API leaderboard"
             subtitle={`frozen ${data.publication.frozen_output_token_cap?.toLocaleString("en-US")}-token ceiling · reasoning off · ${data.updated ? `updated ${data.updated}` : "sota-v2"}`}
@@ -378,7 +392,6 @@ export default function Leaderboard({ data }: { data: LeaderboardData }) {
               observational table and never mix with the API lane.
             </p>
             <ModelTable
-              data={data}
               models={data.cli_harness_models}
               title="Coding-harness lane"
               subtitle="observational · separate table by design"

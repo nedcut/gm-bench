@@ -5,6 +5,10 @@ front-office dynasty games. Agents manage a fictional hockey-style league over
 multiple seasons by making roster, trade, free-agency, draft, and lineup
 decisions through a JSON-compatible API.
 
+Explore the [live leaderboard](https://nedcut.github.io/gm-bench/), read the
+[phase-one findings](docs/blog/sota-v2-findings.md), or download the
+[tagged evidence release](https://github.com/nedcut/gm-bench/releases/tag/sota-v2-phase-one-2026-07-19).
+
 ## Phase-one result
 
 Eight pre-registered model systems produced strict `sota-v2` rows under one
@@ -19,7 +23,7 @@ Read the [phase-one findings](docs/blog/sota-v2-findings.md), inspect the
 [generated analysis](results/analysis/publication-panel-analysis.json), or
 follow the [clean-clone reproduction guide](docs/REPRODUCING_SOTA_V2_RELEASE.md).
 
-The MVP includes:
+GM-Bench includes:
 
 - A seeded league simulator with aging, development, injuries, contracts,
   salary-cap pressure, free agency, trades, drafts, playoffs, and team standings.
