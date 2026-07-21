@@ -1,19 +1,17 @@
-export function Logo({ size = 26 }: { size?: number }) {
+export function Logo({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      {/* a rink corner: ice surface, one red line, one blue line */}
-      <rect width="32" height="32" rx="8" fill="#ffffff" stroke="#B9CBD7" />
+      <rect width="32" height="32" rx="4" fill="#ffffff" stroke="#C5D3DE" />
       <line x1="6" y1="13" x2="26" y2="13" stroke="#C8102E" strokeWidth="3" />
-      <line x1="6" y1="21" x2="26" y2="21" stroke="#155B9A" strokeWidth="2" />
+      <line x1="6" y1="21" x2="26" y2="21" stroke="#1A5F8F" strokeWidth="2" />
     </svg>
   );
 }
 
 const LINKS = [
-  { href: "#leaderboard", label: "The board" },
-  { href: "#integrity", label: "Integrity" },
+  { href: "#leaderboard", label: "Standings" },
   { href: "#protocol", label: "Protocol" },
-  { href: "#reference", label: "Reference" },
+  { href: "#quickstart", label: "Run" },
 ];
 
 export default function Nav() {
@@ -32,7 +30,7 @@ export default function Nav() {
             </a>
           ))}
           <a className="nav-cta" href="#quickstart">
-            Run the benchmark
+            Run locally
           </a>
         </nav>
       </div>

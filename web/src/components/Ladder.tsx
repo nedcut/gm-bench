@@ -89,9 +89,9 @@ export default function Ladder({ data }: { data: LeaderboardData }) {
   return (
     <div className="ladder-panel">
       <div className="ladder-head">
-        <h2>The score ladder</h2>
+        <h2>Score ladder</h2>
         <span>
-          objective score · {data.preset.seeds.length} seeds × {data.preset.seasons} seasons · scripted panel measured, model rows{" "}
+          objective score · {data.preset.seeds.length} seeds × {data.preset.seasons} seasons · panel measured · model rows{" "}
           {pending.publishable_ranking ? "published" : "withheld"}
         </span>
       </div>

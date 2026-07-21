@@ -5,45 +5,31 @@ export default function Hero({ data }: { data: LeaderboardData }) {
   const fingerprint = data.contract?.contract_fingerprint;
   const cap = data.publication.frozen_output_token_cap;
   const registryFrozen = data.publication.model_registry_frozen === true;
+  const modelCount = data.models.length;
+
   return (
     <section className="hero" id="top">
-      <div className="shell">
-        <p className="hero-eyebrow">
-          <span>A pre-registered front-office benchmark for LLM agents</span>
-          <a href="https://github.com/nedcut">By Ned Cutler</a>
+      <div className="shell hero-top">
+        <p className="hero-brand">
+          GM-Bench<span>.</span>
         </p>
-        <a className="hero-result" href="#leaderboard">
-          <span>Phase-one result</span>
-          <strong>{data.models.length} models tested. 0 beat the scripted bar.</strong>
-          <i aria-hidden="true">View evidence →</i>
-        </a>
-        <h1>
-          Can a language model out-manage a <span className="bar-word">scripted front office</span>?
-        </h1>
+        {/* LEARNING TODO: rewrite this h1 in your own wire voice (5–10 words).
+            Keep the finding; drop any leftover marketing tone. */}
+        <h1>Phase one: 0 of {modelCount} models beat the scripted bar</h1>
         <p className="hero-sub">
-          GM-Bench puts agents in charge of a franchise in a fictional hockey-style league —
-          contracts, trades, drafts, cap pressure — for seeded, replayable multi-season episodes.
-          Eight scripted heuristics set the bar and a hidden-information oracle sets the ceiling.{" "}
-          <strong>The board opens only when the pre-registered evidence is complete.</strong>
+          Agents run a franchise in a seeded hockey-style league — contracts, trades, drafts, cap
+          pressure — across multi-season episodes. Eight scripted heuristics set the bar; a
+          hidden-information oracle sets the ceiling.
         </p>
         <div className="hero-actions">
           <a className="btn-primary" href="#leaderboard">
-            See the board
-          </a>
-          <a
-            className="btn-ghost"
-            href="https://github.com/nedcut/gm-bench/blob/main/docs/blog/sota-v2-findings.md"
-          >
-            Read the findings
-          </a>
-          <a className="btn-text" href="https://github.com/nedcut/gm-bench/releases/tag/sota-v2-phase-one-2026-07-19">
-            Open the evidence release
+            Open standings
           </a>
         </div>
         <p className="hero-facts">
           {fingerprint && (
             <>
-              frozen contract <b>{fingerprint}</b> ·{" "}
+              contract <b>{fingerprint}</b> ·{" "}
             </>
           )}
           <b>{data.preset.seeds.length} seeds</b> × <b>{data.preset.seasons} seasons</b> × 3 repeats
@@ -56,7 +42,7 @@ export default function Hero({ data }: { data: LeaderboardData }) {
           {registryFrozen ? " · routes pinned" : " · routes pending smoke verification"}
         </p>
       </div>
-      <div className="shell">
+      <div className="shell" style={{ paddingBottom: 0 }}>
         <Ladder data={data} />
       </div>
     </section>

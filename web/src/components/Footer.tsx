@@ -7,11 +7,11 @@ export default function Footer({ data }: { data: LeaderboardData }) {
       <div className="shell footer-inner">
         <div className="footer-brand">
           <div>
-            <Logo size={22} />
-            <span>GM-Bench · a pre-registered front-office benchmark for LLM agents</span>
+            <Logo size={20} />
+            <span>GM-Bench · front-office benchmark for LLM agents</span>
           </div>
           <a className="byline" href="https://github.com/nedcut">
-            Built by Ned Cutler
+            Ned Cutler
           </a>
         </div>
         <div className="footer-links">
@@ -20,7 +20,7 @@ export default function Footer({ data }: { data: LeaderboardData }) {
             Findings
           </a>
           <a href="https://github.com/nedcut/gm-bench/releases/tag/sota-v2-phase-one-2026-07-19">
-            Evidence release
+            Evidence
           </a>
           <a href="https://github.com/nedcut/gm-bench/blob/main/docs/REPRODUCING_SOTA_V2_RELEASE.md">
             Reproduce
@@ -28,9 +28,9 @@ export default function Footer({ data }: { data: LeaderboardData }) {
         </div>
         <span className="mono">
           {data.contract
-            ? `${data.contract.benchmark_version} · contract ${data.contract.contract_fingerprint}`
+            ? `${data.contract.benchmark_version} · ${data.contract.contract_fingerprint}`
             : "sota-v2"}
-          {data.updated ? ` · data updated ${data.updated}` : " · no official model rows yet"}
+          {data.updated ? ` · updated ${data.updated}` : ""}
         </span>
       </div>
     </footer>

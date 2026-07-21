@@ -3,57 +3,37 @@ import type { Snapshot } from "../types";
 const PHASES = [
   {
     num: "01 · preseason",
-    title: "Build the roster",
-    body: "Sign free agents under a hard salary cap, dress an 18-player lineup, and balance veterans against prospects. Rivals compete for the same pool — a free agent visible now may be gone next phase.",
+    title: "Roster",
+    body: "Sign free agents under a hard salary cap, dress an 18-player lineup, balance veterans and prospects. Rivals share the same pool.",
   },
   {
     num: "02 · trade deadline",
-    title: "Trade under pressure",
-    body: "Swap players with eleven AI rivals mid-season. Partners apply hidden valuation noise each season, so what looked fair in preseason may fail at the deadline. Illegal proposals are rejected and penalized.",
+    title: "Trades",
+    body: "Swap with eleven AI rivals mid-season. Partners apply hidden valuation noise each season. Illegal proposals are rejected and penalized.",
   },
   {
     num: "03 · draft",
-    title: "Invest in the future",
-    body: "Spend draft capital on a seeded prospect class while opponents pick in inverse-standings order. Aging, development, and injuries play out across the season simulation and playoffs.",
+    title: "Draft",
+    body: "Spend capital on a seeded prospect class; opponents pick in inverse-standings order. Aging, development, and injuries play out through the season.",
   },
 ];
 
 const PROTO_POINTS = [
   {
     title: "Observation on stdin",
-    body: "One JSON object per decision point: your team (roster, lineup, cap room), standings, free agents, draft class, trade market, recent transactions, and your memo scratchpad.",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16" />
-      </svg>
-    ),
+    body: "One JSON object per decision: team (roster, lineup, cap room), standings, free agents, draft class, trade market, recent transactions, memo scratchpad.",
   },
   {
     title: "Actions on stdout",
-    body: "Reply with a JSON array of actions. Core verbs: sign_free_agent, trade, draft, set_lineup, and memo — plus release and noop when you need them.",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 21V9m0 0-4 4m4-4 4 4M4 3h16" />
-      </svg>
-    ),
+    body: "JSON array of actions. Core verbs: sign_free_agent, trade, draft, set_lineup, memo — plus release and noop.",
   },
   {
     title: "Deterministic replay",
-    body: "Leagues, development rolls, and injuries derive from the seed. The same agent on the same seed produces the same episode, every time.",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 12a9 9 0 0 1-15 6.7L3 16m0-4a9 9 0 0 1 15-6.7L21 8M3 16v-4h4M21 8v4h-4" />
-      </svg>
-    ),
+    body: "Leagues, development rolls, and injuries derive from the seed. Same agent, same seed, same episode.",
   },
   {
     title: "Scored beyond wins",
-    body: "The objective rewards wins, titles, future assets, prospect value, and cap health — and penalizes illegal or wasteful management.",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 3 3 7.5v6.5c0 4.2 3.8 6.6 9 7 5.2-.4 9-2.8 9-7V7.5L12 3Zm-3 9 2 2 4-5" />
-      </svg>
-    ),
+    body: "Objective rewards wins, titles, future assets, prospect value, and cap health — and penalizes illegal or wasteful management.",
   },
 ];
 
@@ -104,22 +84,21 @@ function CodeCard({ title, code }: { title: string; code: string }) {
 
 export default function HowItWorks({ snapshot }: { snapshot: Snapshot }) {
   return (
-    <section className="section" id="protocol">
+    <section className="section section-alt" id="protocol">
       <div className="shell">
         <div className="section-head">
-          <p className="kicker">The decision loop</p>
+          <p className="kicker">Protocol</p>
           <h2>Three decision points per season. Five seasons per episode.</h2>
           <p>
-            No browser automation, no memorized rosters — every player is fictional. Agents
-            face the same long-horizon trade-offs a real front office does, expressed as a
-            minimal JSON protocol any process can speak.
+            No browser automation, no memorized rosters — every player is fictional. Agents speak a
+            minimal JSON protocol any process can run.
           </p>
         </div>
 
-        <div className="loop-grid">
+        <div className="phase-wire">
           {PHASES.map((phase) => (
-            <article key={phase.num} className="loop-card">
-              <p className="loop-num">{phase.num}</p>
+            <article key={phase.num} className="phase-row">
+              <p className="phase-num">{phase.num}</p>
               <h3>{phase.title}</h3>
               <p>{phase.body}</p>
             </article>
@@ -130,25 +109,22 @@ export default function HowItWorks({ snapshot }: { snapshot: Snapshot }) {
           <div>
             {PROTO_POINTS.map((point) => (
               <div key={point.title} className="proto-point">
-                <span className="proto-icon">{point.icon}</span>
-                <div>
-                  <h4>{point.title}</h4>
-                  <p>{point.body}</p>
-                </div>
+                <h4>{point.title}</h4>
+                <p>{point.body}</p>
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <CodeCard title="observation → stdin" code={OBSERVATION_SNIPPET} />
             <CodeCard title="actions ← stdout" code={ACTIONS_SNIPPET} />
           </div>
         </div>
 
-        <div className="panel" style={{ marginTop: 22 }}>
+        <div className="panel" style={{ marginTop: 18 }}>
           <div className="panel-title">
-            <h3>Sample transaction audit</h3>
+            <h3>Transaction wire</h3>
             <span>
-              {snapshot.season_trace.agent} agent · seed {snapshot.season_trace.seed} · every action is logged
+              {snapshot.season_trace.agent} · seed {snapshot.season_trace.seed}
             </span>
           </div>
           <div className="txn-list">
