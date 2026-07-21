@@ -285,13 +285,6 @@ code {
   font-weight: 500;
 }
 
-.hero-todo {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--faint);
-  margin-top: 8px;
-}
-
 /* ---------- score ladder ---------- */
 
 .ladder-panel {
