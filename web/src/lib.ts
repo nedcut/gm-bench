@@ -5,11 +5,11 @@
 // never rides on color alone — every mark sits next to its label.
 export const COLOR = {
   red: "#C8102E",
-  blue: "#155B9A",
+  blue: "#1A5F8F",
   steel: "#7E93A6",
-  ink: "#0C1D2E",
+  ink: "#0A1620",
   faint: "#8AA0B2",
-  grid: "#D9E4EB",
+  grid: "#C5D3DE",
 } as const;
 
 export function agentColor(agent: string): string {
