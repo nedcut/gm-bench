@@ -199,9 +199,6 @@ class League:
         return actions
 
     def apply_actions(self, actions: list[dict[str, Any]], phase: str) -> list[ActionResult]:
-        # Walk-aways last one decision window: each call to apply_actions is one
-        # window, so counterparties who broke off talks come back next window.
-        self.window_walkaways = {}
         self._action_results = []
         if not isinstance(actions, list):
             self._record({}, phase, False, "agent response must be a list of actions")
@@ -216,6 +213,10 @@ class League:
                 break
             self._dispatch_action(action_type, action, phase)
         return self._action_results
+
+    def begin_decision_window(self) -> None:
+        """Reset negotiation walk-aways once before an agent decision."""
+        self.window_walkaways = {}
 
     def _dispatch_action(self, action_type: str, action: dict[str, Any], phase: str) -> ActionResult:
         if action_type == "noop":
@@ -488,7 +489,12 @@ class League:
 
     def _list_free_agents(self, action: dict[str, Any], phase: str) -> ActionResult:
         position = action.get("position")
-        min_overall = float(action.get("min_overall", 0.0))
+        try:
+            min_overall = float(action.get("min_overall", 0.0))
+        except (TypeError, ValueError):
+            return self._record(action, phase, False, "min_overall must be a finite number", penalize=False)
+        if not math.isfinite(min_overall):
+            return self._record(action, phase, False, "min_overall must be a finite number", penalize=False)
         limit = min(24, max(1, int(action.get("limit", 12))))
         players = [self.players[pid] for pid in self.free_agents]
         if position in {"F", "D", "G"}:
@@ -510,9 +516,13 @@ class League:
         self._record({**action, "text": memo}, phase, True, "memo saved")
 
     def _sign_free_agent(self, action: dict[str, Any], phase: str) -> None:
-        player_id = int(action.get("player_id", -1))
-        years = int(action.get("years", 1))
-        salary = float(action.get("salary", 0.0))
+        try:
+            player_id = int(action.get("player_id", -1))
+            years = int(action.get("years", 1))
+            salary = float(action.get("salary", 0.0))
+        except (TypeError, ValueError):
+            self._record(action, phase, False, "signing fields must be valid numbers")
+            return
         if player_id not in self.free_agents or player_id not in self.players:
             self._record(action, phase, False, "player is not an available free agent")
             return
@@ -521,7 +531,7 @@ class League:
             return
         # A non-positive salary is not a negotiable bid — it is a malformed
         # action, so it must not ride the penalty-free rejected-offer path.
-        if salary <= 0:
+        if not math.isfinite(salary) or salary <= 0:
             self._record(action, phase, False, "salary must be a positive amount")
             return
         player = self.players[player_id]

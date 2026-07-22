@@ -101,6 +101,20 @@ front office.
   actual model token use still ranged from 7,611 to 10,764 tokens per decision.
 - The result evaluates model-plus-standardized-scaffold systems on this task;
   it is not a claim about general intelligence or universal strategic ability.
+- The published panel and scripted references are committed and public. That
+  makes replay easy, but it also permits benchmark-specific adaptation; future
+  generalization claims need a private or prospective panel.
+- Opponents are scripted front-office policies, not autonomous learning GMs.
+  Morale is shown as decorative state but does not currently affect strength,
+  development, or score; readers should not treat it as a decision-relevant mechanic.
+
+## Decision history
+
+The protocol was frozen through an iterative process, not discovered whole.
+The public [publish-readiness decision log](../PUBLISH_READINESS.md) records
+panel reshuffles, cap-policy changes, route substitutions, and evidence resets.
+“Frozen” describes the released protocol and artifact set; it does not erase
+those pre-freeze researcher decisions.
 
 ## Audit and reproduce
 

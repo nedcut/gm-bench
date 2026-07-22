@@ -309,12 +309,18 @@ def _registered_lane_issues(
     return issues
 
 
-def analyze(registry: Mapping[str, Any], payloads: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+def analyze(
+    registry: Mapping[str, Any],
+    payloads: Sequence[Mapping[str, Any]],
+    *,
+    raw_payloads: Sequence[Mapping[str, Any]] = (),
+) -> dict[str, Any]:
     """Analyze valid artifacts matching the registry and report missing/rejected rows."""
     specs, config_errors = _registry_specs(registry)
     specs_by_identity = {(spec["provider"], spec["model"]): spec for spec in specs}
     candidates: dict[str, list[dict[str, Any]]] = {}
     rejected: list[dict[str, Any]] = []
+    raw_by_hash = {canonical_sha256(dict(raw)): raw for raw in raw_payloads}
 
     for index, payload in enumerate(payloads):
         artifact_sha256 = canonical_sha256(dict(payload))
@@ -334,6 +340,8 @@ def analyze(registry: Mapping[str, Any], payloads: Sequence[Mapping[str, Any]]) 
             not isinstance(raw_artifact_sha256, str) or re.fullmatch(r"[0-9a-f]{64}", raw_artifact_sha256) is None
         ):
             reasons.append("publication.raw_artifact_sha256 must be a 64-character lowercase hex digest")
+        elif raw_artifact_sha256 is not None and raw_by_hash and raw_artifact_sha256 not in raw_by_hash:
+            reasons.append("publication.raw_artifact_sha256 does not match any supplied raw artifact")
         try:
             per_seed = per_seed_pick_trader_lifts(
                 payload,
@@ -426,6 +434,7 @@ def main() -> int:
     parser.add_argument("artifacts", nargs="*", type=Path)
     parser.add_argument("--registry", type=Path, default=REGISTRY_PATH)
     parser.add_argument("--artifacts-dir", type=Path, default=DEFAULT_ARTIFACT_DIR)
+    parser.add_argument("--raw-artifacts-dir", type=Path, help="raw JSON evidence used to verify compact hash links")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_PATH)
     args = parser.parse_args()
 
@@ -433,10 +442,15 @@ def main() -> int:
     try:
         registry = _read_json(args.registry)
         payloads = [_read_json(path) for path in artifact_paths]
+        raw_payloads = (
+            [_read_json(path) for path in sorted(args.raw_artifacts_dir.glob("*.json"))]
+            if args.raw_artifacts_dir
+            else []
+        )
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         sys.exit(f"analyze_publication_panel: {exc}")
 
-    result = analyze(registry, payloads)
+    result = analyze(registry, payloads, raw_payloads=raw_payloads)
     text = json.dumps(result, indent=2, sort_keys=True) + "\n"
     if result["eligible_model_count"] == 0:
         print(text, end="")
