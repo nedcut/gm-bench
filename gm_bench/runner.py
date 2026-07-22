@@ -166,6 +166,9 @@ def run_decision_point(
     timed into harness latency, usages are collected, and the decision is
     marked failed if ANY round's actions fail.
     """
+    # Interaction rounds are one decision window.  Negotiation walk-aways must
+    # survive query follow-ups and reopen only at the next decision point.
+    league.begin_decision_window()
     tier = _observation_tier_for_agent(agent, config)
     action_results: list[dict[str, Any]] | None = None
     last_results: list[dict[str, Any]] = []

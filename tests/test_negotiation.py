@@ -84,6 +84,7 @@ def test_free_agent_walks_away_after_repeated_lowballs() -> None:
     assert league.rejected_offers == REJECTED_OFFER_LIMIT_PER_WINDOW + 1
     assert league.illegal_actions == 0
     # Talks reopen at the next decision window.
+    league.begin_decision_window()
     league.apply_actions([{"type": "sign_free_agent", "player_id": player_id, "years": 1, "salary": ask}], "preseason")
     assert league.transactions[-1].accepted is True
 

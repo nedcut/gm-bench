@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 from pathlib import Path
 
@@ -62,6 +63,11 @@ def test_compact_result_rejects_already_compacted_artifact() -> None:
     compact = compact_result(_payload())
     with pytest.raises(ValueError, match="already has publication metadata"):
         compact_result(compact)
+
+
+def test_canonical_hash_refuses_non_finite_publication_json() -> None:
+    with pytest.raises(ValueError, match="Out of range float values"):
+        canonical_sha256({"score": math.nan})
 
 
 def test_budget_analysis_refuses_empty_sweep(tmp_path: Path) -> None:

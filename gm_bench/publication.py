@@ -17,7 +17,7 @@ PUBLICATION_FORMAT = "gm-bench-result-summary-v1"
 
 
 def canonical_sha256(payload: dict[str, Any]) -> str:
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode()
     return hashlib.sha256(encoded).hexdigest()
 
 

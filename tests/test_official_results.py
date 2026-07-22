@@ -19,6 +19,7 @@ from gm_bench.official import (
     redact_leaderboard_payload,
     validate_leaderboard_payload,
 )
+from gm_bench.publication import compact_result
 from scripts.analyze_output_budget import analyze
 from web.scripts.build_leaderboard import model_row
 
@@ -134,6 +135,16 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
 def test_public_leaderboard_policy_accepts_single_repeat_payload() -> None:
     report = validate_leaderboard_payload(_official_payload(), policy=PUBLIC_LEADERBOARD_POLICY)
     assert report.ok
+
+
+def test_compact_artifact_rejects_tampered_episode_and_aggregate() -> None:
+    payload = compact_result(_official_payload(repeats=3))
+    payload["candidate"]["episodes"][0]["final_score"] = 9999.0
+    payload["candidate"]["summary"]["mean_score"] = 9999.0
+    payload["normalized"]["candidate_mean_score"] = 9999.0
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+    assert not report.ok
+    assert any("episode-derived" in error for error in report.errors)
 
 
 def test_output_budget_policy_preserves_high_failure_cells() -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import math
 import os
 import re
 from dataclasses import dataclass
@@ -332,6 +333,9 @@ def validate_leaderboard_payload(
         elif expected_seeds is not None:
             _validate_episode_panel(errors, f"baseline[{name}]", baseline, expected_seeds, expected_seasons, repeats=1)
 
+    if isinstance(payload.get("publication"), dict) and not redacted_private:
+        _validate_compact_integrity(errors, payload, candidate, baselines, expected_seeds or [])
+
     normalized = _dict(payload.get("normalized"))
     paired = _dict(payload.get("paired"))
     if not normalized:
@@ -654,6 +658,69 @@ def _validate_episode_panel(
     missing = {seed: values for seed, values in missing.items() if values}
     if missing:
         errors.append(f"{label}.episodes missing seed/repeat pairs: {missing}")
+
+
+def _validate_compact_integrity(
+    errors: list[str],
+    payload: dict[str, Any],
+    candidate: dict[str, Any],
+    baselines: list[dict[str, Any]],
+    seeds: list[int],
+) -> None:
+    """Treat compact summaries as derived views, never independent evidence."""
+    _validate_finite_numbers(errors, payload)
+    if not candidate or not baselines or not seeds:
+        return
+    from gm_bench.runner import _paired_analysis, _precise_mean_score, summarize_episodes
+
+    rebuilt_candidate = {**candidate, "summary": summarize_episodes(candidate.get("episodes") or [])}
+    rebuilt_baselines = [
+        {**baseline, "summary": summarize_episodes(baseline.get("episodes") or [])} for baseline in baselines
+    ]
+    _compare_present_values(errors, "candidate.summary", candidate.get("summary"), rebuilt_candidate["summary"])
+    for original, rebuilt in zip(baselines, rebuilt_baselines, strict=True):
+        _compare_present_values(
+            errors, f"baseline[{original.get('agent', 'unknown')}].summary", original.get("summary"), rebuilt["summary"]
+        )
+    baseline_mean = sum(_precise_mean_score(block) for block in rebuilt_baselines) / len(rebuilt_baselines)
+    candidate_mean = _precise_mean_score(rebuilt_candidate)
+    expected_normalized = {
+        "candidate_mean_score": round(candidate_mean, 3),
+        "baseline_panel_mean_score": round(baseline_mean, 3),
+        "score_lift": round(candidate_mean - baseline_mean, 3),
+        "score_lift_pct": round(((candidate_mean / baseline_mean) - 1.0) * 100.0, 2) if baseline_mean else 0.0,
+        "candidate_illegal_actions": rebuilt_candidate["summary"]["illegal_actions"],
+        "baseline_illegal_actions": sum(block["summary"]["illegal_actions"] for block in rebuilt_baselines),
+    }
+    _compare_present_values(errors, "normalized", payload.get("normalized"), expected_normalized)
+    _compare_present_values(
+        errors, "paired", payload.get("paired"), _paired_analysis(seeds, rebuilt_candidate, rebuilt_baselines)
+    )
+
+
+def _validate_finite_numbers(errors: list[str], value: Any, path: str = "payload") -> None:
+    if isinstance(value, float) and not math.isfinite(value):
+        errors.append(f"{path} must not contain a non-finite number")
+    elif isinstance(value, dict):
+        for key, child in value.items():
+            _validate_finite_numbers(errors, child, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _validate_finite_numbers(errors, child, f"{path}[{index}]")
+
+
+def _compare_present_values(errors: list[str], path: str, actual: Any, expected: Any) -> None:
+    if not isinstance(actual, dict) or not isinstance(expected, dict):
+        return
+    for key, value in actual.items():
+        if key not in expected:
+            continue
+        expected_value = expected[key]
+        child_path = f"{path}.{key}"
+        if isinstance(value, dict) and isinstance(expected_value, dict):
+            _compare_present_values(errors, child_path, value, expected_value)
+        elif value != expected_value:
+            errors.append(f"{child_path} does not match episode-derived value")
 
 
 def _expect_equal(errors: list[str], name: str, actual: Any, expected: Any) -> None:
