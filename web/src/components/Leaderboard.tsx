@@ -95,6 +95,7 @@ function ModelTable({
               {withTiers && <th>Tier</th>}
               <th>Model</th>
               <th className="num">Score</th>
+              <th className="num">Output/dec</th>
               <th className="num">Lift vs panel [95% CI]</th>
               <th className="num">Cost/episode</th>
               <th>Status</th>
@@ -130,6 +131,9 @@ function ModelTable({
                     </span>
                   </td>
                   <td className="num score-strong">{fmt(model.mean_score, 1)}</td>
+                  <td className="num mono-dim">
+                    {model.output_tokens_per_decision === null ? "—" : fmt(model.output_tokens_per_decision, 0)}
+                  </td>
                   <td className="num mono-dim">{liftCell(model)}</td>
                   <td className="num mono-dim">{cost(model)}</td>
                   <td>{statusTag(model)}</td>
@@ -141,9 +145,6 @@ function ModelTable({
                       </td>
                       <td className="num mono-dim">
                         {model.input_tokens_per_decision === null ? "—" : fmt(model.input_tokens_per_decision, 0)}
-                      </td>
-                      <td className="num mono-dim">
-                        {model.output_tokens_per_decision === null ? "—" : fmt(model.output_tokens_per_decision, 0)}
                       </td>
                       <td className="num mono-dim">
                         {latency === null ? "—" : `${fmt(latency, 1)}s`}
@@ -167,6 +168,7 @@ function ModelTable({
         )}
         <span>lift vs panel = paired per-seed difference against the scripted-baseline mean</span>
         <span>fallback = decisions answered by the adapter policy, not the model</span>
+        <span>output/dec stays beside score because same-lane ceilings do not imply equal effective compute</span>
       </div>
     </div>
   );
@@ -400,6 +402,11 @@ export default function Leaderboard({ data }: { data: LeaderboardData }) {
             {data.preset.decision_points_per_episode} decisions per franchise), paired per-seed
             against the scripted panel.
           </p>
+        </div>
+        <div className="ranking-callout">
+          <strong>Why there is no #1:</strong> this table is publishable evidence, not a resolved ranking. All eligible
+          models share an overlapping uncertainty tier; the unadjusted all-seed result is descriptive, while the
+          predeclared Holm-adjusted family result does not reject at 0.05.
         </div>
         {!publishable && <Gate data={data} />}
         {publishable && (

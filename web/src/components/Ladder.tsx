@@ -1,6 +1,17 @@
 import { useState } from "react";
 import type { Leaderboard as LeaderboardData } from "../types";
-import { COLOR, fmt } from "../lib";
+import { fmt } from "../lib";
+
+/* SVG marks read the same CSS variables as the tables, so the theme toggle
+   recolors the chart and the standings from one cascade. */
+const MARK = {
+  axis: "var(--mark-axis)",
+  ref: "var(--mark-ref)",
+  faint: "var(--mark-faint)",
+  grid: "var(--mark-grid)",
+  red: "var(--red)",
+  steel: "var(--steel)",
+} as const;
 
 const W = 1080;
 const H = 260;
@@ -106,21 +117,21 @@ export default function Ladder({ data }: { data: LeaderboardData }) {
           <defs>
             <pattern id="pending-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="8" height="8" fill="none" />
-              <line x1="0" y1="0" x2="0" y2="8" stroke={COLOR.grid} strokeWidth="2.5" />
+              <line x1="0" y1="0" x2="0" y2="8" style={{ stroke: MARK.grid }} strokeWidth="2.5" />
             </pattern>
           </defs>
 
           {/* axis + ticks */}
-          <line x1={PAD.left} x2={W - PAD.right} y1={AXIS_Y} y2={AXIS_Y} stroke={COLOR.ink} strokeWidth="1.5" />
+          <line x1={PAD.left} x2={W - PAD.right} y1={AXIS_Y} y2={AXIS_Y} style={{ stroke: MARK.axis }} strokeWidth="1.5" />
           {ticks.map((tick) => (
             <g key={tick}>
-              <line x1={x(tick)} x2={x(tick)} y1={AXIS_Y} y2={AXIS_Y + 7} stroke={COLOR.ink} strokeWidth="1" />
+              <line x1={x(tick)} x2={x(tick)} y1={AXIS_Y} y2={AXIS_Y + 7} style={{ stroke: MARK.axis }} strokeWidth="1" />
               <text
                 x={x(tick)}
                 y={AXIS_Y + 22}
                 textAnchor="middle"
                 fontSize="11"
-                fill={COLOR.faint}
+                style={{ fill: MARK.faint }}
                 fontFamily="IBM Plex Mono, monospace"
               >
                 {tick}
@@ -135,16 +146,15 @@ export default function Ladder({ data }: { data: LeaderboardData }) {
             width={x(domainMax) - x(0)}
             height={34}
             fill="url(#pending-hatch)"
-            stroke={COLOR.grid}
+            style={{ stroke: MARK.grid }}
           />
           <text
             x={(x(0) + x(domainMax)) / 2}
             y={AXIS_Y + 55}
             textAnchor="middle"
             fontSize="12.5"
-            fill={COLOR.steel}
+            style={{ fill: MARK.steel, letterSpacing: "0.08em" }}
             fontFamily="IBM Plex Mono, monospace"
-            style={{ letterSpacing: "0.08em" }}
           >
             {pending.publishable_ranking
               ? "MODEL ROWS PUBLISHED ABOVE"
@@ -155,7 +165,7 @@ export default function Ladder({ data }: { data: LeaderboardData }) {
           {placed.map((marker, index) => {
             const isBar = marker.kind === "bar";
             const isCeiling = marker.kind === "ceiling";
-            const stroke = isBar ? COLOR.red : isCeiling ? COLOR.ink : COLOR.steel;
+            const stroke = isBar ? MARK.red : isCeiling ? MARK.axis : MARK.ref;
             const key = isBar || isCeiling || marker.kind === "floor";
             return (
               <g
@@ -182,7 +192,7 @@ export default function Ladder({ data }: { data: LeaderboardData }) {
                   x2={marker.x}
                   y1={marker.labelY + 6}
                   y2={AXIS_Y}
-                  stroke={stroke}
+                  style={{ stroke }}
                   strokeWidth={isBar ? 3.5 : 1.5}
                   strokeDasharray={isCeiling ? "5 4" : undefined}
                 />
@@ -193,9 +203,8 @@ export default function Ladder({ data }: { data: LeaderboardData }) {
                   textAnchor={marker.anchor}
                   fontSize={isBar ? "14" : "11.5"}
                   fontWeight={isBar ? 700 : 500}
-                  fill={stroke}
+                  style={{ fill: stroke, textTransform: "uppercase", letterSpacing: "0.05em" }}
                   fontFamily="Barlow Condensed, sans-serif"
-                  style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}
                 >
                   {marker.name}
                 </text>
@@ -205,7 +214,7 @@ export default function Ladder({ data }: { data: LeaderboardData }) {
                   y={marker.labelY + 3}
                   textAnchor={marker.anchor}
                   fontSize="10.5"
-                  fill={isBar ? COLOR.red : COLOR.faint}
+                  style={{ fill: isBar ? MARK.red : MARK.faint }}
                   fontFamily="IBM Plex Mono, monospace"
                 >
                   {isBar ? `${fmt(marker.score, 1)} · THE RED LINE` : fmt(marker.score, 1)}

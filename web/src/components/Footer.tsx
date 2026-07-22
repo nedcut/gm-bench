@@ -25,6 +25,9 @@ export default function Footer({ data }: { data: LeaderboardData }) {
           <a href="https://github.com/nedcut/gm-bench/blob/main/docs/REPRODUCING_SOTA_V2_RELEASE.md">
             Reproduce
           </a>
+          <a href="https://github.com/nedcut/gm-bench/blob/main/docs/PUBLISH_READINESS.md">
+            Decision log
+          </a>
         </div>
         <span className="mono">
           {data.contract

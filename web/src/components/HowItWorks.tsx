@@ -9,7 +9,7 @@ const PHASES = [
   {
     num: "02 · trade deadline",
     title: "Trades",
-    body: "Swap with eleven AI rivals mid-season. Partners apply hidden valuation noise each season. Illegal proposals are rejected and penalized.",
+    body: "Swap with eleven scripted opponent offices mid-season. Partners apply hidden valuation noise each season. Illegal proposals are rejected and penalized.",
   },
   {
     num: "03 · draft",
@@ -25,7 +25,7 @@ const PROTO_POINTS = [
   },
   {
     title: "Actions on stdout",
-    body: "JSON array of actions. Core verbs: sign_free_agent, trade, draft, set_lineup, memo — plus release and noop.",
+    body: "A production envelope with actions and optional usage telemetry. Core verbs: sign_free_agent, trade, draft, set_lineup, memo — plus release and noop.",
   },
   {
     title: "Deterministic replay",
@@ -55,7 +55,8 @@ const OBSERVATION_SNIPPET = `{
   "standings": [ /* 12 teams */ ]
 }`;
 
-const ACTIONS_SNIPPET = `[
+const ACTIONS_SNIPPET = `{
+  "actions": [
   { "type": "sign_free_agent",
     "player_id": 294, "years": 3, "salary": 4.1 },
   { "type": "trade", "partner_team_id": 3,
@@ -67,7 +68,9 @@ const ACTIONS_SNIPPET = `[
                    11, 12, 13, 14, 15, 16, 17, 18] },
   { "type": "memo",
     "text": "push for playoff spot; revisit D depth at deadline" }
-]`;
+  ],
+  "usage": { "input_tokens": 1200, "output_tokens": 340 }
+}`;
 
 function CodeCard({ title, code }: { title: string; code: string }) {
   return (
@@ -91,7 +94,8 @@ export default function HowItWorks({ snapshot }: { snapshot: Snapshot }) {
           <h2>Three decision points per season. Five seasons per episode.</h2>
           <p>
             No browser automation, no memorized rosters — every player is fictional. Agents speak a
-            minimal JSON protocol any process can run.
+            minimal JSON protocol any process can run. Under the published scaffold, reading that JSON/API contract is
+            part of what the benchmark measures.
           </p>
         </div>
 

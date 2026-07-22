@@ -53,9 +53,10 @@ def test_employer_facing_site_links_current_evidence_and_metadata() -> None:
     footer = Path("web/src/components/Footer.tsx").read_text()
     index = Path("web/index.html").read_text()
 
-    assert "0 beat the scripted bar" in hero
-    assert "sota-v2-phase-one-2026-07-19" in hero
-    assert "Built by Ned Cutler" in footer
+    assert "exceeded the scripted bar’s observed mean" in hero
+    assert "not an ordinal ranking" in hero
+    assert "sota-v2-phase-one-2026-07-19" in footer
+    assert "Ned Cutler" in footer
     assert "REPRODUCING_SOTA_V2_RELEASE.md" in footer
     assert 'href="%BASE_URL%favicon.svg"' in index
     assert 'rel="canonical" href="https://nedcut.github.io/gm-bench/"' in index

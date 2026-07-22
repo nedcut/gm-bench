@@ -16,9 +16,78 @@
   --blue-soft: rgba(26, 95, 143, 0.08);
   --line: #d3dde6;
   --line-strong: #c5d3de;
+  /* chart marks — themeable so the SVG ladder tracks the table palette */
+  --mark-axis: #0a1620;
+  --mark-ref: #7e93a6;
+  --mark-faint: #8aa0b2;
+  --mark-grid: #c5d3de;
+  --hero-grad-top: #f5f8fa;
+  --hero-lines: rgba(197, 211, 222, 0.35);
+  --nav-bg: rgba(238, 242, 245, 0.94);
+  /* the code card is a terminal in both registers — pinned dark */
+  --code-bg: #0a1620;
+  --code-fg: #dce8f2;
+  --code-dim: #8fa8bd;
+  --code-line: rgba(220, 232, 242, 0.12);
   --font-score: "Barlow Condensed", "Arial Narrow", sans-serif;
   --font-body: "IBM Plex Sans", "Helvetica Neue", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  color-scheme: light;
+}
+
+/* Dark register: same cold-wire system after dusk. Red still means one thing;
+   blue still marks candidates — both nudged brighter to hold contrast on ink. */
+:root[data-theme="dark"] {
+  --paper: #0d141b;
+  --paper-2: #131d26;
+  --card: #111a22;
+  --ink: #e8eef3;
+  --steel: #a9bccb;
+  --faint: #7f95a8;
+  --red: #ff4d5e;
+  --red-soft: rgba(255, 77, 94, 0.1);
+  --blue: #5ea8e0;
+  --blue-soft: rgba(94, 168, 224, 0.12);
+  --line: #1c2731;
+  --line-strong: #253340;
+  --mark-axis: #c9d6e0;
+  --mark-ref: #7f95a8;
+  --mark-faint: #5f7488;
+  --mark-grid: #253340;
+  --hero-grad-top: #101922;
+  --hero-lines: rgba(37, 51, 64, 0.55);
+  --nav-bg: rgba(13, 20, 27, 0.92);
+  --code-bg: #080f16;
+  --code-fg: #dce8f2;
+  --code-dim: #8fa8bd;
+  --code-line: rgba(220, 232, 242, 0.1);
+  color-scheme: dark;
+}
+
+body,
+.nav,
+.panel,
+.gate,
+.footnotes,
+.phase-wire,
+.code-card,
+table,
+tbody tr {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body,
+  .nav,
+  .panel,
+  .gate,
+  .footnotes,
+  .phase-wire,
+  .code-card,
+  table,
+  tbody tr {
+    transition: none;
+  }
 }
 
 * {
@@ -83,7 +152,7 @@ code {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgba(238, 242, 245, 0.94);
+  background: var(--nav-bg);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line-strong);
 }
@@ -183,13 +252,13 @@ code {
   padding: 48px 0 0;
   border-bottom: 1px solid var(--line-strong);
   background:
-    linear-gradient(180deg, #f5f8fa 0%, var(--paper) 72%),
+    linear-gradient(180deg, var(--hero-grad-top) 0%, var(--paper) 72%),
     repeating-linear-gradient(
       90deg,
       transparent,
       transparent 47px,
-      rgba(197, 211, 222, 0.35) 47px,
-      rgba(197, 211, 222, 0.35) 48px
+      var(--hero-lines) 47px,
+      var(--hero-lines) 48px
     );
 }
 
@@ -214,38 +283,240 @@ code {
 .hero h1 {
   font-family: var(--font-body);
   font-weight: 600;
-  font-size: clamp(22px, 3.2vw, 28px);
+  font-size: clamp(20px, 2.6vw, 25px);
   letter-spacing: -0.02em;
   line-height: 1.25;
-  max-width: 28ch;
-  margin-bottom: 12px;
+  max-width: 40ch;
+  margin-bottom: 10px;
   text-transform: none;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .hero h1 {
-    text-decoration: underline;
-    text-decoration-color: var(--red);
-    text-decoration-thickness: 3px;
-    text-underline-offset: 6px;
-    animation: verdict-line 0.7s ease 0.15s both;
-  }
-}
-
-@keyframes verdict-line {
-  from {
-    text-decoration-color: transparent;
-  }
-  to {
-    text-decoration-color: var(--red);
-  }
-}
-
 .hero-sub {
-  font-size: 16px;
+  font-size: 15px;
   color: var(--steel);
-  max-width: 52ch;
+  max-width: 46ch;
   margin-bottom: 18px;
+}
+
+.hero-caveat {
+  max-width: 50ch;
+  border-left: 3px solid var(--red);
+  padding-left: 10px;
+  color: var(--steel);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ranking-callout {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-left: 4px solid var(--red);
+  background: var(--card);
+  color: var(--steel);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.ranking-callout strong { color: var(--ink); }
+
+/* ---------- gap-chart hero ---------- */
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  gap: 40px;
+  align-items: center;
+  padding-top: 6px;
+  padding-bottom: 40px;
+}
+
+@media (max-width: 860px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 26px;
+    align-items: stretch;
+  }
+}
+
+.hero-verdict {
+  font-family: "Newsreader", Georgia, serif;
+  font-weight: 600;
+  font-size: clamp(30px, 4.4vw, 44px);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  max-width: 16ch;
+  margin-bottom: 16px;
+}
+
+.hero-verdict em {
+  font-style: normal;
+  color: var(--red);
+}
+
+.gapchart {
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--card);
+  padding: 18px 20px 16px;
+}
+
+.gapchart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 16px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+  font-weight: 500;
+}
+
+.gapchart-scale {
+  white-space: nowrap;
+}
+
+.gaprow {
+  display: grid;
+  grid-template-columns: minmax(90px, 128px) minmax(0, 1fr) 52px;
+  gap: 12px;
+  align-items: center;
+  height: 30px;
+}
+
+.gap-label {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gap-bar .gap-label {
+  color: var(--red);
+}
+
+.gap-ceiling .gap-label {
+  color: var(--ink);
+}
+
+.gap-rest .gap-label {
+  color: var(--faint);
+  font-weight: 400;
+}
+
+.gap-track {
+  position: relative;
+  height: 15px;
+  background: var(--paper-2);
+  border-radius: 3px;
+}
+
+.gap-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: var(--blue);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gap-fill {
+    animation: gap-grow 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes gap-grow {
+  from {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+}
+
+.gap-ceiling .gap-fill {
+  background: var(--ink);
+}
+
+.gap-bar .gap-fill {
+  background: var(--red);
+}
+
+.gap-rest .gap-fill {
+  background: var(--mark-grid);
+}
+
+/* the shared vertical line every model bar stops short of */
+.gap-redline {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 2px;
+  background: var(--red);
+  transform: translateX(-1px);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.gapchart-legend {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--faint);
+}
+
+.gapchart-legend i {
+  display: inline-block;
+  width: 2px;
+  height: 10px;
+  background: var(--red);
+  vertical-align: -1px;
+  margin-right: 6px;
+}
+
+.gap-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--steel);
+}
+
+.gap-ceiling .gap-value,
+.gap-bar .gap-value {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+@media (max-width: 480px) {
+  .gaprow {
+    grid-template-columns: minmax(78px, 100px) minmax(0, 1fr) 44px;
+    gap: 8px;
+  }
+}
+
+/* ---------- theme toggle ---------- */
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  color: var(--steel);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.theme-toggle:hover {
+  color: var(--ink);
+  border-color: var(--ink);
 }
 
 .hero-actions {
@@ -911,8 +1182,8 @@ tbody tr.tier-start td {
 .code-card {
   border: 1px solid var(--line-strong);
   border-radius: 2px;
-  background: var(--ink);
-  color: #dce8f2;
+  background: var(--code-bg);
+  color: var(--code-fg);
   overflow: hidden;
 }
 
@@ -921,10 +1192,10 @@ tbody tr.tier-start td {
   align-items: center;
   justify-content: space-between;
   padding: 8px 14px;
-  border-bottom: 1px solid rgba(220, 232, 242, 0.12);
+  border-bottom: 1px solid var(--code-line);
   font-family: var(--font-mono);
   font-size: 11px;
-  color: #8fa8bd;
+  color: var(--code-dim);
 }
 
 .code-card pre {
