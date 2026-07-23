@@ -1,22 +1,52 @@
-export function Logo({ size = 26 }: { size?: number }) {
+import { useEffect, useState } from "react";
+import { useTheme } from "../theme";
+
+export function Logo({ size = 24 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      {/* a rink corner: ice surface, one red line, one blue line */}
-      <rect width="32" height="32" rx="8" fill="#ffffff" stroke="#B9CBD7" />
-      <line x1="6" y1="13" x2="26" y2="13" stroke="#C8102E" strokeWidth="3" />
-      <line x1="6" y1="21" x2="26" y2="21" stroke="#155B9A" strokeWidth="2" />
-    </svg>
+    <img
+      src={`${import.meta.env.BASE_URL}favicon.svg`}
+      width={size}
+      height={size}
+      alt=""
+      aria-hidden="true"
+    />
   );
 }
 
 const LINKS = [
-  { href: "#leaderboard", label: "The board" },
-  { href: "#integrity", label: "Integrity" },
+  { href: "#results", label: "Results" },
+  { href: "#analysis", label: "Analysis" },
   { href: "#protocol", label: "Protocol" },
-  { href: "#reference", label: "Reference" },
+  { href: "#quickstart", label: "Run" },
 ];
 
+function ThemeToggle() {
+  const [theme, toggle] = useTheme();
+  const dark = theme === "dark";
+  return (
+    <button
+      type="button"
+      className="theme-toggle"
+      onClick={toggle}
+      aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
+      title={dark ? "Light theme" : "Dark theme"}
+    >
+      {dark ? "Light" : "Dark"}
+    </button>
+  );
+}
+
 export default function Nav() {
+  const [active, setActive] = useState(() =>
+    typeof window === "undefined" ? "#results" : window.location.hash || "#results",
+  );
+
+  useEffect(() => {
+    const update = () => setActive(window.location.hash || "#results");
+    window.addEventListener("hashchange", update);
+    return () => window.removeEventListener("hashchange", update);
+  }, []);
+
   return (
     <header className="nav">
       <div className="shell nav-inner">
@@ -27,13 +57,15 @@ export default function Nav() {
         </a>
         <nav className="nav-links">
           {LINKS.map((link) => (
-            <a key={link.href} href={link.href}>
+            <a
+              key={link.href}
+              href={link.href}
+              className={active === link.href ? "is-active" : undefined}
+            >
               {link.label}
             </a>
           ))}
-          <a className="nav-cta" href="#quickstart">
-            Run the benchmark
-          </a>
+          <ThemeToggle />
         </nav>
       </div>
     </header>
