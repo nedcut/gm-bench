@@ -84,7 +84,7 @@ function ModelTable({
             aria-expanded={showTelemetry}
             onClick={() => setShowTelemetry((visible) => !visible)}
           >
-            {showTelemetry ? "Hide full telemetry" : "Show full telemetry"}
+            {showTelemetry ? "Hide telemetry" : "Show telemetry"}
           </button>
         </div>
       </div>
@@ -159,16 +159,14 @@ function ModelTable({
       <div className="legend">
         {withTiers ? (
           <>
-            <span>tiers group models whose paired-lift 95% intervals overlap — order inside a tier is display order, not a claim</span>
-            <span>per-model intervals are descriptive; family-wise claims follow the frozen Holm-corrected analysis plan</span>
+            <span>tiers group models whose paired-lift 95% intervals overlap</span>
+            <span>per-model intervals are descriptive; family-wise claims follow the frozen Holm plan</span>
           </>
         ) : (
-          <span>observational lane — uncontrolled tool loops, context, and retries; no tiers, not comparable to the API lane</span>
+          <span>observational lane — uncontrolled tool loops; not comparable to the API lane</span>
         )}
-        <span>lift vs panel = paired per-seed difference against the full scripted-baseline mean</span>
-        <span>flags are visible protocol observations; eligible rows still passed every frozen publication gate</span>
-        <span>fallback = decisions answered by the adapter's fallback policy, not the model</span>
-        <span>cost from measured tokens × published prices; read score next to input/output tokens and cost, never alone</span>
+        <span>lift vs panel = paired per-seed difference against the scripted-baseline mean</span>
+        <span>fallback = decisions answered by the adapter policy, not the model</span>
       </div>
     </div>
   );
@@ -188,9 +186,9 @@ function BarTable({ data }: { data: LeaderboardData }) {
   return (
     <div className="panel">
       <div className="panel-title">
-        <h3>The bar, measured</h3>
+        <h3>Scripted panel</h3>
         <span>
-          scripted panel · preset {data.preset.name} · {data.preset.seeds.length} seeds × {data.preset.seasons} seasons
+          preset {data.preset.name} · {data.preset.seeds.length} seeds × {data.preset.seasons} seasons
           {data.updated ? ` · updated ${data.updated}` : ""}
         </span>
       </div>
@@ -215,8 +213,8 @@ function BarTable({ data }: { data: LeaderboardData }) {
                   </span>
                 </td>
                 <td>
-                  {row.kind === "bar" && <span className="tag tag-bar">the red line</span>}
-                  {row.kind === "ceiling" && <span className="tag tag-baseline">hidden-information ceiling</span>}
+                  {row.kind === "bar" && <span className="tag tag-bar">red line</span>}
+                  {row.kind === "ceiling" && <span className="tag tag-baseline">oracle ceiling</span>}
                   {row.kind === "baseline" && <span className="tag tag-baseline">scripted</span>}
                 </td>
                 <td className="num score-strong">{fmt(row.mean_score, 1)}</td>
@@ -235,8 +233,8 @@ function BarTable({ data }: { data: LeaderboardData }) {
         </table>
       </div>
       <div className="legend">
-        <span>every model row is paired against these exact seeds — the panel is the control group</span>
-        <span>the oracle sees hidden information no legal agent can; it bounds what the score can express</span>
+        <span>every model row is paired against these seeds</span>
+        <span>oracle sees hidden information no legal agent can</span>
       </div>
     </div>
   );
@@ -255,23 +253,17 @@ function Gate({ data }: { data: LeaderboardData }) {
     { done: smokesDone, label: "every registered route smoke-verified" },
     {
       done: rowsMet,
-      label: `≥${publication.minimum_headline_models} strictly eligible rows (${publication.eligible_headline_models} today)`,
+      label: `≥${publication.minimum_headline_models} eligible rows (${publication.eligible_headline_models} today)`,
     },
-    { done: analysisDone, label: "Holm-adjusted panel analysis bound to the exact artifacts" },
+    { done: analysisDone, label: "Holm-adjusted panel analysis bound to artifacts" },
   ];
   return (
     <div className="gate">
       <div>
-        <h3>No ranking yet — that is the protocol working</h3>
+        <h3>Ranking withheld until every gate clears</h3>
         <p>
-          The previous version of this table was withdrawn when a contract defect was found to
-          penalize some models and not others. The v2 board therefore publishes nothing until every
-          gate below is machine-verified: {publication.reason}.
-        </p>
-        <p>
-          Scores cannot influence the protocol — the contract, compute policy, model registry, and
-          statistical analysis plan freeze <em>before</em> official runs, and a valid poor result is
-          never re-run.
+          v1 was withdrawn after a contract defect penalized some models unevenly. v2 publishes
+          nothing until these checks pass: {publication.reason}.
         </p>
         <div className="gate-checks">
           {checks.map((check) => (
@@ -281,7 +273,7 @@ function Gate({ data }: { data: LeaderboardData }) {
           ))}
         </div>
       </div>
-      <span className="stamp">Withheld by design</span>
+      <span className="stamp">Withheld</span>
     </div>
   );
 }
@@ -290,20 +282,17 @@ function ArchiveNotice() {
   return (
     <div className="panel">
       <div className="panel-title">
-        <h3>Withdrawn: the sota-v1 results</h3>
+        <h3>Archive: sota-v1 withdrawn</h3>
         <span>retained as evidence · not a ranking</span>
       </div>
       <p>
-        Every score published under the previous <code>sota-v1</code> contract has been withdrawn.
-        The scaffold prompt documented <code>{`{"type":"scout","prospect_id":N}`}</code> as a valid
-        action, but the simulator only ever read <code>player_id</code> and silently rejected the
-        documented form — with no protocol penalty, so the rejections never appeared in any summary.
+        Scores under the previous <code>sota-v1</code> contract were withdrawn. The scaffold prompt
+        documented <code>{`{"type":"scout","prospect_id":N}`}</code> as valid, but the simulator
+        only read <code>player_id</code> and silently rejected the documented form.
       </p>
       <p>
-        The defect did not fall evenly. It cost some candidates over a thousand silently-rejected
-        lookups and others none at all, while the scripted baselines were untouched. The v1 table was
-        therefore not a valid ranking of the models in it, and no caveat makes it one. The raw
-        artifacts remain in <code>results/leaderboard/archive-v1/</code> as evidence of the defect.
+        The defect did not fall evenly across candidates. Raw artifacts remain in{" "}
+        <code>results/leaderboard/archive-v1/</code>.
       </p>
     </div>
   );
@@ -320,8 +309,8 @@ function MechanicBreakdown({ models }: { models: LeaderboardModel[] }) {
   return (
     <div className="panel">
       <div className="panel-title">
-        <h3>Protocol outcomes by mechanic</h3>
-        <span>accepted / rejected actions</span>
+        <h3>Accepted / rejected by mechanic</h3>
+        <span>protocol outcomes</span>
       </div>
       <div className="table-wrap">
         <table>
@@ -356,50 +345,91 @@ function MechanicBreakdown({ models }: { models: LeaderboardModel[] }) {
   );
 }
 
+function Footnotes({ data }: { data: LeaderboardData }) {
+  const contract = data.contract;
+  const cap = data.publication.frozen_output_token_cap;
+  const registryFrozen = data.publication.model_registry_frozen === true;
+  return (
+    <div className="footnotes" id="integrity">
+      <div className="footnote">
+        <h4>Contract</h4>
+        <p>
+          Simulator, scoring, presets, and schemas hash to{" "}
+          <code>{contract?.contract_fingerprint ?? "—"}</code>.
+        </p>
+      </div>
+      <div className="footnote">
+        <h4>Compute</h4>
+        {cap ? (
+          <p>
+            Shared {cap.toLocaleString("en-US")}-token output ceiling, reasoning off, JSON mode on;
+            routes {registryFrozen ? "pinned" : "pending smoke verification"}.
+          </p>
+        ) : (
+          <p>Compute policy still pending — no fixed-ceiling claim published.</p>
+        )}
+      </div>
+      <div className="footnote">
+        <h4>Tiers</h4>
+        <p>
+          Holm-corrected paired contrasts froze before data. Overlapping uncertainty publishes as
+          one tier — not an ordinal #1.
+        </p>
+      </div>
+      <div className="footnote">
+        <h4>Evidence</h4>
+        <p>
+          Runs are serial, checkpointed, spend-capped; artifacts hash-linked. Valid poor results are
+          not re-run.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function Leaderboard({ data }: { data: LeaderboardData }) {
   const publishable = data.publication.publishable_ranking;
   return (
     <section className="section" id="leaderboard">
       <div className="shell">
         <div className="section-head">
-          <p className="kicker">The board</p>
-          <h2>Tiers, not ranks. Evidence, not vibes.</h2>
+          <p className="kicker">Standings</p>
+          <h2>Tiers from paired lifts, not a #1 ranking.</h2>
           <p>
-            Models manage the same franchises over the same {data.preset.seeds.length} seeds for{" "}
-            {data.preset.seasons} seasons ({data.preset.decision_points_per_episode} decisions per
-            franchise), paired per-seed against the scripted panel. The frozen analysis plan
-            publishes overlapping-uncertainty <strong>tiers</strong> — never an ordinal #1.
+            Same franchises, same {data.preset.seeds.length} seeds, {data.preset.seasons} seasons (
+            {data.preset.decision_points_per_episode} decisions per franchise), paired per-seed
+            against the scripted panel.
           </p>
         </div>
         {!publishable && <Gate data={data} />}
         {publishable && (
           <ModelTable
             models={data.models}
-            title="Official API leaderboard"
+            title="API lane"
             subtitle={`frozen ${data.publication.frozen_output_token_cap?.toLocaleString("en-US")}-token ceiling · reasoning off · ${data.updated ? `updated ${data.updated}` : "sota-v2"}`}
             withTiers
           />
         )}
         {publishable && data.models.length > 0 && <MechanicBreakdown models={data.models} />}
-        <div style={{ marginTop: 20 }}>
+        <div style={{ marginTop: 14 }}>
           <BarTable data={data} />
         </div>
         {data.cli_harness_models.length > 0 && (
           <>
-            <p className="lane-note" style={{ marginTop: 20 }}>
-              Coding-harness rows run the same episodes through a CLI agent's own tool loop, context,
-              and retries. That harness is part of what gets measured, so these rows live in their own
-              observational table and never mix with the API lane.
+            <p className="lane-note" style={{ marginTop: 14 }}>
+              Coding-harness rows use each CLI agent’s own tool loop, context, and retries. Separate
+              table by design — not mixed with the API lane.
             </p>
             <ModelTable
               models={data.cli_harness_models}
               title="Coding-harness lane"
-              subtitle="observational · separate table by design"
+              subtitle="observational · separate table"
               withTiers={false}
             />
           </>
         )}
-        <div style={{ marginTop: 20 }}>
+        <Footnotes data={data} />
+        <div style={{ marginTop: 14 }}>
           <ArchiveNotice />
         </div>
       </div>
