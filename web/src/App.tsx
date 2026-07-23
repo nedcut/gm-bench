@@ -1,3 +1,4 @@
+import { useState } from "react";
 import snapshotData from "./data/snapshot.json";
 import leaderboardData from "./data/leaderboard.json";
 import type { Leaderboard as LeaderboardData, Snapshot } from "./types";
@@ -14,12 +15,25 @@ const leaderboard = leaderboardData as LeaderboardData;
 const benchmark = buildBenchmarkView(leaderboard);
 
 export default function App() {
+  const [selectedModelId, setSelectedModelId] = useState(
+    benchmark.models[0]?.id ?? "",
+  );
+
   return (
     <>
       <Nav />
       <main>
-        <ResultsExplorer data={leaderboard} benchmark={benchmark} />
-        <Analysis benchmark={benchmark} />
+        <ResultsExplorer
+          data={leaderboard}
+          benchmark={benchmark}
+          selectedModelId={selectedModelId}
+          onSelectModel={setSelectedModelId}
+        />
+        <Analysis
+          benchmark={benchmark}
+          selectedModelId={selectedModelId}
+          onSelectModel={setSelectedModelId}
+        />
         <HowItWorks snapshot={snapshot} />
         <Quickstart />
       </main>

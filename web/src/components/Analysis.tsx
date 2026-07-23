@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { max } from "d3-array";
 import { scaleLinear } from "d3-scale";
 import {
@@ -72,7 +72,7 @@ function RankingPlot({
           textAnchor="end"
           className="chart-reference-label"
         >
-          {fmt(benchmark.scriptedBar, 1)} scripted bar
+          scripted bar · pick-trader {fmt(benchmark.scriptedBar, 1)}
         </text>
         <line
           x1={x(benchmark.oracle)}
@@ -87,7 +87,7 @@ function RankingPlot({
           textAnchor="end"
           className="chart-oracle-label"
         >
-          {fmt(benchmark.oracle, 1)} oracle
+          oracle ceiling {fmt(benchmark.oracle, 1)}
         </text>
 
         {benchmark.models.map((model, index) => {
@@ -100,6 +100,8 @@ function RankingPlot({
               role="button"
               tabIndex={0}
               aria-label={`Inspect ${model.model}`}
+              onMouseEnter={() => onSelect(model.id)}
+              onFocus={() => onSelect(model.id)}
               onClick={() => onSelect(model.id)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -107,6 +109,7 @@ function RankingPlot({
                   onSelect(model.id);
                 }
               }}
+              style={{ "--row-index": index } as CSSProperties}
             >
               <rect x="0" y={y - rowHeight / 2} width={width} height={rowHeight} />
               <text x="4" y={y + 5} className="ranking-model">
@@ -182,13 +185,22 @@ function MechanicBars({ model }: { model: ResultModel }) {
   );
 }
 
+function adverseBin(metric: HeatMetric, value: number): number {
+  const thresholds =
+    metric === "rate" ? [0.02, 0.08, 0.18, 0.35] : [10, 30, 75, 200];
+  const index = thresholds.findIndex((threshold) => value <= threshold);
+  return index === -1 ? 5 : index + 1;
+}
+
 function MechanicsHeatmap({
   benchmark,
   metric,
+  selected,
   onSelect,
 }: {
   benchmark: BenchmarkView;
   metric: HeatMetric;
+  selected: string;
   onSelect: (id: string) => void;
 }) {
   const rates = benchmark.models.flatMap((model) =>
@@ -198,7 +210,6 @@ function MechanicsHeatmap({
     MECHANICS.map(([key]) => model.mechanic_breakdown[key].rejected),
   );
   const maxValue = metric === "rate" ? max(rates) ?? 1 : max(counts) ?? 1;
-  const opacity = scaleLinear().domain([0, maxValue]).range([0.06, 0.9]);
 
   return (
     <div className="heatmap-wrap" role="grid" aria-label="Model outcomes by mechanic">
@@ -211,11 +222,19 @@ function MechanicsHeatmap({
         ))}
       </div>
       {benchmark.models.map((model) => (
-        <div className="heatmap-grid heatmap-row" role="row" key={model.id}>
+        <div
+          className={
+            model.id === selected
+              ? "heatmap-grid heatmap-row is-selected"
+              : "heatmap-grid heatmap-row"
+          }
+          role="row"
+          key={model.id}
+        >
           <button type="button" onClick={() => onSelect(model.id)} role="rowheader">
             {shortModelName(model.model)}
           </button>
-          {MECHANICS.map(([key]) => {
+          {MECHANICS.map(([key, label]) => {
             const outcome = model.mechanic_breakdown[key];
             const value =
               metric === "rate" ? rejectionRate(model, key) : outcome.rejected;
@@ -228,9 +247,9 @@ function MechanicsHeatmap({
                 type="button"
                 key={key}
                 role="gridcell"
-                style={{ backgroundColor: `rgba(26, 95, 143, ${opacity(value)})` }}
+                className={`adverse-${adverseBin(metric, value)}`}
                 onClick={() => onSelect(model.id)}
-                aria-label={`${model.model}, ${key.replaceAll("_", " ")}, ${display}`}
+                aria-label={`${model.model}, ${label}, ${display} rejected`}
               >
                 {display}
               </button>
@@ -239,25 +258,48 @@ function MechanicsHeatmap({
         </div>
       ))}
       <div className="heatmap-legend">
-        <span>{metric === "rate" ? "0%" : "0"}</span>
-        <i />
+        <span>Lower rejection</span>
+        <span className="heatmap-ramp" aria-hidden="true">
+          {[1, 2, 3, 4, 5].map((bin) => (
+            <i key={bin} className={`adverse-${bin}`} />
+          ))}
+        </span>
         <span>
+          Higher rejection (worse) ·{" "}
           {metric === "rate"
-            ? `${fmt(maxValue * 100, 1)}%`
-            : Math.round(maxValue).toLocaleString("en-US")}
+            ? `${fmt(maxValue * 100, 1)}% max`
+            : `${Math.round(maxValue).toLocaleString("en-US")} max`}
         </span>
       </div>
     </div>
   );
 }
 
-export default function Analysis({ benchmark }: { benchmark: BenchmarkView }) {
-  const [selectedId, setSelectedId] = useState(benchmark.models[0]?.id ?? "");
+export default function Analysis({
+  benchmark,
+  selectedModelId,
+  onSelectModel,
+}: {
+  benchmark: BenchmarkView;
+  selectedModelId: string;
+  onSelectModel: (id: string) => void;
+}) {
   const [metric, setMetric] = useState<HeatMetric>("rate");
   const selected = useMemo(
-    () => benchmark.models.find((model) => model.id === selectedId) ?? benchmark.models[0],
-    [benchmark.models, selectedId],
+    () =>
+      benchmark.models.find((model) => model.id === selectedModelId) ??
+      benchmark.models[0],
+    [benchmark.models, selectedModelId],
   );
+  const highestRejection = useMemo(() => {
+    if (!selected) return null;
+    return MECHANICS.map(([key, label]) => ({
+      key,
+      label,
+      rate: rejectionRate(selected, key),
+      rejected: selected.mechanic_breakdown[key].rejected,
+    })).sort((a, b) => b.rate - a.rate)[0];
+  }, [selected]);
 
   if (!selected) return null;
 
@@ -266,25 +308,25 @@ export default function Analysis({ benchmark }: { benchmark: BenchmarkView }) {
       <div className="results-shell">
         <div className="analysis-heading">
           <div>
-            <p className="kicker">Analysis</p>
-            <h2>Where the model systems lose ground.</h2>
+            <p className="kicker">Absolute score</p>
+            <h2>The gap persists against the strongest scripted policy.</h2>
           </div>
           <p>
-            Select a score or heatmap cell to inspect accepted and rejected actions from the
-            same published record.
+            Select a model anywhere on the page to trace its score, cost, and rejected
+            actions through the same published record.
           </p>
         </div>
 
         <div className="analysis-evidence">
           <div className="analysis-ranking-panel">
             <div className="analysis-panel-title">
-              <h3>Mean GM-Bench score</h3>
+              <h3>Observed score and remaining headroom</h3>
               <span>Higher is better</span>
             </div>
             <RankingPlot
               benchmark={benchmark}
               selected={selected.id}
-              onSelect={setSelectedId}
+              onSelect={onSelectModel}
             />
           </div>
           <aside className="model-inspector">
@@ -300,6 +342,10 @@ export default function Analysis({ benchmark }: { benchmark: BenchmarkView }) {
                 <dd>{fmt(selected.paired_lift, 1)}</dd>
               </div>
               <div>
+                <dt>Gap to scripted bar</dt>
+                <dd>{fmt(benchmark.scriptedBar - selected.mean_score, 1)}</dd>
+              </div>
+              <div>
                 <dt>Cost / episode</dt>
                 <dd>${fmt(selected.cost_per_episode_usd, 2)}</dd>
               </div>
@@ -308,6 +354,9 @@ export default function Analysis({ benchmark }: { benchmark: BenchmarkView }) {
                 <dd>
                   {(selected.failed_queries ?? 0).toLocaleString("en-US")} /{" "}
                   {selected.decision_points.toLocaleString("en-US")}
+                  {(selected.failed_queries ?? 0) / selected.decision_points >= 0.25 && (
+                    <em> high</em>
+                  )}
                 </dd>
               </div>
             </dl>
@@ -319,10 +368,11 @@ export default function Analysis({ benchmark }: { benchmark: BenchmarkView }) {
         <div className="heatmap-section">
           <div className="heatmap-title">
             <div>
-              <h3>Where models lose actions</h3>
+              <span className="chart-story-label">Mechanics</span>
+              <h3>Rejection patterns by mechanic</h3>
               <p>
-                Darker cells indicate more rejection. Red remains reserved for the scripted
-                benchmark line.
+                Amber means more actions were rejected. Exact values remain visible in
+                every cell.
               </p>
             </div>
             <div className="segmented" aria-label="Heatmap metric">
@@ -344,10 +394,22 @@ export default function Analysis({ benchmark }: { benchmark: BenchmarkView }) {
               </button>
             </div>
           </div>
+          {highestRejection && (
+            <div className="heatmap-insight" aria-live="polite">
+              <span>Selected system’s largest rejection rate</span>
+              <strong>
+                {highestRejection.label} · {fmt(highestRejection.rate * 100, 1)}%
+              </strong>
+              <span>
+                {highestRejection.rejected.toLocaleString("en-US")} rejected actions
+              </span>
+            </div>
+          )}
           <MechanicsHeatmap
             benchmark={benchmark}
             metric={metric}
-            onSelect={setSelectedId}
+            selected={selected.id}
+            onSelect={onSelectModel}
           />
         </div>
       </div>

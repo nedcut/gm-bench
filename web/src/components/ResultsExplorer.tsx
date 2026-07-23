@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { max } from "d3-array";
 import { scaleLinear } from "d3-scale";
 import type { BenchmarkView, ResultModel } from "../benchmarkData";
@@ -33,12 +33,20 @@ function ObservationDisclosure({ model }: { model: ResultModel }) {
   );
 }
 
-function ForestPlot({ models }: { models: ResultModel[] }) {
+function ForestPlot({
+  models,
+  selected,
+  onSelect,
+}: {
+  models: ResultModel[];
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
   const width = 1280;
-  const left = 300;
-  const right = 196;
+  const left = 270;
+  const right = 42;
   const rowHeight = 48;
-  const top = 54;
+  const top = 46;
   const bottom = 58;
   const height = top + models.length * rowHeight + bottom;
   const ciValues = models.flatMap((model) => model.ci95);
@@ -54,22 +62,13 @@ function ForestPlot({ models }: { models: ResultModel[] }) {
         role="img"
         aria-labelledby="forest-title forest-desc"
       >
-        <title id="forest-title">Paired score-point lift versus the scripted panel</title>
+        <title id="forest-title">Paired score-point lift versus the baseline panel</title>
         <desc id="forest-desc">
           Every published model has a negative paired lift and a 95 percent confidence
           interval below zero. Higher values are better.
         </desc>
-        <text x="18" y="33" className="chart-tier-label">
-          TIER 1
-        </text>
         <text x={left} y="27" className="chart-axis-note">
           Higher is better →
-        </text>
-        <text x={width - 155} y="27" textAnchor="middle" className="chart-column-head">
-          Lift
-        </text>
-        <text x={width - 60} y="27" textAnchor="middle" className="chart-column-head">
-          95% CI
         </text>
 
         {ticks.map((tick) => (
@@ -79,13 +78,13 @@ function ForestPlot({ models }: { models: ResultModel[] }) {
               x2={x(tick)}
               y1={top - 10}
               y2={height - bottom}
-              className={tick === 0 ? "chart-reference" : "chart-grid"}
+              className={tick === 0 ? "chart-panel-reference" : "chart-grid"}
             />
             <text
               x={x(tick)}
               y={height - 26}
               textAnchor="middle"
-              className={tick === 0 ? "chart-tick chart-tick-bar" : "chart-tick"}
+              className="chart-tick"
             >
               {tick}
             </text>
@@ -94,12 +93,36 @@ function ForestPlot({ models }: { models: ResultModel[] }) {
 
         {models.map((model, index) => {
           const y = top + index * rowHeight + rowHeight / 2;
+          const active = model.id === selected;
           return (
-            <g className="forest-row" key={model.id} tabIndex={0}>
+            <g
+              className={active ? "forest-row is-selected" : "forest-row"}
+              key={model.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Inspect ${model.model}`}
+              onMouseEnter={() => onSelect(model.id)}
+              onFocus={() => onSelect(model.id)}
+              onClick={() => onSelect(model.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelect(model.id);
+                }
+              }}
+              style={{ "--row-index": index } as CSSProperties}
+            >
               <title>
                 {model.model}: {fmt(model.paired_lift, 1)} score points, 95% CI [
                 {fmt(model.ci95[0], 1)}, {fmt(model.ci95[1], 1)}]
               </title>
+              <rect
+                x="0"
+                y={y - rowHeight / 2}
+                width={width}
+                height={rowHeight}
+                className="chart-row-hit"
+              />
               <line
                 x1="0"
                 x2={width}
@@ -107,10 +130,7 @@ function ForestPlot({ models }: { models: ResultModel[] }) {
                 y2={y + rowHeight / 2}
                 className="chart-row-rule"
               />
-              <text x="18" y={y + 5} className="chart-tier-dot">
-                {index === 0 ? "Tier 1" : "·"}
-              </text>
-              <text x="116" y={y + 5} className="chart-model-label">
+              <text x="18" y={y + 5} className="chart-model-label">
                 {model.model}
               </text>
               <line
@@ -118,29 +138,28 @@ function ForestPlot({ models }: { models: ResultModel[] }) {
                 x2={x(model.ci95[1])}
                 y1={y}
                 y2={y}
-                className="interval-line"
+                className="interval-line chart-mark-line"
               />
               <line
                 x1={x(model.ci95[0])}
                 x2={x(model.ci95[0])}
                 y1={y - 7}
                 y2={y + 7}
-                className="interval-cap"
+                className="interval-cap chart-mark-cap"
               />
               <line
                 x1={x(model.ci95[1])}
                 x2={x(model.ci95[1])}
                 y1={y - 7}
                 y2={y + 7}
-                className="interval-cap"
+                className="interval-cap chart-mark-cap"
               />
-              <circle cx={x(model.paired_lift)} cy={y} r="5.5" className="candidate-dot" />
-              <text x={width - 155} y={y + 5} textAnchor="middle" className="chart-value">
-                {fmt(model.paired_lift, 1)}
-              </text>
-              <text x={width - 60} y={y + 5} textAnchor="middle" className="chart-ci">
-                [{fmt(model.ci95[0], 1)}, {fmt(model.ci95[1], 1)}]
-              </text>
+              <circle
+                cx={x(model.paired_lift)}
+                cy={y}
+                r={active ? 7 : 5.5}
+                className="candidate-dot chart-mark-dot"
+              />
             </g>
           );
         })}
@@ -149,9 +168,9 @@ function ForestPlot({ models }: { models: ResultModel[] }) {
           x={x(0)}
           y={height - 8}
           textAnchor="middle"
-          className="chart-reference-label"
+          className="chart-panel-reference-label"
         >
-          scripted panel (0)
+          baseline panel (0)
         </text>
         <text
           x={(left + width - right) / 2}
@@ -159,7 +178,7 @@ function ForestPlot({ models }: { models: ResultModel[] }) {
           textAnchor="middle"
           className="chart-axis-label"
         >
-          Score-point lift vs scripted panel
+          Score-point lift vs baseline panel
         </text>
       </svg>
     </div>
@@ -170,10 +189,14 @@ function CostScatter({
   models,
   scriptedBar,
   oracle,
+  selected,
+  onSelect,
 }: {
   models: ResultModel[];
   scriptedBar: number;
   oracle: number;
+  selected: string;
+  onSelect: (id: string) => void;
 }) {
   const width = 1280;
   const height = 480;
@@ -192,6 +215,20 @@ function CostScatter({
     .range([height - bottom, top]);
   const xTicks = x.ticks(6);
   const yTicks = y.ticks(6);
+  const labels = [...models]
+    .map((model) => ({
+      id: model.id,
+      x: x(model.cost_per_episode_usd),
+      pointY: y(model.mean_score),
+      labelY: y(model.mean_score) - 10,
+    }))
+    .sort((a, b) => a.labelY - b.labelY);
+  labels.forEach((label, index) => {
+    if (index > 0) {
+      label.labelY = Math.max(label.labelY, labels[index - 1].labelY + 18);
+    }
+  });
+  const labelById = new Map(labels.map((label) => [label.id, label]));
 
   return (
     <div className="chart-scroll">
@@ -250,7 +287,7 @@ function CostScatter({
           textAnchor="end"
           className="chart-reference-label"
         >
-          pick-trader · scripted bar {fmt(scriptedBar, 1)}
+          scripted bar · pick-trader {fmt(scriptedBar, 1)}
         </text>
         <line
           x1={left}
@@ -268,9 +305,27 @@ function CostScatter({
           oracle ceiling {fmt(oracle, 1)}
         </text>
         {models.map((model, index) => {
-          const labelAbove = index % 2 === 0;
+          const label = labelById.get(model.id);
+          const active = model.id === selected;
+          const anchorEnd = (label?.x ?? 0) > width - 180;
           return (
-            <g key={model.id} className="scatter-point" tabIndex={0}>
+            <g
+              key={model.id}
+              className={active ? "scatter-point is-selected" : "scatter-point"}
+              role="button"
+              tabIndex={0}
+              aria-label={`Inspect ${model.model}`}
+              onMouseEnter={() => onSelect(model.id)}
+              onFocus={() => onSelect(model.id)}
+              onClick={() => onSelect(model.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelect(model.id);
+                }
+              }}
+              style={{ "--row-index": index } as CSSProperties}
+            >
               <title>
                 {model.model}: score {fmt(model.mean_score, 1)}, $
                 {fmt(model.cost_per_episode_usd, 2)} per episode
@@ -278,12 +333,20 @@ function CostScatter({
               <circle
                 cx={x(model.cost_per_episode_usd)}
                 cy={y(model.mean_score)}
-                r={6}
-                className="candidate-dot"
+                r={active ? 8 : 6}
+                className="candidate-dot chart-mark-dot"
+              />
+              <line
+                x1={x(model.cost_per_episode_usd)}
+                x2={(label?.x ?? 0) + (anchorEnd ? -7 : 7)}
+                y1={y(model.mean_score)}
+                y2={(label?.labelY ?? y(model.mean_score) - 10) - 4}
+                className="scatter-leader"
               />
               <text
-                x={x(model.cost_per_episode_usd) + 9}
-                y={y(model.mean_score) + (labelAbove ? -9 : 18)}
+                x={(label?.x ?? 0) + (anchorEnd ? -10 : 10)}
+                y={label?.labelY ?? y(model.mean_score) - 10}
+                textAnchor={anchorEnd ? "end" : "start"}
                 className="scatter-label"
               >
                 {shortModelName(model.model)}
@@ -313,7 +376,15 @@ function CostScatter({
   );
 }
 
-function ResultsTable({ models }: { models: ResultModel[] }) {
+function ResultsTable({
+  models,
+  selected,
+  onSelect,
+}: {
+  models: ResultModel[];
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
   const [sort, setSort] = useState<SortKey>("score");
   const sorted = useMemo(() => {
     const next = [...models];
@@ -328,7 +399,6 @@ function ResultsTable({ models }: { models: ResultModel[] }) {
       <table className="results-table">
         <thead>
           <tr>
-            <th>Tier</th>
             <th>Model</th>
             <th>
               <button type="button" onClick={() => setSort("score")} aria-pressed={sort === "score"}>
@@ -351,11 +421,12 @@ function ResultsTable({ models }: { models: ResultModel[] }) {
         </thead>
         <tbody>
           {sorted.map((model) => (
-            <tr key={model.id}>
-              <td>
-                <span className="tier-label">Tier {model.tier}</span>
+            <tr key={model.id} className={model.id === selected ? "is-selected" : ""}>
+              <td className="model-name">
+                <button type="button" onClick={() => onSelect(model.id)}>
+                  {model.model}
+                </button>
               </td>
-              <td className="model-name">{model.model}</td>
               <td className="numeric strong">{fmt(model.mean_score, 1)}</td>
               <td className="numeric">{fmt(model.paired_lift, 1)}</td>
               <td className="numeric ci-cell">
@@ -376,33 +447,39 @@ function ResultsTable({ models }: { models: ResultModel[] }) {
 export default function ResultsExplorer({
   data,
   benchmark,
+  selectedModelId,
+  onSelectModel,
 }: {
   data: LeaderboardData;
   benchmark: BenchmarkView;
+  selectedModelId: string;
+  onSelectModel: (id: string) => void;
 }) {
   const [view, setView] = useState<ChartView>("lift");
-  const [query, setQuery] = useState("");
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState(
     () => new Set(benchmark.models.map((model) => model.id)),
   );
 
   const filtered = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return benchmark.models.filter(
-      (model) =>
-        selectedIds.has(model.id) &&
-        (normalized === "" ||
-          model.model.toLowerCase().includes(normalized) ||
-          model.provider.toLowerCase().includes(normalized)),
-    );
-  }, [benchmark.models, query, selectedIds]);
+    return benchmark.models.filter((model) => selectedIds.has(model.id));
+  }, [benchmark.models, selectedIds]);
+
+  const selectedModel =
+    benchmark.models.find((model) => model.id === selectedModelId) ??
+    benchmark.models[0];
+  const bestModel = benchmark.models[0];
+  const panelMean = bestModel?.baseline_panel_mean_score;
 
   const toggleModel = (id: string) => {
     setSelectedIds((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      if (id === selectedModelId && !next.has(id)) {
+        const fallback = benchmark.models.find((model) => next.has(model.id));
+        if (fallback) onSelectModel(fallback.id);
+      }
       return next;
     });
   };
@@ -410,11 +487,41 @@ export default function ResultsExplorer({
   return (
     <section className="results-section" id="results">
       <div className="results-shell">
-        <div className="result-summary">
-          <p>
-            <strong>{benchmark.modelsAboveBar}</strong> of {benchmark.modelCount} model-plus-scaffold
-            systems exceeded the scripted bar’s observed mean.
-          </p>
+        <div className="result-overview">
+          <div className="result-overview-copy">
+            <p className="kicker">Phase one results</p>
+            <h1>Performance against the baseline panel.</h1>
+            <p>
+              Paired seed-level differences for eight published model-plus-scaffold
+              systems.
+            </p>
+            <small>
+              Descriptive intervals; the predeclared Holm-adjusted family test does
+              not reject at 0.05.
+            </small>
+          </div>
+          <dl className="result-readouts">
+            <div>
+              <dt>Best observed mean</dt>
+              <dd>{bestModel ? fmt(bestModel.mean_score, 1) : "—"}</dd>
+              <span>{bestModel ? shortModelName(bestModel.model) : "No result"}</span>
+            </div>
+            <div>
+              <dt>Baseline panel mean</dt>
+              <dd>{panelMean === null || panelMean === undefined ? "—" : fmt(panelMean, 1)}</dd>
+              <span>paired reference</span>
+            </div>
+            <div>
+              <dt>Above scripted bar</dt>
+              <dd>
+                {benchmark.modelsAboveBar}/{benchmark.modelCount}
+              </dd>
+              <span>pick-trader · {fmt(benchmark.scriptedBar, 1)}</span>
+            </div>
+          </dl>
+        </div>
+
+        <div className="result-metadata">
           <dl>
             <div>
               <dt>Seeds</dt>
@@ -433,7 +540,7 @@ export default function ResultsExplorer({
               <dd>{data.updated}</dd>
             </div>
           </dl>
-          <a href="#protocol">Methodology</a>
+          <a href="#protocol">Read the protocol</a>
         </div>
 
         <div className="result-toolbar" aria-label="Results controls">
@@ -455,23 +562,7 @@ export default function ResultsExplorer({
               Score vs cost
             </button>
           </div>
-          <div className="segmented lane-switch" aria-label="Evaluation lane">
-            <button type="button" className="is-active" aria-pressed="true">
-              API lane
-            </button>
-            <button type="button" disabled title="No published coding-harness rows">
-              Coding harness ({data.cli_harness_models.length})
-            </button>
-          </div>
-          <label className="model-filter">
-            <span className="sr-only">Filter models</span>
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Filter models…"
-            />
-          </label>
+          <span className="toolbar-context">API lane · {filtered.length} visible</span>
           <div className="model-picker">
             <button
               type="button"
@@ -486,9 +577,12 @@ export default function ResultsExplorer({
                 <div className="picker-menu-actions">
                   <button
                     type="button"
-                    onClick={() =>
-                      setSelectedIds(new Set(benchmark.models.map((model) => model.id)))
-                    }
+                    onClick={() => {
+                      setSelectedIds(new Set(benchmark.models.map((model) => model.id)));
+                      if (!selectedModelId && benchmark.models[0]) {
+                        onSelectModel(benchmark.models[0].id);
+                      }
+                    }}
                   >
                     Select all
                   </button>
@@ -514,18 +608,21 @@ export default function ResultsExplorer({
         <div className="chart-panel">
           <div className="chart-panel-head">
             <div>
-              <h1>
+              <span className="chart-story-label">
+                {view === "lift" ? "Primary comparison" : "Secondary lens"}
+              </span>
+              <h2>
                 {view === "lift"
-                  ? "Paired lift vs scripted panel"
+                  ? "Every paired difference is below the panel reference."
                   : "Score vs cost per episode"}
-              </h1>
+              </h2>
               <p>
                 {view === "lift"
-                  ? "Paired per-seed score-point difference. All eight rows overlap in one descriptive tier."
-                  : "An alternate efficiency lens; price is measured, not normalized into the score."}
+                  ? "Whiskers show 95% intervals. All eight rows overlap in one descriptive tier."
+                  : "Price varies widely, but no observed mean reaches the pick-trader bar."}
               </p>
             </div>
-            <span>{filtered.length} visible models</span>
+            <span>{filtered.length} models</span>
           </div>
           {filtered.length === 0 ? (
             <div className="empty-results">
@@ -533,29 +630,52 @@ export default function ResultsExplorer({
               <button
                 type="button"
                 onClick={() => {
-                  setQuery("");
                   setSelectedIds(new Set(benchmark.models.map((model) => model.id)));
                 }}
               >
                 Reset filters
               </button>
             </div>
-          ) : view === "lift" ? (
-            <ForestPlot models={filtered} />
           ) : (
-            <CostScatter
-              models={filtered}
-              scriptedBar={benchmark.scriptedBar}
-              oracle={benchmark.oracle}
-            />
+            <div className="chart-stage" key={view}>
+              {view === "lift" ? (
+                <ForestPlot
+                  models={filtered}
+                  selected={selectedModelId}
+                  onSelect={onSelectModel}
+                />
+              ) : (
+                <CostScatter
+                  models={filtered}
+                  scriptedBar={benchmark.scriptedBar}
+                  oracle={benchmark.oracle}
+                  selected={selectedModelId}
+                  onSelect={onSelectModel}
+                />
+              )}
+            </div>
+          )}
+          {selectedModel && selectedIds.has(selectedModel.id) && (
+            <div className="chart-selection" aria-live="polite">
+              <span className="selection-status">Selected</span>
+              <strong>{shortModelName(selectedModel.model)}</strong>
+              <span>score {fmt(selectedModel.mean_score, 1)}</span>
+              <span>paired lift {fmt(selectedModel.paired_lift, 1)}</span>
+              <span>
+                95% CI [{fmt(selectedModel.ci95[0], 1)},{" "}
+                {fmt(selectedModel.ci95[1], 1)}]
+              </span>
+              <span>${fmt(selectedModel.cost_per_episode_usd, 2)} / episode</span>
+              <a href="#analysis">Inspect mechanics ↓</a>
+            </div>
           )}
         </div>
 
-        <ResultsTable models={filtered} />
-        <p className="result-caveat">
-          These are observed means and descriptive intervals, not an ordinal #1 ranking. The
-          predeclared Holm-adjusted family result does not reject at 0.05.
-        </p>
+        <ResultsTable
+          models={filtered}
+          selected={selectedModelId}
+          onSelect={onSelectModel}
+        />
       </div>
     </section>
   );
