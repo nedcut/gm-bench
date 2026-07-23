@@ -1,17 +1,21 @@
+import { useEffect, useState } from "react";
 import { useTheme } from "../theme";
 
 export function Logo({ size = 24 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="4" style={{ fill: "var(--card)", stroke: "var(--line-strong)" }} />
-      <line x1="6" y1="13" x2="26" y2="13" style={{ stroke: "var(--red)" }} strokeWidth="3" />
-      <line x1="6" y1="21" x2="26" y2="21" style={{ stroke: "var(--blue)" }} strokeWidth="2" />
-    </svg>
+    <img
+      src={`${import.meta.env.BASE_URL}favicon.svg`}
+      width={size}
+      height={size}
+      alt=""
+      aria-hidden="true"
+    />
   );
 }
 
 const LINKS = [
-  { href: "#leaderboard", label: "Standings" },
+  { href: "#results", label: "Results" },
+  { href: "#analysis", label: "Analysis" },
   { href: "#protocol", label: "Protocol" },
   { href: "#quickstart", label: "Run" },
 ];
@@ -27,21 +31,22 @@ function ThemeToggle() {
       aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
       title={dark ? "Light theme" : "Dark theme"}
     >
-      {dark ? (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <circle cx="12" cy="12" r="4.2" />
-          <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" strokeLinecap="round" />
-        </svg>
-      ) : (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <path d="M20 14.5A8 8 0 1 1 9.5 4a6.3 6.3 0 0 0 10.5 10.5Z" strokeLinejoin="round" />
-        </svg>
-      )}
+      {dark ? "Light" : "Dark"}
     </button>
   );
 }
 
 export default function Nav() {
+  const [active, setActive] = useState(() =>
+    typeof window === "undefined" ? "#results" : window.location.hash || "#results",
+  );
+
+  useEffect(() => {
+    const update = () => setActive(window.location.hash || "#results");
+    window.addEventListener("hashchange", update);
+    return () => window.removeEventListener("hashchange", update);
+  }, []);
+
   return (
     <header className="nav">
       <div className="shell nav-inner">
@@ -52,13 +57,14 @@ export default function Nav() {
         </a>
         <nav className="nav-links">
           {LINKS.map((link) => (
-            <a key={link.href} href={link.href}>
+            <a
+              key={link.href}
+              href={link.href}
+              className={active === link.href ? "is-active" : undefined}
+            >
               {link.label}
             </a>
           ))}
-          <a className="nav-cta" href="#quickstart">
-            Run locally
-          </a>
           <ThemeToggle />
         </nav>
       </div>
