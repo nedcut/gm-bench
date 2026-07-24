@@ -20,6 +20,15 @@ sqlite3 data/gm_bench.sqlite \\
     'select agent, seed, final_score from episodes
      order by final_score desc;'`;
 
+const ADAPTERS = [
+  { name: "Codex CLI", snippet: "examples/codex_agent.py" },
+  { name: "Claude Code", snippet: "examples/claude_agent.py" },
+  { name: "Ollama", snippet: "examples/ollama_agent.py" },
+  { name: "OpenAI-compatible", snippet: "examples/openai_compatible_agent.py" },
+  { name: "opencode", snippet: "examples/opencode_agent.py" },
+  { name: "Any process", snippet: '--agent-cmd "…"' },
+];
+
 function CommandCard({ title, code }: { title: string; code: string }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -32,7 +41,7 @@ function CommandCard({ title, code }: { title: string; code: string }) {
       <div className="code-card-head">
         <span>{title}</span>
         <button type="button" className="copy-btn" onClick={copy}>
-          {copied ? "copied ✓" : "copy"}
+          {copied ? "copied" : "copy"}
         </button>
       </div>
       <pre>
@@ -47,17 +56,27 @@ export default function Quickstart() {
     <section className="section" id="quickstart">
       <div className="shell">
         <div className="section-head">
-          <p className="kicker">Quickstart</p>
-          <h2>From clone to scoreboard in two commands.</h2>
+          <p className="kicker">Run</p>
+          <h2>Calibrate on baselines, then plug in an agent.</h2>
           <p>
-            Start with the scripted baselines to calibrate, then plug in your own agent with
-            <code> --agent-cmd</code>. JSON Schemas for the observation and action protocol ship in{" "}
+            Use <code>--agent-cmd</code> for any subprocess. Observation and action schemas ship in{" "}
             <code>schemas/</code>.
           </p>
         </div>
         <div className="quickstart-grid">
-          <CommandCard title="1 · calibrate with baselines" code={BASELINE_CMDS} />
-          <CommandCard title="2 · benchmark your agent" code={CANDIDATE_CMDS} />
+          <CommandCard title="1 · baselines" code={BASELINE_CMDS} />
+          <CommandCard title="2 · your agent" code={CANDIDATE_CMDS} />
+        </div>
+        <div className="adapter-line">
+          <strong>Compatible with</strong> Codex CLI, Claude Code, Ollama, OpenAI-compatible
+          endpoints, opencode, or any stdin/stdout process:
+          <div className="adapter-chips">
+            {ADAPTERS.map((adapter) => (
+              <code key={adapter.name} title={adapter.name}>
+                {adapter.snippet}
+              </code>
+            ))}
+          </div>
         </div>
       </div>
     </section>
