@@ -452,9 +452,10 @@ decision doesn't ruin an episode. Pass `--strict-fallback` /
 `--no-strict-fallback` to decide explicitly; the effective policy is recorded
 in `run_info.strict_fallback` and in `provider_options.GM_AGENT_STRICT` either
 way, and a soft row is not `sota-v3` eligible. The harness resolves this rather
-than reading the ambient `GM_AGENT_STRICT`, so a stale shell variable cannot
-decide how a published row was measured — only a config-file `env` entry
-overrides the lane default. External `--agent-cmd` runs are unaffected: they
+than reading the ambient `GM_AGENT_STRICT`: an explicit flag wins, then the lane
+default (strict for `--preset leaderboard`), and only when neither is set does
+config-file `env` or the shell decide. A stale config `env` entry cannot
+downgrade a leaderboard row. External `--agent-cmd` runs are unaffected: they
 get whatever environment you launch them with. The frozen `sota-v1`/`sota-v2`
 rows predate the flag and were measured under the soft fallback.
 
