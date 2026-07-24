@@ -14,7 +14,7 @@ from typing import Any, Callable
 from gm_bench.agents import AGENTS, Agent
 from gm_bench.baseline_cache import cache_key, default_cache_path, load_cache, put_cached_episode, save_cache
 from gm_bench.protocol import PHASES, EpisodeConfig
-from gm_bench.scoring import score_breakdown
+from gm_bench.scoring import breakdown_from_components, persisted_score_components, score_components
 from gm_bench.session import PersistentProcessAgent, should_continue_interaction
 from gm_bench.simulator import League
 from gm_bench.telemetry import aggregate_usage, summarize_usage
@@ -30,6 +30,9 @@ class BenchmarkResult:
     final_score: float
     strategy_score: float
     protocol_penalty: float
+    # Raw end-state metrics plus their weighted contributions, so score-weight
+    # sensitivity can be recomputed from a saved artifact without a re-run.
+    score_components: dict[str, float]
     wins: int
     championships: int
     illegal_actions: int
@@ -115,7 +118,8 @@ def run_episode(
     finally:
         if persistent:
             agent.end_episode()
-    breakdown = score_breakdown(league, user_team_id)
+    components = score_components(league, user_team_id)
+    breakdown = breakdown_from_components(components)
     memo_writes = sum(
         1
         for transaction in league.transactions
@@ -136,6 +140,7 @@ def run_episode(
         final_score=round(breakdown["final_score"], 3),
         strategy_score=round(breakdown["strategy_score"], 3),
         protocol_penalty=round(breakdown["protocol_penalty"], 3),
+        score_components=persisted_score_components(components),
         wins=sum(summary.wins for summary in league.summaries),
         championships=league.user_team.championships,
         illegal_actions=league.illegal_actions,

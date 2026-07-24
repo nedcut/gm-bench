@@ -11,6 +11,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from gm_bench.agent_utils import position_aware_lineup, public_asset_value
+from gm_bench.scaffold_view import scaffold_view_observation
 from gm_bench.telemetry import normalize_usage
 
 
@@ -459,6 +460,57 @@ class PickTraderAgent(StrategicAgent):
     ENABLE_PICK_TRADES = True
 
 
+class ScaffoldViewAgent(PickTraderAgent):
+    """`pick-trader` run on the payload a model adapter actually receives.
+
+    Registered baselines are handed the untruncated observation
+    (`runner._observation_tier_for_agent` forces the full tier for anything in
+    `AGENTS`), while model agents only ever see
+    `scaffold_view.compact_observation` of it: sorted-and-sliced free agents and
+    draft prospects, a head slice of the trade market, three incoming offers.
+    This agent keeps the pick-trader policy and changes nothing but the view,
+    so the difference between the two rows is the cost of the scaffold rather
+    than a difference in strategy.
+
+    Two deliberate faithfulness choices:
+
+    * The prompt hands every model a legal lineup computed from the *full*
+      roster. That freebie is offered here too, and used only when the policy
+      could not build a lineup from the truncated roster it was given. Like the
+      prompt's copy it is computed before the batch runs, so it is dropped when
+      the same batch ships a player out rather than dressing a departed player.
+    * The payload is passed in-process instead of through JSON. Serializing
+      would turn `team.draft_picks` season keys into strings and silently break
+      scripted `.get(season)` lookups -- a Python typing artifact that costs a
+      model nothing, and which would otherwise dominate the measured gap.
+    """
+
+    name = "scaffold-view"
+    # An accepted offer ships players out just as a release or an outgoing
+    # trade does, and the injected lineup predates all of them.
+    ROSTER_SHRINKING_ACTIONS = frozenset({"release", "trade", "accept_trade_offer"})
+    # Pinned, not inherited. This agent runs in the harness process, where
+    # GM_AGENT_PROFILE reflects the operator's shell rather than the lane the
+    # model ran under -- an ambient "tiny" would hand the reference a 24/16/16
+    # view while the model saw 18/6/6 and silently understate the scaffold cost.
+    # Compare against a tiny-profile row only by instantiating with profile="tiny".
+    PROFILE = "compact"
+
+    def __init__(self, profile: str | None = None) -> None:
+        super().__init__()
+        self.profile = profile or self.PROFILE
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        view = scaffold_view_observation(observation, self.profile)
+        actions = super().act(view)
+        fallback = view.get("scaffold_fallback_lineup") or []
+        if not fallback or any(action.get("type") == "set_lineup" for action in actions):
+            return actions
+        if not any(action.get("type") in self.ROSTER_SHRINKING_ACTIONS for action in actions):
+            actions.append({"type": "set_lineup", "player_ids": list(fallback)})
+        return actions
+
+
 class ExploitAgent(Agent):
     """Red-team diagnostic that replays known-degenerate strategies.
 
@@ -597,5 +649,6 @@ AGENTS: dict[str, type[Agent]] = {
     "shrewd": ShrewdAgent,
     "strategic": StrategicAgent,
     "pick-trader": PickTraderAgent,
+    "scaffold-view": ScaffoldViewAgent,
     "exploit": ExploitAgent,
 }

@@ -157,6 +157,7 @@ def main(argv: list[str] | None = None) -> None:
         ),
     )
     model_parser.add_argument("--no-baseline-cache", action="store_true")
+    _add_strict_fallback_args(model_parser)
     model_parser.add_argument("--verbose", action="store_true", help="print per-decision progress to stderr")
     model_parser.add_argument(
         "--checkpoint",
@@ -305,6 +306,31 @@ def main(argv: list[str] | None = None) -> None:
         serve(args.host, args.port, args.db)
 
 
+def _add_strict_fallback_args(parser: argparse.ArgumentParser) -> None:
+    """Failure-handling flags, shared by every command that can drive a provider.
+
+    `model`, `run`, and `evaluate` all emit leaderboard-shaped artifacts, so all
+    three must be able to state the policy rather than inheriting an ambient
+    `GM_AGENT_STRICT` from the operator's shell.
+    """
+    parser.add_argument(
+        "--strict-fallback",
+        dest="strict_fallback",
+        action="store_true",
+        default=None,
+        help=(
+            "on a failed decision emit a bare noop instead of a host-supplied draft and lineup "
+            "(default for --preset leaderboard)"
+        ),
+    )
+    parser.add_argument(
+        "--no-strict-fallback",
+        dest="strict_fallback",
+        action="store_false",
+        help="keep the soft fallback policy; the row records strict_fallback=false and is ineligible for sota-v3",
+    )
+
+
 def _add_common_run_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--agent-cmd", help="external command implementing the JSON agent protocol")
     parser.add_argument(
@@ -314,6 +340,7 @@ def _add_common_run_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--profile", choices=["tiny", "compact"], help="observation compaction profile for model providers"
     )
+    _add_strict_fallback_args(parser)
     parser.add_argument(
         "--agent-timeout",
         type=float,
@@ -365,6 +392,8 @@ def _run_info(command: str, agent: Any, config: BenchmarkConfig) -> dict[str, An
         info["transport"] = metadata["transport"]
     if "protocol_repair_attempts" in metadata:
         info["protocol_repair_attempts"] = metadata["protocol_repair_attempts"]
+    if "strict_fallback" in metadata:
+        info["strict_fallback"] = bool(metadata["strict_fallback"])
     if metadata.get("provider_options"):
         info["provider_options"] = metadata["provider_options"]
     return info
@@ -372,7 +401,7 @@ def _run_info(command: str, agent: Any, config: BenchmarkConfig) -> dict[str, An
 
 def _run_command(args: argparse.Namespace) -> None:
     config = _config_from_args(args)
-    agent = _resolve_agent_from_config(config)
+    agent = _resolve_agent_from_config(config, _resolve_strict_fallback(args, config))
     progress = make_progress_printer(config.verbose)
     result = run_many(agent, config.seeds, config.seasons, repeats=config.repeats, progress=progress)
     result["run_info"] = _run_info("run", agent, config)
@@ -393,7 +422,7 @@ def _compare_command(args: argparse.Namespace) -> None:
 
 def _evaluate_command(args: argparse.Namespace) -> None:
     config = _config_from_args(args)
-    agent = _resolve_agent_from_config(config)
+    agent = _resolve_agent_from_config(config, _resolve_strict_fallback(args, config))
     progress = make_progress_printer(config.verbose)
     result = evaluate_against_baselines(
         agent,
@@ -411,6 +440,20 @@ def _evaluate_command(args: argparse.Namespace) -> None:
     else:
         _print_evaluation(result)
     _print_log_line(run_id, args)
+
+
+def _resolve_strict_fallback(args: argparse.Namespace, config: BenchmarkConfig) -> bool | None:
+    """Failure-handling policy for this run, or None to leave it to the environment.
+
+    Publication lanes are strict by default: a row that ranks on the public
+    panel must not be carrying decisions the model never produced. Ad-hoc runs
+    keep the historical soft fallback unless asked otherwise, and an explicit
+    flag always wins over the lane default.
+    """
+    explicit = getattr(args, "strict_fallback", None)
+    if explicit is not None:
+        return bool(explicit)
+    return True if config.preset == "leaderboard" else None
 
 
 def _model_command(args: argparse.Namespace) -> None:
@@ -501,6 +544,7 @@ def _model_command(args: argparse.Namespace) -> None:
         profile=config.profile,
         extra_env=config.extra_env,
         session=bool(getattr(args, "session", False)),
+        strict_fallback=_resolve_strict_fallback(args, config),
     )
     route_errors = _openrouter_route_config_errors(agent, config.preset)
     if route_errors:
@@ -788,7 +832,7 @@ def _config_from_args(args: argparse.Namespace) -> BenchmarkConfig:
     return config
 
 
-def _resolve_agent_from_config(config: BenchmarkConfig) -> Any:
+def _resolve_agent_from_config(config: BenchmarkConfig, strict_fallback: bool | None = None) -> Any:
     if config.provider:
         return build_provider_agent(
             config.provider,
@@ -796,6 +840,7 @@ def _resolve_agent_from_config(config: BenchmarkConfig) -> Any:
             timeout=config.agent_timeout,
             profile=config.profile,
             extra_env=config.extra_env,
+            strict_fallback=strict_fallback,
         )
     if config.agent_cmd:
         resolved_timeout = config.agent_timeout if config.agent_timeout is not None else EXTERNAL_AGENT_TIMEOUT_DEFAULT

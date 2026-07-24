@@ -37,7 +37,8 @@ def test_provider_registry_resolves_gemini() -> None:
     assert agent.metadata["profile"] == "compact"
 
 
-def test_provider_registry_resolves_direct_and_gateway_apis() -> None:
+def test_provider_registry_resolves_direct_and_gateway_apis(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GM_AGENT_STRICT", raising=False)
     anthropic = build_provider_agent("anthropic")
     assert anthropic.name == "anthropic:claude-sonnet-4-6"
     assert anthropic.metadata["transport"] == "direct-api"
@@ -52,6 +53,7 @@ def test_provider_registry_resolves_direct_and_gateway_apis() -> None:
         "OPENROUTER_DATA_COLLECTION": "deny",
         "OPENROUTER_JSON_MODE": "false",
         "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+        "GM_AGENT_STRICT": "0",
     }
 
 

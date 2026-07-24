@@ -53,7 +53,19 @@ Where:
    cannot optimize a single lucky year.
 3. **Asset building matters** — Even losing rebuilds can score reasonably if young
    talent and cap space are preserved.
-4. **Legality is enforced economically** — Illegal actions directly reduce score.
+4. **Sustainable accumulation beats win-now mortgaging** — This is the primary
+   composite's deliberate bias. `recent_wins` and `recent_rounds` read only the
+   trailing three seasons (`league.summaries[-3:]`), while `total_assets`,
+   `young_assets`, `future_pick_assets`, and `cap_score` are computed from
+   end-of-episode state. Shipping youth and picks for one strong season is
+   therefore credited once and charged against the stock terms for every season
+   that follows. Only `championships` — a career count — is a permanent win
+   reward, so real title contention is still worth paying for. The frozen
+   `sota-v2` panel below (contract `558e8f35ea1d66b9`) shows the effect:
+   `win-now` (275.834) trails the balanced `value` heuristic (354.619) and the
+   asset-aware `pick-trader` (411.619). These are v2-era measurements; they have
+   not been re-run under the current contract.
+5. **Legality is enforced economically** — Illegal actions directly reduce score.
 
 ## Baseline normalization
 
@@ -223,17 +235,30 @@ residuals, so they are design extrapolations rather than claims that new seed
 panels were directly measured.  Re-run the script with a different result JSON
 when evaluating a model with materially different repeat noise.
 
-For scale sensitivity, `weight_sensitivity.py` runs the scripted panel once,
-captures raw end-of-episode components through a diagnostic-only temporary
-wrapper around `runner.score_breakdown`, and restores the wrapper immediately.
+For scale sensitivity, `weight_sensitivity.py` runs the scripted panel once and
+reads the raw end-of-episode components straight off each episode row.
 It then applies 200 independent draws, multiplying each score weight uniformly
-between 0.70 and 1.30.  The canonical ordering is `pick-trader > strategic >
-shrewd > value > win-now > conservative > rebuild > random`.  Adjacent-pair
-rank-flip rates were 0% for every pair except `conservative > rebuild`, which
-flipped in 40% of draws.  Kendall tau against the canonical full ranking had
-mean 0.971, median 1.000, and 5th--95th percentile range 0.929--1.000.
+between 0.70 and 1.30.
 
-Per-episode score components are not persisted in result artifacts, so weight
-sensitivity for model rows cannot be recomputed post-hoc.  Persisting them
-would touch the frozen runner contract and is therefore a future contract-lane
-item (not part of `sota-v2`), not part of this score-v1 analysis tooling.
+The published sweep below was measured under `sota-v2` (contract
+`558e8f35ea1d66b9`) using the earlier in-process capture, and has **not** been
+re-run under `sota-v3`.  Treat it as v2-era evidence: change 0B in `1e5cd44`
+made negotiation walk-aways persist for a whole decision window, which can move
+scripted trade outcomes and therefore these flip rates.  The canonical ordering
+was `pick-trader > strategic > shrewd > value > win-now > conservative >
+rebuild > random`.  Adjacent-pair rank-flip rates were 0% for every pair except
+`conservative > rebuild`, which flipped in 40% of draws.  Kendall tau against
+the canonical full ranking had mean 0.971, median 1.000, and 5th--95th
+percentile range 0.929--1.000.
+
+From `sota-v3` onward every episode row carries a `score_components` block: the
+nine raw end-of-episode metrics, the protocol penalty, and the nine weighted
+`*_contribution` terms, each rounded to six decimals.  Both halves are stored
+because the contributions alone cannot be reweighted --- `cap_room` is clamped,
+so its contribution is not a linear function of its weight.  `sota-v3`
+validation requires the block, checks every term is finite, and checks the
+contributions still sum to the row's `strategy_score`; `sota-v2` and the v1
+archive predate the field and validate without it.  Run
+`weight_sensitivity.py --result <artifact.json>` to reweight a saved model row
+post-hoc without re-running the panel; a pre-v3 artifact has no components and
+the script exits with an explicit message rather than guessing.

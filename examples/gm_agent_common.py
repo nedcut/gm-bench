@@ -11,11 +11,17 @@ from typing import Any, Callable
 
 try:
     from gm_bench.agent_utils import position_aware_lineup, public_asset_value
+    from gm_bench.scaffold_view import compact_observation, scaffold_fallback_lineup
 except ModuleNotFoundError:
     # Example agents run as standalone scripts (`python examples/claude_agent.py`),
     # where only examples/ is on sys.path and gm-bench is not necessarily installed.
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from gm_bench.agent_utils import position_aware_lineup, public_asset_value
+    from gm_bench.scaffold_view import compact_observation, scaffold_fallback_lineup
+
+# compact_observation/scaffold_fallback_lineup are re-exported rather than
+# defined here: the scaffold-view baseline in gm_bench.agents is scored on the
+# same payload, and two copies of the truncation rules would drift.
 
 # decide() may return a bare action list or (actions, usage) for telemetry.
 DecideResult = list[dict[str, Any]] | tuple[list[dict[str, Any]], dict[str, Any] | None]
@@ -109,82 +115,9 @@ def _render_action_guide(compact: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n\n"
 
 
-def compact_observation(observation: dict[str, Any]) -> dict[str, Any]:
-    profile = os.environ.get("GM_AGENT_PROFILE", "compact")
-    if profile == "tiny":
-        roster_limit = 18
-        free_agent_limit = 6
-        draft_limit = 6
-        trade_limit = 0
-    else:
-        roster_limit = 24
-        free_agent_limit = 16
-        draft_limit = 16
-        trade_limit = 12
-    team = observation.get("team") or {}
-    roster = team.get("roster") or []
-    roster_sorted = sorted(roster, key=lambda player: player["overall"], reverse=True) if roster else []
-    free_agents = observation.get("free_agents") or []
-    if not free_agents and observation.get("free_agents_summary"):
-        free_agents = [{"id": pid} for pid in observation["free_agents_summary"].get("top_ids", [])]
-    free_agents_sorted = sorted(
-        [player for player in free_agents if isinstance(player, dict) and "overall" in player],
-        key=public_asset_value,
-        reverse=True,
-    )
-    draft_class = observation.get("draft_class") or []
-    if not draft_class and observation.get("draft_class_summary"):
-        draft_class = [{"id": pid} for pid in observation["draft_class_summary"].get("top_ids", [])]
-    draft_sorted = sorted(
-        [player for player in draft_class if isinstance(player, dict) and "overall" in player],
-        key=public_asset_value,
-        reverse=True,
-    )
-    trade_market = observation.get("trade_market") or []
-    payload: dict[str, Any] = {
-        "seed": observation.get("seed"),
-        "season": observation.get("season"),
-        "phase": observation.get("phase"),
-        "observation_tier": observation.get("observation_tier", "full"),
-        "interaction_round": observation.get("interaction_round", 0),
-        "rules": observation.get("rules"),
-        "team": {
-            "id": team.get("id"),
-            "name": team.get("name"),
-            "wins": team.get("wins"),
-            "losses": team.get("losses"),
-            "payroll": team.get("payroll"),
-            "cap_room": team.get("cap_room"),
-            "championships": team.get("championships"),
-            "draft_picks": team.get("draft_picks"),
-            "top_roster": roster_sorted[:roster_limit] if roster_sorted else team.get("roster_summary"),
-        },
-        "free_agents": free_agents_sorted[:free_agent_limit],
-        "draft_class": draft_sorted[:draft_limit],
-        "draft_order": observation.get("draft_order", []),
-        "trade_market": trade_market[:trade_limit],
-        "incoming_offers": observation.get("incoming_offers", [])[:3],
-        "scout_reports": observation.get("scout_reports", {}),
-        "waiver_wire_summary": observation.get("waiver_wire_summary"),
-        "available_actions": observation.get("available_actions", []),
-        "action_results": observation.get("action_results"),
-        "history": observation.get("history"),
-        "memo": observation.get("memo", ""),
-        "hint": observation.get("hint"),
-    }
-    if observation.get("free_agents_summary"):
-        payload["free_agents_summary"] = observation["free_agents_summary"]
-    if observation.get("draft_class_summary"):
-        payload["draft_class_summary"] = observation["draft_class_summary"]
-    if observation.get("trade_market_summary"):
-        payload["trade_market_summary"] = observation["trade_market_summary"]
-    return payload
-
-
 def build_prompt(observation: dict[str, Any]) -> str:
     compact = compact_observation(observation)
-    roster = (observation.get("team") or {}).get("roster") or []
-    fallback_lineup = position_aware_lineup(roster) if roster else []
+    fallback_lineup = scaffold_fallback_lineup(observation)
     repair = observation.get("protocol_repair") or {}
     repair_prefix = (
         "PROTOCOL REPAIR: the previous response was invalid. Output only one valid JSON object; no prose or markdown.\n\n"

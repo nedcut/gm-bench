@@ -22,6 +22,7 @@ def test_package_version_matches_pyproject() -> None:
 
 def test_provider_agent_carries_resolved_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("GM_AGENT_PROFILE", raising=False)
+    monkeypatch.delenv("GM_AGENT_STRICT", raising=False)
     agent = build_provider_agent("openai", model="gpt-test")
     assert agent.metadata == {
         "provider": "openai",
@@ -31,7 +32,8 @@ def test_provider_agent_carries_resolved_metadata(monkeypatch: pytest.MonkeyPatc
         "session": False,
         "transport": "direct-api",
         "protocol_repair_attempts": 1,
-        "provider_options": {"GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"},
+        "strict_fallback": False,
+        "provider_options": {"GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1", "GM_AGENT_STRICT": "0"},
     }
 
 
@@ -138,6 +140,77 @@ def test_cli_model_run_info_records_private_seed_panel(monkeypatch: pytest.Monke
     assert seed_panel["name"] == "private-env"
     assert seed_panel["count"] == 4
     assert seed_panel["sha256"] == seed_panel_hash([101, 102, 110, 111])
+
+
+def _captured_model_run(monkeypatch: pytest.MonkeyPatch, argv: list[str]) -> dict[str, object]:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(cli_module, "run_resumable_candidate", lambda *args, **kwargs: {})
+    monkeypatch.setattr(cli_module, "evaluate_resumable_candidate", lambda *args, **kwargs: {})
+    monkeypatch.setattr(cli_module, "_maybe_log", lambda *args, **kwargs: None)
+    monkeypatch.setattr(cli_module, "_print_evaluation", lambda result: captured.update(result))
+    cli_module.main(argv)
+    return captured["run_info"]
+
+
+def test_leaderboard_lane_defaults_to_strict_failure_handling(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A stale ambient value must not decide how a publication row is measured.
+    monkeypatch.setenv("GM_AGENT_STRICT", "0")
+    run_info = _captured_model_run(monkeypatch, ["model", "--provider", "openai", "--preset", "leaderboard", "--no-log"])
+    assert run_info["strict_fallback"] is True
+    assert run_info["provider_options"]["GM_AGENT_STRICT"] == "1"
+
+
+def test_strict_fallback_opt_out_is_recorded_rather_than_omitted(monkeypatch: pytest.MonkeyPatch) -> None:
+    run_info = _captured_model_run(
+        monkeypatch,
+        ["model", "--provider", "openai", "--preset", "leaderboard", "--no-strict-fallback", "--no-log"],
+    )
+    assert run_info["strict_fallback"] is False
+    assert run_info["provider_options"]["GM_AGENT_STRICT"] == "0"
+
+
+def test_ad_hoc_runs_keep_the_soft_fallback_and_still_record_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GM_AGENT_STRICT", raising=False)
+    run_info = _captured_model_run(monkeypatch, ["model", "--provider", "openai", "--preset", "smoke", "--no-log"])
+    assert run_info["strict_fallback"] is False
+    assert run_info["provider_options"]["GM_AGENT_STRICT"] == "0"
+
+
+def test_resolved_strictness_reaches_the_adapter_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GM_AGENT_STRICT", "1")
+    soft = build_provider_agent("openai", model="gpt-test", strict_fallback=False)
+    assert soft.env["GM_AGENT_STRICT"] == "0"
+
+    monkeypatch.setenv("GM_AGENT_STRICT", "0")
+    strict = build_provider_agent("openai", model="gpt-test", strict_fallback=True)
+    assert strict.env["GM_AGENT_STRICT"] == "1"
+
+
+def test_resolved_strictness_beats_a_stale_config_file_env() -> None:
+    """Failure handling decides publishability, so the harness wins over config `env`.
+
+    Every other provider option takes config `env` as most-explicit, but a stale
+    `GM_AGENT_STRICT` in a lane config must not silently make a row ineligible
+    (or, worse, mark a soft row as strict) behind the operator's back.
+    """
+    agent = build_provider_agent(
+        "openai",
+        model="gpt-test",
+        extra_env={"GM_AGENT_STRICT": "0"},
+        strict_fallback=True,
+    )
+    assert agent.metadata["strict_fallback"] is True
+    assert agent.metadata["provider_options"]["GM_AGENT_STRICT"] == "1"
+
+
+def test_config_file_env_still_decides_when_no_policy_is_resolved() -> None:
+    agent = build_provider_agent(
+        "openai",
+        model="gpt-test",
+        extra_env={"GM_AGENT_STRICT": "1"},
+        strict_fallback=None,
+    )
+    assert agent.metadata["provider_options"]["GM_AGENT_STRICT"] == "1"
 
 
 def test_config_rejects_unknown_profile() -> None:

@@ -56,6 +56,7 @@ def _compact_episode(episode: Any) -> dict[str, Any]:
         "final_score",
         "strategy_score",
         "protocol_penalty",
+        "score_components",
         "wins",
         "championships",
         "illegal_actions",
@@ -86,6 +87,7 @@ def smoke_manifest_issues(
     *,
     expected_contract_fingerprint: str | None = None,
     validate_current_scaffold: bool = True,
+    require_strict_fallback: bool = False,
 ) -> list[str]:
     """Machine-check the pre-panel smoke evidence against the frozen lane.
 
@@ -95,7 +97,8 @@ def smoke_manifest_issues(
     selected scaffold and contract, with complete finish-reason telemetry and
     no cap-pressure or truncation trigger. Historical release builders may pass
     their frozen contract fingerprint and disable current-scaffold comparison;
-    new publication runners retain the current-source defaults.
+    new publication runners retain the current-source defaults, and require the
+    smoke to have been recorded under strict failure handling.
     """
     from gm_bench.benchmark_config import PRESETS
     from gm_bench.contract import contract_fingerprint, scaffold_fingerprint
@@ -177,6 +180,8 @@ def smoke_manifest_issues(
             not isinstance(reasoning_tokens, int) or isinstance(reasoning_tokens, bool) or reasoning_tokens < 0
         ):
             issues.append(f"{prefix} is missing reasoning-token telemetry for a mandatory-reasoning model")
+        if require_strict_fallback and entry.get("strict_fallback") is not True:
+            issues.append(f"{prefix} was not recorded under strict failure handling")
         expected_contract = expected_contract_fingerprint or contract_fingerprint()
         if entry.get("contract_fingerprint") != expected_contract:
             issues.append(f"{prefix} was recorded under a different benchmark contract")

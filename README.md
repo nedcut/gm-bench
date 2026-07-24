@@ -49,10 +49,18 @@ GM-Bench includes:
   (cap hygiene plus development-aware lineups), and `strategic`, which also
   scouts, evaluates incoming offers, and persists a plan memo. The strongest
   `pick-trader` reference adds cap-aware future-pick acquisitions, while the
-  red-team `exploit` canary replays known-degenerate strategies.
+  red-team `exploit` canary replays known-degenerate strategies. The
+  `scaffold-view` diagnostic runs the `pick-trader` policy on the truncated
+  observation model adapters actually receive, so what the prompt scaffold
+  costs can be separated from what the policy is worth. It is newly registered
+  and has not been run on the official panel; no gap has been measured yet.
 - A scoring model that rewards wins, championships, future assets, prospects,
   and cap health, reported as a strategy score with protocol (invalid-action)
-  penalties broken out separately.
+  penalties broken out separately. The composite deliberately favours
+  sustainable asset accumulation over win-now mortgaging: the win terms only
+  count the last three seasons, while roster value, young talent, future picks,
+  and cap room are scored from end-of-episode state, so selling youth and picks
+  for one strong year is paid once and charged for the rest of the episode.
 - A CLI runner for single-agent runs and baseline comparisons.
 - An external-process protocol for plugging in LLM agents, including a
   persistent `memo` scratchpad for carrying multi-season plans between
@@ -77,6 +85,14 @@ artifacts remain verifiable with `--policy sota-v2`.
 Runs also stamp a seed-panel hash so private held-out panels can be verified
 locally (integrity for a known panel, not secrecy). Use `redact-result` before
 publishing private-panel artifacts so the seed list is not committed.
+
+From `sota-v3` on, every episode row also carries a `score_components` block —
+the nine raw end-of-episode metrics, the protocol penalty, and the nine
+weighted contributions — so a published row can be re-weighted after the fact
+with `scripts/weight_sensitivity.py --result <artifact.json>` instead of being
+re-run. `sota-v3` validation requires the block and checks that the
+contributions still sum to the row's `strategy_score`; frozen `sota-v2`
+artifacts predate the field and validate without it.
 
 ```bash
 OPENAI_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \
@@ -345,7 +361,7 @@ Each action is an object. Core moves:
 {"type": "sign_free_agent", "player_id": 123, "years": 2, "salary": 4.2}
 {"type": "trade", "partner_team_id": 3, "give_player_ids": [11], "receive_player_ids": [87], "give_pick_seasons": [], "receive_pick_seasons": [4]}
 {"type": "draft", "prospect_id": 9001}
-{"type": "set_lineup", "player_ids": [1, 2, 3, 4, 5, 6]}
+{"type": "set_lineup", "player_ids": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}
 {"type": "claim_waiver", "player_id": 55}
 {"type": "memo", "text": "rebuild through season 3, then spend cap room"}
 ```
@@ -427,10 +443,20 @@ reports `decisions`, `failed_decisions`, `decision_failure_rate`, and
 that never produces usable output no longer silently scores like the fallback
 policy — the failure rate is right next to the score.
 
-By default the fallback still plays a safe turn (best-value draft pick plus a
-legal lineup) so one flaky decision doesn't ruin an episode. Set
-`GM_AGENT_STRICT=1` to make the fallback a pure `noop`, so the score reflects
-only actions the model itself produced.
+Publication lanes run strict from `sota-v3` on: a failed decision becomes a
+pure `noop`, so the score reflects only actions the model itself produced. That
+is the default for `model --preset leaderboard` and for every
+`run_publication_matrix` cell. Other `model` runs keep the soft fallback, which
+plays a safe turn (best-value draft pick plus a legal lineup) so one flaky
+decision doesn't ruin an episode. Pass `--strict-fallback` /
+`--no-strict-fallback` to decide explicitly; the effective policy is recorded
+in `run_info.strict_fallback` and in `provider_options.GM_AGENT_STRICT` either
+way, and a soft row is not `sota-v3` eligible. The harness resolves this rather
+than reading the ambient `GM_AGENT_STRICT`, so a stale shell variable cannot
+decide how a published row was measured — only a config-file `env` entry
+overrides the lane default. External `--agent-cmd` runs are unaffected: they
+get whatever environment you launch them with. The frozen `sota-v1`/`sota-v2`
+rows predate the flag and were measured under the soft fallback.
 
 JSON Schema definitions for the protocol live in `schemas/`:
 
@@ -728,10 +754,12 @@ Persistent-session adapters can additionally keep in-process memory across
 rounds within an episode.
 
 Model-backed scores are also attributed: adapters tag substituted actions
-(`model_error`/`error`), and every result reports how many decision points the
-model actually played versus how many fell back to the adapter's safety policy
-(`fallback_decisions` and `fallback_decision_rate`). This keeps a weak model
-from being silently carried by its fallback heuristics.
+(`model_error`/`error`), and every result reports how many decisions the model
+actually played versus how many fell back to the adapter's safety policy
+(`failed_decisions` and `decision_failure_rate`). This keeps a weak model from
+being silently carried by its fallback heuristics — and from `sota-v3` on,
+publication lanes remove the carry entirely by defaulting to a strict `noop`
+fallback.
 
 The `strategic` and `pick-trader` references ensure that scouting, offer
 responses, pick trading, and memo persistence are exercised by accepted actions

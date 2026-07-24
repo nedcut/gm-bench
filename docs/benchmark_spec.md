@@ -183,7 +183,7 @@ pick is replenished each season, so episodes of any length keep a draft.
 
 ## Built-In Agents
 
-The MVP includes nine scripted references and diagnostics:
+The MVP includes ten scripted references and diagnostics (`gm_bench.agents.AGENTS`):
 
 - `random`: noisy but valid roster moves.
 - `conservative`: value signings and best public prospects.
@@ -197,6 +197,20 @@ The MVP includes nine scripted references and diagnostics:
   responses, and a persistent plan memo.
 - `pick-trader`: the strongest official reference — `strategic` plus cap-aware,
   conservative future-pick acquisitions.
+- `scaffold-view`: the `pick-trader` policy restricted to the compacted payload
+  model adapters receive — the same sorted-and-truncated free agents, draft
+  prospects, trade-market slice, and incoming offers, plus the host-computed
+  legal lineup the prompt injects. It is a diagnostic for the observation
+  asymmetry between scripted and model agents, not part of the official
+  baseline panel. The gap it measures is profile-specific, and the agent is
+  pinned to the `compact` profile rather than inheriting `GM_AGENT_PROFILE`:
+  it runs in the harness process, where that variable reflects the operator's
+  shell rather than the lane the model ran under, so inheriting it would let an
+  ambient value silently decide which view was measured — and the cached
+  episode would carry no trace of which one produced it. To difference against
+  a `tiny`-profile row, instantiate `ScaffoldViewAgent("tiny")` explicitly.
+  It has not been run on the official panel, so no scaffold gap is reported
+  anywhere yet — the measurement is pre-registered, not a result.
 - `exploit`: a red-team canary that replays historically degenerate strategies
   (trade value-pumping, free-agent hoarding). A regression test pins it below
   `value`; if a rules change re-opens an exploit, the canary jumps and CI fails.
@@ -214,6 +228,14 @@ The objective score rewards:
 - Current team strength.
 - Roster depth.
 
+The composite is deliberately biased toward sustainable asset accumulation
+rather than win-now mortgaging. Wins and playoff rounds are counted only over
+the trailing three seasons, while roster asset value, young-player value,
+future picks, and cap room are read from end-of-episode state: trading youth
+and picks for one strong year is credited once in the win terms and charged
+against the stock terms for every season that follows. Championships are the
+one permanent win reward, so genuine title contention still pays.
+
 Illegal actions are penalized, but reported separately: every result carries a
 `strategy_score` (roster management quality) and a `protocol_penalty`
 (invalid-action cost), with `final_score = strategy_score - protocol_penalty`.
@@ -225,14 +247,16 @@ against a baseline panel on identical seeds:
 score_lift = candidate_mean_score - baseline_panel_mean_score
 ```
 
-Results also attribute decisions: every episode reports `decision_points` and
-`fallback_decisions`, counting the decision windows answered by an adapter's
+Results also attribute decisions: every episode reports `decisions` and
+`failed_decisions`, counting the decision windows answered by an adapter's
 fallback policy (actions tagged `model_error` by the example adapters, or
-`error` by the external-process runner) instead of the model. Fallbacks are not
-penalized — the score scale is unchanged — but the `fallback_decision_rate` in
-summaries and `evaluate` output shows how much of a model-backed score the
-model actually earned, which matters most for small local models with high
-parse-failure rates.
+`error` by the external-process runner) instead of the model. A fallback is not
+itself penalized — the score scale is unchanged — but the
+`decision_failure_rate` in summaries and `evaluate` output shows how much of a
+model-backed score the model actually earned, which matters most for small
+local models with high parse-failure rates. Under the strict publication
+default described below, a failed decision also stops contributing any roster
+movement.
 
 Because every agent plays the same seeds, `evaluate` additionally differences the
 candidate against the baselines per seed and reports a deterministic bootstrap
@@ -252,6 +276,14 @@ and summaries report `within_seed_score_stddev` — the model's own run-to-run
 noise — next to the across-seed `score_stddev`, so score differences between
 models can be checked against both variance sources.
 
+From `sota-v3` on, each episode row also persists a `score_components` block:
+the nine raw end-of-episode metrics, the protocol penalty, and the nine
+weighted contributions, each rounded to six decimals. It makes the composite
+auditable term by term and lets a published row be re-weighted without a
+re-run. `sota-v3` validation requires the block and checks that its
+contributions still sum to the row's `strategy_score`; `sota-v2` and the v1
+archive predate the field and validate without it.
+
 See [scoring_calibration.md](scoring_calibration.md) for term definitions and
 weight rationale.
 
@@ -264,9 +296,16 @@ marker as a failed decision and reports `decisions`, `failed_decisions`,
 `decision_failure_rate`, and `memo_writes` alongside the score, plus
 per-episode decision wall-time latency. This keeps the benchmark honest: a
 model that never produces usable output is visibly failing rather than
-silently scoring like the fallback policy. `GM_AGENT_STRICT=1` turns the
-fallback into a pure noop for runs that should reflect only the model's own
-actions.
+silently scoring like the fallback policy.
+
+Failure handling is itself a measurement condition, so the harness resolves it
+rather than inheriting it from the operator's shell, and records the effective
+value as `run_info.strict_fallback` plus `provider_options.GM_AGENT_STRICT`.
+From `sota-v3` on, publication lanes default to strict — the fallback is a pure
+noop, and no roster movement is ever credited to a model that produced nothing.
+`--no-strict-fallback` keeps the soft policy; such a row is recorded as
+non-strict and is ineligible for `sota-v3`. The frozen `sota-v1`/`sota-v2` rows
+predate the flag and were measured under the soft fallback.
 
 ## Reproducibility
 

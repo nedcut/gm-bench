@@ -10,8 +10,10 @@ from gm_bench.calibration import build_scoring_calibration, marginal_value_table
 from gm_bench.contract import benchmark_contract
 from gm_bench.scoring import (
     ACTIVE_SCORE_SCALE,
+    SCORE_COMPONENT_KEYS,
     SCORE_SCALES,
     SCORING_VERSION,
+    persisted_score_components,
     score_breakdown,
     score_components,
     scoring_scale_fingerprint,
@@ -46,6 +48,32 @@ def test_score_breakdown_is_sum_of_exposed_contributions() -> None:
     assert breakdown["strategy_score"] == contribution_sum
     assert breakdown["protocol_penalty"] == components["protocol_penalty"]
     assert breakdown["final_score"] == contribution_sum - components["protocol_penalty"]
+
+
+def test_persisted_components_cover_the_declared_schema() -> None:
+    league = League.new(seed=3)
+    persisted = persisted_score_components(score_components(league, league.user_team_id))
+
+    assert tuple(persisted) == SCORE_COMPONENT_KEYS
+    assert all(isinstance(value, float) for value in persisted.values())
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+def test_persisted_components_refuse_non_finite_values(bad: float) -> None:
+    league = League.new(seed=3)
+    components = {**score_components(league, league.user_team_id), "cap_room_contribution": bad}
+
+    with pytest.raises(ValueError, match="cap_room_contribution"):
+        persisted_score_components(components)
+
+
+def test_persisted_components_refuse_a_missing_term() -> None:
+    league = League.new(seed=3)
+    components = score_components(league, league.user_team_id)
+    del components["championships_contribution"]
+
+    with pytest.raises(ValueError, match="championships_contribution"):
+        persisted_score_components(components)
 
 
 def test_required_marginal_value_scenarios_are_explicit() -> None:

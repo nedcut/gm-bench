@@ -7,12 +7,17 @@ const PHASES = [
     body: "Sign free agents under a hard salary cap, dress an 18-player lineup, balance veterans and prospects. Rivals share the same pool.",
   },
   {
-    num: "02 · trade deadline",
+    num: "02 · midseason",
+    title: "Waivers",
+    body: "About 35% of the schedule plays out: standings move, injuries land, and opponents waive players. Claim from the wire or hold the cap room.",
+  },
+  {
+    num: "03 · trade deadline",
     title: "Trades",
     body: "Swap with eleven scripted opponent offices mid-season. Partners apply hidden valuation noise each season. Illegal proposals are rejected and penalized.",
   },
   {
-    num: "03 · draft",
+    num: "04 · draft",
     title: "Draft",
     body: "Spend capital on a seeded prospect class; opponents pick in inverse-standings order. Aging, development, and injuries play out through the season.",
   },
@@ -33,7 +38,7 @@ const PROTO_POINTS = [
   },
   {
     title: "Scored beyond wins",
-    body: "Objective rewards wins, titles, future assets, prospect value, and cap health — and penalizes illegal or wasteful management.",
+    body: "Objective rewards wins, titles, future assets, prospect value, and cap health — and penalizes illegal actions. Wins count over a trailing three-season window while assets are scored at the end, so it favours sustainable accumulation over win-now mortgaging.",
   },
 ];
 
@@ -91,7 +96,7 @@ export default function HowItWorks({ snapshot }: { snapshot: Snapshot }) {
       <div className="shell">
         <div className="section-head">
           <p className="kicker">Protocol</p>
-          <h2>Three decision points per season. Five seasons per episode.</h2>
+          <h2>Four decision points per season. Five seasons per episode.</h2>
           <p>
             No browser automation, no memorized rosters — every player is fictional. Agents speak a
             minimal JSON protocol any process can run. Under the published scaffold, reading that JSON/API contract is

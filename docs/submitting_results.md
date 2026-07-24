@@ -32,6 +32,13 @@ baseline panel. `--repeats 3` runs the candidate three times per seed so samplin
 noise is observable; the baselines are deterministic and run once. This produces a
 public-panel row.
 
+That command also selects strict failure handling, because `--preset
+leaderboard` is a publication lane: a decision the adapter could not read back
+from the model becomes a bare `noop` rather than a host-supplied draft pick and
+lineup. Do not set `GM_AGENT_STRICT` yourself — the harness resolves it and
+records the result in `run_info.strict_fallback`. `--no-strict-fallback` is a
+legitimate diagnostic choice, but the resulting row is not `sota-v3` eligible.
+
 For a contamination-resistant private-panel row, set a held-out panel first, keep
 the raw JSON local, and publish only the redacted artifact:
 
@@ -89,6 +96,9 @@ Both policies require these; the values are read straight from the payload:
 | `benchmark_contract` block | warning if missing | **required**, must match current source exactly |
 | Seed-panel provenance | warning if missing | **required** |
 | Baseline panel | any known subset, no dupes | **exact** full panel: `random`, `conservative`, `win-now`, `rebuild`, `value`, `shrewd`, `strategic`, `pick-trader` |
+| Scaffold provenance | warning if missing | **required**, and must match the current source |
+| Strict failure handling | not checked | **required**: `run_info.strict_fallback` true and `provider_options.GM_AGENT_STRICT == "1"`, agreeing |
+| Per-episode `score_components` | not checked | **required** on every episode row, finite, contributions summing to `strategy_score` |
 
 For `sota-v3`, `run_info.benchmark_contract` must match `expected_contract()`
 field for field. The historical `sota-v2` policy instead matches the literal

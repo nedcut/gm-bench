@@ -224,7 +224,7 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
         if not isinstance(frozen_cap, int) or frozen_cap < 1:
             raise ValueError("full panel requires a positive frozen output_token_cap")
         manifest = _read_optional_json(_smoke_manifest_path(lane))
-        manifest_issues = smoke_manifest_issues(manifest, config, lane)
+        manifest_issues = smoke_manifest_issues(manifest, config, lane, require_strict_fallback=True)
         if manifest_issues:
             raise ValueError(
                 "full panel is locked until every registered smoke is recorded and accepted: "
@@ -260,6 +260,9 @@ def cell_environment(cell: Cell) -> dict[str, str]:
     env = dict(os.environ)
     for key in cell.absent_options:
         env.pop(key, None)
+    # Strict failure handling is the publication default; a registry may only
+    # pin it explicitly, never inherit a looser value from the launching shell.
+    env["GM_AGENT_STRICT"] = "1"
     env.update(cell.fixed_options)
     env["GM_BENCH_OUTPUT_BUDGET_CELL"] = cell.cap_label
     if cell.provider == "openrouter":
@@ -744,6 +747,8 @@ def _record_smoke_issues(
         issues.append("artifact preset must be 'smoke'")
     if run_info.get("profile") != registry.get("profile"):
         issues.append("artifact profile does not match the registered profile")
+    if run_info.get("strict_fallback") is not True:
+        issues.append("artifact was not produced under strict failure handling")
 
     smoke = PRESETS["smoke"]
     expected_seeds = list(smoke["seeds"])
@@ -919,6 +924,7 @@ def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> in
         "reasoning_policy": entry["reasoning_policy"],
         "reasoning_effort": entry.get("reasoning_effort"),
         "decision_failure_rate": artifact["candidate"]["summary"]["decision_failure_rate"],
+        "strict_fallback": bool(run_info.get("strict_fallback")),
         "contract_fingerprint": run_info["benchmark_contract"]["contract_fingerprint"],
         "scaffold_fingerprint": run_info["scaffold_fingerprint"],
         "artifact_sha256": hashlib.sha256(artifact_bytes).hexdigest(),

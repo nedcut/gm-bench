@@ -29,6 +29,14 @@ data/model_checkpoints/
 # hash-linked preservation, not committed artifacts).
 data/publication-runs/
 
+# Local UI checks: MCP Playwright page/console dumps and ad-hoc root-level
+# screenshots. Deliberate web assets live under web/public/ and stay tracked.
+.playwright-mcp/
+/*.png
+
+# Run logs written by scripts/rerun_sota_models.sh.
+/logs/
+
 .DS_Store
 Thumbs.db
 *.swp

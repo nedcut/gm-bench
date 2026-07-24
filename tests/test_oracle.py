@@ -8,8 +8,10 @@ from gm_bench.runner import run_many
 
 def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # sota-v3 begins with the post-release numeric-validation and negotiation
-    # window corrections; sota-v2 remains pinned in SOTA_V2_CONTRACT.
-    assert contract_fingerprint() == "89c89e53c26740c7"
+    # window corrections, adds per-episode score components to the episode row,
+    # and registers the scaffold-view baseline (whose compaction source is part
+    # of the fingerprint); sota-v2 remains pinned in SOTA_V2_CONTRACT.
+    assert contract_fingerprint() == "e8b7b5aec490f4dd"
     assert "oracle" not in AGENTS
 
 

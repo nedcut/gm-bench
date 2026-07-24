@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Literal
 
 PROTOCOL_VERSION = "gm-bench-v2"
@@ -53,28 +53,6 @@ class ActionResult:
         if self.data is not None:
             payload["data"] = self.data
         return payload
-
-
-@dataclass
-class IncomingTradeOffer:
-    offer_id: str
-    from_team_id: int
-    from_team_name: str
-    give_player_ids: list[int] = field(default_factory=list)
-    receive_player_ids: list[int] = field(default_factory=list)
-    give_pick_seasons: list[int] = field(default_factory=list)
-    receive_pick_seasons: list[int] = field(default_factory=list)
-
-    def public_dict(self, players: dict[int, Any]) -> dict[str, Any]:
-        return {
-            "offer_id": self.offer_id,
-            "from_team_id": self.from_team_id,
-            "from_team_name": self.from_team_name,
-            "they_give": [players[pid].public_dict() for pid in self.give_player_ids if pid in players],
-            "they_want": [players[pid].public_dict() for pid in self.receive_player_ids if pid in players],
-            "they_give_pick_seasons": list(self.give_pick_seasons),
-            "they_want_pick_seasons": list(self.receive_pick_seasons),
-        }
 
 
 @dataclass

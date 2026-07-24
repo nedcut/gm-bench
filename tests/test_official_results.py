@@ -15,13 +15,24 @@ from gm_bench.official import (
     REDACTED_SEEDS_SENTINEL,
     SOTA_V1_CONTRACT,
     SOTA_V1_POLICY,
+    SOTA_V2_POLICY,
     SOTA_V3_POLICY,
     redact_leaderboard_payload,
     validate_leaderboard_payload,
 )
 from gm_bench.publication import compact_result
+from gm_bench.scoring import ACTIVE_SCORE_SCALE, SCORE_COMPONENT_KEYS
 from scripts.analyze_output_budget import analyze
 from web.scripts.build_leaderboard import model_row
+
+
+def _score_components(strategy_score: float, protocol_penalty: float = 0.0) -> dict:
+    """A self-consistent component block: all strategy score sits in one term."""
+    components = {name: 0.0 for name in SCORE_COMPONENT_KEYS}
+    components["recent_wins"] = round(strategy_score / ACTIVE_SCORE_SCALE.recent_win, 6)
+    components["recent_wins_contribution"] = strategy_score
+    components["protocol_penalty"] = protocol_penalty
+    return components
 
 
 def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: list[int] | None = None) -> dict:
@@ -44,6 +55,7 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
                 "final_score": 350.0,
                 "strategy_score": 350.0,
                 "protocol_penalty": 0.0,
+                "score_components": _score_components(350.0),
                 "wins": 120,
                 "championships": 2,
                 "illegal_actions": 0,
@@ -76,6 +88,7 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
                     "final_score": 300.0 if name == "pick-trader" else 100.0,
                     "strategy_score": 300.0 if name == "pick-trader" else 100.0,
                     "protocol_penalty": 0.0,
+                    "score_components": _score_components(300.0 if name == "pick-trader" else 100.0),
                     "wins": 90,
                     "championships": 1,
                     "illegal_actions": 0,
@@ -127,7 +140,8 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
             "scaffold_fingerprint": scaffold_fingerprint("openai"),
             "seed_panel": seed_panel_metadata(seeds, "leaderboard"),
             "protocol_repair_attempts": 1,
-            "provider_options": {"GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"},
+            "strict_fallback": True,
+            "provider_options": {"GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1", "GM_AGENT_STRICT": "1"},
         },
     }
 
@@ -175,6 +189,108 @@ def test_sota_v3_policy_requires_repeats() -> None:
     report = validate_leaderboard_payload(_official_payload(repeats=1), policy=SOTA_V3_POLICY)
     assert not report.ok
     assert "candidate.repeats must be >= 3 for sota-v3" in report.errors
+
+
+def test_sota_v3_policy_requires_per_episode_score_components() -> None:
+    payload = _official_payload(repeats=3)
+    for episode in payload["candidate"]["episodes"]:
+        del episode["score_components"]
+    report = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
+    assert not report.ok
+    assert any("is missing score_components" in error for error in report.errors)
+
+
+def test_sota_v3_policy_rejects_incomplete_or_inconsistent_components() -> None:
+    payload = _official_payload(repeats=3)
+    del payload["candidate"]["episodes"][0]["score_components"]["young_assets_contribution"]
+    report = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
+    assert not report.ok
+    assert any("is missing ['young_assets_contribution']" in error for error in report.errors)
+
+    # Components that no longer rebuild the ranked score are not evidence.
+    payload = _official_payload(repeats=3)
+    payload["candidate"]["episodes"][0]["score_components"]["recent_wins_contribution"] = 1.0
+    report = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
+    assert not report.ok
+    assert any("do not sum to strategy_score" in error for error in report.errors)
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), "12.0", True])
+def test_sota_v3_policy_rejects_non_finite_score_components(bad: object) -> None:
+    payload = _official_payload(repeats=3)
+    payload["candidate"]["episodes"][0]["score_components"]["cap_room"] = bad
+    report = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
+    assert not report.ok
+    assert any("score_components.cap_room must be a finite number" in error for error in report.errors)
+
+
+def test_frozen_v2_rows_validate_without_score_components() -> None:
+    # sota-v2 evidence predates the field. The v3 requirement is policy-gated,
+    # not a blanket episode rule, so frozen rows must keep validating as-is.
+    payload = _official_payload(repeats=3)
+    payload["run_info"]["benchmark_contract"] = dict(SOTA_V2_CONTRACT)
+    for block in [payload["candidate"], *payload["baselines"]]:
+        for episode in block["episodes"]:
+            del episode["score_components"]
+
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+    assert report.ok, report.errors
+    assert not SOTA_V2_POLICY.require_score_components
+    assert SOTA_V3_POLICY.require_score_components
+
+
+def test_committed_v2_leaderboard_rows_still_validate() -> None:
+    path = Path("results/leaderboard/openrouter-claude-sonnet-5-bedrock.json")
+    payload = json.loads(path.read_text())
+    assert all("score_components" not in episode for episode in payload["candidate"]["episodes"])
+    assert "strict_fallback" not in payload["run_info"]
+
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+    assert report.ok, report.errors
+
+
+def test_sota_v3_policy_requires_strict_failure_handling() -> None:
+    payload = _official_payload(repeats=3)
+    payload["run_info"]["strict_fallback"] = False
+    payload["run_info"]["provider_options"]["GM_AGENT_STRICT"] = "0"
+    report = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
+    assert not report.ok
+    assert any("strict failure handling" in error for error in report.errors)
+
+
+def test_sota_v3_policy_requires_attested_strictness() -> None:
+    payload = _official_payload(repeats=3)
+    del payload["run_info"]["strict_fallback"]
+    del payload["run_info"]["provider_options"]["GM_AGENT_STRICT"]
+    report = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
+    assert not report.ok
+    assert "run_info.strict_fallback is required for sota-v3 rows; the failure-handling policy must be attested" in (
+        report.errors
+    )
+    assert "run_info.provider_options.GM_AGENT_STRICT is required for sota-v3 rows" in report.errors
+
+
+def test_sota_v3_policy_rejects_disagreeing_strictness_provenance() -> None:
+    payload = _official_payload(repeats=3)
+    payload["run_info"]["strict_fallback"] = False
+    report = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
+    assert not report.ok
+    assert any("must match" in error for error in report.errors)
+
+
+def test_v2_lane_keeps_soft_fallback_semantics() -> None:
+    payload = _official_payload(repeats=3)
+    payload["run_info"]["benchmark_contract"] = SOTA_V2_CONTRACT
+    payload["run_info"].pop("strict_fallback")
+    payload["run_info"]["provider_options"].pop("GM_AGENT_STRICT")
+
+    report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
+    assert report.ok, report.errors
+    assert not SOTA_V2_POLICY.require_strict_fallback
+    assert not OUTPUT_BUDGET_SWEEP_POLICY.require_strict_fallback
+    assert not SOTA_V1_POLICY.require_strict_fallback
+    assert not ARCHIVE_V1_POLICY.require_strict_fallback
+    assert SOTA_V3_POLICY.require_strict_fallback
 
 
 def test_sota_v3_policy_rejects_high_failure_rate() -> None:
@@ -341,6 +457,7 @@ def test_sota_v3_accepts_pinned_single_upstream_openrouter_route() -> None:
                 "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-test-20260714",
                 "OPENROUTER_ALLOW_FALLBACKS": "false",
                 "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+                "GM_AGENT_STRICT": "1",
             },
         }
     )
@@ -365,6 +482,7 @@ def test_sota_v3_rejects_openrouter_upstream_that_differs_from_pin() -> None:
                 "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-test-20260714",
                 "OPENROUTER_ALLOW_FALLBACKS": "false",
                 "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+                "GM_AGENT_STRICT": "1",
             },
         }
     )
