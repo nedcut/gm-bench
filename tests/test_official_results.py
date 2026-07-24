@@ -208,11 +208,25 @@ def test_sota_v3_policy_rejects_incomplete_or_inconsistent_components() -> None:
     assert any("is missing ['young_assets_contribution']" in error for error in report.errors)
 
     # Components that no longer rebuild the ranked score are not evidence.
+    # Keep raw↔contribution consistent so the sum check is what fires.
     payload = _official_payload(repeats=3)
     payload["candidate"]["episodes"][0]["score_components"]["recent_wins_contribution"] = 1.0
+    payload["candidate"]["episodes"][0]["score_components"]["recent_wins"] = round(
+        1.0 / ACTIVE_SCORE_SCALE.recent_win, 6
+    )
     report = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
     assert not report.ok
     assert any("do not sum to strategy_score" in error for error in report.errors)
+
+    # A coherent contribution total with a lying raw is not reweightable evidence.
+    payload = _official_payload(repeats=3)
+    payload["candidate"]["episodes"][0]["score_components"]["recent_wins"] = 0.0
+    report = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
+    assert not report.ok
+    assert any(
+        "recent_wins_contribution does not match the published scale applied to recent_wins" in error
+        for error in report.errors
+    )
 
 
 @pytest.mark.parametrize("bad", [float("nan"), float("inf"), "12.0", True])

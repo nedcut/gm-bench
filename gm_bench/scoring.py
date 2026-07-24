@@ -68,6 +68,18 @@ SCORE_COMPONENT_METRICS = (
     "current_strength",
     "roster_depth",
 )
+# Persisted raw metric name -> ScoreScale attribute used to weight it.
+SCORE_COMPONENT_WEIGHT_ATTRS = {
+    "recent_wins": "recent_win",
+    "playoff_rounds": "playoff_round",
+    "championships": "championship",
+    "total_assets": "total_asset",
+    "young_assets": "young_asset",
+    "future_pick_assets": "future_pick_asset",
+    "cap_room": "cap_room",
+    "current_strength": "current_strength",
+    "roster_depth": "roster_depth",
+}
 # The persisted per-episode component schema: raw metrics, the protocol
 # penalty, and the weighted contributions. Both halves are stored because the
 # contributions alone cannot be reweighted -- `cap_room` is clamped, so its
@@ -80,6 +92,21 @@ SCORE_COMPONENT_KEYS = (
 # Enough precision that reweighting stays faithful, few enough digits that
 # artifacts stay byte-identical across runs.
 SCORE_COMPONENT_PRECISION = 6
+
+
+def contribution_from_metric(name: str, raw: float, scale: ScoreScale | None = None) -> float:
+    """Rebuild one weighted contribution from a persisted raw metric.
+
+    ``cap_room`` is clamped to the scale's score band; every other term is a
+    plain product. Used by publication validation so a row cannot keep a
+    coherent contribution total while lying about the raws that reweighting
+    reads.
+    """
+    active = scale or ACTIVE_SCORE_SCALE
+    weight = float(getattr(active, SCORE_COMPONENT_WEIGHT_ATTRS[name]))
+    if name == "cap_room":
+        return max(active.cap_score_min, min(active.cap_score_max, raw * weight))
+    return raw * weight
 
 
 def scoring_scale_fingerprint(version: str = SCORING_VERSION) -> str:

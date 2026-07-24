@@ -40,6 +40,9 @@ def _capture_view(
 def test_scaffold_view_is_registered_as_a_baseline() -> None:
     assert AGENTS["scaffold-view"] is ScaffoldViewAgent
     assert issubclass(ScaffoldViewAgent, PickTraderAgent)
+    assert ScaffoldViewAgent().name == "scaffold-view"
+    # Non-default profiles must not share the registered cache identity.
+    assert ScaffoldViewAgent("tiny").name == "scaffold-view:tiny"
 
 
 def test_adapter_and_reference_share_one_compaction() -> None:
@@ -163,3 +166,11 @@ def test_ambient_profile_cannot_decide_the_reference_view(monkeypatch: pytest.Mo
     view = _capture_view(monkeypatch, league.observation("offseason"))
     assert len(view["trade_market"]) == 12
     assert ScaffoldViewAgent().profile == "compact"
+
+
+def test_tiny_profile_does_not_share_the_compact_cache_key() -> None:
+    from gm_bench.baseline_cache import cache_key
+
+    compact = ScaffoldViewAgent()
+    tiny = ScaffoldViewAgent("tiny")
+    assert cache_key(compact.name, 11, 5) != cache_key(tiny.name, 11, 5)

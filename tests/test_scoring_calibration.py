@@ -11,8 +11,10 @@ from gm_bench.contract import benchmark_contract
 from gm_bench.scoring import (
     ACTIVE_SCORE_SCALE,
     SCORE_COMPONENT_KEYS,
+    SCORE_COMPONENT_METRICS,
     SCORE_SCALES,
     SCORING_VERSION,
+    contribution_from_metric,
     persisted_score_components,
     score_breakdown,
     score_components,
@@ -56,6 +58,17 @@ def test_persisted_components_cover_the_declared_schema() -> None:
 
     assert tuple(persisted) == SCORE_COMPONENT_KEYS
     assert all(isinstance(value, float) for value in persisted.values())
+    for name in SCORE_COMPONENT_METRICS:
+        # Both halves are rounded independently to six decimals, so rebuilding
+        # from the persisted raw can differ by a few units in the last place.
+        assert abs(persisted[f"{name}_contribution"] - contribution_from_metric(name, persisted[name])) < 1e-5
+
+
+def test_contribution_from_metric_clamps_cap_room() -> None:
+    scale = ACTIVE_SCORE_SCALE
+    assert contribution_from_metric("cap_room", 1e9) == scale.cap_score_max
+    assert contribution_from_metric("cap_room", -1e9) == scale.cap_score_min
+    assert contribution_from_metric("recent_wins", 10.0) == 10.0 * scale.recent_win
 
 
 @pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])

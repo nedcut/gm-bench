@@ -155,7 +155,9 @@ def _captured_model_run(monkeypatch: pytest.MonkeyPatch, argv: list[str]) -> dic
 def test_leaderboard_lane_defaults_to_strict_failure_handling(monkeypatch: pytest.MonkeyPatch) -> None:
     # A stale ambient value must not decide how a publication row is measured.
     monkeypatch.setenv("GM_AGENT_STRICT", "0")
-    run_info = _captured_model_run(monkeypatch, ["model", "--provider", "openai", "--preset", "leaderboard", "--no-log"])
+    run_info = _captured_model_run(
+        monkeypatch, ["model", "--provider", "openai", "--preset", "leaderboard", "--no-log"]
+    )
     assert run_info["strict_fallback"] is True
     assert run_info["provider_options"]["GM_AGENT_STRICT"] == "1"
 

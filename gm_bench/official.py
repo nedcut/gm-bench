@@ -19,7 +19,7 @@ from gm_bench.benchmark_config import (
     seed_panel_hash,
 )
 from gm_bench.contract import SOTA_V2_CONTRACT, expected_contract, scaffold_fingerprint
-from gm_bench.scoring import SCORE_COMPONENT_KEYS
+from gm_bench.scoring import SCORE_COMPONENT_KEYS, SCORE_COMPONENT_METRICS, contribution_from_metric
 
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
 SOTA_V2_POLICY_NAME = "sota-v2"
@@ -688,8 +688,7 @@ def _validate_strict_fallback(errors: list[str], run_info: dict[str, Any], *, po
     option = (run_info.get("provider_options") or {}).get("GM_AGENT_STRICT")
     if declared is None:
         errors.append(
-            f"run_info.strict_fallback is required for {policy_name} rows; "
-            "the failure-handling policy must be attested"
+            f"run_info.strict_fallback is required for {policy_name} rows; the failure-handling policy must be attested"
         )
     elif declared is not True:
         errors.append(
@@ -747,8 +746,9 @@ def _validate_score_components(errors: list[str], label: str, block: dict[str, A
     """Check the persisted components are complete, finite, and self-consistent.
 
     The components exist so a score can be reweighted from the artifact alone.
-    That only holds if every term is present and the contributions still add up
-    to the strategy score the row was ranked on, so both are checked here
+    That only holds if every term is present, each raw metric still rebuilds its
+    contribution under the published scale, and the contributions still add up
+    to the strategy score the row was ranked on — so all three are checked here
     rather than trusting the field because it exists.
     """
     components = block.get("score_components")
@@ -766,6 +766,14 @@ def _validate_score_components(errors: list[str], label: str, block: dict[str, A
             errors.append(f"{label}.score_components.{name} must be a finite number")
             return
         values[name] = float(value)
+    for name in SCORE_COMPONENT_METRICS:
+        expected = contribution_from_metric(name, values[name])
+        actual = values[f"{name}_contribution"]
+        if abs(expected - actual) > _COMPONENT_TOLERANCE:
+            errors.append(
+                f"{label}.score_components.{name}_contribution does not match the published scale applied to {name}"
+            )
+            return
     strategy_score = block.get("strategy_score")
     if isinstance(strategy_score, (int, float)):
         rebuilt = sum(value for name, value in values.items() if name.endswith("_contribution"))

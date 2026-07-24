@@ -493,12 +493,18 @@ class ScaffoldViewAgent(PickTraderAgent):
     # GM_AGENT_PROFILE reflects the operator's shell rather than the lane the
     # model ran under -- an ambient "tiny" would hand the reference a 24/16/16
     # view while the model saw 18/6/6 and silently understate the scaffold cost.
-    # Compare against a tiny-profile row only by instantiating with profile="tiny".
+    # Compare against a tiny-profile row only by instantiating with profile="tiny"
+    # (which also changes agent.name so the baseline cache cannot collide).
     PROFILE = "compact"
 
     def __init__(self, profile: str | None = None) -> None:
         super().__init__()
         self.profile = profile or self.PROFILE
+        # The baseline cache keys on agent.name and does not record profile, so a
+        # non-default profile must not share the registered compact identity —
+        # otherwise a tiny episode can be cached and later served to a compact run.
+        if self.profile != self.PROFILE:
+            self.name = f"{type(self).name}:{self.profile}"
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
         view = scaffold_view_observation(observation, self.profile)
