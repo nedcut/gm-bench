@@ -137,6 +137,7 @@
       "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
+        "historical scaffold fingerprint retained but cannot be re-derived from current source",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate has 453 failed queries across 480 decisions (0.94 per decision); misfired scout/inspect lookups may indicate the model is not reading query errors",
         "candidate does not beat the strongest scripted baseline"
@@ -223,6 +224,7 @@
       "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
+        "historical scaffold fingerprint retained but cannot be re-derived from current source",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
         "candidate has 209 failed queries across 480 decisions (0.44 per decision); misfired scout/inspect lookups may indicate the model is not reading query errors",
@@ -310,6 +312,7 @@
       "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
+        "historical scaffold fingerprint retained but cannot be re-derived from current source",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
         "candidate does not beat the strongest scripted baseline"
@@ -396,6 +399,7 @@
       "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
+        "historical scaffold fingerprint retained but cannot be re-derived from current source",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate does not beat the strongest scripted baseline"
       ],
@@ -481,6 +485,7 @@
       "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
+        "historical scaffold fingerprint retained but cannot be re-derived from current source",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate does not beat the strongest scripted baseline"
       ],
@@ -566,6 +571,7 @@
       "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
+        "historical scaffold fingerprint retained but cannot be re-derived from current source",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate does not beat the strongest scripted baseline"
       ],
@@ -651,6 +657,7 @@
       "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
+        "historical scaffold fingerprint retained but cannot be re-derived from current source",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate has 137 failed queries across 480 decisions (0.29 per decision); misfired scout/inspect lookups may indicate the model is not reading query errors",
         "candidate does not beat the strongest scripted baseline"
@@ -737,6 +744,7 @@
       "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
+        "historical scaffold fingerprint retained but cannot be re-derived from current source",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
         "candidate does not beat the strongest scripted baseline"

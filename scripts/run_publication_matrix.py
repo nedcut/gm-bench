@@ -37,9 +37,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from gm_bench.benchmark_config import PRESETS  # noqa: E402
-from gm_bench.contract import contract_fingerprint, scaffold_fingerprint  # noqa: E402
+from gm_bench.contract import BENCHMARK_VERSION, contract_fingerprint, scaffold_fingerprint  # noqa: E402
 from gm_bench.environment import load_environment_files  # noqa: E402
-from gm_bench.official import SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
+from gm_bench.official import POLICIES, validate_leaderboard_payload  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
 from gm_bench.publication import SMOKE_MANIFEST_FORMAT, smoke_manifest_issues  # noqa: E402
 
@@ -69,6 +69,17 @@ def _read_json(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError(f"{path} must contain a JSON object")
     return payload
+
+
+def _require_current_publication_contract() -> None:
+    registry_contract = _read_json(PANEL_CONFIG).get("contract")
+    lane_contract = _read_json(LANE_CONFIG).get("contract")
+    if registry_contract != BENCHMARK_VERSION or lane_contract != BENCHMARK_VERSION:
+        raise ValueError(
+            "the committed publication registry/lane are frozen historical evidence "
+            f"({registry_contract!r}/{lane_contract!r}); current code is {BENCHMARK_VERSION!r}. "
+            "Create and pre-register a new contract lane before recording smokes or running a panel."
+        )
 
 
 def _validate_models(models: list[dict[str, Any]], *, exact_routes: bool = True) -> None:
@@ -935,7 +946,7 @@ def _reusable_smoke_artifact(cell: Cell, run_dir: Path) -> Path | None:
 
 def _panel_artifact_issues(cell: Cell, artifact: dict[str, Any]) -> list[str]:
     """Return blocking publication and registered-route issues for one panel artifact."""
-    issues = list(validate_leaderboard_payload(artifact, policy=SOTA_V2_POLICY).errors)
+    issues = list(validate_leaderboard_payload(artifact, policy=POLICIES[BENCHMARK_VERSION]).errors)
     run_info = artifact.get("run_info")
     run_info = run_info if isinstance(run_info, dict) else {}
     for key, expected in (
@@ -1249,9 +1260,18 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("record-smoke requires --model-id")
         if args.artifact is None:
             parser.error("record-smoke requires --artifact")
+        try:
+            _require_current_publication_contract()
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            parser.error(str(exc))
         return _record_smoke(args.model_id, args.artifact, args.manifest)
     if args.max_spend_usd is not None and args.max_spend_usd <= 0:
         parser.error("--max-spend-usd must be positive")
+    if args.phase == "panel" or (args.phase == "smoke" and not args.dry_run and not args.preflight_only):
+        try:
+            _require_current_publication_contract()
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            parser.error(str(exc))
     try:
         cells = build_cells(args.phase, args.model_id, args.cap)
     except (OSError, ValueError, json.JSONDecodeError) as exc:

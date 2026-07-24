@@ -19,6 +19,8 @@ DISPLAY_NAMES = {
 def test_blog_result_table_matches_generated_leaderboard() -> None:
     site = json.loads(Path("web/src/data/leaderboard.json").read_text())
     blog = Path("docs/blog/sota-v2-findings.md").read_text()
+    assert site["contract"]["benchmark_version"] == "sota-v2"
+    assert site["contract"]["contract_fingerprint"] == "558e8f35ea1d66b9"
     rows = {}
     pattern = re.compile(
         r"^\| (?P<name>[^|]+?) \| (?P<mean>-?[0-9.]+) \| (?P<lift>-?[0-9.]+) "
@@ -44,6 +46,8 @@ def test_public_claim_surfaces_use_the_frozen_lane_and_current_gate() -> None:
     readme = Path("README.md").read_text()
     assert "4,096-token" in blog
     assert "1,024-token safety ceiling" not in blog
+    assert "Post-release integrity note (2026-07-24)" in blog
+    assert "sota-v3" in readme
     assert "`publishable_ranking: true`" in readme
     assert "no ordinal \u201cbest model\u201d claim" in " ".join(readme.split())
 

@@ -23,6 +23,13 @@ Read the [phase-one findings](docs/blog/sota-v2-findings.md), inspect the
 [generated analysis](results/analysis/publication-panel-analysis.json), or
 follow the [clean-clone reproduction guide](docs/REPRODUCING_SOTA_V2_RELEASE.md).
 
+The tagged study remains frozen under its literal `sota-v2` contract. Current
+development is `sota-v3` because post-release fixes to numeric-input validation
+and negotiation-window semantics change simulator behavior; the v2 evidence is
+not retroactively rewritten or rerun. See the
+[living publication-readiness log](docs/PUBLISH_READINESS.md) for the decision
+boundary and remaining work.
+
 GM-Bench includes:
 
 - A seeded league simulator with aging, development, injuries, contracts,
@@ -64,7 +71,9 @@ full baseline panel; `GM_BENCH_PRIVATE_SEEDS` swaps in a private panel). Every
 run records usage telemetry — tokens, dollar cost (from `gm_bench/pricing.json`
 or adapter-reported cost), and per-decision latency — alongside scores. Results
 intended for serious frontier-model comparison should pass the stricter
-`sota-v2` validator in [`docs/production_benchmark.md`](docs/production_benchmark.md).
+current-contract validator (`sota-v3` on development HEAD) described in
+[`docs/production_benchmark.md`](docs/production_benchmark.md). Frozen release
+artifacts remain verifiable with `--policy sota-v2`.
 Runs also stamp a seed-panel hash so private held-out panels can be verified
 locally (integrity for a known panel, not secrecy). Use `redact-result` before
 publishing private-panel artifacts so the seed list is not committed.
@@ -73,9 +82,9 @@ publishing private-panel artifacts so the seed list is not committed.
 OPENAI_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \
   --preset leaderboard --repeats 3 --json > /tmp/openai-gpt-5.4.raw.json
 python -m gm_bench validate-result /tmp/openai-gpt-5.4.raw.json \
-  --policy sota-v2
+  --policy sota-v3
 python -m gm_bench compact-result /tmp/openai-gpt-5.4.raw.json \
-  --output results/leaderboard/openai-gpt-5.4.json --policy sota-v2
+  --output /tmp/openai-gpt-5.4.compact.json --policy sota-v3
 python -m gm_bench validate-contract
 python -m gm_bench calibrate-score --json
 python web/scripts/build_leaderboard.py   # refresh web/src/data/leaderboard.json

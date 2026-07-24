@@ -7,20 +7,25 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-07-19
-**Current target:** Publish a validated `sota-v2` leaderboard, accompanying blog
-post, GitHub release, and public site.  
-**Current state:** The frozen phase-one public panel is complete. Eight of ten
+**Last reviewed:** 2026-07-24
+**Current target:** Preserve the published `sota-v2` study as frozen historical
+evidence while hardening the next contract and finishing the public
+presentation.
+**Current state:** The frozen phase-one public panel, blog, GitHub release, and
+results-first site are published. Eight of ten
 registered models produced route-matched, cost-complete `sota-v2` rows at the
 shared 4,096-token native-minimum-reasoning cap, clearing the predeclared
 minimum. Grok 4.5 and Mistral Medium 3.5 completed but remain diagnostic because
 their artifacts lacked complete usage or cost coverage. The generated site now
 exposes the eight eligible rows. All models overlap in one uncertainty tier,
-and every eligible model trails `pick-trader`; the remaining release work is
-claim review, raw public-trace packaging, presentation polish, and independent
-reproduction rather than more phase-one model runs.
-**Current weekly focus:** [#63 — Publication sprint: freeze and ship GM-Bench
-`sota-v2`](https://github.com/nedcut/gm-bench/issues/63)  
+and every eligible model trails `pick-trader`. The immediate work is
+[Issue #84](https://github.com/nedcut/gm-bench/issues/84): land the three P0
+correctness and artifact-integrity fixes as an explicit `sota-v3` contract,
+keep all `sota-v2` evidence immutable, complete the remaining claim/framing
+audit, and seek an independent reproduction. No additional paid model runs are
+authorized or needed for this hardening step.
+**Current weekly focus:** [#84 — Close the gap between `sota-v2` evidence and
+framing](https://github.com/nedcut/gm-bench/issues/84)
 **Broader roadmap:** [#60 — Roadmap to a publishable leaderboard + blog
 post](https://github.com/nedcut/gm-bench/issues/60)
 
@@ -81,8 +86,8 @@ The project is publish-ready only when all four gates pass.
 | Current model evidence | Public panel complete | Eight registered, route-matched, cost-complete `sota-v2` rows clear the publication floor; Grok and Mistral are retained as diagnostics. |
 | Statistical evidence | Ready but low-resolution | Seed-paired intervals, exact sign-flip tests, full-family Holm adjustment, and overlap tiers are generated. All eight rows share one tier and trail `pick-trader`. |
 | External validation | Missing | No independent reproduction or third-party result has been recorded. |
-| GitHub presentation | Needs polish | Repository metadata, release packaging, README framing, and final site still need work. |
-| Blog | Scaffolded | The validated results now exist; the narrative still needs its final evidence-backed update. |
+| GitHub presentation | Strong | The results-first site, README, tagged evidence release, and clean-clone guide are public; the remaining work is consistency and disclosure polish. |
+| Blog | Published, living | The evidence-backed phase-one findings are public and must retain post-release integrity notes as the implementation evolves. |
 
 ## Critical path
 
@@ -522,6 +527,30 @@ These should be refined, not quietly removed:
   remains frozen long enough to build a meaningful panel.
 - Performance inside the benchmark may not transfer to other strategic domains.
 
+## Post-publication contract hardening
+
+- [x] Publish and tag the frozen `sota-v2` evidence before changing simulator
+  semantics.
+- [ ] Merge [#85](https://github.com/nedcut/gm-bench/pull/85) only after the
+  complete test, lint, contract, historical-artifact, analyzer, and site gates
+  pass on its exact head.
+- [x] Reject non-finite action inputs and forbid non-finite publication JSON.
+- [x] Make negotiation walk-aways persist for the full decision window.
+- [x] Recompute compact-artifact statistics and verify raw-artifact hashes when
+  raw evidence is supplied.
+- [x] Preserve a literal historical `sota-v2` validation contract rather than
+  reinterpreting released rows against current source.
+- [x] Start corrected development at `sota-v3`; do not re-record old smokes,
+  silently unlock the old publication runner, or spend on a new panel without a
+  new pre-registered registry and lane.
+- [ ] Add the post-release integrity disclosure to every public surface where a
+  reader might confuse the frozen v2 study with current development behavior.
+- [ ] Complete Issue #84's claim/framing items in order of scientific impact:
+  scoring decomposition, same-view/scaffold comparisons, power/no-ranking
+  framing, memo ablation, then realism polish.
+- [ ] Obtain and link an independent clean-clone reproduction. A closed issue
+  without a report is not evidence of reproduction.
+
 ## What should wait until after publication
 
 - [ ] Keep [#62 — strategic contract mechanics](https://github.com/nedcut/gm-bench/pull/62)
@@ -573,6 +602,7 @@ decision and why.
 | 2026-07-18 | Amend GLM 5.2 from the unhealthy first-party Z.AI FP8 endpoint to Novita FP8. | The frozen `z-ai/fp8` endpoint remained at OpenRouter status `-2` across repeated launch preflights, while the exact dated Novita FP8 endpoint was healthy and advertised the common lane parameters. No full-panel GLM result existed. | Pin `novita/fp8`, replace rather than reuse the Z.AI smoke entry, refresh route pricing/runtime evidence, and require a clean exact-route smoke before restoring panel unlock. The replacement smoke completed 4/4 decisions with zero failures or truncations for $0.009225. |
 | 2026-07-19 | Publish eight eligible phase-one rows without an ordinal winner claim. | Eight of ten registered cells passed exact-route and complete-cost gates. Grok recorded usage for 476/480 decisions and cost for 474/480; Mistral recorded cost for 479/480 after one fallback. All eight eligible seed-paired intervals form one connected tier, and every Holm-adjusted primary contrast is 0.078125. | Publish the eight eligible rows as one uncertainty tier, retain Grok and Mistral as diagnostics, do not rerun completed cells, and attach exact raw evidence plus checksums to the tagged release. |
 | 2026-07-18 | Reconcile the frozen publication protocol and reserve repair-call contingency before launch. | Independent Fable 5 review found that the runner and lane correctly enforced 4,096/3,072/8,192 native-minimum reasoning, but `publication_protocol.json` still described the retired 1,024/768/2,048 policy. It also noted that the prior reservation covered only primary calls even though one bounded repair is configured. No full-panel result existed. | Record the current lane as an explicit pre-data protocol amendment. Reserve one full-price call for every configured repair attempt and apply the committed 1.2x cost contingency before admitting each serial cell. Use a sub-$100 operator ceiling and monitor measured spend after every cell. |
+| 2026-07-24 | Preserve the released `sota-v2` study and open `sota-v3` for the Issue #84 P0 fixes. | Non-finite input rejection and decision-window walk-away persistence change simulator/action semantics; compact-artifact recomputation strengthens the validator. Quietly changing the v2 fingerprint or re-recording old smokes would make the released contract mutable after results were known. | Pin the historical v2 contract and validator, identify current corrected runs as v3, block paid publication execution until a v3 registry and lane are pre-registered, retain the tagged v2 evidence and its narrow claim, and require no paid reruns for this repair. |
 
 ## Experiment and release log
 
@@ -594,6 +624,8 @@ than pasting large outputs.
 | 2026-07-16 | First fixed-1,024 smoke series | Superseded by deliberate panel revision | `docs/run_logs/sota-v2-smokes-2026-07-16.md` | Six routes were accepted, two completed with protocol failures, Nemotron Nano exhausted infrastructure retries, and Claude direct remained unhealthy. The evidence remains auditable but cannot unlock the revised 4,096-token native-reasoning panel. |
 | 2026-07-15 | Statistical analysis plan | Frozen | `config/publication_protocol.json` | Pre-registered pre-data: unit of inference, primary paired contrast, Holm-Bonferroni multiplicity, descriptive inference labels, tiered ranking, power disclosure, temperature policy, and registry exclusion criteria. |
 | 2026-07-18 | Final Fable 5 launch audit | Conditions resolved pre-data | `docs/run_logs/sota-v2-final-launch-audit-2026-07-18.md` | No P0 blocker. Reconciled the stale output-policy text, strengthened reservations for repairs plus contingency, selected a $95 operator ceiling, and retained Tencent timing and per-cell spend monitoring as launch conditions. |
+| 2026-07-24 | P0 integrity hardening and v3 boundary | In review | [#85](https://github.com/nedcut/gm-bench/pull/85) | Fixes non-finite actions, negotiation-window resets, and compact-artifact integrity without mutating the frozen v2 release contract. |
+| 2026-07-24 | Results-first public site | Merged | [#87](https://github.com/nedcut/gm-bench/pull/87) | Reframes the public result around one unresolved model tier, the scripted-reference gap, compute, and auditability. |
 
 ## Living-document maintenance checklist
 

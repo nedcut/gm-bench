@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import math
 import os
 import re
 from dataclasses import dataclass
@@ -17,10 +18,11 @@ from gm_bench.benchmark_config import (
     _parse_seeds,
     seed_panel_hash,
 )
-from gm_bench.contract import expected_contract, scaffold_fingerprint
+from gm_bench.contract import SOTA_V2_CONTRACT, expected_contract, scaffold_fingerprint
 
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
 SOTA_V2_POLICY_NAME = "sota-v2"
+SOTA_V3_POLICY_NAME = "sota-v3"
 OUTPUT_BUDGET_SWEEP_POLICY_NAME = "output-budget-sweep"
 SOTA_V1_POLICY_NAME = "sota-v1"
 ARCHIVE_V1_POLICY_NAME = "archive-v1"
@@ -71,6 +73,18 @@ SOTA_V2_POLICY = ResultPolicy(
     require_contract_provenance=True,
     require_seed_panel_provenance=True,
     require_scaffold_provenance=True,
+    expected_contract=SOTA_V2_CONTRACT,
+    validate_current_scaffold=False,
+    max_failed_query_rate=1.0,
+)
+SOTA_V3_POLICY = ResultPolicy(
+    name=SOTA_V3_POLICY_NAME,
+    min_repeats=3,
+    min_seed_count=len(PRESETS["leaderboard"]["seeds"]),
+    max_decision_failure_rate=0.02,
+    require_contract_provenance=True,
+    require_seed_panel_provenance=True,
+    require_scaffold_provenance=True,
     expected_contract=expected_contract(),
     max_failed_query_rate=1.0,
 )
@@ -85,7 +99,8 @@ OUTPUT_BUDGET_SWEEP_POLICY = ResultPolicy(
     require_contract_provenance=True,
     require_seed_panel_provenance=True,
     require_scaffold_provenance=True,
-    expected_contract=expected_contract(),
+    expected_contract=SOTA_V2_CONTRACT,
+    validate_current_scaffold=False,
     max_failed_query_rate=1.0,
 )
 SOTA_V1_POLICY = ResultPolicy(
@@ -122,6 +137,7 @@ POLICIES = {
     OUTPUT_BUDGET_SWEEP_POLICY.name: OUTPUT_BUDGET_SWEEP_POLICY,
     SOTA_V1_POLICY.name: SOTA_V1_POLICY,
     SOTA_V2_POLICY.name: SOTA_V2_POLICY,
+    SOTA_V3_POLICY.name: SOTA_V3_POLICY,
     ARCHIVE_V1_POLICY.name: ARCHIVE_V1_POLICY,
 }
 REDACTED_SEEDS_SENTINEL = "<redacted>"
@@ -205,11 +221,15 @@ def validate_leaderboard_payload(
             )
         elif run_info.get("scaffold_fingerprint"):
             warnings.append("historical scaffold fingerprint retained but cannot be re-derived from current source")
-        strict_v2_lane = policy.name in {SOTA_V2_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME}
+        strict_sota_lane = policy.name in {
+            SOTA_V2_POLICY_NAME,
+            SOTA_V3_POLICY_NAME,
+            OUTPUT_BUDGET_SWEEP_POLICY_NAME,
+        }
         if run_info.get("session"):
-            if strict_v2_lane:
+            if strict_sota_lane:
                 errors.append(
-                    "sota-v2 rows must be fresh-spawn (memo-only memory); "
+                    f"{policy.name} rows must be fresh-spawn (memo-only memory); "
                     "session-condition rows are a separate lane and not comparable"
                 )
             else:
@@ -217,13 +237,13 @@ def validate_leaderboard_payload(
                     "session-condition row: model retains full trajectory in context; "
                     "not comparable with fresh-spawn rows"
                 )
-        if strict_v2_lane:
+        if strict_sota_lane:
             repair_attempts = run_info.get("protocol_repair_attempts")
             option_repair = (run_info.get("provider_options") or {}).get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS")
             parsed_repairs: dict[str, int] = {}
             for label, raw in (("protocol_repair_attempts", repair_attempts), ("provider_options", option_repair)):
                 if raw in (None, ""):
-                    errors.append(f"run_info.{label} repair attempts are required for sota-v2")
+                    errors.append(f"run_info.{label} repair attempts are required for {policy.name}")
                     continue
                 try:
                     parsed = int(raw)
@@ -231,7 +251,9 @@ def validate_leaderboard_payload(
                     errors.append(f"run_info.{label} repair attempts must be an integer")
                     continue
                 if not 0 <= parsed <= 1:
-                    errors.append(f"sota-v2 repair attempts must be between zero and one; got {parsed} via {label}")
+                    errors.append(
+                        f"{policy.name} repair attempts must be between zero and one; got {parsed} via {label}"
+                    )
                     continue
                 parsed_repairs[label] = parsed
             if len(parsed_repairs) == 2 and len(set(parsed_repairs.values())) != 1:
@@ -259,7 +281,7 @@ def validate_leaderboard_payload(
 
     baselines = [_dict(result) for result in _list(payload.get("baselines"))]
     baseline_names = [result.get("agent") for result in baselines]
-    if policy.name in {SOTA_V2_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME}:
+    if policy.name in {SOTA_V2_POLICY_NAME, SOTA_V3_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME}:
         _expect_equal(errors, "baselines", baseline_names, expected_baselines)
     else:
         if not baseline_names:
@@ -322,7 +344,7 @@ def validate_leaderboard_payload(
                 warnings,
                 run_info,
                 usage,
-                strict=policy.name in {SOTA_V2_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME},
+                strict=policy.name in {SOTA_V2_POLICY_NAME, SOTA_V3_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME},
             )
 
     for baseline in baselines:
@@ -331,6 +353,9 @@ def validate_leaderboard_payload(
             _expect_redacted_run_block(errors, f"baseline[{name}]", baseline)
         elif expected_seeds is not None:
             _validate_episode_panel(errors, f"baseline[{name}]", baseline, expected_seeds, expected_seasons, repeats=1)
+
+    if isinstance(payload.get("publication"), dict) and not redacted_private:
+        _validate_compact_integrity(errors, payload, candidate, baselines, expected_seeds or [])
 
     normalized = _dict(payload.get("normalized"))
     paired = _dict(payload.get("paired"))
@@ -400,7 +425,7 @@ def _validate_openrouter_route(
 def redact_leaderboard_payload(
     payload: dict[str, Any],
     *,
-    policy: ResultPolicy = SOTA_V2_POLICY,
+    policy: ResultPolicy = SOTA_V3_POLICY,
 ) -> tuple[dict[str, Any], ValidationReport]:
     """Return a public-safe copy of a leaderboard payload.
 
@@ -654,6 +679,69 @@ def _validate_episode_panel(
     missing = {seed: values for seed, values in missing.items() if values}
     if missing:
         errors.append(f"{label}.episodes missing seed/repeat pairs: {missing}")
+
+
+def _validate_compact_integrity(
+    errors: list[str],
+    payload: dict[str, Any],
+    candidate: dict[str, Any],
+    baselines: list[dict[str, Any]],
+    seeds: list[int],
+) -> None:
+    """Treat compact summaries as derived views, never independent evidence."""
+    _validate_finite_numbers(errors, payload)
+    if not candidate or not baselines or not seeds:
+        return
+    from gm_bench.runner import _paired_analysis, _precise_mean_score, summarize_episodes
+
+    rebuilt_candidate = {**candidate, "summary": summarize_episodes(candidate.get("episodes") or [])}
+    rebuilt_baselines = [
+        {**baseline, "summary": summarize_episodes(baseline.get("episodes") or [])} for baseline in baselines
+    ]
+    _compare_present_values(errors, "candidate.summary", candidate.get("summary"), rebuilt_candidate["summary"])
+    for original, rebuilt in zip(baselines, rebuilt_baselines, strict=True):
+        _compare_present_values(
+            errors, f"baseline[{original.get('agent', 'unknown')}].summary", original.get("summary"), rebuilt["summary"]
+        )
+    baseline_mean = sum(_precise_mean_score(block) for block in rebuilt_baselines) / len(rebuilt_baselines)
+    candidate_mean = _precise_mean_score(rebuilt_candidate)
+    expected_normalized = {
+        "candidate_mean_score": round(candidate_mean, 3),
+        "baseline_panel_mean_score": round(baseline_mean, 3),
+        "score_lift": round(candidate_mean - baseline_mean, 3),
+        "score_lift_pct": round(((candidate_mean / baseline_mean) - 1.0) * 100.0, 2) if baseline_mean else 0.0,
+        "candidate_illegal_actions": rebuilt_candidate["summary"]["illegal_actions"],
+        "baseline_illegal_actions": sum(block["summary"]["illegal_actions"] for block in rebuilt_baselines),
+    }
+    _compare_present_values(errors, "normalized", payload.get("normalized"), expected_normalized)
+    _compare_present_values(
+        errors, "paired", payload.get("paired"), _paired_analysis(seeds, rebuilt_candidate, rebuilt_baselines)
+    )
+
+
+def _validate_finite_numbers(errors: list[str], value: Any, path: str = "payload") -> None:
+    if isinstance(value, float) and not math.isfinite(value):
+        errors.append(f"{path} must not contain a non-finite number")
+    elif isinstance(value, dict):
+        for key, child in value.items():
+            _validate_finite_numbers(errors, child, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _validate_finite_numbers(errors, child, f"{path}[{index}]")
+
+
+def _compare_present_values(errors: list[str], path: str, actual: Any, expected: Any) -> None:
+    if not isinstance(actual, dict) or not isinstance(expected, dict):
+        return
+    for key, value in actual.items():
+        if key not in expected:
+            continue
+        expected_value = expected[key]
+        child_path = f"{path}.{key}"
+        if isinstance(value, dict) and isinstance(expected_value, dict):
+            _compare_present_values(errors, child_path, value, expected_value)
+        elif value != expected_value:
+            errors.append(f"{child_path} does not match episode-derived value")
 
 
 def _expect_equal(errors: list[str], name: str, actual: Any, expected: Any) -> None:

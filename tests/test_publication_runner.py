@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 import scripts.run_publication_matrix as publication_runner
-from gm_bench.contract import contract_fingerprint, scaffold_fingerprint
+from gm_bench.contract import BENCHMARK_VERSION, contract_fingerprint, scaffold_fingerprint
 from scripts.run_publication_matrix import (
     _artifact_spend_usd,
     _cell_reservation_usd,
@@ -36,8 +36,10 @@ def _frozen_panel_files(
     monkeypatch: pytest.MonkeyPatch,
 ) -> tuple[dict, dict, Path]:
     registry = json.loads(Path("config/sota_v2_models.json").read_text())
+    registry["contract"] = BENCHMARK_VERSION
     registry["selection_status"] = "frozen"
     lane = json.loads(Path("config/sota_v2_lane.json").read_text())
+    lane["contract"] = BENCHMARK_VERSION
     lane["output_budget_status"] = "frozen-native-reasoning-cap"
     lane.pop("smoke_manifest", None)
     registry_path = tmp_path / "models.json"
@@ -293,8 +295,9 @@ def test_validate_models_rejects_mandatory_minimum_policy_with_no_effort_declare
         publication_runner._validate_models([model])
 
 
-def test_committed_panel_is_unlocked_after_registry_and_smoke_freeze() -> None:
-    assert len(build_cells("panel")) == 10
+def test_committed_v2_panel_is_locked_after_current_contract_advances() -> None:
+    with pytest.raises(ValueError, match="different benchmark contract"):
+        build_cells("panel")
 
 
 def test_panel_stays_locked_when_frozen_registry_has_no_manifest(
@@ -628,8 +631,11 @@ def test_artifact_spend_uses_completed_result_telemetry(tmp_path: Path) -> None:
 
 
 def test_paid_openrouter_run_requires_explicit_spend_ceiling(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
+    _frozen_panel_files(tmp_path, monkeypatch)
     with pytest.raises(SystemExit) as exc:
         main(
             [
@@ -660,7 +666,12 @@ def test_cell_reservation_blocks_launch_before_ceiling_overrun(tmp_path: Path) -
     assert not (tmp_path / "openrouter-reservations.json").exists()
 
 
-def test_cell_reservation_covers_repairs_and_cost_contingency() -> None:
+def test_cell_reservation_covers_repairs_and_cost_contingency(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
     cell = build_cells("panel", model_id="openrouter-gpt-5.6-luna-openai")[0]
     pricing = json.loads(Path("config/openrouter_pricing_snapshot.json").read_text())
     assumptions = pricing["planning_assumptions"]
@@ -803,8 +814,11 @@ def test_unsettled_failed_attempt_remains_part_of_next_reservation_guard(tmp_pat
 
 
 def test_panel_artifact_gate_requires_complete_cost_and_registered_route_telemetry(
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
     cell = build_cells("panel", model_id="openrouter-grok-4.5-xai")[0]
     artifact = {
         "run_info": {
@@ -846,6 +860,8 @@ def test_existing_ineligible_panel_artifact_is_not_reused_or_overwritten(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
     cell = build_cells("panel", model_id="openrouter-grok-4.5-xai")[0]
     raw_dir = tmp_path / "raw"
     raw_dir.mkdir()

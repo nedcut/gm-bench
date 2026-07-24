@@ -101,6 +101,39 @@ front office.
   actual model token use still ranged from 7,611 to 10,764 tokens per decision.
 - The result evaluates model-plus-standardized-scaffold systems on this task;
   it is not a claim about general intelligence or universal strategic ability.
+- The published panel and scripted references are committed and public. That
+  makes replay easy, but it also permits benchmark-specific adaptation; future
+  generalization claims need a private or prospective panel.
+- Opponents are scripted front-office policies, not autonomous learning GMs.
+  Morale is shown as decorative state but does not currently affect strength,
+  development, or score; readers should not treat it as a decision-relevant mechanic.
+
+## Decision history
+
+The protocol was frozen through an iterative process, not discovered whole.
+The public [publish-readiness decision log](../PUBLISH_READINESS.md) records
+panel reshuffles, cap-policy changes, route substitutions, and evidence resets.
+“Frozen” describes the released protocol and artifact set; it does not erase
+those pre-freeze researcher decisions.
+
+## Post-release integrity note (2026-07-24)
+
+A post-release code audit found three defects: non-finite numeric action inputs
+could bypass comparison-based validation; negotiation walk-away counters reset
+between interaction rounds instead of lasting for the full decision window; and
+the routine compact-artifact validator trusted several derived statistics
+instead of recomputing them from retained episode rows. The tagged release
+manifest and checksums still bind the published files, and the committed compact
+rows contain finite values. The compact rows do not preserve enough action-level
+detail to prove retrospectively that no model benefited from the negotiation
+reset.
+
+The repair therefore does not rewrite or silently “re-certify” `sota-v2`.
+Released v2 artifacts remain frozen historical evidence under their literal
+contract and the narrow claim below. Corrected simulator/action behavior and
+the stronger artifact validator begin at `sota-v3`; a future v3 model panel
+would require a new pre-registered lane and fresh evidence. No paid reruns are
+part of this repair.
 
 ## Audit and reproduce
 

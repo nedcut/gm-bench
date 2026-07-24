@@ -30,6 +30,7 @@ def find_accepted_pick_sale(league: League) -> dict | None:
                 "receive_pick_seasons": [league.season + 1],
             }
             before = league.illegal_actions
+            league.begin_decision_window()  # each probe is its own window
             league.apply_actions([action], "preseason")
             if league.transactions[-1].accepted:
                 return action

@@ -233,7 +233,7 @@ def parse_actions(text: Any) -> list[dict[str, Any]]:
         raise ValueError(f"model response content must be a string, got {type(text).__name__}")
     stripped = strip_terminal_codes(text).strip()
     try:
-        parsed = json.loads(stripped)
+        parsed = json.loads(stripped, parse_constant=_reject_non_finite_json_constant)
         return _actions_from_json(parsed)
     except json.JSONDecodeError:
         pass
@@ -241,7 +241,7 @@ def parse_actions(text: Any) -> list[dict[str, Any]]:
     fenced = re.search(r"```(?:json)?\s*(.*?)\s*```", stripped, re.DOTALL)
     if fenced:
         try:
-            parsed = json.loads(fenced.group(1))
+            parsed = json.loads(fenced.group(1), parse_constant=_reject_non_finite_json_constant)
             return _actions_from_json(parsed)
         except json.JSONDecodeError:
             pass
@@ -258,6 +258,10 @@ def parse_actions(text: Any) -> list[dict[str, Any]]:
         except ValueError:
             continue
     raise ValueError("model did not return a JSON action array")
+
+
+def _reject_non_finite_json_constant(value: str) -> None:
+    raise ValueError(f"non-finite JSON number {value!r} is not allowed")
 
 
 def _actions_from_json(parsed: Any) -> list[dict[str, Any]]:
@@ -327,7 +331,7 @@ def _has_usable_value(value: Any) -> bool:
 
 
 def _scan_json_values(text: str, opener: str) -> list[Any]:
-    decoder = json.JSONDecoder()
+    decoder = json.JSONDecoder(parse_constant=_reject_non_finite_json_constant)
     values: list[Any] = []
     for match in re.finditer(re.escape(opener), text):
         try:
