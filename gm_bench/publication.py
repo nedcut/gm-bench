@@ -83,14 +83,19 @@ def smoke_manifest_issues(
     manifest: dict[str, Any] | None,
     registry: dict[str, Any],
     lane: dict[str, Any],
+    *,
+    expected_contract_fingerprint: str | None = None,
+    validate_current_scaffold: bool = True,
 ) -> list[str]:
     """Machine-check the pre-panel smoke evidence against the frozen lane.
 
     The full panel (and any published ranking) must not be unlockable by
     editing a status string: every registered model needs an accepted smoke
     manifest entry recorded from a real artifact, at the frozen cap, under the
-    current scaffold and contract, with complete finish-reason telemetry and
-    no cap-pressure or truncation trigger.
+    selected scaffold and contract, with complete finish-reason telemetry and
+    no cap-pressure or truncation trigger. Historical release builders may pass
+    their frozen contract fingerprint and disable current-scaffold comparison;
+    new publication runners retain the current-source defaults.
     """
     from gm_bench.benchmark_config import PRESETS
     from gm_bench.contract import contract_fingerprint, scaffold_fingerprint
@@ -172,11 +177,13 @@ def smoke_manifest_issues(
             not isinstance(reasoning_tokens, int) or isinstance(reasoning_tokens, bool) or reasoning_tokens < 0
         ):
             issues.append(f"{prefix} is missing reasoning-token telemetry for a mandatory-reasoning model")
-        if entry.get("contract_fingerprint") != contract_fingerprint():
+        expected_contract = expected_contract_fingerprint or contract_fingerprint()
+        if entry.get("contract_fingerprint") != expected_contract:
             issues.append(f"{prefix} was recorded under a different benchmark contract")
-        expected_scaffold = scaffold_fingerprint(str(model.get("provider") or ""))
-        if expected_scaffold is not None and entry.get("scaffold_fingerprint") != expected_scaffold:
-            issues.append(f"{prefix} was recorded under a different prompt scaffold")
+        if validate_current_scaffold:
+            expected_scaffold = scaffold_fingerprint(str(model.get("provider") or ""))
+            if expected_scaffold is not None and entry.get("scaffold_fingerprint") != expected_scaffold:
+                issues.append(f"{prefix} was recorded under a different prompt scaffold")
         artifact_sha = entry.get("artifact_sha256")
         if not isinstance(artifact_sha, str) or re.fullmatch(r"[0-9a-f]{64}", artifact_sha) is None:
             issues.append(f"{prefix} must record the raw artifact sha256")

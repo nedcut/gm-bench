@@ -63,6 +63,25 @@ def test_complete_valid_smoke_manifest_has_no_issues() -> None:
     assert smoke_manifest_issues(_valid_manifest(registry, lane), registry, lane) == []
 
 
+def test_historical_smoke_manifest_uses_frozen_contract_without_current_scaffold() -> None:
+    registry, lane = _registry_and_lane()
+    manifest = _valid_manifest(registry, lane)
+    for entry in manifest["entries"].values():
+        entry["contract_fingerprint"] = "frozen-v2"
+        entry["scaffold_fingerprint"] = "historical-scaffold"
+
+    assert (
+        smoke_manifest_issues(
+            manifest,
+            registry,
+            lane,
+            expected_contract_fingerprint="frozen-v2",
+            validate_current_scaffold=False,
+        )
+        == []
+    )
+
+
 @pytest.mark.parametrize(
     ("mutation", "message"),
     [

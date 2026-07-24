@@ -8,7 +8,7 @@ the published table. Official artifacts are either the saved output of
     python -m gm_bench model --provider <p> --model <m> --preset leaderboard --repeats 3 --json > results/leaderboard/<name>.json
 
 or a redacted private-panel artifact from ``python -m gm_bench redact-result``.
-Only rows on the current ``sota-v2`` contract are published; anything else is
+Only rows on the frozen ``sota-v2`` release contract are published; anything else is
 skipped with a note on stderr.
 
 It writes ``web/src/data/leaderboard.json`` with one row per model plus the
@@ -34,7 +34,7 @@ sys.path.insert(0, str(ROOT))
 from gm_bench.agents import AGENTS  # noqa: E402
 from gm_bench.baseline_cache import cache_key, load_cache  # noqa: E402
 from gm_bench.benchmark_config import PRESETS, PRIVATE_LEADERBOARD_PANEL_NAME  # noqa: E402
-from gm_bench.contract import benchmark_contract  # noqa: E402
+from gm_bench.contract import SOTA_V2_CONTRACT  # noqa: E402
 from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
 from gm_bench.oracle import OracleAgent  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
@@ -507,7 +507,13 @@ def main() -> None:
             loaded = None
         if isinstance(loaded, dict):
             manifest = loaded
-    smoke_issues = smoke_manifest_issues(manifest, model_config, lane_config)
+    smoke_issues = smoke_manifest_issues(
+        manifest,
+        model_config,
+        lane_config,
+        expected_contract_fingerprint=str(SOTA_V2_CONTRACT["contract_fingerprint"]),
+        validate_current_scaffold=False,
+    )
     panel_analysis: dict[str, Any] | None = None
     if PANEL_ANALYSIS_PATH.is_file():
         try:
@@ -559,7 +565,7 @@ def main() -> None:
     updated = max((stamp for stamp in timestamps if stamp), default="")[:10]
     dataset = {
         "updated": updated,
-        "contract": benchmark_contract(),
+        "contract": SOTA_V2_CONTRACT,
         "preset": {
             "name": "leaderboard",
             "seeds": LEADERBOARD["seeds"],

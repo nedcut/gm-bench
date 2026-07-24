@@ -1,26 +1,29 @@
 # Production Benchmark Standard
 
-GM-Bench has two result tiers:
+GM-Bench has one general result tier plus versioned strict policies:
 
 - `public-leaderboard`: a structurally valid public leaderboard result.
-- `sota-v2`: the stricter standard for claims about frontier model GM ability.
+- `sota-v3`: the current strict validator for new development results.
+- `sota-v2`: the frozen historical validator for the published phase-one study.
 - `sota-v1`: the frozen historical validator for archived v1 evidence. It does
   not make a v1 row comparable to v2; it only keeps the archived contract
   independently auditable.
 
 The public leaderboard can show development and diagnostic rows, including local
-models that are below the scripted baselines. A `sota-v2` result is the minimum
-bar for a result that should be compared as a serious model benchmark.
+models that are below the scripted baselines. A current `sota-v3` result is the
+minimum technical bar for a new serious comparison, but no v3 publication lane
+or model registry is pre-registered yet. Do not spend on or publish a v3 panel
+until those conditions are frozen.
 
 Committed official artifacts belong in `results/leaderboard/` and must pass the
 `public-leaderboard` validator in CI. Ineligible runs that are retained for
 transparency belong in `results/diagnostics/`. The site builder separates
-current v2 rows from explicitly archived pre-v2 evidence while preserving the
-official-artifact gate.
+the frozen phase-one v2 rows from current development and explicitly archived
+pre-v2 evidence while preserving the official-artifact gate.
 
-## SOTA-v2 Requirements
+## Strict result requirements
 
-A `sota-v2` result must be produced by:
+A new strict result on development HEAD is produced under `sota-v3`:
 
 ```bash
 python -m gm_bench model \
@@ -33,7 +36,7 @@ python -m gm_bench model \
 
 Model / external-process adapters run **serially by default** (one episode at a
 time). Parallel fan-out across seeds×repeats will burn provider rate limits and
-fill rows with fallback `noop`s, which then fails the sota-v2 failure-rate gate.
+fill rows with fallback `noop`s, which then fails the strict failure-rate gate.
 Opt into concurrency only when the provider can handle it:
 `GM_BENCH_WORKERS=N` or `--workers N`. Scripted in-process baselines still
 parallelize.
@@ -43,7 +46,7 @@ default — leave it unset or force `GM_BENCH_WORKERS=1` for Claude. On 2026-07-
 parallel Sonnet leaderboard panel emptied a Claude Pro 5h usage limit in ~5
 minutes wall clock and produced a 0.873 decision failure rate. The
 multi-megabyte failed artifact is intentionally not retained. Prefer
-`--preset smoke` first; a clean serial sota-v2 panel is
+`--preset smoke` first; a clean serial strict panel is
 multi-hour quota spend, not a quick retry.
 
 Fresh-spawn serial model panels write an atomic checkpoint after every completed
@@ -69,19 +72,19 @@ python -m gm_bench model \
   --json > /tmp/gm-bench-<provider>-<model>-private.raw.json
 python -m gm_bench redact-result \
   /tmp/gm-bench-<provider>-<model>-private.raw.json \
-  --output results/leaderboard/<provider>-<model>-private.redacted.json \
-  --policy sota-v2
+  --output /tmp/gm-bench-<provider>-<model>-private.redacted.json \
+  --policy sota-v3
 ```
 
 It must also satisfy the machine validator:
 
 ```bash
 python -m gm_bench validate-result \
-  results/leaderboard/<provider>-<model>.json \
-  --policy sota-v2
+  /tmp/gm-bench-<provider>-<model>.json \
+  --policy sota-v3
 ```
 
-Before publishing SOTA-v2 claims from a new source contract, run the benchmark
+Before publishing claims from a new source contract, run the benchmark
 validity canaries:
 
 ```bash
@@ -124,7 +127,7 @@ The validator enforces:
 - Fresh-spawn condition: `run_info.session` must be absent or false. Session
   rows (`--session`, model keeps its full trajectory in context) are a separate
   labeled condition — publishable, but never comparable with memo-only rows and
-  never `sota-v2`.
+  never eligible for the active strict policy.
 - Scaffold provenance: new rows record `run_info.scaffold_fingerprint`, a
   per-provider hash of the prompt scaffold (shared prompt builder plus the
   provider's adapter script and spec). A recorded fingerprint that does not
@@ -225,10 +228,11 @@ still.
 
 Under the freeze:
 
-- New model rows run against the frozen contract; `validate-result` already
-  rejects rows whose fingerprint does not match the current source.
+- The released v2 rows validate against a literal historical contract rather
+  than the current source fingerprint. Reproduce them from the tagged release;
+  current HEAD emits v3.
 - Simulator, scoring, preset, or schema changes that alter the fingerprint do
-  not amend `sota-v2` — they start a new claim lane (`sota-v3`) with its own
+  not amend `sota-v2` — the Issue #84 fixes started `sota-v3`, which needs its own
   re-cached baseline panel and reference means, exactly as `sota-v2` superseded
   `sota-v1`. Existing `sota-v2` rows stay published and comparable with each
   other under their own contract.

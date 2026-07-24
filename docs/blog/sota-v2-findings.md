@@ -116,6 +116,25 @@ panel reshuffles, cap-policy changes, route substitutions, and evidence resets.
 “Frozen” describes the released protocol and artifact set; it does not erase
 those pre-freeze researcher decisions.
 
+## Post-release integrity note (2026-07-24)
+
+A post-release code audit found three defects: non-finite numeric action inputs
+could bypass comparison-based validation; negotiation walk-away counters reset
+between interaction rounds instead of lasting for the full decision window; and
+the routine compact-artifact validator trusted several derived statistics
+instead of recomputing them from retained episode rows. The tagged release
+manifest and checksums still bind the published files, and the committed compact
+rows contain finite values. The compact rows do not preserve enough action-level
+detail to prove retrospectively that no model benefited from the negotiation
+reset.
+
+The repair therefore does not rewrite or silently “re-certify” `sota-v2`.
+Released v2 artifacts remain frozen historical evidence under their literal
+contract and the narrow claim below. Corrected simulator/action behavior and
+the stronger artifact validator begin at `sota-v3`; a future v3 model panel
+would require a new pre-registered lane and fresh evidence. No paid reruns are
+part of this repair.
+
 ## Audit and reproduce
 
 The compact rows live in [`results/leaderboard/`](../../results/leaderboard/),

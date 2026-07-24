@@ -18,10 +18,11 @@ from gm_bench.benchmark_config import (
     _parse_seeds,
     seed_panel_hash,
 )
-from gm_bench.contract import expected_contract, scaffold_fingerprint
+from gm_bench.contract import SOTA_V2_CONTRACT, expected_contract, scaffold_fingerprint
 
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
 SOTA_V2_POLICY_NAME = "sota-v2"
+SOTA_V3_POLICY_NAME = "sota-v3"
 OUTPUT_BUDGET_SWEEP_POLICY_NAME = "output-budget-sweep"
 SOTA_V1_POLICY_NAME = "sota-v1"
 ARCHIVE_V1_POLICY_NAME = "archive-v1"
@@ -72,6 +73,18 @@ SOTA_V2_POLICY = ResultPolicy(
     require_contract_provenance=True,
     require_seed_panel_provenance=True,
     require_scaffold_provenance=True,
+    expected_contract=SOTA_V2_CONTRACT,
+    validate_current_scaffold=False,
+    max_failed_query_rate=1.0,
+)
+SOTA_V3_POLICY = ResultPolicy(
+    name=SOTA_V3_POLICY_NAME,
+    min_repeats=3,
+    min_seed_count=len(PRESETS["leaderboard"]["seeds"]),
+    max_decision_failure_rate=0.02,
+    require_contract_provenance=True,
+    require_seed_panel_provenance=True,
+    require_scaffold_provenance=True,
     expected_contract=expected_contract(),
     max_failed_query_rate=1.0,
 )
@@ -86,7 +99,8 @@ OUTPUT_BUDGET_SWEEP_POLICY = ResultPolicy(
     require_contract_provenance=True,
     require_seed_panel_provenance=True,
     require_scaffold_provenance=True,
-    expected_contract=expected_contract(),
+    expected_contract=SOTA_V2_CONTRACT,
+    validate_current_scaffold=False,
     max_failed_query_rate=1.0,
 )
 SOTA_V1_POLICY = ResultPolicy(
@@ -123,6 +137,7 @@ POLICIES = {
     OUTPUT_BUDGET_SWEEP_POLICY.name: OUTPUT_BUDGET_SWEEP_POLICY,
     SOTA_V1_POLICY.name: SOTA_V1_POLICY,
     SOTA_V2_POLICY.name: SOTA_V2_POLICY,
+    SOTA_V3_POLICY.name: SOTA_V3_POLICY,
     ARCHIVE_V1_POLICY.name: ARCHIVE_V1_POLICY,
 }
 REDACTED_SEEDS_SENTINEL = "<redacted>"
@@ -206,11 +221,15 @@ def validate_leaderboard_payload(
             )
         elif run_info.get("scaffold_fingerprint"):
             warnings.append("historical scaffold fingerprint retained but cannot be re-derived from current source")
-        strict_v2_lane = policy.name in {SOTA_V2_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME}
+        strict_sota_lane = policy.name in {
+            SOTA_V2_POLICY_NAME,
+            SOTA_V3_POLICY_NAME,
+            OUTPUT_BUDGET_SWEEP_POLICY_NAME,
+        }
         if run_info.get("session"):
-            if strict_v2_lane:
+            if strict_sota_lane:
                 errors.append(
-                    "sota-v2 rows must be fresh-spawn (memo-only memory); "
+                    f"{policy.name} rows must be fresh-spawn (memo-only memory); "
                     "session-condition rows are a separate lane and not comparable"
                 )
             else:
@@ -218,13 +237,13 @@ def validate_leaderboard_payload(
                     "session-condition row: model retains full trajectory in context; "
                     "not comparable with fresh-spawn rows"
                 )
-        if strict_v2_lane:
+        if strict_sota_lane:
             repair_attempts = run_info.get("protocol_repair_attempts")
             option_repair = (run_info.get("provider_options") or {}).get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS")
             parsed_repairs: dict[str, int] = {}
             for label, raw in (("protocol_repair_attempts", repair_attempts), ("provider_options", option_repair)):
                 if raw in (None, ""):
-                    errors.append(f"run_info.{label} repair attempts are required for sota-v2")
+                    errors.append(f"run_info.{label} repair attempts are required for {policy.name}")
                     continue
                 try:
                     parsed = int(raw)
@@ -232,7 +251,9 @@ def validate_leaderboard_payload(
                     errors.append(f"run_info.{label} repair attempts must be an integer")
                     continue
                 if not 0 <= parsed <= 1:
-                    errors.append(f"sota-v2 repair attempts must be between zero and one; got {parsed} via {label}")
+                    errors.append(
+                        f"{policy.name} repair attempts must be between zero and one; got {parsed} via {label}"
+                    )
                     continue
                 parsed_repairs[label] = parsed
             if len(parsed_repairs) == 2 and len(set(parsed_repairs.values())) != 1:
@@ -260,7 +281,7 @@ def validate_leaderboard_payload(
 
     baselines = [_dict(result) for result in _list(payload.get("baselines"))]
     baseline_names = [result.get("agent") for result in baselines]
-    if policy.name in {SOTA_V2_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME}:
+    if policy.name in {SOTA_V2_POLICY_NAME, SOTA_V3_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME}:
         _expect_equal(errors, "baselines", baseline_names, expected_baselines)
     else:
         if not baseline_names:
@@ -323,7 +344,7 @@ def validate_leaderboard_payload(
                 warnings,
                 run_info,
                 usage,
-                strict=policy.name in {SOTA_V2_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME},
+                strict=policy.name in {SOTA_V2_POLICY_NAME, SOTA_V3_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME},
             )
 
     for baseline in baselines:
@@ -404,7 +425,7 @@ def _validate_openrouter_route(
 def redact_leaderboard_payload(
     payload: dict[str, Any],
     *,
-    policy: ResultPolicy = SOTA_V2_POLICY,
+    policy: ResultPolicy = SOTA_V3_POLICY,
 ) -> tuple[dict[str, Any], ValidationReport]:
     """Return a public-safe copy of a leaderboard payload.
 

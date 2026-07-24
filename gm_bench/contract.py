@@ -15,10 +15,20 @@ from typing import Any
 
 from gm_bench.scoring import SCORING_VERSION, scoring_scale_fingerprint
 
-BENCHMARK_VERSION = "sota-v2"
-ACTION_PROTOCOL_VERSION = "actions-v2"
-SIMULATOR_VERSION = "sim-v2"
+BENCHMARK_VERSION = "sota-v3"
+ACTION_PROTOCOL_VERSION = "actions-v3"
+SIMULATOR_VERSION = "sim-v3"
 OBSERVATION_VERSION = "observation-v1"
+
+SOTA_V2_CONTRACT = {
+    "benchmark_version": "sota-v2",
+    "action_protocol_version": "actions-v2",
+    "scoring_version": "score-v1",
+    "scoring_scale_fingerprint": "05a60ff4f691e734",
+    "simulator_version": "sim-v2",
+    "observation_version": "observation-v1",
+    "contract_fingerprint": "558e8f35ea1d66b9",
+}
 
 _ROOT = Path(__file__).resolve().parents[1]
 # Fingerprint covers score-affecting simulator/protocol sources only.

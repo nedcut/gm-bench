@@ -7,10 +7,9 @@ from gm_bench.runner import run_many
 
 
 def test_oracle_preserves_frozen_contract_fingerprint() -> None:
-    # Re-frozen 2026-07-15 (failed_queries split + ambiguous-scout rejection);
-    # see the PUBLISH_READINESS decision log for why the pin moved off
-    # a65a4359ca3c6e64.
-    assert contract_fingerprint() == "558e8f35ea1d66b9"
+    # sota-v3 begins with the post-release numeric-validation and negotiation
+    # window corrections; sota-v2 remains pinned in SOTA_V2_CONTRACT.
+    assert contract_fingerprint() == "89c89e53c26740c7"
     assert "oracle" not in AGENTS
 
 

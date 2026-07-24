@@ -5,7 +5,13 @@ true for it to pass the machine validator. Every requirement below is enforced b
 `gm_bench/official.py` (`validate_leaderboard_payload`); nothing here is aspirational
 unless it is called out as a convention. Read
 [production_benchmark.md](production_benchmark.md) first for the two result tiers
-(`public-leaderboard`, `sota-v2`) and the contract freeze.
+(`public-leaderboard`, strict versioned policies) and the contract freeze.
+
+> **Current status:** the public site is the frozen `sota-v2` phase-one study.
+> Development HEAD emits `sota-v3`, but a v3 publication registry and lane have
+> not been pre-registered. New strict submissions should therefore remain local
+> or diagnostic until that protocol is frozen; do not add a v3 row to
+> `results/leaderboard/` and expect the v2 site to publish it.
 
 ## Produce the row
 
@@ -30,11 +36,11 @@ For a contamination-resistant private-panel row, set a held-out panel first, kee
 the raw JSON local, and publish only the redacted artifact:
 
 ```bash
-export GM_BENCH_PRIVATE_SEEDS="101,102,110-115"   # >= 8 seeds for sota-v2
+export GM_BENCH_PRIVATE_SEEDS="101,102,110-115"   # >= 8 seeds for the strict policy
 python -m gm_bench model --provider <p> --model <m> \
   --preset leaderboard --repeats 3 --json > /tmp/<p>-<m>-private.raw.json
 python -m gm_bench redact-result /tmp/<p>-<m>-private.raw.json \
-  --output results/leaderboard/<p>-<m>-private.redacted.json --policy sota-v2
+  --output /tmp/<p>-<m>-private.redacted.json --policy sota-v3
 ```
 
 `redact-result` writes the output file **only if the selected policy passes**; an
@@ -45,9 +51,9 @@ per-episode detail, and `paired.per_seed` rows.
 ## Validate before you submit
 
 ```bash
-python3 -m gm_bench validate-result /tmp/<name>.raw.json --policy sota-v2
+python3 -m gm_bench validate-result /tmp/<name>.raw.json --policy sota-v3
 python3 -m gm_bench compact-result /tmp/<name>.raw.json \
-  --output results/leaderboard/<name>.json --policy sota-v2
+  --output /tmp/<name>.compact.json --policy sota-v3
 ```
 
 Use `--policy public-leaderboard` for a development/diagnostic row. Exit code is
@@ -73,9 +79,9 @@ Both policies require these; the values are read straight from the payload:
 - Every candidate episode present exactly once per seed/repeat, each with
   `seasons == 5`; each baseline episode present once per seed.
 
-`public-leaderboard` is lenient where `sota-v2` is strict:
+`public-leaderboard` is lenient where the current `sota-v3` policy is strict:
 
-| Check | `public-leaderboard` | `sota-v2` |
+| Check | `public-leaderboard` | `sota-v3` |
 |---|---|---|
 | Candidate repeats | ≥ 1 | ≥ 3 |
 | Seed count | ≥ 1 | ≥ 8 (full leaderboard panel) |
@@ -84,10 +90,10 @@ Both policies require these; the values are read straight from the payload:
 | Seed-panel provenance | warning if missing | **required** |
 | Baseline panel | any known subset, no dupes | **exact** full panel: `random`, `conservative`, `win-now`, `rebuild`, `value`, `shrewd`, `strategic`, `pick-trader` |
 
-For `sota-v2`, `run_info.benchmark_contract` must match `expected_contract()` field
-for field — including `contract_fingerprint`, frozen at `558e8f35ea1d66b9`. A row
-built against a different simulator/scoring/schema source is rejected, not merely
-flagged.
+For `sota-v3`, `run_info.benchmark_contract` must match `expected_contract()`
+field for field. The historical `sota-v2` policy instead matches the literal
+released contract, including fingerprint `558e8f35ea1d66b9`. A row built against
+a different simulator/scoring/schema source is rejected, not merely flagged.
 
 Seed-panel provenance (`run_info.seed_panel`) must name one of two identities;
 `custom` panels are rejected outright:
@@ -101,7 +107,7 @@ Seed-panel provenance (`run_info.seed_panel`) must name one of two identities;
 
 These are recorded as warnings, keep the row eligible, and surface on the site
 (`sota_v2_issues`): illegal actions present, failed-query rate above 0.25
-(misfired scout/inspect lookups; rates above 1.0 are a hard `sota-v2` error,
+(misfired scout/inspect lookups; rates above 1.0 are a hard strict-policy error,
 not a warning), any adapter fallback/error decisions, lift not significant at
 95%, candidate not beating the strongest baseline, or the strongest baseline
 not being `pick-trader`.
@@ -131,7 +137,7 @@ traces would leak the held-out seeds.
 
 ## Eligible vs diagnostic
 
-The site builder (`web/scripts/build_leaderboard.py`) re-runs the `sota-v2`
+The phase-one site builder (`web/scripts/build_leaderboard.py`) re-runs the frozen `sota-v2`
 validator on every artifact under `results/leaderboard/` and sets
 `sota_v2_eligible` from `report.ok`, carrying all errors and warnings into
 `sota_v2_issues`. A row is:
