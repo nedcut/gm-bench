@@ -173,6 +173,15 @@ def test_publication_cells_pin_strict_failure_handling(monkeypatch: pytest.Monke
             assert cell_environment(cell)["GM_AGENT_STRICT"] == "1"
 
 
+def test_publication_cells_keep_strict_after_registry_fixed_options(monkeypatch: pytest.MonkeyPatch) -> None:
+    from dataclasses import replace
+
+    monkeypatch.setenv("GM_AGENT_STRICT", "0")
+    cell = build_cells("smoke")[0]
+    loosened = replace(cell, fixed_options={**cell.fixed_options, "GM_AGENT_STRICT": "0"})
+    assert cell_environment(loosened)["GM_AGENT_STRICT"] == "1"
+
+
 def test_runner_rejects_cap_outside_pre_registered_sweep() -> None:
     with pytest.raises(ValueError, match="not in the pre-registered sweep"):
         build_cells("sweep", cap=999)

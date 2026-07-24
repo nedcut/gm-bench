@@ -11,7 +11,7 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # window corrections, adds per-episode score components to the episode row,
     # and registers the scaffold-view baseline (whose compaction source is part
     # of the fingerprint); sota-v2 remains pinned in SOTA_V2_CONTRACT.
-    assert contract_fingerprint() == "e8b7b5aec490f4dd"
+    assert contract_fingerprint() == "5ac1bee47d8cc38e"
     assert "oracle" not in AGENTS
 
 

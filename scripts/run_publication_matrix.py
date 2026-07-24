@@ -260,10 +260,11 @@ def cell_environment(cell: Cell) -> dict[str, str]:
     env = dict(os.environ)
     for key in cell.absent_options:
         env.pop(key, None)
-    # Strict failure handling is the publication default; a registry may only
-    # pin it explicitly, never inherit a looser value from the launching shell.
-    env["GM_AGENT_STRICT"] = "1"
+    # Strict failure handling is the publication default. Apply it after
+    # fixed_options so a stale registry env cannot quietly loosen a smoke cell
+    # (smoke resolves strictness from the subprocess environment, not the CLI).
     env.update(cell.fixed_options)
+    env["GM_AGENT_STRICT"] = "1"
     env["GM_BENCH_OUTPUT_BUDGET_CELL"] = cell.cap_label
     if cell.provider == "openrouter":
         if cell.cap is None:

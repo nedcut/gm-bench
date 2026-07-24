@@ -228,6 +228,12 @@ def test_sota_v3_policy_rejects_incomplete_or_inconsistent_components() -> None:
         for error in report.errors
     )
 
+    payload = _official_payload(repeats=3)
+    payload["candidate"]["episodes"][0]["final_score"] = 1.0
+    report = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
+    assert not report.ok
+    assert any("final_score does not equal strategy_score - protocol_penalty" in error for error in report.errors)
+
 
 @pytest.mark.parametrize("bad", [float("nan"), float("inf"), "12.0", True])
 def test_sota_v3_policy_rejects_non_finite_score_components(bad: object) -> None:

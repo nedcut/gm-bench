@@ -783,6 +783,15 @@ def _validate_score_components(errors: list[str], label: str, block: dict[str, A
     if isinstance(protocol_penalty, (int, float)):
         if abs(values["protocol_penalty"] - float(protocol_penalty)) > _COMPONENT_TOLERANCE:
             errors.append(f"{label}.score_components.protocol_penalty disagrees with the episode row")
+    final_score = block.get("final_score")
+    if (
+        isinstance(final_score, (int, float))
+        and isinstance(strategy_score, (int, float))
+        and isinstance(protocol_penalty, (int, float))
+    ):
+        expected_final = float(strategy_score) - float(protocol_penalty)
+        if abs(float(final_score) - expected_final) > _COMPONENT_TOLERANCE:
+            errors.append(f"{label}.final_score does not equal strategy_score - protocol_penalty")
 
 
 def _validate_compact_integrity(
