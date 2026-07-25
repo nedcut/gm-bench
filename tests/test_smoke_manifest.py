@@ -152,8 +152,7 @@ def test_smoke_manifest_requires_strict_fallback_when_policy_demands_it(strict_f
         manifest["entries"][model_id]["strict_fallback"] = strict_flag
     message = "was not recorded under strict failure handling"
     assert any(
-        message in issue
-        for issue in smoke_manifest_issues(manifest, registry, lane, require_strict_fallback=True)
+        message in issue for issue in smoke_manifest_issues(manifest, registry, lane, require_strict_fallback=True)
     )
 
 

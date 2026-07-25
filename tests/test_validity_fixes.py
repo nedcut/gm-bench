@@ -4,11 +4,11 @@ competitive drafts, the memo scratchpad, FA aging, and the score split."""
 from __future__ import annotations
 
 from gm_bench.agents import ExploitAgent, ValueAgent
-from gm_bench.validity import CapHoardAgent
 from gm_bench.models import LINEUP_MIN_POSITIONS, LINEUP_SIZE, ROSTER_MIN
 from gm_bench.runner import run_episode
 from gm_bench.scoring import score_breakdown
 from gm_bench.simulator import MEMO_MAX_CHARS, TRADE_LIMIT_PER_PARTNER, League
+from gm_bench.validity import CapHoardAgent
 
 
 def _lopsided_trade(league: League, partner_id: int) -> dict[str, object]:
