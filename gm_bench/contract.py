@@ -18,7 +18,7 @@ from gm_bench.scoring import SCORING_VERSION, scoring_scale_fingerprint
 BENCHMARK_VERSION = "sota-v3"
 ACTION_PROTOCOL_VERSION = "actions-v3"
 SIMULATOR_VERSION = "sim-v3"
-OBSERVATION_VERSION = "observation-v1"
+OBSERVATION_VERSION = "observation-v2"
 
 SOTA_V2_CONTRACT = {
     "benchmark_version": "sota-v2",

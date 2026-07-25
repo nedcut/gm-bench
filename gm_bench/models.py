@@ -8,6 +8,7 @@ from typing import Any, Literal
 Position = Literal["F", "D", "G"]
 ActionType = Literal[
     "sign_free_agent",
+    "extend_contract",
     "release",
     "trade",
     "accept_offer",
@@ -49,6 +50,9 @@ class Player:
     contract_years: int
     team_id: int | None
     injury_risk: float
+    # Hidden provenance prevents a newly signed one-year deal from being
+    # converted immediately into a discounted long-term extension.
+    contract_signed_season: int = 0
     morale: float = 0.0
     drafted_round: int | None = None
     injured_games: int = 0
@@ -95,9 +99,18 @@ class Team:
     championships: int = 0
     playoff_rounds: int = 0
     draft_picks: dict[int, int] = field(default_factory=dict)
+    dead_cap: dict[int, float] = field(default_factory=dict)
 
-    def public_dict(self, players: dict[int, Player], cap: float, *, full_roster: bool = True) -> dict[str, Any]:
-        payroll = sum(players[player_id].salary for player_id in self.roster)
+    def public_dict(
+        self,
+        players: dict[int, Player],
+        cap: float,
+        season: int,
+        *,
+        full_roster: bool = True,
+    ) -> dict[str, Any]:
+        active_dead_cap = self.dead_cap.get(season, 0.0)
+        payroll = sum(players[player_id].salary for player_id in self.roster) + active_dead_cap
         roster_players = [players[player_id] for player_id in self.roster]
         payload: dict[str, Any] = {
             "id": self.id,
@@ -110,6 +123,7 @@ class Team:
             "playoff_rounds": self.playoff_rounds,
             "payroll": round(payroll, 2),
             "cap_room": round(cap - payroll, 2),
+            "dead_cap": {str(year): round(charge, 2) for year, charge in sorted(self.dead_cap.items())},
             "draft_picks": dict(sorted(self.draft_picks.items())),
             "lineup": list(self.lineup),
         }

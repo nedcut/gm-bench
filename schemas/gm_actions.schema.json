@@ -28,7 +28,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["sign_free_agent", "release", "trade", "accept_offer", "decline_offer", "scout", "draft", "set_lineup", "memo", "noop"]
+            "enum": ["sign_free_agent", "extend_contract", "release", "trade", "accept_offer", "decline_offer", "scout", "draft", "set_lineup", "memo", "noop"]
           },
           "player_id": { "type": ["integer", "null"] },
           "player_ids": {
