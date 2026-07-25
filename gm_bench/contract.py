@@ -29,6 +29,10 @@ SOTA_V2_CONTRACT = {
     "observation_version": "observation-v1",
     "contract_fingerprint": "558e8f35ea1d66b9",
 }
+# Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
+# Pinned with the release identity so the site headroom strip cannot drift when
+# the live engine moves under sota-v3.
+SOTA_V2_ORACLE_MEAN = 431.153
 
 _ROOT = Path(__file__).resolve().parents[1]
 # Fingerprint covers score-affecting simulator/protocol sources only.

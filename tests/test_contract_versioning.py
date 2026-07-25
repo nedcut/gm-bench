@@ -10,6 +10,7 @@ from gm_bench.contract import (
     BENCHMARK_VERSION,
     SIMULATOR_VERSION,
     SOTA_V2_CONTRACT,
+    SOTA_V2_ORACLE_MEAN,
     benchmark_contract,
 )
 from gm_bench.official import (
@@ -44,6 +45,7 @@ def test_current_and_historical_sota_policies_are_distinct() -> None:
     assert SOTA_V1_POLICY.expected_contract["contract_fingerprint"] == "cf2607e59dba0c7f"
     assert SOTA_V2_POLICY.expected_contract == SOTA_V2_CONTRACT
     assert SOTA_V2_POLICY.expected_contract["contract_fingerprint"] == "558e8f35ea1d66b9"
+    assert SOTA_V2_ORACLE_MEAN == 431.153
     assert SOTA_V3_POLICY.expected_contract == benchmark_contract()
 
 

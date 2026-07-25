@@ -7,14 +7,15 @@ the published table. Official artifacts are either the saved output of
 
     python -m gm_bench model --provider <p> --model <m> --preset leaderboard --repeats 3 --json > results/leaderboard/<name>.json
 
-or a redacted private-panel artifact from ``python -m gm_bench redact-result``.
+    or a redacted private-panel artifact from ``python -m gm_bench redact-result``.
 Only rows on the frozen ``sota-v2`` release contract are published; anything else is
 skipped with a note on stderr.
 
 It writes ``web/src/data/leaderboard.json`` with one row per model plus the
-scripted-baseline reference panel. When no model results exist yet, the baseline
-panel is read from the current-contract cache or recomputed deterministically so
-the site never mixes historical model rows with stale reference scores.
+scripted-baseline reference panel. Baselines and the oracle headroom figure are
+taken from the frozen sota-v2 evidence (matched-seed panels already embedded in
+those artifacts, plus ``SOTA_V2_ORACLE_MEAN``). Recomputing them on the live
+engine would mix sota-v3 scores under a sota-v2 contract label.
 
 Usage (from the repository root):
 
@@ -34,9 +35,8 @@ sys.path.insert(0, str(ROOT))
 from gm_bench.agents import AGENTS  # noqa: E402
 from gm_bench.baseline_cache import cache_key, load_cache  # noqa: E402
 from gm_bench.benchmark_config import PRESETS, PRIVATE_LEADERBOARD_PANEL_NAME  # noqa: E402
-from gm_bench.contract import SOTA_V2_CONTRACT  # noqa: E402
+from gm_bench.contract import SOTA_V2_CONTRACT, SOTA_V2_ORACLE_MEAN  # noqa: E402
 from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
-from gm_bench.oracle import OracleAgent  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
 from gm_bench.publication import canonical_sha256, mechanic_breakdown, smoke_manifest_issues  # noqa: E402
 from gm_bench.runner import run_many  # noqa: E402
@@ -266,6 +266,11 @@ def baselines_from_cache() -> list[dict[str, Any]]:
 
 
 def current_baselines() -> list[dict[str, Any]]:
+    """Recompute baselines on the live engine (diagnostic / current-contract use).
+
+    Not used for the published sota-v2 site dataset — that path must read the
+    frozen panel from committed artifacts via ``baselines_from_sota_v2_artifactsifacts``.
+    """
     rows = baselines_from_cache()
     cached_agents = {row["agent"] for row in rows}
     for agent_name in LEADERBOARD["baselines"]:
@@ -285,6 +290,60 @@ def current_baselines() -> list[dict[str, Any]]:
             }
         )
     return sorted(rows, key=lambda row: row["mean_score"], reverse=True)
+
+
+def baselines_from_sota_v2_artifactsifacts(payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Extract the frozen sota-v2 baseline panel from committed model artifacts.
+
+    Every official sota-v2 leaderboard artifact already carries the matched-seed
+    baseline panel from the run that produced it. Reading that panel keeps the
+    published site on one contract; recomputing on the live engine would mix
+    sota-v3 scores under the sota-v2 release label.
+    """
+    expected_fp = SOTA_V2_CONTRACT["contract_fingerprint"]
+    expected_agents = list(LEADERBOARD["baselines"])
+    panels: list[dict[str, tuple[float, float]]] = []
+    for payload in payloads:
+        contract = (payload.get("run_info") or {}).get("benchmark_contract") or {}
+        if contract.get("contract_fingerprint") != expected_fp:
+            continue
+        rows: dict[str, tuple[float, float]] = {}
+        for bucket in payload.get("baselines") or []:
+            if not isinstance(bucket, dict):
+                continue
+            agent = bucket.get("agent")
+            summary = bucket.get("summary") or {}
+            if agent is None or "mean_score" not in summary:
+                continue
+            rows[str(agent)] = (
+                round(float(summary["mean_score"]), 3),
+                round(float(summary.get("score_stddev") or 0.0), 3),
+            )
+        if all(agent in rows for agent in expected_agents):
+            panels.append(rows)
+    if not panels:
+        raise SystemExit(
+            "no sota-v2 leaderboard artifact carries a complete baseline panel; "
+            "cannot publish site reference scores without mixing contracts"
+        )
+    reference = panels[0]
+    for panel in panels[1:]:
+        if panel != reference:
+            raise SystemExit(
+                "sota-v2 artifacts disagree on the baseline panel; refusing to publish an ambiguous reference"
+            )
+    return sorted(
+        [
+            {
+                "agent": agent,
+                "mean_score": reference[agent][0],
+                "score_stddev": reference[agent][1],
+            }
+            for agent in expected_agents
+        ],
+        key=lambda row: row["mean_score"],
+        reverse=True,
+    )
 
 
 def select_model_payloads(
@@ -547,11 +606,10 @@ def main() -> None:
             f"skipping {row.get('model')}: benchmark_version={row.get('benchmark_version')!r} is not sota-v2",
             file=sys.stderr,
         )
-    baselines = current_baselines()
-    oracle = run_many(OracleAgent(), seeds=list(LEADERBOARD["seeds"]), seasons=int(LEADERBOARD["seasons"]), workers=1)
+    baselines = baselines_from_sota_v2_artifactsifacts(payloads)
     baseline_by_name = {row["agent"]: row["mean_score"] for row in baselines}
     headroom = {
-        "oracle": oracle["summary"]["mean_score"],
+        "oracle": SOTA_V2_ORACLE_MEAN,
         "pick_trader": baseline_by_name.get("pick-trader"),
         "best_model": max((row["mean_score"] for row in models), default=None) if publishable_ranking else None,
         "random": baseline_by_name.get("random"),
