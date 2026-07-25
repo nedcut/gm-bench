@@ -16,7 +16,7 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # _CONTRACT_SOURCES file move it too. That is deliberately cheap before a
     # panel is bought and impossible afterward.
     # Moved again for the reachable-release fix in gm_bench/agents.py (#91).
-    assert contract_fingerprint() == "0a5f0434dca31ac5"
+    assert contract_fingerprint() == "4f6ddddd6a6dd81c"
     assert "oracle" not in AGENTS
 
 

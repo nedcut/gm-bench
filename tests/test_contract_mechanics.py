@@ -151,9 +151,20 @@ def test_expiring_player_gets_public_discounted_extension_quotes() -> None:
 
     public_player = next(item for item in league.observation("preseason")["team"]["roster"] if item["id"] == player.id)
 
+    assert list(public_player["extension_quotes"]) == ["2", "3", "4", "5"]
     assert public_player["extension_quotes"]["3"] == league._contract_quote(player, 3, incumbent=True)
     assert "extend_contract" in league.observation("preseason")["available_actions"]
     assert "extend_contract" not in league.observation("midseason")["available_actions"]
+
+
+def test_incumbent_contract_quotes_exclude_one_year_terms() -> None:
+    league = League.new(seed=24)
+    player = _expiring_player(league)
+
+    quotes = league._contract_quotes(player, incumbent=True)
+
+    assert list(quotes) == ["2", "3", "4", "5"]
+    assert "1" not in quotes
 
 
 def test_extension_replaces_expiring_term_and_prevents_free_agency() -> None:

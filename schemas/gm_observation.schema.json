@@ -350,7 +350,7 @@
           "type": "number"
         },
         "extension_quotes": {
-          "$ref": "#/$defs/contract_quotes"
+          "$ref": "#/$defs/extension_quotes"
         },
         "release_dead_cap": {
           "$ref": "#/$defs/release_dead_cap"
@@ -449,6 +449,17 @@
       "required": ["1", "2", "3", "4", "5"],
       "properties": {
         "1": { "type": "number", "minimum": 0 },
+        "2": { "type": "number", "minimum": 0 },
+        "3": { "type": "number", "minimum": 0 },
+        "4": { "type": "number", "minimum": 0 },
+        "5": { "type": "number", "minimum": 0 }
+      }
+    },
+    "extension_quotes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["2", "3", "4", "5"],
+      "properties": {
         "2": { "type": "number", "minimum": 0 },
         "3": { "type": "number", "minimum": 0 },
         "4": { "type": "number", "minimum": 0 },

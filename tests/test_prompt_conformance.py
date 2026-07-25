@@ -118,3 +118,29 @@ def test_scout_prompt_examples_are_accepted_by_the_simulator() -> None:
         league.apply_actions([adapted], "preseason")
         transaction = league.transactions[-1]
         assert transaction.accepted, f"simulator rejected prompt scout example {example}: {transaction.message}"
+
+
+def test_extend_contract_prompt_examples_are_accepted_by_the_simulator() -> None:
+    """Each extend_contract example, adapted to a real eligible incumbent, must be accepted."""
+    _, examples = _build_examples()
+    extend_examples = [example for example in examples if example["type"] == "extend_contract"]
+    assert extend_examples, "prompt should advertise at least one extend_contract example"
+    for example in extend_examples:
+        league = League.new(seed=42)
+        league.cap = 1000.0
+        eligible = next(
+            league.players[player_id]
+            for player_id in league.user_team.roster
+            if league._extension_eligible(league.players[player_id])
+        )
+        years = int(example["years"])
+        adapted = {
+            **example,
+            "player_id": eligible.id,
+            "salary": league._contract_quote(eligible, years, incumbent=True),
+        }
+        league.apply_actions([adapted], "preseason")
+        transaction = league.transactions[-1]
+        assert transaction.accepted, (
+            f"simulator rejected prompt extend_contract example {example}: {transaction.message}"
+        )
