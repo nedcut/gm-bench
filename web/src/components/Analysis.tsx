@@ -35,11 +35,16 @@ function RankingPlot({
       ),
     [benchmark.models],
   );
-  const ciExtents = rows.flatMap((model) => scoreCi95(model));
+  const ciExtents = rows.flatMap((model) => scoreCi95(model) ?? []);
   const x = scaleLinear()
     .domain([
       0,
-      Math.max(450, benchmark.oracle * 1.05, ...rows.map((model) => model.mean_score), ...ciExtents),
+      Math.max(
+        450,
+        benchmark.oracle * 1.05,
+        ...rows.map((model) => model.mean_score),
+        ...ciExtents,
+      ),
     ])
     .range([left, width - right]);
   const ticks = x.ticks(5);
@@ -106,8 +111,8 @@ function RankingPlot({
         {rows.map((model, index) => {
           const y = top + index * rowHeight + rowHeight / 2;
           const active = model.id === selected;
-          const [ciLow, ciHigh] = scoreCi95(model);
-          const tierBreak = index > 0 && model.tier !== rows[index - 1].tier;
+          const ci = scoreCi95(model);
+          const tierBreak = index === 0 || model.tier !== rows[index - 1].tier;
           return (
             <g
               key={model.id}
@@ -127,10 +132,18 @@ function RankingPlot({
               style={{ "--row-index": index } as CSSProperties}
             >
               <title>
-                {model.model}: mean {fmt(model.mean_score, 1)}, 95% across-seed CI [
-                {fmt(ciLow, 1)}, {fmt(ciHigh, 1)}], tier {model.tier}
+                {model.model}: mean {fmt(model.mean_score, 1)}
+                {ci
+                  ? `, 95% across-seed CI [${fmt(ci[0], 1)}, ${fmt(ci[1], 1)}]`
+                  : ""}
+                , tier {model.tier}
               </title>
-              {tierBreak && (
+              {tierBreak && index === 0 && (
+                <text x="4" y={top + 14} className="chart-tier-label">
+                  tier {model.tier}
+                </text>
+              )}
+              {tierBreak && index > 0 && (
                 <>
                   <line
                     x1={left}
@@ -151,27 +164,31 @@ function RankingPlot({
               <text x={left - 12} y={y + 5} textAnchor="end" className="chart-value">
                 {fmt(model.mean_score, 1)}
               </text>
-              <line
-                x1={x(ciLow)}
-                x2={x(ciHigh)}
-                y1={y}
-                y2={y}
-                className="interval-line chart-mark-line"
-              />
-              <line
-                x1={x(ciLow)}
-                x2={x(ciLow)}
-                y1={y - 6}
-                y2={y + 6}
-                className="interval-cap chart-mark-cap"
-              />
-              <line
-                x1={x(ciHigh)}
-                x2={x(ciHigh)}
-                y1={y - 6}
-                y2={y + 6}
-                className="interval-cap chart-mark-cap"
-              />
+              {ci && (
+                <>
+                  <line
+                    x1={x(ci[0])}
+                    x2={x(ci[1])}
+                    y1={y}
+                    y2={y}
+                    className="interval-line chart-mark-line"
+                  />
+                  <line
+                    x1={x(ci[0])}
+                    x2={x(ci[0])}
+                    y1={y - 6}
+                    y2={y + 6}
+                    className="interval-cap chart-mark-cap"
+                  />
+                  <line
+                    x1={x(ci[1])}
+                    x2={x(ci[1])}
+                    y1={y - 6}
+                    y2={y + 6}
+                    className="interval-cap chart-mark-cap"
+                  />
+                </>
+              )}
               <circle cx={x(model.mean_score)} cy={y} r={active ? 6 : 4.5} className="candidate-dot" />
             </g>
           );
@@ -373,7 +390,7 @@ export default function Analysis({
         <div className="analysis-evidence">
           <div className="analysis-ranking-panel">
             <div className="analysis-panel-title">
-              <h3>Observed score and remaining headroom</h3>
+              <h3>Observed scores with reference lines</h3>
               <span>Higher is better · across-seed 95% intervals</span>
             </div>
             <p className="ranking-callout">

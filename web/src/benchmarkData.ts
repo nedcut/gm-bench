@@ -33,10 +33,13 @@ function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-export function scoreCi95(model: LeaderboardModel): [number, number] {
+export function scoreCi95(model: LeaderboardModel): [number, number] | null {
+  if (!finite(model.mean_score)) {
+    return null;
+  }
   const n = model.seeds?.length ?? 0;
   if (n < 2 || !finite(model.score_stddev)) {
-    return [model.mean_score, model.mean_score];
+    return null;
   }
   const margin = (Z95 * model.score_stddev) / Math.sqrt(n);
   return [model.mean_score - margin, model.mean_score + margin];
