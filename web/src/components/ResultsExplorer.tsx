@@ -4,7 +4,7 @@ import { scaleLinear } from "d3-scale";
 import type { BenchmarkView, ResultModel } from "../benchmarkData";
 import { issueLabels, shortModelName } from "../benchmarkData";
 import type { Leaderboard as LeaderboardData } from "../types";
-import { fmt } from "../lib";
+import { fmt, formatTokensPerDecision } from "../lib";
 
 type ChartView = "lift" | "cost";
 type SortKey = "score" | "lift" | "cost";
@@ -302,7 +302,7 @@ function CostScatter({
           textAnchor="end"
           className="chart-oracle-label"
         >
-          oracle ceiling {fmt(oracle, 1)}
+          partial oracle reference {fmt(oracle, 1)}
         </text>
         {models.map((model, index) => {
           const label = labelById.get(model.id);
@@ -416,6 +416,7 @@ function ResultsTable({
                 Cost / episode
               </button>
             </th>
+            <th>Tokens / decision</th>
             <th>Protocol observations</th>
           </tr>
         </thead>
@@ -433,6 +434,7 @@ function ResultsTable({
                 [{fmt(model.ci95[0], 1)}, {fmt(model.ci95[1], 1)}]
               </td>
               <td className="numeric">${fmt(model.cost_per_episode_usd, 2)}</td>
+              <td className="numeric tokens-cell">{formatTokensPerDecision(model)}</td>
               <td>
                 <ObservationDisclosure model={model} />
               </td>
@@ -666,6 +668,7 @@ export default function ResultsExplorer({
                 {fmt(selectedModel.ci95[1], 1)}]
               </span>
               <span>${fmt(selectedModel.cost_per_episode_usd, 2)} / episode</span>
+              <span>{formatTokensPerDecision(selectedModel)} tokens / decision</span>
               <a href="#analysis">Inspect mechanics ↓</a>
             </div>
           )}

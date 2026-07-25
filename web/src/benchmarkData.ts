@@ -10,6 +10,8 @@ export type ResultModel = TieredLeaderboardModel & {
   cost_per_episode_usd: number;
 };
 
+const Z95 = 1.96;
+
 export const MECHANICS = [
   ["cap_free_agency", "Cap & FA"],
   ["draft", "Draft"],
@@ -29,6 +31,15 @@ export interface BenchmarkView {
 
 function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+export function scoreCi95(model: LeaderboardModel): [number, number] {
+  const n = model.seeds?.length ?? 0;
+  if (n < 2 || !finite(model.score_stddev)) {
+    return [model.mean_score, model.mean_score];
+  }
+  const margin = (Z95 * model.score_stddev) / Math.sqrt(n);
+  return [model.mean_score - margin, model.mean_score + margin];
 }
 
 function assertResultModel(model: TieredLeaderboardModel): asserts model is ResultModel {
@@ -84,7 +95,7 @@ export function buildBenchmarkView(data: Leaderboard): BenchmarkView {
     data.baselines.find((baseline) => baseline.agent === "pick-trader")?.mean_score ??
     data.headroom.pick_trader;
   if (!finite(scriptedBar) || !finite(data.headroom.oracle)) {
-    throw new Error("Leaderboard is missing a finite scripted bar or oracle ceiling");
+    throw new Error("Leaderboard is missing a finite scripted bar or partial oracle reference");
   }
 
   const decisionPoints = models[0]?.decision_points ?? 0;

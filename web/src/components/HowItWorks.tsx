@@ -100,7 +100,9 @@ export default function HowItWorks({ snapshot }: { snapshot: Snapshot }) {
           <p>
             No browser automation, no memorized rosters — every player is fictional. Agents speak a
             minimal JSON protocol any process can run. Under the published scaffold, reading that JSON/API contract is
-            part of what the benchmark measures.
+            part of what the benchmark measures. The public seed panel is published and deterministic, so
+            benchmark-specific adaptation is possible; treat these results as reproducible evidence, not
+            contamination-resistant proof.
           </p>
         </div>
 
