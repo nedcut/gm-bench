@@ -8,8 +8,16 @@ from gm_bench.runner import run_many
 
 def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # sota-v3 begins with the post-release numeric-validation and negotiation
-    # window corrections; sota-v2 remains pinned in SOTA_V2_CONTRACT.
-    assert contract_fingerprint() == "89c89e53c26740c7"
+    # window corrections, adds per-episode score components to the episode row,
+    # and registers the scaffold-view baseline (whose compaction source is part
+    # of the fingerprint); sota-v2 remains pinned in SOTA_V2_CONTRACT.
+    #
+    # The fingerprint hashes raw source bytes, so docstrings and comments in a
+    # _CONTRACT_SOURCES file move it too. This pin last moved for a wording
+    # correction in ScaffoldViewAgent's docstring (the reference measures view
+    # truncation, not "the scaffold"). That is deliberately cheap now and
+    # impossible later: once a panel is bought, no contract source may change.
+    assert contract_fingerprint() == "8a4eb422d548317a"
     assert "oracle" not in AGENTS
 
 

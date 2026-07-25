@@ -77,6 +77,7 @@ def _valid_manifest(registry: dict, lane: dict) -> dict:
             "contract_fingerprint": contract_fingerprint(),
             "scaffold_fingerprint": scaffold_fingerprint(model["provider"]),
             "artifact_sha256": "a" * 64,
+            "strict_fallback": True,
             "accepted": True,
         }
     return {
@@ -95,6 +96,7 @@ def _valid_smoke_artifact(registry: dict, lane: dict, model: dict) -> dict:
             "model": model["model"],
             "profile": registry["profile"],
             "preset": "smoke",
+            "strict_fallback": True,
             "provider_options": {
                 **registry["shared_fixed_options"],
                 **model["fixed_options"],
@@ -162,6 +164,22 @@ def test_bounded_cell_overrides_inherited_provider_cap(monkeypatch: pytest.Monke
     env = cell_environment(cell)
     assert env["OPENROUTER_MAX_TOKENS"] == "16384"
     assert env["GM_BENCH_OUTPUT_BUDGET_CELL"] == "16384"
+
+
+def test_publication_cells_pin_strict_failure_handling(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GM_AGENT_STRICT", "0")
+    for lane in ("smoke", "sweep"):
+        for cell in build_cells(lane):
+            assert cell_environment(cell)["GM_AGENT_STRICT"] == "1"
+
+
+def test_publication_cells_keep_strict_after_registry_fixed_options(monkeypatch: pytest.MonkeyPatch) -> None:
+    from dataclasses import replace
+
+    monkeypatch.setenv("GM_AGENT_STRICT", "0")
+    cell = build_cells("smoke")[0]
+    loosened = replace(cell, fixed_options={**cell.fixed_options, "GM_AGENT_STRICT": "0"})
+    assert cell_environment(loosened)["GM_AGENT_STRICT"] == "1"
 
 
 def test_runner_rejects_cap_outside_pre_registered_sweep() -> None:
@@ -403,6 +421,50 @@ def test_record_smoke_writes_accepted_manifest_entry(
     assert entry["cost_decisions"] == 4
     assert entry["protocol_repair_attempts"] == 0
     assert entry["protocol_repairs_succeeded"] == 0
+    assert entry["strict_fallback"] is True
+
+
+def test_record_smoke_refuses_a_soft_fallback_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    model = registry["models"][0]
+    artifact = _valid_smoke_artifact(registry, lane, model)
+    artifact["run_info"]["strict_fallback"] = False
+    artifact_path = tmp_path / "raw-smoke.json"
+    artifact_path.write_text(json.dumps(artifact))
+
+    assert (
+        main(
+            [
+                "record-smoke",
+                "--model-id",
+                model["id"],
+                "--artifact",
+                str(artifact_path),
+                "--manifest",
+                str(manifest_path),
+            ]
+        )
+        == 1
+    )
+    assert "strict failure handling" in capsys.readouterr().err
+    assert not manifest_path.exists()
+
+
+def test_panel_stays_locked_for_a_soft_fallback_smoke_entry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest = _valid_manifest(registry, lane)
+    manifest["entries"][registry["models"][0]["id"]]["strict_fallback"] = False
+    manifest_path.write_text(json.dumps(manifest))
+
+    with pytest.raises(ValueError, match="strict failure handling"):
+        build_cells("panel")
 
 
 def test_record_smoke_refuses_summary_only_artifact(

@@ -265,6 +265,13 @@ PROVIDERS: dict[str, ProviderSpec] = {
 }
 
 
+def _strict_env_value(value: Any) -> str:
+    """Normalise a strictness setting to the adapter wire format ("1"/"0")."""
+    if isinstance(value, str):
+        return "1" if value.strip() == "1" else "0"
+    return "1" if value else "0"
+
+
 def resolve_provider(name: str) -> ProviderSpec:
     key = name.lower()
     if key not in PROVIDERS:
@@ -281,8 +288,17 @@ def build_provider_agent(
     profile: str | None = None,
     extra_env: dict[str, str] | None = None,
     session: bool = False,
+    strict_fallback: bool | None = None,
 ) -> Agent:
-    """Create an external-process agent for a built-in model provider."""
+    """Create an external-process agent for a built-in model provider.
+
+    `strict_fallback` is the harness-resolved failure-handling policy. With it
+    set, a failed decision becomes a bare noop instead of a host-supplied draft
+    and lineup, so nothing the model did not produce moves roster state. The
+    harness resolves it rather than trusting the operator's shell, because a
+    stale ambient `GM_AGENT_STRICT` would otherwise silently decide how a
+    publication row was measured.
+    """
     spec = resolve_provider(provider)
     resolved_model = model or os.environ.get(spec.model_env) or spec.default_model
     resolved_timeout = timeout if timeout is not None else spec.default_timeout
@@ -298,6 +314,14 @@ def build_provider_agent(
         # One bounded retry is enough to separate JSON-format competence from
         # strategy without creating an open-ended compute advantage.
         "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+        # Failure handling is a measurement condition, so it is always pinned
+        # and always recorded. A harness-resolved policy wins over an ambient
+        # value; without one the inherited environment still decides.
+        "GM_AGENT_STRICT": (
+            _strict_env_value(strict_fallback)
+            if strict_fallback is not None
+            else os.environ.get("GM_AGENT_STRICT", "0")
+        ),
     }
     if profile is not None:
         env["GM_AGENT_PROFILE"] = profile
@@ -317,6 +341,12 @@ def build_provider_agent(
     except (TypeError, ValueError):
         repair_attempts = 1
     env["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] = str(max(0, min(1, repair_attempts)))
+    # A harness-resolved policy is reapplied after config env: failure handling
+    # decides whether a row is publishable, so a stale config `env` entry must
+    # not quietly override the lane default or an explicit operator flag.
+    if strict_fallback is not None:
+        env["GM_AGENT_STRICT"] = _strict_env_value(strict_fallback)
+    env["GM_AGENT_STRICT"] = _strict_env_value(env["GM_AGENT_STRICT"])
 
     command = f"{shlex.quote(sys.executable)} {shlex.quote(str(script_path))}"
     display_name = f"{spec.name}:{resolved_model}"
@@ -342,6 +372,7 @@ def build_provider_agent(
         "session": session,
         "transport": spec.transport,
         "protocol_repair_attempts": int(env["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"]),
+        "strict_fallback": env["GM_AGENT_STRICT"] == "1",
     }
     provider_options = {
         key: env.get(key, os.environ.get(key))
@@ -352,6 +383,10 @@ def build_provider_agent(
     if budget_cell not in (None, ""):
         provider_options["GM_BENCH_OUTPUT_BUDGET_CELL"] = budget_cell
     provider_options["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] = env["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"]
+    # Recorded for every provider, including the CLI harnesses with an empty
+    # provenance_env: a published row must say which failure-handling policy
+    # produced it, not leave a reader guessing.
+    provider_options["GM_AGENT_STRICT"] = env["GM_AGENT_STRICT"]
     if provider_options:
         agent.metadata["provider_options"] = provider_options
     return agent

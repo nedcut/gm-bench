@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 # isort: split
 from gm_bench import runner
 from gm_bench.agents import AGENTS
-from gm_bench.scoring import ACTIVE_SCORE_SCALE, score_components
+from gm_bench.scoring import ACTIVE_SCORE_SCALE
 
 BASELINES = ["random", "conservative", "win-now", "rebuild", "value", "shrewd", "strategic", "pick-trader"]
 WEIGHTS = [
@@ -45,34 +45,51 @@ COMPONENT_TO_WEIGHT = {
 }
 
 
-def _capture_panel(seeds: list[int], seasons: int) -> dict[str, list[dict[str, Any]]]:
-    """Capture raw end-state components through a temporary runner wrapper.
+Panel = dict[str, list[dict[str, Any]]]
 
-    `run_episode` retains only final totals.  This diagnostic-only monkeypatch
-    observes its final score call, records score_components, and is restored in
-    a finally block; no benchmark module or artifact is modified.
+
+def _panel_from_episodes(episodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {"components": episode["score_components"], "canonical_final_score": episode["final_score"]}
+        for episode in episodes
+    ]
+
+
+def _capture_panel(seeds: list[int], seasons: int) -> tuple[Panel, dict[str, Any]]:
+    """Run the scripted panel and read components straight off the episode rows."""
+    panel: Panel = {}
+    for name in BASELINES:
+        output = runner.run_many(AGENTS[name](), seeds=seeds, seasons=seasons, workers=1)
+        panel[name] = _panel_from_episodes(output["episodes"])
+    return panel, {"source": "fresh scripted panel run", "seeds": seeds, "seasons": seasons, "rows": BASELINES}
+
+
+def _load_panel(path: Path) -> tuple[Panel, dict[str, Any]]:
+    """Read a saved result artifact instead of re-running the panel.
+
+    Episode rows carry their score components from sota-v3 onward, so a model
+    row can be reweighted post-hoc from the artifact alone.
     """
-    captured: list[dict[str, Any]] = []
-    original = runner.score_breakdown
-
-    def wrapped(league: Any, team_id: int) -> dict[str, float]:
-        captured.append(score_components(league, team_id))
-        return original(league, team_id)
-
-    runner.score_breakdown = wrapped
-    try:
-        panel: dict[str, list[dict[str, Any]]] = {}
-        for name in BASELINES:
-            before = len(captured)
-            output = runner.run_many(AGENTS[name](), seeds=seeds, seasons=seasons, workers=1)
-            entries = captured[before:]
-            panel[name] = [
-                {"components": components, "canonical_final_score": episode["final_score"]}
-                for episode, components in zip(output["episodes"], entries, strict=True)
-            ]
-        return panel
-    finally:
-        runner.score_breakdown = original
+    payload = json.loads(path.read_text())
+    blocks = [payload["candidate"]] if payload.get("candidate") else []
+    blocks.extend(payload.get("baselines") or [])
+    panel: Panel = {}
+    for block in blocks:
+        episodes = block.get("episodes") or []
+        if any("score_components" not in episode for episode in episodes):
+            raise SystemExit(
+                f"{path}: episodes lack score_components; only sota-v3 or later artifacts can be reweighted post-hoc"
+            )
+        panel[block.get("agent", "candidate")] = _panel_from_episodes(episodes)
+    if not panel:
+        raise SystemExit(f"{path}: no candidate or baseline blocks to reweight")
+    meta = {
+        "source": str(path),
+        "seeds": payload.get("seeds", []),
+        "seasons": payload.get("seasons", 0),
+        "rows": sorted(panel),
+    }
+    return panel, meta
 
 
 def _score(components: dict[str, float], weights: dict[str, float]) -> float:
@@ -112,8 +129,10 @@ def _quantile(values: list[float], probability: float) -> float:
     return ordered[round((len(ordered) - 1) * probability)]
 
 
-def analyse(*, seeds: list[int], seasons: int, draws: int, perturbation: float) -> dict[str, Any]:
-    panel = _capture_panel(seeds, seasons)
+def analyse(
+    *, seeds: list[int], seasons: int, draws: int, perturbation: float, result: Path | None = None
+) -> dict[str, Any]:
+    panel, panel_meta = _load_panel(result) if result else _capture_panel(seeds, seasons)
     canonical_weights = {name: float(getattr(ACTIVE_SCORE_SCALE, name)) for name in WEIGHTS}
     canonical_ranking, canonical_scores = _ranking(panel, canonical_weights)
     # Guard that raw recombination faithfully reproduces the runner's rounded score.
@@ -138,11 +157,11 @@ def analyse(*, seeds: list[int], seasons: int, draws: int, perturbation: float) 
         taus.append(_kendall_tau(canonical_ranking, ranking))
     return {
         "method": {
-            "component_capture": "diagnostic-only temporary monkeypatch of gm_bench.runner.score_breakdown; restored after panel run",
+            "component_capture": f"score_components persisted on each episode row of the {panel_meta['source']}",
             "perturbation": f"independent uniform multipliers in [{1.0 - perturbation:.2f}, {1.0 + perturbation:.2f}]",
             "draws": draws,
         },
-        "panel": {"seeds": seeds, "seasons": seasons, "baselines": BASELINES},
+        "panel": panel_meta,
         "canonical_ranking": canonical_ranking,
         "canonical_scores": canonical_scores,
         "max_recombination_error": max_recombination_error,
@@ -172,7 +191,7 @@ def _print_human(result: dict[str, Any]) -> None:
     print(
         f"Kendall tau vs canonical: mean {tau['mean']:.3f}, median {tau['median']:.3f}, p05-p95 {tau['p05']:.3f}-{tau['p95']:.3f}"
     )
-    print("Components were captured only in-process; saved model result artifacts cannot be recombined post-hoc.")
+    print(f"Components read from {result['panel']['source']}.")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -181,11 +200,22 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--seasons", type=int, default=5)
     parser.add_argument("--draws", type=int, default=200)
     parser.add_argument("--perturbation", type=float, default=0.30)
+    parser.add_argument(
+        "--result",
+        type=Path,
+        help="reweight a saved result artifact instead of re-running the scripted panel",
+    )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     if args.draws < 1 or not 0 <= args.perturbation < 1:
         parser.error("draws must be positive and perturbation must be in [0, 1)")
-    result = analyse(seeds=args.seeds, seasons=args.seasons, draws=args.draws, perturbation=args.perturbation)
+    result = analyse(
+        seeds=args.seeds,
+        seasons=args.seasons,
+        draws=args.draws,
+        perturbation=args.perturbation,
+        result=args.result,
+    )
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
     else:

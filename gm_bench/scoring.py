@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -52,6 +54,59 @@ PUBLISHED_SCORE_SCALE_FINGERPRINTS = {
 }
 ACTIVE_SCORE_SCALE = SCORE_SCALES[SCORING_VERSION]
 ILLEGAL_ACTION_PENALTY = ACTIVE_SCORE_SCALE.illegal_action_penalty
+
+# Raw end-of-episode state metrics, in score order. Each has a matching
+# `<name>_contribution` holding the same metric after its weight is applied.
+SCORE_COMPONENT_METRICS = (
+    "recent_wins",
+    "playoff_rounds",
+    "championships",
+    "total_assets",
+    "young_assets",
+    "future_pick_assets",
+    "cap_room",
+    "current_strength",
+    "roster_depth",
+)
+# Persisted raw metric name -> ScoreScale attribute used to weight it.
+SCORE_COMPONENT_WEIGHT_ATTRS = {
+    "recent_wins": "recent_win",
+    "playoff_rounds": "playoff_round",
+    "championships": "championship",
+    "total_assets": "total_asset",
+    "young_assets": "young_asset",
+    "future_pick_assets": "future_pick_asset",
+    "cap_room": "cap_room",
+    "current_strength": "current_strength",
+    "roster_depth": "roster_depth",
+}
+# The persisted per-episode component schema: raw metrics, the protocol
+# penalty, and the weighted contributions. Both halves are stored because the
+# contributions alone cannot be reweighted -- `cap_room` is clamped, so its
+# contribution is not a linear function of its weight.
+SCORE_COMPONENT_KEYS = (
+    *SCORE_COMPONENT_METRICS,
+    "protocol_penalty",
+    *(f"{name}_contribution" for name in SCORE_COMPONENT_METRICS),
+)
+# Enough precision that reweighting stays faithful, few enough digits that
+# artifacts stay byte-identical across runs.
+SCORE_COMPONENT_PRECISION = 6
+
+
+def contribution_from_metric(name: str, raw: float, scale: ScoreScale | None = None) -> float:
+    """Rebuild one weighted contribution from a persisted raw metric.
+
+    ``cap_room`` is clamped to the scale's score band; every other term is a
+    plain product. Used by publication validation so a row cannot keep a
+    coherent contribution total while lying about the raws that reweighting
+    reads.
+    """
+    active = scale or ACTIVE_SCORE_SCALE
+    weight = float(getattr(active, SCORE_COMPONENT_WEIGHT_ATTRS[name]))
+    if name == "cap_room":
+        return max(active.cap_score_min, min(active.cap_score_max, raw * weight))
+    return raw * weight
 
 
 def scoring_scale_fingerprint(version: str = SCORING_VERSION) -> str:
@@ -140,7 +195,12 @@ def score_components(league: "League", team_id: int) -> dict[str, float]:
 def score_breakdown(league: "League", team_id: int) -> dict[str, float]:
     """Split objective strategy quality from invalid-action penalties."""
 
-    components = score_components(league, team_id)
+    return breakdown_from_components(score_components(league, team_id))
+
+
+def breakdown_from_components(components: Mapping[str, float]) -> dict[str, float]:
+    """Collapse a component dict into the three published score scalars."""
+
     strategy_score = sum(value for name, value in components.items() if name.endswith("_contribution"))
     protocol_penalty = components["protocol_penalty"]
     return {
@@ -148,6 +208,26 @@ def score_breakdown(league: "League", team_id: int) -> dict[str, float]:
         "protocol_penalty": protocol_penalty,
         "final_score": strategy_score - protocol_penalty,
     }
+
+
+def persisted_score_components(components: Mapping[str, float]) -> dict[str, float]:
+    """Round components for storage in an episode row, refusing bad numbers.
+
+    Artifacts are the only surviving evidence for a run, so a component that is
+    non-finite (or missing) must stop the episode here rather than reach a
+    publication JSON that no validator can rebuild a score from.
+    """
+
+    missing = [name for name in SCORE_COMPONENT_KEYS if name not in components]
+    if missing:
+        raise ValueError(f"score components missing keys: {missing}")
+    persisted = {}
+    for name in SCORE_COMPONENT_KEYS:
+        value = float(components[name])
+        if not math.isfinite(value):
+            raise ValueError(f"score component {name!r} is not finite: {value!r}")
+        persisted[name] = round(value, SCORE_COMPONENT_PRECISION)
+    return persisted
 
 
 def score_team(league: "League", team_id: int) -> float:

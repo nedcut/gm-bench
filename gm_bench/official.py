@@ -19,6 +19,7 @@ from gm_bench.benchmark_config import (
     seed_panel_hash,
 )
 from gm_bench.contract import SOTA_V2_CONTRACT, expected_contract, scaffold_fingerprint
+from gm_bench.scoring import SCORE_COMPONENT_KEYS, SCORE_COMPONENT_METRICS, contribution_from_metric
 
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
 SOTA_V2_POLICY_NAME = "sota-v2"
@@ -27,6 +28,9 @@ OUTPUT_BUDGET_SWEEP_POLICY_NAME = "output-budget-sweep"
 SOTA_V1_POLICY_NAME = "sota-v1"
 ARCHIVE_V1_POLICY_NAME = "archive-v1"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+# Episode scalars are stored at 3 decimals and components at 6, so recombining
+# the components can differ from the stored strategy score by half a milli-point.
+_COMPONENT_TOLERANCE = 1e-3
 
 SOTA_V1_CONTRACT = {
     "benchmark_version": "sota-v1",
@@ -49,6 +53,14 @@ class ResultPolicy:
     require_contract_provenance: bool = False
     require_seed_panel_provenance: bool = False
     require_scaffold_provenance: bool = False
+    # Per-episode score components landed with sota-v3. Frozen v1/v2 evidence
+    # predates the field and must keep validating without it, so the
+    # requirement is opt-in per policy rather than a blanket episode rule.
+    require_score_components: bool = False
+    # Strict failure handling became the publication default with sota-v3. The
+    # frozen v1/v2 rows were measured under the soft fallback and keep their
+    # historical semantics, so this is opt-in per policy.
+    require_strict_fallback: bool = False
     expected_contract: dict[str, Any] | None = None
     validate_current_scaffold: bool = True
     # Failed queries (misfired scout/inspect lookups) carry no protocol penalty,
@@ -85,6 +97,8 @@ SOTA_V3_POLICY = ResultPolicy(
     require_contract_provenance=True,
     require_seed_panel_provenance=True,
     require_scaffold_provenance=True,
+    require_score_components=True,
+    require_strict_fallback=True,
     expected_contract=expected_contract(),
     max_failed_query_rate=1.0,
 )
@@ -258,6 +272,8 @@ def validate_leaderboard_payload(
                 parsed_repairs[label] = parsed
             if len(parsed_repairs) == 2 and len(set(parsed_repairs.values())) != 1:
                 errors.append("run_info protocol-repair provenance values must match")
+        if policy.require_strict_fallback:
+            _validate_strict_fallback(errors, run_info, policy_name=policy.name)
         expected_seeds, expected_seed_count = _resolve_expected_seeds(
             errors,
             warnings,
@@ -303,7 +319,15 @@ def validate_leaderboard_payload(
         if redacted_private:
             _expect_redacted_run_block(errors, "candidate", candidate)
         elif expected_seeds is not None:
-            _validate_episode_panel(errors, "candidate", candidate, expected_seeds, expected_seasons, repeats=repeats)
+            _validate_episode_panel(
+                errors,
+                "candidate",
+                candidate,
+                expected_seeds,
+                expected_seasons,
+                repeats=repeats,
+                require_score_components=policy.require_score_components,
+            )
         summary = _dict(candidate.get("summary"))
         decisions = int(summary.get("decisions", 0) or 0)
         failure_rate = float(summary.get("decision_failure_rate", 0.0) or 0.0)
@@ -352,7 +376,15 @@ def validate_leaderboard_payload(
         if redacted_private:
             _expect_redacted_run_block(errors, f"baseline[{name}]", baseline)
         elif expected_seeds is not None:
-            _validate_episode_panel(errors, f"baseline[{name}]", baseline, expected_seeds, expected_seasons, repeats=1)
+            _validate_episode_panel(
+                errors,
+                f"baseline[{name}]",
+                baseline,
+                expected_seeds,
+                expected_seasons,
+                repeats=1,
+                require_score_components=policy.require_score_components,
+            )
 
     if isinstance(payload.get("publication"), dict) and not redacted_private:
         _validate_compact_integrity(errors, payload, candidate, baselines, expected_seeds or [])
@@ -645,6 +677,32 @@ def _validate_scaffold_provenance(
         )
 
 
+def _validate_strict_fallback(errors: list[str], run_info: dict[str, Any], *, policy_name: str) -> None:
+    """Require a row to have been measured under strict failure handling.
+
+    Read from both the resolved provenance flag and the adapter environment
+    recorded alongside it: a row that disagrees with itself about how failed
+    decisions were handled is not attributable to either policy.
+    """
+    declared = run_info.get("strict_fallback")
+    option = (run_info.get("provider_options") or {}).get("GM_AGENT_STRICT")
+    if declared is None:
+        errors.append(
+            f"run_info.strict_fallback is required for {policy_name} rows; the failure-handling policy must be attested"
+        )
+    elif declared is not True:
+        errors.append(
+            f"{policy_name} rows must run with strict failure handling; "
+            "soft-fallback rows credit host-supplied roster moves to the model"
+        )
+    if option in (None, ""):
+        errors.append(f"run_info.provider_options.GM_AGENT_STRICT is required for {policy_name} rows")
+    elif str(option) != "1":
+        errors.append(f"{policy_name} rows must record GM_AGENT_STRICT=1; got {option!r}")
+    elif declared is False:
+        errors.append("run_info strict-fallback provenance values must match")
+
+
 def _validate_episode_panel(
     errors: list[str],
     label: str,
@@ -653,6 +711,7 @@ def _validate_episode_panel(
     expected_seasons: int,
     *,
     repeats: int,
+    require_score_components: bool = False,
 ) -> None:
     episodes = _list(result.get("episodes"))
     expected_count = len(expected_seeds) * repeats
@@ -675,10 +734,79 @@ def _validate_episode_panel(
         seen[seed].add(repeat)
         if block.get("seasons") != expected_seasons:
             errors.append(f"{label}.episodes seed {seed} repeat {repeat} has seasons={block.get('seasons')!r}")
+        if require_score_components:
+            _validate_score_components(errors, f"{label}.episodes seed {seed} repeat {repeat}", block)
     missing = {seed: sorted(set(range(1, repeats + 1)) - repeats_seen) for seed, repeats_seen in seen.items()}
     missing = {seed: values for seed, values in missing.items() if values}
     if missing:
         errors.append(f"{label}.episodes missing seed/repeat pairs: {missing}")
+
+
+def _validate_score_components(errors: list[str], label: str, block: dict[str, Any]) -> None:
+    """Check the persisted components are complete, finite, and self-consistent.
+
+    The components exist so a score can be reweighted from the artifact alone.
+    That only holds if every term is present, each raw metric still rebuilds its
+    contribution under the published scale, and the contributions still add up
+    to the strategy score the row was ranked on — so all three are checked here
+    rather than trusting the field because it exists.
+
+    Two limits worth stating, because neither is visible from the error text.
+
+    The rebuild uses ``ACTIVE_SCORE_SCALE``, not the scale the row declares in
+    ``run_info.benchmark_contract.scoring_version``. That is safe only while
+    ``scoring.SCORE_SCALES`` has exactly one entry and ``sota-v3`` pins its
+    fingerprint, which is the case today. The moment a ``score-v2`` is added,
+    this must take the row's declared version and look the scale up — otherwise
+    it silently re-weights archived rows against the new weights, in exactly the
+    cross-version reweighting this block was persisted to enable.
+
+    And these checks establish *self-consistency*, not authenticity. A tampered
+    row whose raws, contributions, ``strategy_score`` and ``final_score`` were
+    all scaled together passes every one of them. Nothing short of a re-run can
+    do better here; the binding to real evidence is ``raw_artifact_sha256``.
+    """
+    components = block.get("score_components")
+    if not isinstance(components, dict):
+        errors.append(f"{label} is missing score_components")
+        return
+    missing = [name for name in SCORE_COMPONENT_KEYS if name not in components]
+    if missing:
+        errors.append(f"{label}.score_components is missing {missing}")
+        return
+    values: dict[str, float] = {}
+    for name in SCORE_COMPONENT_KEYS:
+        value = components[name]
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value)):
+            errors.append(f"{label}.score_components.{name} must be a finite number")
+            return
+        values[name] = float(value)
+    for name in SCORE_COMPONENT_METRICS:
+        expected = contribution_from_metric(name, values[name])
+        actual = values[f"{name}_contribution"]
+        if abs(expected - actual) > _COMPONENT_TOLERANCE:
+            errors.append(
+                f"{label}.score_components.{name}_contribution does not match the published scale applied to {name}"
+            )
+            return
+    strategy_score = block.get("strategy_score")
+    if isinstance(strategy_score, (int, float)):
+        rebuilt = sum(value for name, value in values.items() if name.endswith("_contribution"))
+        if abs(rebuilt - float(strategy_score)) > _COMPONENT_TOLERANCE:
+            errors.append(f"{label}.score_components contributions do not sum to strategy_score {strategy_score!r}")
+    protocol_penalty = block.get("protocol_penalty")
+    if isinstance(protocol_penalty, (int, float)):
+        if abs(values["protocol_penalty"] - float(protocol_penalty)) > _COMPONENT_TOLERANCE:
+            errors.append(f"{label}.score_components.protocol_penalty disagrees with the episode row")
+    final_score = block.get("final_score")
+    if (
+        isinstance(final_score, (int, float))
+        and isinstance(strategy_score, (int, float))
+        and isinstance(protocol_penalty, (int, float))
+    ):
+        expected_final = float(strategy_score) - float(protocol_penalty)
+        if abs(float(final_score) - expected_final) > _COMPONENT_TOLERANCE:
+            errors.append(f"{label}.final_score does not equal strategy_score - protocol_penalty")
 
 
 def _validate_compact_integrity(

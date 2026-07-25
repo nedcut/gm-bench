@@ -32,6 +32,13 @@ baseline panel. `--repeats 3` runs the candidate three times per seed so samplin
 noise is observable; the baselines are deterministic and run once. This produces a
 public-panel row.
 
+That command also selects strict failure handling, because `--preset
+leaderboard` is a publication lane: a decision the adapter could not read back
+from the model becomes a bare `noop` rather than a host-supplied draft pick and
+lineup. Do not set `GM_AGENT_STRICT` yourself — the harness resolves it and
+records the result in `run_info.strict_fallback`. `--no-strict-fallback` is a
+legitimate diagnostic choice, but the resulting row is not `sota-v3` eligible.
+
 For a contamination-resistant private-panel row, set a held-out panel first, keep
 the raw JSON local, and publish only the redacted artifact:
 
@@ -89,11 +96,27 @@ Both policies require these; the values are read straight from the payload:
 | `benchmark_contract` block | warning if missing | **required**, must match current source exactly |
 | Seed-panel provenance | warning if missing | **required** |
 | Baseline panel | any known subset, no dupes | **exact** full panel: `random`, `conservative`, `win-now`, `rebuild`, `value`, `shrewd`, `strategic`, `pick-trader` |
+| Scaffold provenance | warning if missing | **required**, and must match the current source |
+| Strict failure handling | not checked | **required**: `run_info.strict_fallback` true and `provider_options.GM_AGENT_STRICT == "1"`, agreeing |
+| Per-episode `score_components` | not checked | **required** on every episode row, finite, contributions summing to `strategy_score` |
 
 For `sota-v3`, `run_info.benchmark_contract` must match `expected_contract()`
 field for field. The historical `sota-v2` policy instead matches the literal
 released contract, including fingerprint `558e8f35ea1d66b9`. A row built against
 a different simulator/scoring/schema source is rejected, not merely flagged.
+
+**What these checks do and do not prove.** Every table row above establishes
+*internal consistency*: that the artifact agrees with itself and with the
+declared contract. None of them establish that the numbers came from a real
+run. A tampered artifact whose raw metrics, `*_contribution` terms,
+`strategy_score` and `final_score` were all scaled together satisfies the
+`score_components` check, because recomputing a score from its own components
+cannot detect a consistent lie. The same is true of `strict_fallback`: the
+validator confirms the two provenance fields agree, not that the adapter
+actually noop-ed on failure. Binding an artifact to real evidence is the job of
+`publication.raw_artifact_sha256` and the release manifest checksums — read
+`validate-result` as "this row is well-formed and self-consistent under
+`sota-v3`", never as "this row is authentic".
 
 Seed-panel provenance (`run_info.seed_panel`) must name one of two identities;
 `custom` panels are rejected outright:

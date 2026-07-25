@@ -18,6 +18,7 @@ def _payload() -> dict:
         "final_score": 12.5,
         "strategy_score": 14.5,
         "protocol_penalty": -2.0,
+        "score_components": {"recent_wins": 4.0, "recent_wins_contribution": 14.5, "protocol_penalty": -2.0},
         "decisions": 20,
         "transactions": [{"message": "large trace"}],
         "season_summaries": [{"season": 1}],
@@ -56,7 +57,27 @@ def test_compact_result_removes_traces_and_hashes_raw_payload() -> None:
     assert "transactions" not in episode
     assert "season_summaries" not in episode
     assert episode["usage"] == {"total_tokens": 100}
+    assert episode["score_components"] == raw["candidate"]["episodes"][0]["score_components"]
     assert compact["baseline_cache"] == {"enabled": True, "hits": 1, "total": 1}
+
+
+def test_score_components_survive_the_run_to_compact_artifact_round_trip() -> None:
+    from gm_bench.agents import AGENTS
+    from gm_bench.runner import run_many
+    from gm_bench.scoring import SCORE_COMPONENT_KEYS
+
+    payload = run_many(AGENTS["value"](), seeds=[11], seasons=2, workers=1)
+    compact = compact_result({"candidate": payload, "baselines": []})
+    episode = compact["candidate"]["episodes"][0]
+
+    # A published row must be reweightable on its own: every term present, and
+    # the contributions still adding up to the score the row was ranked on.
+    assert tuple(episode["score_components"]) == SCORE_COMPONENT_KEYS
+    rebuilt = sum(value for name, value in episode["score_components"].items() if name.endswith("_contribution"))
+    assert rebuilt == pytest.approx(episode["strategy_score"], abs=1e-3)
+    assert episode["score_components"]["protocol_penalty"] == pytest.approx(episode["protocol_penalty"], abs=1e-3)
+    # The artifact is JSON evidence, so it must survive the canonical encoder.
+    assert canonical_sha256(compact)
 
 
 def test_compact_result_rejects_already_compacted_artifact() -> None:

@@ -122,6 +122,22 @@ The validator enforces:
 - At least 3 candidate repeats per seed, so model sampling noise is observable.
 - Full usage telemetry for every decision point.
 - Candidate decision failure rate at or below 2%.
+- Strict failure handling (`sota-v3` only): `run_info.strict_fallback` must be
+  `true` and `run_info.provider_options.GM_AGENT_STRICT` must be `"1"`, and the
+  two must agree. A failed decision then emits a bare `noop` instead of a
+  host-supplied draft pick and lineup, so no roster movement is credited to a
+  model that produced nothing. `model --preset leaderboard` and every
+  `run_publication_matrix` cell default to strict; `--no-strict-fallback`
+  records `strict_fallback: false` and makes the row ineligible. Frozen
+  `sota-v1`/`sota-v2` rows were measured under the soft fallback and are
+  validated without this check.
+- Per-episode score components (`sota-v3` only): every episode row must carry a
+  complete `score_components` block — nine raw end-of-episode metrics, the
+  protocol penalty, and nine weighted `*_contribution` terms. The validator
+  rejects a missing term, any non-finite or non-numeric value, contributions
+  that no longer sum to the row's `strategy_score`, and a `protocol_penalty`
+  that disagrees with the row. Frozen v1/v2 artifacts predate the field and
+  validate without it.
 - Complete paired analysis, including sign-flip p-value and strongest-baseline
   comparison.
 - Fresh-spawn condition: `run_info.session` must be absent or false. Session

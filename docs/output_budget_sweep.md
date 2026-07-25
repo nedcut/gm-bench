@@ -60,9 +60,11 @@ model.
 
 - Headline rows are API-only, fresh-spawn, `compact`, with one bounded protocol
   repair and exactly 4,096 maximum total output tokens per call.
-- Reasoning is disabled with `reasoning.enabled=false` where optional. Gemini
-  3.5 Flash and Muse Spark 1.1 use `minimal`, Grok 4.5 uses `low`, and Kimi K3
-  uses its only supported effort, `max`.
+- Reasoning is disabled with `reasoning.enabled=false` for the seven
+  optional-reasoning models in the frozen registry. Gemini 3.5 Flash and Muse
+  Spark 1.1 use `minimal` and Grok 4.5 uses `low`. Kimi K3, whose only
+  supported effort is `max`, was parked on 2026-07-17 after its smoke showed
+  cap pressure and is not in `config/sota_v2_models.json`.
 - Every row reports score, failures, illegal actions, input/output tokens,
   latency, and cost. Token efficiency is interpretive evidence, not a hidden
   score adjustment.
@@ -80,6 +82,7 @@ usage plus a canonical raw-artifact SHA-256. CI requires the compact format and
 caps committed current rows at 1 MB.
 
 `config/output_budget_sweep.json` describes the retired four-cap design.
-`results/analysis/output-budget-cost-estimate.json` must be regenerated from the
-current ten-model registry and refreshed again after the route smokes provide
-current latency and usage evidence.
+`results/analysis/output-budget-cost-estimate.json` was regenerated from the
+frozen ten-model registry after the route smokes; it is the pre-panel worst-case
+plan (4,096 output tokens assumed on every decision), not the outcome. Measured
+phase-one artifact spend across all ten completed cells was $48.9932.

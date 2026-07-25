@@ -71,6 +71,16 @@ terminal truncation cannot destroy the result. Explicit CLI flags override
 config values, config `env` overrides inherited shell values, and inherited
 shell values override provider defaults.
 
+Failure handling is the one setting the harness refuses to inherit silently, and
+the one setting where config-file `env` does *not* win. `GM_AGENT_STRICT` is
+resolved per run — an explicit `--strict-fallback` / `--no-strict-fallback` flag
+first, then the lane policy (strict for `--preset leaderboard`), then config-file
+`env`, then any ambient value, then off — normalized to `"1"`/`"0"`, and stamped
+into both `run_info.strict_fallback` and `run_info.provider_options`. Neither a
+stale `GM_AGENT_STRICT=0` in the shell nor a stale entry in a lane config can
+downgrade a leaderboard row. The flags are available on `model`, `run`, and
+`evaluate`, since all three emit leaderboard-shaped artifacts.
+
 ## OpenRouter routing policy
 
 OpenRouter normally load-balances and falls back across upstream providers.
@@ -145,6 +155,9 @@ questions.
 4. Keep `GM_BENCH_WORKERS=1` unless the provider and budget explicitly permit
    concurrency.
 5. Validate the resulting JSON with `validate-result` before publishing it.
+6. Confirm the artifact records `run_info.strict_fallback: true` and
+   `provider_options.GM_AGENT_STRICT: "1"`; a soft-fallback row is not
+   `sota-v3` eligible.
 
 Leaderboard OpenRouter runs are rejected before the first paid call unless
 exactly one `OPENROUTER_PROVIDER_ONLY` value is set and fallbacks are disabled.
