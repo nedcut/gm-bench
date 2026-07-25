@@ -97,17 +97,40 @@ def test_contract_quotes_trade_current_cost_for_long_term_certainty() -> None:
     assert league._contract_quote(player, 1) > first_year_quote
 
 
-def test_extension_discount_preserves_a_term_tradeoff() -> None:
-    """A lower incumbent rate still buys a materially larger guarantee."""
+def test_extension_never_dominates_free_agency() -> None:
+    """A five-year extension must cost more per year than a one-year FA deal.
+
+    This is the invariant PR #62 had to cut the loyalty discount 8% -> 3% to
+    hold, and it is the whole reason contract length stays a decision. If a
+    long extension is both cheaper per year *and* a longer guarantee, it
+    strictly dominates every alternative: extend every incumbent for five years
+    on sight, never shop your own expiring players, and the years dial is dead.
+
+    The loyalty discount must therefore stay smaller than the term premium plus
+    inflation it is competing against. Asserted on the quotes rather than the
+    constants so the guard survives a change to how quotes are computed.
+    """
     league = League.new(seed=24)
-    player = league.players[league.free_agents[0]]
+    # Quotes round to cents, so a player at the 0.70 salary floor would make
+    # this a test of rounding rather than of pricing. Use the most expensive
+    # free agent, where the ratios are resolvable.
+    player = max((league.players[pid] for pid in league.free_agents), key=lambda p: p.asking_salary)
     fa1 = league._contract_quote(player, 1)
+    inc1 = league._contract_quote(player, 1, incumbent=True)
     inc2 = league._contract_quote(player, 2, incumbent=True)
     inc5 = league._contract_quote(player, 5, incumbent=True)
 
-    assert inc2 < inc5 < fa1
-    assert inc5 * 5 > inc2 * 2
-    assert inc5 < league._contract_quote(player, 5, incumbent=False) * (1.0 + MARKET_INFLATION)
+    # The discount is real, compared like for like. An extension starts next
+    # season, so its base carries one more year of inflation than a deal signed
+    # today; the honest comparison is against the open market on that same base,
+    # not against today's price.
+    open_market_next_season = league._contract_quote(player, 5, incumbent=False) * (1.0 + MARKET_INFLATION)
+    assert inc5 < open_market_next_season
+    # But length is still paid for, and a five-year guarantee clears the
+    # one-year market rate. This is the dominance guard.
+    assert inc5 > fa1
+    # Longer terms cost strictly more per year, incumbent or not.
+    assert inc1 < inc2 < inc5
 
 
 def test_salary_cap_and_market_prices_inflate_together() -> None:

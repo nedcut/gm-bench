@@ -120,13 +120,31 @@ CANARY_AGENTS: tuple[type[Agent], ...] = (
 )
 
 
+# The canaries run their own seed panel, three times the width of the paid
+# leaderboard lane, because they can afford to: every agent they run is a
+# scripted policy costing nothing but CPU, while the leaderboard panel is sized
+# by what a model row costs in API spend.
+#
+# Eight seeds is not enough to assert an ordering. Measured paired standard
+# deviations on this engine put the seeds needed for 80% power at 17 for
+# `pick-trader > value` and far higher for the adjacent contrasts, so at n=8 the
+# headline ordering registered t=0.519 while a 48-seed run of the same policies
+# gives t=4.784 with `pick-trader` ahead on 39 of 48 seeds. The ordering was
+# always real; the panel could not see it.
+#
+# This width is chosen from that power calculation with headroom, not by taste.
+# Narrowing it back to the leaderboard panel would restore the failure mode
+# where an ordering is asserted at a threshold noise can satisfy.
+CANARY_SEEDS: tuple[int, ...] = tuple(range(11, 35))
+
+
 def run_validity_canaries(
     *,
     seeds: list[int] | None = None,
     seasons: int | None = None,
 ) -> dict[str, Any]:
     leaderboard = PRESETS["leaderboard"]
-    resolved_seeds = list(seeds or leaderboard["seeds"])
+    resolved_seeds = list(seeds or CANARY_SEEDS)
     resolved_seasons = int(seasons or leaderboard["seasons"])
 
     value = run_many(ValueAgent(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1)
@@ -139,9 +157,10 @@ def run_validity_canaries(
 
     mechanic_coverage, mechanic_checks = _mechanic_coverage(pick_trader, len(resolved_seeds))
     # Adjacent reference means remain useful calibration rows, but they are not
-    # invariants: on this panel their paired t values are 1.129, 0.335, and
-    # 1.302. Keep only the pre-registered headline contrast, whose own paired
-    # uncertainty clears the significance bar.
+    # invariants. Even on the widened panel their separations are far smaller
+    # than the headline contrast, and asserting an ordering that noise satisfies
+    # is worse than asserting none: it launders a coin flip as a guarantee.
+    # Keep only the pre-registered headline contrast, which clears the bar.
     checks = [
         _margin_check(pick_trader, value, "pick-trader", "value", "honest_bar"),
         _paired_significance_check(

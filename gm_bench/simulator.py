@@ -35,13 +35,30 @@ TRADE_LIMIT_PER_PARTNER = 2
 MEMO_MAX_CHARS = 2000
 HARD_CAP_BUFFER = 8.0
 FA_RESERVATION_RANGE = (0.85, 1.0)
+# Releasing a guaranteed deal costs a quarter of the salary for at most two
+# remaining seasons. Bounded on purpose: an unbounded charge is a tax that
+# active policies pay more of by acting more, which adds variance without
+# adding a decision. Bounded and published (see `release_dead_cap` in the
+# observation), it is a price the agent can compare against the roster spot.
 DEAD_CAP_FRACTION = 0.25
 DEAD_CAP_MAX_SEASONS = 2
-MARKET_INFLATION = 0.01
-TERM_PREMIUM = 0.0075
-# Extensions offer meaningful retention value without making the decision
-# automatic: a long guarantee can still outlive the player's useful seasons.
-INCUMBENT_EXTENSION_DISCOUNT = 0.10
+# Salaries and the cap inflate together. Inflating only salaries would squeeze
+# all twelve teams identically, which is a difficulty knob rather than a
+# decision; inflating both leaves relative economics flat and isolates the real
+# mechanic, which is that a long deal locks today's price against tomorrow's cap.
+MARKET_INFLATION = 0.04
+TERM_PREMIUM = 0.02
+# The loyalty discount MUST stay small enough that a five-year extension still
+# costs more per year than a one-year free-agent deal:
+#
+#     (1 + MARKET_INFLATION) * (1 + 4 * TERM_PREMIUM) * (1 - DISCOUNT) > 1
+#
+# PR #62 found the failure mode this guards. If extending is cheaper per year
+# *and* locks more years, it strictly dominates: every incumbent is extended for
+# five years on sight, the free-agent market for your own players disappears,
+# and contract length stops being a decision at all. At 4%/2%/3% the ratio is
+# 1.0895. `tests/test_contract_mechanics.py` locks the direction.
+INCUMBENT_EXTENSION_DISCOUNT = 0.03
 REJECTED_OFFER_LIMIT_PER_WINDOW = 2
 SCOUT_POINTS_PER_SEASON = 3
 SCOUT_REPORT_NOISE = 1.5
