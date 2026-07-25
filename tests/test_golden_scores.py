@@ -8,9 +8,9 @@ from gm_bench.runner import run_episode, run_many
 # Re-pinned for contract economics: term-priced signings, incumbent retention,
 # dead-cap-aware payroll, and opponent extensions change five-season rosters.
 GOLDEN_VALUE_SCORES_5_SEASONS = {
-    1: 276.237,
-    2: 181.826,
-    3: 248.955,
+    1: 240.324,
+    2: 215.781,
+    3: 201.025,
 }
 
 

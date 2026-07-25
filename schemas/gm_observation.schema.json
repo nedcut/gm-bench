@@ -121,6 +121,7 @@
           "additionalProperties": false,
           "required": [
             "dead_cap_fraction",
+            "dead_cap_max_seasons",
             "annual_market_inflation",
             "additional_year_premium",
             "incumbent_extension_discount",
@@ -129,6 +130,7 @@
           ],
           "properties": {
             "dead_cap_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
+            "dead_cap_max_seasons": { "type": "integer", "minimum": 1 },
             "annual_market_inflation": { "type": "number", "minimum": 0 },
             "additional_year_premium": { "type": "number", "minimum": 0 },
             "incumbent_extension_discount": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -349,6 +351,28 @@
         },
         "extension_quotes": {
           "$ref": "#/$defs/contract_quotes"
+        },
+        "release_dead_cap": {
+          "$ref": "#/$defs/release_dead_cap"
+        }
+      }
+    },
+    "release_dead_cap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["by_season", "total"],
+      "properties": {
+        "by_season": {
+          "description": "Exact retained salary charges that releasing this player now would add, keyed by season.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "total": {
+          "type": "number",
+          "minimum": 0
         }
       }
     },

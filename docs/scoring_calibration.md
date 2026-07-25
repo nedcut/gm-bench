@@ -112,7 +112,7 @@ results, run summaries, and comparison blocks, but that is a visibility fix,
 not a scale change: two rows with the same `score-v1` fingerprint remain
 comparable regardless of how many queries either one failed.
 
-The current `sota-v3` contract (fingerprint `9ae26dbed754f94b`) still uses the
+The current `sota-v3` contract (fingerprint `3c6621b2ae34d7fa`) still uses the
 same `score-v1` weights and clamps. Contract economics change the simulated
 rosters, and `cap_room` now correctly uses payroll including retained dead cap;
 neither change modifies the published score scale itself.
@@ -142,43 +142,48 @@ also change strength, cap room, and wins.
 ## Reference-policy calibration
 
 The current `sota-v3` development panel (seeds 11-18, five seasons; contract
-fingerprint `9ae26dbed754f94b`, protocol `gm-bench-v3`)
+fingerprint `3c6621b2ae34d7fa`, protocol `gm-bench-v3`)
 produces:
 
 | Reference | Mean score | Illegal actions | Role |
 | --- | ---: | ---: | --- |
-| `scaffold-view` | 286.935 | 0 | Pick-trader policy on the compact adapter payload |
-| `pick-trader` | 285.211 | 0 | Strongest official scripted bar |
-| `strategic` | 277.393 | 0 | Scouting, offers, memo, extensions, and shrewd roster core |
-| `shrewd` | 266.941 | 0 | Dead-cap-aware roster and development policy |
-| `value` | 265.631 | 0 | Public-value roster heuristic |
-| `win-now` | 250.895 | 0 | Short-horizon win maximizer |
-| `rebuild` | 135.057 | 0 | Youth-oriented tear-down |
-| `conservative` | 133.649 | 0 | Low-churn roster holder |
-| `exploit` | 131.561 | 24 | Unmodified red-team canary |
-| `random` | 92.338 | 0 | Floor / noise baseline |
+| `pick-trader` | 284.847 | 0 | Strongest official scripted bar |
+| `strategic` | 267.708 | 0 | Scouting, offers, memo, extensions, and shrewd roster core |
+| `shrewd` | 261.338 | 0 | Dead-cap-aware roster and development policy |
+| `scaffold-view` | 258.361 | 0 | Pick-trader policy on the compact adapter payload |
+| `win-now` | 253.058 | 0 | Short-horizon win maximizer |
+| `value` | 240.169 | 0 | Public-value roster heuristic |
+| `exploit` | 140.401 | 24 | Unmodified red-team canary |
+| `conservative` | 135.597 | 0 | Low-churn roster holder |
+| `rebuild` | 135.564 | 0 | Youth-oriented tear-down |
+| `random` | 89.945 | 0 | Floor / noise baseline |
 
 The strategic policy's panel ablations are also deterministic:
 
 | Policy variant | Mean score | Change vs `strategic` |
 | --- | ---: | ---: |
-| Full `strategic` | 277.393 | 0.000 |
-| No scouting | 283.601 | +6.208 |
-| No incoming-offer policy | 255.127 | -22.266 |
-| No memo writes | 277.393 | 0.000 |
-| `shrewd` core only | 266.941 | -10.452 |
-| Pick trading enabled (`pick-trader`) | 285.211 | +7.818 |
+| Full `strategic` | 267.708 | 0.000 |
+| No scouting | 269.349 | +1.641 |
+| No incoming-offer policy | 272.782 | +5.074 |
+| No memo writes | 267.708 | 0.000 |
+| `shrewd` core only | 261.338 | -6.370 |
+| Pick trading enabled (`pick-trader`) | 284.847 | +17.139 |
 
 This is intentionally not presented as causal estimation: mechanics interact
-over five seasons. On this panel, the deterministic scouting policy is
-counterproductive while selective offer handling and contract-aware pick sales
-improve the mean. That is a calibration result, not a claim that information is
-harmful in general. Memo persistence has zero direct effect for this
-deterministic reference, which can reconstruct its policy from the observation.
-`validate-contract` separately requires accepted
-memo, scout, offer-response, offer-acceptance, pick-trade, and extension actions
-across minimum fractions of the official panel, so these mechanics cannot
-silently become dead protocol surface.
+over five seasons. On this panel, the deterministic scouting and selective
+offer-handling policies are both counterproductive while contract-aware pick
+sales improve the mean. That is a calibration result, not a claim that
+information or negotiation is harmful in general. Memo persistence has zero
+direct effect for this deterministic reference, which can reconstruct its
+policy from the observation.
+`validate-contract` treats only `pick-trader > value` as a reference-policy
+ordering invariant. It keeps the positive-mean margin check and additionally
+requires the per-seed paired difference to clear a t ratio of 2.0. The three
+adjacent reference orderings are calibration rows, not invariants: their paired
+t ratios are 1.129, 0.335, and 1.302 on this panel. The validator separately
+requires accepted memo, scout, offer-response, offer-acceptance, pick-trade,
+and extension actions across minimum fractions of the official panel, so these
+mechanics cannot silently become dead protocol surface.
 
 ### Hidden-information diagnostic
 

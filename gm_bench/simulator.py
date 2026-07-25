@@ -35,13 +35,13 @@ TRADE_LIMIT_PER_PARTNER = 2
 MEMO_MAX_CHARS = 2000
 HARD_CAP_BUFFER = 8.0
 FA_RESERVATION_RANGE = (0.85, 1.0)
-DEAD_CAP_FRACTION = 0.5
-MARKET_INFLATION = 0.04
-TERM_PREMIUM = 0.02
-# Five-year incumbent money must remain above a one-year free-agent ask.
-# A larger loyalty discount would erase the term premium and make extensions
-# strictly dominant, hollowing out the free-agent market.
-INCUMBENT_EXTENSION_DISCOUNT = 0.03
+DEAD_CAP_FRACTION = 0.25
+DEAD_CAP_MAX_SEASONS = 2
+MARKET_INFLATION = 0.01
+TERM_PREMIUM = 0.0075
+# Extensions offer meaningful retention value without making the decision
+# automatic: a long guarantee can still outlive the player's useful seasons.
+INCUMBENT_EXTENSION_DISCOUNT = 0.10
 REJECTED_OFFER_LIMIT_PER_WINDOW = 2
 SCOUT_POINTS_PER_SEASON = 3
 SCOUT_REPORT_NOISE = 1.5
@@ -126,6 +126,7 @@ class League:
                 "rejected_offer_limit_per_window": REJECTED_OFFER_LIMIT_PER_WINDOW,
                 "contracts": {
                     "dead_cap_fraction": DEAD_CAP_FRACTION,
+                    "dead_cap_max_seasons": DEAD_CAP_MAX_SEASONS,
                     "annual_market_inflation": MARKET_INFLATION,
                     "additional_year_premium": TERM_PREMIUM,
                     "incumbent_extension_discount": INCUMBENT_EXTENSION_DISCOUNT,
@@ -160,6 +161,7 @@ class League:
         if full:
             for player in payload["team"]["roster"]:
                 source = self.players[player["id"]]
+                player["release_dead_cap"] = self._release_dead_cap_public(source)
                 if self._extension_eligible(source):
                     player["extension_quotes"] = self._contract_quotes(source, incumbent=True)
             payload["free_agents"] = [self._free_agent_public(player_id) for player_id in self.free_agents]
@@ -506,6 +508,8 @@ class League:
             return self._record(action, phase, False, f"unknown player id {player_id}", penalize=False)
         player = self.players[player_id]
         public = player.public_dict()
+        if player_id in self.user_team.roster:
+            public["release_dead_cap"] = self._release_dead_cap_public(player)
         if self._extension_eligible(player):
             public["extension_quotes"] = self._contract_quotes(player, incumbent=True)
         return self._record(
@@ -1389,7 +1393,7 @@ class League:
                 self._payroll(team)
                 - (waived.salary if waived else 0.0)
                 + self._contract_quote(player, 1)
-                + (waived.salary * DEAD_CAP_FRACTION if waived else 0.0)
+                + (self._dead_cap_schedule(waived).get(self.season, 0.0) if waived else 0.0)
             )
             if payroll_after > self.cap + 4.0:
                 continue
@@ -1487,10 +1491,22 @@ class League:
         return None
 
     def _book_dead_cap(self, team: Team, player: Player) -> None:
-        """Retain half a released contract's salary for every guaranteed year."""
-        charge = round(player.salary * DEAD_CAP_FRACTION, 2)
-        for season in range(self.season, self.season + player.contract_years):
+        """Book the published, bounded charge for a released contract."""
+        for season, charge in self._dead_cap_schedule(player).items():
             team.dead_cap[season] = round(team.dead_cap.get(season, 0.0) + charge, 2)
+
+    def _dead_cap_schedule(self, player: Player) -> dict[int, float]:
+        """Return the exact retained charges a release would create."""
+        charge = round(player.salary * DEAD_CAP_FRACTION, 2)
+        charged_seasons = min(player.contract_years, DEAD_CAP_MAX_SEASONS)
+        return {season: charge for season in range(self.season, self.season + charged_seasons)}
+
+    def _release_dead_cap_public(self, player: Player) -> dict[str, Any]:
+        schedule = self._dead_cap_schedule(player)
+        return {
+            "by_season": {str(season): charge for season, charge in schedule.items()},
+            "total": round(sum(schedule.values()), 2),
+        }
 
     def _payroll(self, team: Team) -> float:
         roster_salary = sum(self.players[player_id].salary for player_id in team.roster)

@@ -13,6 +13,7 @@ from gm_bench.runner import run_many
 
 CANARY_MIN_FINAL_MARGIN = 25.0
 CANARY_MIN_STRATEGY_MARGIN = 25.0
+CANARY_MIN_PAIRED_T = 2.0
 MECHANIC_MIN_SEED_RATES = {
     "memo": 0.75,
     "scouting": 0.75,
@@ -137,15 +138,45 @@ def run_validity_canaries(
     ]
 
     mechanic_coverage, mechanic_checks = _mechanic_coverage(pick_trader, len(resolved_seeds))
+    # Adjacent reference means remain useful calibration rows, but they are not
+    # invariants: on this panel their paired t values are 1.129, 0.335, and
+    # 1.302. Keep only the pre-registered headline contrast, whose own paired
+    # uncertainty clears the significance bar.
     checks = [
-        _margin_check(pick_trader, strategic, "pick-trader", "strategic", "honest_bar"),
-        _margin_check(strategic, shrewd, "strategic", "shrewd", "honest_bar"),
-        _margin_check(shrewd, value, "shrewd", "value", "honest_bar"),
+        _margin_check(pick_trader, value, "pick-trader", "value", "honest_bar"),
+        _paired_significance_check(
+            pick_trader,
+            value,
+            "pick-trader",
+            "value",
+            "final_score",
+            "honest_bar",
+        ),
         *mechanic_checks,
     ]
     for canary in canaries:
         checks.append(_margin_check(value, canary, "value", canary["agent"], "canary_final_score"))
+        checks.append(
+            _paired_significance_check(
+                value,
+                canary,
+                "value",
+                canary["agent"],
+                "final_score",
+                "canary_final_score",
+            )
+        )
         checks.append(_strategy_margin_check(value, canary, "value", canary["agent"]))
+        checks.append(
+            _paired_significance_check(
+                value,
+                canary,
+                "value",
+                canary["agent"],
+                "strategy_score",
+                "canary_strategy_score",
+            )
+        )
 
     return {
         "ok": all(check["ok"] for check in checks),
@@ -254,6 +285,49 @@ def _strategy_margin_check(
         "minimum_margin": CANARY_MIN_STRATEGY_MARGIN,
         "ok": margin >= CANARY_MIN_STRATEGY_MARGIN,
     }
+
+
+def _paired_significance_check(
+    winner: dict[str, Any],
+    loser: dict[str, Any],
+    winner_name: str,
+    loser_name: str,
+    episode_metric: str,
+    check_name: str,
+) -> dict[str, Any]:
+    winner_by_seed = _per_seed_metric(winner, episode_metric)
+    loser_by_seed = _per_seed_metric(loser, episode_metric)
+    shared_seeds = sorted(winner_by_seed.keys() & loser_by_seed.keys())
+    complete_pairing = len(shared_seeds) == len(winner_by_seed) == len(loser_by_seed) and len(shared_seeds) >= 2
+    differences = [winner_by_seed[seed] - loser_by_seed[seed] for seed in shared_seeds]
+    paired_mean = sum(differences) / len(differences) if differences else 0.0
+    if len(differences) >= 2:
+        variance = sum((difference - paired_mean) ** 2 for difference in differences) / (len(differences) - 1)
+        standard_error = math.sqrt(variance / len(differences))
+    else:
+        standard_error = 0.0
+    paired_t = paired_mean / standard_error if standard_error > 0 else None
+    clears_bar = (paired_t is None and paired_mean > 0) or (paired_t is not None and paired_t >= CANARY_MIN_PAIRED_T)
+    return {
+        "name": f"{check_name}_paired_significance",
+        "winner": winner_name,
+        "loser": loser_name,
+        "metric": "paired_t",
+        "margin": round(paired_t, 3) if paired_t is not None else None,
+        "minimum_margin": CANARY_MIN_PAIRED_T,
+        "paired_mean_difference": round(paired_mean, 3),
+        "paired_standard_error": round(standard_error, 3),
+        "seed_count": len(shared_seeds),
+        "complete_pairing": complete_pairing,
+        "ok": complete_pairing and clears_bar,
+    }
+
+
+def _per_seed_metric(result: dict[str, Any], metric: str) -> dict[int, float]:
+    scores: dict[int, list[float]] = {}
+    for episode in result["episodes"]:
+        scores.setdefault(int(episode["seed"]), []).append(float(episode[metric]))
+    return {seed: sum(values) / len(values) for seed, values in scores.items()}
 
 
 def _summary_row(result: dict[str, Any]) -> dict[str, Any]:

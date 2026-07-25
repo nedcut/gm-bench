@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from gm_bench.simulator import DEAD_CAP_FRACTION, MARKET_INFLATION, League
+from gm_bench.simulator import DEAD_CAP_FRACTION, DEAD_CAP_MAX_SEASONS, MARKET_INFLATION, League
 
 
 def _expiring_player(league: League):
@@ -13,7 +13,7 @@ def _expiring_player(league: League):
     )
 
 
-def test_release_books_dead_cap_for_every_remaining_contract_season() -> None:
+def test_release_books_bounded_dead_cap() -> None:
     league = League.new(seed=24)
     league.user_team.roster.extend(league.free_agents[:2])
     player = league.players[league.user_team.roster[0]]
@@ -24,14 +24,28 @@ def test_release_books_dead_cap_for_every_remaining_contract_season() -> None:
     result = league.apply_actions([{"type": "release", "player_id": player.id}], "preseason")[0]
 
     assert result.accepted
-    assert league.user_team.dead_cap == {1: expected_charge, 2: expected_charge, 3: expected_charge}
+    assert league.user_team.dead_cap == {1: expected_charge, 2: expected_charge}
     assert league._payroll(league.user_team) == pytest.approx(
         sum(league.players[player_id].salary for player_id in league.user_team.roster) + expected_charge
     )
     assert league.observation("preseason")["team"]["dead_cap"] == {
         "1": expected_charge,
         "2": expected_charge,
-        "3": expected_charge,
+    }
+
+
+def test_observation_publishes_exact_bounded_release_dead_cap() -> None:
+    league = League.new(seed=24)
+    player = league.players[league.user_team.roster[0]]
+    player.contract_years = 4
+    player.salary = 8.0
+    expected_charge = round(player.salary * DEAD_CAP_FRACTION, 2)
+
+    observed = next(row for row in league.observation("preseason")["team"]["roster"] if row["id"] == player.id)
+
+    assert observed["release_dead_cap"] == {
+        "by_season": {"1": expected_charge, "2": expected_charge},
+        "total": round(expected_charge * DEAD_CAP_MAX_SEASONS, 2),
     }
 
 
@@ -46,9 +60,10 @@ def test_dead_cap_ages_off_at_the_season_rollover() -> None:
     league.simulate_season()
 
     assert league.season == 2
-    assert league.user_team.dead_cap == {2: 4.0, 3: 4.0}
+    expected_charge = round(8.0 * DEAD_CAP_FRACTION, 2)
+    assert league.user_team.dead_cap == {2: expected_charge}
     assert league._payroll(league.user_team) == pytest.approx(
-        sum(league.players[player_id].salary for player_id in league.user_team.roster) + 4.0
+        sum(league.players[player_id].salary for player_id in league.user_team.roster) + expected_charge
     )
 
 
@@ -62,9 +77,10 @@ def test_opponent_release_books_the_same_dead_cap() -> None:
 
     league._book_dead_cap(team, player)
 
-    assert team.dead_cap == {1: 3.0, 2: 3.0}
+    expected_charge = round(6.0 * DEAD_CAP_FRACTION, 2)
+    assert team.dead_cap == {1: expected_charge, 2: expected_charge}
     assert league._payroll(team) == pytest.approx(
-        sum(league.players[player_id].salary for player_id in team.roster) + 3.0
+        sum(league.players[player_id].salary for player_id in team.roster) + expected_charge
     )
 
 
@@ -81,17 +97,16 @@ def test_contract_quotes_trade_current_cost_for_long_term_certainty() -> None:
     assert league._contract_quote(player, 1) > first_year_quote
 
 
-def test_inc5_annual_cost_stays_above_fa1() -> None:
-    """Keep the incumbent market alive: a long extension must not dominate FA1."""
+def test_extension_discount_preserves_a_term_tradeoff() -> None:
+    """A lower incumbent rate still buys a materially larger guarantee."""
     league = League.new(seed=24)
     player = league.players[league.free_agents[0]]
     fa1 = league._contract_quote(player, 1)
+    inc2 = league._contract_quote(player, 2, incumbent=True)
     inc5 = league._contract_quote(player, 5, incumbent=True)
 
-    # The 5-year term premium must exceed the loyalty discount even before the
-    # extension's next-season inflation is considered. Otherwise every team
-    # should always extend and meaningful players disappear from free agency.
-    assert inc5 > fa1
+    assert inc2 < inc5 < fa1
+    assert inc5 * 5 > inc2 * 2
     assert inc5 < league._contract_quote(player, 5, incumbent=False) * (1.0 + MARKET_INFLATION)
 
 
@@ -176,6 +191,7 @@ def test_summary_tier_inspection_publishes_extension_quote() -> None:
     assert result.accepted
     assert result.data is not None
     assert result.data["player"]["extension_quotes"] == league._contract_quotes(player, incumbent=True)
+    assert result.data["player"]["release_dead_cap"] == league._release_dead_cap_public(player)
 
 
 def test_opponents_deterministically_retain_good_expiring_players() -> None:

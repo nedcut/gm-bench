@@ -14,7 +14,7 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # The fingerprint hashes raw source bytes, so docstrings and comments in a
     # _CONTRACT_SOURCES file move it too. That is deliberately cheap before a
     # panel is bought and impossible afterward.
-    assert contract_fingerprint() == "9ae26dbed754f94b"
+    assert contract_fingerprint() == "3c6621b2ae34d7fa"
     assert "oracle" not in AGENTS
 
 
