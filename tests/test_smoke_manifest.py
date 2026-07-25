@@ -141,3 +141,25 @@ def test_stale_smoke_manifest_entry_is_flagged() -> None:
         "'retired-model' is not in the current model registry" in issue
         for issue in smoke_manifest_issues(manifest, registry, lane)
     )
+
+
+@pytest.mark.parametrize("strict_flag", [None, False])
+def test_smoke_manifest_requires_strict_fallback_when_policy_demands_it(strict_flag: bool | None) -> None:
+    registry, lane = _registry_and_lane()
+    manifest = copy.deepcopy(_valid_manifest(registry, lane))
+    model_id = registry["models"][0]["id"]
+    if strict_flag is not None:
+        manifest["entries"][model_id]["strict_fallback"] = strict_flag
+    message = "was not recorded under strict failure handling"
+    assert any(
+        message in issue
+        for issue in smoke_manifest_issues(manifest, registry, lane, require_strict_fallback=True)
+    )
+
+
+def test_smoke_manifest_accepts_strict_fallback_when_policy_demands_it() -> None:
+    registry, lane = _registry_and_lane()
+    manifest = _valid_manifest(registry, lane)
+    for entry in manifest["entries"].values():
+        entry["strict_fallback"] = True
+    assert smoke_manifest_issues(manifest, registry, lane, require_strict_fallback=True) == []

@@ -4,6 +4,7 @@ competitive drafts, the memo scratchpad, FA aging, and the score split."""
 from __future__ import annotations
 
 from gm_bench.agents import ExploitAgent, ValueAgent
+from gm_bench.validity import CapHoardAgent
 from gm_bench.models import LINEUP_MIN_POSITIONS, LINEUP_SIZE, ROSTER_MIN
 from gm_bench.runner import run_episode
 from gm_bench.scoring import score_breakdown
@@ -93,6 +94,15 @@ def test_exploit_agent_no_longer_beats_honest_baselines() -> None:
     value = run_episode(ValueAgent(), seed=1, seasons=5)
     assert exploit.final_score < value.final_score
     assert exploit.strategy_score < value.strategy_score
+
+
+def test_cap_hoard_agent_loses_to_value_on_fixed_seeds() -> None:
+    """Degenerate canary: dumping productive veterans for cap room must not beat value."""
+    for seed in (1, 2):
+        cap = run_episode(CapHoardAgent(), seed=seed, seasons=3)
+        value = run_episode(ValueAgent(), seed=seed, seasons=3)
+        assert cap.final_score < value.final_score
+        assert cap.strategy_score < value.strategy_score
 
 
 # --- Lineups are real ----------------------------------------------------
