@@ -575,6 +575,10 @@ path before any paid v3 panel spend or headline refresh:
 
 - [ ] Merge [#92 — contract economics](https://github.com/nedcut/gm-bench/pull/92)
   after confirming no live checkpoints under `data/model_checkpoints/`.
+- [ ] **Run `scaffold-view` on seeds 11–18 at 5 seasons** under the frozen
+  contract fingerprint with no contract-source change before or after (Issue #84
+  item above). Scripted, deterministic, and free; required before any paid v3
+  panel spend.
 - [ ] Fix site claim integrity while the public page still sells v2: tiered or
   CI-backed baseline ladder in `Analysis.tsx`, `tokens_per_decision` on score
   surfaces, relabel partial-oracle reference, and a public-panel adaptation /
@@ -624,9 +628,10 @@ Independent consulting review on Issue
   ladder without CIs, missing token-efficiency surfaces, “oracle ceiling”
   overstatement, and no contamination caveat on the landing page.
 - **No ordinal ranking** among models or among the new reference ladder
-  (shrewd / strategic / scaffold-view / pick-trader sit within ~10 points under
-  the v3 fingerprint). The durable public claim stays: all eight eligible v2
-  systems trailed `pick-trader`; no model ordering is justified.
+  (`shrewd` / `strategic` / `scaffold-view` / `pick-trader` sit within ~10
+  points on the official 8-seed panel under fingerprint `0a5f0434dca31ac5`).
+  The durable public claim stays: all eight eligible v2 systems trailed
+  `pick-trader`; no model ordering is justified.
 
 ## Decision log
 
