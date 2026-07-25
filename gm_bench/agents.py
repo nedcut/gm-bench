@@ -15,6 +15,29 @@ from gm_bench.scaffold_view import scaffold_view_observation
 from gm_bench.telemetry import normalize_usage
 
 
+def _release_surplus(player: dict[str, Any]) -> float:
+    """How much better off the roster is without this player, in value units.
+
+    `public_asset_value` already nets out `0.7 * salary`, so it is the value of
+    *keeping* the player. Releasing swaps that for a dead-cap charge that buys
+    nothing, so the comparison is:
+
+        keep    =  public_asset_value(player)          (on-ice value less salary)
+        release = -0.7 * annual dead-cap charge        (a cost with no player)
+
+    and the surplus from releasing is `release - keep`. Positive means the
+    contract is underwater by more than it costs to escape. The 0.7 weight is
+    reused from `public_asset_value` so both sides are in the same units.
+
+    Players with no guaranteed years carry no charge, so for them this reduces
+    to "is the player worth less than nothing", which is the honest question.
+    """
+    dead_cap = player.get("release_dead_cap") or {}
+    by_season = dead_cap.get("by_season") or {}
+    annual_charge = (float(dead_cap.get("total", 0.0)) / len(by_season)) if by_season else 0.0
+    return -public_asset_value(player) - 0.7 * annual_charge
+
+
 def _contract_quote(player: dict[str, Any], years: int) -> float:
     """Return the public guaranteed quote for a term."""
     quotes = player.get("contract_quotes") or player.get("extension_quotes") or {}
@@ -209,7 +232,21 @@ class ShrewdAgent(Agent):
 
     name = "shrewd"
 
-    RELEASE_VALUE_FLOOR = -2.0
+    # A release is worth making when the cap it frees buys more than the player
+    # still provides. `release_dead_cap` publishes the exact charge, so this is
+    # a comparison the policy can actually make rather than a magic threshold.
+    #
+    # This replaces a `public_asset_value < -2.0` floor that was unreachable in
+    # combination with the age and salary tests it was ANDed with: instrumenting
+    # 40 preseason windows on seeds 11-18 found zero candidates, before and
+    # after contract economics existed (issue #91). The docstring above has
+    # advertised release behaviour that never once executed.
+    #
+    # The bar is deliberately set so that clearing it means the player is
+    # genuinely underwater, not merely mediocre. If that turns out to be rare,
+    # that is a real statement about dead cap deterring releases -- which is
+    # only distinguishable from a dead branch now that the branch can fire.
+    RELEASE_SURPLUS_MARGIN = 1.5
     MIN_KEEP_ROSTER = 20
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
@@ -248,14 +285,9 @@ class ShrewdAgent(Agent):
         released_ids: set[int] = set()
         if not midseason:
             deadweight = sorted(
-                (
-                    player
-                    for player in roster
-                    if player["age"] >= 30
-                    and player["salary"] > 0
-                    and public_asset_value(player) < self.RELEASE_VALUE_FLOOR
-                ),
-                key=public_asset_value,
+                (player for player in roster if _release_surplus(player) > self.RELEASE_SURPLUS_MARGIN),
+                key=_release_surplus,
+                reverse=True,
             )
             releasable = max(0, len(roster) - self.MIN_KEEP_ROSTER)
             for player in deadweight[: min(2, releasable)]:

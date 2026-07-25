@@ -112,7 +112,7 @@ results, run summaries, and comparison blocks, but that is a visibility fix,
 not a scale change: two rows with the same `score-v1` fingerprint remain
 comparable regardless of how many queries either one failed.
 
-The current `sota-v3` contract (fingerprint `3c6621b2ae34d7fa`) still uses the
+The current `sota-v3` contract (fingerprint `0a5f0434dca31ac5`) still uses the
 same `score-v1` weights and clamps. Contract economics change the simulated
 rosters, and `cap_room` now correctly uses payroll including retained dead cap;
 neither change modifies the published score scale itself.
@@ -141,22 +141,70 @@ also change strength, cap room, and wins.
 
 ## Reference-policy calibration
 
-The current `sota-v3` development panel (seeds 11-18, five seasons; contract
-fingerprint `3c6621b2ae34d7fa`, protocol `gm-bench-v3`)
-produces:
+Reference policies are calibrated on a **24-seed panel (seeds 11-34, five
+seasons)**, three times the width of the paid `leaderboard` lane. The two
+panels are sized by different constraints and should not share a width: every
+policy here is scripted and costs only CPU, while the leaderboard width is set
+by what a model row costs in API spend.
+
+Eight seeds cannot support an ordering claim on this engine. The same two
+policies, measured paired on matched seeds:
+
+| seeds | mean difference | paired *t* |
+| ---: | ---: | ---: |
+| 8 (leaderboard width) | 14.89 | 0.519 |
+| 16 | 43.63 | 2.482 |
+| 24 (canary width) | 44.15 | 3.274 |
+| 48 | 41.32 | 4.784 |
+
+`pick-trader` wins 39 of 48 seeds; 80% power needs 17. An effect this real is
+invisible at n=8, which is why `validate-contract` now gates orderings on
+paired *t* >= 2.0 over its own panel rather than on a positive mean margin.
+
+Contract fingerprint `0a5f0434dca31ac5`, protocol `gm-bench-v3`:
 
 | Reference | Mean score | Illegal actions | Role |
 | --- | ---: | ---: | --- |
-| `pick-trader` | 284.847 | 0 | Strongest official scripted bar |
-| `strategic` | 267.708 | 0 | Scouting, offers, memo, extensions, and shrewd roster core |
-| `shrewd` | 261.338 | 0 | Dead-cap-aware roster and development policy |
-| `scaffold-view` | 258.361 | 0 | Pick-trader policy on the compact adapter payload |
-| `win-now` | 253.058 | 0 | Short-horizon win maximizer |
-| `value` | 240.169 | 0 | Public-value roster heuristic |
-| `exploit` | 140.401 | 24 | Unmodified red-team canary |
-| `conservative` | 135.597 | 0 | Low-churn roster holder |
-| `rebuild` | 135.564 | 0 | Youth-oriented tear-down |
-| `random` | 89.945 | 0 | Floor / noise baseline |
+| `shrewd` | 288.64 | 0 | Dead-cap-aware roster and development policy |
+| `strategic` | 285.02 | 0 | Scouting, offers, memo, extensions, and shrewd roster core |
+| `scaffold-view` | 281.88 | 0 | Pick-trader policy on the compact adapter payload |
+| `pick-trader` | 279.07 | 0 | Official scripted bar |
+| `win-now` | 244.37 | 0 | Short-horizon win maximizer |
+| `value` | 242.70 | 0 | Public-value roster heuristic |
+| `conservative` | 132.35 | 0 | Low-churn roster holder |
+| `rebuild` | 130.35 | 0 | Youth-oriented tear-down |
+| `exploit` | 128.03 | 71 | Unmodified red-team canary |
+| `random` | 93.10 | 0 | Floor / noise baseline |
+
+**Only `pick-trader > value` is asserted as an invariant** (paired *t* = 2.559).
+The four policies at the top sit within 10 points of each other against per-seed
+standard deviations near 50, so their relative order is not established and is
+not pinned. Reporting them as a ranked ladder would overstate what the panel
+shows.
+
+Note that contract economics cost `pick-trader` its former lead: with releases
+priced and incumbents retainable, cap hygiene and retention now compete with
+pick accumulation. On the 8-seed leaderboard panel the same run puts
+`pick-trader` fifth, which is noise rather than a result -- exactly the
+divergence the width table above predicts.
+
+### Mechanic liveness
+
+A mechanic that never fires is inert regardless of its constants, so liveness is
+measured rather than assumed. Over the 24-seed panel (120 team-seasons), the
+agent's own team:
+
+| Mechanic | Count |
+| --- | ---: |
+| Extensions accepted | 215 |
+| Contract terms signed | 4y: 160, 3y: 55, FA 1y: 590, FA 3y: 216 |
+| Releases accepted | 7 |
+
+Releases are rare by design: dead cap is a deterrent, and a policy that pays it
+anyway is choosing to. Before the fix in #91 the count was **zero and could not
+have been anything else** -- the release branch required a conjunction of
+conditions that never co-occurred, so a working deterrent and an unreachable
+branch produced the same number. They are now distinguishable.
 
 The strategic policy's panel ablations are also deterministic:
 

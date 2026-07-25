@@ -205,12 +205,23 @@ The MVP includes ten scripted references and diagnostics (`gm_bench.agents.AGENT
 - `rebuild`: prioritizes youth and potential.
 - `value`: balances public overall, potential, age, and price.
 - `shrewd`: a stronger-on-average honest reference — `value` plus retaining
-  valuable young incumbents, releasing clearly-negative veteran contracts only
-  after budgeting the retained charge, and dressing high-upside youth.
+  valuable young incumbents, releasing a contract only when the cap it frees
+  net of the published dead-cap charge exceeds what the player still provides,
+  and dressing high-upside youth. That release test is rare in practice (7
+  releases across 120 team-seasons): dead cap deters, and paying it anyway is a
+  deliberate choice. It fires at all only since #91 — the previous rule
+  required a conjunction of conditions that never co-occurred, so it had never
+  released anyone despite the description claiming otherwise.
 - `strategic`: `shrewd` plus report-driven scouting, selective incoming-offer
   responses, and a persistent plan memo.
-- `pick-trader`: the strongest official reference — `strategic` plus cap-aware
-  sales of aging short-term contracts for future picks, avoiding dead cap.
+- `pick-trader`: `strategic` plus cap-aware sales of aging short-term contracts
+  for future picks, avoiding dead cap. It is the pre-registered bar the
+  `validate-contract` invariant is stated against, but it is no longer the
+  highest-scoring reference: with releases priced and incumbents retainable,
+  cap hygiene and retention now compete with pick accumulation, and the top
+  four references sit within 10 points of each other against per-seed standard
+  deviations near 50. Their relative order is not established and is not
+  pinned.
 - `scaffold-view`: the `pick-trader` policy restricted to the compacted payload
   model adapters receive — the same sorted-and-truncated free agents, draft
   prospects, trade-market slice, and incoming offers, plus the host-computed

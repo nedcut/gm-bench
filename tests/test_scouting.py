@@ -118,7 +118,7 @@ def test_scouting_does_not_perturb_scripted_scores():
     baseline = run_episode(ValueAgent(), seed=1, seasons=5)
     # Contract economics changed roster construction and opponent retention;
     # this still pins that scouting's isolated RNG did not cause the movement.
-    assert baseline.final_score == 240.324
+    assert baseline.final_score == 276.237
 
 
 def test_ambiguous_scout_target_increments_failed_queries_not_declines():

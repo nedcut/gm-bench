@@ -7,10 +7,13 @@ from gm_bench.runner import run_episode, run_many
 
 # Re-pinned for contract economics: term-priced signings, incumbent retention,
 # dead-cap-aware payroll, and opponent extensions change five-season rosters.
+# `value` itself never releases, so the reachable-release fix (#91) moves these
+# only through the league around it -- opponents now retain and release
+# differently, which changes who reaches the free-agent pool and when.
 GOLDEN_VALUE_SCORES_5_SEASONS = {
-    1: 240.324,
-    2: 215.781,
-    3: 201.025,
+    1: 276.237,
+    2: 181.826,
+    3: 248.955,
 }
 
 
