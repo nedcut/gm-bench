@@ -51,9 +51,12 @@ GM-Bench includes:
   `pick-trader` reference adds cap-aware future-pick acquisitions, while the
   red-team `exploit` canary replays known-degenerate strategies. The
   `scaffold-view` diagnostic runs the `pick-trader` policy on the truncated
-  observation model adapters actually receive, so what the prompt scaffold
-  costs can be separated from what the policy is worth. It is newly registered
-  and has not been run on the official panel; no gap has been measured yet.
+  observation model adapters actually receive, so observation asymmetry can be
+  separated from what the policy is worth. It measures the cost of view
+  truncation only — fresh-spawn/memo-only continuity, the output-token cap, and
+  protocol repair are not held constant, so the gap is not "what the scaffold
+  costs". It is newly registered and has not been run on the official panel; no
+  gap has been measured yet.
 - A scoring model that rewards wins, championships, future assets, prospects,
   and cap health, reported as a strategy score with protocol (invalid-action)
   penalties broken out separately. The composite deliberately favours

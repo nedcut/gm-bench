@@ -750,6 +750,21 @@ def _validate_score_components(errors: list[str], label: str, block: dict[str, A
     contribution under the published scale, and the contributions still add up
     to the strategy score the row was ranked on — so all three are checked here
     rather than trusting the field because it exists.
+
+    Two limits worth stating, because neither is visible from the error text.
+
+    The rebuild uses ``ACTIVE_SCORE_SCALE``, not the scale the row declares in
+    ``run_info.benchmark_contract.scoring_version``. That is safe only while
+    ``scoring.SCORE_SCALES`` has exactly one entry and ``sota-v3`` pins its
+    fingerprint, which is the case today. The moment a ``score-v2`` is added,
+    this must take the row's declared version and look the scale up — otherwise
+    it silently re-weights archived rows against the new weights, in exactly the
+    cross-version reweighting this block was persisted to enable.
+
+    And these checks establish *self-consistency*, not authenticity. A tampered
+    row whose raws, contributions, ``strategy_score`` and ``final_score`` were
+    all scaled together passes every one of them. Nothing short of a re-run can
+    do better here; the binding to real evidence is ``raw_artifact_sha256``.
     """
     components = block.get("score_components")
     if not isinstance(components, dict):

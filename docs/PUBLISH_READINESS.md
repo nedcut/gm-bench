@@ -557,6 +557,18 @@ These should be refined, not quietly removed:
   only: the `scaffold-view` baseline is registered but **not run**, so there is
   no measured scaffold gap to report. Memo ablation and realism polish are
   untouched.
+- [ ] **Run `scaffold-view` under the same contract fingerprint as the paid
+  panel.** The baseline is deliberately not in `PRESETS["leaderboard"]`
+  (see the 2026-07-24 decision-log entry), so it will never appear inside a
+  panel artifact and its gap can only be produced by differencing a separate
+  scripted run against the panel's `pick-trader` row. Those two rows are
+  comparable only under an identical `contract_fingerprint`, and
+  `gm_bench/benchmark_config.py` is itself a fingerprint source — so adding
+  `scaffold-view` to the lane later would move the fingerprint and invalidate
+  both. Concretely: run it on seeds 11–18 at 5 seasons, either before the panel
+  or after, with **no contract-source change landing in between**. It is
+  scripted, deterministic, cached, and free. If a contract source does move
+  first, the gap is unquotable and the panel cannot be re-run to recover it.
 - [ ] Obtain and link an independent clean-clone reproduction. A closed issue
   without a report is not evidence of reproduction.
 

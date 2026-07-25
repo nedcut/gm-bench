@@ -105,6 +105,19 @@ field for field. The historical `sota-v2` policy instead matches the literal
 released contract, including fingerprint `558e8f35ea1d66b9`. A row built against
 a different simulator/scoring/schema source is rejected, not merely flagged.
 
+**What these checks do and do not prove.** Every table row above establishes
+*internal consistency*: that the artifact agrees with itself and with the
+declared contract. None of them establish that the numbers came from a real
+run. A tampered artifact whose raw metrics, `*_contribution` terms,
+`strategy_score` and `final_score` were all scaled together satisfies the
+`score_components` check, because recomputing a score from its own components
+cannot detect a consistent lie. The same is true of `strict_fallback`: the
+validator confirms the two provenance fields agree, not that the adapter
+actually noop-ed on failure. Binding an artifact to real evidence is the job of
+`publication.raw_artifact_sha256` and the release manifest checksums — read
+`validate-result` as "this row is well-formed and self-consistent under
+`sota-v3`", never as "this row is authentic".
+
 Seed-panel provenance (`run_info.seed_panel`) must name one of two identities;
 `custom` panels are rejected outright:
 

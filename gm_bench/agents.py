@@ -469,8 +469,16 @@ class ScaffoldViewAgent(PickTraderAgent):
     `scaffold_view.compact_observation` of it: sorted-and-sliced free agents and
     draft prospects, a head slice of the trade market, three incoming offers.
     This agent keeps the pick-trader policy and changes nothing but the view,
-    so the difference between the two rows is the cost of the scaffold rather
-    than a difference in strategy.
+    so the difference between the two rows isolates observation asymmetry
+    rather than a difference in strategy.
+
+    That is narrower than "what the scaffold costs", and the gap must not be
+    quoted as such. Model rows additionally run fresh-spawned with only a
+    2,000-character memo carrying state between decision points, under a
+    4,096-token output cap and one bounded protocol repair. None of those are
+    held constant here: the scripted policy is stateless and rebuilds its plan
+    from the observation every turn, so it pays no memo cost to begin with.
+    What this reference measures is the cost of view truncation, nothing more.
 
     Two deliberate faithfulness choices:
 
@@ -492,7 +500,7 @@ class ScaffoldViewAgent(PickTraderAgent):
     # Pinned, not inherited. This agent runs in the harness process, where
     # GM_AGENT_PROFILE reflects the operator's shell rather than the lane the
     # model ran under -- an ambient "tiny" would hand the reference a 24/16/16
-    # view while the model saw 18/6/6 and silently understate the scaffold cost.
+    # view while the model saw 18/6/6 and silently understate the truncation cost.
     # Compare against a tiny-profile row only by instantiating with profile="tiny"
     # (which also changes agent.name so the baseline cache cannot collide).
     PROFILE = "compact"
