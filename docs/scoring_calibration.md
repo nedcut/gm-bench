@@ -101,7 +101,7 @@ is derived only from the published weights and clamps. GM-Bench validates it at
 import time, so changing a weight without declaring a new score version fails
 immediately instead of silently changing leaderboard meaning.
 
-The `sota-v2` benchmark contract (fingerprint `558e8f35ea1d66b9`, see
+The frozen `sota-v2` benchmark contract (fingerprint `558e8f35ea1d66b9`, see
 [production_benchmark.md](production_benchmark.md)) does not touch `score-v1`:
 no scoring weight or clamp changed. The `sota-v1` → `sota-v2` bump was a
 protocol/simulator fix (`scout` accepting `prospect_id`) and a reporting
@@ -111,6 +111,11 @@ before, because querying is meant to be free. It is now reported in episode
 results, run summaries, and comparison blocks, but that is a visibility fix,
 not a scale change: two rows with the same `score-v1` fingerprint remain
 comparable regardless of how many queries either one failed.
+
+The current `sota-v3` contract (fingerprint `9ae26dbed754f94b`) still uses the
+same `score-v1` weights and clamps. Contract economics change the simulated
+rosters, and `cap_room` now correctly uses payroll including retained dead cap;
+neither change modifies the published score scale itself.
 
 Reproduce the complete machine-readable scale and calibration:
 
@@ -136,51 +141,51 @@ also change strength, cap room, and wins.
 
 ## Reference-policy calibration
 
-The current `sota-v2` public panel (seeds 11-18, five seasons; contract
-fingerprint `558e8f35ea1d66b9`, protocol `gm-bench-v2` with midseason)
+The current `sota-v3` development panel (seeds 11-18, five seasons; contract
+fingerprint `9ae26dbed754f94b`, protocol `gm-bench-v3`)
 produces:
 
 | Reference | Mean score | Illegal actions | Role |
 | --- | ---: | ---: | --- |
-| `pick-trader` | 411.619 | 0 | Strongest official scripted bar |
-| `strategic` | 402.025 | 0 | Scouting, offers, memo, and shrewd roster core |
-| `shrewd` | 371.769 | 0 | Cap hygiene and development-aware lineup core |
-| `value` | 354.619 | 0 | Public-value roster heuristic |
-| `win-now` | 275.834 | 0 | Short-horizon win maximizer |
-| `conservative` | 139.030 | 0 | Low-churn roster holder |
-| `rebuild` | 138.745 | 0 | Youth-oriented tear-down |
-| `random` | 96.715 | 0 | Floor / noise baseline |
+| `scaffold-view` | 286.935 | 0 | Pick-trader policy on the compact adapter payload |
+| `pick-trader` | 285.211 | 0 | Strongest official scripted bar |
+| `strategic` | 277.393 | 0 | Scouting, offers, memo, extensions, and shrewd roster core |
+| `shrewd` | 266.941 | 0 | Dead-cap-aware roster and development policy |
+| `value` | 265.631 | 0 | Public-value roster heuristic |
+| `win-now` | 250.895 | 0 | Short-horizon win maximizer |
+| `rebuild` | 135.057 | 0 | Youth-oriented tear-down |
+| `conservative` | 133.649 | 0 | Low-churn roster holder |
+| `exploit` | 131.561 | 24 | Unmodified red-team canary |
+| `random` | 92.338 | 0 | Floor / noise baseline |
 
 The strategic policy's panel ablations are also deterministic:
 
 | Policy variant | Mean score | Change vs `strategic` |
 | --- | ---: | ---: |
-| Full `strategic` | 402.025 | 0.000 |
-| No scouting | 371.284 | -30.741 |
-| No incoming-offer policy | 395.539 | -6.486 |
-| No memo writes | 402.025 | 0.000 |
-| `shrewd` core only | 371.769 | -30.256 |
-| Pick trading enabled (`pick-trader`) | 411.619 | +9.594 |
+| Full `strategic` | 277.393 | 0.000 |
+| No scouting | 283.601 | +6.208 |
+| No incoming-offer policy | 255.127 | -22.266 |
+| No memo writes | 277.393 | 0.000 |
+| `shrewd` core only | 266.941 | -10.452 |
+| Pick trading enabled (`pick-trader`) | 285.211 | +7.818 |
 
 This is intentionally not presented as causal estimation: mechanics interact
-over five seasons. It is a regression calibration showing that scouting and
-selective offer handling have measurable decision value. The cap-aware pick
-policy also improves the panel mean, but remains separate so its marginal effect
-stays visible rather than being hidden inside `strategic`. Memo persistence is
-covered as protocol behavior but has zero direct effect for this deterministic
-reference, which can reconstruct its policy from the observation; its value as
-an LLM memory channel still requires model-backed evaluation.
+over five seasons. On this panel, the deterministic scouting policy is
+counterproductive while selective offer handling and contract-aware pick sales
+improve the mean. That is a calibration result, not a claim that information is
+harmful in general. Memo persistence has zero direct effect for this
+deterministic reference, which can reconstruct its policy from the observation.
 `validate-contract` separately requires accepted
-memo, scout, offer-response, offer-acceptance, and pick-trade actions across
-minimum fractions of the official panel, so these mechanics cannot silently
-become dead protocol surface.
+memo, scout, offer-response, offer-acceptance, pick-trade, and extension actions
+across minimum fractions of the official panel, so these mechanics cannot
+silently become dead protocol surface.
 
-### Ceiling reference
+### Hidden-information diagnostic
 
 `oracle` is a diagnostic-only hidden-information reference, not an official
-baseline and not part of the `sota-v2` baseline panel. On the same public panel
-(seeds 11-18, five seasons), it scores **431.150**, versus **411.619** for
-`pick-trader`: a **19.531-point** pick-trader-to-oracle gap.
+baseline and not part of the `sota-v3` baseline panel. On the same public panel
+(seeds 11-18, five seasons), it scores **274.947**, versus **285.211** for
+`pick-trader`.
 
 The oracle begins with the `pick-trader` policy, then regenerates a draft
 class's deterministic `true_potential` from its seed and uses it only for
@@ -194,9 +199,9 @@ does not use their latent potential for its free-agent roster policy, so the
 measured result is conservative rather than a claim of globally optimal play.
 
 It does not predict injury draws, player-development rolls, game and playoff
-outcomes, or opponents' future actions. The gap is the strategic headroom that
-the benchmark can discriminate beyond its strongest public-information scripted
-policy; it is a ceiling reference, not a target for valid model submissions.
+outcomes, contract decisions, or opponents' future actions. Under the current
+contract it is a behaviorally distinct hidden-draft diagnostic, not an
+optimization ceiling or a target for valid model submissions.
 
 This gap is narrower than the 8-seed minimum detectable difference reported
 in the Robustness section below: at the current panel size, scores inside the

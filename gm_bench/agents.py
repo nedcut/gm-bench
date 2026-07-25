@@ -15,6 +15,14 @@ from gm_bench.scaffold_view import scaffold_view_observation
 from gm_bench.telemetry import normalize_usage
 
 
+def _contract_quote(player: dict[str, Any], years: int) -> float:
+    """Return the public guaranteed quote for a term."""
+    quotes = player.get("contract_quotes") or player.get("extension_quotes") or {}
+    if str(years) in quotes:
+        return float(quotes[str(years)])
+    return float(player["asking_salary"])
+
+
 class Agent(ABC):
     name = "agent"
 
@@ -91,16 +99,17 @@ class WinNowAgent(Agent):
         cap_room = observation["team"]["cap_room"]
         free_agents = sorted(observation["free_agents"], key=lambda player: player["overall"], reverse=True)
         for player in free_agents[:4]:
-            if player["asking_salary"] <= cap_room + 1.5 and player["overall"] >= 57:
+            salary = _contract_quote(player, 2)
+            if salary <= cap_room + 1.5 and player["overall"] >= 57:
                 actions.append(
                     {
                         "type": "sign_free_agent",
                         "player_id": player["id"],
                         "years": 2,
-                        "salary": player["asking_salary"],
+                        "salary": salary,
                     }
                 )
-                cap_room -= player["asking_salary"]
+                cap_room -= salary
         if observation["phase"] == "draft" and observation["draft_class"]:
             prospect = max(observation["draft_class"], key=lambda player: player["overall"])
             actions.append({"type": "draft", "prospect_id": prospect["id"]})
@@ -128,16 +137,17 @@ class RebuildAgent(Agent):
             reverse=True,
         )
         for player in prospects[:3]:
-            if player["age"] <= 25 and player["asking_salary"] <= cap_room:
+            salary = _contract_quote(player, 3)
+            if player["age"] <= 25 and salary <= cap_room:
                 actions.append(
                     {
                         "type": "sign_free_agent",
                         "player_id": player["id"],
                         "years": 3,
-                        "salary": player["asking_salary"],
+                        "salary": salary,
                     }
                 )
-                cap_room -= player["asking_salary"]
+                cap_room -= salary
         lineup = position_aware_lineup(
             observation["team"]["roster"], lambda player: player["potential"] * 0.65 + player["overall"] * 0.35
         )
@@ -154,17 +164,18 @@ class ValueAgent(Agent):
         cap_room = observation["team"]["cap_room"]
         free_agents = sorted(observation["free_agents"], key=public_asset_value, reverse=True)
         for player in free_agents[:5]:
-            if player["asking_salary"] <= cap_room and public_asset_value(player) > 7.0:
-                years = 3 if player["age"] <= 27 else 1
+            years = 3 if player["age"] <= 27 else 1
+            salary = _contract_quote(player, years)
+            if salary <= cap_room and public_asset_value(player) > 7.0:
                 actions.append(
                     {
                         "type": "sign_free_agent",
                         "player_id": player["id"],
                         "years": years,
-                        "salary": player["asking_salary"],
+                        "salary": salary,
                     }
                 )
-                cap_room -= player["asking_salary"]
+                cap_room -= salary
         if observation["phase"] == "draft" and observation["draft_class"]:
             prospect = max(observation["draft_class"], key=public_asset_value)
             actions.append({"type": "draft", "prospect_id": prospect["id"]})
@@ -206,6 +217,31 @@ class ShrewdAgent(Agent):
         roster = observation["team"]["roster"]
         cap_room = observation["team"]["cap_room"]
         midseason = observation["phase"] == "midseason"
+        dead_cap_fraction = float(observation["rules"]["contracts"]["dead_cap_fraction"])
+
+        if observation["phase"] == "preseason":
+            extension_candidates = sorted(
+                (
+                    player
+                    for player in roster
+                    if player.get("extension_quotes") and player["age"] <= 27 and public_asset_value(player) > 8.0
+                ),
+                key=public_asset_value,
+                reverse=True,
+            )
+            for player in extension_candidates[:2]:
+                years = 4 if player["age"] <= 24 else 3
+                salary = _contract_quote(player, years)
+                if cap_room + player["salary"] >= salary:
+                    actions.append(
+                        {
+                            "type": "extend_contract",
+                            "player_id": player["id"],
+                            "years": years,
+                            "salary": salary,
+                        }
+                    )
+                    cap_room += player["salary"] - salary
 
         # Cap hygiene: skip releases at midseason — dumping salary after the
         # partial leg disrupts a roster that still has half a season to play.
@@ -225,24 +261,25 @@ class ShrewdAgent(Agent):
             for player in deadweight[: min(2, releasable)]:
                 actions.append({"type": "release", "player_id": player["id"]})
                 released_ids.add(player["id"])
-                cap_room += player["salary"]
+                cap_room += player["salary"] * (1.0 - dead_cap_fraction)
 
         # Midseason FA bar is slightly looser: the partial-season break is the
         # best window to spend remaining cap before the stretch run.
         fa_threshold = 5.0 if midseason else 6.0
         free_agents = sorted(observation["free_agents"], key=public_asset_value, reverse=True)
         for player in free_agents[:8]:
-            if player["asking_salary"] <= cap_room and public_asset_value(player) > fa_threshold:
-                years = 3 if player["age"] <= 27 else 1
+            years = 3 if player["age"] <= 27 else 1
+            salary = _contract_quote(player, years)
+            if salary <= cap_room and public_asset_value(player) > fa_threshold:
                 actions.append(
                     {
                         "type": "sign_free_agent",
                         "player_id": player["id"],
                         "years": years,
-                        "salary": player["asking_salary"],
+                        "salary": salary,
                     }
                 )
-                cap_room -= player["asking_salary"]
+                cap_room -= salary
 
         if observation["phase"] == "draft" and observation["draft_class"]:
             prospect = max(observation["draft_class"], key=public_asset_value)
@@ -276,7 +313,7 @@ class StrategicAgent(ShrewdAgent):
 
     name = "strategic"
     OFFER_EDGE = 1.08
-    PICK_TRADE_PRICE_CEILING = 0.82
+    PICK_SALE_VALUE_FLOOR = 1.0
     ENABLE_PICK_TRADES = False
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
@@ -407,9 +444,14 @@ class StrategicAgent(ShrewdAgent):
             if action_type == "release":
                 player = roster_by_id.get(int(action.get("player_id", -1)))
                 if player is not None:
-                    cap_room += float(player["salary"])
+                    dead_cap_fraction = float(observation["rules"]["contracts"]["dead_cap_fraction"])
+                    cap_room += float(player["salary"]) * (1.0 - dead_cap_fraction)
             elif action_type == "sign_free_agent":
                 cap_room -= float(action.get("salary", 0.0))
+            elif action_type == "extend_contract":
+                player = roster_by_id.get(int(action.get("player_id", -1)))
+                if player is not None:
+                    cap_room += float(player["salary"]) - float(action.get("salary", 0.0))
             elif action_type == "accept_trade_offer":
                 offer = offers_by_id.get(action.get("offer_id"))
                 if offer is not None:
@@ -429,27 +471,35 @@ class StrategicAgent(ShrewdAgent):
         pick_value_estimate = float(
             observation["rules"]["pick_trading"]["pick_value_estimate"].get(str(next_season), 0.0)
         )
-        if int(observation["team"]["draft_picks"].get(next_season, 1)) <= 0:
+        roster = observation["team"]["roster"]
+        if len(roster) <= self.MIN_KEEP_ROSTER:
             return None
         candidates = [
-            offer
-            for offer in observation.get("trade_market", [])
-            if offer["team_id"] not in excluded_partner_ids
-            and offer["player"]["id"] not in excluded_player_ids
-            and offer["player"]["age"] <= 27
-            and offer["player"]["salary"] <= available_cap_room
-            and float(offer["estimated_price"]) <= pick_value_estimate * self.PICK_TRADE_PRICE_CEILING
+            player
+            for player in roster
+            if player["id"] not in excluded_player_ids
+            and player["age"] >= 28
+            and player["contract_years"] <= 2
+            and public_asset_value(player) >= pick_value_estimate * self.PICK_SALE_VALUE_FLOOR
         ]
-        if not candidates:
+        partner_offers = [
+            offer for offer in observation.get("trade_market", []) if offer["team_id"] not in excluded_partner_ids
+        ]
+        if not candidates or not partner_offers:
             return None
-        target = max(candidates, key=lambda offer: public_asset_value(offer["player"]))
+        # Contract guarantees make an aging veteran expensive to cut. Move the
+        # smallest asset that still covers the public pick estimate, avoiding
+        # dead cap while preserving the roster floor. A team marketing the
+        # weakest player is the deterministic first buyer for added depth.
+        player = min(candidates, key=public_asset_value)
+        partner_id = min(partner_offers, key=lambda offer: public_asset_value(offer["player"]))["team_id"]
         return {
             "type": "trade",
-            "partner_team_id": target["team_id"],
-            "give_player_ids": [],
-            "receive_player_ids": [target["player"]["id"]],
-            "give_pick_seasons": [next_season],
-            "receive_pick_seasons": [],
+            "partner_team_id": partner_id,
+            "give_player_ids": [player["id"]],
+            "receive_player_ids": [],
+            "give_pick_seasons": [],
+            "receive_pick_seasons": [next_season],
         }
 
 

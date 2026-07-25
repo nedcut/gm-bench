@@ -28,12 +28,20 @@ The MVP implements a compact hockey-style league:
 - Forwards, defense, and goalies.
 - Public overall and potential ratings.
 - Hidden true potential.
-- Salary cap and contract years.
-- Free agents with asking prices (free agents age and rust while unsigned).
+- Salary cap and strategic contract terms. The market and cap both inflate 4%
+  per season; each guaranteed year after the first adds 2% to annual salary.
+- Free agents with published 1-5 year quotes (free agents age and rust while
+  unsigned).
+- Preseason incumbent extensions for final-year players whose current deal
+  predates the season. Quotes use next season's market, a 3% loyalty discount,
+  and the same term premium. Same-season sign-and-extend is structurally barred.
+- Releases retain 50% of salary as dead cap in every remaining guaranteed
+  season. The charge applies equally to the user and opponent teams.
 - Competitive free agency: opponent front offices sign free agents after
-  every phase — filling roster needs and poaching standout players, waiving
-  their least valuable player to make room when full — so the pool is never
-  reserved for the user between decision points.
+  every phase and deterministically extend valuable expiring incumbents —
+  filling roster needs and poaching standout players, waiving their least
+  valuable player to make room when full — so the pool is never reserved for
+  the user between decision points.
 - Opponent-initiated trades: at the trade deadline, opponents make
   one-for-one swaps among themselves whenever both sides' hidden valuations
   agree, recorded in the transaction feed.
@@ -51,7 +59,7 @@ The MVP implements a compact hockey-style league:
 
 ## Decision Interface
 
-The default episode uses protocol v2 (`gm-bench-v2`). At each season, agents
+The default episode uses protocol v3 (`gm-bench-v3`). At each season, agents
 receive observations for four phases:
 
 - `preseason`
@@ -81,6 +89,8 @@ Control:
 Core roster actions (apply immediately):
 
 - `sign_free_agent`
+- `extend_contract` (preseason only; 2-5 years, replacing the final contract
+  year rather than adding to it)
 - `release`
 - `trade` (players and/or future draft picks via `give_pick_seasons` /
   `receive_pick_seasons`, up to 3 seasons ahead)
@@ -141,9 +151,12 @@ counterparty breaks off talks until the next window, so unpenalized probing
 cannot binary-search the hidden values.
 
 Free agents accept salaries down to a hidden per-player reservation fraction
-of the asking price (uniform in `fa_reservation_range`, re-rolled each season,
-seeded from stable keys like trade valuation bias). Offering the full ask
-always succeeds; shading below it saves cap space but risks a decline.
+of the published term quote (uniform in `fa_reservation_range`, re-rolled each
+season, seeded from stable keys like trade valuation bias). Offering the full
+quote always succeeds; shading below it saves cap space but risks a decline.
+The observation publishes `contract_quotes` on free agents,
+`extension_quotes` on eligible incumbents, and the releasing team's
+season-keyed `team.dead_cap`.
 
 Future draft picks are scored assets (discounted per season of distance, at
 the same scale the trade market prices them) and every team is scored over the
@@ -190,13 +203,13 @@ The MVP includes ten scripted references and diagnostics (`gm_bench.agents.AGENT
 - `win-now`: prioritizes current overall and immediate wins.
 - `rebuild`: prioritizes youth and potential.
 - `value`: balances public overall, potential, age, and price.
-- `shrewd`: a stronger-on-average honest reference — `value` plus releasing
-  clearly-negative veteran contracts before shopping and dressing high-upside
-  youth so they develop at full speed.
+- `shrewd`: a stronger-on-average honest reference — `value` plus retaining
+  valuable young incumbents, releasing clearly-negative veteran contracts only
+  after budgeting the retained charge, and dressing high-upside youth.
 - `strategic`: `shrewd` plus report-driven scouting, selective incoming-offer
   responses, and a persistent plan memo.
-- `pick-trader`: the strongest official reference — `strategic` plus cap-aware,
-  conservative future-pick acquisitions.
+- `pick-trader`: the strongest official reference — `strategic` plus cap-aware
+  sales of aging short-term contracts for future picks, avoiding dead cap.
 - `scaffold-view`: the `pick-trader` policy restricted to the compacted payload
   model adapters receive — the same sorted-and-truncated free agents, draft
   prospects, trade-market slice, and incoming offers, plus the host-computed
@@ -224,7 +237,7 @@ The objective score rewards:
 - Championships.
 - Total roster asset value.
 - Young-player asset value.
-- Cap flexibility.
+- Cap flexibility, net of retained dead-cap charges.
 - Current team strength.
 - Roster depth.
 

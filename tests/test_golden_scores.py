@@ -5,12 +5,12 @@ from __future__ import annotations
 from gm_bench.agents import RandomAgent, ValueAgent
 from gm_bench.runner import run_episode, run_many
 
-# Re-pinned after midseason became part of the default episode and generated
-# injuries began affecting player availability.
+# Re-pinned for contract economics: term-priced signings, incumbent retention,
+# dead-cap-aware payroll, and opponent extensions change five-season rosters.
 GOLDEN_VALUE_SCORES_5_SEASONS = {
-    1: 319.261,
-    2: 471.201,
-    3: 438.532,
+    1: 276.237,
+    2: 181.826,
+    3: 248.955,
 }
 
 
