@@ -28,13 +28,21 @@ The MVP implements a compact hockey-style league:
 - Forwards, defense, and goalies.
 - Public overall and potential ratings.
 - Hidden true potential.
-- Salary cap and strategic contract terms. The market and cap both inflate 1%
-  per season; each guaranteed year after the first adds 0.75% to annual salary.
+- Salary cap and strategic contract terms. The market and cap both inflate 4%
+  per season; each guaranteed year after the first adds 2% to annual salary.
+  Both inflate together on purpose: inflating salaries against a flat cap would
+  squeeze all twelve teams identically, which is a difficulty knob rather than a
+  decision. Inflating both isolates the actual mechanic — a long deal locks
+  today's price against tomorrow's cap.
 - Free agents with published 1-5 year quotes (free agents age and rust while
   unsigned).
 - Preseason incumbent extensions for final-year players whose current deal
-  predates the season. Quotes use next season's market, a 10% loyalty discount,
+  predates the season. Quotes use next season's market, a 3% loyalty discount,
   and the same term premium. Same-season sign-and-extend is structurally barred.
+  The discount must stay below the term premium it competes against, so that a
+  five-year extension still costs more per year than a one-year free-agent deal
+  (ratio 1.0895). Otherwise extending is both cheaper and longer, every
+  incumbent is extended on sight, and contract length stops being a decision.
 - Releases retain 25% of salary as dead cap for at most the next two guaranteed
   seasons. Each roster player publishes the exact by-season and total charge
   before release; the charge applies equally to the user and opponent teams.

@@ -152,14 +152,16 @@ policies, measured paired on matched seeds:
 
 | seeds | mean difference | paired *t* |
 | ---: | ---: | ---: |
-| 8 (leaderboard width) | 14.89 | 0.519 |
-| 16 | 43.63 | 2.482 |
-| 24 (canary width) | 44.15 | 3.274 |
-| 48 | 41.32 | 4.784 |
+| 8 (leaderboard width) | -0.11 | -0.004 |
+| 16 | 36.14 | 2.015 |
+| 24 (canary width) | 36.37 | 2.559 |
+| 48 | 35.51 | 3.999 |
 
-`pick-trader` wins 39 of 48 seeds; 80% power needs 17. An effect this real is
-invisible at n=8, which is why `validate-contract` now gates orderings on
-paired *t* >= 2.0 over its own panel rather than on a positive mean margin.
+`pick-trader` wins 39 of 48 seeds. Using the 48-seed paired variance, the
+approximate two-sided 80%-power requirement is 24 seeds. The eight-seed slice
+cannot resolve the contrast, which is why `validate-contract` now gates
+orderings on paired *t* >= 2.0 over its own panel rather than on a positive mean
+margin.
 
 Contract fingerprint `0a5f0434dca31ac5`, protocol `gm-bench-v3`:
 
@@ -176,11 +178,11 @@ Contract fingerprint `0a5f0434dca31ac5`, protocol `gm-bench-v3`:
 | `exploit` | 128.03 | 71 | Unmodified red-team canary |
 | `random` | 93.10 | 0 | Floor / noise baseline |
 
-**Only `pick-trader > value` is asserted as an invariant** (paired *t* = 2.559).
-The four policies at the top sit within 10 points of each other against per-seed
-standard deviations near 50, so their relative order is not established and is
-not pinned. Reporting them as a ranked ladder would overstate what the panel
-shows.
+Two reference invariants are asserted: `pick-trader > value` (paired *t* =
+2.559) and `shrewd > value` (paired *t* = 3.184). The four policies at the top
+sit within 10 points of each other against per-seed standard deviations near 50,
+so their relative order is not established and is not pinned. Reporting them as
+a ranked ladder would overstate what the panel shows.
 
 Note that contract economics cost `pick-trader` its former lead: with releases
 priced and incumbents retainable, cap hygiene and retention now compete with
@@ -196,8 +198,8 @@ agent's own team:
 
 | Mechanic | Count |
 | --- | ---: |
-| Extensions accepted | 215 |
-| Contract terms signed | 4y: 160, 3y: 55, FA 1y: 590, FA 3y: 216 |
+| Extensions accepted | 216 |
+| Contract terms signed | 4y: 163, 3y: 53, FA 1y: 769, FA 3y: 260 |
 | Releases accepted | 7 |
 
 Releases are rare by design: dead cap is a deterrent, and a policy that pays it
@@ -210,25 +212,25 @@ The strategic policy's panel ablations are also deterministic:
 
 | Policy variant | Mean score | Change vs `strategic` |
 | --- | ---: | ---: |
-| Full `strategic` | 267.708 | 0.000 |
-| No scouting | 269.349 | +1.641 |
-| No incoming-offer policy | 272.782 | +5.074 |
-| No memo writes | 267.708 | 0.000 |
-| `shrewd` core only | 261.338 | -6.370 |
-| Pick trading enabled (`pick-trader`) | 284.847 | +17.139 |
+| Full `strategic` | 285.025 | 0.000 |
+| No scouting | 288.917 | +3.892 |
+| No incoming-offer policy | 270.023 | -15.002 |
+| No memo writes | 285.025 | 0.000 |
+| `shrewd` core only | 288.643 | +3.618 |
+| Pick trading enabled (`pick-trader`) | 279.066 | -5.959 |
 
 This is intentionally not presented as causal estimation: mechanics interact
-over five seasons. On this panel, the deterministic scouting and selective
-offer-handling policies are both counterproductive while contract-aware pick
-sales improve the mean. That is a calibration result, not a claim that
-information or negotiation is harmful in general. Memo persistence has zero
-direct effect for this deterministic reference, which can reconstruct its
-policy from the observation.
-`validate-contract` treats only `pick-trader > value` as a reference-policy
-ordering invariant. It keeps the positive-mean margin check and additionally
-requires the per-seed paired difference to clear a t ratio of 2.0. The three
-adjacent reference orderings are calibration rows, not invariants: their paired
-t ratios are 1.129, 0.335, and 1.302 on this panel. The validator separately
+over five seasons. On this panel, removing scouting improves the mean, removing
+the incoming-offer policy hurts it, and enabling the pick-sale policy lowers it.
+Those are calibration results, not general causal claims about information,
+negotiation, or trading. Memo persistence has zero direct effect for this
+deterministic reference, which can reconstruct its policy from the observation.
+`validate-contract` asserts `pick-trader > value` and `shrewd > value`. Both keep
+the mean-margin check and additionally require the per-seed paired difference to
+clear a t ratio of 2.0. The adjacent `pick-trader`/`strategic` and
+`strategic`/`shrewd` comparisons remain calibration rows: their paired t ratios
+are -0.494 and -0.326, respectively, both reversed in sign from the historical
+ordering and neither resolvable. The validator separately
 requires accepted memo, scout, offer-response, offer-acceptance, pick-trade,
 and extension actions across minimum fractions of the official panel, so these
 mechanics cannot silently become dead protocol surface.
@@ -236,9 +238,14 @@ mechanics cannot silently become dead protocol surface.
 ### Hidden-information diagnostic
 
 `oracle` is a diagnostic-only hidden-information reference, not an official
-baseline and not part of the `sota-v3` baseline panel. On the same public panel
-(seeds 11-18, five seasons), it scores **274.947**, versus **285.211** for
-`pick-trader`.
+baseline and not part of the `sota-v3` baseline panel. On the public leaderboard
+panel (seeds 11-18, five seasons), it scores **274.789**, versus **267.875** for
+`pick-trader` — so perfect knowledge of draft-class `true_potential` is still
+worth something under contract economics.
+
+Read that gap with the panel-width caveat above in mind: eight seeds cannot
+resolve a difference of this size, and the number is quoted as a diagnostic
+reading rather than an established ordering.
 
 The oracle begins with the `pick-trader` policy, then regenerates a draft
 class's deterministic `true_potential` from its seed and uses it only for

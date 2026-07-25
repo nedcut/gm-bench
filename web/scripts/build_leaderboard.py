@@ -269,7 +269,7 @@ def current_baselines() -> list[dict[str, Any]]:
     """Recompute baselines on the live engine (diagnostic / current-contract use).
 
     Not used for the published sota-v2 site dataset — that path must read the
-    frozen panel from committed artifacts via ``baselines_from_sota_v2_artifactsifacts``.
+    frozen panel from committed artifacts via ``baselines_from_sota_v2_artifacts``.
     """
     rows = baselines_from_cache()
     cached_agents = {row["agent"] for row in rows}
@@ -292,7 +292,7 @@ def current_baselines() -> list[dict[str, Any]]:
     return sorted(rows, key=lambda row: row["mean_score"], reverse=True)
 
 
-def baselines_from_sota_v2_artifactsifacts(payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def baselines_from_sota_v2_artifacts(payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Extract the frozen sota-v2 baseline panel from committed model artifacts.
 
     Every official sota-v2 leaderboard artifact already carries the matched-seed
@@ -606,7 +606,7 @@ def main() -> None:
             f"skipping {row.get('model')}: benchmark_version={row.get('benchmark_version')!r} is not sota-v2",
             file=sys.stderr,
         )
-    baselines = baselines_from_sota_v2_artifactsifacts(payloads)
+    baselines = baselines_from_sota_v2_artifacts(payloads)
     baseline_by_name = {row["agent"]: row["mean_score"] for row in baselines}
     headroom = {
         "oracle": SOTA_V2_ORACLE_MEAN,

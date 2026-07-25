@@ -125,12 +125,11 @@ CANARY_AGENTS: tuple[type[Agent], ...] = (
 # scripted policy costing nothing but CPU, while the leaderboard panel is sized
 # by what a model row costs in API spend.
 #
-# Eight seeds is not enough to assert an ordering. Measured paired standard
-# deviations on this engine put the seeds needed for 80% power at 17 for
-# `pick-trader > value` and far higher for the adjacent contrasts, so at n=8 the
-# headline ordering registered t=0.519 while a 48-seed run of the same policies
-# gives t=4.784 with `pick-trader` ahead on 39 of 48 seeds. The ordering was
-# always real; the panel could not see it.
+# Eight seeds is not enough to assert an ordering. On the final contract the
+# matched contrast is effectively zero at n=8 (paired t=-0.004), reaches t=2.559
+# at n=24, and reaches t=3.999 at n=48 with `pick-trader` ahead on 39 of 48
+# seeds. The 48-seed paired variance puts the approximate two-sided 80%-power
+# requirement at 24 seeds; adjacent reference contrasts need substantially more.
 #
 # This width is chosen from that power calculation with headroom, not by taste.
 # Narrowing it back to the leaderboard panel would restore the failure mode
@@ -157,10 +156,19 @@ def run_validity_canaries(
 
     mechanic_coverage, mechanic_checks = _mechanic_coverage(pick_trader, len(resolved_seeds))
     # Adjacent reference means remain useful calibration rows, but they are not
-    # invariants. Even on the widened panel their separations are far smaller
-    # than the headline contrast, and asserting an ordering that noise satisfies
-    # is worse than asserting none: it launders a coin flip as a guarantee.
-    # Keep only the pre-registered headline contrast, which clears the bar.
+    # invariants. Two pre-registered contrasts clear the significance bar and
+    # are asserted; the rest are calibration rows only.
+    #
+    # `shrewd > value` is asserted again here. It was demoted when it measured
+    # paired t=0.05 on the 8-seed leaderboard panel, which is what widening the
+    # canary panel was for: at 24 seeds it is t=3.184. Restoring a claim the
+    # evidence now supports is the point of the wider panel, and it was
+    # pre-registered rather than picked because it came out significant.
+    #
+    # `pick-trader`, `strategic` and `shrewd` remain mutually unresolved
+    # (t=-0.494 and t=-0.326 between adjacent pairs, both reversed in sign from
+    # the historical ordering). Asserting any order among them would launder a
+    # coin flip as a guarantee, which is the defect this gate exists to remove.
     checks = [
         _margin_check(pick_trader, value, "pick-trader", "value", "honest_bar"),
         _paired_significance_check(
@@ -170,6 +178,15 @@ def run_validity_canaries(
             "value",
             "final_score",
             "honest_bar",
+        ),
+        _margin_check(shrewd, value, "shrewd", "value", "cap_hygiene_bar"),
+        _paired_significance_check(
+            shrewd,
+            value,
+            "shrewd",
+            "value",
+            "final_score",
+            "cap_hygiene_bar",
         ),
         *mechanic_checks,
     ]
@@ -326,6 +343,9 @@ def _paired_significance_check(
     else:
         standard_error = 0.0
     paired_t = paired_mean / standard_error if standard_error > 0 else None
+    # With identical paired differences the estimated standard error is zero:
+    # the mathematical t limit is signed infinity. Keep the JSON field finite
+    # (None) while preserving that limiting decision in the boolean gate.
     clears_bar = (paired_t is None and paired_mean > 0) or (paired_t is not None and paired_t >= CANARY_MIN_PAIRED_T)
     return {
         "name": f"{check_name}_paired_significance",

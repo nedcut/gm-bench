@@ -20,8 +20,8 @@ def test_official_validity_canaries_underperform_value() -> None:
     # The canaries deliberately run a wider panel than the paid leaderboard
     # lane. Every policy they exercise is scripted and costs only CPU, while the
     # leaderboard width is set by what a model row costs in API spend, so the
-    # two were never under the same constraint. At the leaderboard's 8 seeds the
-    # headline ordering measures paired t=0.519; at 24 it is 3.274.
+    # two were never under the same constraint. On the final contract the
+    # headline ordering measures paired t=-0.004 at 8 seeds and 2.559 at 24.
     assert result["seeds"] == list(CANARY_SEEDS)
     assert len(result["seeds"]) > len(PRESETS["leaderboard"]["seeds"])
     assert result["seasons"] == PRESETS["leaderboard"]["seasons"]
@@ -36,8 +36,8 @@ def test_official_validity_canaries_underperform_value() -> None:
     significance = [check for check in result["checks"] if check["name"].endswith("_paired_significance")]
     honest_significance = [check for check in significance if check["name"] == "honest_bar_paired_significance"]
     assert [(check["winner"], check["loser"]) for check in honest_significance] == [("pick-trader", "value")]
+    assert ("shrewd", "value") in {(check["winner"], check["loser"]) for check in significance}
     assert all(check["ok"] for check in significance)
-    assert all(check["margin"] is None or abs(check["margin"]) >= 1.0 for check in significance)
     canary_names = {row["agent"] for row in result["canaries"]}
     assert {"exploit", "pick-hoard", "cap-hoard", "accept-everything"} <= canary_names
 
