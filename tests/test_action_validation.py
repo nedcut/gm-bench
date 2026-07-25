@@ -78,3 +78,57 @@ def test_non_finite_query_threshold_is_rejected(value: float) -> None:
     league.apply_actions([{"type": "list_free_agents", "min_overall": value}], "preseason")
     assert not league.transactions[-1].accepted
     assert "finite number" in league.transactions[-1].message
+
+
+def _eligible_extension_player(league: League):
+    return next(
+        league.players[player_id]
+        for player_id in league.user_team.roster
+        if league._extension_eligible(league.players[player_id])
+    )
+
+
+def test_extend_contract_rejects_one_year_terms() -> None:
+    league = League.new(seed=24)
+    league.cap = 1000.0
+    player = _eligible_extension_player(league)
+    league.apply_actions(
+        [{"type": "extend_contract", "player_id": player.id, "years": 1, "salary": player.salary}],
+        "preseason",
+    )
+    assert not league.transactions[-1].accepted
+    assert "2-5" in league.transactions[-1].message
+
+
+def test_extend_contract_rejects_non_incumbent_roster_player() -> None:
+    league = League.new(seed=24)
+    league.cap = 1000.0
+    player = next(
+        league.players[player_id]
+        for player_id in league.user_team.roster
+        if not league._extension_eligible(league.players[player_id])
+    )
+    league.apply_actions(
+        [
+            {
+                "type": "extend_contract",
+                "player_id": player.id,
+                "years": 3,
+                "salary": league._contract_quote(player, 3, incumbent=True),
+            }
+        ],
+        "preseason",
+    )
+    assert not league.transactions[-1].accepted
+    assert "signed before this season" in league.transactions[-1].message
+
+
+def test_extend_contract_rejects_non_positive_salary() -> None:
+    league = League.new(seed=24)
+    player = _eligible_extension_player(league)
+    league.apply_actions(
+        [{"type": "extend_contract", "player_id": player.id, "years": 3, "salary": 0.0}],
+        "preseason",
+    )
+    assert not league.transactions[-1].accepted
+    assert "positive amount" in league.transactions[-1].message

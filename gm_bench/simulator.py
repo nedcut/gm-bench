@@ -1070,7 +1070,9 @@ class League:
         return round(market * term * loyalty, 2)
 
     def _contract_quotes(self, player: Player, *, incumbent: bool = False) -> dict[str, float]:
-        return {str(years): self._contract_quote(player, years, incumbent=incumbent) for years in range(1, 6)}
+        # Extensions require 2-5 years; do not advertise year=1 quotes incumbents cannot sign.
+        start_year = 2 if incumbent else 1
+        return {str(years): self._contract_quote(player, years, incumbent=incumbent) for years in range(start_year, 6)}
 
     def _extension_eligible(self, player: Player) -> bool:
         """Return whether a final-year incumbent deal predates this season."""

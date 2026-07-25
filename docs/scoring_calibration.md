@@ -112,7 +112,7 @@ results, run summaries, and comparison blocks, but that is a visibility fix,
 not a scale change: two rows with the same `score-v1` fingerprint remain
 comparable regardless of how many queries either one failed.
 
-The current `sota-v3` contract (fingerprint `0a5f0434dca31ac5`) still uses the
+The current `sota-v3` contract (fingerprint `e3095d69243f892c`) still uses the
 same `score-v1` weights and clamps. Contract economics change the simulated
 rosters, and `cap_room` now correctly uses payroll including retained dead cap;
 neither change modifies the published score scale itself.
@@ -163,7 +163,7 @@ cannot resolve the contrast, which is why `validate-contract` now gates
 orderings on paired *t* >= 2.0 over its own panel rather than on a positive mean
 margin.
 
-Contract fingerprint `0a5f0434dca31ac5`, protocol `gm-bench-v3`:
+Contract fingerprint `e3095d69243f892c`, protocol `gm-bench-v3`:
 
 | Reference | Mean score | Illegal actions | Role |
 | --- | ---: | ---: | --- |

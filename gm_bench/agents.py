@@ -23,7 +23,7 @@ def _release_surplus(player: dict[str, Any]) -> float:
     nothing, so the comparison is:
 
         keep    =  public_asset_value(player)          (on-ice value less salary)
-        release = -0.7 * annual dead-cap charge        (a cost with no player)
+        release = -0.7 * release_dead_cap.total            (a cost with no player)
 
     and the surplus from releasing is `release - keep`. Positive means the
     contract is underwater by more than it costs to escape. The 0.7 weight is
@@ -33,9 +33,21 @@ def _release_surplus(player: dict[str, Any]) -> float:
     to "is the player worth less than nothing", which is the honest question.
     """
     dead_cap = player.get("release_dead_cap") or {}
+    total_charge = float(dead_cap.get("total", 0.0))
+    return -public_asset_value(player) - 0.7 * total_charge
+
+
+def _release_cap_room_delta(player: dict[str, Any], *, season: int) -> float:
+    """Net cap-room change this season from releasing a player.
+
+    Uses the published per-season charge for the current season rather than
+    approximating with a salary fraction, so multi-year guarantees are priced
+    against what the observation actually shows.
+    """
+    dead_cap = player.get("release_dead_cap") or {}
     by_season = dead_cap.get("by_season") or {}
-    annual_charge = (float(dead_cap.get("total", 0.0)) / len(by_season)) if by_season else 0.0
-    return -public_asset_value(player) - 0.7 * annual_charge
+    current_charge = float(by_season.get(str(season), 0.0))
+    return float(player["salary"]) - current_charge
 
 
 def _contract_quote(player: dict[str, Any], years: int) -> float:
@@ -254,7 +266,7 @@ class ShrewdAgent(Agent):
         roster = observation["team"]["roster"]
         cap_room = observation["team"]["cap_room"]
         midseason = observation["phase"] == "midseason"
-        dead_cap_fraction = float(observation["rules"]["contracts"]["dead_cap_fraction"])
+        season = int(observation["season"])
 
         if observation["phase"] == "preseason":
             extension_candidates = sorted(
@@ -293,7 +305,7 @@ class ShrewdAgent(Agent):
             for player in deadweight[: min(2, releasable)]:
                 actions.append({"type": "release", "player_id": player["id"]})
                 released_ids.add(player["id"])
-                cap_room += player["salary"] * (1.0 - dead_cap_fraction)
+                cap_room += _release_cap_room_delta(player, season=season)
 
         # Midseason FA bar is slightly looser: the partial-season break is the
         # best window to spend remaining cap before the stretch run.
@@ -476,8 +488,7 @@ class StrategicAgent(ShrewdAgent):
             if action_type == "release":
                 player = roster_by_id.get(int(action.get("player_id", -1)))
                 if player is not None:
-                    dead_cap_fraction = float(observation["rules"]["contracts"]["dead_cap_fraction"])
-                    cap_room += float(player["salary"]) * (1.0 - dead_cap_fraction)
+                    cap_room += _release_cap_room_delta(player, season=int(observation["season"]))
             elif action_type == "sign_free_agent":
                 cap_room -= float(action.get("salary", 0.0))
             elif action_type == "extend_contract":
