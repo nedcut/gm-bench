@@ -4,7 +4,7 @@ import { scaleLinear } from "d3-scale";
 import type { BenchmarkView, ResultModel } from "../benchmarkData";
 import { issueLabels, shortModelName } from "../benchmarkData";
 import type { Leaderboard as LeaderboardData } from "../types";
-import { fmt } from "../lib";
+import { fmt, formatTokensPerDecision } from "../lib";
 
 type ChartView = "lift" | "cost";
 type SortKey = "score" | "lift" | "cost";
@@ -113,7 +113,7 @@ function ForestPlot({
               style={{ "--row-index": index } as CSSProperties}
             >
               <title>
-                {model.model}: {fmt(model.paired_lift, 1)} score points, 95% CI [
+                {model.model}: {fmt(model.paired_lift, 1)} score points, 95% lift CI [
                 {fmt(model.ci95[0], 1)}, {fmt(model.ci95[1], 1)}]
               </title>
               <rect
@@ -302,7 +302,7 @@ function CostScatter({
           textAnchor="end"
           className="chart-oracle-label"
         >
-          oracle ceiling {fmt(oracle, 1)}
+          partial oracle reference {fmt(oracle, 1)}
         </text>
         {models.map((model, index) => {
           const label = labelById.get(model.id);
@@ -410,12 +410,13 @@ function ResultsTable({
                 Lift
               </button>
             </th>
-            <th>95% CI</th>
+            <th title="95% interval on the paired lift, not on the score">95% lift CI</th>
             <th>
               <button type="button" onClick={() => setSort("cost")} aria-pressed={sort === "cost"}>
                 Cost / episode
               </button>
             </th>
+            <th>Tokens / decision</th>
             <th>Protocol observations</th>
           </tr>
         </thead>
@@ -433,6 +434,7 @@ function ResultsTable({
                 [{fmt(model.ci95[0], 1)}, {fmt(model.ci95[1], 1)}]
               </td>
               <td className="numeric">${fmt(model.cost_per_episode_usd, 2)}</td>
+              <td className="numeric tokens-cell">{formatTokensPerDecision(model)}</td>
               <td>
                 <ObservationDisclosure model={model} />
               </td>
@@ -618,7 +620,7 @@ export default function ResultsExplorer({
               </h2>
               <p>
                 {view === "lift"
-                  ? "Whiskers show 95% intervals. All eight rows overlap in one descriptive tier."
+                  ? "Whiskers show 95% intervals on the paired lift. All eight rows overlap in one descriptive tier."
                   : "Price varies widely, but no observed mean reaches the pick-trader bar."}
               </p>
             </div>
@@ -662,10 +664,11 @@ export default function ResultsExplorer({
               <span>score {fmt(selectedModel.mean_score, 1)}</span>
               <span>paired lift {fmt(selectedModel.paired_lift, 1)}</span>
               <span>
-                95% CI [{fmt(selectedModel.ci95[0], 1)},{" "}
+                95% lift CI [{fmt(selectedModel.ci95[0], 1)},{" "}
                 {fmt(selectedModel.ci95[1], 1)}]
               </span>
               <span>${fmt(selectedModel.cost_per_episode_usd, 2)} / episode</span>
+              <span>{formatTokensPerDecision(selectedModel)} tokens / decision</span>
               <a href="#analysis">Inspect mechanics ↓</a>
             </div>
           )}

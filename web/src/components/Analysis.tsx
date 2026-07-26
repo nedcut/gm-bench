@@ -4,11 +4,12 @@ import { scaleLinear } from "d3-scale";
 import {
   MECHANICS,
   rejectionRate,
+  scoreCi95,
   shortModelName,
   type BenchmarkView,
   type ResultModel,
 } from "../benchmarkData";
-import { fmt } from "../lib";
+import { fmt, formatTokensPerDecision } from "../lib";
 
 type HeatMetric = "rate" | "count";
 
@@ -22,16 +23,32 @@ function RankingPlot({
   onSelect: (id: string) => void;
 }) {
   const width = 690;
-  const height = 398;
   const left = 210;
   const right = 30;
   const top = 44;
   const bottom = 48;
   const rowHeight = 37;
+  const rows = useMemo(
+    () =>
+      [...benchmark.models].sort(
+        (a, b) => a.tier - b.tier || b.mean_score - a.mean_score,
+      ),
+    [benchmark.models],
+  );
+  const ciExtents = rows.flatMap((model) => scoreCi95(model) ?? []);
   const x = scaleLinear()
-    .domain([0, Math.max(450, benchmark.oracle * 1.05)])
+    .domain([
+      0,
+      Math.max(
+        450,
+        benchmark.oracle * 1.05,
+        ...rows.map((model) => model.mean_score),
+        ...ciExtents,
+      ),
+    ])
     .range([left, width - right]);
   const ticks = x.ticks(5);
+  const height = top + rows.length * rowHeight + bottom;
 
   return (
     <div className="chart-scroll">
@@ -41,9 +58,10 @@ function RankingPlot({
         role="img"
         aria-labelledby="ranking-title ranking-desc"
       >
-        <title id="ranking-title">Mean GM-Bench scores</title>
+        <title id="ranking-title">Mean GM-Bench scores with across-seed intervals</title>
         <desc id="ranking-desc">
-          Select a model to inspect its mechanic-level accepted and rejected actions.
+          Each model shows a mean score and 95 percent across-seed interval. Rows are grouped by
+          Holm tier, not ranked ordinally.
         </desc>
         {ticks.map((tick) => (
           <g key={tick}>
@@ -87,12 +105,14 @@ function RankingPlot({
           textAnchor="end"
           className="chart-oracle-label"
         >
-          oracle ceiling {fmt(benchmark.oracle, 1)}
+          partial oracle reference {fmt(benchmark.oracle, 1)}
         </text>
 
-        {benchmark.models.map((model, index) => {
+        {rows.map((model, index) => {
           const y = top + index * rowHeight + rowHeight / 2;
           const active = model.id === selected;
+          const ci = scoreCi95(model);
+          const tierBreak = index === 0 || model.tier !== rows[index - 1].tier;
           return (
             <g
               key={model.id}
@@ -111,6 +131,32 @@ function RankingPlot({
               }}
               style={{ "--row-index": index } as CSSProperties}
             >
+              <title>
+                {model.model}: mean {fmt(model.mean_score, 1)}
+                {ci
+                  ? `, 95% across-seed CI [${fmt(ci[0], 1)}, ${fmt(ci[1], 1)}]`
+                  : ""}
+                , tier {model.tier}
+              </title>
+              {tierBreak && index === 0 && (
+                <text x="4" y={top + 14} className="chart-tier-label">
+                  tier {model.tier}
+                </text>
+              )}
+              {tierBreak && index > 0 && (
+                <>
+                  <line
+                    x1={left}
+                    x2={width - right}
+                    y1={y - rowHeight / 2}
+                    y2={y - rowHeight / 2}
+                    className="chart-grid"
+                  />
+                  <text x="4" y={y - rowHeight / 2 - 4} className="chart-tier-label">
+                    tier {model.tier}
+                  </text>
+                </>
+              )}
               <rect x="0" y={y - rowHeight / 2} width={width} height={rowHeight} />
               <text x="4" y={y + 5} className="ranking-model">
                 {shortModelName(model.model)}
@@ -118,7 +164,31 @@ function RankingPlot({
               <text x={left - 12} y={y + 5} textAnchor="end" className="chart-value">
                 {fmt(model.mean_score, 1)}
               </text>
-              <line x1={left} x2={x(model.mean_score)} y1={y} y2={y} className="rank-line" />
+              {ci && (
+                <>
+                  <line
+                    x1={x(ci[0])}
+                    x2={x(ci[1])}
+                    y1={y}
+                    y2={y}
+                    className="interval-line chart-mark-line"
+                  />
+                  <line
+                    x1={x(ci[0])}
+                    x2={x(ci[0])}
+                    y1={y - 6}
+                    y2={y + 6}
+                    className="interval-cap chart-mark-cap"
+                  />
+                  <line
+                    x1={x(ci[1])}
+                    x2={x(ci[1])}
+                    y1={y - 6}
+                    y2={y + 6}
+                    className="interval-cap chart-mark-cap"
+                  />
+                </>
+              )}
               <circle cx={x(model.mean_score)} cy={y} r={active ? 6 : 4.5} className="candidate-dot" />
             </g>
           );
@@ -320,9 +390,13 @@ export default function Analysis({
         <div className="analysis-evidence">
           <div className="analysis-ranking-panel">
             <div className="analysis-panel-title">
-              <h3>Observed score and remaining headroom</h3>
-              <span>Higher is better</span>
+              <h3>Observed scores with reference lines</h3>
+              <span>Higher is better · across-seed 95% intervals</span>
             </div>
+            <p className="ranking-callout">
+              Order is descriptive within each Holm tier, not an ordinal ranking claim; the
+              predeclared family test does not reject at 0.05.
+            </p>
             <RankingPlot
               benchmark={benchmark}
               selected={selected.id}
@@ -348,6 +422,10 @@ export default function Analysis({
               <div>
                 <dt>Cost / episode</dt>
                 <dd>${fmt(selected.cost_per_episode_usd, 2)}</dd>
+              </div>
+              <div>
+                <dt>Tokens / decision</dt>
+                <dd>{formatTokensPerDecision(selected)}</dd>
               </div>
               <div>
                 <dt>Failed queries</dt>

@@ -1,7 +1,7 @@
 // Semantic chart colors, validated for CVD separation and surface contrast
 // (see docs in the dataviz pass): red is reserved site-wide for "the bar to
 // beat" (pick-trader / baseline-panel mean), blue for measured candidates,
-// steel for recessive reference marks, ink for the oracle ceiling. Identity
+// steel for recessive reference marks, ink for the partial oracle reference. Identity
 // never rides on color alone — every mark sits next to its label.
 export const COLOR = {
   red: "#C8102E",
@@ -31,4 +31,23 @@ export function fmt(value: number, digits = 1): string {
 
 export function pct(value: number, digits = 0): string {
   return `${fmt(value * 100, digits)}%`;
+}
+
+function finite(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+export function formatTokensPerDecision(model: {
+  tokens_per_decision: number | null;
+  input_tokens_per_decision?: number | null;
+  output_tokens_per_decision?: number | null;
+}): string {
+  if (!finite(model.tokens_per_decision)) return "—";
+  const total = fmt(model.tokens_per_decision, 1);
+  const input = model.input_tokens_per_decision;
+  const output = model.output_tokens_per_decision;
+  if (finite(input) && finite(output)) {
+    return `${total} (${fmt(input, 1)} in / ${fmt(output, 1)} out)`;
+  }
+  return total;
 }
