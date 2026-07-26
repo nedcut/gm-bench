@@ -320,6 +320,29 @@ code {
 
 .ranking-callout strong { color: var(--ink); }
 
+/* Sits in the section header, where the red "bar to beat" accent would compete
+   with the chart's own reference line, so it takes the recessive steel edge.
+   Scoped under `.analysis-heading` so it outranks the sibling
+   `.analysis-heading > p` rule, which would otherwise win on the inherited
+   typography regardless of source order; and spanned across both grid columns, since the header is a
+   two-column grid and an unspanned third child lands at half width. */
+.analysis-heading > .gap-decomposition-note {
+  grid-column: 1 / -1;
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--steel);
+  background: var(--card);
+  color: var(--steel);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.gap-decomposition-note code {
+  font-size: 12px;
+  color: var(--ink);
+}
+
 /* ---------- gap-chart hero ---------- */
 
 .hero-grid {

@@ -1,8 +1,12 @@
 # Gap decomposition and panel power — 2026-07-26
 
 Diagnostic run log. Every number here comes from committed artifacts or from
-scripted runs on the current contract (`4f6ddddd6a6dd81c`). **No contract source
-was modified**, no paid model run was made, and no published number changes.
+scripted runs on the current contract (`4f6ddddd6a6dd81c`) — **except §2a**,
+which is deliberately measured at the frozen v2 tag (`558e8f35ea1d66b9`) and is
+labelled as such throughout. **No contract source was modified**, no paid model
+run was made, and no new leaderboard or run-result number is published. (One
+previously published figure is *corrected* here: the residual-gap range was
+stated as 162-280 and is 174-280.)
 
 Context: the phase-one study reports that all eight eligible model systems
 trailed the `pick-trader` reference. The obvious objections to that claim are
@@ -27,7 +31,7 @@ costs. Over 24 episodes per model:
 | `minimax/minimax-m3` | 129.9 | 281.7 | 1.46 | 0.5% |
 
 **0.5%–9.0%.** A model that emitted perfectly legal JSON on every decision would
-still trail `pick-trader` by 162–280 points. "The models just can't format
+still trail `pick-trader` by 174–280 points. "The models just can't format
 actions" is not available as an explanation.
 
 Adapter reliability is not the explanation either: `failed_decisions` totals
@@ -57,7 +61,40 @@ advantage to remove.
 This is now enforced rather than documented:
 `tests/test_reference_statelessness.py` fails if any registered agent starts
 carrying state, including a guard test that deliberately makes an agent stateful
-to prove the check can fail.
+to prove the check can fail. That test, and the table above, run against current
+HEAD — i.e. the `sota-v3` contract.
+
+### 2a. The same check, re-run on the frozen v2 contract
+
+The table above is `sota-v3` data and cannot be cited for a claim about the v2
+study. The published framing depends on the v2 study specifically, so the check
+was repeated at tag `sota-v2-phase-one-2026-07-19`, contract fingerprint
+`558e8f35ea1d66b9`, where nine agents were registered (`scaffold-view` did not
+yet exist). Seed 11, five seasons:
+
+| agent | persistent | fresh-spawn every decision | delta |
+|---|---:|---:|---:|
+| `conservative` | 121.422 | 121.422 | 0.000000000 |
+| `exploit` | 118.791 | 118.791 | 0.000000000 |
+| `pick-trader` | 455.725 | 455.725 | 0.000000000 |
+| `random` | 88.622 | 88.622 | 0.000000000 |
+| `rebuild` | 121.469 | 121.469 | 0.000000000 |
+| `shrewd` | 347.841 | 347.841 | 0.000000000 |
+| `strategic` | 421.622 | 421.622 | 0.000000000 |
+| `value` | 348.297 | 348.297 | 0.000000000 |
+| `win-now` | 229.158 | 229.158 | 0.000000000 |
+
+All nine deltas are exactly zero. **This, not the §2 table, is the evidence
+behind the v2-contract statelessness claim in the README and the blog.** The
+absolute scores differ between the two tables because the contracts differ —
+`pick-trader` on seed 11 is 455.725 under v2 and 261.148 under v3 — which is
+precisely why the v3 run cannot stand in for the v2 one.
+
+**One-sidedness, stated plainly.** This measures the *references*. It shows they
+gain nothing from persistence, which rules out "the reference remembered what the
+model was not allowed to remember." It does not show that a model would gain
+nothing from persistent state it was denied; that half is unmeasured, and the
+published framing must not claim otherwise.
 
 **Consequence:** of the three scaffold factors named as uncontrolled in the
 `ScaffoldViewAgent` docstring — view truncation, fresh-spawn/memo-only
@@ -82,10 +119,16 @@ track higher scores. It does not:
 | `minimax/minimax-m3` | 174 | 129.9 |
 | `google/gemini-3.5-flash` | 3 | 215.6 |
 
-The model that wrote 3 memos in 480 decisions placed third; the model that wrote
-568 placed second; the heaviest-writing frontier model placed seventh. Taken with
-§2 — references score 411.6 while using no cross-decision memory at all — the
-evidence does not support memory as the bottleneck on this benchmark.
+One model wrote 3 memos in 480 decisions and scored 215.6; another wrote 568 —
+190× the volume — and scored 217.5. Two points apart, and both ~195 below
+`pick-trader`. Stated in scores rather than placements deliberately: this panel
+does not support an ordinal ranking, so an argument from who "placed third"
+would rest on something the study disclaims. Taken with the published v2 panel,
+where `pick-trader` means **411.619** across 8 seeds x 5 seasons while using no
+cross-decision memory at all — statelessness being what §2a establishes, not
+that figure — the evidence does not support memory as the bottleneck here.
+(§2a's 455.725 is a single seed-11 episode on the v2 contract and is not
+comparable to a panel mean; the two answer different questions.)
 
 ## 4. Panel power: within-seed noise dominates, and the split barely matters
 
@@ -155,8 +198,11 @@ repeats on a small subset of seeds rather than dropping them entirely.
   scaffold-view alignment established on 2026-07-25, so any panel change must be
   sequenced with a re-run of that free diagnostic.
 - It does support stating the capability claim more strongly than the current
-  framing: the gap is not protocol discipline (§1), not continuity (§2), not
-  memory (§3), and not view truncation (2026-07-25 log).
+  framing: the gap is not protocol discipline (§1), not the references' memory
+  advantage (§2a — the v2-contract run, not the `sota-v3` §2 table), not memo
+  usage (§3), and not view truncation (2026-07-25 log). The continuity item is
+  one-sided: whether a model would gain from persistent state it was denied is
+  not measured here, so "continuity does not explain the gap" is not supported.
 
 ## Reproduction
 
