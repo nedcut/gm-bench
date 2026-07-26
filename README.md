@@ -19,6 +19,29 @@ claim. Muse Spark 1.1 had the highest observed model mean at 231.851. Grok 4.5
 and Mistral Medium 3.5 completed but were excluded from the headline table for
 incomplete usage/cost coverage.
 
+**The gap is not an artefact of the harness.** The obvious objections—that
+models were penalised for JSON discipline, or handicapped by a scaffold the
+scripted references did not face—have been measured rather than argued:
+
+- **Protocol discipline costs 0.5–9.0% of the gap.** `strategy_score` removes
+  invalid-action penalties, so the difference from `final_score` prices it
+  exactly: 1.0–17.5 points per episode against gaps of 180–282. A model that
+  emitted perfectly legal JSON on every decision would still trail
+  `pick-trader` by 174–280 points.
+- **Cross-decision continuity is worth zero to the references.** Model rows run
+  fresh-spawned with only a 2,000-character memo. Re-instantiating each scripted
+  agent before every decision reproduces its episode score bit-identically under
+  the frozen v2 contract, because those policies hold no state and rebuild from
+  the observation each turn. They had no memory advantage to remove.
+- **Memo volume does not track score.** The model writing 3 memos in 480
+  decisions placed third; the one writing 568 placed second.
+
+What remains is the decisions themselves. See the
+[gap decomposition](docs/run_logs/gap-decomposition-and-panel-power-2026-07-26.md)
+for the full working, including a fourth diagnostic—observation truncation,
+measured at +2.8 points—that was run under the successor `sota-v3` contract and
+so is supporting rather than in-study evidence.
+
 Read the [phase-one findings](docs/blog/sota-v2-findings.md), inspect the
 [generated analysis](results/analysis/publication-panel-analysis.json), or
 follow the [clean-clone reproduction guide](docs/REPRODUCING_SOTA_V2_RELEASE.md).
@@ -53,10 +76,13 @@ GM-Bench includes:
   `scaffold-view` diagnostic runs the `pick-trader` policy on the truncated
   observation model adapters actually receive, so observation asymmetry can be
   separated from what the policy is worth. It measures the cost of view
-  truncation only — fresh-spawn/memo-only continuity, the output-token cap, and
-  protocol repair are not held constant, so the gap is not "what the scaffold
-  costs". It is newly registered and has not been run on the official panel; no
-  gap has been measured yet.
+  truncation only — the output-token cap and protocol repair are not held
+  constant, so the gap is not "what the scaffold costs". Measured on the
+  official panel (seeds 11–18 × 5 seasons) under fingerprint
+  `4f6ddddd6a6dd81c`: **+2.8 points, paired *t* = 0.249**, six of eight seeds
+  tied. View truncation is not what separates model rows from scripted ones.
+  Fresh-spawn/memo-only continuity is separately measured at exactly zero, since
+  the scripted policies hold no cross-decision state at all.
 - A scoring model that rewards wins, championships, future assets, prospects,
   and cap health, reported as a strategy score with protocol (invalid-action)
   penalties broken out separately. The composite deliberately favours

@@ -385,6 +385,14 @@ export default function Analysis({
             Select a model anywhere on the page to trace its score, cost, and rejected
             actions through the same published record.
           </p>
+          <p className="gap-decomposition-note">
+            The gap is not a harness artefact. Invalid-action penalties account for
+            0.5–9.0% of it, so a perfectly legal run still trails <code>pick-trader</code>{" "}
+            by 174–280 points. The scripted references carry no state between decisions —
+            rebuilding them every turn reproduces their scores exactly — and memo volume
+            does not track placement. What is left is the decisions themselves; it is not
+            a claim about reasoning in general.
+          </p>
         </div>
 
         <div className="analysis-evidence">

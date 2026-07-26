@@ -90,6 +90,67 @@ scripted policies benefit from explicit knowledge of its mechanics, so beating
 them is intentionally a demanding bar rather than a fair imitation of a human
 front office.
 
+## The gap is not an artefact of the harness (added 2026-07-26)
+
+A 180-to-282-point gap invites two cheap explanations: that the models were
+really being scored on JSON discipline, or that they ran through a scaffold the
+scripted references never faced. Both are testable without spending anything,
+and both fail. The measurements below are drawn from the frozen v2 artifacts and
+from the v2 contract itself (`558e8f35ea1d66b9`); they add no new paid run and
+change no published number.
+
+**Protocol discipline accounts for 0.5–9.0% of the gap.** `strategy_score` is
+the score with invalid-action penalties removed, so its distance from
+`final_score` prices protocol failure exactly:
+
+| Model | Gap to `pick-trader` | Protocol cost / episode | Share of gap |
+| --- | ---: | ---: | ---: |
+| Muse Spark 1.1 | 179.8 | 5.31 | 3.0% |
+| GLM 5.2 | 194.1 | 17.50 | 9.0% |
+| Gemini 3.5 Flash | 196.0 | 1.88 | 1.0% |
+| Tencent HY3 | 215.8 | 1.04 | 0.5% |
+| Qwen 3.7 Plus | 236.1 | 14.17 | 6.0% |
+| GPT-5.6 Luna | 237.7 | 13.12 | 5.5% |
+| Claude Sonnet 5 | 269.5 | 4.58 | 1.7% |
+| MiniMax M3 | 281.7 | 1.46 | 0.5% |
+
+A model that emitted perfectly legal JSON on every decision would still trail
+`pick-trader` by 174–280 points. Adapter reliability is not the explanation
+either: `failed_decisions` totalled 0–8 out of 480 per model, so no row was
+carried or sunk by the fallback policy.
+
+**Cross-decision continuity is worth nothing to the references.** Model rows run
+fresh-spawned, carrying only a 2,000-character memo between decision points,
+while the scripted references are ordinary long-lived objects. If they had been
+accumulating state across an episode, part of the gap would be "the reference
+remembered what the model was forbidden to remember." Re-instantiating every
+scripted agent before every single decision, on the v2 contract, reproduces
+episode scores bit-identically for all nine — they hold no mutable state and
+rebuild their plan from the observation each turn. There was no memory advantage
+to strip.
+
+**Memo volume does not predict score.** If carrying a plan forward were the
+binding constraint, heavier memo use should track higher placement. Gemini wrote
+3 memos across 480 decisions and placed third; GLM wrote 568 and placed second;
+Claude Sonnet 5 wrote 361 and placed seventh. Taken with the point above — the
+references reach 411.619 while using no cross-decision memory at all — memory
+does not look like the bottleneck here.
+
+A fourth factor, the truncated observation model adapters receive, was measured
+at +2.8 points (paired *t* = 0.249) on the same public seed panel. That
+diagnostic ran under the successor `sota-v3` contract, so it is supporting
+evidence for interpreting this study rather than part of it, and it is reported
+separately for that reason.
+
+What these do not establish is a positive mechanism. They do not show *why* the
+decisions were worse, and nothing here licenses a claim about reasoning ability
+in general. What they remove is the set of explanations that would have made the
+gap a measurement artefact: on this environment, under this frozen protocol, the
+distance between the models and the scripted reference is attributable to the
+decisions themselves rather than to the harness through which they were made.
+Full working is in
+[`docs/run_logs/gap-decomposition-and-panel-power-2026-07-26.md`](../run_logs/gap-decomposition-and-panel-power-2026-07-26.md).
+
 ## Scope and limitations
 
 - GM-Bench is a synthetic hockey-style environment, not a real organization.
@@ -150,4 +211,9 @@ for the clean-clone verification path.
 The durable conclusion is deliberately narrow: under GM-Bench's frozen
 phase-one public protocol, none of the eight eligible model systems beat the
 transparent `pick-trader` heuristic, and the sample does not support an ordinal
-ranking among the models themselves.
+ranking among the models themselves. The 2026-07-26 decomposition sharpens the
+first half without widening the second: the gap is not an artefact of protocol
+discipline, cross-decision continuity, or memo usage, so it reflects the
+decisions the systems made rather than the harness they made them through. The
+absence of an ordinal ranking is unchanged, and remains the more important
+caveat of the two.

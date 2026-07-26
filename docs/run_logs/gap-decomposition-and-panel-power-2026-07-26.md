@@ -27,7 +27,7 @@ costs. Over 24 episodes per model:
 | `minimax/minimax-m3` | 129.9 | 281.7 | 1.46 | 0.5% |
 
 **0.5%–9.0%.** A model that emitted perfectly legal JSON on every decision would
-still trail `pick-trader` by 162–280 points. "The models just can't format
+still trail `pick-trader` by 174–280 points. "The models just can't format
 actions" is not available as an explanation.
 
 Adapter reliability is not the explanation either: `failed_decisions` totals
