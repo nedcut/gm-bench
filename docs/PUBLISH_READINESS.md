@@ -553,22 +553,17 @@ These should be refined, not quietly removed:
   scoring decomposition, same-view/scaffold comparisons, power/no-ranking
   framing, memo ablation, then realism polish. Scoring decomposition is landed
   as the `sota-v3` `score_components` block plus
-  `weight_sensitivity.py --result`. The same-view comparison has its instrument
-  only: the `scaffold-view` baseline is registered but **not run**, so there is
-  no measured scaffold gap to report. Memo ablation and realism polish are
-  untouched.
-- [ ] **Run `scaffold-view` under the same contract fingerprint as the paid
-  panel.** The baseline is deliberately not in `PRESETS["leaderboard"]`
-  (see the 2026-07-24 decision-log entry), so it will never appear inside a
-  panel artifact and its gap can only be produced by differencing a separate
-  scripted run against the panel's `pick-trader` row. Those two rows are
-  comparable only under an identical `contract_fingerprint`, and
-  `gm_bench/benchmark_config.py` is itself a fingerprint source — so adding
-  `scaffold-view` to the lane later would move the fingerprint and invalidate
-  both. Concretely: run it on seeds 11–18 at 5 seasons, either before the panel
-  or after, with **no contract-source change landing in between**. It is
-  scripted, deterministic, cached, and free. If a contract source does move
-  first, the gap is unquotable and the panel cannot be re-run to recover it.
+  `weight_sensitivity.py --result`. The same-view/scaffold **measurement** is
+  recorded under `4f6ddddd6a6dd81c` (see
+  [`docs/run_logs/scaffold-view-official-panel-2026-07-25.md`](run_logs/scaffold-view-official-panel-2026-07-25.md));
+  power/no-ranking **framing** for that gap, memo ablation, and realism polish
+  are still open.
+- [x] **Run `scaffold-view` under the same contract fingerprint as the paid
+  panel.** Completed 2026-07-25 on seeds 11–18 at 5 seasons under fingerprint
+  `4f6ddddd6a6dd81c`; paired mean gap versus `pick-trader` is +2.8 points.
+  See [`docs/run_logs/scaffold-view-official-panel-2026-07-25.md`](run_logs/scaffold-view-official-panel-2026-07-25.md).
+  The baseline remains outside `PRESETS["leaderboard"]` (2026-07-24 entry); the
+  gap is diagnostic only and does not re-rank models.
 - [ ] Obtain and link an independent clean-clone reproduction. A closed issue
   without a report is not evidence of reproduction.
 
@@ -625,6 +620,7 @@ decision and why.
 | 2026-07-18 | Reconcile the frozen publication protocol and reserve repair-call contingency before launch. | Independent Fable 5 review found that the runner and lane correctly enforced 4,096/3,072/8,192 native-minimum reasoning, but `publication_protocol.json` still described the retired 1,024/768/2,048 policy. It also noted that the prior reservation covered only primary calls even though one bounded repair is configured. No full-panel result existed. | Record the current lane as an explicit pre-data protocol amendment. Reserve one full-price call for every configured repair attempt and apply the committed 1.2x cost contingency before admitting each serial cell. Use a sub-$100 operator ceiling and monitor measured spend after every cell. |
 | 2026-07-24 | Make strict failure handling the resolved-and-recorded publication default, and persist per-episode `score_components`, in `sota-v3` only. | Under the soft fallback a decision the model never produced still moved roster state, and the effective policy came from the operator's shell and was never written into an artifact. Separately, no released row could be reweighted post hoc because components were discarded after scoring. Both are measurement conditions, so they belong in the contract rather than in run habits. | `SOTA_V3_POLICY` requires `run_info.strict_fallback` plus a matching `provider_options.GM_AGENT_STRICT`, and a complete finite `score_components` block per episode whose contributions rebuild `strategy_score`. Frozen v1/v2 policies keep the default off and validate unchanged. The contract fingerprint moved; no v3 artifact or smoke manifest existed, so nothing was invalidated. |
 | 2026-07-24 | Register the `scaffold-view` diagnostic without running it and without adding it to the official baseline panel. | The scripted references read the untruncated observation while model adapters read a sorted, truncated payload, so the published model-versus-`pick-trader` gap mixes policy quality with observation asymmetry. Measuring that needs one shared compaction implementation, not a second copy that can drift. | `gm_bench/scaffold_view.py` is imported by both `examples/gm_agent_common.py` and the new baseline, and is a contract-fingerprint source. The agent is registered but has not been run on any panel; no scaffold-gap number exists or may be quoted. Adding it to the official panel would break the exact-order baseline match on every existing artifact, so it stays opt-in. |
+| 2026-07-25 | Run `scaffold-view` on the official 8-seed panel under fingerprint `4f6ddddd6a6dd81c`. | Issue #93 P0: bound observation asymmetry before any paid panel on the contract-economics lane. Re-measured after PR #92 polish (`0a5f0434dca31ac5` → `4f6ddddd6a6dd81c`); panel scores unchanged. | Scripted compare on seeds 11–18 × 5 seasons: `scaffold-view` mean 270.675, `pick-trader` mean 267.875, paired gap +2.8 (six seeds tied; seeds 17–18 diverge). Logged in `docs/run_logs/scaffold-view-official-panel-2026-07-25.md`. Diagnostic only — does not re-rank models or alter leaderboard JSON. |
 | 2026-07-24 | Preserve the released `sota-v2` study and open `sota-v3` for the Issue #84 P0 fixes. | Non-finite input rejection and decision-window walk-away persistence change simulator/action semantics; compact-artifact recomputation strengthens the validator. Quietly changing the v2 fingerprint or re-recording old smokes would make the released contract mutable after results were known. | Pin the historical v2 contract and validator, identify current corrected runs as v3, block paid publication execution until a v3 registry and lane are pre-registered, retain the tagged v2 evidence and its narrow claim, and require no paid reruns for this repair. |
 
 ## Experiment and release log
@@ -648,7 +644,8 @@ than pasting large outputs.
 | 2026-07-15 | Statistical analysis plan | Frozen | `config/publication_protocol.json` | Pre-registered pre-data: unit of inference, primary paired contrast, Holm-Bonferroni multiplicity, descriptive inference labels, tiered ranking, power disclosure, temperature policy, and registry exclusion criteria. |
 | 2026-07-18 | Final Fable 5 launch audit | Conditions resolved pre-data | `docs/run_logs/sota-v2-final-launch-audit-2026-07-18.md` | No P0 blocker. Reconciled the stale output-policy text, strengthened reservations for repairs plus contingency, selected a $95 operator ceiling, and retained Tencent timing and per-cell spend monitoring as launch conditions. |
 | 2026-07-24 | P0 integrity hardening and v3 boundary | Merged | [#85](https://github.com/nedcut/gm-bench/pull/85) | Fixes non-finite actions, negotiation-window resets, and compact-artifact integrity without mutating the frozen v2 release contract. Merged as `1e5cd44`. |
-| 2026-07-24 | #84 P1: score decomposition, strict publication fallback, same-view reference | In working tree | Issue [#84](https://github.com/nedcut/gm-bench/issues/84) | Persists `score_components` on every episode row, makes strict failure handling the resolved-and-recorded publication default, and registers the `scaffold-view` diagnostic. All three are `sota-v3`-only; no v2 artifact is touched and no panel has been run. |
+| 2026-07-24 | #84 P1: score decomposition, strict publication fallback, same-view reference | In working tree | Issue [#84](https://github.com/nedcut/gm-bench/issues/84) | Persists `score_components` on every episode row, makes strict failure handling the resolved-and-recorded publication default, and registers the `scaffold-view` diagnostic. All three are `sota-v3`-only; no v2 artifact is touched. The scaffold-view diagnostic panel ran 2026-07-25 (see run log); no paid model panel has run. |
+| 2026-07-25 | scaffold-view official panel measurement | Complete | [`docs/run_logs/scaffold-view-official-panel-2026-07-25.md`](run_logs/scaffold-view-official-panel-2026-07-25.md) / [#98](https://github.com/nedcut/gm-bench/pull/98) | Deterministic compare vs `pick-trader` on seeds 11–18 × 5 seasons under fingerprint `4f6ddddd6a6dd81c` (re-measured after PR #92 polish; scores unchanged). Paired mean gap +2.8 (six seeds tied; only seeds 17–18 diverge). Diagnostic only. |
 | 2026-07-24 | Results-first public site | Merged | [#87](https://github.com/nedcut/gm-bench/pull/87) | Reframes the public result around one unresolved model tier, the scripted-reference gap, compute, and auditability. |
 
 ## Living-document maintenance checklist
