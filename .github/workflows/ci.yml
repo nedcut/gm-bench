@@ -63,9 +63,28 @@ jobs:
         run: python -m gm_bench validate-contract
       - name: Validate committed leaderboard results
         run: |
+          # Validate every artifact against the policy matching its own declared
+          # benchmark_version, rather than assuming sota-v2. Hardcoding v2 here
+          # would fail the first time a sota-v3 row is committed, and an unknown
+          # version must fail loudly rather than skip validation silently.
           count=0
           while IFS= read -r -d '' result; do
-            python -m gm_bench validate-result "$result" --policy sota-v2
+            version="$(python - "$result" <<'PY'
+          import json, pathlib, sys
+          payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          contract = (payload.get("run_info") or {}).get("benchmark_contract") or {}
+          print(contract.get("benchmark_version") or "unknown")
+          PY
+          )"
+            case "$version" in
+              sota-v1|sota-v2|sota-v3) ;;
+              *)
+                echo "::error file=$result::unknown benchmark_version '$version'; no validation policy applies"
+                exit 1
+                ;;
+            esac
+            echo "validating $result against policy $version"
+            python -m gm_bench validate-result "$result" --policy "$version"
             count=$((count + 1))
           done < <(find results/leaderboard -maxdepth 1 -type f -name '*.json' -print0)
           echo "validated $count current leaderboard result(s)"

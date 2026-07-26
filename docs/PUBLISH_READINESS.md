@@ -589,7 +589,12 @@ paid v3 panel spend or headline refresh:
   [#95](https://github.com/nedcut/gm-bench/pull/95), which also named the stored
   `ci95` field as a *lift* interval so it is not read as an interval on score.
 - [ ] Pre-register the v3 publication lane (`config/sota_v3_lane.json`, registry,
-  smoke manifest) before authorizing spend.
+  smoke manifest) before authorizing spend. Size the seed panel with
+  `scripts/panel_power.py`: at the current 24-episode budget the best split
+  (24 seeds × 1 repeat) reaches only 0.70 power for a 40-point difference, and
+  48 episodes/model is what reaches 0.95. Any panel change moves the contract
+  fingerprint, so it must be sequenced with a free re-run of the `scaffold-view`
+  diagnostic.
 - [ ] Add CI `validate-result --policy sota-v3` once the first v3 artifacts land.
   The smoke-coverage half of this item is done: `require_strict_fallback` and the
   CapHoard seed-level assertion landed in
@@ -707,6 +712,7 @@ than pasting large outputs.
 | 2026-07-24 | P0 integrity hardening and v3 boundary | Merged | [#85](https://github.com/nedcut/gm-bench/pull/85) | Fixes non-finite actions, negotiation-window resets, and compact-artifact integrity without mutating the frozen v2 release contract. Merged as `1e5cd44`. |
 | 2026-07-24 | #84 P1: score decomposition, strict publication fallback, same-view reference | In working tree | Issue [#84](https://github.com/nedcut/gm-bench/issues/84) | Persists `score_components` on every episode row, makes strict failure handling the resolved-and-recorded publication default, and registers the `scaffold-view` diagnostic. All three are `sota-v3`-only; no v2 artifact is touched. The scaffold-view diagnostic panel ran 2026-07-25 (see run log); no paid model panel has run. |
 | 2026-07-25 | scaffold-view official panel measurement | Complete | [`docs/run_logs/scaffold-view-official-panel-2026-07-25.md`](run_logs/scaffold-view-official-panel-2026-07-25.md) / [#98](https://github.com/nedcut/gm-bench/pull/98) | Deterministic compare vs `pick-trader` on seeds 11–18 × 5 seasons under fingerprint `4f6ddddd6a6dd81c` (re-measured after PR #92 polish; scores unchanged). Paired mean gap +2.8 (six seeds tied; only seeds 17–18 diverge). Diagnostic only. |
+| 2026-07-26 | Gap decomposition and panel power | Complete | [`docs/run_logs/gap-decomposition-and-panel-power-2026-07-26.md`](run_logs/gap-decomposition-and-panel-power-2026-07-26.md) | Protocol friction bounds at 0.5–9.0% of the model-vs-`pick-trader` gap; fresh-spawn/memo-only continuity costs the scripted references exactly zero (now enforced by `tests/test_reference_statelessness.py`); memo-write volume does not predict score. Variance decomposition: within-seed noise sd 53.4 vs seed difficulty sd 13.45, model×seed interaction indistinguishable from zero. No contract source touched; no spend authorised. |
 | 2026-07-24 | Results-first public site | Merged | [#87](https://github.com/nedcut/gm-bench/pull/87) | Reframes the public result around one unresolved model tier, the scripted-reference gap, compute, and auditability. |
 
 ## Living-document maintenance checklist
