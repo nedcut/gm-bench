@@ -606,7 +606,11 @@ def main() -> None:
             f"skipping {row.get('model')}: benchmark_version={row.get('benchmark_version')!r} is not sota-v2",
             file=sys.stderr,
         )
-    baselines = baselines_from_sota_v2_artifacts(payloads)
+    # Validate against every parsed artifact, not the deduplicated model rows.
+    # `payloads` keeps only the newest artifact per model/version, so a
+    # superseded artifact carrying a conflicting frozen panel would be dropped
+    # before the disagreement check could refuse it.
+    baselines = baselines_from_sota_v2_artifacts([payload for payload, _, _ in artifacts])
     baseline_by_name = {row["agent"]: row["mean_score"] for row in baselines}
     headroom = {
         "oracle": SOTA_V2_ORACLE_MEAN,

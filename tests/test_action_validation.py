@@ -100,14 +100,23 @@ def test_extend_contract_rejects_one_year_terms() -> None:
     assert "2-5" in league.transactions[-1].message
 
 
-def test_extend_contract_rejects_non_incumbent_roster_player() -> None:
+def test_extend_contract_rejects_roster_player_with_years_remaining() -> None:
+    """Extensions are for final-year incumbents only.
+
+    Select on the term condition explicitly rather than on `not
+    _extension_eligible`, which is satisfied by either half of the rule. The
+    same-season half is covered by
+    `test_new_one_year_signing_cannot_immediately_harvest_loyalty_discount`,
+    since no player is signed in the season the league is created.
+    """
     league = League.new(seed=24)
     league.cap = 1000.0
     player = next(
         league.players[player_id]
         for player_id in league.user_team.roster
-        if not league._extension_eligible(league.players[player_id])
+        if league.players[player_id].contract_years > 1
     )
+    assert not league._extension_eligible(player)
     league.apply_actions(
         [
             {
