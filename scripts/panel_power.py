@@ -35,6 +35,12 @@ prints is therefore an allocation for *discrimination*, and a panel that also
 wants a noise estimate should keep repeats on a small subset of seeds rather
 than across the whole panel.
 
+Power figures default to a single pairwise two-sided test. The publication
+tiering tool (`scripts/model_tiers.py`) defaults to Holm across every model
+pair, which is a much harder bar: pass `--correction holm` (or `bonferroni`)
+when sizing a panel for that analysis. Both corrections use the first-step /
+Bonferroni threshold `alpha / C(models, 2)` for planning.
+
 This reads committed artifacts and writes nothing. It is a planning tool: it
 does not change a contract, a preset, or a published number, and running it
 authorises no spend.
@@ -43,6 +49,7 @@ Usage:
 
     python3 scripts/panel_power.py
     python3 scripts/panel_power.py --budget 24 --delta 40 --json
+    python3 scripts/panel_power.py --correction holm --budget 96
 """
 
 from __future__ import annotations
@@ -183,6 +190,28 @@ def allocations(budget: int) -> list[tuple[int, int]]:
     return [(budget // r, r) for r in range(1, budget + 1) if budget % r == 0 and budget // r >= 2]
 
 
+def n_pairs(n_models: int) -> int:
+    """Number of unordered model pairs in an all-pairs comparison."""
+    return n_models * (n_models - 1) // 2
+
+
+def comparison_alpha(alpha: float, correction: str, pairs: int) -> float:
+    """Per-contrast alpha under the named multiple-comparison correction.
+
+    Holm and Bonferroni share the same first-step threshold `alpha / pairs`.
+    That is the right planning alpha when sizing for the full all-pairs
+    analysis `model_tiers.py` runs by default. Later Holm steps are less
+    stringent, so this is slightly conservative for easier pairs.
+    """
+    if correction == "none":
+        return alpha
+    if correction not in {"holm", "bonferroni"}:
+        raise SystemExit(f"unknown correction {correction!r}; expected none, holm, or bonferroni")
+    if pairs < 1:
+        raise SystemExit("need at least one model pair for a multiple-comparison correction")
+    return alpha / pairs
+
+
 # --- artifact loading -------------------------------------------------------
 
 
@@ -257,11 +286,21 @@ def observed_pair_gaps(cells: dict[tuple[str, int], list[float]]) -> list[float]
 # --- reporting --------------------------------------------------------------
 
 
-def build_report(cells: dict[tuple[str, int], list[float]], budget: int, delta: float, alpha: float) -> dict[str, Any]:
+def build_report(
+    cells: dict[tuple[str, int], list[float]],
+    budget: int,
+    delta: float,
+    alpha: float,
+    *,
+    correction: str = "none",
+    pairs: int | None = None,
+) -> dict[str, Any]:
     """Assemble the full allocation report for one budget and target effect size."""
     components = decompose(cells)
     var_noise = components["var_noise"]
     var_interaction = components["var_interaction"]
+    pair_count = n_pairs(int(components["models"])) if pairs is None else pairs
+    test_alpha = comparison_alpha(alpha, correction, pair_count)
     rows = []
     for seeds, repeats in allocations(budget):
         se = paired_se(var_noise, var_interaction, seeds, repeats)
@@ -270,8 +309,8 @@ def build_report(cells: dict[tuple[str, int], list[float]], budget: int, delta: 
                 "seeds": seeds,
                 "repeats": repeats,
                 "paired_se": round(se, 3),
-                "power": round(power(delta, se, seeds - 1, alpha), 4),
-                "min_detectable_delta": round(t_critical(alpha, seeds - 1) * se, 2),
+                "power": round(power(delta, se, seeds - 1, test_alpha), 4),
+                "min_detectable_delta": round(t_critical(test_alpha, seeds - 1) * se, 2),
             }
         )
     best = max(rows, key=lambda row: (row["power"], -row["repeats"])) if rows else None
@@ -292,6 +331,9 @@ def build_report(cells: dict[tuple[str, int], list[float]], budget: int, delta: 
         "budget_per_model": budget,
         "target_delta": delta,
         "alpha": alpha,
+        "correction": correction,
+        "pairs": pair_count,
+        "test_alpha": test_alpha,
         "allocations": rows,
         "recommended": best,
         "observed_pair_gaps": [round(g, 2) for g in observed_pair_gaps(cells)],
@@ -317,9 +359,16 @@ def render(report: dict[str, Any]) -> str:
         f"  within-seed noise    sd = {components['sd_noise']:8.2f}   survives pairing, scales with seeds x repeats"
     )
     lines.append("")
+    correction = report.get("correction", "none")
+    test_alpha = report.get("test_alpha", report["alpha"])
+    pairs = report.get("pairs")
+    if correction == "none":
+        alpha_note = f"two-sided alpha={report['alpha']} (single pairwise test)"
+    else:
+        alpha_note = f"two-sided alpha={report['alpha']}, {correction} over {pairs} pairs (test alpha={test_alpha:.6g})"
     lines.append(
         f"allocation of {report['budget_per_model']} episodes/model"
-        f"   (power to detect {report['target_delta']:.0f} points, two-sided alpha={report['alpha']})"
+        f"   (power to detect {report['target_delta']:.0f} points, {alpha_note})"
     )
     lines.append(f"  {'seeds':>6} {'repeats':>8} {'paired SE':>10} {'min. detectable':>16} {'power':>8}")
     for row in report["allocations"]:
@@ -335,6 +384,11 @@ def render(report: dict[str, Any]) -> str:
             f"observed pairwise gaps: max {gaps[0]:.1f}, median {gaps[len(gaps) // 2]:.1f}, min {gaps[-1]:.1f}"
         )
     lines.append("")
+    if correction == "none":
+        lines.append(
+            "Powers above are for one pairwise test. scripts/model_tiers.py defaults to Holm "
+            "across every model pair; re-run with --correction holm when sizing for that analysis."
+        )
     lines.append("Repeats still measure within-seed sampling noise, which pairing cannot recover.")
     lines.append("Keep them on a subset of seeds if that estimate is wanted alongside discrimination.")
     return "\n".join(lines)
@@ -352,13 +406,32 @@ def main() -> int:
     )
     parser.add_argument("--delta", type=float, default=40.0, help="score difference to power for (default: 40)")
     parser.add_argument("--alpha", type=float, default=0.05, help="two-sided significance level (default: 0.05)")
+    parser.add_argument(
+        "--correction",
+        choices=("none", "holm", "bonferroni"),
+        default="none",
+        help="multiple-comparison correction for power (default: none; use holm to match model_tiers.py)",
+    )
+    parser.add_argument(
+        "--pairs",
+        type=int,
+        default=None,
+        help="pair count for --correction (default: C(models, 2) from the loaded panel)",
+    )
     parser.add_argument("--json", action="store_true", help="emit machine-readable output")
     args = parser.parse_args()
 
     cells, context = load_cells(args.results_dir)
     components = decompose(cells)
     budget = args.budget or int(components["seeds"] * components["repeats"])
-    report = build_report(cells, budget, args.delta, args.alpha)
+    report = build_report(
+        cells,
+        budget,
+        args.delta,
+        args.alpha,
+        correction=args.correction,
+        pairs=args.pairs,
+    )
     report["context"] = context
 
     if args.json:

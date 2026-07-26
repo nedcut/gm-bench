@@ -156,6 +156,38 @@ def test_power_rises_with_seeds_and_effect_size() -> None:
     assert bigger > base
 
 
+# --- multiple-comparison correction -----------------------------------------
+
+
+def test_comparison_alpha_matches_model_tiers_first_step() -> None:
+    """Holm/Bonferroni planning alpha is alpha / C(models, 2), matching model_tiers."""
+    assert panel_power.n_pairs(8) == 28
+    assert panel_power.comparison_alpha(0.05, "none", 28) == 0.05
+    assert panel_power.comparison_alpha(0.05, "holm", 28) == pytest.approx(0.05 / 28)
+    assert panel_power.comparison_alpha(0.05, "bonferroni", 28) == pytest.approx(0.05 / 28)
+
+
+def test_holm_correction_lowers_reported_power() -> None:
+    """Sizing under Holm must not reuse the optimistic single-test power figures."""
+    rng = random.Random(11)
+    cells = _synthetic_cells(models=8, seeds=8, repeats=3, sd_seed=13.0, sd_interaction=0.0, sd_noise=53.0, rng=rng)
+    plain = panel_power.build_report(cells, budget=24, delta=40.0, alpha=0.05, correction="none")
+    holm = panel_power.build_report(cells, budget=24, delta=40.0, alpha=0.05, correction="holm")
+    assert holm["pairs"] == 28
+    assert holm["test_alpha"] == pytest.approx(0.05 / 28)
+    assert holm["recommended"]["power"] < plain["recommended"]["power"]
+    assert holm["recommended"]["min_detectable_delta"] > plain["recommended"]["min_detectable_delta"]
+
+
+def test_render_warns_when_correction_is_none() -> None:
+    """Default single-test output must point operators at --correction holm."""
+    rng = random.Random(3)
+    cells = _synthetic_cells(models=4, seeds=4, repeats=2, sd_seed=10.0, sd_interaction=0.0, sd_noise=40.0, rng=rng)
+    text = panel_power.render(panel_power.build_report(cells, budget=8, delta=40.0, alpha=0.05))
+    assert "--correction holm" in text
+    assert "single pairwise test" in text
+
+
 # --- artifact loading discipline --------------------------------------------
 
 

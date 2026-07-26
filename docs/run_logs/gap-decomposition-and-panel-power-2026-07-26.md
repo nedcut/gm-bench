@@ -105,7 +105,8 @@ close to uninformative.
 
 Because the interaction term is ~0, reallocating the 24-episode budget between
 seeds and repeats does **not** change the standard error (15.41 in every split).
-It changes only the degrees of freedom:
+It changes only the degrees of freedom. Powers below are for a **single**
+pairwise two-sided test at α=0.05:
 
 | seeds × repeats | paired SE | min. detectable difference | power at Δ=40 |
 |---|---:|---:|---:|
@@ -127,6 +128,21 @@ Getting the median pair reliably separable needs budget, not just rebalancing:
 | 48 | 48 × 1 | 21.9 | 0.951 |
 | 96 | 96 × 1 | 15.3 | 0.999 |
 
+**Those single-test figures are not the bar `model_tiers.py` uses.** Tiering
+defaults to Holm across every model pair (C(8,2) = 28 here). Planning under
+that correction uses the first-step threshold α/28 ≈ 0.00179
+(`scripts/panel_power.py --correction holm`):
+
+| budget/model | best split | Holm min. detectable | Holm power at Δ=40 |
+|---|---|---:|---:|
+| 24 | 24 × 1 | 54.4 | 0.175 |
+| 48 | 48 × 1 | 36.1 | 0.640 |
+| 96 | 96 × 1 | 24.8 | **0.976** |
+
+So a panel sized for publication tiering needs ~96 episodes/model at Δ=40, not
+48. The seeds-versus-repeats ranking is unchanged (widest seed panel still
+wins); only the budget call moves.
+
 **Caveat that must travel with this:** repeats are the only way to estimate
 within-seed sampling noise, which is a reported quantity (`within_seed_score_stddev`)
 and is the largest component on this panel. A panel that wants both should keep
@@ -145,7 +161,8 @@ repeats on a small subset of seeds rather than dropping them entirely.
 ## Reproduction
 
 ```bash
-python3 scripts/panel_power.py                      # §4
+python3 scripts/panel_power.py                                      # §4 single-test table
+python3 scripts/panel_power.py --correction holm --budget 96        # §4 Holm sizing
 python3 scripts/panel_power.py --budget 48 --json
 python3 -m pytest tests/test_panel_power.py tests/test_reference_statelessness.py -q
 ```
