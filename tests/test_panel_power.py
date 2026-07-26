@@ -34,6 +34,7 @@ def _synthetic_cells(
     sd_noise: float,
     rng: random.Random,
 ) -> dict[tuple[str, int], list[float]]:
+    """Build a balanced panel with known seed, interaction, and noise components."""
     seed_effect = {s: rng.gauss(0.0, sd_seed) for s in range(seeds)}
     cells: dict[tuple[str, int], list[float]] = {}
     for m in range(models):
@@ -68,6 +69,7 @@ def test_absent_interaction_is_clamped_to_zero_not_negative() -> None:
 
 
 def test_unbalanced_panel_is_refused() -> None:
+    """Cells with differing repeat counts must be refused, not averaged over."""
     cells = {("a", 1): [1.0, 2.0], ("a", 2): [1.0], ("b", 1): [1.0, 2.0], ("b", 2): [3.0, 4.0]}
     with pytest.raises(SystemExit, match="unbalanced"):
         panel_power.decompose(cells)
@@ -146,6 +148,7 @@ def test_t_critical_inverts_the_significance_test() -> None:
 
 
 def test_power_rises_with_seeds_and_effect_size() -> None:
+    """Both levers must move power in the expected direction."""
     base = panel_power.power(40.0, panel_power.paired_se(2500.0, 100.0, 12, 1), df=11, alpha=0.05)
     more_seeds = panel_power.power(40.0, panel_power.paired_se(2500.0, 100.0, 48, 1), df=47, alpha=0.05)
     bigger = panel_power.power(80.0, panel_power.paired_se(2500.0, 100.0, 12, 1), df=11, alpha=0.05)
@@ -157,6 +160,7 @@ def test_power_rises_with_seeds_and_effect_size() -> None:
 
 
 def _write(tmp_path: Path, name: str, fingerprint: str, panel: str) -> None:
+    """Write a minimal artifact carrying a given contract fingerprint and panel."""
     (tmp_path / f"{name}.json").write_text(
         json.dumps(
             {
@@ -172,6 +176,7 @@ def _write(tmp_path: Path, name: str, fingerprint: str, panel: str) -> None:
 
 
 def test_refuses_to_pool_across_contracts(tmp_path: Path) -> None:
+    """Scores from different simulators are not comparable at any sample size."""
     _write(tmp_path, "old", "aaaaaaaaaaaaaaaa", "same-panel")
     _write(tmp_path, "new", "bbbbbbbbbbbbbbbb", "same-panel")
     with pytest.raises(SystemExit, match="across benchmark contracts"):
@@ -179,6 +184,7 @@ def test_refuses_to_pool_across_contracts(tmp_path: Path) -> None:
 
 
 def test_refuses_to_pool_across_seed_panels(tmp_path: Path) -> None:
+    """Public and private panels must never be silently pooled."""
     _write(tmp_path, "public", "aaaaaaaaaaaaaaaa", "panel-one")
     _write(tmp_path, "private", "aaaaaaaaaaaaaaaa", "panel-two")
     with pytest.raises(SystemExit, match="across seed panels"):
@@ -194,3 +200,16 @@ def test_committed_panel_reports_the_expected_shape() -> None:
     assert got["repeats"] == 3
     # Within-seed sampling noise dominates seed difficulty on this panel.
     assert got["var_noise"] > got["var_seed"]
+
+
+def test_incomplete_cross_product_is_refused() -> None:
+    """A uniform repeat count across present cells is not balance.
+
+    A model missing one seed entirely passes the repeat-count check, but the
+    decomposition indexes the full cross-product -- so without an explicit
+    guard this raised KeyError instead of the clean refusal the function
+    otherwise promises.
+    """
+    cells = {("a", 1): [1.0, 2.0], ("a", 2): [3.0, 4.0], ("b", 1): [5.0, 6.0]}
+    with pytest.raises(SystemExit, match="every model must have every seed"):
+        panel_power.decompose(cells)

@@ -105,6 +105,15 @@ def decompose(cells: dict[tuple[str, int], list[float]]) -> dict[str, float]:
     """
     models = sorted({model for model, _ in cells})
     seeds = sorted({seed for _, seed in cells})
+    # A uniform repeat count across the cells that *exist* is not balance: a
+    # model missing one seed entirely still passes that check, and the mean
+    # computations below index the full cross-product. Refuse explicitly rather
+    # than crashing with a KeyError two lines later.
+    missing = [(model, seed) for model in models for seed in seeds if (model, seed) not in cells]
+    if missing:
+        shown = ", ".join(f"{model}@seed{seed}" for model, seed in missing[:5])
+        more = f" (+{len(missing) - 5} more)" if len(missing) > 5 else ""
+        raise SystemExit(f"panel is unbalanced: every model must have every seed; missing {shown}{more}")
     counts = {len(values) for values in cells.values()}
     if len(counts) != 1:
         raise SystemExit("panel is unbalanced: every (model, seed) cell must have the same repeat count")
@@ -249,6 +258,7 @@ def observed_pair_gaps(cells: dict[tuple[str, int], list[float]]) -> list[float]
 
 
 def build_report(cells: dict[tuple[str, int], list[float]], budget: int, delta: float, alpha: float) -> dict[str, Any]:
+    """Assemble the full allocation report for one budget and target effect size."""
     components = decompose(cells)
     var_noise = components["var_noise"]
     var_interaction = components["var_interaction"]
@@ -289,6 +299,7 @@ def build_report(cells: dict[tuple[str, int], list[float]], budget: int, delta: 
 
 
 def render(report: dict[str, Any]) -> str:
+    """Format a report as the human-readable table printed by the CLI."""
     lines: list[str] = []
     panel = report["panel"]
     components = report["components"]
@@ -330,6 +341,7 @@ def render(report: dict[str, Any]) -> str:
 
 
 def main() -> int:
+    """CLI entry point: load artifacts, decompose, and print the allocation table."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--results-dir", type=Path, default=RESULTS_DIR)
     parser.add_argument(

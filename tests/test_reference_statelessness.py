@@ -82,11 +82,15 @@ def test_statelessness_check_would_catch_a_stateful_reference() -> None:
     base = type(AGENTS["value"]())
 
     class Stateful(base):  # type: ignore[misc, valid-type]
+        """An agent that deliberately drifts with accumulated state."""
+
         def __init__(self) -> None:
+            """Start with an empty decision counter."""
             super().__init__()
             self.seen = 0
 
         def act(self, observation: dict[str, Any]) -> Any:
+            """Skip the first decision only, which a fresh copy would never do."""
             # Drift behaviour with accumulated state: skip acting on the first
             # decision only, which a fresh-spawned copy would never do.
             self.seen += 1
