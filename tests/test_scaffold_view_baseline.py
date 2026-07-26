@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import pytest
 
 from examples import gm_agent_common
 from gm_bench.agents import AGENTS, PickTraderAgent, ScaffoldViewAgent
-from gm_bench.runner import run_episode
+from gm_bench.benchmark_config import PRESETS
+from gm_bench.runner import run_episode, run_many
 from gm_bench.scaffold_view import compact_observation, scaffold_view_observation
 from gm_bench.simulator import League
 
@@ -116,6 +118,22 @@ def test_scaffold_view_episode_runs_clean() -> None:
     result = run_episode(ScaffoldViewAgent(), seed=11, seasons=2)
     assert result.illegal_actions == 0
     assert result.protocol_penalty == 0.0
+
+
+def test_scaffold_view_and_pick_trader_leaderboard_seed_smoke() -> None:
+    """Official panel seed 11 at leaderboard season count must run without error."""
+    seed = PRESETS["leaderboard"]["seeds"][0]
+    seasons = PRESETS["leaderboard"]["seasons"]
+    scaffold = run_many(ScaffoldViewAgent(), seeds=[seed], seasons=seasons, workers=1)
+    pick_trader = run_many(PickTraderAgent(), seeds=[seed], seasons=seasons, workers=1)
+    scaffold_score = scaffold["summary"]["mean_score"]
+    pick_trader_score = pick_trader["summary"]["mean_score"]
+    assert math.isfinite(scaffold_score)
+    assert math.isfinite(pick_trader_score)
+    # Seed 11 ties on the official panel under fingerprint 4f6ddddd6a6dd81c;
+    # pin the score so contract drift cannot silently invalidate the run log.
+    assert scaffold_score == pytest.approx(pick_trader_score)
+    assert scaffold_score == pytest.approx(261.148, abs=0.001)
 
 
 def test_tiny_profile_still_yields_a_legal_lineup() -> None:
