@@ -322,9 +322,9 @@ code {
 
 /* Sits in the section header, where the red "bar to beat" accent would compete
    with the chart's own reference line, so it takes the recessive steel edge.
-   Scoped under `.analysis-heading` to match the specificity of the sibling
+   Scoped under `.analysis-heading` so it outranks the sibling
    `.analysis-heading > p` rule, which would otherwise win on the inherited
-   typography; and spanned across both grid columns, since the header is a
+   typography regardless of source order; and spanned across both grid columns, since the header is a
    two-column grid and an unspanned third child lands at half width. */
 .analysis-heading > .gap-decomposition-note {
   grid-column: 1 / -1;

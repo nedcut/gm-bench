@@ -390,10 +390,12 @@ export default function Analysis({
             Invalid-action penalties account for 0.5–9.0% of it, so a perfectly legal run
             still trails <code>pick-trader</code> by 174–280 points. The scripted
             references carry no state between decisions — rebuilding them every turn
-            reproduces their scores exactly — and memo volume does not track placement.
-            The 4,096-token output cap binds model rows only and is not controlled for,
-            so this is not a claim that the residual is decision quality alone, nor a
-            claim about reasoning in general.
+            reproduces their scores exactly — and memo volume does not buy score: 3 memos
+            scored 215.6, 568 scored 217.5. Two limits: the 4,096-token output cap binds
+            model rows only and is not controlled for, and the continuity result is
+            one-sided — it rules out a reference advantage, not a cost to models denied
+            persistent state. So this is not a claim that the residual is decision quality
+            alone, nor a claim about reasoning in general.
           </p>
         </div>
 

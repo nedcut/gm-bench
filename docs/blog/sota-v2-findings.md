@@ -90,14 +90,15 @@ scripted policies benefit from explicit knowledge of its mechanics, so beating
 them is intentionally a demanding bar rather than a fair imitation of a human
 front office.
 
-## Protocol discipline, continuity, and memo use do not explain the gap (added 2026-07-26)
+## Protocol discipline, the references' memory advantage, and memo use do not explain the gap (added 2026-07-26)
 
 A 180-to-282-point gap invites two cheap explanations: that the models were
 really being scored on JSON discipline, or that they ran through a scaffold the
 scripted references never faced. Both are testable without spending anything,
-and both fail. The measurements below are drawn from the frozen v2 artifacts and
-from the v2 contract itself (`558e8f35ea1d66b9`); they add no new paid run and
-change no published number.
+and both fail. The three measurements below are drawn from the frozen v2
+artifacts and from the v2 contract itself (`558e8f35ea1d66b9`); the fourth
+(observation truncation) is a `sota-v3` measurement and is labelled inline where
+it appears. None of them adds a paid run or changes a published number.
 
 **Protocol discipline accounts for 0.5–9.0% of the gap.** `strategy_score` is
 the score with invalid-action penalties removed, so its distance from
@@ -236,8 +237,9 @@ The durable conclusion is deliberately narrow: under GM-Bench's frozen
 phase-one public protocol, none of the eight eligible model systems beat the
 transparent `pick-trader` heuristic, and the sample does not support an ordinal
 ranking among the models themselves. The 2026-07-26 decomposition sharpens the
-first half without widening the second: protocol discipline, cross-decision
-continuity, and memo usage do not account for the gap. It does not follow that
-the gap is decision quality alone—the 4,096-token output cap remains
-uncontrolled—only that those explanations are ruled out. The absence of an
+first half without widening the second: protocol discipline, the references'
+memory advantage, and memo usage do not account for the gap. It does not follow
+that the gap is decision quality alone. The 4,096-token output cap remains
+uncontrolled, and the continuity result is one-sided — it rules out a reference
+advantage, not a cost to models denied persistent state. The absence of an
 ordinal ranking is unchanged, and remains the more important caveat of the two.

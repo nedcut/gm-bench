@@ -1,8 +1,10 @@
 # Gap decomposition and panel power — 2026-07-26
 
 Diagnostic run log. Every number here comes from committed artifacts or from
-scripted runs on the current contract (`4f6ddddd6a6dd81c`). **No contract source
-was modified**, no paid model run was made, and no published number changes.
+scripted runs on the current contract (`4f6ddddd6a6dd81c`) — **except §2a**,
+which is deliberately measured at the frozen v2 tag (`558e8f35ea1d66b9`) and is
+labelled as such throughout. **No contract source was modified**, no paid model
+run was made, and no published number changes.
 
 Context: the phase-one study reports that all eight eligible model systems
 trailed the `pick-trader` reference. The obvious objections to that claim are
@@ -115,10 +117,13 @@ track higher scores. It does not:
 | `minimax/minimax-m3` | 174 | 129.9 |
 | `google/gemini-3.5-flash` | 3 | 215.6 |
 
-The model that wrote 3 memos in 480 decisions placed third; the model that wrote
-568 placed second; the heaviest-writing frontier model placed seventh. Taken with
-§2 — references score 411.6 while using no cross-decision memory at all — the
-evidence does not support memory as the bottleneck on this benchmark.
+One model wrote 3 memos in 480 decisions and scored 215.6; another wrote 568 —
+190× the volume — and scored 217.5. Two points apart, and both ~195 below
+`pick-trader`. Stated in scores rather than placements deliberately: this panel
+does not support an ordinal ranking, so an argument from who "placed third"
+would rest on something the study disclaims. Taken with §2a — references score
+411.6 while using no cross-decision memory at all — the evidence does not
+support memory as the bottleneck on this benchmark.
 
 ## 4. Panel power: within-seed noise dominates, and the split barely matters
 
@@ -188,8 +193,11 @@ repeats on a small subset of seeds rather than dropping them entirely.
   scaffold-view alignment established on 2026-07-25, so any panel change must be
   sequenced with a re-run of that free diagnostic.
 - It does support stating the capability claim more strongly than the current
-  framing: the gap is not protocol discipline (§1), not continuity (§2), not
-  memory (§3), and not view truncation (2026-07-25 log).
+  framing: the gap is not protocol discipline (§1), not the references' memory
+  advantage (§2a — the v2-contract run, not the `sota-v3` §2 table), not memo
+  usage (§3), and not view truncation (2026-07-25 log). The continuity item is
+  one-sided: whether a model would gain from persistent state it was denied is
+  not measured here, so "continuity does not explain the gap" is not supported.
 
 ## Reproduction
 
