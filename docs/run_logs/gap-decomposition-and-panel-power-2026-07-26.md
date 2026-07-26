@@ -4,7 +4,9 @@ Diagnostic run log. Every number here comes from committed artifacts or from
 scripted runs on the current contract (`4f6ddddd6a6dd81c`) — **except §2a**,
 which is deliberately measured at the frozen v2 tag (`558e8f35ea1d66b9`) and is
 labelled as such throughout. **No contract source was modified**, no paid model
-run was made, and no published number changes.
+run was made, and no new leaderboard or run-result number is published. (One
+previously published figure is *corrected* here: the residual-gap range was
+stated as 162-280 and is 174-280.)
 
 Context: the phase-one study reports that all eight eligible model systems
 trailed the `pick-trader` reference. The obvious objections to that claim are
@@ -121,9 +123,12 @@ One model wrote 3 memos in 480 decisions and scored 215.6; another wrote 568 —
 190× the volume — and scored 217.5. Two points apart, and both ~195 below
 `pick-trader`. Stated in scores rather than placements deliberately: this panel
 does not support an ordinal ranking, so an argument from who "placed third"
-would rest on something the study disclaims. Taken with §2a — references score
-411.6 while using no cross-decision memory at all — the evidence does not
-support memory as the bottleneck on this benchmark.
+would rest on something the study disclaims. Taken with the published v2 panel,
+where `pick-trader` means **411.619** across 8 seeds x 5 seasons while using no
+cross-decision memory at all — statelessness being what §2a establishes, not
+that figure — the evidence does not support memory as the bottleneck here.
+(§2a's 455.725 is a single seed-11 episode on the v2 contract and is not
+comparable to a panel mean; the two answer different questions.)
 
 ## 4. Panel power: within-seed noise dominates, and the split barely matters
 
