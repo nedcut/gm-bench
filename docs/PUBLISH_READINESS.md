@@ -7,7 +7,7 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-07-25
+**Last reviewed:** 2026-07-26
 **Current target:** Preserve the published `sota-v2` study as frozen historical
 evidence while hardening the next contract and finishing the public
 presentation.
@@ -570,24 +570,31 @@ These should be refined, not quietly removed:
 
 ### Consultant audit critical path ([#93](https://github.com/nedcut/gm-bench/issues/93))
 
-Full P0/P1 backlog lives in Issue #93. These unchecked items are the critical
-path before any paid v3 panel spend or headline refresh:
+Full P0/P1 backlog lives in Issue #93. These are the critical path before any
+paid v3 panel spend or headline refresh:
 
-- [ ] Merge [#92 — contract economics](https://github.com/nedcut/gm-bench/pull/92)
-  after confirming no live checkpoints under `data/model_checkpoints/`.
-- [ ] **Run `scaffold-view` on seeds 11–18 at 5 seasons** under the frozen
+- [x] Merge [#92 — contract economics](https://github.com/nedcut/gm-bench/pull/92)
+  after confirming no live checkpoints under `data/model_checkpoints/`. Merged
+  2026-07-26; the contract fingerprint is now `4f6ddddd6a6dd81c`, so any
+  checkpoint keyed to an earlier fingerprint is invalid and must not be resumed.
+- [x] **Run `scaffold-view` on seeds 11–18 at 5 seasons** under the frozen
   contract fingerprint with no contract-source change before or after (Issue #84
-  item above). Scripted, deterministic, and free; required before any paid v3
-  panel spend.
-- [ ] Fix site claim integrity while the public page still sells v2: tiered or
+  item above). Completed under `4f6ddddd6a6dd81c` in
+  [#98](https://github.com/nedcut/gm-bench/pull/98); paired gap +2.8, diagnostic
+  only.
+- [x] Fix site claim integrity while the public page still sells v2: tiered or
   CI-backed baseline ladder in `Analysis.tsx`, `tokens_per_decision` on score
   surfaces, relabel partial-oracle reference, and a public-panel adaptation /
-  contamination caveat mirroring the blog.
+  contamination caveat mirroring the blog. Landed in
+  [#95](https://github.com/nedcut/gm-bench/pull/95), which also named the stored
+  `ci95` field as a *lift* interval so it is not read as an interval on score.
 - [ ] Pre-register the v3 publication lane (`config/sota_v3_lane.json`, registry,
   smoke manifest) before authorizing spend.
-- [ ] Add CI `validate-result --policy sota-v3` once the first v3 artifacts land;
-  extend smoke coverage for `require_strict_fallback`, CapHoard seed-level
-  assertion, and `extend_contract` prompt conformance.
+- [ ] Add CI `validate-result --policy sota-v3` once the first v3 artifacts land.
+  The smoke-coverage half of this item is done: `require_strict_fallback` and the
+  CapHoard seed-level assertion landed in
+  [#96](https://github.com/nedcut/gm-bench/pull/96), and `extend_contract` prompt
+  conformance in #92. The CI step itself is still open.
 - [ ] Decide v3 site strategy (historical v2 page vs current v3 page) and
   propagate Holm / tier caveats to Analysis and the sortable table.
 - [ ] Report weight sensitivity and an outcome-only secondary view (titles /
@@ -629,9 +636,12 @@ Independent consulting review on Issue
   overstatement, and no contamination caveat on the landing page.
 - **No ordinal ranking** among models or among the new reference ladder
   (`shrewd` / `strategic` / `scaffold-view` / `pick-trader` sit within ~10
-  points on the official 8-seed panel under fingerprint `0a5f0434dca31ac5`).
-  The durable public claim stays: all eight eligible v2 systems trailed
-  `pick-trader`; no model ordering is justified.
+  points on the official 8-seed panel). That spread was observed under
+  fingerprint `0a5f0434dca31ac5` at audit time; #92 merged as
+  `4f6ddddd6a6dd81c` and #98 re-measured the panel there with scores unchanged,
+  so the conclusion carries over to the current contract. The durable public
+  claim stays: all eight eligible v2 systems trailed `pick-trader`; no model
+  ordering is justified.
 
 ## Decision log
 
