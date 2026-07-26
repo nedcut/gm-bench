@@ -15,6 +15,49 @@ from gm_bench.scaffold_view import scaffold_view_observation
 from gm_bench.telemetry import normalize_usage
 
 
+def _release_surplus(player: dict[str, Any]) -> float:
+    """How much better off the roster is without this player, in value units.
+
+    `public_asset_value` already nets out `0.7 * salary`, so it is the value of
+    *keeping* the player. Releasing swaps that for a dead-cap charge that buys
+    nothing, so the comparison is:
+
+        keep    =  public_asset_value(player)          (on-ice value less salary)
+        release = -0.7 * release_dead_cap.total            (a cost with no player)
+
+    and the surplus from releasing is `release - keep`. Positive means the
+    contract is underwater by more than it costs to escape. The 0.7 weight is
+    reused from `public_asset_value` so both sides are in the same units.
+
+    Players with no guaranteed years carry no charge, so for them this reduces
+    to "is the player worth less than nothing", which is the honest question.
+    """
+    dead_cap = player.get("release_dead_cap") or {}
+    total_charge = float(dead_cap.get("total", 0.0))
+    return -public_asset_value(player) - 0.7 * total_charge
+
+
+def _release_cap_room_delta(player: dict[str, Any], *, season: int) -> float:
+    """Net cap-room change this season from releasing a player.
+
+    Uses the published per-season charge for the current season rather than
+    approximating with a salary fraction, so multi-year guarantees are priced
+    against what the observation actually shows.
+    """
+    dead_cap = player.get("release_dead_cap") or {}
+    by_season = dead_cap.get("by_season") or {}
+    current_charge = float(by_season.get(str(season), 0.0))
+    return float(player["salary"]) - current_charge
+
+
+def _contract_quote(player: dict[str, Any], years: int) -> float:
+    """Return the public guaranteed quote for a term."""
+    quotes = player.get("contract_quotes") or player.get("extension_quotes") or {}
+    if str(years) in quotes:
+        return float(quotes[str(years)])
+    return float(player["asking_salary"])
+
+
 class Agent(ABC):
     name = "agent"
 
@@ -91,16 +134,17 @@ class WinNowAgent(Agent):
         cap_room = observation["team"]["cap_room"]
         free_agents = sorted(observation["free_agents"], key=lambda player: player["overall"], reverse=True)
         for player in free_agents[:4]:
-            if player["asking_salary"] <= cap_room + 1.5 and player["overall"] >= 57:
+            salary = _contract_quote(player, 2)
+            if salary <= cap_room + 1.5 and player["overall"] >= 57:
                 actions.append(
                     {
                         "type": "sign_free_agent",
                         "player_id": player["id"],
                         "years": 2,
-                        "salary": player["asking_salary"],
+                        "salary": salary,
                     }
                 )
-                cap_room -= player["asking_salary"]
+                cap_room -= salary
         if observation["phase"] == "draft" and observation["draft_class"]:
             prospect = max(observation["draft_class"], key=lambda player: player["overall"])
             actions.append({"type": "draft", "prospect_id": prospect["id"]})
@@ -128,16 +172,17 @@ class RebuildAgent(Agent):
             reverse=True,
         )
         for player in prospects[:3]:
-            if player["age"] <= 25 and player["asking_salary"] <= cap_room:
+            salary = _contract_quote(player, 3)
+            if player["age"] <= 25 and salary <= cap_room:
                 actions.append(
                     {
                         "type": "sign_free_agent",
                         "player_id": player["id"],
                         "years": 3,
-                        "salary": player["asking_salary"],
+                        "salary": salary,
                     }
                 )
-                cap_room -= player["asking_salary"]
+                cap_room -= salary
         lineup = position_aware_lineup(
             observation["team"]["roster"], lambda player: player["potential"] * 0.65 + player["overall"] * 0.35
         )
@@ -154,17 +199,18 @@ class ValueAgent(Agent):
         cap_room = observation["team"]["cap_room"]
         free_agents = sorted(observation["free_agents"], key=public_asset_value, reverse=True)
         for player in free_agents[:5]:
-            if player["asking_salary"] <= cap_room and public_asset_value(player) > 7.0:
-                years = 3 if player["age"] <= 27 else 1
+            years = 3 if player["age"] <= 27 else 1
+            salary = _contract_quote(player, years)
+            if salary <= cap_room and public_asset_value(player) > 7.0:
                 actions.append(
                     {
                         "type": "sign_free_agent",
                         "player_id": player["id"],
                         "years": years,
-                        "salary": player["asking_salary"],
+                        "salary": salary,
                     }
                 )
-                cap_room -= player["asking_salary"]
+                cap_room -= salary
         if observation["phase"] == "draft" and observation["draft_class"]:
             prospect = max(observation["draft_class"], key=public_asset_value)
             actions.append({"type": "draft", "prospect_id": prospect["id"]})
@@ -198,7 +244,21 @@ class ShrewdAgent(Agent):
 
     name = "shrewd"
 
-    RELEASE_VALUE_FLOOR = -2.0
+    # A release is worth making when the cap it frees buys more than the player
+    # still provides. `release_dead_cap` publishes the exact charge, so this is
+    # a comparison the policy can actually make rather than a magic threshold.
+    #
+    # This replaces a `public_asset_value < -2.0` floor that was unreachable in
+    # combination with the age and salary tests it was ANDed with: instrumenting
+    # 40 preseason windows on seeds 11-18 found zero candidates, before and
+    # after contract economics existed (issue #91). The docstring above has
+    # advertised release behaviour that never once executed.
+    #
+    # The bar is deliberately set so that clearing it means the player is
+    # genuinely underwater, not merely mediocre. If that turns out to be rare,
+    # that is a real statement about dead cap deterring releases -- which is
+    # only distinguishable from a dead branch now that the branch can fire.
+    RELEASE_SURPLUS_MARGIN = 1.5
     MIN_KEEP_ROSTER = 20
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
@@ -206,43 +266,64 @@ class ShrewdAgent(Agent):
         roster = observation["team"]["roster"]
         cap_room = observation["team"]["cap_room"]
         midseason = observation["phase"] == "midseason"
+        season = int(observation["season"])
+
+        if observation["phase"] == "preseason":
+            extension_candidates = sorted(
+                (
+                    player
+                    for player in roster
+                    if player.get("extension_quotes") and player["age"] <= 27 and public_asset_value(player) > 8.0
+                ),
+                key=public_asset_value,
+                reverse=True,
+            )
+            for player in extension_candidates[:2]:
+                years = 4 if player["age"] <= 24 else 3
+                salary = _contract_quote(player, years)
+                if cap_room + player["salary"] >= salary:
+                    actions.append(
+                        {
+                            "type": "extend_contract",
+                            "player_id": player["id"],
+                            "years": years,
+                            "salary": salary,
+                        }
+                    )
+                    cap_room += player["salary"] - salary
 
         # Cap hygiene: skip releases at midseason — dumping salary after the
         # partial leg disrupts a roster that still has half a season to play.
         released_ids: set[int] = set()
         if not midseason:
             deadweight = sorted(
-                (
-                    player
-                    for player in roster
-                    if player["age"] >= 30
-                    and player["salary"] > 0
-                    and public_asset_value(player) < self.RELEASE_VALUE_FLOOR
-                ),
-                key=public_asset_value,
+                (player for player in roster if _release_surplus(player) > self.RELEASE_SURPLUS_MARGIN),
+                key=_release_surplus,
+                reverse=True,
             )
             releasable = max(0, len(roster) - self.MIN_KEEP_ROSTER)
             for player in deadweight[: min(2, releasable)]:
                 actions.append({"type": "release", "player_id": player["id"]})
                 released_ids.add(player["id"])
-                cap_room += player["salary"]
+                cap_room += _release_cap_room_delta(player, season=season)
 
         # Midseason FA bar is slightly looser: the partial-season break is the
         # best window to spend remaining cap before the stretch run.
         fa_threshold = 5.0 if midseason else 6.0
         free_agents = sorted(observation["free_agents"], key=public_asset_value, reverse=True)
         for player in free_agents[:8]:
-            if player["asking_salary"] <= cap_room and public_asset_value(player) > fa_threshold:
-                years = 3 if player["age"] <= 27 else 1
+            years = 3 if player["age"] <= 27 else 1
+            salary = _contract_quote(player, years)
+            if salary <= cap_room and public_asset_value(player) > fa_threshold:
                 actions.append(
                     {
                         "type": "sign_free_agent",
                         "player_id": player["id"],
                         "years": years,
-                        "salary": player["asking_salary"],
+                        "salary": salary,
                     }
                 )
-                cap_room -= player["asking_salary"]
+                cap_room -= salary
 
         if observation["phase"] == "draft" and observation["draft_class"]:
             prospect = max(observation["draft_class"], key=public_asset_value)
@@ -276,7 +357,7 @@ class StrategicAgent(ShrewdAgent):
 
     name = "strategic"
     OFFER_EDGE = 1.08
-    PICK_TRADE_PRICE_CEILING = 0.82
+    PICK_SALE_VALUE_FLOOR = 1.0
     ENABLE_PICK_TRADES = False
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
@@ -407,9 +488,13 @@ class StrategicAgent(ShrewdAgent):
             if action_type == "release":
                 player = roster_by_id.get(int(action.get("player_id", -1)))
                 if player is not None:
-                    cap_room += float(player["salary"])
+                    cap_room += _release_cap_room_delta(player, season=int(observation["season"]))
             elif action_type == "sign_free_agent":
                 cap_room -= float(action.get("salary", 0.0))
+            elif action_type == "extend_contract":
+                player = roster_by_id.get(int(action.get("player_id", -1)))
+                if player is not None:
+                    cap_room += float(player["salary"]) - float(action.get("salary", 0.0))
             elif action_type == "accept_trade_offer":
                 offer = offers_by_id.get(action.get("offer_id"))
                 if offer is not None:
@@ -429,27 +514,35 @@ class StrategicAgent(ShrewdAgent):
         pick_value_estimate = float(
             observation["rules"]["pick_trading"]["pick_value_estimate"].get(str(next_season), 0.0)
         )
-        if int(observation["team"]["draft_picks"].get(next_season, 1)) <= 0:
+        roster = observation["team"]["roster"]
+        if len(roster) <= self.MIN_KEEP_ROSTER:
             return None
         candidates = [
-            offer
-            for offer in observation.get("trade_market", [])
-            if offer["team_id"] not in excluded_partner_ids
-            and offer["player"]["id"] not in excluded_player_ids
-            and offer["player"]["age"] <= 27
-            and offer["player"]["salary"] <= available_cap_room
-            and float(offer["estimated_price"]) <= pick_value_estimate * self.PICK_TRADE_PRICE_CEILING
+            player
+            for player in roster
+            if player["id"] not in excluded_player_ids
+            and player["age"] >= 28
+            and player["contract_years"] <= 2
+            and public_asset_value(player) >= pick_value_estimate * self.PICK_SALE_VALUE_FLOOR
         ]
-        if not candidates:
+        partner_offers = [
+            offer for offer in observation.get("trade_market", []) if offer["team_id"] not in excluded_partner_ids
+        ]
+        if not candidates or not partner_offers:
             return None
-        target = max(candidates, key=lambda offer: public_asset_value(offer["player"]))
+        # Contract guarantees make an aging veteran expensive to cut. Move the
+        # smallest asset that still covers the public pick estimate, avoiding
+        # dead cap while preserving the roster floor. A team marketing the
+        # weakest player is the deterministic first buyer for added depth.
+        player = min(candidates, key=public_asset_value)
+        partner_id = min(partner_offers, key=lambda offer: public_asset_value(offer["player"]))["team_id"]
         return {
             "type": "trade",
-            "partner_team_id": target["team_id"],
-            "give_player_ids": [],
-            "receive_player_ids": [target["player"]["id"]],
-            "give_pick_seasons": [next_season],
-            "receive_pick_seasons": [],
+            "partner_team_id": partner_id,
+            "give_player_ids": [player["id"]],
+            "receive_player_ids": [],
+            "give_pick_seasons": [],
+            "receive_pick_seasons": [next_season],
         }
 
 

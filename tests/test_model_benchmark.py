@@ -440,6 +440,45 @@ def test_baselines_from_cache_requires_full_seed_coverage(tmp_path: Path, monkey
     assert rows[0]["mean_score"] == pytest.approx(sum(bl.LEADERBOARD["seeds"]) / len(bl.LEADERBOARD["seeds"]))
 
 
+def test_baselines_from_sota_v2_artifacts_require_agreement() -> None:
+    from gm_bench.contract import SOTA_V2_CONTRACT
+    from web.scripts.build_leaderboard import baselines_from_sota_v2_artifacts
+
+    def panel(scores: dict[str, tuple[float, float]]) -> dict:
+        return {
+            "run_info": {"benchmark_contract": dict(SOTA_V2_CONTRACT)},
+            "baselines": [
+                {"agent": agent, "summary": {"mean_score": mean, "score_stddev": std}}
+                for agent, (mean, std) in scores.items()
+            ],
+        }
+
+    agents = {
+        "random": (96.715, 18.063),
+        "conservative": (139.03, 18.297),
+        "win-now": (275.834, 45.055),
+        "rebuild": (138.745, 15.887),
+        "value": (354.619, 31.492),
+        "shrewd": (371.769, 47.86),
+        "strategic": (402.025, 49.4),
+        "pick-trader": (411.619, 50.64),
+    }
+    rows = baselines_from_sota_v2_artifacts([panel(agents), panel(agents)])
+    assert rows[0]["agent"] == "pick-trader"
+    assert rows[0]["mean_score"] == 411.619
+    assert {row["agent"] for row in rows} == set(agents)
+
+    disagree = dict(agents)
+    disagree["pick-trader"] = (999.0, 1.0)
+    with pytest.raises(SystemExit, match="disagree"):
+        baselines_from_sota_v2_artifacts([panel(agents), panel(disagree)])
+
+    with pytest.raises(SystemExit, match="complete baseline panel"):
+        baselines_from_sota_v2_artifacts(
+            [{"run_info": {"benchmark_contract": {"contract_fingerprint": "other"}}, "baselines": []}]
+        )
+
+
 def test_leaderboard_selects_official_then_newest_diagnostic() -> None:
     from web.scripts.build_leaderboard import select_model_payloads
 

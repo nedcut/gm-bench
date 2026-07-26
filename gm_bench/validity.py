@@ -13,12 +13,14 @@ from gm_bench.runner import run_many
 
 CANARY_MIN_FINAL_MARGIN = 25.0
 CANARY_MIN_STRATEGY_MARGIN = 25.0
+CANARY_MIN_PAIRED_T = 2.0
 MECHANIC_MIN_SEED_RATES = {
     "memo": 0.75,
     "scouting": 0.75,
     "offer_response": 0.75,
     "accepted_offer": 0.25,
     "pick_trade": 0.25,
+    "extension": 0.75,
 }
 
 
@@ -118,13 +120,30 @@ CANARY_AGENTS: tuple[type[Agent], ...] = (
 )
 
 
+# The canaries run their own seed panel, three times the width of the paid
+# leaderboard lane, because they can afford to: every agent they run is a
+# scripted policy costing nothing but CPU, while the leaderboard panel is sized
+# by what a model row costs in API spend.
+#
+# Eight seeds is not enough to assert an ordering. On the final contract the
+# matched contrast is effectively zero at n=8 (paired t=-0.004), reaches t=2.559
+# at n=24, and reaches t=3.999 at n=48 with `pick-trader` ahead on 39 of 48
+# seeds. The 48-seed paired variance puts the approximate two-sided 80%-power
+# requirement at 24 seeds; adjacent reference contrasts need substantially more.
+#
+# This width is chosen from that power calculation with headroom, not by taste.
+# Narrowing it back to the leaderboard panel would restore the failure mode
+# where an ordering is asserted at a threshold noise can satisfy.
+CANARY_SEEDS: tuple[int, ...] = tuple(range(11, 35))
+
+
 def run_validity_canaries(
     *,
     seeds: list[int] | None = None,
     seasons: int | None = None,
 ) -> dict[str, Any]:
     leaderboard = PRESETS["leaderboard"]
-    resolved_seeds = list(seeds or leaderboard["seeds"])
+    resolved_seeds = list(seeds or CANARY_SEEDS)
     resolved_seasons = int(seasons or leaderboard["seasons"])
 
     value = run_many(ValueAgent(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1)
@@ -136,15 +155,64 @@ def run_validity_canaries(
     ]
 
     mechanic_coverage, mechanic_checks = _mechanic_coverage(pick_trader, len(resolved_seeds))
+    # Adjacent reference means remain useful calibration rows, but they are not
+    # invariants. Two pre-registered contrasts clear the significance bar and
+    # are asserted; the rest are calibration rows only.
+    #
+    # `shrewd > value` is asserted again here. It was demoted when it measured
+    # paired t=0.05 on the 8-seed leaderboard panel, which is what widening the
+    # canary panel was for: at 24 seeds it is t=3.184. Restoring a claim the
+    # evidence now supports is the point of the wider panel, and it was
+    # pre-registered rather than picked because it came out significant.
+    #
+    # `pick-trader`, `strategic` and `shrewd` remain mutually unresolved
+    # (t=-0.494 and t=-0.326 between adjacent pairs, both reversed in sign from
+    # the historical ordering). Asserting any order among them would launder a
+    # coin flip as a guarantee, which is the defect this gate exists to remove.
     checks = [
-        _margin_check(pick_trader, strategic, "pick-trader", "strategic", "honest_bar"),
-        _margin_check(strategic, shrewd, "strategic", "shrewd", "honest_bar"),
-        _margin_check(shrewd, value, "shrewd", "value", "honest_bar"),
+        _margin_check(pick_trader, value, "pick-trader", "value", "honest_bar"),
+        _paired_significance_check(
+            pick_trader,
+            value,
+            "pick-trader",
+            "value",
+            "final_score",
+            "honest_bar",
+        ),
+        _margin_check(shrewd, value, "shrewd", "value", "cap_hygiene_bar"),
+        _paired_significance_check(
+            shrewd,
+            value,
+            "shrewd",
+            "value",
+            "final_score",
+            "cap_hygiene_bar",
+        ),
         *mechanic_checks,
     ]
     for canary in canaries:
         checks.append(_margin_check(value, canary, "value", canary["agent"], "canary_final_score"))
+        checks.append(
+            _paired_significance_check(
+                value,
+                canary,
+                "value",
+                canary["agent"],
+                "final_score",
+                "canary_final_score",
+            )
+        )
         checks.append(_strategy_margin_check(value, canary, "value", canary["agent"]))
+        checks.append(
+            _paired_significance_check(
+                value,
+                canary,
+                "value",
+                canary["agent"],
+                "strategy_score",
+                "canary_strategy_score",
+            )
+        )
 
     return {
         "ok": all(check["ok"] for check in checks),
@@ -186,6 +254,8 @@ def _mechanic_coverage(
                 mechanics.append("accepted_offer")
             if action_type == "trade" and (action.get("give_pick_seasons") or action.get("receive_pick_seasons")):
                 mechanics.append("pick_trade")
+            if action_type == "extend_contract":
+                mechanics.append("extension")
             for mechanic in mechanics:
                 accepted_actions[mechanic] += 1
                 covered_seeds[mechanic].add(seed)
@@ -251,6 +321,52 @@ def _strategy_margin_check(
         "minimum_margin": CANARY_MIN_STRATEGY_MARGIN,
         "ok": margin >= CANARY_MIN_STRATEGY_MARGIN,
     }
+
+
+def _paired_significance_check(
+    winner: dict[str, Any],
+    loser: dict[str, Any],
+    winner_name: str,
+    loser_name: str,
+    episode_metric: str,
+    check_name: str,
+) -> dict[str, Any]:
+    winner_by_seed = _per_seed_metric(winner, episode_metric)
+    loser_by_seed = _per_seed_metric(loser, episode_metric)
+    shared_seeds = sorted(winner_by_seed.keys() & loser_by_seed.keys())
+    complete_pairing = len(shared_seeds) == len(winner_by_seed) == len(loser_by_seed) and len(shared_seeds) >= 2
+    differences = [winner_by_seed[seed] - loser_by_seed[seed] for seed in shared_seeds]
+    paired_mean = sum(differences) / len(differences) if differences else 0.0
+    if len(differences) >= 2:
+        variance = sum((difference - paired_mean) ** 2 for difference in differences) / (len(differences) - 1)
+        standard_error = math.sqrt(variance / len(differences))
+    else:
+        standard_error = 0.0
+    paired_t = paired_mean / standard_error if standard_error > 0 else None
+    # With identical paired differences the estimated standard error is zero:
+    # the mathematical t limit is signed infinity. Keep the JSON field finite
+    # (None) while preserving that limiting decision in the boolean gate.
+    clears_bar = (paired_t is None and paired_mean > 0) or (paired_t is not None and paired_t >= CANARY_MIN_PAIRED_T)
+    return {
+        "name": f"{check_name}_paired_significance",
+        "winner": winner_name,
+        "loser": loser_name,
+        "metric": "paired_t",
+        "margin": round(paired_t, 3) if paired_t is not None else None,
+        "minimum_margin": CANARY_MIN_PAIRED_T,
+        "paired_mean_difference": round(paired_mean, 3),
+        "paired_standard_error": round(standard_error, 3),
+        "seed_count": len(shared_seeds),
+        "complete_pairing": complete_pairing,
+        "ok": complete_pairing and clears_bar,
+    }
+
+
+def _per_seed_metric(result: dict[str, Any], metric: str) -> dict[int, float]:
+    scores: dict[int, list[float]] = {}
+    for episode in result["episodes"]:
+        scores.setdefault(int(episode["seed"]), []).append(float(episode[metric]))
+    return {seed: sum(values) / len(values) for seed, values in scores.items()}
 
 
 def _summary_row(result: dict[str, Any]) -> dict[str, Any]:

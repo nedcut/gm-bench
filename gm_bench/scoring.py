@@ -140,7 +140,8 @@ def score_components(league: "League", team_id: int) -> dict[str, float]:
     scale = ACTIVE_SCORE_SCALE
     team = league.teams[team_id]
     roster = [league.players[player_id] for player_id in team.roster]
-    payroll = sum(player.salary for player in roster)
+    # Retained salary is real payroll even after the player leaves the roster.
+    payroll = league._payroll(team)
     young_assets = sum(player.asset_value for player in roster if player.age <= 24)
     total_assets = sum(player.asset_value for player in roster)
     # Future picks are assets: valued at the same discounted scale trades use,

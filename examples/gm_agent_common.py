@@ -30,6 +30,7 @@ DecideFn = Callable[[dict[str, Any]], DecideResult]
 
 _ACTION_EXAMPLES: tuple[tuple[str, str, str], ...] = (
     ("Core actions", "sign_free_agent", '{"type":"sign_free_agent","player_id":123,"years":1,"salary":2.5}'),
+    ("Core actions", "extend_contract", '{"type":"extend_contract","player_id":11,"years":4,"salary":5.8}'),
     ("Core actions", "draft", '{"type":"draft","prospect_id":1010001}'),
     (
         "Core actions",
@@ -146,8 +147,13 @@ def build_prompt(observation: dict[str, Any]) -> str:
         "and rosters cannot drop below roster_min. Declined trade offers and free-agent lowballs cost no penalty, "
         "but after rejected_offer_limit_per_window declines a counterparty stops negotiating until your next "
         "decision window. Free agents accept offers down to a hidden reservation within fa_reservation_range of "
-        "their ask; offering the full ask always works. Opponents draft in inverse-standings order, so top prospects "
-        "may be gone before your pick. Opponent teams also sign free agents after every phase and trade among "
+        "their ask; offering the full ask always works. "
+        "Free-agent contract_quotes price each 1-5 year term; salaries and the cap inflate annually, while longer "
+        "terms cost a premium. In preseason, eligible final-year incumbents expose extension_quotes. Each roster "
+        "player's release_dead_cap publishes the exact by-season and total charge for releasing that contract now; "
+        "future retained charges appear in team.dead_cap. "
+        "Opponents draft in inverse-standings order, so top prospects may be gone before your pick. "
+        "Opponent teams also sign free agents after every phase and trade among "
         "themselves at the deadline, so a free agent visible now may be gone at your next decision. "
         "Use the memo action to carry multi-season plans forward; your last memo "
         "is echoed in the observation. Review action_results before repeating failed moves. "

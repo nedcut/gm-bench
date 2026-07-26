@@ -116,8 +116,9 @@ def test_reports_persist_across_seasons():
 def test_scouting_does_not_perturb_scripted_scores():
     """Scout RNG is stream-isolated: a non-scouting run must be unchanged."""
     baseline = run_episode(ValueAgent(), seed=1, seasons=5)
-    # Midseason is now in the default episode; golden moved with P3+P5+P6.
-    assert baseline.final_score == 319.261
+    # Contract economics changed roster construction and opponent retention;
+    # this still pins that scouting's isolated RNG did not cause the movement.
+    assert baseline.final_score == 276.237
 
 
 def test_ambiguous_scout_target_increments_failed_queries_not_declines():

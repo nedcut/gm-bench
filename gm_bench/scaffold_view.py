@@ -74,6 +74,7 @@ def compact_observation(observation: dict[str, Any], profile: str | None = None)
             "losses": team.get("losses"),
             "payroll": team.get("payroll"),
             "cap_room": team.get("cap_room"),
+            "dead_cap": team.get("dead_cap", {}),
             "championships": team.get("championships"),
             "draft_picks": team.get("draft_picks"),
             "top_roster": roster_sorted[:roster_limit] if roster_sorted else team.get("roster_summary"),

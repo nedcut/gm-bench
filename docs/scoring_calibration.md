@@ -101,7 +101,7 @@ is derived only from the published weights and clamps. GM-Bench validates it at
 import time, so changing a weight without declaring a new score version fails
 immediately instead of silently changing leaderboard meaning.
 
-The `sota-v2` benchmark contract (fingerprint `558e8f35ea1d66b9`, see
+The frozen `sota-v2` benchmark contract (fingerprint `558e8f35ea1d66b9`, see
 [production_benchmark.md](production_benchmark.md)) does not touch `score-v1`:
 no scoring weight or clamp changed. The `sota-v1` → `sota-v2` bump was a
 protocol/simulator fix (`scout` accepting `prospect_id`) and a reporting
@@ -111,6 +111,11 @@ before, because querying is meant to be free. It is now reported in episode
 results, run summaries, and comparison blocks, but that is a visibility fix,
 not a scale change: two rows with the same `score-v1` fingerprint remain
 comparable regardless of how many queries either one failed.
+
+The current `sota-v3` contract (fingerprint `4f6ddddd6a6dd81c`) still uses the
+same `score-v1` weights and clamps. Contract economics change the simulated
+rosters, and `cap_room` now correctly uses payroll including retained dead cap;
+neither change modifies the published score scale itself.
 
 Reproduce the complete machine-readable scale and calibration:
 
@@ -136,51 +141,111 @@ also change strength, cap room, and wins.
 
 ## Reference-policy calibration
 
-The current `sota-v2` public panel (seeds 11-18, five seasons; contract
-fingerprint `558e8f35ea1d66b9`, protocol `gm-bench-v2` with midseason)
-produces:
+Reference policies are calibrated on a **24-seed panel (seeds 11-34, five
+seasons)**, three times the width of the paid `leaderboard` lane. The two
+panels are sized by different constraints and should not share a width: every
+policy here is scripted and costs only CPU, while the leaderboard width is set
+by what a model row costs in API spend.
+
+Eight seeds cannot support an ordering claim on this engine. The same two
+policies, measured paired on matched seeds:
+
+| seeds | mean difference | paired *t* |
+| ---: | ---: | ---: |
+| 8 (leaderboard width) | -0.11 | -0.004 |
+| 16 | 36.14 | 2.015 |
+| 24 (canary width) | 36.37 | 2.559 |
+| 48 | 35.51 | 3.999 |
+
+`pick-trader` wins 39 of 48 seeds. Using the 48-seed paired variance, the
+approximate two-sided 80%-power requirement is 24 seeds. The eight-seed slice
+cannot resolve the contrast, which is why `validate-contract` now gates
+orderings on paired *t* >= 2.0 over its own panel rather than on a positive mean
+margin.
+
+Contract fingerprint `4f6ddddd6a6dd81c`, protocol `gm-bench-v3`:
 
 | Reference | Mean score | Illegal actions | Role |
 | --- | ---: | ---: | --- |
-| `pick-trader` | 411.619 | 0 | Strongest official scripted bar |
-| `strategic` | 402.025 | 0 | Scouting, offers, memo, and shrewd roster core |
-| `shrewd` | 371.769 | 0 | Cap hygiene and development-aware lineup core |
-| `value` | 354.619 | 0 | Public-value roster heuristic |
-| `win-now` | 275.834 | 0 | Short-horizon win maximizer |
-| `conservative` | 139.030 | 0 | Low-churn roster holder |
-| `rebuild` | 138.745 | 0 | Youth-oriented tear-down |
-| `random` | 96.715 | 0 | Floor / noise baseline |
+| `shrewd` | 288.64 | 0 | Dead-cap-aware roster and development policy |
+| `strategic` | 285.02 | 0 | Scouting, offers, memo, extensions, and shrewd roster core |
+| `scaffold-view` | 281.88 | 0 | Pick-trader policy on the compact adapter payload |
+| `pick-trader` | 279.07 | 0 | Official scripted bar |
+| `win-now` | 244.37 | 0 | Short-horizon win maximizer |
+| `value` | 242.70 | 0 | Public-value roster heuristic |
+| `conservative` | 132.35 | 0 | Low-churn roster holder |
+| `rebuild` | 130.35 | 0 | Youth-oriented tear-down |
+| `exploit` | 128.03 | 71 | Unmodified red-team canary |
+| `random` | 93.10 | 0 | Floor / noise baseline |
+
+Two reference invariants are asserted: `pick-trader > value` (paired *t* =
+2.559) and `shrewd > value` (paired *t* = 3.184). The four policies at the top
+sit within 10 points of each other against per-seed standard deviations near 50,
+so their relative order is not established and is not pinned. Reporting them as
+a ranked ladder would overstate what the panel shows.
+
+Note that contract economics cost `pick-trader` its former lead: with releases
+priced and incumbents retainable, cap hygiene and retention now compete with
+pick accumulation. On the 8-seed leaderboard panel the same run puts
+`pick-trader` fifth, which is noise rather than a result -- exactly the
+divergence the width table above predicts.
+
+### Mechanic liveness
+
+A mechanic that never fires is inert regardless of its constants, so liveness is
+measured rather than assumed. Over the 24-seed panel (120 team-seasons), the
+agent's own team:
+
+| Mechanic | Count |
+| --- | ---: |
+| Extensions accepted | 216 |
+| Contract terms signed | 4y: 163, 3y: 53, FA 1y: 769, FA 3y: 260 |
+| Releases accepted | 7 |
+
+Releases are rare by design: dead cap is a deterrent, and a policy that pays it
+anyway is choosing to. Before the fix in #91 the count was **zero and could not
+have been anything else** -- the release branch required a conjunction of
+conditions that never co-occurred, so a working deterrent and an unreachable
+branch produced the same number. They are now distinguishable.
 
 The strategic policy's panel ablations are also deterministic:
 
 | Policy variant | Mean score | Change vs `strategic` |
 | --- | ---: | ---: |
-| Full `strategic` | 402.025 | 0.000 |
-| No scouting | 371.284 | -30.741 |
-| No incoming-offer policy | 395.539 | -6.486 |
-| No memo writes | 402.025 | 0.000 |
-| `shrewd` core only | 371.769 | -30.256 |
-| Pick trading enabled (`pick-trader`) | 411.619 | +9.594 |
+| Full `strategic` | 285.025 | 0.000 |
+| No scouting | 288.917 | +3.892 |
+| No incoming-offer policy | 270.023 | -15.002 |
+| No memo writes | 285.025 | 0.000 |
+| `shrewd` core only | 288.643 | +3.618 |
+| Pick trading enabled (`pick-trader`) | 279.066 | -5.959 |
 
 This is intentionally not presented as causal estimation: mechanics interact
-over five seasons. It is a regression calibration showing that scouting and
-selective offer handling have measurable decision value. The cap-aware pick
-policy also improves the panel mean, but remains separate so its marginal effect
-stays visible rather than being hidden inside `strategic`. Memo persistence is
-covered as protocol behavior but has zero direct effect for this deterministic
-reference, which can reconstruct its policy from the observation; its value as
-an LLM memory channel still requires model-backed evaluation.
-`validate-contract` separately requires accepted
-memo, scout, offer-response, offer-acceptance, and pick-trade actions across
-minimum fractions of the official panel, so these mechanics cannot silently
-become dead protocol surface.
+over five seasons. On this panel, removing scouting improves the mean, removing
+the incoming-offer policy hurts it, and enabling the pick-sale policy lowers it.
+Those are calibration results, not general causal claims about information,
+negotiation, or trading. Memo persistence has zero direct effect for this
+deterministic reference, which can reconstruct its policy from the observation.
+`validate-contract` asserts `pick-trader > value` and `shrewd > value`. Both keep
+the mean-margin check and additionally require the per-seed paired difference to
+clear a t ratio of 2.0. The adjacent `pick-trader`/`strategic` and
+`strategic`/`shrewd` comparisons remain calibration rows: their paired t ratios
+are -0.494 and -0.326, respectively, both reversed in sign from the historical
+ordering and neither resolvable. The validator separately
+requires accepted memo, scout, offer-response, offer-acceptance, pick-trade,
+and extension actions across minimum fractions of the official panel, so these
+mechanics cannot silently become dead protocol surface.
 
-### Ceiling reference
+### Hidden-information diagnostic
 
 `oracle` is a diagnostic-only hidden-information reference, not an official
-baseline and not part of the `sota-v2` baseline panel. On the same public panel
-(seeds 11-18, five seasons), it scores **431.150**, versus **411.619** for
-`pick-trader`: a **19.531-point** pick-trader-to-oracle gap.
+baseline and not part of the `sota-v3` baseline panel. On the public leaderboard
+panel (seeds 11-18, five seasons), it scores **274.789**, versus **267.875** for
+`pick-trader` — so perfect knowledge of draft-class `true_potential` is still
+worth something under contract economics.
+
+Read that gap with the panel-width caveat above in mind: eight seeds cannot
+resolve a difference of this size, and the number is quoted as a diagnostic
+reading rather than an established ordering.
 
 The oracle begins with the `pick-trader` policy, then regenerates a draft
 class's deterministic `true_potential` from its seed and uses it only for
@@ -194,9 +259,9 @@ does not use their latent potential for its free-agent roster policy, so the
 measured result is conservative rather than a claim of globally optimal play.
 
 It does not predict injury draws, player-development rolls, game and playoff
-outcomes, or opponents' future actions. The gap is the strategic headroom that
-the benchmark can discriminate beyond its strongest public-information scripted
-policy; it is a ceiling reference, not a target for valid model submissions.
+outcomes, contract decisions, or opponents' future actions. Under the current
+contract it is a behaviorally distinct hidden-draft diagnostic, not an
+optimization ceiling or a target for valid model submissions.
 
 This gap is narrower than the 8-seed minimum detectable difference reported
 in the Robustness section below: at the current panel size, scores inside the

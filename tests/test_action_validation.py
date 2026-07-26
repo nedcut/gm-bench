@@ -78,3 +78,66 @@ def test_non_finite_query_threshold_is_rejected(value: float) -> None:
     league.apply_actions([{"type": "list_free_agents", "min_overall": value}], "preseason")
     assert not league.transactions[-1].accepted
     assert "finite number" in league.transactions[-1].message
+
+
+def _eligible_extension_player(league: League):
+    return next(
+        league.players[player_id]
+        for player_id in league.user_team.roster
+        if league._extension_eligible(league.players[player_id])
+    )
+
+
+def test_extend_contract_rejects_one_year_terms() -> None:
+    league = League.new(seed=24)
+    league.cap = 1000.0
+    player = _eligible_extension_player(league)
+    league.apply_actions(
+        [{"type": "extend_contract", "player_id": player.id, "years": 1, "salary": player.salary}],
+        "preseason",
+    )
+    assert not league.transactions[-1].accepted
+    assert "2-5" in league.transactions[-1].message
+
+
+def test_extend_contract_rejects_roster_player_with_years_remaining() -> None:
+    """Extensions are for final-year incumbents only.
+
+    Select on the term condition explicitly rather than on `not
+    _extension_eligible`, which is satisfied by either half of the rule. The
+    same-season half is covered by
+    `test_new_one_year_signing_cannot_immediately_harvest_loyalty_discount`,
+    since no player is signed in the season the league is created.
+    """
+    league = League.new(seed=24)
+    league.cap = 1000.0
+    player = next(
+        league.players[player_id]
+        for player_id in league.user_team.roster
+        if league.players[player_id].contract_years > 1
+    )
+    assert not league._extension_eligible(player)
+    league.apply_actions(
+        [
+            {
+                "type": "extend_contract",
+                "player_id": player.id,
+                "years": 3,
+                "salary": league._contract_quote(player, 3, incumbent=True),
+            }
+        ],
+        "preseason",
+    )
+    assert not league.transactions[-1].accepted
+    assert "signed before this season" in league.transactions[-1].message
+
+
+def test_extend_contract_rejects_non_positive_salary() -> None:
+    league = League.new(seed=24)
+    player = _eligible_extension_player(league)
+    league.apply_actions(
+        [{"type": "extend_contract", "player_id": player.id, "years": 3, "salary": 0.0}],
+        "preseason",
+    )
+    assert not league.transactions[-1].accepted
+    assert "positive amount" in league.transactions[-1].message
