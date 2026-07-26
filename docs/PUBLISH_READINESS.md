@@ -7,7 +7,7 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-07-24
+**Last reviewed:** 2026-07-26
 **Current target:** Preserve the published `sota-v2` study as frozen historical
 evidence while hardening the next contract and finishing the public
 presentation.
@@ -26,7 +26,8 @@ evidence immutable, finish the P1 claim/framing items, and seek an independent
 reproduction. No additional paid model runs are authorized or needed for this
 hardening step.
 **Current weekly focus:** [#84 — Close the gap between `sota-v2` evidence and
-framing](https://github.com/nedcut/gm-bench/issues/84)
+framing](https://github.com/nedcut/gm-bench/issues/84); [#93 — v3 readiness
+program: consultant audit findings](https://github.com/nedcut/gm-bench/issues/93)
 **Broader roadmap:** [#60 — Roadmap to a publishable leaderboard + blog
 post](https://github.com/nedcut/gm-bench/issues/60)
 
@@ -567,6 +568,40 @@ These should be refined, not quietly removed:
 - [ ] Obtain and link an independent clean-clone reproduction. A closed issue
   without a report is not evidence of reproduction.
 
+### Consultant audit critical path ([#93](https://github.com/nedcut/gm-bench/issues/93))
+
+Full P0/P1 backlog lives in Issue #93. These are the critical path before any
+paid v3 panel spend or headline refresh:
+
+- [x] Merge [#92 — contract economics](https://github.com/nedcut/gm-bench/pull/92)
+  after confirming no live checkpoints under `data/model_checkpoints/`. Merged
+  2026-07-26; the contract fingerprint is now `4f6ddddd6a6dd81c`, so any
+  checkpoint keyed to an earlier fingerprint is invalid and must not be resumed.
+- [x] **Run `scaffold-view` on seeds 11–18 at 5 seasons** under the frozen
+  contract fingerprint with no contract-source change before or after (Issue #84
+  item above). Completed under `4f6ddddd6a6dd81c` in
+  [#98](https://github.com/nedcut/gm-bench/pull/98); paired gap +2.8, diagnostic
+  only.
+- [x] Fix site claim integrity while the public page still sells v2: tiered or
+  CI-backed baseline ladder in `Analysis.tsx`, `tokens_per_decision` on score
+  surfaces, relabel partial-oracle reference, and a public-panel adaptation /
+  contamination caveat mirroring the blog. Landed in
+  [#95](https://github.com/nedcut/gm-bench/pull/95), which also named the stored
+  `ci95` field as a *lift* interval so it is not read as an interval on score.
+- [ ] Pre-register the v3 publication lane (`config/sota_v3_lane.json`, registry,
+  smoke manifest) before authorizing spend.
+- [ ] Add CI `validate-result --policy sota-v3` once the first v3 artifacts land.
+  The smoke-coverage half of this item is done: `require_strict_fallback` and the
+  CapHoard seed-level assertion landed in
+  [#96](https://github.com/nedcut/gm-bench/pull/96), and `extend_contract` prompt
+  conformance in #92. The CI step itself is still open.
+- [ ] Decide v3 site strategy (historical v2 page vs current v3 page) and
+  propagate Holm / tier caveats to Analysis and the sortable table.
+- [ ] Report weight sensitivity and an outcome-only secondary view (titles /
+  playoff rounds / wins) for future v3 model rows via `score_components`.
+- [ ] Fix multi-year dead-cap projection in shrewd/strategic release accounting
+  and drop or accept 1-year `extension_quotes` consistently.
+
 ## What should wait until after publication
 
 - [ ] Keep [#62 — strategic contract mechanics](https://github.com/nedcut/gm-bench/pull/62)
@@ -582,6 +617,31 @@ These should be refined, not quietly removed:
 After the v2 publication, v3 can pursue stronger contract mechanics, richer
 strategic decisions, improved external validity, and lessons learned from model
 failure traces without invalidating the published v2 evidence.
+
+## Consultant audit (2026-07-25)
+
+Independent consulting review on Issue
+[#93](https://github.com/nedcut/gm-bench/issues/93) (HEAD around PR #92):
+
+- **`sota-v3` is ready to freeze as a contract, not to launch as a public panel
+  or headline refresh.** Keep the live site, blog, and release locked to the
+  frozen `sota-v2` study until a pre-registered v3 panel exists.
+- **Merge #92 first.** Contract economics closes a real validity hole; confirm
+  no in-flight model checkpoints before merge.
+- **Run `scaffold-view` before any paid v3 panel.** The observation-asymmetry gap
+  is free and fingerprint-sensitive; it must land under the same contract as the
+  panel contrast.
+- **Site claim gaps remain P0** while v2 is the public face: ranked baseline
+  ladder without CIs, missing token-efficiency surfaces, “oracle ceiling”
+  overstatement, and no contamination caveat on the landing page.
+- **No ordinal ranking** among models or among the new reference ladder
+  (`shrewd` / `strategic` / `scaffold-view` / `pick-trader` sit within ~10
+  points on the official 8-seed panel). That spread was observed under
+  fingerprint `0a5f0434dca31ac5` at audit time; #92 merged as
+  `4f6ddddd6a6dd81c` and #98 re-measured the panel there with scores unchanged,
+  so the conclusion carries over to the current contract. The durable public
+  claim stays: all eight eligible v2 systems trailed `pick-trader`; no model
+  ordering is justified.
 
 ## Decision log
 
@@ -622,6 +682,7 @@ decision and why.
 | 2026-07-24 | Register the `scaffold-view` diagnostic without running it and without adding it to the official baseline panel. | The scripted references read the untruncated observation while model adapters read a sorted, truncated payload, so the published model-versus-`pick-trader` gap mixes policy quality with observation asymmetry. Measuring that needs one shared compaction implementation, not a second copy that can drift. | `gm_bench/scaffold_view.py` is imported by both `examples/gm_agent_common.py` and the new baseline, and is a contract-fingerprint source. The agent is registered but has not been run on any panel; no scaffold-gap number exists or may be quoted. Adding it to the official panel would break the exact-order baseline match on every existing artifact, so it stays opt-in. |
 | 2026-07-25 | Run `scaffold-view` on the official 8-seed panel under fingerprint `4f6ddddd6a6dd81c`. | Issue #93 P0: bound observation asymmetry before any paid panel on the contract-economics lane. Re-measured after PR #92 polish (`0a5f0434dca31ac5` → `4f6ddddd6a6dd81c`); panel scores unchanged. | Scripted compare on seeds 11–18 × 5 seasons: `scaffold-view` mean 270.675, `pick-trader` mean 267.875, paired gap +2.8 (six seeds tied; seeds 17–18 diverge). Logged in `docs/run_logs/scaffold-view-official-panel-2026-07-25.md`. Diagnostic only — does not re-rank models or alter leaderboard JSON. |
 | 2026-07-24 | Preserve the released `sota-v2` study and open `sota-v3` for the Issue #84 P0 fixes. | Non-finite input rejection and decision-window walk-away persistence change simulator/action semantics; compact-artifact recomputation strengthens the validator. Quietly changing the v2 fingerprint or re-recording old smokes would make the released contract mutable after results were known. | Pin the historical v2 contract and validator, identify current corrected runs as v3, block paid publication execution until a v3 registry and lane are pre-registered, retain the tagged v2 evidence and its narrow claim, and require no paid reruns for this repair. |
+| 2026-07-25 | Treat `sota-v3` as contract-ready and panel-blocked per consultant audit #93. | Independent review graded reproducibility A− but model discrimination D; one overlapping v2 tier; PR #92 contract economics still unmerged; scaffold-view unrun; site surfaces overclaim. | Merge #92, run scaffold-view at the frozen fingerprint, fix v2-site claim gaps, pre-register the v3 lane, and defer paid v3 panel spend until those gates pass. Do not publish ordinal model or baseline rankings. |
 
 ## Experiment and release log
 

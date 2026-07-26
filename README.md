@@ -77,6 +77,11 @@ GM-Bench includes:
 
 ## Leaderboard & Website
 
+The [live site](https://nedcut.github.io/gm-bench/) and generated leaderboard
+JSON reflect the frozen `sota-v2` phase-one study until a pre-registered `sota-v3`
+model panel is published; current development on `main` does not refresh those
+public headline numbers.
+
 Official results use the `leaderboard` preset (8 held-back seeds × 5 seasons,
 full baseline panel; `GM_BENCH_PRIVATE_SEEDS` swaps in a private panel). Every
 run records usage telemetry — tokens, dollar cost (from `gm_bench/pricing.json`
@@ -744,7 +749,7 @@ GEMINI_API_KEY=... GM_BENCH_WORKERS=1 python -m gm_bench model \
 
 ## Benchmark Philosophy
 
-This MVP is designed to test long-horizon strategic planning, resource
+GM-Bench is designed to test long-horizon strategic planning, resource
 allocation, numeric reasoning, uncertainty management, and coherent memory over
 multi-season episodes. It avoids GUI automation and avoids real player names so
 evaluation focuses on decision quality rather than browser-control reliability
@@ -776,7 +781,7 @@ hoarding); a regression test asserts it stays below the honest `value`
 baseline, so any rules change that re-opens an exploit fails CI instead of
 silently inflating scores.
 
-See [docs/benchmark_spec.md](docs/benchmark_spec.md) for the MVP design,
-landscape notes, and suggested next steps. See
+See [docs/benchmark_spec.md](docs/benchmark_spec.md) for the original design
+spec, landscape notes, and suggested next steps. See
 [docs/scoring_calibration.md](docs/scoring_calibration.md) for how the objective
 score is weighted and normalized.
