@@ -19,9 +19,10 @@ claim. Muse Spark 1.1 had the highest observed model mean at 231.851. Grok 4.5
 and Mistral Medium 3.5 completed but were excluded from the headline table for
 incomplete usage/cost coverage.
 
-**The gap is not an artefact of the harness.** The obvious objections—that
-models were penalised for JSON discipline, or handicapped by a scaffold the
-scripted references did not face—have been measured rather than argued:
+**Protocol discipline, continuity, and memo use do not explain the gap.** The
+obvious objections—that models were penalised for JSON discipline, or that the
+scripted references enjoyed a memory advantage—have been measured rather than
+argued:
 
 - **Protocol discipline costs 0.5–9.0% of the gap.** `strategy_score` removes
   invalid-action penalties, so the difference from `final_score` prices it
@@ -36,9 +37,12 @@ scripted references did not face—have been measured rather than argued:
 - **Memo volume does not track score.** The model writing 3 memos in 480
   decisions placed third; the one writing 568 placed second.
 
-None of these three explains the gap. That is not the same as saying the gap is
-purely a matter of decision quality: the 4,096-token output cap binds model rows
-and not scripted ones, and it has not been measured. See the
+Each of these rules out a specific way the gap could have been a measurement
+artefact. None of them shows the gap *is* decision quality. Two limits in
+particular: the 4,096-token output cap binds model rows and not scripted ones
+and has not been measured; and the continuity result is one-sided—it shows the
+references gained nothing from persistence, not that models would have gained
+nothing from having it. See the
 [gap decomposition](docs/run_logs/gap-decomposition-and-panel-power-2026-07-26.md)
 for the full working, including a fourth diagnostic—observation truncation,
 measured at +2.8 points—that was run under the successor `sota-v3` contract and
@@ -82,9 +86,11 @@ GM-Bench includes:
   constant, so the gap is not "what the scaffold costs". Measured on the
   official panel (seeds 11–18 × 5 seasons) under fingerprint
   `4f6ddddd6a6dd81c`: **+2.8 points, paired *t* = 0.249**, six of eight seeds
-  tied. View truncation is not what separates model rows from scripted ones.
-  Fresh-spawn/memo-only continuity is separately measured at exactly zero, since
-  the scripted policies hold no cross-decision state at all.
+  tied. View truncation is not what separates model rows from scripted ones —
+  though as a `sota-v3` measurement this is supporting rather than in-study
+  evidence for the frozen v2 result. Fresh-spawn/memo-only continuity is
+  separately measured at exactly zero for the references, since the scripted
+  policies hold no cross-decision state at all.
 - A scoring model that rewards wins, championships, future assets, prospects,
   and cap health, reported as a strategy score with protocol (invalid-action)
   penalties broken out separately. The composite deliberately favours

@@ -90,7 +90,7 @@ scripted policies benefit from explicit knowledge of its mechanics, so beating
 them is intentionally a demanding bar rather than a fair imitation of a human
 front office.
 
-## The gap is not an artefact of the harness (added 2026-07-26)
+## Protocol discipline, continuity, and memo use do not explain the gap (added 2026-07-26)
 
 A 180-to-282-point gap invites two cheap explanations: that the models were
 really being scored on JSON discipline, or that they ran through a scaffold the
@@ -127,22 +127,30 @@ remembered what the model was forbidden to remember." Re-instantiating every
 scripted agent before every single decision, on the v2 contract, reproduces
 episode scores bit-identically for all nine agents registered at that tag — they
 hold no mutable state and rebuild their plan from the observation each turn.
-There was no memory advantage to strip. (The run log reports ten, because it
-measures current HEAD, where `scaffold-view` has since been registered; it did
-not exist under v2.)
+There was no memory advantage to strip. (The run log's §2 table reports ten
+agents and different absolute scores, because it measures current HEAD under the
+`sota-v3` contract — `pick-trader` on seed 11 is 455.725 under v2 and 261.148
+under v3, and `scaffold-view` did not exist under v2. The v2-contract run
+supporting this paragraph is recorded separately as §2a of that log.)
 
 **Memo volume does not predict score.** If carrying a plan forward were the
-binding constraint, heavier memo use should track higher placement. Gemini wrote
-3 memos across 480 decisions and placed third; GLM wrote 568 and placed second;
-Claude Sonnet 5 wrote 361 and placed seventh. Taken with the point above — the
-references reach 411.619 while using no cross-decision memory at all — memory
-does not look like the bottleneck here.
+binding constraint, heavier memo use should buy score. It does not. Gemini wrote
+**3** memos across 480 decisions and scored 215.624; GLM wrote **568** — a 190×
+difference in memo volume — and scored 217.539. Two points apart, and both about
+195 points below `pick-trader`. Claude Sonnet 5 wrote 361 and scored 142.143,
+below both. (Stated in scores rather than placements deliberately: this study
+does not support an ordinal ranking, so an argument resting on who "placed third"
+would be resting on something the same document disclaims.) Taken with the point
+above — the references reach 411.619 using no cross-decision memory at all —
+memory does not look like the bottleneck here.
 
 A fourth factor, the truncated observation model adapters receive, was measured
-at +2.8 points (paired *t* = 0.249) on the same public seed panel. That
-diagnostic ran under the successor `sota-v3` contract, so it is supporting
-evidence for interpreting this study rather than part of it, and it is reported
-separately for that reason.
+at +2.8 points (paired *t* = 0.249) on the same public seed panel, under
+successor contract fingerprint `4f6ddddd6a6dd81c`. The source log requires that
+fingerprint to travel with the number, since any contract-source change
+invalidates the comparison. Because it is a `sota-v3` measurement it is
+supporting evidence for interpreting this study rather than part of it, and it is
+reported separately for that reason.
 
 What these do not establish is a positive mechanism. They do not show *why* the
 decisions were worse, and nothing here licenses a claim about reasoning ability
@@ -150,6 +158,13 @@ in general. Nor do they close the harness question entirely: **the 4,096-token
 output cap applies to model rows and not to the scripted references, and it has
 not been measured.** The protocol-repair budget is only partly bounded, via the
 penalty accounting above.
+
+The continuity result is also one-sided, and worth stating precisely. It shows
+that the *references* gained nothing from persistence, which rules out "the
+reference remembered what the model could not." It does not show that models
+would have gained nothing from persistent state they were denied. If they would
+have, continuity contributes to the gap even though the references take no
+advantage from it — that half is not measured here.
 
 So the correct reading is narrow. Three specific explanations that would have
 made the gap a measurement artefact—protocol discipline, cross-decision

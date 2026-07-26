@@ -57,7 +57,40 @@ advantage to remove.
 This is now enforced rather than documented:
 `tests/test_reference_statelessness.py` fails if any registered agent starts
 carrying state, including a guard test that deliberately makes an agent stateful
-to prove the check can fail.
+to prove the check can fail. That test, and the table above, run against current
+HEAD — i.e. the `sota-v3` contract.
+
+### 2a. The same check, re-run on the frozen v2 contract
+
+The table above is `sota-v3` data and cannot be cited for a claim about the v2
+study. The published framing depends on the v2 study specifically, so the check
+was repeated at tag `sota-v2-phase-one-2026-07-19`, contract fingerprint
+`558e8f35ea1d66b9`, where nine agents were registered (`scaffold-view` did not
+yet exist). Seed 11, five seasons:
+
+| agent | persistent | fresh-spawn every decision | delta |
+|---|---:|---:|---:|
+| `conservative` | 121.422 | 121.422 | 0.000000000 |
+| `exploit` | 118.791 | 118.791 | 0.000000000 |
+| `pick-trader` | 455.725 | 455.725 | 0.000000000 |
+| `random` | 88.622 | 88.622 | 0.000000000 |
+| `rebuild` | 121.469 | 121.469 | 0.000000000 |
+| `shrewd` | 347.841 | 347.841 | 0.000000000 |
+| `strategic` | 421.622 | 421.622 | 0.000000000 |
+| `value` | 348.297 | 348.297 | 0.000000000 |
+| `win-now` | 229.158 | 229.158 | 0.000000000 |
+
+All nine deltas are exactly zero. **This, not the §2 table, is the evidence
+behind the v2-contract statelessness claim in the README and the blog.** The
+absolute scores differ between the two tables because the contracts differ —
+`pick-trader` on seed 11 is 455.725 under v2 and 261.148 under v3 — which is
+precisely why the v3 run cannot stand in for the v2 one.
+
+**One-sidedness, stated plainly.** This measures the *references*. It shows they
+gain nothing from persistence, which rules out "the reference remembered what the
+model was not allowed to remember." It does not show that a model would gain
+nothing from persistent state it was denied; that half is unmeasured, and the
+published framing must not claim otherwise.
 
 **Consequence:** of the three scaffold factors named as uncontrolled in the
 `ScaffoldViewAgent` docstring — view truncation, fresh-spawn/memo-only
