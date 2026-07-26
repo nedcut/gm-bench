@@ -186,10 +186,28 @@ def compare(rows: dict[str, dict[int, float]], correction: str) -> tuple[list[di
         diffs = [rows[high][s] - rows[low][s] for s in seeds]
         n = len(diffs)
         if n < 3:
+            # Untested is not the same as inseparable. assign_tiers builds its
+            # graph from pairs absent from `separated`, so a silently skipped
+            # pair would be grouped as a tie; say so on stderr.
+            print(
+                f"warning: {high} vs {low} share only {n} seed(s); pair not tested "
+                "and will be grouped as not-separable",
+                file=sys.stderr,
+            )
             continue
         diff_mean = mean(diffs)
         diff_sd = stdev(diffs)
-        t = diff_mean / (diff_sd / math.sqrt(n)) if diff_sd else math.inf
+        if diff_sd:
+            t = diff_mean / (diff_sd / math.sqrt(n))
+        elif diff_mean:
+            # A constant nonzero gap on every seed is the signed-infinity limit
+            # of the t statistic, and is a real separation.
+            t = math.inf
+        else:
+            # Identical on every shared seed: zero difference and zero spread.
+            # That is the *absence* of evidence, not infinite evidence, so it
+            # must not read as a separation.
+            t = 0.0
         results.append(
             {
                 "high": high,

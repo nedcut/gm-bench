@@ -149,3 +149,51 @@ def test_refuses_to_mix_benchmark_contracts(tmp_path: Path) -> None:
     write("new", "bbbbbbbbbbbbbbbb")
     with pytest.raises(SystemExit, match="across benchmark contracts"):
         model_tiers.load_rows(tmp_path)
+
+
+def test_identical_models_are_not_reported_as_separated() -> None:
+    """Zero difference and zero spread is absence of evidence, not infinite evidence.
+
+    A tie on every shared seed makes the paired sd zero. Dividing by it used to
+    yield t=inf and p=0, flagging two identical models as separated -- the exact
+    overclaim this module exists to prevent.
+    """
+    rows = {
+        "a": {seed: 100.0 + seed for seed in range(1, 9)},
+        "b": {seed: 100.0 + seed for seed in range(1, 9)},
+    }
+    results, _ = model_tiers.compare(rows, "holm")
+    pair = results[0]
+    assert pair["mean_diff"] == 0.0
+    assert pair["paired_sd"] == 0.0
+    assert pair["t"] == 0.0
+    assert pair["p"] == 1.0
+    assert not pair["separated"]
+    # ...and they must land in the same tier.
+    tiers = model_tiers.assign_tiers(["a", "b"], results)
+    assert set(tiers["a"]) & set(tiers["b"])
+
+
+def test_constant_nonzero_gap_still_separates() -> None:
+    """The other zero-variance branch: a real, perfectly consistent difference."""
+    rows = {
+        "a": {seed: 100.0 + seed for seed in range(1, 9)},
+        "b": {seed: 70.0 + seed for seed in range(1, 9)},
+    }
+    results, _ = model_tiers.compare(rows, "holm")
+    pair = results[0]
+    assert pair["mean_diff"] == 30.0
+    assert pair["paired_sd"] == 0.0
+    assert pair["t"] == math.inf
+    assert pair["separated"]
+
+
+def test_pairs_with_too_few_shared_seeds_warn(capsys: pytest.CaptureFixture[str]) -> None:
+    """A skipped pair is grouped as not-separable, so it must not be silent."""
+    rows = {
+        "a": {1: 10.0, 2: 20.0},
+        "b": {1: 30.0, 2: 40.0},
+    }
+    results, _ = model_tiers.compare(rows, "holm")
+    assert results == []
+    assert "share only 2 seed(s)" in capsys.readouterr().err
