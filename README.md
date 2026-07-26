@@ -36,7 +36,9 @@ scripted references did not face—have been measured rather than argued:
 - **Memo volume does not track score.** The model writing 3 memos in 480
   decisions placed third; the one writing 568 placed second.
 
-What remains is the decisions themselves. See the
+None of these three explains the gap. That is not the same as saying the gap is
+purely a matter of decision quality: the 4,096-token output cap binds model rows
+and not scripted ones, and it has not been measured. See the
 [gap decomposition](docs/run_logs/gap-decomposition-and-panel-power-2026-07-26.md)
 for the full working, including a fourth diagnostic—observation truncation,
 measured at +2.8 points—that was run under the successor `sota-v3` contract and

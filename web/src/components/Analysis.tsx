@@ -386,12 +386,14 @@ export default function Analysis({
             actions through the same published record.
           </p>
           <p className="gap-decomposition-note">
-            The gap is not a harness artefact. Invalid-action penalties account for
-            0.5–9.0% of it, so a perfectly legal run still trails <code>pick-trader</code>{" "}
-            by 174–280 points. The scripted references carry no state between decisions —
-            rebuilding them every turn reproduces their scores exactly — and memo volume
-            does not track placement. What is left is the decisions themselves; it is not
-            a claim about reasoning in general.
+            Three cheap explanations for the gap have been measured and ruled out.
+            Invalid-action penalties account for 0.5–9.0% of it, so a perfectly legal run
+            still trails <code>pick-trader</code> by 174–280 points. The scripted
+            references carry no state between decisions — rebuilding them every turn
+            reproduces their scores exactly — and memo volume does not track placement.
+            The 4,096-token output cap binds model rows only and is not controlled for,
+            so this is not a claim that the residual is decision quality alone, nor a
+            claim about reasoning in general.
           </p>
         </div>
 

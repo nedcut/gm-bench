@@ -125,9 +125,11 @@ while the scripted references are ordinary long-lived objects. If they had been
 accumulating state across an episode, part of the gap would be "the reference
 remembered what the model was forbidden to remember." Re-instantiating every
 scripted agent before every single decision, on the v2 contract, reproduces
-episode scores bit-identically for all nine — they hold no mutable state and
-rebuild their plan from the observation each turn. There was no memory advantage
-to strip.
+episode scores bit-identically for all nine agents registered at that tag — they
+hold no mutable state and rebuild their plan from the observation each turn.
+There was no memory advantage to strip. (The run log reports ten, because it
+measures current HEAD, where `scaffold-view` has since been registered; it did
+not exist under v2.)
 
 **Memo volume does not predict score.** If carrying a plan forward were the
 binding constraint, heavier memo use should track higher placement. Gemini wrote
@@ -144,10 +146,17 @@ separately for that reason.
 
 What these do not establish is a positive mechanism. They do not show *why* the
 decisions were worse, and nothing here licenses a claim about reasoning ability
-in general. What they remove is the set of explanations that would have made the
-gap a measurement artefact: on this environment, under this frozen protocol, the
-distance between the models and the scripted reference is attributable to the
-decisions themselves rather than to the harness through which they were made.
+in general. Nor do they close the harness question entirely: **the 4,096-token
+output cap applies to model rows and not to the scripted references, and it has
+not been measured.** The protocol-repair budget is only partly bounded, via the
+penalty accounting above.
+
+So the correct reading is narrow. Three specific explanations that would have
+made the gap a measurement artefact—protocol discipline, cross-decision
+continuity, and memo usage—do not account for it, and a fourth, observation
+truncation, does not account for it under the successor contract. The residual
+is not thereby shown to be decision quality alone; it is whatever is left after
+those four, which still includes at least one uncontrolled harness factor.
 Full working is in
 [`docs/run_logs/gap-decomposition-and-panel-power-2026-07-26.md`](../run_logs/gap-decomposition-and-panel-power-2026-07-26.md).
 
@@ -212,8 +221,8 @@ The durable conclusion is deliberately narrow: under GM-Bench's frozen
 phase-one public protocol, none of the eight eligible model systems beat the
 transparent `pick-trader` heuristic, and the sample does not support an ordinal
 ranking among the models themselves. The 2026-07-26 decomposition sharpens the
-first half without widening the second: the gap is not an artefact of protocol
-discipline, cross-decision continuity, or memo usage, so it reflects the
-decisions the systems made rather than the harness they made them through. The
-absence of an ordinal ranking is unchanged, and remains the more important
-caveat of the two.
+first half without widening the second: protocol discipline, cross-decision
+continuity, and memo usage do not account for the gap. It does not follow that
+the gap is decision quality alone—the 4,096-token output cap remains
+uncontrolled—only that those explanations are ruled out. The absence of an
+ordinal ranking is unchanged, and remains the more important caveat of the two.
