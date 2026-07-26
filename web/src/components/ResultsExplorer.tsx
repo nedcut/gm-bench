@@ -113,7 +113,7 @@ function ForestPlot({
               style={{ "--row-index": index } as CSSProperties}
             >
               <title>
-                {model.model}: {fmt(model.paired_lift, 1)} score points, 95% CI [
+                {model.model}: {fmt(model.paired_lift, 1)} score points, 95% lift CI [
                 {fmt(model.ci95[0], 1)}, {fmt(model.ci95[1], 1)}]
               </title>
               <rect
@@ -410,7 +410,7 @@ function ResultsTable({
                 Lift
               </button>
             </th>
-            <th>95% CI</th>
+            <th title="95% interval on the paired lift, not on the score">95% lift CI</th>
             <th>
               <button type="button" onClick={() => setSort("cost")} aria-pressed={sort === "cost"}>
                 Cost / episode
@@ -620,7 +620,7 @@ export default function ResultsExplorer({
               </h2>
               <p>
                 {view === "lift"
-                  ? "Whiskers show 95% intervals. All eight rows overlap in one descriptive tier."
+                  ? "Whiskers show 95% intervals on the paired lift. All eight rows overlap in one descriptive tier."
                   : "Price varies widely, but no observed mean reaches the pick-trader bar."}
               </p>
             </div>
@@ -664,7 +664,7 @@ export default function ResultsExplorer({
               <span>score {fmt(selectedModel.mean_score, 1)}</span>
               <span>paired lift {fmt(selectedModel.paired_lift, 1)}</span>
               <span>
-                95% CI [{fmt(selectedModel.ci95[0], 1)},{" "}
+                95% lift CI [{fmt(selectedModel.ci95[0], 1)},{" "}
                 {fmt(selectedModel.ci95[1], 1)}]
               </span>
               <span>${fmt(selectedModel.cost_per_episode_usd, 2)} / episode</span>
