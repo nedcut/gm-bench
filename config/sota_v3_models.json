@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "contract": "sota-v3",
+  "contract_fingerprint": "4f6ddddd6a6dd81c",
+  "lane": "api",
+  "provider": "openrouter",
+  "provider_policy": "openrouter-only",
+  "profile": "compact",
+  "session": false,
+  "preset": "leaderboard",
+  "repeats": 3,
+  "selection_status": "provisional-blocked",
+  "selection_frozen_at_utc": null,
+  "selection_revision": null,
+  "catalog_checked_at_utc": null,
+  "selection_policy": "Pending an explicit operator decision and live verification of exact routes. Historical sota-v2 routes are not carried forward as current sota-v3 routes.",
+  "models": [],
+  "required_smokes": [],
+  "shared_fixed_options": {
+    "OPENROUTER_ALLOW_FALLBACKS": "false",
+    "OPENROUTER_REQUIRE_PARAMETERS": "true",
+    "OPENROUTER_DATA_COLLECTION": "deny",
+    "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"
+  },
+  "shared_absent_options": [
+    "OPENROUTER_REASONING_MAX_TOKENS",
+    "OPENROUTER_TEMPERATURE",
+    "OPENROUTER_QUANTIZATIONS",
+    "OPENROUTER_ZDR"
+  ],
+  "output_token_cap": null,
+  "output_budget_status": "blocked-pending-registered-model-smokes",
+  "spend_authorized": false,
+  "panel_execution_authorized": false,
+  "unresolved_decisions": [
+    "Seed-versus-repeat allocation and Holm multiplicity family",
+    "Exact model identities and cohort allocation",
+    "Exact provider slugs, endpoint tags, and dated endpoint names",
+    "Per-route minimum supported reasoning settings",
+    "Per-route JSON response mode support; do not impose OPENROUTER_JSON_MODE globally before route verification",
+    "Common output-token cap and cap-pressure rule"
+  ]
+}

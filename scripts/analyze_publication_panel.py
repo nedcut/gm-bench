@@ -13,7 +13,6 @@ import argparse
 import json
 import math
 import random
-import re
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -22,6 +21,10 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = ROOT / "config" / "sota_v2_models.json"
+REGISTRY_PATHS = {
+    "sota-v2": REGISTRY_PATH,
+    "sota-v3": ROOT / "config" / "sota_v3_models.json",
+}
 DEFAULT_ARTIFACT_DIR = ROOT / "data" / "publication-runs" / "raw"
 DEFAULT_OUTPUT_PATH = ROOT / "results" / "analysis" / "publication-panel-analysis.json"
 BOOTSTRAP_SEED = 20260716
@@ -30,8 +33,8 @@ BOOTSTRAP_ITERATIONS = 10_000
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from gm_bench.official import SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
-from gm_bench.publication import canonical_sha256  # noqa: E402
+from gm_bench.official import POLICIES, validate_leaderboard_payload  # noqa: E402
+from gm_bench.publication import canonical_sha256, raw_artifact_link_issues  # noqa: E402
 
 
 def bootstrap_mean_ci(
@@ -191,8 +194,9 @@ def _registry_specs(registry: Mapping[str, Any]) -> tuple[list[dict[str, Any]], 
     errors: list[str] = []
     if registry.get("selection_status") != "frozen":
         errors.append("model registry selection_status must be frozen")
-    if registry.get("contract") != "sota-v2":
-        errors.append("model registry contract must be 'sota-v2'")
+    contract = str(registry.get("contract") or "")
+    if contract not in {"sota-v2", "sota-v3"}:
+        errors.append("model registry contract must be 'sota-v2' or 'sota-v3'")
     if registry.get("preset") != "leaderboard":
         errors.append("model registry preset must be 'leaderboard'")
     shared_fixed_options = registry.get("shared_fixed_options") or {}
@@ -317,11 +321,13 @@ def analyze(
 ) -> dict[str, Any]:
     """Analyze valid artifacts matching the registry and report missing/rejected rows."""
     specs, config_errors = _registry_specs(registry)
+    contract = str(registry.get("contract") or "")
+    policy = POLICIES.get(contract)
+    if policy is None:
+        config_errors.append(f"no result-validation policy is registered for {contract!r}")
     specs_by_identity = {(spec["provider"], spec["model"]): spec for spec in specs}
     candidates: dict[str, list[dict[str, Any]]] = {}
     rejected: list[dict[str, Any]] = []
-    raw_by_hash = {canonical_sha256(dict(raw)): raw for raw in raw_payloads}
-
     for index, payload in enumerate(payloads):
         artifact_sha256 = canonical_sha256(dict(payload))
         publication = payload.get("publication") or {}
@@ -332,16 +338,20 @@ def analyze(
         if spec is None:
             continue
         reasons: list[str] = []
-        report = validate_leaderboard_payload(dict(payload), policy=SOTA_V2_POLICY)
-        if not report.ok:
-            reasons.extend(report.errors)
+        if policy is None:
+            reasons.append(f"no result-validation policy is registered for {contract!r}")
+        else:
+            report = validate_leaderboard_payload(dict(payload), policy=policy)
+            if not report.ok:
+                reasons.extend(report.errors)
         reasons.extend(_registered_lane_issues(payload, registry, spec))
-        if raw_artifact_sha256 is not None and (
-            not isinstance(raw_artifact_sha256, str) or re.fullmatch(r"[0-9a-f]{64}", raw_artifact_sha256) is None
-        ):
-            reasons.append("publication.raw_artifact_sha256 must be a 64-character lowercase hex digest")
-        elif raw_artifact_sha256 is not None and raw_by_hash and raw_artifact_sha256 not in raw_by_hash:
-            reasons.append("publication.raw_artifact_sha256 does not match any supplied raw artifact")
+        if raw_artifact_sha256 is not None:
+            reasons.extend(
+                raw_artifact_link_issues(
+                    dict(payload),
+                    [dict(raw) for raw in raw_payloads],
+                )
+            )
         try:
             per_seed = per_seed_pick_trader_lifts(
                 payload,
@@ -404,6 +414,7 @@ def analyze(
         status = "no-eligible-artifacts"
     return {
         "schema_version": 1,
+        "benchmark_version": contract or "unknown",
         "status": status,
         "primary_contrast": "paired lift versus pick-trader",
         "registered_model_count": len(specs),
@@ -432,15 +443,21 @@ def _read_json(path: Path) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("artifacts", nargs="*", type=Path)
-    parser.add_argument("--registry", type=Path, default=REGISTRY_PATH)
+    parser.add_argument("--contract", choices=sorted(REGISTRY_PATHS))
+    parser.add_argument("--registry", type=Path)
     parser.add_argument("--artifacts-dir", type=Path, default=DEFAULT_ARTIFACT_DIR)
     parser.add_argument("--raw-artifacts-dir", type=Path, help="raw JSON evidence used to verify compact hash links")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_PATH)
     args = parser.parse_args()
 
+    registry_path = args.registry or REGISTRY_PATHS.get(args.contract or "sota-v2", REGISTRY_PATH)
     artifact_paths = args.artifacts or sorted(args.artifacts_dir.glob("*.json"))
     try:
-        registry = _read_json(args.registry)
+        registry = _read_json(registry_path)
+        if args.contract and registry.get("contract") != args.contract:
+            raise ValueError(
+                f"{registry_path} declares contract {registry.get('contract')!r}, expected {args.contract!r}"
+            )
         payloads = [_read_json(path) for path in artifact_paths]
         raw_payloads = (
             [_read_json(path) for path in sorted(args.raw_artifacts_dir.glob("*.json"))]

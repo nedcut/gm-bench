@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "contract": "sota-v3",
+  "contract_fingerprint": "4f6ddddd6a6dd81c",
+  "status": "not-started",
+  "checked_at_utc": null,
+  "source": "pending live OpenRouter catalog and exact endpoint verification",
+  "currency": "USD",
+  "rates_are_per_token": true,
+  "planning_assumptions": {
+    "input_tokens_per_decision": null,
+    "expected_output_tokens_per_decision": null,
+    "cost_contingency_multiplier": null,
+    "runtime_contingency_multiplier": null
+  },
+  "runtime_observations": {
+    "source": null,
+    "observed_at_utc": null,
+    "api_seconds_per_decision": {}
+  },
+  "models": {},
+  "spend_authorized": false
+}

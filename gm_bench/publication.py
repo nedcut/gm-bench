@@ -21,6 +21,106 @@ def canonical_sha256(payload: dict[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def raw_artifact_link_issues(
+    compact: dict[str, Any],
+    raw_payloads: list[dict[str, Any]],
+) -> list[str]:
+    """Verify that compact publication metadata names supplied raw evidence."""
+    publication = compact.get("publication")
+    declared = publication.get("raw_artifact_sha256") if isinstance(publication, dict) else None
+    if not isinstance(declared, str) or re.fullmatch(r"[0-9a-f]{64}", declared) is None:
+        return ["publication.raw_artifact_sha256 must be a 64-character lowercase hex digest"]
+    if raw_payloads and declared not in {canonical_sha256(raw) for raw in raw_payloads}:
+        return ["publication.raw_artifact_sha256 does not match any supplied raw artifact"]
+    return []
+
+
+FROZEN_OUTPUT_POLICY_BASES = frozenset(
+    {
+        "fixed-safety-ceiling",
+        "common-safety-ceiling-with-native-minimum-reasoning",
+    }
+)
+
+
+def publication_execution_issues(
+    lane: dict[str, Any],
+    registry: dict[str, Any],
+    manifest: dict[str, Any] | None,
+    *,
+    phase: str,
+    protocol: dict[str, Any] | None = None,
+    pricing: dict[str, Any] | None = None,
+) -> list[str]:
+    """Return every blocker before a provider-backed smoke or panel run.
+
+    This is the single authorization gate shared by the real publication
+    runner and the zero-spend rehearsal. Historical ``sota-v2`` files predate
+    these fields and are guarded separately by the runner's current-contract
+    check; a current ``sota-v3`` lane must carry the complete fail-closed state.
+    """
+    if phase not in {"smoke", "panel"}:
+        return [f"unsupported publication phase {phase!r}"]
+    contract = str(lane.get("contract") or "")
+    if contract != str(registry.get("contract") or ""):
+        return ["publication lane and model registry contracts do not match"]
+    if contract == "sota-v2" and lane.get("preregistration_status") is None:
+        return []
+
+    issues: list[str] = []
+    if contract == "sota-v3":
+        if not isinstance(protocol, dict) or protocol.get("contract") != contract or protocol.get("status") != "frozen":
+            issues.append("sota-v3 publication protocol is not frozen")
+        if not isinstance(pricing, dict) or pricing.get("contract") != contract or pricing.get("status") != "frozen":
+            issues.append("sota-v3 pricing snapshot is not frozen")
+    status = str(lane.get("preregistration_status") or "")
+    if status != "frozen":
+        issues.append(f"{contract or 'publication'} lane is {status or 'missing-status'}; provider execution is locked")
+    if lane.get("panel_design_status") != "frozen":
+        issues.append("publication panel design is not frozen")
+    if registry.get("selection_status") != "frozen":
+        issues.append("provider execution is locked until the model registry is frozen")
+
+    models = [model for model in registry.get("models") or [] if isinstance(model, dict)]
+    model_ids = {str(model.get("id") or "") for model in models if model.get("id")}
+    required_smokes = registry.get("required_smokes")
+    required_smoke_ids = {str(model_id) for model_id in required_smokes} if isinstance(required_smokes, list) else set()
+    if not models:
+        issues.append("publication model registry contains no models")
+    if not required_smoke_ids or required_smoke_ids != model_ids:
+        issues.append("required_smokes must exactly match the registered model ids")
+
+    lane_cap = lane.get("output_token_cap")
+    registry_cap = registry.get("output_token_cap")
+    if not isinstance(lane_cap, int) or isinstance(lane_cap, bool) or lane_cap <= 0:
+        issues.append("publication output_token_cap must be a positive frozen integer")
+    if registry_cap != lane_cap:
+        issues.append("publication lane and model registry output_token_cap must match")
+    if lane.get("output_policy_basis") not in FROZEN_OUTPUT_POLICY_BASES:
+        issues.append("publication output policy basis is not frozen")
+
+    if lane.get("spend_authorized") is not True or registry.get("spend_authorized") is not True:
+        issues.append("provider execution is locked until spend is explicitly authorized")
+    authorization_key = "smoke_execution_authorized" if phase == "smoke" else "panel_execution_authorized"
+    if lane.get(authorization_key) is not True:
+        issues.append(f"provider execution is locked while {authorization_key} is false")
+
+    if phase == "panel":
+        if registry.get("panel_execution_authorized") is not True:
+            issues.append("panel execution is locked by the model registry")
+        if not isinstance(manifest, dict) or manifest.get("accepted_for_panel") is not True:
+            issues.append("v3 smoke manifest is not accepted for panel execution")
+        issues.extend(
+            smoke_manifest_issues(
+                manifest,
+                registry,
+                lane,
+                require_strict_fallback=True,
+            )
+        )
+    return issues
+
+
 def compact_result(payload: dict[str, Any]) -> dict[str, Any]:
     """Return a validator-compatible artifact without verbose episode traces."""
     if payload.get("publication"):

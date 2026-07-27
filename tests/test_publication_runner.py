@@ -25,10 +25,31 @@ from scripts.run_publication_matrix import (
     build_cells,
     cell_command,
     cell_environment,
-    main,
     publication_run_status,
     render_publication_status,
 )
+from scripts.run_publication_matrix import (
+    main as _runner_main,
+)
+
+
+def main(argv: list[str]) -> int:
+    """Keep runner tests explicit about the lane selected by their fixture."""
+    if argv[0] != "sweep" and "--contract" not in argv:
+        selected = json.loads(publication_runner.PANEL_CONFIG.read_text())["contract"]
+        argv = [argv[0], "--contract", selected, *argv[1:]]
+    return _runner_main(argv)
+
+
+@pytest.fixture(autouse=True)
+def _reset_publication_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prevent one in-process CLI invocation from leaking its lane to another test."""
+    panel, lane, manifest, protocol, pricing = publication_runner.CONTRACT_CONFIGS["sota-v2"]
+    monkeypatch.setattr(publication_runner, "PANEL_CONFIG", panel)
+    monkeypatch.setattr(publication_runner, "LANE_CONFIG", lane)
+    monkeypatch.setattr(publication_runner, "SMOKE_MANIFEST", manifest)
+    monkeypatch.setattr(publication_runner, "PROTOCOL_CONFIG", protocol)
+    monkeypatch.setattr(publication_runner, "PRICING_CONFIG", pricing)
 
 
 def _frozen_panel_files(
@@ -37,19 +58,44 @@ def _frozen_panel_files(
 ) -> tuple[dict, dict, Path]:
     registry = json.loads(Path("config/sota_v2_models.json").read_text())
     registry["contract"] = BENCHMARK_VERSION
+    registry["contract_fingerprint"] = contract_fingerprint()
     registry["selection_status"] = "frozen"
+    registry["provider"] = "openrouter"
+    registry["spend_authorized"] = True
+    registry["panel_execution_authorized"] = True
     lane = json.loads(Path("config/sota_v2_lane.json").read_text())
     lane["contract"] = BENCHMARK_VERSION
+    lane["contract_fingerprint"] = contract_fingerprint()
+    lane["preregistration_status"] = "frozen"
+    lane["panel_design_status"] = "frozen"
+    lane["spend_authorized"] = True
+    lane["smoke_execution_authorized"] = True
+    lane["panel_execution_authorized"] = True
     lane["output_budget_status"] = "frozen-native-reasoning-cap"
     lane.pop("smoke_manifest", None)
     registry_path = tmp_path / "models.json"
     lane_path = tmp_path / "lane.json"
     manifest_path = tmp_path / "smokes.json"
+    protocol_path = tmp_path / "protocol.json"
+    pricing_path = tmp_path / "pricing.json"
     registry_path.write_text(json.dumps(registry))
     lane_path.write_text(json.dumps(lane))
+    protocol = json.loads(Path("config/publication_protocol.json").read_text())
+    protocol.update({"contract": BENCHMARK_VERSION, "status": "frozen"})
+    protocol_path.write_text(json.dumps(protocol))
+    pricing = json.loads(Path("config/openrouter_pricing_snapshot.json").read_text())
+    pricing.update({"contract": BENCHMARK_VERSION, "status": "frozen"})
+    pricing_path.write_text(json.dumps(pricing))
     monkeypatch.setattr(publication_runner, "PANEL_CONFIG", registry_path)
     monkeypatch.setattr(publication_runner, "LANE_CONFIG", lane_path)
     monkeypatch.setattr(publication_runner, "SMOKE_MANIFEST", manifest_path)
+    monkeypatch.setattr(publication_runner, "PROTOCOL_CONFIG", protocol_path)
+    monkeypatch.setattr(publication_runner, "PRICING_CONFIG", pricing_path)
+    monkeypatch.setitem(
+        publication_runner.CONTRACT_CONFIGS,
+        "sota-v3",
+        (registry_path, lane_path, manifest_path, protocol_path, pricing_path),
+    )
     return registry, lane, manifest_path
 
 
@@ -83,6 +129,7 @@ def _valid_manifest(registry: dict, lane: dict) -> dict:
     return {
         "format": "gm-bench-smoke-manifest-v1",
         "schema_version": 1,
+        "accepted_for_panel": True,
         "entries": entries,
     }
 
@@ -201,9 +248,11 @@ def test_smoke_is_clean_and_resumes_existing_checkpoint(tmp_path: Path) -> None:
     assert "--resume" in cell_command(cell, tmp_path)
 
 
-def test_smoke_reuses_only_existing_artifact_that_passes_current_gate(tmp_path: Path) -> None:
-    registry = json.loads(Path("config/sota_v2_models.json").read_text())
-    lane = json.loads(Path("config/sota_v2_lane.json").read_text())
+def test_smoke_reuses_only_existing_artifact_that_passes_current_gate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
     model = registry["models"][0]
     cell = build_cells("smoke", model_id=model["id"])[0]
     raw = tmp_path / "raw"
@@ -224,8 +273,7 @@ def test_preflight_only_still_validates_endpoint_despite_reusable_smoke_artifact
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """--preflight-only must never take the cached-artifact shortcut that skips it."""
-    registry = json.loads(Path("config/sota_v2_models.json").read_text())
-    lane = json.loads(Path("config/sota_v2_lane.json").read_text())
+    registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
     model = registry["models"][0]
     cell = build_cells("smoke", model_id=model["id"])[0]
     raw_dir = tmp_path / "raw"
@@ -250,6 +298,8 @@ def test_preflight_only_still_validates_endpoint_despite_reusable_smoke_artifact
         main(
             [
                 "smoke",
+                "--contract",
+                "sota-v3",
                 "--model-id",
                 model["id"],
                 "--run-dir",
@@ -314,8 +364,8 @@ def test_validate_models_rejects_mandatory_minimum_policy_with_no_effort_declare
 
 
 def test_committed_v2_panel_is_locked_after_current_contract_advances() -> None:
-    with pytest.raises(ValueError, match="different benchmark contract"):
-        build_cells("panel")
+    with pytest.raises(SystemExit):
+        _runner_main(["panel", "--contract", "sota-v2", "--dry-run"])
 
 
 def test_panel_stays_locked_when_frozen_registry_has_no_manifest(
@@ -1261,7 +1311,7 @@ def test_panel_status_surfaces_recorded_ineligible_outcome(tmp_path: Path, monke
 def test_status_command_prints_snapshot_without_creating_run_files(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert main(["status", "--run-dir", str(tmp_path)]) == 0
+    assert _runner_main(["status", "--contract", "sota-v2", "--run-dir", str(tmp_path)]) == 0
     output = capsys.readouterr().out
     assert "GM-Bench publication run" in output
     assert "openrouter-gpt-5.6-luna-openai" in output
