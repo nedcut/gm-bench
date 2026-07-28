@@ -1,0 +1,9 @@
+{
+  "format": "gm-bench-smoke-manifest-v1",
+  "schema_version": 1,
+  "contract": "sota-v3",
+  "contract_fingerprint": "4f6ddddd6a6dd81c",
+  "status": "not-started",
+  "accepted_for_panel": false,
+  "entries": {}
+}

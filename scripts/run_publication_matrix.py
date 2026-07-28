@@ -32,16 +32,40 @@ PRICING_CONFIG = ROOT / "config" / "openrouter_pricing_snapshot.json"
 PROTOCOL_CONFIG = ROOT / "config" / "publication_protocol.json"
 SMOKE_MANIFEST = ROOT / "config" / "sota_v2_smoke_manifest.json"
 RUN_STATE_FORMAT = "gm-bench-publication-run-v1"
+CONTRACT_CONFIGS = {
+    "sota-v2": (
+        ROOT / "config" / "sota_v2_models.json",
+        ROOT / "config" / "sota_v2_lane.json",
+        ROOT / "config" / "sota_v2_smoke_manifest.json",
+        ROOT / "config" / "publication_protocol.json",
+        ROOT / "config" / "openrouter_pricing_snapshot.json",
+    ),
+    "sota-v3": (
+        ROOT / "config" / "sota_v3_models.json",
+        ROOT / "config" / "sota_v3_lane.json",
+        ROOT / "config" / "sota_v3_smoke_manifest.json",
+        ROOT / "config" / "sota_v3_publication_protocol.json",
+        ROOT / "config" / "sota_v3_pricing_snapshot.json",
+    ),
+}
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from gm_bench.benchmark_config import PRESETS  # noqa: E402
+from gm_bench.benchmark_config import (  # noqa: E402
+    PRESETS,
+    PRIVATE_SEEDS_ENV,
+    seed_panel_hash,
+)
 from gm_bench.contract import BENCHMARK_VERSION, contract_fingerprint, scaffold_fingerprint  # noqa: E402
 from gm_bench.environment import load_environment_files  # noqa: E402
 from gm_bench.official import POLICIES, validate_leaderboard_payload  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
-from gm_bench.publication import SMOKE_MANIFEST_FORMAT, smoke_manifest_issues  # noqa: E402
+from gm_bench.publication import (  # noqa: E402
+    SMOKE_MANIFEST_FORMAT,
+    publication_execution_issues,
+    smoke_manifest_issues,
+)
 
 
 @dataclass(frozen=True)
@@ -52,6 +76,7 @@ class Cell:
     profile: str
     preset: str
     repeats: int
+    seed_count: int | None
     cap: int | None
     upstream_provider: str
     endpoint_tag: str
@@ -71,18 +96,109 @@ def _read_json(path: Path) -> dict[str, Any]:
     return payload
 
 
+def _select_contract_config(contract: str) -> None:
+    """Select one explicitly named publication lane for this CLI process."""
+    global LANE_CONFIG, PANEL_CONFIG, PRICING_CONFIG, PROTOCOL_CONFIG, SMOKE_MANIFEST
+    PANEL_CONFIG, LANE_CONFIG, SMOKE_MANIFEST, PROTOCOL_CONFIG, PRICING_CONFIG = CONTRACT_CONFIGS[contract]
+
+
 def _require_current_publication_contract() -> None:
-    registry_contract = _read_json(PANEL_CONFIG).get("contract")
-    lane_contract = _read_json(LANE_CONFIG).get("contract")
+    registry = _read_json(PANEL_CONFIG)
+    lane = _read_json(LANE_CONFIG)
+    registry_contract = registry.get("contract")
+    lane_contract = lane.get("contract")
     if registry_contract != BENCHMARK_VERSION or lane_contract != BENCHMARK_VERSION:
         raise ValueError(
             "the committed publication registry/lane are frozen historical evidence "
             f"({registry_contract!r}/{lane_contract!r}); current code is {BENCHMARK_VERSION!r}. "
             "Create and pre-register a new contract lane before recording smokes or running a panel."
         )
+    expected_fingerprint = contract_fingerprint()
+    for label, payload in (("registry", registry), ("lane", lane)):
+        declared_fingerprint = payload.get("contract_fingerprint")
+        if declared_fingerprint is not None and declared_fingerprint != expected_fingerprint:
+            raise ValueError(
+                f"the selected publication {label} targets contract fingerprint "
+                f"{declared_fingerprint!r}, but current source is {expected_fingerprint!r}"
+            )
 
 
-def _validate_models(models: list[dict[str, Any]], *, exact_routes: bool = True) -> None:
+def _require_execution_authorized(phase: str, registry: dict[str, Any], lane: dict[str, Any]) -> None:
+    """Apply the shared authorization gate before building provider cells."""
+    manifest = _read_optional_json(_smoke_manifest_path(lane))
+    issues = publication_execution_issues(
+        lane,
+        registry,
+        manifest,
+        phase=phase,
+        protocol=_read_optional_json(PROTOCOL_CONFIG),
+        pricing=_read_optional_json(PRICING_CONFIG),
+    )
+    if issues:
+        raise ValueError("; ".join(issues))
+
+
+def _parse_private_seed_env(value: str) -> list[int]:
+    seeds: list[int] = []
+    for part in value.replace(" ", "").split(","):
+        if not part:
+            continue
+        if "-" in part:
+            start_text, end_text = part.split("-", 1)
+            seeds.extend(range(int(start_text), int(end_text) + 1))
+        else:
+            seeds.append(int(part))
+    if not seeds:
+        raise ValueError(f"{PRIVATE_SEEDS_ENV} must contain at least one seed")
+    return seeds
+
+
+def _validate_frozen_seed_panel(lane: dict[str, Any]) -> None:
+    """Bind a paid run to its frozen public/private panel before cells exist."""
+    panel = lane.get("seed_panel")
+    if not isinstance(panel, dict) or panel.get("status") != "frozen":
+        raise ValueError("publication seed panel identity must be frozen before paid smoke or panel execution")
+    name = panel.get("name")
+    count = panel.get("count")
+    declared_hash = panel.get("sha256")
+    if (
+        name not in {"public-leaderboard", "private-env"}
+        or not isinstance(count, int)
+        or isinstance(count, bool)
+        or count < 2
+        or not isinstance(declared_hash, str)
+        or len(declared_hash) != 64
+    ):
+        raise ValueError("publication seed panel must declare a valid name, count, and sha256")
+    inherited = os.environ.get(PRIVATE_SEEDS_ENV)
+    if name == "public-leaderboard":
+        if inherited:
+            raise ValueError(
+                f"{PRIVATE_SEEDS_ENV} must be unset for the frozen public panel; refusing inherited seed drift"
+            )
+        seeds = list(PRESETS["leaderboard"]["seeds"])
+    else:
+        if not inherited:
+            raise ValueError(f"{PRIVATE_SEEDS_ENV} is required for the frozen private panel")
+        try:
+            seeds = _parse_private_seed_env(inherited)
+        except ValueError as exc:
+            raise ValueError(f"invalid {PRIVATE_SEEDS_ENV}: {exc}") from exc
+    if len(set(seeds)) != len(seeds):
+        raise ValueError("publication seed panel must contain unique seeds")
+    if len(seeds) != count or seed_panel_hash(seeds) != declared_hash:
+        raise ValueError(
+            f"{PRIVATE_SEEDS_ENV if name == 'private-env' else 'public leaderboard preset'} "
+            "does not match the frozen seed panel identity"
+        )
+
+
+def _validate_models(
+    models: list[dict[str, Any]],
+    *,
+    exact_routes: bool = True,
+    expected_provider: str | None = None,
+) -> None:
     if not models:
         raise ValueError("publication matrix contains no models")
     ids = [str(model.get("id") or "") for model in models]
@@ -91,6 +207,14 @@ def _validate_models(models: list[dict[str, Any]], *, exact_routes: bool = True)
         raise ValueError("every model requires non-empty id, provider, and model")
     if len(set(ids)) != len(ids) or len(set(identities)) != len(identities):
         raise ValueError("publication model ids and provider/model identities must be unique")
+    if expected_provider is not None:
+        if expected_provider != "openrouter":
+            raise ValueError("publication runner currently supports only an explicitly OpenRouter-only lane")
+        mismatched = sorted({provider for provider, _model in identities if provider != expected_provider})
+        if mismatched:
+            raise ValueError(
+                f"publication registry is {expected_provider}-only but contains provider(s): {', '.join(mismatched)}"
+            )
     if not exact_routes:
         return
     for model in models:
@@ -147,18 +271,21 @@ def _read_optional_json(path: Path) -> dict[str, Any] | None:
 
 
 def build_cells(phase: str, model_id: str | None = None, cap: int | None = None) -> list[Cell]:
-    if phase == "smoke":
+    if phase in {"route-preflight", "smoke"}:
         config = _read_json(PANEL_CONFIG)
         lane = _read_json(LANE_CONFIG)
+        _require_execution_authorized(phase, config, lane)
+        if phase == "smoke" and lane.get("contract") == "sota-v3":
+            _validate_frozen_seed_panel(lane)
         models = list(config.get("models") or [])
-        _validate_models(models)
+        _validate_models(models, expected_provider=str(config.get("provider") or ""))
         frozen_cap = lane.get("output_token_cap")
-        if lane.get("output_policy_basis") not in {
+        if phase == "smoke" and lane.get("output_policy_basis") not in {
             "fixed-safety-ceiling",
             "common-safety-ceiling-with-native-minimum-reasoning",
         }:
             raise ValueError("panel smoke is locked until the fixed safety ceiling is frozen")
-        if not isinstance(frozen_cap, int) or frozen_cap < 1:
+        if phase == "smoke" and (not isinstance(frozen_cap, int) or frozen_cap < 1):
             raise ValueError("panel smoke requires a positive frozen output_token_cap")
         if cap is not None and cap != frozen_cap:
             raise ValueError(f"requested cap {cap} differs from frozen panel smoke cap {frozen_cap}")
@@ -170,6 +297,7 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
                 profile=str(config["profile"]),
                 preset="smoke",
                 repeats=1,
+                seed_count=len(PRESETS["smoke"]["seeds"]) if lane.get("contract") == "sota-v3" else None,
                 cap=frozen_cap,
                 upstream_provider=str(model["upstream_provider"]),
                 endpoint_tag=str(model["endpoint_tag"]),
@@ -197,6 +325,7 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
                 profile=str(config["profile"]),
                 preset=preset,
                 repeats=repeats,
+                seed_count=None,
                 cap=cell_cap,
                 upstream_provider=str(model["upstream_provider"]),
                 endpoint_tag=str(model.get("endpoint_tag") or ""),
@@ -210,17 +339,20 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
     else:
         config = _read_json(PANEL_CONFIG)
         lane = _read_json(LANE_CONFIG)
+        _require_execution_authorized(phase, config, lane)
+        if lane.get("contract") == "sota-v3":
+            _validate_frozen_seed_panel(lane)
         models = list(config.get("models") or [])
-        _validate_models(models)
+        _validate_models(models, expected_provider=str(config.get("provider") or ""))
         frozen_cap = lane.get("output_token_cap")
         if lane.get("output_budget_status") not in {
             "frozen-saturation",
             "frozen-fixed-budget",
             "frozen-native-reasoning-cap",
         }:
-            raise ValueError("full panel is locked until config/sota_v2_lane.json freezes the output-budget policy")
+            raise ValueError("full panel is locked until the selected lane freezes the output-budget policy")
         if config.get("selection_status") != "frozen":
-            raise ValueError("full panel is locked until config/sota_v2_models.json freezes the model registry")
+            raise ValueError("full panel is locked until the selected model registry is frozen")
         if not isinstance(frozen_cap, int) or frozen_cap < 1:
             raise ValueError("full panel requires a positive frozen output_token_cap")
         manifest = _read_optional_json(_smoke_manifest_path(lane))
@@ -240,6 +372,7 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
                 profile=str(config["profile"]),
                 preset=str(config["preset"]),
                 repeats=int(config["repeats"]),
+                seed_count=(int(lane["seed_panel"]["count"]) if lane.get("contract") == "sota-v3" else None),
                 cap=frozen_cap,
                 upstream_provider=str(model["upstream_provider"]),
                 endpoint_tag=str(model["endpoint_tag"]),
@@ -418,7 +551,10 @@ def _cell_reservation_usd(cell: Cell) -> float:
         raise ValueError(f"missing committed pricing for {cell.model}")
     assumptions = pricing["planning_assumptions"]
     preset = PRESETS[cell.preset]
-    decisions = len(preset["seeds"]) * int(preset["seasons"]) * len(PHASES) * cell.repeats
+    seed_count = cell.seed_count if cell.seed_count is not None else len(preset["seeds"])
+    if not isinstance(seed_count, int) or isinstance(seed_count, bool) or seed_count < 1:
+        raise ValueError("publication reservation seed count must be a positive integer")
+    decisions = seed_count * int(preset["seasons"]) * len(PHASES) * cell.repeats
     input_tokens = int(assumptions["input_tokens_per_decision"])
     repair_attempts = int(cell.fixed_options.get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", "0"))
     contingency = float(assumptions["cost_contingency_multiplier"])
@@ -562,7 +698,11 @@ def publication_run_status(run_dir: Path, manifest_path: Path = SMOKE_MANIFEST) 
     run_dir = run_dir.resolve()
     registry = _read_json(PANEL_CONFIG)
     run_state = _read_json_if_valid(run_dir / "run-state.json") or {}
-    cap = int(run_state.get("output_token_cap") or registry["output_token_cap"])
+    raw_cap = run_state.get("output_token_cap")
+    if raw_cap is None:
+        raw_cap = registry.get("output_token_cap")
+    cap = int(raw_cap) if isinstance(raw_cap, int) and not isinstance(raw_cap, bool) else None
+    cap_label = str(cap) if cap is not None else "pending"
     manifest = _read_json_if_valid(manifest_path) or {}
     manifest_entries = manifest.get("entries") if isinstance(manifest.get("entries"), dict) else {}
     reservations_payload = _read_json_if_valid(run_dir / "openrouter-reservations.json") or {}
@@ -574,7 +714,7 @@ def publication_run_status(run_dir: Path, manifest_path: Path = SMOKE_MANIFEST) 
     rows = []
     for model in registry.get("models") or []:
         model_id = str(model["id"])
-        stem = f"{model_id}--{cap}"
+        stem = f"{model_id}--{cap_label}"
         checkpoint_path = run_dir / "checkpoints" / f"{stem}.json"
         raw_path = run_dir / "raw" / f"{stem}.json"
         checkpoint = _read_json_if_valid(checkpoint_path)
@@ -611,6 +751,7 @@ def publication_run_status(run_dir: Path, manifest_path: Path = SMOKE_MANIFEST) 
             run_state.get("phase") == "smoke"
             and state == "complete"
             and smoke_accepted
+            and cap is not None
             and manifest_entry.get("output_token_cap") == cap
         ):
             state = "accepted"
@@ -649,7 +790,7 @@ def publication_run_status(run_dir: Path, manifest_path: Path = SMOKE_MANIFEST) 
         "format": "gm-bench-publication-status-v1",
         "run_dir": str(run_dir),
         "phase": run_state.get("phase") or "unknown",
-        "output_token_cap": run_state.get("output_token_cap") or cap,
+        "output_token_cap": cap,
         "started_at_utc": run_state.get("started_at_utc"),
         "spend_ceiling_usd": run_state.get("spend_ceiling_usd"),
         "artifact_spend_usd": round(artifact_spend, 6),
@@ -1245,10 +1386,18 @@ def main(argv: list[str] | None = None) -> int:
     # launches any model process.
     load_environment_files(ROOT)
     parser = argparse.ArgumentParser()
-    parser.add_argument("phase", choices=["smoke", "sweep", "panel", "record-smoke", "status"])
+    parser.add_argument(
+        "phase",
+        choices=["route-preflight", "smoke", "sweep", "panel", "record-smoke", "status"],
+    )
+    parser.add_argument(
+        "--contract",
+        choices=sorted(CONTRACT_CONFIGS),
+        help="explicit publication contract lane (required except for the retired sweep)",
+    )
     parser.add_argument("--model-id")
     parser.add_argument("--artifact", type=Path)
-    parser.add_argument("--manifest", type=Path, default=SMOKE_MANIFEST)
+    parser.add_argument("--manifest", type=Path)
     parser.add_argument("--cap", type=int)
     parser.add_argument("--run-dir", type=Path, default=Path("data/publication-runs"))
     parser.add_argument("--dry-run", action="store_true")
@@ -1258,10 +1407,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--interval", type=float, default=2.0, help="watch refresh interval in seconds")
     parser.add_argument("--json", action="store_true", help="emit status as JSON")
     args = parser.parse_args(argv)
+    if args.phase != "sweep" and not args.contract:
+        parser.error(f"{args.phase} requires an explicit --contract")
+    if args.contract:
+        _select_contract_config(args.contract)
+    manifest_path = args.manifest or SMOKE_MANIFEST
     if args.phase == "status":
         if args.interval <= 0:
             parser.error("--interval must be positive")
-        return _status_command(args.run_dir, args.manifest, watch=args.watch, interval=args.interval, as_json=args.json)
+        return _status_command(args.run_dir, manifest_path, watch=args.watch, interval=args.interval, as_json=args.json)
     if args.phase == "record-smoke":
         if not args.model_id:
             parser.error("record-smoke requires --model-id")
@@ -1271,10 +1425,10 @@ def main(argv: list[str] | None = None) -> int:
             _require_current_publication_contract()
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             parser.error(str(exc))
-        return _record_smoke(args.model_id, args.artifact, args.manifest)
+        return _record_smoke(args.model_id, args.artifact, manifest_path)
     if args.max_spend_usd is not None and args.max_spend_usd <= 0:
         parser.error("--max-spend-usd must be positive")
-    if args.phase == "panel" or (args.phase == "smoke" and not args.dry_run and not args.preflight_only):
+    if args.phase in {"route-preflight", "smoke", "panel"}:
         try:
             _require_current_publication_contract()
         except (OSError, ValueError, json.JSONDecodeError) as exc:
@@ -1290,20 +1444,25 @@ def main(argv: list[str] | None = None) -> int:
     if (
         not args.dry_run
         and not args.preflight_only
+        and args.phase != "route-preflight"
         and any(cell.provider == "openrouter" for cell in cells)
         and args.max_spend_usd is None
     ):
         parser.error("paid OpenRouter runs require an explicit --max-spend-usd ceiling")
     run_dir = args.run_dir.resolve()
     for directory in (run_dir / "raw", run_dir / "checkpoints"):
-        if not args.dry_run:
+        if not args.dry_run and not args.preflight_only and args.phase != "route-preflight":
             directory.mkdir(parents=True, exist_ok=True)
-    if not args.dry_run and not args.preflight_only:
+    if not args.dry_run and not args.preflight_only and args.phase != "route-preflight":
         _write_run_state(run_dir, args.phase, cells, args.max_spend_usd)
     budget_start: float | None = None
     for cell in cells:
         env = cell_environment(cell)
-        command = cell_command(cell, run_dir, preflight=args.preflight_only)
+        command = cell_command(
+            cell,
+            run_dir,
+            preflight=args.preflight_only or args.phase == "route-preflight",
+        )
         _print_command(cell, command)
         if args.dry_run:
             continue
@@ -1342,6 +1501,9 @@ def main(argv: list[str] | None = None) -> int:
                 json.JSONDecodeError,
             ) as exc:
                 raise SystemExit(f"OpenRouter endpoint preflight failed for {cell.experiment_id}: {exc}") from exc
+        if args.phase == "route-preflight":
+            print(f"zero-completion-call route preflight passed: {cell.experiment_id}")
+            continue
         if args.max_spend_usd is not None and cell.provider == "openrouter":
             budget_start = budget_start if budget_start is not None else _budget_start(run_dir, env)
             spent = _measured_spend_usd(run_dir, env, budget_start)

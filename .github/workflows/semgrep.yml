@@ -36,7 +36,7 @@ jobs:
       - name: Fetch pinned Semgrep community ruleset
         env:
           SEMGREP_RULESET_URL: https://semgrep.dev/c/p/default
-          SEMGREP_RULESET_SEMANTIC_SHA256: eb794d5d07d89c6fca7157a5a0c0641979980482fe10ee2efd386a57882fc063
+          SEMGREP_RULESET_SEMANTIC_SHA256: a3f79ad270db96e167bad3546f97a2e4169fbd1625ceb41e4bbbea54651ea1bf
         run: |
           curl --fail --location --retry 3 --silent --show-error \
             "$SEMGREP_RULESET_URL" --output semgrep-default.yml

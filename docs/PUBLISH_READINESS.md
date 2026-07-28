@@ -7,10 +7,10 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-07-26
+**Last reviewed:** 2026-07-27
 **Current target:** Preserve the published `sota-v2` study as frozen historical
-evidence while hardening the next contract and finishing the public
-presentation.
+evidence while pre-registering and rehearsing a finite `sota-v3` publication
+lane.
 **Current state:** The frozen phase-one public panel, blog, GitHub release, and
 results-first site are published. Eight of ten
 registered models produced route-matched, cost-complete `sota-v2` rows at the
@@ -19,15 +19,21 @@ minimum. Grok 4.5 and Mistral Medium 3.5 completed but remain diagnostic because
 their artifacts lacked complete usage or cost coverage. The generated site now
 exposes the eight eligible rows. All models overlap in one uncertainty tier,
 and every eligible model trails `pick-trader`. The three P0 correctness and
-artifact-integrity fixes landed in #85 as an explicit `sota-v3` contract. The
-immediate work is the rest of
-[Issue #84](https://github.com/nedcut/gm-bench/issues/84): keep all `sota-v2`
-evidence immutable, finish the P1 claim/framing items, and seek an independent
-reproduction. No additional paid model runs are authorized or needed for this
-hardening step.
-**Current weekly focus:** [#84 — Close the gap between `sota-v2` evidence and
-framing](https://github.com/nedcut/gm-bench/issues/84); [#93 — v3 readiness
-program: consultant audit findings](https://github.com/nedcut/gm-bench/issues/93)
+artifact-integrity fixes landed in #85 as an explicit `sota-v3` contract.
+Sunday's merged work closed the contract-economics, same-view, gap-diagnostic,
+site-framing, statistical-tiering, and version-dispatched CI items. The remaining
+pre-spend work is to finish/review the v3 preregistration and repeat the
+zero-spend rehearsal from the eventual committed SHA. The current working tree
+contains a fail-closed, provisional lane, empty model registry, not-started
+smoke manifest, separate provisional protocol and pricing records, explicit
+runner dispatch, and a passing synthetic end-to-end rehearsal; model and route
+selection, the Holm-adjusted panel design, output/reasoning policy, and spend
+approval remain explicitly blocked. There is no real v3 smoke or leaderboard
+artifact. No paid v3 smoke or panel spend is authorized.
+**Current weekly focus:** [#93 — v3 readiness program: consultant audit
+findings](https://github.com/nedcut/gm-bench/issues/93). Remaining
+[Issue #84](https://github.com/nedcut/gm-bench/issues/84) follow-through is
+tracked separately and does not all block the offline v3 rehearsal.
 **Broader roadmap:** [#60 — Roadmap to a publishable leaderboard + blog
 post](https://github.com/nedcut/gm-bench/issues/60)
 
@@ -550,18 +556,22 @@ These should be refined, not quietly removed:
   new pre-registered registry and lane.
 - [ ] Add the post-release integrity disclosure to every public surface where a
   reader might confuse the frozen v2 study with current development behavior.
-- [ ] Complete Issue #84's claim/framing items in order of scientific impact:
-  scoring decomposition, same-view/scaffold comparisons, power/no-ranking
-  framing, memo ablation, then realism polish. Scoring decomposition is landed
-  as the `sota-v3` `score_components` block plus
-  `weight_sensitivity.py --result`. The same-view/scaffold **measurement** is
-  recorded under `4f6ddddd6a6dd81c` (see
+- [x] Complete Issue #84's landed evidence/claim items in order of scientific
+  impact: scoring decomposition, same-view/scaffold comparison, power/no-ranking
+  framing, and memo-volume association. Scoring decomposition landed as the
+  `sota-v3` `score_components` block plus `weight_sensitivity.py --result`. The
+  same-view/scaffold **measurement** is recorded under `4f6ddddd6a6dd81c` (see
   [`docs/run_logs/scaffold-view-official-panel-2026-07-25.md`](run_logs/scaffold-view-official-panel-2026-07-25.md));
-  power/no-ranking **framing** for that gap, memo ablation, and realism polish
-  are still open.
-- [x] **Run `scaffold-view` under the same contract fingerprint as the paid
-  panel.** Completed 2026-07-25 on seeds 11–18 at 5 seasons under fingerprint
-  `4f6ddddd6a6dd81c`; paired mean gap versus `pick-trader` is +2.8 points.
+  the power/no-ranking and memo conclusions are recorded in
+  [`docs/run_logs/gap-decomposition-and-panel-power-2026-07-26.md`](run_logs/gap-decomposition-and-panel-power-2026-07-26.md)
+  and surfaced by #99/#101. This is not a causal memo intervention: a
+  controlled memo ablation remains open but does not block preregistration or
+  offline rehearsal. Additional realism polish is deferred by the v3
+  mechanics-freeze decision below.
+- [x] **Run `scaffold-view` under the current candidate contract fingerprint
+  before a paid panel.** Completed 2026-07-25 on seeds 11–18 at 5 seasons under
+  fingerprint `4f6ddddd6a6dd81c`; paired mean gap versus `pick-trader` is +2.8
+  points.
   See [`docs/run_logs/scaffold-view-official-panel-2026-07-25.md`](run_logs/scaffold-view-official-panel-2026-07-25.md).
   The baseline remains outside `PRESETS["leaderboard"]` (2026-07-24 entry); the
   gap is diagnostic only and does not re-rank models.
@@ -570,8 +580,10 @@ These should be refined, not quietly removed:
 
 ### Consultant audit critical path ([#93](https://github.com/nedcut/gm-bench/issues/93))
 
-Full P0/P1 backlog lives in Issue #93. These are the critical path before any
-paid v3 panel spend or headline refresh:
+Full P0/P1 backlog lives in Issue #93, but backlog membership is not the same as
+a pre-spend blocker. The finite critical path is below; the verified 2026-07-27
+snapshot is in
+[`docs/run_logs/sota-v3-preflight-2026-07-27.md`](run_logs/sota-v3-preflight-2026-07-27.md).
 
 - [x] Merge [#92 — contract economics](https://github.com/nedcut/gm-bench/pull/92)
   after confirming no live checkpoints under `data/model_checkpoints/`. Merged
@@ -589,29 +601,93 @@ paid v3 panel spend or headline refresh:
   [#95](https://github.com/nedcut/gm-bench/pull/95), which also named the stored
   `ci95` field as a *lift* interval so it is not read as an interval on score.
 - [ ] Pre-register the v3 publication lane (`config/sota_v3_lane.json`, registry,
-  smoke manifest) before authorizing spend. Size the seed panel with
-  `scripts/panel_power.py --correction holm` so power matches the Holm all-pairs
-  bar `model_tiers.py` uses: at the current 24-episode budget the best split
-  (24 seeds × 1 repeat) reaches only 0.18 power for a 40-point difference, 48
-  episodes/model reaches 0.64, and **96 episodes/model** is what reaches 0.95.
-  (Uncorrected single-test powers are higher — 0.70 / 0.95 at 24 / 48 — and must
-  not be used for tiering-panel sizing.) Any panel change moves the contract
-  fingerprint, so it must be sequenced with a free re-run of the `scaffold-view`
-  diagnostic.
+  and initially empty smoke manifest) before authorizing spend. Freeze the
+  research question, model/route selection, public or private seed-panel
+  identity, seeds-versus-repeats allocation, reasoning/output limits, strict
+  fallback, exclusions, multiplicity family, cost model, and operator ceiling.
+  The focused v3 analysis supports only model-versus-`pick-trader` contrasts,
+  with Holm correction across the final registered model family; it does not
+  assign model tiers or support all-pairs ranking. Before power simulation,
+  require enough independent seeds for the exact two-sided sign-flip minimum
+  p-value (`2 / 2**seeds`) to clear Holm step one (`0.05 / models`). The
+  illustrative eight-seed/eight-model design fails that basic feasibility test
+  (`0.0078125 > 0.00625`) regardless of its three repeats. Recompute and record
+  reference-family power only after the model family is selected; the withdrawn
+  0.175 estimate and older all-pairs 24/48/96 illustration are not v3
+  commitments. The frozen plan must choose and power-match one inference method:
+  paired t, deterministic Monte Carlo sign-flip, or exact enumeration with at
+  most 20 seeds. Exact enumeration is the only method the analyzer currently
+  implements, so either keep that method within its bound or implement and
+  validate the selected alternative before spend is authorized. A
+  runtime private panel can change without changing the contract fingerprint;
+  editing the canonical public leaderboard preset in
+  `gm_bench/benchmark_config.py` does change it and would require one pre-data
+  lane amendment plus a free re-run of fingerprint-bound diagnostics.
 - [x] CI validates each committed leaderboard artifact against the policy matching
   its own declared `benchmark_version` (unknown versions fail loudly), so the
   first `sota-v3` row is covered without a hardcoded `sota-v2` step. Landed with
-  the gap-decomposition / panel-power work; still waiting on the first v3
-  artifact itself. The smoke-coverage half was already done:
+  [#99](https://github.com/nedcut/gm-bench/pull/99); no real committed v3
+  artifact exists yet, so the dispatch path is implemented but has not validated
+  a real committed v3 row. The smoke-coverage half was already done:
   `require_strict_fallback` and the CapHoard seed-level assertion in
   [#96](https://github.com/nedcut/gm-bench/pull/96), and `extend_contract` prompt
   conformance in #92.
+- [x] Complete an integrated, no-provider-call v3 rehearsal in the working tree:
+  generate a disposable result, apply the registered policy, compact it, verify
+  raw/compact hashes, run the actual publication analyzer on a nondegenerate
+  paired synthetic panel, exercise site ingestion and the web build in an
+  isolated staging copy without replacing the public v2 study, and prove stale
+  fingerprints, wrong routes/policies, broken hashes, and unknown versions fail
+  closed. `python3 scripts/sota_v3_rehearsal.py` passed with zero spend, seven
+  rejected mutations, a finite nonzero paired-lift interval, shared row
+  ingestion, a generated dataset matching the checked-in frozen-v2 site data,
+  and a successful staged web build. The synthetic output is diagnostic, not
+  panel evidence.
+- [ ] After these changes are committed, rerun the rehearsal from a clean
+  checkout at the exact candidate SHA and record that SHA before any spend.
+- [ ] Select exact routes, grant the separate zero-completion-call
+  `route_preflight_authorized` gate, then run
+  `python3 scripts/run_publication_matrix.py route-preflight --contract sota-v3`.
+  This phase checks endpoint identity and parameters but cannot launch a model
+  subprocess, reserve spend, or create run state.
+- [ ] Review the preregistration, route-preflight, and rehearsal records; freeze
+  a feasible statistical plan and seed-panel identity; then make a separate
+  explicit spend-authorization decision for the cheapest serial route smoke.
+  Rehearsal completion does **not** authorize a provider call or full panel.
 - [ ] Decide v3 site strategy (historical v2 page vs current v3 page) and
-  propagate Holm / tier caveats to Analysis and the sortable table.
+  propagate Holm / tier caveats before a v3 headline refresh. This need not
+  block offline rehearsal.
 - [ ] Report weight sensitivity and an outcome-only secondary view (titles /
-  playoff rounds / wins) for future v3 model rows via `score_components`.
+  playoff rounds / wins) for future v3 model rows via `score_components`. This
+  requires real v3 rows and is not a reason to delay preregistration/rehearsal.
 - [ ] Fix multi-year dead-cap projection in shrewd/strategic release accounting
-  and drop or accept 1-year `extension_quotes` consistently.
+  and drop or accept 1-year `extension_quotes` consistently. Deferred by the
+  mechanics freeze below unless a reproducible claim-threatening defect is
+  demonstrated before the first accepted v3 smoke.
+
+### `sota-v3` freeze decision — 2026-07-27
+
+The score-affecting simulator, action/observation schemas, scoring, scripted
+policy logic, and model-view compaction are **semantically frozen** at current
+fingerprint `4f6ddddd6a6dd81c`. Do not accept another realism or mechanics batch
+before the v3 rehearsal/panel merely because it might improve the benchmark.
+Reopen mechanics only for a reproducible defect that threatens the registered
+claim; doing so requires an explicit decision-log entry, a new fingerprint,
+invalidation of v3 preregistration evidence tied to the prior fingerprint, and
+free diagnostic re-runs before any spend.
+
+This does not pre-decide the publication-lane parameters that still must be
+registered: models/routes, output and reasoning policy, seed-panel identity,
+seeds-versus-repeats allocation, exclusions, cost ceiling, and site treatment.
+Those choices may be amended once, transparently, before any accepted v3 smoke
+or model artifact exists. Runtime private-panel selection does not alter the
+contract fingerprint. A change to the canonical public leaderboard preset does;
+if chosen for power, treat it as a bounded pre-data lane amendment rather than
+an invitation to revisit simulator mechanics.
+
+The frozen `sota-v2` study remains a separate historical evidence lane at
+fingerprint `558e8f35ea1d66b9`. No v3 rehearsal, preregistration, validator
+change, or future result may rewrite or silently revalidate those artifacts.
 
 ## What should wait until after publication
 
@@ -694,6 +770,7 @@ decision and why.
 | 2026-07-25 | Run `scaffold-view` on the official 8-seed panel under fingerprint `4f6ddddd6a6dd81c`. | Issue #93 P0: bound observation asymmetry before any paid panel on the contract-economics lane. Re-measured after PR #92 polish (`0a5f0434dca31ac5` → `4f6ddddd6a6dd81c`); panel scores unchanged. | Scripted compare on seeds 11–18 × 5 seasons: `scaffold-view` mean 270.675, `pick-trader` mean 267.875, paired gap +2.8 (six seeds tied; seeds 17–18 diverge). Logged in `docs/run_logs/scaffold-view-official-panel-2026-07-25.md`. Diagnostic only — does not re-rank models or alter leaderboard JSON. |
 | 2026-07-24 | Preserve the released `sota-v2` study and open `sota-v3` for the Issue #84 P0 fixes. | Non-finite input rejection and decision-window walk-away persistence change simulator/action semantics; compact-artifact recomputation strengthens the validator. Quietly changing the v2 fingerprint or re-recording old smokes would make the released contract mutable after results were known. | Pin the historical v2 contract and validator, identify current corrected runs as v3, block paid publication execution until a v3 registry and lane are pre-registered, retain the tagged v2 evidence and its narrow claim, and require no paid reruns for this repair. |
 | 2026-07-25 | Treat `sota-v3` as contract-ready and panel-blocked per consultant audit #93. | Independent review graded reproducibility A− but model discrimination D; one overlapping v2 tier; PR #92 contract economics still unmerged; scaffold-view unrun; site surfaces overclaim. | Merge #92, run scaffold-view at the frozen fingerprint, fix v2-site claim gaps, pre-register the v3 lane, and defer paid v3 panel spend until those gates pass. Do not publish ordinal model or baseline rankings. |
+| 2026-07-27 | Freeze v3 mechanics and reduce the pre-spend path to preregistration plus offline rehearsal. | PRs #92, #95, #98, #99, and #101 closed the mechanics, site-framing, same-view, version-dispatch, and claim-decomposition blockers. Continuing to add plausible realism changes now creates more schedule and evidence risk than it removes. The base SHA had no v3 lane/registry/manifest or v3 artifact; the working tree now has provisional fail-closed config files but still no selected model family or real/committed artifact. | Freeze score-affecting mechanics at `4f6ddddd6a6dd81c`; permit only one bounded, pre-data publication-parameter amendment if panel design requires it; preserve v2 literally; complete preregistration and a clean-checkout no-provider-call rehearsal; authorize no paid smoke or panel by this decision. |
 
 ## Experiment and release log
 
@@ -716,9 +793,10 @@ than pasting large outputs.
 | 2026-07-15 | Statistical analysis plan | Frozen | `config/publication_protocol.json` | Pre-registered pre-data: unit of inference, primary paired contrast, Holm-Bonferroni multiplicity, descriptive inference labels, tiered ranking, power disclosure, temperature policy, and registry exclusion criteria. |
 | 2026-07-18 | Final Fable 5 launch audit | Conditions resolved pre-data | `docs/run_logs/sota-v2-final-launch-audit-2026-07-18.md` | No P0 blocker. Reconciled the stale output-policy text, strengthened reservations for repairs plus contingency, selected a $95 operator ceiling, and retained Tencent timing and per-cell spend monitoring as launch conditions. |
 | 2026-07-24 | P0 integrity hardening and v3 boundary | Merged | [#85](https://github.com/nedcut/gm-bench/pull/85) | Fixes non-finite actions, negotiation-window resets, and compact-artifact integrity without mutating the frozen v2 release contract. Merged as `1e5cd44`. |
-| 2026-07-24 | #84 P1: score decomposition, strict publication fallback, same-view reference | In working tree | Issue [#84](https://github.com/nedcut/gm-bench/issues/84) | Persists `score_components` on every episode row, makes strict failure handling the resolved-and-recorded publication default, and registers the `scaffold-view` diagnostic. All three are `sota-v3`-only; no v2 artifact is touched. The scaffold-view diagnostic panel ran 2026-07-25 (see run log); no paid model panel has run. |
+| 2026-07-24 | #84 P1: score decomposition, strict publication fallback, same-view reference | Merged | [#88](https://github.com/nedcut/gm-bench/pull/88) | Persists `score_components` on every episode row, makes strict failure handling the resolved-and-recorded publication default, and registers the `scaffold-view` diagnostic. All three are `sota-v3`-only; no v2 artifact is touched. The scaffold-view diagnostic panel ran 2026-07-25 (see run log); no paid v3 model panel has run. |
 | 2026-07-25 | scaffold-view official panel measurement | Complete | [`docs/run_logs/scaffold-view-official-panel-2026-07-25.md`](run_logs/scaffold-view-official-panel-2026-07-25.md) / [#98](https://github.com/nedcut/gm-bench/pull/98) | Deterministic compare vs `pick-trader` on seeds 11–18 × 5 seasons under fingerprint `4f6ddddd6a6dd81c` (re-measured after PR #92 polish; scores unchanged). Paired mean gap +2.8 (six seeds tied; only seeds 17–18 diverge). Diagnostic only. |
-| 2026-07-26 | Gap decomposition and panel power | Complete | [`docs/run_logs/gap-decomposition-and-panel-power-2026-07-26.md`](run_logs/gap-decomposition-and-panel-power-2026-07-26.md) | Protocol friction bounds at 0.5–9.0% of the model-vs-`pick-trader` gap; fresh-spawn/memo-only continuity costs the scripted references exactly zero (now enforced by `tests/test_reference_statelessness.py`); memo-write volume does not predict score. Variance decomposition: within-seed noise sd 53.4 vs seed difficulty sd 13.45, model×seed interaction indistinguishable from zero. Panel sizing under Holm (matching `model_tiers.py`) needs ~96 episodes/model for 0.95 power at Δ=40, not 48. No contract source touched; no spend authorised. |
+| 2026-07-26 | Gap decomposition and panel power | Complete | [`docs/run_logs/gap-decomposition-and-panel-power-2026-07-26.md`](run_logs/gap-decomposition-and-panel-power-2026-07-26.md) | Protocol friction bounds at 0.5–9.0% of the model-vs-`pick-trader` gap; fresh-spawn/memo-only continuity costs the scripted references exactly zero (now enforced by `tests/test_reference_statelessness.py`); memo-write volume is not meaningfully associated with score (not a causal ablation). Variance decomposition: within-seed noise sd 53.4 vs seed difficulty sd 13.45, model×seed interaction indistinguishable from zero. For the published eight-model family, the Holm illustration (matching `model_tiers.py`) needs ~96 episodes/model for 0.95 power at Δ=40, not 48; rerun after the v3 family is selected. No contract source touched; no spend authorised. |
+| 2026-07-27 | v3 readiness reconciliation and mechanics freeze | Ready for review | [`docs/run_logs/sota-v3-preflight-2026-07-27.md`](run_logs/sota-v3-preflight-2026-07-27.md) | Confirms PR #99 CI dispatch is present; records the provisional, fail-closed v3 config/runner package and passing zero-spend rehearsal; keeps v2 as the public evidence lane; freezes mechanics; and authorizes no paid spend. A post-commit clean-checkout rerun remains required. |
 | 2026-07-24 | Results-first public site | Merged | [#87](https://github.com/nedcut/gm-bench/pull/87) | Reframes the public result around one unresolved model tier, the scripted-reference gap, compute, and auditability. |
 
 ## Living-document maintenance checklist
