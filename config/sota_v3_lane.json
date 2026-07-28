@@ -7,17 +7,29 @@
   "preregistration_status": "provisional-blocked",
   "preregistered_at_utc": "2026-07-27T16:58:41Z",
   "evidence_state": "pre-data-no-v3-model-smokes-or-panel-results",
+  "execution_profile_authority": "lane",
   "headline_lane": "api",
+  "provider": "openrouter",
   "observation_profile": "compact",
   "session": false,
   "preset": "leaderboard",
+  "repeats": 3,
   "panel_design_status": "unresolved-pre-data",
   "candidate_panel_design": {
     "status": "illustrative-not-frozen",
     "seeds": [11, 12, 13, 14, 15, 16, 17, 18],
     "repeats": 3,
     "episodes_per_model": 24,
-    "holm_power_at_delta_40": 0.175
+    "illustrative_holm_family_size": 8,
+    "minimum_exact_two_sided_sign_flip_p_value": 0.0078125,
+    "holm_first_step_threshold_at_alpha_0_05": 0.00625,
+    "exact_sign_flip_holm_feasible": false
+  },
+  "seed_panel": {
+    "status": "unresolved-pre-data",
+    "name": null,
+    "count": null,
+    "sha256": null
   },
   "reference_agent": "pick-trader",
   "protocol_repair_attempts": 1,
@@ -34,15 +46,16 @@
   "cap_pressure_threshold_tokens": null,
   "fallback_output_token_cap": null,
   "spend_authorized": false,
+  "route_preflight_authorized": false,
   "smoke_execution_authorized": false,
   "panel_execution_authorized": false,
   "publication_authorized": false,
   "blockers": [
-    "Choose and freeze the seed-versus-repeat allocation and multiplicity family; the 8x3 candidate is illustrative and has only 0.175 Holm power at a 40-point difference for an eight-model family.",
+    "Choose and freeze a seed panel whose exact two-sided sign-flip resolution can clear Holm step one for the final registered model family; the illustrative eight-seed/eight-model design cannot.",
     "Select the sota-v3 model panel before any provider call.",
     "Live-verify and pin each exact provider route, endpoint name, supported parameters, privacy policy, and reasoning requirements.",
     "Freeze one common output-token policy before smoke execution.",
     "Record one accepted strict-fallback smoke for every registered model before panel execution.",
-    "Grant explicit operator spend authorization only after the preflight and smoke gates pass."
+    "Grant separate zero-completion-call route-preflight authorization after routes are selected, then grant operator spend authorization only after that route gate passes."
   ]
 }

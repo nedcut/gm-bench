@@ -605,14 +605,20 @@ snapshot is in
   research question, model/route selection, public or private seed-panel
   identity, seeds-versus-repeats allocation, reasoning/output limits, strict
   fallback, exclusions, multiplicity family, cost model, and operator ceiling.
-  Size the seed panel with
-  `scripts/panel_power.py --correction holm` so power matches the Holm all-pairs
-  bar `model_tiers.py` uses. For the **published eight-model family**, the
-  current illustration gives 0.18 power for a 40-point difference at 24
-  episodes/model, 0.64 at 48, and 0.95 at 96. These are not yet v3-panel power
-  commitments because the v3 model family is still empty; rerun and record the
-  calculation after model selection. (Uncorrected single-test powers are higher
-  — 0.70 / 0.95 at 24 / 48 — and must not be used for tiering-panel sizing.) A
+  The focused v3 analysis supports only model-versus-`pick-trader` contrasts,
+  with Holm correction across the final registered model family; it does not
+  assign model tiers or support all-pairs ranking. Before power simulation,
+  require enough independent seeds for the exact two-sided sign-flip minimum
+  p-value (`2 / 2**seeds`) to clear Holm step one (`0.05 / models`). The
+  illustrative eight-seed/eight-model design fails that basic feasibility test
+  (`0.0078125 > 0.00625`) regardless of its three repeats. Recompute and record
+  reference-family power only after the model family is selected; the withdrawn
+  0.175 estimate and older all-pairs 24/48/96 illustration are not v3
+  commitments. The frozen plan must choose and power-match one inference method:
+  paired t, deterministic Monte Carlo sign-flip, or exact enumeration with at
+  most 20 seeds. Exact enumeration is the only method the analyzer currently
+  implements, so either keep that method within its bound or implement and
+  validate the selected alternative before spend is authorized. A
   runtime private panel can change without changing the contract fingerprint;
   editing the canonical public leaderboard preset in
   `gm_bench/benchmark_config.py` does change it and would require one pre-data
@@ -639,8 +645,14 @@ snapshot is in
   panel evidence.
 - [ ] After these changes are committed, rerun the rehearsal from a clean
   checkout at the exact candidate SHA and record that SHA before any spend.
-- [ ] Review the preregistration and rehearsal record, then make a separate
-  explicit authorization decision for the cheapest serial route smoke.
+- [ ] Select exact routes, grant the separate zero-completion-call
+  `route_preflight_authorized` gate, then run
+  `python3 scripts/run_publication_matrix.py route-preflight --contract sota-v3`.
+  This phase checks endpoint identity and parameters but cannot launch a model
+  subprocess, reserve spend, or create run state.
+- [ ] Review the preregistration, route-preflight, and rehearsal records; freeze
+  a feasible statistical plan and seed-panel identity; then make a separate
+  explicit spend-authorization decision for the cheapest serial route smoke.
   Rehearsal completion does **not** authorize a provider call or full panel.
 - [ ] Decide v3 site strategy (historical v2 page vs current v3 page) and
   propagate Holm / tier caveats before a v3 headline refresh. This need not

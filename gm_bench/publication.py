@@ -10,6 +10,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import math
 import re
 from typing import Any
 
@@ -43,6 +44,152 @@ FROZEN_OUTPUT_POLICY_BASES = frozenset(
 )
 
 
+def exact_sign_flip_feasibility(
+    seed_count: int,
+    family_size: int,
+    *,
+    alpha: float = 0.05,
+) -> dict[str, Any]:
+    """Return whether an exact two-sided sign-flip test can clear Holm step one.
+
+    Repeats do not improve this resolution because the publication unit of
+    inference is the seed.  The smallest attainable two-sided p-value is
+    ``2 / 2**seed_count`` and the strictest Holm threshold is
+    ``alpha / family_size``.
+    """
+    if not isinstance(seed_count, int) or isinstance(seed_count, bool) or seed_count < 2:
+        raise ValueError("seed_count must be an integer >= 2")
+    if not isinstance(family_size, int) or isinstance(family_size, bool) or family_size < 1:
+        raise ValueError("family_size must be a positive integer")
+    if not isinstance(alpha, int | float) or isinstance(alpha, bool) or not 0.0 < float(alpha) < 1.0:
+        raise ValueError("alpha must be between zero and one")
+    minimum_p_value = math.ldexp(1.0, 1 - seed_count)
+    first_step_threshold = float(alpha) / family_size
+    return {
+        "seed_count": seed_count,
+        "family_size": family_size,
+        "alpha": float(alpha),
+        "minimum_two_sided_p_value": minimum_p_value,
+        "holm_first_step_threshold": first_step_threshold,
+        "feasible": minimum_p_value <= first_step_threshold,
+    }
+
+
+def _v3_identity_issues(
+    lane: dict[str, Any],
+    registry: dict[str, Any],
+    protocol: dict[str, Any] | None,
+    pricing: dict[str, Any] | None,
+    manifest: dict[str, Any] | None,
+) -> list[str]:
+    issues: list[str] = []
+    contract = str(lane.get("contract") or "")
+    contract_fingerprint = lane.get("contract_fingerprint")
+    if not isinstance(contract_fingerprint, str) or not contract_fingerprint:
+        issues.append("sota-v3 lane contract_fingerprint is missing")
+    provenance_payloads = (
+        ("model registry", registry),
+        ("smoke manifest", manifest),
+        ("publication protocol", protocol),
+        ("pricing snapshot", pricing),
+    )
+    for label, payload in provenance_payloads:
+        if not isinstance(payload, dict) or payload.get("contract") != contract:
+            issues.append(f"sota-v3 {label} contract does not match the lane")
+        if not isinstance(payload, dict) or payload.get("contract_fingerprint") != contract_fingerprint:
+            issues.append(f"sota-v3 {label} contract_fingerprint does not match the lane")
+    if lane.get("execution_profile_authority") != "lane":
+        issues.append("sota-v3 execution_profile_authority must be 'lane'")
+    coherence_fields = (
+        ("headline_lane", "lane"),
+        ("provider", "provider"),
+        ("observation_profile", "profile"),
+        ("preset", "preset"),
+        ("session", "session"),
+        ("repeats", "repeats"),
+        ("output_token_cap", "output_token_cap"),
+    )
+    for lane_key, registry_key in coherence_fields:
+        if lane.get(lane_key) != registry.get(registry_key):
+            issues.append(f"sota-v3 model registry {registry_key} does not match lane-authoritative {lane_key}")
+    return issues
+
+
+def v3_statistical_plan_issues(
+    lane: dict[str, Any],
+    registry: dict[str, Any],
+    protocol: dict[str, Any] | None,
+) -> list[str]:
+    issues: list[str] = []
+    if lane.get("contract") != "sota-v3" or registry.get("contract") != "sota-v3":
+        issues.append("sota-v3 statistical inputs must declare contract 'sota-v3'")
+    contract_fingerprint = lane.get("contract_fingerprint")
+    if (
+        not isinstance(contract_fingerprint, str)
+        or not contract_fingerprint
+        or registry.get("contract_fingerprint") != contract_fingerprint
+        or not isinstance(protocol, dict)
+        or protocol.get("contract_fingerprint") != contract_fingerprint
+    ):
+        issues.append("sota-v3 statistical inputs must share one contract_fingerprint")
+    plan = protocol.get("statistical_analysis_plan") if isinstance(protocol, dict) else None
+    if not isinstance(plan, dict) or plan.get("status") != "frozen":
+        return ["sota-v3 statistical analysis plan is not frozen"]
+    expected_reference = lane.get("reference_agent")
+    if expected_reference != "pick-trader":
+        issues.append("sota-v3 lane reference_agent must be 'pick-trader'")
+    if plan.get("unit_of_inference") != "seed":
+        issues.append("sota-v3 unit_of_inference must be 'seed'")
+    if plan.get("primary_contrast") != "paired lift versus pick-trader":
+        issues.append("sota-v3 primary_contrast must be 'paired lift versus pick-trader'")
+    if plan.get("reference_agent") != expected_reference:
+        issues.append("sota-v3 statistical reference_agent must match the lane reference_agent")
+    if plan.get("multiplicity_method") != "holm-bonferroni":
+        issues.append("sota-v3 multiplicity_method must be 'holm-bonferroni'")
+    alpha = plan.get("alpha")
+    if not isinstance(alpha, int | float) or isinstance(alpha, bool) or float(alpha) != 0.05:
+        issues.append("sota-v3 statistical alpha must be 0.05")
+    models = [model for model in registry.get("models") or [] if isinstance(model, dict)]
+    family_size = plan.get("holm_family_size")
+    if family_size != len(models):
+        issues.append("sota-v3 Holm family size must equal the frozen registered model count")
+    seed_panel = lane.get("seed_panel")
+    if not isinstance(seed_panel, dict) or seed_panel.get("status") != "frozen":
+        issues.append("sota-v3 seed panel identity is not frozen")
+        return issues
+    seed_count = seed_panel.get("count")
+    if (
+        not isinstance(seed_count, int)
+        or isinstance(seed_count, bool)
+        or seed_count < 2
+        or not isinstance(family_size, int)
+        or isinstance(family_size, bool)
+        or family_size < 1
+    ):
+        issues.append("sota-v3 seed count and Holm family size must be positive frozen integers")
+        return issues
+    inference_method = plan.get("inference_method")
+    if inference_method != "exact-enumeration-sign-flip":
+        issues.append("sota-v3 inference_method is not implemented; currently supported: 'exact-enumeration-sign-flip'")
+        return issues
+    if seed_count > 20:
+        issues.append("sota-v3 exact-enumeration-sign-flip requires at most 20 seeds")
+        return issues
+    try:
+        feasibility = exact_sign_flip_feasibility(seed_count, family_size)
+    except ValueError as exc:
+        issues.append(f"sota-v3 exact sign-flip feasibility is invalid: {exc}")
+    else:
+        if not feasibility["feasible"]:
+            issues.append(
+                "sota-v3 exact sign-flip test cannot clear Holm step one with the frozen "
+                f"{seed_count}-seed/{family_size}-model design"
+            )
+    if plan.get("analysis_mode") != "reference-only":
+        issues.append("sota-v3 statistical analysis mode must be 'reference-only'")
+    return issues
+
+
 def publication_execution_issues(
     lane: dict[str, Any],
     registry: dict[str, Any],
@@ -59,7 +206,7 @@ def publication_execution_issues(
     these fields and are guarded separately by the runner's current-contract
     check; a current ``sota-v3`` lane must carry the complete fail-closed state.
     """
-    if phase not in {"smoke", "panel"}:
+    if phase not in {"route-preflight", "smoke", "panel"}:
         return [f"unsupported publication phase {phase!r}"]
     contract = str(lane.get("contract") or "")
     if contract != str(registry.get("contract") or ""):
@@ -69,10 +216,29 @@ def publication_execution_issues(
 
     issues: list[str] = []
     if contract == "sota-v3":
-        if not isinstance(protocol, dict) or protocol.get("contract") != contract or protocol.get("status") != "frozen":
-            issues.append("sota-v3 publication protocol is not frozen")
-        if not isinstance(pricing, dict) or pricing.get("contract") != contract or pricing.get("status") != "frozen":
-            issues.append("sota-v3 pricing snapshot is not frozen")
+        issues.extend(_v3_identity_issues(lane, registry, protocol, pricing, manifest))
+        if phase != "route-preflight":
+            if (
+                not isinstance(protocol, dict)
+                or protocol.get("contract") != contract
+                or protocol.get("status") != "frozen"
+            ):
+                issues.append("sota-v3 publication protocol is not frozen")
+            if (
+                not isinstance(pricing, dict)
+                or pricing.get("contract") != contract
+                or pricing.get("status") != "frozen"
+            ):
+                issues.append("sota-v3 pricing snapshot is not frozen")
+            issues.extend(v3_statistical_plan_issues(lane, registry, protocol))
+        elif lane.get("route_preflight_authorized") is not True:
+            issues.append("zero-call route preflight is locked while route_preflight_authorized is false")
+        if phase == "route-preflight":
+            if registry.get("selection_status") not in {"route-preflight-ready", "frozen"}:
+                issues.append("model registry is not ready for zero-call route preflight")
+            if not registry.get("models"):
+                issues.append("publication model registry contains no models")
+            return list(dict.fromkeys(issues))
     status = str(lane.get("preregistration_status") or "")
     if status != "frozen":
         issues.append(f"{contract or 'publication'} lane is {status or 'missing-status'}; provider execution is locked")
@@ -87,6 +253,18 @@ def publication_execution_issues(
     required_smoke_ids = {str(model_id) for model_id in required_smokes} if isinstance(required_smokes, list) else set()
     if not models:
         issues.append("publication model registry contains no models")
+    minimum_headline_models = lane.get("minimum_headline_models")
+    if (
+        not isinstance(minimum_headline_models, int)
+        or isinstance(minimum_headline_models, bool)
+        or minimum_headline_models <= 0
+    ):
+        issues.append("publication minimum_headline_models must be a positive frozen integer")
+    elif len(model_ids) < minimum_headline_models:
+        issues.append(
+            f"publication model registry has {len(model_ids)} models; "
+            f"minimum_headline_models requires {minimum_headline_models}"
+        )
     if not required_smoke_ids or required_smoke_ids != model_ids:
         issues.append("required_smokes must exactly match the registered model ids")
 
@@ -101,9 +279,15 @@ def publication_execution_issues(
 
     if lane.get("spend_authorized") is not True or registry.get("spend_authorized") is not True:
         issues.append("provider execution is locked until spend is explicitly authorized")
-    authorization_key = "smoke_execution_authorized" if phase == "smoke" else "panel_execution_authorized"
-    if lane.get(authorization_key) is not True:
-        issues.append(f"provider execution is locked while {authorization_key} is false")
+    if contract == "sota-v3":
+        budget_policy = protocol.get("budget_policy") if isinstance(protocol, dict) else None
+        if not isinstance(budget_policy, dict) or budget_policy.get("spend_authorized") is not True:
+            issues.append("provider execution is locked by the publication protocol budget policy")
+        if not isinstance(pricing, dict) or pricing.get("spend_authorized") is not True:
+            issues.append("provider execution is locked by the pricing snapshot")
+    authorization_flag = "smoke_execution_authorized" if phase == "smoke" else "panel_execution_authorized"
+    if lane.get(authorization_flag) is not True:
+        issues.append(f"provider execution is locked while {authorization_flag} is false")
 
     if phase == "panel":
         if registry.get("panel_execution_authorized") is not True:

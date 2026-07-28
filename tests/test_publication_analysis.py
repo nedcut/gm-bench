@@ -155,10 +155,11 @@ def _frozen_registry() -> dict:
     }
 
 
-def _registered_payload() -> dict:
+def _registered_payload(*, seed_count: int = 2) -> dict:
+    seeds = list(range(11, 11 + seed_count))
     payload = _payload(
-        {11: [10.0, 11.0, 12.0], 12: [20.0, 21.0, 22.0]},
-        {11: 9.0, 12: 19.0},
+        {seed: [float(seed), float(seed + 1), float(seed + 2)] for seed in seeds},
+        {seed: float(seed - 1) for seed in seeds},
     )
     payload["run_info"].update(
         {
@@ -177,10 +178,45 @@ def _registered_payload() -> dict:
         }
     )
     payload["candidate"]["summary"] = {
-        "decisions": 6,
-        "usage": {"cost_decisions": 6, "upstream_providers": ["DemoProvider"]},
+        "decisions": seed_count * 3,
+        "usage": {"cost_decisions": seed_count * 3, "upstream_providers": ["DemoProvider"]},
     }
     return payload
+
+
+def _frozen_v3_analysis_inputs(payload: dict) -> tuple[dict, dict]:
+    fingerprint = "f" * 16
+    payload["run_info"]["benchmark_contract"]["contract_fingerprint"] = fingerprint
+    seed_count = len({episode["seed"] for episode in payload["candidate"]["episodes"]})
+    seed_panel = {
+        "name": "private-env",
+        "count": seed_count,
+        "sha256": "b" * 64,
+        "preset": "leaderboard",
+    }
+    payload["run_info"]["seed_panel"] = dict(seed_panel)
+    lane = {
+        "contract": "sota-v3",
+        "contract_fingerprint": fingerprint,
+        "reference_agent": "pick-trader",
+        "seed_panel": {"status": "frozen", **seed_panel},
+    }
+    protocol = {
+        "contract": "sota-v3",
+        "contract_fingerprint": fingerprint,
+        "statistical_analysis_plan": {
+            "status": "frozen",
+            "unit_of_inference": "seed",
+            "primary_contrast": "paired lift versus pick-trader",
+            "reference_agent": "pick-trader",
+            "multiplicity_method": "holm-bonferroni",
+            "alpha": 0.05,
+            "analysis_mode": "reference-only",
+            "inference_method": "exact-enumeration-sign-flip",
+            "holm_family_size": 1,
+        },
+    }
+    return lane, protocol
 
 
 def test_analysis_rejects_artifact_from_unregistered_route(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -189,7 +225,7 @@ def test_analysis_rejects_artifact_from_unregistered_route(monkeypatch: pytest.M
         "validate_leaderboard_payload",
         lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
     )
-    payload = _registered_payload()
+    payload = _registered_payload(seed_count=6)
     payload["run_info"]["provider_options"]["OPENROUTER_PROVIDER_ONLY"] = "WrongProvider"
 
     result = analyze(_frozen_registry(), [payload])
@@ -205,7 +241,7 @@ def test_analysis_rejects_incomplete_cost_telemetry(monkeypatch: pytest.MonkeyPa
         "validate_leaderboard_payload",
         lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
     )
-    payload = _registered_payload()
+    payload = _registered_payload(seed_count=6)
     payload["candidate"]["summary"]["usage"]["cost_decisions"] = 5
 
     result = analyze(_frozen_registry(), [payload])
@@ -226,8 +262,203 @@ def test_analysis_binds_eligible_row_to_raw_artifact_hash(monkeypatch: pytest.Mo
     result = analyze(_frozen_registry(), [payload])
 
     assert result["status"] == "complete"
+    assert result["models"][0]["tier"] == 1
+    assert "analysis_mode" not in result
     assert len(result["models"][0]["artifact_sha256"]) == 64
     assert result["models"][0]["raw_artifact_sha256"] == "a" * 64
+
+
+def test_v3_reference_only_analysis_does_not_assign_model_tiers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    registry = _frozen_registry()
+    registry["contract"] = "sota-v3"
+    registry["contract_fingerprint"] = "f" * 16
+    payload = _registered_payload(seed_count=6)
+    payload["run_info"]["benchmark_contract"]["benchmark_version"] = "sota-v3"
+    lane, protocol = _frozen_v3_analysis_inputs(payload)
+
+    result = analyze(registry, [payload], lane=lane, protocol=protocol)
+
+    assert result["status"] == "complete"
+    assert result["analysis_mode"] == "reference-only"
+    assert result["publication_ready"] is True
+    assert result["model_tiering"]["status"] == "not-supported"
+    assert result["sign_flip_inference"] == "primary; exact under the symmetry assumption"
+    assert "tier" not in result["models"][0]
+
+
+def test_v3_analysis_missing_frozen_inputs_yields_no_publishable_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    registry = _frozen_registry()
+    registry.update({"contract": "sota-v3", "contract_fingerprint": "f" * 16})
+    payload = _registered_payload(seed_count=6)
+    payload["run_info"]["benchmark_contract"]["benchmark_version"] = "sota-v3"
+
+    result = analyze(registry, [payload])
+
+    assert result["eligible_model_count"] == 0
+    assert result["publication_ready"] is False
+    assert result["config_errors"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected"),
+    [
+        ("analysis_mode", "pairwise-tiers", "analysis mode"),
+        ("inference_method", "deterministic-monte-carlo-sign-flip", "inference_method"),
+        ("holm_family_size", 2, "Holm family size"),
+        ("unit_of_inference", "episode", "unit_of_inference"),
+    ],
+)
+def test_v3_analysis_rejects_frozen_stat_plan_mutation(
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    value: object,
+    expected: str,
+) -> None:
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    registry = _frozen_registry()
+    registry.update({"contract": "sota-v3", "contract_fingerprint": "f" * 16})
+    payload = _registered_payload(seed_count=6)
+    payload["run_info"]["benchmark_contract"]["benchmark_version"] = "sota-v3"
+    lane, protocol = _frozen_v3_analysis_inputs(payload)
+    protocol["statistical_analysis_plan"][field] = value
+
+    result = analyze(registry, [payload], lane=lane, protocol=protocol)
+
+    assert result["eligible_model_count"] == 0
+    assert result["publication_ready"] is False
+    assert any(expected in error for error in result["config_errors"])
+
+
+def test_v3_analysis_rejects_contract_fingerprint_mismatch_and_infeasible_exact_plan(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    registry = _frozen_registry()
+    registry.update({"contract": "sota-v3", "contract_fingerprint": "wrong"})
+    payload = _registered_payload(seed_count=6)
+    payload["run_info"]["benchmark_contract"]["benchmark_version"] = "sota-v3"
+    lane, protocol = _frozen_v3_analysis_inputs(payload)
+
+    mismatch = analyze(registry, [payload], lane=lane, protocol=protocol)
+    assert mismatch["publication_ready"] is False
+    assert mismatch["eligible_model_count"] == 0
+    assert any("contract_fingerprint" in error for error in mismatch["config_errors"])
+
+    registry["contract_fingerprint"] = "f" * 16
+    lane["seed_panel"]["count"] = 5
+    payload["run_info"]["seed_panel"]["count"] = 5
+    infeasible = analyze(registry, [payload], lane=lane, protocol=protocol)
+    assert infeasible["publication_ready"] is False
+    assert infeasible["eligible_model_count"] == 0
+    assert any("cannot clear Holm step one" in error for error in infeasible["config_errors"])
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("name", "public-leaderboard"),
+        ("count", 7),
+        ("sha256", "c" * 64),
+    ],
+)
+def test_v3_analysis_rejects_artifact_seed_panel_identity_mutation(
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    value: object,
+) -> None:
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    registry = _frozen_registry()
+    registry["contract"] = "sota-v3"
+    registry["contract_fingerprint"] = "f" * 16
+    payload = _registered_payload(seed_count=6)
+    payload["run_info"]["benchmark_contract"]["benchmark_version"] = "sota-v3"
+    lane, protocol = _frozen_v3_analysis_inputs(payload)
+    payload["run_info"]["seed_panel"][field] = value
+
+    result = analyze(registry, [payload], lane=lane, protocol=protocol)
+
+    assert result["status"] == "no-eligible-artifacts"
+    assert result["publication_ready"] is False
+    assert f"run_info.seed_panel.{field} does not match" in result["rejected_artifacts"][0]["reasons"][0]
+
+
+def test_analysis_rejects_compact_publication_block_without_raw_digest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    payload = _registered_payload()
+    payload["publication"] = {}
+
+    result = analyze(_frozen_registry(), [payload])
+
+    assert result["status"] == "no-eligible-artifacts"
+    assert any("raw_artifact_sha256" in reason for reason in result["rejected_artifacts"][0]["reasons"])
+
+
+def test_analysis_accepts_genuinely_raw_artifact_without_publication_block(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    result = analyze(_frozen_registry(), [_registered_payload()])
+
+    assert result["status"] == "complete"
+
+
+def test_v3_cli_returns_nonzero_for_current_provisional_configuration(tmp_path: Path) -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "scripts/analyze_publication_panel.py",
+            "--contract",
+            "sota-v3",
+            "--artifacts-dir",
+            str(tmp_path),
+            "--output",
+            str(tmp_path / "analysis.json"),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    result = json.loads(completed.stdout)
+    assert result["publication_ready"] is False
+    assert not (tmp_path / "analysis.json").exists()
 
 
 def test_analysis_rejects_invalid_raw_artifact_hash(monkeypatch: pytest.MonkeyPatch) -> None:

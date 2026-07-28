@@ -343,6 +343,23 @@ def _panel_analysis(rows: list[dict], *, family_size: int = 0) -> dict:
     }
 
 
+def test_v3_site_ingestion_requires_analyzer_publication_readiness() -> None:
+    from web.scripts.build_leaderboard import _panel_analysis_rows
+
+    candidate = {
+        "benchmark_version": "sota-v3",
+        "id": "demo",
+        "provider": "openrouter",
+        "model": "demo/model",
+    }
+    analysis = _panel_analysis([candidate], family_size=1)
+    analysis["publication_ready"] = False
+
+    _rows, issues = _panel_analysis_rows([candidate], analysis, family_size=1, minimum_models=1)
+
+    assert "sota-v3 publication panel analysis is not publication-ready" in issues
+
+
 def test_publication_identity_issues_flags_missing_upstream_slug_without_crashing() -> None:
     from web.scripts.build_leaderboard import _publication_identity_issues
 

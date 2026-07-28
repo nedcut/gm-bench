@@ -9,7 +9,7 @@ import pytest
 
 import scripts.run_publication_matrix as publication_runner
 from gm_bench.contract import BENCHMARK_VERSION, contract_fingerprint
-from gm_bench.publication import SMOKE_MANIFEST_FORMAT
+from gm_bench.publication import SMOKE_MANIFEST_FORMAT, exact_sign_flip_feasibility
 
 CONFIG = Path("config")
 
@@ -31,12 +31,22 @@ def test_v3_lane_pins_current_contract_but_not_an_unresolved_panel_design() -> N
     assert lane["observation_profile"] == "compact"
     assert lane["session"] is False
     assert lane["preset"] == "leaderboard"
+    assert lane["execution_profile_authority"] == "lane"
+    assert lane["provider"] == "openrouter"
+    assert lane["repeats"] == 3
     assert lane["panel_design_status"] == "unresolved-pre-data"
     candidate = lane["candidate_panel_design"]
     assert candidate["status"] == "illustrative-not-frozen"
     assert candidate["episodes_per_model"] == len(candidate["seeds"]) * candidate["repeats"] == 24
-    assert candidate["holm_power_at_delta_40"] == 0.175
-    assert any("seed-versus-repeat allocation" in blocker for blocker in lane["blockers"])
+    feasibility = exact_sign_flip_feasibility(
+        len(candidate["seeds"]),
+        candidate["illustrative_holm_family_size"],
+    )
+    assert candidate["minimum_exact_two_sided_sign_flip_p_value"] == feasibility["minimum_two_sided_p_value"]
+    assert candidate["holm_first_step_threshold_at_alpha_0_05"] == feasibility["holm_first_step_threshold"]
+    assert candidate["exact_sign_flip_holm_feasible"] is feasibility["feasible"] is False
+    assert lane["seed_panel"]["status"] == "unresolved-pre-data"
+    assert any("exact two-sided sign-flip resolution" in blocker for blocker in lane["blockers"])
     assert lane["reference_agent"] == "pick-trader"
     assert lane["protocol_repair_attempts"] == 1
     assert lane["strict_fallback_required"] is True
@@ -76,6 +86,13 @@ def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
     assert protocol["contract_fingerprint"] == pricing["contract_fingerprint"] == lane["contract_fingerprint"]
     assert protocol["status"] == "provisional-blocked"
     assert protocol["statistical_analysis_plan"]["status"] == "unresolved-pre-data"
+    assert protocol["statistical_analysis_plan"]["analysis_mode"] == "reference-only"
+    assert protocol["statistical_analysis_plan"]["inference_method"] is None
+    assert protocol["statistical_analysis_plan"]["unit_of_inference"] == "seed"
+    assert protocol["statistical_analysis_plan"]["primary_contrast"] == "paired lift versus pick-trader"
+    assert protocol["statistical_analysis_plan"]["reference_agent"] == lane["reference_agent"] == "pick-trader"
+    assert protocol["statistical_analysis_plan"]["multiplicity_method"] == "holm-bonferroni"
+    assert protocol["statistical_analysis_plan"]["alpha"] == 0.05
     assert protocol["budget_policy"]["spend_authorized"] is False
     assert pricing["status"] == "not-started"
     assert pricing["checked_at_utc"] is None
@@ -94,6 +111,7 @@ def test_v3_preregistration_fails_closed_before_smoke_or_panel_spend() -> None:
     assert lane["output_token_cap"] is None
     assert lane["reasoning_policy"] == "pending-live-route-verification"
     assert lane["spend_authorized"] is False
+    assert lane["route_preflight_authorized"] is False
     assert lane["smoke_execution_authorized"] is False
     assert lane["panel_execution_authorized"] is False
     assert lane["publication_authorized"] is False
@@ -115,6 +133,17 @@ def test_v3_preregistration_fails_closed_before_smoke_or_panel_spend() -> None:
         and manifest["accepted_for_panel"] is True
     )
     assert smoke_gate_complete is False
+
+
+def test_exact_sign_flip_holm_feasibility_uses_seed_count_not_episode_count() -> None:
+    eight_seeds = exact_sign_flip_feasibility(8, 8)
+    assert eight_seeds["minimum_two_sided_p_value"] == 2 / 2**8
+    assert eight_seeds["holm_first_step_threshold"] == pytest.approx(0.05 / 8)
+    assert eight_seeds["feasible"] is False
+
+    nine_seeds = exact_sign_flip_feasibility(9, 8)
+    assert nine_seeds["minimum_two_sided_p_value"] == 2 / 2**9
+    assert nine_seeds["feasible"] is True
 
 
 def test_blocked_v3_state_cannot_drift_into_partial_authorization() -> None:

@@ -28,7 +28,8 @@ def test_rehearsal_proves_v3_gates_and_site_isolation(tmp_path: Path) -> None:
     assert result["analysis"]["eligible_model_count"] == 1
     assert result["analysis"]["holm_family_size"] == 1
     assert result["analysis"]["bootstrap_ci95"][0] < result["analysis"]["bootstrap_ci95"][1]
-    assert result["analysis"]["tier"] == 1
+    assert result["analysis"]["analysis_mode"] == "reference-only"
+    assert result["analysis"]["model_tiering"]["status"] == "not-supported"
     assert {row["name"] for row in result["mutations"]} == {
         "wrong-contract",
         "soft-fallback",
@@ -55,24 +56,48 @@ def test_rehearsal_proves_v3_gates_and_site_isolation(tmp_path: Path) -> None:
 def test_panel_like_action_fails_closed_on_both_authorization_locks() -> None:
     lane = {
         "contract": "sota-v3",
+        "contract_fingerprint": "test-fingerprint",
+        "execution_profile_authority": "lane",
+        "headline_lane": "api",
+        "provider": "openrouter",
+        "observation_profile": "compact",
+        "preset": "leaderboard",
+        "session": False,
+        "repeats": 3,
         "preregistration_status": "provisional-blocked",
         "panel_design_status": "unresolved-pre-data",
+        "minimum_headline_models": 8,
+        "reference_agent": "pick-trader",
         "output_policy_basis": "pending-live-route-smokes",
         "output_token_cap": None,
         "spend_authorized": False,
+        "route_preflight_authorized": False,
         "smoke_execution_authorized": False,
         "panel_execution_authorized": False,
     }
     registry = {
         "contract": "sota-v3",
+        "contract_fingerprint": "test-fingerprint",
+        "lane": "api",
+        "provider": "openrouter",
+        "profile": "compact",
+        "preset": "leaderboard",
+        "session": False,
+        "repeats": 3,
+        "output_token_cap": None,
         "selection_status": "provisional-blocked",
         "models": [],
         "required_smokes": [],
-        "output_token_cap": None,
         "spend_authorized": False,
         "panel_execution_authorized": False,
     }
-    manifest = {"status": "not-started", "accepted_for_panel": False, "entries": {}}
+    manifest = {
+        "contract": "sota-v3",
+        "contract_fingerprint": "test-fingerprint",
+        "status": "not-started",
+        "accepted_for_panel": False,
+        "entries": {},
+    }
 
     assert (
         execution_authorization_issues(
@@ -89,13 +114,32 @@ def test_panel_like_action_fails_closed_on_both_authorization_locks() -> None:
     assert "sota-v3 lane is provisional-blocked; provider execution is locked" in issues
     assert "publication panel design is not frozen" in issues
     assert "publication model registry contains no models" in issues
+    assert "publication model registry has 0 models; minimum_headline_models requires 8" in issues
     assert "publication output_token_cap must be a positive frozen integer" in issues
     assert "publication output policy basis is not frozen" in issues
+    assert "provider execution is locked by the publication protocol budget policy" in issues
+    assert "provider execution is locked by the pricing snapshot" in issues
     assert "v3 smoke manifest is not accepted for panel execution" in issues
     ready_lane = {
         "contract": "sota-v3",
+        "contract_fingerprint": "test-fingerprint",
+        "execution_profile_authority": "lane",
+        "headline_lane": "api",
+        "provider": "openrouter",
+        "observation_profile": "compact",
+        "preset": "leaderboard",
+        "session": False,
+        "repeats": 3,
         "preregistration_status": "frozen",
         "panel_design_status": "frozen",
+        "minimum_headline_models": 1,
+        "reference_agent": "pick-trader",
+        "seed_panel": {
+            "status": "frozen",
+            "name": "public-leaderboard",
+            "count": 8,
+            "sha256": "a" * 64,
+        },
         "output_policy_basis": "fixed-safety-ceiling",
         "output_token_cap": 4096,
         "spend_authorized": True,
@@ -103,24 +147,213 @@ def test_panel_like_action_fails_closed_on_both_authorization_locks() -> None:
     }
     ready_registry = {
         "contract": "sota-v3",
+        "contract_fingerprint": "test-fingerprint",
+        "lane": "api",
+        "provider": "openrouter",
+        "profile": "compact",
+        "preset": "leaderboard",
+        "session": False,
+        "repeats": 3,
+        "output_token_cap": 4096,
         "selection_status": "frozen",
         "models": [{"id": "demo"}],
         "required_smokes": ["demo"],
-        "output_token_cap": 4096,
         "spend_authorized": True,
         "panel_execution_authorized": True,
     }
-    frozen_record = {"contract": "sota-v3", "status": "frozen"}
+    ready_manifest = {
+        "contract": "sota-v3",
+        "contract_fingerprint": "test-fingerprint",
+        "accepted_for_panel": True,
+        "entries": {"demo": {"accepted": True}},
+    }
+    ready_protocol = {
+        "contract": "sota-v3",
+        "contract_fingerprint": "test-fingerprint",
+        "status": "frozen",
+        "statistical_analysis_plan": {
+            "status": "frozen",
+            "analysis_mode": "reference-only",
+            "inference_method": "exact-enumeration-sign-flip",
+            "unit_of_inference": "seed",
+            "primary_contrast": "paired lift versus pick-trader",
+            "reference_agent": "pick-trader",
+            "multiplicity_method": "holm-bonferroni",
+            "alpha": 0.05,
+            "holm_family_size": 1,
+        },
+        "budget_policy": {"spend_authorized": True},
+    }
+    ready_pricing = {
+        "contract": "sota-v3",
+        "contract_fingerprint": "test-fingerprint",
+        "status": "frozen",
+        "spend_authorized": True,
+    }
     ready_issues = execution_authorization_issues(
         ready_lane,
         mode="panel",
         registry=ready_registry,
-        manifest={"accepted_for_panel": True, "entries": {"demo": {"accepted": True}}},
-        protocol=frozen_record,
-        pricing=frozen_record,
+        manifest=ready_manifest,
+        protocol=ready_protocol,
+        pricing=ready_pricing,
     )
     assert not any("locked" in issue for issue in ready_issues)
     assert "smoke manifest format must be 'gm-bench-smoke-manifest-v1'" in ready_issues
+
+    mismatched_registry = {**ready_registry, "contract_fingerprint": "wrong"}
+    assert "sota-v3 model registry contract_fingerprint does not match the lane" in execution_authorization_issues(
+        ready_lane,
+        mode="panel",
+        registry=mismatched_registry,
+        manifest=ready_manifest,
+        protocol=ready_protocol,
+        pricing=ready_pricing,
+    )
+    mismatched_manifest = {**ready_manifest, "contract": "wrong"}
+    assert "sota-v3 smoke manifest contract does not match the lane" in execution_authorization_issues(
+        ready_lane,
+        mode="panel",
+        registry=ready_registry,
+        manifest=mismatched_manifest,
+        protocol=ready_protocol,
+        pricing=ready_pricing,
+    )
+    blocked_protocol = {**ready_protocol, "budget_policy": {"spend_authorized": False}}
+    assert "provider execution is locked by the publication protocol budget policy" in execution_authorization_issues(
+        ready_lane,
+        mode="panel",
+        registry=ready_registry,
+        manifest=ready_manifest,
+        protocol=blocked_protocol,
+        pricing=ready_pricing,
+    )
+    blocked_pricing = {**ready_pricing, "spend_authorized": False}
+    assert "provider execution is locked by the pricing snapshot" in execution_authorization_issues(
+        ready_lane,
+        mode="panel",
+        registry=ready_registry,
+        manifest=ready_manifest,
+        protocol=ready_protocol,
+        pricing=blocked_pricing,
+    )
+    undersized_lane = {**ready_lane, "minimum_headline_models": 2}
+    assert (
+        "publication model registry has 1 models; minimum_headline_models requires 2"
+        in execution_authorization_issues(
+            undersized_lane,
+            mode="panel",
+            registry=ready_registry,
+            manifest=ready_manifest,
+            protocol=ready_protocol,
+            pricing=ready_pricing,
+        )
+    )
+    stale_profile = {**ready_registry, "profile": "tiny"}
+    assert (
+        "sota-v3 model registry profile does not match lane-authoritative observation_profile"
+        in execution_authorization_issues(
+            ready_lane,
+            mode="panel",
+            registry=stale_profile,
+            manifest=ready_manifest,
+            protocol=ready_protocol,
+            pricing=ready_pricing,
+        )
+    )
+    unresolved_statistics = {
+        **ready_protocol,
+        "statistical_analysis_plan": {
+            **ready_protocol["statistical_analysis_plan"],
+            "status": "unresolved-pre-data",
+        },
+    }
+    assert "sota-v3 statistical analysis plan is not frozen" in execution_authorization_issues(
+        ready_lane,
+        mode="smoke",
+        registry=ready_registry,
+        manifest=ready_manifest,
+        protocol=unresolved_statistics,
+        pricing=ready_pricing,
+    )
+    statistical_mutations = (
+        ("unit_of_inference", "episode", "sota-v3 unit_of_inference must be 'seed'"),
+        (
+            "primary_contrast",
+            "model versus model",
+            "sota-v3 primary_contrast must be 'paired lift versus pick-trader'",
+        ),
+        (
+            "reference_agent",
+            "value",
+            "sota-v3 statistical reference_agent must match the lane reference_agent",
+        ),
+        (
+            "multiplicity_method",
+            "none",
+            "sota-v3 multiplicity_method must be 'holm-bonferroni'",
+        ),
+        ("alpha", 0.10, "sota-v3 statistical alpha must be 0.05"),
+    )
+    for field, value, expected_issue in statistical_mutations:
+        mutated_protocol = {
+            **ready_protocol,
+            "statistical_analysis_plan": {
+                **ready_protocol["statistical_analysis_plan"],
+                field: value,
+            },
+        }
+        assert expected_issue in execution_authorization_issues(
+            ready_lane,
+            mode="smoke",
+            registry=ready_registry,
+            manifest=ready_manifest,
+            protocol=mutated_protocol,
+            pricing=ready_pricing,
+        )
+    oversized_exact_lane = {
+        **ready_lane,
+        "seed_panel": {**ready_lane["seed_panel"], "count": 21},
+    }
+    assert "sota-v3 exact-enumeration-sign-flip requires at most 20 seeds" in execution_authorization_issues(
+        oversized_exact_lane,
+        mode="smoke",
+        registry=ready_registry,
+        manifest=ready_manifest,
+        protocol=ready_protocol,
+        pricing=ready_pricing,
+    )
+    infeasible_lane = {
+        **ready_lane,
+        "seed_panel": {**ready_lane["seed_panel"], "count": 8},
+    }
+    infeasible_protocol = {
+        **ready_protocol,
+        "statistical_analysis_plan": {
+            **ready_protocol["statistical_analysis_plan"],
+            "holm_family_size": 8,
+        },
+    }
+    infeasible_registry = {
+        **ready_registry,
+        "models": [{"id": f"demo-{index}"} for index in range(8)],
+        "required_smokes": [f"demo-{index}" for index in range(8)],
+    }
+    infeasible_manifest = {
+        **ready_manifest,
+        "entries": {f"demo-{index}": {"accepted": True} for index in range(8)},
+    }
+    assert (
+        "sota-v3 exact sign-flip test cannot clear Holm step one with the frozen 8-seed/8-model design"
+        in execution_authorization_issues(
+            infeasible_lane,
+            mode="panel",
+            registry=infeasible_registry,
+            manifest=infeasible_manifest,
+            protocol=infeasible_protocol,
+            pricing=ready_pricing,
+        )
+    )
 
 
 def test_cli_uses_a_disposable_directory_by_default() -> None:

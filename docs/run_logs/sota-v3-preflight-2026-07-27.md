@@ -86,10 +86,11 @@ and model-view compaction do not reopen for discretionary realism work.
 
 The publication lane files now exist provisionally, but the lane is not frozen
 because model/route selection, output/reasoning policy, cost assumptions, and
-the operator ceiling remain unresolved. The committed 8-seed × 3-repeat shape
-is recorded only as an illustrative candidate: at roughly 0.175 Holm-adjusted
-power for a 40-point difference in an eight-model family, it is not a frozen
-design. Final review must affirm the seed-panel identity,
+the operator ceiling remain unresolved. The 8-seed × 3-repeat shape is recorded
+only as an illustrative candidate, not a frozen design. Its exact two-sided
+sign-flip test has minimum p-value 2/2^8 = 0.0078125, which cannot clear Holm's
+first 0.05/8 = 0.00625 threshold for eight predeclared reference contrasts;
+repeats do not improve that seed-level resolution. Final review must affirm the seed-panel identity,
 seeds-versus-repeats allocation, strict-fallback attestation, exclusions, and
 multiplicity family. These are experiment-design choices, not permission to
 revisit simulator mechanics.
@@ -114,11 +115,17 @@ another mechanics batch.
   records. Their identities and fingerprints already agree; model routes,
   per-route JSON/reasoning policy, pricing, and authorization remain
   intentionally unresolved.
-- [ ] Record the panel-power choice and its intended claim. Do not substitute
-  uncorrected single-test power for the Holm all-pairs threshold used by
-  `scripts/model_tiers.py`. The 24/48/96 episode figures are an illustration for
-  the published eight-model family, not a frozen v3 design; recompute after the
-  v3 family is selected.
+- [ ] Record the panel-power choice and its intended claim. The focused v3 plan
+  supports only each model-versus-`pick-trader` contrast, with Holm correction
+  across that registered family; it does not support model tiers or all-pairs
+  comparisons. First require exact sign-flip feasibility, then recompute power
+  for the selected family and allocation. Do not reuse the withdrawn 0.175
+  estimate or the older all-pairs 24/48/96 illustration. The frozen plan must
+  also name an inference method and power analysis that match: paired t,
+  deterministic Monte Carlo sign-flip, or exact enumeration with at most 20
+  independent seeds. Exact enumeration is the only method currently
+  implemented by the publication analyzer; choosing another requires its
+  implementation and validation before spend can unlock.
 - [x] Run an integrated, no-provider-call rehearsal that exercises result
   generation, v3 policy selection, compaction, raw/compact hashing, and site
   ingestion while leaving the public v2 page intact.
@@ -128,6 +135,11 @@ another mechanics batch.
 - [ ] After commit, repeat the rehearsal from a clean checkout and record its
   command/output and exact candidate SHA. Label every generated result
   disposable and non-evidence.
+- [ ] After routes are selected, explicitly authorize and run
+  `python3 scripts/run_publication_matrix.py route-preflight --contract sota-v3`.
+  This phase performs exact endpoint/parameter checks and never launches a
+  model subprocess or completion call. Only after it passes may the operator
+  separately freeze the statistical plan and authorize a paid smoke.
 - [ ] Review this package and make a separate explicit decision before the
   cheapest serial route smoke.
 

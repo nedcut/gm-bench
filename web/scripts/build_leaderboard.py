@@ -385,6 +385,9 @@ def _panel_analysis_rows(
     issues: list[str] = []
     if not isinstance(panel_analysis, dict):
         return {}, ["publication panel analysis artifact is missing"]
+    candidate_versions = {str(row.get("benchmark_version") or "") for row in candidates}
+    if "sota-v3" in candidate_versions and panel_analysis.get("publication_ready") is not True:
+        issues.append("sota-v3 publication panel analysis is not publication-ready")
     analysis_rows = panel_analysis.get("models")
     if not isinstance(analysis_rows, list):
         return {}, ["publication panel analysis has no model rows"]

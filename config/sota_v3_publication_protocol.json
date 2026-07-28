@@ -9,8 +9,13 @@
     "status": "unresolved-pre-data",
     "candidate_allocation": "8 seeds x 3 repeats",
     "candidate_episodes_per_model": 24,
-    "candidate_holm_power_at_delta_40_for_eight_models": 0.175,
-    "decision_required": "Freeze seeds, repeats, model-family size, and target power before any accepted smoke."
+    "candidate_exact_sign_flip_feasibility": {
+      "illustrative_holm_family_size": 8,
+      "minimum_two_sided_p_value": 0.0078125,
+      "holm_first_step_threshold_at_alpha_0_05": 0.00625,
+      "feasible": false
+    },
+    "decision_required": "Freeze seeds, repeats, model-family size, and an exact sign-flip design that can clear Holm step one before any accepted smoke."
   },
   "output_policy": {
     "status": "blocked-pending-live-route-smokes",
@@ -26,10 +31,16 @@
   },
   "statistical_analysis_plan": {
     "status": "unresolved-pre-data",
+    "analysis_mode": "reference-only",
+    "inference_method": null,
     "unit_of_inference": "seed",
     "primary_contrast": "paired lift versus pick-trader",
+    "reference_agent": "pick-trader",
+    "multiplicity_method": "holm-bonferroni",
+    "alpha": 0.05,
     "multiplicity": "Holm-Bonferroni across the final registered model family",
-    "ranking_rule": "tiers only; no ordinal model ranking without predeclared supported contrasts",
+    "holm_family_size": null,
+    "ranking_rule": "No model tiers or ordinal ranking; only each registered model's predeclared contrast versus pick-trader is supported.",
     "blocker": "The final model-family size and seed-versus-repeat allocation are not frozen."
   },
   "budget_policy": {

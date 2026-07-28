@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -63,6 +64,8 @@ def _frozen_panel_files(
     registry["provider"] = "openrouter"
     registry["spend_authorized"] = True
     registry["panel_execution_authorized"] = True
+    private_seeds = list(range(101, 110))
+    monkeypatch.setenv("GM_BENCH_PRIVATE_SEEDS", ",".join(str(seed) for seed in private_seeds))
     lane = json.loads(Path("config/sota_v2_lane.json").read_text())
     lane["contract"] = BENCHMARK_VERSION
     lane["contract_fingerprint"] = contract_fingerprint()
@@ -72,6 +75,21 @@ def _frozen_panel_files(
     lane["smoke_execution_authorized"] = True
     lane["panel_execution_authorized"] = True
     lane["output_budget_status"] = "frozen-native-reasoning-cap"
+    lane["execution_profile_authority"] = "lane"
+    lane["headline_lane"] = registry["lane"]
+    lane["provider"] = registry["provider"]
+    lane["observation_profile"] = registry["profile"]
+    lane["preset"] = registry["preset"]
+    lane["session"] = registry["session"]
+    lane["repeats"] = registry["repeats"]
+    lane["minimum_headline_models"] = len(registry["models"])
+    lane["reference_agent"] = "pick-trader"
+    lane["seed_panel"] = {
+        "status": "frozen",
+        "name": "private-env",
+        "count": len(private_seeds),
+        "sha256": hashlib.sha256(",".join(str(seed) for seed in private_seeds).encode()).hexdigest(),
+    }
     lane.pop("smoke_manifest", None)
     registry_path = tmp_path / "models.json"
     lane_path = tmp_path / "lane.json"
@@ -81,11 +99,49 @@ def _frozen_panel_files(
     registry_path.write_text(json.dumps(registry))
     lane_path.write_text(json.dumps(lane))
     protocol = json.loads(Path("config/publication_protocol.json").read_text())
-    protocol.update({"contract": BENCHMARK_VERSION, "status": "frozen"})
+    protocol.update(
+        {
+            "contract": BENCHMARK_VERSION,
+            "contract_fingerprint": contract_fingerprint(),
+            "status": "frozen",
+        }
+    )
+    protocol["budget_policy"]["spend_authorized"] = True
+    protocol["statistical_analysis_plan"] = {
+        "status": "frozen",
+        "analysis_mode": "reference-only",
+        "inference_method": "exact-enumeration-sign-flip",
+        "unit_of_inference": "seed",
+        "primary_contrast": "paired lift versus pick-trader",
+        "reference_agent": "pick-trader",
+        "multiplicity_method": "holm-bonferroni",
+        "alpha": 0.05,
+        "holm_family_size": len(registry["models"]),
+    }
     protocol_path.write_text(json.dumps(protocol))
     pricing = json.loads(Path("config/openrouter_pricing_snapshot.json").read_text())
-    pricing.update({"contract": BENCHMARK_VERSION, "status": "frozen"})
+    pricing.update(
+        {
+            "contract": BENCHMARK_VERSION,
+            "contract_fingerprint": contract_fingerprint(),
+            "status": "frozen",
+            "spend_authorized": True,
+        }
+    )
     pricing_path.write_text(json.dumps(pricing))
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "format": "gm-bench-smoke-manifest-v1",
+                "schema_version": 1,
+                "contract": BENCHMARK_VERSION,
+                "contract_fingerprint": contract_fingerprint(),
+                "status": "not-started",
+                "accepted_for_panel": False,
+                "entries": {},
+            }
+        )
+    )
     monkeypatch.setattr(publication_runner, "PANEL_CONFIG", registry_path)
     monkeypatch.setattr(publication_runner, "LANE_CONFIG", lane_path)
     monkeypatch.setattr(publication_runner, "SMOKE_MANIFEST", manifest_path)
@@ -129,6 +185,8 @@ def _valid_manifest(registry: dict, lane: dict) -> dict:
     return {
         "format": "gm-bench-smoke-manifest-v1",
         "schema_version": 1,
+        "contract": BENCHMARK_VERSION,
+        "contract_fingerprint": contract_fingerprint(),
         "accepted_for_panel": True,
         "entries": entries,
     }
@@ -240,6 +298,7 @@ def test_smoke_is_clean_and_resumes_existing_checkpoint(tmp_path: Path) -> None:
     command = cell_command(cell, tmp_path)
     assert cell.preset == "smoke"
     assert cell.repeats == 1
+    assert cell.seed_count is None  # frozen sota-v2 keeps its preset-derived reservation behavior
     assert cell.cap == 4096
     assert "--require-clean" in command
     checkpoint = tmp_path / "checkpoints" / f"{cell.experiment_id}--4096.json"
@@ -372,7 +431,8 @@ def test_panel_stays_locked_when_frozen_registry_has_no_manifest(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _frozen_panel_files(tmp_path, monkeypatch)
+    _registry, _lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest_path.unlink()
     with pytest.raises(ValueError, match="smoke manifest is missing"):
         build_cells("panel")
 
@@ -501,7 +561,7 @@ def test_record_smoke_refuses_a_soft_fallback_artifact(
         == 1
     )
     assert "strict failure handling" in capsys.readouterr().err
-    assert not manifest_path.exists()
+    assert json.loads(manifest_path.read_text())["entries"] == {}
 
 
 def test_panel_stays_locked_for_a_soft_fallback_smoke_entry(
@@ -544,7 +604,7 @@ def test_record_smoke_refuses_summary_only_artifact(
         == 1
     )
     assert "complete smoke episode" in capsys.readouterr().err
-    assert not manifest_path.exists()
+    assert json.loads(manifest_path.read_text())["entries"] == {}
 
 
 @pytest.mark.parametrize(
@@ -588,7 +648,7 @@ def test_record_smoke_refuses_incomplete_execution_telemetry(
         == 1
     )
     assert message in capsys.readouterr().err
-    assert not manifest_path.exists()
+    assert json.loads(manifest_path.read_text())["entries"] == {}
 
 
 def test_record_smoke_refuses_too_few_api_calls(
@@ -620,7 +680,7 @@ def test_record_smoke_refuses_too_few_api_calls(
         == 1
     )
     assert "at least 4 API calls" in capsys.readouterr().err
-    assert not manifest_path.exists()
+    assert json.loads(manifest_path.read_text())["entries"] == {}
 
 
 def test_record_smoke_requires_call_telemetry_for_protocol_repairs(
@@ -652,7 +712,7 @@ def test_record_smoke_requires_call_telemetry_for_protocol_repairs(
         == 1
     )
     assert "at least 5 API calls" in capsys.readouterr().err
-    assert not manifest_path.exists()
+    assert json.loads(manifest_path.read_text())["entries"] == {}
 
 
 @pytest.mark.parametrize(
@@ -699,7 +759,7 @@ def test_record_smoke_refuses_invalid_artifact_without_writing_manifest(
         == 1
     )
     assert message in capsys.readouterr().err
-    assert not manifest_path.exists()
+    assert json.loads(manifest_path.read_text())["entries"] == {}
 
 
 @pytest.mark.parametrize("bad_reasoning_tokens", [True, -1])
@@ -731,7 +791,7 @@ def test_record_smoke_refuses_invalid_reasoning_token_telemetry(
         == 1
     )
     assert "missing reasoning-token telemetry" in capsys.readouterr().err
-    assert not manifest_path.exists()
+    assert json.loads(manifest_path.read_text())["entries"] == {}
 
 
 def test_artifact_spend_uses_completed_result_telemetry(tmp_path: Path) -> None:
@@ -788,11 +848,27 @@ def test_cell_reservation_covers_repairs_and_cost_contingency(
     pricing = json.loads(Path("config/openrouter_pricing_snapshot.json").read_text())
     assumptions = pricing["planning_assumptions"]
     rates = pricing["models"][cell.model]
-    decisions = 8 * 5 * 4 * 3
+    assert cell.seed_count == 9
+    decisions = 9 * 5 * 4 * 3
     base = decisions * (assumptions["input_tokens_per_decision"] * rates["prompt"] + cell.cap * rates["completion"])
 
     assert cell.fixed_options["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "1"
     assert _cell_reservation_usd(cell) == pytest.approx(base * 2 * assumptions["cost_contingency_multiplier"], abs=1e-6)
+
+
+def test_cell_reservation_scales_to_future_24_seed_private_panel(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
+    nine_seed_cell = build_cells("panel", model_id="openrouter-gpt-5.6-luna-openai")[0]
+    twenty_four_seed_cell = replace(nine_seed_cell, seed_count=24)
+
+    assert _cell_reservation_usd(twenty_four_seed_cell) == pytest.approx(
+        _cell_reservation_usd(nine_seed_cell) * (24 / 9),
+        abs=1e-6,
+    )
 
 
 def test_retry_reservation_accounts_for_fresh_full_attempt(tmp_path: Path) -> None:
@@ -1102,6 +1178,156 @@ def test_panel_preflight_does_not_require_a_completed_artifact(
         == 0
     )
     assert not (tmp_path / "run-state.json").exists()
+
+
+def test_zero_call_route_preflight_has_separate_authorization_and_never_launches_child(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    registry["selection_status"] = "route-preflight-ready"
+    registry["spend_authorized"] = False
+    lane["preregistration_status"] = "provisional-blocked"
+    lane["route_preflight_authorized"] = True
+    lane["spend_authorized"] = False
+    lane["smoke_execution_authorized"] = False
+    lane["panel_execution_authorized"] = False
+    publication_runner.PANEL_CONFIG.write_text(json.dumps(registry))
+    publication_runner.LANE_CONFIG.write_text(json.dumps(lane))
+    protocol = json.loads(publication_runner.PROTOCOL_CONFIG.read_text())
+    protocol["status"] = "provisional-blocked"
+    protocol["statistical_analysis_plan"]["status"] = "unresolved-pre-data"
+    protocol["budget_policy"]["spend_authorized"] = False
+    publication_runner.PROTOCOL_CONFIG.write_text(json.dumps(protocol))
+    pricing = json.loads(publication_runner.PRICING_CONFIG.read_text())
+    pricing["status"] = "not-started"
+    pricing["spend_authorized"] = False
+    publication_runner.PRICING_CONFIG.write_text(json.dumps(pricing))
+    endpoint_checks: list[str] = []
+    child_calls: list[str] = []
+    monkeypatch.setattr(
+        publication_runner,
+        "_validate_openrouter_endpoint",
+        lambda cell: endpoint_checks.append(cell.experiment_id),
+    )
+    monkeypatch.setattr(
+        publication_runner.subprocess,
+        "run",
+        lambda *_args, **_kwargs: child_calls.append("child"),
+    )
+
+    assert (
+        main(
+            [
+                "route-preflight",
+                "--model-id",
+                registry["models"][0]["id"],
+                "--run-dir",
+                str(tmp_path),
+            ]
+        )
+        == 0
+    )
+    assert endpoint_checks == [registry["models"][0]["id"]]
+    assert child_calls == []
+    assert not (tmp_path / "run-state.json").exists()
+    assert not (tmp_path / "raw").exists()
+    assert not (tmp_path / "checkpoints").exists()
+
+
+def test_frozen_private_panel_rejects_inherited_seed_drift_before_cells(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, _lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, _lane)))
+    monkeypatch.setenv("GM_BENCH_PRIVATE_SEEDS", "101,102,103")
+    endpoint_checks: list[str] = []
+    child_calls: list[str] = []
+    monkeypatch.setattr(
+        publication_runner,
+        "_validate_openrouter_endpoint",
+        lambda cell: endpoint_checks.append(cell.experiment_id),
+    )
+    monkeypatch.setattr(
+        publication_runner.subprocess,
+        "run",
+        lambda *_args, **_kwargs: child_calls.append("child"),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["panel", "--model-id", registry["models"][0]["id"], "--dry-run"])
+
+    assert exc_info.value.code == 2
+    assert endpoint_checks == []
+    assert child_calls == []
+
+
+def test_frozen_private_panel_rejects_duplicate_seeds_before_cells(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    duplicate_seeds = [101, 101, 102, 103, 104, 105, 106, 107, 108]
+    lane["seed_panel"] = {
+        "status": "frozen",
+        "name": "private-env",
+        "count": len(duplicate_seeds),
+        "sha256": publication_runner.seed_panel_hash(duplicate_seeds),
+    }
+    publication_runner.LANE_CONFIG.write_text(json.dumps(lane))
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
+    monkeypatch.setenv("GM_BENCH_PRIVATE_SEEDS", ",".join(str(seed) for seed in duplicate_seeds))
+    endpoint_checks: list[str] = []
+    child_calls: list[str] = []
+    monkeypatch.setattr(
+        publication_runner,
+        "_validate_openrouter_endpoint",
+        lambda cell: endpoint_checks.append(cell.experiment_id),
+    )
+    monkeypatch.setattr(
+        publication_runner.subprocess,
+        "run",
+        lambda *_args, **_kwargs: child_calls.append("child"),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["panel", "--model-id", registry["models"][0]["id"], "--dry-run"])
+
+    assert exc_info.value.code == 2
+    assert endpoint_checks == []
+    assert child_calls == []
+
+
+def test_frozen_public_panel_rejects_private_seed_env_before_cells(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    public_seeds = publication_runner.PRESETS["leaderboard"]["seeds"]
+    lane["seed_panel"] = {
+        "status": "frozen",
+        "name": "public-leaderboard",
+        "count": len(public_seeds),
+        "sha256": hashlib.sha256(",".join(str(seed) for seed in public_seeds).encode()).hexdigest(),
+    }
+    # Reduce the synthetic family so the eight-seed exact test is feasible;
+    # this test isolates environment drift rather than the statistics gate.
+    registry["models"] = registry["models"][:1]
+    registry["required_smokes"] = [registry["models"][0]["id"]]
+    lane["minimum_headline_models"] = 1
+    publication_runner.PANEL_CONFIG.write_text(json.dumps(registry))
+    publication_runner.LANE_CONFIG.write_text(json.dumps(lane))
+    protocol = json.loads(publication_runner.PROTOCOL_CONFIG.read_text())
+    protocol["statistical_analysis_plan"]["holm_family_size"] = 1
+    publication_runner.PROTOCOL_CONFIG.write_text(json.dumps(protocol))
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
+    monkeypatch.setenv("GM_BENCH_PRIVATE_SEEDS", "101,102,103,104,105,106,107,108,109")
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["panel", "--model-id", registry["models"][0]["id"], "--dry-run"])
+
+    assert exc_info.value.code == 2
 
 
 def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:

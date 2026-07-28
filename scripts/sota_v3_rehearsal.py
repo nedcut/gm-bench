@@ -186,6 +186,7 @@ def synthetic_analysis_registry() -> dict[str, Any]:
     return {
         "schema_version": 1,
         "contract": "sota-v3",
+        "contract_fingerprint": benchmark_contract()["contract_fingerprint"],
         "provider": "openrouter",
         "profile": "compact",
         "preset": "leaderboard",
@@ -213,6 +214,37 @@ def synthetic_analysis_registry() -> dict[str, Any]:
                 "absent_options": [],
             }
         ],
+    }
+
+
+def synthetic_analysis_lane(raw: dict[str, Any]) -> dict[str, Any]:
+    """Freeze the synthetic artifact's seed identity inside the rehearsal only."""
+    return {
+        "contract": "sota-v3",
+        "contract_fingerprint": raw["run_info"]["benchmark_contract"]["contract_fingerprint"],
+        "reference_agent": "pick-trader",
+        "seed_panel": {
+            "status": "frozen",
+            **raw["run_info"]["seed_panel"],
+        },
+    }
+
+
+def synthetic_analysis_protocol() -> dict[str, Any]:
+    return {
+        "contract": "sota-v3",
+        "contract_fingerprint": benchmark_contract()["contract_fingerprint"],
+        "statistical_analysis_plan": {
+            "status": "frozen",
+            "analysis_mode": "reference-only",
+            "unit_of_inference": "seed",
+            "primary_contrast": "paired lift versus pick-trader",
+            "reference_agent": "pick-trader",
+            "multiplicity_method": "holm-bonferroni",
+            "alpha": 0.05,
+            "inference_method": "exact-enumeration-sign-flip",
+            "holm_family_size": 1,
+        },
     }
 
 
@@ -470,8 +502,18 @@ def run_rehearsal(workdir: Path, *, run_web_build: bool, mode: str = "synthetic"
     wrong_policy = validate_leaderboard_payload(compact, policy=SOTA_V2_POLICY)
     if wrong_policy.ok:
         raise AssertionError("sota-v2 policy unexpectedly accepted a sota-v3 artifact")
-    analysis = analyze(synthetic_analysis_registry(), [compact], raw_payloads=[raw])
-    if analysis["status"] != "complete" or analysis["eligible_model_count"] != 1:
+    analysis = analyze(
+        synthetic_analysis_registry(),
+        [compact],
+        raw_payloads=[raw],
+        lane=synthetic_analysis_lane(raw),
+        protocol=synthetic_analysis_protocol(),
+    )
+    if (
+        analysis["status"] != "complete"
+        or analysis["eligible_model_count"] != 1
+        or analysis["publication_ready"] is not True
+    ):
         raise AssertionError(f"sota-v3 analysis rehearsal failed: {analysis!r}")
     analyzed = analysis["models"][0]
     if analyzed["bootstrap_ci95"][0] == analyzed["bootstrap_ci95"][1]:
@@ -497,9 +539,10 @@ def run_rehearsal(workdir: Path, *, run_web_build: bool, mode: str = "synthetic"
             "status": analysis["status"],
             "eligible_model_count": analysis["eligible_model_count"],
             "holm_family_size": analysis["holm_family_size"],
+            "analysis_mode": analysis["analysis_mode"],
             "mean_lift": analyzed["mean_lift"],
             "bootstrap_ci95": analyzed["bootstrap_ci95"],
-            "tier": analyzed["tier"],
+            "model_tiering": analysis["model_tiering"],
         },
         "mutations": _exercise_mutations(raw, compact),
         "site_data_build": _exercise_site_builder(site_staging, compact),
