@@ -42,15 +42,13 @@ def test_v3_catalog_freezes_exact_balanced_cohort_without_unlocking_execution() 
     assert registry["catalog_checked_at_utc"]
     assert set(registry["required_smokes"]) == {model["id"] for model in models}
     assert registry["output_token_cap"] is None
-    assert not any(
-        registry[key]
-        for key in (
-            "spend_authorized",
-            "route_preflight_authorized",
-            "panel_execution_authorized",
-            "publication_authorized",
-        )
-    )
+    for key in (
+        "spend_authorized",
+        "route_preflight_authorized",
+        "panel_execution_authorized",
+        "publication_authorized",
+    ):
+        assert registry[key] is False, key
 
 
 def test_v3_catalog_pins_routes_parameters_reasoning_and_exact_route_prices() -> None:

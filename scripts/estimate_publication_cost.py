@@ -57,6 +57,7 @@ def estimate(
     assumptions = pricing["planning_assumptions"]
     input_tokens = int(assumptions["input_tokens_per_decision"])
     output_tokens = int(assumptions["expected_output_tokens_per_decision"])
+    reasoning_tokens_value = assumptions.get("expected_internal_reasoning_tokens_per_decision")
     if int(models_config["output_token_cap"]) != int(lane_config["output_token_cap"]):
         raise ValueError("model registry and lane output-token caps must match")
     if output_tokens != int(lane_config["output_token_cap"]):
@@ -82,7 +83,28 @@ def estimate(
         rates = pricing["models"].get(model_name)
         if not rates:
             raise ValueError(f"missing pricing for {model_name}")
-        per_decision_cost = input_tokens * _decimal(rates["prompt"]) + output_tokens * _decimal(rates["completion"])
+        applied_rates = rates
+        long_context_override = rates.get("long_context_override")
+        if long_context_override:
+            threshold = int(long_context_override["min_prompt_tokens"])
+            if input_tokens >= threshold:
+                applied_rates = long_context_override
+
+        reasoning_rate = rates.get("internal_reasoning")
+        reasoning_tokens = 0
+        if reasoning_rate is not None:
+            if not isinstance(reasoning_tokens_value, int) or reasoning_tokens_value < 0:
+                raise ValueError(
+                    "planning_assumptions.expected_internal_reasoning_tokens_per_decision "
+                    f"must be a non-negative integer when {model_name} has internal-reasoning pricing"
+                )
+            reasoning_tokens = reasoning_tokens_value
+
+        per_decision_cost = (
+            input_tokens * _decimal(applied_rates["prompt"])
+            + output_tokens * _decimal(applied_rates["completion"])
+            + reasoning_tokens * _decimal(reasoning_rate or 0)
+        )
         panel_cost = panel_decisions_per_model * per_decision_cost
         smoke_cost = smoke_decisions_per_run * per_decision_cost
         panel_costs.append(panel_cost)
@@ -95,6 +117,10 @@ def estimate(
             "panel_cost_usd": float(panel_cost),
             "smoke_calls": smoke_decisions_per_run,
             "smoke_cost_usd": float(smoke_cost),
+            "applied_prompt_rate_usd": float(_decimal(applied_rates["prompt"])),
+            "applied_completion_rate_usd": float(_decimal(applied_rates["completion"])),
+            "internal_reasoning_tokens_per_decision": reasoning_tokens,
+            "applied_internal_reasoning_rate_usd": float(_decimal(reasoning_rate or 0)),
         }
         runtime_seconds = runtime_by_model.get(model_name)
         if isinstance(runtime_seconds, int | float) and runtime_seconds > 0:
@@ -125,6 +151,7 @@ def estimate(
         "assumptions": {
             "input_tokens_per_decision": input_tokens,
             "output_tokens_per_decision": output_tokens,
+            "internal_reasoning_tokens_per_decision": reasoning_tokens_value,
             "cost_contingency_multiplier": float(contingency),
             "rates_are_per_token": bool(pricing["rates_are_per_token"]),
             "panel_preset": "leaderboard",

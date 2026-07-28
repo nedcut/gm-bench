@@ -169,11 +169,11 @@ def _execution_hash(args: argparse.Namespace) -> int:
         raise ValueError("lane does not declare a pending private seed panel")
     if len(seeds) != expected_count:
         raise ValueError(f"private panel must contain exactly {expected_count} ordered seeds")
-    if any(seed < 1 << 32 or seed > (1 << 63) - 1 for seed in seeds):
-        raise ValueError("private seeds must be high-entropy positive 63-bit integers (at least 2**32)")
     committed = {seed for preset in PRESETS.values() for seed in preset["seeds"]}
     if committed.intersection(seeds):
         raise ValueError("private panel must not overlap any committed preset seed")
+    if any(seed < 1 << 32 or seed > (1 << 63) - 1 for seed in seeds):
+        raise ValueError("private seeds must be high-entropy positive 63-bit integers (at least 2**32)")
     print(
         json.dumps(
             {

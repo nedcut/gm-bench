@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 
@@ -63,3 +64,46 @@ def test_runtime_is_complete_once_every_registered_model_has_a_smoke_observation
         if "observed_api_seconds_per_decision" in row
     }
     assert rows_with_latency == runtime["observed_api_seconds_per_decision_by_model"]
+
+
+def test_model_specific_reasoning_and_long_context_rates_are_applied() -> None:
+    models, lane, pricing = _committed_inputs()
+    models = copy.deepcopy(models)
+    lane = copy.deepcopy(lane)
+    pricing = copy.deepcopy(pricing)
+    model_name = models["models"][0]["model"]
+
+    lane["output_token_cap"] = 20
+    models["output_token_cap"] = 20
+    pricing["planning_assumptions"]["input_tokens_per_decision"] = 100
+    pricing["planning_assumptions"]["expected_output_tokens_per_decision"] = 20
+    pricing["planning_assumptions"]["expected_internal_reasoning_tokens_per_decision"] = 30
+    pricing["models"][model_name] = {
+        "prompt": 0.01,
+        "completion": 0.02,
+        "internal_reasoning": 0.03,
+        "long_context_override": {
+            "min_prompt_tokens": 100,
+            "prompt": 0.04,
+            "completion": 0.05,
+        },
+    }
+
+    result = estimate(models, lane, pricing)
+    row = next(item for item in result["models"] if item["model"] == model_name)
+
+    assert row["cost_per_decision_usd"] == pytest.approx(100 * 0.04 + 20 * 0.05 + 30 * 0.03)
+    assert row["applied_prompt_rate_usd"] == pytest.approx(0.04)
+    assert row["applied_completion_rate_usd"] == pytest.approx(0.05)
+    assert row["internal_reasoning_tokens_per_decision"] == 30
+    assert row["applied_internal_reasoning_rate_usd"] == pytest.approx(0.03)
+
+
+def test_internal_reasoning_price_requires_an_explicit_token_assumption() -> None:
+    models, lane, pricing = _committed_inputs()
+    pricing = copy.deepcopy(pricing)
+    model_name = models["models"][0]["model"]
+    pricing["models"][model_name]["internal_reasoning"] = 0.03
+
+    with pytest.raises(ValueError, match="expected_internal_reasoning_tokens_per_decision"):
+        estimate(models, lane, pricing)

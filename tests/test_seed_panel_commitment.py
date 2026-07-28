@@ -103,3 +103,17 @@ def test_execution_hash_rejects_missing_or_low_entropy_seed_env(tmp_path, monkey
 
     monkeypatch.setenv(commitment_mod.PRIVATE_SEEDS_ENV, ",".join(str(seed) for seed in range(100, 117)))
     assert commitment_mod.main(["execution-hash", "--lane", str(lane)]) == 2
+
+
+def test_execution_hash_rejects_wrong_count_or_committed_preset_overlap(tmp_path, monkeypatch):
+    lane = tmp_path / "lane.json"
+    lane.write_text(json.dumps({"seed_panel": {"name": "private-env", "count": 17}}))
+
+    high_entropy = [(1 << 50) + index * 104729 for index in range(17)]
+    monkeypatch.setenv(commitment_mod.PRIVATE_SEEDS_ENV, ",".join(str(seed) for seed in high_entropy[:-1]))
+    assert commitment_mod.main(["execution-hash", "--lane", str(lane)]) == 2
+
+    committed_seed = next(iter(commitment_mod.PRESETS["smoke"]["seeds"]))
+    overlapping = [committed_seed, *high_entropy[1:]]
+    monkeypatch.setenv(commitment_mod.PRIVATE_SEEDS_ENV, ",".join(str(seed) for seed in overlapping))
+    assert commitment_mod.main(["execution-hash", "--lane", str(lane)]) == 2

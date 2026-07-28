@@ -11,6 +11,7 @@
   "planning_assumptions": {
     "input_tokens_per_decision": null,
     "expected_output_tokens_per_decision": null,
+    "expected_internal_reasoning_tokens_per_decision": null,
     "cost_contingency_multiplier": null,
     "runtime_contingency_multiplier": null
   },
