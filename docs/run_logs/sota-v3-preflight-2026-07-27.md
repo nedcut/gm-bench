@@ -1,5 +1,11 @@
 # `sota-v3` preflight snapshot — 2026-07-27
 
+> Historical snapshot: its unresolved 8x3 illustration was followed by the
+> corrected 2026-07-28 power audit in
+> `sota-v3-statistical-design-audit-2026-07-28.md`. That audit found no
+> qualifying allocation through 20 seeds x 3 repeats, so the design remains
+> blocked pre-data.
+
 This zero-spend preflight package starts from
 `6bade3934e39d790e888f1987213628dc8f812c0`. The base-SHA facts below separate
 Sunday's merged state from the provisional v3 files now present in the working

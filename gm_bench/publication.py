@@ -157,6 +157,10 @@ def v3_statistical_plan_issues(
     if not isinstance(seed_panel, dict) or seed_panel.get("status") != "frozen":
         issues.append("sota-v3 seed panel identity is not frozen")
         return issues
+    if seed_panel.get("name") == "private-env":
+        hiding_commitment = seed_panel.get("hiding_commitment_sha256")
+        if not isinstance(hiding_commitment, str) or re.fullmatch(r"[0-9a-f]{64}", hiding_commitment) is None:
+            issues.append("sota-v3 private seed panel requires a frozen salted hiding commitment")
     seed_count = seed_panel.get("count")
     if (
         not isinstance(seed_count, int)

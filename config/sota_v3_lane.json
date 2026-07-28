@@ -14,19 +14,44 @@
   "session": false,
   "preset": "leaderboard",
   "repeats": 3,
-  "panel_design_status": "unresolved-pre-data",
-  "candidate_panel_design": {
-    "status": "illustrative-not-frozen",
-    "seeds": [11, 12, 13, 14, 15, 16, 17, 18],
-    "repeats": 3,
-    "episodes_per_model": 24,
-    "illustrative_holm_family_size": 8,
-    "minimum_exact_two_sided_sign_flip_p_value": 0.0078125,
-    "holm_first_step_threshold_at_alpha_0_05": 0.00625,
-    "exact_sign_flip_holm_feasible": false
+  "panel_design_status": "blocked-no-qualifying-allocation",
+  "statistical_panel_design": {
+    "status": "blocked-no-qualifying-allocation",
+    "evaluated_seed_range": [9, 20],
+    "evaluated_repeat_range": [1, 3],
+    "holm_family_size": 8,
+    "target_effect_score_points": 40,
+    "target_familywise_all_reject_power": 0.8,
+    "simulation_trials": 10000,
+    "simulation_seed": 2026072800,
+    "historical_lift_variances": {
+      "shared_seed": 3770.478399,
+      "model_by_seed": 0.0,
+      "within_seed_noise": 2850.169803
+    },
+    "cross_model_covariance": "Compound symmetry: one shared residual lift-seed draw per seed; model-by-seed interaction and repeat-averaged noise are independent by model.",
+    "sensitivity": {
+      "shared_seed_variance_multiplier": 1.25,
+      "noise_variance_multiplier": 1.25,
+      "interaction_variance_floor_as_historical_noise_fraction": 0.1
+    },
+    "best_tested_allocation": {
+      "seed_count": 20,
+      "repeats": 3,
+      "episodes_per_model": 60,
+      "minimum_exact_two_sided_sign_flip_p_value": 0.0000019073486328125,
+      "holm_first_step_threshold_at_alpha_0_05": 0.00625,
+      "exact_sign_flip_holm_feasible": true,
+      "base_power_estimate": 0.3486,
+      "base_power_wilson_ci95": [0.33932, 0.357996],
+      "sensitivity_power_estimate": 0.2154,
+      "sensitivity_power_wilson_ci95": [0.207453, 0.223566]
+    },
+    "selection_rule": "Smallest allocation with 9-20 seeds and 1-3 repeats whose conservative-sensitivity familywise-power Wilson 95% lower bound is at least 0.80.",
+    "decision_required": "No tested allocation qualifies. Amend the pre-data seed ceiling, target claim, effect size, or power criterion before freezing an allocation."
   },
   "seed_panel": {
-    "status": "unresolved-pre-data",
+    "status": "blocked-pending-allocation",
     "name": null,
     "count": null,
     "sha256": null
@@ -51,8 +76,8 @@
   "panel_execution_authorized": false,
   "publication_authorized": false,
   "blockers": [
-    "Choose and freeze a seed panel whose exact two-sided sign-flip resolution can clear Holm step one for the final registered model family; the illustrative eight-seed/eight-model design cannot.",
-    "Select the sota-v3 model panel before any provider call.",
+    "Choose a defensible pre-data design amendment: no allocation in the evaluated 9-20 seed by 1-3 repeat grid reaches the 0.80 sensitivity familywise-power target; 20x3 reaches only 0.2154.",
+    "Complete authenticated exact-route and privacy verification for the catalog-selected model cohort before any provider call.",
     "Live-verify and pin each exact provider route, endpoint name, supported parameters, privacy policy, and reasoning requirements.",
     "Freeze one common output-token policy before smoke execution.",
     "Record one accepted strict-fallback smoke for every registered model before panel execution.",

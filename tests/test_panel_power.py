@@ -234,6 +234,71 @@ def test_committed_panel_reports_the_expected_shape() -> None:
     assert got["var_noise"] > got["var_seed"]
 
 
+def test_committed_reference_lifts_recover_one_candidate_variance() -> None:
+    cells, context = panel_power.load_reference_lift_cells(panel_power.RESULTS_DIR)
+    got = panel_power.decompose(cells)
+
+    assert context["reference_agent"] == "pick-trader"
+    assert got["models"] == 8
+    assert got["seeds"] == 8
+    assert got["repeats"] == 3
+    assert got["var_noise"] == pytest.approx(2850.1698028541664)
+    assert got["var_interaction"] == 0.0
+    assert got["var_seed"] == pytest.approx(3770.478398572821)
+
+
+def test_exact_reference_simulation_carries_shared_seed_covariance() -> None:
+    result = panel_power.simulate_exact_reference_family_power(
+        var_noise=0.0,
+        var_interaction=0.0,
+        var_seed=10_000.0,
+        seeds=9,
+        repeats=1,
+        delta=40.0,
+        family_size=8,
+        alpha=0.05,
+        trials=200,
+    )
+
+    # With no model-specific variance, all eight contrasts receive the same
+    # per-seed lift vector and therefore always reject or fail together.
+    assert result["marginal_rejection_power"] == result["familywise_all_reject_power"]
+
+
+def test_exact_reference_simulation_is_deterministic_and_selects_by_sensitivity() -> None:
+    cells = _synthetic_cells(
+        models=8,
+        seeds=8,
+        repeats=3,
+        sd_seed=5.0,
+        sd_interaction=0.0,
+        sd_noise=10.0,
+        rng=random.Random(88),
+    )
+    first = panel_power.build_exact_reference_report(
+        cells,
+        delta=100.0,
+        min_seeds=9,
+        max_seeds=10,
+        max_repeats=2,
+        trials=100,
+    )
+    second = panel_power.build_exact_reference_report(
+        cells,
+        delta=100.0,
+        min_seeds=9,
+        max_seeds=10,
+        max_repeats=2,
+        trials=100,
+    )
+
+    assert first == second
+    assert first["recommended"]["seeds"] == 9
+    assert first["recommended"]["repeats"] == 1
+    assert first["recommended"]["episodes_per_model"] == 9
+    assert first["selection_rule"].startswith("smallest episodes/model")
+
+
 def test_incomplete_cross_product_is_refused() -> None:
     """A uniform repeat count across present cells is not balance.
 

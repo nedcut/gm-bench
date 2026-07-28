@@ -89,6 +89,7 @@ def _frozen_panel_files(
         "name": "private-env",
         "count": len(private_seeds),
         "sha256": hashlib.sha256(",".join(str(seed) for seed in private_seeds).encode()).hexdigest(),
+        "hiding_commitment_sha256": "c" * 64,
     }
     lane.pop("smoke_manifest", None)
     registry_path = tmp_path / "models.json"
@@ -1274,6 +1275,7 @@ def test_frozen_private_panel_rejects_duplicate_seeds_before_cells(
         "name": "private-env",
         "count": len(duplicate_seeds),
         "sha256": publication_runner.seed_panel_hash(duplicate_seeds),
+        "hiding_commitment_sha256": "c" * 64,
     }
     publication_runner.LANE_CONFIG.write_text(json.dumps(lane))
     manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
