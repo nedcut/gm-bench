@@ -3,6 +3,7 @@
     "caveat": "Provider prices and actual token usage can change. Recheck before paid runs; the operator spend guard remains mandatory.",
     "cost_contingency_multiplier": 1.2,
     "input_tokens_per_decision": 8000,
+    "internal_reasoning_tokens_per_decision": null,
     "output_tokens_per_decision": 4096,
     "panel_preset": "leaderboard",
     "panel_repeats": 3,
@@ -32,8 +33,12 @@
   },
   "models": [
     {
+      "applied_completion_rate_usd": 6e-06,
+      "applied_internal_reasoning_rate_usd": 0.0,
+      "applied_prompt_rate_usd": 1e-06,
       "cost_per_decision_usd": 0.032576,
       "experiment_id": "openrouter-gpt-5.6-luna-openai",
+      "internal_reasoning_tokens_per_decision": 0,
       "model": "openai/gpt-5.6-luna",
       "observed_api_seconds_per_decision": 4.759,
       "panel_calls": 480,
@@ -42,8 +47,12 @@
       "smoke_cost_usd": 0.130304
     },
     {
+      "applied_completion_rate_usd": 1e-05,
+      "applied_internal_reasoning_rate_usd": 0.0,
+      "applied_prompt_rate_usd": 2e-06,
       "cost_per_decision_usd": 0.05696,
       "experiment_id": "openrouter-claude-sonnet-5-bedrock",
+      "internal_reasoning_tokens_per_decision": 0,
       "model": "anthropic/claude-sonnet-5",
       "observed_api_seconds_per_decision": 8.657,
       "panel_calls": 480,
@@ -52,8 +61,12 @@
       "smoke_cost_usd": 0.22784
     },
     {
+      "applied_completion_rate_usd": 9e-06,
+      "applied_internal_reasoning_rate_usd": 0.0,
+      "applied_prompt_rate_usd": 1.5e-06,
       "cost_per_decision_usd": 0.048864,
       "experiment_id": "openrouter-gemini-3.5-flash-google-ai-studio",
+      "internal_reasoning_tokens_per_decision": 0,
       "model": "google/gemini-3.5-flash",
       "observed_api_seconds_per_decision": 1.497,
       "panel_calls": 480,
@@ -62,8 +75,12 @@
       "smoke_cost_usd": 0.195456
     },
     {
+      "applied_completion_rate_usd": 6e-06,
+      "applied_internal_reasoning_rate_usd": 0.0,
+      "applied_prompt_rate_usd": 2e-06,
       "cost_per_decision_usd": 0.040576,
       "experiment_id": "openrouter-grok-4.5-xai",
+      "internal_reasoning_tokens_per_decision": 0,
       "model": "x-ai/grok-4.5",
       "observed_api_seconds_per_decision": 7.683,
       "panel_calls": 480,
@@ -72,8 +89,12 @@
       "smoke_cost_usd": 0.162304
     },
     {
+      "applied_completion_rate_usd": 4.25e-06,
+      "applied_internal_reasoning_rate_usd": 0.0,
+      "applied_prompt_rate_usd": 1.25e-06,
       "cost_per_decision_usd": 0.027408,
       "experiment_id": "openrouter-muse-spark-1.1-meta",
+      "internal_reasoning_tokens_per_decision": 0,
       "model": "meta/muse-spark-1.1",
       "observed_api_seconds_per_decision": 13.827,
       "panel_calls": 480,
@@ -82,8 +103,12 @@
       "smoke_cost_usd": 0.109632
     },
     {
+      "applied_completion_rate_usd": 8.668e-07,
+      "applied_internal_reasoning_rate_usd": 0.0,
+      "applied_prompt_rate_usd": 2.758e-07,
       "cost_per_decision_usd": 0.0057568128,
       "experiment_id": "openrouter-glm-5.2-novita",
+      "internal_reasoning_tokens_per_decision": 0,
       "model": "z-ai/glm-5.2",
       "observed_api_seconds_per_decision": 8.045,
       "panel_calls": 480,
@@ -92,8 +117,12 @@
       "smoke_cost_usd": 0.0230272512
     },
     {
+      "applied_completion_rate_usd": 1.2e-06,
+      "applied_internal_reasoning_rate_usd": 0.0,
+      "applied_prompt_rate_usd": 3e-07,
       "cost_per_decision_usd": 0.0073152,
       "experiment_id": "openrouter-minimax-m3-minimax",
+      "internal_reasoning_tokens_per_decision": 0,
       "model": "minimax/minimax-m3",
       "observed_api_seconds_per_decision": 2.955,
       "panel_calls": 480,
@@ -102,8 +131,12 @@
       "smoke_cost_usd": 0.0292608
     },
     {
+      "applied_completion_rate_usd": 1.28e-06,
+      "applied_internal_reasoning_rate_usd": 0.0,
+      "applied_prompt_rate_usd": 3.2e-07,
       "cost_per_decision_usd": 0.00780288,
       "experiment_id": "openrouter-qwen3.7-plus-alibaba",
+      "internal_reasoning_tokens_per_decision": 0,
       "model": "qwen/qwen3.7-plus",
       "observed_api_seconds_per_decision": 3.586,
       "panel_calls": 480,
@@ -112,8 +145,12 @@
       "smoke_cost_usd": 0.03121152
     },
     {
+      "applied_completion_rate_usd": 7.5e-06,
+      "applied_internal_reasoning_rate_usd": 0.0,
+      "applied_prompt_rate_usd": 1.5e-06,
       "cost_per_decision_usd": 0.04272,
       "experiment_id": "openrouter-mistral-medium-3.5-mistral",
+      "internal_reasoning_tokens_per_decision": 0,
       "model": "mistralai/mistral-medium-3-5",
       "observed_api_seconds_per_decision": 2.464,
       "panel_calls": 480,
@@ -122,8 +159,12 @@
       "smoke_cost_usd": 0.17088
     },
     {
+      "applied_completion_rate_usd": 0.0,
+      "applied_internal_reasoning_rate_usd": 0.0,
+      "applied_prompt_rate_usd": 0.0,
       "cost_per_decision_usd": 0.0,
       "experiment_id": "openrouter-tencent-hy3-free-novita",
+      "internal_reasoning_tokens_per_decision": 0,
       "model": "tencent/hy3:free",
       "observed_api_seconds_per_decision": 4.087,
       "panel_calls": 480,

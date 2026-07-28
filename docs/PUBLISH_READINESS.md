@@ -600,8 +600,8 @@ snapshot is in
   contamination caveat mirroring the blog. Landed in
   [#95](https://github.com/nedcut/gm-bench/pull/95), which also named the stored
   `ci95` field as a *lift* interval so it is not read as an interval on score.
-- [ ] Pre-register the v3 publication lane (`config/sota_v3_lane.json`, registry,
-  and initially empty smoke manifest) before authorizing spend. Freeze the
+- [ ] Finish pre-registering the v3 publication lane (`config/sota_v3_lane.json`,
+  registry, and initially empty smoke manifest) before authorizing spend. Freeze the
   research question, model/route selection, public or private seed-panel
   identity, seeds-versus-repeats allocation, reasoning/output limits, strict
   fallback, exclusions, multiplicity family, cost model, and operator ceiling.
@@ -609,16 +609,18 @@ snapshot is in
   with Holm correction across the final registered model family; it does not
   assign model tiers or support all-pairs ranking. Before power simulation,
   require enough independent seeds for the exact two-sided sign-flip minimum
-  p-value (`2 / 2**seeds`) to clear Holm step one (`0.05 / models`). The
-  illustrative eight-seed/eight-model design fails that basic feasibility test
-  (`0.0078125 > 0.00625`) regardless of its three repeats. Recompute and record
-  reference-family power only after the model family is selected; the withdrawn
-  0.175 estimate and older all-pairs 24/48/96 illustration are not v3
-  commitments. The frozen plan must choose and power-match one inference method:
-  paired t, deterministic Monte Carlo sign-flip, or exact enumeration with at
-  most 20 seeds. Exact enumeration is the only method the analyzer currently
-  implements, so either keep that method within its bound or implement and
-  validate the selected alternative before spend is authorized. A
+  p-value (`2 / 2**seeds`) to clear Holm step one (`0.05 / models`).
+  The statistical design is **blocked, not frozen**. Corrected 10,000-trial
+  production-procedure simulations include the historical residual lift seed
+  variance (`3770.4784`) as a draw shared across all eight model contrasts.
+  No allocation in the predeclared 9–20 seed x 1–3 repeat grid reaches the
+  0.80 familywise-all-reject target. The best tested row, 20x3
+  (60 episodes/model), has base power 0.3486 and sensitivity power 0.2154
+  (Wilson 95% CI 0.2075–0.2236). Evidence, covariance assumptions, and the
+  required pre-data amendment are recorded in
+  [`docs/run_logs/sota-v3-statistical-design-audit-2026-07-28.md`](run_logs/sota-v3-statistical-design-audit-2026-07-28.md).
+  No private panel should be generated until a replacement allocation or claim
+  is chosen. A
   runtime private panel can change without changing the contract fingerprint;
   editing the canonical public leaderboard preset in
   `gm_bench/benchmark_config.py` does change it and would require one pre-data
@@ -650,8 +652,13 @@ snapshot is in
   `python3 scripts/run_publication_matrix.py route-preflight --contract sota-v3`.
   This phase checks endpoint identity and parameters but cannot launch a model
   subprocess, reserve spend, or create run state.
+- [ ] After resolving the blocked power design, use
+  `scripts/seed_panel_commitment.py commit --seeds-env` plus its
+  `execution-hash` subcommand to validate the chosen recoverably escrowed
+  high-entropy private panel. Independently verify the salted hiding commitment
+  and ordered execution hash; commit commitments only, never seed values.
 - [ ] Review the preregistration, route-preflight, and rehearsal records; freeze
-  a feasible statistical plan and seed-panel identity; then make a separate
+  the remaining seed-panel identity and execution policies; then make a separate
   explicit spend-authorization decision for the cheapest serial route smoke.
   Rehearsal completion does **not** authorize a provider call or full panel.
 - [ ] Decide v3 site strategy (historical v2 page vs current v3 page) and
@@ -677,8 +684,8 @@ invalidation of v3 preregistration evidence tied to the prior fingerprint, and
 free diagnostic re-runs before any spend.
 
 This does not pre-decide the publication-lane parameters that still must be
-registered: models/routes, output and reasoning policy, seed-panel identity,
-seeds-versus-repeats allocation, exclusions, cost ceiling, and site treatment.
+registered: authenticated route/privacy acceptance, output and reasoning policy,
+private seed-panel identity, exclusions, cost ceiling, and site treatment.
 Those choices may be amended once, transparently, before any accepted v3 smoke
 or model artifact exists. Runtime private-panel selection does not alter the
 contract fingerprint. A change to the canonical public leaderboard preset does;

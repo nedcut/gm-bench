@@ -20,7 +20,7 @@ def _read(name: str) -> dict:
     return payload
 
 
-def test_v3_lane_pins_current_contract_but_not_an_unresolved_panel_design() -> None:
+def test_v3_lane_pins_current_contract_and_blocks_underpowered_grid() -> None:
     lane = _read("sota_v3_lane.json")
 
     assert lane["contract"] == BENCHMARK_VERSION == "sota-v3"
@@ -34,19 +34,30 @@ def test_v3_lane_pins_current_contract_but_not_an_unresolved_panel_design() -> N
     assert lane["execution_profile_authority"] == "lane"
     assert lane["provider"] == "openrouter"
     assert lane["repeats"] == 3
-    assert lane["panel_design_status"] == "unresolved-pre-data"
-    candidate = lane["candidate_panel_design"]
-    assert candidate["status"] == "illustrative-not-frozen"
-    assert candidate["episodes_per_model"] == len(candidate["seeds"]) * candidate["repeats"] == 24
+    assert lane["panel_design_status"] == "blocked-no-qualifying-allocation"
+    candidate = lane["statistical_panel_design"]
+    assert candidate["status"] == "blocked-no-qualifying-allocation"
+    assert candidate["historical_lift_variances"]["shared_seed"] == pytest.approx(3770.478399)
+    assert candidate["evaluated_seed_range"] == [9, 20]
+    assert candidate["evaluated_repeat_range"] == [1, 3]
+    best = candidate["best_tested_allocation"]
+    assert best["seed_count"] == 20
+    assert best["episodes_per_model"] == best["seed_count"] * best["repeats"] == 60
     feasibility = exact_sign_flip_feasibility(
-        len(candidate["seeds"]),
-        candidate["illustrative_holm_family_size"],
+        best["seed_count"],
+        candidate["holm_family_size"],
     )
-    assert candidate["minimum_exact_two_sided_sign_flip_p_value"] == feasibility["minimum_two_sided_p_value"]
-    assert candidate["holm_first_step_threshold_at_alpha_0_05"] == feasibility["holm_first_step_threshold"]
-    assert candidate["exact_sign_flip_holm_feasible"] is feasibility["feasible"] is False
-    assert lane["seed_panel"]["status"] == "unresolved-pre-data"
-    assert any("exact two-sided sign-flip resolution" in blocker for blocker in lane["blockers"])
+    assert best["minimum_exact_two_sided_sign_flip_p_value"] == feasibility["minimum_two_sided_p_value"]
+    assert best["holm_first_step_threshold_at_alpha_0_05"] == feasibility["holm_first_step_threshold"]
+    assert best["exact_sign_flip_holm_feasible"] is feasibility["feasible"] is True
+    assert best["sensitivity_power_wilson_ci95"][1] < candidate["target_familywise_all_reject_power"]
+    assert lane["seed_panel"] == {
+        "status": "blocked-pending-allocation",
+        "name": None,
+        "count": None,
+        "sha256": None,
+    }
+    assert any("no allocation" in blocker.lower() for blocker in lane["blockers"])
     assert lane["reference_agent"] == "pick-trader"
     assert lane["protocol_repair_attempts"] == 1
     assert lane["strict_fallback_required"] is True
@@ -65,16 +76,18 @@ def test_v3_registry_is_truthfully_provisional_and_contains_no_unverified_routes
     assert registry["contract_fingerprint"] == lane["contract_fingerprint"]
     assert registry["selection_status"] == "provisional-blocked"
     assert registry["selection_frozen_at_utc"] is None
-    assert registry["catalog_checked_at_utc"] is None
-    assert registry["models"] == []
-    assert registry["required_smokes"] == []
+    assert registry["catalog_snapshot_status"] == "frozen-public-metadata-only"
+    assert registry["catalog_checked_at_utc"]
+    assert len(registry["models"]) == len(registry["required_smokes"]) == 8
+    assert set(registry["required_smokes"]) == {model["id"] for model in registry["models"]}
     assert registry["output_token_cap"] is None
     assert registry["spend_authorized"] is False
     assert registry["panel_execution_authorized"] is False
     assert registry["unresolved_decisions"]
     assert registry["provider_policy"] == "openrouter-only"
-    assert "OPENROUTER_JSON_MODE" not in registry["shared_fixed_options"]
-    assert any("JSON response mode" in decision for decision in registry["unresolved_decisions"])
+    assert registry["shared_fixed_options"]["OPENROUTER_JSON_MODE"] == "true"
+    assert registry["public_metadata_limitations"]
+    assert any("privacy" in decision for decision in registry["unresolved_decisions"])
 
 
 def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
@@ -85,18 +98,23 @@ def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
     assert protocol["contract"] == pricing["contract"] == lane["contract"]
     assert protocol["contract_fingerprint"] == pricing["contract_fingerprint"] == lane["contract_fingerprint"]
     assert protocol["status"] == "provisional-blocked"
-    assert protocol["statistical_analysis_plan"]["status"] == "unresolved-pre-data"
+    assert protocol["statistical_analysis_plan"]["status"] == "blocked-power-design"
     assert protocol["statistical_analysis_plan"]["analysis_mode"] == "reference-only"
-    assert protocol["statistical_analysis_plan"]["inference_method"] is None
+    assert protocol["statistical_analysis_plan"]["inference_method"] == "exact-enumeration-sign-flip"
     assert protocol["statistical_analysis_plan"]["unit_of_inference"] == "seed"
     assert protocol["statistical_analysis_plan"]["primary_contrast"] == "paired lift versus pick-trader"
     assert protocol["statistical_analysis_plan"]["reference_agent"] == lane["reference_agent"] == "pick-trader"
     assert protocol["statistical_analysis_plan"]["multiplicity_method"] == "holm-bonferroni"
     assert protocol["statistical_analysis_plan"]["alpha"] == 0.05
+    assert protocol["statistical_analysis_plan"]["holm_family_size"] == 8
+    assert protocol["statistical_analysis_plan"]["power_model"]["historical_shared_seed_variance"] == pytest.approx(
+        3770.478399
+    )
+    assert protocol["statistical_analysis_plan"]["power_model"]["best_tested_sensitivity_power"] == 0.2154
     assert protocol["budget_policy"]["spend_authorized"] is False
-    assert pricing["status"] == "not-started"
-    assert pricing["checked_at_utc"] is None
-    assert pricing["models"] == {}
+    assert pricing["status"] == "catalog-frozen-public-metadata-only"
+    assert pricing["checked_at_utc"]
+    assert len(pricing["models"]) == 8
     assert pricing["spend_authorized"] is False
 
 
@@ -106,7 +124,7 @@ def test_v3_preregistration_fails_closed_before_smoke_or_panel_spend() -> None:
     manifest = _read("sota_v3_smoke_manifest.json")
 
     assert lane["preregistration_status"] == "provisional-blocked"
-    assert lane["panel_design_status"] == "unresolved-pre-data"
+    assert lane["panel_design_status"] == "blocked-no-qualifying-allocation"
     assert lane["output_budget_status"] == "blocked-pending-registered-model-smokes"
     assert lane["output_token_cap"] is None
     assert lane["reasoning_policy"] == "pending-live-route-verification"
@@ -124,8 +142,8 @@ def test_v3_preregistration_fails_closed_before_smoke_or_panel_spend() -> None:
     assert manifest["accepted_for_panel"] is False
     assert manifest["entries"] == {}
 
-    # Empty registries and manifests must never be mistaken for complete gates.
-    assert len(registry["models"]) < lane["minimum_headline_models"]
+    # A selected cohort without a frozen seed commitment or smokes is incomplete.
+    assert len(registry["models"]) == lane["minimum_headline_models"]
     smoke_gate_complete = (
         bool(registry["models"])
         and set(registry["required_smokes"]) == {model["id"] for model in registry["models"]}

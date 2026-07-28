@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import itertools
 import json
+import random
 import subprocess
 import sys
 from pathlib import Path
@@ -15,6 +17,7 @@ from scripts.analyze_publication_panel import (
     bootstrap_mean_ci,
     holm_adjust,
     per_seed_pick_trader_lifts,
+    sign_flip_p_value,
 )
 
 
@@ -70,6 +73,44 @@ def test_holm_adjustment_preserves_sorted_step_down_order() -> None:
 
     assert adjusted == {"small": 0.03, "middle": 0.06, "large": 0.06}
     assert adjusted["small"] <= adjusted["middle"] <= adjusted["large"]
+
+
+def _exhaustive_sign_flip_p_value(values: list[float]) -> float:
+    observed = abs(sum(values) / len(values))
+    hits = sum(
+        abs(sum(sign * value for sign, value in zip(signs, values, strict=True)) / len(values)) >= observed - 1e-12
+        for signs in itertools.product((-1, 1), repeat=len(values))
+    )
+    return hits / 2 ** len(values)
+
+
+def test_optimized_exact_sign_flip_matches_exhaustive_enumeration() -> None:
+    values = [-3.5, 1.25, 2.0, 4.75, 8.0, 9.5]
+
+    assert sign_flip_p_value(values) == pytest.approx(_exhaustive_sign_flip_p_value(values))
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        [4.0, -4.0],  # zero observed sum
+        [0.0, 0.0],  # every assignment is tied at zero
+        [1.0, 1.0],  # boundary ties at the observed statistic
+        [1.0, -1.0, 2.0, -2.0],
+        [3.0, 3.0, 3.0, 3.0],
+    ],
+)
+def test_optimized_exact_sign_flip_handles_zero_and_boundary_ties(values: list[float]) -> None:
+    assert sign_flip_p_value(values) == pytest.approx(_exhaustive_sign_flip_p_value(values))
+    assert 0.0 <= sign_flip_p_value(values) <= 1.0
+
+
+def test_optimized_exact_sign_flip_matches_deterministic_integer_fuzz() -> None:
+    rng = random.Random(20260728)
+    for size in range(2, 11):
+        for _case in range(40):
+            values = [float(rng.randint(-8, 8)) for _ in range(size)]
+            assert sign_flip_p_value(values) == pytest.approx(_exhaustive_sign_flip_p_value(values))
 
 
 def test_tiers_merge_transitively_when_intervals_overlap() -> None:
@@ -192,6 +233,7 @@ def _frozen_v3_analysis_inputs(payload: dict) -> tuple[dict, dict]:
         "name": "private-env",
         "count": seed_count,
         "sha256": "b" * 64,
+        "hiding_commitment_sha256": "c" * 64,
         "preset": "leaderboard",
     }
     payload["run_info"]["seed_panel"] = dict(seed_panel)

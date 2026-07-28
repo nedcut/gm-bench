@@ -274,9 +274,11 @@ after seeing scores.
   `sota-v2` requires `len(PRESETS["leaderboard"]["seeds"])` seeds (currently 8),
   so a short panel is rejected.
 - Before the quarter's runs, publish a **salted commitment** to the new panel
-  using `scripts/seed_panel_commitment.py commit`. The salt stays local (the
-  `*.seed-salt.json` path is gitignored); only the commitment digest is
-  announced. This is a real hiding commitment, unlike the unsalted
+  using `scripts/seed_panel_commitment.py commit`. The helper creates a new
+  plaintext secret file with mode 0600 and refuses to overwrite it; gitignore
+  is not encryption. Move that file into recoverable encrypted escrow or a
+  secret manager, and announce only the commitment digest. This is a real
+  hiding commitment, unlike the unsalted
   `seed_panel_hash` embedded in artifacts, which is brute-forceable from the
   digest.
 - When the panel rotates out, reveal salt + seeds

@@ -11,6 +11,7 @@ family size even when rows are missing.
 from __future__ import annotations
 
 import argparse
+import bisect
 import json
 import math
 import random
@@ -77,21 +78,51 @@ def bootstrap_mean_ci(
 
 
 def sign_flip_p_value(values: Sequence[float]) -> float | None:
-    """Return the exact two-sided sign-flip p-value used for the eight-seed panel."""
+    """Return the exact two-sided sign-flip p-value for up to 20 seeds.
+
+    Meet-in-the-middle subset sums preserve the exhaustive test exactly while
+    reducing work from O(2**n) to O(2**(n/2) log 2**(n/2)). This keeps design
+    simulation practical without changing the analyzer's inferential procedure.
+    """
     if len(values) < 2:
         return None
     if len(values) > 20:
         raise ValueError("exact sign-flip enumeration is limited to 20 seeds")
 
-    observed = abs(mean(values))
-    tolerance = 1e-12
+    numeric = [float(value) for value in values]
+    observed_sum = abs(sum(numeric))
+    # The original exhaustive implementation compared means with an absolute
+    # 1e-12 tolerance. Work in sum space here, so scale that tolerance by n
+    # exactly rather than introducing a magnitude-dependent relative tolerance.
+    tolerance = 1e-12 * len(numeric)
     total = 1 << len(values)
-    hits = sum(
-        1
-        for mask in range(total)
-        if abs(sum(value if mask >> index & 1 else -value for index, value in enumerate(values)) / len(values))
-        >= observed - tolerance
-    )
+    midpoint = len(numeric) // 2
+
+    def subset_sums(items: Sequence[float]) -> list[float]:
+        sums = [0.0]
+        for item in items:
+            sums.extend(value + item for value in sums[:])
+        return sums
+
+    left = subset_sums(numeric[:midpoint])
+    right = sorted(subset_sums(numeric[midpoint:]))
+    # A sign assignment is total_sum - 2 * subset_sum. Count the complement:
+    # assignments strictly inside (-observed, observed), then subtract.
+    full_sum = sum(numeric)
+    # Exhaustive enumeration counts assignments whose absolute signed sum is
+    # >= observed_sum - tolerance.  Its complement is therefore the *open*
+    # interval (-threshold, threshold).  In subset-sum coordinates that is
+    # likewise the open interval (lower, upper): bisect_right excludes the
+    # lower boundary and bisect_left excludes the upper boundary.
+    threshold = observed_sum - tolerance
+    if threshold <= 0.0:
+        return 1.0
+    lower = (full_sum - threshold) / 2.0
+    upper = (full_sum + threshold) / 2.0
+    inside = 0
+    for partial in left:
+        inside += bisect.bisect_left(right, upper - partial) - bisect.bisect_right(right, lower - partial)
+    hits = total - inside
     return hits / total
 
 

@@ -28,12 +28,18 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import secrets
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 _SALT_BYTES = 32
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from gm_bench.benchmark_config import PRESETS, PRIVATE_SEEDS_ENV, seed_panel_hash  # noqa: E402
 
 
 def parse_seeds(value: str) -> list[int]:
@@ -59,6 +65,30 @@ def parse_seeds(value: str) -> list[int]:
     return sorted(seeds)
 
 
+def parse_ordered_seeds(value: str) -> list[int]:
+    """Parse an execution panel without sorting or silently deduplicating it."""
+    seeds: list[int] = []
+    for part in value.replace(" ", "").split(","):
+        if not part:
+            continue
+        if "-" in part:
+            head, tail = part.split("-", 1)
+            start, end = int(head), int(tail)
+            if start < 0 or end < start:
+                raise ValueError(f"invalid seed range {part!r}")
+            seeds.extend(range(start, end + 1))
+        else:
+            seed = int(part)
+            if seed < 0:
+                raise ValueError(f"negative seeds are not supported: {part!r}")
+            seeds.append(seed)
+    if not seeds:
+        raise ValueError("no seeds parsed")
+    if len(set(seeds)) != len(seeds):
+        raise ValueError("execution panel seeds must be unique")
+    return seeds
+
+
 def canonical_seed_list(seeds: list[int]) -> str:
     return ",".join(str(seed) for seed in sorted(set(seeds)))
 
@@ -73,7 +103,10 @@ def commitment(salt: str, seeds: list[int]) -> str:
 
 
 def _commit(args: argparse.Namespace) -> int:
-    seeds = parse_seeds(args.seeds)
+    seeds_text = os.environ.get(PRIVATE_SEEDS_ENV) if args.seeds_env else args.seeds
+    if not seeds_text:
+        raise ValueError(f"{PRIVATE_SEEDS_ENV} is required with --seeds-env")
+    seeds = parse_seeds(seeds_text)
     salt = secrets.token_hex(_SALT_BYTES)
     digest = commitment(salt, seeds)
     record = {
@@ -85,11 +118,17 @@ def _commit(args: argparse.Namespace) -> int:
     }
     if args.salt_file:
         path = Path(args.salt_file)
-        if path.exists() and not args.force:
-            sys.stderr.write(f"refusing to overwrite existing salt file {path} (pass --force)\n")
+        try:
+            descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            sys.stderr.write(f"refusing to overwrite existing salt file {path}\n")
             return 1
-        path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
-        sys.stderr.write(f"wrote salt to {path}; keep it out of git and reveal it only when the panel rotates out\n")
+        with os.fdopen(descriptor, "w") as stream:
+            stream.write(json.dumps(record, indent=2, sort_keys=True) + "\n")
+        sys.stderr.write(
+            f"wrote plaintext secret material to {path} with mode 0600; "
+            "gitignore is not encryption—move it into recoverable encrypted escrow or a secret manager\n"
+        )
     print(f"commitment {digest}")
     print(f"count {len(seeds)}")
     if not args.salt_file:
@@ -117,14 +156,57 @@ def _verify(args: argparse.Namespace) -> int:
     return 1
 
 
+def _execution_hash(args: argparse.Namespace) -> int:
+    """Print the unsalted ordered hash required by run metadata, never seeds."""
+    raw = os.environ.get(PRIVATE_SEEDS_ENV)
+    if not raw:
+        raise ValueError(f"{PRIVATE_SEEDS_ENV} is required")
+    seeds = parse_ordered_seeds(raw)
+    lane = json.loads(Path(args.lane).read_text())
+    expected = lane.get("seed_panel") or {}
+    expected_count = expected.get("count")
+    if expected.get("name") != "private-env" or not isinstance(expected_count, int):
+        raise ValueError("lane does not declare a pending private seed panel")
+    if len(seeds) != expected_count:
+        raise ValueError(f"private panel must contain exactly {expected_count} ordered seeds")
+    committed = {seed for preset in PRESETS.values() for seed in preset["seeds"]}
+    if committed.intersection(seeds):
+        raise ValueError("private panel must not overlap any committed preset seed")
+    if any(seed < 1 << 32 or seed > (1 << 63) - 1 for seed in seeds):
+        raise ValueError("private seeds must be high-entropy positive 63-bit integers (at least 2**32)")
+    print(
+        json.dumps(
+            {
+                "status": "execution-hash-ready",
+                "name": "private-env",
+                "count": len(seeds),
+                "sha256": seed_panel_hash(seeds),
+                "ordered": True,
+                "seed_values_included": False,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     commit_parser = subparsers.add_parser("commit", help="commit to a seed panel with a fresh random salt")
-    commit_parser.add_argument("--seeds", required=True, help="seed list, e.g. 101,102,110-115")
-    commit_parser.add_argument("--salt-file", help="gitignored path to store {salt, commitment, seeds}")
-    commit_parser.add_argument("--force", action="store_true", help="overwrite an existing salt file")
+    commit_source = commit_parser.add_mutually_exclusive_group(required=True)
+    commit_source.add_argument("--seeds", help="seed list, e.g. 101,102,110-115")
+    commit_source.add_argument(
+        "--seeds-env",
+        action="store_true",
+        help=f"read seeds from {PRIVATE_SEEDS_ENV} instead of a process argument",
+    )
+    commit_parser.add_argument(
+        "--salt-file",
+        help="new path for plaintext {salt, commitment, seeds}; created once with mode 0600 and never overwritten",
+    )
     commit_parser.set_defaults(func=_commit)
 
     verify_parser = subparsers.add_parser("verify", help="verify seeds + salt reproduce a commitment")
@@ -133,6 +215,17 @@ def build_parser() -> argparse.ArgumentParser:
     verify_parser.add_argument("--commitment", help="published commitment hex to match")
     verify_parser.add_argument("--salt-file", help="salt file written by commit; fills any missing field")
     verify_parser.set_defaults(func=_verify)
+
+    execution_parser = subparsers.add_parser(
+        "execution-hash",
+        help="read GM_BENCH_PRIVATE_SEEDS and print only the ordered unsalted run-identity hash",
+    )
+    execution_parser.add_argument(
+        "--lane",
+        default=str(_ROOT / "config" / "sota_v3_lane.json"),
+        help="lane whose pending private seed count must match",
+    )
+    execution_parser.set_defaults(func=_execution_hash)
     return parser
 
 

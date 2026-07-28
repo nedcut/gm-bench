@@ -57,6 +57,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import random
 import sys
 from itertools import combinations
 from pathlib import Path
@@ -66,9 +67,11 @@ _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
+from analyze_publication_panel import holm_adjust, sign_flip_p_value  # noqa: E402
 from model_tiers import t_two_sided_p  # noqa: E402
 
 RESULTS_DIR = Path(__file__).resolve().parents[1] / "results" / "leaderboard"
+EXACT_REFERENCE_SIMULATION_SEED = 2026072800
 
 
 # --- distribution helpers ---------------------------------------------------
@@ -273,6 +276,212 @@ def load_cells(results_dir: Path) -> tuple[dict[tuple[str, int], list[float]], d
     return cells, context
 
 
+def load_reference_lift_cells(
+    results_dir: Path,
+    *,
+    reference_agent: str = "pick-trader",
+) -> tuple[dict[tuple[str, int], list[float]], dict[str, Any]]:
+    """Load candidate-minus-reference episode lifts from one frozen panel.
+
+    The scripted reference is deterministic and has one score per seed.
+    Subtracting it before decomposition estimates the one-candidate variance
+    used by the focused reference-only v3 analysis, rather than the two-model
+    variance used by the older all-pairs planning path.
+    """
+    cells: dict[tuple[str, int], list[float]] = {}
+    contracts: set[str] = set()
+    panels: set[str] = set()
+    for path in sorted(results_dir.glob("*.json")):
+        payload = json.loads(path.read_text())
+        run_info = payload.get("run_info") or {}
+        model = str(run_info.get("model") or "")
+        if not model:
+            continue
+        matches = [row for row in payload.get("baselines") or [] if row.get("agent") == reference_agent]
+        if len(matches) != 1:
+            raise SystemExit(f"{path.name} must contain exactly one {reference_agent!r} reference")
+        reference_by_seed = {int(row["seed"]): float(row["final_score"]) for row in matches[0].get("episodes") or []}
+        if not reference_by_seed:
+            raise SystemExit(f"{path.name} has no {reference_agent!r} reference episodes")
+        for episode in (payload.get("candidate") or {}).get("episodes") or []:
+            seed = int(episode["seed"])
+            if seed not in reference_by_seed:
+                raise SystemExit(f"{path.name} candidate seed {seed} is absent from {reference_agent!r}")
+            cells.setdefault((model, seed), []).append(float(episode["final_score"]) - reference_by_seed[seed])
+        contract = (run_info.get("benchmark_contract") or {}).get("contract_fingerprint")
+        panel = (run_info.get("seed_panel") or {}).get("sha256")
+        if contract:
+            contracts.add(str(contract))
+        if panel:
+            panels.add(str(panel))
+    if not cells:
+        raise SystemExit(f"no usable candidate/reference episodes under {results_dir}")
+    if len(contracts) > 1:
+        raise SystemExit("refusing to pool reference lifts across benchmark contracts")
+    if len(panels) > 1:
+        raise SystemExit("refusing to pool reference lifts across seed panels")
+    return cells, {
+        "contract_fingerprint": next(iter(contracts), None),
+        "seed_panel_sha256": next(iter(panels), None),
+        "reference_agent": reference_agent,
+    }
+
+
+def _wilson_interval(successes: int, trials: int, *, z: float = 1.96) -> tuple[float, float]:
+    proportion = successes / trials
+    denominator = 1.0 + z * z / trials
+    center = (proportion + z * z / (2.0 * trials)) / denominator
+    half_width = z * math.sqrt(proportion * (1.0 - proportion) / trials + z * z / (4.0 * trials * trials)) / denominator
+    return center - half_width, center + half_width
+
+
+def simulate_exact_reference_family_power(
+    *,
+    var_noise: float,
+    var_interaction: float,
+    var_seed: float,
+    seeds: int,
+    repeats: int,
+    delta: float,
+    family_size: int,
+    alpha: float,
+    trials: int,
+    simulation_seed: int = EXACT_REFERENCE_SIMULATION_SEED,
+) -> dict[str, Any]:
+    """Simulate the analyzer's exact sign-flip plus Holm procedure.
+
+    Power is the probability that *all* eight predeclared reference contrasts
+    reject when every true lift is ``delta``. This familywise-all-reject target
+    is stricter than average per-model power and directly matches the intended
+    claim that each registered model clears the reference.
+    """
+    if not 2 <= seeds <= 20:
+        raise ValueError("exact reference simulation requires 2..20 seeds")
+    if repeats < 1 or family_size < 1 or trials < 1:
+        raise ValueError("repeats, family_size, and trials must be positive")
+    independent_seed_level_sd = math.sqrt(var_interaction + var_noise / repeats)
+    shared_seed_sd = math.sqrt(var_seed)
+    rng = random.Random(simulation_seed + seeds * 10 + repeats)
+    all_rejected = 0
+    rejected_total = 0
+    for _ in range(trials):
+        # `cells` are already candidate-minus-reference lifts. Their estimated
+        # seed component therefore remains in each primary contrast; it does
+        # not cancel again. One shared draw per seed carries the fitted
+        # compound-symmetry covariance across the eight model contrasts, while
+        # model-by-seed interaction and repeat-averaged noise remain
+        # model-specific.
+        shared_seed_effects = [rng.gauss(0.0, shared_seed_sd) for _seed in range(seeds)]
+        raw_p_values = {
+            f"model-{index}": float(
+                sign_flip_p_value(
+                    [
+                        delta + shared_seed_effect + rng.gauss(0.0, independent_seed_level_sd)
+                        for shared_seed_effect in shared_seed_effects
+                    ]
+                )
+            )
+            for index in range(family_size)
+        }
+        adjusted = holm_adjust(raw_p_values, family_size=family_size)
+        rejected = sum(value <= alpha for value in adjusted.values())
+        rejected_total += rejected
+        all_rejected += rejected == family_size
+    lower, upper = _wilson_interval(all_rejected, trials)
+    return {
+        "seeds": seeds,
+        "repeats": repeats,
+        "episodes_per_model": seeds * repeats,
+        "familywise_all_reject_power": round(all_rejected / trials, 6),
+        "familywise_all_reject_power_ci95": [round(lower, 6), round(upper, 6)],
+        "marginal_rejection_power": round(rejected_total / (trials * family_size), 6),
+    }
+
+
+def build_exact_reference_report(
+    cells: dict[tuple[str, int], list[float]],
+    *,
+    delta: float = 40.0,
+    alpha: float = 0.05,
+    family_size: int = 8,
+    target_power: float = 0.80,
+    min_seeds: int = 9,
+    max_seeds: int = 20,
+    max_repeats: int = 3,
+    trials: int = 10_000,
+    noise_variance_multiplier: float = 1.25,
+    seed_variance_multiplier: float = 1.25,
+    interaction_variance_fraction: float = 0.10,
+) -> dict[str, Any]:
+    """Compare exact allocations and select the cheapest sensitivity-robust one."""
+    components = decompose(cells)
+    rows = []
+    for seeds in range(min_seeds, max_seeds + 1):
+        for repeats in range(1, max_repeats + 1):
+            base = simulate_exact_reference_family_power(
+                var_noise=components["var_noise"],
+                var_interaction=components["var_interaction"],
+                var_seed=components["var_seed"],
+                seeds=seeds,
+                repeats=repeats,
+                delta=delta,
+                family_size=family_size,
+                alpha=alpha,
+                trials=trials,
+            )
+            sensitivity = simulate_exact_reference_family_power(
+                var_noise=components["var_noise"] * noise_variance_multiplier,
+                var_interaction=max(
+                    components["var_interaction"],
+                    components["var_noise"] * interaction_variance_fraction,
+                ),
+                var_seed=components["var_seed"] * seed_variance_multiplier,
+                seeds=seeds,
+                repeats=repeats,
+                delta=delta,
+                family_size=family_size,
+                alpha=alpha,
+                trials=trials,
+            )
+            rows.append({**base, "sensitivity": sensitivity})
+    qualifying = [row for row in rows if row["sensitivity"]["familywise_all_reject_power_ci95"][0] >= target_power]
+    recommended = min(
+        qualifying,
+        key=lambda row: (row["episodes_per_model"], row["seeds"], row["repeats"]),
+        default=None,
+    )
+    return {
+        "method": "normal-parametric Monte Carlo evaluated by exact-enumeration-sign-flip plus Holm-Bonferroni",
+        "simulation_seed": EXACT_REFERENCE_SIMULATION_SEED,
+        "trials": trials,
+        "historical_components": {
+            "var_noise": round(components["var_noise"], 6),
+            "sd_noise": round(math.sqrt(components["var_noise"]), 6),
+            "var_interaction": round(components["var_interaction"], 6),
+            "sd_interaction": round(math.sqrt(components["var_interaction"]), 6),
+            "var_seed": round(components["var_seed"], 6),
+            "sd_seed": round(math.sqrt(components["var_seed"]), 6),
+        },
+        "target_effect": delta,
+        "target_effect_unit": "GM-Bench score points above pick-trader",
+        "target_familywise_all_reject_power": target_power,
+        "selection_rule": "smallest episodes/model whose sensitivity-power Wilson 95% lower bound is >= target",
+        "sensitivity": {
+            "noise_variance_multiplier": noise_variance_multiplier,
+            "shared_seed_variance_multiplier": seed_variance_multiplier,
+            "interaction_variance_floor_as_historical_noise_fraction": interaction_variance_fraction,
+            "cross_model_covariance": (
+                "compound symmetry: one shared residual lift-seed draw per seed; "
+                "model-by-seed interaction and repeat-averaged noise are independent by model"
+            ),
+        },
+        "family_size": family_size,
+        "alpha": alpha,
+        "allocations": rows,
+        "recommended": recommended,
+    }
+
+
 def observed_pair_gaps(cells: dict[tuple[str, int], list[float]]) -> list[float]:
     """Absolute mean gaps between every model pair, for effect-size context."""
     models = sorted({m for m, _ in cells})
@@ -418,8 +627,51 @@ def main() -> int:
         default=None,
         help="pair count for --correction (default: C(models, 2) from the loaded panel)",
     )
+    parser.add_argument(
+        "--exact-reference-family",
+        action="store_true",
+        help="simulate the focused eight-model reference-only Holm family with the analyzer's exact test",
+    )
+    parser.add_argument("--family-size", type=int, default=8, help="registered reference-contrast family size")
+    parser.add_argument("--target-power", type=float, default=0.80, help="required familywise all-reject power")
+    parser.add_argument("--trials", type=int, default=10_000, help="deterministic Monte Carlo trials per allocation")
+    parser.add_argument("--min-seeds", type=int, default=9)
+    parser.add_argument("--max-seeds", type=int, default=20)
+    parser.add_argument("--max-repeats", type=int, default=3)
     parser.add_argument("--json", action="store_true", help="emit machine-readable output")
     args = parser.parse_args()
+
+    if args.exact_reference_family:
+        cells, context = load_reference_lift_cells(args.results_dir)
+        report = build_exact_reference_report(
+            cells,
+            delta=args.delta,
+            alpha=args.alpha,
+            family_size=args.family_size,
+            target_power=args.target_power,
+            min_seeds=args.min_seeds,
+            max_seeds=args.max_seeds,
+            max_repeats=args.max_repeats,
+            trials=args.trials,
+        )
+        report["context"] = context
+        if args.json:
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            recommended = report["recommended"]
+            print(
+                "exact reference-only design: "
+                + (
+                    f"{recommended['seeds']} seeds x {recommended['repeats']} repeats "
+                    f"({recommended['episodes_per_model']} episodes/model), "
+                    f"base power={recommended['familywise_all_reject_power']:.3f}; "
+                    f"sensitivity power={recommended['sensitivity']['familywise_all_reject_power']:.3f} "
+                    f"CI={recommended['sensitivity']['familywise_all_reject_power_ci95']}"
+                    if recommended
+                    else "no allocation clears the target power with its 95% simulation interval"
+                )
+            )
+        return 0
 
     cells, context = load_cells(args.results_dir)
     components = decompose(cells)

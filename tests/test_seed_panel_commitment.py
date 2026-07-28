@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import stat
 from pathlib import Path
 
 import pytest
@@ -63,5 +64,56 @@ def test_verify_detects_wrong_seeds(tmp_path):
 def test_commit_refuses_to_clobber_salt_file(tmp_path):
     salt_file = tmp_path / "panel.seed-salt.json"
     assert commitment_mod.main(["commit", "--seeds", "11,12,13", "--salt-file", str(salt_file)]) == 0
+    original = salt_file.read_bytes()
     assert commitment_mod.main(["commit", "--seeds", "11,12,13", "--salt-file", str(salt_file)]) == 1
-    assert commitment_mod.main(["commit", "--seeds", "11,12,13", "--salt-file", str(salt_file), "--force"]) == 0
+    assert salt_file.read_bytes() == original
+
+
+def test_commit_creates_secret_file_with_owner_only_permissions(tmp_path, capsys):
+    salt_file = tmp_path / "panel.seed-salt.json"
+    assert commitment_mod.main(["commit", "--seeds", "11,12,13", "--salt-file", str(salt_file)]) == 0
+
+    assert stat.S_IMODE(salt_file.stat().st_mode) == 0o600
+    warning = capsys.readouterr().err
+    assert "plaintext secret material" in warning
+    assert "gitignore is not encryption" in warning
+
+
+def test_execution_hash_preserves_order_and_never_prints_seeds(tmp_path, monkeypatch, capsys):
+    seeds = [(1 << 50) + index * 104729 for index in range(17)]
+    lane = tmp_path / "lane.json"
+    lane.write_text(json.dumps({"seed_panel": {"name": "private-env", "count": 17}}))
+    monkeypatch.setenv(commitment_mod.PRIVATE_SEEDS_ENV, ",".join(str(seed) for seed in seeds))
+
+    assert commitment_mod.main(["execution-hash", "--lane", str(lane)]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["count"] == 17
+    assert payload["sha256"] == commitment_mod.seed_panel_hash(seeds)
+    assert payload["seed_values_included"] is False
+    assert all(str(seed) not in json.dumps(payload) for seed in seeds)
+    assert payload["sha256"] != commitment_mod.seed_panel_hash(sorted(seeds, reverse=True))
+
+
+def test_execution_hash_rejects_missing_or_low_entropy_seed_env(tmp_path, monkeypatch):
+    lane = tmp_path / "lane.json"
+    lane.write_text(json.dumps({"seed_panel": {"name": "private-env", "count": 17}}))
+    monkeypatch.delenv(commitment_mod.PRIVATE_SEEDS_ENV, raising=False)
+    assert commitment_mod.main(["execution-hash", "--lane", str(lane)]) == 2
+
+    monkeypatch.setenv(commitment_mod.PRIVATE_SEEDS_ENV, ",".join(str(seed) for seed in range(100, 117)))
+    assert commitment_mod.main(["execution-hash", "--lane", str(lane)]) == 2
+
+
+def test_execution_hash_rejects_wrong_count_or_committed_preset_overlap(tmp_path, monkeypatch):
+    lane = tmp_path / "lane.json"
+    lane.write_text(json.dumps({"seed_panel": {"name": "private-env", "count": 17}}))
+
+    high_entropy = [(1 << 50) + index * 104729 for index in range(17)]
+    monkeypatch.setenv(commitment_mod.PRIVATE_SEEDS_ENV, ",".join(str(seed) for seed in high_entropy[:-1]))
+    assert commitment_mod.main(["execution-hash", "--lane", str(lane)]) == 2
+
+    committed_seed = next(iter(commitment_mod.PRESETS["smoke"]["seeds"]))
+    overlapping = [committed_seed, *high_entropy[1:]]
+    monkeypatch.setenv(commitment_mod.PRIVATE_SEEDS_ENV, ",".join(str(seed) for seed in overlapping))
+    assert commitment_mod.main(["execution-hash", "--lane", str(lane)]) == 2
