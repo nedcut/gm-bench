@@ -463,7 +463,12 @@ def build_exact_reference_report(
             "sd_seed": round(math.sqrt(components["var_seed"]), 6),
         },
         "target_effect": delta,
-        "target_effect_unit": "GM-Bench score points above pick-trader",
+        # Signed relative to pick-trader. The sign-flip test is two-sided and the
+        # simulation is sign-symmetric, so a negative delta powers the claim that
+        # every registered model *trails* the reference by |delta| -- which is the
+        # direction the frozen sota-v2 evidence actually shows.
+        "target_effect_unit": "GM-Bench score points relative to pick-trader (negative = trails the reference)",
+        "target_effect_direction": "trails-reference" if delta < 0 else "beats-reference",
         "target_familywise_all_reject_power": target_power,
         "selection_rule": "smallest episodes/model whose sensitivity-power Wilson 95% lower bound is >= target",
         "sensitivity": {

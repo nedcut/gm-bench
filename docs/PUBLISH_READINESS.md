@@ -610,17 +610,28 @@ snapshot is in
   assign model tiers or support all-pairs ranking. Before power simulation,
   require enough independent seeds for the exact two-sided sign-flip minimum
   p-value (`2 / 2**seeds`) to clear Holm step one (`0.05 / models`).
-  The statistical design is **blocked, not frozen**. Corrected 10,000-trial
-  production-procedure simulations include the historical residual lift seed
-  variance (`3770.4784`) as a draw shared across all eight model contrasts.
-  No allocation in the predeclared 9–20 seed x 1–3 repeat grid reaches the
-  0.80 familywise-all-reject target. The best tested row, 20x3
-  (60 episodes/model), has base power 0.3486 and sensitivity power 0.2154
-  (Wilson 95% CI 0.2075–0.2236). Evidence, covariance assumptions, and the
-  required pre-data amendment are recorded in
+  The statistical design has an **allocation frozen, but authorizes no spend**.
+  Corrected 10,000-trial production-procedure simulations include the historical
+  residual lift seed variance (`3770.4784`) as a draw shared across all eight
+  model contrasts. The original +40 superiority design was abandoned: no
+  allocation in the 9–20 seed x 1–3 repeat grid reached the 0.80 target, and the
+  20-seed ceiling caps sensitivity power near 0.36 even at unbounded repeats, so
+  the block was structural rather than a budget shortfall. Design amendment 1
+  restates the primary claim in the direction the frozen `sota-v2` evidence
+  actually shows — every eligible model *trailed* `pick-trader` by 180–282
+  points at a 0.0 seed win rate — and powers a −100 planning effect. The
+  selected allocation is **15 seeds x 1 repeat (15 episodes/model)**, base power
+  0.9461 and sensitivity power 0.8357 (Wilson 95% CI 0.8283–0.8428), clearing
+  the target on its lower bound. Repeats moved 3 → 1 because a
+  candidate-minus-reference lift keeps its full seed component, so at fixed
+  budget seeds dominate repeats for discrimination. Evidence, covariance
+  assumptions, and the amendment are recorded in
+  [`docs/run_logs/sota-v3-design-amendment-2026-07-28.md`](run_logs/sota-v3-design-amendment-2026-07-28.md),
+  superseding
   [`docs/run_logs/sota-v3-statistical-design-audit-2026-07-28.md`](run_logs/sota-v3-statistical-design-audit-2026-07-28.md).
-  No private panel should be generated until a replacement allocation or claim
-  is chosen. A
+  Seed identity remains unfrozen: the 15-seed private panel requires separate
+  owner authorization before generation, and both execution gates test against
+  the literal `frozen`, so provider execution stays locked. A
   runtime private panel can change without changing the contract fingerprint;
   editing the canonical public leaderboard preset in
   `gm_bench/benchmark_config.py` does change it and would require one pre-data

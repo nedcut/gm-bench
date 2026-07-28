@@ -4,8 +4,29 @@
   "contract_fingerprint": "4f6ddddd6a6dd81c",
   "mechanics_status": "frozen-for-sota-v3-panel",
   "mechanics_change_policy": "Any score-, action-, observation-, or simulator-semantic change after this preregistration requires a new contract fingerprint, invalidates all sota-v3 smoke evidence, and re-locks provider spend.",
-  "preregistration_status": "provisional-blocked",
+  "preregistration_status": "provisional-allocation-frozen",
   "preregistered_at_utc": "2026-07-27T16:58:41Z",
+  "design_amended_at_utc": "2026-07-28T00:00:00Z",
+  "design_amendment": {
+    "amendment_id": "sota-v3-design-amendment-1",
+    "status": "pre-data",
+    "supersedes": "docs/run_logs/sota-v3-statistical-design-audit-2026-07-28.md",
+    "record": "docs/run_logs/sota-v3-design-amendment-2026-07-28.md",
+    "rationale": "The superseded design powered a superiority claim (+40 above pick-trader) that the frozen sota-v2 evidence contradicts: all eight eligible models trailed the reference by 180-282 score points with a 0.0 seed win rate on every model. No allocation in the 9-20 seed by 1-3 repeat grid reached 0.80 sensitivity power for that claim, and the 20-seed ceiling caps sensitivity power near 0.36 even at unbounded repeats, so the block was structural rather than a budget shortfall.",
+    "changes": [
+      "Primary claim restated directionally: each registered model trails pick-trader, replicating the frozen sota-v2 finding under the sota-v3 contract.",
+      "Planning effect changed from +40 to -100 score points, conservative against the -180 to -282 observed on sota-v2.",
+      "Panel repeats changed from 3 to 1: at a fixed episode budget the candidate-minus-reference lift keeps its full seed component, so repeats shrink only the within-seed noise term and seeds dominate for discrimination.",
+      "Evaluated seed grid narrowed from 9-20 to 9-16, since the qualifying allocation falls inside it."
+    ],
+    "unchanged": [
+      "alpha 0.05, Holm-Bonferroni across a fixed family of eight",
+      "exact two-sided enumeration sign-flip test with the seed as the unit of inference",
+      "0.80 conservative-sensitivity familywise all-reject power target",
+      "no model-to-model tiers or ordinal ranking",
+      "every execution, spend, and publication authorization remains false"
+    ]
+  },
   "evidence_state": "pre-data-no-v3-model-smokes-or-panel-results",
   "execution_profile_authority": "lane",
   "headline_lane": "api",
@@ -13,14 +34,17 @@
   "observation_profile": "compact",
   "session": false,
   "preset": "leaderboard",
-  "repeats": 3,
-  "panel_design_status": "blocked-no-qualifying-allocation",
+  "repeats": 1,
+  "panel_design_status": "allocation-frozen-pending-authorization",
   "statistical_panel_design": {
-    "status": "blocked-no-qualifying-allocation",
-    "evaluated_seed_range": [9, 20],
+    "status": "allocation-frozen-pending-authorization",
+    "claim_direction": "trails-reference",
+    "primary_claim": "Every registered model-plus-compact-scaffold system trails deterministic pick-trader on seed-paired mean lift under the frozen sota-v3 mechanics.",
+    "evaluated_seed_range": [9, 16],
     "evaluated_repeat_range": [1, 3],
     "holm_family_size": 8,
-    "target_effect_score_points": 40,
+    "target_effect_score_points": -100,
+    "target_effect_basis": "Conservative against the frozen sota-v2 observed lifts of -180 to -282 score points at a 0.0 seed win rate for all eight eligible models.",
     "target_familywise_all_reject_power": 0.8,
     "simulation_trials": 10000,
     "simulation_seed": 2026072800,
@@ -35,25 +59,25 @@
       "noise_variance_multiplier": 1.25,
       "interaction_variance_floor_as_historical_noise_fraction": 0.1
     },
-    "best_tested_allocation": {
-      "seed_count": 20,
-      "repeats": 3,
-      "episodes_per_model": 60,
-      "minimum_exact_two_sided_sign_flip_p_value": 0.0000019073486328125,
+    "selected_allocation": {
+      "seed_count": 15,
+      "repeats": 1,
+      "episodes_per_model": 15,
+      "minimum_exact_two_sided_sign_flip_p_value": 6.103515625e-05,
       "holm_first_step_threshold_at_alpha_0_05": 0.00625,
       "exact_sign_flip_holm_feasible": true,
-      "base_power_estimate": 0.3486,
-      "base_power_wilson_ci95": [0.33932, 0.357996],
-      "sensitivity_power_estimate": 0.2154,
-      "sensitivity_power_wilson_ci95": [0.207453, 0.223566]
+      "base_power_estimate": 0.9461,
+      "base_power_wilson_ci95": [0.9415, 0.950357],
+      "sensitivity_power_estimate": 0.8357,
+      "sensitivity_power_wilson_ci95": [0.828309, 0.842834]
     },
-    "selection_rule": "Smallest allocation with 9-20 seeds and 1-3 repeats whose conservative-sensitivity familywise-power Wilson 95% lower bound is at least 0.80.",
-    "decision_required": "No tested allocation qualifies. Amend the pre-data seed ceiling, target claim, effect size, or power criterion before freezing an allocation."
+    "selection_rule": "Smallest allocation with 9-16 seeds and 1-3 repeats whose conservative-sensitivity familywise-power Wilson 95% lower bound is at least 0.80.",
+    "decision_required": null
   },
   "seed_panel": {
-    "status": "blocked-pending-allocation",
+    "status": "pending-authorized-generation",
     "name": null,
-    "count": null,
+    "count": 15,
     "sha256": null
   },
   "reference_agent": "pick-trader",
@@ -76,7 +100,7 @@
   "panel_execution_authorized": false,
   "publication_authorized": false,
   "blockers": [
-    "Choose a defensible pre-data design amendment: no allocation in the evaluated 9-20 seed by 1-3 repeat grid reaches the 0.80 sensitivity familywise-power target; 20x3 reaches only 0.2154.",
+    "Generate and commit the 15-seed private panel under separate owner authorization; seed identity is unfrozen until its salted commitment hash is recorded.",
     "Complete authenticated exact-route and privacy verification for the catalog-selected model cohort before any provider call.",
     "Live-verify and pin each exact provider route, endpoint name, supported parameters, privacy policy, and reasoning requirements.",
     "Freeze one common output-token policy before smoke execution.",

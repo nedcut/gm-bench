@@ -1,5 +1,14 @@
 # `sota-v3` statistical-design audit — blocked, 2026-07-28
 
+> **Superseded** by `sota-v3-design-amendment-2026-07-28.md`. The blocked result
+> below is arithmetically correct and is not retracted; the amendment changes
+> the claim it was powering. This audit powered a +40 lift *above*
+> `pick-trader`, a direction the frozen `sota-v2` evidence contradicts (all
+> eight models trailed by 180-282 points at a 0.0 seed win rate). The amendment
+> restates the claim directionally and freezes a 15-seed, 1-repeat allocation at
+> sensitivity power 0.8357. Read this document as the record of why the original
+> design was abandoned.
+
 This is a no-spend, pre-data design result. No provider or completion endpoint
 was called, no private seeds were generated, and every execution and
 publication authorization remains false. The initial 17-seed x 3-repeat freeze
