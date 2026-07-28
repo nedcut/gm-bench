@@ -65,8 +65,9 @@ clean-checkout rerun at the eventual candidate SHA.
   provider or model invocation.
 - Policy dispatch: accepted by `sota-v3`, rejected by `sota-v2`.
 - Publication analysis: one eligible synthetic row, finite nonzero
-  seed-bootstrap interval, full-family Holm dispatch, and tier assignment
-  completed through `scripts/analyze_publication_panel.py`.
+  seed-bootstrap interval, and full-family Holm dispatch completed through
+  `scripts/analyze_publication_panel.py`; v3 is reference-only and does not
+  assign model tiers.
 - Fail-closed mutations: all seven rejected — wrong contract, soft fallback,
   stale scaffold, unknown version, unregistered route, tampered compact score,
   and raw-link mismatch.
