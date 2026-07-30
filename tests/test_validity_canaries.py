@@ -33,6 +33,14 @@ def test_official_validity_canaries_underperform_value() -> None:
     # leave orderings to the paired-significance checks, which can fail.
     assert {row["agent"] for row in result["baselines"]} == {"pick-trader", "strategic", "shrewd", "value"}
     assert all(row["seed_count"] >= row["minimum_seed_count"] for row in result["mechanic_coverage"])
+    release_coverage = next(row for row in result["mechanic_coverage"] if row["mechanic"] == "release")
+    assert release_coverage == {
+        "mechanic": "release",
+        "accepted_actions": 7,
+        "seed_count": 6,
+        "seed_rate": 0.25,
+        "minimum_seed_count": 3,
+    }
     significance = [check for check in result["checks"] if check["name"].endswith("_paired_significance")]
     honest_significance = [check for check in significance if check["name"] == "honest_bar_paired_significance"]
     assert [(check["winner"], check["loser"]) for check in honest_significance] == [("pick-trader", "value")]

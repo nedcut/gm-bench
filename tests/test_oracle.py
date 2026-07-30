@@ -15,8 +15,10 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # The fingerprint hashes raw source bytes, so docstrings and comments in a
     # _CONTRACT_SOURCES file move it too. That is deliberately cheap before a
     # panel is bought and impossible afterward.
-    # Moved again for the reachable-release fix in gm_bench/agents.py (#91).
-    assert contract_fingerprint() == "4f6ddddd6a6dd81c"
+    # Moved again when protocol.py entered the fingerprint, built-in model
+    # adapters gained the complete canonical action surface, and malformed
+    # action discriminators were made fail-closed at the simulator boundary.
+    assert contract_fingerprint() == "b3cdf9ab690bd778"
     assert "oracle" not in AGENTS
 
 

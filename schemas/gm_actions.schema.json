@@ -1,12 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gm-bench.dev/schemas/gm_actions.schema.json",
+  "title": "GM-Bench Structured Action Envelope v3",
+  "description": "Strict structured-output envelope for built-in model adapters. Every action field is required but nullable for provider compatibility; the simulator enforces action-specific semantics.",
   "type": "object",
   "additionalProperties": false,
   "required": ["actions"],
   "properties": {
     "actions": {
       "type": "array",
-      "maxItems": 8,
+      "maxItems": 24,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -16,34 +19,63 @@
           "player_ids",
           "prospect_id",
           "partner_team_id",
+          "team_id",
+          "offer_id",
           "give_player_ids",
           "receive_player_ids",
           "give_pick_seasons",
           "receive_pick_seasons",
-          "offer_id",
+          "position",
+          "min_overall",
+          "limit",
           "years",
           "salary",
-          "text"
+          "text",
+          "error"
         ],
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["sign_free_agent", "extend_contract", "release", "trade", "accept_offer", "decline_offer", "scout", "draft", "set_lineup", "memo", "noop"]
+            "enum": [
+              "sign_free_agent",
+              "extend_contract",
+              "release",
+              "trade",
+              "draft",
+              "set_lineup",
+              "memo",
+              "noop",
+              "inspect_team",
+              "inspect_player",
+              "list_free_agents",
+              "scout",
+              "accept_trade_offer",
+              "reject_trade_offer",
+              "counter_trade_offer",
+              "claim_waiver",
+              "end_turn"
+            ]
           },
           "player_id": { "type": ["integer", "null"] },
           "player_ids": {
             "type": ["array", "null"],
-            "items": { "type": "integer" }
+            "items": { "type": "integer" },
+            "minItems": 18,
+            "maxItems": 18
           },
           "prospect_id": { "type": ["integer", "null"] },
           "partner_team_id": { "type": ["integer", "null"] },
+          "team_id": { "type": ["integer", "null"] },
+          "offer_id": { "type": ["string", "null"] },
           "give_player_ids": {
             "type": ["array", "null"],
-            "items": { "type": "integer" }
+            "items": { "type": "integer" },
+            "minItems": 1
           },
           "receive_player_ids": {
             "type": ["array", "null"],
-            "items": { "type": "integer" }
+            "items": { "type": "integer" },
+            "minItems": 1
           },
           "give_pick_seasons": {
             "type": ["array", "null"],
@@ -53,10 +85,13 @@
             "type": ["array", "null"],
             "items": { "type": "integer" }
           },
-          "offer_id": { "type": ["string", "null"] },
+          "position": { "type": ["string", "null"], "enum": ["F", "D", "G", null] },
+          "min_overall": { "type": ["number", "null"] },
+          "limit": { "type": ["integer", "null"] },
           "years": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 },
           "salary": { "type": ["number", "null"], "minimum": 0 },
-          "text": { "type": ["string", "null"], "maxLength": 2000 }
+          "text": { "type": ["string", "null"], "maxLength": 2000 },
+          "error": { "type": ["string", "null"] }
         }
       }
     }

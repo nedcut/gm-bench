@@ -468,7 +468,9 @@ def build_exact_reference_report(
         # every registered model *trails* the reference by |delta| -- which is the
         # direction the frozen sota-v2 evidence actually shows.
         "target_effect_unit": "GM-Bench score points relative to pick-trader (negative = trails the reference)",
-        "target_effect_direction": "trails-reference" if delta < 0 else "beats-reference",
+        "target_effect_direction": (
+            "trails-reference" if delta < 0 else "beats-reference" if delta > 0 else "no-direction-null"
+        ),
         "target_familywise_all_reject_power": target_power,
         "selection_rule": "smallest episodes/model whose sensitivity-power Wilson 95% lower bound is >= target",
         "sensitivity": {

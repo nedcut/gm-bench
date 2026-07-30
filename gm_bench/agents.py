@@ -12,7 +12,7 @@ from typing import Any
 
 from gm_bench.agent_utils import position_aware_lineup, public_asset_value
 from gm_bench.scaffold_view import scaffold_view_observation
-from gm_bench.telemetry import normalize_usage
+from gm_bench.telemetry import normalize_usage, require_finite_json_numbers
 
 
 def _release_surplus(player: dict[str, Any]) -> float:
@@ -741,9 +741,18 @@ class ExternalProcessAgent(Agent):
         except json.JSONDecodeError:
             return [{"type": "noop", "error": "external agent returned invalid JSON"}], None
         if isinstance(payload, list):
+            try:
+                require_finite_json_numbers(payload)
+            except ValueError:
+                return [{"type": "noop", "error": "external agent returned non-finite action values"}], None
             return payload, None
         if isinstance(payload, dict) and isinstance(payload.get("actions"), list):
-            return payload["actions"], normalize_usage(payload.get("usage"))
+            actions = payload["actions"]
+            try:
+                require_finite_json_numbers(actions)
+            except ValueError:
+                return [{"type": "noop", "error": "external agent returned non-finite action values"}], None
+            return actions, normalize_usage(payload.get("usage"))
         return [{"type": "noop", "error": "external agent must return an action list or envelope"}], None
 
 

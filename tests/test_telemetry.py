@@ -70,6 +70,24 @@ def test_normalize_usage_rejects_garbage():
     assert normalize_usage({"api_calls": True}) is None
 
 
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_normalize_usage_discards_non_finite_fields(value: float) -> None:
+    usage = normalize_usage(
+        {
+            "provider": "test",
+            "output_tokens": value,
+            "api_latency_ms": value,
+            "cost_usd": value,
+        }
+    )
+
+    assert usage == {"provider": "test"}
+
+
+def test_normalize_usage_discards_unrepresentable_integer_fields() -> None:
+    assert normalize_usage({"provider": "test", "cost_usd": 10**1_000}) == {"provider": "test"}
+
+
 def test_price_for_exact_prefix_and_provider():
     assert price_for("claude-opus-4-8")["input_per_mtok"] == 5.0
     # date-suffixed / variant ids resolve by longest prefix
@@ -277,6 +295,40 @@ def test_external_process_agent_parses_envelope(tmp_path):
     assert usage["provider"] == "openai"
     # legacy .act() drops usage but still works
     assert agent.act({"seed": 1}) == [{"type": "noop"}]
+
+
+def test_external_process_agent_discards_non_finite_usage_without_losing_actions(tmp_path):
+    script = tmp_path / "agent.py"
+    script.write_text(
+        "import json, sys\n"
+        "json.load(sys.stdin)\n"
+        'print(\'{"actions":[{"type":"noop"}],"usage":{"provider":"test",'
+        '"output_tokens":1e999,"api_latency_ms":NaN,"cost_usd":Infinity}}\')\n'
+    )
+    agent = ExternalProcessAgent(f"{sys.executable} {script}", timeout_seconds=30)
+
+    actions, usage = agent.act_with_usage({"seed": 1})
+
+    assert actions == [{"type": "noop"}]
+    assert usage == {"provider": "test"}
+
+
+@pytest.mark.parametrize("payload", ["1e999", "NaN", "Infinity"])
+def test_external_process_agent_rejects_nested_non_finite_action_values(tmp_path, payload: str) -> None:
+    script = tmp_path / "agent.py"
+    script.write_text(
+        "import json, sys\n"
+        "json.load(sys.stdin)\n"
+        f'print(\'{{"actions":[{{"type":"memo","metadata":{{"value":{payload}}}}}],'
+        '"usage":{"provider":"test"}}\')\n'
+    )
+    agent = ExternalProcessAgent(f"{sys.executable} {script}", timeout_seconds=30)
+
+    actions, usage = agent.act_with_usage({"seed": 1})
+
+    assert actions[0]["type"] == "noop"
+    assert "non-finite action values" in actions[0]["error"]
+    assert usage is None
 
 
 def test_external_process_agent_accepts_bare_list(tmp_path):

@@ -37,9 +37,9 @@ def test_v3_lane_pins_current_contract_and_freezes_a_powered_allocation() -> Non
     # component, so at a fixed episode budget repeats only shrink within-seed
     # noise while seeds buy independent draws of what actually varies.
     assert lane["repeats"] == 1
-    assert lane["panel_design_status"] == "allocation-frozen-pending-authorization"
+    assert lane["panel_design_status"] == "frozen"
     candidate = lane["statistical_panel_design"]
-    assert candidate["status"] == "allocation-frozen-pending-authorization"
+    assert candidate["status"] == "frozen"
     assert candidate["historical_lift_variances"]["shared_seed"] == pytest.approx(3770.478399)
     assert candidate["evaluated_seed_range"] == [9, 16]
     assert candidate["evaluated_repeat_range"] == [1, 3]
@@ -94,7 +94,9 @@ def test_v3_registry_is_truthfully_provisional_and_contains_no_unverified_routes
     assert registry["catalog_checked_at_utc"]
     assert len(registry["models"]) == len(registry["required_smokes"]) == 8
     assert set(registry["required_smokes"]) == {model["id"] for model in registry["models"]}
-    assert registry["output_token_cap"] is None
+    assert registry["repeats"] == lane["repeats"] == 1
+    assert registry["output_token_cap"] == lane["output_token_cap"] == 4096
+    assert registry["output_budget_status"] == lane["output_budget_status"] == "provisional-pre-smoke-validation"
     assert registry["spend_authorized"] is False
     assert registry["panel_execution_authorized"] is False
     assert registry["unresolved_decisions"]
@@ -111,8 +113,8 @@ def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
 
     assert protocol["contract"] == pricing["contract"] == lane["contract"]
     assert protocol["contract_fingerprint"] == pricing["contract_fingerprint"] == lane["contract_fingerprint"]
-    assert protocol["status"] == "provisional-blocked"
-    assert protocol["statistical_analysis_plan"]["status"] == "allocation-frozen-pending-authorization"
+    assert protocol["status"] == "provisional-pre-smoke"
+    assert protocol["statistical_analysis_plan"]["status"] == "frozen"
     assert protocol["statistical_analysis_plan"]["analysis_mode"] == "reference-only"
     assert protocol["statistical_analysis_plan"]["inference_method"] == "exact-enumeration-sign-flip"
     assert protocol["statistical_analysis_plan"]["unit_of_inference"] == "seed"
@@ -149,13 +151,15 @@ def test_v3_preregistration_fails_closed_before_smoke_or_panel_spend() -> None:
     # The design amendment freezes an allocation; it authorizes nothing. Both
     # gates are allowlists against the literal "frozen", so a status that merely
     # records progress still locks provider execution.
-    assert lane["preregistration_status"] == "provisional-allocation-frozen"
+    assert lane["preregistration_status"] == "provisional-pre-smoke"
     assert lane["preregistration_status"] != "frozen"
-    assert lane["panel_design_status"] == "allocation-frozen-pending-authorization"
-    assert lane["panel_design_status"] != "frozen"
-    assert lane["output_budget_status"] == "blocked-pending-registered-model-smokes"
-    assert lane["output_token_cap"] is None
-    assert lane["reasoning_policy"] == "pending-live-route-verification"
+    assert lane["panel_design_status"] == "frozen"
+    assert lane["output_budget_status"] == "provisional-pre-smoke-validation"
+    assert lane["output_token_cap"] == 4096
+    assert lane["cap_pressure_threshold_tokens"] == 3072
+    assert lane["fallback_output_token_cap"] == 8192
+    assert "invalidate every v3 smoke" in lane["output_policy_amendment_rule"]
+    assert lane["reasoning_policy"] == "catalog-pinned-pending-live-route-verification"
     assert lane["spend_authorized"] is False
     assert lane["route_preflight_authorized"] is False
     assert lane["smoke_execution_authorized"] is False
@@ -201,7 +205,6 @@ def test_blocked_v3_state_cannot_drift_into_partial_authorization() -> None:
         lane["preregistration_status"] != "frozen"
         or registry["selection_status"] != "frozen"
         or not registry["models"]
-        or lane["output_token_cap"] is None
         or manifest["accepted_for_panel"] is not True
         or set(registry["required_smokes"]) != set(manifest["entries"])
     )
@@ -240,7 +243,7 @@ def test_runner_rejects_provisional_v3_smoke_before_provider_access(
         publication_runner.main(["smoke", "--contract", "sota-v3", mode])
 
     assert exc_info.value.code == 2
-    assert "sota-v3 lane is provisional-allocation-frozen; provider execution is locked" in capsys.readouterr().err
+    assert "sota-v3 lane is provisional-pre-smoke; provider execution is locked" in capsys.readouterr().err
     assert provider_access == []
 
 

@@ -35,6 +35,7 @@ SOTA_V2_CONTRACT = {
 SOTA_V2_ORACLE_MEAN = 431.153
 
 _ROOT = Path(__file__).resolve().parents[1]
+_PACKAGE_ROOT = Path(__file__).resolve().parent
 # Fingerprint covers score-affecting simulator/protocol sources only.
 # Pricing/telemetry (gm_bench/pricing.json, gm_bench/telemetry.py) and
 # presentation helpers are intentionally excluded: cost/latency changes do not
@@ -45,6 +46,9 @@ _CONTRACT_SOURCES = (
     "gm_bench/benchmark_config.py",
     "gm_bench/generator.py",
     "gm_bench/models.py",
+    # Decision phases, interaction limits, partial-season length, injury
+    # duration, and the canonical action set all affect played-out episodes.
+    "gm_bench/protocol.py",
     "gm_bench/runner.py",
     # The compaction rules are score-affecting for the scaffold-view baseline,
     # whose whole result is a function of them; without this the baseline cache
@@ -58,13 +62,27 @@ _CONTRACT_SOURCES = (
 )
 
 
+def _source_path(relative_path: str) -> Path:
+    """Resolve a contract/scaffold source in a checkout or installed wheel."""
+
+    checkout_path = _ROOT / relative_path
+    if checkout_path.is_file():
+        return checkout_path
+    group, separator, remainder = relative_path.partition("/")
+    if separator and group in {"examples", "schemas"}:
+        packaged_path = _PACKAGE_ROOT / "_resources" / group / remainder
+        if packaged_path.is_file():
+            return packaged_path
+    return checkout_path
+
+
 @lru_cache(maxsize=1)
 def contract_fingerprint() -> str:
     digest = hashlib.sha256()
     for relative_path in _CONTRACT_SOURCES:
         digest.update(relative_path.encode())
         digest.update(b"\0")
-        digest.update((_ROOT / relative_path).read_bytes())
+        digest.update(_source_path(relative_path).read_bytes())
         digest.update(b"\0")
     return digest.hexdigest()[:16]
 
@@ -92,7 +110,7 @@ def scaffold_fingerprint(provider: str) -> str | None:
     for relative_path in ("gm_bench/scaffold_view.py", "examples/gm_agent_common.py", f"examples/{spec.script}"):
         digest.update(relative_path.encode())
         digest.update(b"\0")
-        digest.update((_ROOT / relative_path).read_bytes())
+        digest.update(_source_path(relative_path).read_bytes())
         digest.update(b"\0")
     return digest.hexdigest()[:16]
 

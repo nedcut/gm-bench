@@ -42,6 +42,116 @@ FROZEN_OUTPUT_POLICY_BASES = frozenset(
         "common-safety-ceiling-with-native-minimum-reasoning",
     }
 )
+_ROUTE_IDENTITY_KEYS = (
+    "provider",
+    "model",
+    "canonical_slug",
+    "transport",
+    "upstream_provider",
+    "upstream_provider_slug",
+    "endpoint_tag",
+    "endpoint_name",
+)
+_PRIVACY_OPTION_MARKERS = ("DATA_COLLECTION", "PRIVACY", "RETENTION", "TRAINING", "ZDR")
+_PRIVACY_ACCEPTANCE_FIELDS = (
+    "data_collection_policy_accepted",
+    "retention_policy_accepted",
+    "training_use_policy_accepted",
+    "zero_data_retention_policy_accepted",
+)
+
+
+def _registered_route_options(registry: dict[str, Any], model: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
+    requested = {
+        **{str(key): str(value) for key, value in (registry.get("shared_fixed_options") or {}).items()},
+        **{str(key): str(value) for key, value in (model.get("fixed_options") or {}).items()},
+        "OPENROUTER_PROVIDER_ONLY": str(model.get("upstream_provider_slug") or ""),
+        "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER": str(model.get("upstream_provider") or ""),
+        "OPENROUTER_EXPECTED_ENDPOINT_NAME": str(model.get("endpoint_name") or ""),
+    }
+    absent = {
+        str(value)
+        for value in [*(registry.get("shared_absent_options") or []), *(model.get("absent_options") or [])]
+        if str(value) not in requested
+    }
+    return requested, sorted(absent)
+
+
+def v3_route_identity_sha256(registry: dict[str, Any], model: dict[str, Any]) -> str:
+    """Bind route evidence to the exact route and execution/privacy policy."""
+
+    requested, absent = _registered_route_options(registry, model)
+    privacy_requested = {
+        key: value for key, value in requested.items() if any(marker in key for marker in _PRIVACY_OPTION_MARKERS)
+    }
+    privacy_absent = [key for key in absent if any(marker in key for marker in _PRIVACY_OPTION_MARKERS)]
+    return canonical_sha256(
+        {
+            "route": {key: model.get(key) for key in _ROUTE_IDENTITY_KEYS},
+            "execution_policy": {
+                "output_token_cap": registry.get("output_token_cap"),
+                "reasoning_policy": model.get("reasoning_policy"),
+                "reasoning_effort": model.get("reasoning_effort"),
+                "supported_parameters": sorted(str(value) for value in model.get("catalog_supported_parameters") or []),
+                "requested_options": requested,
+                "absent_options": absent,
+            },
+            "privacy_controls": {
+                "requested_options": privacy_requested,
+                "absent_options": privacy_absent,
+            },
+        }
+    )
+
+
+def v3_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
+    """Require authenticated route and privacy evidence before provider spend."""
+
+    models = [model for model in registry.get("models") or [] if isinstance(model, dict)]
+    acceptance = registry.get("exact_route_acceptance")
+    if not isinstance(acceptance, dict):
+        return ["sota-v3 exact-route acceptance record is missing"]
+    issues: list[str] = []
+    if acceptance.get("status") != "accepted":
+        issues.append("sota-v3 exact-route acceptance status is not accepted")
+    entries = acceptance.get("entries")
+    entries = entries if isinstance(entries, dict) else {}
+    model_ids = {str(model.get("id") or "") for model in models}
+    if set(entries) != model_ids:
+        issues.append("sota-v3 exact-route acceptance entries must exactly match the registered model ids")
+    for model in models:
+        model_id = str(model.get("id") or "")
+        prefix = f"sota-v3 exact-route acceptance entry {model_id!r}"
+        entry = entries.get(model_id)
+        if not isinstance(entry, dict):
+            issues.append(f"{prefix} is missing")
+            continue
+        expected_identity = v3_route_identity_sha256(registry, model)
+        if entry.get("route_identity_sha256") != expected_identity:
+            issues.append(f"{prefix} does not bind to the registered route identity")
+        if entry.get("authenticated") is not True:
+            issues.append(f"{prefix} lacks authenticated route verification")
+        if not isinstance(entry.get("verified_at_utc"), str) or not entry["verified_at_utc"].strip():
+            issues.append(f"{prefix} authenticated verification timestamp is missing")
+        evidence_sha = entry.get("route_evidence_sha256")
+        if not isinstance(evidence_sha, str) or re.fullmatch(r"[0-9a-f]{64}", evidence_sha) is None:
+            issues.append(f"{prefix} authenticated route evidence digest is missing")
+
+        privacy = entry.get("privacy_acceptance")
+        if not isinstance(privacy, dict) or privacy.get("status") != "accepted":
+            issues.append(f"{prefix} privacy acceptance is unresolved")
+            continue
+        if privacy.get("route_identity_sha256") != expected_identity:
+            issues.append(f"{prefix} privacy acceptance does not bind to the registered route identity")
+        for field in _PRIVACY_ACCEPTANCE_FIELDS:
+            if privacy.get(field) is not True:
+                issues.append(f"{prefix} {field} is not accepted")
+        if not isinstance(privacy.get("accepted_at_utc"), str) or not privacy["accepted_at_utc"].strip():
+            issues.append(f"{prefix} privacy acceptance timestamp is missing")
+        privacy_sha = privacy.get("evidence_sha256")
+        if not isinstance(privacy_sha, str) or re.fullmatch(r"[0-9a-f]{64}", privacy_sha) is None:
+            issues.append(f"{prefix} privacy evidence digest is missing")
+    return issues
 
 
 def exact_sign_flip_feasibility(
@@ -113,6 +223,94 @@ def _v3_identity_issues(
         if lane.get(lane_key) != registry.get(registry_key):
             issues.append(f"sota-v3 model registry {registry_key} does not match lane-authoritative {lane_key}")
     return issues
+
+
+def v3_preregistration_coherence_issues(
+    lane: dict[str, Any],
+    registry: dict[str, Any],
+    protocol: dict[str, Any] | None,
+    pricing: dict[str, Any] | None,
+    manifest: dict[str, Any] | None,
+) -> list[str]:
+    """Return contradictions among the committed v3 preregistration records.
+
+    Authorization blockers are intentionally not coherence errors. A
+    provisional lane should fail closed while still agreeing on the experiment
+    it would run after authorization.
+    """
+
+    issues = _v3_identity_issues(lane, registry, protocol, pricing, manifest)
+    design = lane.get("statistical_panel_design")
+    selected = design.get("selected_allocation") if isinstance(design, dict) else None
+    plan = protocol.get("statistical_analysis_plan") if isinstance(protocol, dict) else None
+    panel = lane.get("seed_panel")
+    output_policy = protocol.get("output_policy") if isinstance(protocol, dict) else None
+    assumptions = pricing.get("planning_assumptions") if isinstance(pricing, dict) else None
+
+    if lane.get("panel_design_status") != "frozen":
+        issues.append("sota-v3 lane panel design must be frozen")
+    if not isinstance(design, dict) or design.get("status") != "frozen":
+        issues.append("sota-v3 lane statistical panel design must be frozen")
+    if not isinstance(plan, dict) or plan.get("status") != "frozen":
+        issues.append("sota-v3 protocol statistical analysis plan must be frozen")
+    if isinstance(selected, dict):
+        if selected.get("repeats") != lane.get("repeats"):
+            issues.append("sota-v3 selected allocation repeats must match the lane")
+        if not isinstance(panel, dict) or selected.get("seed_count") != panel.get("count"):
+            issues.append("sota-v3 selected allocation seed count must match the seed panel")
+        selected_seeds = selected.get("seed_count")
+        selected_repeats = selected.get("repeats")
+        if (
+            not isinstance(selected_seeds, int)
+            or isinstance(selected_seeds, bool)
+            or not isinstance(selected_repeats, int)
+            or isinstance(selected_repeats, bool)
+            or selected.get("episodes_per_model") != selected_seeds * selected_repeats
+        ):
+            issues.append("sota-v3 selected allocation episodes_per_model is inconsistent")
+    else:
+        issues.append("sota-v3 selected allocation is missing")
+
+    models = [model for model in registry.get("models") or [] if isinstance(model, dict)]
+    family_size = design.get("holm_family_size") if isinstance(design, dict) else None
+    if family_size != len(models):
+        issues.append("sota-v3 lane Holm family size must match the registered model count")
+    if isinstance(plan, dict):
+        if plan.get("holm_family_size") != family_size:
+            issues.append("sota-v3 protocol Holm family size must match the lane design")
+        if isinstance(design, dict) and plan.get("target_effect_score_points") != design.get(
+            "target_effect_score_points"
+        ):
+            issues.append("sota-v3 protocol target effect must match the lane design")
+
+    cap = lane.get("output_token_cap")
+    threshold = lane.get("cap_pressure_threshold_tokens")
+    fallback = lane.get("fallback_output_token_cap")
+    if not isinstance(cap, int) or isinstance(cap, bool) or cap < 1:
+        issues.append("sota-v3 provisional output_token_cap must be a positive integer")
+    if not isinstance(threshold, int) or isinstance(threshold, bool) or not 0 < threshold < cap:
+        issues.append("sota-v3 cap-pressure threshold must be between zero and the provisional cap")
+    if not isinstance(fallback, int) or isinstance(fallback, bool) or fallback <= cap:
+        issues.append("sota-v3 fallback output cap must exceed the provisional cap")
+    if not isinstance(output_policy, dict):
+        issues.append("sota-v3 protocol output policy is missing")
+    else:
+        for key, expected in (
+            ("output_token_cap", cap),
+            ("cap_pressure_threshold_tokens", threshold),
+            ("fallback_output_token_cap", fallback),
+        ):
+            if output_policy.get(key) != expected:
+                issues.append(f"sota-v3 protocol {key} must match the lane")
+    if not isinstance(assumptions, dict):
+        issues.append("sota-v3 pricing planning assumptions are missing")
+    else:
+        if assumptions.get("expected_output_tokens_per_decision") != cap:
+            issues.append("sota-v3 pricing output-token assumption must match the provisional cap")
+        contingency = assumptions.get("cost_contingency_multiplier")
+        if not isinstance(contingency, int | float) or isinstance(contingency, bool) or contingency < 1:
+            issues.append("sota-v3 pricing cost contingency must be at least one")
+    return list(dict.fromkeys(issues))
 
 
 def v3_statistical_plan_issues(
@@ -220,8 +418,9 @@ def publication_execution_issues(
 
     issues: list[str] = []
     if contract == "sota-v3":
-        issues.extend(_v3_identity_issues(lane, registry, protocol, pricing, manifest))
         if phase != "route-preflight":
+            issues.extend(v3_preregistration_coherence_issues(lane, registry, protocol, pricing, manifest))
+            issues.extend(v3_route_acceptance_issues(registry))
             if (
                 not isinstance(protocol, dict)
                 or protocol.get("contract") != contract
@@ -235,8 +434,10 @@ def publication_execution_issues(
             ):
                 issues.append("sota-v3 pricing snapshot is not frozen")
             issues.extend(v3_statistical_plan_issues(lane, registry, protocol))
-        elif lane.get("route_preflight_authorized") is not True:
-            issues.append("zero-call route preflight is locked while route_preflight_authorized is false")
+        else:
+            issues.extend(_v3_identity_issues(lane, registry, protocol, pricing, manifest))
+            if lane.get("route_preflight_authorized") is not True:
+                issues.append("zero-call route preflight is locked while route_preflight_authorized is false")
         if phase == "route-preflight":
             if registry.get("selection_status") not in {"route-preflight-ready", "frozen"}:
                 issues.append("model registry is not ready for zero-call route preflight")

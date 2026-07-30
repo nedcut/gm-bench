@@ -402,6 +402,17 @@ def test_coding_agent_schema_exists() -> None:
     assert "draft" in payload["properties"]["actions"]["items"]["properties"]["type"]["enum"]
 
 
+def test_coding_agent_schema_matches_canonical_action_surface() -> None:
+    canonical = json.loads(Path("schemas/gm_action_list.schema.json").read_text())
+    structured = json.loads(Path("schemas/gm_actions.schema.json").read_text())
+    canonical_items = canonical["$defs"]["action"]
+    structured_items = structured["properties"]["actions"]["items"]
+
+    assert structured["properties"]["actions"]["maxItems"] == canonical["maxItems"]
+    assert set(structured_items["properties"]["type"]["enum"]) == set(canonical_items["properties"]["type"]["enum"])
+    assert set(structured_items["properties"]) == set(canonical_items["properties"])
+
+
 def test_protocol_schemas_exist_and_are_valid_json() -> None:
     for name in ("gm_observation.schema.json", "gm_action_list.schema.json", "gm_actions.schema.json"):
         payload = json.loads((Path("schemas") / name).read_text())

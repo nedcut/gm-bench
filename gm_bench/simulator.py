@@ -248,6 +248,9 @@ class League:
                 self._record({}, phase, False, "action must be an object")
                 continue
             action_type = action.get("type", "noop")
+            if not isinstance(action_type, str):
+                self._record(action, phase, False, "action type must be a string")
+                continue
             if action_type == "end_turn":
                 self._record(action, phase, True, "turn ended", penalize=False)
                 break
@@ -292,7 +295,7 @@ class League:
                 return result
             # Mutating handlers still call _record without returning.
             return self._action_results[-1]
-        except (TypeError, ValueError):
+        except (OverflowError, TypeError, ValueError):
             return self._record(action, phase, False, "action has invalid or missing argument values")
 
     def run_autopilot_opponents(self, phase: str = "preseason") -> None:
@@ -1029,8 +1032,11 @@ class League:
             if rejected_offer:
                 self.rejected_offers += 1
             else:
+                action_type = action.get("type", "")
                 should_penalize = (
-                    penalize if penalize is not None else action.get("type", "") not in NON_PENALIZED_TYPES
+                    penalize
+                    if penalize is not None
+                    else not isinstance(action_type, str) or action_type not in NON_PENALIZED_TYPES
                 )
                 if should_penalize:
                     self.illegal_actions += 1

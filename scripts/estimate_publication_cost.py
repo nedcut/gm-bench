@@ -66,7 +66,15 @@ def estimate(
     leaderboard = PRESETS["leaderboard"]
     smoke = PRESETS["smoke"]
     repeats = int(models_config["repeats"])
-    panel_decisions_per_model = len(leaderboard["seeds"]) * int(leaderboard["seasons"]) * len(PHASES) * repeats
+    panel_seed_count = len(leaderboard["seeds"])
+    if lane_config.get("contract") == "sota-v3":
+        seed_panel = lane_config.get("seed_panel")
+        if not isinstance(seed_panel, dict):
+            raise ValueError("sota-v3 fixed-panel estimate requires seed_panel metadata")
+        panel_seed_count = seed_panel.get("count")
+        if not isinstance(panel_seed_count, int) or isinstance(panel_seed_count, bool) or panel_seed_count < 2:
+            raise ValueError("sota-v3 fixed-panel estimate requires a positive seed_panel.count")
+    panel_decisions_per_model = panel_seed_count * int(leaderboard["seasons"]) * len(PHASES) * repeats
     smoke_decisions_per_run = len(smoke["seeds"]) * int(smoke["seasons"]) * len(PHASES)
     model_count = len(models)
     panel_calls = model_count * panel_decisions_per_model
@@ -155,7 +163,7 @@ def estimate(
             "cost_contingency_multiplier": float(contingency),
             "rates_are_per_token": bool(pricing["rates_are_per_token"]),
             "panel_preset": "leaderboard",
-            "panel_seed_count": len(leaderboard["seeds"]),
+            "panel_seed_count": panel_seed_count,
             "panel_seasons": int(leaderboard["seasons"]),
             "panel_repeats": repeats,
             "phase_count": len(PHASES),

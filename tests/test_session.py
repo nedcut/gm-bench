@@ -120,6 +120,57 @@ def test_persistent_agent_preserves_usage_envelope(tmp_path) -> None:
     assert usage == {"provider": "test", "total_tokens": 12}
 
 
+def test_persistent_agent_discards_non_finite_usage_without_losing_actions(tmp_path) -> None:
+    script = tmp_path / "non_finite_usage_agent.py"
+    script.write_text(
+        "import json, sys\n"
+        "for line in sys.stdin:\n"
+        "    event = json.loads(line)\n"
+        "    if event['event'] == 'observation':\n"
+        '        print(\'{"actions":[{"type":"noop"}],"usage":{"provider":"test",'
+        '"output_tokens":1e999,"api_latency_ms":NaN,"cost_usd":Infinity}}\', flush=True)\n'
+        "    elif event['event'] == 'end':\n"
+        "        break\n",
+        encoding="utf-8",
+    )
+    agent = PersistentProcessAgent(_session_command(str(script)), timeout_seconds=2)
+
+    agent.start_episode(seed=1, seasons=1)
+    try:
+        actions, usage = agent.act_with_usage({"phase": "preseason"})
+    finally:
+        agent.end_episode()
+
+    assert actions == [{"type": "noop"}]
+    assert usage == {"provider": "test"}
+
+
+def test_persistent_agent_rejects_nested_non_finite_action_values(tmp_path) -> None:
+    script = tmp_path / "non_finite_action_agent.py"
+    script.write_text(
+        "import json, sys\n"
+        "for line in sys.stdin:\n"
+        "    event = json.loads(line)\n"
+        "    if event['event'] == 'observation':\n"
+        '        print(\'{"actions":[{"type":"memo","metadata":{"value":1e999}}],'
+        '"usage":{"provider":"test"}}\', flush=True)\n'
+        "    elif event['event'] == 'end':\n"
+        "        break\n",
+        encoding="utf-8",
+    )
+    agent = PersistentProcessAgent(_session_command(str(script)), timeout_seconds=2)
+
+    agent.start_episode(seed=1, seasons=1)
+    try:
+        actions, usage = agent.act_with_usage({"phase": "preseason"})
+    finally:
+        agent.end_episode()
+
+    assert actions[0]["type"] == "noop"
+    assert "non-finite action values" in actions[0]["error"]
+    assert usage is None
+
+
 def test_run_episode_cleans_up_when_persistent_start_fails() -> None:
     class FailingStartAgent(PersistentProcessAgent):
         def __init__(self) -> None:

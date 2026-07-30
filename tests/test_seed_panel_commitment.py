@@ -79,6 +79,13 @@ def test_commit_creates_secret_file_with_owner_only_permissions(tmp_path, capsys
     assert "gitignore is not encryption" in warning
 
 
+def test_commit_refuses_salt_file_inside_checkout():
+    salt_file = commitment_mod._ROOT / "data" / "private-seed-salt-must-not-exist.json"
+
+    assert commitment_mod.main(["commit", "--seeds", "11,12,13", "--salt-file", str(salt_file)]) == 2
+    assert not salt_file.exists()
+
+
 def test_execution_hash_preserves_order_and_never_prints_seeds(tmp_path, monkeypatch, capsys):
     seeds = [(1 << 50) + index * 104729 for index in range(17)]
     lane = tmp_path / "lane.json"
@@ -117,3 +124,78 @@ def test_execution_hash_rejects_wrong_count_or_committed_preset_overlap(tmp_path
     overlapping = [committed_seed, *high_entropy[1:]]
     monkeypatch.setenv(commitment_mod.PRIVATE_SEEDS_ENV, ",".join(str(seed) for seed in overlapping))
     assert commitment_mod.main(["execution-hash", "--lane", str(lane)]) == 2
+
+
+def test_generate_private_panel_is_uniform_ordered_and_public_output_hides_seeds(tmp_path, monkeypatch, capsys):
+    lane = tmp_path / "lane.json"
+    lane.write_text(
+        json.dumps(
+            {
+                "seed_panel": {
+                    "status": "pending-authorized-generation",
+                    "count": 3,
+                }
+            }
+        )
+    )
+    draws = iter([7, 7, 11, 13])
+    monkeypatch.setattr(commitment_mod.secrets, "randbelow", lambda _span: next(draws))
+    monkeypatch.setattr(commitment_mod.secrets, "token_hex", lambda _count: "ab" * 32)
+    secret_file = tmp_path / "private-panel.json"
+
+    assert (
+        commitment_mod.main(
+            [
+                "generate",
+                "--lane",
+                str(lane),
+                "--secret-file",
+                str(secret_file),
+            ]
+        )
+        == 0
+    )
+
+    record = json.loads(secret_file.read_text())
+    expected = [
+        commitment_mod._PRIVATE_SEED_MIN + 7,
+        commitment_mod._PRIVATE_SEED_MIN + 11,
+        commitment_mod._PRIVATE_SEED_MIN + 13,
+    ]
+    assert record["seeds"] == ",".join(str(seed) for seed in expected)
+    assert record["generation_method"] == commitment_mod._GENERATION_METHOD
+    assert record["execution_sha256"] == commitment_mod.seed_panel_hash(expected)
+    assert stat.S_IMODE(secret_file.stat().st_mode) == 0o600
+
+    public = json.loads(capsys.readouterr().out)
+    assert public["count"] == 3
+    assert public["seed_values_included"] is False
+    assert public["sha256"] == record["execution_sha256"]
+    assert all(str(seed) not in json.dumps(public) for seed in expected)
+
+
+def test_generate_private_panel_requires_pending_lane_and_refuses_clobber(tmp_path, monkeypatch):
+    lane = tmp_path / "lane.json"
+    lane.write_text(json.dumps({"seed_panel": {"status": "pending-authorized-generation", "count": 2}}))
+    draws = iter([1, 2, 3, 4])
+    monkeypatch.setattr(commitment_mod.secrets, "randbelow", lambda _span: next(draws))
+    monkeypatch.setattr(commitment_mod.secrets, "token_hex", lambda _count: "cd" * 32)
+    secret_file = tmp_path / "private-panel.json"
+    args = ["generate", "--lane", str(lane), "--secret-file", str(secret_file)]
+
+    assert commitment_mod.main(args) == 0
+    original = secret_file.read_bytes()
+    assert commitment_mod.main(args) == 2
+    assert secret_file.read_bytes() == original
+
+    lane.write_text(json.dumps({"seed_panel": {"status": "frozen", "count": 2}}))
+    assert commitment_mod.main(["generate", "--lane", str(lane), "--secret-file", str(tmp_path / "other")]) == 2
+
+
+def test_generate_private_panel_refuses_secret_path_inside_checkout(tmp_path):
+    lane = tmp_path / "lane.json"
+    lane.write_text(json.dumps({"seed_panel": {"status": "pending-authorized-generation", "count": 2}}))
+    secret_file = commitment_mod._ROOT / "data" / "private-panel-must-not-exist.json"
+
+    assert commitment_mod.main(["generate", "--lane", str(lane), "--secret-file", str(secret_file)]) == 2
+    assert not secret_file.exists()

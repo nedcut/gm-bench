@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "contract": "sota-v3",
-  "contract_fingerprint": "4f6ddddd6a6dd81c",
-  "status": "provisional-blocked",
+  "contract_fingerprint": "b3cdf9ab690bd778",
+  "status": "provisional-pre-smoke",
   "evidence_state": "pre-data-no-v3-model-smokes-or-panel-results",
   "research_question": "Whether each pre-registered model-plus-compact-scaffold system trails the named pick-trader reference under the frozen sota-v3 mechanics, replicating the frozen sota-v2 finding on a new contract fingerprint.",
   "panel_design": {
-    "status": "allocation-frozen-pending-authorization",
+    "status": "frozen",
     "evaluated_grid": {
       "seed_range": [9, 16],
       "repeat_range": [1, 3],
@@ -18,11 +18,12 @@
     "seed_identity_status": "pending-authorized-generation"
   },
   "output_policy": {
-    "status": "blocked-pending-live-route-smokes",
-    "output_token_cap": null,
-    "cap_pressure_threshold_tokens": null,
-    "fallback_output_token_cap": null,
-    "reasoning_policy": "pending-live-route-verification"
+    "status": "provisional-pre-smoke-validation",
+    "output_token_cap": 4096,
+    "cap_pressure_threshold_tokens": 3072,
+    "fallback_output_token_cap": 8192,
+    "reasoning_policy": "catalog-pinned-pending-live-route-verification",
+    "amendment_rule": "The common 4,096-token cap is frozen for the first strict smoke of every route. If any smoke is truncated, reaches 3,072 output tokens, or cannot satisfy mandatory minimum reasoning, invalidate all v3 smokes, amend the cap once before panel data, and re-smoke the entire family. Scores and apparent model quality are never cap-selection inputs."
   },
   "rerun_policy": {
     "maximum_infrastructure_attempts_per_cell": 2,
@@ -30,7 +31,7 @@
     "model_behavior_never_authorizes_a_rerun": true
   },
   "statistical_analysis_plan": {
-    "status": "allocation-frozen-pending-authorization",
+    "status": "frozen",
     "analysis_mode": "reference-only",
     "inference_method": "exact-enumeration-sign-flip",
     "unit_of_inference": "seed",
@@ -68,6 +69,7 @@
   },
   "budget_policy": {
     "provider": "openrouter",
+    "cost_estimate_artifact": "results/analysis/sota-v3-pre-smoke-cost-estimate.json",
     "operator_must_pass_max_spend_usd": true,
     "spend_authorized": false,
     "operator_ceiling_usd": null

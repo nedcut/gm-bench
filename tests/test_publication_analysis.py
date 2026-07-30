@@ -15,6 +15,7 @@ from scripts.analyze_publication_panel import (
     analyze,
     assign_tiers,
     bootstrap_mean_ci,
+    default_output_path,
     holm_adjust,
     per_seed_pick_trader_lifts,
     sign_flip_p_value,
@@ -44,6 +45,11 @@ def _tier_row(model_id: str, mean_lift: float, interval: tuple[float, float]) ->
         "bootstrap_ci95": list(interval),
         "holm_adjusted_p_value": 0.5,
     }
+
+
+def test_default_analysis_outputs_are_contract_versioned() -> None:
+    assert default_output_path("sota-v2").name == "publication-panel-analysis.json"
+    assert default_output_path("sota-v3").name == "publication-panel-analysis-v3.json"
 
 
 def test_pick_trader_differencing_averages_repeats_within_seed() -> None:
@@ -333,6 +339,18 @@ def test_v3_reference_only_analysis_does_not_assign_model_tiers(
     assert result["model_tiering"]["status"] == "not-supported"
     assert result["sign_flip_inference"] == "primary; exact under the symmetry assumption"
     assert "tier" not in result["models"][0]
+    assert "per_seed" not in result["models"][0]
+    assert result["models"][0]["seed_count"] == 6
+    assert result["redaction"] == {
+        "private_seed_panel": True,
+        "seed_identifiers_included": False,
+        "per_seed_rows_included": False,
+        "public_view": "aggregate-only",
+    }
+    rendered = json.dumps(result, sort_keys=True)
+    assert '"per_seed"' not in rendered
+    for private_seed in range(11, 17):
+        assert f'"seed": {private_seed}' not in rendered
 
 
 def test_v3_analysis_missing_frozen_inputs_yields_no_publishable_rows(

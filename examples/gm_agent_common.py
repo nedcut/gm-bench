@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import sys
@@ -204,6 +205,7 @@ def _reject_non_finite_json_constant(value: str) -> None:
 
 
 def _actions_from_json(parsed: Any) -> list[dict[str, Any]]:
+    _reject_non_finite_numbers(parsed)
     if isinstance(parsed, dict) and isinstance(parsed.get("actions"), list):
         parsed = parsed["actions"]
     if isinstance(parsed, dict):
@@ -221,6 +223,25 @@ def _actions_from_json(parsed: Any) -> list[dict[str, Any]]:
     if not actions:
         raise ValueError("model JSON did not contain typed actions")
     return actions
+
+
+def _reject_non_finite_numbers(value: Any) -> None:
+    """Reject numeric overflow as well as JSON's named NaN/Infinity tokens.
+
+    ``json.loads`` calls ``parse_constant`` for the non-standard literals
+    ``NaN`` and ``Infinity``, but a standards-compliant number such as
+    ``1e999`` silently becomes ``float("inf")``. Walk the parsed payload so
+    neither spelling can reach simulator integer/float coercions.
+    """
+
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError("non-finite JSON number is not allowed")
+    if isinstance(value, dict):
+        for item in value.values():
+            _reject_non_finite_numbers(item)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_non_finite_numbers(item)
 
 
 # Canonical trade-field name -> natural-but-wrong names models emit for it.

@@ -37,6 +37,10 @@ PROTOCOL_PATHS = {
 }
 DEFAULT_ARTIFACT_DIR = ROOT / "data" / "publication-runs" / "raw"
 DEFAULT_OUTPUT_PATH = ROOT / "results" / "analysis" / "publication-panel-analysis.json"
+DEFAULT_OUTPUT_PATHS = {
+    "sota-v2": DEFAULT_OUTPUT_PATH,
+    "sota-v3": ROOT / "results" / "analysis" / "publication-panel-analysis-v3.json",
+}
 BOOTSTRAP_SEED = 20260716
 BOOTSTRAP_ITERATIONS = 10_000
 
@@ -507,6 +511,18 @@ def analyze(
     # assigning model tiers there would imply unsupported pairwise inference.
     if contract == "sota-v2":
         rows = assign_tiers(rows)
+    output_rows = rows
+    if contract == "sota-v3":
+        # Private-panel seed identifiers and per-seed scores remain available in
+        # the operator's raw artifacts for reproducibility, but must never enter
+        # the committed/public analysis. The aggregate exact-test result and raw
+        # artifact hash retain the public inference and evidence linkage.
+        output_rows = []
+        for row in rows:
+            public_row = dict(row)
+            per_seed = public_row.pop("per_seed", [])
+            public_row["seed_count"] = len(per_seed)
+            output_rows.append(public_row)
     present = {str(row["model_id"]) for row in rows}
     missing = [spec["id"] for spec in specs if spec["id"] not in present]
     eligible_count = len(rows)
@@ -534,10 +550,16 @@ def analyze(
         "config_errors": config_errors,
         "missing_models": missing,
         "rejected_artifacts": rejected,
-        "models": rows,
+        "models": output_rows,
     }
     if contract == "sota-v3":
         result["analysis_mode"] = "reference-only"
+        result["redaction"] = {
+            "private_seed_panel": True,
+            "seed_identifiers_included": False,
+            "per_seed_rows_included": False,
+            "public_view": "aggregate-only",
+        }
         result["publication_ready"] = (
             status == "complete" and not config_errors and not missing and not rejected and eligible_count == len(specs)
         )
@@ -555,6 +577,13 @@ def _read_json(path: Path) -> dict[str, Any]:
     return payload
 
 
+def default_output_path(contract: str) -> Path:
+    try:
+        return DEFAULT_OUTPUT_PATHS[contract]
+    except KeyError as exc:
+        raise ValueError(f"no default analysis output is registered for contract {contract!r}") from exc
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("artifacts", nargs="*", type=Path)
@@ -564,7 +593,7 @@ def main() -> int:
     parser.add_argument("--protocol", type=Path)
     parser.add_argument("--artifacts-dir", type=Path, default=DEFAULT_ARTIFACT_DIR)
     parser.add_argument("--raw-artifacts-dir", type=Path, help="raw JSON evidence used to verify compact hash links")
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_PATH)
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
     registry_path = args.registry or REGISTRY_PATHS.get(args.contract or "sota-v2", REGISTRY_PATH)
@@ -584,6 +613,7 @@ def main() -> int:
         contract = str(registry.get("contract") or "")
         lane = _read_json(args.lane or LANE_PATHS[contract]) if contract == "sota-v3" else None
         protocol = _read_json(args.protocol or PROTOCOL_PATHS[contract]) if contract == "sota-v3" else None
+        output_path = args.output or default_output_path(contract)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         sys.exit(f"analyze_publication_panel: {exc}")
 
@@ -596,9 +626,9 @@ def main() -> int:
         print(text, end="")
         return 0
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(text)
-    print(f"wrote {args.output} with {result['eligible_model_count']} eligible model row(s)")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(text)
+    print(f"wrote {output_path} with {result['eligible_model_count']} eligible model row(s)")
     return 0
 
 

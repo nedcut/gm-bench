@@ -41,7 +41,24 @@ def test_v3_catalog_freezes_exact_balanced_cohort_without_unlocking_execution() 
     assert registry["selection_frozen_at_utc"] is None
     assert registry["catalog_checked_at_utc"]
     assert set(registry["required_smokes"]) == {model["id"] for model in models}
-    assert registry["output_token_cap"] is None
+    assert registry["output_token_cap"] == 4_096
+    assert registry["output_budget_status"] == "provisional-pre-smoke-validation"
+    acceptance = registry["exact_route_acceptance"]
+    assert acceptance["status"] == "unresolved"
+    assert set(acceptance["entries"]) == {model["id"] for model in models}
+    for entry in acceptance["entries"].values():
+        assert entry["authenticated"] is False
+        assert entry["route_identity_sha256"] is None
+        assert entry["privacy_acceptance"]["status"] == "unresolved"
+        assert not any(
+            entry["privacy_acceptance"][field]
+            for field in (
+                "data_collection_policy_accepted",
+                "retention_policy_accepted",
+                "training_use_policy_accepted",
+                "zero_data_retention_policy_accepted",
+            )
+        )
     for key in (
         "spend_authorized",
         "route_preflight_authorized",
@@ -93,7 +110,13 @@ def test_v3_catalog_pins_routes_parameters_reasoning_and_exact_route_prices() ->
     assert pricing["panel_execution_authorized"] is False
     assert pricing["publication_authorized"] is False
     assert pricing["runtime_observations"]["source"] is None
-    assert all(value is None for value in pricing["planning_assumptions"].values())
+    assumptions = pricing["planning_assumptions"]
+    assert assumptions["input_tokens_per_decision"] == 8_000
+    assert assumptions["expected_output_tokens_per_decision"] == 4_096
+    assert assumptions["expected_internal_reasoning_tokens_per_decision"] == 4_096
+    assert assumptions["cost_contingency_multiplier"] == 1.2
+    assert assumptions["runtime_contingency_multiplier"] == 1.2
+    assert "pre-smoke" in assumptions["basis"]
 
 
 def test_selected_catalog_models_match_runner_exact_route_shape() -> None:
@@ -144,3 +167,15 @@ def test_public_catalog_snapshot_cannot_unlock_any_provider_phase() -> None:
     )
     assert "zero-call route preflight is locked while route_preflight_authorized is false" in preflight_issues
     assert "model registry is not ready for zero-call route preflight" in preflight_issues
+
+    smoke_issues = publication_execution_issues(
+        lane,
+        registry,
+        manifest,
+        phase="smoke",
+        protocol=protocol,
+        pricing=pricing,
+    )
+    assert "sota-v3 exact-route acceptance status is not accepted" in smoke_issues
+    assert any("lacks authenticated route verification" in issue for issue in smoke_issues)
+    assert any("privacy acceptance is unresolved" in issue for issue in smoke_issues)

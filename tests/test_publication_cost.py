@@ -16,6 +16,13 @@ def _committed_inputs() -> tuple[dict, dict, dict]:
     return models, lane, pricing
 
 
+def _v3_inputs() -> tuple[dict, dict, dict]:
+    models = json.loads(Path("config/sota_v3_models.json").read_text())
+    lane = json.loads(Path("config/sota_v3_lane.json").read_text())
+    pricing = json.loads(Path("config/sota_v3_pricing_snapshot.json").read_text())
+    return models, lane, pricing
+
+
 def test_fixed_panel_and_smoke_call_counts() -> None:
     result = estimate(*_committed_inputs())
 
@@ -29,6 +36,18 @@ def test_fixed_panel_and_smoke_call_counts() -> None:
         "smoke_calls": 40,
         "total_calls": 4_840,
     }
+
+
+def test_v3_cost_plan_uses_registered_private_seed_count() -> None:
+    result = estimate(*_v3_inputs())
+
+    assert result["assumptions"]["panel_seed_count"] == 15
+    assert result["assumptions"]["panel_repeats"] == 1
+    assert result["calls"]["panel_decisions_per_model"] == 300
+    assert result["calls"]["panel_calls"] == 2_400
+    assert result["calls"]["total_calls"] == 2_432
+    assert result["costs_usd"]["total_unrounded"] == pytest.approx(79.1216257024)
+    assert result["costs_usd"]["total_with_1_2x_contingency"] == pytest.approx(94.94595084288)
 
 
 def test_costs_sum_unrounded_rows_before_contingency() -> None:

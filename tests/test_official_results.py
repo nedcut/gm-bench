@@ -185,10 +185,9 @@ def test_historical_baseline_panel_is_diagnostic_but_not_sota() -> None:
     assert any(error.startswith("baselines must be") for error in sota_report.errors)
 
 
-def test_sota_v3_policy_requires_repeats() -> None:
+def test_sota_v3_policy_accepts_the_frozen_one_repeat_estimand() -> None:
     report = validate_leaderboard_payload(_official_payload(repeats=1), policy=SOTA_V3_POLICY)
-    assert not report.ok
-    assert "candidate.repeats must be >= 3 for sota-v3" in report.errors
+    assert report.ok, report.errors
 
 
 def test_sota_v3_policy_requires_per_episode_score_components() -> None:
@@ -668,7 +667,6 @@ def test_leaderboard_builder_rejects_forged_redacted_sota_report() -> None:
 
     report = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
     assert not report.ok
-    assert any("candidate.repeats" in error for error in report.errors)
     assert any("decision_failure_rate" in error for error in report.errors)
 
     row = model_row(payload)
@@ -691,7 +689,7 @@ def test_cli_redact_result_skips_write_when_invalid(tmp_path: Path, monkeypatch:
     monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-115")
     raw_path = tmp_path / "raw.json"
     redacted_path = tmp_path / "redacted.json"
-    raw_path.write_text(json.dumps(_official_payload(repeats=1, seeds=private_seeds)))
+    raw_path.write_text(json.dumps(_official_payload(repeats=1, seeds=private_seeds, failure_rate=0.05)))
 
     with pytest.raises(SystemExit) as excinfo:
         cli_module.main(["redact-result", str(raw_path), "--output", str(redacted_path)])

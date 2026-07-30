@@ -13,7 +13,10 @@ from gm_bench.agents import Agent, ExternalProcessAgent
 from gm_bench.session import PersistentProcessAgent
 
 ROOT = Path(__file__).resolve().parents[1]
-EXAMPLES = ROOT / "examples"
+_CHECKOUT_EXAMPLES = ROOT / "examples"
+EXAMPLES = (
+    _CHECKOUT_EXAMPLES if _CHECKOUT_EXAMPLES.is_dir() else Path(__file__).resolve().parent / "_resources" / "examples"
+)
 
 PROVIDER_NAMES = (
     "openai",
