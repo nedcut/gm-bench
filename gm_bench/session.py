@@ -13,7 +13,7 @@ from typing import Any, BinaryIO
 
 from gm_bench.agents import Agent
 from gm_bench.protocol import QUERY_ACTION_TYPES
-from gm_bench.telemetry import normalize_usage
+from gm_bench.telemetry import normalize_usage, require_finite_json_numbers
 
 
 class PersistentProcessAgent(Agent):
@@ -141,6 +141,10 @@ class PersistentProcessAgent(Agent):
             actions = actions["actions"]
         if not isinstance(actions, list):
             return ([{"type": "noop", "error": "persistent agent must return an actions list"}], None)
+        try:
+            require_finite_json_numbers(actions)
+        except ValueError:
+            return ([{"type": "noop", "error": "persistent agent returned non-finite action values"}], None)
         usage = normalize_usage(payload.get("usage")) if isinstance(payload, dict) else None
         return actions, usage
 

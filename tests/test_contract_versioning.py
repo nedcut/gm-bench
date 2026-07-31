@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from gm_bench.contract import (
+    _CONTRACT_SOURCES,
     ACTION_PROTOCOL_VERSION,
     BENCHMARK_VERSION,
     SIMULATOR_VERSION,
@@ -32,6 +33,10 @@ def test_contract_reports_v3_version_strings() -> None:
     assert contract["simulator_version"] == "sim-v3"
     # The P0 fixes change action/simulator semantics, not the scoring scale.
     assert contract["scoring_version"] == "score-v1"
+
+
+def test_contract_fingerprint_covers_protocol_constants() -> None:
+    assert "gm_bench/protocol.py" in _CONTRACT_SOURCES
 
 
 def test_current_and_historical_sota_policies_are_distinct() -> None:

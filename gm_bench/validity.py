@@ -21,6 +21,11 @@ MECHANIC_MIN_SEED_RATES = {
     "accepted_offer": 0.25,
     "pick_trade": 0.25,
     "extension": 0.75,
+    # This is a liveness check, not a target release frequency. The frozen
+    # 24-seed scripted panel accepts seven releases across six seeds; a modest
+    # 10% floor proves the user-facing branch remains reachable without tuning
+    # the policy to manufacture churn.
+    "release": 0.10,
 }
 
 
@@ -256,6 +261,8 @@ def _mechanic_coverage(
                 mechanics.append("pick_trade")
             if action_type == "extend_contract":
                 mechanics.append("extension")
+            if action_type == "release":
+                mechanics.append("release")
             for mechanic in mechanics:
                 accepted_actions[mechanic] += 1
                 covered_seeds[mechanic].add(seed)

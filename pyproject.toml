@@ -18,11 +18,23 @@ dev = ["pytest>=8", "jsonschema>=4.0", "ruff>=0.8"]
 gm-bench = "gm_bench.cli:main"
 gm-bench-gui = "gm_bench.gui:main"
 
-[tool.setuptools.packages.find]
-include = ["gm_bench*"]
+[tool.setuptools]
+packages = [
+    "gm_bench",
+    "gm_bench.gui_static",
+    "gm_bench._resources.examples",
+    "gm_bench._resources.schemas",
+]
+
+[tool.setuptools.package-dir]
+"gm_bench._resources.examples" = "examples"
+"gm_bench._resources.schemas" = "schemas"
 
 [tool.setuptools.package-data]
-gm_bench = ["gui_static/*", "pricing.json"]
+gm_bench = ["pricing.json"]
+"gm_bench.gui_static" = ["*"]
+"gm_bench._resources.examples" = ["*.json"]
+"gm_bench._resources.schemas" = ["*.json", "README.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

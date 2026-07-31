@@ -248,6 +248,9 @@ class League:
                 self._record({}, phase, False, "action must be an object")
                 continue
             action_type = action.get("type", "noop")
+            if not isinstance(action_type, str):
+                self._record(action, phase, False, "action type must be a string")
+                continue
             if action_type == "end_turn":
                 self._record(action, phase, True, "turn ended", penalize=False)
                 break
@@ -292,7 +295,7 @@ class League:
                 return result
             # Mutating handlers still call _record without returning.
             return self._action_results[-1]
-        except (TypeError, ValueError):
+        except (OverflowError, TypeError, ValueError):
             return self._record(action, phase, False, "action has invalid or missing argument values")
 
     def run_autopilot_opponents(self, phase: str = "preseason") -> None:
@@ -688,10 +691,10 @@ class League:
 
     def _trade(self, action: dict[str, Any], phase: str) -> None:
         partner_id = int(action.get("partner_team_id", -1))
-        give = [int(player_id) for player_id in action.get("give_player_ids", [])]
-        receive = [int(player_id) for player_id in action.get("receive_player_ids", [])]
-        give_picks = [int(season) for season in action.get("give_pick_seasons", [])]
-        receive_picks = [int(season) for season in action.get("receive_pick_seasons", [])]
+        give = [int(player_id) for player_id in (action.get("give_player_ids") or [])]
+        receive = [int(player_id) for player_id in (action.get("receive_player_ids") or [])]
+        give_picks = [int(season) for season in (action.get("give_pick_seasons") or [])]
+        receive_picks = [int(season) for season in (action.get("receive_pick_seasons") or [])]
         if partner_id not in self.teams or partner_id == self.user_team_id:
             self._record(action, phase, False, "invalid trade partner")
             return
@@ -1029,8 +1032,11 @@ class League:
             if rejected_offer:
                 self.rejected_offers += 1
             else:
+                action_type = action.get("type", "")
                 should_penalize = (
-                    penalize if penalize is not None else action.get("type", "") not in NON_PENALIZED_TYPES
+                    penalize
+                    if penalize is not None
+                    else not isinstance(action_type, str) or action_type not in NON_PENALIZED_TYPES
                 )
                 if should_penalize:
                     self.illegal_actions += 1

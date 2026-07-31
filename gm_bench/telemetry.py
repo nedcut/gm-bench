@@ -9,6 +9,7 @@ them into the per-episode block the runner attaches to results.
 from __future__ import annotations
 
 import json
+import math
 import os
 from collections import Counter
 from functools import lru_cache
@@ -34,6 +35,32 @@ _TEXT_KEYS = ("provider", "model", "upstream_provider", "generation_id", "finish
 _TRUNCATION_FINISH_REASONS = frozenset({"length", "max_tokens", "max_output_tokens"})
 
 
+def _is_nonnegative_finite_number(value: Any) -> bool:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return False
+    if value < 0:
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        # Arbitrarily large JSON integers are mathematically finite, but cannot
+        # be represented by downstream float-valued cost/latency aggregation.
+        return False
+
+
+def require_finite_json_numbers(value: Any) -> None:
+    """Reject non-finite floats anywhere in an untrusted JSON-shaped value."""
+
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError("non-finite JSON number is not allowed")
+    if isinstance(value, dict):
+        for item in value.values():
+            require_finite_json_numbers(item)
+    elif isinstance(value, list):
+        for item in value:
+            require_finite_json_numbers(item)
+
+
 def normalize_usage(raw: Any) -> dict[str, Any] | None:
     """Coerce an adapter-reported usage block into the canonical shape.
 
@@ -46,11 +73,11 @@ def normalize_usage(raw: Any) -> dict[str, Any] | None:
     usage: dict[str, Any] = {}
     for key in _COUNT_KEYS:
         value = raw.get(key)
-        if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
+        if _is_nonnegative_finite_number(value):
             usage[key] = int(value)
     for key in _FLOAT_KEYS:
         value = raw.get(key)
-        if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
+        if _is_nonnegative_finite_number(value):
             usage[key] = round(float(value), 6)
     for key in _TEXT_KEYS:
         value = raw.get(key)

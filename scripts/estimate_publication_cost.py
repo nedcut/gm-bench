@@ -66,7 +66,15 @@ def estimate(
     leaderboard = PRESETS["leaderboard"]
     smoke = PRESETS["smoke"]
     repeats = int(models_config["repeats"])
-    panel_decisions_per_model = len(leaderboard["seeds"]) * int(leaderboard["seasons"]) * len(PHASES) * repeats
+    panel_seed_count = len(leaderboard["seeds"])
+    if lane_config.get("contract") == "sota-v3":
+        seed_panel = lane_config.get("seed_panel")
+        if not isinstance(seed_panel, dict):
+            raise ValueError("sota-v3 fixed-panel estimate requires seed_panel metadata")
+        panel_seed_count = seed_panel.get("count")
+        if not isinstance(panel_seed_count, int) or isinstance(panel_seed_count, bool) or panel_seed_count < 2:
+            raise ValueError("sota-v3 fixed-panel estimate requires a positive seed_panel.count")
+    panel_decisions_per_model = panel_seed_count * int(leaderboard["seasons"]) * len(PHASES) * repeats
     smoke_decisions_per_run = len(smoke["seeds"]) * int(smoke["seasons"]) * len(PHASES)
     model_count = len(models)
     panel_calls = model_count * panel_decisions_per_model
@@ -90,10 +98,38 @@ def estimate(
             if input_tokens >= threshold:
                 applied_rates = long_context_override
 
-        reasoning_rate = rates.get("internal_reasoning")
+        reasoning_rate_key = None
+        reasoning_rate = None
+        for candidate_rates in (applied_rates, rates):
+            reasoning_rate_key = next(
+                (
+                    key
+                    for key, value in candidate_rates.items()
+                    if "reasoning" in key and isinstance(value, int | float) and not isinstance(value, bool)
+                ),
+                None,
+            )
+            if reasoning_rate_key is not None:
+                reasoning_rate = candidate_rates[reasoning_rate_key]
+                break
+        reasoning_enabled = (
+            model.get("reasoning_policy") == "mandatory-minimum"
+            or (model.get("fixed_options") or {}).get("OPENROUTER_REASONING_ENABLED") == "true"
+        )
+        if (
+            reasoning_rate is None
+            and reasoning_enabled
+            and (reasoning_tokens_value is not None or lane_config.get("contract") == "sota-v3")
+        ):
+            reasoning_rate_key = "completion"
+            reasoning_rate = applied_rates["completion"]
         reasoning_tokens = 0
         if reasoning_rate is not None:
-            if not isinstance(reasoning_tokens_value, int) or reasoning_tokens_value < 0:
+            if (
+                not isinstance(reasoning_tokens_value, int)
+                or isinstance(reasoning_tokens_value, bool)
+                or reasoning_tokens_value < 0
+            ):
                 raise ValueError(
                     "planning_assumptions.expected_internal_reasoning_tokens_per_decision "
                     f"must be a non-negative integer when {model_name} has internal-reasoning pricing"
@@ -122,6 +158,8 @@ def estimate(
             "internal_reasoning_tokens_per_decision": reasoning_tokens,
             "applied_internal_reasoning_rate_usd": float(_decimal(reasoning_rate or 0)),
         }
+        if reasoning_rate_key is not None:
+            row["internal_reasoning_billing_basis"] = reasoning_rate_key
         runtime_seconds = runtime_by_model.get(model_name)
         if isinstance(runtime_seconds, int | float) and runtime_seconds > 0:
             row["observed_api_seconds_per_decision"] = runtime_seconds
@@ -155,7 +193,7 @@ def estimate(
             "cost_contingency_multiplier": float(contingency),
             "rates_are_per_token": bool(pricing["rates_are_per_token"]),
             "panel_preset": "leaderboard",
-            "panel_seed_count": len(leaderboard["seeds"]),
+            "panel_seed_count": panel_seed_count,
             "panel_seasons": int(leaderboard["seasons"]),
             "panel_repeats": repeats,
             "phase_count": len(PHASES),

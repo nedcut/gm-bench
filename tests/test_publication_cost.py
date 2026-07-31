@@ -16,6 +16,13 @@ def _committed_inputs() -> tuple[dict, dict, dict]:
     return models, lane, pricing
 
 
+def _v3_inputs() -> tuple[dict, dict, dict]:
+    models = json.loads(Path("config/sota_v3_models.json").read_text())
+    lane = json.loads(Path("config/sota_v3_lane.json").read_text())
+    pricing = json.loads(Path("config/sota_v3_pricing_snapshot.json").read_text())
+    return models, lane, pricing
+
+
 def test_fixed_panel_and_smoke_call_counts() -> None:
     result = estimate(*_committed_inputs())
 
@@ -29,6 +36,22 @@ def test_fixed_panel_and_smoke_call_counts() -> None:
         "smoke_calls": 40,
         "total_calls": 4_840,
     }
+
+
+def test_v3_cost_plan_uses_registered_private_seed_count() -> None:
+    result = estimate(*_v3_inputs())
+
+    assert result["assumptions"]["panel_seed_count"] == 15
+    assert result["assumptions"]["panel_repeats"] == 1
+    assert result["calls"]["panel_decisions_per_model"] == 300
+    assert result["calls"]["panel_calls"] == 2_400
+    assert result["calls"]["total_calls"] == 2_432
+    assert result["costs_usd"]["total_unrounded"] == pytest.approx(86.5927297024)
+    assert result["costs_usd"]["total_with_1_2x_contingency"] == pytest.approx(103.91127564288)
+    grok = next(row for row in result["models"] if row["model"] == "x-ai/grok-4.5")
+    assert grok["internal_reasoning_tokens_per_decision"] == 4096
+    assert grok["applied_internal_reasoning_rate_usd"] == pytest.approx(grok["applied_completion_rate_usd"])
+    assert grok["internal_reasoning_billing_basis"] == "completion"
 
 
 def test_costs_sum_unrounded_rows_before_contingency() -> None:
@@ -97,6 +120,7 @@ def test_model_specific_reasoning_and_long_context_rates_are_applied() -> None:
     assert row["applied_completion_rate_usd"] == pytest.approx(0.05)
     assert row["internal_reasoning_tokens_per_decision"] == 30
     assert row["applied_internal_reasoning_rate_usd"] == pytest.approx(0.03)
+    assert row["internal_reasoning_billing_basis"] == "internal_reasoning"
 
 
 def test_internal_reasoning_price_requires_an_explicit_token_assumption() -> None:
@@ -104,6 +128,17 @@ def test_internal_reasoning_price_requires_an_explicit_token_assumption() -> Non
     pricing = copy.deepcopy(pricing)
     model_name = models["models"][0]["model"]
     pricing["models"][model_name]["internal_reasoning"] = 0.03
+
+    with pytest.raises(ValueError, match="expected_internal_reasoning_tokens_per_decision"):
+        estimate(models, lane, pricing)
+
+
+def test_v3_reasoning_enabled_route_requires_an_explicit_token_assumption() -> None:
+    models, lane, pricing = _v3_inputs()
+    models = copy.deepcopy(models)
+    pricing = copy.deepcopy(pricing)
+    models["models"] = [model for model in models["models"] if model["model"] == "x-ai/grok-4.5"]
+    pricing["planning_assumptions"].pop("expected_internal_reasoning_tokens_per_decision")
 
     with pytest.raises(ValueError, match="expected_internal_reasoning_tokens_per_decision"):
         estimate(models, lane, pricing)

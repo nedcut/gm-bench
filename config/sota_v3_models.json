@@ -1,14 +1,14 @@
 {
   "schema_version": 2,
   "contract": "sota-v3",
-  "contract_fingerprint": "4f6ddddd6a6dd81c",
+  "contract_fingerprint": "a523bdfcebe47bbd",
   "lane": "api",
   "provider": "openrouter",
   "provider_policy": "openrouter-only",
   "profile": "compact",
   "session": false,
   "preset": "leaderboard",
-  "repeats": 3,
+  "repeats": 1,
   "selection_status": "provisional-blocked",
   "selection_frozen_at_utc": null,
   "selection_revision": "2026-07-28-public-catalog-cohort-v1",
@@ -219,6 +219,140 @@
       "role": "Mistral European open-weight anchor"
     }
   ],
+  "exact_route_acceptance": {
+    "schema_version": 1,
+    "status": "unresolved",
+    "entries": {
+      "openrouter-gpt-5.6-luna-pro-openai": {
+        "route_identity_sha256": null,
+        "authenticated": false,
+        "verified_at_utc": null,
+        "route_evidence_sha256": null,
+        "privacy_acceptance": {
+          "status": "unresolved",
+          "route_identity_sha256": null,
+          "data_collection_policy_accepted": false,
+          "retention_policy_accepted": false,
+          "training_use_policy_accepted": false,
+          "zero_data_retention_policy_accepted": false,
+          "accepted_at_utc": null,
+          "evidence_sha256": null
+        }
+      },
+      "openrouter-claude-sonnet-5-bedrock": {
+        "route_identity_sha256": null,
+        "authenticated": false,
+        "verified_at_utc": null,
+        "route_evidence_sha256": null,
+        "privacy_acceptance": {
+          "status": "unresolved",
+          "route_identity_sha256": null,
+          "data_collection_policy_accepted": false,
+          "retention_policy_accepted": false,
+          "training_use_policy_accepted": false,
+          "zero_data_retention_policy_accepted": false,
+          "accepted_at_utc": null,
+          "evidence_sha256": null
+        }
+      },
+      "openrouter-gemini-3.6-flash-google-ai-studio": {
+        "route_identity_sha256": null,
+        "authenticated": false,
+        "verified_at_utc": null,
+        "route_evidence_sha256": null,
+        "privacy_acceptance": {
+          "status": "unresolved",
+          "route_identity_sha256": null,
+          "data_collection_policy_accepted": false,
+          "retention_policy_accepted": false,
+          "training_use_policy_accepted": false,
+          "zero_data_retention_policy_accepted": false,
+          "accepted_at_utc": null,
+          "evidence_sha256": null
+        }
+      },
+      "openrouter-grok-4.5-xai": {
+        "route_identity_sha256": null,
+        "authenticated": false,
+        "verified_at_utc": null,
+        "route_evidence_sha256": null,
+        "privacy_acceptance": {
+          "status": "unresolved",
+          "route_identity_sha256": null,
+          "data_collection_policy_accepted": false,
+          "retention_policy_accepted": false,
+          "training_use_policy_accepted": false,
+          "zero_data_retention_policy_accepted": false,
+          "accepted_at_utc": null,
+          "evidence_sha256": null
+        }
+      },
+      "openrouter-glm-5.2-novita": {
+        "route_identity_sha256": null,
+        "authenticated": false,
+        "verified_at_utc": null,
+        "route_evidence_sha256": null,
+        "privacy_acceptance": {
+          "status": "unresolved",
+          "route_identity_sha256": null,
+          "data_collection_policy_accepted": false,
+          "retention_policy_accepted": false,
+          "training_use_policy_accepted": false,
+          "zero_data_retention_policy_accepted": false,
+          "accepted_at_utc": null,
+          "evidence_sha256": null
+        }
+      },
+      "openrouter-minimax-m3-minimax": {
+        "route_identity_sha256": null,
+        "authenticated": false,
+        "verified_at_utc": null,
+        "route_evidence_sha256": null,
+        "privacy_acceptance": {
+          "status": "unresolved",
+          "route_identity_sha256": null,
+          "data_collection_policy_accepted": false,
+          "retention_policy_accepted": false,
+          "training_use_policy_accepted": false,
+          "zero_data_retention_policy_accepted": false,
+          "accepted_at_utc": null,
+          "evidence_sha256": null
+        }
+      },
+      "openrouter-qwen3.7-plus-alibaba": {
+        "route_identity_sha256": null,
+        "authenticated": false,
+        "verified_at_utc": null,
+        "route_evidence_sha256": null,
+        "privacy_acceptance": {
+          "status": "unresolved",
+          "route_identity_sha256": null,
+          "data_collection_policy_accepted": false,
+          "retention_policy_accepted": false,
+          "training_use_policy_accepted": false,
+          "zero_data_retention_policy_accepted": false,
+          "accepted_at_utc": null,
+          "evidence_sha256": null
+        }
+      },
+      "openrouter-mistral-medium-3.5-mistral": {
+        "route_identity_sha256": null,
+        "authenticated": false,
+        "verified_at_utc": null,
+        "route_evidence_sha256": null,
+        "privacy_acceptance": {
+          "status": "unresolved",
+          "route_identity_sha256": null,
+          "data_collection_policy_accepted": false,
+          "retention_policy_accepted": false,
+          "training_use_policy_accepted": false,
+          "zero_data_retention_policy_accepted": false,
+          "accepted_at_utc": null,
+          "evidence_sha256": null
+        }
+      }
+    }
+  },
   "required_smokes": [
     "openrouter-gpt-5.6-luna-pro-openai",
     "openrouter-claude-sonnet-5-bedrock",
@@ -243,8 +377,8 @@
     "OPENROUTER_QUANTIZATIONS",
     "OPENROUTER_ZDR"
   ],
-  "output_token_cap": null,
-  "output_budget_status": "blocked-pending-registered-model-smokes",
+  "output_token_cap": 4096,
+  "output_budget_status": "provisional-pre-smoke-validation",
   "spend_authorized": false,
   "route_preflight_authorized": false,
   "panel_execution_authorized": false,
@@ -256,10 +390,10 @@
     "Supported-parameter lists do not prove behavioral acceptance; every route still requires an authenticated zero-completion-call preflight and then a separately authorized strict smoke."
   ],
   "unresolved_decisions": [
-    "Resolve the blocked statistical allocation before generating or committing any private panel identity.",
+    "Generate the already selected 15-seed private panel with the audited uniform generator and commit only its salted hiding commitment plus ordered execution hash.",
     "Resolve exact-route privacy, retention, training-use, and zero-data-retention requirements.",
     "Run an authenticated zero-completion-call exact-route preflight only after separate operator authorization.",
     "Resolve the Luna Pro description-versus-structured-reasoning metadata inconsistency.",
-    "Freeze a common output-token cap and cap-pressure rule only after separately authorized strict smokes."
+    "Validate the provisional common 4,096-token cap and 3,072-token cap-pressure rule with separately authorized strict smokes; if triggered, invalidate every v3 smoke and amend the cap symmetrically before panel data."
   ]
 }

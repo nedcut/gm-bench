@@ -44,6 +44,7 @@ from gm_bench.publication import (  # noqa: E402
     compact_result,
     publication_execution_issues,
     raw_artifact_link_issues,
+    v3_preregistration_coherence_issues,
 )
 from gm_bench.runner import _paired_analysis, _precise_mean_score, summarize_episodes  # noqa: E402
 from gm_bench.scoring import ACTIVE_SCORE_SCALE, SCORE_COMPONENT_KEYS  # noqa: E402
@@ -437,6 +438,13 @@ def _live_v3_readiness() -> dict[str, Any]:
     protocol = json.loads((ROOT / "config" / "sota_v3_publication_protocol.json").read_text())
     pricing = json.loads((ROOT / "config" / "sota_v3_pricing_snapshot.json").read_text())
     return {
+        "coherence_issues": v3_preregistration_coherence_issues(
+            lane,
+            registry,
+            protocol,
+            pricing,
+            manifest,
+        ),
         "synthetic_validation_issues": execution_authorization_issues(
             lane,
             mode="synthetic",
@@ -519,6 +527,13 @@ def run_rehearsal(workdir: Path, *, run_web_build: bool, mode: str = "synthetic"
     if analyzed["bootstrap_ci95"][0] == analyzed["bootstrap_ci95"][1]:
         raise AssertionError("analysis rehearsal remained degenerate; expected a non-zero lift interval")
 
+    live_v3_readiness = _live_v3_readiness()
+    if live_v3_readiness["coherence_issues"]:
+        raise AssertionError(
+            "live sota-v3 preregistration records contradict each other: "
+            + "; ".join(live_v3_readiness["coherence_issues"])
+        )
+
     site_staging = Path(tempfile.mkdtemp(prefix="site-staging-", dir=workdir))
     result = {
         "status": "passed",
@@ -546,7 +561,7 @@ def run_rehearsal(workdir: Path, *, run_web_build: bool, mode: str = "synthetic"
         },
         "mutations": _exercise_mutations(raw, compact),
         "site_data_build": _exercise_site_builder(site_staging, compact),
-        "live_v3_readiness": _live_v3_readiness(),
+        "live_v3_readiness": live_v3_readiness,
         "web_build": _run_web_build(site_staging) if run_web_build else {"status": "skipped"},
     }
     return result

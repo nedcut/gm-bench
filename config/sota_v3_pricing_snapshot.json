@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "contract": "sota-v3",
-  "contract_fingerprint": "4f6ddddd6a6dd81c",
+  "contract_fingerprint": "a523bdfcebe47bbd",
   "status": "catalog-frozen-public-metadata-only",
   "checked_at_utc": "2026-07-28T04:15:49Z",
   "source": "Unauthenticated HTTP GET of https://openrouter.ai/api/v1/models and each selected model's https://openrouter.ai/api/v1/models/{model_id}/endpoints response; no completion or chat endpoint was called.",
@@ -9,11 +9,12 @@
   "rates_are_per_token": true,
   "pricing_scope": "Exact selected upstream route, not the model-level cheapest-route summary.",
   "planning_assumptions": {
-    "input_tokens_per_decision": null,
-    "expected_output_tokens_per_decision": null,
-    "expected_internal_reasoning_tokens_per_decision": null,
-    "cost_contingency_multiplier": null,
-    "runtime_contingency_multiplier": null
+    "input_tokens_per_decision": 8000,
+    "expected_output_tokens_per_decision": 4096,
+    "expected_internal_reasoning_tokens_per_decision": 4096,
+    "cost_contingency_multiplier": 1.2,
+    "runtime_contingency_multiplier": 1.2,
+    "basis": "Conservative pre-smoke reservation inputs. Output and internal-reasoning tokens are each reserved at the full provisional 4,096-token ceiling; refresh from accepted smoke telemetry before panel authorization."
   },
   "runtime_observations": {
     "source": null,
@@ -88,7 +89,7 @@
   },
   "public_metadata_limitations": [
     "Rates are a point-in-time public catalog snapshot and can change before authenticated preflight or smoke execution.",
-    "No runtime observations or project-specific token assumptions exist for the revised cohort, so this file is not yet an executable spend plan.",
+    "No runtime observations exist for the revised cohort and the token assumptions are pre-smoke reservations, so this file is not yet an executable spend plan.",
     "Pricing metadata does not establish route privacy, retention, availability to the configured account, or successful parameter handling."
   ],
   "spend_authorized": false,

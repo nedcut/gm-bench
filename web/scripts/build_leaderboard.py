@@ -8,8 +8,10 @@ the published table. Official artifacts are either the saved output of
     python -m gm_bench model --provider <p> --model <m> --preset leaderboard --repeats 3 --json > results/leaderboard/<name>.json
 
     or a redacted private-panel artifact from ``python -m gm_bench redact-result``.
-Only rows on the frozen ``sota-v2`` release contract are published; anything else is
-skipped with a note on stderr.
+Only rows on the frozen ``sota-v2`` release contract are published; anything
+else is skipped with a note on stderr. The reusable gate helpers understand
+the reference-only ``sota-v3`` analysis shape, but switching the public site
+to that contract remains an explicit release decision.
 
 It writes ``web/src/data/leaderboard.json`` with one row per model plus the
 scripted-baseline reference panel. Baselines and the oracle headroom figure are
@@ -381,13 +383,22 @@ def _panel_analysis_rows(
     family_size: int,
     minimum_models: int,
 ) -> tuple[dict[Any, dict[str, Any]], list[str]]:
-    """Bind final tiers and Holm results to the exact candidate artifacts."""
+    """Bind final reference inference (and v2 tiers) to exact artifacts."""
     issues: list[str] = []
     if not isinstance(panel_analysis, dict):
         return {}, ["publication panel analysis artifact is missing"]
     candidate_versions = {str(row.get("benchmark_version") or "") for row in candidates}
-    if "sota-v3" in candidate_versions and panel_analysis.get("publication_ready") is not True:
-        issues.append("sota-v3 publication panel analysis is not publication-ready")
+    reference_only = candidate_versions == {"sota-v3"}
+    if reference_only:
+        if panel_analysis.get("benchmark_version") != "sota-v3":
+            issues.append("sota-v3 publication panel analysis declares the wrong benchmark version")
+        if panel_analysis.get("publication_ready") is not True:
+            issues.append("sota-v3 publication panel analysis is not publication-ready")
+        if panel_analysis.get("analysis_mode") != "reference-only":
+            issues.append("sota-v3 publication panel analysis must use reference-only inference")
+        model_tiering = panel_analysis.get("model_tiering") or {}
+        if not isinstance(model_tiering, dict) or model_tiering.get("status") != "not-supported":
+            issues.append("sota-v3 publication panel analysis must explicitly disable model tiering")
     analysis_rows = panel_analysis.get("models")
     if not isinstance(analysis_rows, list):
         return {}, ["publication panel analysis has no model rows"]
@@ -404,8 +415,13 @@ def _panel_analysis_rows(
         if not identity or identity in by_identity:
             issues.append("publication panel analysis contains a missing or duplicate model identity")
             continue
-        if not isinstance(row.get("tier"), int) or row.get("holm_adjusted_p_value") is None:
-            issues.append("publication panel analysis row is missing its final tier or Holm result")
+        if row.get("holm_adjusted_p_value") is None:
+            issues.append("publication panel analysis row is missing its final Holm result")
+        if reference_only:
+            if "tier" in row:
+                issues.append("sota-v3 reference-only analysis must not assign model tiers")
+        elif not isinstance(row.get("tier"), int):
+            issues.append("publication panel analysis row is missing its final tier")
         by_identity[identity] = row
 
     candidate_identities = {_headline_identity(row) for row in candidates}
@@ -472,8 +488,13 @@ def publication_gate(
         minimum_models=minimum_models,
     )
     panel_analysis_ready = not panel_analysis_issues
+    reference_only = (
+        {str(row.get("benchmark_version") or "") for row in candidates} == {"sota-v3"}
+        and isinstance(panel_analysis, dict)
+        and panel_analysis.get("analysis_mode") == "reference-only"
+    )
     smoke_ok = smoke_issues is None or smoke_issues == []
-    publishable = (
+    publishable_results = (
         lane_frozen
         and registry_frozen
         and smoke_ok
@@ -487,7 +508,8 @@ def publication_gate(
         smoke_gate_issues = list(smoke_issues[:10])
     publication = {
         **analysis,
-        "publishable_ranking": publishable,
+        "publishable_ranking": publishable_results and not reference_only,
+        "publishable_results": publishable_results,
         "frozen_output_token_cap": frozen_cap if lane_frozen else None,
         "output_policy_basis": policy_basis,
         "model_registry_frozen": registry_frozen,
@@ -505,6 +527,8 @@ def publication_gate(
             for model in model_config.get("models") or []
         ],
     }
+    if reference_only:
+        publication["analysis_mode"] = "reference-only"
     if not registry_frozen:
         publication["reason"] = "model registry remains provisional until every registered route passes its smoke"
     elif smoke_issues:
@@ -520,15 +544,16 @@ def publication_gate(
         )
     elif not panel_analysis_ready:
         publication["reason"] = f"final Holm-adjusted panel analysis is incomplete: {panel_analysis_issues[0]}"
-    elif not publishable and analysis.get("status") == "complete-needs-interpretation":
+    elif not publishable_results and analysis.get("status") == "complete-needs-interpretation":
         publication["reason"] = "sweep complete; inspect curves and freeze a fixed API-lane cap before ranking"
-    if publishable:
+    if publishable_results:
         for row in candidates:
             final = analysis_rows[_headline_identity(row)]
-            row["tier"] = final["tier"]
             row["holm_adjusted_p_value"] = final["holm_adjusted_p_value"]
             row["holm_reject_at_0_05"] = final.get("holm_reject_at_0_05")
-    return (candidates if publishable else []), publication
+            if not reference_only:
+                row["tier"] = final["tier"]
+    return (candidates if publishable_results else []), publication
 
 
 def main() -> None:

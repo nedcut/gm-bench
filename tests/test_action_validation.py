@@ -72,6 +72,38 @@ def test_non_finite_action_numbers_are_rejected_at_parser_and_simulator_boundari
     assert league.user_team.roster.count(player_id) == 0
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [
+        '{"actions":[{"type":"sign_free_agent","salary":1e999}]}',
+        '{"actions":[{"type":"set_lineup","player_ids":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,1e999]}]}',
+        '{"actions":[{"type":"memo","metadata":{"nested":[1e999]}}]}',
+    ],
+)
+def test_numeric_overflow_is_rejected_recursively(payload: str) -> None:
+    with pytest.raises(ValueError, match="non-finite"):
+        parse_actions(payload)
+
+
+def test_simulator_defensively_rejects_overflowing_integer_coercion() -> None:
+    league = League.new(seed=7)
+    league.apply_actions([{"type": "release", "player_id": float("inf")}], "preseason")
+    assert not league.transactions[-1].accepted
+    assert "invalid or missing argument values" in league.transactions[-1].message
+
+
+@pytest.mark.parametrize("action_type", [[], {}])
+def test_simulator_rejects_unhashable_action_type_without_aborting(action_type: object) -> None:
+    league = League.new(seed=7)
+
+    results = league.apply_actions([{"type": action_type}], "preseason")
+
+    assert len(results) == 1
+    assert not results[0].accepted
+    assert results[0].message == "action type must be a string"
+    assert league.illegal_actions == 1
+
+
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
 def test_non_finite_query_threshold_is_rejected(value: float) -> None:
     league = League.new(seed=7)

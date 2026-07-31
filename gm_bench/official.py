@@ -91,7 +91,14 @@ SOTA_V2_POLICY = ResultPolicy(
 )
 SOTA_V3_POLICY = ResultPolicy(
     name=SOTA_V3_POLICY_NAME,
-    min_repeats=3,
+    # The frozen v3 estimand is one stochastic model trajectory on each of 15
+    # independent private seeds. Model-sampling noise is part of the seed-level
+    # outcome; the preregistered power model explicitly carries the historical
+    # within-seed noise term instead of buying repeated trajectories per seed.
+    min_repeats=1,
+    # Generic v3 artifact validation retains the eight-seed floor; the
+    # publication lane separately binds headline evidence to its frozen
+    # 15-seed private panel identity.
     min_seed_count=len(PRESETS["leaderboard"]["seeds"]),
     max_decision_failure_rate=0.02,
     require_contract_provenance=True,

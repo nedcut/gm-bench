@@ -19,10 +19,9 @@ claim. Muse Spark 1.1 had the highest observed model mean at 231.851. Grok 4.5
 and Mistral Medium 3.5 completed but were excluded from the headline table for
 incomplete usage/cost coverage.
 
-**Protocol discipline, the references' memory advantage, and memo use do not
-explain the gap.** The obvious objections—that models were penalised for JSON
-discipline, or that the scripted references enjoyed a memory advantage—have been
-measured rather than argued:
+**Two measurement artefacts are bounded; the memo evidence is observational.**
+Invalid-action penalties and scripted-reference state were measured directly.
+Memo use was only compared descriptively across the eight published rows:
 
 - **Protocol discipline costs 0.5–9.0% of the gap.** `strategy_score` removes
   invalid-action penalties, so the difference from `final_score` prices it
@@ -34,9 +33,11 @@ measured rather than argued:
   agent before every decision reproduces its episode score bit-identically under
   the frozen v2 contract, because those policies hold no state and rebuild from
   the observation each turn. They had no memory advantage to remove.
-- **Memo volume does not buy score.** One model wrote 3 memos across 480
-  decisions and scored 215.6; another wrote 568 — 190× the volume — and scored
-  217.5. Two points apart, both ~195 below `pick-trader`.
+- **Memo volume was not associated with a large score difference in this panel.**
+  One model wrote 3 memos across 480 decisions and scored 215.6; another wrote
+  568 — 190× the volume — and scored 217.5. Two points apart, both ~195 below
+  `pick-trader`. This two-row contrast is descriptive, not a causal estimate of
+  what memo access or better memo use would do.
 
 Each of these rules out a specific way the gap could have been a measurement
 artefact. None of them shows the gap *is* decision quality. Two limits in

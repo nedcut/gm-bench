@@ -35,6 +35,7 @@ SOTA_V2_CONTRACT = {
 SOTA_V2_ORACLE_MEAN = 431.153
 
 _ROOT = Path(__file__).resolve().parents[1]
+_PACKAGE_ROOT = Path(__file__).resolve().parent
 # Fingerprint covers score-affecting simulator/protocol sources only.
 # Pricing/telemetry (gm_bench/pricing.json, gm_bench/telemetry.py) and
 # presentation helpers are intentionally excluded: cost/latency changes do not
@@ -45,6 +46,9 @@ _CONTRACT_SOURCES = (
     "gm_bench/benchmark_config.py",
     "gm_bench/generator.py",
     "gm_bench/models.py",
+    # Decision phases, interaction limits, partial-season length, injury
+    # duration, and the canonical action set all affect played-out episodes.
+    "gm_bench/protocol.py",
     "gm_bench/runner.py",
     # The compaction rules are score-affecting for the scaffold-view baseline,
     # whose whole result is a function of them; without this the baseline cache
@@ -58,13 +62,46 @@ _CONTRACT_SOURCES = (
 )
 
 
+def _repository_checkout_root() -> Path | None:
+    """Return the source root only when this package belongs to the repo."""
+
+    git_marker = _ROOT / ".git"
+    project_marker = _ROOT / "pyproject.toml"
+    package_dir = _ROOT / "gm_bench"
+    if not git_marker.exists() or not project_marker.is_file() or not package_dir.is_dir():
+        return None
+    try:
+        if not package_dir.samefile(_PACKAGE_ROOT):
+            return None
+    except OSError:
+        return None
+    return _ROOT
+
+
+def _source_path(relative_path: str) -> Path:
+    """Resolve a contract/scaffold source in a checkout or installed wheel."""
+
+    group, separator, remainder = relative_path.partition("/")
+    if separator and group == "gm_bench":
+        return _PACKAGE_ROOT / remainder
+    if separator and group in {"examples", "schemas"}:
+        checkout_root = _repository_checkout_root()
+        if checkout_root is not None:
+            checkout_path = checkout_root / relative_path
+            if checkout_path.is_file():
+                return checkout_path
+        packaged_path = _PACKAGE_ROOT / "_resources" / group / remainder
+        return packaged_path
+    return _ROOT / relative_path
+
+
 @lru_cache(maxsize=1)
 def contract_fingerprint() -> str:
     digest = hashlib.sha256()
     for relative_path in _CONTRACT_SOURCES:
         digest.update(relative_path.encode())
         digest.update(b"\0")
-        digest.update((_ROOT / relative_path).read_bytes())
+        digest.update(_source_path(relative_path).read_bytes())
         digest.update(b"\0")
     return digest.hexdigest()[:16]
 
@@ -89,10 +126,15 @@ def scaffold_fingerprint(provider: str) -> str | None:
     # scaffold_view.py holds the compaction half of the prompt builder; without
     # it a truncation-limit change would move every model's prompt text while
     # leaving every scaffold fingerprint identical.
-    for relative_path in ("gm_bench/scaffold_view.py", "examples/gm_agent_common.py", f"examples/{spec.script}"):
+    for relative_path in (
+        "gm_bench/providers.py",
+        "gm_bench/scaffold_view.py",
+        "examples/gm_agent_common.py",
+        f"examples/{spec.script}",
+    ):
         digest.update(relative_path.encode())
         digest.update(b"\0")
-        digest.update((_ROOT / relative_path).read_bytes())
+        digest.update(_source_path(relative_path).read_bytes())
         digest.update(b"\0")
     return digest.hexdigest()[:16]
 

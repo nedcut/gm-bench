@@ -35,6 +35,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 _SALT_BYTES = 32
+_PRIVATE_SEED_MIN = 1 << 32
+_PRIVATE_SEED_MAX = (1 << 63) - 1
+_GENERATION_METHOD = "uniform-rejection-sampling-secrets-randbelow-63bit-v1"
 _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
@@ -102,6 +105,90 @@ def commitment(salt: str, seeds: list[int]) -> str:
     return hashlib.sha256(preimage).hexdigest()
 
 
+def generate_private_seeds(count: int) -> list[int]:
+    """Return ordered unique seeds sampled uniformly from the private range."""
+
+    if not isinstance(count, int) or isinstance(count, bool) or count < 2:
+        raise ValueError("private seed count must be an integer >= 2")
+    span = _PRIVATE_SEED_MAX - _PRIVATE_SEED_MIN + 1
+    committed = {seed for preset in PRESETS.values() for seed in preset["seeds"]}
+    seeds: list[int] = []
+    seen: set[int] = set()
+    while len(seeds) < count:
+        seed = _PRIVATE_SEED_MIN + secrets.randbelow(span)
+        if seed in committed or seed in seen:
+            continue
+        seeds.append(seed)
+        seen.add(seed)
+    return seeds
+
+
+def _create_secret_file(path: Path, record: dict[str, object]) -> None:
+    try:
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        raise FileExistsError(f"refusing to overwrite existing secret file {path}") from None
+    with os.fdopen(descriptor, "w") as stream:
+        stream.write(json.dumps(record, indent=2, sort_keys=True) + "\n")
+
+
+def _require_external_secret_path(path: Path) -> None:
+    resolved = path.resolve()
+    if resolved.is_relative_to(_ROOT.resolve()):
+        raise ValueError(
+            f"refusing to write private seed material inside the repository: {path}; "
+            "choose a recoverable encrypted escrow or secret-manager path outside the checkout"
+        )
+
+
+def _generate(args: argparse.Namespace) -> int:
+    lane = json.loads(Path(args.lane).read_text())
+    panel = lane.get("seed_panel") or {}
+    count = panel.get("count")
+    if not isinstance(count, int) or isinstance(count, bool):
+        raise ValueError("lane seed_panel.count must be frozen before private seed generation")
+    if panel.get("status") not in {"pending-authorized-generation", "generated-pending-commit"}:
+        raise ValueError("lane seed panel is not awaiting authorized generation")
+    seeds = generate_private_seeds(count)
+    salt = secrets.token_hex(_SALT_BYTES)
+    hiding_commitment = commitment(salt, seeds)
+    ordered_hash = seed_panel_hash(seeds)
+    record: dict[str, object] = {
+        "format": "gm-bench-private-seed-secret-v1",
+        "generation_method": _GENERATION_METHOD,
+        "range": [_PRIVATE_SEED_MIN, _PRIVATE_SEED_MAX],
+        "salt": salt,
+        "hiding_commitment_sha256": hiding_commitment,
+        "execution_sha256": ordered_hash,
+        "seeds": ",".join(str(seed) for seed in seeds),
+        "ordered": True,
+        "count": count,
+        "created_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    secret_path = Path(args.secret_file)
+    _require_external_secret_path(secret_path)
+    _create_secret_file(secret_path, record)
+    sys.stderr.write(
+        f"wrote private seeds and salt to {secret_path} with mode 0600; "
+        "move it into recoverable encrypted escrow or a secret manager before committing public metadata\n"
+    )
+    print(
+        json.dumps(
+            {
+                "status": "generated-pending-commit",
+                "generation_method": _GENERATION_METHOD,
+                "count": count,
+                "hiding_commitment_sha256": hiding_commitment,
+                "sha256": ordered_hash,
+                "seed_values_included": False,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
 def _commit(args: argparse.Namespace) -> int:
     seeds_text = os.environ.get(PRIVATE_SEEDS_ENV) if args.seeds_env else args.seeds
     if not seeds_text:
@@ -119,12 +206,11 @@ def _commit(args: argparse.Namespace) -> int:
     if args.salt_file:
         path = Path(args.salt_file)
         try:
-            descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        except FileExistsError:
-            sys.stderr.write(f"refusing to overwrite existing salt file {path}\n")
+            _require_external_secret_path(path)
+            _create_secret_file(path, record)
+        except FileExistsError as exc:
+            sys.stderr.write(f"{exc}\n")
             return 1
-        with os.fdopen(descriptor, "w") as stream:
-            stream.write(json.dumps(record, indent=2, sort_keys=True) + "\n")
         sys.stderr.write(
             f"wrote plaintext secret material to {path} with mode 0600; "
             "gitignore is not encryption—move it into recoverable encrypted escrow or a secret manager\n"
@@ -194,6 +280,22 @@ def _execution_hash(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    generate_parser = subparsers.add_parser(
+        "generate",
+        help="uniformly generate the lane's private panel and write it only to a new 0600 secret file",
+    )
+    generate_parser.add_argument(
+        "--lane",
+        default=str(_ROOT / "config" / "sota_v3_lane.json"),
+        help="lane whose pending private seed count is authoritative",
+    )
+    generate_parser.add_argument(
+        "--secret-file",
+        required=True,
+        help="new escrow-bound file outside the repository for seeds and salt",
+    )
+    generate_parser.set_defaults(func=_generate)
 
     commit_parser = subparsers.add_parser("commit", help="commit to a seed panel with a fresh random salt")
     commit_source = commit_parser.add_mutually_exclusive_group(required=True)

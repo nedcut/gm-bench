@@ -20,7 +20,6 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -494,18 +493,21 @@ def _endpoint_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
     return []
 
 
-@lru_cache(maxsize=32)
-def _openrouter_endpoints(model: str) -> dict[str, Any]:
+def _openrouter_endpoints(model: str, env: dict[str, str]) -> dict[str, Any]:
+    api_key = env.get("OPENROUTER_API_KEY")
+    headers = {"User-Agent": "gm-bench-publication-runner/1"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
     request = urllib.request.Request(
         f"https://openrouter.ai/api/v1/models/{model}/endpoints",
-        headers={"User-Agent": "gm-bench-publication-runner/1"},
+        headers=headers,
     )
     with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed HTTPS endpoint  # nosemgrep
         return json.load(response)
 
 
-def _validate_openrouter_endpoint(cell: Cell) -> None:
-    issues = _endpoint_issues(cell, _openrouter_endpoints(cell.model))
+def _validate_openrouter_endpoint(cell: Cell, env: dict[str, str]) -> None:
+    issues = _endpoint_issues(cell, _openrouter_endpoints(cell.model, env))
     if issues:
         raise RuntimeError("; ".join(issues))
 
@@ -556,17 +558,23 @@ def _cell_reservation_usd(cell: Cell) -> float:
         raise ValueError("publication reservation seed count must be a positive integer")
     decisions = seed_count * int(preset["seasons"]) * len(PHASES) * cell.repeats
     input_tokens = int(assumptions["input_tokens_per_decision"])
+    reasoning_tokens = int(assumptions.get("expected_internal_reasoning_tokens_per_decision") or 0)
     repair_attempts = int(cell.fixed_options.get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", "0"))
     contingency = float(assumptions["cost_contingency_multiplier"])
-    if input_tokens < 1 or repair_attempts < 0 or contingency < 1:
+    if input_tokens < 1 or reasoning_tokens < 0 or repair_attempts < 0 or contingency < 1:
         raise ValueError("publication reservation assumptions must be positive and conservative")
-    prompt = decisions * input_tokens * float(rates["prompt"])
-    completion = decisions * cell.cap * float(rates["completion"])
+    applied_rates = rates
+    long_context_override = rates.get("long_context_override")
+    if isinstance(long_context_override, dict) and input_tokens >= int(long_context_override["min_prompt_tokens"]):
+        applied_rates = long_context_override
+    prompt = decisions * input_tokens * float(applied_rates["prompt"])
+    completion = decisions * cell.cap * float(applied_rates["completion"])
+    internal_reasoning = decisions * reasoning_tokens * float(rates.get("internal_reasoning") or 0)
     # Reserve every configured repair as another full-price call, then apply
     # the committed planning contingency. The guard still acts at cell
     # boundaries, so this deliberately overstates the likely liability before
     # a cell is allowed to start.
-    return round((prompt + completion) * (1 + repair_attempts) * contingency, 6)
+    return round((prompt + completion + internal_reasoning) * (1 + repair_attempts) * contingency, 6)
 
 
 def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
@@ -1490,8 +1498,13 @@ def main(argv: list[str] | None = None) -> int:
                 _record_run_cell_outcome(run_dir, cell, "complete")
                 continue
         if cell.provider == "openrouter":
+            if args.phase == "route-preflight" and args.contract == "sota-v3" and not env.get("OPENROUTER_API_KEY"):
+                raise SystemExit(
+                    "authenticated v3 route preflight requires OPENROUTER_API_KEY; "
+                    "no endpoint request or model call was made"
+                )
             try:
-                _validate_openrouter_endpoint(cell)
+                _validate_openrouter_endpoint(cell, env)
             except (
                 RuntimeError,
                 urllib.error.URLError,

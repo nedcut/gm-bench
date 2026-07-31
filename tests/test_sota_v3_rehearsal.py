@@ -5,6 +5,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+from scripts import sota_v3_rehearsal as rehearsal_mod
 from scripts.sota_v3_rehearsal import (
     execution_authorization_issues,
     run_rehearsal,
@@ -30,6 +33,7 @@ def test_rehearsal_proves_v3_gates_and_site_isolation(tmp_path: Path) -> None:
     assert result["analysis"]["bootstrap_ci95"][0] < result["analysis"]["bootstrap_ci95"][1]
     assert result["analysis"]["analysis_mode"] == "reference-only"
     assert result["analysis"]["model_tiering"]["status"] == "not-supported"
+    assert result["live_v3_readiness"]["coherence_issues"] == []
     assert {row["name"] for row in result["mutations"]} == {
         "wrong-contract",
         "soft-fallback",
@@ -51,6 +55,22 @@ def test_rehearsal_proves_v3_gates_and_site_isolation(tmp_path: Path) -> None:
     assert result["web_build"] == {"status": "skipped"}
     assert Path(result["artifacts"]["raw"]).is_file()
     assert Path(result["artifacts"]["compact"]).is_file()
+
+
+def test_rehearsal_fails_when_live_preregistration_is_incoherent(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        rehearsal_mod,
+        "_live_v3_readiness",
+        lambda: {
+            "coherence_issues": ["sota-v3 model registry repeats does not match lane-authoritative repeats"],
+            "smoke_execution_issues": [],
+            "panel_execution_issues": [],
+            "synthetic_validation_issues": [],
+        },
+    )
+
+    with pytest.raises(AssertionError, match="live sota-v3 preregistration records contradict"):
+        rehearsal_mod.run_rehearsal(tmp_path / "rehearsal", run_web_build=False)
 
 
 def test_panel_like_action_fails_closed_on_both_authorization_locks() -> None:
@@ -261,6 +281,29 @@ def test_panel_like_action_fails_closed_on_both_authorization_locks() -> None:
             pricing=ready_pricing,
         )
     )
+
+    contradictory_lane = {
+        **ready_lane,
+        "statistical_panel_design": {
+            "status": "frozen",
+            "holm_family_size": 1,
+            "target_effect_score_points": -100,
+            "selected_allocation": {
+                "seed_count": 8,
+                "repeats": 1,
+                "episodes_per_model": 8,
+            },
+        },
+    }
+    contradiction_issues = execution_authorization_issues(
+        contradictory_lane,
+        mode="panel",
+        registry=ready_registry,
+        manifest=ready_manifest,
+        protocol=ready_protocol,
+        pricing=ready_pricing,
+    )
+    assert "sota-v3 selected allocation repeats must match the lane" in contradiction_issues
     unresolved_statistics = {
         **ready_protocol,
         "statistical_analysis_plan": {

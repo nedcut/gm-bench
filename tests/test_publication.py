@@ -343,6 +343,21 @@ def _panel_analysis(rows: list[dict], *, family_size: int = 0) -> dict:
     }
 
 
+def _reference_only_panel_analysis(rows: list[dict], *, family_size: int) -> dict:
+    analysis = _panel_analysis(rows, family_size=family_size)
+    analysis.update(
+        {
+            "benchmark_version": "sota-v3",
+            "analysis_mode": "reference-only",
+            "publication_ready": True,
+            "model_tiering": {"status": "not-supported"},
+        }
+    )
+    for row in analysis["models"]:
+        row.pop("tier", None)
+    return analysis
+
+
 def test_v3_site_ingestion_requires_analyzer_publication_readiness() -> None:
     from web.scripts.build_leaderboard import _panel_analysis_rows
 
@@ -358,6 +373,81 @@ def test_v3_site_ingestion_requires_analyzer_publication_readiness() -> None:
     _rows, issues = _panel_analysis_rows([candidate], analysis, family_size=1, minimum_models=1)
 
     assert "sota-v3 publication panel analysis is not publication-ready" in issues
+
+
+def test_v3_site_ingestion_requires_exact_analysis_contract() -> None:
+    from web.scripts.build_leaderboard import _panel_analysis_rows
+
+    candidate = {
+        "benchmark_version": "sota-v3",
+        "id": "demo",
+        "provider": "openrouter",
+        "model": "demo/model",
+    }
+    analysis = _reference_only_panel_analysis([candidate], family_size=1)
+    analysis["benchmark_version"] = "sota-v2"
+
+    _rows, issues = _panel_analysis_rows([candidate], analysis, family_size=1, minimum_models=1)
+
+    assert "sota-v3 publication panel analysis declares the wrong benchmark version" in issues
+
+
+def test_v3_site_ingestion_accepts_reference_only_rows_without_tiers() -> None:
+    from web.scripts.build_leaderboard import _panel_analysis_rows
+
+    candidate = {
+        "benchmark_version": "sota-v3",
+        "id": "demo",
+        "provider": "openrouter",
+        "model": "demo/model",
+    }
+    analysis = _reference_only_panel_analysis([candidate], family_size=1)
+
+    rows, issues = _panel_analysis_rows([candidate], analysis, family_size=1, minimum_models=1)
+
+    assert issues == []
+    assert "tier" not in rows[("openrouter", "demo/model")]
+
+
+def test_v3_publication_gate_exposes_results_without_claiming_a_ranking() -> None:
+    from web.scripts.build_leaderboard import publication_gate
+
+    candidate = {
+        "benchmark_version": "sota-v3",
+        "id": "demo",
+        "provider": "openrouter",
+        "model": "demo/model",
+        "lane": "api",
+        "publication_eligible": True,
+        "output_token_cap": 4096,
+    }
+    lane = {
+        "output_budget_status": "frozen-fixed-budget",
+        "output_policy_basis": "fixed-safety-ceiling",
+        "output_token_cap": 4096,
+        "minimum_headline_models": 1,
+    }
+    registry = {
+        "selection_status": "frozen",
+        "models": [{"id": "demo", "provider": "openrouter", "model": "demo/model"}],
+    }
+    analysis = _reference_only_panel_analysis([candidate], family_size=1)
+
+    models, report = publication_gate(
+        [candidate],
+        {"status": "incomplete"},
+        lane,
+        registry,
+        panel_analysis=analysis,
+        smoke_issues=[],
+    )
+
+    assert models == [candidate]
+    assert report["publishable_results"] is True
+    assert report["publishable_ranking"] is False
+    assert report["analysis_mode"] == "reference-only"
+    assert "tier" not in candidate
+    assert candidate["holm_adjusted_p_value"] == 0.5
 
 
 def test_publication_identity_issues_flags_missing_upstream_slug_without_crashing() -> None:
@@ -429,6 +519,7 @@ def test_publication_gate_withholds_rows_until_minimum_panel_is_eligible() -> No
     models, report = publication_gate([eligible], analysis, lane, registry, panel_analysis=_panel_analysis([eligible]))
     assert models == []
     assert report["publishable_ranking"] is False
+    assert report["publishable_results"] is False
     assert report["eligible_headline_models"] == 1
     assert report["duplicate_headline_rows"] == 0
     assert report["smoke_gate_issues"] is None
@@ -443,6 +534,7 @@ def test_publication_gate_withholds_rows_until_minimum_panel_is_eligible() -> No
     )
     assert models == [eligible, second]
     assert report["publishable_ranking"] is True
+    assert report["publishable_results"] is True
     assert report["eligible_headline_models"] == 2
     assert report["duplicate_headline_rows"] == 0
 

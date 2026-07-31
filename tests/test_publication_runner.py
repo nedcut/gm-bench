@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import subprocess
@@ -13,6 +14,7 @@ import pytest
 
 import scripts.run_publication_matrix as publication_runner
 from gm_bench.contract import BENCHMARK_VERSION, contract_fingerprint, scaffold_fingerprint
+from gm_bench.publication import v3_route_acceptance_issues, v3_route_identity_sha256
 from scripts.run_publication_matrix import (
     _artifact_spend_usd,
     _cell_reservation_usd,
@@ -64,6 +66,29 @@ def _frozen_panel_files(
     registry["provider"] = "openrouter"
     registry["spend_authorized"] = True
     registry["panel_execution_authorized"] = True
+    registry["exact_route_acceptance"] = {
+        "schema_version": 1,
+        "status": "accepted",
+        "entries": {
+            model["id"]: {
+                "route_identity_sha256": v3_route_identity_sha256(registry, model),
+                "authenticated": True,
+                "verified_at_utc": "2026-07-30T00:00:00Z",
+                "route_evidence_sha256": "d" * 64,
+                "privacy_acceptance": {
+                    "status": "accepted",
+                    "route_identity_sha256": v3_route_identity_sha256(registry, model),
+                    "data_collection_policy_accepted": True,
+                    "retention_policy_accepted": True,
+                    "training_use_policy_accepted": True,
+                    "zero_data_retention_policy_accepted": True,
+                    "accepted_at_utc": "2026-07-30T00:00:00Z",
+                    "evidence_sha256": "e" * 64,
+                },
+            }
+            for model in registry["models"]
+        },
+    }
     private_seeds = list(range(101, 110))
     monkeypatch.setenv("GM_BENCH_PRIVATE_SEEDS", ",".join(str(seed) for seed in private_seeds))
     lane = json.loads(Path("config/sota_v2_lane.json").read_text())
@@ -84,6 +109,18 @@ def _frozen_panel_files(
     lane["repeats"] = registry["repeats"]
     lane["minimum_headline_models"] = len(registry["models"])
     lane["reference_agent"] = "pick-trader"
+    lane["cap_pressure_threshold_tokens"] = 3072
+    lane["fallback_output_token_cap"] = 8192
+    lane["statistical_panel_design"] = {
+        "status": "frozen",
+        "holm_family_size": len(registry["models"]),
+        "target_effect_score_points": -100,
+        "selected_allocation": {
+            "seed_count": len(private_seeds),
+            "repeats": registry["repeats"],
+            "episodes_per_model": len(private_seeds) * registry["repeats"],
+        },
+    }
     lane["seed_panel"] = {
         "status": "frozen",
         "name": "private-env",
@@ -118,6 +155,12 @@ def _frozen_panel_files(
         "multiplicity_method": "holm-bonferroni",
         "alpha": 0.05,
         "holm_family_size": len(registry["models"]),
+        "target_effect_score_points": -100,
+    }
+    protocol["output_policy"] = {
+        "output_token_cap": lane["output_token_cap"],
+        "cap_pressure_threshold_tokens": lane["cap_pressure_threshold_tokens"],
+        "fallback_output_token_cap": lane["fallback_output_token_cap"],
     }
     protocol_path.write_text(json.dumps(protocol))
     pricing = json.loads(Path("config/openrouter_pricing_snapshot.json").read_text())
@@ -129,6 +172,8 @@ def _frozen_panel_files(
             "spend_authorized": True,
         }
     )
+    pricing["planning_assumptions"]["expected_output_tokens_per_decision"] = lane["output_token_cap"]
+    pricing["planning_assumptions"]["cost_contingency_multiplier"] = 1.2
     pricing_path.write_text(json.dumps(pricing))
     manifest_path.write_text(
         json.dumps(
@@ -154,6 +199,49 @@ def _frozen_panel_files(
         (registry_path, lane_path, manifest_path, protocol_path, pricing_path),
     )
     return registry, lane, manifest_path
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "route",
+        "model-option",
+        "shared-option",
+        "reasoning-policy",
+        "output-cap",
+        "supported-parameters",
+        "absent-options",
+        "privacy-control",
+    ],
+)
+def test_exact_route_acceptance_digest_stales_on_execution_policy_edits(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+) -> None:
+    registry, _lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    assert v3_route_acceptance_issues(registry) == []
+    model = registry["models"][0]
+
+    if mutation == "route":
+        model["endpoint_name"] = f"{model['endpoint_name']} changed"
+    elif mutation == "model-option":
+        model.setdefault("fixed_options", {})["OPENROUTER_REASONING_ENABLED"] = "changed"
+    elif mutation == "shared-option":
+        registry.setdefault("shared_fixed_options", {})["OPENROUTER_JSON_MODE"] = "changed"
+    elif mutation == "reasoning-policy":
+        model["reasoning_policy"] = "changed"
+    elif mutation == "output-cap":
+        registry["output_token_cap"] += 1
+    elif mutation == "supported-parameters":
+        model.setdefault("catalog_supported_parameters", []).append("changed")
+    elif mutation == "absent-options":
+        model.setdefault("absent_options", []).append("OPENROUTER_CHANGED")
+    else:
+        registry.setdefault("shared_fixed_options", {})["OPENROUTER_DATA_COLLECTION"] = "changed"
+
+    issues = v3_route_acceptance_issues(registry)
+    assert any("does not bind to the registered route identity" in issue for issue in issues)
 
 
 def _valid_manifest(registry: dict, lane: dict) -> dict:
@@ -346,7 +434,7 @@ def test_preflight_only_still_validates_endpoint_despite_reusable_smoke_artifact
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda cell: validated.append(cell.experiment_id),
+        lambda cell, _env: validated.append(cell.experiment_id),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,
@@ -1113,7 +1201,7 @@ def test_panel_run_rejects_ineligible_artifact_before_settlement(
     manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
     model = registry["models"][0]
     cell = build_cells("panel", model_id=model["id"])[0]
-    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", lambda _cell: None)
+    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", lambda _cell, _env: None)
     monkeypatch.setattr(publication_runner, "_openrouter_usage_usd", lambda _env: 0.0)
     monkeypatch.setattr(
         publication_runner,
@@ -1158,7 +1246,7 @@ def test_panel_preflight_does_not_require_a_completed_artifact(
     registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
     manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
     cell = build_cells("panel", model_id=registry["models"][0]["id"])[0]
-    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", lambda _cell: None)
+    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", lambda _cell, _env: None)
     monkeypatch.setattr(
         publication_runner.subprocess,
         "run",
@@ -1185,6 +1273,7 @@ def test_zero_call_route_preflight_has_separate_authorization_and_never_launches
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-route-preflight-key")
     registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
     registry["selection_status"] = "route-preflight-ready"
     registry["spend_authorized"] = False
@@ -1209,7 +1298,7 @@ def test_zero_call_route_preflight_has_separate_authorization_and_never_launches
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda cell: endpoint_checks.append(cell.experiment_id),
+        lambda cell, _env: endpoint_checks.append(cell.experiment_id),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,
@@ -1236,6 +1325,69 @@ def test_zero_call_route_preflight_has_separate_authorization_and_never_launches
     assert not (tmp_path / "checkpoints").exists()
 
 
+def test_v3_route_preflight_requires_bearer_credential_before_endpoint_request(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    registry["selection_status"] = "route-preflight-ready"
+    lane["preregistration_status"] = "provisional-blocked"
+    lane["route_preflight_authorized"] = True
+    publication_runner.PANEL_CONFIG.write_text(json.dumps(registry))
+    publication_runner.LANE_CONFIG.write_text(json.dumps(lane))
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setattr(publication_runner, "load_environment_files", lambda _root: [])
+    endpoint_checks: list[str] = []
+    child_calls: list[str] = []
+    monkeypatch.setattr(
+        publication_runner,
+        "_validate_openrouter_endpoint",
+        lambda cell, _env: endpoint_checks.append(cell.experiment_id),
+    )
+    monkeypatch.setattr(
+        publication_runner.subprocess,
+        "run",
+        lambda *_args, **_kwargs: child_calls.append("child"),
+    )
+
+    with pytest.raises(SystemExit, match="requires OPENROUTER_API_KEY"):
+        main(
+            [
+                "route-preflight",
+                "--model-id",
+                registry["models"][0]["id"],
+                "--run-dir",
+                str(tmp_path),
+            ]
+        )
+
+    assert endpoint_checks == []
+    assert child_calls == []
+    assert not (tmp_path / "run-state.json").exists()
+
+
+def test_authenticated_endpoint_metadata_request_sends_bearer_credential(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requests = []
+    monkeypatch.setenv("OPENROUTER_API_KEY", "ambient-key-that-must-not-be-used")
+
+    def fake_urlopen(request, timeout):
+        requests.append((request, timeout))
+        return io.BytesIO(b'{"data":{"endpoints":[]}}')
+
+    monkeypatch.setattr(publication_runner.urllib.request, "urlopen", fake_urlopen)
+    publication_runner._openrouter_endpoints(
+        "demo/authenticated-route",
+        {"OPENROUTER_API_KEY": "test-authenticated-metadata-key"},
+    )
+
+    assert len(requests) == 1
+    request, timeout = requests[0]
+    assert request.get_header("Authorization") == "Bearer test-authenticated-metadata-key"
+    assert timeout == 30
+
+
 def test_frozen_private_panel_rejects_inherited_seed_drift_before_cells(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1248,7 +1400,7 @@ def test_frozen_private_panel_rejects_inherited_seed_drift_before_cells(
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda cell: endpoint_checks.append(cell.experiment_id),
+        lambda cell, _env: endpoint_checks.append(cell.experiment_id),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,
@@ -1285,7 +1437,7 @@ def test_frozen_private_panel_rejects_duplicate_seeds_before_cells(
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda cell: endpoint_checks.append(cell.experiment_id),
+        lambda cell, _env: endpoint_checks.append(cell.experiment_id),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,

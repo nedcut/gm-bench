@@ -1,28 +1,29 @@
 {
   "schema_version": 1,
   "contract": "sota-v3",
-  "contract_fingerprint": "4f6ddddd6a6dd81c",
-  "status": "provisional-blocked",
+  "contract_fingerprint": "a523bdfcebe47bbd",
+  "status": "provisional-pre-smoke",
   "evidence_state": "pre-data-no-v3-model-smokes-or-panel-results",
-  "research_question": "Whether each pre-registered model-plus-compact-scaffold system beats the named pick-trader reference under the frozen sota-v3 mechanics.",
+  "research_question": "Whether each pre-registered model-plus-compact-scaffold system trails the named pick-trader reference under the frozen sota-v3 mechanics, replicating the frozen sota-v2 finding on a new contract fingerprint.",
   "panel_design": {
-    "status": "blocked-no-qualifying-allocation",
+    "status": "frozen",
     "evaluated_grid": {
-      "seed_range": [9, 20],
+      "seed_range": [9, 16],
       "repeat_range": [1, 3],
       "holm_family_size": 8,
       "simulation_trials_per_allocation": 10000
     },
-    "selection_rule": "Smallest allocation in the predeclared 9-20 seed and 1-3 repeat grid whose conservative-sensitivity familywise all-reject power Wilson 95% lower bound is at least 0.80.",
-    "result": "No allocation qualifies; best tested 20x3 sensitivity power is 0.2154 with Wilson 95% CI [0.207453, 0.223566].",
-    "seed_identity_status": "blocked-pending-allocation"
+    "selection_rule": "Smallest allocation in the predeclared 9-16 seed and 1-3 repeat grid whose conservative-sensitivity familywise all-reject power Wilson 95% lower bound is at least 0.80.",
+    "result": "15 seeds x 1 repeat (15 episodes/model) qualifies; sensitivity power 0.8357 with Wilson 95% CI [0.828309, 0.842834] and base power 0.9461 with Wilson 95% CI [0.9415, 0.950357].",
+    "seed_identity_status": "pending-authorized-generation"
   },
   "output_policy": {
-    "status": "blocked-pending-live-route-smokes",
-    "output_token_cap": null,
-    "cap_pressure_threshold_tokens": null,
-    "fallback_output_token_cap": null,
-    "reasoning_policy": "pending-live-route-verification"
+    "status": "provisional-pre-smoke-validation",
+    "output_token_cap": 4096,
+    "cap_pressure_threshold_tokens": 3072,
+    "fallback_output_token_cap": 8192,
+    "reasoning_policy": "catalog-pinned-pending-live-route-verification",
+    "amendment_rule": "The common 4,096-token cap is frozen for the first strict smoke of every route. If any smoke is truncated, reaches 3,072 output tokens, or cannot satisfy mandatory minimum reasoning, invalidate all v3 smokes, amend the cap once before panel data, and re-smoke the entire family. Scores and apparent model quality are never cap-selection inputs."
   },
   "rerun_policy": {
     "maximum_infrastructure_attempts_per_cell": 2,
@@ -30,19 +31,20 @@
     "model_behavior_never_authorizes_a_rerun": true
   },
   "statistical_analysis_plan": {
-    "status": "blocked-power-design",
+    "status": "frozen",
     "analysis_mode": "reference-only",
     "inference_method": "exact-enumeration-sign-flip",
     "unit_of_inference": "seed",
     "primary_contrast": "paired lift versus pick-trader",
+    "claim_direction": "trails-reference",
     "reference_agent": "pick-trader",
     "multiplicity_method": "holm-bonferroni",
     "alpha": 0.05,
     "multiplicity": "Holm-Bonferroni across the final registered model family",
     "holm_family_size": 8,
-    "target_effect_score_points": 40,
+    "target_effect_score_points": -100,
     "target_familywise_all_reject_power": 0.8,
-    "power_definition": "Probability all eight Holm-adjusted model-versus-pick-trader contrasts reject when every true lift is +40 score points.",
+    "power_definition": "Probability all eight Holm-adjusted model-versus-pick-trader contrasts reject when every true lift is -100 score points. The test is two-sided; the sign is a planning assumption drawn from the frozen sota-v2 evidence, not a one-sided test.",
     "power_model": {
       "distribution": "Normal parametric Monte Carlo over seed-level lifts, evaluated with the production analyzer's exact sign-flip and Holm functions.",
       "historical_evidence_contract": "sota-v2",
@@ -56,17 +58,18 @@
       "sensitivity_interaction_variance_floor_as_noise_fraction": 0.1,
       "simulation_trials": 10000,
       "simulation_seed": 2026072800,
-      "best_tested_allocation": "20 seeds x 3 repeats",
-      "best_tested_base_power": 0.3486,
-      "best_tested_base_power_wilson_ci95": [0.33932, 0.357996],
-      "best_tested_sensitivity_power": 0.2154,
-      "best_tested_sensitivity_power_wilson_ci95": [0.207453, 0.223566]
+      "selected_allocation": "15 seeds x 1 repeat",
+      "selected_base_power": 0.9461,
+      "selected_base_power_wilson_ci95": [0.9415, 0.950357],
+      "selected_sensitivity_power": 0.8357,
+      "selected_sensitivity_power_wilson_ci95": [0.828309, 0.842834]
     },
     "ranking_rule": "No model tiers or ordinal ranking; only each registered model's predeclared contrast versus pick-trader is supported.",
-    "remaining_blocker": "No allocation in the evaluated 9-20 seed by 1-3 repeat grid reaches the frozen power target. A pre-data design amendment is required before seed identity can be frozen."
+    "remaining_blocker": "Seed identity is not frozen. The 15-seed private panel must be generated and its salted commitment hash committed under separate owner authorization before any provider call."
   },
   "budget_policy": {
     "provider": "openrouter",
+    "cost_estimate_artifact": "results/analysis/sota-v3-pre-smoke-cost-estimate.json",
     "operator_must_pass_max_spend_usd": true,
     "spend_authorized": false,
     "operator_ceiling_usd": null

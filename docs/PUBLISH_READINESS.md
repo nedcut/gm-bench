@@ -7,7 +7,7 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-07-27
+**Last reviewed:** 2026-07-30
 **Current target:** Preserve the published `sota-v2` study as frozen historical
 evidence while pre-registering and rehearsing a finite `sota-v3` publication
 lane.
@@ -21,15 +21,15 @@ exposes the eight eligible rows. All models overlap in one uncertainty tier,
 and every eligible model trails `pick-trader`. The three P0 correctness and
 artifact-integrity fixes landed in #85 as an explicit `sota-v3` contract.
 Sunday's merged work closed the contract-economics, same-view, gap-diagnostic,
-site-framing, statistical-tiering, and version-dispatched CI items. The remaining
-pre-spend work is to finish/review the v3 preregistration and repeat the
-zero-spend rehearsal from the eventual committed SHA. The current working tree
-contains a fail-closed, provisional lane, empty model registry, not-started
-smoke manifest, separate provisional protocol and pricing records, explicit
-runner dispatch, and a passing synthetic end-to-end rehearsal; model and route
-selection, the Holm-adjusted panel design, output/reasoning policy, and spend
-approval remain explicitly blocked. There is no real v3 smoke or leaderboard
-artifact. No paid v3 smoke or panel spend is authorized.
+site-framing, statistical-tiering, and version-dispatched CI items. The current
+working tree contains an eight-model public-catalog cohort, a frozen 15-seed x
+1-repeat statistical design, a provisional 4,096-token safety ceiling, an empty
+not-started smoke manifest, explicit runner dispatch, and a zero-spend synthetic
+rehearsal. Exact authenticated routes, privacy acceptance, model-specific
+reasoning compatibility, private seed identity, and the clean-checkout
+fingerprint-bound rehearsal remain unresolved. All route, spend, execution, and
+publication gates remain false. There is no real v3 smoke or leaderboard
+artifact, and no paid v3 smoke or panel spend is authorized.
 **Current weekly focus:** [#93 — v3 readiness program: consultant audit
 findings](https://github.com/nedcut/gm-bench/issues/93). Remaining
 [Issue #84](https://github.com/nedcut/gm-bench/issues/84) follow-through is
@@ -610,17 +610,36 @@ snapshot is in
   assign model tiers or support all-pairs ranking. Before power simulation,
   require enough independent seeds for the exact two-sided sign-flip minimum
   p-value (`2 / 2**seeds`) to clear Holm step one (`0.05 / models`).
-  The statistical design is **blocked, not frozen**. Corrected 10,000-trial
-  production-procedure simulations include the historical residual lift seed
-  variance (`3770.4784`) as a draw shared across all eight model contrasts.
-  No allocation in the predeclared 9–20 seed x 1–3 repeat grid reaches the
-  0.80 familywise-all-reject target. The best tested row, 20x3
-  (60 episodes/model), has base power 0.3486 and sensitivity power 0.2154
-  (Wilson 95% CI 0.2075–0.2236). Evidence, covariance assumptions, and the
-  required pre-data amendment are recorded in
+  The statistical design is **frozen, but authorizes no spend**.
+  Corrected 10,000-trial production-procedure simulations include the historical
+  residual lift seed variance (`3770.4784`) as a draw shared across all eight
+  model contrasts. The original +40 superiority design was abandoned: no
+  allocation in the 9–20 seed x 1–3 repeat grid reached the 0.80 target, and the
+  20-seed ceiling caps sensitivity power near 0.36 even at unbounded repeats, so
+  the block was structural rather than a budget shortfall. Design amendment 1
+  restates the primary claim in the direction the frozen `sota-v2` evidence
+  actually shows — every eligible model *trailed* `pick-trader` by 180–282
+  points at a 0.0 seed win rate — and powers a −100 planning effect. The
+  selected allocation is **15 seeds x 1 repeat (15 episodes/model)**, base power
+  0.9461 and sensitivity power 0.8357 (Wilson 95% CI 0.8283–0.8428), clearing
+  the target on its lower bound. Repeats moved 3 → 1 because a
+  candidate-minus-reference lift keeps its full seed component, so at fixed
+  budget seeds dominate repeats for discrimination. Evidence, covariance
+  assumptions, and the amendment are recorded in
+  [`docs/run_logs/sota-v3-design-amendment-2026-07-28.md`](run_logs/sota-v3-design-amendment-2026-07-28.md),
+  superseding
   [`docs/run_logs/sota-v3-statistical-design-audit-2026-07-28.md`](run_logs/sota-v3-statistical-design-audit-2026-07-28.md).
-  No private panel should be generated until a replacement allocation or claim
-  is chosen. A
+  Seed identity remains unfrozen: the 15-seed private panel requires separate
+  owner authorization before generation with the audited unbiased generator,
+  and both execution gates test against the literal `frozen`, so provider
+  execution stays locked. The overall preregistration status remains
+  `provisional-pre-smoke` until route, privacy, reasoning, seed, and rehearsal
+  evidence is complete. The reproducible conservative pre-smoke reservation is
+  recorded in
+  `results/analysis/sota-v3-pre-smoke-cost-estimate.json`: 2,432 calls,
+  $86.592730 before contingency and $103.911276 at the committed 1.2x reserve.
+  Runtime remains pending accepted smoke telemetry, so this does not set an
+  operator ceiling or authorize spend. A
   runtime private panel can change without changing the contract fingerprint;
   editing the canonical public leaderboard preset in
   `gm_bench/benchmark_config.py` does change it and would require one pre-data
@@ -652,11 +671,14 @@ snapshot is in
   `python3 scripts/run_publication_matrix.py route-preflight --contract sota-v3`.
   This phase checks endpoint identity and parameters but cannot launch a model
   subprocess, reserve spend, or create run state.
-- [ ] After resolving the blocked power design, use
-  `scripts/seed_panel_commitment.py commit --seeds-env` plus its
-  `execution-hash` subcommand to validate the chosen recoverably escrowed
-  high-entropy private panel. Independently verify the salted hiding commitment
-  and ordered execution hash; commit commitments only, never seed values.
+- [ ] After explicit owner authorization, use
+  `scripts/seed_panel_commitment.py generate --lane config/sota_v3_lane.json
+  --secret-file <recoverable-private-escrow-outside-the-checkout>` to draw the ordered 15-seed panel
+  uniformly with `secrets.randbelow`, excluding duplicates and committed public
+  preset seeds. Independently verify the salted hiding commitment and ordered
+  execution hash; commit commitments only, never seed values. The legacy
+  `commit --seeds-env` path is for verifying or adopting an independently
+  generated escrowed panel, not the registered generation procedure.
 - [ ] Review the preregistration, route-preflight, and rehearsal records; freeze
   the remaining seed-panel identity and execution policies; then make a separate
   explicit spend-authorization decision for the cheapest serial route smoke.
@@ -676,21 +698,27 @@ snapshot is in
 
 The score-affecting simulator, action/observation schemas, scoring, scripted
 policy logic, and model-view compaction are **semantically frozen** at current
-fingerprint `4f6ddddd6a6dd81c`. Do not accept another realism or mechanics batch
+fingerprint `a523bdfcebe47bbd`. Do not accept another realism or mechanics batch
 before the v3 rehearsal/panel merely because it might improve the benchmark.
 Reopen mechanics only for a reproducible defect that threatens the registered
 claim; doing so requires an explicit decision-log entry, a new fingerprint,
 invalidation of v3 preregistration evidence tied to the prior fingerprint, and
 free diagnostic re-runs before any spend.
 
-This does not pre-decide the publication-lane parameters that still must be
-registered: authenticated route/privacy acceptance, output and reasoning policy,
-private seed-panel identity, exclusions, cost ceiling, and site treatment.
-Those choices may be amended once, transparently, before any accepted v3 smoke
-or model artifact exists. Runtime private-panel selection does not alter the
-contract fingerprint. A change to the canonical public leaderboard preset does;
-if chosen for power, treat it as a bounded pre-data lane amendment rather than
-an invitation to revisit simulator mechanics.
+The earlier `scaffold-view` diagnostic was measured under
+`4f6ddddd6a6dd81c`; it must be rerun or explicitly revalidated under the current
+fingerprint before an accepted paid smoke. This does not pre-decide the
+publication-lane parameters that still must be registered: authenticated
+route/privacy acceptance, model-specific reasoning compatibility, private
+seed-panel identity, exclusions, operator ceiling, and site treatment. The
+provisional output policy is a 4,096-token fixed safety ceiling with a 3,072
+cap-pressure trigger and an 8,192 fallback ceiling. Any accepted-smoke
+truncation, trigger crossing, or mandatory-reasoning incompatibility invalidates
+all v3 smokes; amend symmetrically before panel data and re-smoke every model.
+Observed score never influences the cap. Runtime private-panel selection does
+not alter the contract fingerprint. A change to the canonical public
+leaderboard preset does; if chosen for power, treat it as a bounded pre-data
+lane amendment rather than an invitation to revisit simulator mechanics.
 
 The frozen `sota-v2` study remains a separate historical evidence lane at
 fingerprint `558e8f35ea1d66b9`. No v3 rehearsal, preregistration, validator
@@ -778,6 +806,7 @@ decision and why.
 | 2026-07-24 | Preserve the released `sota-v2` study and open `sota-v3` for the Issue #84 P0 fixes. | Non-finite input rejection and decision-window walk-away persistence change simulator/action semantics; compact-artifact recomputation strengthens the validator. Quietly changing the v2 fingerprint or re-recording old smokes would make the released contract mutable after results were known. | Pin the historical v2 contract and validator, identify current corrected runs as v3, block paid publication execution until a v3 registry and lane are pre-registered, retain the tagged v2 evidence and its narrow claim, and require no paid reruns for this repair. |
 | 2026-07-25 | Treat `sota-v3` as contract-ready and panel-blocked per consultant audit #93. | Independent review graded reproducibility A− but model discrimination D; one overlapping v2 tier; PR #92 contract economics still unmerged; scaffold-view unrun; site surfaces overclaim. | Merge #92, run scaffold-view at the frozen fingerprint, fix v2-site claim gaps, pre-register the v3 lane, and defer paid v3 panel spend until those gates pass. Do not publish ordinal model or baseline rankings. |
 | 2026-07-27 | Freeze v3 mechanics and reduce the pre-spend path to preregistration plus offline rehearsal. | PRs #92, #95, #98, #99, and #101 closed the mechanics, site-framing, same-view, version-dispatch, and claim-decomposition blockers. Continuing to add plausible realism changes now creates more schedule and evidence risk than it removes. The base SHA had no v3 lane/registry/manifest or v3 artifact; the working tree now has provisional fail-closed config files but still no selected model family or real/committed artifact. | Freeze score-affecting mechanics at `4f6ddddd6a6dd81c`; permit only one bounded, pre-data publication-parameter amendment if panel design requires it; preserve v2 literally; complete preregistration and a clean-checkout no-provider-call rehearsal; authorize no paid smoke or panel by this decision. |
+| 2026-07-30 | Reconcile the v3 pre-spend design across configs, policy, cost planning, seed commitment, and rehearsal. | The exact registered power procedure supports 15 independent seeds x 1 stochastic trajectory per model: base power 0.9461 and sensitivity power 0.8357 with Wilson lower bound 0.8283. One repeat is the registered estimand, not a dropped replicate. The prior configs disagreed on repeats and treated a live-readiness mismatch as non-fatal. No private seed was generated and no provider was called during reconciliation. | Bind the current lane to fingerprint `a523bdfcebe47bbd`, freeze the 15 x 1 statistical design, use a provisional 4,096/3,072/8,192 cap rule with whole-cohort invalidation and re-smoke on pressure, provide an unbiased private-seed generator, and make preregistration coherence a hard rehearsal gate. Keep every route, spend, execution, and publication authorization false. |
 
 ## Experiment and release log
 

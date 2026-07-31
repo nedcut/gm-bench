@@ -9,7 +9,11 @@ import pytest
 
 import scripts.run_publication_matrix as publication_runner
 from gm_bench.contract import BENCHMARK_VERSION, contract_fingerprint
-from gm_bench.publication import SMOKE_MANIFEST_FORMAT, exact_sign_flip_feasibility
+from gm_bench.publication import (
+    SMOKE_MANIFEST_FORMAT,
+    exact_sign_flip_feasibility,
+    v3_preregistration_coherence_issues,
+)
 
 CONFIG = Path("config")
 
@@ -20,7 +24,7 @@ def _read(name: str) -> dict:
     return payload
 
 
-def test_v3_lane_pins_current_contract_and_blocks_underpowered_grid() -> None:
+def test_v3_lane_pins_current_contract_and_freezes_a_powered_allocation() -> None:
     lane = _read("sota_v3_lane.json")
 
     assert lane["contract"] == BENCHMARK_VERSION == "sota-v3"
@@ -33,31 +37,45 @@ def test_v3_lane_pins_current_contract_and_blocks_underpowered_grid() -> None:
     assert lane["preset"] == "leaderboard"
     assert lane["execution_profile_authority"] == "lane"
     assert lane["provider"] == "openrouter"
-    assert lane["repeats"] == 3
-    assert lane["panel_design_status"] == "blocked-no-qualifying-allocation"
+    # One repeat, not three: a candidate-minus-reference lift keeps its full seed
+    # component, so at a fixed episode budget repeats only shrink within-seed
+    # noise while seeds buy independent draws of what actually varies.
+    assert lane["repeats"] == 1
+    assert lane["panel_design_status"] == "frozen"
     candidate = lane["statistical_panel_design"]
-    assert candidate["status"] == "blocked-no-qualifying-allocation"
+    assert candidate["status"] == "frozen"
     assert candidate["historical_lift_variances"]["shared_seed"] == pytest.approx(3770.478399)
-    assert candidate["evaluated_seed_range"] == [9, 20]
+    assert candidate["evaluated_seed_range"] == [9, 16]
     assert candidate["evaluated_repeat_range"] == [1, 3]
-    best = candidate["best_tested_allocation"]
-    assert best["seed_count"] == 20
-    assert best["episodes_per_model"] == best["seed_count"] * best["repeats"] == 60
+    # The planning effect points the way the frozen sota-v2 evidence does: every
+    # eligible model trailed pick-trader on every seed. A positive target would
+    # power a reversal nothing in the evidence supports.
+    assert candidate["claim_direction"] == "trails-reference"
+    assert candidate["target_effect_score_points"] == -100
+    selected = candidate["selected_allocation"]
+    assert selected["seed_count"] == 15
+    assert selected["repeats"] == 1
+    assert selected["episodes_per_model"] == selected["seed_count"] * selected["repeats"] == 15
     feasibility = exact_sign_flip_feasibility(
-        best["seed_count"],
+        selected["seed_count"],
         candidate["holm_family_size"],
     )
-    assert best["minimum_exact_two_sided_sign_flip_p_value"] == feasibility["minimum_two_sided_p_value"]
-    assert best["holm_first_step_threshold_at_alpha_0_05"] == feasibility["holm_first_step_threshold"]
-    assert best["exact_sign_flip_holm_feasible"] is feasibility["feasible"] is True
-    assert best["sensitivity_power_wilson_ci95"][1] < candidate["target_familywise_all_reject_power"]
+    assert selected["minimum_exact_two_sided_sign_flip_p_value"] == feasibility["minimum_two_sided_p_value"]
+    assert selected["holm_first_step_threshold_at_alpha_0_05"] == feasibility["holm_first_step_threshold"]
+    assert selected["exact_sign_flip_holm_feasible"] is feasibility["feasible"] is True
+    # The selection rule is a Wilson *lower* bound clearing the target, so the
+    # allocation is only frozen if the conservative-sensitivity interval does.
+    assert selected["sensitivity_power_wilson_ci95"][0] >= candidate["target_familywise_all_reject_power"]
     assert lane["seed_panel"] == {
-        "status": "blocked-pending-allocation",
+        "status": "pending-authorized-generation",
         "name": None,
-        "count": None,
+        "count": 15,
         "sha256": None,
     }
-    assert any("no allocation" in blocker.lower() for blocker in lane["blockers"])
+    assert lane["seed_panel"]["count"] == selected["seed_count"]
+    # Seed identity stays unfrozen until a salted commitment hash is recorded.
+    assert lane["seed_panel"]["sha256"] is None
+    assert any("private panel" in blocker.lower() for blocker in lane["blockers"])
     assert lane["reference_agent"] == "pick-trader"
     assert lane["protocol_repair_attempts"] == 1
     assert lane["strict_fallback_required"] is True
@@ -80,7 +98,9 @@ def test_v3_registry_is_truthfully_provisional_and_contains_no_unverified_routes
     assert registry["catalog_checked_at_utc"]
     assert len(registry["models"]) == len(registry["required_smokes"]) == 8
     assert set(registry["required_smokes"]) == {model["id"] for model in registry["models"]}
-    assert registry["output_token_cap"] is None
+    assert registry["repeats"] == lane["repeats"] == 1
+    assert registry["output_token_cap"] == lane["output_token_cap"] == 4096
+    assert registry["output_budget_status"] == lane["output_budget_status"] == "provisional-pre-smoke-validation"
     assert registry["spend_authorized"] is False
     assert registry["panel_execution_authorized"] is False
     assert registry["unresolved_decisions"]
@@ -97,8 +117,8 @@ def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
 
     assert protocol["contract"] == pricing["contract"] == lane["contract"]
     assert protocol["contract_fingerprint"] == pricing["contract_fingerprint"] == lane["contract_fingerprint"]
-    assert protocol["status"] == "provisional-blocked"
-    assert protocol["statistical_analysis_plan"]["status"] == "blocked-power-design"
+    assert protocol["status"] == "provisional-pre-smoke"
+    assert protocol["statistical_analysis_plan"]["status"] == "frozen"
     assert protocol["statistical_analysis_plan"]["analysis_mode"] == "reference-only"
     assert protocol["statistical_analysis_plan"]["inference_method"] == "exact-enumeration-sign-flip"
     assert protocol["statistical_analysis_plan"]["unit_of_inference"] == "seed"
@@ -110,7 +130,16 @@ def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
     assert protocol["statistical_analysis_plan"]["power_model"]["historical_shared_seed_variance"] == pytest.approx(
         3770.478399
     )
-    assert protocol["statistical_analysis_plan"]["power_model"]["best_tested_sensitivity_power"] == 0.2154
+    assert protocol["statistical_analysis_plan"]["power_model"]["selected_sensitivity_power"] == 0.8357
+    assert protocol["statistical_analysis_plan"]["power_model"]["selected_allocation"] == "15 seeds x 1 repeat"
+    assert protocol["statistical_analysis_plan"]["claim_direction"] == "trails-reference"
+    assert protocol["statistical_analysis_plan"]["target_effect_score_points"] == -100
+    # The lane and the protocol carry separate copies of the design; they must agree.
+    assert (
+        protocol["statistical_analysis_plan"]["target_effect_score_points"]
+        == lane["statistical_panel_design"]["target_effect_score_points"]
+    )
+    assert protocol["panel_design"]["status"] == lane["panel_design_status"]
     assert protocol["budget_policy"]["spend_authorized"] is False
     assert pricing["status"] == "catalog-frozen-public-metadata-only"
     assert pricing["checked_at_utc"]
@@ -123,11 +152,18 @@ def test_v3_preregistration_fails_closed_before_smoke_or_panel_spend() -> None:
     registry = _read("sota_v3_models.json")
     manifest = _read("sota_v3_smoke_manifest.json")
 
-    assert lane["preregistration_status"] == "provisional-blocked"
-    assert lane["panel_design_status"] == "blocked-no-qualifying-allocation"
-    assert lane["output_budget_status"] == "blocked-pending-registered-model-smokes"
-    assert lane["output_token_cap"] is None
-    assert lane["reasoning_policy"] == "pending-live-route-verification"
+    # The design amendment freezes an allocation; it authorizes nothing. Both
+    # gates are allowlists against the literal "frozen", so a status that merely
+    # records progress still locks provider execution.
+    assert lane["preregistration_status"] == "provisional-pre-smoke"
+    assert lane["preregistration_status"] != "frozen"
+    assert lane["panel_design_status"] == "frozen"
+    assert lane["output_budget_status"] == "provisional-pre-smoke-validation"
+    assert lane["output_token_cap"] == 4096
+    assert lane["cap_pressure_threshold_tokens"] == 3072
+    assert lane["fallback_output_token_cap"] == 8192
+    assert "invalidate every v3 smoke" in lane["output_policy_amendment_rule"]
+    assert lane["reasoning_policy"] == "catalog-pinned-pending-live-route-verification"
     assert lane["spend_authorized"] is False
     assert lane["route_preflight_authorized"] is False
     assert lane["smoke_execution_authorized"] is False
@@ -153,6 +189,24 @@ def test_v3_preregistration_fails_closed_before_smoke_or_panel_spend() -> None:
     assert smoke_gate_complete is False
 
 
+@pytest.mark.parametrize("invalid_cap", [None, "4096", True, 0])
+def test_v3_preregistration_reports_invalid_caps_without_crashing(invalid_cap: object) -> None:
+    lane = _read("sota_v3_lane.json")
+    lane["output_token_cap"] = invalid_cap
+
+    issues = v3_preregistration_coherence_issues(
+        lane,
+        _read("sota_v3_models.json"),
+        _read("sota_v3_publication_protocol.json"),
+        _read("sota_v3_pricing_snapshot.json"),
+        _read("sota_v3_smoke_manifest.json"),
+    )
+
+    assert "sota-v3 provisional output_token_cap must be a positive integer" in issues
+    assert "sota-v3 cap-pressure threshold must be between zero and the provisional cap" in issues
+    assert "sota-v3 fallback output cap must exceed the provisional cap" in issues
+
+
 def test_exact_sign_flip_holm_feasibility_uses_seed_count_not_episode_count() -> None:
     eight_seeds = exact_sign_flip_feasibility(8, 8)
     assert eight_seeds["minimum_two_sided_p_value"] == 2 / 2**8
@@ -173,7 +227,6 @@ def test_blocked_v3_state_cannot_drift_into_partial_authorization() -> None:
         lane["preregistration_status"] != "frozen"
         or registry["selection_status"] != "frozen"
         or not registry["models"]
-        or lane["output_token_cap"] is None
         or manifest["accepted_for_panel"] is not True
         or set(registry["required_smokes"]) != set(manifest["entries"])
     )
@@ -200,7 +253,7 @@ def test_runner_rejects_provisional_v3_smoke_before_provider_access(
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda _cell: provider_access.append("endpoint"),
+        lambda _cell, _env: provider_access.append("endpoint"),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,
@@ -212,7 +265,7 @@ def test_runner_rejects_provisional_v3_smoke_before_provider_access(
         publication_runner.main(["smoke", "--contract", "sota-v3", mode])
 
     assert exc_info.value.code == 2
-    assert "sota-v3 lane is provisional-blocked; provider execution is locked" in capsys.readouterr().err
+    assert "sota-v3 lane is provisional-pre-smoke; provider execution is locked" in capsys.readouterr().err
     assert provider_access == []
 
 
@@ -224,7 +277,7 @@ def test_runner_keeps_historical_v2_blocked_under_current_source(
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda _cell: provider_access.append("endpoint"),
+        lambda _cell, _env: provider_access.append("endpoint"),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,
@@ -258,7 +311,7 @@ def test_runner_requires_explicit_contract_before_v2_preflight_can_run(
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda _cell: provider_access.append("endpoint"),
+        lambda _cell, _env: provider_access.append("endpoint"),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,

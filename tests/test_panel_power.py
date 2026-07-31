@@ -299,6 +299,28 @@ def test_exact_reference_simulation_is_deterministic_and_selects_by_sensitivity(
     assert first["selection_rule"].startswith("smallest episodes/model")
 
 
+def test_exact_reference_report_labels_zero_effect_as_directionless() -> None:
+    cells = _synthetic_cells(
+        models=8,
+        seeds=8,
+        repeats=3,
+        sd_seed=5.0,
+        sd_interaction=0.0,
+        sd_noise=10.0,
+        rng=random.Random(99),
+    )
+    report = panel_power.build_exact_reference_report(
+        cells,
+        delta=0.0,
+        min_seeds=9,
+        max_seeds=9,
+        max_repeats=1,
+        trials=10,
+    )
+
+    assert report["target_effect_direction"] == "no-direction-null"
+
+
 def test_incomplete_cross_product_is_refused() -> None:
     """A uniform repeat count across present cells is not balance.
 
