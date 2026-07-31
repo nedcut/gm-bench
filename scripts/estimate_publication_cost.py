@@ -157,8 +157,9 @@ def estimate(
             "applied_completion_rate_usd": float(_decimal(applied_rates["completion"])),
             "internal_reasoning_tokens_per_decision": reasoning_tokens,
             "applied_internal_reasoning_rate_usd": float(_decimal(reasoning_rate or 0)),
-            "internal_reasoning_billing_basis": reasoning_rate_key,
         }
+        if reasoning_rate_key is not None:
+            row["internal_reasoning_billing_basis"] = reasoning_rate_key
         runtime_seconds = runtime_by_model.get(model_name)
         if isinstance(runtime_seconds, int | float) and runtime_seconds > 0:
             row["observed_api_seconds_per_decision"] = runtime_seconds
