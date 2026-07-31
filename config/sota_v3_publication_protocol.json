@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "contract": "sota-v3",
-  "contract_fingerprint": "b3cdf9ab690bd778",
+  "contract_fingerprint": "a523bdfcebe47bbd",
   "status": "provisional-pre-smoke",
   "evidence_state": "pre-data-no-v3-model-smokes-or-panel-results",
   "research_question": "Whether each pre-registered model-plus-compact-scaffold system trails the named pick-trader reference under the frozen sota-v3 mechanics, replicating the frozen sota-v2 finding on a new contract fingerprint.",

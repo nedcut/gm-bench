@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "contract": "sota-v3",
-  "contract_fingerprint": "b3cdf9ab690bd778",
+  "contract_fingerprint": "a523bdfcebe47bbd",
   "lane": "api",
   "provider": "openrouter",
   "provider_policy": "openrouter-only",

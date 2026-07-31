@@ -509,6 +509,7 @@ def publication_gate(
     publication = {
         **analysis,
         "publishable_ranking": publishable_results and not reference_only,
+        "publishable_results": publishable_results,
         "frozen_output_token_cap": frozen_cap if lane_frozen else None,
         "output_policy_basis": policy_basis,
         "model_registry_frozen": registry_frozen,
@@ -527,7 +528,6 @@ def publication_gate(
         ],
     }
     if reference_only:
-        publication["publishable_results"] = publishable_results
         publication["analysis_mode"] = "reference-only"
     if not registry_frozen:
         publication["reason"] = "model registry remains provisional until every registered route passes its smoke"

@@ -10,13 +10,20 @@ from pathlib import Path
 from typing import Any
 
 from gm_bench.agents import Agent, ExternalProcessAgent
+from gm_bench.contract import _repository_checkout_root
 from gm_bench.session import PersistentProcessAgent
 
-ROOT = Path(__file__).resolve().parents[1]
-_CHECKOUT_EXAMPLES = ROOT / "examples"
-EXAMPLES = (
-    _CHECKOUT_EXAMPLES if _CHECKOUT_EXAMPLES.is_dir() else Path(__file__).resolve().parent / "_resources" / "examples"
-)
+_PACKAGE_ROOT = Path(__file__).resolve().parent
+
+
+def _examples_path() -> Path:
+    checkout_root = _repository_checkout_root()
+    if checkout_root is not None:
+        return checkout_root / "examples"
+    return _PACKAGE_ROOT / "_resources" / "examples"
+
+
+EXAMPLES = _examples_path()
 
 PROVIDER_NAMES = (
     "openai",

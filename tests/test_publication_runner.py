@@ -434,7 +434,7 @@ def test_preflight_only_still_validates_endpoint_despite_reusable_smoke_artifact
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda cell: validated.append(cell.experiment_id),
+        lambda cell, _env: validated.append(cell.experiment_id),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,
@@ -1201,7 +1201,7 @@ def test_panel_run_rejects_ineligible_artifact_before_settlement(
     manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
     model = registry["models"][0]
     cell = build_cells("panel", model_id=model["id"])[0]
-    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", lambda _cell: None)
+    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", lambda _cell, _env: None)
     monkeypatch.setattr(publication_runner, "_openrouter_usage_usd", lambda _env: 0.0)
     monkeypatch.setattr(
         publication_runner,
@@ -1246,7 +1246,7 @@ def test_panel_preflight_does_not_require_a_completed_artifact(
     registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
     manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
     cell = build_cells("panel", model_id=registry["models"][0]["id"])[0]
-    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", lambda _cell: None)
+    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", lambda _cell, _env: None)
     monkeypatch.setattr(
         publication_runner.subprocess,
         "run",
@@ -1298,7 +1298,7 @@ def test_zero_call_route_preflight_has_separate_authorization_and_never_launches
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda cell: endpoint_checks.append(cell.experiment_id),
+        lambda cell, _env: endpoint_checks.append(cell.experiment_id),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,
@@ -1342,7 +1342,7 @@ def test_v3_route_preflight_requires_bearer_credential_before_endpoint_request(
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda cell: endpoint_checks.append(cell.experiment_id),
+        lambda cell, _env: endpoint_checks.append(cell.experiment_id),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,
@@ -1370,14 +1370,17 @@ def test_authenticated_endpoint_metadata_request_sends_bearer_credential(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     requests = []
-    monkeypatch.setenv("OPENROUTER_API_KEY", "test-authenticated-metadata-key")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "ambient-key-that-must-not-be-used")
 
     def fake_urlopen(request, timeout):
         requests.append((request, timeout))
         return io.BytesIO(b'{"data":{"endpoints":[]}}')
 
     monkeypatch.setattr(publication_runner.urllib.request, "urlopen", fake_urlopen)
-    publication_runner._openrouter_endpoints("demo/authenticated-route")
+    publication_runner._openrouter_endpoints(
+        "demo/authenticated-route",
+        {"OPENROUTER_API_KEY": "test-authenticated-metadata-key"},
+    )
 
     assert len(requests) == 1
     request, timeout = requests[0]
@@ -1397,7 +1400,7 @@ def test_frozen_private_panel_rejects_inherited_seed_drift_before_cells(
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda cell: endpoint_checks.append(cell.experiment_id),
+        lambda cell, _env: endpoint_checks.append(cell.experiment_id),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,
@@ -1434,7 +1437,7 @@ def test_frozen_private_panel_rejects_duplicate_seeds_before_cells(
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda cell: endpoint_checks.append(cell.experiment_id),
+        lambda cell, _env: endpoint_checks.append(cell.experiment_id),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,

@@ -62,18 +62,37 @@ _CONTRACT_SOURCES = (
 )
 
 
+def _repository_checkout_root() -> Path | None:
+    """Return the source root only when this package belongs to the repo."""
+
+    git_marker = _ROOT / ".git"
+    project_marker = _ROOT / "pyproject.toml"
+    package_dir = _ROOT / "gm_bench"
+    if not git_marker.exists() or not project_marker.is_file() or not package_dir.is_dir():
+        return None
+    try:
+        if not package_dir.samefile(_PACKAGE_ROOT):
+            return None
+    except OSError:
+        return None
+    return _ROOT
+
+
 def _source_path(relative_path: str) -> Path:
     """Resolve a contract/scaffold source in a checkout or installed wheel."""
 
-    checkout_path = _ROOT / relative_path
-    if checkout_path.is_file():
-        return checkout_path
     group, separator, remainder = relative_path.partition("/")
+    if separator and group == "gm_bench":
+        return _PACKAGE_ROOT / remainder
     if separator and group in {"examples", "schemas"}:
+        checkout_root = _repository_checkout_root()
+        if checkout_root is not None:
+            checkout_path = checkout_root / relative_path
+            if checkout_path.is_file():
+                return checkout_path
         packaged_path = _PACKAGE_ROOT / "_resources" / group / remainder
-        if packaged_path.is_file():
-            return packaged_path
-    return checkout_path
+        return packaged_path
+    return _ROOT / relative_path
 
 
 @lru_cache(maxsize=1)
@@ -107,7 +126,12 @@ def scaffold_fingerprint(provider: str) -> str | None:
     # scaffold_view.py holds the compaction half of the prompt builder; without
     # it a truncation-limit change would move every model's prompt text while
     # leaving every scaffold fingerprint identical.
-    for relative_path in ("gm_bench/scaffold_view.py", "examples/gm_agent_common.py", f"examples/{spec.script}"):
+    for relative_path in (
+        "gm_bench/providers.py",
+        "gm_bench/scaffold_view.py",
+        "examples/gm_agent_common.py",
+        f"examples/{spec.script}",
+    ):
         digest.update(relative_path.encode())
         digest.update(b"\0")
         digest.update(_source_path(relative_path).read_bytes())

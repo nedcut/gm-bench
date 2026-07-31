@@ -637,7 +637,7 @@ snapshot is in
   evidence is complete. The reproducible conservative pre-smoke reservation is
   recorded in
   `results/analysis/sota-v3-pre-smoke-cost-estimate.json`: 2,432 calls,
-  $79.121626 before contingency and $94.945951 at the committed 1.2x reserve.
+  $86.592730 before contingency and $103.911276 at the committed 1.2x reserve.
   Runtime remains pending accepted smoke telemetry, so this does not set an
   operator ceiling or authorize spend. A
   runtime private panel can change without changing the contract fingerprint;
@@ -698,7 +698,7 @@ snapshot is in
 
 The score-affecting simulator, action/observation schemas, scoring, scripted
 policy logic, and model-view compaction are **semantically frozen** at current
-fingerprint `b3cdf9ab690bd778`. Do not accept another realism or mechanics batch
+fingerprint `a523bdfcebe47bbd`. Do not accept another realism or mechanics batch
 before the v3 rehearsal/panel merely because it might improve the benchmark.
 Reopen mechanics only for a reproducible defect that threatens the registered
 claim; doing so requires an explicit decision-log entry, a new fingerprint,
@@ -806,7 +806,7 @@ decision and why.
 | 2026-07-24 | Preserve the released `sota-v2` study and open `sota-v3` for the Issue #84 P0 fixes. | Non-finite input rejection and decision-window walk-away persistence change simulator/action semantics; compact-artifact recomputation strengthens the validator. Quietly changing the v2 fingerprint or re-recording old smokes would make the released contract mutable after results were known. | Pin the historical v2 contract and validator, identify current corrected runs as v3, block paid publication execution until a v3 registry and lane are pre-registered, retain the tagged v2 evidence and its narrow claim, and require no paid reruns for this repair. |
 | 2026-07-25 | Treat `sota-v3` as contract-ready and panel-blocked per consultant audit #93. | Independent review graded reproducibility A− but model discrimination D; one overlapping v2 tier; PR #92 contract economics still unmerged; scaffold-view unrun; site surfaces overclaim. | Merge #92, run scaffold-view at the frozen fingerprint, fix v2-site claim gaps, pre-register the v3 lane, and defer paid v3 panel spend until those gates pass. Do not publish ordinal model or baseline rankings. |
 | 2026-07-27 | Freeze v3 mechanics and reduce the pre-spend path to preregistration plus offline rehearsal. | PRs #92, #95, #98, #99, and #101 closed the mechanics, site-framing, same-view, version-dispatch, and claim-decomposition blockers. Continuing to add plausible realism changes now creates more schedule and evidence risk than it removes. The base SHA had no v3 lane/registry/manifest or v3 artifact; the working tree now has provisional fail-closed config files but still no selected model family or real/committed artifact. | Freeze score-affecting mechanics at `4f6ddddd6a6dd81c`; permit only one bounded, pre-data publication-parameter amendment if panel design requires it; preserve v2 literally; complete preregistration and a clean-checkout no-provider-call rehearsal; authorize no paid smoke or panel by this decision. |
-| 2026-07-30 | Reconcile the v3 pre-spend design across configs, policy, cost planning, seed commitment, and rehearsal. | The exact registered power procedure supports 15 independent seeds x 1 stochastic trajectory per model: base power 0.9461 and sensitivity power 0.8357 with Wilson lower bound 0.8283. One repeat is the registered estimand, not a dropped replicate. The prior configs disagreed on repeats and treated a live-readiness mismatch as non-fatal. No private seed was generated and no provider was called during reconciliation. | Bind the current lane to fingerprint `b3cdf9ab690bd778`, freeze the 15 x 1 statistical design, use a provisional 4,096/3,072/8,192 cap rule with whole-cohort invalidation and re-smoke on pressure, provide an unbiased private-seed generator, and make preregistration coherence a hard rehearsal gate. Keep every route, spend, execution, and publication authorization false. |
+| 2026-07-30 | Reconcile the v3 pre-spend design across configs, policy, cost planning, seed commitment, and rehearsal. | The exact registered power procedure supports 15 independent seeds x 1 stochastic trajectory per model: base power 0.9461 and sensitivity power 0.8357 with Wilson lower bound 0.8283. One repeat is the registered estimand, not a dropped replicate. The prior configs disagreed on repeats and treated a live-readiness mismatch as non-fatal. No private seed was generated and no provider was called during reconciliation. | Bind the current lane to fingerprint `a523bdfcebe47bbd`, freeze the 15 x 1 statistical design, use a provisional 4,096/3,072/8,192 cap rule with whole-cohort invalidation and re-smoke on pressure, provide an unbiased private-seed generator, and make preregistration coherence a hard rehearsal gate. Keep every route, spend, execution, and publication authorization false. |
 
 ## Experiment and release log
 

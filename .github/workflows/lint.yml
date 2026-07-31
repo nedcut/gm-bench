@@ -26,5 +26,5 @@ jobs:
         run: pip install "ruff>=0.8"
       - name: Run ruff
         run: |
-          ruff format --check gm_bench examples tests scripts web/scripts
-          ruff check gm_bench examples tests scripts web/scripts
+          python3 -m ruff format --check gm_bench examples tests scripts web/scripts
+          python3 -m ruff check gm_bench examples tests scripts web/scripts

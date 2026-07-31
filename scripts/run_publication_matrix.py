@@ -493,8 +493,8 @@ def _endpoint_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
     return []
 
 
-def _openrouter_endpoints(model: str) -> dict[str, Any]:
-    api_key = os.environ.get("OPENROUTER_API_KEY")
+def _openrouter_endpoints(model: str, env: dict[str, str]) -> dict[str, Any]:
+    api_key = env.get("OPENROUTER_API_KEY")
     headers = {"User-Agent": "gm-bench-publication-runner/1"}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
@@ -506,8 +506,8 @@ def _openrouter_endpoints(model: str) -> dict[str, Any]:
         return json.load(response)
 
 
-def _validate_openrouter_endpoint(cell: Cell) -> None:
-    issues = _endpoint_issues(cell, _openrouter_endpoints(cell.model))
+def _validate_openrouter_endpoint(cell: Cell, env: dict[str, str]) -> None:
+    issues = _endpoint_issues(cell, _openrouter_endpoints(cell.model, env))
     if issues:
         raise RuntimeError("; ".join(issues))
 
@@ -1504,7 +1504,7 @@ def main(argv: list[str] | None = None) -> int:
                     "no endpoint request or model call was made"
                 )
             try:
-                _validate_openrouter_endpoint(cell)
+                _validate_openrouter_endpoint(cell, env)
             except (
                 RuntimeError,
                 urllib.error.URLError,

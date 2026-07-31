@@ -48,8 +48,8 @@ jobs:
       - name: Smoke wheel outside the checkout
         working-directory: /tmp
         run: |
-          /tmp/gm-bench-wheel-venv/bin/gm-bench --help >/dev/null
-          /tmp/gm-bench-wheel-venv/bin/gm-bench run \
+          /tmp/gm-bench-wheel-venv/bin/python -m gm_bench --help >/dev/null
+          /tmp/gm-bench-wheel-venv/bin/python -m gm_bench run \
             --agent value --seeds 1 --seasons 1 --no-log --json \
             >/tmp/gm-bench-wheel-smoke.json
           /tmp/gm-bench-wheel-venv/bin/python - <<'PY'

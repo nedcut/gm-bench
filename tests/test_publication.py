@@ -519,6 +519,7 @@ def test_publication_gate_withholds_rows_until_minimum_panel_is_eligible() -> No
     models, report = publication_gate([eligible], analysis, lane, registry, panel_analysis=_panel_analysis([eligible]))
     assert models == []
     assert report["publishable_ranking"] is False
+    assert report["publishable_results"] is False
     assert report["eligible_headline_models"] == 1
     assert report["duplicate_headline_rows"] == 0
     assert report["smoke_gate_issues"] is None
@@ -533,6 +534,7 @@ def test_publication_gate_withholds_rows_until_minimum_panel_is_eligible() -> No
     )
     assert models == [eligible, second]
     assert report["publishable_ranking"] is True
+    assert report["publishable_results"] is True
     assert report["eligible_headline_models"] == 2
     assert report["duplicate_headline_rows"] == 0
 

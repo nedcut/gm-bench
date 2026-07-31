@@ -47,13 +47,11 @@
         "offer_id": { "type": "string" },
         "give_player_ids": {
           "type": "array",
-          "items": { "type": "integer" },
-          "minItems": 1
+          "items": { "type": "integer" }
         },
         "receive_player_ids": {
           "type": "array",
-          "items": { "type": "integer" },
-          "minItems": 1
+          "items": { "type": "integer" }
         },
         "give_pick_seasons": { "type": "array", "items": { "type": "integer" } },
         "receive_pick_seasons": { "type": "array", "items": { "type": "integer" } },

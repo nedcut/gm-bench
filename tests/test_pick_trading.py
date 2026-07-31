@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
+import jsonschema
+
 from gm_bench.models import PICK_TRADE_MAX_SEASONS_AHEAD, pick_value
 from gm_bench.scoring import score_team
 from gm_bench.simulator import League
@@ -89,6 +94,44 @@ def test_cannot_trade_more_picks_than_owned():
     )
     assert not league.transactions[-1].accepted
     assert "does not own enough" in league.transactions[-1].message
+
+
+def test_pick_only_trade_accepts_empty_and_nullable_player_lists():
+    league = make_league()
+    partner_id = next(team_id for team_id in league.teams if team_id != league.user_team_id)
+    season = league.season + 1
+    structured_schema = json.loads(Path("schemas/gm_actions.schema.json").read_text())
+    properties = structured_schema["properties"]["actions"]["items"]["properties"]
+    action = {name: None for name in properties}
+    action.update(
+        {
+            "type": "trade",
+            "partner_team_id": partner_id,
+            "give_player_ids": None,
+            "receive_player_ids": None,
+            "give_pick_seasons": [season],
+            "receive_pick_seasons": [season],
+        }
+    )
+    jsonschema.validate({"actions": [action]}, structured_schema)
+
+    result = league.apply_actions([action], "preseason")[0]
+
+    assert result.message in {"trade accepted", "partner rejects the offer as too light"}
+
+
+def test_canonical_schema_accepts_pick_only_trade_with_empty_player_lists():
+    schema = json.loads(Path("schemas/gm_action_list.schema.json").read_text())
+    action = {
+        "type": "trade",
+        "partner_team_id": 1,
+        "give_player_ids": [],
+        "receive_player_ids": [],
+        "give_pick_seasons": [2],
+        "receive_pick_seasons": [3],
+    }
+
+    jsonschema.validate([action], schema)
 
 
 def test_empty_side_rejected():

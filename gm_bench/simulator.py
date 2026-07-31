@@ -691,10 +691,10 @@ class League:
 
     def _trade(self, action: dict[str, Any], phase: str) -> None:
         partner_id = int(action.get("partner_team_id", -1))
-        give = [int(player_id) for player_id in action.get("give_player_ids", [])]
-        receive = [int(player_id) for player_id in action.get("receive_player_ids", [])]
-        give_picks = [int(season) for season in action.get("give_pick_seasons", [])]
-        receive_picks = [int(season) for season in action.get("receive_pick_seasons", [])]
+        give = [int(player_id) for player_id in (action.get("give_player_ids") or [])]
+        receive = [int(player_id) for player_id in (action.get("receive_player_ids") or [])]
+        give_picks = [int(season) for season in (action.get("give_pick_seasons") or [])]
+        receive_picks = [int(season) for season in (action.get("receive_pick_seasons") or [])]
         if partner_id not in self.teams or partner_id == self.user_team_id:
             self._record(action, phase, False, "invalid trade partner")
             return

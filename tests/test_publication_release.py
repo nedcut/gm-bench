@@ -262,7 +262,13 @@ def _v3_release_fixture(tmp_path: Path) -> tuple[Path, Path]:
         "holm_family_size": 1,
         "config_errors": [],
         "missing_models": [],
-        "models": [{"model_id": "demo-v3", "seed_count": 15, "raw_artifact_sha256": canonical_sha256(raw)}],
+        "models": [
+            {
+                "model_id": "demo-v3",
+                "seed_count": seed_count,
+                "raw_artifact_sha256": canonical_sha256(raw),
+            }
+        ],
         "rejected_artifacts": [],
     }
     _write_json(repo / "config/sota_v3_models.json", registry)
@@ -289,6 +295,21 @@ def _v3_release_fixture(tmp_path: Path) -> tuple[Path, Path]:
     )
     _write_json(run_dir / "raw/demo-v3--4096.json", raw)
     return repo, run_dir
+
+
+def _replace_archived_json(archive_path: Path, member: str, payload: dict) -> None:
+    with zipfile.ZipFile(archive_path) as archive:
+        entries = {name: archive.read(name) for name in archive.namelist()}
+    data = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
+    entries[member] = data
+    manifest = json.loads(entries["manifest.json"])
+    file_row = next(row for row in manifest["files"] if row["path"] == member)
+    file_row["bytes"] = len(data)
+    file_row["sha256"] = hashlib.sha256(data).hexdigest()
+    entries["manifest.json"] = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode()
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        for name, entry in entries.items():
+            archive.writestr(name, entry)
 
 
 def test_release_archive_is_deterministic_and_verifiable(tmp_path: Path) -> None:
@@ -540,6 +561,63 @@ def test_v3_release_rejects_analysis_with_private_per_seed_evidence(tmp_path: Pa
             contract="sota-v3",
             release_date="2026-07-30",
         )
+
+
+def test_v3_release_binds_analysis_seed_count_to_frozen_lane(tmp_path: Path) -> None:
+    repo, run_dir = _v3_release_fixture(tmp_path)
+    analysis_path = repo / "results/analysis/publication-panel-analysis-v3.json"
+    analysis = json.loads(analysis_path.read_text())
+    analysis["models"][0]["seed_count"] += 1
+    _write_json(analysis_path, analysis)
+
+    with pytest.raises(ValueError, match="seed_count must equal frozen lane seed_panel.count"):
+        build_release(
+            repo_root=repo,
+            run_dir=run_dir,
+            archive_path=tmp_path / "release-v3.zip",
+            manifest_path=tmp_path / "manifest-v3.json",
+            checksums_path=tmp_path / "SHA256SUMS-v3.txt",
+            contract="sota-v3",
+            release_date="2026-07-30",
+        )
+
+
+@pytest.mark.parametrize(
+    ("private_field", "private_value", "message"),
+    [
+        (
+            "per_seed",
+            [{"seed": 987654321, "lift": -1.0}],
+            "must not contain private per_seed evidence",
+        ),
+        ("tier", 1, "must not assign a tier"),
+    ],
+)
+def test_v3_archive_verifier_revalidates_public_analysis(
+    tmp_path: Path,
+    private_field: str,
+    private_value: object,
+    message: str,
+) -> None:
+    repo, run_dir = _v3_release_fixture(tmp_path)
+    archive_path = tmp_path / "release-v3.zip"
+    build_release(
+        repo_root=repo,
+        run_dir=run_dir,
+        archive_path=archive_path,
+        manifest_path=tmp_path / "manifest-v3.json",
+        checksums_path=tmp_path / "SHA256SUMS-v3.txt",
+        contract="sota-v3",
+        release_date="2026-07-30",
+    )
+    analysis_member = "results/analysis/publication-panel-analysis-v3.json"
+    with zipfile.ZipFile(archive_path) as archive:
+        analysis = json.loads(archive.read(analysis_member))
+    analysis["models"][0][private_field] = private_value
+    _replace_archived_json(archive_path, analysis_member, analysis)
+
+    with pytest.raises(ValueError, match=message):
+        verify_archive(archive_path)
 
 
 def test_v3_release_rejects_unredacted_private_artifact(tmp_path: Path) -> None:

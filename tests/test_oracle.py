@@ -18,7 +18,7 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # Moved again when protocol.py entered the fingerprint, built-in model
     # adapters gained the complete canonical action surface, and malformed
     # action discriminators were made fail-closed at the simulator boundary.
-    assert contract_fingerprint() == "b3cdf9ab690bd778"
+    assert contract_fingerprint() == "a523bdfcebe47bbd"
     assert "oracle" not in AGENTS
 
 

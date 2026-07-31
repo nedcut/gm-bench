@@ -9,7 +9,11 @@ import pytest
 
 import scripts.run_publication_matrix as publication_runner
 from gm_bench.contract import BENCHMARK_VERSION, contract_fingerprint
-from gm_bench.publication import SMOKE_MANIFEST_FORMAT, exact_sign_flip_feasibility
+from gm_bench.publication import (
+    SMOKE_MANIFEST_FORMAT,
+    exact_sign_flip_feasibility,
+    v3_preregistration_coherence_issues,
+)
 
 CONFIG = Path("config")
 
@@ -185,6 +189,24 @@ def test_v3_preregistration_fails_closed_before_smoke_or_panel_spend() -> None:
     assert smoke_gate_complete is False
 
 
+@pytest.mark.parametrize("invalid_cap", [None, "4096", True, 0])
+def test_v3_preregistration_reports_invalid_caps_without_crashing(invalid_cap: object) -> None:
+    lane = _read("sota_v3_lane.json")
+    lane["output_token_cap"] = invalid_cap
+
+    issues = v3_preregistration_coherence_issues(
+        lane,
+        _read("sota_v3_models.json"),
+        _read("sota_v3_publication_protocol.json"),
+        _read("sota_v3_pricing_snapshot.json"),
+        _read("sota_v3_smoke_manifest.json"),
+    )
+
+    assert "sota-v3 provisional output_token_cap must be a positive integer" in issues
+    assert "sota-v3 cap-pressure threshold must be between zero and the provisional cap" in issues
+    assert "sota-v3 fallback output cap must exceed the provisional cap" in issues
+
+
 def test_exact_sign_flip_holm_feasibility_uses_seed_count_not_episode_count() -> None:
     eight_seeds = exact_sign_flip_feasibility(8, 8)
     assert eight_seeds["minimum_two_sided_p_value"] == 2 / 2**8
@@ -231,7 +253,7 @@ def test_runner_rejects_provisional_v3_smoke_before_provider_access(
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda _cell: provider_access.append("endpoint"),
+        lambda _cell, _env: provider_access.append("endpoint"),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,
@@ -255,7 +277,7 @@ def test_runner_keeps_historical_v2_blocked_under_current_source(
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda _cell: provider_access.append("endpoint"),
+        lambda _cell, _env: provider_access.append("endpoint"),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,
@@ -289,7 +311,7 @@ def test_runner_requires_explicit_contract_before_v2_preflight_can_run(
     monkeypatch.setattr(
         publication_runner,
         "_validate_openrouter_endpoint",
-        lambda _cell: provider_access.append("endpoint"),
+        lambda _cell, _env: provider_access.append("endpoint"),
     )
     monkeypatch.setattr(
         publication_runner.subprocess,

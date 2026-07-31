@@ -149,6 +149,7 @@ export interface Leaderboard {
   publication: {
     status: string;
     publishable_ranking: boolean;
+    publishable_results: boolean;
     reason: string;
     planned_caps: Array<number | null>;
     frozen_output_token_cap: number | null;

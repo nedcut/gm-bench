@@ -143,8 +143,14 @@ def _is_sha256(value: Any) -> bool:
     return isinstance(value, str) and len(value) == 64 and all(char in "0123456789abcdef" for char in value)
 
 
-def _v3_analysis_rows(analysis: dict[str, Any], registered_ids: set[str]) -> dict[str, dict[str, Any]]:
+def _v3_analysis_rows(
+    analysis: dict[str, Any],
+    registered_ids: set[str],
+    expected_seed_count: Any,
+) -> dict[str, dict[str, Any]]:
     issues: list[str] = []
+    if not isinstance(expected_seed_count, int) or isinstance(expected_seed_count, bool) or expected_seed_count < 2:
+        issues.append("frozen lane seed_panel.count must be an integer >= 2")
     unexpected_analysis_keys = sorted(set(analysis) - V3_PUBLIC_ANALYSIS_KEYS)
     if unexpected_analysis_keys:
         issues.append(f"analysis contains unexpected public fields: {unexpected_analysis_keys!r}")
@@ -196,6 +202,8 @@ def _v3_analysis_rows(analysis: dict[str, Any], registered_ids: set[str]) -> dic
         seed_count = row.get("seed_count")
         if not isinstance(seed_count, int) or isinstance(seed_count, bool) or seed_count < 2:
             issues.append(f"model row {model_id!r} must retain an aggregate seed_count")
+        elif seed_count != expected_seed_count:
+            issues.append(f"model row {model_id!r} seed_count must equal frozen lane seed_panel.count")
         if not _is_sha256(row.get("raw_artifact_sha256")):
             issues.append(f"model row {model_id!r} must bind a raw_artifact_sha256")
         rows[model_id] = row
@@ -312,7 +320,11 @@ def build_release(
         pricing = _read_json(repo_root / "config/sota_v3_pricing_snapshot.json")
         smoke_manifest = _read_json(repo_root / "config/sota_v3_smoke_manifest.json")
         _require_v3_release_authorized(lane, registry, protocol, pricing, smoke_manifest)
-        eligible = _v3_analysis_rows(analysis, registered_ids)
+        eligible = _v3_analysis_rows(
+            analysis,
+            registered_ids,
+            (lane.get("seed_panel") or {}).get("count"),
+        )
         rejected: dict[str, list[str]] = {}
     else:
         eligible = {str(row["model_id"]): row for row in analysis.get("models") or []}
@@ -458,6 +470,26 @@ def verify_archive(archive_path: Path, *, repo_root: Path | None = None) -> dict
             data = archive.read(str(row["path"]))
             if len(data) != row.get("bytes") or _sha256(data) != row.get("sha256"):
                 raise ValueError(f"file checksum mismatch: {row.get('path')}")
+        if v3_private_release:
+            spec = RELEASE_SPECS["sota-v3"]
+            analysis_name = spec.analysis_path.as_posix()
+            lane_name = "config/sota_v3_lane.json"
+            registry_name = spec.registry_path.as_posix()
+            required = {analysis_name, lane_name, registry_name}
+            missing = sorted(required - set(names))
+            if missing:
+                raise ValueError(f"sota-v3 release is missing public validation input(s): {missing!r}")
+            archived_analysis = json.loads(archive.read(analysis_name))
+            archived_lane = json.loads(archive.read(lane_name))
+            archived_registry = json.loads(archive.read(registry_name))
+            registered_ids = {
+                str(row.get("id")) for row in archived_registry.get("models") or [] if isinstance(row, dict)
+            }
+            _v3_analysis_rows(
+                archived_analysis,
+                registered_ids,
+                (archived_lane.get("seed_panel") or {}).get("count"),
+            )
         for artifact in manifest.get("artifacts") or []:
             raw_path = artifact.get("raw_path")
             if v3_private_release and raw_path:

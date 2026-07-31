@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "contract": "sota-v3",
-  "contract_fingerprint": "b3cdf9ab690bd778",
+  "contract_fingerprint": "a523bdfcebe47bbd",
   "mechanics_status": "frozen-for-sota-v3-panel",
   "mechanics_change_policy": "Any score-, action-, observation-, or simulator-semantic change after this preregistration requires a new contract fingerprint, invalidates all sota-v3 smoke evidence, and re-locks provider spend.",
   "preregistration_status": "provisional-pre-smoke",

@@ -842,6 +842,7 @@
     ],
     "points": [],
     "publishable_ranking": true,
+    "publishable_results": true,
     "reason": "four-cap sweep retired before replacement official cells; fixed safety ceiling governs publication",
     "rejected_artifacts": [],
     "schema_version": 1,

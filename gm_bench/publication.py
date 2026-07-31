@@ -286,11 +286,12 @@ def v3_preregistration_coherence_issues(
     cap = lane.get("output_token_cap")
     threshold = lane.get("cap_pressure_threshold_tokens")
     fallback = lane.get("fallback_output_token_cap")
-    if not isinstance(cap, int) or isinstance(cap, bool) or cap < 1:
+    cap_valid = isinstance(cap, int) and not isinstance(cap, bool) and cap >= 1
+    if not cap_valid:
         issues.append("sota-v3 provisional output_token_cap must be a positive integer")
-    if not isinstance(threshold, int) or isinstance(threshold, bool) or not 0 < threshold < cap:
+    if not cap_valid or not isinstance(threshold, int) or isinstance(threshold, bool) or not 0 < threshold < cap:
         issues.append("sota-v3 cap-pressure threshold must be between zero and the provisional cap")
-    if not isinstance(fallback, int) or isinstance(fallback, bool) or fallback <= cap:
+    if not cap_valid or not isinstance(fallback, int) or isinstance(fallback, bool) or fallback <= cap:
         issues.append("sota-v3 fallback output cap must exceed the provisional cap")
     if not isinstance(output_policy, dict):
         issues.append("sota-v3 protocol output policy is missing")
