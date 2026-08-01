@@ -421,3 +421,57 @@ def test_rehearsal_can_reuse_an_explicit_workdir(tmp_path: Path) -> None:
 
     assert first["status"] == second["status"] == "passed"
     assert first["artifacts"]["canonical_raw_sha256"] == second["artifacts"]["canonical_raw_sha256"]
+
+
+def test_missing_node_modules_triggers_a_frozen_lockfile_install(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A clean checkout has no web/node_modules; the harness must install it.
+
+    Before this was handled, `bun run build` exited 127 on a fresh clone and
+    aborted the whole rehearsal, so the clean-checkout gate required by
+    docs/PUBLISH_READINESS.md could not pass unassisted.
+    """
+    staging = tmp_path / "staging"
+    (staging / "web").mkdir(parents=True)
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(list(cmd))
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="40 packages installed")
+
+    monkeypatch.setattr(rehearsal_mod.subprocess, "run", fake_run)
+    result = rehearsal_mod._ensure_web_dependencies(staging, "bun")
+
+    assert result["status"] == "installed"
+    assert calls == [["bun", "install", "--frozen-lockfile"]]
+
+
+def test_present_node_modules_is_reused_without_installing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    staging = tmp_path / "staging"
+    (staging / "web" / "node_modules").mkdir(parents=True)
+
+    def fail_run(cmd, **kwargs):  # pragma: no cover - must not be reached
+        raise AssertionError(f"unexpected install in a populated staging copy: {cmd}")
+
+    monkeypatch.setattr(rehearsal_mod.subprocess, "run", fail_run)
+    result = rehearsal_mod._ensure_web_dependencies(staging, "bun")
+
+    assert result == {"status": "reused", "source": "staged-directory"}
+
+
+def test_failed_install_raises_an_actionable_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    staging = tmp_path / "staging"
+    (staging / "web").mkdir(parents=True)
+
+    def fake_run(cmd, **kwargs):
+        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="lockfile out of date")
+
+    monkeypatch.setattr(rehearsal_mod.subprocess, "run", fake_run)
+
+    with pytest.raises(RuntimeError, match="lockfile out of date"):
+        rehearsal_mod._ensure_web_dependencies(staging, "bun")

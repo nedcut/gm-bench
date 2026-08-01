@@ -666,6 +666,35 @@ snapshot is in
   panel evidence.
 - [ ] After these changes are committed, rerun the rehearsal from a clean
   checkout at the exact candidate SHA and record that SHA before any spend.
+  **Attempted 2026-08-01 at candidate SHA `a0fdec5493eaf5f702e71c519910e03f39e727f5`.**
+  A fresh `--no-local` clone reproduces contract fingerprint
+  `a523bdfcebe47bbd`, matching `config/sota_v3_lane.json`, and the full suite
+  passes there (735 tests, same count as the working tree). The rehearsal
+  itself does **not** yet pass unassisted: `_run_web_build` aborts with an
+  unhandled `CalledProcessError` (exit 127, `vite` absent) because
+  `_stage_site_inputs` symlinks `web/node_modules` only when it already exists
+  in `ROOT`, which is never true on a clean checkout. After running
+  `bun install --frozen-lockfile` in the clone's `web/` by hand, the rehearsal
+  passes end to end: status `passed`, `spend_usd` 0.0, all seven mutations
+  rejected (`wrong-contract`, `soft-fallback`, `stale-scaffold`,
+  `unknown-version-dispatch`, `unregistered-route`, `tampered-compact-score`,
+  `raw-link-mismatch`), policy selection `sota_v2` rejected / `sota_v3`
+  accepted, generated site data byte-matching the checked-in frozen v2
+  dataset with the synthetic v3 row excluded, and a successful staged build.
+  So the pipeline was sound and the gate was not: the harness had an
+  undeclared dependency on working-tree state, which is the exact condition a
+  clean-checkout rerun exists to rule out. The web-build path had no test
+  coverage at all — every case in `tests/test_sota_v3_rehearsal.py` passed
+  `run_web_build=False` — which is why this survived the 2026-07-27 run.
+  **Fixed:** `_ensure_web_dependencies` now runs `bun install
+  --frozen-lockfile` in the staging copy when `node_modules` is absent,
+  reuses it when present, and raises with the installer's stderr instead of a
+  bare `CalledProcessError`. The committed `bun.lock` stays authoritative, so
+  the fetch resolves pinned versions; "zero spend" continues to mean no
+  provider or model call. Three regression tests cover the install, reuse, and
+  failure paths. Unassisted clean-checkout rerun pending at the commit that
+  carries this fix. No spend authorized by this attempt; all lane gates remain
+  false.
 - [ ] Select exact routes, grant the separate zero-completion-call
   `route_preflight_authorized` gate, then run
   `python3 scripts/run_publication_matrix.py route-preflight --contract sota-v3`.
