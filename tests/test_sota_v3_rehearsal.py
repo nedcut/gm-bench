@@ -447,9 +447,7 @@ def test_missing_node_modules_triggers_a_frozen_lockfile_install(
     assert calls == [["bun", "install", "--frozen-lockfile"]]
 
 
-def test_present_node_modules_is_reused_without_installing(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_present_node_modules_is_reused_without_installing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     staging = tmp_path / "staging"
     (staging / "web" / "node_modules").mkdir(parents=True)
 
@@ -462,9 +460,7 @@ def test_present_node_modules_is_reused_without_installing(
     assert result == {"status": "reused", "source": "staged-directory"}
 
 
-def test_failed_install_raises_an_actionable_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_failed_install_raises_an_actionable_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     staging = tmp_path / "staging"
     (staging / "web").mkdir(parents=True)
 
