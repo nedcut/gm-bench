@@ -8,13 +8,19 @@
   "panel_design": {
     "status": "frozen",
     "evaluated_grid": {
-      "seed_range": [9, 16],
-      "repeat_range": [1, 3],
-      "holm_family_size": 8,
+      "seed_range": [
+        9,
+        16
+      ],
+      "repeat_range": [
+        1,
+        3
+      ],
+      "holm_family_size": 10,
       "simulation_trials_per_allocation": 10000
     },
     "selection_rule": "Smallest allocation in the predeclared 9-16 seed and 1-3 repeat grid whose conservative-sensitivity familywise all-reject power Wilson 95% lower bound is at least 0.80.",
-    "result": "15 seeds x 1 repeat (15 episodes/model) qualifies; sensitivity power 0.8357 with Wilson 95% CI [0.828309, 0.842834] and base power 0.9461 with Wilson 95% CI [0.9415, 0.950357].",
+    "result": "16 seeds x 1 repeat (16 episodes/model) qualifies; sensitivity power 0.8488 with Wilson 95% CI [0.841645, 0.855688] and base power 0.9527 with Wilson 95% CI [0.948363, 0.95669].",
     "seed_identity_status": "pending-authorized-generation"
   },
   "output_policy": {
@@ -41,10 +47,10 @@
     "multiplicity_method": "holm-bonferroni",
     "alpha": 0.05,
     "multiplicity": "Holm-Bonferroni across the final registered model family",
-    "holm_family_size": 8,
+    "holm_family_size": 10,
     "target_effect_score_points": -100,
     "target_familywise_all_reject_power": 0.8,
-    "power_definition": "Probability all eight Holm-adjusted model-versus-pick-trader contrasts reject when every true lift is -100 score points. The test is two-sided; the sign is a planning assumption drawn from the frozen sota-v2 evidence, not a one-sided test.",
+    "power_definition": "Probability all ten Holm-adjusted model-versus-pick-trader contrasts reject when every true lift is -100 score points. The test is two-sided; the sign is a planning assumption drawn from the frozen sota-v2 evidence, not a one-sided test.",
     "power_model": {
       "distribution": "Normal parametric Monte Carlo over seed-level lifts, evaluated with the production analyzer's exact sign-flip and Holm functions.",
       "historical_evidence_contract": "sota-v2",
@@ -58,14 +64,20 @@
       "sensitivity_interaction_variance_floor_as_noise_fraction": 0.1,
       "simulation_trials": 10000,
       "simulation_seed": 2026072800,
-      "selected_allocation": "15 seeds x 1 repeat",
-      "selected_base_power": 0.9461,
-      "selected_base_power_wilson_ci95": [0.9415, 0.950357],
-      "selected_sensitivity_power": 0.8357,
-      "selected_sensitivity_power_wilson_ci95": [0.828309, 0.842834]
+      "selected_allocation": "16 seeds x 1 repeat",
+      "selected_base_power": 0.9527,
+      "selected_base_power_wilson_ci95": [
+        0.948363,
+        0.95669
+      ],
+      "selected_sensitivity_power": 0.8488,
+      "selected_sensitivity_power_wilson_ci95": [
+        0.841645,
+        0.855688
+      ]
     },
     "ranking_rule": "No model tiers or ordinal ranking; only each registered model's predeclared contrast versus pick-trader is supported.",
-    "remaining_blocker": "Seed identity is not frozen. The 15-seed private panel must be generated and its salted commitment hash committed under separate owner authorization before any provider call."
+    "remaining_blocker": "Seed identity is not frozen. The 16-seed private panel must be generated and its salted commitment hash committed under separate owner authorization before any provider call."
   },
   "budget_policy": {
     "provider": "openrouter",

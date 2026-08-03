@@ -21,16 +21,21 @@ def test_v3_catalog_freezes_exact_balanced_cohort_without_unlocking_execution() 
     registry = _read("sota_v3_models.json")
 
     models = registry["models"]
-    assert len(models) == 8
-    assert len({model["id"] for model in models}) == 8
-    assert len({(model["model"], model["endpoint_tag"]) for model in models}) == 8
+    assert len(models) == 10
+    assert len({model["id"] for model in models}) == 10
+    assert len({(model["model"], model["endpoint_tag"]) for model in models}) == 10
     assert {model["cohort"] for model in models} == {"frontier-proprietary", "open-weight"}
     assert sum(model["cohort"] == "frontier-proprietary" for model in models) == 4
-    assert sum(model["cohort"] == "open-weight" for model in models) == 4
+    assert sum(model["cohort"] == "open-weight" for model in models) == 6
 
     identities = {model["model"] for model in models}
-    assert "openai/gpt-5.6-luna-pro" in identities
-    assert "openai/gpt-5.6-luna" not in identities
+    assert "openai/gpt-5.6-luna" in identities
+    assert "openai/gpt-5.6-luna-pro" not in identities
+    assert "deepseek/deepseek-v4-flash-0731" in identities
+    assert "tencent/hy3" in identities
+    # Evaluated for the tenth slot, ineligible at the frozen snapshot: no
+    # healthy route advertises response_format under require-parameters.
+    assert "thinkingmachines/inkling-small" not in identities
     assert "google/gemini-3.6-flash" in identities
     assert "google/gemini-3.5-flash" not in identities
     assert "mistralai/mistral-medium-3-5" in identities

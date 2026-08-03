@@ -22,7 +22,7 @@ and every eligible model trails `pick-trader`. The three P0 correctness and
 artifact-integrity fixes landed in #85 as an explicit `sota-v3` contract.
 Sunday's merged work closed the contract-economics, same-view, gap-diagnostic,
 site-framing, statistical-tiering, and version-dispatched CI items. The current
-working tree contains an eight-model public-catalog cohort, a frozen 15-seed x
+working tree contains a ten-model public-catalog cohort, a frozen 16-seed x
 1-repeat statistical design, a provisional 4,096-token safety ceiling, an empty
 not-started smoke manifest, explicit runner dispatch, and a zero-spend synthetic
 rehearsal. Exact authenticated routes, privacy acceptance, model-specific
@@ -629,15 +629,26 @@ snapshot is in
   [`docs/run_logs/sota-v3-design-amendment-2026-07-28.md`](run_logs/sota-v3-design-amendment-2026-07-28.md),
   superseding
   [`docs/run_logs/sota-v3-statistical-design-audit-2026-07-28.md`](run_logs/sota-v3-statistical-design-audit-2026-07-28.md).
-  Seed identity remains unfrozen: the 15-seed private panel requires separate
+  Seed identity remains unfrozen: the private seed panel requires separate
   owner authorization before generation with the audited unbiased generator,
   and both execution gates test against the literal `frozen`, so provider
   execution stays locked. The overall preregistration status remains
   `provisional-pre-smoke` until route, privacy, reasoning, seed, and rehearsal
-  evidence is complete. The reproducible conservative pre-smoke reservation is
-  recorded in
-  `results/analysis/sota-v3-pre-smoke-cost-estimate.json`: 2,432 calls,
-  $86.592730 before contingency and $103.911276 at the committed 1.2x reserve.
+  evidence is complete. Design amendment 2 (2026-08-03,
+  [`docs/run_logs/sota-v3-design-amendment-2026-08-03.md`](run_logs/sota-v3-design-amendment-2026-08-03.md))
+  is a pre-data cohort update: the OpenAI anchor moves from GPT-5.6 Luna Pro to
+  plain GPT-5.6 Luna, and DeepSeek V4 Flash 0731 plus Tencent Hy3 join as
+  open-weight anchors on first-party FP8 routes (Thinking Machines Inkling
+  Small was evaluated and recorded ineligible: no healthy route advertises
+  `response_format` under the lane's frozen JSON-mode and require-parameters
+  options). The Holm family is now ten, and the allocation reselected with the
+  identical frozen machinery is **16 seeds x 1 repeat (16 episodes/model)** —
+  base power 0.9527, sensitivity 0.8488 (Wilson 95% lower bound 0.8416); the
+  prior 15x1 allocation fails the lower-bound rule at family ten (0.8020,
+  lower bound 0.7941). The contract fingerprint is unchanged. The reproducible
+  conservative pre-smoke reservation is recorded in
+  `results/analysis/sota-v3-pre-smoke-cost-estimate.json`: 3,240 calls,
+  $89.845094 before contingency and $107.814113 at the committed 1.2x reserve.
   Runtime remains pending accepted smoke telemetry, so this does not set an
   operator ceiling or authorize spend. A
   runtime private panel can change without changing the contract fingerprint;
@@ -699,7 +710,7 @@ snapshot is in
   subprocess, reserve spend, or create run state.
 - [ ] After explicit owner authorization, use
   `scripts/seed_panel_commitment.py generate --lane config/sota_v3_lane.json
-  --secret-file <recoverable-private-escrow-outside-the-checkout>` to draw the ordered 15-seed panel
+  --secret-file <recoverable-private-escrow-outside-the-checkout>` to draw the ordered 16-seed panel
   uniformly with `secrets.randbelow`, excluding duplicates and committed public
   preset seeds. Independently verify the salted hiding commitment and ordered
   execution hash; commit commitments only, never seed values. The legacy

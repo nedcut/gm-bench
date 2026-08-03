@@ -11,41 +11,61 @@
   "repeats": 1,
   "selection_status": "provisional-blocked",
   "selection_frozen_at_utc": null,
-  "selection_revision": "2026-07-28-public-catalog-cohort-v1",
+  "selection_revision": "2026-08-03-public-catalog-cohort-v2",
   "catalog_snapshot_status": "frozen-public-metadata-only",
-  "catalog_checked_at_utc": "2026-07-28T04:15:49Z",
+  "catalog_checked_at_utc": "2026-08-03T15:53:59Z",
   "catalog_sources": [
     "https://openrouter.ai/api/v1/models",
     "https://openrouter.ai/api/v1/models/{model_id}/endpoints"
   ],
-  "selection_policy": "Eight-model pre-data cohort selected from the 2026-07-28 public OpenRouter catalog. GPT-5.6 Luna Pro preserves the prior audit's pre-data substitution for the then-unhealthy Luna route even though Luna's public status had recovered by this snapshot, and Gemini 3.6 Flash replaces Gemini 3.5 Flash. Exact public endpoint metadata and prices are pinned below, but the registry remains provisional-blocked because public metadata does not prove authenticated exact-route access or provider privacy and retention behavior.",
+  "selection_policy": "Ten-model pre-data cohort selected from the 2026-08-03 public OpenRouter catalog, superseding the eight-model 2026-07-28 cohort before any smoke or panel evidence exists. GPT-5.6 Luna replaces GPT-5.6 Luna Pro: the plain Luna route that was unhealthy at the prior snapshot has recovered, and the Pro variant carried an unresolved reasoning.mode inconsistency between its public description and the structured catalog. DeepSeek V4 Flash 0731 and Tencent Hy3 (both on first-party FP8 routes) are added as open-weight anchors. Thinking Machines Inkling Small was evaluated for the tenth slot and found ineligible at this snapshot: no healthy route advertises the response_format parameter the lane's frozen JSON-mode and require-parameters options demand. Exact public endpoint metadata and prices are pinned below, but the registry remains provisional-blocked because public metadata does not prove authenticated exact-route access or provider privacy and retention behavior.",
   "models": [
     {
-      "id": "openrouter-gpt-5.6-luna-pro-openai",
+      "id": "openrouter-gpt-5.6-luna-openai",
       "provider": "openrouter",
-      "model": "openai/gpt-5.6-luna-pro",
-      "canonical_slug": "openai/gpt-5.6-luna-pro-20260709",
+      "model": "openai/gpt-5.6-luna",
+      "canonical_slug": "openai/gpt-5.6-luna-20260709",
       "transport": "gateway-api",
       "cohort": "frontier-proprietary",
       "upstream_provider": "OpenAI",
       "upstream_provider_slug": "openai",
       "endpoint_tag": "openai",
-      "endpoint_name": "OpenAI | openai/gpt-5.6-luna-pro-20260709",
+      "endpoint_name": "OpenAI | openai/gpt-5.6-luna-20260709",
       "catalog_route_status": 0,
-      "catalog_uptime_last_30m": 100.0,
-      "catalog_supported_parameters": ["reasoning", "include_reasoning", "seed", "max_tokens", "response_format", "structured_outputs", "tools", "tool_choice", "reasoning_effort"],
+      "catalog_uptime_last_30m": 99.31771054990628,
+      "catalog_supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "seed",
+        "max_tokens",
+        "response_format",
+        "structured_outputs",
+        "tools",
+        "tool_choice",
+        "reasoning_effort"
+      ],
       "reasoning_policy": "disabled",
       "reasoning_effort": null,
       "catalog_reasoning": {
         "mandatory": false,
         "default_enabled": true,
-        "supported_efforts": ["max", "xhigh", "high", "medium", "low", "none"],
-        "default_effort": "medium",
-        "note": "The public description says the Pro variant is served with reasoning.mode=pro, while the structured catalog marks reasoning optional and supports none. A strict smoke is required to resolve that inconsistency before evidence can be accepted."
+        "supported_efforts": [
+          "max",
+          "xhigh",
+          "high",
+          "medium",
+          "low",
+          "none"
+        ],
+        "default_effort": "medium"
       },
-      "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
-      "absent_options": ["OPENROUTER_REASONING_EFFORT"],
-      "role": "OpenAI frontier anchor; preserves the pre-data substitution made when the non-Pro Luna route was unhealthy"
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
+      "role": "OpenAI frontier anchor; restores the originally intended non-Pro Luna route now that its catalog status has recovered, removing the Pro variant's reasoning.mode inconsistency"
     },
     {
       "id": "openrouter-claude-sonnet-5-bedrock",
@@ -60,17 +80,38 @@
       "endpoint_name": "Amazon Bedrock | anthropic/claude-sonnet-5-20260630",
       "catalog_route_status": 0,
       "catalog_uptime_last_30m": 99.56639566395664,
-      "catalog_supported_parameters": ["reasoning", "include_reasoning", "max_tokens", "stop", "tools", "tool_choice", "structured_outputs", "response_format", "verbosity", "reasoning_effort"],
+      "catalog_supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "max_tokens",
+        "stop",
+        "tools",
+        "tool_choice",
+        "structured_outputs",
+        "response_format",
+        "verbosity",
+        "reasoning_effort"
+      ],
       "reasoning_policy": "disabled",
       "reasoning_effort": null,
       "catalog_reasoning": {
         "mandatory": false,
         "default_enabled": true,
-        "supported_efforts": ["max", "xhigh", "high", "medium", "low"],
+        "supported_efforts": [
+          "max",
+          "xhigh",
+          "high",
+          "medium",
+          "low"
+        ],
         "default_effort": "high"
       },
-      "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
-      "absent_options": ["OPENROUTER_REASONING_EFFORT"],
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
       "role": "Anthropic frontier anchor on the previously selected global Bedrock route"
     },
     {
@@ -86,16 +127,36 @@
       "endpoint_name": "Google AI Studio | google/gemini-3.6-flash-20260721",
       "catalog_route_status": 0,
       "catalog_uptime_last_30m": 99.78925184404636,
-      "catalog_supported_parameters": ["reasoning", "include_reasoning", "max_tokens", "temperature", "top_p", "seed", "response_format", "structured_outputs", "tool_choice", "tools", "reasoning_effort"],
+      "catalog_supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "seed",
+        "response_format",
+        "structured_outputs",
+        "tool_choice",
+        "tools",
+        "reasoning_effort"
+      ],
       "reasoning_policy": "mandatory-minimum",
       "reasoning_effort": "minimal",
       "catalog_reasoning": {
         "mandatory": true,
         "default_enabled": true,
-        "supported_efforts": ["high", "medium", "low", "minimal"],
+        "supported_efforts": [
+          "high",
+          "medium",
+          "low",
+          "minimal"
+        ],
         "default_effort": "medium"
       },
-      "fixed_options": {"OPENROUTER_REASONING_ENABLED": "true", "OPENROUTER_REASONING_EFFORT": "minimal"},
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "true",
+        "OPENROUTER_REASONING_EFFORT": "minimal"
+      },
       "absent_options": [],
       "role": "Preferred Google fast frontier anchor"
     },
@@ -112,16 +173,40 @@
       "endpoint_name": "xAI | x-ai/grok-4.5-20260708",
       "catalog_route_status": 0,
       "catalog_uptime_last_30m": 100.0,
-      "catalog_supported_parameters": ["reasoning", "include_reasoning", "structured_outputs", "response_format", "max_tokens", "temperature", "top_p", "seed", "logprobs", "top_logprobs", "stop", "frequency_penalty", "presence_penalty", "tools", "tool_choice", "reasoning_effort"],
+      "catalog_supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "structured_outputs",
+        "response_format",
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "seed",
+        "logprobs",
+        "top_logprobs",
+        "stop",
+        "frequency_penalty",
+        "presence_penalty",
+        "tools",
+        "tool_choice",
+        "reasoning_effort"
+      ],
       "reasoning_policy": "mandatory-minimum",
       "reasoning_effort": "low",
       "catalog_reasoning": {
         "mandatory": true,
         "default_enabled": true,
-        "supported_efforts": ["high", "medium", "low"],
+        "supported_efforts": [
+          "high",
+          "medium",
+          "low"
+        ],
         "default_effort": "high"
       },
-      "fixed_options": {"OPENROUTER_REASONING_ENABLED": "true", "OPENROUTER_REASONING_EFFORT": "low"},
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "true",
+        "OPENROUTER_REASONING_EFFORT": "low"
+      },
       "absent_options": [],
       "role": "xAI frontier anchor on the public ZDR-tagged route; the tag is directionally aligned with the privacy goal but is not accepted as retention-policy proof"
     },
@@ -138,17 +223,40 @@
       "endpoint_name": "Novita | z-ai/glm-5.2-20260616",
       "catalog_route_status": 0,
       "catalog_uptime_last_30m": 99.70362506358791,
-      "catalog_supported_parameters": ["reasoning", "include_reasoning", "max_tokens", "temperature", "top_p", "stop", "frequency_penalty", "presence_penalty", "seed", "top_k", "repetition_penalty", "tools", "tool_choice", "response_format", "reasoning_effort"],
+      "catalog_supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "stop",
+        "frequency_penalty",
+        "presence_penalty",
+        "seed",
+        "top_k",
+        "repetition_penalty",
+        "tools",
+        "tool_choice",
+        "response_format",
+        "reasoning_effort"
+      ],
       "reasoning_policy": "disabled",
       "reasoning_effort": null,
       "catalog_reasoning": {
         "mandatory": false,
         "default_enabled": true,
-        "supported_efforts": ["xhigh", "high"],
+        "supported_efforts": [
+          "xhigh",
+          "high"
+        ],
         "default_effort": "high"
       },
-      "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
-      "absent_options": ["OPENROUTER_REASONING_EFFORT"],
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
       "role": "Z.ai open-weight anchor on the previously smoke-validated Novita FP8 route"
     },
     {
@@ -164,12 +272,27 @@
       "endpoint_name": "Minimax | minimax/minimax-m3-20260531",
       "catalog_route_status": 0,
       "catalog_uptime_last_30m": 99.45594322885867,
-      "catalog_supported_parameters": ["reasoning", "include_reasoning", "max_tokens", "temperature", "top_p", "response_format", "tool_choice", "tools"],
+      "catalog_supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "response_format",
+        "tool_choice",
+        "tools"
+      ],
       "reasoning_policy": "disabled",
       "reasoning_effort": null,
-      "catalog_reasoning": {"mandatory": false},
-      "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
-      "absent_options": ["OPENROUTER_REASONING_EFFORT"],
+      "catalog_reasoning": {
+        "mandatory": false
+      },
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
       "role": "MiniMax open-weight anchor on the first-party FP8 route"
     },
     {
@@ -185,12 +308,33 @@
       "endpoint_name": "Alibaba | qwen/qwen3.7-plus-20260602",
       "catalog_route_status": 0,
       "catalog_uptime_last_30m": 99.99335742374322,
-      "catalog_supported_parameters": ["reasoning", "include_reasoning", "max_tokens", "temperature", "top_p", "seed", "presence_penalty", "response_format", "logprobs", "top_logprobs", "tools", "tool_choice", "structured_outputs"],
+      "catalog_supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "seed",
+        "presence_penalty",
+        "response_format",
+        "logprobs",
+        "top_logprobs",
+        "tools",
+        "tool_choice",
+        "structured_outputs"
+      ],
       "reasoning_policy": "disabled",
       "reasoning_effort": null,
-      "catalog_reasoning": {"mandatory": false, "default_enabled": true},
-      "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
-      "absent_options": ["OPENROUTER_REASONING_EFFORT"],
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": true
+      },
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
       "role": "Qwen open-weight frontier anchor"
     },
     {
@@ -206,24 +350,140 @@
       "endpoint_name": "Mistral | mistralai/mistral-medium-3.5-20260430",
       "catalog_route_status": 0,
       "catalog_uptime_last_30m": 100.0,
-      "catalog_supported_parameters": ["reasoning", "include_reasoning", "max_tokens", "temperature", "top_p", "stop", "frequency_penalty", "presence_penalty", "seed", "response_format", "structured_outputs", "tools", "tool_choice", "reasoning_effort"],
+      "catalog_supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "stop",
+        "frequency_penalty",
+        "presence_penalty",
+        "seed",
+        "response_format",
+        "structured_outputs",
+        "tools",
+        "tool_choice",
+        "reasoning_effort"
+      ],
       "reasoning_policy": "disabled",
       "reasoning_effort": null,
       "catalog_reasoning": {
         "mandatory": false,
-        "supported_efforts": ["high", "none"],
+        "supported_efforts": [
+          "high",
+          "none"
+        ],
         "default_effort": "high"
       },
-      "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
-      "absent_options": ["OPENROUTER_REASONING_EFFORT"],
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
       "role": "Mistral European open-weight anchor"
+    },
+    {
+      "id": "openrouter-deepseek-v4-flash-0731-deepseek",
+      "provider": "openrouter",
+      "model": "deepseek/deepseek-v4-flash-0731",
+      "canonical_slug": "deepseek/deepseek-v4-flash-20260731",
+      "transport": "gateway-api",
+      "cohort": "open-weight",
+      "upstream_provider": "DeepSeek",
+      "upstream_provider_slug": "deepseek/fp8",
+      "endpoint_tag": "deepseek/fp8",
+      "endpoint_name": "DeepSeek | deepseek/deepseek-v4-flash-20260731",
+      "catalog_route_status": 0,
+      "catalog_uptime_last_30m": 99.99164403593065,
+      "catalog_supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "stop",
+        "frequency_penalty",
+        "presence_penalty",
+        "logprobs",
+        "top_logprobs",
+        "tools",
+        "tool_choice",
+        "response_format",
+        "reasoning_effort"
+      ],
+      "reasoning_policy": "disabled",
+      "reasoning_effort": null,
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": true,
+        "supported_efforts": [
+          "max",
+          "high",
+          "low"
+        ],
+        "default_effort": "high"
+      },
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
+      "role": "DeepSeek open-weight anchor on the first-party FP8 route"
+    },
+    {
+      "id": "openrouter-hy3-tencent",
+      "provider": "openrouter",
+      "model": "tencent/hy3",
+      "canonical_slug": "tencent/hy3-20260706",
+      "transport": "gateway-api",
+      "cohort": "open-weight",
+      "upstream_provider": "Tencent",
+      "upstream_provider_slug": "tencent/fp8",
+      "endpoint_tag": "tencent/fp8",
+      "endpoint_name": "Tencent | tencent/hy3-20260706",
+      "catalog_route_status": 0,
+      "catalog_uptime_last_30m": 99.88329118848473,
+      "catalog_supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "temperature",
+        "stop",
+        "max_completion_tokens",
+        "max_tokens",
+        "response_format",
+        "tools",
+        "tool_choice",
+        "reasoning_effort"
+      ],
+      "reasoning_policy": "disabled",
+      "reasoning_effort": null,
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": true,
+        "supported_efforts": [
+          "high",
+          "low",
+          "none"
+        ],
+        "default_effort": "high"
+      },
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
+      "role": "Tencent open-weight anchor on the first-party FP8 route"
     }
   ],
   "exact_route_acceptance": {
     "schema_version": 1,
     "status": "unresolved",
     "entries": {
-      "openrouter-gpt-5.6-luna-pro-openai": {
+      "openrouter-gpt-5.6-luna-openai": {
         "route_identity_sha256": null,
         "authenticated": false,
         "verified_at_utc": null,
@@ -350,18 +610,52 @@
           "accepted_at_utc": null,
           "evidence_sha256": null
         }
+      },
+      "openrouter-deepseek-v4-flash-0731-deepseek": {
+        "route_identity_sha256": null,
+        "authenticated": false,
+        "verified_at_utc": null,
+        "route_evidence_sha256": null,
+        "privacy_acceptance": {
+          "status": "unresolved",
+          "route_identity_sha256": null,
+          "data_collection_policy_accepted": false,
+          "retention_policy_accepted": false,
+          "training_use_policy_accepted": false,
+          "zero_data_retention_policy_accepted": false,
+          "accepted_at_utc": null,
+          "evidence_sha256": null
+        }
+      },
+      "openrouter-hy3-tencent": {
+        "route_identity_sha256": null,
+        "authenticated": false,
+        "verified_at_utc": null,
+        "route_evidence_sha256": null,
+        "privacy_acceptance": {
+          "status": "unresolved",
+          "route_identity_sha256": null,
+          "data_collection_policy_accepted": false,
+          "retention_policy_accepted": false,
+          "training_use_policy_accepted": false,
+          "zero_data_retention_policy_accepted": false,
+          "accepted_at_utc": null,
+          "evidence_sha256": null
+        }
       }
     }
   },
   "required_smokes": [
-    "openrouter-gpt-5.6-luna-pro-openai",
+    "openrouter-gpt-5.6-luna-openai",
     "openrouter-claude-sonnet-5-bedrock",
     "openrouter-gemini-3.6-flash-google-ai-studio",
     "openrouter-grok-4.5-xai",
     "openrouter-glm-5.2-novita",
     "openrouter-minimax-m3-minimax",
     "openrouter-qwen3.7-plus-alibaba",
-    "openrouter-mistral-medium-3.5-mistral"
+    "openrouter-mistral-medium-3.5-mistral",
+    "openrouter-deepseek-v4-flash-0731-deepseek",
+    "openrouter-hy3-tencent"
   ],
   "shared_fixed_options": {
     "OPENROUTER_PROVIDER_SORT": "price",
@@ -390,10 +684,9 @@
     "Supported-parameter lists do not prove behavioral acceptance; every route still requires an authenticated zero-completion-call preflight and then a separately authorized strict smoke."
   ],
   "unresolved_decisions": [
-    "Generate the already selected 15-seed private panel with the audited uniform generator and commit only its salted hiding commitment plus ordered execution hash.",
+    "Generate the selected 16-seed private panel with the audited uniform generator and commit only its salted hiding commitment plus ordered execution hash.",
     "Resolve exact-route privacy, retention, training-use, and zero-data-retention requirements.",
     "Run an authenticated zero-completion-call exact-route preflight only after separate operator authorization.",
-    "Resolve the Luna Pro description-versus-structured-reasoning metadata inconsistency.",
     "Validate the provisional common 4,096-token cap and 3,072-token cap-pressure rule with separately authorized strict smokes; if triggered, invalidate every v3 smoke and amend the cap symmetrically before panel data."
   ]
 }

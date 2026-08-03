@@ -53,9 +53,9 @@ def test_v3_lane_pins_current_contract_and_freezes_a_powered_allocation() -> Non
     assert candidate["claim_direction"] == "trails-reference"
     assert candidate["target_effect_score_points"] == -100
     selected = candidate["selected_allocation"]
-    assert selected["seed_count"] == 15
+    assert selected["seed_count"] == 16
     assert selected["repeats"] == 1
-    assert selected["episodes_per_model"] == selected["seed_count"] * selected["repeats"] == 15
+    assert selected["episodes_per_model"] == selected["seed_count"] * selected["repeats"] == 16
     feasibility = exact_sign_flip_feasibility(
         selected["seed_count"],
         candidate["holm_family_size"],
@@ -69,7 +69,7 @@ def test_v3_lane_pins_current_contract_and_freezes_a_powered_allocation() -> Non
     assert lane["seed_panel"] == {
         "status": "pending-authorized-generation",
         "name": None,
-        "count": 15,
+        "count": 16,
         "sha256": None,
     }
     assert lane["seed_panel"]["count"] == selected["seed_count"]
@@ -96,7 +96,7 @@ def test_v3_registry_is_truthfully_provisional_and_contains_no_unverified_routes
     assert registry["selection_frozen_at_utc"] is None
     assert registry["catalog_snapshot_status"] == "frozen-public-metadata-only"
     assert registry["catalog_checked_at_utc"]
-    assert len(registry["models"]) == len(registry["required_smokes"]) == 8
+    assert len(registry["models"]) == len(registry["required_smokes"]) == 10
     assert set(registry["required_smokes"]) == {model["id"] for model in registry["models"]}
     assert registry["repeats"] == lane["repeats"] == 1
     assert registry["output_token_cap"] == lane["output_token_cap"] == 4096
@@ -126,12 +126,12 @@ def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
     assert protocol["statistical_analysis_plan"]["reference_agent"] == lane["reference_agent"] == "pick-trader"
     assert protocol["statistical_analysis_plan"]["multiplicity_method"] == "holm-bonferroni"
     assert protocol["statistical_analysis_plan"]["alpha"] == 0.05
-    assert protocol["statistical_analysis_plan"]["holm_family_size"] == 8
+    assert protocol["statistical_analysis_plan"]["holm_family_size"] == 10
     assert protocol["statistical_analysis_plan"]["power_model"]["historical_shared_seed_variance"] == pytest.approx(
         3770.478399
     )
-    assert protocol["statistical_analysis_plan"]["power_model"]["selected_sensitivity_power"] == 0.8357
-    assert protocol["statistical_analysis_plan"]["power_model"]["selected_allocation"] == "15 seeds x 1 repeat"
+    assert protocol["statistical_analysis_plan"]["power_model"]["selected_sensitivity_power"] == 0.8488
+    assert protocol["statistical_analysis_plan"]["power_model"]["selected_allocation"] == "16 seeds x 1 repeat"
     assert protocol["statistical_analysis_plan"]["claim_direction"] == "trails-reference"
     assert protocol["statistical_analysis_plan"]["target_effect_score_points"] == -100
     # The lane and the protocol carry separate copies of the design; they must agree.
@@ -143,7 +143,7 @@ def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
     assert protocol["budget_policy"]["spend_authorized"] is False
     assert pricing["status"] == "catalog-frozen-public-metadata-only"
     assert pricing["checked_at_utc"]
-    assert len(pricing["models"]) == 8
+    assert len(pricing["models"]) == 10
     assert pricing["spend_authorized"] is False
 
 

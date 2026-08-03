@@ -41,13 +41,13 @@ def test_fixed_panel_and_smoke_call_counts() -> None:
 def test_v3_cost_plan_uses_registered_private_seed_count() -> None:
     result = estimate(*_v3_inputs())
 
-    assert result["assumptions"]["panel_seed_count"] == 15
+    assert result["assumptions"]["panel_seed_count"] == 16
     assert result["assumptions"]["panel_repeats"] == 1
-    assert result["calls"]["panel_decisions_per_model"] == 300
-    assert result["calls"]["panel_calls"] == 2_400
-    assert result["calls"]["total_calls"] == 2_432
-    assert result["costs_usd"]["total_unrounded"] == pytest.approx(86.5927297024)
-    assert result["costs_usd"]["total_with_1_2x_contingency"] == pytest.approx(103.91127564288)
+    assert result["calls"]["panel_decisions_per_model"] == 320
+    assert result["calls"]["panel_calls"] == 3_200
+    assert result["calls"]["total_calls"] == 3_240
+    assert result["costs_usd"]["total_unrounded"] == pytest.approx(89.8450942464)
+    assert result["costs_usd"]["total_with_1_2x_contingency"] == pytest.approx(107.81411309568)
     grok = next(row for row in result["models"] if row["model"] == "x-ai/grok-4.5")
     assert grok["internal_reasoning_tokens_per_decision"] == 4096
     assert grok["applied_internal_reasoning_rate_usd"] == pytest.approx(grok["applied_completion_rate_usd"])
