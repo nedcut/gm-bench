@@ -681,7 +681,7 @@ snapshot is in
 - [x] After these changes are committed, rerun the rehearsal from a clean
   checkout at the exact candidate SHA and record that SHA before any spend.
   **Verified unassisted 2026-08-03 at candidate SHA
-  `3be9432e10dd0f81c9e58f89bbaae1e0c5a7465f`.** A fresh clone from the GitHub
+  `02a069937d167810b261c21928c85cd3730f5461`.** A fresh clone from the GitHub
   remote with no `web/node_modules` runs `python3 scripts/sota_v3_rehearsal.py`
   to completion with no manual preparation: status `passed`, `spend_usd` 0.0,
   `evidence_class` `synthetic-non-evidence`, all seven mutations rejected,
@@ -689,16 +689,23 @@ snapshot is in
   data byte-matching the checked-in frozen v2 dataset with the synthetic v3
   row excluded, dependencies `installed` via `bun install --frozen-lockfile`
   (40 packages), and a successful staged build. The full suite passes in the
-  same clone (741 tests). No contract source was touched, so the fingerprint
+  same clone (742 tests). No contract source was touched, so the fingerprint
   remains `a523bdfcebe47bbd`, matching `config/sota_v3_lane.json`. This
   authorizes no spend; every lane gate remains false.
 
-  This re-verification supersedes the 2026-08-01 run at
-  `63f28e6897383fe73394c1e4354005dd404fb30b`, which recorded the same result
-  but predates the cohort-ten amendment. That amendment edits
-  `config/sota_v3_lane.json` and `config/sota_v3_models.json`, both of which
-  the rehearsal validates against, so the earlier SHA no longer evidences the
-  configuration a paid run would use.
+  **When this record goes stale.** The rehearsal stages `config/`,
+  `results/leaderboard/`, `results/analysis/`, and `web/`, so a commit
+  touching any of those — or any `_CONTRACT_SOURCES` file — invalidates this
+  verification and requires a rerun before spend. Commits confined to `docs/`
+  or `tests/` do not, since neither is staged nor fingerprinted. State the
+  rule rather than chasing the SHA: re-verify when a staged input changes, and
+  once more immediately before the first authorized spend.
+
+  Earlier runs, superseded: `3be9432e10dd0f81c9e58f89bbaae1e0c5a7465f`
+  (2026-08-03, before the registry moved to `route-preflight-ready`) and
+  `63f28e6897383fe73394c1e4354005dd404fb30b` (2026-08-01, before the
+  cohort-ten amendment). Both recorded the same result, and both predate edits
+  to `config/sota_v3_models.json`, which the rehearsal validates against.
 
   The first attempt, at `a0fdec5493eaf5f702e71c519910e03f39e727f5`, **failed**
   — recorded here because the failure mode is the point. `_run_web_build`
