@@ -680,18 +680,25 @@ snapshot is in
   panel evidence.
 - [x] After these changes are committed, rerun the rehearsal from a clean
   checkout at the exact candidate SHA and record that SHA before any spend.
-  **Verified unassisted 2026-08-01 at candidate SHA
-  `63f28e6897383fe73394c1e4354005dd404fb30b`.** A `--no-local` clone with no
-  `web/node_modules` runs `python3 scripts/sota_v3_rehearsal.py` to completion
-  with no manual preparation: status `passed`, `spend_usd` 0.0,
+  **Verified unassisted 2026-08-03 at candidate SHA
+  `3be9432e10dd0f81c9e58f89bbaae1e0c5a7465f`.** A fresh clone from the GitHub
+  remote with no `web/node_modules` runs `python3 scripts/sota_v3_rehearsal.py`
+  to completion with no manual preparation: status `passed`, `spend_usd` 0.0,
   `evidence_class` `synthetic-non-evidence`, all seven mutations rejected,
   policy selection `sota_v2` rejected / `sota_v3` accepted, generated site
   data byte-matching the checked-in frozen v2 dataset with the synthetic v3
   row excluded, dependencies `installed` via `bun install --frozen-lockfile`
   (40 packages), and a successful staged build. The full suite passes in the
-  same clone (738 tests). No contract source was touched, so the fingerprint
+  same clone (741 tests). No contract source was touched, so the fingerprint
   remains `a523bdfcebe47bbd`, matching `config/sota_v3_lane.json`. This
   authorizes no spend; every lane gate remains false.
+
+  This re-verification supersedes the 2026-08-01 run at
+  `63f28e6897383fe73394c1e4354005dd404fb30b`, which recorded the same result
+  but predates the cohort-ten amendment. That amendment edits
+  `config/sota_v3_lane.json` and `config/sota_v3_models.json`, both of which
+  the rehearsal validates against, so the earlier SHA no longer evidences the
+  configuration a paid run would use.
 
   The first attempt, at `a0fdec5493eaf5f702e71c519910e03f39e727f5`, **failed**
   — recorded here because the failure mode is the point. `_run_web_build`
@@ -706,6 +713,16 @@ snapshot is in
   `_ensure_web_dependencies` now resolves the dependency explicitly and
   records under `web_build.dependencies` which path ran; three regression
   tests cover install, reuse, and failure.
+
+  Those three tests shipped incomplete, and the gap is worth recording because
+  it repeats the pattern above. All three call `_ensure_web_dependencies`
+  directly, so none of them touches the call site inside `_run_web_build` —
+  the single line that makes a clean checkout work. Stubbing that line out
+  left the suite fully green, meaning the fix could be deleted without any
+  signal. Two tests added 2026-08-03 drive `_run_web_build` itself and assert
+  the install precedes the build; the same sabotage now fails 2 of 11 tests.
+  A regression test that passes with the code removed is not coverage, and the
+  only way to learn which case you are in is to break the code on purpose.
 - [ ] Select exact routes, grant the separate zero-completion-call
   `route_preflight_authorized` gate, then run
   `python3 scripts/run_publication_matrix.py route-preflight --contract sota-v3`.
