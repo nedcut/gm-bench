@@ -470,6 +470,56 @@ def _live_v3_readiness() -> dict[str, Any]:
     }
 
 
+def _ensure_web_dependencies(staging: Path, bun: str) -> dict[str, Any]:
+    """Resolve ``staging/web/node_modules`` before the build runs.
+
+    ``_stage_site_inputs`` symlinks ``ROOT/web/node_modules`` only when it
+    already exists.  In a working tree it does, which is why this step has
+    always passed.  On a clean checkout it does not, ``bun run build`` exits
+    127 because ``vite`` is absent, and ``check=True`` aborts the whole
+    rehearsal on an unhandled ``CalledProcessError``.  That is precisely the
+    run PUBLISH_READINESS.md requires at the candidate SHA before any spend,
+    so the gate currently cannot pass in the environment it was written for.
+
+    Return a dict recorded under ``web_build.dependencies`` in the report.
+
+    The policy is to install.  A gate that needs an undocumented manual prep
+    step is a gate that passes for the wrong reason, which is the failure this
+    harness exists to catch.  ``--frozen-lockfile`` keeps the committed
+    ``bun.lock`` authoritative, so the fetch resolves pinned versions and
+    cannot silently drift the built site.  "Zero spend" here means no provider
+    or model call; a package fetch costs nothing and touches no contract
+    source, so it does not weaken that guarantee.
+    """
+    modules = staging / "web" / "node_modules"
+    if modules.exists():
+        return {
+            "status": "reused",
+            "source": "working-tree-symlink" if modules.is_symlink() else "staged-directory",
+        }
+    completed = subprocess.run(
+        [bun, "install", "--frozen-lockfile"],
+        cwd=staging / "web",
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(
+            f"`{bun} install --frozen-lockfile` failed in {staging / 'web'} "
+            f"(exit {completed.returncode}); the staged site cannot be built.\n"
+            f"{completed.stderr.strip()}"
+        )
+    # Bun reports the install summary on stderr when attached to a TTY and is
+    # otherwise quiet, so fall back to stdout rather than record an empty tail.
+    summary = (completed.stderr.strip() or completed.stdout.strip()).splitlines()
+    return {
+        "status": "installed",
+        "command": f"{bun} install --frozen-lockfile",
+        "output": summary[-1:] or ["<installer produced no summary output>"],
+    }
+
+
 def _run_web_build(staging: Path) -> dict[str, Any]:
     bun = shutil.which("bun")
     if bun is None:
@@ -477,6 +527,7 @@ def _run_web_build(staging: Path) -> dict[str, Any]:
         bun = str(candidate) if candidate.is_file() else None
     if bun is None:
         raise RuntimeError("Bun is not installed; rerun with --skip-web-build")
+    dependencies = _ensure_web_dependencies(staging, bun)
     completed = subprocess.run(
         [bun, "run", "build"],
         cwd=staging / "web",
@@ -484,7 +535,12 @@ def _run_web_build(staging: Path) -> dict[str, Any]:
         capture_output=True,
         text=True,
     )
-    return {"status": "passed", "command": f"{bun} run build", "output": completed.stdout.strip().splitlines()[-1:]}
+    return {
+        "status": "passed",
+        "command": f"{bun} run build",
+        "dependencies": dependencies,
+        "output": completed.stdout.strip().splitlines()[-1:],
+    }
 
 
 def run_rehearsal(workdir: Path, *, run_web_build: bool, mode: str = "synthetic") -> dict[str, Any]:

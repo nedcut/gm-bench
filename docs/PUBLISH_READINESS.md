@@ -664,8 +664,34 @@ snapshot is in
   ingestion, a generated dataset matching the checked-in frozen-v2 site data,
   and a successful staged web build. The synthetic output is diagnostic, not
   panel evidence.
-- [ ] After these changes are committed, rerun the rehearsal from a clean
+- [x] After these changes are committed, rerun the rehearsal from a clean
   checkout at the exact candidate SHA and record that SHA before any spend.
+  **Verified unassisted 2026-08-01 at candidate SHA
+  `63f28e6897383fe73394c1e4354005dd404fb30b`.** A `--no-local` clone with no
+  `web/node_modules` runs `python3 scripts/sota_v3_rehearsal.py` to completion
+  with no manual preparation: status `passed`, `spend_usd` 0.0,
+  `evidence_class` `synthetic-non-evidence`, all seven mutations rejected,
+  policy selection `sota_v2` rejected / `sota_v3` accepted, generated site
+  data byte-matching the checked-in frozen v2 dataset with the synthetic v3
+  row excluded, dependencies `installed` via `bun install --frozen-lockfile`
+  (40 packages), and a successful staged build. The full suite passes in the
+  same clone (738 tests). No contract source was touched, so the fingerprint
+  remains `a523bdfcebe47bbd`, matching `config/sota_v3_lane.json`. This
+  authorizes no spend; every lane gate remains false.
+
+  The first attempt, at `a0fdec5493eaf5f702e71c519910e03f39e727f5`, **failed**
+  — recorded here because the failure mode is the point. `_run_web_build`
+  aborted with an unhandled `CalledProcessError` (exit 127, `vite` absent)
+  because `_stage_site_inputs` symlinks `web/node_modules` only when it
+  already exists in `ROOT`, which is never true on a clean checkout. The
+  2026-07-27 run had passed only by inheriting `node_modules` from the tree it
+  ran in: the gate was passing for the wrong reason, and the single dependency
+  it never checked was the one a clean-checkout rerun exists to rule out. No
+  test caught it because every case in `tests/test_sota_v3_rehearsal.py`
+  passed `run_web_build=False`, leaving the build path uncovered.
+  `_ensure_web_dependencies` now resolves the dependency explicitly and
+  records under `web_build.dependencies` which path ran; three regression
+  tests cover install, reuse, and failure.
 - [ ] Select exact routes, grant the separate zero-completion-call
   `route_preflight_authorized` gate, then run
   `python3 scripts/run_publication_matrix.py route-preflight --contract sota-v3`.
