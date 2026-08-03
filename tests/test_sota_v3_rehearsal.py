@@ -473,12 +473,19 @@ def test_failed_install_raises_an_actionable_error(tmp_path: Path, monkeypatch: 
         rehearsal_mod._ensure_web_dependencies(staging, "bun")
 
 
-def _record_bun_invocations(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
-    """Stub out `bun` discovery and execution, returning the recorded argv list."""
-    calls: list[list[str]] = []
+def _record_bun_invocations(monkeypatch: pytest.MonkeyPatch) -> list[tuple[list[str], Path | None]]:
+    """Stub out `bun` discovery and execution, returning recorded `(argv, cwd)` pairs.
+
+    The working directory is recorded because argv alone underspecifies the
+    invocation: an install or build aimed at the real `web/` tree instead of the
+    staging copy would run the same command line while defeating the point of
+    staging, and the rehearsal's isolation guarantee with it.
+    """
+    calls: list[tuple[list[str], Path | None]] = []
 
     def fake_run(cmd, **kwargs):
-        calls.append(list(cmd))
+        cwd = kwargs.get("cwd")
+        calls.append((list(cmd), Path(cwd) if cwd is not None else None))
         return subprocess.CompletedProcess(cmd, 0, stdout="✓ built in 87ms", stderr="40 packages installed")
 
     monkeypatch.setattr(rehearsal_mod.shutil, "which", lambda _name: "bun")
@@ -500,7 +507,10 @@ def test_web_build_installs_dependencies_before_building(tmp_path: Path, monkeyp
 
     result = rehearsal_mod._run_web_build(staging)
 
-    assert calls == [["bun", "install", "--frozen-lockfile"], ["bun", "run", "build"]]
+    assert calls == [
+        (["bun", "install", "--frozen-lockfile"], staging / "web"),
+        (["bun", "run", "build"], staging / "web"),
+    ]
     assert result["dependencies"]["status"] == "installed"
     assert result["status"] == "passed"
 
@@ -514,5 +524,5 @@ def test_web_build_skips_the_install_when_dependencies_are_present(
 
     result = rehearsal_mod._run_web_build(staging)
 
-    assert calls == [["bun", "run", "build"]]
+    assert calls == [(["bun", "run", "build"], staging / "web")]
     assert result["dependencies"] == {"status": "reused", "source": "staged-directory"}
