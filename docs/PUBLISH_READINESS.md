@@ -681,7 +681,7 @@ snapshot is in
 - [x] After these changes are committed, rerun the rehearsal from a clean
   checkout at the exact candidate SHA and record that SHA before any spend.
   **Verified unassisted 2026-08-03 at candidate SHA
-  `3be9432e10dd0f81c9e58f89bbaae1e0c5a7465f`.** A fresh clone from the GitHub
+  `02a069937d167810b261c21928c85cd3730f5461`.** A fresh clone from the GitHub
   remote with no `web/node_modules` runs `python3 scripts/sota_v3_rehearsal.py`
   to completion with no manual preparation: status `passed`, `spend_usd` 0.0,
   `evidence_class` `synthetic-non-evidence`, all seven mutations rejected,
@@ -689,16 +689,23 @@ snapshot is in
   data byte-matching the checked-in frozen v2 dataset with the synthetic v3
   row excluded, dependencies `installed` via `bun install --frozen-lockfile`
   (40 packages), and a successful staged build. The full suite passes in the
-  same clone (741 tests). No contract source was touched, so the fingerprint
+  same clone (742 tests). No contract source was touched, so the fingerprint
   remains `a523bdfcebe47bbd`, matching `config/sota_v3_lane.json`. This
   authorizes no spend; every lane gate remains false.
 
-  This re-verification supersedes the 2026-08-01 run at
-  `63f28e6897383fe73394c1e4354005dd404fb30b`, which recorded the same result
-  but predates the cohort-ten amendment. That amendment edits
-  `config/sota_v3_lane.json` and `config/sota_v3_models.json`, both of which
-  the rehearsal validates against, so the earlier SHA no longer evidences the
-  configuration a paid run would use.
+  **When this record goes stale.** The rehearsal stages `config/`,
+  `results/leaderboard/`, `results/analysis/`, and `web/`, so a commit
+  touching any of those — or any `_CONTRACT_SOURCES` file — invalidates this
+  verification and requires a rerun before spend. Commits confined to `docs/`
+  or `tests/` do not, since neither is staged nor fingerprinted. State the
+  rule rather than chasing the SHA: re-verify when a staged input changes, and
+  once more immediately before the first authorized spend.
+
+  Earlier runs, superseded: `3be9432e10dd0f81c9e58f89bbaae1e0c5a7465f`
+  (2026-08-03, before the registry moved to `route-preflight-ready`) and
+  `63f28e6897383fe73394c1e4354005dd404fb30b` (2026-08-01, before the
+  cohort-ten amendment). Both recorded the same result, and both predate edits
+  to `config/sota_v3_models.json`, which the rehearsal validates against.
 
   The first attempt, at `a0fdec5493eaf5f702e71c519910e03f39e727f5`, **failed**
   — recorded here because the failure mode is the point. `_run_web_build`
@@ -728,6 +735,15 @@ snapshot is in
   `python3 scripts/run_publication_matrix.py route-preflight --contract sota-v3`.
   This phase checks endpoint identity and parameters but cannot launch a model
   subprocess, reserve spend, or create run state.
+  **Route selection is done and the registry moved to `route-preflight-ready`
+  on 2026-08-03** (decision-log entry below), so the owner's
+  `route_preflight_authorized` grant is now the only remaining blocker on this
+  step. Granting it costs nothing and buys the answer to the question the
+  public catalog cannot answer: whether these ten exact routes are reachable
+  and acceptable under authentication. Run it before generating the seed
+  panel — a route failure here forces a cohort amendment, and a cohort size
+  change re-triggers the Holm family size, the allocation, and the
+  reservation.
 - [ ] After explicit owner authorization, use
   `scripts/seed_panel_commitment.py generate --lane config/sota_v3_lane.json
   --secret-file <recoverable-private-escrow-outside-the-checkout>` to draw the ordered 16-seed panel
@@ -866,6 +882,7 @@ decision and why.
 | 2026-07-25 | Treat `sota-v3` as contract-ready and panel-blocked per consultant audit #93. | Independent review graded reproducibility A− but model discrimination D; one overlapping v2 tier; PR #92 contract economics still unmerged; scaffold-view unrun; site surfaces overclaim. | Merge #92, run scaffold-view at the frozen fingerprint, fix v2-site claim gaps, pre-register the v3 lane, and defer paid v3 panel spend until those gates pass. Do not publish ordinal model or baseline rankings. |
 | 2026-07-27 | Freeze v3 mechanics and reduce the pre-spend path to preregistration plus offline rehearsal. | PRs #92, #95, #98, #99, and #101 closed the mechanics, site-framing, same-view, version-dispatch, and claim-decomposition blockers. Continuing to add plausible realism changes now creates more schedule and evidence risk than it removes. The base SHA had no v3 lane/registry/manifest or v3 artifact; the working tree now has provisional fail-closed config files but still no selected model family or real/committed artifact. | Freeze score-affecting mechanics at `4f6ddddd6a6dd81c`; permit only one bounded, pre-data publication-parameter amendment if panel design requires it; preserve v2 literally; complete preregistration and a clean-checkout no-provider-call rehearsal; authorize no paid smoke or panel by this decision. |
 | 2026-07-30 | Reconcile the v3 pre-spend design across configs, policy, cost planning, seed commitment, and rehearsal. | The exact registered power procedure supports 15 independent seeds x 1 stochastic trajectory per model: base power 0.9461 and sensitivity power 0.8357 with Wilson lower bound 0.8283. One repeat is the registered estimand, not a dropped replicate. The prior configs disagreed on repeats and treated a live-readiness mismatch as non-fatal. No private seed was generated and no provider was called during reconciliation. | Bind the current lane to fingerprint `a523bdfcebe47bbd`, freeze the 15 x 1 statistical design, use a provisional 4,096/3,072/8,192 cap rule with whole-cohort invalidation and re-smoke on pressure, provide an unbiased private-seed generator, and make preregistration coherence a hard rehearsal gate. Keep every route, spend, execution, and publication authorization false. |
+| 2026-08-03 | Move the ten-model registry from `provisional-blocked` to `route-preflight-ready` while `evidence_state` is still pre-data. | Everything registered about the ten routes comes from the public OpenRouter catalog, which by the registry's own admission "does not prove authenticated exact-route access or provider privacy and retention behavior." The v2 lane already lost Nemotron 3 Ultra and DeepSeek V4 Pro to bounded HTTP 404s on routes that looked healthy publicly, so a failed authenticated probe is a live possibility, not a hypothetical. Route preflight is the cheapest test of that assumption: it makes zero completion calls and cannot launch a model subprocess, reserve spend, or create run state. Discovering a dead route now costs a JSON regeneration; discovering it after the seed panel is committed means a committed panel attached to a design that then changed, because cohort size drives the Holm family size, which drives the allocation and the reservation. | Registry `selection_status` becomes `route-preflight-ready`; `selection_frozen_at_utc` stays `null`. This is strictly weaker than `frozen` and unlocks nothing that costs money: measured against the live configs, route-preflight readiness goes from two blockers to one — the owner's separate `route_preflight_authorized` grant — while the smoke and panel phases stay at an identical 60 blockers, still including "provider execution is locked until the model registry is frozen." Asserted by `test_route_preflight_readiness_unlocks_nothing_that_costs_money`. Cohort identity is **not** frozen by this decision; freezing it remains a separate later decision informed by preflight results. Every lane authorization remains false. |
 
 ## Experiment and release log
 
