@@ -76,3 +76,29 @@ polish fixes that moved the fingerprint from `0a5f0434dca31ac5` to
 `feat/contract-economics` tip and the compare was re-run. Headline means,
 per-seed scores, and paired *t* are unchanged on the official panel; only the
 fingerprint and economics commit reference above were updated.
+
+## Revalidation under the `sota-v3` candidate fingerprint (2026-08-03)
+
+`docs/PUBLISH_READINESS.md` requires this diagnostic to be rerun or explicitly
+revalidated under the fingerprint a paid smoke would actually run on. The
+figures above were measured under `4f6ddddd6a6dd81c`; the `sota-v3` candidate
+contract is `a523bdfcebe47bbd`. The compare was therefore re-run unchanged:
+
+| Field | Value |
+| --- | --- |
+| Contract fingerprint | `a523bdfcebe47bbd` |
+| Branch / commit | `amend/sota-v3-cohort-10` at `88ab7df191ef4d8e3ec4921a3e374e51d7fcc91c` |
+| Command | `python3 -m gm_bench compare --agents scaffold-view pick-trader --seeds 11 12 13 14 15 16 17 18 --seasons 5 --no-log` |
+| Spend | $0.00 — both agents are scripted and CPU-only |
+
+**Every number above reproduces exactly.** Headline means 270.675 and 267.875,
+paired mean difference +2.800, paired *t* 0.249, and all eight per-seed scores
+match the `4f6ddddd6a6dd81c` measurement to the recorded precision, including
+the two divergent seeds (17: +69.935, 18: −47.533) and the six exact ties.
+Neither agent reads a field the intervening contract changes touched, so the
+observation-asymmetry bound carries forward unaltered.
+
+This revalidates the bound; it does not widen the claim. The +2.8 gap remains
+diagnostic, remains driven entirely by seeds 17 and 18, and still may not be
+used to re-rank any model. `scaffold-view` stays outside
+`PRESETS["leaderboard"]`.

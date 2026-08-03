@@ -471,3 +471,48 @@ def test_failed_install_raises_an_actionable_error(tmp_path: Path, monkeypatch: 
 
     with pytest.raises(RuntimeError, match="lockfile out of date"):
         rehearsal_mod._ensure_web_dependencies(staging, "bun")
+
+
+def _record_bun_invocations(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
+    """Stub out `bun` discovery and execution, returning the recorded argv list."""
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(list(cmd))
+        return subprocess.CompletedProcess(cmd, 0, stdout="✓ built in 87ms", stderr="40 packages installed")
+
+    monkeypatch.setattr(rehearsal_mod.shutil, "which", lambda _name: "bun")
+    monkeypatch.setattr(rehearsal_mod.subprocess, "run", fake_run)
+    return calls
+
+
+def test_web_build_installs_dependencies_before_building(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`_run_web_build` must resolve dependencies itself, not assume them.
+
+    The three tests above call `_ensure_web_dependencies` directly, so they all
+    still pass when the call site inside `_run_web_build` is deleted -- which is
+    the only line that makes a clean checkout work.  This test fails closed on
+    that regression by asserting the install actually precedes the build.
+    """
+    staging = tmp_path / "staging"
+    (staging / "web").mkdir(parents=True)
+    calls = _record_bun_invocations(monkeypatch)
+
+    result = rehearsal_mod._run_web_build(staging)
+
+    assert calls == [["bun", "install", "--frozen-lockfile"], ["bun", "run", "build"]]
+    assert result["dependencies"]["status"] == "installed"
+    assert result["status"] == "passed"
+
+
+def test_web_build_skips_the_install_when_dependencies_are_present(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    staging = tmp_path / "staging"
+    (staging / "web" / "node_modules").mkdir(parents=True)
+    calls = _record_bun_invocations(monkeypatch)
+
+    result = rehearsal_mod._run_web_build(staging)
+
+    assert calls == [["bun", "run", "build"]]
+    assert result["dependencies"] == {"status": "reused", "source": "staged-directory"}
