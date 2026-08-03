@@ -12,6 +12,7 @@ from gm_bench.contract import BENCHMARK_VERSION, contract_fingerprint
 from gm_bench.publication import (
     SMOKE_MANIFEST_FORMAT,
     exact_sign_flip_feasibility,
+    publication_execution_issues,
     v3_preregistration_coherence_issues,
 )
 
@@ -92,7 +93,10 @@ def test_v3_registry_is_truthfully_provisional_and_contains_no_unverified_routes
 
     assert registry["contract"] == lane["contract"]
     assert registry["contract_fingerprint"] == lane["contract_fingerprint"]
-    assert registry["selection_status"] == "provisional-blocked"
+    # route-preflight-ready is strictly weaker than frozen: it clears the
+    # zero-call preflight readiness check and nothing else.  The registry is
+    # still not frozen, so every paid phase stays locked.
+    assert registry["selection_status"] == "route-preflight-ready"
     assert registry["selection_frozen_at_utc"] is None
     assert registry["catalog_snapshot_status"] == "frozen-public-metadata-only"
     assert registry["catalog_checked_at_utc"]
@@ -325,3 +329,31 @@ def test_runner_requires_explicit_contract_before_v2_preflight_can_run(
     assert exc_info.value.code == 2
     assert "smoke requires an explicit --contract" in capsys.readouterr().err
     assert provider_access == []
+
+
+def test_route_preflight_readiness_unlocks_nothing_that_costs_money() -> None:
+    """`route-preflight-ready` must buy exactly one thing: the zero-call probe.
+
+    This is the whole safety argument for making the flip before route
+    preflight has run, so it is asserted rather than described.  The registry
+    is deliberately *not* `frozen`; every paid phase must remain as locked as
+    it was while the registry was `provisional-blocked`.
+    """
+    lane = _read("sota_v3_lane.json")
+    registry = _read("sota_v3_models.json")
+    protocol = _read("sota_v3_publication_protocol.json")
+    pricing = _read("sota_v3_pricing_snapshot.json")
+    manifest = _read("sota_v3_smoke_manifest.json")
+
+    def issues(reg: dict, phase: str) -> list[str]:
+        return publication_execution_issues(lane, reg, manifest, phase=phase, protocol=protocol, pricing=pricing)
+
+    # The owner's separate zero-call authorization is the only thing left.
+    assert issues(registry, "route-preflight") == [
+        "zero-call route preflight is locked while route_preflight_authorized is false"
+    ]
+
+    blocked = dict(registry, selection_status="provisional-blocked")
+    for phase in ("smoke", "panel"):
+        assert issues(registry, phase) == issues(blocked, phase)
+        assert "provider execution is locked until the model registry is frozen" in issues(registry, phase)

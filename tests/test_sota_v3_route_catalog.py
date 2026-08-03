@@ -42,7 +42,7 @@ def test_v3_catalog_freezes_exact_balanced_cohort_without_unlocking_execution() 
     assert "meta/muse-spark-1.1" not in identities
 
     assert registry["catalog_snapshot_status"] == "frozen-public-metadata-only"
-    assert registry["selection_status"] == "provisional-blocked"
+    assert registry["selection_status"] == "route-preflight-ready"
     assert registry["selection_frozen_at_utc"] is None
     assert registry["catalog_checked_at_utc"]
     assert set(registry["required_smokes"]) == {model["id"] for model in models}
@@ -170,8 +170,11 @@ def test_public_catalog_snapshot_cannot_unlock_any_provider_phase() -> None:
         protocol=protocol,
         pricing=pricing,
     )
-    assert "zero-call route preflight is locked while route_preflight_authorized is false" in preflight_issues
-    assert "model registry is not ready for zero-call route preflight" in preflight_issues
+    # The registry-readiness blocker was deliberately cleared when the cohort
+    # moved to route-preflight-ready, so pin the stronger property instead: the
+    # owner's separate zero-call authorization must be the *only* thing left,
+    # which fails just as loudly if anything else silently unlocks.
+    assert preflight_issues == ["zero-call route preflight is locked while route_preflight_authorized is false"]
 
     smoke_issues = publication_execution_issues(
         lane,

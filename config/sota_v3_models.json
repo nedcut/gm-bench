@@ -9,7 +9,7 @@
   "session": false,
   "preset": "leaderboard",
   "repeats": 1,
-  "selection_status": "provisional-blocked",
+  "selection_status": "route-preflight-ready",
   "selection_frozen_at_utc": null,
   "selection_revision": "2026-08-03-public-catalog-cohort-v2",
   "catalog_snapshot_status": "frozen-public-metadata-only",
