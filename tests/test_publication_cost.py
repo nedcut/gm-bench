@@ -123,6 +123,22 @@ def test_model_specific_reasoning_and_long_context_rates_are_applied() -> None:
     assert row["internal_reasoning_billing_basis"] == "internal_reasoning"
 
 
+def test_v3_luna_uses_the_pinned_long_context_price_tier() -> None:
+    models, lane, pricing = _v3_inputs()
+    models = copy.deepcopy(models)
+    pricing = copy.deepcopy(pricing)
+    model_name = "openai/gpt-5.6-luna"
+    models["models"] = [model for model in models["models"] if model["model"] == model_name]
+    pricing["planning_assumptions"]["input_tokens_per_decision"] = 272_000
+
+    result = estimate(models, lane, pricing)
+    row = result["models"][0]
+
+    assert row["model"] == model_name
+    assert row["applied_prompt_rate_usd"] == pytest.approx(2e-7)
+    assert row["applied_completion_rate_usd"] == pytest.approx(9e-7)
+
+
 def test_internal_reasoning_price_requires_an_explicit_token_assumption() -> None:
     models, lane, pricing = _committed_inputs()
     pricing = copy.deepcopy(pricing)

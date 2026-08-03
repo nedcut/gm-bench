@@ -7,7 +7,7 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-03
 **Current target:** Preserve the published `sota-v2` study as frozen historical
 evidence while pre-registering and rehearsing a finite `sota-v3` publication
 lane.
@@ -26,10 +26,10 @@ working tree contains a ten-model public-catalog cohort, a frozen 16-seed x
 1-repeat statistical design, a provisional 4,096-token safety ceiling, an empty
 not-started smoke manifest, explicit runner dispatch, and a zero-spend synthetic
 rehearsal. Exact authenticated routes, privacy acceptance, model-specific
-reasoning compatibility, private seed identity, and the clean-checkout
-fingerprint-bound rehearsal remain unresolved. All route, spend, execution, and
-publication gates remain false. There is no real v3 smoke or leaderboard
-artifact, and no paid v3 smoke or panel spend is authorized.
+reasoning compatibility, and private seed identity remain unresolved. All
+route, spend, execution, and publication gates remain false. There is no real
+v3 smoke or leaderboard artifact, and no paid v3 smoke or panel spend is
+authorized.
 **Current weekly focus:** [#93 — v3 readiness program: consultant audit
 findings](https://github.com/nedcut/gm-bench/issues/93). Remaining
 [Issue #84](https://github.com/nedcut/gm-bench/issues/84) follow-through is

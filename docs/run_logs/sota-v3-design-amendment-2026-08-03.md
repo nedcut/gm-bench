@@ -81,10 +81,11 @@ The regenerated pre-smoke reservation
 (`results/analysis/sota-v3-pre-smoke-cost-estimate.json`) for the 10-model,
 16-seed panel plus required smokes is $89.85 unrounded, $107.81 with the 1.2x
 contingency multiplier (previously $86.59 / $103.91). Both added models price
-below the cohort median and plain Luna prices identically to Luna Pro, so the
-increase is dominated by the extra seed and the two added smoke-plus-panel
-lanes. This remains a planning reservation, not an authorization; the
-operator ceiling is still null and `spend_authorized` is still false.
+below the cohort median, and plain Luna is cheaper than Luna Pro at the pinned
+base rates, so the cheaper substitution partly offsets the extra seed and the
+two added smoke-plus-panel lanes. This remains a planning reservation, not an
+authorization; the operator ceiling is still null and `spend_authorized` is
+still false.
 
 ## Unchanged
 
@@ -125,6 +126,7 @@ python3 scripts/estimate_publication_cost.py \
 
 python3 -m pytest -q \
   tests/test_panel_power.py \
+  tests/test_publication_cost.py \
   tests/test_publication_analysis.py \
   tests/test_seed_panel_commitment.py \
   tests/test_sota_v3_preregistration.py \
