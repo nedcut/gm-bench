@@ -41,13 +41,13 @@ def test_fixed_panel_and_smoke_call_counts() -> None:
 def test_v3_cost_plan_uses_registered_private_seed_count() -> None:
     result = estimate(*_v3_inputs())
 
-    assert result["assumptions"]["panel_seed_count"] == 15
+    assert result["assumptions"]["panel_seed_count"] == 16
     assert result["assumptions"]["panel_repeats"] == 1
-    assert result["calls"]["panel_decisions_per_model"] == 300
-    assert result["calls"]["panel_calls"] == 2_400
-    assert result["calls"]["total_calls"] == 2_432
-    assert result["costs_usd"]["total_unrounded"] == pytest.approx(86.5927297024)
-    assert result["costs_usd"]["total_with_1_2x_contingency"] == pytest.approx(103.91127564288)
+    assert result["calls"]["panel_decisions_per_model"] == 320
+    assert result["calls"]["panel_calls"] == 3_200
+    assert result["calls"]["total_calls"] == 3_240
+    assert result["costs_usd"]["total_unrounded"] == pytest.approx(89.8450942464)
+    assert result["costs_usd"]["total_with_1_2x_contingency"] == pytest.approx(107.81411309568)
     grok = next(row for row in result["models"] if row["model"] == "x-ai/grok-4.5")
     assert grok["internal_reasoning_tokens_per_decision"] == 4096
     assert grok["applied_internal_reasoning_rate_usd"] == pytest.approx(grok["applied_completion_rate_usd"])
@@ -121,6 +121,22 @@ def test_model_specific_reasoning_and_long_context_rates_are_applied() -> None:
     assert row["internal_reasoning_tokens_per_decision"] == 30
     assert row["applied_internal_reasoning_rate_usd"] == pytest.approx(0.03)
     assert row["internal_reasoning_billing_basis"] == "internal_reasoning"
+
+
+def test_v3_luna_uses_the_pinned_long_context_price_tier() -> None:
+    models, lane, pricing = _v3_inputs()
+    models = copy.deepcopy(models)
+    pricing = copy.deepcopy(pricing)
+    model_name = "openai/gpt-5.6-luna"
+    models["models"] = [model for model in models["models"] if model["model"] == model_name]
+    pricing["planning_assumptions"]["input_tokens_per_decision"] = 272_000
+
+    result = estimate(models, lane, pricing)
+    row = result["models"][0]
+
+    assert row["model"] == model_name
+    assert row["applied_prompt_rate_usd"] == pytest.approx(2e-7)
+    assert row["applied_completion_rate_usd"] == pytest.approx(9e-7)
 
 
 def test_internal_reasoning_price_requires_an_explicit_token_assumption() -> None:
