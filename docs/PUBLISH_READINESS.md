@@ -766,8 +766,8 @@ The earlier `scaffold-view` diagnostic was measured under
 `4f6ddddd6a6dd81c` and was revalidated 2026-08-03 under the current fingerprint
 `a523bdfcebe47bbd` with every figure reproducing exactly, so this gate is
 closed for the current contract; any future fingerprint change reopens it. This
-does not pre-decide the
-publication-lane parameters that still must be registered: authenticated
+does not pre-decide the publication-lane parameters that still must be
+registered: authenticated
 route/privacy acceptance, model-specific reasoning compatibility, private
 seed-panel identity, exclusions, operator ceiling, and site treatment. The
 provisional output policy is a 4,096-token fixed safety ceiling with a 3,072
