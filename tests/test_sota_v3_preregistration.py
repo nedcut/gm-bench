@@ -169,7 +169,10 @@ def test_v3_preregistration_fails_closed_before_smoke_or_panel_spend() -> None:
     assert "invalidate every v3 smoke" in lane["output_policy_amendment_rule"]
     assert lane["reasoning_policy"] == "catalog-pinned-pending-live-route-verification"
     assert lane["spend_authorized"] is False
-    assert lane["route_preflight_authorized"] is False
+    # Granted 2026-08-03 for the completed zero-completion-call probe; it is the
+    # one authorization that cannot reach a model, reserve spend, or write run
+    # state, so it does not belong in the fail-closed set below.
+    assert lane["route_preflight_authorized"] is True
     assert lane["smoke_execution_authorized"] is False
     assert lane["panel_execution_authorized"] is False
     assert lane["publication_authorized"] is False
@@ -334,10 +337,10 @@ def test_runner_requires_explicit_contract_before_v2_preflight_can_run(
 def test_route_preflight_readiness_unlocks_nothing_that_costs_money() -> None:
     """`route-preflight-ready` must buy exactly one thing: the zero-call probe.
 
-    This is the whole safety argument for making the flip before route
-    preflight has run, so it is asserted rather than described.  The registry
-    is deliberately *not* `frozen`; every paid phase must remain as locked as
-    it was while the registry was `provisional-blocked`.
+    This is the whole safety argument for the flip, so it is asserted rather
+    than described.  The registry is deliberately *not* `frozen`; every paid
+    phase must remain as locked as it was while the registry was
+    `provisional-blocked`, both before and after the probe actually ran.
     """
     lane = _read("sota_v3_lane.json")
     registry = _read("sota_v3_models.json")
@@ -348,10 +351,8 @@ def test_route_preflight_readiness_unlocks_nothing_that_costs_money() -> None:
     def issues(reg: dict, phase: str) -> list[str]:
         return publication_execution_issues(lane, reg, manifest, phase=phase, protocol=protocol, pricing=pricing)
 
-    # The owner's separate zero-call authorization is the only thing left.
-    assert issues(registry, "route-preflight") == [
-        "zero-call route preflight is locked while route_preflight_authorized is false"
-    ]
+    # The probe is authorized and clear; that buys nothing downstream.
+    assert issues(registry, "route-preflight") == []
 
     blocked = dict(registry, selection_status="provisional-blocked")
     for phase in ("smoke", "panel"):

@@ -730,20 +730,23 @@ snapshot is in
   the install precedes the build; the same sabotage now fails 2 of 11 tests.
   A regression test that passes with the code removed is not coverage, and the
   only way to learn which case you are in is to break the code on purpose.
-- [ ] Select exact routes, grant the separate zero-completion-call
+- [x] Select exact routes, grant the separate zero-completion-call
   `route_preflight_authorized` gate, then run
   `python3 scripts/run_publication_matrix.py route-preflight --contract sota-v3`.
   This phase checks endpoint identity and parameters but cannot launch a model
   subprocess, reserve spend, or create run state.
-  **Route selection is done and the registry moved to `route-preflight-ready`
-  on 2026-08-03** (decision-log entry below), so the owner's
-  `route_preflight_authorized` grant is now the only remaining blocker on this
-  step. Granting it costs nothing and buys the answer to the question the
-  public catalog cannot answer: whether these ten exact routes are reachable
-  and acceptable under authentication. Run it before generating the seed
-  panel — a route failure here forces a cohort amendment, and a cohort size
-  change re-triggers the Holm family size, the allocation, and the
-  reservation.
+  **Completed 2026-08-03 at $0.00; all ten routes pass.** See
+  [`docs/run_logs/sota-v3-route-preflight-2026-08-03.md`](run_logs/sota-v3-route-preflight-2026-08-03.md).
+  Nine of ten pins were correct on first contact. `qwen/qwen3.7-plus` failed
+  because its Alibaba endpoint tag had moved from `alibaba` to `alibaba/fp8`;
+  the route itself is healthy and its provider name, endpoint name, and every
+  price are unchanged, so this was a stale label rather than a lost model. The
+  tag was corrected in the registry and the bound pricing slug, the cost
+  artifact regenerates byte-identically, and **the cohort stays at ten with
+  the 16x1 allocation and $107.81 reservation intact.** Running this before
+  the seed panel was the point: a genuinely dead route would have forced a
+  cohort amendment, and cohort size drives the Holm family size, the
+  allocation, and the reservation.
 - [ ] After explicit owner authorization, use
   `scripts/seed_panel_commitment.py generate --lane config/sota_v3_lane.json
   --secret-file <recoverable-private-escrow-outside-the-checkout>` to draw the ordered 16-seed panel
@@ -883,6 +886,8 @@ decision and why.
 | 2026-07-27 | Freeze v3 mechanics and reduce the pre-spend path to preregistration plus offline rehearsal. | PRs #92, #95, #98, #99, and #101 closed the mechanics, site-framing, same-view, version-dispatch, and claim-decomposition blockers. Continuing to add plausible realism changes now creates more schedule and evidence risk than it removes. The base SHA had no v3 lane/registry/manifest or v3 artifact; the working tree now has provisional fail-closed config files but still no selected model family or real/committed artifact. | Freeze score-affecting mechanics at `4f6ddddd6a6dd81c`; permit only one bounded, pre-data publication-parameter amendment if panel design requires it; preserve v2 literally; complete preregistration and a clean-checkout no-provider-call rehearsal; authorize no paid smoke or panel by this decision. |
 | 2026-07-30 | Reconcile the v3 pre-spend design across configs, policy, cost planning, seed commitment, and rehearsal. | The exact registered power procedure supports 15 independent seeds x 1 stochastic trajectory per model: base power 0.9461 and sensitivity power 0.8357 with Wilson lower bound 0.8283. One repeat is the registered estimand, not a dropped replicate. The prior configs disagreed on repeats and treated a live-readiness mismatch as non-fatal. No private seed was generated and no provider was called during reconciliation. | Bind the current lane to fingerprint `a523bdfcebe47bbd`, freeze the 15 x 1 statistical design, use a provisional 4,096/3,072/8,192 cap rule with whole-cohort invalidation and re-smoke on pressure, provide an unbiased private-seed generator, and make preregistration coherence a hard rehearsal gate. Keep every route, spend, execution, and publication authorization false. |
 | 2026-08-03 | Move the ten-model registry from `provisional-blocked` to `route-preflight-ready` while `evidence_state` is still pre-data. | Everything registered about the ten routes comes from the public OpenRouter catalog, which by the registry's own admission "does not prove authenticated exact-route access or provider privacy and retention behavior." The v2 lane already lost Nemotron 3 Ultra and DeepSeek V4 Pro to bounded HTTP 404s on routes that looked healthy publicly, so a failed authenticated probe is a live possibility, not a hypothetical. Route preflight is the cheapest test of that assumption: it makes zero completion calls and cannot launch a model subprocess, reserve spend, or create run state. Discovering a dead route now costs a JSON regeneration; discovering it after the seed panel is committed means a committed panel attached to a design that then changed, because cohort size drives the Holm family size, which drives the allocation and the reservation. | Registry `selection_status` becomes `route-preflight-ready`; `selection_frozen_at_utc` stays `null`. This is strictly weaker than `frozen` and unlocks nothing that costs money: measured against the live configs, route-preflight readiness goes from two blockers to one — the owner's separate `route_preflight_authorized` grant — while the smoke and panel phases stay at an identical 60 blockers, still including "provider execution is locked until the model registry is frozen." Asserted by `test_route_preflight_readiness_unlocks_nothing_that_costs_money`. Cohort identity is **not** frozen by this decision; freezing it remains a separate later decision informed by preflight results. Every lane authorization remains false. |
+
+| 2026-08-03 | Grant `route_preflight_authorized`, run the authenticated zero-call route preflight, and correct the stale `qwen/qwen3.7-plus` endpoint tag. | The registered route metadata came from the public catalog, which cannot prove authenticated access. The probe makes zero completion calls, cannot launch a model subprocess, and cannot write run state — verified empirically, since the aborted first run left no files behind. It found exactly one defect in ten: the Alibaba endpoint tag for `qwen/qwen3.7-plus` had moved from `alibaba` to `alibaba/fp8`, while `provider_name`, `name`, status, and every published price stayed identical. | All ten routes now pass at $0.00 spend. `endpoint_tag` and `upstream_provider_slug` corrected in the registry, and the bound `provider_slug` in the pricing snapshot; the cost artifact regenerates byte-identically, so the reservation holds at $89.845094 / $107.814113. **The cohort stays at ten and the 16x1 allocation is unaffected** — a dead route would have forced a family-of-nine amendment and a power re-selection. `exact_route_acceptance` remains `unresolved`; smoke is still blocked by 60 issues, the same count as before the probe. `spend_authorized`, `smoke_execution_authorized`, `panel_execution_authorized`, and `publication_authorized` all remain false. Logged in [`docs/run_logs/sota-v3-route-preflight-2026-08-03.md`](run_logs/sota-v3-route-preflight-2026-08-03.md). |
 
 ## Experiment and release log
 
