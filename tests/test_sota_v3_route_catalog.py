@@ -135,14 +135,23 @@ def test_selected_catalog_models_match_runner_exact_route_shape() -> None:
     )
 
 
-def test_public_catalog_snapshot_cannot_unlock_any_provider_phase() -> None:
+def test_completed_route_preflight_cannot_unlock_any_paid_phase() -> None:
+    """The zero-call phase is open; every phase that spends money is not.
+
+    `route_preflight_authorized` was granted on 2026-08-03 and the preflight
+    has run, so this no longer asserts that *nothing* is unlocked.  It asserts
+    the distinction the lane is built on: opening the zero-completion-call
+    probe must leave the paid gates exactly where they were.
+    """
     lane = _read("sota_v3_lane.json")
     registry = _read("sota_v3_models.json")
     protocol = _read("sota_v3_publication_protocol.json")
     pricing = _read("sota_v3_pricing_snapshot.json")
     manifest = _read("sota_v3_smoke_manifest.json")
 
-    assert lane["route_preflight_authorized"] is False
+    # Granted: the phase that provably cannot call a model or reserve spend.
+    assert lane["route_preflight_authorized"] is True
+    # Not granted: everything that can.
     assert lane["spend_authorized"] is False
     assert lane["smoke_execution_authorized"] is False
     assert lane["panel_execution_authorized"] is False
@@ -150,8 +159,9 @@ def test_public_catalog_snapshot_cannot_unlock_any_provider_phase() -> None:
     assert protocol["budget_policy"]["spend_authorized"] is False
     assert protocol["publication_authorized"] is False
     assert manifest["accepted_for_panel"] is False
+    assert pricing["route_preflight_authorized"] is False
 
-    for phase in ("route-preflight", "smoke", "panel"):
+    for phase in ("smoke", "panel"):
         issues = publication_execution_issues(
             lane,
             registry,
@@ -160,21 +170,23 @@ def test_public_catalog_snapshot_cannot_unlock_any_provider_phase() -> None:
             protocol=protocol,
             pricing=pricing,
         )
-        assert issues, f"public catalog metadata unexpectedly unlocked {phase}"
+        assert issues, f"completed route preflight unexpectedly unlocked {phase}"
 
-    preflight_issues = publication_execution_issues(
-        lane,
-        registry,
-        manifest,
-        phase="route-preflight",
-        protocol=protocol,
-        pricing=pricing,
+    # Preflight is deliberately clear now; a passing probe is not a licence to
+    # spend, so the registry must still be unfrozen and acceptance unresolved.
+    assert (
+        publication_execution_issues(
+            lane,
+            registry,
+            manifest,
+            phase="route-preflight",
+            protocol=protocol,
+            pricing=pricing,
+        )
+        == []
     )
-    # The registry-readiness blocker was deliberately cleared when the cohort
-    # moved to route-preflight-ready, so pin the stronger property instead: the
-    # owner's separate zero-call authorization must be the *only* thing left,
-    # which fails just as loudly if anything else silently unlocks.
-    assert preflight_issues == ["zero-call route preflight is locked while route_preflight_authorized is false"]
+    assert registry["selection_status"] == "route-preflight-ready"
+    assert registry["selection_frozen_at_utc"] is None
 
     smoke_issues = publication_execution_issues(
         lane,
