@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import sys
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -49,8 +50,12 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 
 def _get_json(url: str, headers: dict[str, str]) -> dict[str, Any]:
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme != "https" or parsed.netloc != "openrouter.ai" or not parsed.path.startswith("/api/v1/"):
+        raise ValueError(f"refusing non-OpenRouter metadata URL: {url!r}")
     request = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed OpenRouter URLs
+    # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - URL allowlist enforced above
         payload = json.load(response)
     if not isinstance(payload, dict):
         raise ValueError(f"{url} did not return a JSON object")
