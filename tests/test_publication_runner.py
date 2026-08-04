@@ -1364,7 +1364,7 @@ def test_route_preflight_checks_every_route_before_failing(
     )
 
     with pytest.raises(SystemExit) as exc_info:
-        main(["route-preflight", "--run-dir", str(tmp_path)])
+        main(["route-preflight", "--contract", "sota-v3", "--run-dir", str(tmp_path)])
 
     message = str(exc_info.value.code)
     # Every route was probed, including the ones queued behind both failures.
@@ -1399,7 +1399,7 @@ def test_paid_phases_still_abort_on_the_first_bad_route(
     monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", fake_validate)
 
     with pytest.raises(SystemExit) as exc_info:
-        main(["smoke", "--run-dir", str(tmp_path), "--max-spend-usd", "1.00"])
+        main(["smoke", "--contract", "sota-v3", "--run-dir", str(tmp_path), "--max-spend-usd", "1.00"])
 
     assert checked == model_ids[:1], "a paid phase kept probing after a bad route"
     assert model_ids[0] in str(exc_info.value.code)

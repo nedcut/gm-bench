@@ -96,7 +96,16 @@ def test_the_committed_cost_artifact_matches_the_committed_configs() -> None:
     recomputed = estimate(*_v3_inputs())
 
     assert committed["costs_usd"] == pytest.approx(recomputed["costs_usd"])
-    assert {row["model"] for row in committed["models"]} == {row["model"] for row in recomputed["models"]}
+    assert committed["calls"] == recomputed["calls"]
+    # The timestamp is what tells a reader which snapshot the number describes,
+    # so a stale one is its own defect even when the totals happen to agree.
+    assert committed["pricing_checked_at_utc"] == recomputed["pricing_checked_at_utc"]
+    committed_rows = {row["experiment_id"]: row for row in committed["models"]}
+    recomputed_rows = {row["experiment_id"]: row for row in recomputed["models"]}
+    assert set(committed_rows) == set(recomputed_rows)
+    for experiment_id, row in recomputed_rows.items():
+        assert committed_rows[experiment_id]["model"] == row["model"]
+        assert committed_rows[experiment_id]["cost_per_decision_usd"] == pytest.approx(row["cost_per_decision_usd"])
 
 
 def test_costs_sum_unrounded_rows_before_contingency() -> None:
