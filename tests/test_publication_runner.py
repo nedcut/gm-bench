@@ -1328,6 +1328,7 @@ def test_zero_call_route_preflight_has_separate_authorization_and_never_launches
 def test_route_preflight_checks_every_route_before_failing(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A bad route must not hide the routes queued behind it.
 
@@ -1372,6 +1373,9 @@ def test_route_preflight_checks_every_route_before_failing(
     assert f"failed for {len(doomed)} of {len(model_ids)} routes" in message
     for model_id in doomed:
         assert model_id in message
+    captured = capsys.readouterr()
+    assert captured.err.count("OpenRouter endpoint preflight failed") == len(doomed)
+    assert "OpenRouter endpoint preflight failed" not in captured.out
     # Still zero-call and still stateless, exactly as on the passing path.
     assert child_calls == []
     assert not (tmp_path / "run-state.json").exists()
@@ -1576,6 +1580,8 @@ def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
                     "status": 0,
                     "max_completion_tokens": 65536,
                     "supported_parameters": ["max_tokens", "response_format", "reasoning"],
+                    "uptime_last_30m": 99.8,
+                    "uptime_last_1d": 99.75,
                 }
             ]
         }
@@ -1588,6 +1594,11 @@ def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
     assert "no healthy OpenRouter endpoint" in _endpoint_issues(cell, valid)[0]
     valid["data"]["endpoints"][0]["name"] = cell.endpoint_name
     valid["data"]["endpoints"][0]["supported_parameters"] = ["max_tokens", "response_format"]
+    assert "cannot honor required parameters" in _endpoint_issues(cell, valid)[0]
+    valid["data"]["endpoints"][0]["supported_parameters"] = ["max_tokens", "response_format", "reasoning"]
+    valid["data"]["endpoints"][0].pop("max_completion_tokens")
+    assert "cannot honor required parameters" in _endpoint_issues(cell, valid)[0]
+    valid["data"]["endpoints"][0]["max_completion_tokens"] = "65536"
     assert "cannot honor required parameters" in _endpoint_issues(cell, valid)[0]
 
 
@@ -1838,8 +1849,8 @@ def test_endpoint_preflight_enforces_both_uptime_floors() -> None:
     The 24h figure is a chronic filter and cannot see an outage in progress:
     on 2026-08-04 the first-party DeepSeek route was deranked to status -5
     while still reporting 99.24% over 24h.  The 30m figure is the one that
-    moved, so it carries the acute signal.  A route that publishes neither
-    figure is not penalised for the omission.
+    moved, so it carries the acute signal. Missing or malformed telemetry is
+    unknown health, so it must fail closed rather than read as a passing route.
     """
     cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba", cap=4096)[0]
     endpoint = _healthy_endpoint(cell)
@@ -1865,9 +1876,21 @@ def test_endpoint_preflight_enforces_both_uptime_floors() -> None:
         endpoint[field] = floor
         assert _endpoint_issues(cell, payload) == [], f"{field} floor must be inclusive"
 
+    for field, value in (
+        ("uptime_last_30m", None),
+        ("uptime_last_30m", "unknown"),
+        ("uptime_last_30m", float("nan")),
+        ("uptime_last_1d", float("inf")),
+    ):
+        endpoint.update(_healthy_endpoint(cell))
+        endpoint[field] = value
+        issues = _endpoint_issues(cell, payload)
+        assert issues and "no finite numeric" in issues[0], (field, value, issues)
+
     endpoint.update(_healthy_endpoint(cell))
     del endpoint["uptime_last_30m"], endpoint["uptime_last_1d"]
-    assert _endpoint_issues(cell, payload) == [], "an unpublished figure must not fail the route"
+    issues = _endpoint_issues(cell, payload)
+    assert issues and "no finite numeric" in issues[0]
 
 
 def test_uptime_floors_sit_below_the_healthy_cohort_noise_band() -> None:
@@ -1895,6 +1918,8 @@ def test_endpoint_preflight_allows_registered_prompt_only_json_route() -> None:
                     "status": 0,
                     "max_completion_tokens": 262144,
                     "supported_parameters": ["max_tokens", "reasoning", "structured_outputs"],
+                    "uptime_last_30m": 99.8,
+                    "uptime_last_1d": 99.75,
                 }
             ]
         }

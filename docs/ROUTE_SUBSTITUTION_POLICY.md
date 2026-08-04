@@ -32,9 +32,10 @@ zero-call probe reports every failing route in one pass.
 2. Endpoint `status` is not `0`.
 3. The endpoint does not advertise `max_tokens`, `reasoning`, and — when the
    lane sets `OPENROUTER_JSON_MODE=true` — `response_format`.
-4. `max_completion_tokens` is below the registered output cap.
-5. `uptime_last_30m` is below **90%**.
-6. `uptime_last_1d` is below **95%**.
+4. `max_completion_tokens` is missing, non-integer, or below the registered
+   output cap.
+5. `uptime_last_30m` is missing, non-numeric, non-finite, or below **90%**.
+6. `uptime_last_1d` is missing, non-numeric, non-finite, or below **95%**.
 7. The live base rate for the pinned route is **above** the committed pricing
    snapshot. A rate below the snapshot is reported, not blocked.
 
@@ -43,7 +44,9 @@ On (5) and (6): both windows gate because they detect different failures. The
 read 99.24% over 24h while serving 78% of requests. Both floors sit well below
 the observed noise band, because these readings drift about half a point between
 consecutive polls; a 99% 24h floor was measured rejecting two healthy cohort
-members while still passing the route that had actually failed.
+members while still passing the route that had actually failed. An absent or
+malformed figure is unknown health, not evidence that the route clears the
+floor, so it blocks the same way unverifiable pricing blocks.
 
 ## Choosing the replacement
 

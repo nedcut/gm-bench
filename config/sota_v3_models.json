@@ -11,14 +11,14 @@
   "repeats": 1,
   "selection_status": "route-preflight-ready",
   "selection_frozen_at_utc": null,
-  "selection_revision": "2026-08-03-public-catalog-cohort-v2",
+  "selection_revision": "2026-08-04-public-catalog-lineup-refresh-v3",
   "catalog_snapshot_status": "frozen-public-metadata-only",
   "catalog_checked_at_utc": "2026-08-04T16:00:40Z",
   "catalog_sources": [
     "https://openrouter.ai/api/v1/models",
     "https://openrouter.ai/api/v1/models/{model_id}/endpoints"
   ],
-  "selection_policy": "Ten-model pre-data cohort selected from the 2026-08-03 public OpenRouter catalog, superseding the eight-model 2026-07-28 cohort before any smoke or panel evidence exists. GPT-5.6 Luna replaces GPT-5.6 Luna Pro: the plain Luna route that was unhealthy at the prior snapshot has recovered, and the Pro variant carried an unresolved reasoning.mode inconsistency between its public description and the structured catalog. DeepSeek V4 Flash 0731 and Tencent Hy3 (both on first-party FP8 routes) are added as open-weight anchors. Thinking Machines Inkling Small was evaluated for the tenth slot and found ineligible at this snapshot: no healthy route advertises the response_format parameter the lane's frozen JSON-mode and require-parameters options demand. Exact public endpoint metadata and prices are pinned below, but the registry remains provisional-blocked because public metadata does not prove authenticated exact-route access or provider privacy and retention behavior.",
+  "selection_policy": "Ten-model pre-data cohort originally selected from the 2026-08-03 public OpenRouter catalog and refreshed on 2026-08-04 before any smoke or panel evidence existed. The refresh replaces Qwen 3.7 Plus with Qwen 3.8 Max and substitutes the same-model MiniMax M3 and DeepSeek V4 Flash 0731 slots from minimax/fp8 and deepseek/fp8 onto deepinfra/fp8 and cloudflare/fp8 under docs/ROUTE_SUBSTITUTION_POLICY.md. Cohort size, Holm family, and the 16x1 allocation are unchanged. Exact public endpoint metadata and undiscounted list prices are pinned below, but the registry remains route-preflight-ready rather than frozen because authenticated exact-route access, parameter behavior, and provider privacy and retention acceptance remain unresolved.",
   "models": [
     {
       "id": "openrouter-gpt-5.6-luna-openai",

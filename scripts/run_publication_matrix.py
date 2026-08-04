@@ -529,20 +529,38 @@ def _endpoint_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
     for endpoint in matches:
         supported = set(endpoint.get("supported_parameters") or [])
         maximum = endpoint.get("max_completion_tokens")
-        cap_fits = cell.cap is None or maximum is None or (isinstance(maximum, int) and cell.cap <= maximum)
+        cap_fits = cell.cap is None or (
+            isinstance(maximum, int) and not isinstance(maximum, bool) and cell.cap <= maximum
+        )
         if required <= supported and cap_fits:
             capable.append(endpoint)
     if not capable:
         return [f"matching endpoint cannot honor required parameters {sorted(required)!r} and cap={cell.cap_label}"]
     floors = (("uptime_last_30m", MIN_UPTIME_LAST_30M_PCT, "30m"), ("uptime_last_1d", MIN_UPTIME_LAST_1D_PCT, "24h"))
     for field, floor, label in floors:
-        # A route that does not publish the figure is not penalised for it;
-        # only a published figure below the floor disqualifies.
-        durable = [e for e in capable if not isinstance(e.get(field), (int, float)) or e[field] >= floor]
+        # Fail closed. Missing or malformed health telemetry does not establish
+        # that the pinned route clears the declared availability floor.
+        durable = [
+            endpoint
+            for endpoint in capable
+            if isinstance(endpoint.get(field), (int, float))
+            and not isinstance(endpoint[field], bool)
+            and math.isfinite(endpoint[field])
+            and endpoint[field] >= floor
+        ]
         if not durable:
-            observed = max(e[field] for e in capable if isinstance(e.get(field), (int, float)))
+            observed = [
+                endpoint[field]
+                for endpoint in capable
+                if isinstance(endpoint.get(field), (int, float))
+                and not isinstance(endpoint[field], bool)
+                and math.isfinite(endpoint[field])
+            ]
+            if not observed:
+                return [f"matching endpoint has no finite numeric {label} uptime telemetry"]
             return [
-                f"matching endpoint is below the {floor}% {label} uptime floor (best matching route: {observed:.2f}%)"
+                f"matching endpoint is below the {floor}% {label} uptime floor "
+                f"(best matching route: {max(observed):.2f}%)"
             ]
         capable = durable
     return []
