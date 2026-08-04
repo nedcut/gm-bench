@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import subprocess
 import sys
@@ -494,8 +495,8 @@ def _enforce_operator_ceiling(max_spend_usd: float, contract: str | None) -> Non
     ceiling = budget_policy.get("operator_ceiling_usd")
     if ceiling is None:
         return
-    if not isinstance(ceiling, (int, float)) or isinstance(ceiling, bool) or ceiling <= 0:
-        raise ValueError(f"budget_policy.operator_ceiling_usd must be a positive number, got {ceiling!r}")
+    if not isinstance(ceiling, (int, float)) or isinstance(ceiling, bool) or not math.isfinite(ceiling) or ceiling <= 0:
+        raise ValueError(f"budget_policy.operator_ceiling_usd must be a positive finite number, got {ceiling!r}")
     if max_spend_usd > ceiling:
         raise ValueError(
             f"--max-spend-usd ${max_spend_usd:.2f} exceeds the committed operator ceiling "
@@ -576,29 +577,46 @@ def _pricing_drift_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
     """
     try:
         rates = (_read_json(PRICING_CONFIG).get("models") or {}).get(cell.model)
-    except (OSError, ValueError, json.JSONDecodeError):
-        return []
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return [f"committed pricing snapshot for {cell.experiment_id} could not be read: {exc}"]
     if not isinstance(rates, dict):
-        return []
+        return [f"committed pricing snapshot has no rates for {cell.model}"]
+    # Match the full registered route identity, exactly as `_endpoint_issues`
+    # does. Comparing a price against a route we did not pin is worse than not
+    # comparing at all.
     endpoint = next(
         (
             e
             for e in ((payload.get("data") or {}).get("endpoints") or [])
-            if e.get("tag") == cell.endpoint_tag and e.get("name") == cell.endpoint_name
+            if e.get("provider_name") == cell.upstream_provider
+            and e.get("tag") == cell.endpoint_tag
+            and e.get("name") == cell.endpoint_name
         ),
         None,
     )
     if endpoint is None:
-        return []
+        return [f"no endpoint matching the pinned route identity for {cell.experiment_id} to price-check"]
     issues = []
     for field in ("prompt", "completion"):
         committed = rates.get(field)
         raw = (endpoint.get("pricing") or {}).get(field)
-        if not isinstance(committed, (int, float)) or raw is None:
+        # Fail closed. "The price could not be verified" is not the same as
+        # "the price is unchanged", and only one of them is safe to spend on.
+        if (
+            not isinstance(committed, (int, float))
+            or isinstance(committed, bool)
+            or not math.isfinite(committed)
+            or committed < 0
+        ):
+            issues.append(f"committed {field} rate for {cell.experiment_id} is not a usable number: {committed!r}")
             continue
         try:
             live = float(raw)
         except (TypeError, ValueError):
+            issues.append(f"live {field} rate for {cell.experiment_id} is unreadable: {raw!r}")
+            continue
+        if not math.isfinite(live) or live < 0:
+            issues.append(f"live {field} rate for {cell.experiment_id} is not a usable number: {raw!r}")
             continue
         if live > committed:
             issues.append(
@@ -1542,6 +1560,12 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             parser.error(str(exc))
         return _record_smoke(args.model_id, args.artifact, manifest_path)
+    if args.max_spend_usd is not None and not math.isfinite(args.max_spend_usd):
+        # NaN defeats every downstream guard silently: `nan <= 0`,
+        # `nan > ceiling`, and `spent >= nan` are all false, so a NaN limit
+        # satisfies "the operator passed a ceiling" while bounding nothing.
+        # Infinity is the same hole whenever no ceiling is configured.
+        parser.error("--max-spend-usd must be a finite number")
     if args.max_spend_usd is not None and args.max_spend_usd <= 0:
         parser.error("--max-spend-usd must be positive")
     if args.phase in {"route-preflight", "smoke", "panel"}:
@@ -1635,7 +1659,7 @@ def main(argv: list[str] | None = None) -> int:
                 if args.phase != "route-preflight":
                     raise SystemExit(failure) from exc
                 preflight_failures.append(failure)
-                print(failure)
+                print(failure, file=sys.stderr)
                 continue
         if args.phase == "route-preflight":
             print(f"zero-completion-call route preflight passed: {cell.experiment_id}")

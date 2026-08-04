@@ -1604,6 +1604,92 @@ def _healthy_endpoint(cell) -> dict:
     }
 
 
+def test_non_finite_spend_limits_are_refused(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`--max-spend-usd nan` must not read as a ceiling.
+
+    NaN defeats every downstream guard at once and silently: `nan <= 0`,
+    `nan > ceiling`, and `spent >= nan` are all False, so a NaN limit satisfies
+    "the operator passed a ceiling" while bounding nothing at all -- an
+    unbounded paid run that looks fully authorized. Infinity is the same hole
+    wherever no ceiling is configured.
+    """
+    _frozen_panel_files(tmp_path, monkeypatch)
+    checked: list[str] = []
+    monkeypatch.setattr(
+        publication_runner,
+        "_validate_openrouter_endpoint",
+        lambda cell, _env: checked.append(cell.experiment_id),
+    )
+
+    for literal in ("nan", "inf", "-inf", "NaN", "Infinity"):
+        with pytest.raises(SystemExit) as exc_info:
+            main(["smoke", "--contract", "sota-v3", "--run-dir", str(tmp_path), "--max-spend-usd", literal])
+        assert exc_info.value.code == 2, literal
+    assert checked == [], "a non-finite spend limit reached the endpoint probe"
+
+    nonfinite = tmp_path / "nonfinite-protocol.json"
+    nonfinite.write_text(json.dumps({"budget_policy": {"operator_ceiling_usd": float("inf")}}))
+    monkeypatch.setitem(
+        publication_runner.CONTRACT_CONFIGS,
+        "sota-nonfinite-ceiling",
+        (nonfinite,) * 5,
+    )
+    with pytest.raises(ValueError, match="positive finite number"):
+        publication_runner._enforce_operator_ceiling(1.0, "sota-nonfinite-ceiling")
+
+
+def test_pricing_drift_fails_closed_when_a_rate_cannot_be_verified(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ "Could not verify the price" is not "the price is unchanged".
+
+    Only one of those is safe to spend against, so every unverifiable case
+    blocks rather than passing quietly.
+    """
+    cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba", cap=4096)[0]
+    committed = json.loads(publication_runner.PRICING_CONFIG.read_text())["models"][cell.model]
+
+    def payload(pricing: dict, **overrides) -> dict:
+        endpoint = {
+            "provider_name": cell.upstream_provider,
+            "tag": cell.endpoint_tag,
+            "name": cell.endpoint_name,
+            "pricing": pricing,
+        }
+        endpoint.update(overrides)
+        return {"data": {"endpoints": [endpoint]}}
+
+    good = {"prompt": str(committed["prompt"]), "completion": str(committed["completion"])}
+    assert publication_runner._pricing_drift_issues(cell, payload(good)) == []
+
+    for pricing, expected in (
+        ({"completion": good["completion"]}, "unreadable"),
+        ({**good, "prompt": "not-a-number"}, "unreadable"),
+        ({**good, "prompt": "nan"}, "not a usable number"),
+        ({**good, "prompt": "-1e-07"}, "not a usable number"),
+    ):
+        issues = publication_runner._pricing_drift_issues(cell, payload(pricing))
+        assert issues and expected in issues[0], (pricing, issues)
+
+    # The pinned identity is provider + tag + name, matching the preflight.
+    # A same-tag endpoint from another provider is not this cell's price.
+    issues = publication_runner._pricing_drift_issues(cell, payload(good, provider_name="Somebody Else"))
+    assert issues and "pinned route identity" in issues[0]
+
+    # A model absent from the snapshot cannot be price-checked at all.
+    snapshot = json.loads(publication_runner.PRICING_CONFIG.read_text())
+    del snapshot["models"][cell.model]
+    stripped = tmp_path / "pricing.json"
+    stripped.write_text(json.dumps(snapshot))
+    monkeypatch.setattr(publication_runner, "PRICING_CONFIG", stripped)
+    issues = publication_runner._pricing_drift_issues(cell, payload(good))
+    assert issues and "no rates for" in issues[0]
+
+
 def test_pricing_drift_fails_upward_and_only_reports_downward(
     capsys: pytest.CaptureFixture[str],
     tmp_path: Path,
@@ -1625,6 +1711,7 @@ def test_pricing_drift_fails_upward_and_only_reports_downward(
             "data": {
                 "endpoints": [
                     {
+                        "provider_name": cell.upstream_provider,
                         "tag": cell.endpoint_tag,
                         "name": cell.endpoint_name,
                         "pricing": {"prompt": str(prompt), "completion": str(completion)},
@@ -1646,10 +1733,14 @@ def test_pricing_drift_fails_upward_and_only_reports_downward(
     out = capsys.readouterr().out
     assert "fell from" in out and "under its reservation" in out
 
-    # An unpinned route in the payload is not this cell's price.
+    # Another provider's rate is not this cell's rate, so it must not be read
+    # as one -- but nor may the absence of the pinned route pass as "unchanged".
+    # Both are "the price could not be verified", which now blocks.
     other = payload(committed["prompt"] * 10, committed["completion"])
     other["data"]["endpoints"][0]["tag"] = "someone-else/fp8"
-    assert publication_runner._pricing_drift_issues(cell, other) == []
+    issues = publication_runner._pricing_drift_issues(cell, other)
+    assert issues and "pinned route identity" in issues[0]
+    assert "exceeds the committed snapshot rate" not in issues[0], "priced against the wrong route"
 
 
 def test_the_suite_cannot_inherit_a_live_provider_credential() -> None:
@@ -1701,7 +1792,7 @@ def test_operator_ceiling_stays_permissive_when_no_cap_is_committed(
     publication_runner._enforce_operator_ceiling(10_000.00, "sota-test")
 
     protocol_path.write_text(json.dumps({"budget_policy": {"operator_ceiling_usd": "lots"}}))
-    with pytest.raises(ValueError, match="must be a positive number"):
+    with pytest.raises(ValueError, match="must be a positive finite number"):
         publication_runner._enforce_operator_ceiling(1.00, "sota-test")
 
 

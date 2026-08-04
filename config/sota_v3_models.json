@@ -301,7 +301,7 @@
       "absent_options": [
         "OPENROUTER_REASONING_EFFORT"
       ],
-      "role": "MiniMax open-weight anchor, substituted onto the DeepInfra FP8 route on 2026-08-04 after the first-party route was deranked to status -2. Highest 24h availability among eligible FP8 routes; identical published rates."
+      "role": "MiniMax open-weight anchor, substituted from the first-party `minimax/fp8` route onto `deepinfra/fp8` on 2026-08-04 after `minimax/fp8` was deranked to status -2 (30m uptime 94.59%). Same FP8 quantization and identical published rates; highest 24h uptime (99.63%) among eligible FP8 routes. Per docs/ROUTE_SUBSTITUTION_POLICY.md."
     },
     {
       "id": "openrouter-qwen3.8-max-alibaba",
@@ -449,7 +449,7 @@
       "absent_options": [
         "OPENROUTER_REASONING_EFFORT"
       ],
-      "role": "DeepSeek open-weight anchor, substituted onto the Cloudflare FP8 route on 2026-08-04 after the first-party DeepSeek route was deranked to status -5 (30m uptime 77%). Same FP8 quantization and identical published rates; selected on 24h uptime (99.75%, best of 16 endpoints), not spot health."
+      "role": "DeepSeek open-weight anchor, substituted from the first-party `deepseek/fp8` route onto `cloudflare/fp8` on 2026-08-04 after `deepseek/fp8` was deranked to status -5 (30m uptime 78.93%). Same FP8 quantization and identical published rates; selected on 24h uptime (99.75%, best of sixteen endpoints), not spot health. Per docs/ROUTE_SUBSTITUTION_POLICY.md."
     },
     {
       "id": "openrouter-hy3-tencent",
