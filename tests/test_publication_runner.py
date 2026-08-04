@@ -69,6 +69,12 @@ def _frozen_panel_files(
     registry["exact_route_acceptance"] = {
         "schema_version": 1,
         "status": "accepted",
+        "privacy_standard": {
+            "data_classification": "synthetic-benchmark-no-personal-or-confidential-data",
+            "provider_data_collection": "deny",
+            "provider_training_use_allowed": False,
+            "zero_data_retention_required": False,
+        },
         "entries": {
             model["id"]: {
                 "route_identity_sha256": v3_route_identity_sha256(registry, model),
@@ -81,7 +87,8 @@ def _frozen_panel_files(
                     "data_collection_policy_accepted": True,
                     "retention_policy_accepted": True,
                     "training_use_policy_accepted": True,
-                    "zero_data_retention_policy_accepted": True,
+                    "zero_data_retention_endpoint": True,
+                    "zero_data_retention_requirement_satisfied": True,
                     "accepted_at_utc": "2026-07-30T00:00:00Z",
                     "evidence_sha256": "e" * 64,
                 },
@@ -1600,6 +1607,28 @@ def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
     assert "cannot honor required parameters" in _endpoint_issues(cell, valid)[0]
     valid["data"]["endpoints"][0]["max_completion_tokens"] = "65536"
     assert "cannot honor required parameters" in _endpoint_issues(cell, valid)[0]
+
+
+def test_endpoint_preflight_allows_explicit_null_cap_deferral_only_until_strict_smoke() -> None:
+    cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba", cap=4096)[0]
+    payload = {"data": {"endpoints": [_healthy_endpoint(cell)]}}
+    payload["data"]["endpoints"][0]["max_completion_tokens"] = None
+
+    assert "cannot honor required parameters" in _endpoint_issues(cell, payload)[0]
+
+    deferred = replace(
+        cell,
+        output_cap_verification={
+            "status": "request-cap-pending-strict-smoke",
+            "catalog_max_completion_tokens": None,
+            "request_parameter": "max_tokens",
+            "strict_smoke_required": True,
+        },
+    )
+    assert _endpoint_issues(deferred, payload) == []
+
+    payload["data"]["endpoints"][0]["supported_parameters"].remove("max_tokens")
+    assert "cannot honor required parameters" in _endpoint_issues(deferred, payload)[0]
 
 
 def _healthy_endpoint(cell) -> dict:

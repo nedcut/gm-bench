@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 import scripts.run_publication_matrix as publication_runner
-from gm_bench.publication import publication_execution_issues
+from gm_bench.publication import canonical_sha256, publication_execution_issues
 
 CONFIG = Path("config")
 
@@ -42,40 +42,34 @@ def test_v3_catalog_freezes_exact_balanced_cohort_without_unlocking_execution() 
     assert "meta/muse-spark-1.1" not in identities
 
     assert registry["catalog_snapshot_status"] == "frozen-public-metadata-only"
-    assert registry["selection_status"] == "route-preflight-ready"
-    assert registry["selection_frozen_at_utc"] is None
+    assert registry["selection_status"] == "frozen"
+    assert registry["selection_frozen_at_utc"]
     assert registry["selection_revision"] == "2026-08-04-public-catalog-lineup-refresh-v3"
     policy = registry["selection_policy"]
     assert "Qwen 3.8 Max" in policy
     assert "deepinfra/fp8" in policy and "cloudflare/fp8" in policy
-    assert "route-preflight-ready rather than frozen" in policy
+    assert "now frozen" in policy
     assert registry["catalog_checked_at_utc"]
     assert set(registry["required_smokes"]) == {model["id"] for model in models}
     assert registry["output_token_cap"] == 4_096
-    assert registry["output_budget_status"] == "provisional-pre-smoke-validation"
+    assert registry["output_budget_status"] == "frozen-native-reasoning-cap"
     acceptance = registry["exact_route_acceptance"]
-    assert acceptance["status"] == "unresolved"
+    assert acceptance["status"] == "accepted"
+    assert acceptance["privacy_standard"]["provider_data_collection"] == "deny"
+    assert acceptance["privacy_standard"]["provider_training_use_allowed"] is False
+    assert acceptance["privacy_standard"]["zero_data_retention_required"] is False
     assert set(acceptance["entries"]) == {model["id"] for model in models}
     for entry in acceptance["entries"].values():
-        assert entry["authenticated"] is False
-        assert entry["route_identity_sha256"] is None
-        assert entry["privacy_acceptance"]["status"] == "unresolved"
-        assert not any(
-            entry["privacy_acceptance"][field]
-            for field in (
-                "data_collection_policy_accepted",
-                "retention_policy_accepted",
-                "training_use_policy_accepted",
-                "zero_data_retention_policy_accepted",
-            )
-        )
-    for key in (
-        "spend_authorized",
-        "route_preflight_authorized",
-        "panel_execution_authorized",
-        "publication_authorized",
-    ):
-        assert registry[key] is False, key
+        assert entry["authenticated"] is True
+        assert len(entry["route_identity_sha256"]) == 64
+        privacy = entry["privacy_acceptance"]
+        assert privacy["status"] == "accepted"
+        assert privacy["zero_data_retention_requirement_satisfied"] is True
+        assert isinstance(privacy["zero_data_retention_endpoint"], bool)
+    assert registry["spend_authorized"] is True
+    assert registry["route_preflight_authorized"] is True
+    assert registry["panel_execution_authorized"] is False
+    assert registry["publication_authorized"] is False
 
 
 def test_v3_catalog_pins_routes_parameters_reasoning_and_exact_route_prices() -> None:
@@ -112,11 +106,11 @@ def test_v3_catalog_pins_routes_parameters_reasoning_and_exact_route_prices() ->
 
     grok = next(model for model in registry["models"] if model["model"] == "x-ai/grok-4.5")
     assert grok["endpoint_tag"] == "xai/zdr"
-    assert pricing["status"] == "catalog-frozen-public-metadata-only"
+    assert pricing["status"] == "frozen"
     assert pricing["checked_at_utc"] == registry["catalog_checked_at_utc"]
-    assert pricing["spend_authorized"] is False
-    assert pricing["route_preflight_authorized"] is False
-    assert pricing["smoke_execution_authorized"] is False
+    assert pricing["spend_authorized"] is True
+    assert pricing["route_preflight_authorized"] is True
+    assert pricing["smoke_execution_authorized"] is True
     assert pricing["panel_execution_authorized"] is False
     assert pricing["publication_authorized"] is False
     assert pricing["runtime_observations"]["source"] is None
@@ -140,45 +134,58 @@ def test_selected_catalog_models_match_runner_exact_route_shape() -> None:
     )
 
 
-def test_completed_route_preflight_cannot_unlock_any_paid_phase() -> None:
-    """The zero-call phase is open; every phase that spends money is not.
+def test_v3_route_acceptance_is_bound_to_public_zero_completion_evidence() -> None:
+    registry = _read("sota_v3_models.json")
+    acceptance = registry["exact_route_acceptance"]
+    evidence = json.loads(Path(acceptance["evidence_artifact"]).read_text())
 
-    `route_preflight_authorized` was granted on 2026-08-03 and the preflight
-    has run, so this no longer asserts that *nothing* is unlocked.  It asserts
-    the distinction the lane is built on: opening the zero-completion-call
-    probe must leave the paid gates exactly where they were.
-    """
+    assert evidence["format"] == "gm-bench-route-acceptance-evidence-v1"
+    assert evidence["completion_calls"] == 0
+    assert evidence["account_authentication"]["sensitive_values_included"] is False
+    assert set(evidence["routes"]) == set(acceptance["entries"])
+    assert sum(route["zero_data_retention_endpoint"] for route in evidence["routes"].values()) == 5
+    for model_id, route in evidence["routes"].items():
+        entry = acceptance["entries"][model_id]
+        assert entry["route_evidence_sha256"] == canonical_sha256(route)
+        privacy_evidence = {
+            "route_identity_sha256": route["route_identity_sha256"],
+            "privacy_standard": evidence["privacy_standard"],
+            "zero_data_retention_endpoint": route["zero_data_retention_endpoint"],
+            "provider_policy": route["provider_policy"],
+            "official_policy_sources": evidence["official_policy_sources"],
+        }
+        assert entry["privacy_acceptance"]["evidence_sha256"] == canonical_sha256(privacy_evidence)
+
+
+def test_smoke_authorization_still_cannot_unlock_panel_or_publication() -> None:
     lane = _read("sota_v3_lane.json")
     registry = _read("sota_v3_models.json")
     protocol = _read("sota_v3_publication_protocol.json")
     pricing = _read("sota_v3_pricing_snapshot.json")
     manifest = _read("sota_v3_smoke_manifest.json")
 
-    # Granted: the phase that provably cannot call a model or reserve spend.
     assert lane["route_preflight_authorized"] is True
-    # Not granted: everything that can.
-    assert lane["spend_authorized"] is False
-    assert lane["smoke_execution_authorized"] is False
+    assert lane["spend_authorized"] is True
+    assert lane["smoke_execution_authorized"] is True
     assert lane["panel_execution_authorized"] is False
     assert lane["publication_authorized"] is False
-    assert protocol["budget_policy"]["spend_authorized"] is False
+    assert protocol["budget_policy"]["spend_authorized"] is True
     assert protocol["publication_authorized"] is False
     assert manifest["accepted_for_panel"] is False
-    assert pricing["route_preflight_authorized"] is False
+    assert pricing["route_preflight_authorized"] is True
 
-    for phase in ("smoke", "panel"):
-        issues = publication_execution_issues(
+    assert (
+        publication_execution_issues(
             lane,
             registry,
             manifest,
-            phase=phase,
+            phase="smoke",
             protocol=protocol,
             pricing=pricing,
         )
-        assert issues, f"completed route preflight unexpectedly unlocked {phase}"
+        == []
+    )
 
-    # Preflight is deliberately clear now; a passing probe is not a licence to
-    # spend, so the registry must still be unfrozen and acceptance unresolved.
     assert (
         publication_execution_issues(
             lane,
@@ -190,17 +197,16 @@ def test_completed_route_preflight_cannot_unlock_any_paid_phase() -> None:
         )
         == []
     )
-    assert registry["selection_status"] == "route-preflight-ready"
-    assert registry["selection_frozen_at_utc"] is None
+    assert registry["selection_status"] == "frozen"
+    assert registry["selection_frozen_at_utc"]
 
-    smoke_issues = publication_execution_issues(
+    panel_issues = publication_execution_issues(
         lane,
         registry,
         manifest,
-        phase="smoke",
+        phase="panel",
         protocol=protocol,
         pricing=pricing,
     )
-    assert "sota-v3 exact-route acceptance status is not accepted" in smoke_issues
-    assert any("lacks authenticated route verification" in issue for issue in smoke_issues)
-    assert any("privacy acceptance is unresolved" in issue for issue in smoke_issues)
+    assert "panel execution is locked by the model registry" in panel_issues
+    assert "v3 smoke manifest is not accepted for panel execution" in panel_issues

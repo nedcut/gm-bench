@@ -96,6 +96,7 @@ class Cell:
     upstream_provider: str
     endpoint_tag: str
     endpoint_name: str
+    output_cap_verification: dict[str, Any]
     fixed_options: dict[str, str]
     absent_options: tuple[str, ...]
 
@@ -255,6 +256,21 @@ def _validate_models(
                 raise ValueError(f"publication model {model.get('id')!r} has an invalid mandatory reasoning policy")
         else:
             raise ValueError(f"publication model {model.get('id')!r} has an unknown reasoning policy")
+        cap_verification = model.get("output_cap_verification")
+        if cap_verification is not None:
+            if not isinstance(cap_verification, dict) or cap_verification != {
+                "status": "request-cap-pending-strict-smoke",
+                "catalog_max_completion_tokens": None,
+                "request_parameter": "max_tokens",
+                "strict_smoke_required": True,
+            }:
+                raise ValueError(
+                    f"publication model {model.get('id')!r} has an invalid output-cap verification exception"
+                )
+            if "max_tokens" not in set(model.get("catalog_supported_parameters") or []):
+                raise ValueError(
+                    f"publication model {model.get('id')!r} cannot defer cap verification without max_tokens support"
+                )
 
 
 def _smoke_manifest_path(lane: dict[str, Any]) -> Path:
@@ -317,6 +333,7 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
                 upstream_provider=str(model["upstream_provider"]),
                 endpoint_tag=str(model["endpoint_tag"]),
                 endpoint_name=str(model.get("endpoint_name") or ""),
+                output_cap_verification=dict(model.get("output_cap_verification") or {}),
                 fixed_options=_registered_fixed_options(config, model),
                 absent_options=_registered_absent_options(config, model),
             )
@@ -345,6 +362,7 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
                 upstream_provider=str(model["upstream_provider"]),
                 endpoint_tag=str(model.get("endpoint_tag") or ""),
                 endpoint_name=str(model.get("endpoint_name") or ""),
+                output_cap_verification=dict(model.get("output_cap_verification") or {}),
                 fixed_options={str(key): str(value) for key, value in (model.get("fixed_options") or {}).items()},
                 absent_options=tuple(str(value) for value in model.get("absent_options") or []),
             )
@@ -392,6 +410,7 @@ def build_cells(phase: str, model_id: str | None = None, cap: int | None = None)
                 upstream_provider=str(model["upstream_provider"]),
                 endpoint_tag=str(model["endpoint_tag"]),
                 endpoint_name=str(model.get("endpoint_name") or ""),
+                output_cap_verification=dict(model.get("output_cap_verification") or {}),
                 fixed_options=_registered_fixed_options(config, model),
                 absent_options=_registered_absent_options(config, model),
             )
@@ -532,6 +551,15 @@ def _endpoint_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
         cap_fits = cell.cap is None or (
             isinstance(maximum, int) and not isinstance(maximum, bool) and cell.cap <= maximum
         )
+        if cell.cap is not None and maximum is None:
+            verification = cell.output_cap_verification
+            cap_fits = (
+                verification.get("status") == "request-cap-pending-strict-smoke"
+                and verification.get("request_parameter") == "max_tokens"
+                and verification.get("strict_smoke_required") is True
+                and verification.get("catalog_max_completion_tokens") is None
+                and "max_tokens" in supported
+            )
         if required <= supported and cap_fits:
             capable.append(endpoint)
     if not capable:

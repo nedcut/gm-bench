@@ -57,7 +57,6 @@ _PRIVACY_ACCEPTANCE_FIELDS = (
     "data_collection_policy_accepted",
     "retention_policy_accepted",
     "training_use_policy_accepted",
-    "zero_data_retention_policy_accepted",
 )
 
 
@@ -92,6 +91,7 @@ def v3_route_identity_sha256(registry: dict[str, Any], model: dict[str, Any]) ->
                 "output_token_cap": registry.get("output_token_cap"),
                 "reasoning_policy": model.get("reasoning_policy"),
                 "reasoning_effort": model.get("reasoning_effort"),
+                "output_cap_verification": model.get("output_cap_verification"),
                 "supported_parameters": sorted(str(value) for value in model.get("catalog_supported_parameters") or []),
                 "requested_options": requested,
                 "absent_options": absent,
@@ -114,6 +114,18 @@ def v3_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
     issues: list[str] = []
     if acceptance.get("status") != "accepted":
         issues.append("sota-v3 exact-route acceptance status is not accepted")
+    privacy_standard = acceptance.get("privacy_standard")
+    if not isinstance(privacy_standard, dict):
+        issues.append("sota-v3 exact-route privacy standard is missing")
+    else:
+        if privacy_standard.get("data_classification") != "synthetic-benchmark-no-personal-or-confidential-data":
+            issues.append("sota-v3 exact-route privacy data classification is not accepted")
+        if privacy_standard.get("provider_data_collection") != "deny":
+            issues.append("sota-v3 exact-route privacy standard must deny provider data collection")
+        if privacy_standard.get("provider_training_use_allowed") is not False:
+            issues.append("sota-v3 exact-route privacy standard must prohibit provider training use")
+        if privacy_standard.get("zero_data_retention_required") is not False:
+            issues.append("sota-v3 exact-route privacy standard must explicitly resolve the ZDR requirement")
     entries = acceptance.get("entries")
     entries = entries if isinstance(entries, dict) else {}
     model_ids = {str(model.get("id") or "") for model in models}
@@ -146,6 +158,11 @@ def v3_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
         for field in _PRIVACY_ACCEPTANCE_FIELDS:
             if privacy.get(field) is not True:
                 issues.append(f"{prefix} {field} is not accepted")
+        zdr_endpoint = privacy.get("zero_data_retention_endpoint")
+        if not isinstance(zdr_endpoint, bool):
+            issues.append(f"{prefix} zero_data_retention_endpoint must be recorded as a boolean")
+        if privacy.get("zero_data_retention_requirement_satisfied") is not True:
+            issues.append(f"{prefix} zero_data_retention_requirement_satisfied is not accepted")
         if not isinstance(privacy.get("accepted_at_utc"), str) or not privacy["accepted_at_utc"].strip():
             issues.append(f"{prefix} privacy acceptance timestamp is missing")
         privacy_sha = privacy.get("evidence_sha256")

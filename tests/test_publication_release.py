@@ -100,6 +100,12 @@ def _v3_release_fixture(tmp_path: Path) -> tuple[Path, Path]:
     route_identity = v3_route_identity_sha256(registry, model)
     registry["exact_route_acceptance"] = {
         "status": "accepted",
+        "privacy_standard": {
+            "data_classification": "synthetic-benchmark-no-personal-or-confidential-data",
+            "provider_data_collection": "deny",
+            "provider_training_use_allowed": False,
+            "zero_data_retention_required": False,
+        },
         "entries": {
             "demo-v3": {
                 "route_identity_sha256": route_identity,
@@ -112,7 +118,8 @@ def _v3_release_fixture(tmp_path: Path) -> tuple[Path, Path]:
                     "data_collection_policy_accepted": True,
                     "retention_policy_accepted": True,
                     "training_use_policy_accepted": True,
-                    "zero_data_retention_policy_accepted": True,
+                    "zero_data_retention_endpoint": True,
+                    "zero_data_retention_requirement_satisfied": True,
                     "accepted_at_utc": "2026-07-30T00:00:00Z",
                     "evidence_sha256": "e" * 64,
                 },
