@@ -13,7 +13,7 @@
   "selection_frozen_at_utc": null,
   "selection_revision": "2026-08-03-public-catalog-cohort-v2",
   "catalog_snapshot_status": "frozen-public-metadata-only",
-  "catalog_checked_at_utc": "2026-08-03T15:53:59Z",
+  "catalog_checked_at_utc": "2026-08-04T03:31:26Z",
   "catalog_sources": [
     "https://openrouter.ai/api/v1/models",
     "https://openrouter.ai/api/v1/models/{model_id}/endpoints"
@@ -32,7 +32,7 @@
       "endpoint_tag": "openai",
       "endpoint_name": "OpenAI | openai/gpt-5.6-luna-20260709",
       "catalog_route_status": 0,
-      "catalog_uptime_last_30m": 99.31771054990628,
+      "catalog_uptime_last_30m": 99.73181045082407,
       "catalog_supported_parameters": [
         "reasoning",
         "include_reasoning",
@@ -79,7 +79,7 @@
       "endpoint_tag": "amazon-bedrock/global",
       "endpoint_name": "Amazon Bedrock | anthropic/claude-sonnet-5-20260630",
       "catalog_route_status": 0,
-      "catalog_uptime_last_30m": 99.56639566395664,
+      "catalog_uptime_last_30m": 99.941792782305,
       "catalog_supported_parameters": [
         "reasoning",
         "include_reasoning",
@@ -126,7 +126,7 @@
       "endpoint_tag": "google-ai-studio",
       "endpoint_name": "Google AI Studio | google/gemini-3.6-flash-20260721",
       "catalog_route_status": 0,
-      "catalog_uptime_last_30m": 99.78925184404636,
+      "catalog_uptime_last_30m": 98.72192579724532,
       "catalog_supported_parameters": [
         "reasoning",
         "include_reasoning",
@@ -172,7 +172,7 @@
       "endpoint_tag": "xai/zdr",
       "endpoint_name": "xAI | x-ai/grok-4.5-20260708",
       "catalog_route_status": 0,
-      "catalog_uptime_last_30m": 100.0,
+      "catalog_uptime_last_30m": 99.95086799868982,
       "catalog_supported_parameters": [
         "reasoning",
         "include_reasoning",
@@ -222,7 +222,7 @@
       "endpoint_tag": "novita/fp8",
       "endpoint_name": "Novita | z-ai/glm-5.2-20260616",
       "catalog_route_status": 0,
-      "catalog_uptime_last_30m": 99.70362506358791,
+      "catalog_uptime_last_30m": 99.84704120327586,
       "catalog_supported_parameters": [
         "reasoning",
         "include_reasoning",
@@ -271,7 +271,7 @@
       "endpoint_tag": "minimax/fp8",
       "endpoint_name": "Minimax | minimax/minimax-m3-20260531",
       "catalog_route_status": 0,
-      "catalog_uptime_last_30m": 99.45594322885867,
+      "catalog_uptime_last_30m": 98.48329048843188,
       "catalog_supported_parameters": [
         "reasoning",
         "include_reasoning",
@@ -296,18 +296,18 @@
       "role": "MiniMax open-weight anchor on the first-party FP8 route"
     },
     {
-      "id": "openrouter-qwen3.7-plus-alibaba",
+      "id": "openrouter-qwen3.8-max-alibaba",
       "provider": "openrouter",
-      "model": "qwen/qwen3.7-plus",
-      "canonical_slug": "qwen/qwen3.7-plus-20260602",
+      "model": "qwen/qwen3.8-max",
+      "canonical_slug": "qwen/qwen3.8-max-20260803",
       "transport": "gateway-api",
       "cohort": "open-weight",
       "upstream_provider": "Alibaba",
-      "upstream_provider_slug": "alibaba/fp8",
-      "endpoint_tag": "alibaba/fp8",
-      "endpoint_name": "Alibaba | qwen/qwen3.7-plus-20260602",
+      "upstream_provider_slug": "alibaba",
+      "endpoint_tag": "alibaba",
+      "endpoint_name": "Alibaba | qwen/qwen3.8-max-20260803",
       "catalog_route_status": 0,
-      "catalog_uptime_last_30m": 99.99335742374322,
+      "catalog_uptime_last_30m": 100,
       "catalog_supported_parameters": [
         "reasoning",
         "include_reasoning",
@@ -317,11 +317,15 @@
         "seed",
         "presence_penalty",
         "response_format",
-        "logprobs",
-        "top_logprobs",
         "tools",
         "tool_choice",
-        "structured_outputs"
+        "structured_outputs",
+        "logprobs",
+        "top_logprobs",
+        "top_k",
+        "frequency_penalty",
+        "stop",
+        "reasoning_effort"
       ],
       "reasoning_policy": "disabled",
       "reasoning_effort": null,
@@ -335,7 +339,7 @@
       "absent_options": [
         "OPENROUTER_REASONING_EFFORT"
       ],
-      "role": "Qwen open-weight frontier anchor"
+      "role": "Qwen frontier anchor on the first-party Alibaba route"
     },
     {
       "id": "openrouter-mistral-medium-3.5-mistral",
@@ -349,7 +353,7 @@
       "endpoint_tag": "mistral",
       "endpoint_name": "Mistral | mistralai/mistral-medium-3.5-20260430",
       "catalog_route_status": 0,
-      "catalog_uptime_last_30m": 100.0,
+      "catalog_uptime_last_30m": 100,
       "catalog_supported_parameters": [
         "reasoning",
         "include_reasoning",
@@ -385,32 +389,38 @@
       "role": "Mistral European open-weight anchor"
     },
     {
-      "id": "openrouter-deepseek-v4-flash-0731-deepseek",
+      "id": "openrouter-deepseek-v4-flash-0731-cloudflare",
       "provider": "openrouter",
       "model": "deepseek/deepseek-v4-flash-0731",
       "canonical_slug": "deepseek/deepseek-v4-flash-20260731",
       "transport": "gateway-api",
       "cohort": "open-weight",
-      "upstream_provider": "DeepSeek",
-      "upstream_provider_slug": "deepseek/fp8",
-      "endpoint_tag": "deepseek/fp8",
-      "endpoint_name": "DeepSeek | deepseek/deepseek-v4-flash-20260731",
+      "upstream_provider": "Cloudflare",
+      "upstream_provider_slug": "cloudflare/fp8",
+      "endpoint_tag": "cloudflare/fp8",
+      "endpoint_name": "Cloudflare | deepseek/deepseek-v4-flash-20260731",
       "catalog_route_status": 0,
-      "catalog_uptime_last_30m": 99.99164403593065,
+      "catalog_uptime_last_30m": 98.77663772691398,
       "catalog_supported_parameters": [
         "reasoning",
         "include_reasoning",
         "max_tokens",
         "temperature",
         "top_p",
-        "stop",
+        "top_k",
+        "seed",
+        "repetition_penalty",
         "frequency_penalty",
         "presence_penalty",
-        "logprobs",
-        "top_logprobs",
+        "min_p",
+        "stop",
+        "logit_bias",
+        "response_format",
+        "structured_outputs",
         "tools",
         "tool_choice",
-        "response_format",
+        "logprobs",
+        "top_logprobs",
         "reasoning_effort"
       ],
       "reasoning_policy": "disabled",
@@ -431,7 +441,7 @@
       "absent_options": [
         "OPENROUTER_REASONING_EFFORT"
       ],
-      "role": "DeepSeek open-weight anchor on the first-party FP8 route"
+      "role": "DeepSeek open-weight anchor, substituted onto the Cloudflare FP8 route on 2026-08-04 after the first-party DeepSeek route was deranked to status -5 (30m uptime 77%). Same FP8 quantization and identical published rates; selected on 24h uptime (99.75%, best of 16 endpoints), not spot health."
     },
     {
       "id": "openrouter-hy3-tencent",
@@ -445,7 +455,7 @@
       "endpoint_tag": "tencent/fp8",
       "endpoint_name": "Tencent | tencent/hy3-20260706",
       "catalog_route_status": 0,
-      "catalog_uptime_last_30m": 99.88329118848473,
+      "catalog_uptime_last_30m": 99.90525817148271,
       "catalog_supported_parameters": [
         "reasoning",
         "include_reasoning",
@@ -579,7 +589,7 @@
           "evidence_sha256": null
         }
       },
-      "openrouter-qwen3.7-plus-alibaba": {
+      "openrouter-qwen3.8-max-alibaba": {
         "route_identity_sha256": null,
         "authenticated": false,
         "verified_at_utc": null,
@@ -611,7 +621,7 @@
           "evidence_sha256": null
         }
       },
-      "openrouter-deepseek-v4-flash-0731-deepseek": {
+      "openrouter-deepseek-v4-flash-0731-cloudflare": {
         "route_identity_sha256": null,
         "authenticated": false,
         "verified_at_utc": null,
@@ -652,9 +662,9 @@
     "openrouter-grok-4.5-xai",
     "openrouter-glm-5.2-novita",
     "openrouter-minimax-m3-minimax",
-    "openrouter-qwen3.7-plus-alibaba",
+    "openrouter-qwen3.8-max-alibaba",
     "openrouter-mistral-medium-3.5-mistral",
-    "openrouter-deepseek-v4-flash-0731-deepseek",
+    "openrouter-deepseek-v4-flash-0731-cloudflare",
     "openrouter-hy3-tencent"
   ],
   "shared_fixed_options": {

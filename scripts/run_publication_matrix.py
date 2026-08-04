@@ -31,6 +31,21 @@ PRICING_CONFIG = ROOT / "config" / "openrouter_pricing_snapshot.json"
 PROTOCOL_CONFIG = ROOT / "config" / "publication_protocol.json"
 SMOKE_MANIFEST = ROOT / "config" / "sota_v2_smoke_manifest.json"
 RUN_STATE_FORMAT = "gm-bench-publication-run-v1"
+# Availability floors for a pinned endpoint to stay eligible.
+#
+# Two windows, because they detect different failures. The 24h figure is a
+# chronic filter and is far too slow to see an outage: on 2026-08-04 the
+# first-party DeepSeek route was deranked to status -5 while still reporting
+# 99.24% over 24h. The 30m figure is what moved (78.93%), so that is the
+# acute gate.
+#
+# Both floors sit well below the noise band. These readings drift by half a
+# point between consecutive polls, so a threshold set near the observed values
+# would block healthy routes at random -- a 99% 24h floor rejected two
+# perfectly healthy cohort members on the day it was written while still
+# passing the route that had actually failed.
+MIN_UPTIME_LAST_30M_PCT = 90.0
+MIN_UPTIME_LAST_1D_PCT = 95.0
 CONTRACT_CONFIGS = {
     "sota-v2": (
         ROOT / "config" / "sota_v2_models.json",
@@ -490,6 +505,17 @@ def _endpoint_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
             capable.append(endpoint)
     if not capable:
         return [f"matching endpoint cannot honor required parameters {sorted(required)!r} and cap={cell.cap_label}"]
+    floors = (("uptime_last_30m", MIN_UPTIME_LAST_30M_PCT, "30m"), ("uptime_last_1d", MIN_UPTIME_LAST_1D_PCT, "24h"))
+    for field, floor, label in floors:
+        # A route that does not publish the figure is not penalised for it;
+        # only a published figure below the floor disqualifies.
+        durable = [e for e in capable if not isinstance(e.get(field), (int, float)) or e[field] >= floor]
+        if not durable:
+            observed = max(e[field] for e in capable if isinstance(e.get(field), (int, float)))
+            return [
+                f"matching endpoint is below the {floor}% {label} uptime floor (best matching route: {observed:.2f}%)"
+            ]
+        capable = durable
     return []
 
 
@@ -1464,6 +1490,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.dry_run and not args.preflight_only and args.phase != "route-preflight":
         _write_run_state(run_dir, args.phase, cells, args.max_spend_usd)
     budget_start: float | None = None
+    preflight_failures: list[str] = []
     for cell in cells:
         env = cell_environment(cell)
         command = cell_command(
@@ -1513,7 +1540,16 @@ def main(argv: list[str] | None = None) -> int:
                 KeyError,
                 json.JSONDecodeError,
             ) as exc:
-                raise SystemExit(f"OpenRouter endpoint preflight failed for {cell.experiment_id}: {exc}") from exc
+                failure = f"OpenRouter endpoint preflight failed for {cell.experiment_id}: {exc}"
+                # A phase that spends money must stop at the first bad route.
+                # The zero-call phase must not: exiting early leaves every
+                # later route unchecked, which reads as "one route is broken"
+                # when the truth may be four. Collect and report them all.
+                if args.phase != "route-preflight":
+                    raise SystemExit(failure) from exc
+                preflight_failures.append(failure)
+                print(failure)
+                continue
         if args.phase == "route-preflight":
             print(f"zero-completion-call route preflight passed: {cell.experiment_id}")
             continue
@@ -1569,6 +1605,11 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"measured OpenRouter spend for this run directory: ${spent:.4f}")
                 if spent > args.max_spend_usd:
                     raise SystemExit(f"spend ceiling exceeded after attempted cell: ${spent:.4f}")
+    if preflight_failures:
+        raise SystemExit(
+            f"zero-completion-call route preflight failed for "
+            f"{len(preflight_failures)} of {len(cells)} routes:\n  " + "\n  ".join(preflight_failures)
+        )
     return 0
 
 

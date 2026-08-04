@@ -1325,6 +1325,86 @@ def test_zero_call_route_preflight_has_separate_authorization_and_never_launches
     assert not (tmp_path / "checkpoints").exists()
 
 
+def test_route_preflight_checks_every_route_before_failing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A bad route must not hide the routes queued behind it.
+
+    Exiting on the first failure understates how much is broken: the operator
+    sees one dead route, fixes it, and only then learns about the next one.
+    The zero-call phase is free, so it has no reason to stop early -- it must
+    probe every route and report the complete set in one pass.  The paid
+    phases keep failing fast, which is asserted separately below.
+    """
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-route-preflight-key")
+    registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    registry["selection_status"] = "route-preflight-ready"
+    lane["preregistration_status"] = "provisional-blocked"
+    lane["route_preflight_authorized"] = True
+    publication_runner.PANEL_CONFIG.write_text(json.dumps(registry))
+    publication_runner.LANE_CONFIG.write_text(json.dumps(lane))
+
+    model_ids = [model["id"] for model in registry["models"]]
+    assert len(model_ids) >= 3, "this test needs a route queued behind both failures"
+    doomed = {model_ids[0], model_ids[2]}
+    checked: list[str] = []
+    child_calls: list[str] = []
+
+    def fake_validate(cell, _env):
+        checked.append(cell.experiment_id)
+        if cell.experiment_id in doomed:
+            raise RuntimeError("no healthy OpenRouter endpoint matches")
+
+    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", fake_validate)
+    monkeypatch.setattr(
+        publication_runner.subprocess,
+        "run",
+        lambda *_args, **_kwargs: child_calls.append("child"),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["route-preflight", "--run-dir", str(tmp_path)])
+
+    message = str(exc_info.value.code)
+    # Every route was probed, including the ones queued behind both failures.
+    assert checked == model_ids
+    assert f"failed for {len(doomed)} of {len(model_ids)} routes" in message
+    for model_id in doomed:
+        assert model_id in message
+    # Still zero-call and still stateless, exactly as on the passing path.
+    assert child_calls == []
+    assert not (tmp_path / "run-state.json").exists()
+    assert not (tmp_path / "raw").exists()
+
+
+def test_paid_phases_still_abort_on_the_first_bad_route(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Collecting failures is a zero-call affordance, not a general one.
+
+    A phase that spends money must stop the instant a route is wrong, so the
+    later cells are never probed at all.
+    """
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-smoke-key")
+    registry, _lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    model_ids = [model["id"] for model in registry["models"]]
+    checked: list[str] = []
+
+    def fake_validate(cell, _env):
+        checked.append(cell.experiment_id)
+        raise RuntimeError("no healthy OpenRouter endpoint matches")
+
+    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", fake_validate)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["smoke", "--run-dir", str(tmp_path), "--max-spend-usd", "1.00"])
+
+    assert checked == model_ids[:1], "a paid phase kept probing after a bad route"
+    assert model_ids[0] in str(exc_info.value.code)
+
+
 def test_v3_route_preflight_requires_bearer_credential_before_endpoint_request(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1509,6 +1589,69 @@ def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
     valid["data"]["endpoints"][0]["name"] = cell.endpoint_name
     valid["data"]["endpoints"][0]["supported_parameters"] = ["max_tokens", "response_format"]
     assert "cannot honor required parameters" in _endpoint_issues(cell, valid)[0]
+
+
+def _healthy_endpoint(cell) -> dict:
+    return {
+        "provider_name": "Alibaba",
+        "tag": "alibaba",
+        "name": cell.endpoint_name,
+        "status": 0,
+        "max_completion_tokens": 65536,
+        "supported_parameters": ["max_tokens", "response_format", "reasoning"],
+        "uptime_last_30m": 99.8,
+        "uptime_last_1d": 99.75,
+    }
+
+
+def test_endpoint_preflight_enforces_both_uptime_floors() -> None:
+    """The two windows catch different failures, so both have to gate.
+
+    The 24h figure is a chronic filter and cannot see an outage in progress:
+    on 2026-08-04 the first-party DeepSeek route was deranked to status -5
+    while still reporting 99.24% over 24h.  The 30m figure is the one that
+    moved, so it carries the acute signal.  A route that publishes neither
+    figure is not penalised for the omission.
+    """
+    cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba", cap=4096)[0]
+    endpoint = _healthy_endpoint(cell)
+    payload = {"data": {"endpoints": [endpoint]}}
+    assert _endpoint_issues(cell, payload) == []
+
+    # The acute case: the exact shape of the DeepSeek derank, which a 24h-only
+    # floor waves straight through.
+    endpoint["uptime_last_30m"], endpoint["uptime_last_1d"] = 78.93, 99.24
+    issues = _endpoint_issues(cell, payload)
+    assert issues and "30m uptime floor" in issues[0] and "78.93%" in issues[0]
+
+    # The chronic case: recent traffic looks fine, the whole day did not.
+    endpoint["uptime_last_30m"], endpoint["uptime_last_1d"] = 99.9, 80.0
+    issues = _endpoint_issues(cell, payload)
+    assert issues and "24h uptime floor" in issues[0] and "80.00%" in issues[0]
+
+    for field, floor in (
+        ("uptime_last_30m", publication_runner.MIN_UPTIME_LAST_30M_PCT),
+        ("uptime_last_1d", publication_runner.MIN_UPTIME_LAST_1D_PCT),
+    ):
+        endpoint.update(_healthy_endpoint(cell))
+        endpoint[field] = floor
+        assert _endpoint_issues(cell, payload) == [], f"{field} floor must be inclusive"
+
+    endpoint.update(_healthy_endpoint(cell))
+    del endpoint["uptime_last_30m"], endpoint["uptime_last_1d"]
+    assert _endpoint_issues(cell, payload) == [], "an unpublished figure must not fail the route"
+
+
+def test_uptime_floors_sit_below_the_healthy_cohort_noise_band() -> None:
+    """The floors must not flap.
+
+    These readings drift by roughly half a point between consecutive polls,
+    so a floor set near real values rejects healthy routes at random.  A 99%
+    24h floor rejected two healthy cohort members on the day it was written.
+    Both floors are therefore pinned well clear of the observed band.
+    """
+    assert publication_runner.MIN_UPTIME_LAST_30M_PCT <= 90.0
+    assert publication_runner.MIN_UPTIME_LAST_1D_PCT <= 95.0
 
 
 def test_endpoint_preflight_allows_registered_prompt_only_json_route() -> None:
