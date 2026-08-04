@@ -60,6 +60,45 @@ def test_v3_cost_plan_uses_registered_private_seed_count() -> None:
     assert grok["internal_reasoning_billing_basis"] == "completion"
 
 
+def test_the_committed_plan_fits_under_the_committed_ceiling() -> None:
+    """The reservation and the hard cap must not drift apart silently.
+
+    These are two committed numbers in two different files, and on 2026-08-04
+    they crossed: pinning undiscounted list rates moved the reservation to
+    $127.29 against a $120.00 ceiling, so the committed plan could not legally
+    run.  Nothing caught it, because nothing compared them.
+
+    Adding a model, substituting a route onto a pricier host, or a provider
+    ending a discount all move the reservation.  Any of them silently breaching
+    the ceiling should fail here, at zero cost, rather than at the point
+    someone tries to authorize a run.
+    """
+    protocol = json.loads(Path("config/sota_v3_publication_protocol.json").read_text())
+    ceiling = protocol["budget_policy"]["operator_ceiling_usd"]
+    reserved = estimate(*_v3_inputs())["costs_usd"]["total_with_1_2x_contingency"]
+
+    assert isinstance(ceiling, (int, float)) and ceiling > 0
+    assert reserved <= ceiling, (
+        f"the committed reservation ${reserved:.2f} exceeds the committed operator ceiling "
+        f"${ceiling:.2f}; raise the ceiling deliberately or reduce the plan"
+    )
+
+
+def test_the_committed_cost_artifact_matches_the_committed_configs() -> None:
+    """A stale cost artifact is a reservation nobody recomputed.
+
+    The runner reserves per cell from the pricing snapshot, but the artifact is
+    what the readiness docs and the ceiling decision quote.  If someone edits a
+    price or a route without regenerating it, the number people reason about
+    stops describing the plan they would actually run.
+    """
+    committed = json.loads(Path("results/analysis/sota-v3-pre-smoke-cost-estimate.json").read_text())
+    recomputed = estimate(*_v3_inputs())
+
+    assert committed["costs_usd"] == pytest.approx(recomputed["costs_usd"])
+    assert {row["model"] for row in committed["models"]} == {row["model"] for row in recomputed["models"]}
+
+
 def test_costs_sum_unrounded_rows_before_contingency() -> None:
     result = estimate(*_committed_inputs())
     rows = result["models"]

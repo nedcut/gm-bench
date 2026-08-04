@@ -1675,7 +1675,7 @@ def test_operator_ceiling_rejects_a_run_that_could_outspend_the_committed_cap() 
     """
     ceiling = json.loads(Path("config/sota_v3_publication_protocol.json").read_text())
     ceiling = ceiling["budget_policy"]["operator_ceiling_usd"]
-    assert ceiling == 120.00
+    assert ceiling == 150.00
 
     publication_runner._enforce_operator_ceiling(ceiling, "sota-v3")
     publication_runner._enforce_operator_ceiling(ceiling - 0.01, "sota-v3")

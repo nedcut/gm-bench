@@ -102,7 +102,7 @@ The reservation is a safe upper bound, and a promo is not a floor. On
 2026-08-04 the GLM 5.2 Novita discount moved from 55.1% to 50% within hours,
 and `openai/gpt-5.6-luna` and `z-ai/glm-5.2` were both found pinned at 50%-off
 prices — which is the only reason the panel had appeared to fit under the
-$120 ceiling. Where the endpoint reports a `discount`, record
+$120 ceiling in force at the time. Where the endpoint reports a `discount`, record
 `live_rate / (1 - discount)`.
 
 A live discount then only ever brings the run in under reserve, which is the

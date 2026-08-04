@@ -66,10 +66,20 @@ not a floor, and a reservation computed from one is wrong the moment it ends.
 | Previous reservation | $107.81 |
 | After the Qwen amendment | $119.76 |
 | **After pinning list rates** | **$127.29** |
-| Committed operator ceiling | $120.00 |
+| Committed operator ceiling | **$150.00** (raised from $120.00, 2026-08-04) |
 
-**The plan no longer fits under the ceiling, and only ever appeared to because
-two routes were priced at a discount.** Call count is unchanged at 3,240.
+Call count is unchanged at 3,240.
+
+The $120 ceiling was chosen against a $119.76 reservation that turned out to
+depend on two 50%-off promotional rates. Pinning list rates pushed the
+committed plan over its own committed ceiling — a state nothing detected,
+because the reservation and the ceiling lived in different files and nothing
+compared them. `test_the_committed_plan_fits_under_the_committed_ceiling` now
+does, at zero cost, so adding a model or losing a discount fails a test rather
+than surfacing when someone tries to authorize a run.
+
+The ceiling was raised to **$150.00** to clear the current reservation with
+headroom for a further substitution or list-price move.
 
 Reserve is concentrated in four models: Gemini 3.6 Flash (22.4%), Grok 4.5
 (19.9%), Claude Sonnet 5 (17.4%), and Mistral Medium 3.5 (13.0%).
