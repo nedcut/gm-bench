@@ -14,7 +14,12 @@ import pytest
 
 import scripts.run_publication_matrix as publication_runner
 from gm_bench.contract import BENCHMARK_VERSION, contract_fingerprint, scaffold_fingerprint
-from gm_bench.publication import v3_route_acceptance_issues, v3_route_identity_sha256
+from gm_bench.publication import (
+    PENDING_STRICT_SMOKE_CAP_VERIFICATION,
+    canonical_sha256,
+    v3_route_acceptance_issues,
+    v3_route_identity_sha256,
+)
 from scripts.run_publication_matrix import (
     _artifact_spend_usd,
     _cell_reservation_usd,
@@ -69,6 +74,12 @@ def _frozen_panel_files(
     registry["exact_route_acceptance"] = {
         "schema_version": 1,
         "status": "accepted",
+        "privacy_standard": {
+            "data_classification": "synthetic-benchmark-no-personal-or-confidential-data",
+            "provider_data_collection": "deny",
+            "provider_training_use_allowed": False,
+            "zero_data_retention_required": False,
+        },
         "entries": {
             model["id"]: {
                 "route_identity_sha256": v3_route_identity_sha256(registry, model),
@@ -81,7 +92,8 @@ def _frozen_panel_files(
                     "data_collection_policy_accepted": True,
                     "retention_policy_accepted": True,
                     "training_use_policy_accepted": True,
-                    "zero_data_retention_policy_accepted": True,
+                    "zero_data_retention_endpoint": True,
+                    "zero_data_retention_requirement_satisfied": True,
                     "accepted_at_utc": "2026-07-30T00:00:00Z",
                     "evidence_sha256": "e" * 64,
                 },
@@ -89,6 +101,31 @@ def _frozen_panel_files(
             for model in registry["models"]
         },
     }
+    evidence = {
+        "privacy_standard": registry["exact_route_acceptance"]["privacy_standard"],
+        "official_policy_sources": [],
+        "routes": {},
+    }
+    for model_id, entry in registry["exact_route_acceptance"]["entries"].items():
+        route = {
+            "route_identity_sha256": entry["route_identity_sha256"],
+            "zero_data_retention_endpoint": True,
+            "provider_policy": {},
+        }
+        evidence["routes"][model_id] = route
+        entry["route_evidence_sha256"] = canonical_sha256(route)
+        entry["privacy_acceptance"]["evidence_sha256"] = canonical_sha256(
+            {
+                "route_identity_sha256": route["route_identity_sha256"],
+                "privacy_standard": evidence["privacy_standard"],
+                "zero_data_retention_endpoint": True,
+                "provider_policy": {},
+                "official_policy_sources": [],
+            }
+        )
+    evidence_path = tmp_path / "route-evidence.json"
+    evidence_path.write_text(json.dumps(evidence))
+    registry["exact_route_acceptance"]["evidence_artifact"] = str(evidence_path)
     private_seeds = list(range(101, 110))
     monkeypatch.setenv("GM_BENCH_PRIVATE_SEEDS", ",".join(str(seed) for seed in private_seeds))
     lane = json.loads(Path("config/sota_v2_lane.json").read_text())
@@ -509,6 +546,15 @@ def test_validate_models_rejects_mandatory_minimum_policy_with_no_effort_declare
     )
     with pytest.raises(ValueError, match="invalid mandatory reasoning policy"):
         publication_runner._validate_models([model])
+
+
+def test_validate_sweep_models_rejects_invalid_cap_deferral() -> None:
+    model = _minimal_registered_model(
+        output_cap_verification=dict(PENDING_STRICT_SMOKE_CAP_VERIFICATION),
+        catalog_supported_parameters=[],
+    )
+    with pytest.raises(ValueError, match="cannot defer cap verification"):
+        publication_runner._validate_models([model], exact_routes=False)
 
 
 def test_committed_v2_panel_is_locked_after_current_contract_advances() -> None:
@@ -1600,6 +1646,27 @@ def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
     assert "cannot honor required parameters" in _endpoint_issues(cell, valid)[0]
     valid["data"]["endpoints"][0]["max_completion_tokens"] = "65536"
     assert "cannot honor required parameters" in _endpoint_issues(cell, valid)[0]
+
+
+def test_endpoint_preflight_allows_explicit_null_cap_deferral_only_until_strict_smoke() -> None:
+    cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba", cap=4096)[0]
+    payload = {"data": {"endpoints": [_healthy_endpoint(cell)]}}
+    payload["data"]["endpoints"][0]["max_completion_tokens"] = None
+
+    assert "cannot honor required parameters" in _endpoint_issues(cell, payload)[0]
+
+    deferred = replace(
+        cell,
+        output_cap_verification=dict(PENDING_STRICT_SMOKE_CAP_VERIFICATION),
+    )
+    assert _endpoint_issues(deferred, payload) == []
+
+    payload["data"]["endpoints"][0]["supported_parameters"].remove("max_tokens")
+    assert "cannot honor required parameters" in _endpoint_issues(deferred, payload)[0]
+
+    payload["data"]["endpoints"][0]["supported_parameters"].append("max_tokens")
+    payload["data"]["endpoints"][0]["max_completion_tokens"] = 2048
+    assert "cannot honor required parameters" in _endpoint_issues(deferred, payload)[0]
 
 
 def _healthy_endpoint(cell) -> dict:

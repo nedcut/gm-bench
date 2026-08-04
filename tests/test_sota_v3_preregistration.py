@@ -14,6 +14,7 @@ from gm_bench.publication import (
     exact_sign_flip_feasibility,
     publication_execution_issues,
     v3_preregistration_coherence_issues,
+    v3_route_acceptance_issues,
 )
 
 CONFIG = Path("config")
@@ -67,16 +68,14 @@ def test_v3_lane_pins_current_contract_and_freezes_a_powered_allocation() -> Non
     # The selection rule is a Wilson *lower* bound clearing the target, so the
     # allocation is only frozen if the conservative-sensitivity interval does.
     assert selected["sensitivity_power_wilson_ci95"][0] >= candidate["target_familywise_all_reject_power"]
-    assert lane["seed_panel"] == {
-        "status": "pending-authorized-generation",
-        "name": None,
-        "count": 16,
-        "sha256": None,
-    }
+    assert lane["seed_panel"]["status"] == "frozen"
+    assert lane["seed_panel"]["name"] == "private-env"
+    assert lane["seed_panel"]["count"] == 16
+    assert len(lane["seed_panel"]["sha256"]) == 64
+    assert len(lane["seed_panel"]["hiding_commitment_sha256"]) == 64
+    assert lane["seed_panel"]["seed_values_included"] is False
     assert lane["seed_panel"]["count"] == selected["seed_count"]
-    # Seed identity stays unfrozen until a salted commitment hash is recorded.
-    assert lane["seed_panel"]["sha256"] is None
-    assert any("private panel" in blocker.lower() for blocker in lane["blockers"])
+    assert any("strict smoke" in blocker.lower() for blocker in lane["blockers"])
     assert lane["reference_agent"] == "pick-trader"
     assert lane["protocol_repair_attempts"] == 1
     assert lane["strict_fallback_required"] is True
@@ -87,31 +86,29 @@ def test_v3_lane_pins_current_contract_and_freezes_a_powered_allocation() -> Non
     assert lane["minimum_headline_models"] >= 8
 
 
-def test_v3_registry_is_truthfully_provisional_and_contains_no_unverified_routes() -> None:
+def test_v3_registry_is_frozen_to_authenticated_routes_and_privacy_evidence() -> None:
     lane = _read("sota_v3_lane.json")
     registry = _read("sota_v3_models.json")
 
     assert registry["contract"] == lane["contract"]
     assert registry["contract_fingerprint"] == lane["contract_fingerprint"]
-    # route-preflight-ready is strictly weaker than frozen: it clears the
-    # zero-call preflight readiness check and nothing else.  The registry is
-    # still not frozen, so every paid phase stays locked.
-    assert registry["selection_status"] == "route-preflight-ready"
-    assert registry["selection_frozen_at_utc"] is None
+    assert registry["selection_status"] == "frozen"
+    assert registry["selection_frozen_at_utc"]
     assert registry["catalog_snapshot_status"] == "frozen-public-metadata-only"
     assert registry["catalog_checked_at_utc"]
     assert len(registry["models"]) == len(registry["required_smokes"]) == 10
     assert set(registry["required_smokes"]) == {model["id"] for model in registry["models"]}
     assert registry["repeats"] == lane["repeats"] == 1
     assert registry["output_token_cap"] == lane["output_token_cap"] == 4096
-    assert registry["output_budget_status"] == lane["output_budget_status"] == "provisional-pre-smoke-validation"
-    assert registry["spend_authorized"] is False
+    assert registry["output_budget_status"] == lane["output_budget_status"] == "frozen-native-reasoning-cap"
+    assert registry["spend_authorized"] is True
     assert registry["panel_execution_authorized"] is False
-    assert registry["unresolved_decisions"]
+    assert registry["exact_route_acceptance"]["status"] == "accepted"
+    assert v3_route_acceptance_issues(registry) == []
     assert registry["provider_policy"] == "openrouter-only"
     assert registry["shared_fixed_options"]["OPENROUTER_JSON_MODE"] == "true"
     assert registry["public_metadata_limitations"]
-    assert any("privacy" in decision for decision in registry["unresolved_decisions"])
+    assert all("smoke" in decision for decision in registry["unresolved_decisions"])
 
 
 def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
@@ -121,7 +118,7 @@ def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
 
     assert protocol["contract"] == pricing["contract"] == lane["contract"]
     assert protocol["contract_fingerprint"] == pricing["contract_fingerprint"] == lane["contract_fingerprint"]
-    assert protocol["status"] == "provisional-pre-smoke"
+    assert protocol["status"] == "frozen"
     assert protocol["statistical_analysis_plan"]["status"] == "frozen"
     assert protocol["statistical_analysis_plan"]["analysis_mode"] == "reference-only"
     assert protocol["statistical_analysis_plan"]["inference_method"] == "exact-enumeration-sign-flip"
@@ -144,36 +141,32 @@ def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
         == lane["statistical_panel_design"]["target_effect_score_points"]
     )
     assert protocol["panel_design"]["status"] == lane["panel_design_status"]
-    assert protocol["budget_policy"]["spend_authorized"] is False
-    assert pricing["status"] == "catalog-frozen-public-metadata-only"
+    assert protocol["budget_policy"]["spend_authorized"] is True
+    assert pricing["status"] == "frozen"
     assert pricing["checked_at_utc"]
     assert len(pricing["models"]) == 10
-    assert pricing["spend_authorized"] is False
+    assert pricing["spend_authorized"] is True
 
 
-def test_v3_preregistration_fails_closed_before_smoke_or_panel_spend() -> None:
+def test_v3_preregistration_authorizes_smoke_but_keeps_panel_and_publication_locked() -> None:
     lane = _read("sota_v3_lane.json")
     registry = _read("sota_v3_models.json")
     manifest = _read("sota_v3_smoke_manifest.json")
 
-    # The design amendment freezes an allocation; it authorizes nothing. Both
-    # gates are allowlists against the literal "frozen", so a status that merely
-    # records progress still locks provider execution.
-    assert lane["preregistration_status"] == "provisional-pre-smoke"
-    assert lane["preregistration_status"] != "frozen"
+    assert lane["preregistration_status"] == "frozen"
     assert lane["panel_design_status"] == "frozen"
-    assert lane["output_budget_status"] == "provisional-pre-smoke-validation"
+    assert lane["output_budget_status"] == "frozen-native-reasoning-cap"
     assert lane["output_token_cap"] == 4096
     assert lane["cap_pressure_threshold_tokens"] == 3072
     assert lane["fallback_output_token_cap"] == 8192
     assert "invalidate every v3 smoke" in lane["output_policy_amendment_rule"]
-    assert lane["reasoning_policy"] == "catalog-pinned-pending-live-route-verification"
-    assert lane["spend_authorized"] is False
+    assert lane["reasoning_policy"] == "catalog-pinned-pending-strict-smoke-behavior-verification"
+    assert lane["spend_authorized"] is True
     # Granted 2026-08-03 for the completed zero-completion-call probe; it is the
     # one authorization that cannot reach a model, reserve spend, or write run
     # state, so it does not belong in the fail-closed set below.
     assert lane["route_preflight_authorized"] is True
-    assert lane["smoke_execution_authorized"] is False
+    assert lane["smoke_execution_authorized"] is True
     assert lane["panel_execution_authorized"] is False
     assert lane["publication_authorized"] is False
     assert lane["blockers"]
@@ -225,7 +218,7 @@ def test_exact_sign_flip_holm_feasibility_uses_seed_count_not_episode_count() ->
     assert nine_seeds["feasible"] is True
 
 
-def test_blocked_v3_state_cannot_drift_into_partial_authorization() -> None:
+def test_smoke_authorization_cannot_drift_into_panel_or_publication_authorization() -> None:
     lane = _read("sota_v3_lane.json")
     registry = _read("sota_v3_models.json")
     manifest = _read("sota_v3_smoke_manifest.json")
@@ -238,20 +231,15 @@ def test_blocked_v3_state_cannot_drift_into_partial_authorization() -> None:
         or set(registry["required_smokes"]) != set(manifest["entries"])
     )
     assert incomplete
-    assert not any(
-        (
-            lane["spend_authorized"],
-            lane["smoke_execution_authorized"],
-            lane["panel_execution_authorized"],
-            lane["publication_authorized"],
-            registry["spend_authorized"],
-            registry["panel_execution_authorized"],
-        )
-    )
+    assert lane["spend_authorized"] is lane["smoke_execution_authorized"] is True
+    assert registry["spend_authorized"] is True
+    assert lane["panel_execution_authorized"] is False
+    assert lane["publication_authorized"] is False
+    assert registry["panel_execution_authorized"] is False
 
 
 @pytest.mark.parametrize("mode", ["--dry-run", "--preflight-only"])
-def test_runner_rejects_provisional_v3_smoke_before_provider_access(
+def test_runner_requires_private_seed_escrow_before_provider_access(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     mode: str,
@@ -272,7 +260,7 @@ def test_runner_rejects_provisional_v3_smoke_before_provider_access(
         publication_runner.main(["smoke", "--contract", "sota-v3", mode])
 
     assert exc_info.value.code == 2
-    assert "sota-v3 lane is provisional-pre-smoke; provider execution is locked" in capsys.readouterr().err
+    assert "GM_BENCH_PRIVATE_SEEDS is required for the frozen private panel" in capsys.readouterr().err
     assert provider_access == []
 
 
@@ -334,14 +322,7 @@ def test_runner_requires_explicit_contract_before_v2_preflight_can_run(
     assert provider_access == []
 
 
-def test_route_preflight_readiness_unlocks_nothing_that_costs_money() -> None:
-    """`route-preflight-ready` must buy exactly one thing: the zero-call probe.
-
-    This is the whole safety argument for the flip, so it is asserted rather
-    than described.  The registry is deliberately *not* `frozen`; every paid
-    phase must remain as locked as it was while the registry was
-    `provisional-blocked`, both before and after the probe actually ran.
-    """
+def test_smoke_readiness_unlocks_smoke_but_not_panel() -> None:
     lane = _read("sota_v3_lane.json")
     registry = _read("sota_v3_models.json")
     protocol = _read("sota_v3_publication_protocol.json")
@@ -351,7 +332,6 @@ def test_route_preflight_readiness_unlocks_nothing_that_costs_money() -> None:
     def issues(reg: dict, phase: str) -> list[str]:
         return publication_execution_issues(lane, reg, manifest, phase=phase, protocol=protocol, pricing=pricing)
 
-    # The probe is authorized and clear; that buys nothing downstream.
     assert issues(registry, "route-preflight") == []
     locked_lane = dict(lane, route_preflight_authorized=False)
     assert publication_execution_issues(
@@ -363,7 +343,10 @@ def test_route_preflight_readiness_unlocks_nothing_that_costs_money() -> None:
         pricing=pricing,
     ) == ["zero-call route preflight is locked while route_preflight_authorized is false"]
 
+    assert issues(registry, "smoke") == []
+    panel_issues = issues(registry, "panel")
+    assert "panel execution is locked by the model registry" in panel_issues
+    assert "v3 smoke manifest is not accepted for panel execution" in panel_issues
+
     blocked = dict(registry, selection_status="provisional-blocked")
-    for phase in ("smoke", "panel"):
-        assert issues(registry, phase) == issues(blocked, phase)
-        assert "provider execution is locked until the model registry is frozen" in issues(registry, phase)
+    assert "provider execution is locked until the model registry is frozen" in issues(blocked, "smoke")

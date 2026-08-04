@@ -12,6 +12,7 @@ import hashlib
 import json
 import math
 import re
+from pathlib import Path
 from typing import Any
 
 PUBLICATION_FORMAT = "gm-bench-result-summary-v1"
@@ -57,8 +58,19 @@ _PRIVACY_ACCEPTANCE_FIELDS = (
     "data_collection_policy_accepted",
     "retention_policy_accepted",
     "training_use_policy_accepted",
-    "zero_data_retention_policy_accepted",
 )
+PENDING_STRICT_SMOKE_CAP_VERIFICATION = {
+    "status": "request-cap-pending-strict-smoke",
+    "catalog_max_completion_tokens": None,
+    "request_parameter": "max_tokens",
+    "strict_smoke_required": True,
+}
+
+
+def is_pending_strict_smoke_cap(value: Any) -> bool:
+    """Return whether *value* is the exact fail-closed cap deferral contract."""
+
+    return isinstance(value, dict) and value == PENDING_STRICT_SMOKE_CAP_VERIFICATION
 
 
 def _registered_route_options(registry: dict[str, Any], model: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
@@ -92,6 +104,7 @@ def v3_route_identity_sha256(registry: dict[str, Any], model: dict[str, Any]) ->
                 "output_token_cap": registry.get("output_token_cap"),
                 "reasoning_policy": model.get("reasoning_policy"),
                 "reasoning_effort": model.get("reasoning_effort"),
+                "output_cap_verification": model.get("output_cap_verification"),
                 "supported_parameters": sorted(str(value) for value in model.get("catalog_supported_parameters") or []),
                 "requested_options": requested,
                 "absent_options": absent,
@@ -114,8 +127,36 @@ def v3_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
     issues: list[str] = []
     if acceptance.get("status") != "accepted":
         issues.append("sota-v3 exact-route acceptance status is not accepted")
+    privacy_standard = acceptance.get("privacy_standard")
+    if not isinstance(privacy_standard, dict):
+        issues.append("sota-v3 exact-route privacy standard is missing")
+    else:
+        if privacy_standard.get("data_classification") != "synthetic-benchmark-no-personal-or-confidential-data":
+            issues.append("sota-v3 exact-route privacy data classification is not accepted")
+        if privacy_standard.get("provider_data_collection") != "deny":
+            issues.append("sota-v3 exact-route privacy standard must deny provider data collection")
+        if privacy_standard.get("provider_training_use_allowed") is not False:
+            issues.append("sota-v3 exact-route privacy standard must prohibit provider training use")
+        if privacy_standard.get("zero_data_retention_required") is not False:
+            issues.append("sota-v3 exact-route privacy standard must explicitly resolve the ZDR requirement")
     entries = acceptance.get("entries")
     entries = entries if isinstance(entries, dict) else {}
+    evidence: dict[str, Any] | None = None
+    evidence_artifact = acceptance.get("evidence_artifact")
+    if not isinstance(evidence_artifact, str) or not evidence_artifact.strip():
+        issues.append("sota-v3 exact-route evidence artifact is missing")
+    else:
+        try:
+            loaded = json.loads(Path(evidence_artifact).read_text())
+            if not isinstance(loaded, dict):
+                raise ValueError("evidence artifact must contain a JSON object")
+            evidence = loaded
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            issues.append(f"sota-v3 exact-route evidence artifact cannot be read: {exc}")
+    evidence_routes = evidence.get("routes") if evidence is not None else None
+    if evidence is not None and not isinstance(evidence_routes, dict):
+        issues.append("sota-v3 exact-route evidence artifact routes are missing")
+        evidence_routes = {}
     model_ids = {str(model.get("id") or "") for model in models}
     if set(entries) != model_ids:
         issues.append("sota-v3 exact-route acceptance entries must exactly match the registered model ids")
@@ -136,6 +177,10 @@ def v3_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
         evidence_sha = entry.get("route_evidence_sha256")
         if not isinstance(evidence_sha, str) or re.fullmatch(r"[0-9a-f]{64}", evidence_sha) is None:
             issues.append(f"{prefix} authenticated route evidence digest is missing")
+        elif evidence is not None:
+            route = evidence_routes.get(model_id) if isinstance(evidence_routes, dict) else None
+            if not isinstance(route, dict) or evidence_sha != canonical_sha256(route):
+                issues.append(f"{prefix} authenticated route evidence digest does not match its canonical payload")
 
         privacy = entry.get("privacy_acceptance")
         if not isinstance(privacy, dict) or privacy.get("status") != "accepted":
@@ -146,11 +191,30 @@ def v3_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
         for field in _PRIVACY_ACCEPTANCE_FIELDS:
             if privacy.get(field) is not True:
                 issues.append(f"{prefix} {field} is not accepted")
+        zdr_endpoint = privacy.get("zero_data_retention_endpoint")
+        if not isinstance(zdr_endpoint, bool):
+            issues.append(f"{prefix} zero_data_retention_endpoint must be recorded as a boolean")
+        if privacy.get("zero_data_retention_requirement_satisfied") is not True:
+            issues.append(f"{prefix} zero_data_retention_requirement_satisfied is not accepted")
         if not isinstance(privacy.get("accepted_at_utc"), str) or not privacy["accepted_at_utc"].strip():
             issues.append(f"{prefix} privacy acceptance timestamp is missing")
         privacy_sha = privacy.get("evidence_sha256")
         if not isinstance(privacy_sha, str) or re.fullmatch(r"[0-9a-f]{64}", privacy_sha) is None:
             issues.append(f"{prefix} privacy evidence digest is missing")
+        elif evidence is not None:
+            route = evidence_routes.get(model_id) if isinstance(evidence_routes, dict) else None
+            if not isinstance(route, dict):
+                issues.append(f"{prefix} privacy evidence digest does not match its canonical payload")
+            else:
+                privacy_evidence = {
+                    "route_identity_sha256": route.get("route_identity_sha256"),
+                    "privacy_standard": evidence.get("privacy_standard"),
+                    "zero_data_retention_endpoint": route.get("zero_data_retention_endpoint"),
+                    "provider_policy": route.get("provider_policy"),
+                    "official_policy_sources": evidence.get("official_policy_sources"),
+                }
+                if privacy_sha != canonical_sha256(privacy_evidence):
+                    issues.append(f"{prefix} privacy evidence digest does not match its canonical payload")
     return issues
 
 

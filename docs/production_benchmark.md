@@ -49,6 +49,25 @@ multi-megabyte failed artifact is intentionally not retained. Prefer
 `--preset smoke` first; a clean serial strict panel is
 multi-hour quota spend, not a quick retry.
 
+For the frozen SOTA-v3 strict-smoke lane, do not export or paste the private
+seed values. The owner-authorized panel is stored in macOS Keychain, and the
+launcher verifies both its salted commitment and ordered execution hash before
+passing it to the publication runner in-process. The operator must still type
+an explicit ceiling:
+
+```bash
+uv run python scripts/run_publication_matrix.py route-preflight \
+  --contract sota-v3
+uv run python scripts/run_sota_v3_smoke_from_keychain.py \
+  --max-spend-usd 150
+```
+
+The route preflight makes zero completion calls and should be rerun immediately
+before the paid smoke because health and pricing metadata drift. The launcher
+always retains `GM_BENCH_WORKERS=1`, exact-route pinning, no fallbacks, strict
+failure handling, and the committed reservation/ceiling checks. It authorizes
+no panel work; panel execution remains a separate post-smoke decision.
+
 Fresh-spawn serial model panels write an atomic checkpoint after every completed
 seed/repeat and stop after two consecutive adapter failures. Resume with
 `--resume` for the default checkpoint or add one or more `--resume-from PATH`

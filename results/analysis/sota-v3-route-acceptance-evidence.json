@@ -1,0 +1,387 @@
+{
+  "account_authentication": {
+    "method": "OpenRouter credits metadata endpoint returned success",
+    "sensitive_values_included": false,
+    "status": "authenticated"
+  },
+  "completion_calls": 0,
+  "contract": "sota-v3",
+  "contract_fingerprint": "a523bdfcebe47bbd",
+  "format": "gm-bench-route-acceptance-evidence-v1",
+  "generated_at_utc": "2026-08-04T23:26:17+00:00",
+  "official_policy_sources": [
+    "https://openrouter.ai/docs/guides/features/zdr",
+    "https://openrouter.ai/docs/guides/privacy/provider-logging/",
+    "https://openrouter.ai/docs/guides/routing/provider-selection",
+    "https://openrouter.ai/docs/api/api-reference/endpoints/list-endpoints-zdr"
+  ],
+  "privacy_standard": {
+    "data_classification": "synthetic-benchmark-no-personal-or-confidential-data",
+    "provider_data_collection": "deny",
+    "provider_retention_terms": "reviewed-and-accepted-for-synthetic-benchmark",
+    "provider_training_use_allowed": false,
+    "zero_data_retention_preferred": true,
+    "zero_data_retention_required": false
+  },
+  "routes": {
+    "openrouter-claude-sonnet-5-bedrock": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 128000,
+        "name": "Amazon Bedrock | anthropic/claude-sonnet-5-20260630",
+        "provider_name": "Amazon Bedrock",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "max_tokens",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "stop",
+          "structured_outputs",
+          "tool_choice",
+          "tools",
+          "verbosity"
+        ],
+        "tag": "amazon-bedrock/global",
+        "uptime_last_1d": 99.84734119243491,
+        "uptime_last_30m": 100
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://aws.amazon.com/privacy",
+        "provider_slug": "amazon-bedrock",
+        "terms_of_service_url": "https://aws.amazon.com/service-terms/"
+      },
+      "route_identity_sha256": "cd14b14e915dbac2656c1483972fb585df7d718635f2748e044ecfe1d0c6be4c",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-deepseek-v4-flash-0731-cloudflare": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 384000,
+        "name": "Cloudflare | deepseek/deepseek-v4-flash-20260731",
+        "provider_name": "Cloudflare",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "logit_bias",
+          "logprobs",
+          "max_tokens",
+          "min_p",
+          "presence_penalty",
+          "reasoning",
+          "reasoning_effort",
+          "repetition_penalty",
+          "response_format",
+          "seed",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_k",
+          "top_logprobs",
+          "top_p"
+        ],
+        "tag": "cloudflare/fp8",
+        "uptime_last_1d": 99.20383493778141,
+        "uptime_last_30m": 99.57471943295924
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://developers.cloudflare.com/workers-ai/privacy",
+        "provider_slug": "cloudflare",
+        "terms_of_service_url": "https://www.cloudflare.com/service-specific-terms-developer-platform/#developer-platform-terms"
+      },
+      "route_identity_sha256": "ee801d3d09aa511f61eb5acde13825f633b33da5eaee3a3c3090f51f7914eac5",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-gemini-3.6-flash-google-ai-studio": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 65536,
+        "name": "Google AI Studio | google/gemini-3.6-flash-20260721",
+        "provider_name": "Google AI Studio",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "max_tokens",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "seed",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_p"
+        ],
+        "tag": "google-ai-studio",
+        "uptime_last_1d": 98.47300897834896,
+        "uptime_last_30m": 98.37067209775967
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://cloud.google.com/terms/cloud-privacy-notice",
+        "provider_slug": "google-ai-studio",
+        "terms_of_service_url": "https://cloud.google.com/terms/"
+      },
+      "route_identity_sha256": "2cab5c7c0f89d2de1c2b2dae5dbe277d1e1a20f4649c5b42e717b9545f830558",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-glm-5.2-novita": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 131072,
+        "name": "Novita | z-ai/glm-5.2-20260616",
+        "provider_name": "Novita",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "max_tokens",
+          "presence_penalty",
+          "reasoning",
+          "reasoning_effort",
+          "repetition_penalty",
+          "response_format",
+          "seed",
+          "stop",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_k",
+          "top_p"
+        ],
+        "tag": "novita/fp8",
+        "uptime_last_1d": 99.12393326496591,
+        "uptime_last_30m": 97.84186221845255
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://novita.ai/legal/privacy-policy",
+        "provider_slug": "novita",
+        "terms_of_service_url": "https://novita.ai/legal/terms-of-service"
+      },
+      "route_identity_sha256": "864af6547ed9669d9f1e16c9cf93ce86c3c341f3383a21750fe0228b63c4d20d",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-gpt-5.6-luna-openai": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 128000,
+        "name": "OpenAI | openai/gpt-5.6-luna-20260709",
+        "provider_name": "OpenAI",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "max_tokens",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "seed",
+          "structured_outputs",
+          "tool_choice",
+          "tools"
+        ],
+        "tag": "openai",
+        "uptime_last_1d": 99.25235247330117,
+        "uptime_last_30m": 99.02350802859962
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://openai.com/policies/privacy-policy/",
+        "provider_slug": "openai",
+        "terms_of_service_url": "https://openai.com/policies/row-terms-of-use/"
+      },
+      "route_identity_sha256": "7968d261fc1919563259c9226842ac936f1b0a9b1250f4b4b3013c3b6ebbdabb",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-grok-4.5-xai": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": null,
+        "name": "xAI | x-ai/grok-4.5-20260708",
+        "provider_name": "xAI",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "logprobs",
+          "max_tokens",
+          "presence_penalty",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "seed",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p"
+        ],
+        "tag": "xai/zdr",
+        "uptime_last_1d": 99.95176825658132,
+        "uptime_last_30m": 100
+      },
+      "output_cap_verification_status": "request-cap-pending-strict-smoke",
+      "provider_policy": {
+        "privacy_policy_url": "https://x.ai/legal/privacy-policy",
+        "provider_slug": "xai",
+        "terms_of_service_url": "https://x.ai/legal/terms-of-service-enterprise"
+      },
+      "route_identity_sha256": "750efc6eba3496bc94f7138cd410c5a085f570e2d476cdeecf434f9340d761b1",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-hy3-tencent": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 128000,
+        "name": "Tencent | tencent/hy3-20260706",
+        "provider_name": "Tencent",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "max_completion_tokens",
+          "max_tokens",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "stop",
+          "temperature",
+          "tool_choice",
+          "tools"
+        ],
+        "tag": "tencent/fp8",
+        "uptime_last_1d": 99.88669313467457,
+        "uptime_last_30m": 99.8017839444995
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://www.tencentcloud.com/en/document/product/1300/78952",
+        "provider_slug": "tencent",
+        "terms_of_service_url": "https://www.tencentcloud.com/en/document/product/301/78869"
+      },
+      "route_identity_sha256": "845a8c55b92983428fe7e3d75aecaf07172f2c84c57b43ecbbb0405a51ad8ee4",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-minimax-m3-deepinfra": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 512000,
+        "name": "DeepInfra | minimax/minimax-m3-20260531",
+        "provider_name": "DeepInfra",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "logit_bias",
+          "max_tokens",
+          "min_p",
+          "presence_penalty",
+          "reasoning",
+          "repetition_penalty",
+          "response_format",
+          "seed",
+          "stop",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_k",
+          "top_p"
+        ],
+        "tag": "deepinfra/fp8",
+        "uptime_last_1d": 99.5721639656816,
+        "uptime_last_30m": 100
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://deepinfra.com/privacy",
+        "provider_slug": "deepinfra",
+        "terms_of_service_url": "https://deepinfra.com/terms"
+      },
+      "route_identity_sha256": "3a5ff981f3b2ce8e13604c9a2c5ee3a3794b5dbd09228a11c641ed33bf2ec326",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-mistral-medium-3.5-mistral": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": null,
+        "name": "Mistral | mistralai/mistral-medium-3.5-20260430",
+        "provider_name": "Mistral",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "max_tokens",
+          "presence_penalty",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "seed",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_p"
+        ],
+        "tag": "mistral",
+        "uptime_last_1d": 99.97488665952919,
+        "uptime_last_30m": 99.87012987012987
+      },
+      "output_cap_verification_status": "request-cap-pending-strict-smoke",
+      "provider_policy": {
+        "privacy_policy_url": "https://mistral.ai/terms/#privacy-policy",
+        "provider_slug": "mistral",
+        "terms_of_service_url": "https://mistral.ai/terms/#terms-of-use"
+      },
+      "route_identity_sha256": "6b50860e44b7c8c4e52ac53faa23cebffec2f4f430fac1cd0aaf1a80683b3a03",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-qwen3.8-max-alibaba": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 131072,
+        "name": "Alibaba | qwen/qwen3.8-max-20260803",
+        "provider_name": "Alibaba",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "logprobs",
+          "max_tokens",
+          "presence_penalty",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "seed",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_k",
+          "top_logprobs",
+          "top_p"
+        ],
+        "tag": "alibaba",
+        "uptime_last_1d": 99.9995100801019,
+        "uptime_last_30m": 100
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-privacy-policy",
+        "provider_slug": "alibaba",
+        "terms_of_service_url": "https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-product-terms-of-service-v-3-8-0"
+      },
+      "route_identity_sha256": "ad5446583e6d608032760931054c42a8b774149e3c3cf6dd6426656b18871804",
+      "zero_data_retention_endpoint": false
+    }
+  },
+  "schema_version": 1
+}
