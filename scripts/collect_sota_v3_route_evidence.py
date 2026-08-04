@@ -10,11 +10,11 @@ generated evidence artifact after every registered route passes.
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import os
 import sys
 import urllib.parse
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -49,16 +49,21 @@ def _read_json(path: Path) -> dict[str, Any]:
     return payload
 
 
-def _get_json(url: str, headers: dict[str, str]) -> dict[str, Any]:
-    parsed = urllib.parse.urlsplit(url)
-    if parsed.scheme != "https" or parsed.netloc != "openrouter.ai" or not parsed.path.startswith("/api/v1/"):
-        raise ValueError(f"refusing non-OpenRouter metadata URL: {url!r}")
-    request = urllib.request.Request(url, headers=headers)
-    # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
-    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - URL allowlist enforced above
+def _get_json(path: str, headers: dict[str, str]) -> dict[str, Any]:
+    parsed = urllib.parse.urlsplit(path)
+    if parsed.scheme or parsed.netloc or not parsed.path.startswith("/api/v1/") or parsed.path != path:
+        raise ValueError(f"refusing non-OpenRouter metadata path: {path!r}")
+    connection = http.client.HTTPSConnection("openrouter.ai", timeout=30)
+    try:
+        connection.request("GET", path, headers=headers)
+        response = connection.getresponse()
+        if response.status < 200 or response.status >= 300:
+            raise RuntimeError(f"OpenRouter metadata request failed with HTTP {response.status}")
         payload = json.load(response)
+    finally:
+        connection.close()
     if not isinstance(payload, dict):
-        raise ValueError(f"{url} did not return a JSON object")
+        raise ValueError(f"{path} did not return a JSON object")
     return payload
 
 
@@ -92,9 +97,9 @@ def _public_endpoint_record(endpoint: dict[str, Any]) -> dict[str, Any]:
 def collect(registry: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]:
     # A successful authenticated credits read proves the bearer token is valid;
     # no balance or usage value is retained in the evidence artifact.
-    _get_json("https://openrouter.ai/api/v1/credits", headers)
-    zdr_rows = _get_json("https://openrouter.ai/api/v1/endpoints/zdr", headers).get("data") or []
-    providers = _get_json("https://openrouter.ai/api/v1/providers", headers).get("data") or []
+    _get_json("/api/v1/credits", headers)
+    zdr_rows = _get_json("/api/v1/endpoints/zdr", headers).get("data") or []
+    providers = _get_json("/api/v1/providers", headers).get("data") or []
     provider_by_slug = {str(row.get("slug")): row for row in providers if isinstance(row, dict)}
     zdr_identities = {
         (row.get("model_id"), row.get("provider_name"), row.get("tag"), row.get("name"))
@@ -106,10 +111,8 @@ def collect(registry: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]
     cap = registry.get("output_token_cap")
     for model in registry.get("models") or []:
         model_id = str(model["id"])
-        endpoint_payload = _get_json(
-            f"https://openrouter.ai/api/v1/models/{model['model']}/endpoints",
-            headers,
-        )
+        model_path = urllib.parse.quote(str(model["model"]), safe="/")
+        endpoint_payload = _get_json(f"/api/v1/models/{model_path}/endpoints", headers)
         endpoint = _exact_endpoint(model, list((endpoint_payload.get("data") or {}).get("endpoints") or []))
         supported = set(endpoint.get("supported_parameters") or [])
         required = {"max_tokens", "reasoning", "response_format"}

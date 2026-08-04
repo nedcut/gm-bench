@@ -5,20 +5,21 @@ import pytest
 import scripts.collect_sota_v3_route_evidence as collector
 
 
-def test_route_evidence_http_client_rejects_non_openrouter_urls(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_route_evidence_http_client_rejects_non_api_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     accessed: list[str] = []
     monkeypatch.setattr(
-        collector.urllib.request,
-        "urlopen",
+        collector.http.client,
+        "HTTPSConnection",
         lambda *_args, **_kwargs: accessed.append("called"),
     )
 
-    for url in (
+    for path in (
         "file:///etc/passwd",
         "https://example.com/api/v1/providers",
-        "http://openrouter.ai/api/v1/providers",
-        "https://openrouter.ai/not-api/providers",
+        "//example.com/api/v1/providers",
+        "/not-api/providers",
+        "/api/v1/providers?unexpected=query",
     ):
-        with pytest.raises(ValueError, match="refusing non-OpenRouter metadata URL"):
-            collector._get_json(url, {})
+        with pytest.raises(ValueError, match="refusing non-OpenRouter metadata path"):
+            collector._get_json(path, {})
     assert accessed == []
