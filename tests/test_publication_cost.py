@@ -46,12 +46,14 @@ def test_v3_cost_plan_uses_registered_private_seed_count() -> None:
     assert result["calls"]["panel_decisions_per_model"] == 320
     assert result["calls"]["panel_calls"] == 3_200
     assert result["calls"]["total_calls"] == 3_240
-    # Repriced 2026-08-04 when the Qwen slot moved from qwen3.7-plus to
-    # qwen3.8-max and the GLM 5.2 Novita route picked up a 55.1% discount.
-    # The Max tier costs 6.25x/4.69x the Plus tier per token, so the swap
-    # dominates: the reserve moves +11.1% on an unchanged 3,240-call plan.
-    assert result["costs_usd"]["total_unrounded"] == pytest.approx(99.8008210944)
-    assert result["costs_usd"]["total_with_1_2x_contingency"] == pytest.approx(119.76098531328)
+    # Repriced 2026-08-04. Two moves, on an unchanged 3,240-call plan:
+    # the Qwen slot went from qwen3.7-plus to qwen3.8-max, which bills
+    # 6.25x/4.69x per token; and the snapshot now pins undiscounted list
+    # rates, after gpt-5.6-luna and glm-5.2 were both found pinned at
+    # 50%-off promotional prices. A promo is not a floor -- the GLM
+    # discount moved 55.1% -> 50% within hours of being recorded.
+    assert result["costs_usd"]["total_unrounded"] == pytest.approx(106.073183232)
+    assert result["costs_usd"]["total_with_1_2x_contingency"] == pytest.approx(127.2878198784)
     grok = next(row for row in result["models"] if row["model"] == "x-ai/grok-4.5")
     assert grok["internal_reasoning_tokens_per_decision"] == 4096
     assert grok["applied_internal_reasoning_rate_usd"] == pytest.approx(grok["applied_completion_rate_usd"])

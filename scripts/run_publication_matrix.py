@@ -560,8 +560,62 @@ def _openrouter_endpoints(model: str, env: dict[str, str]) -> dict[str, Any]:
         return json.load(response)
 
 
+def _pricing_drift_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
+    """Compare the pinned route's live rates against the committed snapshot.
+
+    The snapshot is what the reservation was computed from, so a rate that has
+    risen since it was taken makes the committed budget wrong in the direction
+    that costs money. That is an error. A rate that has *fallen* only means the
+    run will come in under reserve, so it is reported and allowed -- the GLM
+    Novita route quietly picked up a 55.1% discount that went unnoticed for two
+    weeks precisely because nothing ever looked.
+
+    Only the base rates are compared. Long-context override tiers are priced
+    separately in the snapshot and are not exercised by the registered
+    8,000-token decision, so a drift there cannot move this plan's cost.
+    """
+    try:
+        rates = (_read_json(PRICING_CONFIG).get("models") or {}).get(cell.model)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return []
+    if not isinstance(rates, dict):
+        return []
+    endpoint = next(
+        (
+            e
+            for e in ((payload.get("data") or {}).get("endpoints") or [])
+            if e.get("tag") == cell.endpoint_tag and e.get("name") == cell.endpoint_name
+        ),
+        None,
+    )
+    if endpoint is None:
+        return []
+    issues = []
+    for field in ("prompt", "completion"):
+        committed = rates.get(field)
+        raw = (endpoint.get("pricing") or {}).get(field)
+        if not isinstance(committed, (int, float)) or raw is None:
+            continue
+        try:
+            live = float(raw)
+        except (TypeError, ValueError):
+            continue
+        if live > committed:
+            issues.append(
+                f"live {field} rate {live:.10g} exceeds the committed snapshot rate {committed:.10g} "
+                f"for {cell.experiment_id}; the reservation was computed from the snapshot"
+            )
+        elif live < committed:
+            print(
+                f"note: live {field} rate for {cell.experiment_id} fell from {committed:.10g} "
+                f"to {live:.10g}; the run will come in under its reservation"
+            )
+    return issues
+
+
 def _validate_openrouter_endpoint(cell: Cell, env: dict[str, str]) -> None:
-    issues = _endpoint_issues(cell, _openrouter_endpoints(cell.model, env))
+    payload = _openrouter_endpoints(cell.model, env)
+    issues = _endpoint_issues(cell, payload) + _pricing_drift_issues(cell, payload)
     if issues:
         raise RuntimeError("; ".join(issues))
 

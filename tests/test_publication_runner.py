@@ -1604,6 +1604,54 @@ def _healthy_endpoint(cell) -> dict:
     }
 
 
+def test_pricing_drift_fails_upward_and_only_reports_downward(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A rate that rose invalidates the reservation; a rate that fell does not.
+
+    The committed snapshot is what the budget was computed from, so an
+    increase makes the plan wrong in the direction that costs money. A
+    decrease only means coming in under reserve -- the GLM Novita route picked
+    up a 55.1% discount that nobody noticed for two weeks because nothing
+    compared the snapshot to reality.
+    """
+    cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba", cap=4096)[0]
+    committed = json.loads(publication_runner.PRICING_CONFIG.read_text())["models"][cell.model]
+
+    def payload(prompt: float, completion: float) -> dict:
+        return {
+            "data": {
+                "endpoints": [
+                    {
+                        "tag": cell.endpoint_tag,
+                        "name": cell.endpoint_name,
+                        "pricing": {"prompt": str(prompt), "completion": str(completion)},
+                    }
+                ]
+            }
+        }
+
+    unchanged = payload(committed["prompt"], committed["completion"])
+    assert publication_runner._pricing_drift_issues(cell, unchanged) == []
+
+    risen = payload(committed["prompt"] * 2, committed["completion"])
+    issues = publication_runner._pricing_drift_issues(cell, risen)
+    assert issues and "exceeds the committed snapshot rate" in issues[0]
+
+    capsys.readouterr()
+    fallen = payload(committed["prompt"] / 2, committed["completion"] / 2)
+    assert publication_runner._pricing_drift_issues(cell, fallen) == [], "a discount must not block a run"
+    out = capsys.readouterr().out
+    assert "fell from" in out and "under its reservation" in out
+
+    # An unpinned route in the payload is not this cell's price.
+    other = payload(committed["prompt"] * 10, committed["completion"])
+    other["data"]["endpoints"][0]["tag"] = "someone-else/fp8"
+    assert publication_runner._pricing_drift_issues(cell, other) == []
+
+
 def test_the_suite_cannot_inherit_a_live_provider_credential() -> None:
     """Pin the guard that stops a test from quietly billing a real account.
 
