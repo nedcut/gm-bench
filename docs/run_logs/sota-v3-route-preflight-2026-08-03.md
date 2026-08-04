@@ -16,15 +16,16 @@ authorize a smoke or a panel, and did not change any spend gate.
 
 For `route-preflight` the runner validates the endpoint and then `continue`s
 before reaching `subprocess.run(command)`, so no model subprocess can launch.
-Verified empirically as well: after the first (failing) run, `git status`
-showed no new files and no `results/publication*` directory, confirming the
-"cannot create run state" property rather than assuming it.
+The runner also skips run-directory creation and `_write_run_state` for this
+phase. `test_zero_call_route_preflight_has_separate_authorization_and_never_launches_child`
+pins both properties by asserting that no child launches and no run-state,
+raw, or checkpoint directory is created.
 
 ## Result: nine of ten pins correct, one stale, no route dead
 
 The first run **aborted at cell 7 of 10**:
 
-```
+```text
 OpenRouter endpoint preflight failed for openrouter-qwen3.7-plus-alibaba:
 no healthy OpenRouter endpoint matches provider='Alibaba' tag='alibaba'
 name='Alibaba | qwen/qwen3.7-plus-20260602'
@@ -77,9 +78,10 @@ After the correction, the full preflight passes all ten cells.
 
 ## What this does and does not establish
 
-**Does:** the ten exact routes are reachable under authentication, resolve to
-the pinned upstream provider and endpoint name, and honor the required
-parameters at the 4,096-token cap.
+**Does:** authenticated endpoint metadata reports that the ten exact routes are
+reachable, resolve to the pinned upstream provider and endpoint name, advertise
+the required parameters, and can accommodate the registered 4,096-token cap.
+Actual inference behavior remains for the paid smoke to establish.
 
 **Does not:** authorize spend, freeze cohort identity, or resolve
 `exact_route_acceptance`. That block still reports `unresolved` with every

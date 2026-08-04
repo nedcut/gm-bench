@@ -353,6 +353,15 @@ def test_route_preflight_readiness_unlocks_nothing_that_costs_money() -> None:
 
     # The probe is authorized and clear; that buys nothing downstream.
     assert issues(registry, "route-preflight") == []
+    locked_lane = dict(lane, route_preflight_authorized=False)
+    assert publication_execution_issues(
+        locked_lane,
+        registry,
+        manifest,
+        phase="route-preflight",
+        protocol=protocol,
+        pricing=pricing,
+    ) == ["zero-call route preflight is locked while route_preflight_authorized is false"]
 
     blocked = dict(registry, selection_status="provisional-blocked")
     for phase in ("smoke", "panel"):
