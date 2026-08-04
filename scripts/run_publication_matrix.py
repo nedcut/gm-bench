@@ -475,6 +475,34 @@ def _openrouter_usage_usd(env: dict[str, str]) -> float:
     return float(payload["data"]["total_usage"])
 
 
+def _enforce_operator_ceiling(max_spend_usd: float, contract: str | None) -> None:
+    """Reject a `--max-spend-usd` above the contract's committed hard cap.
+
+    `budget_policy.operator_ceiling_usd` was declared but never read, so the
+    only thing standing between a typo and an unbounded run was the operator
+    retyping the right number. A committed ceiling that nothing enforces is a
+    comment.  A null ceiling stays permissive: contracts that have not
+    committed to a number are not silently given one.
+    """
+    _, _, _, protocol_path, _ = CONTRACT_CONFIGS.get(contract or "", (None,) * 5)
+    if protocol_path is None:
+        protocol_path = PROTOCOL_CONFIG
+    try:
+        budget_policy = (_read_json(protocol_path) or {}).get("budget_policy") or {}
+    except (OSError, ValueError, json.JSONDecodeError):
+        return
+    ceiling = budget_policy.get("operator_ceiling_usd")
+    if ceiling is None:
+        return
+    if not isinstance(ceiling, (int, float)) or isinstance(ceiling, bool) or ceiling <= 0:
+        raise ValueError(f"budget_policy.operator_ceiling_usd must be a positive number, got {ceiling!r}")
+    if max_spend_usd > ceiling:
+        raise ValueError(
+            f"--max-spend-usd ${max_spend_usd:.2f} exceeds the committed operator ceiling "
+            f"${float(ceiling):.2f} in {protocol_path.name}; raise the ceiling deliberately or lower the run"
+        )
+
+
 def _endpoint_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
     endpoints = (payload.get("data") or {}).get("endpoints") or []
     expected_provider = cell.upstream_provider
@@ -1483,6 +1511,11 @@ def main(argv: list[str] | None = None) -> int:
         and args.max_spend_usd is None
     ):
         parser.error("paid OpenRouter runs require an explicit --max-spend-usd ceiling")
+    if args.max_spend_usd is not None:
+        try:
+            _enforce_operator_ceiling(args.max_spend_usd, args.contract)
+        except ValueError as exc:
+            parser.error(str(exc))
     run_dir = args.run_dir.resolve()
     for directory in (run_dir / "raw", run_dir / "checkpoints"):
         if not args.dry_run and not args.preflight_only and args.phase != "route-preflight":

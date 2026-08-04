@@ -1604,6 +1604,95 @@ def _healthy_endpoint(cell) -> dict:
     }
 
 
+def test_the_suite_cannot_inherit_a_live_provider_credential() -> None:
+    """Pin the guard that stops a test from quietly billing a real account.
+
+    The runner loads the gitignored `.env.local` itself, so before this guard
+    existed any test driving `main()` through a paid phase without stubbing
+    the child process ran the real benchmark against real routes. On
+    2026-08-04 a test written to assert a spend ceiling *blocks* a run instead
+    spent $0.44 across 38 live calls, and passed no judgement on it -- the run
+    simply succeeded.
+    """
+    assert os.environ.get("OPENROUTER_API_KEY") is None
+    assert publication_runner.load_environment_files(Path(".")) == []
+
+
+def test_operator_ceiling_rejects_a_run_that_could_outspend_the_committed_cap() -> None:
+    """The committed ceiling has to bind, or it is a comment.
+
+    `budget_policy.operator_ceiling_usd` sat in the config unread, so the only
+    thing between a mistyped `--max-spend-usd` and an unbounded run was the
+    operator retyping the right number from memory.
+    """
+    ceiling = json.loads(Path("config/sota_v3_publication_protocol.json").read_text())
+    ceiling = ceiling["budget_policy"]["operator_ceiling_usd"]
+    assert ceiling == 120.00
+
+    publication_runner._enforce_operator_ceiling(ceiling, "sota-v3")
+    publication_runner._enforce_operator_ceiling(ceiling - 0.01, "sota-v3")
+
+    with pytest.raises(ValueError, match="exceeds the committed operator ceiling"):
+        publication_runner._enforce_operator_ceiling(ceiling + 0.01, "sota-v3")
+    with pytest.raises(ValueError, match=r"\$1200\.00"):
+        publication_runner._enforce_operator_ceiling(1200.00, "sota-v3")
+
+
+def test_operator_ceiling_stays_permissive_when_no_cap_is_committed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A contract that has not chosen a number must not be given one silently."""
+    protocol_path = tmp_path / "protocol.json"
+    protocol_path.write_text(json.dumps({"budget_policy": {"operator_ceiling_usd": None}}))
+    monkeypatch.setitem(
+        publication_runner.CONTRACT_CONFIGS,
+        "sota-test",
+        (protocol_path, protocol_path, protocol_path, protocol_path, protocol_path),
+    )
+    publication_runner._enforce_operator_ceiling(10_000.00, "sota-test")
+
+    protocol_path.write_text(json.dumps({"budget_policy": {"operator_ceiling_usd": "lots"}}))
+    with pytest.raises(ValueError, match="must be a positive number"):
+        publication_runner._enforce_operator_ceiling(1.00, "sota-test")
+
+
+def test_paid_run_above_the_ceiling_is_refused_before_any_cell_runs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The gate has to sit ahead of the cell loop, not inside it.
+
+    Checked by proving that neither the endpoint probe nor a child process is
+    reached: a ceiling enforced after the first cell has already spent money
+    is not a ceiling.
+    """
+    _frozen_panel_files(tmp_path, monkeypatch)
+    protocol = json.loads(publication_runner.PROTOCOL_CONFIG.read_text())
+    protocol["budget_policy"]["operator_ceiling_usd"] = 120.00
+    publication_runner.PROTOCOL_CONFIG.write_text(json.dumps(protocol))
+
+    checked: list[str] = []
+    child_calls: list[str] = []
+    monkeypatch.setattr(
+        publication_runner,
+        "_validate_openrouter_endpoint",
+        lambda cell, _env: checked.append(cell.experiment_id),
+    )
+    monkeypatch.setattr(
+        publication_runner.subprocess,
+        "run",
+        lambda *_args, **_kwargs: child_calls.append("child"),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["smoke", "--contract", "sota-v3", "--run-dir", str(tmp_path), "--max-spend-usd", "500"])
+
+    assert exc_info.value.code == 2
+    assert checked == [], "a run over the ceiling reached the endpoint probe"
+    assert child_calls == [], "a run over the ceiling launched a model"
+
+
 def test_endpoint_preflight_enforces_both_uptime_floors() -> None:
     """The two windows catch different failures, so both have to gate.
 

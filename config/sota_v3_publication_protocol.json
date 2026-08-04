@@ -84,7 +84,8 @@
     "cost_estimate_artifact": "results/analysis/sota-v3-pre-smoke-cost-estimate.json",
     "operator_must_pass_max_spend_usd": true,
     "spend_authorized": false,
-    "operator_ceiling_usd": null
+    "operator_ceiling_usd": 120.0,
+    "operator_ceiling_basis": "Owner-set hard cap, 2026-08-04. Above the $119.76 pre-smoke reservation so the committed plan fits, and enforced by the runner: --max-spend-usd above this value is rejected before any cell runs. Projected actual spend is ~$34 from July smoke telemetry reprojected at current rates (models emit 48-640 output tokens per decision against a 4,096 reservation), so the cap is a backstop rather than the expected bill. Raising it is a deliberate edit here."
   },
   "publication_authorized": false
 }
