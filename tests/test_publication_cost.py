@@ -46,12 +46,66 @@ def test_v3_cost_plan_uses_registered_private_seed_count() -> None:
     assert result["calls"]["panel_decisions_per_model"] == 320
     assert result["calls"]["panel_calls"] == 3_200
     assert result["calls"]["total_calls"] == 3_240
-    assert result["costs_usd"]["total_unrounded"] == pytest.approx(89.8450942464)
-    assert result["costs_usd"]["total_with_1_2x_contingency"] == pytest.approx(107.81411309568)
+    # Repriced 2026-08-04. Two moves, on an unchanged 3,240-call plan:
+    # the Qwen slot went from qwen3.7-plus to qwen3.8-max, which bills
+    # 6.25x/4.69x per token; and the snapshot now pins undiscounted list
+    # rates, after gpt-5.6-luna and glm-5.2 were both found pinned at
+    # 50%-off promotional prices. A promo is not a floor -- the GLM
+    # discount moved 55.1% -> 50% within hours of being recorded.
+    assert result["costs_usd"]["total_unrounded"] == pytest.approx(106.073183232)
+    assert result["costs_usd"]["total_with_1_2x_contingency"] == pytest.approx(127.2878198784)
     grok = next(row for row in result["models"] if row["model"] == "x-ai/grok-4.5")
     assert grok["internal_reasoning_tokens_per_decision"] == 4096
     assert grok["applied_internal_reasoning_rate_usd"] == pytest.approx(grok["applied_completion_rate_usd"])
     assert grok["internal_reasoning_billing_basis"] == "completion"
+
+
+def test_the_committed_plan_fits_under_the_committed_ceiling() -> None:
+    """The reservation and the hard cap must not drift apart silently.
+
+    These are two committed numbers in two different files, and on 2026-08-04
+    they crossed: pinning undiscounted list rates moved the reservation to
+    $127.29 against a $120.00 ceiling, so the committed plan could not legally
+    run.  Nothing caught it, because nothing compared them.
+
+    Adding a model, substituting a route onto a pricier host, or a provider
+    ending a discount all move the reservation.  Any of them silently breaching
+    the ceiling should fail here, at zero cost, rather than at the point
+    someone tries to authorize a run.
+    """
+    protocol = json.loads(Path("config/sota_v3_publication_protocol.json").read_text())
+    ceiling = protocol["budget_policy"]["operator_ceiling_usd"]
+    reserved = estimate(*_v3_inputs())["costs_usd"]["total_with_1_2x_contingency"]
+
+    assert isinstance(ceiling, (int, float)) and ceiling > 0
+    assert reserved <= ceiling, (
+        f"the committed reservation ${reserved:.2f} exceeds the committed operator ceiling "
+        f"${ceiling:.2f}; raise the ceiling deliberately or reduce the plan"
+    )
+
+
+def test_the_committed_cost_artifact_matches_the_committed_configs() -> None:
+    """A stale cost artifact is a reservation nobody recomputed.
+
+    The runner reserves per cell from the pricing snapshot, but the artifact is
+    what the readiness docs and the ceiling decision quote.  If someone edits a
+    price or a route without regenerating it, the number people reason about
+    stops describing the plan they would actually run.
+    """
+    committed = json.loads(Path("results/analysis/sota-v3-pre-smoke-cost-estimate.json").read_text())
+    recomputed = estimate(*_v3_inputs())
+
+    assert committed["costs_usd"] == pytest.approx(recomputed["costs_usd"])
+    assert committed["calls"] == recomputed["calls"]
+    # The timestamp is what tells a reader which snapshot the number describes,
+    # so a stale one is its own defect even when the totals happen to agree.
+    assert committed["pricing_checked_at_utc"] == recomputed["pricing_checked_at_utc"]
+    committed_rows = {row["experiment_id"]: row for row in committed["models"]}
+    recomputed_rows = {row["experiment_id"]: row for row in recomputed["models"]}
+    assert set(committed_rows) == set(recomputed_rows)
+    for experiment_id, row in recomputed_rows.items():
+        assert committed_rows[experiment_id]["model"] == row["model"]
+        assert committed_rows[experiment_id]["cost_per_decision_usd"] == pytest.approx(row["cost_per_decision_usd"])
 
 
 def test_costs_sum_unrounded_rows_before_contingency() -> None:

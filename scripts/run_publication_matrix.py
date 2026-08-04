@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import subprocess
 import sys
@@ -31,6 +32,21 @@ PRICING_CONFIG = ROOT / "config" / "openrouter_pricing_snapshot.json"
 PROTOCOL_CONFIG = ROOT / "config" / "publication_protocol.json"
 SMOKE_MANIFEST = ROOT / "config" / "sota_v2_smoke_manifest.json"
 RUN_STATE_FORMAT = "gm-bench-publication-run-v1"
+# Availability floors for a pinned endpoint to stay eligible.
+#
+# Two windows, because they detect different failures. The 24h figure is a
+# chronic filter and is far too slow to see an outage: on 2026-08-04 the
+# first-party DeepSeek route was deranked to status -5 while still reporting
+# 99.24% over 24h. The 30m figure is what moved (78.93%), so that is the
+# acute gate.
+#
+# Both floors sit well below the noise band. These readings drift by half a
+# point between consecutive polls, so a threshold set near the observed values
+# would block healthy routes at random -- a 99% 24h floor rejected two
+# perfectly healthy cohort members on the day it was written while still
+# passing the route that had actually failed.
+MIN_UPTIME_LAST_30M_PCT = 90.0
+MIN_UPTIME_LAST_1D_PCT = 95.0
 CONTRACT_CONFIGS = {
     "sota-v2": (
         ROOT / "config" / "sota_v2_models.json",
@@ -460,6 +476,34 @@ def _openrouter_usage_usd(env: dict[str, str]) -> float:
     return float(payload["data"]["total_usage"])
 
 
+def _enforce_operator_ceiling(max_spend_usd: float, contract: str | None) -> None:
+    """Reject a `--max-spend-usd` above the contract's committed hard cap.
+
+    `budget_policy.operator_ceiling_usd` was declared but never read, so the
+    only thing standing between a typo and an unbounded run was the operator
+    retyping the right number. A committed ceiling that nothing enforces is a
+    comment.  A null ceiling stays permissive: contracts that have not
+    committed to a number are not silently given one.
+    """
+    _, _, _, protocol_path, _ = CONTRACT_CONFIGS.get(contract or "", (None,) * 5)
+    if protocol_path is None:
+        protocol_path = PROTOCOL_CONFIG
+    try:
+        budget_policy = (_read_json(protocol_path) or {}).get("budget_policy") or {}
+    except (OSError, ValueError, json.JSONDecodeError):
+        return
+    ceiling = budget_policy.get("operator_ceiling_usd")
+    if ceiling is None:
+        return
+    if not isinstance(ceiling, (int, float)) or isinstance(ceiling, bool) or not math.isfinite(ceiling) or ceiling <= 0:
+        raise ValueError(f"budget_policy.operator_ceiling_usd must be a positive finite number, got {ceiling!r}")
+    if max_spend_usd > ceiling:
+        raise ValueError(
+            f"--max-spend-usd ${max_spend_usd:.2f} exceeds the committed operator ceiling "
+            f"${float(ceiling):.2f} in {protocol_path.name}; raise the ceiling deliberately or lower the run"
+        )
+
+
 def _endpoint_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
     endpoints = (payload.get("data") or {}).get("endpoints") or []
     expected_provider = cell.upstream_provider
@@ -485,11 +529,40 @@ def _endpoint_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
     for endpoint in matches:
         supported = set(endpoint.get("supported_parameters") or [])
         maximum = endpoint.get("max_completion_tokens")
-        cap_fits = cell.cap is None or maximum is None or (isinstance(maximum, int) and cell.cap <= maximum)
+        cap_fits = cell.cap is None or (
+            isinstance(maximum, int) and not isinstance(maximum, bool) and cell.cap <= maximum
+        )
         if required <= supported and cap_fits:
             capable.append(endpoint)
     if not capable:
         return [f"matching endpoint cannot honor required parameters {sorted(required)!r} and cap={cell.cap_label}"]
+    floors = (("uptime_last_30m", MIN_UPTIME_LAST_30M_PCT, "30m"), ("uptime_last_1d", MIN_UPTIME_LAST_1D_PCT, "24h"))
+    for field, floor, label in floors:
+        # Fail closed. Missing or malformed health telemetry does not establish
+        # that the pinned route clears the declared availability floor.
+        durable = [
+            endpoint
+            for endpoint in capable
+            if isinstance(endpoint.get(field), (int, float))
+            and not isinstance(endpoint[field], bool)
+            and math.isfinite(endpoint[field])
+            and endpoint[field] >= floor
+        ]
+        if not durable:
+            observed = [
+                endpoint[field]
+                for endpoint in capable
+                if isinstance(endpoint.get(field), (int, float))
+                and not isinstance(endpoint[field], bool)
+                and math.isfinite(endpoint[field])
+            ]
+            if not observed:
+                return [f"matching endpoint has no finite numeric {label} uptime telemetry"]
+            return [
+                f"matching endpoint is below the {floor}% {label} uptime floor "
+                f"(best matching route: {max(observed):.2f}%)"
+            ]
+        capable = durable
     return []
 
 
@@ -506,8 +579,79 @@ def _openrouter_endpoints(model: str, env: dict[str, str]) -> dict[str, Any]:
         return json.load(response)
 
 
+def _pricing_drift_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
+    """Compare the pinned route's live rates against the committed snapshot.
+
+    The snapshot is what the reservation was computed from, so a rate that has
+    risen since it was taken makes the committed budget wrong in the direction
+    that costs money. That is an error. A rate that has *fallen* only means the
+    run will come in under reserve, so it is reported and allowed -- the GLM
+    Novita route quietly picked up a 55.1% discount that went unnoticed for two
+    weeks precisely because nothing ever looked.
+
+    Only the base rates are compared. Long-context override tiers are priced
+    separately in the snapshot and are not exercised by the registered
+    8,000-token decision, so a drift there cannot move this plan's cost.
+    """
+    try:
+        rates = (_read_json(PRICING_CONFIG).get("models") or {}).get(cell.model)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return [f"committed pricing snapshot for {cell.experiment_id} could not be read: {exc}"]
+    if not isinstance(rates, dict):
+        return [f"committed pricing snapshot has no rates for {cell.model}"]
+    # Match the full registered route identity, exactly as `_endpoint_issues`
+    # does. Comparing a price against a route we did not pin is worse than not
+    # comparing at all.
+    endpoint = next(
+        (
+            e
+            for e in ((payload.get("data") or {}).get("endpoints") or [])
+            if e.get("provider_name") == cell.upstream_provider
+            and e.get("tag") == cell.endpoint_tag
+            and e.get("name") == cell.endpoint_name
+        ),
+        None,
+    )
+    if endpoint is None:
+        return [f"no endpoint matching the pinned route identity for {cell.experiment_id} to price-check"]
+    issues = []
+    for field in ("prompt", "completion"):
+        committed = rates.get(field)
+        raw = (endpoint.get("pricing") or {}).get(field)
+        # Fail closed. "The price could not be verified" is not the same as
+        # "the price is unchanged", and only one of them is safe to spend on.
+        if (
+            not isinstance(committed, (int, float))
+            or isinstance(committed, bool)
+            or not math.isfinite(committed)
+            or committed < 0
+        ):
+            issues.append(f"committed {field} rate for {cell.experiment_id} is not a usable number: {committed!r}")
+            continue
+        try:
+            live = float(raw)
+        except (TypeError, ValueError):
+            issues.append(f"live {field} rate for {cell.experiment_id} is unreadable: {raw!r}")
+            continue
+        if not math.isfinite(live) or live < 0:
+            issues.append(f"live {field} rate for {cell.experiment_id} is not a usable number: {raw!r}")
+            continue
+        if live > committed:
+            issues.append(
+                f"live {field} rate {live:.10g} exceeds the committed snapshot rate {committed:.10g} "
+                f"for {cell.experiment_id}; the reservation was computed from the snapshot"
+            )
+        elif live < committed:
+            print(
+                f"note: live {field} rate for {cell.experiment_id} fell from {committed:.10g} "
+                f"to {live:.10g}; the run will come in under its reservation"
+            )
+    return issues
+
+
 def _validate_openrouter_endpoint(cell: Cell, env: dict[str, str]) -> None:
-    issues = _endpoint_issues(cell, _openrouter_endpoints(cell.model, env))
+    payload = _openrouter_endpoints(cell.model, env)
+    issues = _endpoint_issues(cell, payload) + _pricing_drift_issues(cell, payload)
     if issues:
         raise RuntimeError("; ".join(issues))
 
@@ -1434,6 +1578,12 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             parser.error(str(exc))
         return _record_smoke(args.model_id, args.artifact, manifest_path)
+    if args.max_spend_usd is not None and not math.isfinite(args.max_spend_usd):
+        # NaN defeats every downstream guard silently: `nan <= 0`,
+        # `nan > ceiling`, and `spent >= nan` are all false, so a NaN limit
+        # satisfies "the operator passed a ceiling" while bounding nothing.
+        # Infinity is the same hole whenever no ceiling is configured.
+        parser.error("--max-spend-usd must be a finite number")
     if args.max_spend_usd is not None and args.max_spend_usd <= 0:
         parser.error("--max-spend-usd must be positive")
     if args.phase in {"route-preflight", "smoke", "panel"}:
@@ -1457,6 +1607,11 @@ def main(argv: list[str] | None = None) -> int:
         and args.max_spend_usd is None
     ):
         parser.error("paid OpenRouter runs require an explicit --max-spend-usd ceiling")
+    if args.max_spend_usd is not None:
+        try:
+            _enforce_operator_ceiling(args.max_spend_usd, args.contract)
+        except ValueError as exc:
+            parser.error(str(exc))
     run_dir = args.run_dir.resolve()
     for directory in (run_dir / "raw", run_dir / "checkpoints"):
         if not args.dry_run and not args.preflight_only and args.phase != "route-preflight":
@@ -1464,6 +1619,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.dry_run and not args.preflight_only and args.phase != "route-preflight":
         _write_run_state(run_dir, args.phase, cells, args.max_spend_usd)
     budget_start: float | None = None
+    preflight_failures: list[str] = []
     for cell in cells:
         env = cell_environment(cell)
         command = cell_command(
@@ -1513,7 +1669,16 @@ def main(argv: list[str] | None = None) -> int:
                 KeyError,
                 json.JSONDecodeError,
             ) as exc:
-                raise SystemExit(f"OpenRouter endpoint preflight failed for {cell.experiment_id}: {exc}") from exc
+                failure = f"OpenRouter endpoint preflight failed for {cell.experiment_id}: {exc}"
+                # A phase that spends money must stop at the first bad route.
+                # The zero-call phase must not: exiting early leaves every
+                # later route unchecked, which reads as "one route is broken"
+                # when the truth may be four. Collect and report them all.
+                if args.phase != "route-preflight":
+                    raise SystemExit(failure) from exc
+                preflight_failures.append(failure)
+                print(failure, file=sys.stderr)
+                continue
         if args.phase == "route-preflight":
             print(f"zero-completion-call route preflight passed: {cell.experiment_id}")
             continue
@@ -1569,6 +1734,11 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"measured OpenRouter spend for this run directory: ${spent:.4f}")
                 if spent > args.max_spend_usd:
                     raise SystemExit(f"spend ceiling exceeded after attempted cell: ${spent:.4f}")
+    if preflight_failures:
+        raise SystemExit(
+            f"zero-completion-call route preflight failed for "
+            f"{len(preflight_failures)} of {len(cells)} routes:\n  " + "\n  ".join(preflight_failures)
+        )
     return 0
 
 

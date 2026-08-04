@@ -1325,6 +1325,90 @@ def test_zero_call_route_preflight_has_separate_authorization_and_never_launches
     assert not (tmp_path / "checkpoints").exists()
 
 
+def test_route_preflight_checks_every_route_before_failing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A bad route must not hide the routes queued behind it.
+
+    Exiting on the first failure understates how much is broken: the operator
+    sees one dead route, fixes it, and only then learns about the next one.
+    The zero-call phase is free, so it has no reason to stop early -- it must
+    probe every route and report the complete set in one pass.  The paid
+    phases keep failing fast, which is asserted separately below.
+    """
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-route-preflight-key")
+    registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    registry["selection_status"] = "route-preflight-ready"
+    lane["preregistration_status"] = "provisional-blocked"
+    lane["route_preflight_authorized"] = True
+    publication_runner.PANEL_CONFIG.write_text(json.dumps(registry))
+    publication_runner.LANE_CONFIG.write_text(json.dumps(lane))
+
+    model_ids = [model["id"] for model in registry["models"]]
+    assert len(model_ids) >= 3, "this test needs a route queued behind both failures"
+    doomed = {model_ids[0], model_ids[2]}
+    checked: list[str] = []
+    child_calls: list[str] = []
+
+    def fake_validate(cell, _env):
+        checked.append(cell.experiment_id)
+        if cell.experiment_id in doomed:
+            raise RuntimeError("no healthy OpenRouter endpoint matches")
+
+    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", fake_validate)
+    monkeypatch.setattr(
+        publication_runner.subprocess,
+        "run",
+        lambda *_args, **_kwargs: child_calls.append("child"),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["route-preflight", "--contract", "sota-v3", "--run-dir", str(tmp_path)])
+
+    message = str(exc_info.value.code)
+    # Every route was probed, including the ones queued behind both failures.
+    assert checked == model_ids
+    assert f"failed for {len(doomed)} of {len(model_ids)} routes" in message
+    for model_id in doomed:
+        assert model_id in message
+    captured = capsys.readouterr()
+    assert captured.err.count("OpenRouter endpoint preflight failed") == len(doomed)
+    assert "OpenRouter endpoint preflight failed" not in captured.out
+    # Still zero-call and still stateless, exactly as on the passing path.
+    assert child_calls == []
+    assert not (tmp_path / "run-state.json").exists()
+    assert not (tmp_path / "raw").exists()
+
+
+def test_paid_phases_still_abort_on_the_first_bad_route(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Collecting failures is a zero-call affordance, not a general one.
+
+    A phase that spends money must stop the instant a route is wrong, so the
+    later cells are never probed at all.
+    """
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-smoke-key")
+    registry, _lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    model_ids = [model["id"] for model in registry["models"]]
+    checked: list[str] = []
+
+    def fake_validate(cell, _env):
+        checked.append(cell.experiment_id)
+        raise RuntimeError("no healthy OpenRouter endpoint matches")
+
+    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", fake_validate)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["smoke", "--contract", "sota-v3", "--run-dir", str(tmp_path), "--max-spend-usd", "1.00"])
+
+    assert checked == model_ids[:1], "a paid phase kept probing after a bad route"
+    assert model_ids[0] in str(exc_info.value.code)
+
+
 def test_v3_route_preflight_requires_bearer_credential_before_endpoint_request(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1496,6 +1580,8 @@ def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
                     "status": 0,
                     "max_completion_tokens": 65536,
                     "supported_parameters": ["max_tokens", "response_format", "reasoning"],
+                    "uptime_last_30m": 99.8,
+                    "uptime_last_1d": 99.75,
                 }
             ]
         }
@@ -1509,6 +1595,314 @@ def test_endpoint_preflight_requires_frozen_healthy_capable_route() -> None:
     valid["data"]["endpoints"][0]["name"] = cell.endpoint_name
     valid["data"]["endpoints"][0]["supported_parameters"] = ["max_tokens", "response_format"]
     assert "cannot honor required parameters" in _endpoint_issues(cell, valid)[0]
+    valid["data"]["endpoints"][0]["supported_parameters"] = ["max_tokens", "response_format", "reasoning"]
+    valid["data"]["endpoints"][0].pop("max_completion_tokens")
+    assert "cannot honor required parameters" in _endpoint_issues(cell, valid)[0]
+    valid["data"]["endpoints"][0]["max_completion_tokens"] = "65536"
+    assert "cannot honor required parameters" in _endpoint_issues(cell, valid)[0]
+
+
+def _healthy_endpoint(cell) -> dict:
+    return {
+        "provider_name": "Alibaba",
+        "tag": "alibaba",
+        "name": cell.endpoint_name,
+        "status": 0,
+        "max_completion_tokens": 65536,
+        "supported_parameters": ["max_tokens", "response_format", "reasoning"],
+        "uptime_last_30m": 99.8,
+        "uptime_last_1d": 99.75,
+    }
+
+
+def test_non_finite_spend_limits_are_refused(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`--max-spend-usd nan` must not read as a ceiling.
+
+    NaN defeats every downstream guard at once and silently: `nan <= 0`,
+    `nan > ceiling`, and `spent >= nan` are all False, so a NaN limit satisfies
+    "the operator passed a ceiling" while bounding nothing at all -- an
+    unbounded paid run that looks fully authorized. Infinity is the same hole
+    wherever no ceiling is configured.
+    """
+    _frozen_panel_files(tmp_path, monkeypatch)
+    checked: list[str] = []
+    monkeypatch.setattr(
+        publication_runner,
+        "_validate_openrouter_endpoint",
+        lambda cell, _env: checked.append(cell.experiment_id),
+    )
+
+    for literal in ("nan", "inf", "-inf", "NaN", "Infinity"):
+        with pytest.raises(SystemExit) as exc_info:
+            main(["smoke", "--contract", "sota-v3", "--run-dir", str(tmp_path), "--max-spend-usd", literal])
+        assert exc_info.value.code == 2, literal
+    assert checked == [], "a non-finite spend limit reached the endpoint probe"
+
+    nonfinite = tmp_path / "nonfinite-protocol.json"
+    nonfinite.write_text(json.dumps({"budget_policy": {"operator_ceiling_usd": float("inf")}}))
+    monkeypatch.setitem(
+        publication_runner.CONTRACT_CONFIGS,
+        "sota-nonfinite-ceiling",
+        (nonfinite,) * 5,
+    )
+    with pytest.raises(ValueError, match="positive finite number"):
+        publication_runner._enforce_operator_ceiling(1.0, "sota-nonfinite-ceiling")
+
+
+def test_pricing_drift_fails_closed_when_a_rate_cannot_be_verified(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ "Could not verify the price" is not "the price is unchanged".
+
+    Only one of those is safe to spend against, so every unverifiable case
+    blocks rather than passing quietly.
+    """
+    cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba", cap=4096)[0]
+    committed = json.loads(publication_runner.PRICING_CONFIG.read_text())["models"][cell.model]
+
+    def payload(pricing: dict, **overrides) -> dict:
+        endpoint = {
+            "provider_name": cell.upstream_provider,
+            "tag": cell.endpoint_tag,
+            "name": cell.endpoint_name,
+            "pricing": pricing,
+        }
+        endpoint.update(overrides)
+        return {"data": {"endpoints": [endpoint]}}
+
+    good = {"prompt": str(committed["prompt"]), "completion": str(committed["completion"])}
+    assert publication_runner._pricing_drift_issues(cell, payload(good)) == []
+
+    for pricing, expected in (
+        ({"completion": good["completion"]}, "unreadable"),
+        ({**good, "prompt": "not-a-number"}, "unreadable"),
+        ({**good, "prompt": "nan"}, "not a usable number"),
+        ({**good, "prompt": "-1e-07"}, "not a usable number"),
+    ):
+        issues = publication_runner._pricing_drift_issues(cell, payload(pricing))
+        assert issues and expected in issues[0], (pricing, issues)
+
+    # The pinned identity is provider + tag + name, matching the preflight.
+    # A same-tag endpoint from another provider is not this cell's price.
+    issues = publication_runner._pricing_drift_issues(cell, payload(good, provider_name="Somebody Else"))
+    assert issues and "pinned route identity" in issues[0]
+
+    # A model absent from the snapshot cannot be price-checked at all.
+    snapshot = json.loads(publication_runner.PRICING_CONFIG.read_text())
+    del snapshot["models"][cell.model]
+    stripped = tmp_path / "pricing.json"
+    stripped.write_text(json.dumps(snapshot))
+    monkeypatch.setattr(publication_runner, "PRICING_CONFIG", stripped)
+    issues = publication_runner._pricing_drift_issues(cell, payload(good))
+    assert issues and "no rates for" in issues[0]
+
+
+def test_pricing_drift_fails_upward_and_only_reports_downward(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A rate that rose invalidates the reservation; a rate that fell does not.
+
+    The committed snapshot is what the budget was computed from, so an
+    increase makes the plan wrong in the direction that costs money. A
+    decrease only means coming in under reserve -- the GLM Novita route picked
+    up a 55.1% discount that nobody noticed for two weeks because nothing
+    compared the snapshot to reality.
+    """
+    cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba", cap=4096)[0]
+    committed = json.loads(publication_runner.PRICING_CONFIG.read_text())["models"][cell.model]
+
+    def payload(prompt: float, completion: float) -> dict:
+        return {
+            "data": {
+                "endpoints": [
+                    {
+                        "provider_name": cell.upstream_provider,
+                        "tag": cell.endpoint_tag,
+                        "name": cell.endpoint_name,
+                        "pricing": {"prompt": str(prompt), "completion": str(completion)},
+                    }
+                ]
+            }
+        }
+
+    unchanged = payload(committed["prompt"], committed["completion"])
+    assert publication_runner._pricing_drift_issues(cell, unchanged) == []
+
+    risen = payload(committed["prompt"] * 2, committed["completion"])
+    issues = publication_runner._pricing_drift_issues(cell, risen)
+    assert issues and "exceeds the committed snapshot rate" in issues[0]
+
+    capsys.readouterr()
+    fallen = payload(committed["prompt"] / 2, committed["completion"] / 2)
+    assert publication_runner._pricing_drift_issues(cell, fallen) == [], "a discount must not block a run"
+    out = capsys.readouterr().out
+    assert "fell from" in out and "under its reservation" in out
+
+    # Another provider's rate is not this cell's rate, so it must not be read
+    # as one -- but nor may the absence of the pinned route pass as "unchanged".
+    # Both are "the price could not be verified", which now blocks.
+    other = payload(committed["prompt"] * 10, committed["completion"])
+    other["data"]["endpoints"][0]["tag"] = "someone-else/fp8"
+    issues = publication_runner._pricing_drift_issues(cell, other)
+    assert issues and "pinned route identity" in issues[0]
+    assert "exceeds the committed snapshot rate" not in issues[0], "priced against the wrong route"
+
+
+def test_the_suite_cannot_inherit_a_live_provider_credential() -> None:
+    """Pin the guard that stops a test from quietly billing a real account.
+
+    The runner loads the gitignored `.env.local` itself, so before this guard
+    existed any test driving `main()` through a paid phase without stubbing
+    the child process ran the real benchmark against real routes. On
+    2026-08-04 a test written to assert a spend ceiling *blocks* a run instead
+    spent $0.44 across 38 live calls, and passed no judgement on it -- the run
+    simply succeeded.
+    """
+    assert os.environ.get("OPENROUTER_API_KEY") is None
+    assert publication_runner.load_environment_files(Path(".")) == []
+
+
+def test_operator_ceiling_rejects_a_run_that_could_outspend_the_committed_cap() -> None:
+    """The committed ceiling has to bind, or it is a comment.
+
+    `budget_policy.operator_ceiling_usd` sat in the config unread, so the only
+    thing between a mistyped `--max-spend-usd` and an unbounded run was the
+    operator retyping the right number from memory.
+    """
+    ceiling = json.loads(Path("config/sota_v3_publication_protocol.json").read_text())
+    ceiling = ceiling["budget_policy"]["operator_ceiling_usd"]
+    assert ceiling == 150.00
+
+    publication_runner._enforce_operator_ceiling(ceiling, "sota-v3")
+    publication_runner._enforce_operator_ceiling(ceiling - 0.01, "sota-v3")
+
+    with pytest.raises(ValueError, match="exceeds the committed operator ceiling"):
+        publication_runner._enforce_operator_ceiling(ceiling + 0.01, "sota-v3")
+    with pytest.raises(ValueError, match=r"\$1200\.00"):
+        publication_runner._enforce_operator_ceiling(1200.00, "sota-v3")
+
+
+def test_operator_ceiling_stays_permissive_when_no_cap_is_committed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A contract that has not chosen a number must not be given one silently."""
+    protocol_path = tmp_path / "protocol.json"
+    protocol_path.write_text(json.dumps({"budget_policy": {"operator_ceiling_usd": None}}))
+    monkeypatch.setitem(
+        publication_runner.CONTRACT_CONFIGS,
+        "sota-test",
+        (protocol_path, protocol_path, protocol_path, protocol_path, protocol_path),
+    )
+    publication_runner._enforce_operator_ceiling(10_000.00, "sota-test")
+
+    protocol_path.write_text(json.dumps({"budget_policy": {"operator_ceiling_usd": "lots"}}))
+    with pytest.raises(ValueError, match="must be a positive finite number"):
+        publication_runner._enforce_operator_ceiling(1.00, "sota-test")
+
+
+def test_paid_run_above_the_ceiling_is_refused_before_any_cell_runs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The gate has to sit ahead of the cell loop, not inside it.
+
+    Checked by proving that neither the endpoint probe nor a child process is
+    reached: a ceiling enforced after the first cell has already spent money
+    is not a ceiling.
+    """
+    _frozen_panel_files(tmp_path, monkeypatch)
+    protocol = json.loads(publication_runner.PROTOCOL_CONFIG.read_text())
+    protocol["budget_policy"]["operator_ceiling_usd"] = 120.00
+    publication_runner.PROTOCOL_CONFIG.write_text(json.dumps(protocol))
+
+    checked: list[str] = []
+    child_calls: list[str] = []
+    monkeypatch.setattr(
+        publication_runner,
+        "_validate_openrouter_endpoint",
+        lambda cell, _env: checked.append(cell.experiment_id),
+    )
+    monkeypatch.setattr(
+        publication_runner.subprocess,
+        "run",
+        lambda *_args, **_kwargs: child_calls.append("child"),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["smoke", "--contract", "sota-v3", "--run-dir", str(tmp_path), "--max-spend-usd", "500"])
+
+    assert exc_info.value.code == 2
+    assert checked == [], "a run over the ceiling reached the endpoint probe"
+    assert child_calls == [], "a run over the ceiling launched a model"
+
+
+def test_endpoint_preflight_enforces_both_uptime_floors() -> None:
+    """The two windows catch different failures, so both have to gate.
+
+    The 24h figure is a chronic filter and cannot see an outage in progress:
+    on 2026-08-04 the first-party DeepSeek route was deranked to status -5
+    while still reporting 99.24% over 24h.  The 30m figure is the one that
+    moved, so it carries the acute signal. Missing or malformed telemetry is
+    unknown health, so it must fail closed rather than read as a passing route.
+    """
+    cell = build_cells("smoke", model_id="openrouter-qwen3.7-plus-alibaba", cap=4096)[0]
+    endpoint = _healthy_endpoint(cell)
+    payload = {"data": {"endpoints": [endpoint]}}
+    assert _endpoint_issues(cell, payload) == []
+
+    # The acute case: the exact shape of the DeepSeek derank, which a 24h-only
+    # floor waves straight through.
+    endpoint["uptime_last_30m"], endpoint["uptime_last_1d"] = 78.93, 99.24
+    issues = _endpoint_issues(cell, payload)
+    assert issues and "30m uptime floor" in issues[0] and "78.93%" in issues[0]
+
+    # The chronic case: recent traffic looks fine, the whole day did not.
+    endpoint["uptime_last_30m"], endpoint["uptime_last_1d"] = 99.9, 80.0
+    issues = _endpoint_issues(cell, payload)
+    assert issues and "24h uptime floor" in issues[0] and "80.00%" in issues[0]
+
+    for field, floor in (
+        ("uptime_last_30m", publication_runner.MIN_UPTIME_LAST_30M_PCT),
+        ("uptime_last_1d", publication_runner.MIN_UPTIME_LAST_1D_PCT),
+    ):
+        endpoint.update(_healthy_endpoint(cell))
+        endpoint[field] = floor
+        assert _endpoint_issues(cell, payload) == [], f"{field} floor must be inclusive"
+
+    for field, value in (
+        ("uptime_last_30m", None),
+        ("uptime_last_30m", "unknown"),
+        ("uptime_last_30m", float("nan")),
+        ("uptime_last_1d", float("inf")),
+    ):
+        endpoint.update(_healthy_endpoint(cell))
+        endpoint[field] = value
+        issues = _endpoint_issues(cell, payload)
+        assert issues and "no finite numeric" in issues[0], (field, value, issues)
+
+    endpoint.update(_healthy_endpoint(cell))
+    del endpoint["uptime_last_30m"], endpoint["uptime_last_1d"]
+    issues = _endpoint_issues(cell, payload)
+    assert issues and "no finite numeric" in issues[0]
+
+
+def test_uptime_floors_sit_below_the_healthy_cohort_noise_band() -> None:
+    """The floors must not flap.
+
+    These readings drift by roughly half a point between consecutive polls,
+    so a floor set near real values rejects healthy routes at random.  A 99%
+    24h floor rejected two healthy cohort members on the day it was written.
+    Both floors are therefore pinned well clear of the observed band.
+    """
+    assert publication_runner.MIN_UPTIME_LAST_30M_PCT <= 90.0
+    assert publication_runner.MIN_UPTIME_LAST_1D_PCT <= 95.0
 
 
 def test_endpoint_preflight_allows_registered_prompt_only_json_route() -> None:
@@ -1524,6 +1918,8 @@ def test_endpoint_preflight_allows_registered_prompt_only_json_route() -> None:
                     "status": 0,
                     "max_completion_tokens": 262144,
                     "supported_parameters": ["max_tokens", "reasoning", "structured_outputs"],
+                    "uptime_last_30m": 99.8,
+                    "uptime_last_1d": 99.75,
                 }
             ]
         }

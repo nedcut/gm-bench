@@ -3,7 +3,7 @@
   "contract": "sota-v3",
   "contract_fingerprint": "a523bdfcebe47bbd",
   "status": "catalog-frozen-public-metadata-only",
-  "checked_at_utc": "2026-08-03T15:53:59Z",
+  "checked_at_utc": "2026-08-04T16:00:40Z",
   "source": "Unauthenticated HTTP GET of https://openrouter.ai/api/v1/models and each selected model's https://openrouter.ai/api/v1/models/{model_id}/endpoints response; no completion or chat endpoint was called.",
   "currency": "USD",
   "rates_are_per_token": true,
@@ -29,8 +29,8 @@
       "completion": 1e-05
     },
     "deepseek/deepseek-v4-flash-0731": {
-      "provider_slug": "deepseek/fp8",
-      "endpoint_name": "DeepSeek | deepseek/deepseek-v4-flash-20260731",
+      "provider_slug": "cloudflare/fp8",
+      "endpoint_name": "Cloudflare | deepseek/deepseek-v4-flash-20260731",
       "prompt": 1.4e-07,
       "completion": 2.8e-07
     },
@@ -42,8 +42,8 @@
       "internal_reasoning": 7.5e-06
     },
     "minimax/minimax-m3": {
-      "provider_slug": "minimax/fp8",
-      "endpoint_name": "Minimax | minimax/minimax-m3-20260531",
+      "provider_slug": "deepinfra/fp8",
+      "endpoint_name": "DeepInfra | minimax/minimax-m3-20260531",
       "prompt": 3e-07,
       "completion": 1.2e-06
     },
@@ -56,24 +56,19 @@
     "openai/gpt-5.6-luna": {
       "provider_slug": "openai",
       "endpoint_name": "OpenAI | openai/gpt-5.6-luna-20260709",
-      "prompt": 1e-07,
-      "completion": 6e-07,
+      "prompt": 2e-07,
+      "completion": 1.2e-06,
       "long_context_override": {
         "min_prompt_tokens": 272000,
         "prompt": 2e-07,
         "completion": 9e-07
       }
     },
-    "qwen/qwen3.7-plus": {
-      "provider_slug": "alibaba/fp8",
-      "endpoint_name": "Alibaba | qwen/qwen3.7-plus-20260602",
-      "prompt": 3.2e-07,
-      "completion": 1.28e-06,
-      "long_context_override": {
-        "min_prompt_tokens": 256000,
-        "prompt": 9.6e-07,
-        "completion": 3.84e-06
-      }
+    "qwen/qwen3.8-max": {
+      "provider_slug": "alibaba",
+      "endpoint_name": "Alibaba | qwen/qwen3.8-max-20260803",
+      "prompt": 2e-06,
+      "completion": 6e-06
     },
     "tencent/hy3": {
       "provider_slug": "tencent/fp8",
@@ -95,8 +90,8 @@
     "z-ai/glm-5.2": {
       "provider_slug": "novita/fp8",
       "endpoint_name": "Novita | z-ai/glm-5.2-20260616",
-      "prompt": 7.266e-07,
-      "completion": 2.2836e-06
+      "prompt": 1.4e-06,
+      "completion": 4.4e-06
     }
   },
   "public_metadata_limitations": [
@@ -108,5 +103,6 @@
   "route_preflight_authorized": false,
   "smoke_execution_authorized": false,
   "panel_execution_authorized": false,
-  "publication_authorized": false
+  "publication_authorized": false,
+  "pricing_basis": "Undiscounted list rates for the exact pinned route. Promotional discounts are deliberately not reserved against: the GLM 5.2 Novita discount moved from 55.1% to 50% within hours on 2026-08-04, and a reservation computed from a promo is wrong the moment the promo ends. A live discount only ever brings the run in under reserve."
 }
