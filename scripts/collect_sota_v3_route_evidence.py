@@ -53,7 +53,10 @@ def _get_json(path: str, headers: dict[str, str]) -> dict[str, Any]:
     parsed = urllib.parse.urlsplit(path)
     if parsed.scheme or parsed.netloc or not parsed.path.startswith("/api/v1/") or parsed.path != path:
         raise ValueError(f"refusing non-OpenRouter metadata path: {path!r}")
-    connection = http.client.HTTPSConnection("openrouter.ai", timeout=30)
+    # The TLS host is a literal and the request path is constrained to /api/v1/ above.
+    connection = http.client.HTTPSConnection(  # nosemgrep: python.lang.security.audit.httpsconnection-detected.httpsconnection-detected
+        "openrouter.ai", timeout=30
+    )
     try:
         connection.request("GET", path, headers=headers)
         response = connection.getresponse()
