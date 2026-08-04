@@ -78,6 +78,7 @@ from gm_bench.official import POLICIES, validate_leaderboard_payload  # noqa: E4
 from gm_bench.protocol import PHASES  # noqa: E402
 from gm_bench.publication import (  # noqa: E402
     SMOKE_MANIFEST_FORMAT,
+    is_pending_strict_smoke_cap,
     publication_execution_issues,
     smoke_manifest_issues,
 )
@@ -231,6 +232,17 @@ def _validate_models(
             raise ValueError(
                 f"publication registry is {expected_provider}-only but contains provider(s): {', '.join(mismatched)}"
             )
+    for model in models:
+        cap_verification = model.get("output_cap_verification")
+        if cap_verification is not None:
+            if not is_pending_strict_smoke_cap(cap_verification):
+                raise ValueError(
+                    f"publication model {model.get('id')!r} has an invalid output-cap verification exception"
+                )
+            if "max_tokens" not in set(model.get("catalog_supported_parameters") or []):
+                raise ValueError(
+                    f"publication model {model.get('id')!r} cannot defer cap verification without max_tokens support"
+                )
     if not exact_routes:
         return
     for model in models:
@@ -256,21 +268,6 @@ def _validate_models(
                 raise ValueError(f"publication model {model.get('id')!r} has an invalid mandatory reasoning policy")
         else:
             raise ValueError(f"publication model {model.get('id')!r} has an unknown reasoning policy")
-        cap_verification = model.get("output_cap_verification")
-        if cap_verification is not None:
-            if not isinstance(cap_verification, dict) or cap_verification != {
-                "status": "request-cap-pending-strict-smoke",
-                "catalog_max_completion_tokens": None,
-                "request_parameter": "max_tokens",
-                "strict_smoke_required": True,
-            }:
-                raise ValueError(
-                    f"publication model {model.get('id')!r} has an invalid output-cap verification exception"
-                )
-            if "max_tokens" not in set(model.get("catalog_supported_parameters") or []):
-                raise ValueError(
-                    f"publication model {model.get('id')!r} cannot defer cap verification without max_tokens support"
-                )
 
 
 def _smoke_manifest_path(lane: dict[str, Any]) -> Path:
@@ -552,14 +549,7 @@ def _endpoint_issues(cell: Cell, payload: dict[str, Any]) -> list[str]:
             isinstance(maximum, int) and not isinstance(maximum, bool) and cell.cap <= maximum
         )
         if cell.cap is not None and maximum is None:
-            verification = cell.output_cap_verification
-            cap_fits = (
-                verification.get("status") == "request-cap-pending-strict-smoke"
-                and verification.get("request_parameter") == "max_tokens"
-                and verification.get("strict_smoke_required") is True
-                and verification.get("catalog_max_completion_tokens") is None
-                and "max_tokens" in supported
-            )
+            cap_fits = is_pending_strict_smoke_cap(cell.output_cap_verification) and "max_tokens" in supported
         if required <= supported and cap_fits:
             capable.append(endpoint)
     if not capable:

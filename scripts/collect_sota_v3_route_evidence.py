@@ -24,7 +24,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from gm_bench.environment import load_environment_files  # noqa: E402
-from gm_bench.publication import canonical_sha256, v3_route_identity_sha256  # noqa: E402
+from gm_bench.publication import (  # noqa: E402
+    canonical_sha256,
+    is_pending_strict_smoke_cap,
+    v3_route_identity_sha256,
+)
 
 PRIVACY_STANDARD = {
     "data_classification": "synthetic-benchmark-no-personal-or-confidential-data",
@@ -124,12 +128,7 @@ def collect(registry: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]
         maximum = endpoint.get("max_completion_tokens")
         if isinstance(maximum, int) and not isinstance(maximum, bool) and isinstance(cap, int) and maximum >= cap:
             cap_status = "endpoint-metadata-verified"
-        elif maximum is None and model.get("output_cap_verification") == {
-            "status": "request-cap-pending-strict-smoke",
-            "catalog_max_completion_tokens": None,
-            "request_parameter": "max_tokens",
-            "strict_smoke_required": True,
-        }:
+        elif maximum is None and is_pending_strict_smoke_cap(model.get("output_cap_verification")):
             cap_status = "request-cap-pending-strict-smoke"
         else:
             raise ValueError(f"{model_id}: exact endpoint does not establish the registered {cap}-token cap")
@@ -232,6 +231,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--apply-registry", action="store_true")
     args = parser.parse_args(argv)
+    root = ROOT.resolve()
+    output = args.output.resolve()
+    registry_path = args.registry.resolve()
+    for label, path in (("evidence output", output), ("registry", registry_path)):
+        if not path.is_relative_to(root):
+            parser.error(f"{label} must be inside the repository")
     load_environment_files(ROOT)
     key = os.environ.get("OPENROUTER_API_KEY")
     if not key:
@@ -240,14 +245,11 @@ def main(argv: list[str] | None = None) -> int:
         "Authorization": f"Bearer {key}",
         "User-Agent": "gm-bench-route-evidence/1",
     }
-    registry = _read_json(args.registry)
+    registry = _read_json(registry_path)
     evidence = collect(registry, headers)
-    output = args.output.resolve()
-    if not output.is_relative_to(ROOT.resolve()):
-        parser.error("evidence output must be inside the repository")
     _write_json(output, evidence)
     if args.apply_registry:
-        _write_json(args.registry, apply_registry(registry, evidence, output), sort_keys=False)
+        _write_json(registry_path, apply_registry(registry, evidence, output), sort_keys=False)
     print(
         json.dumps(
             {

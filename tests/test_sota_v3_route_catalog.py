@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 import scripts.run_publication_matrix as publication_runner
-from gm_bench.publication import canonical_sha256, publication_execution_issues
+from gm_bench.publication import canonical_sha256, publication_execution_issues, v3_route_acceptance_issues
 
 CONFIG = Path("config")
 
@@ -155,6 +155,15 @@ def test_v3_route_acceptance_is_bound_to_public_zero_completion_evidence() -> No
             "official_policy_sources": evidence["official_policy_sources"],
         }
         assert entry["privacy_acceptance"]["evidence_sha256"] == canonical_sha256(privacy_evidence)
+
+    assert v3_route_acceptance_issues(registry) == []
+    first_entry = registry["exact_route_acceptance"]["entries"][next(iter(evidence["routes"]))]
+    route_sha = first_entry["route_evidence_sha256"]
+    first_entry["route_evidence_sha256"] = "0" * 64
+    assert any("route evidence digest does not match" in issue for issue in v3_route_acceptance_issues(registry))
+    first_entry["route_evidence_sha256"] = route_sha
+    first_entry["privacy_acceptance"]["evidence_sha256"] = "0" * 64
+    assert any("privacy evidence digest does not match" in issue for issue in v3_route_acceptance_issues(registry))
 
 
 def test_smoke_authorization_still_cannot_unlock_panel_or_publication() -> None:

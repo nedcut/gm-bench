@@ -126,6 +126,30 @@ def _v3_release_fixture(tmp_path: Path) -> tuple[Path, Path]:
             }
         },
     }
+    route = {
+        "route_identity_sha256": route_identity,
+        "zero_data_retention_endpoint": True,
+        "provider_policy": {},
+    }
+    evidence = {
+        "privacy_standard": registry["exact_route_acceptance"]["privacy_standard"],
+        "official_policy_sources": [],
+        "routes": {"demo-v3": route},
+    }
+    entry = registry["exact_route_acceptance"]["entries"]["demo-v3"]
+    entry["route_evidence_sha256"] = canonical_sha256(route)
+    entry["privacy_acceptance"]["evidence_sha256"] = canonical_sha256(
+        {
+            "route_identity_sha256": route_identity,
+            "privacy_standard": evidence["privacy_standard"],
+            "zero_data_retention_endpoint": True,
+            "provider_policy": {},
+            "official_policy_sources": [],
+        }
+    )
+    evidence_path = repo / "results/analysis/route-evidence.json"
+    _write_json(evidence_path, evidence)
+    registry["exact_route_acceptance"]["evidence_artifact"] = str(evidence_path)
     seed_count = 6
     lane = {
         "contract": "sota-v3",
