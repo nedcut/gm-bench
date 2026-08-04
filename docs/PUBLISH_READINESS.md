@@ -735,8 +735,18 @@ snapshot is in
   `python3 scripts/run_publication_matrix.py route-preflight --contract sota-v3`.
   This phase checks endpoint identity and parameters but cannot launch a model
   subprocess, reserve spend, or create run state.
-  **Completed 2026-08-03 at $0.00; all ten routes pass.** See
+  **Ran 2026-08-03 at $0.00; all ten routes passed at that instant.** See
   [`docs/run_logs/sota-v3-route-preflight-2026-08-03.md`](run_logs/sota-v3-route-preflight-2026-08-03.md).
+
+  **This box records that the probe ran and that its findings were acted on.
+  It is not a standing claim that the routes are reachable now, and it must
+  not be read as one before authorizing spend.** A passing route check has a
+  shelf life measured in hours: the first-party `deepseek/deepseek-v4-flash-0731`
+  route passed this very run and was deranked to status `-5` the same evening,
+  serving 78% of requests, while its 24h availability figure still read 99.24%.
+  Re-run the probe immediately before any paid phase and treat a stale pass as
+  no pass.
+
   Nine of ten pins were correct on first contact. `qwen/qwen3.7-plus` failed
   because its Alibaba endpoint tag had moved from `alibaba` to `alibaba/fp8`;
   the route itself is healthy and its provider name, endpoint name, and every
