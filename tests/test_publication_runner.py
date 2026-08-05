@@ -1874,6 +1874,34 @@ def test_operator_ceiling_stays_permissive_when_no_cap_is_committed(
         publication_runner._enforce_operator_ceiling(1.00, "sota-test")
 
 
+def test_operator_ceiling_fails_closed_when_the_protocol_cannot_be_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unreadable protocol is not a null ceiling: it may hide a committed cap.
+
+    Every other malformed input to this gate raises; a corrupt or missing
+    protocol file silently disabling the ceiling was the one fail-open path.
+    """
+    corrupt = tmp_path / "corrupt-protocol.json"
+    corrupt.write_text("{this is not json")
+    monkeypatch.setitem(
+        publication_runner.CONTRACT_CONFIGS,
+        "sota-corrupt-protocol",
+        (corrupt,) * 5,
+    )
+    with pytest.raises(ValueError, match="operator ceiling"):
+        publication_runner._enforce_operator_ceiling(1.00, "sota-corrupt-protocol")
+
+    monkeypatch.setitem(
+        publication_runner.CONTRACT_CONFIGS,
+        "sota-missing-protocol",
+        (tmp_path / "does-not-exist.json",) * 5,
+    )
+    with pytest.raises(ValueError, match="operator ceiling"):
+        publication_runner._enforce_operator_ceiling(1.00, "sota-missing-protocol")
+
+
 def test_paid_run_above_the_ceiling_is_refused_before_any_cell_runs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

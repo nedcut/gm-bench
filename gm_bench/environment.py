@@ -14,7 +14,14 @@ def load_environment_files(directory: str | Path | None = None) -> list[Path]:
 
     The local file wins over the shared file, while values explicitly exported
     by the caller win over both. Values are never printed or returned.
+
+    Setting ``GM_BENCH_DISABLE_ENV_FILES`` (to any non-empty value) makes this
+    a no-op. The test suite sets it so no entry point -- in-process, subprocess,
+    or a future script with its own call site -- can silently inherit a live
+    credential from ``.env.local``.
     """
+    if os.environ.get("GM_BENCH_DISABLE_ENV_FILES"):
+        return []
     root = Path(directory) if directory is not None else Path.cwd()
     loaded: list[Path] = []
     for name in (".env.local", ".env"):

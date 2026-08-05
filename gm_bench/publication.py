@@ -17,6 +17,8 @@ from typing import Any
 
 PUBLICATION_FORMAT = "gm-bench-result-summary-v1"
 
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+
 
 def canonical_sha256(payload: dict[str, Any]) -> str:
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode()
@@ -146,8 +148,13 @@ def v3_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
     if not isinstance(evidence_artifact, str) or not evidence_artifact.strip():
         issues.append("sota-v3 exact-route evidence artifact is missing")
     else:
+        evidence_path = Path(evidence_artifact)
+        if not evidence_path.is_absolute():
+            # Registries record repo-relative artifact paths; resolving against
+            # the CWD would make acceptance depend on where the caller ran.
+            evidence_path = _REPO_ROOT / evidence_path
         try:
-            loaded = json.loads(Path(evidence_artifact).read_text())
+            loaded = json.loads(evidence_path.read_text())
             if not isinstance(loaded, dict):
                 raise ValueError("evidence artifact must contain a JSON object")
             evidence = loaded
