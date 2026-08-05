@@ -166,6 +166,20 @@ def test_v3_route_acceptance_is_bound_to_public_zero_completion_evidence() -> No
     assert any("privacy evidence digest does not match" in issue for issue in v3_route_acceptance_issues(registry))
 
 
+def test_v3_route_acceptance_resolves_relative_evidence_from_repo_root(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Acceptance must not depend on which directory the caller ran from.
+
+    The registry records a repo-relative evidence path; resolving it against
+    the CWD only worked because pytest and the runner both happen to start at
+    the repo root.
+    """
+    registry = _read("sota_v3_models.json")
+    monkeypatch.chdir(tmp_path)
+    assert v3_route_acceptance_issues(registry) == []
+
+
 def test_smoke_authorization_still_cannot_unlock_panel_or_publication() -> None:
     lane = _read("sota_v3_lane.json")
     registry = _read("sota_v3_models.json")

@@ -499,15 +499,19 @@ def _enforce_operator_ceiling(max_spend_usd: float, contract: str | None) -> Non
     only thing standing between a typo and an unbounded run was the operator
     retyping the right number. A committed ceiling that nothing enforces is a
     comment.  A null ceiling stays permissive: contracts that have not
-    committed to a number are not silently given one.
+    committed to a number are not silently given one.  An unreadable protocol
+    file is not the same as a null ceiling: it may hide a committed number, so
+    it fails closed like every other malformed input to this gate.
     """
     _, _, _, protocol_path, _ = CONTRACT_CONFIGS.get(contract or "", (None,) * 5)
     if protocol_path is None:
         protocol_path = PROTOCOL_CONFIG
     try:
         budget_policy = (_read_json(protocol_path) or {}).get("budget_policy") or {}
-    except (OSError, ValueError, json.JSONDecodeError):
-        return
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise ValueError(
+            f"cannot read {protocol_path.name} to enforce the operator ceiling: {exc}"
+        ) from exc
     ceiling = budget_policy.get("operator_ceiling_usd")
     if ceiling is None:
         return
