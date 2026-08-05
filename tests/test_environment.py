@@ -54,9 +54,7 @@ def test_env_loader_ignores_comments_invalid_names_and_missing_files(
     assert "BAD-NAME" not in os.environ
 
 
-def test_cli_provider_readiness_uses_local_env_file(
-    tmp_path, monkeypatch, capsys, enable_env_file_loading
-) -> None:
+def test_cli_provider_readiness_uses_local_env_file(tmp_path, monkeypatch, capsys, enable_env_file_loading) -> None:
     from gm_bench import cli
 
     (tmp_path / ".env.local").write_text("OPENROUTER_API_KEY=test-secret\n")

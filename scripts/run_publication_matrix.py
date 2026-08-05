@@ -509,9 +509,7 @@ def _enforce_operator_ceiling(max_spend_usd: float, contract: str | None) -> Non
     try:
         budget_policy = (_read_json(protocol_path) or {}).get("budget_policy") or {}
     except (OSError, ValueError, json.JSONDecodeError) as exc:
-        raise ValueError(
-            f"cannot read {protocol_path.name} to enforce the operator ceiling: {exc}"
-        ) from exc
+        raise ValueError(f"cannot read {protocol_path.name} to enforce the operator ceiling: {exc}") from exc
     ceiling = budget_policy.get("operator_ceiling_usd")
     if ceiling is None:
         return

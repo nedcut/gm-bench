@@ -166,9 +166,7 @@ def test_v3_route_acceptance_is_bound_to_public_zero_completion_evidence() -> No
     assert any("privacy evidence digest does not match" in issue for issue in v3_route_acceptance_issues(registry))
 
 
-def test_v3_route_acceptance_resolves_relative_evidence_from_repo_root(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_v3_route_acceptance_resolves_relative_evidence_from_repo_root(tmp_path: Path, monkeypatch) -> None:
     """Acceptance must not depend on which directory the caller ran from.
 
     The registry records a repo-relative evidence path; resolving it against
