@@ -96,7 +96,7 @@ def test_v3_registry_is_frozen_to_authenticated_routes_and_privacy_evidence() ->
     assert registry["selection_frozen_at_utc"]
     assert registry["catalog_snapshot_status"] == "frozen-public-metadata-only"
     assert registry["catalog_checked_at_utc"]
-    assert len(registry["models"]) == len(registry["required_smokes"]) == 10
+    assert len(registry["models"]) == len(registry["required_smokes"]) == 8
     assert set(registry["required_smokes"]) == {model["id"] for model in registry["models"]}
     assert registry["repeats"] == lane["repeats"] == 1
     assert registry["output_token_cap"] == lane["output_token_cap"] == 4096
@@ -127,11 +127,11 @@ def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
     assert protocol["statistical_analysis_plan"]["reference_agent"] == lane["reference_agent"] == "pick-trader"
     assert protocol["statistical_analysis_plan"]["multiplicity_method"] == "holm-bonferroni"
     assert protocol["statistical_analysis_plan"]["alpha"] == 0.05
-    assert protocol["statistical_analysis_plan"]["holm_family_size"] == 10
+    assert protocol["statistical_analysis_plan"]["holm_family_size"] == 8
     assert protocol["statistical_analysis_plan"]["power_model"]["historical_shared_seed_variance"] == pytest.approx(
         3770.478399
     )
-    assert protocol["statistical_analysis_plan"]["power_model"]["selected_sensitivity_power"] == 0.8488
+    assert protocol["statistical_analysis_plan"]["power_model"]["selected_sensitivity_power"] == 0.8727
     assert protocol["statistical_analysis_plan"]["power_model"]["selected_allocation"] == "16 seeds x 1 repeat"
     assert protocol["statistical_analysis_plan"]["claim_direction"] == "trails-reference"
     assert protocol["statistical_analysis_plan"]["target_effect_score_points"] == -100
@@ -144,7 +144,7 @@ def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
     assert protocol["budget_policy"]["spend_authorized"] is True
     assert pricing["status"] == "frozen"
     assert pricing["checked_at_utc"]
-    assert len(pricing["models"]) == 10
+    assert len(pricing["models"]) == 8
     assert pricing["spend_authorized"] is True
 
 
@@ -350,3 +350,41 @@ def test_smoke_readiness_unlocks_smoke_but_not_panel() -> None:
 
     blocked = dict(registry, selection_status="provisional-blocked")
     assert "provider execution is locked until the model registry is frozen" in issues(blocked, "smoke")
+
+
+def test_cap_pressure_rule_has_a_terminal_case_and_cannot_authorize_its_own_spend() -> None:
+    """A one-shot amendment rule must say what happens on the second trigger.
+
+    As frozen through 2026-08-05 the rule said to amend the cap "once" and
+    re-smoke, but never defined the case where the amended cap trips the
+    trigger again -- so the only written instruction, read literally, was to
+    amend a second time. `config/*.json` is outside `_CONTRACT_SOURCES`, so a
+    second amendment costs nothing to make and leaves no fingerprint trace;
+    prose alone was never going to stop it.
+
+    The second half matters just as much. The 8,192-token fallback panel
+    reserves more than the committed operator ceiling, which is deliberate: a
+    cap-pressure trigger should halt the run for an explicit owner spend
+    decision rather than quietly widening the budget it is measured against.
+    """
+    protocol = _read("sota_v3_publication_protocol.json")
+    lane = _read("sota_v3_lane.json")
+    policy = protocol["output_policy"]
+
+    assert policy["max_cap_amendments"] == 1
+    assert policy["on_second_trigger"] == "abort-sota-v3-and-repreregister"
+    assert "TERMINAL CASE" in policy["amendment_rule"]
+    assert "never permitted" in policy["amendment_rule"]
+    assert "Scores and apparent model quality are never cap-selection inputs" in policy["amendment_rule"]
+
+    # The fallback must genuinely exceed the ceiling, or the "stop and ask"
+    # property is an accident of today's prices rather than a design choice.
+    cap = lane["output_token_cap"]
+    fallback = policy["fallback_output_token_cap"]
+    ceiling = protocol["budget_policy"]["operator_ceiling_usd"]
+    reserved = json.loads(Path("results/analysis/sota-v3-pre-smoke-cost-estimate.json").read_text())
+    reserved = reserved["costs_usd"]["total_with_1_2x_contingency"]
+
+    assert fallback > cap
+    assert reserved <= ceiling
+    assert reserved * (fallback / cap) > ceiling

@@ -7,31 +7,46 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-08-04
+**Last reviewed:** 2026-08-06
 **Current target:** Preserve the published `sota-v2` study as frozen historical
 evidence while pre-registering and rehearsing a finite `sota-v3` publication
 lane.
 **Current state:** The frozen phase-one public panel, blog, GitHub release, and
 results-first site are published. Eight of ten
-registered models produced route-matched, cost-complete `sota-v2` rows at the
-shared 4,096-token native-minimum-reasoning cap, clearing the predeclared
-minimum. Grok 4.5 and Mistral Medium 3.5 completed but remain diagnostic because
+`sota-v2`-registered models produced route-matched, cost-complete `sota-v2`
+rows at the shared 4,096-token native-minimum-reasoning cap, clearing the
+predeclared minimum. Grok 4.5 and Mistral Medium 3.5 completed but remain diagnostic because
 their artifacts lacked complete usage or cost coverage. The generated site now
 exposes the eight eligible rows. All models overlap in one uncertainty tier,
 and every eligible model trails `pick-trader`. The three P0 correctness and
 artifact-integrity fixes landed in #85 as an explicit `sota-v3` contract.
 Sunday's merged work closed the contract-economics, same-view, gap-diagnostic,
-site-framing, statistical-tiering, and version-dispatched CI items. The current
-working tree contains a ten-model public-catalog cohort, a frozen 16-seed x
-1-repeat statistical design, a frozen 4,096-token smoke ceiling, an empty
+site-framing, statistical-tiering, and version-dispatched CI items. Pre-data
+design amendment 3 (2026-08-06,
+`docs/run_logs/sota-v3-design-amendment-2026-08-06.md`) withdrew Gemini 3.6
+Flash and Grok 4.5 — the only two mandatory-reasoning routes — leaving an
+eight-model, uniformly reasoning-disabled cohort (2 frontier-proprietary / 6
+open-weight) at Holm family size 8. The current working tree contains that
+cohort, a frozen 16-seed x 1-repeat statistical design (sensitivity power
+0.8727, Wilson lower 0.8660), a frozen 4,096-token smoke ceiling, an empty
 not-started smoke manifest, explicit runner dispatch, and a zero-spend synthetic
 rehearsal. Exact-route and synthetic-data privacy acceptance are recorded for
-all ten routes, the private seed commitment is frozen with its secret in macOS
-Keychain, and the latest authenticated route preflight plus Keychain-backed
-dry-run pass without completion calls. Spend and strict-smoke execution are now
-authorized under the committed $150 ceiling. Panel execution and publication
-remain false until every strict smoke is accepted and the cap-pressure rule is
-resolved. There is no real v3 smoke or leaderboard artifact yet.
+all eight routes, the private 16-seed commitment is frozen with its secret in
+macOS Keychain, and the latest authenticated route preflight plus
+Keychain-backed dry-run pass without completion calls. Spend and strict-smoke
+execution are authorized under a committed ceiling lowered to $100 against a
+$73.40 reserved worst case (~$25-30 projected actual).
+
+The cap-pressure rule is now resolved. It gains an explicit terminal case: the
+cap may be amended at most once, and a second trigger aborts `sota-v3` rather
+than amending again (`max_cap_amendments: 1`, `on_second_trigger:
+"abort-sota-v3-and-repreregister"`). The 8,192-token fallback branch reserves
+$116.26 and therefore sits deliberately above the ceiling, so a trigger halts
+the run for an explicit owner spend decision instead of silently widening the
+budget it is measured against. The reasoning-policy ambiguity is resolved by
+construction, since no mandatory-reasoning route remains. Panel execution and
+publication remain false until every strict smoke is accepted. There is no real
+v3 smoke or leaderboard artifact yet.
 **Current weekly focus:** [#93 — v3 readiness program: consultant audit
 findings](https://github.com/nedcut/gm-bench/issues/93). Remaining
 [Issue #84](https://github.com/nedcut/gm-bench/issues/84) follow-through is

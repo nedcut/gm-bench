@@ -17,19 +17,19 @@
     "smoke_seed_count": 1
   },
   "calls": {
-    "model_count": 10,
-    "panel_calls": 3200,
+    "model_count": 8,
+    "panel_calls": 2560,
     "panel_decisions_per_model": 320,
-    "smoke_calls": 40,
+    "smoke_calls": 32,
     "smoke_decisions_per_run": 4,
-    "smoke_runs": 10,
-    "total_calls": 3240
+    "smoke_runs": 8,
+    "total_calls": 2592
   },
   "costs_usd": {
-    "panel": 104.76363776,
-    "smoke": 1.309545472,
-    "total_unrounded": 106.073183232,
-    "total_with_1_2x_contingency": 127.2878198784
+    "panel": 60.41419776,
+    "smoke": 0.755177472,
+    "total_unrounded": 61.169375232,
+    "total_with_1_2x_contingency": 73.4032502784
   },
   "models": [
     {
@@ -57,34 +57,6 @@
       "panel_cost_usd": 18.2272,
       "smoke_calls": 4,
       "smoke_cost_usd": 0.22784
-    },
-    {
-      "applied_completion_rate_usd": 7.5e-06,
-      "applied_internal_reasoning_rate_usd": 7.5e-06,
-      "applied_prompt_rate_usd": 1.5e-06,
-      "cost_per_decision_usd": 0.07344,
-      "experiment_id": "openrouter-gemini-3.6-flash-google-ai-studio",
-      "internal_reasoning_billing_basis": "internal_reasoning",
-      "internal_reasoning_tokens_per_decision": 4096,
-      "model": "google/gemini-3.6-flash",
-      "panel_calls": 320,
-      "panel_cost_usd": 23.5008,
-      "smoke_calls": 4,
-      "smoke_cost_usd": 0.29376
-    },
-    {
-      "applied_completion_rate_usd": 6e-06,
-      "applied_internal_reasoning_rate_usd": 6e-06,
-      "applied_prompt_rate_usd": 2e-06,
-      "cost_per_decision_usd": 0.065152,
-      "experiment_id": "openrouter-grok-4.5-xai",
-      "internal_reasoning_billing_basis": "completion",
-      "internal_reasoning_tokens_per_decision": 4096,
-      "model": "x-ai/grok-4.5",
-      "panel_calls": 320,
-      "panel_cost_usd": 20.84864,
-      "smoke_calls": 4,
-      "smoke_cost_usd": 0.260608
     },
     {
       "applied_completion_rate_usd": 4.4e-06,
@@ -176,6 +148,6 @@
   "schema_version": 2,
   "supersedes": {
     "artifact": "retired 12-cell output-budget sweep estimate",
-    "description": "Replaces the four-cap, three-model sweep estimate with the registered 10-model fixed 4,096-token panel and its required smoke gate."
+    "description": "Replaces the four-cap, three-model sweep estimate with the registered 8-model fixed 4,096-token panel and its required smoke gate."
   }
 }

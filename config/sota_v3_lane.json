@@ -6,27 +6,27 @@
   "mechanics_change_policy": "Any score-, action-, observation-, or simulator-semantic change after this preregistration requires a new contract fingerprint, invalidates all sota-v3 smoke evidence, and re-locks provider spend.",
   "preregistration_status": "frozen",
   "preregistered_at_utc": "2026-07-27T16:58:41Z",
-  "design_amended_at_utc": "2026-08-03T00:00:00Z",
+  "design_amended_at_utc": "2026-08-06T00:00:00Z",
   "design_amendment": {
-    "amendment_id": "sota-v3-design-amendment-2",
+    "amendment_id": "sota-v3-design-amendment-3",
     "status": "pre-data",
-    "supersedes": "docs/run_logs/sota-v3-design-amendment-2026-07-28.md",
-    "record": "docs/run_logs/sota-v3-design-amendment-2026-08-03.md",
-    "rationale": "Owner-directed pre-data cohort update before any smoke or panel evidence exists: the OpenAI anchor moves from GPT-5.6 Luna Pro to plain GPT-5.6 Luna (the originally intended route, now healthy, without the Pro variant's reasoning.mode inconsistency), and DeepSeek V4 Flash 0731 plus Tencent Hy3 join as open-weight anchors on first-party FP8 routes; Thinking Machines Inkling Small was evaluated and found ineligible because no healthy route advertises response_format under the lane's frozen JSON-mode and require-parameters options. A family of ten tightens the Holm first step from 0.00625 to 0.005, so the allocation was reselected with the identical frozen power machinery; 15x1 no longer holds the 0.80 sensitivity floor at family ten and the smallest qualifying allocation is 16 seeds x 1 repeat.",
+    "supersedes": "docs/run_logs/sota-v3-design-amendment-2026-08-03.md",
+    "record": "docs/run_logs/sota-v3-design-amendment-2026-08-06.md",
+    "rationale": "Owner-directed pre-data cohort reduction before any smoke or panel evidence exists. Gemini 3.6 Flash and Grok 4.5 are withdrawn because they are the only two registered routes whose reasoning is mandatory: every other model runs reasoning-disabled, so the pair reintroduced the exact cross-model reasoning inconsistency that caused their exclusion from the frozen sota-v2 panel. Withdrawing them makes the cohort uniformly reasoning-disabled, resolves the pending reasoning-policy verification outright, and removes the only routes whose observed sota-v2 telemetry approached the 3,072-token cap-pressure threshold. It also cuts the reserved panel cost from $127.29 to $68.87 against a lowered $100 operator ceiling. Scores and apparent model quality played no part: no v3 smoke or panel data exists.",
     "changes": [
-      "Registered model family grows from eight to ten; Holm family size is now 10 and the first-step threshold is 0.05/10 = 0.005.",
-      "GPT-5.6 Luna Pro is replaced by plain GPT-5.6 Luna on the first-party OpenAI route, removing the unresolved Pro reasoning.mode inconsistency.",
-      "DeepSeek V4 Flash 0731 and Tencent Hy3 are added as open-weight anchors, both on first-party FP8 routes.",
-      "Selected allocation moves from 15 seeds x 1 repeat to 16 seeds x 1 repeat (16 episodes/model): sensitivity power 0.8488, Wilson 95% CI [0.841645, 0.855688]; base power 0.9527, Wilson 95% CI [0.948363, 0.95669].",
-      "The pending private seed panel is now 16 seeds; its identity remains unfrozen pending separately authorized generation."
+      "Registered model family shrinks from ten to eight; Holm family size is now 8 and the first-step threshold loosens from 0.05/10 = 0.005 to 0.05/8 = 0.00625.",
+      "Gemini 3.6 Flash (Google AI Studio) and Grok 4.5 (xAI) are withdrawn as the only mandatory-reasoning routes; the remaining eight are uniformly reasoning-disabled.",
+      "Allocation stays at 16 seeds x 1 repeat. At family 8 the rule's smallest qualifying allocation is 15x1 (sensitivity 0.8357, Wilson lower 0.828309), but the pre-data seed commitment is frozen at 16; 16x1 gives sensitivity power 0.8727, Wilson 95% CI [0.866024, 0.87909], base power 0.9629.",
+      "Operator spend ceiling lowered from $150.00 to $100.00; reserved worst-case cost is $68.87 with the 1.2x contingency.",
+      "The cap-pressure amendment rule gains an explicit terminal case: the cap may be amended at most once, and a second trigger aborts sota-v3 rather than amending again."
     ],
     "unchanged": [
       "alpha 0.05, Holm-Bonferroni across the fixed registered family",
       "exact two-sided enumeration sign-flip test with the seed as the unit of inference",
-      "planning effect -100 score points and the 0.80 conservative-sensitivity familywise all-reject power target",
-      "historical variance components, sensitivity multipliers, 10000 trials, simulation seed 2026072800",
-      "no model-to-model tiers or ordinal ranking",
-      "every execution, spend, and publication authorization remains false"
+      "planning effect -100 score points, directional trails-reference claim",
+      "the frozen 4,096-token output cap and 3,072-token cap-pressure trigger",
+      "contract fingerprint a523bdfcebe47bbd and all ten frozen route-acceptance records",
+      "the private 16-seed panel commitment and its Keychain escrow"
     ]
   },
   "evidence_state": "pre-data-no-v3-model-smokes-or-panel-results",
@@ -50,7 +50,7 @@
       1,
       3
     ],
-    "holm_family_size": 10,
+    "holm_family_size": 8,
     "target_effect_score_points": -100,
     "target_effect_basis": "Conservative against the frozen sota-v2 observed lifts of -180 to -282 score points at a 0.0 seed win rate for all eight eligible models.",
     "target_familywise_all_reject_power": 0.8,
@@ -72,18 +72,19 @@
       "repeats": 1,
       "episodes_per_model": 16,
       "minimum_exact_two_sided_sign_flip_p_value": 3.0517578125e-05,
-      "holm_first_step_threshold_at_alpha_0_05": 0.005,
+      "holm_first_step_threshold_at_alpha_0_05": 0.00625,
       "exact_sign_flip_holm_feasible": true,
-      "base_power_estimate": 0.9527,
+      "base_power_estimate": 0.9629,
       "base_power_wilson_ci95": [
-        0.948363,
-        0.95669
+        0.959014,
+        0.96643
       ],
-      "sensitivity_power_estimate": 0.8488,
+      "sensitivity_power_estimate": 0.8727,
       "sensitivity_power_wilson_ci95": [
-        0.841645,
-        0.855688
-      ]
+        0.866024,
+        0.87909
+      ],
+      "allocation_selection_note": "At family size 8 the frozen selection rule's smallest qualifying allocation is 15 seeds x 1 repeat (sensitivity power 0.8357, Wilson lower 0.828309). The panel deliberately retains 16 seeds because seed_panel was already frozen pre-data with a published sha256 and hiding commitment escrowed in the macOS Keychain; breaking a pre-data cryptographic seed commitment to save an estimated $4.53 is a worse trade than running one seed over the floor. 16 seeds is strictly more powerful than the rule's minimum and never less conservative."
     },
     "selection_rule": "Smallest allocation with 9-16 seeds and 1-3 repeats whose conservative-sensitivity familywise-power Wilson 95% lower bound is at least 0.80.",
     "decision_required": null
@@ -105,7 +106,7 @@
   "smoke_manifest": "config/sota_v3_smoke_manifest.json",
   "publication_protocol": "config/sota_v3_publication_protocol.json",
   "pricing_snapshot": "config/sota_v3_pricing_snapshot.json",
-  "minimum_headline_models": 10,
+  "minimum_headline_models": 8,
   "reasoning_policy": "catalog-pinned-pending-strict-smoke-behavior-verification",
   "output_token_cap": 4096,
   "output_budget_status": "frozen-native-reasoning-cap",
