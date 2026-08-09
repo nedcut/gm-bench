@@ -22,6 +22,7 @@ from gm_bench.publication import (
 )
 from scripts.run_publication_matrix import (
     _artifact_spend_usd,
+    _call_spend_guard_environment,
     _cell_reservation_usd,
     _endpoint_issues,
     _panel_artifact_issues,
@@ -989,6 +990,48 @@ def test_cell_reservation_covers_repairs_and_cost_contingency(
 
     assert cell.fixed_options["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "1"
     assert _cell_reservation_usd(cell) == pytest.approx(base * 2 * assumptions["cost_contingency_multiplier"], abs=1e-6)
+
+
+def test_larger_output_cap_scales_only_completion_part_of_reservation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Input spend does not double merely because the output cap doubles."""
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
+    cell = build_cells("panel", model_id="openrouter-gpt-5.6-luna-openai")[0]
+    larger = replace(cell, cap=cell.cap * 2)
+    pricing = json.loads(Path("config/openrouter_pricing_snapshot.json").read_text())
+    assumptions = pricing["planning_assumptions"]
+    rates = pricing["models"][cell.model]
+    decisions = 9 * 5 * 4 * 3
+    repair_multiplier = 2
+    expected_increment = (
+        decisions * cell.cap * rates["completion"] * repair_multiplier * assumptions["cost_contingency_multiplier"]
+    )
+
+    base_reservation = _cell_reservation_usd(cell)
+    larger_reservation = _cell_reservation_usd(larger)
+    assert larger_reservation - base_reservation == pytest.approx(expected_increment, abs=1e-6)
+    assert larger_reservation != pytest.approx(base_reservation * 2)
+
+
+def test_call_guard_receives_frozen_rates_and_global_ceiling(tmp_path: Path) -> None:
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=4096)[0]
+    guard = _call_spend_guard_environment(
+        cell,
+        tmp_path,
+        ceiling_usd=100.0,
+        measured_spend_floor_usd=12.5,
+    )
+    prefix = "GM_BENCH_OPENROUTER_SPEND_GUARD_"
+
+    assert guard[f"{prefix}STATE_PATH"] == str(tmp_path / publication_runner.CALL_SPEND_GUARD_STATE)
+    assert guard[f"{prefix}CEILING_USD"] == "100.0"
+    assert guard[f"{prefix}MEASURED_SPEND_FLOOR_USD"] == "12.5"
+    assert float(guard[f"{prefix}PROMPT_RATE_USD"]) > 0
+    assert float(guard[f"{prefix}COMPLETION_RATE_USD"]) > 0
+    assert guard[f"{prefix}OUTPUT_TOKEN_CAP"] == "4096"
 
 
 def test_cell_reservation_scales_to_future_24_seed_private_panel(

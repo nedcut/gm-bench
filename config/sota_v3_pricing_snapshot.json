@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "contract": "sota-v3",
-  "contract_fingerprint": "a523bdfcebe47bbd",
+  "contract_fingerprint": "4f93daa123041ab8",
   "status": "frozen",
   "checked_at_utc": "2026-08-04T16:00:40Z",
   "source": "Undiscounted rates frozen from the public OpenRouter catalog and rechecked against authenticated exact-route endpoint metadata before smoke authorization; no completion or chat endpoint was called.",

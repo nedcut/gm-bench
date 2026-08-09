@@ -18,6 +18,18 @@ from typing import Any
 from gm_bench.agent_utils import position_aware_lineup, public_asset_value
 
 
+def model_adapter_observation(observation: dict[str, Any]) -> dict[str, Any]:
+    """Return the raw adapter payload with private run identity removed.
+
+    The runner retains the seed for deterministic simulation, paired analysis,
+    replay, and artifacts. External adapters do not need it to choose legal
+    actions, however, and exposing it would let adapter code reconstruct hidden
+    simulator state from the public generator. Use a shallow copy so removing
+    the transport-only field never mutates the runner's canonical observation.
+    """
+    return {key: value for key, value in observation.items() if key != "seed"}
+
+
 def compact_observation(observation: dict[str, Any], profile: str | None = None) -> dict[str, Any]:
     """Compact an observation to the view a model adapter receives.
 
@@ -61,7 +73,6 @@ def compact_observation(observation: dict[str, Any], profile: str | None = None)
     )
     trade_market = observation.get("trade_market") or []
     payload: dict[str, Any] = {
-        "seed": observation.get("seed"),
         "season": observation.get("season"),
         "phase": observation.get("phase"),
         "observation_tier": observation.get("observation_tier", "full"),

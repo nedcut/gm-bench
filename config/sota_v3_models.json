@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "contract": "sota-v3",
-  "contract_fingerprint": "a523bdfcebe47bbd",
+  "contract_fingerprint": "4f93daa123041ab8",
   "lane": "api",
   "provider": "openrouter",
   "provider_policy": "openrouter-only",
@@ -18,7 +18,7 @@
     "https://openrouter.ai/api/v1/models",
     "https://openrouter.ai/api/v1/models/{model_id}/endpoints"
   ],
-  "selection_policy": "Ten-model pre-data cohort originally selected from the 2026-08-03 public OpenRouter catalog and refreshed on 2026-08-04 before any smoke or panel evidence existed. The refresh replaces Qwen 3.7 Plus with Qwen 3.8 Max and substitutes the same-model MiniMax M3 and DeepSeek V4 Flash 0731 slots from minimax/fp8 and deepseek/fp8 onto deepinfra/fp8 and cloudflare/fp8 under docs/ROUTE_SUBSTITUTION_POLICY.md. Cohort size, Holm family, and the 16x1 allocation are unchanged. The registry is now frozen against authenticated exact-route metadata and the accepted synthetic-data privacy standard in results/analysis/sota-v3-route-acceptance-evidence.json. Inference, reasoning, JSON, and request-cap behavior remain subject to one strict smoke per route before any panel authorization.",
+  "selection_policy": "Eight-model pre-data cohort frozen on 2026-08-06 before any v3 smoke or panel evidence existed. The preceding catalog refresh replaced Qwen 3.7 Plus with Qwen 3.8 Max and moved the same-model MiniMax M3 and DeepSeek V4 Flash 0731 slots to deepinfra/fp8 and cloudflare/fp8 under docs/ROUTE_SUBSTITUTION_POLICY.md. Amendment 3 then retained eight routes from the accepted ten-model registry and withdrew Gemini 3.6 Flash and Grok 4.5 because they were the only mandatory-reasoning routes. The retained cohort is uniformly reasoning-disabled, the Holm family size is 8, and the already committed 16x1 seed allocation is preserved. The registry is now frozen against authenticated exact-route metadata and the accepted synthetic-data privacy standard in results/analysis/sota-v3-route-acceptance-evidence.json. Inference, reasoning-disabled behavior, JSON, and request-cap behavior remain subject to one strict smoke per route before any panel authorization.",
   "models": [
     {
       "id": "openrouter-gpt-5.6-luna-openai",
@@ -592,11 +592,11 @@
   "public_metadata_limitations": [
     "Authenticated metadata proves the configured account and exact endpoint identity, not successful inference behavior; the strict smoke remains mandatory.",
     "OPENROUTER_DATA_COLLECTION=deny excludes provider training-use routes. Zero data retention is separately recorded per endpoint and is preferred, not required, for this synthetic benchmark with no personal or confidential inputs.",
-    "Grok 4.5 and Mistral Medium 3.5 advertise max_tokens but currently omit max_completion_tokens metadata; only their strict smoke can establish request-cap behavior before panel authorization.",
+    "Mistral Medium 3.5 advertises max_tokens but currently omits max_completion_tokens metadata; only its strict smoke can establish request-cap behavior before panel authorization.",
     "Supported-parameter lists do not prove behavioral acceptance; every route still requires one accepted strict smoke."
   ],
   "unresolved_decisions": [
-    "Validate the frozen common 4,096-token cap and 3,072-token cap-pressure rule with the authorized strict smokes; if triggered, invalidate every v3 smoke and amend the cap symmetrically before panel data.",
+    "Validate the frozen common 4,096-token cap and 3,072-token cap-pressure rule with the authorized strict smokes; if triggered, invalidate every v3 smoke, abort this contract, and require a new preregistration before any later run.",
     "Require one accepted strict smoke for every exact route before any separate panel authorization."
   ]
 }

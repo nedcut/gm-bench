@@ -46,6 +46,12 @@ def test_v3_cost_plan_uses_registered_private_seed_count() -> None:
     assert result["calls"]["panel_decisions_per_model"] == 320
     assert result["calls"]["panel_calls"] == 2_560
     assert result["calls"]["total_calls"] == 2_592
+    # `calls` is the one-response-per-window planning forecast. The protocol
+    # can actually make five interaction calls, each with one repair, so the
+    # estimator must expose that 10x maximum instead of presenting 2,592 as a
+    # worst-case API-call count.
+    assert result["protocol_maximum"]["max_interaction_rounds_per_decision"] == 5
+    assert result["protocol_maximum"]["total_calls"] == 25_920
     # Recosted 2026-08-06 for amendment-3, which withdrew Gemini 3.6 Flash and
     # Grok 4.5 -- the only two mandatory-reasoning routes -- leaving eight
     # uniformly reasoning-disabled models. The call count falls 3,240 -> 2,592
@@ -55,31 +61,32 @@ def test_v3_cost_plan_uses_registered_private_seed_count() -> None:
     # $73.40 against a ceiling lowered $150 -> $100.
     assert result["costs_usd"]["total_unrounded"] == pytest.approx(61.169375232)
     assert result["costs_usd"]["total_with_1_2x_contingency"] == pytest.approx(73.4032502784)
+    assert result["protocol_maximum"]["costs_usd"]["total_with_contingency"] == pytest.approx(734.032502784)
     # The cohort is now uniformly reasoning-disabled; no row may bill internal
     # reasoning. This is the cost-side statement of the amendment's whole point.
     assert [row["model"] for row in result["models"] if row["internal_reasoning_tokens_per_decision"]] == []
 
 
 def test_the_committed_plan_fits_under_the_committed_ceiling() -> None:
-    """The reservation and the hard cap must not drift apart silently.
+    """The planning forecast and hard cap must not drift apart silently.
 
     These are two committed numbers in two different files, and on 2026-08-04
     they crossed: pinning undiscounted list rates moved the reservation to
-    $127.29 against a $120.00 ceiling, so the committed plan could not legally
+    $127.29 against a $120.00 ceiling, so the committed plan could not reasonably
     run.  Nothing caught it, because nothing compared them.
 
     Adding a model, substituting a route onto a pricier host, or a provider
-    ending a discount all move the reservation.  Any of them silently breaching
+    ending a discount all move the forecast. Any of them silently breaching
     the ceiling should fail here, at zero cost, rather than at the point
     someone tries to authorize a run.
     """
     protocol = json.loads(Path("config/sota_v3_publication_protocol.json").read_text())
     ceiling = protocol["budget_policy"]["operator_ceiling_usd"]
-    reserved = estimate(*_v3_inputs())["costs_usd"]["total_with_1_2x_contingency"]
+    forecast = estimate(*_v3_inputs())["costs_usd"]["total_with_1_2x_contingency"]
 
     assert isinstance(ceiling, (int, float)) and ceiling > 0
-    assert reserved <= ceiling, (
-        f"the committed reservation ${reserved:.2f} exceeds the committed operator ceiling "
+    assert forecast <= ceiling, (
+        f"the committed planning forecast ${forecast:.2f} exceeds the committed operator ceiling "
         f"${ceiling:.2f}; raise the ceiling deliberately or reduce the plan"
     )
 

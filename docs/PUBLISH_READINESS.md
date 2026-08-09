@@ -7,7 +7,7 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-08-06
+**Last reviewed:** 2026-08-09
 **Current target:** Preserve the published `sota-v2` study as frozen historical
 evidence while pre-registering and rehearsing a finite `sota-v3` publication
 lane.
@@ -31,22 +31,28 @@ cohort, a frozen 16-seed x 1-repeat statistical design (sensitivity power
 0.8727, Wilson lower 0.8660), a frozen 4,096-token smoke ceiling, an empty
 not-started smoke manifest, explicit runner dispatch, and a zero-spend synthetic
 rehearsal. Exact-route and synthetic-data privacy acceptance are recorded for
-all eight routes, the private 16-seed commitment is frozen with its secret in
-macOS Keychain, and the latest authenticated route preflight plus
-Keychain-backed dry-run pass without completion calls. Spend and strict-smoke
-execution are authorized under a committed ceiling lowered to $100 against a
-$73.40 reserved worst case (~$25-30 projected actual).
+all eight routes, and the private 16-seed commitment is frozen with its secret
+in macOS Keychain. The last authenticated route preflight and Keychain-backed
+dry-run passed without completion calls; both must be refreshed at the final
+candidate fingerprint before spend. Private seeds are now stripped from every
+model-facing payload and child environment while remaining runner-internal for
+pairing and replay. Spend and strict-smoke
+execution are authorized under a committed $100 ceiling. The generated cost
+artifact is authoritative for both the one-response-per-window planning
+forecast and the protocol-maximum estimate; the runner separately enforces the
+ceiling before every provider call. Refresh all three views immediately after
+strict-smoke telemetry and before panel authorization.
 
-The cap-pressure rule is now resolved. It gains an explicit terminal case: the
-cap may be amended at most once, and a second trigger aborts `sota-v3` rather
-than amending again (`max_cap_amendments: 1`, `on_second_trigger:
-"abort-sota-v3-and-repreregister"`). The 8,192-token fallback branch reserves
-$116.26 and therefore sits deliberately above the ceiling, so a trigger halts
-the run for an explicit owner spend decision instead of silently widening the
-budget it is measured against. The reasoning-policy ambiguity is resolved by
-construction, since no mandatory-reasoning route remains. Panel execution and
-publication remain false until every strict smoke is accepted. There is no real
-v3 smoke or leaderboard artifact yet.
+Pre-data amendment 4 (2026-08-09) makes the cap-pressure rule terminal on its
+first trigger: any truncation or call
+reaching 3,072 output tokens invalidates all v3 smokes, aborts this contract,
+and requires a new preregistration before another run. No in-place cap
+amendment is allowed. The registered 8,192-token value is only a planning
+comparison, not an authorized fallback branch. The reasoning-policy ambiguity
+is resolved by construction, since all eight retained routes are registered
+with reasoning disabled. Panel execution and publication remain false until
+every strict smoke is accepted. There is no real v3 smoke or leaderboard
+artifact yet.
 **Current weekly focus:** [#93 — v3 readiness program: consultant audit
 findings](https://github.com/nedcut/gm-bench/issues/93). Remaining
 [Issue #84](https://github.com/nedcut/gm-bench/issues/84) follow-through is
@@ -70,7 +76,8 @@ The strongest story is not merely that GM-Bench runs LLMs through a simulator.
 It is that the project:
 
 - built a deterministic, multi-season decision environment;
-- created transparent baselines, adversarial canaries, and an oracle reference;
+- created transparent baselines, adversarial canaries, and a privileged
+  hidden-information diagnostic;
 - discovered that its first model comparison was confounded by a scout protocol
   bug, unequal output budgets, and mixed execution lanes;
 - withdrew the affected ranking instead of defending it;
@@ -106,7 +113,7 @@ The project is publish-ready only when all four gates pass.
 | --- | --- | --- |
 | Core engineering | Strong | Deterministic simulator, adapters, CLI, GUI, site, tests, and CI are substantial. |
 | Reproducibility | Strong | Contract fingerprints, seed provenance, compact artifacts, and validators are in place. |
-| Benchmark validity | Strong but scoped | Scripted references, exploit canaries, oracle headroom, calibration, and mechanic coverage exist. |
+| Benchmark validity | Strong but scoped | Scripted references, exploit canaries, a partial hidden-information diagnostic, calibration, and mechanic coverage exist. |
 | Compute comparability | Frozen for phase one | The API lane has a common 4,096-token total-output ceiling, native-minimum reasoning, exact provider slugs and endpoint tags, a pre-full-panel 75% cap-pressure rule, and actual reasoning/token-efficiency reporting. All ten phase-one routes passed and were accepted; Kimi K3 and the unavailable Nemotron and DeepSeek routes are retained as exclusion evidence. |
 | Current model evidence | Public panel complete | Eight registered, route-matched, cost-complete `sota-v2` rows clear the publication floor; Grok and Mistral are retained as diagnostics. |
 | Statistical evidence | Ready but low-resolution | Seed-paired intervals, exact sign-flip tests, full-family Holm adjustment, and overlap tiers are generated. All eight rows share one tier and trail `pick-trader`. |
@@ -539,8 +546,8 @@ These should be refined, not quietly removed:
 - GM-Bench is a synthetic hockey-style environment, not a real front office.
 - The scoring function is hand-designed and inevitably encodes value judgments.
 - Scripted baselines were written with direct knowledge of the environment.
-- The oracle is a diagnostic ceiling with privileged information, not a fair
-  participant.
+- The partial oracle is a privileged hidden-information diagnostic, not a fair
+  participant, optimization ceiling, or valid model submission.
 - Eight public seeds provide limited environmental and statistical resolution.
 - Candidate repeats measure model sampling variation, not new environments.
 - Prompt scaffolds, repair policies, provider routing, and output budgets affect
@@ -620,7 +627,7 @@ snapshot is in
   contamination caveat mirroring the blog. Landed in
   [#95](https://github.com/nedcut/gm-bench/pull/95), which also named the stored
   `ci95` field as a *lift* interval so it is not read as an interval on score.
-- [ ] Finish pre-registering the v3 publication lane (`config/sota_v3_lane.json`,
+- [x] Finish pre-registering the v3 publication lane (`config/sota_v3_lane.json`,
   registry, and initially empty smoke manifest) before authorizing spend. Freeze the
   research question, model/route selection, public or private seed-panel
   identity, seeds-versus-repeats allocation, reasoning/output limits, strict
@@ -630,7 +637,8 @@ snapshot is in
   assign model tiers or support all-pairs ranking. Before power simulation,
   require enough independent seeds for the exact two-sided sign-flip minimum
   p-value (`2 / 2**seeds`) to clear Holm step one (`0.05 / models`).
-  The statistical design is **frozen, but authorizes no spend**.
+  The statistical design is frozen. Spend and strict-smoke execution are
+  separately authorized; panel execution and publication remain locked.
   Corrected 10,000-trial production-procedure simulations include the historical
   residual lift seed variance (`3770.4784`) as a draw shared across all eight
   model contrasts. The original +40 superiority design was abandoned: no
@@ -670,9 +678,19 @@ snapshot is in
   conservative pre-smoke reservation is recorded in
   `results/analysis/sota-v3-pre-smoke-cost-estimate.json`: 3,240 calls,
   $106.073183 before contingency and $127.287820 at the committed 1.2x reserve.
-  Runtime remains pending accepted smoke telemetry. The owner-set $150 ceiling
-  and smoke-only spend authorization are now enforced; panel authorization is
-  still separate. A
+  Runtime remains pending accepted smoke telemetry. Those ten-model figures
+  are historical inputs to the next amendment, not the active plan. Design
+  amendment 3 (2026-08-06,
+  [`docs/run_logs/sota-v3-design-amendment-2026-08-06.md`](run_logs/sota-v3-design-amendment-2026-08-06.md))
+  removes the two mandatory-reasoning routes before any v3 model evidence,
+  leaving eight uniformly reasoning-disabled routes at Holm family size 8.
+  The frozen seed allocation remains 16x1, with sensitivity power 0.8727
+  (Wilson lower bound 0.8660), and the operator ceiling is now $100. The
+  generated cost artifact, rather than a duplicated prose amount, is the
+  authoritative planning forecast; the runner enforces the ceiling before each
+  provider call. Pre-data amendment 4 (2026-08-09) records that separation and
+  makes cap pressure abort this contract on its first trigger; it does not
+  authorize an in-place cap or ceiling amendment. A
   runtime private panel can change without changing the contract fingerprint;
   editing the canonical public leaderboard preset in
   `gm_bench/benchmark_config.py` does change it and would require one pre-data
@@ -686,7 +704,8 @@ snapshot is in
   `require_strict_fallback` and the CapHoard seed-level assertion in
   [#96](https://github.com/nedcut/gm-bench/pull/96), and `extend_contract` prompt
   conformance in #92.
-- [x] Complete an integrated, no-provider-call v3 rehearsal in the working tree:
+- [ ] Re-run the integrated, no-provider-call v3 rehearsal after the current
+  contract/config hardening:
   generate a disposable result, apply the registered policy, compact it, verify
   raw/compact hashes, run the actual publication analyzer on a nondegenerate
   paired synthetic panel, exercise site ingestion and the web build in an
@@ -695,9 +714,10 @@ snapshot is in
   closed. `python3 scripts/sota_v3_rehearsal.py` passed with zero spend, seven
   rejected mutations, a finite nonzero paired-lift interval, shared row
   ingestion, a generated dataset matching the checked-in frozen-v2 site data,
-  and a successful staged web build. The synthetic output is diagnostic, not
-  panel evidence.
-- [x] After these changes are committed, rerun the rehearsal from a clean
+  and a successful staged web build on the prior candidate. Those results are
+  now stale because the rehearsal stages the changed v3 config. The synthetic
+  output is diagnostic, not panel evidence.
+- [ ] After these changes are committed, rerun the rehearsal from a clean
   checkout at the exact candidate SHA and record that SHA before any spend.
   **Verified unassisted 2026-08-03 at candidate SHA
   `02a069937d167810b261c21928c85cd3730f5461`.** A fresh clone from the GitHub
@@ -710,7 +730,8 @@ snapshot is in
   (40 packages), and a successful staged build. The full suite passes in the
   same clone (742 tests). No contract source was touched, so the fingerprint
   remains `a523bdfcebe47bbd`, matching `config/sota_v3_lane.json`. This
-  authorizes no spend; every lane gate remains false.
+  authorized no spend at that SHA. The current candidate must produce a new
+  clean-checkout record before paid smoke execution.
 
   **When this record goes stale.** The rehearsal stages `config/`,
   `results/leaderboard/`, `results/analysis/`, and `web/`, so a commit
@@ -754,7 +775,8 @@ snapshot is in
   `python3 scripts/run_publication_matrix.py route-preflight --contract sota-v3`.
   This phase checks endpoint identity and parameters but cannot launch a model
   subprocess, reserve spend, or create run state.
-  **Ran 2026-08-03 at $0.00; all ten routes passed at that instant.** See
+  **Ran 2026-08-03 at $0.00; all ten routes in the then-current registry passed
+  at that instant.** See
   [`docs/run_logs/sota-v3-route-preflight-2026-08-03.md`](run_logs/sota-v3-route-preflight-2026-08-03.md).
 
   **This box records that the probe ran and that its findings were acted on.
@@ -776,18 +798,25 @@ snapshot is in
   the seed panel was the point: a genuinely dead route would have forced a
   cohort amendment, and cohort size drives the Holm family size, the
   allocation, and the reservation.
-- [ ] After explicit owner authorization, use
+
+  Design amendment 3 later retained eight of those accepted routes and removed
+  Gemini 3.6 Flash and Grok 4.5. The registry's August 6 acceptance records are
+  the active eight-route evidence, but route availability and prices must still
+  be refreshed immediately before paid smoke execution.
+- [x] After explicit owner authorization, use
   `scripts/seed_panel_commitment.py generate --lane config/sota_v3_lane.json
   --secret-file <recoverable-private-escrow-outside-the-checkout>` to draw the ordered 16-seed panel
   uniformly with `secrets.randbelow`, excluding duplicates and committed public
   preset seeds. Independently verify the salted hiding commitment and ordered
   execution hash; commit commitments only, never seed values. The legacy
   `commit --seeds-env` path is for verifying or adopting an independently
-  generated escrowed panel, not the registered generation procedure.
-- [ ] Review the preregistration, route-preflight, and rehearsal records; freeze
-  the remaining seed-panel identity and execution policies; then make a separate
-  explicit spend-authorization decision for the cheapest serial route smoke.
-  Rehearsal completion does **not** authorize a provider call or full panel.
+  generated escrowed panel, not the registered generation procedure. Complete:
+  the public lane contains only the salted hiding commitment and ordered hash;
+  the 16 seed values and salt remain escrowed in macOS Keychain.
+- [x] Review the preregistration, route-preflight, and rehearsal records; freeze
+  the seed-panel identity and execution policies; then make a separate explicit
+  spend-authorization decision for serial route smokes. Spend and strict-smoke
+  execution are authorized; panel execution is still separately locked.
 - [ ] Decide v3 site strategy (historical v2 page vs current v3 page) and
   propagate Holm / tier caveats before a v3 headline refresh. This need not
   block offline rehearsal.
@@ -802,27 +831,29 @@ snapshot is in
 ### `sota-v3` freeze decision — 2026-07-27
 
 The score-affecting simulator, action/observation schemas, scoring, scripted
-policy logic, and model-view compaction are **semantically frozen** at current
-fingerprint `a523bdfcebe47bbd`. Do not accept another realism or mechanics batch
-before the v3 rehearsal/panel merely because it might improve the benchmark.
+policy logic, and model-view compaction are **semantically frozen** at the
+fingerprint recorded in `config/sota_v3_lane.json`. Do not accept another
+realism or mechanics batch before the v3 rehearsal/panel merely because it
+might improve the benchmark.
 Reopen mechanics only for a reproducible defect that threatens the registered
 claim; doing so requires an explicit decision-log entry, a new fingerprint,
 invalidation of v3 preregistration evidence tied to the prior fingerprint, and
 free diagnostic re-runs before any spend.
 
 The earlier `scaffold-view` diagnostic was measured under
-`4f6ddddd6a6dd81c` and was revalidated 2026-08-03 under the current fingerprint
-`a523bdfcebe47bbd` with every figure reproducing exactly, so this gate is
-closed for the current contract; any future fingerprint change reopens it. This
-does not pre-decide the publication-lane parameters that still must be
-registered: authenticated
-route/privacy acceptance, model-specific reasoning compatibility, private
-seed-panel identity, exclusions, operator ceiling, and site treatment. The
-provisional output policy is a 4,096-token fixed safety ceiling with a 3,072
-cap-pressure trigger and an 8,192 fallback ceiling. Any accepted-smoke
-truncation, trigger crossing, or mandatory-reasoning incompatibility invalidates
-all v3 smokes; amend symmetrically before panel data and re-smoke every model.
-Observed score never influences the cap. Runtime private-panel selection does
+`4f6ddddd6a6dd81c` and was revalidated 2026-08-03 under the then-current v3
+fingerprint with every figure reproducing exactly. Any later contract-source
+change reopens this gate, so the final candidate fingerprint must be revalidated
+before spend. The publication-lane parameters are now registered separately:
+authenticated route/privacy acceptance, disabled reasoning, private seed-panel
+identity, exclusions, and operator ceiling. Public site treatment remains a
+post-panel publication decision. The output policy
+is a 4,096-token fixed safety ceiling with a 3,072 cap-pressure trigger. The
+registered 8,192-token value is a planning comparison, not an authorized
+fallback. Any accepted-smoke truncation or trigger crossing invalidates all v3
+smokes and aborts this contract; a later run requires a new preregistration and
+full-family smoke. Observed score never influences the cap. Runtime
+private-panel selection does
 not alter the contract fingerprint. A change to the canonical public
 leaderboard preset does; if chosen for power, treat it as a bounded pre-data
 lane amendment rather than an invitation to revisit simulator mechanics.
@@ -920,6 +951,7 @@ decision and why.
 | 2026-08-03 | Move the ten-model registry from `provisional-blocked` to `route-preflight-ready` while `evidence_state` is still pre-data. | Everything registered about the ten routes comes from the public OpenRouter catalog, which by the registry's own admission "does not prove authenticated exact-route access or provider privacy and retention behavior." The v2 lane already lost Nemotron 3 Ultra and DeepSeek V4 Pro to bounded HTTP 404s on routes that looked healthy publicly, so a failed authenticated probe is a live possibility, not a hypothetical. Route preflight is the cheapest test of that assumption: it makes zero completion calls and cannot launch a model subprocess, reserve spend, or create run state. Discovering a dead route now costs a JSON regeneration; discovering it after the seed panel is committed means a committed panel attached to a design that then changed, because cohort size drives the Holm family size, which drives the allocation and the reservation. | Registry `selection_status` becomes `route-preflight-ready`; `selection_frozen_at_utc` stays `null`. This is strictly weaker than `frozen` and unlocks nothing that costs money: measured against the live configs, route-preflight readiness goes from two blockers to one — the owner's separate `route_preflight_authorized` grant — while the smoke and panel phases stay at an identical 60 blockers, still including "provider execution is locked until the model registry is frozen." Asserted by `test_route_preflight_readiness_unlocks_nothing_that_costs_money`. Cohort identity is **not** frozen by this decision; freezing it remains a separate later decision informed by preflight results. Every lane authorization remains false. |
 | 2026-08-03 | Grant `route_preflight_authorized`, run the authenticated zero-call route preflight, and correct the stale `qwen/qwen3.7-plus` endpoint tag. | The registered route metadata came from the public catalog, which cannot prove authenticated access. The probe makes zero completion calls, cannot launch a model subprocess, and cannot write run state — verified empirically, since the aborted first run left no files behind. It found exactly one defect in ten: the Alibaba endpoint tag for `qwen/qwen3.7-plus` had moved from `alibaba` to `alibaba/fp8`, while `provider_name`, `name`, status, and every published price stayed identical. | All ten routes now pass at $0.00 spend. `endpoint_tag` and `upstream_provider_slug` corrected in the registry, and the bound `provider_slug` in the pricing snapshot; the cost artifact regenerates byte-identically, so the reservation holds at $89.845094 / $107.814113. **The cohort stays at ten and the 16x1 allocation is unaffected** — a dead route would have forced a family-of-nine amendment and a power re-selection. `exact_route_acceptance` remains `unresolved`; smoke is still blocked by 60 issues, the same count as before the probe. `spend_authorized`, `smoke_execution_authorized`, `panel_execution_authorized`, and `publication_authorized` all remain false. Logged in [`docs/run_logs/sota-v3-route-preflight-2026-08-03.md`](run_logs/sota-v3-route-preflight-2026-08-03.md). |
 | 2026-08-04 | Freeze the SOTA-v3 lane and authorize only the strict-smoke phase. | PR #110 is merged; the refreshed exact routes pass authenticated metadata checks. The private 16-seed panel was owner-authorized and generated before any v3 model result. OpenRouter's current policy distinguishes data-collection denial from ZDR: all routes run with `data_collection=deny`, while 5/10 exact routes are listed as ZDR. Grok and Mistral advertise `max_tokens` but omit a numeric `max_completion_tokens`, and no same-model alternative fixes that metadata gap. | Commit only the salted hiding commitment and ordered seed hash; escrow secret values in macOS Keychain. Accept retention for synthetic non-confidential benchmark inputs, prohibit provider training use, and record ZDR per route rather than claiming it universally. Permit the two null-cap routes only as `request-cap-pending-strict-smoke`; complete smoke telemetry remains mandatory before panel authorization. Set the lane, registry, protocol, and pricing to frozen; authorize spend and strict smokes under the $150 ceiling; leave panel and publication authorization false. Logged in [`docs/run_logs/sota-v3-smoke-readiness-freeze-2026-08-04.md`](run_logs/sota-v3-smoke-readiness-freeze-2026-08-04.md). |
+| 2026-08-09 | Amendment 4: make cap pressure terminal on its first trigger and bind duplicated v3 planning facts in the rehearsal. | The prior one-amendment policy existed only in JSON, tests, and prose; the runner did not persist or enforce amendment count. The configs had also drifted between eight and ten routes, disabled and pending reasoning, and two forecast amounts. No v3 smoke or panel result exists. | Permit zero in-place cap amendments. Any truncation or 3,072-token trigger invalidates all smokes, aborts this contract, and requires a new preregistration. Make the generated forecast authoritative, enforce the operator ceiling before every provider call, and have the zero-spend rehearsal cross-check the model count, Holm family, required smokes, routes, reasoning mode, allocation, cap action, and cost facts. |
 
 ## Experiment and release log
 

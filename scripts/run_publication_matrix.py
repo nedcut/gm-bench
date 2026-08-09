@@ -32,6 +32,7 @@ PRICING_CONFIG = ROOT / "config" / "openrouter_pricing_snapshot.json"
 PROTOCOL_CONFIG = ROOT / "config" / "publication_protocol.json"
 SMOKE_MANIFEST = ROOT / "config" / "sota_v2_smoke_manifest.json"
 RUN_STATE_FORMAT = "gm-bench-publication-run-v1"
+CALL_SPEND_GUARD_STATE = "openrouter-call-spend-guard.json"
 # Availability floors for a pinned endpoint to stay eligible.
 #
 # Two windows, because they detect different failures. The 24h figure is a
@@ -705,7 +706,63 @@ def _measured_spend_usd(run_dir: Path, env: dict[str, str], budget_start: float)
     # immediate. Use the larger measurement so a lagging credits endpoint never
     # weakens the guard.
     account_delta = max(0.0, _openrouter_usage_usd(env) - budget_start)
-    return max(account_delta, _artifact_spend_usd(run_dir))
+    guard_state = _read_json_if_valid(run_dir / CALL_SPEND_GUARD_STATE) or {}
+    reported_call_spend = guard_state.get("reported_spend_usd")
+    if (
+        not isinstance(reported_call_spend, int | float)
+        or isinstance(reported_call_spend, bool)
+        or not math.isfinite(float(reported_call_spend))
+        or float(reported_call_spend) < 0
+    ):
+        reported_call_spend = 0.0
+    return max(account_delta, _artifact_spend_usd(run_dir), float(reported_call_spend))
+
+
+def _call_spend_guard_environment(
+    cell: Cell,
+    run_dir: Path,
+    *,
+    ceiling_usd: float,
+    measured_spend_floor_usd: float,
+) -> dict[str, str]:
+    """Freeze the rates and allowance checked before every OpenRouter call."""
+    if not isinstance(cell.cap, int) or cell.cap < 1:
+        raise ValueError("paid publication calls require a positive bounded output cap")
+    pricing = _read_json(PRICING_CONFIG)
+    rates = (pricing.get("models") or {}).get(cell.model)
+    if not isinstance(rates, dict):
+        raise ValueError(f"missing committed pricing for {cell.model}")
+    assumptions = pricing["planning_assumptions"]
+    reasoning_enabled = cell.fixed_options.get("OPENROUTER_REASONING_ENABLED") == "true"
+    reasoning_tokens = int(assumptions.get("expected_internal_reasoning_tokens_per_decision") or 0)
+    reasoning_rate = rates.get("internal_reasoning")
+    if reasoning_enabled and reasoning_rate is None:
+        reasoning_rate = rates["completion"]
+    if not reasoning_enabled:
+        reasoning_tokens = 0
+        reasoning_rate = 0
+    prefix = "GM_BENCH_OPENROUTER_SPEND_GUARD_"
+    guard = {
+        f"{prefix}STATE_PATH": str(run_dir / CALL_SPEND_GUARD_STATE),
+        f"{prefix}CEILING_USD": str(ceiling_usd),
+        f"{prefix}MEASURED_SPEND_FLOOR_USD": str(measured_spend_floor_usd),
+        f"{prefix}PROMPT_RATE_USD": str(rates["prompt"]),
+        f"{prefix}COMPLETION_RATE_USD": str(rates["completion"]),
+        f"{prefix}OUTPUT_TOKEN_CAP": str(cell.cap),
+        f"{prefix}REASONING_RATE_USD": str(reasoning_rate or 0),
+        f"{prefix}REASONING_TOKEN_CAP": str(reasoning_tokens),
+        f"{prefix}CONTINGENCY_MULTIPLIER": str(assumptions["cost_contingency_multiplier"]),
+    }
+    long_context = rates.get("long_context_override")
+    if isinstance(long_context, dict):
+        guard.update(
+            {
+                f"{prefix}LONG_CONTEXT_THRESHOLD": str(long_context["min_prompt_tokens"]),
+                f"{prefix}LONG_CONTEXT_PROMPT_RATE_USD": str(long_context["prompt"]),
+                f"{prefix}LONG_CONTEXT_COMPLETION_RATE_USD": str(long_context["completion"]),
+            }
+        )
+    return guard
 
 
 def _cell_reservation_usd(cell: Cell) -> float:
@@ -734,10 +791,10 @@ def _cell_reservation_usd(cell: Cell) -> float:
     prompt = decisions * input_tokens * float(applied_rates["prompt"])
     completion = decisions * cell.cap * float(applied_rates["completion"])
     internal_reasoning = decisions * reasoning_tokens * float(rates.get("internal_reasoning") or 0)
-    # Reserve every configured repair as another full-price call, then apply
-    # the committed planning contingency. The guard still acts at cell
-    # boundaries, so this deliberately overstates the likely liability before
-    # a cell is allowed to start.
+    # This is a planning reservation, not the hard safety boundary: it assumes
+    # one interaction round and reserves every decision's configured repair.
+    # The in-child ProviderSpendGuardAgent separately checks every actual
+    # interaction/repair call against the operator ceiling before launch.
     return round((prompt + completion + internal_reasoning) * (1 + repair_attempts) * contingency, 6)
 
 
@@ -1708,6 +1765,14 @@ def main(argv: list[str] | None = None) -> int:
             if spent >= args.max_spend_usd:
                 raise SystemExit(f"spend ceiling reached: ${spent:.4f} >= ${args.max_spend_usd:.4f}")
             _reserve_cell(run_dir, cell, spent, args.max_spend_usd)
+            env.update(
+                _call_spend_guard_environment(
+                    cell,
+                    run_dir,
+                    ceiling_usd=args.max_spend_usd,
+                    measured_spend_floor_usd=spent,
+                )
+            )
         cell_succeeded = False
         cell_error: str | None = None
         cell_ineligible = False

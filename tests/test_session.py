@@ -120,6 +120,52 @@ def test_persistent_agent_preserves_usage_envelope(tmp_path) -> None:
     assert usage == {"provider": "test", "total_tokens": 12}
 
 
+def test_persistent_agent_scrubs_private_seed_from_transport_and_environment(monkeypatch, tmp_path) -> None:
+    script = tmp_path / "seed_probe_agent.py"
+    script.write_text(
+        "import json, os, sys\n"
+        "start = None\n"
+        "for line in sys.stdin:\n"
+        "    event = json.loads(line)\n"
+        "    if event['event'] == 'start':\n"
+        "        start = event\n"
+        "    elif event['event'] == 'observation':\n"
+        "        evidence = {\n"
+        "            'start': start,\n"
+        "            'observation': event['payload'],\n"
+        "            'private_seeds': os.environ.get('GM_BENCH_PRIVATE_SEEDS'),\n"
+        "            'private_seed_salt': os.environ.get('GM_BENCH_PRIVATE_SEED_SALT'),\n"
+        "            'seed_panel_salt': os.environ.get('GM_BENCH_SEED_PANEL_SALT'),\n"
+        "            'profile': os.environ.get('GM_AGENT_PROFILE'),\n"
+        "        }\n"
+        "        print(json.dumps({'actions': [{'type': 'memo', 'text': json.dumps(evidence)}]}), flush=True)\n"
+        "    elif event['event'] == 'end':\n"
+        "        break\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GM_BENCH_PRIVATE_SEEDS", "inherited-secret")
+    monkeypatch.setenv("GM_BENCH_SEED_PANEL_SALT", "inherited-salt")
+    agent = PersistentProcessAgent(
+        _session_command(str(script)),
+        timeout_seconds=2,
+        env={"GM_BENCH_PRIVATE_SEED_SALT": "override-secret", "GM_AGENT_PROFILE": "tiny"},
+    )
+
+    agent.start_episode(seed=9_876_543_210, seasons=1)
+    try:
+        actions = agent.act({"seed": 9_876_543_210, "phase": "preseason"})
+    finally:
+        agent.end_episode()
+
+    evidence = json.loads(actions[0]["text"])
+    assert evidence["start"] == {"event": "start", "seasons": 1}
+    assert evidence["observation"] == {"phase": "preseason"}
+    assert evidence["private_seeds"] is None
+    assert evidence["private_seed_salt"] is None
+    assert evidence["seed_panel_salt"] is None
+    assert evidence["profile"] == "tiny"
+
+
 def test_persistent_agent_discards_non_finite_usage_without_losing_actions(tmp_path) -> None:
     script = tmp_path / "non_finite_usage_agent.py"
     script.write_text(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -131,6 +132,38 @@ def test_external_agent_missing_command_returns_noop() -> None:
     actions = agent.act({"phase": "preseason"})
     assert actions[0]["type"] == "noop"
     assert "could not be launched" in actions[0]["error"]
+
+
+def test_external_agent_scrubs_private_seed_from_transport_and_environment(monkeypatch, tmp_path: Path) -> None:
+    script = tmp_path / "seed_probe_agent.py"
+    script.write_text(
+        "import json, os, sys\n"
+        "observation = json.load(sys.stdin)\n"
+        "evidence = {\n"
+        "    'observation': observation,\n"
+        "    'private_seeds': os.environ.get('GM_BENCH_PRIVATE_SEEDS'),\n"
+        "    'private_seed_salt': os.environ.get('GM_BENCH_PRIVATE_SEED_SALT'),\n"
+        "    'seed_panel_salt': os.environ.get('GM_BENCH_SEED_PANEL_SALT'),\n"
+        "    'profile': os.environ.get('GM_AGENT_PROFILE'),\n"
+        "}\n"
+        "print(json.dumps({'actions': [{'type': 'memo', 'text': json.dumps(evidence)}]}))\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GM_BENCH_PRIVATE_SEEDS", "inherited-secret")
+    monkeypatch.setenv("GM_BENCH_SEED_PANEL_SALT", "inherited-salt")
+    agent = ExternalProcessAgent(
+        f"{shlex.quote(sys.executable)} {shlex.quote(str(script))}",
+        env={"GM_BENCH_PRIVATE_SEED_SALT": "override-secret", "GM_AGENT_PROFILE": "tiny"},
+    )
+
+    actions = agent.act({"seed": 9_876_543_210, "phase": "preseason"})
+
+    evidence = json.loads(actions[0]["text"])
+    assert evidence["observation"] == {"phase": "preseason"}
+    assert evidence["private_seeds"] is None
+    assert evidence["private_seed_salt"] is None
+    assert evidence["seed_panel_salt"] is None
+    assert evidence["profile"] == "tiny"
 
 
 def test_external_agent_timeout_warns_when_too_low(capsys: pytest.CaptureFixture[str]) -> None:

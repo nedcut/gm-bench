@@ -1,31 +1,30 @@
 {
   "schema_version": 1,
   "contract": "sota-v3",
-  "contract_fingerprint": "a523bdfcebe47bbd",
+  "contract_fingerprint": "4f93daa123041ab8",
   "mechanics_status": "frozen-for-sota-v3-panel",
   "mechanics_change_policy": "Any score-, action-, observation-, or simulator-semantic change after this preregistration requires a new contract fingerprint, invalidates all sota-v3 smoke evidence, and re-locks provider spend.",
   "preregistration_status": "frozen",
   "preregistered_at_utc": "2026-07-27T16:58:41Z",
-  "design_amended_at_utc": "2026-08-06T00:00:00Z",
+  "design_amended_at_utc": "2026-08-09T00:00:00Z",
   "design_amendment": {
-    "amendment_id": "sota-v3-design-amendment-3",
+    "amendment_id": "sota-v3-design-amendment-4",
     "status": "pre-data",
-    "supersedes": "docs/run_logs/sota-v3-design-amendment-2026-08-03.md",
-    "record": "docs/run_logs/sota-v3-design-amendment-2026-08-06.md",
-    "rationale": "Owner-directed pre-data cohort reduction before any smoke or panel evidence exists. Gemini 3.6 Flash and Grok 4.5 are withdrawn because they are the only two registered routes whose reasoning is mandatory: every other model runs reasoning-disabled, so the pair reintroduced the exact cross-model reasoning inconsistency that caused their exclusion from the frozen sota-v2 panel. Withdrawing them makes the cohort uniformly reasoning-disabled, resolves the pending reasoning-policy verification outright, and removes the only routes whose observed sota-v2 telemetry approached the 3,072-token cap-pressure threshold. It also cuts the reserved panel cost from $127.29 to $68.87 against a lowered $100 operator ceiling. Scores and apparent model quality played no part: no v3 smoke or panel data exists.",
+    "supersedes": "docs/run_logs/sota-v3-design-amendment-2026-08-06.md",
+    "record": "docs/PUBLISH_READINESS.md#decision-log",
+    "rationale": "Pre-data hardening before any v3 smoke or panel evidence exists. Amendment 3 reduced the cohort to eight uniformly reasoning-disabled routes. This amendment preserves that cohort and statistical design, makes cap pressure terminal on its first trigger because the runner did not persist the former one-amendment policy, and distinguishes the generated one-response-per-window planning forecast from the protocol maximum and the dynamically enforced $100 operator ceiling. The generated cost artifact is authoritative; this narrative deliberately does not duplicate its current amount. Scores and apparent model quality played no part: no v3 model data exists.",
     "changes": [
-      "Registered model family shrinks from ten to eight; Holm family size is now 8 and the first-step threshold loosens from 0.05/10 = 0.005 to 0.05/8 = 0.00625.",
-      "Gemini 3.6 Flash (Google AI Studio) and Grok 4.5 (xAI) are withdrawn as the only mandatory-reasoning routes; the remaining eight are uniformly reasoning-disabled.",
-      "Allocation stays at 16 seeds x 1 repeat. At family 8 the rule's smallest qualifying allocation is 15x1 (sensitivity 0.8357, Wilson lower 0.828309), but the pre-data seed commitment is frozen at 16; 16x1 gives sensitivity power 0.8727, Wilson 95% CI [0.866024, 0.87909], base power 0.9629.",
-      "Operator spend ceiling lowered from $150.00 to $100.00; reserved worst-case cost is $68.87 with the 1.2x contingency.",
-      "The cap-pressure amendment rule gains an explicit terminal case: the cap may be amended at most once, and a second trigger aborts sota-v3 rather than amending again."
+      "The eight-model, uniformly reasoning-disabled amendment-3 cohort and Holm family size 8 are retained.",
+      "Allocation stays at 16 seeds x 1 repeat with sensitivity power 0.8727, Wilson 95% CI [0.866024, 0.87909], and base power 0.9629.",
+      "The generated pre-smoke cost artifact separately reports the planning forecast and protocol maximum, while the runner enforces the $100 ceiling before each provider call.",
+      "Cap pressure is terminal for this contract: any truncation or 3,072-token trigger aborts sota-v3 and requires a new preregistration rather than an in-place cap amendment."
     ],
     "unchanged": [
       "alpha 0.05, Holm-Bonferroni across the fixed registered family",
       "exact two-sided enumeration sign-flip test with the seed as the unit of inference",
       "planning effect -100 score points, directional trails-reference claim",
       "the frozen 4,096-token output cap and 3,072-token cap-pressure trigger",
-      "contract fingerprint a523bdfcebe47bbd and all ten frozen route-acceptance records",
+      "contract mechanics and the eight retained frozen route-acceptance records; any later contract-source hardening requires a regenerated final-candidate fingerprint before spend",
       "the private 16-seed panel commitment and its Keychain escrow"
     ]
   },
@@ -107,11 +106,13 @@
   "publication_protocol": "config/sota_v3_publication_protocol.json",
   "pricing_snapshot": "config/sota_v3_pricing_snapshot.json",
   "minimum_headline_models": 8,
-  "reasoning_policy": "catalog-pinned-pending-strict-smoke-behavior-verification",
+  "reasoning_policy": "disabled",
   "output_token_cap": 4096,
   "output_budget_status": "frozen-native-reasoning-cap",
   "output_policy_basis": "fixed-safety-ceiling",
-  "output_policy_amendment_rule": "The 4,096-token cap is a symmetric pre-smoke safety ceiling, not a result selected from v3 model behavior. If any accepted-route smoke is truncated, reaches 3,072 output tokens, or cannot satisfy a route's mandatory minimum reasoning policy, invalidate every v3 smoke, amend the common cap before panel data, and re-smoke the full registered family. Model score or apparent quality never authorizes a cap change.",
+  "output_policy_amendment_rule": "The 4,096-token cap is a symmetric pre-smoke safety ceiling, not a result selected from v3 model behavior. If any accepted-route smoke is truncated or reaches 3,072 output tokens, invalidate every v3 smoke and abort sota-v3 under this contract. Any future run at a different cap requires a new preregistration before model data and a fresh smoke of the full registered family. No in-place cap amendment is permitted, and model score or apparent quality never authorizes a cap change.",
+  "cap_pressure_action": "abort-sota-v3-and-repreregister",
+  "max_cap_amendments": 0,
   "cap_pressure_threshold_tokens": 3072,
   "fallback_output_token_cap": 8192,
   "spend_authorized": true,
@@ -121,8 +122,8 @@
   "publication_authorized": false,
   "blockers": [
     "Run exactly one serial strict smoke per registered route at the frozen 4,096-token cap; this is the only currently authorized paid phase.",
-    "Grok 4.5 and Mistral Medium 3.5 advertise max_tokens but omit max_completion_tokens metadata, so their request-cap behavior must be established by the strict smoke before any panel authorization.",
-    "If any smoke is truncated, reaches 3,072 output tokens, or cannot satisfy mandatory reasoning, invalidate every v3 smoke and amend the common cap symmetrically before panel data.",
+    "Mistral Medium 3.5 advertises max_tokens but omits max_completion_tokens metadata, so its request-cap behavior must be established by the strict smoke before any panel authorization.",
+    "If any smoke is truncated or reaches 3,072 output tokens, invalidate every v3 smoke, abort this contract, and require a new preregistration before any later run.",
     "Record and accept one strict-fallback smoke for every registered model before separately authorizing panel execution."
   ]
 }

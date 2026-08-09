@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "contract": "sota-v3",
-  "contract_fingerprint": "a523bdfcebe47bbd",
+  "contract_fingerprint": "4f93daa123041ab8",
   "status": "frozen",
   "evidence_state": "pre-data-no-v3-model-smokes-or-panel-results",
   "research_question": "Whether each pre-registered model-plus-compact-scaffold system trails the named pick-trader reference under the frozen sota-v3 mechanics, replicating the frozen sota-v2 finding on a new contract fingerprint.",
@@ -28,10 +28,11 @@
     "output_token_cap": 4096,
     "cap_pressure_threshold_tokens": 3072,
     "fallback_output_token_cap": 8192,
-    "reasoning_policy": "catalog-pinned-pending-strict-smoke-behavior-verification",
-    "amendment_rule": "The common 4,096-token cap is frozen for the first strict smoke of every route. If any smoke is truncated, reaches 3,072 output tokens, or cannot satisfy mandatory minimum reasoning, invalidate all v3 smokes, amend the cap once before panel data, and re-smoke the entire family. Scores and apparent model quality are never cap-selection inputs. TERMINAL CASE: the cap may be amended at most once. If the re-smoke at the amended cap trips the trigger again, sota-v3 is aborted -- no panel is run and nothing is published under this contract -- and the lane must be re-preregistered from scratch with a cap and ceiling costed for both branches. A second amendment is never permitted. Because the amended-cap panel also exceeds the committed operator ceiling, any amendment additionally requires an explicit owner ceiling decision before spend.",
-    "max_cap_amendments": 1,
-    "on_second_trigger": "abort-sota-v3-and-repreregister"
+    "reasoning_policy": "disabled",
+    "amendment_rule": "The common 4,096-token cap is frozen for the strict smoke of every route. If any smoke is truncated or reaches 3,072 output tokens, invalidate all v3 smokes and abort sota-v3 under this contract. Any future run at a different cap requires a new preregistration before model data and a fresh smoke of the entire family. No in-place cap amendment is permitted. Scores and apparent model quality are never cap-selection inputs.",
+    "cap_pressure_action": "abort-sota-v3-and-repreregister",
+    "max_cap_amendments": 0,
+    "on_first_trigger": "abort-sota-v3-and-repreregister"
   },
   "rerun_policy": {
     "maximum_infrastructure_attempts_per_cell": 2,
@@ -52,7 +53,7 @@
     "holm_family_size": 8,
     "target_effect_score_points": -100,
     "target_familywise_all_reject_power": 0.8,
-    "power_definition": "Probability all ten Holm-adjusted model-versus-pick-trader contrasts reject when every true lift is -100 score points. The test is two-sided; the sign is a planning assumption drawn from the frozen sota-v2 evidence, not a one-sided test.",
+    "power_definition": "Probability every registered Holm-adjusted model-versus-pick-trader contrast rejects when every true lift is -100 score points. The test is two-sided; the sign is a planning assumption drawn from the frozen sota-v2 evidence, not a one-sided test.",
     "power_model": {
       "distribution": "Normal parametric Monte Carlo over seed-level lifts, evaluated with the production analyzer's exact sign-flip and Holm functions.",
       "historical_evidence_contract": "sota-v2",
@@ -79,7 +80,7 @@
       ]
     },
     "ranking_rule": "No model tiers or ordinal ranking; only each registered model's predeclared contrast versus pick-trader is supported.",
-    "remaining_blocker": "No statistical-design blocker remains before smoke. Panel execution stays blocked until all ten strict smokes are accepted under the frozen route, cap, seed, and failure policy."
+    "remaining_blocker": "No statistical-design blocker remains before smoke. Panel execution stays blocked until every required strict smoke is accepted under the frozen route, cap, seed, and failure policy."
   },
   "budget_policy": {
     "provider": "openrouter",
@@ -87,7 +88,8 @@
     "operator_must_pass_max_spend_usd": true,
     "spend_authorized": true,
     "operator_ceiling_usd": 100.0,
-    "operator_ceiling_basis": "Owner-set hard cap, lowered 150.00 -> 100.00 on 2026-08-06 alongside the amendment-3 cohort reduction to eight reasoning-disabled models. The $150 figure was sized for a ten-model family whose reserved cost was $127.29; at eight models the reserved worst case is $68.87 with the 1.2x contingency and projected actual spend is roughly $25-30. $100.00 clears the reservation with headroom for a route substitution or list-price move without another ceiling decision. The 8,192-token cap-pressure fallback would reserve $116.26 and therefore does NOT fit under this ceiling by design: a cap-pressure trigger is intended to stop the run for an explicit owner decision, not to silently authorize more spend. Enforced by the runner ahead of the cell loop: --max-spend-usd above this value is rejected before any endpoint probe or child process."
+    "spend_enforcement": "dynamic-pre-provider-call",
+    "operator_ceiling_basis": "Owner-set hard cap, lowered 150.00 -> 100.00 on 2026-08-06 alongside the amendment-3 cohort reduction to eight reasoning-disabled models. The authoritative current planning forecast and protocol-maximum estimate are generated in the cost artifact named above; amounts are deliberately not duplicated here. The forecast is not a safety reservation: the runner enforces the $100 ceiling dynamically before each provider call, including later interaction rounds and allowed repairs. Cap pressure never authorizes a wider budget or in-place amendment; it aborts this contract and requires a newly costed preregistration."
   },
   "publication_authorized": false
 }
