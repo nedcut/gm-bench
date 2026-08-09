@@ -704,22 +704,33 @@ snapshot is in
   `require_strict_fallback` and the CapHoard seed-level assertion in
   [#96](https://github.com/nedcut/gm-bench/pull/96), and `extend_contract` prompt
   conformance in #92.
-- [ ] Re-run the integrated, no-provider-call v3 rehearsal after the current
+- [x] Re-run the integrated, no-provider-call v3 rehearsal after the current
   contract/config hardening:
   generate a disposable result, apply the registered policy, compact it, verify
   raw/compact hashes, run the actual publication analyzer on a nondegenerate
   paired synthetic panel, exercise site ingestion and the web build in an
   isolated staging copy without replacing the public v2 study, and prove stale
   fingerprints, wrong routes/policies, broken hashes, and unknown versions fail
-  closed. `python3 scripts/sota_v3_rehearsal.py` passed with zero spend, seven
+  closed. On 2026-08-09, `python3 scripts/sota_v3_rehearsal.py` passed on the
+  integrated candidate with zero spend, no cross-file coherence issues, seven
   rejected mutations, a finite nonzero paired-lift interval, shared row
   ingestion, a generated dataset matching the checked-in frozen-v2 site data,
-  and a successful staged web build on the prior candidate. Those results are
-  now stale because the rehearsal stages the changed v3 config. The synthetic
-  output is diagnostic, not panel evidence.
-- [ ] After these changes are committed, rerun the rehearsal from a clean
+  the synthetic v3 row excluded, and a successful staged web build. The
+  synthetic output is diagnostic, not panel evidence.
+- [x] After these changes are committed, rerun the rehearsal from a clean
   checkout at the exact candidate SHA and record that SHA before any spend.
-  **Verified unassisted 2026-08-03 at candidate SHA
+  **Verified unassisted 2026-08-09 at candidate SHA
+  `17d5f3c77f7c96b1223cd6688242e91d65833202`.** A fresh clone from the GitHub
+  remote with no `web/node_modules` completed the full rehearsal with status
+  `passed`, spend `0.0`, all seven mutations rejected, `sota_v2` rejected /
+  `sota_v3` accepted, frozen-v2 site data byte-matching the checked-in dataset,
+  the synthetic v3 row excluded, 42 packages installed under the frozen Bun
+  lockfile, and a successful production web build. The same clean clone passed
+  all 783 tests. Panel execution and publication remain locked; this authorizes
+  no paid panel. The authenticated exact-route/price refresh and eight strict
+  paid smokes remain the next execution gate.
+
+  Previous clean-clone record: **2026-08-03 at candidate SHA
   `02a069937d167810b261c21928c85cd3730f5461`.** A fresh clone from the GitHub
   remote with no `web/node_modules` runs `python3 scripts/sota_v3_rehearsal.py`
   to completion with no manual preparation: status `passed`, `spend_usd` 0.0,
@@ -730,8 +741,7 @@ snapshot is in
   (40 packages), and a successful staged build. The full suite passes in the
   same clone (742 tests). No contract source was touched, so the fingerprint
   remains `a523bdfcebe47bbd`, matching `config/sota_v3_lane.json`. This
-  authorized no spend at that SHA. The current candidate must produce a new
-  clean-checkout record before paid smoke execution.
+  authorized no spend at that SHA and is superseded by the 2026-08-09 record.
 
   **When this record goes stale.** The rehearsal stages `config/`,
   `results/leaderboard/`, `results/analysis/`, and `web/`, so a commit
