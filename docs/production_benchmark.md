@@ -65,7 +65,7 @@ an explicit ceiling:
 uv run python scripts/run_publication_matrix.py route-preflight \
   --contract sota-v3
 uv run python scripts/run_sota_v3_smoke_from_keychain.py \
-  --max-spend-usd 150
+  --max-spend-usd 100
 ```
 
 The route preflight makes zero completion calls and should be rerun immediately
