@@ -62,3 +62,50 @@ def test_v4_launcher_selects_only_the_v4_runner_lane(tmp_path, monkeypatch: pyte
     assert PRIVATE_SEEDS_ENV not in launcher.os.environ
     run_dir_index = observed[0][0].index("--run-dir") + 1
     assert observed[0][0][run_dir_index].endswith("data/publication/sota-v4-smokes")
+
+
+def test_v4_readiness_does_not_reuse_v3_evidence_with_the_same_fingerprint(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _install_v4_keychain_fixture(tmp_path, monkeypatch)
+    config = tmp_path / "config"
+    lane_path = config / "sota_v4_lane.json"
+    lane = json.loads(lane_path.read_text())
+    lane["contract_fingerprint"] = "shared-fingerprint"
+    lane_path.write_text(json.dumps(lane))
+    (config / "sota_v4_publication_protocol.json").write_text(
+        json.dumps({"budget_policy": {"operator_ceiling_usd": 100.0}})
+    )
+    route_path = tmp_path / "results" / "analysis" / "route.json"
+    route_path.parent.mkdir(parents=True)
+    route_path.write_text(json.dumps({"generated_at_utc": "2026-08-12T00:00:00+00:00", "completion_calls": 0}))
+    (config / "sota_v4_models.json").write_text(
+        json.dumps(
+            {
+                "contract_fingerprint": "shared-fingerprint",
+                "models": [{"id": "model-v4"}],
+                "exact_route_acceptance": {"evidence_artifact": "results/analysis/route.json"},
+            }
+        )
+    )
+    readiness = tmp_path / "results" / "analysis" / "final.json"
+    readiness.write_text(
+        json.dumps(
+            {
+                "format": "gm-bench-sota-v3-final-preflight-v1",
+                "contract": "sota-v3",
+                "contract_fingerprint": "shared-fingerprint",
+                "keychain_dry_run": {"status": "passed", "model_ids": ["model-v3"]},
+            }
+        )
+    )
+    monkeypatch.setattr(launcher, "contract_fingerprint", lambda: "shared-fingerprint")
+    monkeypatch.setitem(launcher.ROUTE_ACCEPTANCE_CHECKS, "sota-v4", lambda _registry: [])
+
+    launcher._record_readiness(readiness, contract="sota-v4", max_spend_usd=100.0, mode="preflight-only")
+
+    evidence = json.loads(readiness.read_text())
+    updated_lane = json.loads(lane_path.read_text())
+    assert evidence["contract"] == "sota-v4"
+    assert "keychain_dry_run" not in evidence
+    assert updated_lane["final_preflight_evidence"]["status"] == "pending"

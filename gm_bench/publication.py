@@ -22,7 +22,12 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 def _repo_artifact_path(value: str) -> Path:
     path = Path(value)
-    return path if path.is_absolute() else _REPO_ROOT / path
+    path = path.resolve() if path.is_absolute() else (_REPO_ROOT / path).resolve()
+    try:
+        path.relative_to(_REPO_ROOT.resolve())
+    except ValueError as exc:
+        raise ValueError("publication artifact path escapes the repository root") from exc
+    return path
 
 
 def canonical_sha256(payload: dict[str, Any]) -> str:
@@ -124,7 +129,7 @@ def v3_route_identity_sha256(registry: dict[str, Any], model: dict[str, Any]) ->
     )
 
 
-def v3_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
+def v3_route_acceptance_issues(registry: dict[str, Any], *, repo_root: Path | None = None) -> list[str]:
     """Require authenticated route and privacy evidence before provider spend."""
 
     models = [model for model in registry.get("models") or [] if isinstance(model, dict)]
@@ -153,12 +158,11 @@ def v3_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
     if not isinstance(evidence_artifact, str) or not evidence_artifact.strip():
         issues.append("sota-v3 exact-route evidence artifact is missing")
     else:
-        evidence_path = Path(evidence_artifact)
-        if not evidence_path.is_absolute():
-            # Registries record repo-relative artifact paths; resolving against
-            # the CWD would make acceptance depend on where the caller ran.
-            evidence_path = _REPO_ROOT / evidence_path
         try:
+            root = _REPO_ROOT if repo_root is None else repo_root
+            evidence_path = Path(evidence_artifact)
+            evidence_path = evidence_path.resolve() if evidence_path.is_absolute() else (root / evidence_path).resolve()
+            evidence_path.relative_to(root.resolve())
             loaded = json.loads(evidence_path.read_text())
             if not isinstance(loaded, dict):
                 raise ValueError("evidence artifact must contain a JSON object")
@@ -166,6 +170,17 @@ def v3_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             issues.append(f"sota-v3 exact-route evidence artifact cannot be read: {exc}")
     evidence_routes = evidence.get("routes") if evidence is not None else None
+    expected_contract = registry.get("contract")
+    expected_fingerprint = registry.get("contract_fingerprint")
+    if evidence is not None:
+        if evidence.get("format") != "gm-bench-route-acceptance-evidence-v1":
+            issues.append("sota-v3 exact-route evidence artifact has the wrong format")
+        if evidence.get("contract") != expected_contract:
+            issues.append("sota-v3 exact-route evidence artifact is for a different contract")
+        if evidence.get("contract_fingerprint") != expected_fingerprint:
+            issues.append("sota-v3 exact-route evidence artifact is for a different contract fingerprint")
+        if evidence.get("completion_calls") != 0:
+            issues.append("sota-v3 exact-route evidence artifact must record zero completion calls")
     if evidence is not None and not isinstance(evidence_routes, dict):
         issues.append("sota-v3 exact-route evidence artifact routes are missing")
         evidence_routes = {}
@@ -242,14 +257,19 @@ def v4_route_identity_sha256(registry: dict[str, Any], model: dict[str, Any]) ->
     return v3_route_identity_sha256(registry, model)
 
 
-def v4_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
+def v4_route_acceptance_issues(registry: dict[str, Any], *, repo_root: Path | None = None) -> list[str]:
     """Require fresh v4 route evidence without changing frozen v3 behavior."""
 
-    return _v4_labels(v3_route_acceptance_issues(registry))
+    return _v4_labels(v3_route_acceptance_issues(registry, repo_root=repo_root))
 
 
 def v3_final_preflight_issues(
-    lane: dict[str, Any], registry: dict[str, Any], protocol: dict[str, Any] | None
+    lane: dict[str, Any],
+    registry: dict[str, Any],
+    protocol: dict[str, Any] | None,
+    *,
+    contract: str = "sota-v3",
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Validate the committed zero-call evidence required before paid smoke.
 
@@ -259,27 +279,48 @@ def v3_final_preflight_issues(
     prose-only operator reminder.
     """
 
+    def labels(values: list[str]) -> list[str]:
+        return values if contract == "sota-v3" else [value.replace("sota-v3", contract) for value in values]
+
+    def artifact_path(relative: str) -> Path:
+        root = _REPO_ROOT if repo_root is None else repo_root
+        path = Path(relative)
+        path = path.resolve() if path.is_absolute() else (root / path).resolve()
+        try:
+            path.relative_to(root.resolve())
+        except ValueError as exc:
+            raise ValueError("publication artifact path escapes the repository root") from exc
+        return path
+
     issues: list[str] = []
     declaration = lane.get("final_preflight_evidence")
     if not isinstance(declaration, dict) or declaration.get("status") != "accepted":
-        return ["sota-v3 final-fingerprint preflight evidence is not accepted"]
+        return labels(["sota-v3 final-fingerprint preflight evidence is not accepted"])
     relative = declaration.get("artifact")
     if not isinstance(relative, str) or not relative.strip():
-        return ["sota-v3 final-fingerprint preflight evidence path is missing"]
+        return labels(["sota-v3 final-fingerprint preflight evidence path is missing"])
     try:
-        path = _repo_artifact_path(relative)
+        path = artifact_path(relative)
         evidence = json.loads(path.read_text())
     except (OSError, ValueError, json.JSONDecodeError) as exc:
-        return [f"sota-v3 final-fingerprint preflight evidence cannot be read: {exc}"]
-    if not isinstance(evidence, dict) or evidence.get("format") != "gm-bench-sota-v3-final-preflight-v1":
-        return ["sota-v3 final-fingerprint preflight evidence has the wrong format"]
+        return labels([f"sota-v3 final-fingerprint preflight evidence cannot be read: {exc}"])
+    if not isinstance(evidence, dict) or evidence.get("format") != f"gm-bench-{contract}-final-preflight-v1":
+        return labels(["sota-v3 final-fingerprint preflight evidence has the wrong format"])
+    if evidence.get("contract") != contract:
+        issues.append("sota-v3 final-fingerprint preflight evidence is for a different contract label")
 
     fingerprint = lane.get("contract_fingerprint")
     if evidence.get("contract_fingerprint") != fingerprint or registry.get("contract_fingerprint") != fingerprint:
         issues.append("sota-v3 final-fingerprint preflight evidence is for a different contract")
     from gm_bench.contract import scaffold_fingerprint
+    from gm_bench.official import SOTA_V3_POLICY
 
-    if evidence.get("openrouter_scaffold_fingerprint") != scaffold_fingerprint("openrouter"):
+    expected_scaffold = (
+        SOTA_V3_POLICY.expected_scaffold_fingerprints["openrouter"]
+        if contract == "sota-v3"
+        else scaffold_fingerprint("openrouter")
+    )
+    if evidence.get("openrouter_scaffold_fingerprint") != expected_scaffold:
         issues.append("sota-v3 final-fingerprint preflight evidence is for a different OpenRouter scaffold")
     if evidence.get("completion_calls") != 0:
         issues.append("sota-v3 final-fingerprint preflight evidence must record zero provider completion calls")
@@ -297,12 +338,16 @@ def v3_final_preflight_issues(
         if route.get("evidence_artifact") != route_path:
             issues.append("sota-v3 final preflight points at the wrong route evidence artifact")
         try:
-            route_payload = json.loads(_repo_artifact_path(str(route_path)).read_text())
+            route_payload = json.loads(artifact_path(str(route_path)).read_text())
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             issues.append(f"sota-v3 final route evidence cannot be read: {exc}")
         else:
             if route_payload.get("contract_fingerprint") != fingerprint:
                 issues.append("sota-v3 final route evidence is for a different contract")
+            if route_payload.get("format") != "gm-bench-route-acceptance-evidence-v1":
+                issues.append("sota-v3 final route evidence has the wrong format")
+            if route_payload.get("contract") != contract:
+                issues.append("sota-v3 final route evidence is for a different contract label")
             if route_payload.get("completion_calls") != 0:
                 issues.append("sota-v3 final route evidence must record zero completion calls")
             if route.get("evidence_sha256") != canonical_sha256(route_payload):
@@ -355,7 +400,7 @@ def v3_final_preflight_issues(
 
     if declaration.get("sha256") != canonical_sha256(evidence):
         issues.append("sota-v3 final-fingerprint preflight evidence digest does not match")
-    return list(dict.fromkeys(issues))
+    return list(dict.fromkeys(labels(issues)))
 
 
 def exact_sign_flip_feasibility(
@@ -616,6 +661,13 @@ def v4_statistical_plan_issues(
 ) -> list[str]:
     """Validate v4 with v3's frozen statistical method and v4 identity."""
 
+    issues: list[str] = []
+    for label, payload in (("lane", lane), ("model registry", registry), ("publication protocol", protocol)):
+        if not isinstance(payload, dict) or payload.get("contract") != "sota-v4":
+            issues.append(f"sota-v4 {label} must declare contract 'sota-v4'")
+    if issues:
+        return issues
+
     lane_copy = dict(lane)
     registry_copy = dict(registry)
     protocol_copy = dict(protocol) if isinstance(protocol, dict) else protocol
@@ -634,6 +686,7 @@ def publication_execution_issues(
     phase: str,
     protocol: dict[str, Any] | None = None,
     pricing: dict[str, Any] | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Return every blocker before a provider-backed smoke or panel run.
 
@@ -659,14 +712,17 @@ def publication_execution_issues(
         statistical_issues = v3_statistical_plan_issues if contract == "sota-v3" else v4_statistical_plan_issues
         if phase != "route-preflight":
             issues.extend(coherence_issues(lane, registry, protocol, pricing, manifest))
-            issues.extend(route_issues(registry))
+            issues.extend(route_issues(registry, repo_root=repo_root))
             if phase == "smoke":
-                if contract == "sota-v3":
-                    issues.extend(v3_final_preflight_issues(lane, registry, protocol))
-                else:
-                    declaration = lane.get("final_preflight_evidence")
-                    if not isinstance(declaration, dict) or declaration.get("status") != "accepted":
-                        issues.append("sota-v4 final-fingerprint preflight evidence is not accepted")
+                issues.extend(
+                    v3_final_preflight_issues(
+                        lane,
+                        registry,
+                        protocol,
+                        contract=contract,
+                        repo_root=repo_root,
+                    )
+                )
             if (
                 not isinstance(protocol, dict)
                 or protocol.get("contract") != contract

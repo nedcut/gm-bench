@@ -18,7 +18,13 @@ from gm_bench.benchmark_config import (
     _parse_seeds,
     seed_panel_hash,
 )
-from gm_bench.contract import SOTA_V2_CONTRACT, SOTA_V3_CONTRACT, expected_contract, scaffold_fingerprint
+from gm_bench.contract import (
+    SOTA_V2_CONTRACT,
+    SOTA_V3_CONTRACT,
+    SOTA_V4_CONTRACT,
+    expected_contract,
+    scaffold_fingerprint,
+)
 from gm_bench.scoring import SCORE_COMPONENT_KEYS, SCORE_COMPONENT_METRICS, contribution_from_metric
 
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
@@ -139,7 +145,19 @@ SOTA_V4_POLICY = ResultPolicy(
     require_scaffold_provenance=True,
     require_score_components=True,
     require_strict_fallback=True,
-    expected_contract=expected_contract(),
+    expected_contract=SOTA_V4_CONTRACT,
+    validate_current_scaffold=False,
+    expected_scaffold_fingerprints={
+        "anthropic": "0afbbdcaecfcb1d0",
+        "claude": "4a92675327e27a4d",
+        "codex": "f6b1c953c198f6bc",
+        "cursor": "3bb877c241996ed7",
+        "gemini": "5e700d3151254ed3",
+        "ollama": "5a3778bf70bd341e",
+        "openai": "8275269195e00191",
+        "opencode": "815df462b40d1274",
+        "openrouter": "2462b25854c1298b",
+    },
     max_failed_query_rate=1.0,
 )
 OUTPUT_BUDGET_SWEEP_POLICY = ResultPolicy(

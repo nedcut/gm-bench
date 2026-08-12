@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Collect authenticated, zero-completion route and privacy evidence for SOTA-v3.
+"""Collect authenticated, zero-completion route and privacy evidence.
 
 The collector reads only OpenRouter metadata endpoints. It never sends a model
 prompt, never creates a completion, and never records the account balance or API
@@ -223,17 +223,17 @@ def _write_json(path: Path, payload: dict[str, Any], *, sort_keys: bool = True) 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--registry", type=Path, default=ROOT / "config" / "sota_v3_models.json")
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=ROOT / "results" / "analysis" / "sota-v3-route-acceptance-evidence.json",
-    )
+    parser.add_argument("--contract", choices=("sota-v3", "sota-v4"), default="sota-v3")
+    parser.add_argument("--registry", type=Path)
+    parser.add_argument("--output", type=Path)
     parser.add_argument("--apply-registry", action="store_true")
     args = parser.parse_args(argv)
     root = ROOT.resolve()
-    output = args.output.resolve()
-    registry_path = args.registry.resolve()
+    stem = args.contract.replace("-", "_")
+    registry_path = (args.registry or ROOT / "config" / f"{stem}_models.json").resolve()
+    output = (
+        args.output or ROOT / "results" / "analysis" / f"{args.contract}-route-acceptance-evidence.json"
+    ).resolve()
     for label, path in (("evidence output", output), ("registry", registry_path)):
         if not path.is_relative_to(root):
             parser.error(f"{label} must be inside the repository")
@@ -246,6 +246,14 @@ def main(argv: list[str] | None = None) -> int:
         "User-Agent": "gm-bench-route-evidence/1",
     }
     registry = _read_json(registry_path)
+    if registry.get("contract") != args.contract:
+        parser.error(
+            f"registry declares {registry.get('contract')!r}, expected {args.contract!r}; "
+            "contract-specific evidence paths may not be mixed"
+        )
+    expected_output_name = f"{args.contract}-route-acceptance-evidence.json"
+    if output.name != expected_output_name:
+        parser.error(f"evidence output must be named {expected_output_name!r} for {args.contract}")
     evidence = collect(registry, headers)
     _write_json(output, evidence)
     if args.apply_registry:

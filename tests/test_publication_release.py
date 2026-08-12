@@ -132,6 +132,10 @@ def _v3_release_fixture(tmp_path: Path) -> tuple[Path, Path]:
         "provider_policy": {},
     }
     evidence = {
+        "format": "gm-bench-route-acceptance-evidence-v1",
+        "contract": "sota-v3",
+        "contract_fingerprint": fingerprint,
+        "completion_calls": 0,
         "privacy_standard": registry["exact_route_acceptance"]["privacy_standard"],
         "official_policy_sources": [],
         "routes": {"demo-v3": route},
@@ -149,7 +153,7 @@ def _v3_release_fixture(tmp_path: Path) -> tuple[Path, Path]:
     )
     evidence_path = repo / "results/analysis/route-evidence.json"
     _write_json(evidence_path, evidence)
-    registry["exact_route_acceptance"]["evidence_artifact"] = str(evidence_path)
+    registry["exact_route_acceptance"]["evidence_artifact"] = "results/analysis/route-evidence.json"
     seed_count = 6
     lane = {
         "contract": "sota-v3",

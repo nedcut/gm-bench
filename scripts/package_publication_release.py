@@ -233,6 +233,8 @@ def _require_v3_release_authorized(
     protocol: dict[str, Any],
     pricing: dict[str, Any],
     manifest: dict[str, Any],
+    *,
+    repo_root: Path,
 ) -> None:
     """Require the full execution/evidence gate plus explicit release approval."""
 
@@ -243,6 +245,7 @@ def _require_v3_release_authorized(
         phase="panel",
         protocol=protocol,
         pricing=pricing,
+        repo_root=repo_root,
     )
     output_budget_status = str(lane.get("output_budget_status") or "")
     if not output_budget_status.startswith("frozen"):
@@ -334,7 +337,14 @@ def build_release(
         protocol = _read_json(repo_root / "config/sota_v3_publication_protocol.json")
         pricing = _read_json(repo_root / "config/sota_v3_pricing_snapshot.json")
         smoke_manifest = _read_json(repo_root / "config/sota_v3_smoke_manifest.json")
-        _require_v3_release_authorized(lane, registry, protocol, pricing, smoke_manifest)
+        _require_v3_release_authorized(
+            lane,
+            registry,
+            protocol,
+            pricing,
+            smoke_manifest,
+            repo_root=repo_root,
+        )
         eligible = _v3_analysis_rows(
             analysis,
             registered_ids,

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import gm_bench.contract as contract_module
 import gm_bench.publication as publication
 import scripts.run_sota_v3_smoke_from_keychain as launcher
 from gm_bench.benchmark_config import PRIVATE_SEEDS_ENV, seed_panel_hash
@@ -80,6 +81,8 @@ def test_keychain_launcher_records_final_fingerprint_readiness(
     route_path = tmp_path / "results" / "analysis" / "route.json"
     route_path.parent.mkdir(parents=True)
     route = {
+        "format": "gm-bench-route-acceptance-evidence-v1",
+        "contract": "sota-v3",
         "contract_fingerprint": fingerprint,
         "completion_calls": 0,
         "generated_at_utc": "2026-08-11T12:00:00+00:00",
@@ -130,6 +133,8 @@ def test_keychain_launcher_records_final_fingerprint_readiness(
     registry = json.loads((tmp_path / "config" / "sota_v3_models.json").read_text())
     protocol = json.loads((tmp_path / "config" / "sota_v3_publication_protocol.json").read_text())
     monkeypatch.setattr(publication, "_REPO_ROOT", tmp_path)
+    assert publication.v3_final_preflight_issues(updated_lane, registry, protocol) == []
+    monkeypatch.setattr(contract_module, "scaffold_fingerprint", lambda _provider: "future-scaffold")
     assert publication.v3_final_preflight_issues(updated_lane, registry, protocol) == []
 
     evidence["authenticated_route_and_price_preflight"]["pricing_checked"] = False

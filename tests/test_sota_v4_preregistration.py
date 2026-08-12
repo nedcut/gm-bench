@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from gm_bench.publication import publication_execution_issues
+from gm_bench.publication import publication_execution_issues, v3_final_preflight_issues
 from scripts.estimate_publication_cost import estimate
 
 CONFIG = Path("config")
@@ -45,6 +45,8 @@ def test_v4_frozen_records_are_cross_file_coherent() -> None:
     assert registry["output_token_cap"] == lane["output_token_cap"] == 4096
     assert lane["preregistration_status"] == protocol["status"] == "frozen"
     assert lane["panel_design_status"] == protocol["panel_design"]["status"] == "frozen"
+    assert lane["seed_panel"]["status"] == "frozen"
+    assert lane["output_policy_basis"] == "fixed-safety-ceiling"
     assert lane["output_budget_status"] == registry["output_budget_status"]
     assert protocol["output_policy"]["status"] == "frozen-native-reasoning-cap"
     assert pricing["status"] == "frozen"
@@ -115,6 +117,57 @@ def test_v4_authorizes_only_zero_spend_route_preflight() -> None:
         )
         == []
     )
+    smoke_issues = publication_execution_issues(
+        lane,
+        registry,
+        manifest,
+        phase="smoke",
+        protocol=protocol,
+        pricing=pricing,
+    )
+    panel_issues = publication_execution_issues(
+        lane,
+        registry,
+        manifest,
+        phase="panel",
+        protocol=protocol,
+        pricing=pricing,
+    )
+    assert any("spend is explicitly authorized" in issue for issue in smoke_issues)
+    assert any("smoke_execution_authorized is false" in issue for issue in smoke_issues)
+    assert any("panel_execution_authorized is false" in issue for issue in panel_issues)
+    assert any("smoke manifest is not accepted" in issue for issue in panel_issues)
+
+
+def test_v4_final_preflight_status_cannot_bypass_artifact_validation() -> None:
+    lane, registry, protocol, _, _ = _configs()
+    lane["final_preflight_evidence"] = {
+        "status": "accepted",
+        "artifact": "results/analysis/missing-v4-final-preflight.json",
+        "sha256": "0" * 64,
+        "operator_ceiling_usd": 100.0,
+    }
+
+    issues = v3_final_preflight_issues(lane, registry, protocol, contract="sota-v4")
+
+    assert any("cannot be read" in issue for issue in issues)
+    assert all("sota-v3" not in issue for issue in issues)
+
+
+def test_v4_statistical_plan_rejects_mislabeled_contracts() -> None:
+    lane, registry, protocol, _, _ = _configs()
+    lane["contract"] = "sota-v3"
+
+    issues = publication_execution_issues(
+        lane,
+        registry,
+        _read(CONFIG / "sota_v4_smoke_manifest.json"),
+        phase="smoke",
+        protocol=protocol,
+        pricing=_read(CONFIG / "sota_v4_pricing_snapshot.json"),
+    )
+
+    assert any("contracts do not match" in issue or "must declare contract" in issue for issue in issues)
 
 
 def test_v4_cost_artifact_regenerates_and_ceiling_covers_smoke_only() -> None:

@@ -114,7 +114,13 @@ def _record_readiness(path: Path, *, contract: str, max_spend_usd: float, mode: 
     existing: dict[str, object] = {}
     if path.exists():
         payload = json.loads(path.read_text())
-        if isinstance(payload, dict) and payload.get("contract_fingerprint") == fingerprint:
+        if (
+            isinstance(payload, dict)
+            and payload.get("contract") == contract
+            and payload.get("format") == f"gm-bench-{contract}-final-preflight-v1"
+            and payload.get("contract_fingerprint") == fingerprint
+            and (payload.get("route_preflight") or {}).get("evidence_artifact") == route_relative
+        ):
             existing = payload
     evidence = {
         "format": f"gm-bench-{contract}-final-preflight-v1",
@@ -161,6 +167,24 @@ def _record_readiness(path: Path, *, contract: str, max_spend_usd: float, mode: 
     path.write_text(json.dumps(evidence, indent=2, sort_keys=True, allow_nan=False) + "\n")
     relative = str(path.resolve().relative_to(ROOT.resolve()))
     accepted = "keychain_dry_run" in evidence and "authenticated_route_and_price_preflight" in evidence
+    if accepted:
+        dry_run = evidence["keychain_dry_run"]
+        live_preflight = evidence["authenticated_route_and_price_preflight"]
+        accepted = (
+            isinstance(dry_run, dict)
+            and dry_run.get("status") == "passed"
+            and dry_run.get("model_ids") == model_ids
+            and dry_run.get("operator_ceiling_usd") == max_spend_usd
+            and dry_run.get("seed_panel_sha256") == panel.get("sha256")
+            and dry_run.get("hiding_commitment_verified") is True
+            and dry_run.get("private_seed_values_included") is False
+            and isinstance(live_preflight, dict)
+            and live_preflight.get("status") == "passed"
+            and live_preflight.get("model_ids") == model_ids
+            and live_preflight.get("completion_calls") == 0
+            and live_preflight.get("canonical_openrouter_api_base") == CANONICAL_OPENROUTER_API_BASE
+            and live_preflight.get("pricing_checked") is True
+        )
     lane["final_preflight_evidence"] = {
         "status": "accepted" if accepted else "pending",
         "artifact": relative,
@@ -169,6 +193,21 @@ def _record_readiness(path: Path, *, contract: str, max_spend_usd: float, mode: 
         "completion_calls": 0,
         "operator_ceiling_usd": max_spend_usd,
     }
+    if accepted:
+        from gm_bench.publication import v3_final_preflight_issues
+
+        protocol = json.loads(_contract_path(contract, "protocol").read_text())
+        validation_issues = v3_final_preflight_issues(
+            lane,
+            registry,
+            protocol,
+            contract=contract,
+            repo_root=ROOT,
+        )
+        if validation_issues:
+            lane["final_preflight_evidence"]["status"] = "pending"
+            lane_path.write_text(json.dumps(lane, indent=2, allow_nan=False) + "\n")
+            raise ValueError("recorded final readiness did not validate: " + "; ".join(validation_issues))
     lane_path.write_text(json.dumps(lane, indent=2, allow_nan=False) + "\n")
 
 

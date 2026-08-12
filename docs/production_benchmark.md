@@ -56,12 +56,23 @@ multi-megabyte failed artifact is intentionally not retained. Prefer
 `--preset smoke` first; a clean serial strict panel is
 multi-hour quota spend, not a quick retry.
 
-The SOTA-v3 strict-smoke lane is terminal and must not be rerun. SOTA-v4 starts
-with route, spend, smoke, panel, and publication authorization disabled. Its
-free preflight and paid smoke commands will be documented only after the new
-cohort, routes, pricing, evidence formats, and Keychain lineage are frozen and
-the corresponding zero-spend gates pass. Panel execution remains a separate
-post-smoke decision.
+The SOTA-v3 strict-smoke lane is terminal and must not be rerun. SOTA-v4 has a
+frozen cohort and authorizes only authenticated zero-completion route/privacy
+collection and route preflight; spend, smoke, panel, and publication remain
+disabled. Collect the fresh v4 route record without allowing any v3 path to be
+selected:
+
+```bash
+uv run python scripts/collect_sota_v3_route_evidence.py \
+  --contract sota-v4 --apply-registry
+uv run python scripts/run_publication_matrix.py route-preflight \
+  --contract sota-v4
+```
+
+These commands read authenticated metadata only and record zero completion
+calls. Paid smoke commands remain unauthorized until this evidence, the final
+Keychain-backed dry run, exact-head CI, and a separate owner decision all pass.
+Panel execution remains a separate post-smoke decision.
 
 Fresh-spawn serial model panels write an atomic checkpoint after every completed
 seed/repeat and stop after two consecutive adapter failures. Resume with

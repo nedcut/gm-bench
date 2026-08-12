@@ -2001,7 +2001,7 @@ def main(argv: list[str] | None = None, *, _paid_run_lock_held: bool = False) ->
                 continue
         if cell.provider == "openrouter":
             if (
-                args.phase == "route-preflight"
+                (args.phase == "route-preflight" or args.preflight_only)
                 and args.contract in AUTHENTICATED_ROUTE_CONTRACTS
                 and not env.get("OPENROUTER_API_KEY")
             ):

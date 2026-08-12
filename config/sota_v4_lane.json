@@ -62,7 +62,7 @@
     "lineage": "The 16-seed allocation, exact unused commitment, and pre-data power calculation are carried from sota-v3 because the Holm family remains eight. No sota-v3 panel was run and no seed or salt was read while freezing this package."
   },
   "seed_panel": {
-    "status": "frozen-carried-forward-unused",
+    "status": "frozen",
     "name": "private-env",
     "count": 16,
     "sha256": "291fa61cc3dfd8b23fdd79cce3c80a0a98f918f6c8757d35c21b4d8131cc6099",
@@ -87,7 +87,7 @@
   "reasoning_policy": "disabled",
   "output_token_cap": 4096,
   "output_budget_status": "frozen-native-reasoning-cap",
-  "output_policy_basis": "Frozen 4,096-token reasoning-disabled safety ceiling carried forward before any sota-v4 model result.",
+  "output_policy_basis": "fixed-safety-ceiling",
   "output_policy_amendment_rule": "Any cap pressure aborts sota-v4 and requires a new preregistration before further model calls; no in-place result-informed cap amendment is authorized.",
   "cap_pressure_action": "abort-sota-v4-and-repreregister",
   "max_cap_amendments": 0,
