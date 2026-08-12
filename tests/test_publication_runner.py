@@ -485,6 +485,61 @@ def test_smoke_is_clean_and_resumes_existing_checkpoint(tmp_path: Path) -> None:
     assert "--resume" in cell_command(cell, tmp_path)
 
 
+def test_smoke_retry_archives_empty_aborted_stale_checkpoint(tmp_path: Path) -> None:
+    cell = build_cells("smoke")[0]
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    checkpoint = tmp_path / "checkpoints" / f"{stem}.json"
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "format": "gm-bench-model-checkpoint-v1",
+                "status": "aborted",
+                "provenance": {
+                    "benchmark_contract": contract_fingerprint(),
+                    "scaffold_fingerprint": "superseded-scaffold",
+                },
+                "episodes": [],
+                "completed": [],
+            }
+        )
+    )
+    (tmp_path / "openrouter-reservations.json").write_text(json.dumps({"cells": {stem: {"attempts": 1}}}))
+
+    archived = publication_runner._prepare_smoke_retry_checkpoint(cell, tmp_path)
+
+    assert archived == tmp_path / "checkpoints" / "failed-attempts" / f"{stem}--attempt-1.json"
+    assert archived.is_file()
+    assert not checkpoint.exists()
+    assert "--resume" not in cell_command(cell, tmp_path)
+
+
+def test_smoke_retry_rejects_nonempty_stale_checkpoint_before_reservation(tmp_path: Path) -> None:
+    cell = build_cells("smoke")[0]
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    checkpoint = tmp_path / "checkpoints" / f"{stem}.json"
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "format": "gm-bench-model-checkpoint-v1",
+                "status": "aborted",
+                "provenance": {
+                    "benchmark_contract": contract_fingerprint(),
+                    "scaffold_fingerprint": "superseded-scaffold",
+                },
+                "episodes": [{"seed": 1}],
+                "completed": [{"seed": 1, "repeat": 1}],
+            }
+        )
+    )
+
+    with pytest.raises(ValueError, match="not an empty aborted attempt"):
+        publication_runner._prepare_smoke_retry_checkpoint(cell, tmp_path)
+
+    assert checkpoint.is_file()
+
+
 def test_smoke_reuses_only_existing_artifact_that_passes_current_gate(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1995,6 +2050,27 @@ def test_spend_reconciliation_charges_the_full_unknown_call_reservation(tmp_path
     assert state["active_call_reservation_usd"] == 0
     assert "blocked_reason" not in state
     assert (tmp_path / publication_runner.SPEND_RECONCILIATION).is_file()
+
+
+def test_spend_reconciliation_rejects_nonfinite_ceiling(tmp_path: Path) -> None:
+    (tmp_path / "openrouter-budget.json").write_text(json.dumps({"starting_total_usage_usd": 10.0}))
+    state_path = tmp_path / publication_runner.CALL_SPEND_GUARD_STATE
+    state_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "ceiling_usd": float("nan"),
+                "reported_spend_usd": 0.001,
+                "active_call_reservation_usd": 0.02,
+                "blocked_reason": "missing cost",
+            }
+        )
+    )
+
+    with pytest.raises(ValueError, match="authorized ceiling"):
+        _reconcile_spend_guard(tmp_path)
+
+    assert not (tmp_path / publication_runner.SPEND_RECONCILIATION).exists()
 
 
 def test_operator_ceiling_stays_permissive_when_no_cap_is_committed(

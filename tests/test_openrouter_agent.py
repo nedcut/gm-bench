@@ -66,6 +66,11 @@ def test_provider_preferences_are_reproducibility_safe(monkeypatch) -> None:
     }
 
 
+def test_finite_cost_rejects_json_booleans() -> None:
+    assert openrouter_agent._finite_cost(True) is None
+    assert openrouter_agent._finite_cost(False) is None
+
+
 def test_choose_actions_records_route_and_authoritative_cost(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
@@ -140,6 +145,28 @@ def test_choose_actions_keeps_missing_cost_fail_closed_after_generation_lookup(m
     def fake_urlopen(request: object, **_kwargs: object):
         if "/generation?" in request.full_url:
             return _GenerationResponse({"data": {"total_cost": None}})
+        return MissingCost()
+
+    monkeypatch.setattr(openrouter_agent.time, "sleep", lambda _delay: None)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setattr(openrouter_agent.urllib.request, "urlopen", fake_urlopen)
+
+    _actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+
+    assert "cost_usd" not in usage
+    assert "authoritative finite generation cost" in usage["telemetry_error"]
+
+
+def test_choose_actions_rejects_boolean_generation_cost(monkeypatch) -> None:
+    class MissingCost(_Response):
+        def read(self) -> bytes:
+            payload = json.loads(super().read())
+            payload["usage"].pop("cost")
+            return json.dumps(payload).encode()
+
+    def fake_urlopen(request: object, **_kwargs: object):
+        if "/generation?" in request.full_url:
+            return _GenerationResponse({"data": {"total_cost": True}})
         return MissingCost()
 
     monkeypatch.setattr(openrouter_agent.time, "sleep", lambda _delay: None)

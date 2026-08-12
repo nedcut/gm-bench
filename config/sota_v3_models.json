@@ -10,7 +10,7 @@
   "preset": "leaderboard",
   "repeats": 1,
   "selection_status": "frozen",
-  "selection_frozen_at_utc": "2026-08-12T16:47:27+00:00",
+  "selection_frozen_at_utc": "2026-08-12T16:54:47+00:00",
   "selection_revision": "2026-08-11-cloudflare-route-tag-refresh-v5",
   "catalog_snapshot_status": "frozen-public-metadata-only",
   "catalog_checked_at_utc": "2026-08-04T16:00:40Z",
@@ -410,7 +410,7 @@
   "exact_route_acceptance": {
     "schema_version": 2,
     "status": "accepted",
-    "accepted_at_utc": "2026-08-12T16:47:27+00:00",
+    "accepted_at_utc": "2026-08-12T16:54:47+00:00",
     "evidence_artifact": "results/analysis/sota-v3-route-acceptance-evidence.json",
     "privacy_standard": {
       "data_classification": "synthetic-benchmark-no-personal-or-confidential-data",
@@ -424,8 +424,8 @@
       "openrouter-gpt-5.6-luna-openai": {
         "route_identity_sha256": "7968d261fc1919563259c9226842ac936f1b0a9b1250f4b4b3013c3b6ebbdabb",
         "authenticated": true,
-        "verified_at_utc": "2026-08-12T16:47:27+00:00",
-        "route_evidence_sha256": "690d68df7b08475aad466e6fdfeeebabf4d99902458650a48ec60a3b96154154",
+        "verified_at_utc": "2026-08-12T16:54:47+00:00",
+        "route_evidence_sha256": "e7d39a4e695a549017e52227b3d90c849999b0863e13184bcbba8add5aaf5e06",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "7968d261fc1919563259c9226842ac936f1b0a9b1250f4b4b3013c3b6ebbdabb",
@@ -434,15 +434,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-12T16:47:27+00:00",
+          "accepted_at_utc": "2026-08-12T16:54:47+00:00",
           "evidence_sha256": "a5f2713f4bcd7e92dba4e8c433ee1ee6a7d24dbb7f0c555554e8c5789c8f4124"
         }
       },
       "openrouter-claude-sonnet-5-bedrock": {
         "route_identity_sha256": "cd14b14e915dbac2656c1483972fb585df7d718635f2748e044ecfe1d0c6be4c",
         "authenticated": true,
-        "verified_at_utc": "2026-08-12T16:47:27+00:00",
-        "route_evidence_sha256": "f51ff8e75a13158edc0942377ef545f371688c4a0d4604b5bc69324240cb0eea",
+        "verified_at_utc": "2026-08-12T16:54:47+00:00",
+        "route_evidence_sha256": "98cd6cfabe34ac8e2524051ad1da49294e7e9a0e2625ef0e1233a05870f7967f",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "cd14b14e915dbac2656c1483972fb585df7d718635f2748e044ecfe1d0c6be4c",
@@ -451,15 +451,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-12T16:47:27+00:00",
+          "accepted_at_utc": "2026-08-12T16:54:47+00:00",
           "evidence_sha256": "aa3a9f7abc28801d7f33ff49033559b7a4dff8b4bd9f22760392b80d23f202c9"
         }
       },
       "openrouter-glm-5.2-novita": {
         "route_identity_sha256": "864af6547ed9669d9f1e16c9cf93ce86c3c341f3383a21750fe0228b63c4d20d",
         "authenticated": true,
-        "verified_at_utc": "2026-08-12T16:47:27+00:00",
-        "route_evidence_sha256": "b0c963589be4b59107b49e68f14b48149a312d8ca95efa8cc7d3a18a8a2edf18",
+        "verified_at_utc": "2026-08-12T16:54:47+00:00",
+        "route_evidence_sha256": "5e10b14338d7d6d7619dfc14d292ef84cbc3ec0758fbe629ef7dfab59b81f64e",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "864af6547ed9669d9f1e16c9cf93ce86c3c341f3383a21750fe0228b63c4d20d",
@@ -468,14 +468,14 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-12T16:47:27+00:00",
+          "accepted_at_utc": "2026-08-12T16:54:47+00:00",
           "evidence_sha256": "e04fa9099c24fb9cdd5afd3f2f99f247e63bfbf3eae2047d17e27db3e6dd1f1a"
         }
       },
       "openrouter-minimax-m3-deepinfra": {
         "route_identity_sha256": "3a5ff981f3b2ce8e13604c9a2c5ee3a3794b5dbd09228a11c641ed33bf2ec326",
         "authenticated": true,
-        "verified_at_utc": "2026-08-12T16:47:27+00:00",
+        "verified_at_utc": "2026-08-12T16:54:47+00:00",
         "route_evidence_sha256": "205b434ef72991000aa597488669735c359c832e0a32da9b547fe068f03906f1",
         "privacy_acceptance": {
           "status": "accepted",
@@ -485,15 +485,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-12T16:47:27+00:00",
+          "accepted_at_utc": "2026-08-12T16:54:47+00:00",
           "evidence_sha256": "4abf4fae23fb326c977846ce06c6c0c006e55b007779667787335d46249dc79f"
         }
       },
       "openrouter-qwen3.8-max-alibaba": {
         "route_identity_sha256": "ad5446583e6d608032760931054c42a8b774149e3c3cf6dd6426656b18871804",
         "authenticated": true,
-        "verified_at_utc": "2026-08-12T16:47:27+00:00",
-        "route_evidence_sha256": "0d48ae4065bd8b5d032f0a2c3b003bde61f5585a523dafb3aee9aca42975c202",
+        "verified_at_utc": "2026-08-12T16:54:47+00:00",
+        "route_evidence_sha256": "7d7dfb2745cacf8aa81f14f688129c000e88225d3bee5a1a84b178df4e6edb51",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "ad5446583e6d608032760931054c42a8b774149e3c3cf6dd6426656b18871804",
@@ -502,15 +502,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-12T16:47:27+00:00",
+          "accepted_at_utc": "2026-08-12T16:54:47+00:00",
           "evidence_sha256": "042780febcef9ba21cf3b85d799e5d58cb3aba4d8e567605e9bea1af4603da23"
         }
       },
       "openrouter-mistral-medium-3.5-mistral": {
         "route_identity_sha256": "6b50860e44b7c8c4e52ac53faa23cebffec2f4f430fac1cd0aaf1a80683b3a03",
         "authenticated": true,
-        "verified_at_utc": "2026-08-12T16:47:27+00:00",
-        "route_evidence_sha256": "feaad15a49de67c1e6d495e49a40617043f5a6c6e2e7d9dc3fe698518d909748",
+        "verified_at_utc": "2026-08-12T16:54:47+00:00",
+        "route_evidence_sha256": "a805447143575d31f8e3d6c8d5cbdab8e5b6175582ea256581f30c06f6d448c7",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "6b50860e44b7c8c4e52ac53faa23cebffec2f4f430fac1cd0aaf1a80683b3a03",
@@ -519,15 +519,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-12T16:47:27+00:00",
+          "accepted_at_utc": "2026-08-12T16:54:47+00:00",
           "evidence_sha256": "3f6a3f935a15742c999790593bc6d35d7ea0728c0ea65523611a7aebcff57055"
         }
       },
       "openrouter-deepseek-v4-flash-0731-cloudflare": {
         "route_identity_sha256": "18ad2c23c2054b976e69c7cf2c3d7c913a8b376c549edc030ab5cb11e7ad2066",
         "authenticated": true,
-        "verified_at_utc": "2026-08-12T16:47:27+00:00",
-        "route_evidence_sha256": "e62b221b6d74fe455a64497e4c27dec02f1c60e5e509ed8f9684abd5e5668245",
+        "verified_at_utc": "2026-08-12T16:54:47+00:00",
+        "route_evidence_sha256": "76e8a20f6037da72f909508f9b4ea7f491c94d5ff5e491d5267d241b5c61161b",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "18ad2c23c2054b976e69c7cf2c3d7c913a8b376c549edc030ab5cb11e7ad2066",
@@ -536,15 +536,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-12T16:47:27+00:00",
+          "accepted_at_utc": "2026-08-12T16:54:47+00:00",
           "evidence_sha256": "7244e24cd96ae75d8d4cf21860e674ab1bd9179a4196d0c0874242a067984061"
         }
       },
       "openrouter-hy3-tencent": {
         "route_identity_sha256": "845a8c55b92983428fe7e3d75aecaf07172f2c84c57b43ecbbb0405a51ad8ee4",
         "authenticated": true,
-        "verified_at_utc": "2026-08-12T16:47:27+00:00",
-        "route_evidence_sha256": "8dbd01643d75411dd0edb26037cb658c11ec3a940f6d68cf0e735efa591044fe",
+        "verified_at_utc": "2026-08-12T16:54:47+00:00",
+        "route_evidence_sha256": "15073aade37269ededecadd796b985d14094743d44ce1c29d521165db746a80e",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "845a8c55b92983428fe7e3d75aecaf07172f2c84c57b43ecbbb0405a51ad8ee4",
@@ -553,7 +553,7 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-12T16:47:27+00:00",
+          "accepted_at_utc": "2026-08-12T16:54:47+00:00",
           "evidence_sha256": "b262ab6afe54deb2a1a540b75f4cdf4a351e405d9a65a1d86b4e1858d504327a"
         }
       }

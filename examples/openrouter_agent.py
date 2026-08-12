@@ -67,6 +67,8 @@ def provider_preferences() -> dict[str, Any]:
 
 def _finite_cost(value: Any) -> float | None:
     """Return an authoritative finite non-negative provider cost."""
+    if isinstance(value, bool):
+        return None
     try:
         cost = float(value)
     except (TypeError, ValueError):
@@ -87,7 +89,8 @@ def _generation_cost(base_url: str, api_key: str, generation_id: str) -> float |
         if delay:
             time.sleep(delay)
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:
+            # Fixed provider HTTPS endpoint from operator config, not attacker-controlled input.
+            with urllib.request.urlopen(request, timeout=30) as response:  # nosemgrep
                 payload = json.loads(response.read().decode())
         except (urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError):
             continue

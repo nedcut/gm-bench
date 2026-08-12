@@ -129,7 +129,7 @@
   "final_preflight_evidence": {
     "status": "accepted",
     "artifact": "results/analysis/sota-v3-final-preflight-evidence.json",
-    "sha256": "ecb16621c6c80d4a760d4e8bbf9ba33d2507db13adfbc10e3b5553a49a26a8e5",
+    "sha256": "c3cb570cd97d30d0b6d9b1ec77c97ad24a3ba7331634101652dc27e1ed916c13",
     "contract_fingerprint": "247e12fe5a7d4f5b",
     "completion_calls": 0,
     "operator_ceiling_usd": 100.0

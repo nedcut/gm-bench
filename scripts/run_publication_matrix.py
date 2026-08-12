@@ -494,6 +494,48 @@ def cell_command(cell: Cell, run_dir: Path, *, preflight: bool = False) -> list[
     return command
 
 
+def _prepare_smoke_retry_checkpoint(cell: Cell, run_dir: Path) -> Path | None:
+    """Archive only an empty aborted checkpoint whose provenance is stale.
+
+    This check runs under the paid-run lock and before reserving an infrastructure
+    attempt, so a provenance-only local failure cannot consume the final retry.
+    """
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    checkpoint = run_dir / "checkpoints" / f"{stem}.json"
+    if not checkpoint.exists():
+        return None
+    payload = _read_json_if_valid(checkpoint)
+    if payload is None:
+        raise ValueError(f"cannot safely retry from invalid checkpoint: {checkpoint}")
+    provenance = payload.get("provenance")
+    provenance = provenance if isinstance(provenance, dict) else {}
+    expected_contract = contract_fingerprint()
+    expected_scaffold = scaffold_fingerprint(cell.provider)
+    if (
+        provenance.get("benchmark_contract") == expected_contract
+        and provenance.get("scaffold_fingerprint") == expected_scaffold
+    ):
+        return None
+    episodes = payload.get("episodes")
+    completed = payload.get("completed")
+    if payload.get("status") != "aborted" or episodes != [] or completed != []:
+        raise ValueError("stale-provenance checkpoint is not an empty aborted attempt; refusing to reserve a retry")
+    if _checkpoint_process_alive(checkpoint):
+        raise ValueError("stale-provenance checkpoint is still locked by a live process")
+    reservations = _read_json_if_valid(run_dir / "openrouter-reservations.json") or {}
+    cell_reservation = (reservations.get("cells") or {}).get(stem)
+    attempts = cell_reservation.get("attempts") if isinstance(cell_reservation, dict) else None
+    if not isinstance(attempts, int) or isinstance(attempts, bool) or attempts < 1:
+        raise ValueError("empty stale checkpoint has no recorded infrastructure attempt to preserve")
+    archive_dir = run_dir / "checkpoints" / "failed-attempts"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    archived = archive_dir / f"{stem}--attempt-{attempts}.json"
+    if archived.exists():
+        raise ValueError(f"refusing to overwrite archived failed checkpoint: {archived}")
+    checkpoint.replace(archived)
+    return archived
+
+
 def _openrouter_usage_usd(env: dict[str, str]) -> float:
     key = env.get("OPENROUTER_API_KEY")
     if not key:
@@ -756,7 +798,13 @@ def _reconcile_spend_guard(run_dir: Path) -> dict[str, Any]:
         raise ValueError("spend guard has no unresolved blocked reservation to reconcile")
     reconciled_spend = float(reported) + float(active)
     ceiling = state.get("ceiling_usd")
-    if not isinstance(ceiling, int | float) or isinstance(ceiling, bool) or reconciled_spend > float(ceiling):
+    if (
+        not isinstance(ceiling, int | float)
+        or isinstance(ceiling, bool)
+        or not math.isfinite(float(ceiling))
+        or float(ceiling) < 0
+        or reconciled_spend > float(ceiling)
+    ):
         raise ValueError("absorbing the unresolved call reservation would exceed the authorized ceiling")
 
     evidence = {
@@ -1832,6 +1880,14 @@ def main(argv: list[str] | None = None, *, _paid_run_lock_held: bool = False) ->
     preflight_failures: list[str] = []
     for cell in cells:
         env = cell_environment(cell)
+        archived_checkpoint = None
+        if args.phase == "smoke" and not args.preflight_only and not args.dry_run:
+            try:
+                archived_checkpoint = _prepare_smoke_retry_checkpoint(cell, run_dir)
+            except ValueError as exc:
+                raise SystemExit(f"smoke retry checkpoint is unsafe for {cell.experiment_id}: {exc}") from exc
+        if archived_checkpoint is not None:
+            print(f"archived empty stale failed checkpoint before retry: {archived_checkpoint}")
         command = cell_command(
             cell,
             run_dir,
