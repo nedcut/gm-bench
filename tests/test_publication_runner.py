@@ -71,10 +71,12 @@ def _frozen_panel_files(
     registry["selection_status"] = "frozen"
     registry["provider"] = "openrouter"
     registry["spend_authorized"] = True
+    registry["route_preflight_authorized"] = True
     registry["panel_execution_authorized"] = True
     registry["exact_route_acceptance"] = {
         "schema_version": 1,
         "status": "accepted",
+        "accepted_at_utc": "2026-07-30T00:00:00Z",
         "privacy_standard": {
             "data_classification": "synthetic-benchmark-no-personal-or-confidential-data",
             "provider_data_collection": "deny",
@@ -103,6 +105,9 @@ def _frozen_panel_files(
         },
     }
     evidence = {
+        "contract_fingerprint": contract_fingerprint(),
+        "completion_calls": 0,
+        "generated_at_utc": "2026-07-30T00:00:00Z",
         "privacy_standard": registry["exact_route_acceptance"]["privacy_standard"],
         "official_policy_sources": [],
         "routes": {},
@@ -135,6 +140,7 @@ def _frozen_panel_files(
     lane["preregistration_status"] = "frozen"
     lane["panel_design_status"] = "frozen"
     lane["spend_authorized"] = True
+    lane["route_preflight_authorized"] = True
     lane["smoke_execution_authorized"] = True
     lane["panel_execution_authorized"] = True
     lane["output_budget_status"] = "frozen-native-reasoning-cap"
@@ -165,6 +171,48 @@ def _frozen_panel_files(
         "count": len(private_seeds),
         "sha256": hashlib.sha256(",".join(str(seed) for seed in private_seeds).encode()).hexdigest(),
         "hiding_commitment_sha256": "c" * 64,
+    }
+    final_evidence_path = tmp_path / "final-preflight.json"
+    final_evidence = {
+        "format": "gm-bench-sota-v3-final-preflight-v1",
+        "schema_version": 1,
+        "contract": "sota-v3",
+        "contract_fingerprint": contract_fingerprint(),
+        "generated_at_utc": "2026-07-30T00:01:00Z",
+        "canonical_openrouter_api_base": "https://openrouter.ai/api/v1",
+        "completion_calls": 0,
+        "route_preflight": {
+            "status": "accepted",
+            "evidence_artifact": str(evidence_path),
+            "evidence_sha256": canonical_sha256(evidence),
+            "verified_at_utc": evidence["generated_at_utc"],
+        },
+        "keychain_dry_run": {
+            "status": "passed",
+            "model_ids": [model["id"] for model in registry["models"]],
+            "commands_constructed": len(registry["models"]),
+            "operator_ceiling_usd": 100.0,
+            "seed_panel_sha256": lane["seed_panel"]["sha256"],
+            "hiding_commitment_verified": True,
+            "private_seed_values_included": False,
+        },
+        "authenticated_route_and_price_preflight": {
+            "status": "passed",
+            "model_ids": [model["id"] for model in registry["models"]],
+            "commands_executed": len(registry["models"]),
+            "completion_calls": 0,
+            "canonical_openrouter_api_base": "https://openrouter.ai/api/v1",
+            "pricing_checked": True,
+        },
+    }
+    final_evidence_path.write_text(json.dumps(final_evidence))
+    lane["final_preflight_evidence"] = {
+        "status": "accepted",
+        "artifact": str(final_evidence_path),
+        "sha256": canonical_sha256(final_evidence),
+        "contract_fingerprint": contract_fingerprint(),
+        "completion_calls": 0,
+        "operator_ceiling_usd": 100.0,
     }
     lane.pop("smoke_manifest", None)
     registry_path = tmp_path / "models.json"
@@ -496,6 +544,8 @@ def test_preflight_only_still_validates_endpoint_despite_reusable_smoke_artifact
         == 0
     )
     assert validated == [cell.experiment_id]
+    assert not (tmp_path / "openrouter-budget.json").exists()
+    assert not (tmp_path / "openrouter-reservations.json").exists()
 
 
 def test_smoke_rejects_cap_that_differs_from_frozen_lane() -> None:

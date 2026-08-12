@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "contract": "sota-v3",
-  "contract_fingerprint": "4f93daa123041ab8",
+  "contract_fingerprint": "247e12fe5a7d4f5b",
   "mechanics_status": "frozen-for-sota-v3-panel",
   "mechanics_change_policy": "Any score-, action-, observation-, or simulator-semantic change after this preregistration requires a new contract fingerprint, invalidates all sota-v3 smoke evidence, and re-locks provider spend.",
   "preregistration_status": "frozen",
@@ -125,5 +125,13 @@
     "Mistral Medium 3.5 advertises max_tokens but omits max_completion_tokens metadata, so its request-cap behavior must be established by the strict smoke before any panel authorization.",
     "If any smoke is truncated or reaches 3,072 output tokens, invalidate every v3 smoke, abort this contract, and require a new preregistration before any later run.",
     "Record and accept one strict-fallback smoke for every registered model before separately authorizing panel execution."
-  ]
+  ],
+  "final_preflight_evidence": {
+    "status": "accepted",
+    "artifact": "results/analysis/sota-v3-final-preflight-evidence.json",
+    "sha256": "398cce41533063199c855a5a2a939fcfda5814fdfc70f0be3b519c7b219b8749",
+    "contract_fingerprint": "247e12fe5a7d4f5b",
+    "completion_calls": 0,
+    "operator_ceiling_usd": 100.0
+  }
 }

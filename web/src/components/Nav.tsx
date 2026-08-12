@@ -50,12 +50,12 @@ export default function Nav() {
   return (
     <header className="nav">
       <div className="shell nav-inner">
-        <a href="#top" className="brand">
+        <a href="#results" className="brand">
           <Logo />
           GM-Bench
           <span className="brand-tag">sota-v2</span>
         </a>
-        <nav className="nav-links">
+        <nav className="nav-links" aria-label="Primary navigation">
           {LINKS.map((link) => (
             <a
               key={link.href}

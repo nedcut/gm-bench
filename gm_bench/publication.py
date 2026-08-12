@@ -20,6 +20,11 @@ PUBLICATION_FORMAT = "gm-bench-result-summary-v1"
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def _repo_artifact_path(value: str) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else _REPO_ROOT / path
+
+
 def canonical_sha256(payload: dict[str, Any]) -> str:
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode()
     return hashlib.sha256(encoded).hexdigest()
@@ -223,6 +228,106 @@ def v3_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
                 if privacy_sha != canonical_sha256(privacy_evidence):
                     issues.append(f"{prefix} privacy evidence digest does not match its canonical payload")
     return issues
+
+
+def v3_final_preflight_issues(lane: dict[str, Any], registry: dict[str, Any]) -> list[str]:
+    """Validate the committed zero-call evidence required before paid smoke.
+
+    A contract-fingerprint change invalidates the earlier authenticated route
+    probe and Keychain-backed command rehearsal.  Keeping this as a committed,
+    digested artifact makes that freshness requirement executable instead of a
+    prose-only operator reminder.
+    """
+
+    issues: list[str] = []
+    declaration = lane.get("final_preflight_evidence")
+    if not isinstance(declaration, dict) or declaration.get("status") != "accepted":
+        return ["sota-v3 final-fingerprint preflight evidence is not accepted"]
+    relative = declaration.get("artifact")
+    if not isinstance(relative, str) or not relative.strip():
+        return ["sota-v3 final-fingerprint preflight evidence path is missing"]
+    try:
+        path = _repo_artifact_path(relative)
+        evidence = json.loads(path.read_text())
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return [f"sota-v3 final-fingerprint preflight evidence cannot be read: {exc}"]
+    if not isinstance(evidence, dict) or evidence.get("format") != "gm-bench-sota-v3-final-preflight-v1":
+        return ["sota-v3 final-fingerprint preflight evidence has the wrong format"]
+
+    fingerprint = lane.get("contract_fingerprint")
+    if evidence.get("contract_fingerprint") != fingerprint or registry.get("contract_fingerprint") != fingerprint:
+        issues.append("sota-v3 final-fingerprint preflight evidence is for a different contract")
+    if evidence.get("completion_calls") != 0:
+        issues.append("sota-v3 final-fingerprint preflight evidence must record zero provider completion calls")
+    if evidence.get("canonical_openrouter_api_base") != "https://openrouter.ai/api/v1":
+        issues.append("sota-v3 final-fingerprint preflight did not pin the canonical OpenRouter API base")
+
+    route = evidence.get("route_preflight")
+    acceptance = registry.get("exact_route_acceptance")
+    if not isinstance(route, dict) or route.get("status") != "accepted":
+        issues.append("sota-v3 final-fingerprint route preflight is not accepted")
+    elif not isinstance(acceptance, dict):
+        issues.append("sota-v3 exact-route acceptance record is missing")
+    else:
+        route_path = acceptance.get("evidence_artifact")
+        if route.get("evidence_artifact") != route_path:
+            issues.append("sota-v3 final preflight points at the wrong route evidence artifact")
+        try:
+            route_payload = json.loads(_repo_artifact_path(str(route_path)).read_text())
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            issues.append(f"sota-v3 final route evidence cannot be read: {exc}")
+        else:
+            if route_payload.get("contract_fingerprint") != fingerprint:
+                issues.append("sota-v3 final route evidence is for a different contract")
+            if route_payload.get("completion_calls") != 0:
+                issues.append("sota-v3 final route evidence must record zero completion calls")
+            if route.get("evidence_sha256") != canonical_sha256(route_payload):
+                issues.append("sota-v3 final route evidence digest does not match")
+            if route.get("verified_at_utc") != route_payload.get("generated_at_utc"):
+                issues.append("sota-v3 final route evidence timestamp does not match")
+            if acceptance.get("accepted_at_utc") != route_payload.get("generated_at_utc"):
+                issues.append("sota-v3 exact-route acceptance is not from the final route evidence")
+
+    dry_run = evidence.get("keychain_dry_run")
+    panel = lane.get("seed_panel")
+    model_ids = [str(model.get("id") or "") for model in registry.get("models") or [] if isinstance(model, dict)]
+    if not isinstance(dry_run, dict) or dry_run.get("status") != "passed":
+        issues.append("sota-v3 final Keychain-backed dry run is not accepted")
+    else:
+        if dry_run.get("model_ids") != model_ids or dry_run.get("commands_constructed") != len(model_ids):
+            issues.append("sota-v3 final dry run does not cover every registered model")
+        if dry_run.get("private_seed_values_included") is not False:
+            issues.append("sota-v3 final dry-run evidence must not include private seed values")
+        if not isinstance(panel, dict) or dry_run.get("seed_panel_sha256") != panel.get("sha256"):
+            issues.append("sota-v3 final dry run does not bind the frozen private seed panel")
+        if dry_run.get("hiding_commitment_verified") is not True:
+            issues.append("sota-v3 final dry run did not verify the private-panel hiding commitment")
+        ceiling = declaration.get("operator_ceiling_usd")
+        if (
+            not isinstance(ceiling, int | float)
+            or isinstance(ceiling, bool)
+            or not math.isfinite(float(ceiling))
+            or float(ceiling) <= 0
+            or dry_run.get("operator_ceiling_usd") != ceiling
+        ):
+            issues.append("sota-v3 final dry run does not bind the authorized operator ceiling")
+
+    live_preflight = evidence.get("authenticated_route_and_price_preflight")
+    if not isinstance(live_preflight, dict) or live_preflight.get("status") != "passed":
+        issues.append("sota-v3 final authenticated route and price preflight is not accepted")
+    else:
+        if live_preflight.get("model_ids") != model_ids or live_preflight.get("commands_executed") != len(model_ids):
+            issues.append("sota-v3 final authenticated preflight does not cover every registered model")
+        if live_preflight.get("completion_calls") != 0:
+            issues.append("sota-v3 final authenticated preflight must record zero completion calls")
+        if live_preflight.get("canonical_openrouter_api_base") != "https://openrouter.ai/api/v1":
+            issues.append("sota-v3 final authenticated preflight did not pin the canonical OpenRouter API base")
+        if live_preflight.get("pricing_checked") is not True:
+            issues.append("sota-v3 final authenticated preflight did not verify live route pricing")
+
+    if declaration.get("sha256") != canonical_sha256(evidence):
+        issues.append("sota-v3 final-fingerprint preflight evidence digest does not match")
+    return list(dict.fromkeys(issues))
 
 
 def exact_sign_flip_feasibility(
@@ -493,6 +598,8 @@ def publication_execution_issues(
         if phase != "route-preflight":
             issues.extend(v3_preregistration_coherence_issues(lane, registry, protocol, pricing, manifest))
             issues.extend(v3_route_acceptance_issues(registry))
+            if phase == "smoke":
+                issues.extend(v3_final_preflight_issues(lane, registry))
             if (
                 not isinstance(protocol, dict)
                 or protocol.get("contract") != contract

@@ -7,6 +7,8 @@ import math
 import os
 import shlex
 import sys
+import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -85,6 +87,7 @@ class ProtocolRepairAgent(Agent):
 
 
 _SPEND_GUARD_PREFIX = "GM_BENCH_OPENROUTER_SPEND_GUARD_"
+OPENROUTER_CANONICAL_API_BASE = "https://openrouter.ai/api/v1"
 # The OpenRouter adapter adds a fixed system message, the compact scaffold,
 # action examples, and chat framing around the observation.  A UTF-8 byte is a
 # conservative upper bound for a tokenizer token in the user-controlled text;
@@ -173,9 +176,43 @@ class ProviderSpendGuardAgent(Agent):
 
     def _write_state(self, state: dict[str, Any]) -> None:
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = self.state_path.with_name(f".{self.state_path.name}.tmp")
-        temporary.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
-        temporary.replace(self.state_path)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=self.state_path.parent,
+            prefix=f".{self.state_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
+            handle.write(json.dumps(state, indent=2, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, self.state_path)
+
+    @contextmanager
+    def _exclusive_call(self):
+        """Hold a crash-visible inter-process lock through reserve and settle."""
+        lock_path = self.state_path.with_name(f".{self.state_path.name}.lock")
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            descriptor = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError as exc:
+            raise ValueError(
+                f"another publication process holds {lock_path.name}; "
+                "if it crashed, reconcile provider spend before removing the lock"
+            ) from exc
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                handle.write(f"pid={os.getpid()}\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            yield
+        finally:
+            try:
+                lock_path.unlink()
+            except FileNotFoundError:
+                pass
 
     def _maximum_call_cost_usd(self, observation: dict[str, Any]) -> tuple[float, int]:
         adapter_payload = json.dumps(
@@ -205,9 +242,13 @@ class ProviderSpendGuardAgent(Agent):
 
     def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         try:
-            state = self._read_state()
+            with self._exclusive_call():
+                return self._act_with_usage_locked(observation)
         except ValueError as exc:
             return self._blocked(str(exc))
+
+    def _act_with_usage_locked(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        state = self._read_state()
         prior_block = state.get("blocked_reason")
         if isinstance(prior_block, str) and prior_block:
             return self._blocked(prior_block)
@@ -399,6 +440,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
             "OPENROUTER_JSON_MODE": "false",
         },
         provenance_env=(
+            "OPENROUTER_API_BASE",
             "OPENROUTER_PROVIDER_ONLY",
             "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER",
             "OPENROUTER_EXPECTED_ENDPOINT_NAME",
@@ -583,6 +625,18 @@ def build_provider_agent(
     # Config-file env is the most explicit provider configuration.
     if extra_env:
         env.update(extra_env)
+    guard_env = {**os.environ, **env}
+    spend_guard_enabled = spec.name == "openrouter" and bool(guard_env.get(f"{_SPEND_GUARD_PREFIX}STATE_PATH"))
+    if spend_guard_enabled:
+        configured_base = guard_env.get("OPENROUTER_API_BASE", OPENROUTER_CANONICAL_API_BASE).rstrip("/")
+        if configured_base != OPENROUTER_CANONICAL_API_BASE:
+            raise ValueError(
+                "publication OpenRouter runs require canonical API base "
+                f"{OPENROUTER_CANONICAL_API_BASE!r}; got {configured_base!r}"
+            )
+        env["OPENROUTER_API_BASE"] = OPENROUTER_CANONICAL_API_BASE
+        if session:
+            raise ValueError("publication OpenRouter spend guard does not support persistent session mode")
     # Cap repair attempts at the frozen headline lane (1). Operators may set 0
     # to disable, but cannot open an unbounded second-chance compute advantage.
     try:
@@ -609,7 +663,6 @@ def build_provider_agent(
         base_agent = ExternalProcessAgent(command, timeout_seconds=resolved_timeout, env=env, name=display_name)
         guarded_agent: Agent = base_agent
         if spec.name == "openrouter":
-            guard_env = {**os.environ, **env}
             guarded_agent = _spend_guard_agent(base_agent, guard_env) or base_agent
         agent = ProtocolRepairAgent(guarded_agent, attempts=int(env["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"]))
     # Resolve the profile exactly as the adapter subprocess will see it

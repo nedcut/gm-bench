@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import multiprocessing
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +9,7 @@ import pytest
 
 from gm_bench.agents import Agent
 from gm_bench.providers import ProtocolRepairAgent, ProviderSpendGuardAgent, build_provider_agent
+from scripts.run_publication_matrix import _exclusive_paid_run
 
 
 class _MeteredAgent(Agent):
@@ -25,6 +27,42 @@ class _MeteredAgent(Agent):
         response = self.responses[self.calls]
         self.calls += 1
         return response
+
+
+class _BlockingMeteredAgent(Agent):
+    name = "blocking-metered"
+
+    def __init__(self, entered, release, calls) -> None:
+        self.entered = entered
+        self.release = release
+        self.calls = calls
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        actions, _usage = self.act_with_usage(observation)
+        return actions
+
+    def act_with_usage(self, observation: dict[str, Any]):
+        with self.calls.get_lock():
+            self.calls.value += 1
+        self.entered.set()
+        assert self.release.wait(5)
+        return [{"type": "end_turn"}], {"api_calls": 1, "cost_usd": 0.01}
+
+
+def _run_blocking_guard(state_path: str, entered, release, calls, results) -> None:
+    guard = _guard(_BlockingMeteredAgent(entered, release, calls), Path(state_path), ceiling=1.0)
+    actions, usage = guard.act_with_usage({"phase": "draft"})
+    results.put((actions, usage))
+
+
+def _hold_runner_lock(run_dir: str, entered, release, results) -> None:
+    try:
+        with _exclusive_paid_run(Path(run_dir)):
+            entered.set()
+            assert release.wait(5)
+        results.put("released")
+    except SystemExit as exc:
+        results.put(str(exc))
 
 
 def _guard(wrapped: Agent, state_path: Path, *, ceiling: float = 0.085) -> ProviderSpendGuardAgent:
@@ -133,3 +171,92 @@ def test_openrouter_build_places_guard_inside_protocol_repair(
 
     assert isinstance(agent, ProtocolRepairAgent)
     assert isinstance(agent.wrapped, ProviderSpendGuardAgent)
+
+
+def test_guard_excludes_concurrent_process_before_second_provider_call(tmp_path: Path) -> None:
+    context = multiprocessing.get_context("spawn")
+    entered = context.Event()
+    release = context.Event()
+    calls = context.Value("i", 0)
+    results = context.Queue()
+    state_path = str(tmp_path / "guard.json")
+    first = context.Process(target=_run_blocking_guard, args=(state_path, entered, release, calls, results))
+    second = context.Process(target=_run_blocking_guard, args=(state_path, entered, release, calls, results))
+    first.start()
+    assert entered.wait(5)
+    second.start()
+    second.join(5)
+    assert not second.is_alive()
+    blocked_actions, blocked_usage = results.get(timeout=1)
+    assert "another publication process holds" in blocked_actions[0]["error"]
+    assert blocked_usage is None
+    assert calls.value == 1
+
+    release.set()
+    first.join(5)
+    assert first.exitcode == 0
+    successful_actions, successful_usage = results.get(timeout=1)
+    assert successful_actions == [{"type": "end_turn"}]
+    assert successful_usage["cost_usd"] == pytest.approx(0.01)
+
+
+def test_runner_lock_excludes_second_paid_process_for_same_budget_scope(tmp_path: Path) -> None:
+    context = multiprocessing.get_context("spawn")
+    entered = context.Event()
+    release = context.Event()
+    results = context.Queue()
+    first = context.Process(target=_hold_runner_lock, args=(str(tmp_path), entered, release, results))
+    second = context.Process(target=_hold_runner_lock, args=(str(tmp_path), entered, release, results))
+    first.start()
+    assert entered.wait(5)
+    second.start()
+    second.join(5)
+    assert second.exitcode == 0
+    blocked = results.get(timeout=1)
+    assert "another paid publication invocation" in blocked
+    assert "separately authorized budget" in blocked
+
+    release.set()
+    first.join(5)
+    assert first.exitcode == 0
+    assert results.get(timeout=1) == "released"
+
+
+def test_guarded_openrouter_rejects_persistent_session(tmp_path: Path) -> None:
+    prefix = "GM_BENCH_OPENROUTER_SPEND_GUARD_"
+    guard_env = {
+        f"{prefix}STATE_PATH": str(tmp_path / "guard.json"),
+        f"{prefix}CEILING_USD": "100",
+    }
+    with pytest.raises(ValueError, match="does not support persistent session"):
+        build_provider_agent("openrouter", model="test/model", extra_env=guard_env, session=True)
+
+
+def test_publication_guard_rejects_noncanonical_openrouter_base(tmp_path: Path) -> None:
+    prefix = "GM_BENCH_OPENROUTER_SPEND_GUARD_"
+    guard_env = {
+        f"{prefix}STATE_PATH": str(tmp_path / "guard.json"),
+        "OPENROUTER_API_BASE": "https://example.test/api/v1",
+    }
+    with pytest.raises(ValueError, match="canonical API base"):
+        build_provider_agent("openrouter", model="test/model", extra_env=guard_env)
+
+
+def test_publication_guard_records_canonical_openrouter_base(tmp_path: Path) -> None:
+    prefix = "GM_BENCH_OPENROUTER_SPEND_GUARD_"
+    values = {
+        "STATE_PATH": str(tmp_path / "guard.json"),
+        "CEILING_USD": "100",
+        "MEASURED_SPEND_FLOOR_USD": "0",
+        "PROMPT_RATE_USD": "0.000001",
+        "COMPLETION_RATE_USD": "0.00001",
+        "OUTPUT_TOKEN_CAP": "4096",
+        "REASONING_RATE_USD": "0",
+        "REASONING_TOKEN_CAP": "0",
+        "CONTINGENCY_MULTIPLIER": "1.2",
+    }
+    guard_env = {f"{prefix}{suffix}": value for suffix, value in values.items()}
+    agent = build_provider_agent("openrouter", model="test/model", extra_env=guard_env)
+
+    assert agent.env["OPENROUTER_API_BASE"] == "https://openrouter.ai/api/v1"
+    assert agent.metadata["provider_options"]["OPENROUTER_API_BASE"] == "https://openrouter.ai/api/v1"

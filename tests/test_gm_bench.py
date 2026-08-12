@@ -15,7 +15,15 @@ from examples.claude_agent import build_command as build_claude_command
 from examples.codex_agent import build_command as build_codex_command
 from examples.gm_agent_common import build_prompt, parse_actions
 from gm_bench.agents import ExternalProcessAgent, RandomAgent, ValueAgent
-from gm_bench.gui import _parse_seeds, agent_standings, dashboard_payload, run_from_request, score_history
+from gm_bench.gui import (
+    _is_loopback_host,
+    _parse_seeds,
+    agent_standings,
+    dashboard_payload,
+    run_from_request,
+    score_history,
+    serve,
+)
 from gm_bench.runner import evaluate_against_baselines, run_episode, run_many
 from gm_bench.session import PersistentProcessAgent
 from gm_bench.simulator import League
@@ -328,6 +336,21 @@ def test_gui_agent_standings_and_score_history(tmp_path: Path) -> None:
 
 def test_gui_parse_seed_ranges() -> None:
     assert _parse_seeds("1-3, 5") == [1, 2, 3, 5]
+
+
+@pytest.mark.parametrize("host", ["127.0.0.1", "127.12.3.4", "::1", "localhost"])
+def test_gui_recognizes_loopback_hosts(host: str) -> None:
+    assert _is_loopback_host(host)
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "::", "192.168.1.5", "example.test"])
+def test_gui_rejects_non_loopback_hosts_by_default(host: str) -> None:
+    assert not _is_loopback_host(host)
+
+
+def test_gui_fails_before_binding_non_loopback_host(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="--allow-remote"):
+        serve("0.0.0.0", db_path=tmp_path / "gui.sqlite")
 
 
 def test_model_action_parser_accepts_actions_object() -> None:

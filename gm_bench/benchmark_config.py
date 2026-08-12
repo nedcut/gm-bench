@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from gm_bench.agents import AGENTS
 from gm_bench.providers import PROVIDER_NAMES
 
 PRESET_NAMES = ("smoke", "standard", "benchmark", "leaderboard")
@@ -121,6 +122,25 @@ class BenchmarkConfig:
             raise ValueError("seasons must be >= 1")
         if self.repeats < 1:
             raise ValueError("repeats must be >= 1")
+        validate_baseline_names(self.baselines)
+
+
+def validate_baseline_names(names: Any) -> list[str]:
+    """Validate a baseline panel before candidate or provider execution."""
+    if not isinstance(names, list):
+        raise ValueError("baselines must be a list of registered baseline names")
+    if not names:
+        raise ValueError("baselines must not be empty")
+    if any(not isinstance(name, str) for name in names):
+        raise ValueError("baselines must contain only strings")
+    unknown = [name for name in names if name not in AGENTS]
+    if unknown:
+        supported = ", ".join(sorted(AGENTS))
+        raise ValueError(f"unknown baseline {unknown[0]!r}; supported baselines: {supported}")
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    if duplicates:
+        raise ValueError(f"duplicate baselines are not allowed: {', '.join(duplicates)}")
+    return list(names)
 
 
 def load_config(path: str | Path) -> BenchmarkConfig:
@@ -142,7 +162,7 @@ def config_from_dict(payload: dict[str, Any]) -> BenchmarkConfig:
         seeds=_parse_seeds(payload.get("seeds", [1, 2, 3, 4, 5])),
         seasons=int(payload.get("seasons", 5)),
         repeats=int(payload.get("repeats", 1)),
-        baselines=list(payload.get("baselines", ["random", "conservative", "win-now", "rebuild"])),
+        baselines=validate_baseline_names(payload.get("baselines", ["random", "conservative", "win-now", "rebuild"])),
         preset=preset,
         use_baseline_cache=bool(payload.get("use_baseline_cache", True)),
         verbose=bool(payload.get("verbose", False)),
@@ -160,7 +180,7 @@ def config_from_dict(payload: dict[str, Any]) -> BenchmarkConfig:
                 elif key == "seasons":
                     config.seasons = int(payload["seasons"])
                 elif key == "baselines":
-                    config.baselines = list(payload["baselines"])
+                    config.baselines = validate_baseline_names(payload["baselines"])
                 elif key == "agent_timeout":
                     config.agent_timeout = float(payload["agent_timeout"])
     config.validate()

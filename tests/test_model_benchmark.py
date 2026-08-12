@@ -166,6 +166,36 @@ def test_benchmark_config_parses_seed_ranges() -> None:
     assert config.seeds == [1, 2, 3, 5]
 
 
+@pytest.mark.parametrize(
+    ("baselines", "message"),
+    [
+        ("value", "must be a list"),
+        (["value", 1], "only strings"),
+        (["not-registered"], "unknown baseline"),
+        (["value", "value"], "duplicate baselines"),
+        ([], "must not be empty"),
+    ],
+)
+def test_benchmark_config_rejects_invalid_baseline_panels_before_execution(baselines, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        config_from_dict({"baselines": baselines})
+
+
+def test_evaluate_rejects_invalid_baseline_before_candidate_execution() -> None:
+    class CountingAgent(ValueAgent):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def act(self, observation):
+            self.calls += 1
+            return super().act(observation)
+
+    candidate = CountingAgent()
+    with pytest.raises(ValueError, match="unknown baseline"):
+        evaluate_against_baselines(candidate, [1], seasons=1, baseline_names=["typo"])
+    assert candidate.calls == 0
+
+
 def test_benchmark_config_file_loads(tmp_path: Path) -> None:
     path = tmp_path / "bench.json"
     path.write_text(
@@ -215,6 +245,20 @@ def test_baseline_cache_round_trip(tmp_path: Path) -> None:
     save_cache(cache, cache_path)
     loaded = load_cache(cache_path)
     assert get_cached_episode("value", 1, 2, cache=loaded) == episode
+
+
+def test_baseline_cache_merges_stale_writer_snapshots(tmp_path: Path) -> None:
+    """A later process must not erase entries committed after its initial read."""
+    cache_path = tmp_path / "cache.json"
+    first_key = cache_key("value", 1, 2)
+    second_key = cache_key("value", 2, 2)
+    stale_first = {first_key: {"seed": 1, "final_score": 1.0}}
+    stale_second = {second_key: {"seed": 2, "final_score": 2.0}}
+
+    save_cache(stale_first, cache_path)
+    save_cache(stale_second, cache_path)
+
+    assert set(load_cache(cache_path)) == {first_key, second_key}
 
 
 def test_run_many_cached_baselines_is_deterministic(tmp_path: Path) -> None:

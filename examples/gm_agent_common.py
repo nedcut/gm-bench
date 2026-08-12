@@ -11,12 +11,14 @@ from pathlib import Path
 from typing import Any, Callable
 
 try:
+    from gm_bench.action_validation import validate_action_list
     from gm_bench.agent_utils import position_aware_lineup, public_asset_value
     from gm_bench.scaffold_view import compact_observation, scaffold_fallback_lineup
 except ModuleNotFoundError:
     # Example agents run as standalone scripts (`python examples/claude_agent.py`),
     # where only examples/ is on sys.path and gm-bench is not necessarily installed.
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from gm_bench.action_validation import validate_action_list
     from gm_bench.agent_utils import position_aware_lineup, public_asset_value
     from gm_bench.scaffold_view import compact_observation, scaffold_fallback_lineup
 
@@ -218,11 +220,13 @@ def _actions_from_json(parsed: Any) -> list[dict[str, Any]]:
     # normalize below still raise, because that is a real formatting failure.)
     if not parsed:
         return [{"type": "noop"}]
-    actions = [_normalize_action_keys(action) for action in parsed if isinstance(action, dict)]
+    if any(not isinstance(action, dict) for action in parsed):
+        raise ValueError("model JSON action list contained a non-object item")
+    actions = [_normalize_action_keys(action) for action in parsed]
     actions = [action for action in actions if isinstance(action.get("type"), str)]
     if not actions:
         raise ValueError("model JSON did not contain typed actions")
-    return actions
+    return validate_action_list(actions)
 
 
 def _reject_non_finite_numbers(value: Any) -> None:

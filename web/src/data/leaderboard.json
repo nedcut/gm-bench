@@ -64,10 +64,6 @@
       "artifact_sha256": "aa8f4bdf5228664b7d95e2bb749b82e2954920551b7cca47a5e9a0c5f85aa4c6",
       "baseline_panel_mean_score": 273.794,
       "benchmark_version": "sota-v2",
-      "ci95": [
-        -66.061,
-        -16.342
-      ],
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.3161,
       "cost_usd": 7.586279,
@@ -75,6 +71,12 @@
       "decisions_with_usage": 480,
       "failed_queries": 453,
       "fallback_rate": 0.0,
+      "full_panel_ci95": [
+        -66.061,
+        -16.342
+      ],
+      "full_panel_lift": -41.944,
+      "full_panel_significant_at_95": true,
       "harness_latency_s_per_decision": 13.61,
       "holm_adjusted_p_value": 0.078125,
       "holm_reject_at_0_05": false,
@@ -110,7 +112,11 @@
       "model": "meta/muse-spark-1.1",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 1148.7,
-      "paired_lift": -41.944,
+      "primary_ci95": [
+        -209.560916,
+        -147.19875
+      ],
+      "primary_lift": -179.768,
       "protocol_penalty": 127.5,
       "protocol_repair_attempts": 0,
       "protocol_repairs_succeeded": 0,
@@ -134,7 +140,6 @@
         18
       ],
       "session": false,
-      "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
         "historical scaffold fingerprint retained but cannot be re-derived from current source",
@@ -151,10 +156,6 @@
       "artifact_sha256": "cf7912a55ec91468a339bfa660ef3b55edf4d11c286202bab6574d4f642fd00f",
       "baseline_panel_mean_score": 273.794,
       "benchmark_version": "sota-v2",
-      "ci95": [
-        -81.974,
-        -30.464
-      ],
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.0534,
       "cost_usd": 1.281193,
@@ -162,6 +163,12 @@
       "decisions_with_usage": 480,
       "failed_queries": 209,
       "fallback_rate": 0.017,
+      "full_panel_ci95": [
+        -81.974,
+        -30.464
+      ],
+      "full_panel_lift": -56.255,
+      "full_panel_significant_at_95": true,
       "harness_latency_s_per_decision": 13.2,
       "holm_adjusted_p_value": 0.078125,
       "holm_reject_at_0_05": false,
@@ -197,7 +204,11 @@
       "model": "z-ai/glm-5.2",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 410.0,
-      "paired_lift": -56.255,
+      "primary_ci95": [
+        -239.071375,
+        -144.18575
+      ],
+      "primary_lift": -194.079625,
       "protocol_penalty": 420.0,
       "protocol_repair_attempts": 29,
       "protocol_repairs_succeeded": 21,
@@ -221,7 +232,6 @@
         18
       ],
       "session": false,
-      "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
         "historical scaffold fingerprint retained but cannot be re-derived from current source",
@@ -239,10 +249,6 @@
       "artifact_sha256": "082b1964fcccecf7e5ba37ff31ca76a3cf7256052dc1237fe198004fa9eeebfb",
       "baseline_panel_mean_score": 273.794,
       "benchmark_version": "sota-v2",
-      "ci95": [
-        -89.586,
-        -27.162
-      ],
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.2634,
       "cost_usd": 6.320513,
@@ -250,6 +256,12 @@
       "decisions_with_usage": 480,
       "failed_queries": 5,
       "fallback_rate": 0.013,
+      "full_panel_ci95": [
+        -89.586,
+        -27.162
+      ],
+      "full_panel_lift": -58.17,
+      "full_panel_significant_at_95": true,
       "harness_latency_s_per_decision": 1.59,
       "holm_adjusted_p_value": 0.078125,
       "holm_reject_at_0_05": false,
@@ -285,7 +297,11 @@
       "model": "google/gemini-3.5-flash",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 62.2,
-      "paired_lift": -58.17,
+      "primary_ci95": [
+        -241.056333,
+        -143.75275
+      ],
+      "primary_lift": -195.994875,
       "protocol_penalty": 45.0,
       "protocol_repair_attempts": 52,
       "protocol_repairs_succeeded": 46,
@@ -309,7 +325,6 @@
         18
       ],
       "session": false,
-      "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
         "historical scaffold fingerprint retained but cannot be re-derived from current source",
@@ -326,10 +341,6 @@
       "artifact_sha256": "cd0d7d7cd0a3cdf9e59a739ce097cbbde90d249e39c5e7d8b11e7a69c171cf3b",
       "baseline_panel_mean_score": 273.794,
       "benchmark_version": "sota-v2",
-      "ci95": [
-        -91.535,
-        -63.891
-      ],
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.0,
       "cost_usd": 0.0,
@@ -337,6 +348,12 @@
       "decisions_with_usage": 480,
       "failed_queries": 36,
       "fallback_rate": 0.0,
+      "full_panel_ci95": [
+        -91.535,
+        -63.891
+      ],
+      "full_panel_lift": -77.954,
+      "full_panel_significant_at_95": true,
       "harness_latency_s_per_decision": 4.29,
       "holm_adjusted_p_value": 0.078125,
       "holm_reject_at_0_05": false,
@@ -372,7 +389,11 @@
       "model": "tencent/hy3:free",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 104.6,
-      "paired_lift": -77.954,
+      "primary_ci95": [
+        -252.634708,
+        -179.442375
+      ],
+      "primary_lift": -215.777958,
       "protocol_penalty": 25.0,
       "protocol_repair_attempts": 3,
       "protocol_repairs_succeeded": 3,
@@ -396,7 +417,6 @@
         18
       ],
       "session": false,
-      "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
         "historical scaffold fingerprint retained but cannot be re-derived from current source",
@@ -412,10 +432,6 @@
       "artifact_sha256": "de34dcb82a8d5c7823d5ca4670cb01d2f4ed5f0e32c718545c89bbfd785f1da5",
       "baseline_panel_mean_score": 273.794,
       "benchmark_version": "sota-v2",
-      "ci95": [
-        -116.78,
-        -73.081
-      ],
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.0539,
       "cost_usd": 1.293793,
@@ -423,6 +439,12 @@
       "decisions_with_usage": 480,
       "failed_queries": 44,
       "fallback_rate": 0.0,
+      "full_panel_ci95": [
+        -116.78,
+        -73.081
+      ],
+      "full_panel_lift": -98.275,
+      "full_panel_significant_at_95": true,
       "harness_latency_s_per_decision": 4.05,
       "holm_adjusted_p_value": 0.078125,
       "holm_reject_at_0_05": false,
@@ -458,7 +480,11 @@
       "model": "qwen/qwen3.7-plus",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 194.1,
-      "paired_lift": -98.275,
+      "primary_ci95": [
+        -277.546,
+        -187.278
+      ],
+      "primary_lift": -236.099167,
       "protocol_penalty": 340.0,
       "protocol_repair_attempts": 0,
       "protocol_repairs_succeeded": 0,
@@ -482,7 +508,6 @@
         18
       ],
       "session": false,
-      "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
         "historical scaffold fingerprint retained but cannot be re-derived from current source",
@@ -498,10 +523,6 @@
       "artifact_sha256": "16da22113c2447cf21fc3f6fc3ec94eb21531380534df3599e43e7fb5cae89e1",
       "baseline_panel_mean_score": 273.794,
       "benchmark_version": "sota-v2",
-      "ci95": [
-        -114.217,
-        -83.091
-      ],
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.195,
       "cost_usd": 4.680175,
@@ -509,6 +530,12 @@
       "decisions_with_usage": 480,
       "failed_queries": 5,
       "fallback_rate": 0.0,
+      "full_panel_ci95": [
+        -114.217,
+        -83.091
+      ],
+      "full_panel_lift": -99.869,
+      "full_panel_significant_at_95": true,
       "harness_latency_s_per_decision": 1.54,
       "holm_adjusted_p_value": 0.078125,
       "holm_reject_at_0_05": false,
@@ -544,7 +571,11 @@
       "model": "openai/gpt-5.6-luna",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 99.8,
-      "paired_lift": -99.869,
+      "primary_ci95": [
+        -273.144667,
+        -200.7945
+      ],
+      "primary_lift": -237.693083,
       "protocol_penalty": 315.0,
       "protocol_repair_attempts": 0,
       "protocol_repairs_succeeded": 0,
@@ -568,7 +599,6 @@
         18
       ],
       "session": false,
-      "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
         "historical scaffold fingerprint retained but cannot be re-derived from current source",
@@ -584,10 +614,6 @@
       "artifact_sha256": "9e2a74fbc55eb51ed1bcbd25064f178fcf73d962d650cbe04cec1ff5ffa75455",
       "baseline_panel_mean_score": 273.794,
       "benchmark_version": "sota-v2",
-      "ci95": [
-        -154.031,
-        -104.212
-      ],
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.4606,
       "cost_usd": 11.05436,
@@ -595,6 +621,12 @@
       "decisions_with_usage": 480,
       "failed_queries": 137,
       "fallback_rate": 0.0,
+      "full_panel_ci95": [
+        -154.031,
+        -104.212
+      ],
+      "full_panel_lift": -131.651,
+      "full_panel_significant_at_95": true,
       "harness_latency_s_per_decision": 6.49,
       "holm_adjusted_p_value": 0.078125,
       "holm_reject_at_0_05": false,
@@ -630,7 +662,11 @@
       "model": "anthropic/claude-sonnet-5",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 392.6,
-      "paired_lift": -131.651,
+      "primary_ci95": [
+        -316.991292,
+        -217.256625
+      ],
+      "primary_lift": -269.475375,
       "protocol_penalty": 110.0,
       "protocol_repair_attempts": 0,
       "protocol_repairs_succeeded": 0,
@@ -654,7 +690,6 @@
         18
       ],
       "session": false,
-      "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
         "historical scaffold fingerprint retained but cannot be re-derived from current source",
@@ -671,10 +706,6 @@
       "artifact_sha256": "53e93b066a1ade0c72f99ec0bbb4fc56b4c07ee48f18e4f53eca5150cf8b6ddf",
       "baseline_panel_mean_score": 273.794,
       "benchmark_version": "sota-v2",
-      "ci95": [
-        -167.324,
-        -116.177
-      ],
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.0515,
       "cost_usd": 1.237149,
@@ -682,6 +713,12 @@
       "decisions_with_usage": 480,
       "failed_queries": 65,
       "fallback_rate": 0.002,
+      "full_panel_ci95": [
+        -167.324,
+        -116.177
+      ],
+      "full_panel_lift": -143.914,
+      "full_panel_significant_at_95": true,
       "harness_latency_s_per_decision": 3.18,
       "holm_adjusted_p_value": 0.078125,
       "holm_reject_at_0_05": false,
@@ -717,7 +754,11 @@
       "model": "minimax/minimax-m3",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 115.1,
-      "paired_lift": -143.914,
+      "primary_ci95": [
+        -329.425375,
+        -229.092667
+      ],
+      "primary_lift": -281.738875,
       "protocol_penalty": 35.0,
       "protocol_repair_attempts": 7,
       "protocol_repairs_succeeded": 6,
@@ -741,7 +782,6 @@
         18
       ],
       "session": false,
-      "significant": true,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
         "historical scaffold fingerprint retained but cannot be re-derived from current source",

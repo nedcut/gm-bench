@@ -875,6 +875,18 @@ def _compare_present_values(errors: list[str], path: str, actual: Any, expected:
         child_path = f"{path}.{key}"
         if isinstance(value, dict) and isinstance(expected_value, dict):
             _compare_present_values(errors, child_path, value, expected_value)
+        elif (
+            child_path.endswith(".sign_flip_p_value")
+            and isinstance(value, int | float)
+            and not isinstance(value, bool)
+            and isinstance(expected_value, int | float)
+            and not isinstance(expected_value, bool)
+            and value == round(expected_value, 4)
+        ):
+            # Published v1/v2 artifacts rounded this derived value to four
+            # decimals. Accept that frozen representation while new artifacts
+            # retain the exact result.
+            continue
         elif value != expected_value:
             errors.append(f"{child_path} does not match episode-derived value")
 

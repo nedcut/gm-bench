@@ -1,0 +1,50 @@
+{
+  "authenticated_route_and_price_preflight": {
+    "canonical_openrouter_api_base": "https://openrouter.ai/api/v1",
+    "commands_executed": 8,
+    "completion_calls": 0,
+    "model_ids": [
+      "openrouter-gpt-5.6-luna-openai",
+      "openrouter-claude-sonnet-5-bedrock",
+      "openrouter-glm-5.2-novita",
+      "openrouter-minimax-m3-deepinfra",
+      "openrouter-qwen3.8-max-alibaba",
+      "openrouter-mistral-medium-3.5-mistral",
+      "openrouter-deepseek-v4-flash-0731-cloudflare",
+      "openrouter-hy3-tencent"
+    ],
+    "pricing_checked": true,
+    "status": "passed"
+  },
+  "canonical_openrouter_api_base": "https://openrouter.ai/api/v1",
+  "completion_calls": 0,
+  "contract": "sota-v3",
+  "contract_fingerprint": "247e12fe5a7d4f5b",
+  "format": "gm-bench-sota-v3-final-preflight-v1",
+  "generated_at_utc": "2026-08-12T02:10:43+00:00",
+  "keychain_dry_run": {
+    "commands_constructed": 8,
+    "hiding_commitment_verified": true,
+    "model_ids": [
+      "openrouter-gpt-5.6-luna-openai",
+      "openrouter-claude-sonnet-5-bedrock",
+      "openrouter-glm-5.2-novita",
+      "openrouter-minimax-m3-deepinfra",
+      "openrouter-qwen3.8-max-alibaba",
+      "openrouter-mistral-medium-3.5-mistral",
+      "openrouter-deepseek-v4-flash-0731-cloudflare",
+      "openrouter-hy3-tencent"
+    ],
+    "operator_ceiling_usd": 100.0,
+    "private_seed_values_included": false,
+    "seed_panel_sha256": "291fa61cc3dfd8b23fdd79cce3c80a0a98f918f6c8757d35c21b4d8131cc6099",
+    "status": "passed"
+  },
+  "route_preflight": {
+    "evidence_artifact": "results/analysis/sota-v3-route-acceptance-evidence.json",
+    "evidence_sha256": "a4a7599e1b7b8d1878c08d44a5bcd5a9dceeebb2f2ea922b1ab61d2d33b19535",
+    "status": "accepted",
+    "verified_at_utc": "2026-08-12T02:05:52+00:00"
+  },
+  "schema_version": 1
+}

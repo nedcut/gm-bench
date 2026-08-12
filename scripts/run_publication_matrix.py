@@ -19,6 +19,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,6 +34,7 @@ PROTOCOL_CONFIG = ROOT / "config" / "publication_protocol.json"
 SMOKE_MANIFEST = ROOT / "config" / "sota_v2_smoke_manifest.json"
 RUN_STATE_FORMAT = "gm-bench-publication-run-v1"
 CALL_SPEND_GUARD_STATE = "openrouter-call-spend-guard.json"
+PAID_RUN_LOCK = ".openrouter-paid-run.lock"
 # Availability floors for a pinned endpoint to stay eligible.
 #
 # Two windows, because they detect different failures. The 24h figure is a
@@ -77,6 +79,7 @@ from gm_bench.contract import BENCHMARK_VERSION, contract_fingerprint, scaffold_
 from gm_bench.environment import load_environment_files  # noqa: E402
 from gm_bench.official import POLICIES, validate_leaderboard_payload  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
+from gm_bench.providers import OPENROUTER_CANONICAL_API_BASE  # noqa: E402
 from gm_bench.publication import (  # noqa: E402
     SMOKE_MANIFEST_FORMAT,
     is_pending_strict_smoke_cap,
@@ -299,11 +302,18 @@ def _read_optional_json(path: Path) -> dict[str, Any] | None:
         return None
 
 
-def build_cells(phase: str, model_id: str | None = None, cap: int | None = None) -> list[Cell]:
+def build_cells(
+    phase: str,
+    model_id: str | None = None,
+    cap: int | None = None,
+    *,
+    authorization_phase: str | None = None,
+) -> list[Cell]:
+    authorization_phase = authorization_phase or phase
     if phase in {"route-preflight", "smoke"}:
         config = _read_json(PANEL_CONFIG)
         lane = _read_json(LANE_CONFIG)
-        _require_execution_authorized(phase, config, lane)
+        _require_execution_authorized(authorization_phase, config, lane)
         if phase == "smoke" and lane.get("contract") == "sota-v3":
             _validate_frozen_seed_panel(lane)
         models = list(config.get("models") or [])
@@ -743,6 +753,7 @@ def _call_spend_guard_environment(
         reasoning_rate = 0
     prefix = "GM_BENCH_OPENROUTER_SPEND_GUARD_"
     guard = {
+        "OPENROUTER_API_BASE": OPENROUTER_CANONICAL_API_BASE,
         f"{prefix}STATE_PATH": str(run_dir / CALL_SPEND_GUARD_STATE),
         f"{prefix}CEILING_USD": str(ceiling_usd),
         f"{prefix}MEASURED_SPEND_FLOOR_USD": str(measured_spend_floor_usd),
@@ -862,6 +873,36 @@ def _checkpoint_process_alive(path: Path) -> bool:
         return False
     finally:
         os.close(descriptor)
+
+
+@contextmanager
+def _exclusive_paid_run(run_dir: Path):
+    """Lock one run directory for the complete paid invocation.
+
+    The spend ceiling and account-delta baseline are scoped to ``run_dir``.
+    A different run directory is therefore a separate authorization and budget,
+    not a way to share this invocation's ceiling.
+    """
+    import fcntl
+
+    run_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = run_dir / PAID_RUN_LOCK
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(lock_path, flags, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise SystemExit(
+                f"another paid publication invocation holds {lock_path}; "
+                "wait for it to finish or use a different run directory with a separately authorized budget"
+            ) from exc
+        yield
+    finally:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        finally:
+            os.close(descriptor)
 
 
 def _payload_cost_usd(payload: dict[str, Any] | None) -> float | None:
@@ -1609,7 +1650,7 @@ def _print_command(cell: Cell, command: list[str]) -> None:
     print(json.dumps({"cell": cell.experiment_id, "cap": cell.cap_label, "env": options, "command": command}))
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, _paid_run_lock_held: bool = False) -> int:
     # The child CLI loads these files too, but the parent needs the provider key
     # to query account usage and enforce the operator's spend ceiling before it
     # launches any model process.
@@ -1628,7 +1669,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--artifact", type=Path)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--cap", type=int)
-    parser.add_argument("--run-dir", type=Path, default=Path("data/publication-runs"))
+    parser.add_argument(
+        "--run-dir",
+        type=Path,
+        default=Path("data/publication-runs"),
+        help="budget/accounting scope; separate directories require separately authorized spend ceilings",
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--max-spend-usd", type=float)
@@ -1669,7 +1715,13 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             parser.error(str(exc))
     try:
-        cells = build_cells(args.phase, args.model_id, args.cap)
+        authorization_phase = "route-preflight" if args.dry_run or args.preflight_only else args.phase
+        cells = build_cells(
+            args.phase,
+            args.model_id,
+            args.cap,
+            authorization_phase=authorization_phase,
+        )
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         parser.error(str(exc))
     if args.phase == "sweep" and not args.dry_run and not args.preflight_only:
@@ -1690,6 +1742,15 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             parser.error(str(exc))
     run_dir = args.run_dir.resolve()
+    paid_invocation = (
+        not args.dry_run
+        and not args.preflight_only
+        and args.phase != "route-preflight"
+        and any(cell.provider == "openrouter" for cell in cells)
+    )
+    if paid_invocation and not _paid_run_lock_held:
+        with _exclusive_paid_run(run_dir):
+            return main(argv, _paid_run_lock_held=True)
     for directory in (run_dir / "raw", run_dir / "checkpoints"):
         if not args.dry_run and not args.preflight_only and args.phase != "route-preflight":
             directory.mkdir(parents=True, exist_ok=True)
@@ -1759,7 +1820,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.phase == "route-preflight":
             print(f"zero-completion-call route preflight passed: {cell.experiment_id}")
             continue
-        if args.max_spend_usd is not None and cell.provider == "openrouter":
+        if not args.preflight_only and args.max_spend_usd is not None and cell.provider == "openrouter":
             budget_start = budget_start if budget_start is not None else _budget_start(run_dir, env)
             spent = _measured_spend_usd(run_dir, env, budget_start)
             if spent >= args.max_spend_usd:
@@ -1800,7 +1861,7 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             # Provider failures are exactly when spend visibility matters most.
             # Report the post-cell delta even when the child exits nonzero.
-            if args.max_spend_usd is not None and cell.provider == "openrouter":
+            if not args.preflight_only and args.max_spend_usd is not None and cell.provider == "openrouter":
                 spent = _measured_spend_usd(run_dir, env, float(budget_start))
                 if cell_succeeded:
                     _settle_cell_reservation(run_dir, cell, spent)

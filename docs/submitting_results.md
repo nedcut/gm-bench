@@ -8,10 +8,13 @@ unless it is called out as a convention. Read
 (`public-leaderboard`, strict versioned policies) and the contract freeze.
 
 > **Current status:** the public site is the frozen `sota-v2` phase-one study.
-> Development HEAD emits `sota-v3`, but a v3 publication registry and lane have
-> not been pre-registered. New strict submissions should therefore remain local
-> or diagnostic until that protocol is frozen; do not add a v3 row to
-> `results/leaderboard/` and expect the v2 site to publish it.
+> Development HEAD emits `sota-v3`, and the 3-repeat configuration below is the
+> generic strict submission flow for that current contract. It is not the
+> official v3 publication matrix. That separate, pre-registered lane is a
+> private 16-seed × 1-repeat panel (`config/sota_v3_lane.json`) that is not
+> authorized to publish and is not open to third-party submission. A generic v3
+> row can be validated, but do not add one to `results/leaderboard/` expecting
+> the frozen v2 site to publish it.
 
 ## Produce the row
 

@@ -15,6 +15,7 @@ from typing import Any
 
 from gm_bench.agents import AGENTS, Agent
 from gm_bench.baseline_cache import default_cache_path
+from gm_bench.benchmark_config import validate_baseline_names
 from gm_bench.contract import benchmark_contract, scaffold_fingerprint
 from gm_bench.runner import (
     _episodes_payload,
@@ -513,6 +514,7 @@ def evaluate_resumable_candidate(
     use_baseline_cache: bool = True,
 ) -> dict[str, Any]:
     """Build the normal evaluation payload after a resumable candidate completes."""
+    baseline_names = validate_baseline_names(baseline_names)
     seeds = list(candidate["seeds"])
     seasons = int(candidate["seasons"])
     baselines = []

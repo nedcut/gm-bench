@@ -20,7 +20,7 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # action discriminators were made fail-closed at the simulator boundary.
     # Private seeds remain internal to the trusted harness; model prompts,
     # adapter transports, and child environments no longer expose them.
-    assert contract_fingerprint() == "4f93daa123041ab8"
+    assert contract_fingerprint() == "247e12fe5a7d4f5b"
     assert "oracle" not in AGENTS
 
 

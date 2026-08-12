@@ -6,9 +6,9 @@
   },
   "completion_calls": 0,
   "contract": "sota-v3",
-  "contract_fingerprint": "4f93daa123041ab8",
+  "contract_fingerprint": "247e12fe5a7d4f5b",
   "format": "gm-bench-route-acceptance-evidence-v1",
-  "generated_at_utc": "2026-08-06T15:40:33+00:00",
+  "generated_at_utc": "2026-08-12T02:05:52+00:00",
   "official_policy_sources": [
     "https://openrouter.ai/docs/guides/features/zdr",
     "https://openrouter.ai/docs/guides/privacy/provider-logging/",
@@ -44,8 +44,8 @@
           "verbosity"
         ],
         "tag": "amazon-bedrock/global",
-        "uptime_last_1d": 99.87841021354205,
-        "uptime_last_30m": 99.93293091884641
+        "uptime_last_1d": 99.91623426483933,
+        "uptime_last_30m": 99.8887859128823
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -85,9 +85,9 @@
           "top_logprobs",
           "top_p"
         ],
-        "tag": "cloudflare/fp8",
-        "uptime_last_1d": 99.59460834756257,
-        "uptime_last_30m": 99.87990392313851
+        "tag": "cloudflare",
+        "uptime_last_1d": 99.93499567113403,
+        "uptime_last_30m": 99.99427360705492
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -95,7 +95,7 @@
         "provider_slug": "cloudflare",
         "terms_of_service_url": "https://www.cloudflare.com/service-specific-terms-developer-platform/#developer-platform-terms"
       },
-      "route_identity_sha256": "ee801d3d09aa511f61eb5acde13825f633b33da5eaee3a3c3090f51f7914eac5",
+      "route_identity_sha256": "18ad2c23c2054b976e69c7cf2c3d7c913a8b376c549edc030ab5cb11e7ad2066",
       "zero_data_retention_endpoint": false
     },
     "openrouter-glm-5.2-novita": {
@@ -123,8 +123,8 @@
           "top_p"
         ],
         "tag": "novita/fp8",
-        "uptime_last_1d": 99.43486503565947,
-        "uptime_last_30m": 99.9126383226558
+        "uptime_last_1d": 98.37496623891077,
+        "uptime_last_30m": 99.29263416884515
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -154,8 +154,8 @@
           "tools"
         ],
         "tag": "openai",
-        "uptime_last_1d": 98.58468091530884,
-        "uptime_last_30m": 99.14320714605756
+        "uptime_last_1d": 99.48090417616663,
+        "uptime_last_30m": 99.8232260116789
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -186,8 +186,8 @@
           "tools"
         ],
         "tag": "tencent/fp8",
-        "uptime_last_1d": 99.8614037657611,
-        "uptime_last_30m": 99.84994372889834
+        "uptime_last_1d": 99.9176975402543,
+        "uptime_last_30m": 99.9147787799162
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -224,8 +224,8 @@
           "top_p"
         ],
         "tag": "deepinfra/fp8",
-        "uptime_last_1d": 98.76749019215595,
-        "uptime_last_30m": 99.73839110529758
+        "uptime_last_1d": 95.85337383624449,
+        "uptime_last_30m": 97.15625
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -260,8 +260,8 @@
           "top_p"
         ],
         "tag": "mistral",
-        "uptime_last_1d": 99.83423358405034,
-        "uptime_last_30m": 99.98067632850241
+        "uptime_last_1d": 99.98273358709729,
+        "uptime_last_30m": 100
       },
       "output_cap_verification_status": "request-cap-pending-strict-smoke",
       "provider_policy": {
@@ -299,7 +299,7 @@
           "top_p"
         ],
         "tag": "alibaba",
-        "uptime_last_1d": 99.99875377178758,
+        "uptime_last_1d": 99.99945699038004,
         "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",

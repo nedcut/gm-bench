@@ -98,8 +98,13 @@ def test_sign_flip_p_value_exact_small_sample() -> None:
 
 
 def test_sign_flip_p_value_is_deterministic_when_sampled() -> None:
-    lifts = [float(i % 7 - 3) + 0.1 for i in range(20)]
+    lifts = [float(i % 7 - 3) + 0.1 for i in range(21)]
     assert _sign_flip_p_value(lifts) == _sign_flip_p_value(lifts)
+
+
+def test_sign_flip_p_value_remains_exact_above_old_enumeration_limit() -> None:
+    lifts = [1.0] * 20
+    assert _sign_flip_p_value(lifts) == 2 / 2**20
 
 
 def test_evaluate_reports_sign_flip_p_value() -> None:

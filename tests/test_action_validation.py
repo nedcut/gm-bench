@@ -85,6 +85,26 @@ def test_numeric_overflow_is_rejected_recursively(payload: str) -> None:
         parse_actions(payload)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("player_id", "true"),
+        ("years", "false"),
+        ("salary", "true"),
+        ("player_ids", "[1,2,true]"),
+    ],
+)
+def test_action_parser_rejects_booleans_in_numeric_fields(field: str, value: str) -> None:
+    with pytest.raises(ValueError, match="must be"):
+        parse_actions(f'{{"actions":[{{"type":"sign_free_agent","{field}":{value}}}]}}')
+
+
+def test_action_parser_rejects_more_than_protocol_maximum() -> None:
+    payload = json.dumps({"actions": [{"type": "noop"}] * 25})
+    with pytest.raises(ValueError, match="at most 24"):
+        parse_actions(payload)
+
+
 def test_simulator_defensively_rejects_overflowing_integer_coercion() -> None:
     league = League.new(seed=7)
     league.apply_actions([{"type": "release", "player_id": float("inf")}], "preseason")

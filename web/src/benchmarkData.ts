@@ -5,10 +5,21 @@ import type {
 } from "./types";
 
 export type ResultModel = TieredLeaderboardModel & {
-  paired_lift: number;
-  ci95: [number, number];
+  primary_lift: number;
+  primary_ci95: [number, number];
+  full_panel_lift: number;
   cost_per_episode_usd: number;
 };
+
+/**
+ * The primary lift is computed twice by independent code paths: once by the
+ * runner (`paired.best_baseline.paired_lift_mean`, surfaced as
+ * `lift_vs_best_baseline`) and once by scripts/analyze_publication_panel.py
+ * (`mean_lift`, surfaced as `primary_lift`). Both round to 3dp, so any
+ * disagreement past this tolerance means the two surfaces are describing
+ * different contrasts -- the exact defect this module now guards.
+ */
+const PRIMARY_LIFT_AGREEMENT_TOLERANCE = 0.001;
 
 const Z95 = 1.96;
 
@@ -24,9 +35,35 @@ export interface BenchmarkView {
   models: ResultModel[];
   modelCount: number;
   modelsAboveBar: number;
+  /** Rows whose preregistered Holm-adjusted primary test rejects at 0.05. */
+  holmRejectedCount: number;
   repeats: number;
   scriptedBar: number;
   oracle: number;
+}
+
+export type PrimaryClaim = "rejects" | "descriptive-only" | "inconclusive";
+
+/**
+ * Decide what claim a single published row has actually earned.
+ *
+ * The two available signals disagree, by design and by disclosure:
+ *   - `primary_ci95` is a percentile bootstrap on the primary contrast. For
+ *     every v2 row it excludes zero, which naively reads as "significant".
+ *   - `holm_reject_at_0_05` is the preregistered family test. It rejects for
+ *     no v2 row, because at eight seeds the sign-flip floor (2/2**8) against a
+ *     family of ten puts the smallest achievable adjusted p at 0.078.
+ *
+ * config/publication_protocol.json is explicit that the interval is descriptive
+ * and "must not be used as a headline claim". The preregistered Holm result
+ * therefore controls the inferential claim; the interval only distinguishes a
+ * descriptive directional gap from an interval that crosses zero.
+ */
+export function primaryClaim(model: ResultModel): PrimaryClaim {
+  if (model.holm_reject_at_0_05 === true) return "rejects";
+  const [lower, upper] = model.primary_ci95;
+  if (upper < 0 || lower > 0) return "descriptive-only";
+  return "inconclusive";
 }
 
 function finite(value: unknown): value is number {
@@ -49,17 +86,37 @@ function assertResultModel(model: TieredLeaderboardModel): asserts model is Resu
   if (!finite(model.mean_score)) {
     throw new Error(`Leaderboard row ${model.id} is missing a finite mean_score`);
   }
-  if (!finite(model.paired_lift)) {
-    throw new Error(`Leaderboard row ${model.id} is missing a finite paired_lift`);
+  if (!finite(model.primary_lift)) {
+    throw new Error(`Leaderboard row ${model.id} is missing a finite primary_lift`);
+  }
+  // Fail loud rather than render a blank cell: a published row without the
+  // secondary contrast is a malformed artifact, not a presentational edge case.
+  if (!finite(model.full_panel_lift)) {
+    throw new Error(`Leaderboard row ${model.id} is missing a finite full_panel_lift`);
   }
   if (
-    !Array.isArray(model.ci95) ||
-    model.ci95.length !== 2 ||
-    !finite(model.ci95[0]) ||
-    !finite(model.ci95[1]) ||
-    model.ci95[0] > model.ci95[1]
+    !Array.isArray(model.primary_ci95) ||
+    model.primary_ci95.length !== 2 ||
+    !finite(model.primary_ci95[0]) ||
+    !finite(model.primary_ci95[1]) ||
+    model.primary_ci95[0] > model.primary_ci95[1]
   ) {
-    throw new Error(`Leaderboard row ${model.id} has an invalid ci95`);
+    throw new Error(`Leaderboard row ${model.id} has an invalid primary_ci95`);
+  }
+  if (model.primary_lift < model.primary_ci95[0] || model.primary_lift > model.primary_ci95[1]) {
+    throw new Error(`Leaderboard row ${model.id} has a primary_lift outside its own primary_ci95`);
+  }
+  // Cross-surface check: the runner and the publication analyzer must agree on
+  // the primary contrast. If they drift apart, the site would plot one and cite
+  // the other's Holm verdict -- silently, which is how this shipped before.
+  if (
+    finite(model.lift_vs_best_baseline) &&
+    Math.abs(model.primary_lift - model.lift_vs_best_baseline) > PRIMARY_LIFT_AGREEMENT_TOLERANCE
+  ) {
+    throw new Error(
+      `Leaderboard row ${model.id} disagrees on the primary contrast: ` +
+        `analysis primary_lift ${model.primary_lift} vs runner lift_vs_best_baseline ${model.lift_vs_best_baseline}`,
+    );
   }
   if (!finite(model.cost_per_episode_usd) || model.cost_per_episode_usd < 0) {
     throw new Error(`Leaderboard row ${model.id} has an invalid cost_per_episode_usd`);
@@ -117,6 +174,9 @@ export function buildBenchmarkView(data: Leaderboard): BenchmarkView {
     models,
     modelCount: models.length,
     modelsAboveBar: models.filter((model) => model.mean_score > scriptedBar).length,
+    // Derived, never hand-written: the previous copy asserted a Holm outcome in
+    // prose, which is how a claim and its data drift apart in the first place.
+    holmRejectedCount: models.filter((model) => primaryClaim(model) === "rejects").length,
     repeats,
     scriptedBar,
     oracle: data.headroom.oracle,

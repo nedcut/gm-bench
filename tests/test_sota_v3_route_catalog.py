@@ -54,10 +54,10 @@ def test_v3_catalog_freezes_exact_balanced_cohort_without_unlocking_execution() 
     assert registry["catalog_snapshot_status"] == "frozen-public-metadata-only"
     assert registry["selection_status"] == "frozen"
     assert registry["selection_frozen_at_utc"]
-    assert registry["selection_revision"] == "2026-08-06-drop-mandatory-reasoning-routes-v4"
+    assert registry["selection_revision"] == "2026-08-11-cloudflare-route-tag-refresh-v5"
     policy = registry["selection_policy"]
     assert "Qwen 3.8 Max" in policy
-    assert "deepinfra/fp8" in policy and "cloudflare/fp8" in policy
+    assert "deepinfra/fp8" in policy and "Cloudflare" in policy
     assert "now frozen" in policy
     assert registry["catalog_checked_at_utc"]
     assert set(registry["required_smokes"]) == {model["id"] for model in models}

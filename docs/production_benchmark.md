@@ -11,9 +11,15 @@ GM-Bench has one general result tier plus versioned strict policies:
 
 The public leaderboard can show development and diagnostic rows, including local
 models that are below the scripted baselines. A current `sota-v3` result is the
-minimum technical bar for a new serious comparison, but no v3 publication lane
-or model registry is pre-registered yet. Do not spend on or publish a v3 panel
-until those conditions are frozen.
+minimum technical bar for a new serious comparison.
+
+There are two distinct v3 workflows. The generic strict submission flow below
+uses the public leaderboard preset and at least 3 repeats. Separately, the
+official v3 publication lane is pre-registered in `config/sota_v3_lane.json` and
+`config/sota_v3_models.json`: it is a **private** 16-seed × 1-repeat panel
+against a sealed seed set. That private lane still carries
+`publication_authorized: false`. Do not publish its panel or apply its 1-repeat
+design to a generic third-party submission.
 
 Committed official artifacts belong in `results/leaderboard/` and must pass the
 `public-leaderboard` validator in CI. Ineligible runs that are retained for

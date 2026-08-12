@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -50,15 +51,35 @@ def load_cache(path: str | Path | None = None) -> dict[str, dict[str, Any]]:
 
 
 def save_cache(cache: dict[str, dict[str, Any]], path: str | Path | None = None) -> None:
-    # Entries keyed under an older fingerprint can never be read again, so drop
-    # them rather than letting the file accumulate dead episodes forever.
-    prefix = f"v{CACHE_VERSION}:{simulation_fingerprint()}:"
-    live = {key: value for key, value in cache.items() if key.startswith(prefix)}
     cache_path = Path(path) if path is not None else default_cache_path()
     cache_path.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = cache_path.with_suffix(".json.tmp")
-    temp_path.write_text(json.dumps(live, indent=2, sort_keys=True))
-    os.replace(temp_path, cache_path)
+    with _cache_lock(cache_path):
+        # Merge again under the process lock so concurrent runs cannot
+        # overwrite one another's newly computed baseline episodes.
+        merged = load_cache(cache_path)
+        merged.update(cache)
+        # Entries keyed under an older fingerprint can never be read again, so
+        # drop them rather than letting the file accumulate dead episodes.
+        prefix = f"v{CACHE_VERSION}:{simulation_fingerprint()}:"
+        live = {key: value for key, value in merged.items() if key.startswith(prefix)}
+        temporary = cache_path.with_name(f".{cache_path.name}.{os.getpid()}.tmp")
+        temporary.write_text(json.dumps(live, indent=2, sort_keys=True))
+        os.replace(temporary, cache_path)
+
+
+@contextmanager
+def _cache_lock(cache_path: Path):
+    """Serialize cache read/merge/write cycles across benchmark processes."""
+    import fcntl
+
+    lock_path = cache_path.with_suffix(cache_path.suffix + ".lock")
+    descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
 
 
 def get_cached_episode(

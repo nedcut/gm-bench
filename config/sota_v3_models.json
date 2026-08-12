@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "contract": "sota-v3",
-  "contract_fingerprint": "4f93daa123041ab8",
+  "contract_fingerprint": "247e12fe5a7d4f5b",
   "lane": "api",
   "provider": "openrouter",
   "provider_policy": "openrouter-only",
@@ -10,15 +10,15 @@
   "preset": "leaderboard",
   "repeats": 1,
   "selection_status": "frozen",
-  "selection_frozen_at_utc": "2026-08-06T15:40:33+00:00",
-  "selection_revision": "2026-08-06-drop-mandatory-reasoning-routes-v4",
+  "selection_frozen_at_utc": "2026-08-12T02:05:52+00:00",
+  "selection_revision": "2026-08-11-cloudflare-route-tag-refresh-v5",
   "catalog_snapshot_status": "frozen-public-metadata-only",
   "catalog_checked_at_utc": "2026-08-04T16:00:40Z",
   "catalog_sources": [
     "https://openrouter.ai/api/v1/models",
     "https://openrouter.ai/api/v1/models/{model_id}/endpoints"
   ],
-  "selection_policy": "Eight-model pre-data cohort frozen on 2026-08-06 before any v3 smoke or panel evidence existed. The preceding catalog refresh replaced Qwen 3.7 Plus with Qwen 3.8 Max and moved the same-model MiniMax M3 and DeepSeek V4 Flash 0731 slots to deepinfra/fp8 and cloudflare/fp8 under docs/ROUTE_SUBSTITUTION_POLICY.md. Amendment 3 then retained eight routes from the accepted ten-model registry and withdrew Gemini 3.6 Flash and Grok 4.5 because they were the only mandatory-reasoning routes. The retained cohort is uniformly reasoning-disabled, the Holm family size is 8, and the already committed 16x1 seed allocation is preserved. The registry is now frozen against authenticated exact-route metadata and the accepted synthetic-data privacy standard in results/analysis/sota-v3-route-acceptance-evidence.json. Inference, reasoning-disabled behavior, JSON, and request-cap behavior remain subject to one strict smoke per route before any panel authorization.",
+  "selection_policy": "Eight-model pre-data cohort frozen on 2026-08-06 before any v3 smoke or panel evidence existed. The preceding catalog refresh replaced Qwen 3.7 Plus with Qwen 3.8 Max and moved the same-model MiniMax M3 and DeepSeek V4 Flash 0731 slots to deepinfra/fp8 and Cloudflare under docs/ROUTE_SUBSTITUTION_POLICY.md. Amendment 3 then retained eight routes from the accepted ten-model registry and withdrew Gemini 3.6 Flash and Grok 4.5 because they were the only mandatory-reasoning routes. The 2026-08-11 zero-call refresh updated Cloudflare's endpoint tag from cloudflare/fp8 to cloudflare without changing the provider, endpoint name, model, health, supported parameters, cap, or prices. The retained cohort is uniformly reasoning-disabled, the Holm family size is 8, and the already committed 16x1 seed allocation is preserved. The registry is now frozen against authenticated exact-route metadata and the accepted synthetic-data privacy standard in results/analysis/sota-v3-route-acceptance-evidence.json. Inference, reasoning-disabled behavior, JSON, and request-cap behavior remain subject to one strict smoke per route before any panel authorization.",
   "models": [
     {
       "id": "openrouter-gpt-5.6-luna-openai",
@@ -314,8 +314,8 @@
       "transport": "gateway-api",
       "cohort": "open-weight",
       "upstream_provider": "Cloudflare",
-      "upstream_provider_slug": "cloudflare/fp8",
-      "endpoint_tag": "cloudflare/fp8",
+      "upstream_provider_slug": "cloudflare",
+      "endpoint_tag": "cloudflare",
       "endpoint_name": "Cloudflare | deepseek/deepseek-v4-flash-20260731",
       "catalog_route_status": 0,
       "catalog_uptime_last_30m": 99.28610653487095,
@@ -359,7 +359,7 @@
       "absent_options": [
         "OPENROUTER_REASONING_EFFORT"
       ],
-      "role": "DeepSeek open-weight anchor, substituted from the first-party `deepseek/fp8` route onto `cloudflare/fp8` on 2026-08-04 after `deepseek/fp8` was deranked to status -5 (30m uptime 78.93%). Same FP8 quantization and identical published rates; selected on 24h uptime (99.75%, best of sixteen endpoints), not spot health. Per docs/ROUTE_SUBSTITUTION_POLICY.md."
+      "role": "DeepSeek open-weight anchor, substituted from the first-party `deepseek/fp8` route onto Cloudflare on 2026-08-04 after `deepseek/fp8` was deranked to status -5 (30m uptime 78.93%). The live endpoint tag changed from `cloudflare/fp8` to `cloudflare` on 2026-08-11 without changing provider or endpoint identity. Same model and identical published rates; selected on 24h uptime, not spot health. Per docs/ROUTE_SUBSTITUTION_POLICY.md."
     },
     {
       "id": "openrouter-hy3-tencent",
@@ -410,7 +410,7 @@
   "exact_route_acceptance": {
     "schema_version": 2,
     "status": "accepted",
-    "accepted_at_utc": "2026-08-06T15:40:33+00:00",
+    "accepted_at_utc": "2026-08-12T02:05:52+00:00",
     "evidence_artifact": "results/analysis/sota-v3-route-acceptance-evidence.json",
     "privacy_standard": {
       "data_classification": "synthetic-benchmark-no-personal-or-confidential-data",
@@ -424,8 +424,8 @@
       "openrouter-gpt-5.6-luna-openai": {
         "route_identity_sha256": "7968d261fc1919563259c9226842ac936f1b0a9b1250f4b4b3013c3b6ebbdabb",
         "authenticated": true,
-        "verified_at_utc": "2026-08-06T15:40:33+00:00",
-        "route_evidence_sha256": "b03ac372e0ebc4075f75a1c8f04df992a7ca851386a8c9e2bb4bfa880bf2b21d",
+        "verified_at_utc": "2026-08-12T02:05:52+00:00",
+        "route_evidence_sha256": "6d436bf7d59cde138031187fbc811affca624bc624b653b9339a080e8772ab5b",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "7968d261fc1919563259c9226842ac936f1b0a9b1250f4b4b3013c3b6ebbdabb",
@@ -434,15 +434,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-06T15:40:33+00:00",
+          "accepted_at_utc": "2026-08-12T02:05:52+00:00",
           "evidence_sha256": "a5f2713f4bcd7e92dba4e8c433ee1ee6a7d24dbb7f0c555554e8c5789c8f4124"
         }
       },
       "openrouter-claude-sonnet-5-bedrock": {
         "route_identity_sha256": "cd14b14e915dbac2656c1483972fb585df7d718635f2748e044ecfe1d0c6be4c",
         "authenticated": true,
-        "verified_at_utc": "2026-08-06T15:40:33+00:00",
-        "route_evidence_sha256": "fb8535028cebabcb2b789ab00ed662ef7d9692b3a9b6b9c7e9f0422c031f79c8",
+        "verified_at_utc": "2026-08-12T02:05:52+00:00",
+        "route_evidence_sha256": "2f8f0881f71e80dcba7bc5881611026a24a3c9d322f95a70df2803749d1d897d",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "cd14b14e915dbac2656c1483972fb585df7d718635f2748e044ecfe1d0c6be4c",
@@ -451,15 +451,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-06T15:40:33+00:00",
+          "accepted_at_utc": "2026-08-12T02:05:52+00:00",
           "evidence_sha256": "aa3a9f7abc28801d7f33ff49033559b7a4dff8b4bd9f22760392b80d23f202c9"
         }
       },
       "openrouter-glm-5.2-novita": {
         "route_identity_sha256": "864af6547ed9669d9f1e16c9cf93ce86c3c341f3383a21750fe0228b63c4d20d",
         "authenticated": true,
-        "verified_at_utc": "2026-08-06T15:40:33+00:00",
-        "route_evidence_sha256": "e9111a245c006f5173fbd6428a1bb0a3a30d1ded6070485dea718c27730049f9",
+        "verified_at_utc": "2026-08-12T02:05:52+00:00",
+        "route_evidence_sha256": "43b0fc29e97d4bb73ef3beaa52ccddac6068c5fccca895ad9f097f187c39b220",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "864af6547ed9669d9f1e16c9cf93ce86c3c341f3383a21750fe0228b63c4d20d",
@@ -468,15 +468,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-06T15:40:33+00:00",
+          "accepted_at_utc": "2026-08-12T02:05:52+00:00",
           "evidence_sha256": "e04fa9099c24fb9cdd5afd3f2f99f247e63bfbf3eae2047d17e27db3e6dd1f1a"
         }
       },
       "openrouter-minimax-m3-deepinfra": {
         "route_identity_sha256": "3a5ff981f3b2ce8e13604c9a2c5ee3a3794b5dbd09228a11c641ed33bf2ec326",
         "authenticated": true,
-        "verified_at_utc": "2026-08-06T15:40:33+00:00",
-        "route_evidence_sha256": "f150a15892db1d3c5e68bf70a2f43bda3d10742bf6c2df58f18c2ddc5ccfbfab",
+        "verified_at_utc": "2026-08-12T02:05:52+00:00",
+        "route_evidence_sha256": "77c967575a5a1077c3e84bbe0265fce28258cf5a73aa00a701c0db3cf5aa5565",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "3a5ff981f3b2ce8e13604c9a2c5ee3a3794b5dbd09228a11c641ed33bf2ec326",
@@ -485,15 +485,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-06T15:40:33+00:00",
+          "accepted_at_utc": "2026-08-12T02:05:52+00:00",
           "evidence_sha256": "4abf4fae23fb326c977846ce06c6c0c006e55b007779667787335d46249dc79f"
         }
       },
       "openrouter-qwen3.8-max-alibaba": {
         "route_identity_sha256": "ad5446583e6d608032760931054c42a8b774149e3c3cf6dd6426656b18871804",
         "authenticated": true,
-        "verified_at_utc": "2026-08-06T15:40:33+00:00",
-        "route_evidence_sha256": "8508454ca72182a2ce01aa3f187e9de2597c708dd47091fc3813676b11a948d1",
+        "verified_at_utc": "2026-08-12T02:05:52+00:00",
+        "route_evidence_sha256": "4dea4f7998d9f3f26a93d4f9e9c8635dde406aeedd1711545be0a8188af54820",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "ad5446583e6d608032760931054c42a8b774149e3c3cf6dd6426656b18871804",
@@ -502,15 +502,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-06T15:40:33+00:00",
+          "accepted_at_utc": "2026-08-12T02:05:52+00:00",
           "evidence_sha256": "042780febcef9ba21cf3b85d799e5d58cb3aba4d8e567605e9bea1af4603da23"
         }
       },
       "openrouter-mistral-medium-3.5-mistral": {
         "route_identity_sha256": "6b50860e44b7c8c4e52ac53faa23cebffec2f4f430fac1cd0aaf1a80683b3a03",
         "authenticated": true,
-        "verified_at_utc": "2026-08-06T15:40:33+00:00",
-        "route_evidence_sha256": "6da9fa6a05ac606a5d51ba185ec9ecd5d14e9f34f8e5520f19427994d3700aa9",
+        "verified_at_utc": "2026-08-12T02:05:52+00:00",
+        "route_evidence_sha256": "d76c1a28f8080dca78ececfdfaba96dea45225e53e07af426576f3514eefeb72",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "6b50860e44b7c8c4e52ac53faa23cebffec2f4f430fac1cd0aaf1a80683b3a03",
@@ -519,32 +519,32 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-06T15:40:33+00:00",
+          "accepted_at_utc": "2026-08-12T02:05:52+00:00",
           "evidence_sha256": "3f6a3f935a15742c999790593bc6d35d7ea0728c0ea65523611a7aebcff57055"
         }
       },
       "openrouter-deepseek-v4-flash-0731-cloudflare": {
-        "route_identity_sha256": "ee801d3d09aa511f61eb5acde13825f633b33da5eaee3a3c3090f51f7914eac5",
+        "route_identity_sha256": "18ad2c23c2054b976e69c7cf2c3d7c913a8b376c549edc030ab5cb11e7ad2066",
         "authenticated": true,
-        "verified_at_utc": "2026-08-06T15:40:33+00:00",
-        "route_evidence_sha256": "f6d42684db749e9a1f8d265e6ecea8c328607b71c3473ea801a905795b1b2dec",
+        "verified_at_utc": "2026-08-12T02:05:52+00:00",
+        "route_evidence_sha256": "b35de7ca67f4ea88a4bfa998e02024499847897c05f416424bf70aec9b6677f0",
         "privacy_acceptance": {
           "status": "accepted",
-          "route_identity_sha256": "ee801d3d09aa511f61eb5acde13825f633b33da5eaee3a3c3090f51f7914eac5",
+          "route_identity_sha256": "18ad2c23c2054b976e69c7cf2c3d7c913a8b376c549edc030ab5cb11e7ad2066",
           "data_collection_policy_accepted": true,
           "retention_policy_accepted": true,
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-06T15:40:33+00:00",
-          "evidence_sha256": "64645cb28ff87a3a5a017201b474c4f2a44d8a22466178b35ffc8a3a12c96be5"
+          "accepted_at_utc": "2026-08-12T02:05:52+00:00",
+          "evidence_sha256": "7244e24cd96ae75d8d4cf21860e674ab1bd9179a4196d0c0874242a067984061"
         }
       },
       "openrouter-hy3-tencent": {
         "route_identity_sha256": "845a8c55b92983428fe7e3d75aecaf07172f2c84c57b43ecbbb0405a51ad8ee4",
         "authenticated": true,
-        "verified_at_utc": "2026-08-06T15:40:33+00:00",
-        "route_evidence_sha256": "3b2f35880b0fba45727e5efd78218689e1add13c50071546facecacd6e3441b2",
+        "verified_at_utc": "2026-08-12T02:05:52+00:00",
+        "route_evidence_sha256": "5054ab2d17079288410f159f85a107292aa16431c7447d71b8a7bb9733862d5e",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "845a8c55b92983428fe7e3d75aecaf07172f2c84c57b43ecbbb0405a51ad8ee4",
@@ -553,7 +553,7 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-06T15:40:33+00:00",
+          "accepted_at_utc": "2026-08-12T02:05:52+00:00",
           "evidence_sha256": "b262ab6afe54deb2a1a540b75f4cdf4a351e405d9a65a1d86b4e1858d504327a"
         }
       }

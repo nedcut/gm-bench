@@ -11,6 +11,7 @@ import tempfile
 import time
 from typing import Any, BinaryIO
 
+from gm_bench.action_validation import validate_action_list
 from gm_bench.agents import Agent, external_agent_environment
 from gm_bench.protocol import QUERY_ACTION_TYPES
 from gm_bench.scaffold_view import model_adapter_observation
@@ -146,6 +147,10 @@ class PersistentProcessAgent(Agent):
             require_finite_json_numbers(actions)
         except ValueError:
             return ([{"type": "noop", "error": "persistent agent returned non-finite action values"}], None)
+        try:
+            actions = validate_action_list(actions)
+        except ValueError as exc:
+            return ([{"type": "noop", "error": f"persistent agent returned invalid actions: {exc}"}], None)
         usage = normalize_usage(payload.get("usage")) if isinstance(payload, dict) else None
         return actions, usage
 

@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "contract": "sota-v3",
-  "contract_fingerprint": "4f93daa123041ab8",
+  "contract_fingerprint": "247e12fe5a7d4f5b",
   "status": "frozen",
   "checked_at_utc": "2026-08-04T16:00:40Z",
   "source": "Undiscounted rates frozen from the public OpenRouter catalog and rechecked against authenticated exact-route endpoint metadata before smoke authorization; no completion or chat endpoint was called.",
@@ -29,7 +29,7 @@
       "completion": 1e-05
     },
     "deepseek/deepseek-v4-flash-0731": {
-      "provider_slug": "cloudflare/fp8",
+      "provider_slug": "cloudflare",
       "endpoint_name": "Cloudflare | deepseek/deepseek-v4-flash-20260731",
       "prompt": 1.4e-07,
       "completion": 2.8e-07
