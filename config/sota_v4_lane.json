@@ -19,8 +19,14 @@
     "status": "frozen",
     "claim_direction": "trails-reference",
     "primary_claim": "Every registered model-plus-compact-scaffold system trails deterministic pick-trader on seed-paired mean lift under the frozen sota-v4 mechanics.",
-    "evaluated_seed_range": [9, 16],
-    "evaluated_repeat_range": [1, 3],
+    "evaluated_seed_range": [
+      9,
+      16
+    ],
+    "evaluated_repeat_range": [
+      1,
+      3
+    ],
     "family_size": 8,
     "holm_family_size": 8,
     "seed_count": 16,
@@ -49,13 +55,19 @@
       "seed_count": 16,
       "repeats": 1,
       "episodes_per_model": 16,
-      "minimum_exact_two_sided_sign_flip_p_value": 0.000030517578125,
+      "minimum_exact_two_sided_sign_flip_p_value": 3.0517578125e-05,
       "holm_first_step_threshold_at_alpha_0_05": 0.00625,
       "exact_sign_flip_holm_feasible": true,
       "base_power_estimate": 0.9629,
-      "base_power_wilson_ci95": [0.959014, 0.96643],
+      "base_power_wilson_ci95": [
+        0.959014,
+        0.96643
+      ],
       "sensitivity_power_estimate": 0.8727,
-      "sensitivity_power_wilson_ci95": [0.866024, 0.87909],
+      "sensitivity_power_wilson_ci95": [
+        0.866024,
+        0.87909
+      ],
       "allocation_selection_note": "At unchanged family size 8, retain the exact unused 16-seed x 1-repeat sota-v3 allocation and commitment. Its conservative sensitivity power is 0.8727 with Wilson lower bound 0.866024, above the 0.80 target. No sota-v3 panel was run and no seed or salt was read for sota-v4."
     },
     "selection_rule": "Smallest allocation with 9-16 seeds and 1-3 repeats whose conservative-sensitivity familywise-power Wilson 95% lower bound is at least 0.80; retain the already committed unused 16x1 allocation because the family remains eight.",
@@ -99,16 +111,15 @@
   "panel_execution_authorized": false,
   "publication_authorized": false,
   "blockers": [
-    "Re-establish authenticated exact-route and privacy acceptance for all eight v4 routes; no sota-v3 route evidence carries forward.",
     "Resolve qwen/qwen3.8-max request compatibility after two terminal sota-v3 HTTP 400 attempts; healthy public catalog metadata is insufficient.",
-    "Complete a zero-completion-call final preflight before separately authorizing any paid strict smoke."
+    "Obtain a separate owner decision before authorizing any paid strict smoke; successful zero-completion preflight is evidence, not spend authorization."
   ],
   "final_preflight_evidence": {
-    "status": "unresolved",
-    "artifact": null,
-    "sha256": null,
+    "status": "accepted",
+    "artifact": "results/analysis/sota-v4-final-preflight-evidence.json",
+    "sha256": "0879c94bb1c2ef0c50d60bcba18b14525941d11e594858db856638c5aec5e838",
     "contract_fingerprint": "247e12fe5a7d4f5b",
-    "completion_calls": null,
+    "completion_calls": 0,
     "operator_ceiling_usd": 100.0
   }
 }

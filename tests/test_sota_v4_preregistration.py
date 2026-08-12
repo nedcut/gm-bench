@@ -91,13 +91,15 @@ def test_v4_replacement_and_route_selection_are_predata() -> None:
     assert by_model["mistralai/mistral-medium-3-5"]["output_cap_verification"] == (
         PENDING_STRICT_SMOKE_CAP_VERIFICATION
     )
-    assert registry["selection_status"] == "route-preflight-ready"
-    assert registry["selection_frozen_at_utc"] is None
-    assert registry["exact_route_acceptance"]["status"] == "unresolved"
+    assert registry["selection_status"] == "frozen"
+    assert registry["selection_frozen_at_utc"]
+    assert registry["exact_route_acceptance"]["status"] == "accepted"
     assert all(
-        entry["authenticated"] is False and entry["privacy_acceptance"] == {"status": "unresolved", "accepted": False}
+        entry["authenticated"] is True and entry["privacy_acceptance"]["status"] == "accepted"
         for entry in registry["exact_route_acceptance"]["entries"].values()
     )
+    assert all("Complete authenticated zero-call" not in item for item in registry["unresolved_decisions"])
+    assert all("deliberately false or unresolved" not in item for item in registry["public_metadata_limitations"])
 
 
 def test_v4_authorizes_only_zero_spend_route_preflight() -> None:
@@ -111,8 +113,9 @@ def test_v4_authorizes_only_zero_spend_route_preflight() -> None:
         assert record["publication_authorized"] is False
     assert protocol["budget_policy"]["spend_authorized"] is False
     assert protocol["budget_policy"]["operator_ceiling_usd"] == 100.0
-    assert lane["final_preflight_evidence"]["status"] == "unresolved"
-    assert lane["final_preflight_evidence"]["artifact"] is None
+    assert lane["final_preflight_evidence"]["status"] == "accepted"
+    assert lane["final_preflight_evidence"]["artifact"] == ("results/analysis/sota-v4-final-preflight-evidence.json")
+    assert all("Complete a zero-completion-call final preflight" not in item for item in lane["blockers"])
     assert (
         publication_execution_issues(
             lane,
