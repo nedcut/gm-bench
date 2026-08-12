@@ -496,7 +496,7 @@ def test_smoke_retry_archives_empty_aborted_stale_checkpoint(tmp_path: Path) -> 
                 "format": "gm-bench-model-checkpoint-v1",
                 "status": "aborted",
                 "provenance": {
-                    "benchmark_contract": contract_fingerprint(),
+                    "benchmark_contract": {"contract_fingerprint": contract_fingerprint()},
                     "scaffold_fingerprint": "superseded-scaffold",
                 },
                 "episodes": [],
@@ -514,6 +514,31 @@ def test_smoke_retry_archives_empty_aborted_stale_checkpoint(tmp_path: Path) -> 
     assert "--resume" not in cell_command(cell, tmp_path)
 
 
+def test_smoke_retry_preserves_current_checkpoint_for_resume(tmp_path: Path) -> None:
+    cell = build_cells("smoke")[0]
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    checkpoint = tmp_path / "checkpoints" / f"{stem}.json"
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "format": "gm-bench-model-checkpoint-v1",
+                "status": "aborted",
+                "provenance": {
+                    "benchmark_contract": {"contract_fingerprint": contract_fingerprint()},
+                    "scaffold_fingerprint": scaffold_fingerprint(cell.provider),
+                },
+                "episodes": [],
+                "completed": [],
+            }
+        )
+    )
+
+    assert publication_runner._prepare_smoke_retry_checkpoint(cell, tmp_path) is None
+    assert checkpoint.is_file()
+    assert "--resume" in cell_command(cell, tmp_path)
+
+
 def test_smoke_retry_rejects_nonempty_stale_checkpoint_before_reservation(tmp_path: Path) -> None:
     cell = build_cells("smoke")[0]
     stem = f"{cell.experiment_id}--{cell.cap_label}"
@@ -525,7 +550,7 @@ def test_smoke_retry_rejects_nonempty_stale_checkpoint_before_reservation(tmp_pa
                 "format": "gm-bench-model-checkpoint-v1",
                 "status": "aborted",
                 "provenance": {
-                    "benchmark_contract": contract_fingerprint(),
+                    "benchmark_contract": {"contract_fingerprint": contract_fingerprint()},
                     "scaffold_fingerprint": "superseded-scaffold",
                 },
                 "episodes": [{"seed": 1}],

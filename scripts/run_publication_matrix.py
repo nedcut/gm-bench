@@ -511,10 +511,11 @@ def _prepare_smoke_retry_checkpoint(cell: Cell, run_dir: Path) -> Path | None:
     provenance = provenance if isinstance(provenance, dict) else {}
     expected_contract = contract_fingerprint()
     expected_scaffold = scaffold_fingerprint(cell.provider)
-    if (
-        provenance.get("benchmark_contract") == expected_contract
-        and provenance.get("scaffold_fingerprint") == expected_scaffold
-    ):
+    benchmark_contract = provenance.get("benchmark_contract")
+    stored_contract = (
+        benchmark_contract.get("contract_fingerprint") if isinstance(benchmark_contract, dict) else benchmark_contract
+    )
+    if stored_contract == expected_contract and provenance.get("scaffold_fingerprint") == expected_scaffold:
         return None
     episodes = payload.get("episodes")
     completed = payload.get("completed")
