@@ -808,6 +808,8 @@ def _reconcile_spend_guard(run_dir: Path) -> dict[str, Any]:
     ):
         raise ValueError("absorbing the unresolved call reservation would exceed the authorized ceiling")
 
+    prior_evidence = state.get("reconciliation_evidence")
+    prior_sha = state.get("reconciliation_sha256")
     evidence = {
         "format": "gm-bench-openrouter-spend-reconciliation-v1",
         "schema_version": 1,
@@ -821,12 +823,28 @@ def _reconcile_spend_guard(run_dir: Path) -> dict[str, Any]:
         "method": "charge-full-conservative-call-reservation",
         "note": "The actual provider cost was unavailable; the full pre-call upper bound is charged as spent.",
     }
-    evidence_path = run_dir / SPEND_RECONCILIATION
+    if isinstance(prior_evidence, str) and prior_evidence and isinstance(prior_sha, str) and prior_sha:
+        evidence["previous_reconciliation_evidence"] = prior_evidence
+        evidence["previous_reconciliation_sha256"] = prior_sha
+    base = Path(SPEND_RECONCILIATION)
+    evidence_path = run_dir / base
+    sequence = 1
+    while evidence_path.exists():
+        sequence += 1
+        evidence_path = run_dir / f"{base.stem}-{sequence}{base.suffix}"
     _write_json_atomic(evidence_path, evidence)
     evidence_sha = hashlib.sha256(evidence_path.read_bytes()).hexdigest()
     state["reported_spend_usd"] = reconciled_spend
     state["active_call_reservation_usd"] = 0.0
-    state["reconciliation_evidence"] = SPEND_RECONCILIATION
+    evidence_name = evidence_path.name
+    history = state.get("reconciliation_history")
+    if not isinstance(history, list):
+        history = []
+    if not history and isinstance(prior_evidence, str) and isinstance(prior_sha, str):
+        history.append({"evidence": prior_evidence, "sha256": prior_sha})
+    history.append({"evidence": evidence_name, "sha256": evidence_sha})
+    state["reconciliation_history"] = history
+    state["reconciliation_evidence"] = evidence_name
     state["reconciliation_sha256"] = evidence_sha
     state.pop("active_call_input_token_bound", None)
     state.pop("blocked_reason", None)

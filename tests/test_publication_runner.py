@@ -2105,6 +2105,42 @@ def test_spend_reconciliation_charges_the_full_unknown_call_reservation(tmp_path
     assert (tmp_path / publication_runner.SPEND_RECONCILIATION).is_file()
 
 
+def test_repeated_spend_reconciliation_preserves_and_hash_links_prior_evidence(tmp_path: Path) -> None:
+    (tmp_path / "openrouter-budget.json").write_text(json.dumps({"starting_total_usage_usd": 10.0}))
+    state_path = tmp_path / publication_runner.CALL_SPEND_GUARD_STATE
+    state_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "ceiling_usd": 100.0,
+                "reported_spend_usd": 0.001,
+                "active_call_reservation_usd": 0.02,
+                "blocked_reason": "missing cost one",
+            }
+        )
+    )
+    _reconcile_spend_guard(tmp_path)
+    first_path = tmp_path / publication_runner.SPEND_RECONCILIATION
+    first_bytes = first_path.read_bytes()
+    first_sha = hashlib.sha256(first_bytes).hexdigest()
+    state = json.loads(state_path.read_text())
+    state.update(active_call_reservation_usd=0.03, blocked_reason="missing cost two")
+    state_path.write_text(json.dumps(state))
+
+    second = _reconcile_spend_guard(tmp_path)
+    state = json.loads(state_path.read_text())
+    second_path = tmp_path / "openrouter-spend-reconciliation-2.json"
+
+    assert first_path.read_bytes() == first_bytes
+    assert second_path.is_file()
+    assert second["previous_reconciliation_evidence"] == publication_runner.SPEND_RECONCILIATION
+    assert second["previous_reconciliation_sha256"] == first_sha
+    assert state["reconciliation_history"] == [
+        {"evidence": publication_runner.SPEND_RECONCILIATION, "sha256": first_sha},
+        {"evidence": second_path.name, "sha256": hashlib.sha256(second_path.read_bytes()).hexdigest()},
+    ]
+
+
 def test_spend_reconciliation_rejects_nonfinite_ceiling(tmp_path: Path) -> None:
     (tmp_path / "openrouter-budget.json").write_text(json.dumps({"starting_total_usage_usd": 10.0}))
     state_path = tmp_path / publication_runner.CALL_SPEND_GUARD_STATE
