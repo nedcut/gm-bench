@@ -1931,10 +1931,13 @@ def main(argv: list[str] | None = None, *, _paid_run_lock_held: bool = False) ->
     for cell in cells:
         env = cell_environment(cell)
         if args.phase == "smoke" and not args.preflight_only and not args.dry_run:
+            reservations = _read_json_if_valid(run_dir / "openrouter-reservations.json") or {}
+            stored = (reservations.get("cells") or {}).get(f"{cell.experiment_id}--{cell.cap_label}") or {}
+            if stored.get("status") in {"excluded", "ineligible"}:
+                print(f"preserving terminal smoke without rerun: {cell.experiment_id} ({stored['status']})")
+                continue
             behavior_issues = _completed_smoke_model_behavior_issues(cell, run_dir)
             if behavior_issues:
-                reservations = _read_json_if_valid(run_dir / "openrouter-reservations.json") or {}
-                stored = (reservations.get("cells") or {}).get(f"{cell.experiment_id}--{cell.cap_label}") or {}
                 measured = float(stored.get("measured_run_spend_usd") or _artifact_spend_usd(run_dir))
                 failure = "completed smoke failed only model-behavior gates: " + "; ".join(behavior_issues)
                 _record_ineligible_cell_reservation(run_dir, cell, measured, failure)

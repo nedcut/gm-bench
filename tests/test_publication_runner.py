@@ -1085,6 +1085,8 @@ def test_paid_openrouter_run_requires_explicit_spend_ceiling(
         main(
             [
                 "smoke",
+                "--contract",
+                "sota-v3",
                 "--model-id",
                 "openrouter-qwen3.7-plus-alibaba",
                 "--run-dir",
@@ -1319,6 +1321,41 @@ def test_completed_smoke_model_behavior_is_ineligible_without_rerun(
     artifact["candidate"]["summary"]["usage"]["cost_decisions"] = 3
     raw.write_text(json.dumps(artifact))
     assert publication_runner._completed_smoke_model_behavior_issues(cell, tmp_path) == []
+
+
+@pytest.mark.parametrize("status", ["excluded", "ineligible"])
+def test_terminal_smoke_is_skipped_before_child_or_new_reservation(
+    status: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry, _lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    cell = build_cells("smoke", model_id=registry["models"][0]["id"])[0]
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    (tmp_path / "openrouter-reservations.json").write_text(
+        json.dumps({"schema_version": 1, "cells": {stem: {"status": status, "attempts": 2}}})
+    )
+    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", lambda *_args: pytest.fail("endpoint"))
+    monkeypatch.setattr(publication_runner.subprocess, "run", lambda *_args, **_kwargs: pytest.fail("child"))
+
+    assert (
+        _runner_main(
+            [
+                "smoke",
+                "--contract",
+                "sota-v3",
+                "--model-id",
+                cell.experiment_id,
+                "--run-dir",
+                str(tmp_path),
+                "--max-spend-usd",
+                "100",
+            ],
+            _paid_run_lock_held=True,
+        )
+        == 0
+    )
+
+    stored = json.loads((tmp_path / "openrouter-reservations.json").read_text())["cells"][stem]
+    assert stored == {"status": status, "attempts": 2}
 
 
 def test_successful_cell_settlement_releases_reservation_for_next_cell(tmp_path: Path) -> None:
