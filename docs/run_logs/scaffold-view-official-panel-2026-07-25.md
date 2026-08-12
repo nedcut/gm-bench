@@ -105,9 +105,10 @@ used to re-rank any model. `scaffold-view` stays outside
 
 ## Final pre-smoke revalidation (2026-08-11)
 
-The diagnostic was rerun after the final pre-smoke safety and parser changes,
-under contract fingerprint `247e12fe5a7d4f5b`, using the same command, seeds,
-and seasons recorded above. The run made zero provider calls and reproduced the
+The diagnostic was rerun after the final pre-smoke safety, parser, and review
+changes, under contract fingerprint `247e12fe5a7d4f5b` and OpenRouter scaffold
+fingerprint `d451b0e38cdee0fb`, using the same command, seeds, and seasons
+recorded above. The run made zero provider calls and reproduced the
 headline means exactly: `scaffold-view` 270.675 and `pick-trader` 267.875, a
 paired mean gap of +2.800. Both agents completed 160 decisions with zero
 fallbacks and zero illegal actions. This is the current-fingerprint free

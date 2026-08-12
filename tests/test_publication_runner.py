@@ -231,6 +231,7 @@ def _frozen_panel_files(
         }
     )
     protocol["budget_policy"]["spend_authorized"] = True
+    protocol["budget_policy"]["operator_ceiling_usd"] = 100.0
     protocol["statistical_analysis_plan"] = {
         "status": "frozen",
         "analysis_mode": "reference-only",
@@ -546,6 +547,7 @@ def test_preflight_only_still_validates_endpoint_despite_reusable_smoke_artifact
     assert validated == [cell.experiment_id]
     assert not (tmp_path / "openrouter-budget.json").exists()
     assert not (tmp_path / "openrouter-reservations.json").exists()
+    assert not (tmp_path / publication_runner.CALL_SPEND_GUARD_STATE).exists()
 
 
 def test_smoke_rejects_cap_that_differs_from_frozen_lane() -> None:
@@ -1082,6 +1084,24 @@ def test_call_guard_receives_frozen_rates_and_global_ceiling(tmp_path: Path) -> 
     assert float(guard[f"{prefix}PROMPT_RATE_USD"]) > 0
     assert float(guard[f"{prefix}COMPLETION_RATE_USD"]) > 0
     assert guard[f"{prefix}OUTPUT_TOKEN_CAP"] == "4096"
+
+
+def test_call_guard_rejects_reasoning_without_a_committed_token_allowance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=4096)[0]
+    cell = replace(cell, fixed_options={"OPENROUTER_REASONING_ENABLED": "true"})
+    pricing = json.loads(Path("config/sota_v3_pricing_snapshot.json").read_text())
+    pricing["planning_assumptions"].pop("expected_internal_reasoning_tokens_per_decision", None)
+    monkeypatch.setattr(publication_runner, "_read_json", lambda _path: pricing)
+
+    with pytest.raises(ValueError, match="positive committed"):
+        _call_spend_guard_environment(
+            cell,
+            tmp_path,
+            ceiling_usd=100.0,
+            measured_spend_floor_usd=0.0,
+        )
 
 
 def test_cell_reservation_scales_to_future_24_seed_private_panel(

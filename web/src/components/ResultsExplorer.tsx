@@ -487,7 +487,7 @@ export default function ResultsExplorer({
   };
 
   return (
-    <section className="results-section" id="results">
+    <section className="results-section" id="results" tabIndex={-1}>
       <div className="results-shell">
         <div className="result-overview">
           <div className="result-overview-copy">

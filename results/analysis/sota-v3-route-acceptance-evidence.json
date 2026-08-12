@@ -8,7 +8,7 @@
   "contract": "sota-v3",
   "contract_fingerprint": "247e12fe5a7d4f5b",
   "format": "gm-bench-route-acceptance-evidence-v1",
-  "generated_at_utc": "2026-08-12T02:05:52+00:00",
+  "generated_at_utc": "2026-08-12T02:36:51+00:00",
   "official_policy_sources": [
     "https://openrouter.ai/docs/guides/features/zdr",
     "https://openrouter.ai/docs/guides/privacy/provider-logging/",
@@ -44,8 +44,8 @@
           "verbosity"
         ],
         "tag": "amazon-bedrock/global",
-        "uptime_last_1d": 99.91623426483933,
-        "uptime_last_30m": 99.8887859128823
+        "uptime_last_1d": 99.91144723930785,
+        "uptime_last_30m": 99.82281284606867
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -86,8 +86,8 @@
           "top_p"
         ],
         "tag": "cloudflare",
-        "uptime_last_1d": 99.93499567113403,
-        "uptime_last_30m": 99.99427360705492
+        "uptime_last_1d": 99.94904885496705,
+        "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -123,8 +123,8 @@
           "top_p"
         ],
         "tag": "novita/fp8",
-        "uptime_last_1d": 98.37496623891077,
-        "uptime_last_30m": 99.29263416884515
+        "uptime_last_1d": 98.38082856926296,
+        "uptime_last_30m": 99.71354166666667
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -154,8 +154,8 @@
           "tools"
         ],
         "tag": "openai",
-        "uptime_last_1d": 99.48090417616663,
-        "uptime_last_30m": 99.8232260116789
+        "uptime_last_1d": 99.48121421145878,
+        "uptime_last_30m": 99.803646723
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -186,8 +186,8 @@
           "tools"
         ],
         "tag": "tencent/fp8",
-        "uptime_last_1d": 99.9176975402543,
-        "uptime_last_30m": 99.9147787799162
+        "uptime_last_1d": 99.91695097944114,
+        "uptime_last_30m": 99.85383491037773
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -224,8 +224,8 @@
           "top_p"
         ],
         "tag": "deepinfra/fp8",
-        "uptime_last_1d": 95.85337383624449,
-        "uptime_last_30m": 97.15625
+        "uptime_last_1d": 95.95419686054127,
+        "uptime_last_30m": 99.39734833266371
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -260,7 +260,7 @@
           "top_p"
         ],
         "tag": "mistral",
-        "uptime_last_1d": 99.98273358709729,
+        "uptime_last_1d": 99.98273494212282,
         "uptime_last_30m": 100
       },
       "output_cap_verification_status": "request-cap-pending-strict-smoke",
@@ -299,7 +299,7 @@
           "top_p"
         ],
         "tag": "alibaba",
-        "uptime_last_1d": 99.99945699038004,
+        "uptime_last_1d": 99.99945344977039,
         "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",

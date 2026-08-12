@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import subprocess
 import sys
@@ -10,6 +11,7 @@ from statistics import mean
 import pytest
 
 import gm_bench.cli as cli_module
+import gm_bench.gui as gui_module
 import gm_bench.runner as runner_module
 from examples.claude_agent import build_command as build_claude_command
 from examples.codex_agent import build_command as build_codex_command
@@ -353,6 +355,17 @@ def test_gui_fails_before_binding_non_loopback_host(tmp_path: Path) -> None:
         serve("0.0.0.0", db_path=tmp_path / "gui.sqlite")
 
 
+def test_gui_direct_entrypoint_honors_database_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    database = tmp_path / "environment.sqlite"
+    seen: dict[str, object] = {}
+    monkeypatch.setenv("GM_BENCH_DB", str(database))
+    monkeypatch.setattr(gui_module, "serve", lambda host, port, db, **kwargs: seen.update(db=db))
+
+    gui_module.main([])
+
+    assert seen["db"] == str(database)
+
+
 def test_model_action_parser_accepts_actions_object() -> None:
     actions = parse_actions('{"actions":[{"type":"noop"}]}')
     assert actions == [{"type": "noop"}]
@@ -443,6 +456,36 @@ def test_model_action_parser_still_rejects_all_untyped_items() -> None:
     except ValueError:
         return
     raise AssertionError("parser should reject action lists with no typed items")
+
+
+def test_model_action_parser_does_not_silently_drop_malformed_items() -> None:
+    with pytest.raises(ValueError, match="string type"):
+        parse_actions('{"actions":[{"type":"noop"},{"salary":2.5}]}')
+
+
+def test_standalone_common_prefers_checkout_package_over_older_install(tmp_path: Path) -> None:
+    fake_root = tmp_path / "fake-site"
+    fake_package = fake_root / "gm_bench"
+    fake_package.mkdir(parents=True)
+    (fake_package / "__init__.py").write_text("# deliberately incomplete installed package\n")
+    common = Path("examples/gm_agent_common.py").resolve()
+    command = (
+        "import pathlib, runpy, sys; "
+        "runpy.run_path(sys.argv[1]); "
+        "import gm_bench; "
+        "print(pathlib.Path(gm_bench.__file__).resolve())"
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", command, str(common)],
+        cwd=tmp_path,
+        env={**os.environ, "PYTHONPATH": str(fake_root)},
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+
+    assert completed.stdout.strip() == str((Path("gm_bench") / "__init__.py").resolve())
 
 
 def test_prompt_builder_ignores_legacy_no_think_soft_switch(monkeypatch: pytest.MonkeyPatch) -> None:

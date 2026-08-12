@@ -7,10 +7,10 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-08-09
+**Last reviewed:** 2026-08-11
 **Current target:** Preserve the published `sota-v2` study as frozen historical
-evidence while pre-registering and rehearsing a finite `sota-v3` publication
-lane.
+evidence while running and accepting the eight authorized serial `sota-v3`
+strict smokes. Panel execution and publication remain separately locked.
 **Current state:** The frozen phase-one public panel, blog, GitHub release, and
 results-first site are published. Eight of ten
 `sota-v2`-registered models produced route-matched, cost-complete `sota-v2`
@@ -19,24 +19,26 @@ predeclared minimum. Grok 4.5 and Mistral Medium 3.5 completed but remain diagno
 their artifacts lacked complete usage or cost coverage. The generated site now
 exposes the eight eligible rows. All models overlap in one uncertainty tier,
 and every eligible model trails `pick-trader`. The three P0 correctness and
-artifact-integrity fixes landed in #85 as an explicit `sota-v3` contract.
-Sunday's merged work closed the contract-economics, same-view, gap-diagnostic,
-site-framing, statistical-tiering, and version-dispatched CI items. Pre-data
+artifact-integrity fixes landed in #85 as an explicit `sota-v3` contract. The
+current v3 candidate also closes the contract-economics, same-view,
+gap-diagnostic, site-framing, statistical-tiering, and version-dispatched CI
+items. Pre-data
 design amendment 3 (2026-08-06,
 `docs/run_logs/sota-v3-design-amendment-2026-08-06.md`) withdrew Gemini 3.6
 Flash and Grok 4.5 — the only two mandatory-reasoning routes — leaving an
 eight-model, uniformly reasoning-disabled cohort (2 frontier-proprietary / 6
-open-weight) at Holm family size 8. The current working tree contains that
+open-weight) at Holm family size 8. The current candidate contains that
 cohort, a frozen 16-seed x 1-repeat statistical design (sensitivity power
 0.8727, Wilson lower 0.8660), a frozen 4,096-token smoke ceiling, an empty
 not-started smoke manifest, explicit runner dispatch, and a zero-spend synthetic
 rehearsal. Exact-route and synthetic-data privacy acceptance are recorded for
 all eight routes, and the private 16-seed commitment is frozen with its secret
-in macOS Keychain. The last authenticated route preflight and Keychain-backed
-dry-run passed without completion calls; both must be refreshed at the final
-candidate fingerprint before spend. Private seeds are now stripped from every
-model-facing payload and child environment while remaining runner-internal for
-pairing and replay. Spend and strict-smoke
+in macOS Keychain. Final-fingerprint Keychain-backed dry-run and authenticated
+route-plus-price preflight evidence passed for all eight routes with zero
+completion calls. Route health and pricing remain ephemeral, so rerun the
+zero-completion preflight immediately before paid smoke execution. Private
+seeds are now stripped from every model-facing payload and child environment
+while remaining runner-internal for pairing and replay. Spend and strict-smoke
 execution are authorized under a committed $100 ceiling. The generated cost
 artifact is authoritative for both the one-response-per-window planning
 forecast and the protocol-maximum estimate; the runner separately enforces the
@@ -69,8 +71,9 @@ portfolio project. The public `sota-v2` evidence gate is now satisfied with
 eight eligible rows under the frozen 4,096-token native-minimum-reasoning lane.
 The evidence does not support an ordinal model ranking: all eight rows occupy
 one overlapping uncertainty tier, and none beats the transparent `pick-trader`
-baseline. A public release still needs raw trace assets, claim review,
-presentation polish, and independent reproduction.
+baseline. A future `sota-v3` release still needs accepted smoke and panel
+evidence, raw trace assets, claim review, presentation polish, and independent
+reproduction.
 
 The strongest story is not merely that GM-Bench runs LLMs through a simulator.
 It is that the project:
@@ -498,7 +501,7 @@ to raw evidence without relying on trust in the author.
   belong.
 - [ ] Make sure a clean clone contains no credentials, private seeds, raw private
   traces, or machine-specific paths.
-- [ ] Create a tagged GitHub release for the frozen v2 study.
+- [x] Create a tagged GitHub release for the frozen v2 study.
 - [ ] Add concise release notes and a changelog entry explaining what is frozen,
   what was withdrawn, and what remains diagnostic.
 - [ ] Attach raw public traces, generated analysis, checksums, and a compact
@@ -920,7 +923,7 @@ decision and why.
 
 | Date | Decision | Evidence / rationale | Effect |
 | --- | --- | --- | --- |
-| 2026-08-11 | Re-authorize only the eight serial SOTA-v3 smokes at final fingerprint `247e12fe5a7d4f5b`. | The final free gate reproduced the scaffold-view diagnostic exactly, regenerated authenticated exact-route/privacy evidence for all eight routes, constructed all eight Keychain-backed smoke commands without exposing private seeds, and executed authenticated route plus live-price preflight with zero completion calls. The digested record is `results/analysis/sota-v3-final-preflight-evidence.json`. Full Python 3.13 and 3.14 suites, Ruff, contract canaries, synthetic rehearsal, cost regeneration, web lint/build, dependency audit, and wheel build passed. | `spend_authorized` and `smoke_execution_authorized` are true under the $100 operator ceiling. The runner remains serial, canonical-host pinned, dynamically spend-guarded, and process-locked. Panel execution and publication remain false until every strict smoke is independently accepted. |
+| 2026-08-11 | Re-authorize only the eight serial SOTA-v3 smokes at final contract fingerprint `247e12fe5a7d4f5b` and OpenRouter scaffold fingerprint `d451b0e38cdee0fb`. | The final free gate reproduced the scaffold-view diagnostic exactly, regenerated authenticated exact-route/privacy evidence for all eight routes, constructed all eight Keychain-backed smoke commands without exposing private seeds, and executed authenticated route plus live-price preflight with zero completion calls. The digested record is `results/analysis/sota-v3-final-preflight-evidence.json`. Full Python 3.13 and 3.14 suites, Ruff, contract canaries, synthetic rehearsal, cost regeneration, web lint/build, dependency audit, and wheel build passed. | `spend_authorized` and `smoke_execution_authorized` are true under the $100 operator ceiling. The runner remains serial, canonical-host pinned, dynamically spend-guarded, and process-locked. Panel execution and publication remain false until every strict smoke is independently accepted. |
 | 2026-08-04 | Adopt `qwen/qwen3.8-max` in place of `qwen/qwen3.7-plus`, and adopt a written [route substitution policy](ROUTE_SUBSTITUTION_POLICY.md). | Qwen 3.8 Max shipped 2026-08-03 and the benchmark is intended to track new releases rather than freeze once. Three substitutions in two days had each been decided ad hoc, which is how a benchmark quietly starts measuring whichever host is cheapest this week. | Cohort stays at ten, so the Holm family, the 16x1 allocation, and the power selection are untouched. The Max tier bills 6.25x/4.69x the Plus tier per token. The policy fixes eligibility, forbids price/throughput/first-party status as substitution criteria, and requires re-establishing route and privacy acceptance for any new counterparty. |
 | 2026-08-04 | Substitute `deepseek/fp8` -> `cloudflare/fp8` and `minimax/fp8` -> `deepinfra/fp8`. | Both first-party routes were deranked the same day (status `-5` at 78% availability, and `-2`). Both replacements are the same model at the same FP8 quantization, chosen on highest 24h availability, at identical published rates. | No cost or cohort-size effect. The DeepSeek route recovered on its own within the day, so in hindsight that substitution was not strictly necessary; it is kept because Cloudflare holds the better 24h record. Route and privacy acceptance do **not** carry over — Cloudflare and DeepInfra are counterparties this project has never reviewed. |
 | 2026-08-11 | Refresh the Cloudflare endpoint tag from `cloudflare/fp8` to `cloudflare` after the final authenticated zero-call check found the old tag absent. | The live route still reports the same Cloudflare provider, canonical endpoint name, healthy status, required parameters, 384k maximum completion tokens, and committed prompt/completion prices. This is an endpoint-tag refresh, not a provider or model substitution. | Cohort, Holm family, seed allocation, output cap, and cost are unchanged. Prior route acceptance is invalidated and must be regenerated before smoke. |

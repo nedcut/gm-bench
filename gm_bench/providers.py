@@ -86,7 +86,8 @@ class ProtocolRepairAgent(Agent):
         return actions, merged
 
 
-_SPEND_GUARD_PREFIX = "GM_BENCH_OPENROUTER_SPEND_GUARD_"
+SPEND_GUARD_ENV_PREFIX = "GM_BENCH_OPENROUTER_SPEND_GUARD_"
+_SPEND_GUARD_PREFIX = SPEND_GUARD_ENV_PREFIX
 OPENROUTER_CANONICAL_API_BASE = "https://openrouter.ai/api/v1"
 # The OpenRouter adapter adds a fixed system message, the compact scaffold,
 # action examples, and chat framing around the observation.  A UTF-8 byte is a

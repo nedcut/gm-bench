@@ -230,7 +230,9 @@ def v3_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
     return issues
 
 
-def v3_final_preflight_issues(lane: dict[str, Any], registry: dict[str, Any]) -> list[str]:
+def v3_final_preflight_issues(
+    lane: dict[str, Any], registry: dict[str, Any], protocol: dict[str, Any] | None
+) -> list[str]:
     """Validate the committed zero-call evidence required before paid smoke.
 
     A contract-fingerprint change invalidates the earlier authenticated route
@@ -303,14 +305,18 @@ def v3_final_preflight_issues(lane: dict[str, Any], registry: dict[str, Any]) ->
         if dry_run.get("hiding_commitment_verified") is not True:
             issues.append("sota-v3 final dry run did not verify the private-panel hiding commitment")
         ceiling = declaration.get("operator_ceiling_usd")
+        protocol_ceiling = (
+            protocol.get("budget_policy", {}).get("operator_ceiling_usd") if isinstance(protocol, dict) else None
+        )
         if (
             not isinstance(ceiling, int | float)
             or isinstance(ceiling, bool)
             or not math.isfinite(float(ceiling))
             or float(ceiling) <= 0
             or dry_run.get("operator_ceiling_usd") != ceiling
+            or ceiling != protocol_ceiling
         ):
-            issues.append("sota-v3 final dry run does not bind the authorized operator ceiling")
+            issues.append("sota-v3 final dry run does not bind the frozen protocol operator ceiling")
 
     live_preflight = evidence.get("authenticated_route_and_price_preflight")
     if not isinstance(live_preflight, dict) or live_preflight.get("status") != "passed":
@@ -599,7 +605,7 @@ def publication_execution_issues(
             issues.extend(v3_preregistration_coherence_issues(lane, registry, protocol, pricing, manifest))
             issues.extend(v3_route_acceptance_issues(registry))
             if phase == "smoke":
-                issues.extend(v3_final_preflight_issues(lane, registry))
+                issues.extend(v3_final_preflight_issues(lane, registry, protocol))
             if (
                 not isinstance(protocol, dict)
                 or protocol.get("contract") != contract

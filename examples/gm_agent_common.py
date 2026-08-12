@@ -10,17 +10,17 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
-try:
-    from gm_bench.action_validation import validate_action_list
-    from gm_bench.agent_utils import position_aware_lineup, public_asset_value
-    from gm_bench.scaffold_view import compact_observation, scaffold_fallback_lineup
-except ModuleNotFoundError:
-    # Example agents run as standalone scripts (`python examples/claude_agent.py`),
-    # where only examples/ is on sys.path and gm-bench is not necessarily installed.
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from gm_bench.action_validation import validate_action_list
-    from gm_bench.agent_utils import position_aware_lineup, public_asset_value
-    from gm_bench.scaffold_view import compact_observation, scaffold_fallback_lineup
+# Example agents run as standalone scripts (`python examples/claude_agent.py`),
+# where only examples/ is initially on sys.path. Prefer this checkout's package
+# before importing any gm_bench submodule; retrying after a partial import can
+# leave an older installed `gm_bench` package cached with the wrong __path__.
+_CHECKOUT_ROOT = Path(__file__).resolve().parents[1]
+if (_CHECKOUT_ROOT / "gm_bench").is_dir() and str(_CHECKOUT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_CHECKOUT_ROOT))
+
+from gm_bench.action_validation import validate_action_list  # noqa: E402
+from gm_bench.agent_utils import position_aware_lineup, public_asset_value  # noqa: E402
+from gm_bench.scaffold_view import compact_observation, scaffold_fallback_lineup  # noqa: E402
 
 # compact_observation/scaffold_fallback_lineup are re-exported rather than
 # defined here: the scaffold-view baseline in gm_bench.agents is scored on the
@@ -223,9 +223,6 @@ def _actions_from_json(parsed: Any) -> list[dict[str, Any]]:
     if any(not isinstance(action, dict) for action in parsed):
         raise ValueError("model JSON action list contained a non-object item")
     actions = [_normalize_action_keys(action) for action in parsed]
-    actions = [action for action in actions if isinstance(action.get("type"), str)]
-    if not actions:
-        raise ValueError("model JSON did not contain typed actions")
     return validate_action_list(actions)
 
 

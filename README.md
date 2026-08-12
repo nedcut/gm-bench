@@ -350,7 +350,7 @@ bun run build  # static production build in web/dist/
 
 ## External Agent Protocol
 
-The default episode uses protocol v2 (`benchmark: "gm-bench-v2"` in every
+The default episode uses protocol v3 (`benchmark: "gm-bench-v3"` in every
 observation). Each season has four decision phases:
 
 - `preseason`

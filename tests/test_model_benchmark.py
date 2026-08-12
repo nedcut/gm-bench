@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import multiprocessing
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -15,6 +17,11 @@ from gm_bench.benchmark_config import BenchmarkConfig, config_from_dict, load_co
 from gm_bench.contract import contract_fingerprint
 from gm_bench.providers import build_provider_agent, resolve_provider
 from gm_bench.runner import evaluate_against_baselines, run_many, run_many_cached_baselines, summarize_episodes
+
+
+def _save_cache_after_barrier(cache: dict[str, dict[str, Any]], cache_path: str, barrier: Any) -> None:
+    barrier.wait()
+    save_cache(cache, cache_path)
 
 
 def test_baseline_cache_tracks_the_score_affecting_contract() -> None:
@@ -255,8 +262,17 @@ def test_baseline_cache_merges_stale_writer_snapshots(tmp_path: Path) -> None:
     stale_first = {first_key: {"seed": 1, "final_score": 1.0}}
     stale_second = {second_key: {"seed": 2, "final_score": 2.0}}
 
-    save_cache(stale_first, cache_path)
-    save_cache(stale_second, cache_path)
+    context = multiprocessing.get_context("fork")
+    barrier = context.Barrier(2)
+    processes = [
+        context.Process(target=_save_cache_after_barrier, args=(cache, str(cache_path), barrier))
+        for cache in (stale_first, stale_second)
+    ]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join(timeout=10)
+        assert process.exitcode == 0
 
     assert set(load_cache(cache_path)) == {first_key, second_key}
 

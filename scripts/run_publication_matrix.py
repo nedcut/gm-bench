@@ -79,7 +79,10 @@ from gm_bench.contract import BENCHMARK_VERSION, contract_fingerprint, scaffold_
 from gm_bench.environment import load_environment_files  # noqa: E402
 from gm_bench.official import POLICIES, validate_leaderboard_payload  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
-from gm_bench.providers import OPENROUTER_CANONICAL_API_BASE  # noqa: E402
+from gm_bench.providers import (  # noqa: E402
+    OPENROUTER_CANONICAL_API_BASE,
+    SPEND_GUARD_ENV_PREFIX,
+)
 from gm_bench.publication import (  # noqa: E402
     SMOKE_MANIFEST_FORMAT,
     is_pending_strict_smoke_cap,
@@ -746,12 +749,17 @@ def _call_spend_guard_environment(
     reasoning_enabled = cell.fixed_options.get("OPENROUTER_REASONING_ENABLED") == "true"
     reasoning_tokens = int(assumptions.get("expected_internal_reasoning_tokens_per_decision") or 0)
     reasoning_rate = rates.get("internal_reasoning")
+    if reasoning_enabled and reasoning_tokens <= 0:
+        raise ValueError(
+            "reasoning-enabled paid publication cells require a positive committed "
+            "expected_internal_reasoning_tokens_per_decision"
+        )
     if reasoning_enabled and reasoning_rate is None:
         reasoning_rate = rates["completion"]
     if not reasoning_enabled:
         reasoning_tokens = 0
         reasoning_rate = 0
-    prefix = "GM_BENCH_OPENROUTER_SPEND_GUARD_"
+    prefix = SPEND_GUARD_ENV_PREFIX
     guard = {
         "OPENROUTER_API_BASE": OPENROUTER_CANONICAL_API_BASE,
         f"{prefix}STATE_PATH": str(run_dir / CALL_SPEND_GUARD_STATE),

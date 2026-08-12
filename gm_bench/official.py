@@ -394,7 +394,15 @@ def validate_leaderboard_payload(
             )
 
     if isinstance(payload.get("publication"), dict) and not redacted_private:
-        _validate_compact_integrity(errors, payload, candidate, baselines, expected_seeds or [])
+        benchmark_version = _dict(run_info.get("benchmark_contract")).get("benchmark_version")
+        _validate_compact_integrity(
+            errors,
+            payload,
+            candidate,
+            baselines,
+            expected_seeds or [],
+            allow_legacy_sign_flip_rounding=benchmark_version in {"sota-v1", "sota-v2"},
+        )
 
     normalized = _dict(payload.get("normalized"))
     paired = _dict(payload.get("paired"))
@@ -822,6 +830,8 @@ def _validate_compact_integrity(
     candidate: dict[str, Any],
     baselines: list[dict[str, Any]],
     seeds: list[int],
+    *,
+    allow_legacy_sign_flip_rounding: bool,
 ) -> None:
     """Treat compact summaries as derived views, never independent evidence."""
     _validate_finite_numbers(errors, payload)
@@ -833,10 +843,20 @@ def _validate_compact_integrity(
     rebuilt_baselines = [
         {**baseline, "summary": summarize_episodes(baseline.get("episodes") or [])} for baseline in baselines
     ]
-    _compare_present_values(errors, "candidate.summary", candidate.get("summary"), rebuilt_candidate["summary"])
+    _compare_present_values(
+        errors,
+        "candidate.summary",
+        candidate.get("summary"),
+        rebuilt_candidate["summary"],
+        allow_legacy_sign_flip_rounding=allow_legacy_sign_flip_rounding,
+    )
     for original, rebuilt in zip(baselines, rebuilt_baselines, strict=True):
         _compare_present_values(
-            errors, f"baseline[{original.get('agent', 'unknown')}].summary", original.get("summary"), rebuilt["summary"]
+            errors,
+            f"baseline[{original.get('agent', 'unknown')}].summary",
+            original.get("summary"),
+            rebuilt["summary"],
+            allow_legacy_sign_flip_rounding=allow_legacy_sign_flip_rounding,
         )
     baseline_mean = sum(_precise_mean_score(block) for block in rebuilt_baselines) / len(rebuilt_baselines)
     candidate_mean = _precise_mean_score(rebuilt_candidate)
@@ -848,9 +868,19 @@ def _validate_compact_integrity(
         "candidate_illegal_actions": rebuilt_candidate["summary"]["illegal_actions"],
         "baseline_illegal_actions": sum(block["summary"]["illegal_actions"] for block in rebuilt_baselines),
     }
-    _compare_present_values(errors, "normalized", payload.get("normalized"), expected_normalized)
     _compare_present_values(
-        errors, "paired", payload.get("paired"), _paired_analysis(seeds, rebuilt_candidate, rebuilt_baselines)
+        errors,
+        "normalized",
+        payload.get("normalized"),
+        expected_normalized,
+        allow_legacy_sign_flip_rounding=allow_legacy_sign_flip_rounding,
+    )
+    _compare_present_values(
+        errors,
+        "paired",
+        payload.get("paired"),
+        _paired_analysis(seeds, rebuilt_candidate, rebuilt_baselines),
+        allow_legacy_sign_flip_rounding=allow_legacy_sign_flip_rounding,
     )
 
 
@@ -865,7 +895,14 @@ def _validate_finite_numbers(errors: list[str], value: Any, path: str = "payload
             _validate_finite_numbers(errors, child, f"{path}[{index}]")
 
 
-def _compare_present_values(errors: list[str], path: str, actual: Any, expected: Any) -> None:
+def _compare_present_values(
+    errors: list[str],
+    path: str,
+    actual: Any,
+    expected: Any,
+    *,
+    allow_legacy_sign_flip_rounding: bool,
+) -> None:
     if not isinstance(actual, dict) or not isinstance(expected, dict):
         return
     for key, value in actual.items():
@@ -874,9 +911,16 @@ def _compare_present_values(errors: list[str], path: str, actual: Any, expected:
         expected_value = expected[key]
         child_path = f"{path}.{key}"
         if isinstance(value, dict) and isinstance(expected_value, dict):
-            _compare_present_values(errors, child_path, value, expected_value)
+            _compare_present_values(
+                errors,
+                child_path,
+                value,
+                expected_value,
+                allow_legacy_sign_flip_rounding=allow_legacy_sign_flip_rounding,
+            )
         elif (
-            child_path.endswith(".sign_flip_p_value")
+            allow_legacy_sign_flip_rounding
+            and child_path.endswith(".sign_flip_p_value")
             and isinstance(value, int | float)
             and not isinstance(value, bool)
             and isinstance(expected_value, int | float)
