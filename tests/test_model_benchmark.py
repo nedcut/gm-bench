@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import multiprocessing
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -15,6 +17,11 @@ from gm_bench.benchmark_config import BenchmarkConfig, config_from_dict, load_co
 from gm_bench.contract import contract_fingerprint
 from gm_bench.providers import build_provider_agent, resolve_provider
 from gm_bench.runner import evaluate_against_baselines, run_many, run_many_cached_baselines, summarize_episodes
+
+
+def _save_cache_after_barrier(cache: dict[str, dict[str, Any]], cache_path: str, barrier: Any) -> None:
+    barrier.wait()
+    save_cache(cache, cache_path)
 
 
 def test_baseline_cache_tracks_the_score_affecting_contract() -> None:
@@ -166,6 +173,36 @@ def test_benchmark_config_parses_seed_ranges() -> None:
     assert config.seeds == [1, 2, 3, 5]
 
 
+@pytest.mark.parametrize(
+    ("baselines", "message"),
+    [
+        ("value", "must be a list"),
+        (["value", 1], "only strings"),
+        (["not-registered"], "unknown baseline"),
+        (["value", "value"], "duplicate baselines"),
+        ([], "must not be empty"),
+    ],
+)
+def test_benchmark_config_rejects_invalid_baseline_panels_before_execution(baselines, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        config_from_dict({"baselines": baselines})
+
+
+def test_evaluate_rejects_invalid_baseline_before_candidate_execution() -> None:
+    class CountingAgent(ValueAgent):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def act(self, observation):
+            self.calls += 1
+            return super().act(observation)
+
+    candidate = CountingAgent()
+    with pytest.raises(ValueError, match="unknown baseline"):
+        evaluate_against_baselines(candidate, [1], seasons=1, baseline_names=["typo"])
+    assert candidate.calls == 0
+
+
 def test_benchmark_config_file_loads(tmp_path: Path) -> None:
     path = tmp_path / "bench.json"
     path.write_text(
@@ -215,6 +252,29 @@ def test_baseline_cache_round_trip(tmp_path: Path) -> None:
     save_cache(cache, cache_path)
     loaded = load_cache(cache_path)
     assert get_cached_episode("value", 1, 2, cache=loaded) == episode
+
+
+def test_baseline_cache_merges_stale_writer_snapshots(tmp_path: Path) -> None:
+    """A later process must not erase entries committed after its initial read."""
+    cache_path = tmp_path / "cache.json"
+    first_key = cache_key("value", 1, 2)
+    second_key = cache_key("value", 2, 2)
+    stale_first = {first_key: {"seed": 1, "final_score": 1.0}}
+    stale_second = {second_key: {"seed": 2, "final_score": 2.0}}
+
+    context = multiprocessing.get_context("fork")
+    barrier = context.Barrier(2)
+    processes = [
+        context.Process(target=_save_cache_after_barrier, args=(cache, str(cache_path), barrier))
+        for cache in (stale_first, stale_second)
+    ]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join(timeout=10)
+        assert process.exitcode == 0
+
+    assert set(load_cache(cache_path)) == {first_key, second_key}
 
 
 def test_run_many_cached_baselines_is_deterministic(tmp_path: Path) -> None:

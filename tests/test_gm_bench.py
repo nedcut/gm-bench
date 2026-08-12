@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -9,12 +11,21 @@ from statistics import mean
 import pytest
 
 import gm_bench.cli as cli_module
+import gm_bench.gui as gui_module
 import gm_bench.runner as runner_module
 from examples.claude_agent import build_command as build_claude_command
 from examples.codex_agent import build_command as build_codex_command
 from examples.gm_agent_common import build_prompt, parse_actions
 from gm_bench.agents import ExternalProcessAgent, RandomAgent, ValueAgent
-from gm_bench.gui import _parse_seeds, agent_standings, dashboard_payload, run_from_request, score_history
+from gm_bench.gui import (
+    _is_loopback_host,
+    _parse_seeds,
+    agent_standings,
+    dashboard_payload,
+    run_from_request,
+    score_history,
+    serve,
+)
 from gm_bench.runner import evaluate_against_baselines, run_episode, run_many
 from gm_bench.session import PersistentProcessAgent
 from gm_bench.simulator import League
@@ -131,6 +142,38 @@ def test_external_agent_missing_command_returns_noop() -> None:
     actions = agent.act({"phase": "preseason"})
     assert actions[0]["type"] == "noop"
     assert "could not be launched" in actions[0]["error"]
+
+
+def test_external_agent_scrubs_private_seed_from_transport_and_environment(monkeypatch, tmp_path: Path) -> None:
+    script = tmp_path / "seed_probe_agent.py"
+    script.write_text(
+        "import json, os, sys\n"
+        "observation = json.load(sys.stdin)\n"
+        "evidence = {\n"
+        "    'observation': observation,\n"
+        "    'private_seeds': os.environ.get('GM_BENCH_PRIVATE_SEEDS'),\n"
+        "    'private_seed_salt': os.environ.get('GM_BENCH_PRIVATE_SEED_SALT'),\n"
+        "    'seed_panel_salt': os.environ.get('GM_BENCH_SEED_PANEL_SALT'),\n"
+        "    'profile': os.environ.get('GM_AGENT_PROFILE'),\n"
+        "}\n"
+        "print(json.dumps({'actions': [{'type': 'memo', 'text': json.dumps(evidence)}]}))\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GM_BENCH_PRIVATE_SEEDS", "inherited-secret")
+    monkeypatch.setenv("GM_BENCH_SEED_PANEL_SALT", "inherited-salt")
+    agent = ExternalProcessAgent(
+        f"{shlex.quote(sys.executable)} {shlex.quote(str(script))}",
+        env={"GM_BENCH_PRIVATE_SEED_SALT": "override-secret", "GM_AGENT_PROFILE": "tiny"},
+    )
+
+    actions = agent.act({"seed": 9_876_543_210, "phase": "preseason"})
+
+    evidence = json.loads(actions[0]["text"])
+    assert evidence["observation"] == {"phase": "preseason"}
+    assert evidence["private_seeds"] is None
+    assert evidence["private_seed_salt"] is None
+    assert evidence["seed_panel_salt"] is None
+    assert evidence["profile"] == "tiny"
 
 
 def test_external_agent_timeout_warns_when_too_low(capsys: pytest.CaptureFixture[str]) -> None:
@@ -297,6 +340,57 @@ def test_gui_parse_seed_ranges() -> None:
     assert _parse_seeds("1-3, 5") == [1, 2, 3, 5]
 
 
+@pytest.mark.parametrize("host", ["127.0.0.1", "127.12.3.4", "::1", "localhost"])
+def test_gui_recognizes_loopback_hosts(host: str) -> None:
+    assert _is_loopback_host(host)
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "::", "192.168.1.5", "example.test"])
+def test_gui_rejects_non_loopback_hosts_by_default(host: str) -> None:
+    assert not _is_loopback_host(host)
+
+
+def test_gui_fails_before_binding_non_loopback_host(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        gui_module,
+        "ThreadingHTTPServer",
+        lambda *_args, **_kwargs: pytest.fail("server must not be constructed"),
+    )
+    with pytest.raises(ValueError, match="non-loopback"):
+        serve("0.0.0.0", db_path=tmp_path / "gui.sqlite")
+
+
+@pytest.mark.parametrize("host", ["127.0.0.1", "0.0.0.0"])
+def test_gui_remote_escape_hatch_is_disabled_before_binding(
+    host: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        gui_module,
+        "ThreadingHTTPServer",
+        lambda *_args, **_kwargs: pytest.fail("server must not be constructed"),
+    )
+    with pytest.raises(ValueError, match="no authentication"):
+        serve(host, db_path=tmp_path / "gui.sqlite", allow_remote=True)
+
+
+def test_gui_entrypoints_cannot_bypass_disabled_remote_mode() -> None:
+    with pytest.raises(ValueError, match="no authentication"):
+        gui_module.main(["--allow-remote"])
+    with pytest.raises(ValueError, match="no authentication"):
+        cli_module.main(["gui", "--allow-remote"])
+
+
+def test_gui_direct_entrypoint_honors_database_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    database = tmp_path / "environment.sqlite"
+    seen: dict[str, object] = {}
+    monkeypatch.setenv("GM_BENCH_DB", str(database))
+    monkeypatch.setattr(gui_module, "serve", lambda host, port, db, **kwargs: seen.update(db=db))
+
+    gui_module.main([])
+
+    assert seen["db"] == str(database)
+
+
 def test_model_action_parser_accepts_actions_object() -> None:
     actions = parse_actions('{"actions":[{"type":"noop"}]}')
     assert actions == [{"type": "noop"}]
@@ -387,6 +481,36 @@ def test_model_action_parser_still_rejects_all_untyped_items() -> None:
     except ValueError:
         return
     raise AssertionError("parser should reject action lists with no typed items")
+
+
+def test_model_action_parser_does_not_silently_drop_malformed_items() -> None:
+    with pytest.raises(ValueError, match="string type"):
+        parse_actions('{"actions":[{"type":"noop"},{"salary":2.5}]}')
+
+
+def test_standalone_common_prefers_checkout_package_over_older_install(tmp_path: Path) -> None:
+    fake_root = tmp_path / "fake-site"
+    fake_package = fake_root / "gm_bench"
+    fake_package.mkdir(parents=True)
+    (fake_package / "__init__.py").write_text("# deliberately incomplete installed package\n")
+    common = Path("examples/gm_agent_common.py").resolve()
+    command = (
+        "import pathlib, runpy, sys; "
+        "runpy.run_path(sys.argv[1]); "
+        "import gm_bench; "
+        "print(pathlib.Path(gm_bench.__file__).resolve())"
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", command, str(common)],
+        cwd=tmp_path,
+        env={**os.environ, "PYTHONPATH": str(fake_root)},
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+
+    assert completed.stdout.strip() == str((Path("gm_bench") / "__init__.py").resolve())
 
 
 def test_prompt_builder_ignores_legacy_no_think_soft_switch(monkeypatch: pytest.MonkeyPatch) -> None:

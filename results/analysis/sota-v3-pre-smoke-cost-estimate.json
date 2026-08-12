@@ -10,6 +10,7 @@
     "panel_seasons": 5,
     "panel_seed_count": 16,
     "phase_count": 4,
+    "planning_forecast_call_semantics": "One response budget per decision window. This is a planning forecast, not a worst-case call count.",
     "rates_are_per_token": true,
     "serial_workers": 1,
     "smoke_preset": "smoke",
@@ -17,19 +18,19 @@
     "smoke_seed_count": 1
   },
   "calls": {
-    "model_count": 10,
-    "panel_calls": 3200,
+    "model_count": 8,
+    "panel_calls": 2560,
     "panel_decisions_per_model": 320,
-    "smoke_calls": 40,
+    "smoke_calls": 32,
     "smoke_decisions_per_run": 4,
-    "smoke_runs": 10,
-    "total_calls": 3240
+    "smoke_runs": 8,
+    "total_calls": 2592
   },
   "costs_usd": {
-    "panel": 104.76363776,
-    "smoke": 1.309545472,
-    "total_unrounded": 106.073183232,
-    "total_with_1_2x_contingency": 127.2878198784
+    "panel": 60.41419776,
+    "smoke": 0.755177472,
+    "total_unrounded": 61.169375232,
+    "total_with_1_2x_contingency": 73.4032502784
   },
   "models": [
     {
@@ -39,9 +40,14 @@
       "cost_per_decision_usd": 0.0065152,
       "experiment_id": "openrouter-gpt-5.6-luna-openai",
       "internal_reasoning_tokens_per_decision": 0,
+      "maximum_api_calls_per_decision": 10,
       "model": "openai/gpt-5.6-luna",
       "panel_calls": 320,
       "panel_cost_usd": 2.084864,
+      "protocol_maximum_panel_calls": 3200,
+      "protocol_maximum_panel_cost_usd": 20.84864,
+      "protocol_maximum_smoke_calls": 40,
+      "protocol_maximum_smoke_cost_usd": 0.260608,
       "smoke_calls": 4,
       "smoke_cost_usd": 0.0260608
     },
@@ -52,39 +58,16 @@
       "cost_per_decision_usd": 0.05696,
       "experiment_id": "openrouter-claude-sonnet-5-bedrock",
       "internal_reasoning_tokens_per_decision": 0,
+      "maximum_api_calls_per_decision": 10,
       "model": "anthropic/claude-sonnet-5",
       "panel_calls": 320,
       "panel_cost_usd": 18.2272,
+      "protocol_maximum_panel_calls": 3200,
+      "protocol_maximum_panel_cost_usd": 182.272,
+      "protocol_maximum_smoke_calls": 40,
+      "protocol_maximum_smoke_cost_usd": 2.2784,
       "smoke_calls": 4,
       "smoke_cost_usd": 0.22784
-    },
-    {
-      "applied_completion_rate_usd": 7.5e-06,
-      "applied_internal_reasoning_rate_usd": 7.5e-06,
-      "applied_prompt_rate_usd": 1.5e-06,
-      "cost_per_decision_usd": 0.07344,
-      "experiment_id": "openrouter-gemini-3.6-flash-google-ai-studio",
-      "internal_reasoning_billing_basis": "internal_reasoning",
-      "internal_reasoning_tokens_per_decision": 4096,
-      "model": "google/gemini-3.6-flash",
-      "panel_calls": 320,
-      "panel_cost_usd": 23.5008,
-      "smoke_calls": 4,
-      "smoke_cost_usd": 0.29376
-    },
-    {
-      "applied_completion_rate_usd": 6e-06,
-      "applied_internal_reasoning_rate_usd": 6e-06,
-      "applied_prompt_rate_usd": 2e-06,
-      "cost_per_decision_usd": 0.065152,
-      "experiment_id": "openrouter-grok-4.5-xai",
-      "internal_reasoning_billing_basis": "completion",
-      "internal_reasoning_tokens_per_decision": 4096,
-      "model": "x-ai/grok-4.5",
-      "panel_calls": 320,
-      "panel_cost_usd": 20.84864,
-      "smoke_calls": 4,
-      "smoke_cost_usd": 0.260608
     },
     {
       "applied_completion_rate_usd": 4.4e-06,
@@ -93,9 +76,14 @@
       "cost_per_decision_usd": 0.0292224,
       "experiment_id": "openrouter-glm-5.2-novita",
       "internal_reasoning_tokens_per_decision": 0,
+      "maximum_api_calls_per_decision": 10,
       "model": "z-ai/glm-5.2",
       "panel_calls": 320,
       "panel_cost_usd": 9.351168,
+      "protocol_maximum_panel_calls": 3200,
+      "protocol_maximum_panel_cost_usd": 93.51168,
+      "protocol_maximum_smoke_calls": 40,
+      "protocol_maximum_smoke_cost_usd": 1.168896,
       "smoke_calls": 4,
       "smoke_cost_usd": 0.1168896
     },
@@ -106,9 +94,14 @@
       "cost_per_decision_usd": 0.0073152,
       "experiment_id": "openrouter-minimax-m3-deepinfra",
       "internal_reasoning_tokens_per_decision": 0,
+      "maximum_api_calls_per_decision": 10,
       "model": "minimax/minimax-m3",
       "panel_calls": 320,
       "panel_cost_usd": 2.340864,
+      "protocol_maximum_panel_calls": 3200,
+      "protocol_maximum_panel_cost_usd": 23.40864,
+      "protocol_maximum_smoke_calls": 40,
+      "protocol_maximum_smoke_cost_usd": 0.292608,
       "smoke_calls": 4,
       "smoke_cost_usd": 0.0292608
     },
@@ -119,9 +112,14 @@
       "cost_per_decision_usd": 0.040576,
       "experiment_id": "openrouter-qwen3.8-max-alibaba",
       "internal_reasoning_tokens_per_decision": 0,
+      "maximum_api_calls_per_decision": 10,
       "model": "qwen/qwen3.8-max",
       "panel_calls": 320,
       "panel_cost_usd": 12.98432,
+      "protocol_maximum_panel_calls": 3200,
+      "protocol_maximum_panel_cost_usd": 129.8432,
+      "protocol_maximum_smoke_calls": 40,
+      "protocol_maximum_smoke_cost_usd": 1.62304,
       "smoke_calls": 4,
       "smoke_cost_usd": 0.162304
     },
@@ -132,9 +130,14 @@
       "cost_per_decision_usd": 0.04272,
       "experiment_id": "openrouter-mistral-medium-3.5-mistral",
       "internal_reasoning_tokens_per_decision": 0,
+      "maximum_api_calls_per_decision": 10,
       "model": "mistralai/mistral-medium-3-5",
       "panel_calls": 320,
       "panel_cost_usd": 13.6704,
+      "protocol_maximum_panel_calls": 3200,
+      "protocol_maximum_panel_cost_usd": 136.704,
+      "protocol_maximum_smoke_calls": 40,
+      "protocol_maximum_smoke_cost_usd": 1.7088,
       "smoke_calls": 4,
       "smoke_cost_usd": 0.17088
     },
@@ -145,9 +148,14 @@
       "cost_per_decision_usd": 0.00226688,
       "experiment_id": "openrouter-deepseek-v4-flash-0731-cloudflare",
       "internal_reasoning_tokens_per_decision": 0,
+      "maximum_api_calls_per_decision": 10,
       "model": "deepseek/deepseek-v4-flash-0731",
       "panel_calls": 320,
       "panel_cost_usd": 0.7254016,
+      "protocol_maximum_panel_calls": 3200,
+      "protocol_maximum_panel_cost_usd": 7.254016,
+      "protocol_maximum_smoke_calls": 40,
+      "protocol_maximum_smoke_cost_usd": 0.0906752,
       "smoke_calls": 4,
       "smoke_cost_usd": 0.00906752
     },
@@ -158,14 +166,32 @@
       "cost_per_decision_usd": 0.003218688,
       "experiment_id": "openrouter-hy3-tencent",
       "internal_reasoning_tokens_per_decision": 0,
+      "maximum_api_calls_per_decision": 10,
       "model": "tencent/hy3",
       "panel_calls": 320,
       "panel_cost_usd": 1.02998016,
+      "protocol_maximum_panel_calls": 3200,
+      "protocol_maximum_panel_cost_usd": 10.2998016,
+      "protocol_maximum_smoke_calls": 40,
+      "protocol_maximum_smoke_cost_usd": 0.12874752,
       "smoke_calls": 4,
       "smoke_cost_usd": 0.012874752
     }
   ],
   "pricing_checked_at_utc": "2026-08-04T16:00:40Z",
+  "protocol_maximum": {
+    "costs_usd": {
+      "panel": 604.1419776,
+      "smoke": 7.55177472,
+      "total_unrounded": 611.69375232,
+      "total_with_contingency": 734.032502784
+    },
+    "description": "Maximum provider-call multiplicity allowed by the protocol, including every configured repair. Token costs still use the committed per-call planning token bounds; the publication runner's dynamic pre-call guard is the operator-ceiling enforcement mechanism.",
+    "max_interaction_rounds_per_decision": 5,
+    "panel_calls": 25600,
+    "smoke_calls": 320,
+    "total_calls": 25920
+  },
   "runtime": {
     "note": "Regenerate this artifact from accepted smoke telemetry before approving the full panel; latency is reported only for models with committed observations.",
     "observation_source": null,
@@ -173,9 +199,9 @@
     "observed_at_utc": null,
     "status": "pending-smoke-telemetry"
   },
-  "schema_version": 2,
+  "schema_version": 3,
   "supersedes": {
     "artifact": "retired 12-cell output-budget sweep estimate",
-    "description": "Replaces the four-cap, three-model sweep estimate with the registered 10-model fixed 4,096-token panel and its required smoke gate."
+    "description": "Replaces the four-cap, three-model sweep estimate with the registered 8-model fixed 4,096-token panel and its required smoke gate."
   }
 }

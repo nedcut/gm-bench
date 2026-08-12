@@ -127,6 +127,33 @@ button:focus-visible {
   border-radius: 2px;
 }
 
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 8px 12px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 button {
   font: inherit;
   cursor: pointer;
@@ -1477,18 +1504,6 @@ tbody tr.tier-start td {
   --adverse-text-4: #181106;
   --adverse-text-5: #181106;
   --surface-warm: #0f1820;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 .nav .shell {

@@ -32,6 +32,20 @@ class _Response:
         ).encode()
 
 
+class _GenerationResponse:
+    def __init__(self, payload: dict) -> None:
+        self.payload = payload
+
+    def __enter__(self) -> _GenerationResponse:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        del args
+
+    def read(self) -> bytes:
+        return json.dumps(self.payload).encode()
+
+
 def test_provider_preferences_are_reproducibility_safe(monkeypatch) -> None:
     for name in (
         "OPENROUTER_PROVIDER_ONLY",
@@ -50,6 +64,11 @@ def test_provider_preferences_are_reproducibility_safe(monkeypatch) -> None:
         "data_collection": "deny",
         "sort": "price",
     }
+
+
+def test_finite_cost_rejects_json_booleans() -> None:
+    assert openrouter_agent._finite_cost(True) is None
+    assert openrouter_agent._finite_cost(False) is None
 
 
 def test_choose_actions_records_route_and_authoritative_cost(monkeypatch) -> None:
@@ -85,6 +104,79 @@ def test_choose_actions_records_route_and_authoritative_cost(monkeypatch) -> Non
     assert usage["cached_input_tokens"] == 40
     assert usage["reasoning_tokens"] == 8
     assert usage["cost_usd"] == 0.00123
+
+
+def test_choose_actions_recovers_missing_cost_from_generation(monkeypatch) -> None:
+    class MissingCost(_Response):
+        headers = {"X-Generation-Id": "gen-header"}
+
+        def read(self) -> bytes:
+            payload = json.loads(super().read())
+            payload["id"] = "gen-body"
+            payload["usage"].pop("cost")
+            return json.dumps(payload).encode()
+
+    requests: list[str] = []
+
+    def fake_urlopen(request: object, **_kwargs: object):
+        requests.append(request.full_url)
+        if "/generation?" in request.full_url:
+            return _GenerationResponse({"data": {"total_cost": "0.0042"}})
+        return MissingCost()
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setattr(openrouter_agent.urllib.request, "urlopen", fake_urlopen)
+
+    actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+
+    assert actions == [{"type": "noop"}]
+    assert usage["generation_id"] == "gen-header"
+    assert usage["cost_usd"] == 0.0042
+    assert any("id=gen-header" in url for url in requests)
+
+
+def test_choose_actions_keeps_missing_cost_fail_closed_after_generation_lookup(monkeypatch) -> None:
+    class MissingCost(_Response):
+        def read(self) -> bytes:
+            payload = json.loads(super().read())
+            payload["usage"].pop("cost")
+            return json.dumps(payload).encode()
+
+    def fake_urlopen(request: object, **_kwargs: object):
+        if "/generation?" in request.full_url:
+            return _GenerationResponse({"data": {"total_cost": None}})
+        return MissingCost()
+
+    monkeypatch.setattr(openrouter_agent.time, "sleep", lambda _delay: None)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setattr(openrouter_agent.urllib.request, "urlopen", fake_urlopen)
+
+    _actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+
+    assert "cost_usd" not in usage
+    assert "authoritative finite generation cost" in usage["telemetry_error"]
+
+
+def test_choose_actions_rejects_boolean_generation_cost(monkeypatch) -> None:
+    class MissingCost(_Response):
+        def read(self) -> bytes:
+            payload = json.loads(super().read())
+            payload["usage"].pop("cost")
+            return json.dumps(payload).encode()
+
+    def fake_urlopen(request: object, **_kwargs: object):
+        if "/generation?" in request.full_url:
+            return _GenerationResponse({"data": {"total_cost": True}})
+        return MissingCost()
+
+    monkeypatch.setattr(openrouter_agent.time, "sleep", lambda _delay: None)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setattr(openrouter_agent.urllib.request, "urlopen", fake_urlopen)
+
+    _actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+
+    assert "cost_usd" not in usage
+    assert "authoritative finite generation cost" in usage["telemetry_error"]
 
 
 def test_choose_actions_can_disable_reasoning_without_effort_mapping(monkeypatch) -> None:

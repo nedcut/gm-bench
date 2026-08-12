@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "contract": "sota-v3",
-  "contract_fingerprint": "a523bdfcebe47bbd",
+  "contract_fingerprint": "247e12fe5a7d4f5b",
   "status": "frozen",
   "evidence_state": "pre-data-no-v3-model-smokes-or-panel-results",
   "research_question": "Whether each pre-registered model-plus-compact-scaffold system trails the named pick-trader reference under the frozen sota-v3 mechanics, replicating the frozen sota-v2 finding on a new contract fingerprint.",
@@ -16,11 +16,11 @@
         1,
         3
       ],
-      "holm_family_size": 10,
+      "holm_family_size": 8,
       "simulation_trials_per_allocation": 10000
     },
     "selection_rule": "Smallest allocation in the predeclared 9-16 seed and 1-3 repeat grid whose conservative-sensitivity familywise all-reject power Wilson 95% lower bound is at least 0.80.",
-    "result": "16 seeds x 1 repeat (16 episodes/model) qualifies; sensitivity power 0.8488 with Wilson 95% CI [0.841645, 0.855688] and base power 0.9527 with Wilson 95% CI [0.948363, 0.95669].",
+    "result": "16 seeds x 1 repeat (16 episodes/model) at Holm family size 8; sensitivity power 0.8727 with Wilson 95% CI [0.866024, 0.87909] and base power 0.9629 with Wilson 95% CI [0.959014, 0.96643]. The rule's smallest qualifying allocation at family 8 is 15x1 (sensitivity 0.8357, Wilson lower 0.828309); 16 is retained because the pre-data seed commitment is already frozen at 16 seeds.",
     "seed_identity_status": "frozen-private-commitment"
   },
   "output_policy": {
@@ -28,8 +28,11 @@
     "output_token_cap": 4096,
     "cap_pressure_threshold_tokens": 3072,
     "fallback_output_token_cap": 8192,
-    "reasoning_policy": "catalog-pinned-pending-strict-smoke-behavior-verification",
-    "amendment_rule": "The common 4,096-token cap is frozen for the first strict smoke of every route. If any smoke is truncated, reaches 3,072 output tokens, or cannot satisfy mandatory minimum reasoning, invalidate all v3 smokes, amend the cap once before panel data, and re-smoke the entire family. Scores and apparent model quality are never cap-selection inputs."
+    "reasoning_policy": "disabled",
+    "amendment_rule": "The common 4,096-token cap is frozen for the strict smoke of every route. If any smoke is truncated or reaches 3,072 output tokens, invalidate all v3 smokes and abort sota-v3 under this contract. Any future run at a different cap requires a new preregistration before model data and a fresh smoke of the entire family. No in-place cap amendment is permitted. Scores and apparent model quality are never cap-selection inputs.",
+    "cap_pressure_action": "abort-sota-v3-and-repreregister",
+    "max_cap_amendments": 0,
+    "on_first_trigger": "abort-sota-v3-and-repreregister"
   },
   "rerun_policy": {
     "maximum_infrastructure_attempts_per_cell": 2,
@@ -47,10 +50,10 @@
     "multiplicity_method": "holm-bonferroni",
     "alpha": 0.05,
     "multiplicity": "Holm-Bonferroni across the final registered model family",
-    "holm_family_size": 10,
+    "holm_family_size": 8,
     "target_effect_score_points": -100,
     "target_familywise_all_reject_power": 0.8,
-    "power_definition": "Probability all ten Holm-adjusted model-versus-pick-trader contrasts reject when every true lift is -100 score points. The test is two-sided; the sign is a planning assumption drawn from the frozen sota-v2 evidence, not a one-sided test.",
+    "power_definition": "Probability every registered Holm-adjusted model-versus-pick-trader contrast rejects when every true lift is -100 score points. The test is two-sided; the sign is a planning assumption drawn from the frozen sota-v2 evidence, not a one-sided test.",
     "power_model": {
       "distribution": "Normal parametric Monte Carlo over seed-level lifts, evaluated with the production analyzer's exact sign-flip and Holm functions.",
       "historical_evidence_contract": "sota-v2",
@@ -65,27 +68,28 @@
       "simulation_trials": 10000,
       "simulation_seed": 2026072800,
       "selected_allocation": "16 seeds x 1 repeat",
-      "selected_base_power": 0.9527,
+      "selected_base_power": 0.9629,
       "selected_base_power_wilson_ci95": [
-        0.948363,
-        0.95669
+        0.959014,
+        0.96643
       ],
-      "selected_sensitivity_power": 0.8488,
+      "selected_sensitivity_power": 0.8727,
       "selected_sensitivity_power_wilson_ci95": [
-        0.841645,
-        0.855688
+        0.866024,
+        0.87909
       ]
     },
     "ranking_rule": "No model tiers or ordinal ranking; only each registered model's predeclared contrast versus pick-trader is supported.",
-    "remaining_blocker": "No statistical-design blocker remains before smoke. Panel execution stays blocked until all ten strict smokes are accepted under the frozen route, cap, seed, and failure policy."
+    "remaining_blocker": "No statistical-design blocker remains before smoke. Panel execution stays blocked until every required strict smoke is accepted under the frozen route, cap, seed, and failure policy."
   },
   "budget_policy": {
     "provider": "openrouter",
     "cost_estimate_artifact": "results/analysis/sota-v3-pre-smoke-cost-estimate.json",
     "operator_must_pass_max_spend_usd": true,
     "spend_authorized": true,
-    "operator_ceiling_usd": 150.0,
-    "operator_ceiling_basis": "Owner-set hard cap, raised 120.00 -> 150.00 on 2026-08-04. The $120 figure was chosen against a $119.76 reservation that turned out to depend on 50%-off promotional rates on openai/gpt-5.6-luna and z-ai/glm-5.2; pinning undiscounted list rates moved the reservation to $127.29 and put the committed plan over its own ceiling. $150.00 clears the current reservation with headroom for a further route substitution or list-price move without another ceiling decision. Enforced by the runner ahead of the cell loop: --max-spend-usd above this value is rejected before any endpoint probe or child process. Projected actual spend is ~$35-45 from July smoke telemetry reprojected at current rates (models emit 48-640 output tokens per decision against a 4,096-token reservation), so this is a backstop, not a forecast. Raising it again is a deliberate edit here."
+    "operator_ceiling_usd": 100.0,
+    "spend_enforcement": "dynamic-pre-provider-call",
+    "operator_ceiling_basis": "Owner-set hard cap, lowered 150.00 -> 100.00 on 2026-08-06 alongside the amendment-3 cohort reduction to eight reasoning-disabled models. The authoritative current planning forecast and protocol-maximum estimate are generated in the cost artifact named above; amounts are deliberately not duplicated here. The forecast is not a safety reservation: the runner enforces the $100 ceiling dynamically before each provider call, including later interaction rounds and allowed repairs. Cap pressure never authorizes a wider budget or in-place amendment; it aborts this contract and requires a newly costed preregistration."
   },
   "publication_authorized": false
 }

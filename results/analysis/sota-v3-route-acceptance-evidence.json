@@ -6,9 +6,9 @@
   },
   "completion_calls": 0,
   "contract": "sota-v3",
-  "contract_fingerprint": "a523bdfcebe47bbd",
+  "contract_fingerprint": "247e12fe5a7d4f5b",
   "format": "gm-bench-route-acceptance-evidence-v1",
-  "generated_at_utc": "2026-08-04T23:26:17+00:00",
+  "generated_at_utc": "2026-08-12T16:54:47+00:00",
   "official_policy_sources": [
     "https://openrouter.ai/docs/guides/features/zdr",
     "https://openrouter.ai/docs/guides/privacy/provider-logging/",
@@ -44,8 +44,8 @@
           "verbosity"
         ],
         "tag": "amazon-bedrock/global",
-        "uptime_last_1d": 99.84734119243491,
-        "uptime_last_30m": 100
+        "uptime_last_1d": 99.88631709587341,
+        "uptime_last_30m": 99.9728014505893
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -85,9 +85,9 @@
           "top_logprobs",
           "top_p"
         ],
-        "tag": "cloudflare/fp8",
-        "uptime_last_1d": 99.20383493778141,
-        "uptime_last_30m": 99.57471943295924
+        "tag": "cloudflare",
+        "uptime_last_1d": 99.91475453072604,
+        "uptime_last_30m": 99.59956848475984
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -95,40 +95,7 @@
         "provider_slug": "cloudflare",
         "terms_of_service_url": "https://www.cloudflare.com/service-specific-terms-developer-platform/#developer-platform-terms"
       },
-      "route_identity_sha256": "ee801d3d09aa511f61eb5acde13825f633b33da5eaee3a3c3090f51f7914eac5",
-      "zero_data_retention_endpoint": false
-    },
-    "openrouter-gemini-3.6-flash-google-ai-studio": {
-      "authenticated_metadata_read": true,
-      "endpoint": {
-        "max_completion_tokens": 65536,
-        "name": "Google AI Studio | google/gemini-3.6-flash-20260721",
-        "provider_name": "Google AI Studio",
-        "status": 0,
-        "supported_parameters": [
-          "include_reasoning",
-          "max_tokens",
-          "reasoning",
-          "reasoning_effort",
-          "response_format",
-          "seed",
-          "structured_outputs",
-          "temperature",
-          "tool_choice",
-          "tools",
-          "top_p"
-        ],
-        "tag": "google-ai-studio",
-        "uptime_last_1d": 98.47300897834896,
-        "uptime_last_30m": 98.37067209775967
-      },
-      "output_cap_verification_status": "endpoint-metadata-verified",
-      "provider_policy": {
-        "privacy_policy_url": "https://cloud.google.com/terms/cloud-privacy-notice",
-        "provider_slug": "google-ai-studio",
-        "terms_of_service_url": "https://cloud.google.com/terms/"
-      },
-      "route_identity_sha256": "2cab5c7c0f89d2de1c2b2dae5dbe277d1e1a20f4649c5b42e717b9545f830558",
+      "route_identity_sha256": "18ad2c23c2054b976e69c7cf2c3d7c913a8b376c549edc030ab5cb11e7ad2066",
       "zero_data_retention_endpoint": false
     },
     "openrouter-glm-5.2-novita": {
@@ -156,8 +123,8 @@
           "top_p"
         ],
         "tag": "novita/fp8",
-        "uptime_last_1d": 99.12393326496591,
-        "uptime_last_30m": 97.84186221845255
+        "uptime_last_1d": 98.94898679901736,
+        "uptime_last_30m": 99.79868889691839
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -187,8 +154,8 @@
           "tools"
         ],
         "tag": "openai",
-        "uptime_last_1d": 99.25235247330117,
-        "uptime_last_30m": 99.02350802859962
+        "uptime_last_1d": 99.77865059493818,
+        "uptime_last_30m": 99.31161544670172
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -198,44 +165,6 @@
       },
       "route_identity_sha256": "7968d261fc1919563259c9226842ac936f1b0a9b1250f4b4b3013c3b6ebbdabb",
       "zero_data_retention_endpoint": false
-    },
-    "openrouter-grok-4.5-xai": {
-      "authenticated_metadata_read": true,
-      "endpoint": {
-        "max_completion_tokens": null,
-        "name": "xAI | x-ai/grok-4.5-20260708",
-        "provider_name": "xAI",
-        "status": 0,
-        "supported_parameters": [
-          "frequency_penalty",
-          "include_reasoning",
-          "logprobs",
-          "max_tokens",
-          "presence_penalty",
-          "reasoning",
-          "reasoning_effort",
-          "response_format",
-          "seed",
-          "stop",
-          "structured_outputs",
-          "temperature",
-          "tool_choice",
-          "tools",
-          "top_logprobs",
-          "top_p"
-        ],
-        "tag": "xai/zdr",
-        "uptime_last_1d": 99.95176825658132,
-        "uptime_last_30m": 100
-      },
-      "output_cap_verification_status": "request-cap-pending-strict-smoke",
-      "provider_policy": {
-        "privacy_policy_url": "https://x.ai/legal/privacy-policy",
-        "provider_slug": "xai",
-        "terms_of_service_url": "https://x.ai/legal/terms-of-service-enterprise"
-      },
-      "route_identity_sha256": "750efc6eba3496bc94f7138cd410c5a085f570e2d476cdeecf434f9340d761b1",
-      "zero_data_retention_endpoint": true
     },
     "openrouter-hy3-tencent": {
       "authenticated_metadata_read": true,
@@ -257,8 +186,8 @@
           "tools"
         ],
         "tag": "tencent/fp8",
-        "uptime_last_1d": 99.88669313467457,
-        "uptime_last_30m": 99.8017839444995
+        "uptime_last_1d": 99.85724083910068,
+        "uptime_last_30m": 99.75779594308204
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -295,8 +224,8 @@
           "top_p"
         ],
         "tag": "deepinfra/fp8",
-        "uptime_last_1d": 99.5721639656816,
-        "uptime_last_30m": 100
+        "uptime_last_1d": 97.78368848783424,
+        "uptime_last_30m": 99.60091220068415
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -331,8 +260,8 @@
           "top_p"
         ],
         "tag": "mistral",
-        "uptime_last_1d": 99.97488665952919,
-        "uptime_last_30m": 99.87012987012987
+        "uptime_last_1d": 99.98453568390939,
+        "uptime_last_30m": 100
       },
       "output_cap_verification_status": "request-cap-pending-strict-smoke",
       "provider_policy": {
@@ -370,7 +299,7 @@
           "top_p"
         ],
         "tag": "alibaba",
-        "uptime_last_1d": 99.9995100801019,
+        "uptime_last_1d": 99.99959009211655,
         "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",

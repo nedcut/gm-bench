@@ -17,6 +17,7 @@ from gm_bench.official import (
     SOTA_V1_POLICY,
     SOTA_V2_POLICY,
     SOTA_V3_POLICY,
+    _compare_present_values,
     redact_leaderboard_payload,
     validate_leaderboard_payload,
 )
@@ -159,6 +160,31 @@ def test_compact_artifact_rejects_tampered_episode_and_aggregate() -> None:
     report = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
     assert not report.ok
     assert any("episode-derived" in error for error in report.errors)
+
+
+def test_sign_flip_rounding_exception_is_legacy_only() -> None:
+    actual = {"sign_flip_p_value": 0.0078}
+    expected = {"sign_flip_p_value": 0.0078125}
+
+    current_errors: list[str] = []
+    _compare_present_values(
+        current_errors,
+        "paired",
+        actual,
+        expected,
+        allow_legacy_sign_flip_rounding=False,
+    )
+    assert current_errors == ["paired.sign_flip_p_value does not match episode-derived value"]
+
+    legacy_errors: list[str] = []
+    _compare_present_values(
+        legacy_errors,
+        "paired",
+        actual,
+        expected,
+        allow_legacy_sign_flip_rounding=True,
+    )
+    assert legacy_errors == []
 
 
 def test_output_budget_policy_preserves_high_failure_cells() -> None:

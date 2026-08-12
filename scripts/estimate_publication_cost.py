@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from gm_bench.benchmark_config import PRESETS  # noqa: E402
-from gm_bench.protocol import PHASES  # noqa: E402
+from gm_bench.protocol import MAX_INTERACTION_ROUNDS, PHASES  # noqa: E402
 
 RUNTIME_STATUS_PENDING = "pending-smoke-telemetry"
 RUNTIME_STATUS_COMPLETE = "complete-from-accepted-smokes"
@@ -85,6 +85,10 @@ def estimate(
     rows: list[dict[str, Any]] = []
     panel_costs: list[Decimal] = []
     smoke_costs: list[Decimal] = []
+    protocol_max_panel_costs: list[Decimal] = []
+    protocol_max_smoke_costs: list[Decimal] = []
+    protocol_max_panel_calls = 0
+    protocol_max_smoke_calls = 0
     observed_latency: dict[str, float] = {}
     for model in models:
         model_name = model["model"]
@@ -143,8 +147,24 @@ def estimate(
         )
         panel_cost = panel_decisions_per_model * per_decision_cost
         smoke_cost = smoke_decisions_per_run * per_decision_cost
+        fixed_options = {
+            **(models_config.get("shared_fixed_options") or {}),
+            **(model.get("fixed_options") or {}),
+        }
+        repair_attempts = int(fixed_options.get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", 0))
+        if repair_attempts < 0:
+            raise ValueError("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS must be non-negative")
+        maximum_calls_per_decision = MAX_INTERACTION_ROUNDS * (1 + repair_attempts)
+        maximum_panel_calls = panel_decisions_per_model * maximum_calls_per_decision
+        maximum_smoke_calls = smoke_decisions_per_run * maximum_calls_per_decision
+        protocol_max_panel_cost = panel_cost * maximum_calls_per_decision
+        protocol_max_smoke_cost = smoke_cost * maximum_calls_per_decision
         panel_costs.append(panel_cost)
         smoke_costs.append(smoke_cost)
+        protocol_max_panel_costs.append(protocol_max_panel_cost)
+        protocol_max_smoke_costs.append(protocol_max_smoke_cost)
+        protocol_max_panel_calls += maximum_panel_calls
+        protocol_max_smoke_calls += maximum_smoke_calls
         row = {
             "experiment_id": model["id"],
             "model": model_name,
@@ -153,6 +173,11 @@ def estimate(
             "panel_cost_usd": float(panel_cost),
             "smoke_calls": smoke_decisions_per_run,
             "smoke_cost_usd": float(smoke_cost),
+            "maximum_api_calls_per_decision": maximum_calls_per_decision,
+            "protocol_maximum_panel_calls": maximum_panel_calls,
+            "protocol_maximum_panel_cost_usd": float(protocol_max_panel_cost),
+            "protocol_maximum_smoke_calls": maximum_smoke_calls,
+            "protocol_maximum_smoke_cost_usd": float(protocol_max_smoke_cost),
             "applied_prompt_rate_usd": float(_decimal(applied_rates["prompt"])),
             "applied_completion_rate_usd": float(_decimal(applied_rates["completion"])),
             "internal_reasoning_tokens_per_decision": reasoning_tokens,
@@ -169,6 +194,9 @@ def estimate(
     panel_cost = sum(panel_costs, Decimal())
     smoke_cost = sum(smoke_costs, Decimal())
     total_cost = panel_cost + smoke_cost
+    protocol_max_panel_cost = sum(protocol_max_panel_costs, Decimal())
+    protocol_max_smoke_cost = sum(protocol_max_smoke_costs, Decimal())
+    protocol_max_total_cost = protocol_max_panel_cost + protocol_max_smoke_cost
     contingency = _decimal(assumptions["cost_contingency_multiplier"])
     # "Complete" only once every currently registered model (not just a subset
     # left over from a prior registry) has an observation; otherwise stay
@@ -177,7 +205,7 @@ def estimate(
     runtime_status = RUNTIME_STATUS_COMPLETE if runtime_complete else RUNTIME_STATUS_PENDING
     runtime_note = RUNTIME_NOTE_COMPLETE if runtime_complete else RUNTIME_NOTE_PENDING
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "supersedes": {
             "artifact": "retired 12-cell output-budget sweep estimate",
             "description": (
@@ -201,6 +229,9 @@ def estimate(
             "smoke_seed_count": len(smoke["seeds"]),
             "smoke_seasons": int(smoke["seasons"]),
             "serial_workers": 1,
+            "planning_forecast_call_semantics": (
+                "One response budget per decision window. This is a planning forecast, not a worst-case call count."
+            ),
             "caveat": (
                 "Provider prices and actual token usage can change. Recheck before paid "
                 "runs; the operator spend guard remains mandatory."
@@ -214,6 +245,23 @@ def estimate(
             "smoke_decisions_per_run": smoke_decisions_per_run,
             "smoke_calls": smoke_calls,
             "total_calls": panel_calls + smoke_calls,
+        },
+        "protocol_maximum": {
+            "max_interaction_rounds_per_decision": MAX_INTERACTION_ROUNDS,
+            "description": (
+                "Maximum provider-call multiplicity allowed by the protocol, including every configured repair. "
+                "Token costs still use the committed per-call planning token bounds; the publication runner's "
+                "dynamic pre-call guard is the operator-ceiling enforcement mechanism."
+            ),
+            "panel_calls": protocol_max_panel_calls,
+            "smoke_calls": protocol_max_smoke_calls,
+            "total_calls": protocol_max_panel_calls + protocol_max_smoke_calls,
+            "costs_usd": {
+                "panel": float(protocol_max_panel_cost),
+                "smoke": float(protocol_max_smoke_cost),
+                "total_unrounded": float(protocol_max_total_cost),
+                "total_with_contingency": float(protocol_max_total_cost * contingency),
+            },
         },
         "models": rows,
         "costs_usd": {

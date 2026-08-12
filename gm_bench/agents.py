@@ -10,8 +10,9 @@ import subprocess
 from abc import ABC, abstractmethod
 from typing import Any
 
+from gm_bench.action_validation import validate_action_list
 from gm_bench.agent_utils import position_aware_lineup, public_asset_value
-from gm_bench.scaffold_view import scaffold_view_observation
+from gm_bench.scaffold_view import model_adapter_observation, scaffold_view_observation
 from gm_bench.telemetry import normalize_usage, require_finite_json_numbers
 
 
@@ -715,14 +716,11 @@ class ExternalProcessAgent(Agent):
         protocol, kept so third-party adapters don't break) and an envelope
         ``{"actions": [...], "usage": {...}}`` that also reports model usage.
         """
-        run_env = None
-        if self.env:
-            run_env = os.environ.copy()
-            run_env.update(self.env)
+        run_env = external_agent_environment(self.env)
         try:
             completed = subprocess.run(
                 shlex.split(self.command),
-                input=json.dumps(observation),
+                input=json.dumps(model_adapter_observation(observation)),
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -745,15 +743,45 @@ class ExternalProcessAgent(Agent):
                 require_finite_json_numbers(payload)
             except ValueError:
                 return [{"type": "noop", "error": "external agent returned non-finite action values"}], None
-            return payload, None
+            try:
+                actions = validate_action_list(payload)
+            except ValueError as exc:
+                return [{"type": "noop", "error": f"external agent returned invalid actions: {exc}"}], None
+            return actions, None
         if isinstance(payload, dict) and isinstance(payload.get("actions"), list):
             actions = payload["actions"]
             try:
                 require_finite_json_numbers(actions)
             except ValueError:
                 return [{"type": "noop", "error": "external agent returned non-finite action values"}], None
+            try:
+                actions = validate_action_list(actions)
+            except ValueError as exc:
+                return [{"type": "noop", "error": f"external agent returned invalid actions: {exc}"}], None
             return actions, normalize_usage(payload.get("usage"))
         return [{"type": "noop", "error": "external agent must return an action list or envelope"}], None
+
+
+_PRIVATE_SEED_ENV_PREFIX = "GM_BENCH_PRIVATE_SEED"
+_PRIVATE_SEED_SECRET_ENV_VARS = frozenset({"GM_BENCH_SEED_PANEL_SALT"})
+
+
+def external_agent_environment(overrides: dict[str, str] | None = None) -> dict[str, str]:
+    """Build a child environment without private seed material.
+
+    Apply adapter configuration first and scrub second so neither an inherited
+    operator environment nor an explicit provider override can accidentally
+    disclose the held-out panel. The prefix also covers future variables such
+    as ``GM_BENCH_PRIVATE_SEED_SALT`` without removing ordinary provider and
+    scaffold configuration.
+    """
+    run_env = os.environ.copy()
+    if overrides:
+        run_env.update(overrides)
+    for key in tuple(run_env):
+        if key.startswith(_PRIVATE_SEED_ENV_PREFIX) or key in _PRIVATE_SEED_SECRET_ENV_VARS:
+            run_env.pop(key)
+    return run_env
 
 
 AGENTS: dict[str, type[Agent]] = {

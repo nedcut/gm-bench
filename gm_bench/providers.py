@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import json
+import math
 import os
 import shlex
 import sys
+import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from gm_bench.agents import Agent, ExternalProcessAgent
+from gm_bench.agents import Agent, ExternalProcessAgent, model_adapter_observation
 from gm_bench.contract import _repository_checkout_root
 from gm_bench.session import PersistentProcessAgent
 
@@ -80,6 +84,241 @@ class ProtocolRepairAgent(Agent):
                 merged["protocol_repairs_succeeded"] = 1
                 break
         return actions, merged
+
+
+SPEND_GUARD_ENV_PREFIX = "GM_BENCH_OPENROUTER_SPEND_GUARD_"
+_SPEND_GUARD_PREFIX = SPEND_GUARD_ENV_PREFIX
+OPENROUTER_CANONICAL_API_BASE = "https://openrouter.ai/api/v1"
+# The OpenRouter adapter adds a fixed system message, the compact scaffold,
+# action examples, and chat framing around the observation.  A UTF-8 byte is a
+# conservative upper bound for a tokenizer token in the user-controlled text;
+# 32 KiB covers the adapter's current fixed material and provider framing with
+# ample headroom.  The bound is deliberately recomputed from every observation
+# rather than pretending that one average prompt describes every interaction.
+_SPEND_GUARD_INPUT_OVERHEAD_TOKENS = 32_768
+
+
+class ProviderSpendGuardAgent(Agent):
+    """Fail-closed OpenRouter spend guard checked before every provider call.
+
+    The publication process is serial, but one decision can make several model
+    calls (interaction rounds plus a protocol repair).  Wrapping the base
+    ``ExternalProcessAgent`` *inside* ``ProtocolRepairAgent`` makes this guard
+    run for every primary and repair call.  State is persisted atomically so a
+    later cell cannot forget cost already reported by an earlier child.
+    """
+
+    def __init__(
+        self,
+        wrapped: Agent,
+        *,
+        state_path: Path,
+        ceiling_usd: float,
+        measured_spend_floor_usd: float,
+        prompt_rate_usd: float,
+        completion_rate_usd: float,
+        output_token_cap: int,
+        contingency_multiplier: float,
+        reasoning_rate_usd: float = 0.0,
+        reasoning_token_cap: int = 0,
+        long_context_threshold: int | None = None,
+        long_context_prompt_rate_usd: float | None = None,
+        long_context_completion_rate_usd: float | None = None,
+    ) -> None:
+        self.wrapped = wrapped
+        self.name = wrapped.name
+        self.env = getattr(wrapped, "env", None)
+        self.state_path = state_path
+        self.ceiling_usd = ceiling_usd
+        self.measured_spend_floor_usd = measured_spend_floor_usd
+        self.prompt_rate_usd = prompt_rate_usd
+        self.completion_rate_usd = completion_rate_usd
+        self.output_token_cap = output_token_cap
+        self.contingency_multiplier = contingency_multiplier
+        self.reasoning_rate_usd = reasoning_rate_usd
+        self.reasoning_token_cap = reasoning_token_cap
+        self.long_context_threshold = long_context_threshold
+        self.long_context_prompt_rate_usd = long_context_prompt_rate_usd
+        self.long_context_completion_rate_usd = long_context_completion_rate_usd
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        actions, _usage = self.act_with_usage(observation)
+        return actions
+
+    def _read_state(self) -> dict[str, Any]:
+        if not self.state_path.exists():
+            return {
+                "schema_version": 1,
+                "ceiling_usd": self.ceiling_usd,
+                "reported_spend_usd": self.measured_spend_floor_usd,
+                "active_call_reservation_usd": 0.0,
+            }
+        try:
+            state = json.loads(self.state_path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(f"cannot read spend-guard state: {exc}") from exc
+        if not isinstance(state, dict) or state.get("schema_version") != 1:
+            raise ValueError("invalid spend-guard state")
+        stored_ceiling = state.get("ceiling_usd")
+        if not isinstance(stored_ceiling, int | float) or not math.isclose(
+            float(stored_ceiling), self.ceiling_usd, rel_tol=0.0, abs_tol=1e-9
+        ):
+            raise ValueError("spend-guard state ceiling differs from the authorized ceiling")
+        for field_name in ("reported_spend_usd", "active_call_reservation_usd"):
+            value = state.get(field_name)
+            if (
+                not isinstance(value, int | float)
+                or isinstance(value, bool)
+                or not math.isfinite(float(value))
+                or float(value) < 0
+            ):
+                raise ValueError(f"spend-guard state {field_name} must be finite and non-negative")
+        return state
+
+    def _write_state(self, state: dict[str, Any]) -> None:
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=self.state_path.parent,
+            prefix=f".{self.state_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
+            handle.write(json.dumps(state, indent=2, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, self.state_path)
+
+    @contextmanager
+    def _exclusive_call(self):
+        """Hold a crash-visible inter-process lock through reserve and settle."""
+        lock_path = self.state_path.with_name(f".{self.state_path.name}.lock")
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            descriptor = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError as exc:
+            raise ValueError(
+                f"another publication process holds {lock_path.name}; "
+                "if it crashed, reconcile provider spend before removing the lock"
+            ) from exc
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                handle.write(f"pid={os.getpid()}\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            yield
+        finally:
+            try:
+                lock_path.unlink()
+            except FileNotFoundError:
+                pass
+
+    def _maximum_call_cost_usd(self, observation: dict[str, Any]) -> tuple[float, int]:
+        adapter_payload = json.dumps(
+            model_adapter_observation(observation),
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        input_token_bound = len(adapter_payload) + _SPEND_GUARD_INPUT_OVERHEAD_TOKENS
+        prompt_rate = self.prompt_rate_usd
+        completion_rate = self.completion_rate_usd
+        if self.long_context_threshold is not None and input_token_bound >= self.long_context_threshold:
+            # The byte-derived input bound may cross a tier even when the
+            # actual tokenized prompt does not. Use the more expensive side of
+            # each tier so that uncertainty cannot select a discounted rate.
+            prompt_rate = max(prompt_rate, self.long_context_prompt_rate_usd or 0.0)
+            completion_rate = max(completion_rate, self.long_context_completion_rate_usd or 0.0)
+        maximum = (
+            input_token_bound * prompt_rate
+            + self.output_token_cap * completion_rate
+            + self.reasoning_token_cap * self.reasoning_rate_usd
+        ) * self.contingency_multiplier
+        return maximum, input_token_bound
+
+    @staticmethod
+    def _blocked(reason: str) -> tuple[list[dict[str, Any]], None]:
+        return [{"type": "noop", "error": f"spend_guard: {reason}"}], None
+
+    def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        try:
+            with self._exclusive_call():
+                return self._act_with_usage_locked(observation)
+        except ValueError as exc:
+            return self._blocked(str(exc))
+
+    def _act_with_usage_locked(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        state = self._read_state()
+        prior_block = state.get("blocked_reason")
+        if isinstance(prior_block, str) and prior_block:
+            return self._blocked(prior_block)
+        active = float(state.get("active_call_reservation_usd") or 0.0)
+        if active > 0:
+            reason = "an earlier provider call has unresolved cost; reconcile it before resuming"
+            state["blocked_reason"] = reason
+            self._write_state(state)
+            return self._blocked(reason)
+
+        reported = max(float(state.get("reported_spend_usd") or 0.0), self.measured_spend_floor_usd)
+        maximum_call_cost, input_token_bound = self._maximum_call_cost_usd(observation)
+        if reported + maximum_call_cost > self.ceiling_usd:
+            reason = (
+                f"next-call bound ${maximum_call_cost:.6f} would exceed ceiling "
+                f"(${reported:.6f} reported of ${self.ceiling_usd:.6f})"
+            )
+            state.update({"reported_spend_usd": reported, "blocked_reason": reason})
+            self._write_state(state)
+            return self._blocked(reason)
+
+        state.update(
+            {
+                "reported_spend_usd": reported,
+                "active_call_reservation_usd": maximum_call_cost,
+                "active_call_input_token_bound": input_token_bound,
+            }
+        )
+        self._write_state(state)
+        actions, usage = self.wrapped.act_with_usage(observation)
+        cost = usage.get("cost_usd") if isinstance(usage, dict) else None
+        if (
+            not isinstance(cost, int | float)
+            or isinstance(cost, bool)
+            or not math.isfinite(float(cost))
+            or float(cost) < 0
+        ):
+            reason = "provider call did not return authoritative finite cost telemetry"
+            state["blocked_reason"] = reason
+            if isinstance(usage, dict) and isinstance(usage.get("telemetry_error"), str):
+                state["telemetry_error"] = usage["telemetry_error"][:500]
+            else:
+                adapter_error = next(
+                    (
+                        action.get("error") or action.get("model_error")
+                        for action in actions
+                        if isinstance(action, dict) and (action.get("error") or action.get("model_error"))
+                    ),
+                    None,
+                )
+                if adapter_error is not None:
+                    state["telemetry_error"] = str(adapter_error)[:500]
+            # Keep the active reservation: the call may have been billed even
+            # though the adapter could not report its cost.
+            self._write_state(state)
+            return self._blocked(reason)
+        actual_cost = float(cost)
+        state["reported_spend_usd"] = reported + actual_cost
+        state["active_call_reservation_usd"] = 0.0
+        state.pop("active_call_input_token_bound", None)
+        if actual_cost > maximum_call_cost:
+            reason = (
+                f"reported call cost ${actual_cost:.6f} exceeded its conservative ${maximum_call_cost:.6f} reservation"
+            )
+            state["blocked_reason"] = reason
+            self._write_state(state)
+            return self._blocked(reason)
+        self._write_state(state)
+        return actions, usage
 
 
 def _model_format_failed(actions: Any) -> bool:
@@ -215,6 +454,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
             "OPENROUTER_JSON_MODE": "false",
         },
         provenance_env=(
+            "OPENROUTER_API_BASE",
             "OPENROUTER_PROVIDER_ONLY",
             "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER",
             "OPENROUTER_EXPECTED_ENDPOINT_NAME",
@@ -282,6 +522,61 @@ def _strict_env_value(value: Any) -> str:
     return "1" if value else "0"
 
 
+def _spend_guard_agent(wrapped: Agent, env: dict[str, str]) -> ProviderSpendGuardAgent | None:
+    """Build the publication-only OpenRouter guard from runner-owned env."""
+    state_path = env.get(f"{_SPEND_GUARD_PREFIX}STATE_PATH")
+    if not state_path:
+        return None
+
+    def required_float(suffix: str) -> float:
+        key = f"{_SPEND_GUARD_PREFIX}{suffix}"
+        try:
+            value = float(env[key])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"{key} must be a finite non-negative number") from exc
+        if not math.isfinite(value) or value < 0:
+            raise ValueError(f"{key} must be a finite non-negative number")
+        return value
+
+    def required_int(suffix: str) -> int:
+        key = f"{_SPEND_GUARD_PREFIX}{suffix}"
+        try:
+            value = int(env[key])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"{key} must be a non-negative integer") from exc
+        if value < 0:
+            raise ValueError(f"{key} must be a non-negative integer")
+        return value
+
+    ceiling = required_float("CEILING_USD")
+    contingency = required_float("CONTINGENCY_MULTIPLIER")
+    output_cap = required_int("OUTPUT_TOKEN_CAP")
+    if ceiling <= 0 or contingency < 1 or output_cap < 1:
+        raise ValueError("publication spend guard requires a positive ceiling/output cap and contingency >= 1")
+
+    threshold_text = env.get(f"{_SPEND_GUARD_PREFIX}LONG_CONTEXT_THRESHOLD")
+    threshold = int(threshold_text) if threshold_text else None
+    if threshold is not None and threshold < 1:
+        raise ValueError(f"{_SPEND_GUARD_PREFIX}LONG_CONTEXT_THRESHOLD must be a positive integer")
+    long_prompt = required_float("LONG_CONTEXT_PROMPT_RATE_USD") if threshold is not None else None
+    long_completion = required_float("LONG_CONTEXT_COMPLETION_RATE_USD") if threshold is not None else None
+    return ProviderSpendGuardAgent(
+        wrapped,
+        state_path=Path(state_path),
+        ceiling_usd=ceiling,
+        measured_spend_floor_usd=required_float("MEASURED_SPEND_FLOOR_USD"),
+        prompt_rate_usd=required_float("PROMPT_RATE_USD"),
+        completion_rate_usd=required_float("COMPLETION_RATE_USD"),
+        output_token_cap=output_cap,
+        contingency_multiplier=contingency,
+        reasoning_rate_usd=required_float("REASONING_RATE_USD"),
+        reasoning_token_cap=required_int("REASONING_TOKEN_CAP"),
+        long_context_threshold=threshold,
+        long_context_prompt_rate_usd=long_prompt,
+        long_context_completion_rate_usd=long_completion,
+    )
+
+
 def resolve_provider(name: str) -> ProviderSpec:
     key = name.lower()
     if key not in PROVIDERS:
@@ -344,6 +639,18 @@ def build_provider_agent(
     # Config-file env is the most explicit provider configuration.
     if extra_env:
         env.update(extra_env)
+    guard_env = {**os.environ, **env}
+    spend_guard_enabled = spec.name == "openrouter" and bool(guard_env.get(f"{_SPEND_GUARD_PREFIX}STATE_PATH"))
+    if spend_guard_enabled:
+        configured_base = guard_env.get("OPENROUTER_API_BASE", OPENROUTER_CANONICAL_API_BASE).rstrip("/")
+        if configured_base != OPENROUTER_CANONICAL_API_BASE:
+            raise ValueError(
+                "publication OpenRouter runs require canonical API base "
+                f"{OPENROUTER_CANONICAL_API_BASE!r}; got {configured_base!r}"
+            )
+        env["OPENROUTER_API_BASE"] = OPENROUTER_CANONICAL_API_BASE
+        if session:
+            raise ValueError("publication OpenRouter spend guard does not support persistent session mode")
     # Cap repair attempts at the frozen headline lane (1). Operators may set 0
     # to disable, but cannot open an unbounded second-chance compute advantage.
     try:
@@ -368,7 +675,10 @@ def build_provider_agent(
         agent: Agent = PersistentProcessAgent(command, timeout_seconds=resolved_timeout, env=env, name=display_name)
     else:
         base_agent = ExternalProcessAgent(command, timeout_seconds=resolved_timeout, env=env, name=display_name)
-        agent = ProtocolRepairAgent(base_agent, attempts=int(env["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"]))
+        guarded_agent: Agent = base_agent
+        if spec.name == "openrouter":
+            guarded_agent = _spend_guard_agent(base_agent, guard_env) or base_agent
+        agent = ProtocolRepairAgent(guarded_agent, attempts=int(env["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"]))
     # Resolve the profile exactly as the adapter subprocess will see it
     # (per-agent env overrides the inherited environment; gm_agent_common
     # defaults to "compact" when unset), so results can record what the model

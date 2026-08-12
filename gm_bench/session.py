@@ -11,8 +11,10 @@ import tempfile
 import time
 from typing import Any, BinaryIO
 
-from gm_bench.agents import Agent
+from gm_bench.action_validation import validate_action_list
+from gm_bench.agents import Agent, external_agent_environment
 from gm_bench.protocol import QUERY_ACTION_TYPES
+from gm_bench.scaffold_view import model_adapter_observation
 from gm_bench.telemetry import normalize_usage, require_finite_json_numbers
 
 
@@ -39,10 +41,8 @@ class PersistentProcessAgent(Agent):
         self._stdout_buf = b""
 
     def start_episode(self, seed: int, seasons: int) -> None:
-        run_env = os.environ.copy()
+        run_env = external_agent_environment(self.env)
         run_env["GM_BENCH_SESSION"] = "1"
-        if self.env:
-            run_env.update(self.env)
         self._stdout_buf = b""
         self._stderr_file = tempfile.TemporaryFile()
         try:
@@ -57,14 +57,16 @@ class PersistentProcessAgent(Agent):
             self._stderr_file.close()
             self._stderr_file = None
             raise
-        self._send({"event": "start", "seed": seed, "seasons": seasons})
+        # The process only needs lifecycle metadata. The runner retains the
+        # private seed for simulation and paired analysis.
+        self._send({"event": "start", "seasons": seasons})
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
         actions, _ = self.act_with_usage(observation)
         return actions
 
     def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
-        self._send({"event": "observation", "payload": observation})
+        self._send({"event": "observation", "payload": model_adapter_observation(observation)})
         return self._read_response()
 
     def act_on_results(self, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -145,6 +147,10 @@ class PersistentProcessAgent(Agent):
             require_finite_json_numbers(actions)
         except ValueError:
             return ([{"type": "noop", "error": "persistent agent returned non-finite action values"}], None)
+        try:
+            actions = validate_action_list(actions)
+        except ValueError as exc:
+            return ([{"type": "noop", "error": f"persistent agent returned invalid actions: {exc}"}], None)
         usage = normalize_usage(payload.get("usage")) if isinstance(payload, dict) else None
         return actions, usage
 

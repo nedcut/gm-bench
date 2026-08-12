@@ -1,7 +1,7 @@
 # GM-Bench Scoring Calibration
 
 This document explains the objective score computed by `gm_bench/scoring.py` at the
-end of each episode. The function is hand-tuned for the MVP to reward winning,
+end of each episode. The function is hand-tuned for this benchmark to reward winning,
 sustainable roster building, and legal play.
 
 ## Formula
@@ -80,7 +80,7 @@ runs are less sensitive to league-generation luck.
 
 ## Calibration notes
 
-Weights are not derived from a formal optimization process in the MVP. They were
+Weights are not derived from a formal optimization process. They were
 chosen so that:
 
 - Scripted `value` clearly outperforms `random` on shared seeds.
@@ -112,8 +112,9 @@ results, run summaries, and comparison blocks, but that is a visibility fix,
 not a scale change: two rows with the same `score-v1` fingerprint remain
 comparable regardless of how many queries either one failed.
 
-The current `sota-v3` contract (fingerprint `4f6ddddd6a6dd81c`) still uses the
-same `score-v1` weights and clamps. Contract economics change the simulated
+The current `sota-v3` contract (fingerprint recorded in
+`config/sota_v3_lane.json`) still uses the same `score-v1` weights and clamps.
+Contract economics change the simulated
 rosters, and `cap_room` now correctly uses payroll including retained dead cap;
 neither change modifies the published score scale itself.
 
@@ -142,28 +143,29 @@ also change strength, cap room, and wins.
 ## Reference-policy calibration
 
 Reference policies are calibrated on a **24-seed panel (seeds 11-34, five
-seasons)**, three times the width of the paid `leaderboard` lane. The two
-panels are sized by different constraints and should not share a width: every
-policy here is scripted and costs only CPU, while the leaderboard width is set
-by what a model row costs in API spend.
+seasons)**. The frozen public v2 model panel used eight seeds; the preregistered
+private v3 panel uses 16. These panels are sized by different constraints and
+need not share a width: every policy here is scripted and costs only CPU, while
+the model-panel width is set by its power rule and API-spend boundary.
 
 Eight seeds cannot support an ordering claim on this engine. The same two
 policies, measured paired on matched seeds:
 
 | seeds | mean difference | paired *t* |
 | ---: | ---: | ---: |
-| 8 (leaderboard width) | -0.11 | -0.004 |
-| 16 | 36.14 | 2.015 |
+| 8 (frozen v2 public width) | -0.11 | -0.004 |
+| 16 (preregistered v3 width) | 36.14 | 2.015 |
 | 24 (canary width) | 36.37 | 2.559 |
 | 48 | 35.51 | 3.999 |
 
 `pick-trader` wins 39 of 48 seeds. Using the 48-seed paired variance, the
-approximate two-sided 80%-power requirement is 24 seeds. The eight-seed slice
-cannot resolve the contrast, which is why `validate-contract` now gates
-orderings on paired *t* >= 2.0 over its own panel rather than on a positive mean
-margin.
+approximate two-sided 80%-power requirement is 24 seeds. Neither the eight-seed
+v2 slice nor the 16-seed v3 allocation supports a general reference-ordering
+claim. `validate-contract` therefore gates only its narrow canary invariants on
+paired *t* >= 2.0 over the wider calibration panel rather than pinning a full
+ranked ladder.
 
-Contract fingerprint `4f6ddddd6a6dd81c`, protocol `gm-bench-v3`:
+Current `gm-bench-v3` reference-policy validation:
 
 | Reference | Mean score | Illegal actions | Role |
 | --- | ---: | ---: | --- |
@@ -186,7 +188,7 @@ a ranked ladder would overstate what the panel shows.
 
 Note that contract economics cost `pick-trader` its former lead: with releases
 priced and incumbents retainable, cap hygiene and retention now compete with
-pick accumulation. On the 8-seed leaderboard panel the same run puts
+pick accumulation. On the frozen 8-seed v2 public panel the same run puts
 `pick-trader` fifth, which is noise rather than a result -- exactly the
 divergence the width table above predicts.
 

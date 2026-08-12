@@ -27,6 +27,7 @@ Usage (from the repository root):
 from __future__ import annotations
 
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any
@@ -182,9 +183,18 @@ def model_row(payload: dict[str, Any], publication_config: dict[str, Any] | None
         "score_stddev": summary["score_stddev"],
         "mean_strategy_score": summary.get("mean_strategy_score"),
         "protocol_penalty": summary.get("total_protocol_penalty"),
-        "paired_lift": paired.get("paired_lift_mean"),
-        "ci95": paired.get("paired_lift_ci95"),
-        "significant": paired.get("significant_at_95"),
+        # Deliberately self-describing names. These three are the *secondary*
+        # contrast -- lift against the mean of the whole baseline panel, which
+        # includes weak baselines like `random`. The protocol's primary contrast
+        # is versus pick-trader alone and is attached in `publication_gate` as
+        # `primary_lift`/`primary_ci95`. The old names (`paired_lift`, `ci95`,
+        # `significant`) said neither which contrast they measured nor that
+        # significant_at_95 is the panel bootstrap flag the statistical analysis
+        # plan forbids as a headline claim -- so the site plotted them under a
+        # "Primary comparison" label. Never reintroduce a bare `significant`.
+        "full_panel_lift": paired.get("paired_lift_mean"),
+        "full_panel_ci95": paired.get("paired_lift_ci95"),
+        "full_panel_significant_at_95": paired.get("significant_at_95"),
         "seed_win_rate": paired.get("candidate_seed_win_rate"),
         "lift_vs_best_baseline": (paired.get("best_baseline") or {}).get("paired_lift_mean"),
         "fallback_rate": summary.get("decision_failure_rate", 0.0),
@@ -368,6 +378,18 @@ def select_model_payloads(
     return [item[1] for item in selected.values()]
 
 
+def _finite_number(value: Any) -> bool:
+    return isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(float(value))
+
+
+def _finite_interval(value: Any) -> bool:
+    if not isinstance(value, list | tuple) or len(value) != 2:
+        return False
+    if not all(_finite_number(bound) for bound in value):
+        return False
+    return float(value[0]) <= float(value[1])
+
+
 def _analysis_identity(row: dict[str, Any]) -> Any:
     provider = row.get("provider")
     model = row.get("model")
@@ -417,6 +439,13 @@ def _panel_analysis_rows(
             continue
         if row.get("holm_adjusted_p_value") is None:
             issues.append("publication panel analysis row is missing its final Holm result")
+        # The primary point estimate and its interval must travel together with
+        # the Holm verdict. Publishing a Holm p-value beside a *different*
+        # contrast's interval is exactly the mismatch these fields exist to stop.
+        if not _finite_number(row.get("mean_lift")):
+            issues.append("publication panel analysis row is missing its primary mean lift")
+        if not _finite_interval(row.get("bootstrap_ci95")):
+            issues.append("publication panel analysis row is missing a valid primary bootstrap interval")
         if reference_only:
             if "tier" in row:
                 issues.append("sota-v3 reference-only analysis must not assign model tiers")
@@ -551,6 +580,11 @@ def publication_gate(
             final = analysis_rows[_headline_identity(row)]
             row["holm_adjusted_p_value"] = final["holm_adjusted_p_value"]
             row["holm_reject_at_0_05"] = final.get("holm_reject_at_0_05")
+            # Primary contrast (protocol: paired lift versus pick-trader), taken
+            # from the same analysis row as the Holm verdict so the estimate, the
+            # interval, and the test can never come from different contrasts.
+            row["primary_lift"] = final["mean_lift"]
+            row["primary_ci95"] = list(final["bootstrap_ci95"])
             if not reference_only:
                 row["tier"] = final["tier"]
     return (candidates if publishable_results else []), publication

@@ -21,6 +21,9 @@ export default function App() {
 
   return (
     <>
+      <a className="skip-link" href="#results">
+        Skip to results
+      </a>
       <Nav />
       <main>
         <ResultsExplorer

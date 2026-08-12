@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import bisect
 import os
 import random
 import sys
@@ -13,6 +14,7 @@ from typing import Any, Callable
 
 from gm_bench.agents import AGENTS, Agent
 from gm_bench.baseline_cache import cache_key, default_cache_path, load_cache, put_cached_episode, save_cache
+from gm_bench.benchmark_config import validate_baseline_names
 from gm_bench.protocol import PHASES, EpisodeConfig
 from gm_bench.scoring import breakdown_from_components, persisted_score_components, score_components
 from gm_bench.session import PersistentProcessAgent, should_continue_interaction
@@ -389,7 +391,9 @@ def evaluate_against_baselines(
 ) -> dict[str, Any]:
     # Repeats apply to the candidate only: scripted baselines are deterministic,
     # so re-running them would produce identical episodes.
-    baselines = baseline_names or ["random", "conservative", "win-now", "rebuild", "value"]
+    baselines = validate_baseline_names(
+        baseline_names if baseline_names is not None else ["random", "conservative", "win-now", "rebuild", "value"]
+    )
     candidate = run_many(agent, seeds=seeds, seasons=seasons, repeats=repeats, progress=progress, config=config)
     baseline_results: list[dict[str, Any]] = []
     cache_hits = 0
@@ -552,25 +556,42 @@ def _sign_flip_p_value(lifts: list[float]) -> float | None:
 
     Under the null (candidate and baseline panel are interchangeable), each
     per-seed lift is symmetric around zero, so flipping signs generates the
-    exact null distribution of the mean. Enumerated exactly up to 14 seeds
-    (2^14 flips); beyond that, a deterministically seeded sample of flips
-    keeps the benchmark's reproducibility guarantee. The smallest achievable
+    exact null distribution of the mean. Enumerated exactly up to 20 seeds
+    with meet-in-the-middle subset sums; beyond that, a deterministically
+    seeded sample of flips keeps the benchmark's reproducibility guarantee. The smallest achievable
     p is 2 / 2^n, so a 3-seed run can never look more certain than p=0.25 —
     an honest floor the bootstrap interval hides.
     """
     n = len(lifts)
     if n < 2:
         return None
+    if n <= 20:
+        numeric = [float(lift) for lift in lifts]
+        observed_sum = abs(sum(numeric))
+        tolerance = 1e-12 * n
+        total = 1 << n
+        midpoint = n // 2
+
+        def subset_sums(items: list[float]) -> list[float]:
+            sums = [0.0]
+            for item in items:
+                sums.extend(value + item for value in sums[:])
+            return sums
+
+        left = subset_sums(numeric[:midpoint])
+        right = sorted(subset_sums(numeric[midpoint:]))
+        threshold = observed_sum - tolerance
+        if threshold <= 0.0:
+            return 1.0
+        full_sum = sum(numeric)
+        lower = (full_sum - threshold) / 2.0
+        upper = (full_sum + threshold) / 2.0
+        inside = sum(
+            bisect.bisect_left(right, upper - partial) - bisect.bisect_right(right, lower - partial) for partial in left
+        )
+        return (total - inside) / total
     observed = abs(mean(lifts))
     tolerance = 1e-12
-    if n <= 14:
-        total = 1 << n
-        hits = sum(
-            1
-            for mask in range(total)
-            if abs(sum(lift if mask >> i & 1 else -lift for i, lift in enumerate(lifts)) / n) >= observed - tolerance
-        )
-        return round(hits / total, 4)
     rng = random.Random(f"gm-bench-signflip:{n}:{sum(lifts):.6f}")
     total = 20000
     hits = sum(

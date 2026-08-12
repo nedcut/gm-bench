@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from gm_bench.environment import load_environment_files
+from gm_bench.providers import PROVIDERS
 
 
 @pytest.fixture
@@ -112,3 +113,18 @@ def test_disable_switch_is_inherited_by_subprocess_entry_points(tmp_path) -> Non
         check=True,
     )
     assert result.stdout.split() == ["0", "False"]
+
+
+def test_suite_guard_scrubs_all_registered_and_alias_credentials() -> None:
+    credential_names = {
+        "LLM_API_KEY",
+        *(name for spec in PROVIDERS.values() for name in spec.credential_env),
+    }
+    assert {
+        "OPENROUTER_API_KEY",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+    } <= credential_names
+    assert all(name not in os.environ for name in credential_names)

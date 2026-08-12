@@ -16,6 +16,7 @@ from gm_bench.publication import (
     v3_preregistration_coherence_issues,
     v3_route_acceptance_issues,
 )
+from scripts.sota_v3_rehearsal import v3_cross_file_coherence_issues
 
 CONFIG = Path("config")
 
@@ -33,6 +34,9 @@ def test_v3_lane_pins_current_contract_and_freezes_a_powered_allocation() -> Non
     assert lane["contract_fingerprint"] == contract_fingerprint()
     assert lane["mechanics_status"] == "frozen-for-sota-v3-panel"
     assert "requires a new contract fingerprint" in lane["mechanics_change_policy"]
+    assert lane["design_amendment"]["amendment_id"] == "sota-v3-design-amendment-4"
+    assert lane["design_amendment"]["status"] == "pre-data"
+    assert lane["design_amendment"]["record"] == "docs/PUBLISH_READINESS.md#decision-log"
     assert lane["headline_lane"] == "api"
     assert lane["observation_profile"] == "compact"
     assert lane["session"] is False
@@ -96,7 +100,7 @@ def test_v3_registry_is_frozen_to_authenticated_routes_and_privacy_evidence() ->
     assert registry["selection_frozen_at_utc"]
     assert registry["catalog_snapshot_status"] == "frozen-public-metadata-only"
     assert registry["catalog_checked_at_utc"]
-    assert len(registry["models"]) == len(registry["required_smokes"]) == 10
+    assert len(registry["models"]) == len(registry["required_smokes"]) == 8
     assert set(registry["required_smokes"]) == {model["id"] for model in registry["models"]}
     assert registry["repeats"] == lane["repeats"] == 1
     assert registry["output_token_cap"] == lane["output_token_cap"] == 4096
@@ -127,11 +131,11 @@ def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
     assert protocol["statistical_analysis_plan"]["reference_agent"] == lane["reference_agent"] == "pick-trader"
     assert protocol["statistical_analysis_plan"]["multiplicity_method"] == "holm-bonferroni"
     assert protocol["statistical_analysis_plan"]["alpha"] == 0.05
-    assert protocol["statistical_analysis_plan"]["holm_family_size"] == 10
+    assert protocol["statistical_analysis_plan"]["holm_family_size"] == 8
     assert protocol["statistical_analysis_plan"]["power_model"]["historical_shared_seed_variance"] == pytest.approx(
         3770.478399
     )
-    assert protocol["statistical_analysis_plan"]["power_model"]["selected_sensitivity_power"] == 0.8488
+    assert protocol["statistical_analysis_plan"]["power_model"]["selected_sensitivity_power"] == 0.8727
     assert protocol["statistical_analysis_plan"]["power_model"]["selected_allocation"] == "16 seeds x 1 repeat"
     assert protocol["statistical_analysis_plan"]["claim_direction"] == "trails-reference"
     assert protocol["statistical_analysis_plan"]["target_effect_score_points"] == -100
@@ -144,7 +148,7 @@ def test_v3_protocol_and_pricing_are_separate_and_fail_closed() -> None:
     assert protocol["budget_policy"]["spend_authorized"] is True
     assert pricing["status"] == "frozen"
     assert pricing["checked_at_utc"]
-    assert len(pricing["models"]) == 10
+    assert len(pricing["models"]) == 8
     assert pricing["spend_authorized"] is True
 
 
@@ -159,8 +163,10 @@ def test_v3_preregistration_authorizes_smoke_but_keeps_panel_and_publication_loc
     assert lane["output_token_cap"] == 4096
     assert lane["cap_pressure_threshold_tokens"] == 3072
     assert lane["fallback_output_token_cap"] == 8192
-    assert "invalidate every v3 smoke" in lane["output_policy_amendment_rule"]
-    assert lane["reasoning_policy"] == "catalog-pinned-pending-strict-smoke-behavior-verification"
+    assert "abort sota-v3 under this contract" in lane["output_policy_amendment_rule"]
+    assert lane["reasoning_policy"] == "disabled"
+    assert lane["cap_pressure_action"] == "abort-sota-v3-and-repreregister"
+    assert lane["max_cap_amendments"] == 0
     assert lane["spend_authorized"] is True
     # Granted 2026-08-03 for the completed zero-completion-call probe; it is the
     # one authorization that cannot reach a model, reserve spend, or write run
@@ -174,9 +180,11 @@ def test_v3_preregistration_authorizes_smoke_but_keeps_panel_and_publication_loc
     assert manifest["format"] == SMOKE_MANIFEST_FORMAT
     assert manifest["contract"] == lane["contract"]
     assert manifest["contract_fingerprint"] == lane["contract_fingerprint"]
-    assert manifest["status"] == "not-started"
+    assert manifest["status"] == "in-progress"
     assert manifest["accepted_for_panel"] is False
-    assert manifest["entries"] == {}
+    assert manifest["entries"]
+    assert set(manifest["entries"]) < set(registry["required_smokes"])
+    assert all(entry["accepted"] is True for entry in manifest["entries"].values())
 
     # A selected cohort without a frozen seed commitment or smokes is incomplete.
     assert len(registry["models"]) == lane["minimum_headline_models"]
@@ -350,3 +358,90 @@ def test_smoke_readiness_unlocks_smoke_but_not_panel() -> None:
 
     blocked = dict(registry, selection_status="provisional-blocked")
     assert "provider execution is locked until the model registry is frozen" in issues(blocked, "smoke")
+
+
+def test_cap_pressure_rule_aborts_on_the_first_trigger() -> None:
+    """Cap pressure requires a new preregistration, never an in-place edit."""
+    protocol = _read("sota_v3_publication_protocol.json")
+    lane = _read("sota_v3_lane.json")
+    policy = protocol["output_policy"]
+
+    expected_action = "abort-sota-v3-and-repreregister"
+    assert lane["cap_pressure_action"] == policy["cap_pressure_action"] == expected_action
+    assert policy["on_first_trigger"] == expected_action
+    assert lane["max_cap_amendments"] == policy["max_cap_amendments"] == 0
+    assert "No in-place cap amendment is permitted" in policy["amendment_rule"]
+    assert "Scores and apparent model quality are never cap-selection inputs" in policy["amendment_rule"]
+
+    # The wider cap remains a planning comparison only. It is never an
+    # authorized fallback branch under this preregistration.
+    cap = lane["output_token_cap"]
+    fallback = policy["fallback_output_token_cap"]
+    assert fallback > cap
+
+
+def _cross_file_issues(
+    *,
+    lane: dict | None = None,
+    registry: dict | None = None,
+    protocol: dict | None = None,
+    pricing: dict | None = None,
+    manifest: dict | None = None,
+    cost_estimate: dict | None = None,
+) -> list[str]:
+    return v3_cross_file_coherence_issues(
+        lane or _read("sota_v3_lane.json"),
+        registry or _read("sota_v3_models.json"),
+        protocol or _read("sota_v3_publication_protocol.json"),
+        pricing or _read("sota_v3_pricing_snapshot.json"),
+        manifest or _read("sota_v3_smoke_manifest.json"),
+        cost_estimate or json.loads(Path("results/analysis/sota-v3-pre-smoke-cost-estimate.json").read_text()),
+    )
+
+
+def test_v3_structured_records_are_cross_file_coherent() -> None:
+    assert _cross_file_issues() == []
+
+
+def test_v3_cross_file_coherence_catches_family_and_smoke_count_drift() -> None:
+    protocol = _read("sota_v3_publication_protocol.json")
+    protocol["statistical_analysis_plan"]["holm_family_size"] = 10
+    registry = _read("sota_v3_models.json")
+    registry["required_smokes"] = registry["required_smokes"][:-1]
+
+    issues = _cross_file_issues(protocol=protocol, registry=registry)
+
+    assert "sota-v3 protocol Holm family size must equal the registered model count" in issues
+    assert "sota-v3 required smokes must match the registered models in order" in issues
+
+
+def test_v3_cross_file_coherence_catches_reasoning_and_budget_drift() -> None:
+    lane = _read("sota_v3_lane.json")
+    lane["reasoning_policy"] = "catalog-pinned-pending-strict-smoke-behavior-verification"
+    cost_estimate = json.loads(Path("results/analysis/sota-v3-pre-smoke-cost-estimate.json").read_text())
+    cost_estimate["costs_usd"]["total_with_1_2x_contingency"] = 101.0
+
+    issues = _cross_file_issues(lane=lane, cost_estimate=cost_estimate)
+
+    assert "sota-v3 lane, protocol, and every registered route must be reasoning-disabled" in issues
+    assert "sota-v3 generated planning forecast must fit under the operator ceiling" in issues
+
+
+def test_v3_cross_file_coherence_catches_protocol_maximum_drift() -> None:
+    cost_estimate = json.loads(Path("results/analysis/sota-v3-pre-smoke-cost-estimate.json").read_text())
+    cost_estimate["protocol_maximum"]["total_calls"] -= 1
+
+    issues = _cross_file_issues(cost_estimate=cost_estimate)
+
+    assert "sota-v3 aggregate protocol-maximum total calls are inconsistent" in issues
+
+
+def test_v3_cross_file_coherence_catches_in_place_cap_amendment() -> None:
+    protocol = _read("sota_v3_publication_protocol.json")
+    protocol["output_policy"]["max_cap_amendments"] = 1
+    protocol["output_policy"]["on_first_trigger"] = "amend-and-resmoke"
+
+    issues = _cross_file_issues(protocol=protocol)
+
+    assert "sota-v3 first cap-pressure trigger must abort and require preregistration" in issues
+    assert "sota-v3 cap policy must forbid in-place amendments" in issues

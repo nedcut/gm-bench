@@ -1,4 +1,4 @@
-# GM-Bench MVP Spec
+# GM-Bench Benchmark Spec
 
 ## Goal
 
@@ -19,9 +19,9 @@ families include web-navigation agents, OS/computer-use agents, sports-control
 simulators, prediction-market benchmarks, and fantasy-sports forecasting, but
 those do not directly test front-office management.
 
-## MVP Scope
+## Benchmark Scope
 
-The MVP implements a compact hockey-style league:
+The benchmark implements a compact hockey-style league:
 
 - 12 fictional teams.
 - 23-player initial rosters.
@@ -128,6 +128,13 @@ Every observation includes `observation_tier`:
 - `summary` — compact `*_summary` blocks plus a hint to use query actions;
   intended for external LLM agents that should inspect before committing.
 
+The environment seed is runner-internal evaluation metadata, not model input.
+It remains available for deterministic replay, pairing, and artifact provenance,
+but is removed from compact/scaffold payloads, one-shot adapter stdin,
+persistent-session events, and child-process environments. This prevents a
+public adapter from reconstructing hidden potentials, reservation prices, or
+trade biases from the private evaluation seed.
+
 ### Persistent sessions
 
 By default external agents are launched fresh at each decision point, so the
@@ -205,7 +212,7 @@ pick is replenished each season, so episodes of any length keep a draft.
 
 ## Built-In Agents
 
-The MVP includes ten scripted references and diagnostics (`gm_bench.agents.AGENTS`):
+The benchmark includes ten scripted references and diagnostics (`gm_bench.agents.AGENTS`):
 
 - `random`: noisy but valid roster moves.
 - `conservative`: value signings and best public prospects.
@@ -242,8 +249,10 @@ The MVP includes ten scripted references and diagnostics (`gm_bench.agents.AGENT
   ambient value silently decide which view was measured — and the cached
   episode would carry no trace of which one produced it. To difference against
   a `tiny`-profile row, instantiate `ScaffoldViewAgent("tiny")` explicitly.
-  It has not been run on the official panel, so no scaffold gap is reported
-  anywhere yet — the measurement is pre-registered, not a result.
+  On seeds 11–18 at five seasons it measured a +2.8 point paired gap versus
+  `pick-trader` (paired *t* = 0.249; six seeds tied). The same-view diagnostic
+  therefore does not explain the much larger historical model-to-reference
+  gaps. It remains supporting evidence rather than a headline model result.
 - `exploit`: a red-team canary that replays historically degenerate strategies
   (trade value-pumping, free-agent hoarding). A regression test pins it below
   `value`; if a rules change re-opens an exploit, the canary jumps and CI fails.
@@ -391,7 +400,7 @@ held-out one that is never committed, guarding against seed overfitting.
 - Add a multi-agent arena mode where agents negotiate with each other.
 - Add sport variants with different roster and cap constraints.
 
-Completed in v2 (now the default episode):
+Introduced in v2 and retained in the default v3 episode:
 
 - Four-phase seasons with midseason injuries and waiver wire
 - Multi-round decision windows with query actions, `end_turn`, and
@@ -402,4 +411,6 @@ Completed in v2 (now the default episode):
 - Tiered observations (`full` / `summary`)
 - Persistent agent subprocess sessions (`GM_BENCH_SESSION=1`)
 - Private evaluation seeds, leaderboard package, contract fingerprint, and
-  `sota-v2` official-result validation (see [production_benchmark.md](production_benchmark.md))
+  versioned official-result validation. Current development uses `sota-v3`;
+  `sota-v2` remains available for the frozen historical release (see
+  [production_benchmark.md](production_benchmark.md)).

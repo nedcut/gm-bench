@@ -21,6 +21,7 @@ import contextlib
 import copy
 import io
 import json
+import math
 import shutil
 import subprocess
 import sys
@@ -39,6 +40,7 @@ from gm_bench.official import (  # noqa: E402
     SOTA_V3_POLICY,
     validate_leaderboard_payload,
 )
+from gm_bench.protocol import MAX_INTERACTION_ROUNDS  # noqa: E402
 from gm_bench.publication import (  # noqa: E402
     canonical_sha256,
     compact_result,
@@ -431,20 +433,209 @@ def execution_authorization_issues(
     )
 
 
+def v3_cross_file_coherence_issues(
+    lane: dict[str, Any],
+    registry: dict[str, Any],
+    protocol: dict[str, Any],
+    pricing: dict[str, Any],
+    manifest: dict[str, Any],
+    cost_estimate: dict[str, Any],
+) -> list[str]:
+    """Check duplicated preregistration facts at the rehearsal boundary.
+
+    The production gate validates the executable contract.  This second layer
+    covers the human-facing planning records that previously drifted to ten
+    models, ten smokes, pending reasoning, and a stale reservation while the
+    executable registry had already moved to eight reasoning-disabled routes.
+    """
+
+    issues: list[str] = []
+    models = [model for model in registry.get("models") or [] if isinstance(model, dict)]
+    model_ids = [str(model.get("id") or "") for model in models]
+    model_slugs = [str(model.get("model") or "") for model in models]
+    model_count = len(models)
+    design = lane.get("statistical_panel_design") or {}
+    selected = design.get("selected_allocation") or {}
+    analysis_plan = protocol.get("statistical_analysis_plan") or {}
+    protocol_panel = protocol.get("panel_design") or {}
+    evaluated_grid = protocol_panel.get("evaluated_grid") or {}
+    output_policy = protocol.get("output_policy") or {}
+    budget_policy = protocol.get("budget_policy") or {}
+    cost_calls = cost_estimate.get("calls") or {}
+    cost_assumptions = cost_estimate.get("assumptions") or {}
+    cost_models = [row for row in cost_estimate.get("models") or [] if isinstance(row, dict)]
+    protocol_maximum = cost_estimate.get("protocol_maximum") or {}
+
+    if not model_ids or any(not model_id for model_id in model_ids) or len(set(model_ids)) != model_count:
+        issues.append("sota-v3 registered model ids must be non-empty and unique")
+    if any(not slug for slug in model_slugs) or len(set(model_slugs)) != model_count:
+        issues.append("sota-v3 registered model slugs must be non-empty and unique")
+
+    declared_counts = {
+        "lane minimum_headline_models": lane.get("minimum_headline_models"),
+        "lane Holm family size": design.get("holm_family_size"),
+        "protocol Holm family size": analysis_plan.get("holm_family_size"),
+        "protocol evaluated-grid Holm family size": evaluated_grid.get("holm_family_size"),
+        "cost model count": cost_calls.get("model_count"),
+    }
+    for label, declared in declared_counts.items():
+        if declared != model_count:
+            issues.append(f"sota-v3 {label} must equal the registered model count")
+
+    if registry.get("required_smokes") != model_ids:
+        issues.append("sota-v3 required smokes must match the registered models in order")
+    if cost_calls.get("smoke_runs") != len(registry.get("required_smokes") or []):
+        issues.append("sota-v3 cost smoke-run count must match required smokes")
+    if set(pricing.get("models") or {}) != set(model_slugs):
+        issues.append("sota-v3 pricing routes must exactly match the registered model slugs")
+    cost_routes = {(str(row.get("experiment_id") or ""), str(row.get("model") or "")) for row in cost_models}
+    if cost_routes != set(zip(model_ids, model_slugs, strict=True)):
+        issues.append("sota-v3 cost routes must exactly match the registered ids and model slugs")
+    if cost_estimate.get("schema_version") != 3:
+        issues.append("sota-v3 cost artifact must use schema version 3")
+    forecast_semantics = cost_assumptions.get("planning_forecast_call_semantics")
+    if not isinstance(forecast_semantics, str) or "planning forecast" not in forecast_semantics.lower():
+        issues.append("sota-v3 cost artifact must label the one-response planning forecast")
+
+    reasoning_values = {
+        lane.get("reasoning_policy"),
+        output_policy.get("reasoning_policy"),
+        *(model.get("reasoning_policy") for model in models),
+    }
+    if reasoning_values != {"disabled"}:
+        issues.append("sota-v3 lane, protocol, and every registered route must be reasoning-disabled")
+    if any(model.get("fixed_options", {}).get("OPENROUTER_REASONING_ENABLED") != "false" for model in models):
+        issues.append("sota-v3 every registered route must send reasoning.enabled=false")
+    if any(row.get("internal_reasoning_tokens_per_decision") != 0 for row in cost_models):
+        issues.append("sota-v3 reasoning-disabled cost rows must reserve zero internal reasoning tokens")
+
+    expected_protocol_panel_calls = 0
+    expected_protocol_smoke_calls = 0
+    models_by_id = {str(model.get("id") or ""): model for model in models}
+    shared_fixed_options = registry.get("shared_fixed_options") or {}
+    for row in cost_models:
+        model = models_by_id.get(str(row.get("experiment_id") or ""), {})
+        fixed_options = {**shared_fixed_options, **(model.get("fixed_options") or {})}
+        try:
+            repair_attempts = int(fixed_options.get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", 0))
+        except (TypeError, ValueError):
+            issues.append("sota-v3 repair attempts must be an integer")
+            repair_attempts = 0
+        if repair_attempts < 0:
+            issues.append("sota-v3 repair attempts must be non-negative")
+            repair_attempts = 0
+        expected_calls_per_decision = MAX_INTERACTION_ROUNDS * (1 + repair_attempts)
+        panel_calls = row.get("panel_calls")
+        smoke_calls = row.get("smoke_calls")
+        if row.get("maximum_api_calls_per_decision") != expected_calls_per_decision:
+            issues.append("sota-v3 protocol-maximum calls per decision must include every round and repair")
+        if not isinstance(panel_calls, int) or row.get("protocol_maximum_panel_calls") != (
+            panel_calls * expected_calls_per_decision
+        ):
+            issues.append("sota-v3 protocol-maximum panel calls are inconsistent")
+        else:
+            expected_protocol_panel_calls += panel_calls * expected_calls_per_decision
+        if not isinstance(smoke_calls, int) or row.get("protocol_maximum_smoke_calls") != (
+            smoke_calls * expected_calls_per_decision
+        ):
+            issues.append("sota-v3 protocol-maximum smoke calls are inconsistent")
+        else:
+            expected_protocol_smoke_calls += smoke_calls * expected_calls_per_decision
+    if protocol_maximum.get("max_interaction_rounds_per_decision") != MAX_INTERACTION_ROUNDS:
+        issues.append("sota-v3 protocol maximum must use the runtime interaction-round limit")
+    if protocol_maximum.get("panel_calls") != expected_protocol_panel_calls:
+        issues.append("sota-v3 aggregate protocol-maximum panel calls are inconsistent")
+    if protocol_maximum.get("smoke_calls") != expected_protocol_smoke_calls:
+        issues.append("sota-v3 aggregate protocol-maximum smoke calls are inconsistent")
+    if protocol_maximum.get("total_calls") != expected_protocol_panel_calls + expected_protocol_smoke_calls:
+        issues.append("sota-v3 aggregate protocol-maximum total calls are inconsistent")
+
+    for field in ("output_token_cap", "cap_pressure_threshold_tokens", "fallback_output_token_cap"):
+        if output_policy.get(field) != lane.get(field):
+            issues.append(f"sota-v3 protocol {field} must match the lane")
+    expected_cap_action = "abort-sota-v3-and-repreregister"
+    if lane.get("cap_pressure_action") != expected_cap_action:
+        issues.append("sota-v3 lane cap pressure must abort and require preregistration")
+    if output_policy.get("cap_pressure_action") != expected_cap_action:
+        issues.append("sota-v3 protocol cap pressure must abort and require preregistration")
+    if output_policy.get("on_first_trigger") != expected_cap_action:
+        issues.append("sota-v3 first cap-pressure trigger must abort and require preregistration")
+    if lane.get("max_cap_amendments") != 0 or output_policy.get("max_cap_amendments") != 0:
+        issues.append("sota-v3 cap policy must forbid in-place amendments")
+
+    seed_panel = lane.get("seed_panel") or {}
+    expected_panel_facts = {
+        "panel_seed_count": seed_panel.get("count"),
+        "panel_repeats": lane.get("repeats"),
+        "panel_preset": lane.get("preset"),
+        "output_tokens_per_decision": lane.get("output_token_cap"),
+    }
+    for cost_key, expected in expected_panel_facts.items():
+        if cost_assumptions.get(cost_key) != expected:
+            issues.append(f"sota-v3 cost assumption {cost_key} must match the frozen lane")
+    if selected.get("seed_count") != seed_panel.get("count") or selected.get("repeats") != lane.get("repeats"):
+        issues.append("sota-v3 selected allocation must match the frozen seed panel and repeats")
+
+    reserved = (cost_estimate.get("costs_usd") or {}).get("total_with_1_2x_contingency")
+    ceiling = budget_policy.get("operator_ceiling_usd")
+    forecast_is_valid = (
+        isinstance(reserved, int | float)
+        and not isinstance(reserved, bool)
+        and math.isfinite(float(reserved))
+        and reserved >= 0
+    )
+    ceiling_is_valid = (
+        isinstance(ceiling, int | float)
+        and not isinstance(ceiling, bool)
+        and math.isfinite(float(ceiling))
+        and ceiling > 0
+    )
+    if not forecast_is_valid or not ceiling_is_valid or reserved > ceiling:
+        issues.append("sota-v3 generated planning forecast must fit under the operator ceiling")
+    if budget_policy.get("spend_enforcement") != "dynamic-pre-provider-call":
+        issues.append("sota-v3 spend ceiling must be enforced before every provider call")
+    protocol_maximum_cost = (protocol_maximum.get("costs_usd") or {}).get("total_with_contingency")
+    if (
+        not isinstance(protocol_maximum_cost, int | float)
+        or isinstance(protocol_maximum_cost, bool)
+        or not math.isfinite(float(protocol_maximum_cost))
+        or not isinstance(reserved, int | float)
+        or isinstance(reserved, bool)
+        or protocol_maximum_cost < reserved
+    ):
+        issues.append("sota-v3 protocol-maximum cost must be finite and no lower than the planning forecast")
+
+    if manifest.get("status") == "not-started" and manifest.get("entries") != {}:
+        issues.append("sota-v3 not-started smoke manifest must be empty")
+    return list(dict.fromkeys(issues))
+
+
 def _live_v3_readiness() -> dict[str, Any]:
     lane = json.loads((ROOT / "config" / "sota_v3_lane.json").read_text())
     registry = json.loads((ROOT / "config" / "sota_v3_models.json").read_text())
     manifest = json.loads((ROOT / "config" / "sota_v3_smoke_manifest.json").read_text())
     protocol = json.loads((ROOT / "config" / "sota_v3_publication_protocol.json").read_text())
     pricing = json.loads((ROOT / "config" / "sota_v3_pricing_snapshot.json").read_text())
-    return {
-        "coherence_issues": v3_preregistration_coherence_issues(
+    cost_estimate = json.loads((ROOT / "results" / "analysis" / "sota-v3-pre-smoke-cost-estimate.json").read_text())
+    coherence_issues = v3_preregistration_coherence_issues(
+        lane,
+        registry,
+        protocol,
+        pricing,
+        manifest,
+    )
+    coherence_issues.extend(
+        v3_cross_file_coherence_issues(
             lane,
             registry,
             protocol,
             pricing,
             manifest,
-        ),
+            cost_estimate,
+        )
+    )
+    return {
+        "coherence_issues": list(dict.fromkeys(coherence_issues)),
         "synthetic_validation_issues": execution_authorization_issues(
             lane,
             mode="synthetic",

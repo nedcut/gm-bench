@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "contract": "sota-v3",
-  "contract_fingerprint": "a523bdfcebe47bbd",
+  "contract_fingerprint": "247e12fe5a7d4f5b",
   "status": "frozen",
   "checked_at_utc": "2026-08-04T16:00:40Z",
   "source": "Undiscounted rates frozen from the public OpenRouter catalog and rechecked against authenticated exact-route endpoint metadata before smoke authorization; no completion or chat endpoint was called.",
@@ -29,17 +29,10 @@
       "completion": 1e-05
     },
     "deepseek/deepseek-v4-flash-0731": {
-      "provider_slug": "cloudflare/fp8",
+      "provider_slug": "cloudflare",
       "endpoint_name": "Cloudflare | deepseek/deepseek-v4-flash-20260731",
       "prompt": 1.4e-07,
       "completion": 2.8e-07
-    },
-    "google/gemini-3.6-flash": {
-      "provider_slug": "google-ai-studio",
-      "endpoint_name": "Google AI Studio | google/gemini-3.6-flash-20260721",
-      "prompt": 1.5e-06,
-      "completion": 7.5e-06,
-      "internal_reasoning": 7.5e-06
     },
     "minimax/minimax-m3": {
       "provider_slug": "deepinfra/fp8",
@@ -75,17 +68,6 @@
       "endpoint_name": "Tencent | tencent/hy3-20260706",
       "prompt": 1.32e-07,
       "completion": 5.28e-07
-    },
-    "x-ai/grok-4.5": {
-      "provider_slug": "xai/zdr",
-      "endpoint_name": "xAI | x-ai/grok-4.5-20260708",
-      "prompt": 2e-06,
-      "completion": 6e-06,
-      "long_context_override": {
-        "min_prompt_tokens": 200000,
-        "prompt": 4e-06,
-        "completion": 1.2e-05
-      }
     },
     "z-ai/glm-5.2": {
       "provider_slug": "novita/fp8",

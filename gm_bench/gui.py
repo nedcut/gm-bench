@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import mimetypes
+import os
 import sqlite3
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -19,12 +21,31 @@ ROOT = Path(__file__).resolve().parents[1]
 STATIC_ROOT = ROOT / "gm_bench" / "gui_static"
 
 
-def serve(host: str = "127.0.0.1", port: int = 8765, db_path: str | Path = DEFAULT_DB_PATH) -> None:
+def serve(
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    db_path: str | Path = DEFAULT_DB_PATH,
+    *,
+    allow_remote: bool = False,
+) -> None:
+    if allow_remote:
+        raise ValueError("--allow-remote is unavailable because the GUI has no authentication")
+    if not _is_loopback_host(host):
+        raise ValueError(f"refusing to expose the unauthenticated GUI on non-loopback host {host!r}")
     handler = _handler_factory(Path(db_path))
     server = ThreadingHTTPServer((host, port), handler)
     print(f"GM-Bench GUI running at http://{host}:{port}")
     print(f"Using database: {db_path}")
     server.serve_forever()
+
+
+def _is_loopback_host(host: str) -> bool:
+    if host.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 def _handler_factory(db_path: Path) -> type[BaseHTTPRequestHandler]:
@@ -367,10 +388,15 @@ def _parse_seeds(value: str) -> list[int]:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="gm-bench-gui")
     parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument(
+        "--allow-remote",
+        action="store_true",
+        help="disabled until the GUI has authentication",
+    )
     parser.add_argument("--port", type=int, default=8765)
-    parser.add_argument("--db", default=str(DEFAULT_DB_PATH))
+    parser.add_argument("--db", default=os.environ.get("GM_BENCH_DB", str(DEFAULT_DB_PATH)))
     args = parser.parse_args(argv)
-    serve(args.host, args.port, args.db)
+    serve(args.host, args.port, args.db, allow_remote=args.allow_remote)
 
 
 if __name__ == "__main__":

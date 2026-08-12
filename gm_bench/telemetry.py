@@ -30,7 +30,15 @@ _COUNT_KEYS = (
     "protocol_repairs_succeeded",
 )
 _FLOAT_KEYS = ("api_latency_ms", "cost_usd")
-_TEXT_KEYS = ("provider", "model", "upstream_provider", "generation_id", "finish_reason", "native_finish_reason")
+_TEXT_KEYS = (
+    "provider",
+    "model",
+    "upstream_provider",
+    "generation_id",
+    "finish_reason",
+    "native_finish_reason",
+    "telemetry_error",
+)
 # Finish reasons that mean the provider cut the response at the output ceiling.
 _TRUNCATION_FINISH_REASONS = frozenset({"length", "max_tokens", "max_output_tokens"})
 

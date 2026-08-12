@@ -78,17 +78,18 @@ GM-Bench includes:
   trades among themselves, visible in the transaction feed.
 - Baseline agents: random, conservative, win-now, rebuild, value, `shrewd`
   (cap hygiene plus development-aware lineups), and `strategic`, which also
-  scouts, evaluates incoming offers, and persists a plan memo. The strongest
-  `pick-trader` reference adds cap-aware future-pick acquisitions, while the
+  scouts, evaluates incoming offers, and persists a plan memo. The preregistered
+  `pick-trader` bar adds cap-aware future-pick acquisitions, while the
   red-team `exploit` canary replays known-degenerate strategies. The
   `scaffold-view` diagnostic runs the `pick-trader` policy on the truncated
   observation model adapters actually receive, so observation asymmetry can be
   separated from what the policy is worth. It measures the cost of view
   truncation only — the output-token cap and protocol repair are not held
   constant, so the gap is not "what the scaffold costs". Measured on the
-  official panel (seeds 11–18 × 5 seasons) under fingerprint
-  `4f6ddddd6a6dd81c`: **+2.8 points, paired *t* = 0.249**, six of eight seeds
-  tied. View truncation is not what separates model rows from scripted ones —
+  official panel (seeds 11–18 × 5 seasons), first under fingerprint
+  `4f6ddddd6a6dd81c` and later reproduced under the v3 candidate contract:
+  **+2.8 points, paired *t* = 0.249**, six of eight seeds tied. View truncation
+  is not what separates model rows from scripted ones —
   though as a `sota-v3` measurement this is supporting rather than in-study
   evidence for the frozen v2 result. Fresh-spawn/memo-only continuity is
   separately measured at exactly zero for the references, since the scripted
@@ -104,12 +105,13 @@ GM-Bench includes:
 - An external-process protocol for plugging in LLM agents, including a
   persistent `memo` scratchpad for carrying multi-season plans between
   decision points.
-- Protocol v2 (`gm-bench-v2`): four phases per season (including midseason
+- Protocol v3 (`gm-bench-v3`) by default: four phases per season (including midseason
   injuries and waivers), multi-round decision windows with query actions and
   same-turn `action_results`, trade negotiation (`accept_trade_offer` /
   `reject_trade_offer` / `counter_trade_offer`), tiered observations
   (`full` / `summary`), and optional persistent subprocess sessions per
-  episode.
+  episode. Protocol v2 remains available only to validate the frozen historical
+  `sota-v2` evidence.
 
 ## Leaderboard & Website
 
@@ -348,7 +350,7 @@ bun run build  # static production build in web/dist/
 
 ## External Agent Protocol
 
-The default episode uses protocol v2 (`benchmark: "gm-bench-v2"` in every
+The default episode uses protocol v3 (`benchmark: "gm-bench-v3"` in every
 observation). Each season has four decision phases:
 
 - `preseason`

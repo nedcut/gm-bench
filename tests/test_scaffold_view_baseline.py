@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import math
 from typing import Any
 
@@ -59,6 +60,21 @@ def test_adapter_and_reference_share_one_compaction() -> None:
     assert view["team"]["roster"] == compact["team"]["top_roster"]
     for key in ("free_agents", "draft_class", "trade_market", "incoming_offers", "rules", "scout_reports"):
         assert view[key] == compact[key]
+
+
+def test_model_prompt_and_scaffold_view_do_not_expose_seed() -> None:
+    league = League.new(seed=9_876_543_210)
+    observation = league.observation("preseason")
+
+    compact = compact_observation(observation)
+    view = scaffold_view_observation(observation)
+    prompt = gm_agent_common.build_prompt(observation)
+    prompt_payload = json.loads(prompt.rsplit("Observation JSON:\n", maxsplit=1)[1])
+
+    assert observation["seed"] == 9_876_543_210
+    assert "seed" not in compact
+    assert "seed" not in view
+    assert "seed" not in prompt_payload
 
 
 def test_scaffold_view_policy_receives_the_truncated_candidates(monkeypatch: pytest.MonkeyPatch) -> None:

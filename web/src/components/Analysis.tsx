@@ -427,7 +427,7 @@ export default function Analysis({
               </div>
               <div>
                 <dt>Lift vs panel</dt>
-                <dd>{fmt(selected.paired_lift, 1)}</dd>
+                <dd>{fmt(selected.full_panel_lift, 1)}</dd>
               </div>
               <div>
                 <dt>Gap to scripted bar</dt>

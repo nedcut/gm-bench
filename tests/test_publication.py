@@ -330,6 +330,10 @@ def _panel_analysis(rows: list[dict], *, family_size: int = 0) -> dict:
             "tier": index,
             "holm_adjusted_p_value": 0.5,
             "holm_reject_at_0_05": False,
+            # The primary point estimate and interval must accompany the Holm
+            # verdict; the site publishes all three from this one row.
+            "mean_lift": -100.0,
+            "bootstrap_ci95": [-150.0, -50.0],
         }
         if row.get("provider") and row.get("model"):
             analysis_row.update({"provider": row["provider"], "model": row["model"]})
@@ -356,6 +360,84 @@ def _reference_only_panel_analysis(rows: list[dict], *, family_size: int) -> dic
     for row in analysis["models"]:
         row.pop("tier", None)
     return analysis
+
+
+def test_site_ingestion_requires_primary_estimate_beside_holm_verdict() -> None:
+    """A Holm p-value without its own contrast's estimate is unpublishable.
+
+    Publishing the pick-trader Holm verdict next to the baseline-panel lift and
+    interval is the specific mismatch this guard exists to prevent.
+    """
+    from web.scripts.build_leaderboard import _panel_analysis_rows
+
+    candidate = {"id": "demo", "provider": "openrouter", "model": "demo/model"}
+    for dropped, expected in (
+        ("mean_lift", "publication panel analysis row is missing its primary mean lift"),
+        ("bootstrap_ci95", "publication panel analysis row is missing a valid primary bootstrap interval"),
+    ):
+        analysis = _panel_analysis([candidate], family_size=1)
+        analysis["models"][0].pop(dropped)
+        _rows, issues = _panel_analysis_rows([candidate], analysis, family_size=1, minimum_models=1)
+        assert expected in issues, f"dropping {dropped} must block publication"
+
+
+def test_site_ingestion_rejects_inverted_primary_interval() -> None:
+    from web.scripts.build_leaderboard import _panel_analysis_rows
+
+    candidate = {"id": "demo", "provider": "openrouter", "model": "demo/model"}
+    analysis = _panel_analysis([candidate], family_size=1)
+    analysis["models"][0]["bootstrap_ci95"] = [-50.0, -150.0]
+
+    _rows, issues = _panel_analysis_rows([candidate], analysis, family_size=1, minimum_models=1)
+
+    assert "publication panel analysis row is missing a valid primary bootstrap interval" in issues
+
+
+def test_published_site_dataset_plots_the_frozen_primary_contrast() -> None:
+    """The committed dataset's primary fields must equal the frozen analysis.
+
+    This is the numeric cross-surface check: it pins the published numbers to
+    scripts/analyze_publication_panel.py rather than merely asserting the fields
+    exist. It also pins the *protocol* -- the primary contrast is versus
+    pick-trader, and the panel contrast must remain a separately named field.
+    """
+    root = Path(__file__).resolve().parents[1]
+    dataset = json.loads((root / "web" / "src" / "data" / "leaderboard.json").read_text())
+    analysis = json.loads((root / "results" / "analysis" / "publication-panel-analysis.json").read_text())
+    protocol = json.loads((root / "config" / "publication_protocol.json").read_text())
+
+    assert "pick-trader" in protocol["statistical_analysis_plan"]["primary_contrast"]
+    assert analysis["primary_contrast"] == "paired lift versus pick-trader"
+
+    by_model = {row["model"]: row for row in analysis["models"]}
+    assert dataset["models"], "committed dataset must have published rows to check"
+    for row in dataset["models"]:
+        expected = by_model[row["model"]]
+        assert row["primary_lift"] == expected["mean_lift"]
+        assert row["primary_ci95"] == list(expected["bootstrap_ci95"])
+        assert row["holm_adjusted_p_value"] == expected["holm_adjusted_p_value"]
+        # The panel contrast must stay present, distinct, and separately named.
+        assert row["full_panel_lift"] != row["primary_lift"]
+        # A bare `significant` flag derived from the panel bootstrap is exactly
+        # what previously contradicted the primary Holm verdict on every row.
+        assert "significant" not in row
+        assert "paired_lift" not in row and "ci95" not in row
+
+
+def test_published_rows_never_claim_significance_the_primary_test_refuses() -> None:
+    """No row may advertise significance that the preregistered test denies.
+
+    At eight seeds the sign-flip floor is 2/2**8, so against the frozen family
+    of ten the smallest achievable Holm-adjusted p is 0.078 -- above 0.05 by
+    construction. Any row claiming significance is therefore reading some other
+    contrast's flag.
+    """
+    root = Path(__file__).resolve().parents[1]
+    dataset = json.loads((root / "web" / "src" / "data" / "leaderboard.json").read_text())
+    for row in dataset["models"]:
+        if row.get("holm_reject_at_0_05") is False:
+            assert row.get("full_panel_significant_at_95") is not None
+            assert "significant" not in row
 
 
 def test_v3_site_ingestion_requires_analyzer_publication_readiness() -> None:

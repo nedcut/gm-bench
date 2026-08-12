@@ -77,9 +77,23 @@ export interface LeaderboardModel {
   score_stddev: number;
   mean_strategy_score: number | null;
   protocol_penalty: number | null;
-  paired_lift: number | null;
-  ci95: number[] | null;
-  significant: boolean | null;
+  /**
+   * Primary contrast: paired lift versus pick-trader, as frozen in
+   * config/publication_protocol.json. Present only on rows that cleared the
+   * publication gate, which is why it is optional here and asserted in
+   * benchmarkData.ts. Always publish this one, never `full_panel_*`.
+   */
+  primary_lift?: number | null;
+  primary_ci95?: number[] | null;
+  /**
+   * Secondary contrast: lift versus the mean of the whole baseline panel
+   * (which includes weak baselines like `random`). Descriptive only.
+   * `full_panel_significant_at_95` is the panel bootstrap flag that the
+   * statistical analysis plan explicitly forbids as a headline claim.
+   */
+  full_panel_lift: number | null;
+  full_panel_ci95: number[] | null;
+  full_panel_significant_at_95: boolean | null;
   seed_win_rate: number | null;
   lift_vs_best_baseline: number | null;
   fallback_rate: number;

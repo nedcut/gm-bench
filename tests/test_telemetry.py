@@ -340,6 +340,22 @@ def test_external_process_agent_accepts_bare_list(tmp_path):
     assert usage is None
 
 
+def test_external_process_agent_rejects_boolean_integer_fields(tmp_path):
+    script = tmp_path / "agent.py"
+    script.write_text(
+        "import json, sys\n"
+        "json.load(sys.stdin)\n"
+        "print(json.dumps([{'type': 'sign_free_agent', 'player_id': True, 'years': 1, 'salary': 2.0}]))\n"
+    )
+    agent = ExternalProcessAgent(f"{sys.executable} {script}", timeout_seconds=30)
+
+    actions, usage = agent.act_with_usage({"seed": 1})
+
+    assert actions[0]["type"] == "noop"
+    assert "must be an integer" in actions[0]["error"]
+    assert usage is None
+
+
 def test_external_process_agent_rejects_envelope_without_actions(tmp_path):
     script = tmp_path / "agent.py"
     script.write_text("import json, sys\njson.load(sys.stdin)\nprint(json.dumps({'usage': {}}))\n")

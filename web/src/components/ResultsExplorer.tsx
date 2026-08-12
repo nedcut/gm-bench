@@ -49,7 +49,7 @@ function ForestPlot({
   const top = 46;
   const bottom = 58;
   const height = top + models.length * rowHeight + bottom;
-  const ciValues = models.flatMap((model) => model.ci95);
+  const ciValues = models.flatMap((model) => model.primary_ci95);
   const minLift = Math.min(-20, Math.floor((Math.min(...ciValues) - 8) / 20) * 20);
   const x = scaleLinear().domain([minLift, 20]).range([left, width - right]);
   const ticks = x.ticks(8);
@@ -62,7 +62,7 @@ function ForestPlot({
         role="img"
         aria-labelledby="forest-title forest-desc"
       >
-        <title id="forest-title">Paired score-point lift versus the baseline panel</title>
+        <title id="forest-title">Paired score-point lift versus pick-trader</title>
         <desc id="forest-desc">
           Every published model has a negative paired lift and a 95 percent confidence
           interval below zero. Higher values are better.
@@ -113,8 +113,8 @@ function ForestPlot({
               style={{ "--row-index": index } as CSSProperties}
             >
               <title>
-                {model.model}: {fmt(model.paired_lift, 1)} score points, 95% lift CI [
-                {fmt(model.ci95[0], 1)}, {fmt(model.ci95[1], 1)}]
+                {model.model}: {fmt(model.primary_lift, 1)} score points, 95% lift CI [
+                {fmt(model.primary_ci95[0], 1)}, {fmt(model.primary_ci95[1], 1)}]
               </title>
               <rect
                 x="0"
@@ -134,28 +134,28 @@ function ForestPlot({
                 {model.model}
               </text>
               <line
-                x1={x(model.ci95[0])}
-                x2={x(model.ci95[1])}
+                x1={x(model.primary_ci95[0])}
+                x2={x(model.primary_ci95[1])}
                 y1={y}
                 y2={y}
                 className="interval-line chart-mark-line"
               />
               <line
-                x1={x(model.ci95[0])}
-                x2={x(model.ci95[0])}
+                x1={x(model.primary_ci95[0])}
+                x2={x(model.primary_ci95[0])}
                 y1={y - 7}
                 y2={y + 7}
                 className="interval-cap chart-mark-cap"
               />
               <line
-                x1={x(model.ci95[1])}
-                x2={x(model.ci95[1])}
+                x1={x(model.primary_ci95[1])}
+                x2={x(model.primary_ci95[1])}
                 y1={y - 7}
                 y2={y + 7}
                 className="interval-cap chart-mark-cap"
               />
               <circle
-                cx={x(model.paired_lift)}
+                cx={x(model.primary_lift)}
                 cy={y}
                 r={active ? 7 : 5.5}
                 className="candidate-dot chart-mark-dot"
@@ -170,7 +170,7 @@ function ForestPlot({
           textAnchor="middle"
           className="chart-panel-reference-label"
         >
-          baseline panel (0)
+          pick-trader (0)
         </text>
         <text
           x={(left + width - right) / 2}
@@ -178,7 +178,7 @@ function ForestPlot({
           textAnchor="middle"
           className="chart-axis-label"
         >
-          Score-point lift vs baseline panel
+          Score-point lift vs pick-trader
         </text>
       </svg>
     </div>
@@ -389,7 +389,7 @@ function ResultsTable({
   const sorted = useMemo(() => {
     const next = [...models];
     if (sort === "score") next.sort((a, b) => b.mean_score - a.mean_score);
-    if (sort === "lift") next.sort((a, b) => b.paired_lift - a.paired_lift);
+    if (sort === "lift") next.sort((a, b) => b.primary_lift - a.primary_lift);
     if (sort === "cost") next.sort((a, b) => a.cost_per_episode_usd - b.cost_per_episode_usd);
     return next;
   }, [models, sort]);
@@ -400,19 +400,19 @@ function ResultsTable({
         <thead>
           <tr>
             <th>Model</th>
-            <th>
-              <button type="button" onClick={() => setSort("score")} aria-pressed={sort === "score"}>
+            <th aria-sort={sort === "score" ? "descending" : "none"}>
+              <button type="button" onClick={() => setSort("score")}>
                 Score
               </button>
             </th>
-            <th>
-              <button type="button" onClick={() => setSort("lift")} aria-pressed={sort === "lift"}>
+            <th aria-sort={sort === "lift" ? "descending" : "none"}>
+              <button type="button" onClick={() => setSort("lift")}>
                 Lift
               </button>
             </th>
             <th title="95% interval on the paired lift, not on the score">95% lift CI</th>
-            <th>
-              <button type="button" onClick={() => setSort("cost")} aria-pressed={sort === "cost"}>
+            <th aria-sort={sort === "cost" ? "ascending" : "none"}>
+              <button type="button" onClick={() => setSort("cost")}>
                 Cost / episode
               </button>
             </th>
@@ -429,9 +429,9 @@ function ResultsTable({
                 </button>
               </td>
               <td className="numeric strong">{fmt(model.mean_score, 1)}</td>
-              <td className="numeric">{fmt(model.paired_lift, 1)}</td>
+              <td className="numeric">{fmt(model.primary_lift, 1)}</td>
               <td className="numeric ci-cell">
-                [{fmt(model.ci95[0], 1)}, {fmt(model.ci95[1], 1)}]
+                [{fmt(model.primary_ci95[0], 1)}, {fmt(model.primary_ci95[1], 1)}]
               </td>
               <td className="numeric">${fmt(model.cost_per_episode_usd, 2)}</td>
               <td className="numeric tokens-cell">{formatTokensPerDecision(model)}</td>
@@ -487,19 +487,19 @@ export default function ResultsExplorer({
   };
 
   return (
-    <section className="results-section" id="results">
+    <section className="results-section" id="results" tabIndex={-1}>
       <div className="results-shell">
         <div className="result-overview">
           <div className="result-overview-copy">
             <p className="kicker">Phase one results</p>
-            <h1>Performance against the baseline panel.</h1>
+            <h1>Performance against the pick-trader bar.</h1>
             <p>
               Paired seed-level differences for eight published model-plus-scaffold
               systems.
             </p>
             <small>
-              Descriptive intervals; the predeclared Holm-adjusted family test does
-              not reject at 0.05.
+              Descriptive intervals; the predeclared Holm-adjusted family test rejects
+              for {benchmark.holmRejectedCount} of {benchmark.modelCount} rows at 0.05.
             </small>
           </div>
           <dl className="result-readouts">
@@ -615,12 +615,12 @@ export default function ResultsExplorer({
               </span>
               <h2>
                 {view === "lift"
-                  ? "Every paired difference is below the panel reference."
+                  ? "Every paired difference is below the pick-trader bar."
                   : "Score vs cost per episode"}
               </h2>
               <p>
                 {view === "lift"
-                  ? "Whiskers show 95% intervals on the paired lift. All eight rows overlap in one descriptive tier."
+                  ? `Paired lift versus pick-trader — the contrast frozen in the publication protocol. Whiskers are descriptive 95% bootstrap intervals; the predeclared Holm-adjusted test rejects for ${benchmark.holmRejectedCount} of ${benchmark.modelCount} rows.`
                   : "Price varies widely, but no observed mean reaches the pick-trader bar."}
               </p>
             </div>
@@ -662,10 +662,10 @@ export default function ResultsExplorer({
               <span className="selection-status">Selected</span>
               <strong>{shortModelName(selectedModel.model)}</strong>
               <span>score {fmt(selectedModel.mean_score, 1)}</span>
-              <span>paired lift {fmt(selectedModel.paired_lift, 1)}</span>
+              <span>paired lift {fmt(selectedModel.primary_lift, 1)}</span>
               <span>
-                95% lift CI [{fmt(selectedModel.ci95[0], 1)},{" "}
-                {fmt(selectedModel.ci95[1], 1)}]
+                95% lift CI [{fmt(selectedModel.primary_ci95[0], 1)},{" "}
+                {fmt(selectedModel.primary_ci95[1], 1)}]
               </span>
               <span>${fmt(selectedModel.cost_per_episode_usd, 2)} / episode</span>
               <span>{formatTokensPerDecision(selectedModel)} tokens / decision</span>

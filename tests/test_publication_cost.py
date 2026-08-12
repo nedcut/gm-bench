@@ -44,42 +44,49 @@ def test_v3_cost_plan_uses_registered_private_seed_count() -> None:
     assert result["assumptions"]["panel_seed_count"] == 16
     assert result["assumptions"]["panel_repeats"] == 1
     assert result["calls"]["panel_decisions_per_model"] == 320
-    assert result["calls"]["panel_calls"] == 3_200
-    assert result["calls"]["total_calls"] == 3_240
-    # Repriced 2026-08-04. Two moves, on an unchanged 3,240-call plan:
-    # the Qwen slot went from qwen3.7-plus to qwen3.8-max, which bills
-    # 6.25x/4.69x per token; and the snapshot now pins undiscounted list
-    # rates, after gpt-5.6-luna and glm-5.2 were both found pinned at
-    # 50%-off promotional prices. A promo is not a floor -- the GLM
-    # discount moved 55.1% -> 50% within hours of being recorded.
-    assert result["costs_usd"]["total_unrounded"] == pytest.approx(106.073183232)
-    assert result["costs_usd"]["total_with_1_2x_contingency"] == pytest.approx(127.2878198784)
-    grok = next(row for row in result["models"] if row["model"] == "x-ai/grok-4.5")
-    assert grok["internal_reasoning_tokens_per_decision"] == 4096
-    assert grok["applied_internal_reasoning_rate_usd"] == pytest.approx(grok["applied_completion_rate_usd"])
-    assert grok["internal_reasoning_billing_basis"] == "completion"
+    assert result["calls"]["panel_calls"] == 2_560
+    assert result["calls"]["total_calls"] == 2_592
+    # `calls` is the one-response-per-window planning forecast. The protocol
+    # can actually make five interaction calls, each with one repair, so the
+    # estimator must expose that 10x maximum instead of presenting 2,592 as a
+    # worst-case API-call count.
+    assert result["protocol_maximum"]["max_interaction_rounds_per_decision"] == 5
+    assert result["protocol_maximum"]["total_calls"] == 25_920
+    # Recosted 2026-08-06 for amendment-3, which withdrew Gemini 3.6 Flash and
+    # Grok 4.5 -- the only two mandatory-reasoning routes -- leaving eight
+    # uniformly reasoning-disabled models. The call count falls 3,240 -> 2,592
+    # and, because the withdrawn pair were also the two priciest rows (they
+    # billed internal reasoning at the completion rate on top of output), the
+    # reservation falls further than the call count alone implies: $127.29 ->
+    # $73.40 against a ceiling lowered $150 -> $100.
+    assert result["costs_usd"]["total_unrounded"] == pytest.approx(61.169375232)
+    assert result["costs_usd"]["total_with_1_2x_contingency"] == pytest.approx(73.4032502784)
+    assert result["protocol_maximum"]["costs_usd"]["total_with_contingency"] == pytest.approx(734.032502784)
+    # The cohort is now uniformly reasoning-disabled; no row may bill internal
+    # reasoning. This is the cost-side statement of the amendment's whole point.
+    assert [row["model"] for row in result["models"] if row["internal_reasoning_tokens_per_decision"]] == []
 
 
 def test_the_committed_plan_fits_under_the_committed_ceiling() -> None:
-    """The reservation and the hard cap must not drift apart silently.
+    """The planning forecast and hard cap must not drift apart silently.
 
     These are two committed numbers in two different files, and on 2026-08-04
     they crossed: pinning undiscounted list rates moved the reservation to
-    $127.29 against a $120.00 ceiling, so the committed plan could not legally
+    $127.29 against a $120.00 ceiling, so the committed plan could not reasonably
     run.  Nothing caught it, because nothing compared them.
 
     Adding a model, substituting a route onto a pricier host, or a provider
-    ending a discount all move the reservation.  Any of them silently breaching
+    ending a discount all move the forecast. Any of them silently breaching
     the ceiling should fail here, at zero cost, rather than at the point
     someone tries to authorize a run.
     """
     protocol = json.loads(Path("config/sota_v3_publication_protocol.json").read_text())
     ceiling = protocol["budget_policy"]["operator_ceiling_usd"]
-    reserved = estimate(*_v3_inputs())["costs_usd"]["total_with_1_2x_contingency"]
+    forecast = estimate(*_v3_inputs())["costs_usd"]["total_with_1_2x_contingency"]
 
     assert isinstance(ceiling, (int, float)) and ceiling > 0
-    assert reserved <= ceiling, (
-        f"the committed reservation ${reserved:.2f} exceeds the committed operator ceiling "
+    assert forecast <= ceiling, (
+        f"the committed planning forecast ${forecast:.2f} exceeds the committed operator ceiling "
         f"${ceiling:.2f}; raise the ceiling deliberately or reduce the plan"
     )
 
@@ -204,10 +211,22 @@ def test_internal_reasoning_price_requires_an_explicit_token_assumption() -> Non
 
 
 def test_v3_reasoning_enabled_route_requires_an_explicit_token_assumption() -> None:
+    """A reasoning-enabled route may never be costed as if reasoning were free.
+
+    This used to pin the real Grok 4.5 row, but amendment-3 withdrew both
+    mandatory-reasoning routes, which would have quietly turned the test
+    vacuous -- the filter would select nothing and the guard would stop being
+    exercised at all. The unpriced-reasoning trap is a property of the
+    estimator, not of whoever happens to be in the cohort this month, so the
+    route is synthetic and the test survives any future lineup change.
+    """
     models, lane, pricing = _v3_inputs()
     models = copy.deepcopy(models)
     pricing = copy.deepcopy(pricing)
-    models["models"] = [model for model in models["models"] if model["model"] == "x-ai/grok-4.5"]
+    reasoning_route = copy.deepcopy(models["models"][0])
+    reasoning_route["reasoning_policy"] = "mandatory-minimum"
+    reasoning_route["reasoning_effort"] = "minimal"
+    models["models"] = [reasoning_route]
     pricing["planning_assumptions"].pop("expected_internal_reasoning_tokens_per_decision")
 
     with pytest.raises(ValueError, match="expected_internal_reasoning_tokens_per_decision"):

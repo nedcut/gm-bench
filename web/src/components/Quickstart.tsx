@@ -30,19 +30,30 @@ const ADAPTERS = [
 ];
 
 function CommandCard({ title, code }: { title: string; code: string }) {
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
   const copy = async () => {
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopyStatus("copied");
+      setTimeout(() => setCopyStatus("idle"), 1600);
+    } catch {
+      setCopyStatus("failed");
+    }
   };
   return (
     <div className="code-card">
       <div className="code-card-head">
         <span>{title}</span>
-        <button type="button" className="copy-btn" onClick={copy}>
-          {copied ? "copied" : "copy"}
+        <button type="button" className="copy-btn" onClick={copy} aria-label={`Copy ${title} commands`}>
+          {copyStatus === "copied" ? "copied" : "copy"}
         </button>
+        <span className="sr-only" role="status" aria-live="polite">
+          {copyStatus === "copied"
+            ? `${title} commands copied to clipboard`
+            : copyStatus === "failed"
+              ? `Could not copy ${title} commands`
+              : ""}
+        </span>
       </div>
       <pre>
         <code>{code}</code>

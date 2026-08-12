@@ -22,9 +22,11 @@ from gm_bench.publication import (
 )
 from scripts.run_publication_matrix import (
     _artifact_spend_usd,
+    _call_spend_guard_environment,
     _cell_reservation_usd,
     _endpoint_issues,
     _panel_artifact_issues,
+    _reconcile_spend_guard,
     _record_failed_cell_reservation,
     _record_ineligible_cell_reservation,
     _reserve_cell,
@@ -70,10 +72,12 @@ def _frozen_panel_files(
     registry["selection_status"] = "frozen"
     registry["provider"] = "openrouter"
     registry["spend_authorized"] = True
+    registry["route_preflight_authorized"] = True
     registry["panel_execution_authorized"] = True
     registry["exact_route_acceptance"] = {
         "schema_version": 1,
         "status": "accepted",
+        "accepted_at_utc": "2026-07-30T00:00:00Z",
         "privacy_standard": {
             "data_classification": "synthetic-benchmark-no-personal-or-confidential-data",
             "provider_data_collection": "deny",
@@ -102,6 +106,9 @@ def _frozen_panel_files(
         },
     }
     evidence = {
+        "contract_fingerprint": contract_fingerprint(),
+        "completion_calls": 0,
+        "generated_at_utc": "2026-07-30T00:00:00Z",
         "privacy_standard": registry["exact_route_acceptance"]["privacy_standard"],
         "official_policy_sources": [],
         "routes": {},
@@ -134,6 +141,7 @@ def _frozen_panel_files(
     lane["preregistration_status"] = "frozen"
     lane["panel_design_status"] = "frozen"
     lane["spend_authorized"] = True
+    lane["route_preflight_authorized"] = True
     lane["smoke_execution_authorized"] = True
     lane["panel_execution_authorized"] = True
     lane["output_budget_status"] = "frozen-native-reasoning-cap"
@@ -165,6 +173,49 @@ def _frozen_panel_files(
         "sha256": hashlib.sha256(",".join(str(seed) for seed in private_seeds).encode()).hexdigest(),
         "hiding_commitment_sha256": "c" * 64,
     }
+    final_evidence_path = tmp_path / "final-preflight.json"
+    final_evidence = {
+        "format": "gm-bench-sota-v3-final-preflight-v1",
+        "schema_version": 1,
+        "contract": "sota-v3",
+        "contract_fingerprint": contract_fingerprint(),
+        "openrouter_scaffold_fingerprint": scaffold_fingerprint("openrouter"),
+        "generated_at_utc": "2026-07-30T00:01:00Z",
+        "canonical_openrouter_api_base": "https://openrouter.ai/api/v1",
+        "completion_calls": 0,
+        "route_preflight": {
+            "status": "accepted",
+            "evidence_artifact": str(evidence_path),
+            "evidence_sha256": canonical_sha256(evidence),
+            "verified_at_utc": evidence["generated_at_utc"],
+        },
+        "keychain_dry_run": {
+            "status": "passed",
+            "model_ids": [model["id"] for model in registry["models"]],
+            "commands_constructed": len(registry["models"]),
+            "operator_ceiling_usd": 100.0,
+            "seed_panel_sha256": lane["seed_panel"]["sha256"],
+            "hiding_commitment_verified": True,
+            "private_seed_values_included": False,
+        },
+        "authenticated_route_and_price_preflight": {
+            "status": "passed",
+            "model_ids": [model["id"] for model in registry["models"]],
+            "commands_executed": len(registry["models"]),
+            "completion_calls": 0,
+            "canonical_openrouter_api_base": "https://openrouter.ai/api/v1",
+            "pricing_checked": True,
+        },
+    }
+    final_evidence_path.write_text(json.dumps(final_evidence))
+    lane["final_preflight_evidence"] = {
+        "status": "accepted",
+        "artifact": str(final_evidence_path),
+        "sha256": canonical_sha256(final_evidence),
+        "contract_fingerprint": contract_fingerprint(),
+        "completion_calls": 0,
+        "operator_ceiling_usd": 100.0,
+    }
     lane.pop("smoke_manifest", None)
     registry_path = tmp_path / "models.json"
     lane_path = tmp_path / "lane.json"
@@ -182,6 +233,7 @@ def _frozen_panel_files(
         }
     )
     protocol["budget_policy"]["spend_authorized"] = True
+    protocol["budget_policy"]["operator_ceiling_usd"] = 100.0
     protocol["statistical_analysis_plan"] = {
         "status": "frozen",
         "analysis_mode": "reference-only",
@@ -433,6 +485,86 @@ def test_smoke_is_clean_and_resumes_existing_checkpoint(tmp_path: Path) -> None:
     assert "--resume" in cell_command(cell, tmp_path)
 
 
+def test_smoke_retry_archives_empty_aborted_stale_checkpoint(tmp_path: Path) -> None:
+    cell = build_cells("smoke")[0]
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    checkpoint = tmp_path / "checkpoints" / f"{stem}.json"
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "format": "gm-bench-model-checkpoint-v1",
+                "status": "aborted",
+                "provenance": {
+                    "benchmark_contract": {"contract_fingerprint": contract_fingerprint()},
+                    "scaffold_fingerprint": "superseded-scaffold",
+                },
+                "episodes": [],
+                "completed": [],
+            }
+        )
+    )
+    (tmp_path / "openrouter-reservations.json").write_text(json.dumps({"cells": {stem: {"attempts": 1}}}))
+
+    archived = publication_runner._prepare_smoke_retry_checkpoint(cell, tmp_path)
+
+    assert archived == tmp_path / "checkpoints" / "failed-attempts" / f"{stem}--attempt-1.json"
+    assert archived.is_file()
+    assert not checkpoint.exists()
+    assert "--resume" not in cell_command(cell, tmp_path)
+
+
+def test_smoke_retry_preserves_current_checkpoint_for_resume(tmp_path: Path) -> None:
+    cell = build_cells("smoke")[0]
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    checkpoint = tmp_path / "checkpoints" / f"{stem}.json"
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "format": "gm-bench-model-checkpoint-v1",
+                "status": "aborted",
+                "provenance": {
+                    "benchmark_contract": {"contract_fingerprint": contract_fingerprint()},
+                    "scaffold_fingerprint": scaffold_fingerprint(cell.provider),
+                },
+                "episodes": [],
+                "completed": [],
+            }
+        )
+    )
+
+    assert publication_runner._prepare_smoke_retry_checkpoint(cell, tmp_path) is None
+    assert checkpoint.is_file()
+    assert "--resume" in cell_command(cell, tmp_path)
+
+
+def test_smoke_retry_rejects_nonempty_stale_checkpoint_before_reservation(tmp_path: Path) -> None:
+    cell = build_cells("smoke")[0]
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    checkpoint = tmp_path / "checkpoints" / f"{stem}.json"
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "format": "gm-bench-model-checkpoint-v1",
+                "status": "aborted",
+                "provenance": {
+                    "benchmark_contract": {"contract_fingerprint": contract_fingerprint()},
+                    "scaffold_fingerprint": "superseded-scaffold",
+                },
+                "episodes": [{"seed": 1}],
+                "completed": [{"seed": 1, "repeat": 1}],
+            }
+        )
+    )
+
+    with pytest.raises(ValueError, match="not an empty aborted attempt"):
+        publication_runner._prepare_smoke_retry_checkpoint(cell, tmp_path)
+
+    assert checkpoint.is_file()
+
+
 def test_smoke_reuses_only_existing_artifact_that_passes_current_gate(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -495,6 +627,9 @@ def test_preflight_only_still_validates_endpoint_despite_reusable_smoke_artifact
         == 0
     )
     assert validated == [cell.experiment_id]
+    assert not (tmp_path / "openrouter-budget.json").exists()
+    assert not (tmp_path / "openrouter-reservations.json").exists()
+    assert not (tmp_path / publication_runner.CALL_SPEND_GUARD_STATE).exists()
 
 
 def test_smoke_rejects_cap_that_differs_from_frozen_lane() -> None:
@@ -658,7 +793,10 @@ def test_record_smoke_writes_accepted_manifest_entry(
         )
         == 0
     )
-    entry = json.loads(manifest_path.read_text())["entries"][model["id"]]
+    manifest = json.loads(manifest_path.read_text())
+    entry = manifest["entries"][model["id"]]
+    assert manifest["status"] == "in-progress"
+    assert manifest["accepted_for_panel"] is False
     assert entry["accepted"] is True
     assert entry["artifact_sha256"] == expected_sha
     assert entry["artifact_path"] == str(artifact_path)
@@ -947,6 +1085,8 @@ def test_paid_openrouter_run_requires_explicit_spend_ceiling(
         main(
             [
                 "smoke",
+                "--contract",
+                "sota-v3",
                 "--model-id",
                 "openrouter-qwen3.7-plus-alibaba",
                 "--run-dir",
@@ -989,6 +1129,66 @@ def test_cell_reservation_covers_repairs_and_cost_contingency(
 
     assert cell.fixed_options["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "1"
     assert _cell_reservation_usd(cell) == pytest.approx(base * 2 * assumptions["cost_contingency_multiplier"], abs=1e-6)
+
+
+def test_larger_output_cap_scales_only_completion_part_of_reservation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Input spend does not double merely because the output cap doubles."""
+    registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
+    cell = build_cells("panel", model_id="openrouter-gpt-5.6-luna-openai")[0]
+    larger = replace(cell, cap=cell.cap * 2)
+    pricing = json.loads(Path("config/openrouter_pricing_snapshot.json").read_text())
+    assumptions = pricing["planning_assumptions"]
+    rates = pricing["models"][cell.model]
+    decisions = 9 * 5 * 4 * 3
+    repair_multiplier = 2
+    expected_increment = (
+        decisions * cell.cap * rates["completion"] * repair_multiplier * assumptions["cost_contingency_multiplier"]
+    )
+
+    base_reservation = _cell_reservation_usd(cell)
+    larger_reservation = _cell_reservation_usd(larger)
+    assert larger_reservation - base_reservation == pytest.approx(expected_increment, abs=1e-6)
+    assert larger_reservation != pytest.approx(base_reservation * 2)
+
+
+def test_call_guard_receives_frozen_rates_and_global_ceiling(tmp_path: Path) -> None:
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=4096)[0]
+    guard = _call_spend_guard_environment(
+        cell,
+        tmp_path,
+        ceiling_usd=100.0,
+        measured_spend_floor_usd=12.5,
+    )
+    prefix = "GM_BENCH_OPENROUTER_SPEND_GUARD_"
+
+    assert guard[f"{prefix}STATE_PATH"] == str(tmp_path / publication_runner.CALL_SPEND_GUARD_STATE)
+    assert guard[f"{prefix}CEILING_USD"] == "100.0"
+    assert guard[f"{prefix}MEASURED_SPEND_FLOOR_USD"] == "12.5"
+    assert float(guard[f"{prefix}PROMPT_RATE_USD"]) > 0
+    assert float(guard[f"{prefix}COMPLETION_RATE_USD"]) > 0
+    assert guard[f"{prefix}OUTPUT_TOKEN_CAP"] == "4096"
+
+
+def test_call_guard_rejects_reasoning_without_a_committed_token_allowance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=4096)[0]
+    cell = replace(cell, fixed_options={"OPENROUTER_REASONING_ENABLED": "true"})
+    pricing = json.loads(Path("config/sota_v3_pricing_snapshot.json").read_text())
+    pricing["planning_assumptions"].pop("expected_internal_reasoning_tokens_per_decision", None)
+    monkeypatch.setattr(publication_runner, "_read_json", lambda _path: pricing)
+
+    with pytest.raises(ValueError, match="positive committed"):
+        _call_spend_guard_environment(
+            cell,
+            tmp_path,
+            ceiling_usd=100.0,
+            measured_spend_floor_usd=0.0,
+        )
 
 
 def test_cell_reservation_scales_to_future_24_seed_private_panel(
@@ -1096,6 +1296,66 @@ def test_completed_ineligible_cell_releases_reservation_without_becoming_retryab
     assert stored["reserved_usd"] == 0
     assert stored["attempt_history"][-1]["status"] == "ineligible"
     assert stored["ineligibility_reason"] == "candidate usage must cover every decision point"
+
+
+def test_completed_smoke_model_behavior_is_ineligible_without_rerun(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    model = registry["models"][0]
+    cell = build_cells("smoke", model_id=model["id"])[0]
+    artifact = _valid_smoke_artifact(registry, lane, model)
+    artifact["candidate"]["episodes"][0]["failed_decisions"] = 1
+    artifact["candidate"]["summary"]["failed_decisions"] = 1
+    artifact["candidate"]["summary"]["decision_failure_rate"] = 0.25
+    raw = tmp_path / "raw" / f"{cell.experiment_id}--{cell.cap_label}.json"
+    raw.parent.mkdir(parents=True)
+    raw.write_text(json.dumps(artifact))
+
+    assert publication_runner._completed_smoke_model_behavior_issues(cell, tmp_path) == [
+        "artifact candidate episode contains failed decisions",
+        "artifact candidate summary failed_decisions must be zero",
+        "artifact decision_failure_rate must be zero",
+    ]
+
+    artifact["candidate"]["summary"]["usage"]["cost_decisions"] = 3
+    raw.write_text(json.dumps(artifact))
+    assert publication_runner._completed_smoke_model_behavior_issues(cell, tmp_path) == []
+
+
+@pytest.mark.parametrize("status", ["excluded", "ineligible"])
+def test_terminal_smoke_is_skipped_before_child_or_new_reservation(
+    status: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry, _lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    cell = build_cells("smoke", model_id=registry["models"][0]["id"])[0]
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    (tmp_path / "openrouter-reservations.json").write_text(
+        json.dumps({"schema_version": 1, "cells": {stem: {"status": status, "attempts": 2}}})
+    )
+    monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", lambda *_args: pytest.fail("endpoint"))
+    monkeypatch.setattr(publication_runner.subprocess, "run", lambda *_args, **_kwargs: pytest.fail("child"))
+
+    assert (
+        _runner_main(
+            [
+                "smoke",
+                "--contract",
+                "sota-v3",
+                "--model-id",
+                cell.experiment_id,
+                "--run-dir",
+                str(tmp_path),
+                "--max-spend-usd",
+                "100",
+            ],
+            _paid_run_lock_held=True,
+        )
+        == 0
+    )
+
+    stored = json.loads((tmp_path / "openrouter-reservations.json").read_text())["cells"][stem]
+    assert stored == {"status": status, "attempts": 2}
 
 
 def test_successful_cell_settlement_releases_reservation_for_next_cell(tmp_path: Path) -> None:
@@ -1844,7 +2104,7 @@ def test_operator_ceiling_rejects_a_run_that_could_outspend_the_committed_cap() 
     """
     ceiling = json.loads(Path("config/sota_v3_publication_protocol.json").read_text())
     ceiling = ceiling["budget_policy"]["operator_ceiling_usd"]
-    assert ceiling == 150.00
+    assert ceiling == 100.00
 
     publication_runner._enforce_operator_ceiling(ceiling, "sota-v3")
     publication_runner._enforce_operator_ceiling(ceiling - 0.01, "sota-v3")
@@ -1853,6 +2113,90 @@ def test_operator_ceiling_rejects_a_run_that_could_outspend_the_committed_cap() 
         publication_runner._enforce_operator_ceiling(ceiling + 0.01, "sota-v3")
     with pytest.raises(ValueError, match=r"\$1200\.00"):
         publication_runner._enforce_operator_ceiling(1200.00, "sota-v3")
+
+
+def test_spend_reconciliation_charges_the_full_unknown_call_reservation(tmp_path: Path) -> None:
+    (tmp_path / "openrouter-budget.json").write_text(json.dumps({"starting_total_usage_usd": 10.0}))
+    state_path = tmp_path / publication_runner.CALL_SPEND_GUARD_STATE
+    state_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "ceiling_usd": 100.0,
+                "reported_spend_usd": 0.001,
+                "active_call_reservation_usd": 0.02,
+                "blocked_reason": "missing cost",
+                "telemetry_error": "lookup exhausted",
+            }
+        )
+    )
+
+    evidence = _reconcile_spend_guard(tmp_path)
+    state = json.loads(state_path.read_text())
+
+    assert evidence["method"] == "charge-full-conservative-call-reservation"
+    assert evidence["reconciled_reported_spend_usd"] == pytest.approx(0.021)
+    assert state["reported_spend_usd"] == pytest.approx(0.021)
+    assert state["active_call_reservation_usd"] == 0
+    assert "blocked_reason" not in state
+    assert (tmp_path / publication_runner.SPEND_RECONCILIATION).is_file()
+
+
+def test_repeated_spend_reconciliation_preserves_and_hash_links_prior_evidence(tmp_path: Path) -> None:
+    (tmp_path / "openrouter-budget.json").write_text(json.dumps({"starting_total_usage_usd": 10.0}))
+    state_path = tmp_path / publication_runner.CALL_SPEND_GUARD_STATE
+    state_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "ceiling_usd": 100.0,
+                "reported_spend_usd": 0.001,
+                "active_call_reservation_usd": 0.02,
+                "blocked_reason": "missing cost one",
+            }
+        )
+    )
+    _reconcile_spend_guard(tmp_path)
+    first_path = tmp_path / publication_runner.SPEND_RECONCILIATION
+    first_bytes = first_path.read_bytes()
+    first_sha = hashlib.sha256(first_bytes).hexdigest()
+    state = json.loads(state_path.read_text())
+    state.update(active_call_reservation_usd=0.03, blocked_reason="missing cost two")
+    state_path.write_text(json.dumps(state))
+
+    second = _reconcile_spend_guard(tmp_path)
+    state = json.loads(state_path.read_text())
+    second_path = tmp_path / "openrouter-spend-reconciliation-2.json"
+
+    assert first_path.read_bytes() == first_bytes
+    assert second_path.is_file()
+    assert second["previous_reconciliation_evidence"] == publication_runner.SPEND_RECONCILIATION
+    assert second["previous_reconciliation_sha256"] == first_sha
+    assert state["reconciliation_history"] == [
+        {"evidence": publication_runner.SPEND_RECONCILIATION, "sha256": first_sha},
+        {"evidence": second_path.name, "sha256": hashlib.sha256(second_path.read_bytes()).hexdigest()},
+    ]
+
+
+def test_spend_reconciliation_rejects_nonfinite_ceiling(tmp_path: Path) -> None:
+    (tmp_path / "openrouter-budget.json").write_text(json.dumps({"starting_total_usage_usd": 10.0}))
+    state_path = tmp_path / publication_runner.CALL_SPEND_GUARD_STATE
+    state_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "ceiling_usd": float("nan"),
+                "reported_spend_usd": 0.001,
+                "active_call_reservation_usd": 0.02,
+                "blocked_reason": "missing cost",
+            }
+        )
+    )
+
+    with pytest.raises(ValueError, match="authorized ceiling"):
+        _reconcile_spend_guard(tmp_path)
+
+    assert not (tmp_path / publication_runner.SPEND_RECONCILIATION).exists()
 
 
 def test_operator_ceiling_stays_permissive_when_no_cap_is_committed(

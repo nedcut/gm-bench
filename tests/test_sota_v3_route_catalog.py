@@ -21,11 +21,16 @@ def test_v3_catalog_freezes_exact_balanced_cohort_without_unlocking_execution() 
     registry = _read("sota_v3_models.json")
 
     models = registry["models"]
-    assert len(models) == 10
-    assert len({model["id"] for model in models}) == 10
-    assert len({(model["model"], model["endpoint_tag"]) for model in models}) == 10
+    assert len(models) == 8
+    assert len({model["id"] for model in models}) == 8
+    assert len({(model["model"], model["endpoint_tag"]) for model in models}) == 8
     assert {model["cohort"] for model in models} == {"frontier-proprietary", "open-weight"}
-    assert sum(model["cohort"] == "frontier-proprietary" for model in models) == 4
+    # Amendment-3 withdrew Gemini 3.6 Flash and Grok 4.5, the only mandatory-
+    # reasoning routes and both frontier-proprietary, so the cohort is no longer
+    # balanced 4/6. Reasoning uniformity was chosen over cohort balance; this
+    # pins the resulting 2/6 split so a future lineup edit cannot drift it
+    # further without a deliberate decision.
+    assert sum(model["cohort"] == "frontier-proprietary" for model in models) == 2
     assert sum(model["cohort"] == "open-weight" for model in models) == 6
 
     identities = {model["model"] for model in models}
@@ -36,18 +41,23 @@ def test_v3_catalog_freezes_exact_balanced_cohort_without_unlocking_execution() 
     # Evaluated for the tenth slot, ineligible at the frozen snapshot: no
     # healthy route advertises response_format under require-parameters.
     assert "thinkingmachines/inkling-small" not in identities
-    assert "google/gemini-3.6-flash" in identities
+    # Withdrawn by amendment-3 as the two mandatory-reasoning routes. They are
+    # asserted absent rather than simply dropped so that silently re-adding
+    # either one -- and with it the cross-model reasoning inconsistency that
+    # already excluded both from the frozen sota-v2 panel -- fails here.
+    assert "google/gemini-3.6-flash" not in identities
     assert "google/gemini-3.5-flash" not in identities
+    assert "x-ai/grok-4.5" not in identities
     assert "mistralai/mistral-medium-3-5" in identities
     assert "meta/muse-spark-1.1" not in identities
 
     assert registry["catalog_snapshot_status"] == "frozen-public-metadata-only"
     assert registry["selection_status"] == "frozen"
     assert registry["selection_frozen_at_utc"]
-    assert registry["selection_revision"] == "2026-08-04-public-catalog-lineup-refresh-v3"
+    assert registry["selection_revision"] == "2026-08-11-cloudflare-route-tag-refresh-v5"
     policy = registry["selection_policy"]
     assert "Qwen 3.8 Max" in policy
-    assert "deepinfra/fp8" in policy and "cloudflare/fp8" in policy
+    assert "deepinfra/fp8" in policy and "Cloudflare" in policy
     assert "now frozen" in policy
     assert registry["catalog_checked_at_utc"]
     assert set(registry["required_smokes"]) == {model["id"] for model in models}
@@ -104,8 +114,12 @@ def test_v3_catalog_pins_routes_parameters_reasoning_and_exact_route_prices() ->
             assert model["fixed_options"]["OPENROUTER_REASONING_ENABLED"] == "false"
             assert "OPENROUTER_REASONING_EFFORT" in model["absent_options"]
 
-    grok = next(model for model in registry["models"] if model["model"] == "x-ai/grok-4.5")
-    assert grok["endpoint_tag"] == "xai/zdr"
+    # The whole point of amendment-3: every registered route runs reasoning
+    # disabled, so no model may carry a mandatory-reasoning catalog entry or a
+    # reasoning-enabled fixed option. The loop above still checks the mandatory
+    # branch for any future route; this asserts the branch is currently empty.
+    assert [m["id"] for m in registry["models"] if m["catalog_reasoning"].get("mandatory")] == []
+    assert [m["id"] for m in registry["models"] if m["reasoning_policy"] != "disabled"] == []
     assert pricing["status"] == "frozen"
     assert pricing["checked_at_utc"] == registry["catalog_checked_at_utc"]
     assert pricing["spend_authorized"] is True
@@ -143,7 +157,8 @@ def test_v3_route_acceptance_is_bound_to_public_zero_completion_evidence() -> No
     assert evidence["completion_calls"] == 0
     assert evidence["account_authentication"]["sensitive_values_included"] is False
     assert set(evidence["routes"]) == set(acceptance["entries"])
-    assert sum(route["zero_data_retention_endpoint"] for route in evidence["routes"].values()) == 5
+    # 4, not 5: the withdrawn Grok 4.5 route was pinned to xai/zdr.
+    assert sum(route["zero_data_retention_endpoint"] for route in evidence["routes"].values()) == 4
     for model_id, route in evidence["routes"].items():
         entry = acceptance["entries"][model_id]
         assert entry["route_evidence_sha256"] == canonical_sha256(route)

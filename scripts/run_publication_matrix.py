@@ -19,6 +19,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,6 +33,9 @@ PRICING_CONFIG = ROOT / "config" / "openrouter_pricing_snapshot.json"
 PROTOCOL_CONFIG = ROOT / "config" / "publication_protocol.json"
 SMOKE_MANIFEST = ROOT / "config" / "sota_v2_smoke_manifest.json"
 RUN_STATE_FORMAT = "gm-bench-publication-run-v1"
+CALL_SPEND_GUARD_STATE = "openrouter-call-spend-guard.json"
+SPEND_RECONCILIATION = "openrouter-spend-reconciliation.json"
+PAID_RUN_LOCK = ".openrouter-paid-run.lock"
 # Availability floors for a pinned endpoint to stay eligible.
 #
 # Two windows, because they detect different failures. The 24h figure is a
@@ -76,6 +80,10 @@ from gm_bench.contract import BENCHMARK_VERSION, contract_fingerprint, scaffold_
 from gm_bench.environment import load_environment_files  # noqa: E402
 from gm_bench.official import POLICIES, validate_leaderboard_payload  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
+from gm_bench.providers import (  # noqa: E402
+    OPENROUTER_CANONICAL_API_BASE,
+    SPEND_GUARD_ENV_PREFIX,
+)
 from gm_bench.publication import (  # noqa: E402
     SMOKE_MANIFEST_FORMAT,
     is_pending_strict_smoke_cap,
@@ -298,11 +306,18 @@ def _read_optional_json(path: Path) -> dict[str, Any] | None:
         return None
 
 
-def build_cells(phase: str, model_id: str | None = None, cap: int | None = None) -> list[Cell]:
+def build_cells(
+    phase: str,
+    model_id: str | None = None,
+    cap: int | None = None,
+    *,
+    authorization_phase: str | None = None,
+) -> list[Cell]:
+    authorization_phase = authorization_phase or phase
     if phase in {"route-preflight", "smoke"}:
         config = _read_json(PANEL_CONFIG)
         lane = _read_json(LANE_CONFIG)
-        _require_execution_authorized(phase, config, lane)
+        _require_execution_authorized(authorization_phase, config, lane)
         if phase == "smoke" and lane.get("contract") == "sota-v3":
             _validate_frozen_seed_panel(lane)
         models = list(config.get("models") or [])
@@ -477,6 +492,49 @@ def cell_command(cell: Cell, run_dir: Path, *, preflight: bool = False) -> list[
     if (run_dir / "checkpoints" / f"{stem}.json").exists():
         command.append("--resume")
     return command
+
+
+def _prepare_smoke_retry_checkpoint(cell: Cell, run_dir: Path) -> Path | None:
+    """Archive only an empty aborted checkpoint whose provenance is stale.
+
+    This check runs under the paid-run lock and before reserving an infrastructure
+    attempt, so a provenance-only local failure cannot consume the final retry.
+    """
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    checkpoint = run_dir / "checkpoints" / f"{stem}.json"
+    if not checkpoint.exists():
+        return None
+    payload = _read_json_if_valid(checkpoint)
+    if payload is None:
+        raise ValueError(f"cannot safely retry from invalid checkpoint: {checkpoint}")
+    provenance = payload.get("provenance")
+    provenance = provenance if isinstance(provenance, dict) else {}
+    expected_contract = contract_fingerprint()
+    expected_scaffold = scaffold_fingerprint(cell.provider)
+    benchmark_contract = provenance.get("benchmark_contract")
+    stored_contract = (
+        benchmark_contract.get("contract_fingerprint") if isinstance(benchmark_contract, dict) else benchmark_contract
+    )
+    if stored_contract == expected_contract and provenance.get("scaffold_fingerprint") == expected_scaffold:
+        return None
+    episodes = payload.get("episodes")
+    completed = payload.get("completed")
+    if payload.get("status") != "aborted" or episodes != [] or completed != []:
+        raise ValueError("stale-provenance checkpoint is not an empty aborted attempt; refusing to reserve a retry")
+    if _checkpoint_process_alive(checkpoint):
+        raise ValueError("stale-provenance checkpoint is still locked by a live process")
+    reservations = _read_json_if_valid(run_dir / "openrouter-reservations.json") or {}
+    cell_reservation = (reservations.get("cells") or {}).get(stem)
+    attempts = cell_reservation.get("attempts") if isinstance(cell_reservation, dict) else None
+    if not isinstance(attempts, int) or isinstance(attempts, bool) or attempts < 1:
+        raise ValueError("empty stale checkpoint has no recorded infrastructure attempt to preserve")
+    archive_dir = run_dir / "checkpoints" / "failed-attempts"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    archived = archive_dir / f"{stem}--attempt-{attempts}.json"
+    if archived.exists():
+        raise ValueError(f"refusing to overwrite archived failed checkpoint: {archived}")
+    checkpoint.replace(archived)
+    return archived
 
 
 def _openrouter_usage_usd(env: dict[str, str]) -> float:
@@ -705,7 +763,147 @@ def _measured_spend_usd(run_dir: Path, env: dict[str, str], budget_start: float)
     # immediate. Use the larger measurement so a lagging credits endpoint never
     # weakens the guard.
     account_delta = max(0.0, _openrouter_usage_usd(env) - budget_start)
-    return max(account_delta, _artifact_spend_usd(run_dir))
+    guard_state = _read_json_if_valid(run_dir / CALL_SPEND_GUARD_STATE) or {}
+    reported_call_spend = guard_state.get("reported_spend_usd")
+    if (
+        not isinstance(reported_call_spend, int | float)
+        or isinstance(reported_call_spend, bool)
+        or not math.isfinite(float(reported_call_spend))
+        or float(reported_call_spend) < 0
+    ):
+        reported_call_spend = 0.0
+    return max(account_delta, _artifact_spend_usd(run_dir), float(reported_call_spend))
+
+
+def _reconcile_spend_guard(run_dir: Path) -> dict[str, Any]:
+    """Conservatively absorb an unresolved call reservation as spent."""
+    budget_path = run_dir / "openrouter-budget.json"
+    state_path = run_dir / CALL_SPEND_GUARD_STATE
+    if not budget_path.exists() or not state_path.exists():
+        raise ValueError("spend reconciliation requires existing budget and guard state files")
+    budget = _read_json(budget_path)
+    state = _read_json(state_path)
+    blocked_reason = state.get("blocked_reason")
+    active = state.get("active_call_reservation_usd")
+    reported = state.get("reported_spend_usd")
+    start = budget.get("starting_total_usage_usd")
+    for label, value in (("starting total", start), ("reported spend", reported), ("active reservation", active)):
+        if (
+            not isinstance(value, int | float)
+            or isinstance(value, bool)
+            or not math.isfinite(float(value))
+            or float(value) < 0
+        ):
+            raise ValueError(f"spend reconciliation {label} must be finite and non-negative")
+    if not isinstance(blocked_reason, str) or not blocked_reason or float(active) <= 0:
+        raise ValueError("spend guard has no unresolved blocked reservation to reconcile")
+    reconciled_spend = float(reported) + float(active)
+    ceiling = state.get("ceiling_usd")
+    if (
+        not isinstance(ceiling, int | float)
+        or isinstance(ceiling, bool)
+        or not math.isfinite(float(ceiling))
+        or float(ceiling) < 0
+        or reconciled_spend > float(ceiling)
+    ):
+        raise ValueError("absorbing the unresolved call reservation would exceed the authorized ceiling")
+
+    prior_evidence = state.get("reconciliation_evidence")
+    prior_sha = state.get("reconciliation_sha256")
+    evidence = {
+        "format": "gm-bench-openrouter-spend-reconciliation-v1",
+        "schema_version": 1,
+        "reconciled_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "starting_total_usage_usd": float(start),
+        "prior_reported_spend_usd": float(reported),
+        "absorbed_unknown_call_spend_usd": float(active),
+        "reconciled_reported_spend_usd": reconciled_spend,
+        "prior_blocked_reason": blocked_reason,
+        "prior_telemetry_error": state.get("telemetry_error"),
+        "method": "charge-full-conservative-call-reservation",
+        "note": "The actual provider cost was unavailable; the full pre-call upper bound is charged as spent.",
+    }
+    if isinstance(prior_evidence, str) and prior_evidence and isinstance(prior_sha, str) and prior_sha:
+        evidence["previous_reconciliation_evidence"] = prior_evidence
+        evidence["previous_reconciliation_sha256"] = prior_sha
+    base = Path(SPEND_RECONCILIATION)
+    evidence_path = run_dir / base
+    sequence = 1
+    while evidence_path.exists():
+        sequence += 1
+        evidence_path = run_dir / f"{base.stem}-{sequence}{base.suffix}"
+    _write_json_atomic(evidence_path, evidence)
+    evidence_sha = hashlib.sha256(evidence_path.read_bytes()).hexdigest()
+    state["reported_spend_usd"] = reconciled_spend
+    state["active_call_reservation_usd"] = 0.0
+    evidence_name = evidence_path.name
+    history = state.get("reconciliation_history")
+    if not isinstance(history, list):
+        history = []
+    if not history and isinstance(prior_evidence, str) and isinstance(prior_sha, str):
+        history.append({"evidence": prior_evidence, "sha256": prior_sha})
+    history.append({"evidence": evidence_name, "sha256": evidence_sha})
+    state["reconciliation_history"] = history
+    state["reconciliation_evidence"] = evidence_name
+    state["reconciliation_sha256"] = evidence_sha
+    state.pop("active_call_input_token_bound", None)
+    state.pop("blocked_reason", None)
+    state.pop("telemetry_error", None)
+    _write_json_atomic(state_path, state)
+    return evidence
+
+
+def _call_spend_guard_environment(
+    cell: Cell,
+    run_dir: Path,
+    *,
+    ceiling_usd: float,
+    measured_spend_floor_usd: float,
+) -> dict[str, str]:
+    """Freeze the rates and allowance checked before every OpenRouter call."""
+    if not isinstance(cell.cap, int) or cell.cap < 1:
+        raise ValueError("paid publication calls require a positive bounded output cap")
+    pricing = _read_json(PRICING_CONFIG)
+    rates = (pricing.get("models") or {}).get(cell.model)
+    if not isinstance(rates, dict):
+        raise ValueError(f"missing committed pricing for {cell.model}")
+    assumptions = pricing["planning_assumptions"]
+    reasoning_enabled = cell.fixed_options.get("OPENROUTER_REASONING_ENABLED") == "true"
+    reasoning_tokens = int(assumptions.get("expected_internal_reasoning_tokens_per_decision") or 0)
+    reasoning_rate = rates.get("internal_reasoning")
+    if reasoning_enabled and reasoning_tokens <= 0:
+        raise ValueError(
+            "reasoning-enabled paid publication cells require a positive committed "
+            "expected_internal_reasoning_tokens_per_decision"
+        )
+    if reasoning_enabled and reasoning_rate is None:
+        reasoning_rate = rates["completion"]
+    if not reasoning_enabled:
+        reasoning_tokens = 0
+        reasoning_rate = 0
+    prefix = SPEND_GUARD_ENV_PREFIX
+    guard = {
+        "OPENROUTER_API_BASE": OPENROUTER_CANONICAL_API_BASE,
+        f"{prefix}STATE_PATH": str(run_dir / CALL_SPEND_GUARD_STATE),
+        f"{prefix}CEILING_USD": str(ceiling_usd),
+        f"{prefix}MEASURED_SPEND_FLOOR_USD": str(measured_spend_floor_usd),
+        f"{prefix}PROMPT_RATE_USD": str(rates["prompt"]),
+        f"{prefix}COMPLETION_RATE_USD": str(rates["completion"]),
+        f"{prefix}OUTPUT_TOKEN_CAP": str(cell.cap),
+        f"{prefix}REASONING_RATE_USD": str(reasoning_rate or 0),
+        f"{prefix}REASONING_TOKEN_CAP": str(reasoning_tokens),
+        f"{prefix}CONTINGENCY_MULTIPLIER": str(assumptions["cost_contingency_multiplier"]),
+    }
+    long_context = rates.get("long_context_override")
+    if isinstance(long_context, dict):
+        guard.update(
+            {
+                f"{prefix}LONG_CONTEXT_THRESHOLD": str(long_context["min_prompt_tokens"]),
+                f"{prefix}LONG_CONTEXT_PROMPT_RATE_USD": str(long_context["prompt"]),
+                f"{prefix}LONG_CONTEXT_COMPLETION_RATE_USD": str(long_context["completion"]),
+            }
+        )
+    return guard
 
 
 def _cell_reservation_usd(cell: Cell) -> float:
@@ -734,10 +932,10 @@ def _cell_reservation_usd(cell: Cell) -> float:
     prompt = decisions * input_tokens * float(applied_rates["prompt"])
     completion = decisions * cell.cap * float(applied_rates["completion"])
     internal_reasoning = decisions * reasoning_tokens * float(rates.get("internal_reasoning") or 0)
-    # Reserve every configured repair as another full-price call, then apply
-    # the committed planning contingency. The guard still acts at cell
-    # boundaries, so this deliberately overstates the likely liability before
-    # a cell is allowed to start.
+    # This is a planning reservation, not the hard safety boundary: it assumes
+    # one interaction round and reserves every decision's configured repair.
+    # The in-child ProviderSpendGuardAgent separately checks every actual
+    # interaction/repair call against the operator ceiling before launch.
     return round((prompt + completion + internal_reasoning) * (1 + repair_attempts) * contingency, 6)
 
 
@@ -805,6 +1003,36 @@ def _checkpoint_process_alive(path: Path) -> bool:
         return False
     finally:
         os.close(descriptor)
+
+
+@contextmanager
+def _exclusive_paid_run(run_dir: Path):
+    """Lock one run directory for the complete paid invocation.
+
+    The spend ceiling and account-delta baseline are scoped to ``run_dir``.
+    A different run directory is therefore a separate authorization and budget,
+    not a way to share this invocation's ceiling.
+    """
+    import fcntl
+
+    run_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = run_dir / PAID_RUN_LOCK
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(lock_path, flags, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise SystemExit(
+                f"another paid publication invocation holds {lock_path}; "
+                "wait for it to finish or use a different run directory with a separately authorized budget"
+            ) from exc
+        yield
+    finally:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        finally:
+            os.close(descriptor)
 
 
 def _payload_cost_usd(payload: dict[str, Any] | None) -> float | None:
@@ -1185,6 +1413,28 @@ def _record_smoke_issues(
     return issues, entry
 
 
+_MODEL_BEHAVIOR_SMOKE_ISSUES = {
+    "artifact candidate episode contains failed decisions",
+    "artifact candidate summary failed_decisions must be zero",
+    "artifact decision_failure_rate must be zero",
+}
+
+
+def _completed_smoke_model_behavior_issues(cell: Cell, run_dir: Path) -> list[str]:
+    """Identify a complete, fully telemetered smoke rejected only for model behavior."""
+    path = run_dir / "raw" / f"{cell.experiment_id}--{cell.cap_label}.json"
+    if not path.exists():
+        return []
+    try:
+        artifact = _read_json(path)
+        registry = _read_json(PANEL_CONFIG)
+        lane = _read_json(LANE_CONFIG)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return []
+    issues, _entry = _record_smoke_issues(artifact, cell.experiment_id, registry, lane)
+    return issues if issues and set(issues) <= _MODEL_BEHAVIOR_SMOKE_ISSUES else []
+
+
 def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> int:
     try:
         artifact_bytes = artifact_path.read_bytes()
@@ -1246,6 +1496,15 @@ def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> in
         "recorded_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "accepted": True,
     }
+    required = {str(value) for value in registry.get("required_smokes") or []}
+    recorded = set(manifest["entries"])
+    complete = (
+        bool(required)
+        and recorded == required
+        and all(isinstance(value, dict) and value.get("accepted") is True for value in manifest["entries"].values())
+    )
+    manifest["status"] = "accepted" if complete else "in-progress"
+    manifest["accepted_for_panel"] = complete
     _write_json_atomic(manifest_path, manifest)
     print(f"recorded accepted smoke for {model_id} in {manifest_path}")
     return 0
@@ -1552,7 +1811,7 @@ def _print_command(cell: Cell, command: list[str]) -> None:
     print(json.dumps({"cell": cell.experiment_id, "cap": cell.cap_label, "env": options, "command": command}))
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, _paid_run_lock_held: bool = False) -> int:
     # The child CLI loads these files too, but the parent needs the provider key
     # to query account usage and enforce the operator's spend ceiling before it
     # launches any model process.
@@ -1560,7 +1819,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "phase",
-        choices=["route-preflight", "smoke", "sweep", "panel", "record-smoke", "status"],
+        choices=["route-preflight", "smoke", "sweep", "panel", "record-smoke", "status", "reconcile-spend"],
     )
     parser.add_argument(
         "--contract",
@@ -1571,7 +1830,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--artifact", type=Path)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--cap", type=int)
-    parser.add_argument("--run-dir", type=Path, default=Path("data/publication-runs"))
+    parser.add_argument(
+        "--run-dir",
+        type=Path,
+        default=Path("data/publication-runs"),
+        help="budget/accounting scope; separate directories require separately authorized spend ceilings",
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--max-spend-usd", type=float)
@@ -1588,6 +1852,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.interval <= 0:
             parser.error("--interval must be positive")
         return _status_command(args.run_dir, manifest_path, watch=args.watch, interval=args.interval, as_json=args.json)
+    if args.phase == "reconcile-spend":
+        run_dir = args.run_dir.resolve()
+        try:
+            with _exclusive_paid_run(run_dir):
+                evidence = _reconcile_spend_guard(run_dir)
+        except (OSError, ValueError, json.JSONDecodeError, urllib.error.URLError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(evidence, sort_keys=True))
+        return 0
     if args.phase == "record-smoke":
         if not args.model_id:
             parser.error("record-smoke requires --model-id")
@@ -1612,7 +1885,13 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             parser.error(str(exc))
     try:
-        cells = build_cells(args.phase, args.model_id, args.cap)
+        authorization_phase = "route-preflight" if args.dry_run or args.preflight_only else args.phase
+        cells = build_cells(
+            args.phase,
+            args.model_id,
+            args.cap,
+            authorization_phase=authorization_phase,
+        )
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         parser.error(str(exc))
     if args.phase == "sweep" and not args.dry_run and not args.preflight_only:
@@ -1633,6 +1912,15 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             parser.error(str(exc))
     run_dir = args.run_dir.resolve()
+    paid_invocation = (
+        not args.dry_run
+        and not args.preflight_only
+        and args.phase != "route-preflight"
+        and any(cell.provider == "openrouter" for cell in cells)
+    )
+    if paid_invocation and not _paid_run_lock_held:
+        with _exclusive_paid_run(run_dir):
+            return main(argv, _paid_run_lock_held=True)
     for directory in (run_dir / "raw", run_dir / "checkpoints"):
         if not args.dry_run and not args.preflight_only and args.phase != "route-preflight":
             directory.mkdir(parents=True, exist_ok=True)
@@ -1642,6 +1930,28 @@ def main(argv: list[str] | None = None) -> int:
     preflight_failures: list[str] = []
     for cell in cells:
         env = cell_environment(cell)
+        if args.phase == "smoke" and not args.preflight_only and not args.dry_run:
+            reservations = _read_json_if_valid(run_dir / "openrouter-reservations.json") or {}
+            stored = (reservations.get("cells") or {}).get(f"{cell.experiment_id}--{cell.cap_label}") or {}
+            if stored.get("status") in {"excluded", "ineligible"}:
+                print(f"preserving terminal smoke without rerun: {cell.experiment_id} ({stored['status']})")
+                continue
+            behavior_issues = _completed_smoke_model_behavior_issues(cell, run_dir)
+            if behavior_issues:
+                measured = float(stored.get("measured_run_spend_usd") or _artifact_spend_usd(run_dir))
+                failure = "completed smoke failed only model-behavior gates: " + "; ".join(behavior_issues)
+                _record_ineligible_cell_reservation(run_dir, cell, measured, failure)
+                _record_run_cell_outcome(run_dir, cell, "ineligible", failure)
+                print(f"preserving completed ineligible smoke without rerun: {cell.experiment_id}")
+                continue
+        archived_checkpoint = None
+        if args.phase == "smoke" and not args.preflight_only and not args.dry_run:
+            try:
+                archived_checkpoint = _prepare_smoke_retry_checkpoint(cell, run_dir)
+            except ValueError as exc:
+                raise SystemExit(f"smoke retry checkpoint is unsafe for {cell.experiment_id}: {exc}") from exc
+        if archived_checkpoint is not None:
+            print(f"archived empty stale failed checkpoint before retry: {archived_checkpoint}")
         command = cell_command(
             cell,
             run_dir,
@@ -1702,12 +2012,20 @@ def main(argv: list[str] | None = None) -> int:
         if args.phase == "route-preflight":
             print(f"zero-completion-call route preflight passed: {cell.experiment_id}")
             continue
-        if args.max_spend_usd is not None and cell.provider == "openrouter":
+        if not args.preflight_only and args.max_spend_usd is not None and cell.provider == "openrouter":
             budget_start = budget_start if budget_start is not None else _budget_start(run_dir, env)
             spent = _measured_spend_usd(run_dir, env, budget_start)
             if spent >= args.max_spend_usd:
                 raise SystemExit(f"spend ceiling reached: ${spent:.4f} >= ${args.max_spend_usd:.4f}")
             _reserve_cell(run_dir, cell, spent, args.max_spend_usd)
+            env.update(
+                _call_spend_guard_environment(
+                    cell,
+                    run_dir,
+                    ceiling_usd=args.max_spend_usd,
+                    measured_spend_floor_usd=spent,
+                )
+            )
         cell_succeeded = False
         cell_error: str | None = None
         cell_ineligible = False
@@ -1715,7 +2033,12 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 subprocess.run(command, cwd=ROOT, env=env, check=True)
             except subprocess.CalledProcessError as exc:
-                cell_error = _checkpoint_failure_detail(run_dir, cell) or f"child process exited {exc.returncode}"
+                behavior_issues = _completed_smoke_model_behavior_issues(cell, run_dir) if args.phase == "smoke" else []
+                if behavior_issues:
+                    cell_error = "completed smoke failed only model-behavior gates: " + "; ".join(behavior_issues)
+                    cell_ineligible = True
+                else:
+                    cell_error = _checkpoint_failure_detail(run_dir, cell) or f"child process exited {exc.returncode}"
                 raise SystemExit(
                     f"publication cell failed: {cell.experiment_id} cap={cell.cap_label} exit={exc.returncode}"
                 ) from exc
@@ -1735,7 +2058,7 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             # Provider failures are exactly when spend visibility matters most.
             # Report the post-cell delta even when the child exits nonzero.
-            if args.max_spend_usd is not None and cell.provider == "openrouter":
+            if not args.preflight_only and args.max_spend_usd is not None and cell.provider == "openrouter":
                 spent = _measured_spend_usd(run_dir, env, float(budget_start))
                 if cell_succeeded:
                     _settle_cell_reservation(run_dir, cell, spent)

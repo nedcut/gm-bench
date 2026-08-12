@@ -102,3 +102,21 @@ This revalidates the bound; it does not widen the claim. The +2.8 gap remains
 diagnostic, remains driven entirely by seeds 17 and 18, and still may not be
 used to re-rank any model. `scaffold-view` stays outside
 `PRESETS["leaderboard"]`.
+
+## Final pre-smoke revalidation (2026-08-11)
+
+The diagnostic was rerun after the final pre-smoke safety, parser, and review
+changes, under contract fingerprint `247e12fe5a7d4f5b` and OpenRouter scaffold
+fingerprint `2462b25854c1298b`, using the same command, seeds, and seasons
+recorded above. The run made zero provider calls and reproduced the
+headline means exactly: `scaffold-view` 270.675 and `pick-trader` 267.875, a
+paired mean gap of +2.800. Both agents completed 160 decisions with zero
+fallbacks and zero illegal actions. This is the current-fingerprint free
+diagnostic required before the paid smoke gate; it remains descriptive and
+does not authorize panel execution or publication.
+
+The scaffold fingerprint was refreshed again during the first paid-smoke
+attempt after OpenRouter omitted inline cost telemetry. The recovery adds only
+authoritative `/generation` cost lookup and sanitized telemetry diagnostics;
+the zero-provider scripted comparison above was rerun and reproduced the same
+scores, fallback counts, and illegal-action counts exactly.

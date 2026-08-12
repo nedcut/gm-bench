@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+from gm_bench.providers import PROVIDERS
+
 
 @pytest.fixture(autouse=True)
 def isolate_baseline_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -37,5 +39,9 @@ def block_real_provider_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
     more is silently inherit a live key.
     """
     monkeypatch.setenv("GM_BENCH_DISABLE_ENV_FILES", "1")
-    for name in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
+    credential_names = {
+        "LLM_API_KEY",
+        *(name for spec in PROVIDERS.values() for name in spec.credential_env),
+    }
+    for name in credential_names:
         monkeypatch.delenv(name, raising=False)
