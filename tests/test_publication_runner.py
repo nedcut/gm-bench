@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import gm_bench.publication as publication
 import scripts.run_publication_matrix as publication_runner
 from gm_bench.contract import BENCHMARK_VERSION, contract_fingerprint, scaffold_fingerprint
 from gm_bench.publication import (
@@ -62,10 +63,23 @@ def _reset_publication_config(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(publication_runner, "PRICING_CONFIG", pricing)
 
 
+def test_v4_publication_paths_and_strict_capabilities_are_explicit() -> None:
+    panel, lane, manifest, protocol, pricing = publication_runner.CONTRACT_CONFIGS["sota-v4"]
+
+    assert panel.name == "sota_v4_models.json"
+    assert lane.name == "sota_v4_lane.json"
+    assert manifest.name == "sota_v4_smoke_manifest.json"
+    assert protocol.name == "sota_v4_publication_protocol.json"
+    assert pricing.name == "sota_v4_pricing_snapshot.json"
+    assert publication_runner.STRICT_PRIVATE_PANEL_CONTRACTS == {"sota-v3", "sota-v4"}
+    assert publication_runner.AUTHENTICATED_ROUTE_CONTRACTS == {"sota-v3", "sota-v4"}
+
+
 def _frozen_panel_files(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> tuple[dict, dict, Path]:
+    monkeypatch.setattr(publication, "_REPO_ROOT", tmp_path)
     registry = json.loads(Path("config/sota_v2_models.json").read_text())
     registry["contract"] = BENCHMARK_VERSION
     registry["contract_fingerprint"] = contract_fingerprint()
@@ -106,6 +120,8 @@ def _frozen_panel_files(
         },
     }
     evidence = {
+        "format": "gm-bench-route-acceptance-evidence-v1",
+        "contract": BENCHMARK_VERSION,
         "contract_fingerprint": contract_fingerprint(),
         "completion_calls": 0,
         "generated_at_utc": "2026-07-30T00:00:00Z",
@@ -132,7 +148,7 @@ def _frozen_panel_files(
         )
     evidence_path = tmp_path / "route-evidence.json"
     evidence_path.write_text(json.dumps(evidence))
-    registry["exact_route_acceptance"]["evidence_artifact"] = str(evidence_path)
+    registry["exact_route_acceptance"]["evidence_artifact"] = evidence_path.name
     private_seeds = list(range(101, 110))
     monkeypatch.setenv("GM_BENCH_PRIVATE_SEEDS", ",".join(str(seed) for seed in private_seeds))
     lane = json.loads(Path("config/sota_v2_lane.json").read_text())
@@ -175,9 +191,9 @@ def _frozen_panel_files(
     }
     final_evidence_path = tmp_path / "final-preflight.json"
     final_evidence = {
-        "format": "gm-bench-sota-v3-final-preflight-v1",
+        "format": f"gm-bench-{BENCHMARK_VERSION}-final-preflight-v1",
         "schema_version": 1,
-        "contract": "sota-v3",
+        "contract": BENCHMARK_VERSION,
         "contract_fingerprint": contract_fingerprint(),
         "openrouter_scaffold_fingerprint": scaffold_fingerprint("openrouter"),
         "generated_at_utc": "2026-07-30T00:01:00Z",
@@ -185,7 +201,7 @@ def _frozen_panel_files(
         "completion_calls": 0,
         "route_preflight": {
             "status": "accepted",
-            "evidence_artifact": str(evidence_path),
+            "evidence_artifact": evidence_path.name,
             "evidence_sha256": canonical_sha256(evidence),
             "verified_at_utc": evidence["generated_at_utc"],
         },
@@ -210,7 +226,7 @@ def _frozen_panel_files(
     final_evidence_path.write_text(json.dumps(final_evidence))
     lane["final_preflight_evidence"] = {
         "status": "accepted",
-        "artifact": str(final_evidence_path),
+        "artifact": final_evidence_path.name,
         "sha256": canonical_sha256(final_evidence),
         "contract_fingerprint": contract_fingerprint(),
         "completion_calls": 0,
@@ -284,7 +300,7 @@ def _frozen_panel_files(
     monkeypatch.setattr(publication_runner, "PRICING_CONFIG", pricing_path)
     monkeypatch.setitem(
         publication_runner.CONTRACT_CONFIGS,
-        "sota-v3",
+        BENCHMARK_VERSION,
         (registry_path, lane_path, manifest_path, protocol_path, pricing_path),
     )
     return registry, lane, manifest_path
@@ -331,6 +347,21 @@ def test_exact_route_acceptance_digest_stales_on_execution_policy_edits(
 
     issues = v3_route_acceptance_issues(registry)
     assert any("does not bind to the registered route identity" in issue for issue in issues)
+
+
+def test_exact_route_acceptance_rejects_cross_contract_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, _lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    evidence_path = tmp_path / str(registry["exact_route_acceptance"]["evidence_artifact"])
+    evidence = json.loads(evidence_path.read_text())
+    evidence["contract"] = "sota-v3"
+    evidence_path.write_text(json.dumps(evidence))
+
+    issues = v3_route_acceptance_issues(registry)
+
+    assert any("different contract" in issue for issue in issues)
 
 
 def _valid_manifest(registry: dict, lane: dict) -> dict:
@@ -591,6 +622,7 @@ def test_preflight_only_still_validates_endpoint_despite_reusable_smoke_artifact
 ) -> None:
     """--preflight-only must never take the cached-artifact shortcut that skips it."""
     registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-preflight-key")
     model = registry["models"][0]
     cell = build_cells("smoke", model_id=model["id"])[0]
     raw_dir = tmp_path / "raw"
@@ -616,7 +648,7 @@ def test_preflight_only_still_validates_endpoint_despite_reusable_smoke_artifact
             [
                 "smoke",
                 "--contract",
-                "sota-v3",
+                BENCHMARK_VERSION,
                 "--model-id",
                 model["id"],
                 "--run-dir",
@@ -1086,7 +1118,7 @@ def test_paid_openrouter_run_requires_explicit_spend_ceiling(
             [
                 "smoke",
                 "--contract",
-                "sota-v3",
+                BENCHMARK_VERSION,
                 "--model-id",
                 "openrouter-qwen3.7-plus-alibaba",
                 "--run-dir",
@@ -1341,7 +1373,7 @@ def test_terminal_smoke_is_skipped_before_child_or_new_reservation(
             [
                 "smoke",
                 "--contract",
-                "sota-v3",
+                BENCHMARK_VERSION,
                 "--model-id",
                 cell.experiment_id,
                 "--run-dir",
@@ -1550,6 +1582,7 @@ def test_panel_preflight_does_not_require_a_completed_artifact(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     registry, lane, manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-preflight-key")
     manifest_path.write_text(json.dumps(_valid_manifest(registry, lane)))
     cell = build_cells("panel", model_id=registry["models"][0]["id"])[0]
     monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", lambda _cell, _env: None)
@@ -1646,8 +1679,8 @@ def test_route_preflight_checks_every_route_before_failing(
     """
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-route-preflight-key")
     registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
-    registry["selection_status"] = "route-preflight-ready"
-    lane["preregistration_status"] = "provisional-blocked"
+    registry["selection_status"] = "frozen"
+    lane["preregistration_status"] = "frozen"
     lane["route_preflight_authorized"] = True
     publication_runner.PANEL_CONFIG.write_text(json.dumps(registry))
     publication_runner.LANE_CONFIG.write_text(json.dumps(lane))
@@ -1671,7 +1704,7 @@ def test_route_preflight_checks_every_route_before_failing(
     )
 
     with pytest.raises(SystemExit) as exc_info:
-        main(["route-preflight", "--contract", "sota-v3", "--run-dir", str(tmp_path)])
+        main(["route-preflight", "--contract", BENCHMARK_VERSION, "--run-dir", str(tmp_path)])
 
     message = str(exc_info.value.code)
     # Every route was probed, including the ones queued behind both failures.
@@ -1709,19 +1742,29 @@ def test_paid_phases_still_abort_on_the_first_bad_route(
     monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", fake_validate)
 
     with pytest.raises(SystemExit) as exc_info:
-        main(["smoke", "--contract", "sota-v3", "--run-dir", str(tmp_path), "--max-spend-usd", "1.00"])
+        main(
+            [
+                "smoke",
+                "--contract",
+                BENCHMARK_VERSION,
+                "--run-dir",
+                str(tmp_path),
+                "--max-spend-usd",
+                "1.00",
+            ]
+        )
 
     assert checked == model_ids[:1], "a paid phase kept probing after a bad route"
     assert model_ids[0] in str(exc_info.value.code)
 
 
-def test_v3_route_preflight_requires_bearer_credential_before_endpoint_request(
+def test_current_strict_route_preflight_requires_bearer_credential_before_endpoint_request(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
-    registry["selection_status"] = "route-preflight-ready"
-    lane["preregistration_status"] = "provisional-blocked"
+    registry["selection_status"] = "frozen"
+    lane["preregistration_status"] = "frozen"
     lane["route_preflight_authorized"] = True
     publication_runner.PANEL_CONFIG.write_text(json.dumps(registry))
     publication_runner.LANE_CONFIG.write_text(json.dumps(lane))
@@ -1754,6 +1797,37 @@ def test_v3_route_preflight_requires_bearer_credential_before_endpoint_request(
     assert endpoint_checks == []
     assert child_calls == []
     assert not (tmp_path / "run-state.json").exists()
+
+
+def test_current_strict_smoke_preflight_requires_bearer_credential_before_endpoint_request(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    publication_runner.PANEL_CONFIG.write_text(json.dumps(registry))
+    publication_runner.LANE_CONFIG.write_text(json.dumps(lane))
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setattr(publication_runner, "load_environment_files", lambda _root: [])
+    endpoint_checks: list[str] = []
+    monkeypatch.setattr(
+        publication_runner,
+        "_validate_openrouter_endpoint",
+        lambda cell, _env: endpoint_checks.append(cell.experiment_id),
+    )
+
+    with pytest.raises(SystemExit, match="requires OPENROUTER_API_KEY"):
+        main(
+            [
+                "smoke",
+                "--preflight-only",
+                "--model-id",
+                registry["models"][0]["id"],
+                "--run-dir",
+                str(tmp_path),
+            ]
+        )
+
+    assert endpoint_checks == []
 
 
 def test_authenticated_endpoint_metadata_request_sends_bearer_credential(

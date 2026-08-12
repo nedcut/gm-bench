@@ -411,6 +411,6 @@ Introduced in v2 and retained in the default v3 episode:
 - Tiered observations (`full` / `summary`)
 - Persistent agent subprocess sessions (`GM_BENCH_SESSION=1`)
 - Private evaluation seeds, leaderboard package, contract fingerprint, and
-  versioned official-result validation. Current development uses `sota-v3`;
-  `sota-v2` remains available for the frozen historical release (see
+  versioned official-result validation. Current development uses `sota-v4`;
+  `sota-v3` and `sota-v2` remain available for frozen historical evidence (see
   [production_benchmark.md](production_benchmark.md)).

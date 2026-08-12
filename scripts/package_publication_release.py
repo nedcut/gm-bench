@@ -23,6 +23,7 @@ from gm_bench.publication import canonical_sha256, publication_execution_issues 
 
 RELEASE_FORMAT = "gm-bench-publication-release-v1"
 RELEASE_ID = "sota-v2-phase-one-2026-07-19"
+V4_RELEASE_LOCK = "sota-v4 release packaging is authorization-locked until publication is explicitly authorized"
 RUN_METADATA_NAMES = ("run-state.json", "openrouter-reservations.json")
 V3_PUBLIC_ANALYSIS_KEYS = frozenset(
     {
@@ -98,6 +99,18 @@ RELEASE_SPECS = {
             Path("config/sota_v3_smoke_manifest.json"),
         ),
         analysis_path=Path("results/analysis/publication-panel-analysis-v3.json"),
+    ),
+    "sota-v4": ReleaseSpec(
+        contract="sota-v4",
+        registry_path=Path("config/sota_v4_models.json"),
+        config_paths=(
+            Path("config/sota_v4_models.json"),
+            Path("config/sota_v4_lane.json"),
+            Path("config/sota_v4_publication_protocol.json"),
+            Path("config/sota_v4_pricing_snapshot.json"),
+            Path("config/sota_v4_smoke_manifest.json"),
+        ),
+        analysis_path=Path("results/analysis/publication-panel-analysis-v4.json"),
     ),
 }
 
@@ -220,6 +233,8 @@ def _require_v3_release_authorized(
     protocol: dict[str, Any],
     pricing: dict[str, Any],
     manifest: dict[str, Any],
+    *,
+    repo_root: Path,
 ) -> None:
     """Require the full execution/evidence gate plus explicit release approval."""
 
@@ -230,6 +245,7 @@ def _require_v3_release_authorized(
         phase="panel",
         protocol=protocol,
         pricing=pricing,
+        repo_root=repo_root,
     )
     output_budget_status = str(lane.get("output_budget_status") or "")
     if not output_budget_status.startswith("frozen"):
@@ -297,6 +313,8 @@ def build_release(
         spec = RELEASE_SPECS[contract]
     except KeyError as exc:
         raise ValueError(f"unsupported release contract {contract!r}") from exc
+    if contract == "sota-v4":
+        raise ValueError(V4_RELEASE_LOCK)
     resolved_release_date = release_date or spec.default_release_date
     if resolved_release_date is None:
         raise ValueError(f"{contract} release packaging requires an explicit release_date")
@@ -319,7 +337,14 @@ def build_release(
         protocol = _read_json(repo_root / "config/sota_v3_publication_protocol.json")
         pricing = _read_json(repo_root / "config/sota_v3_pricing_snapshot.json")
         smoke_manifest = _read_json(repo_root / "config/sota_v3_smoke_manifest.json")
-        _require_v3_release_authorized(lane, registry, protocol, pricing, smoke_manifest)
+        _require_v3_release_authorized(
+            lane,
+            registry,
+            protocol,
+            pricing,
+            smoke_manifest,
+            repo_root=repo_root,
+        )
         eligible = _v3_analysis_rows(
             analysis,
             registered_ids,

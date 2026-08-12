@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "contract": "sota-v4",
+  "contract_fingerprint": "247e12fe5a7d4f5b",
+  "status": "frozen",
+  "evidence_state": "pre-data-no-v4-provider-calls-smokes-or-panel-results",
+  "research_question": "Whether each preregistered sota-v4 model-plus-compact-scaffold system trails the named pick-trader reference under the frozen actions-v3, sim-v3, observation-v2, and score-v1 mechanics.",
+  "panel_design": {
+    "status": "frozen",
+    "holm_family_size": 8,
+    "selected_allocation": "16 seeds x 1 repeat",
+    "selected_sensitivity_power": 0.8727,
+    "selected_sensitivity_power_wilson_ci95": [0.866024, 0.87909],
+    "selected_base_power": 0.9629,
+    "selected_base_power_wilson_ci95": [0.959014, 0.96643],
+    "seed_identity_status": "frozen-carried-forward-unused-sota-v3-commitment",
+    "lineage": "The committed seed hashes and escrow identity are unchanged from sota-v3. No secret material was read and no sota-v3 panel artifact is reused."
+  },
+  "output_policy": {
+    "status": "frozen-native-reasoning-cap",
+    "output_token_cap": 4096,
+    "cap_pressure_threshold_tokens": 3072,
+    "fallback_output_token_cap": 8192,
+    "reasoning_policy": "disabled",
+    "cap_pressure_action": "abort-sota-v4-and-repreregister",
+    "max_cap_amendments": 0
+  },
+  "rerun_policy": {
+    "maximum_infrastructure_attempts_per_cell": 2,
+    "resume_exact_checkpoint": true,
+    "model_behavior_never_authorizes_a_rerun": true,
+    "sota_v3_attempts_and_artifacts_do_not_carry_forward": true
+  },
+  "statistical_analysis_plan": {
+    "status": "frozen",
+    "analysis_mode": "reference-only",
+    "inference_method": "exact-enumeration-sign-flip",
+    "unit_of_inference": "seed",
+    "primary_contrast": "paired lift versus pick-trader",
+    "claim_direction": "trails-reference",
+    "reference_agent": "pick-trader",
+    "multiplicity_method": "holm-bonferroni",
+    "alpha": 0.05,
+    "holm_family_size": 8,
+    "target_effect_score_points": -100,
+    "target_familywise_all_reject_power": 0.8,
+    "power_model": {
+      "historical_evidence_contract": "sota-v2",
+      "simulation_trials": 10000,
+      "simulation_seed": 2026072800,
+      "selected_allocation": "16 seeds x 1 repeat",
+      "selected_base_power": 0.9629,
+      "selected_base_power_wilson_ci95": [0.959014, 0.96643],
+      "selected_sensitivity_power": 0.8727,
+      "selected_sensitivity_power_wilson_ci95": [0.866024, 0.87909],
+      "lineage": "Exact pre-data sota-v3 power calculation retained because the registered Holm family remains eight and the committed 16-seed panel is unused."
+    },
+    "ranking_rule": "No model tiers or ordinal ranking; only each registered model's predeclared contrast versus pick-trader is supported.",
+    "remaining_blocker": "No statistical-design blocker remains before route preflight. Panel execution stays blocked until every required strict smoke is accepted."
+  },
+  "budget_policy": {
+    "provider": "openrouter",
+    "cost_estimate_artifact": "results/analysis/sota-v4-pre-smoke-cost-estimate.json",
+    "operator_must_pass_max_spend_usd": true,
+    "spend_authorized": false,
+    "operator_ceiling_usd": 100.0,
+    "spend_enforcement": "dynamic-pre-provider-call",
+    "operator_ceiling_basis": "The owner-set $100 smoke ceiling easily covers the generated $6.67548672 protocol-maximum smoke estimate. Binding a ceiling records the future hard limit only: spend, smoke, panel, and publication authorization remain false.",
+    "remaining_blocker": "Authenticated route and privacy acceptance plus final zero-call preflight evidence are required before any separate paid-smoke authorization."
+  },
+  "route_preflight_authorized": true,
+  "spend_authorized": false,
+  "smoke_execution_authorized": false,
+  "panel_execution_authorized": false,
+  "publication_authorized": false
+}

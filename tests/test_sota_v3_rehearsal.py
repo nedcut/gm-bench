@@ -139,7 +139,7 @@ def test_panel_like_action_fails_closed_on_both_authorization_locks() -> None:
     assert "publication output policy basis is not frozen" in issues
     assert "provider execution is locked by the publication protocol budget policy" in issues
     assert "provider execution is locked by the pricing snapshot" in issues
-    assert "v3 smoke manifest is not accepted for panel execution" in issues
+    assert "sota-v3 smoke manifest is not accepted for panel execution" in issues
     ready_lane = {
         "contract": "sota-v3",
         "contract_fingerprint": "test-fingerprint",

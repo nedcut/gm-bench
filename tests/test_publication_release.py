@@ -132,6 +132,10 @@ def _v3_release_fixture(tmp_path: Path) -> tuple[Path, Path]:
         "provider_policy": {},
     }
     evidence = {
+        "format": "gm-bench-route-acceptance-evidence-v1",
+        "contract": "sota-v3",
+        "contract_fingerprint": fingerprint,
+        "completion_calls": 0,
         "privacy_standard": registry["exact_route_acceptance"]["privacy_standard"],
         "official_policy_sources": [],
         "routes": {"demo-v3": route},
@@ -149,7 +153,7 @@ def _v3_release_fixture(tmp_path: Path) -> tuple[Path, Path]:
     )
     evidence_path = repo / "results/analysis/route-evidence.json"
     _write_json(evidence_path, evidence)
-    registry["exact_route_acceptance"]["evidence_artifact"] = str(evidence_path)
+    registry["exact_route_acceptance"]["evidence_artifact"] = "results/analysis/route-evidence.json"
     seed_count = 6
     lane = {
         "contract": "sota-v3",
@@ -414,6 +418,21 @@ def test_v3_release_packages_versioned_inputs_without_model_tiers(tmp_path: Path
         public_bytes = b"\n".join(packaged.read(name) for name in packaged.namelist())
         assert b"987654321" not in public_bytes
     assert verify_archive(archive)["artifacts"][0]["model_id"] == "demo-v3"
+
+
+def test_v4_release_dispatch_is_registered_but_authorization_locked(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="sota-v4 release packaging is authorization-locked"):
+        build_release(
+            repo_root=tmp_path,
+            run_dir=tmp_path,
+            archive_path=tmp_path / "release-v4.zip",
+            manifest_path=tmp_path / "manifest-v4.json",
+            checksums_path=tmp_path / "SHA256SUMS-v4.txt",
+            contract="sota-v4",
+            release_date="2026-08-12",
+        )
+
+    assert not (tmp_path / "release-v4.zip").exists()
 
 
 @pytest.mark.parametrize(

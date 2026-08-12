@@ -48,7 +48,7 @@ git diff --exit-code -- web/src/data/leaderboard.json
 
 The builder currently preserves and emits only the frozen `sota-v2` release
 instead of recomputing its references on the live engine. Its reusable
-publication-gate helpers understand the `sota-v3` reference-only analysis
+publication-gate helpers understand the frozen `sota-v3` reference-only analysis
 shape—each model compared with `pick-trader`, with no model-to-model tiers—but
-the command-line builder will not switch the public dataset to v3 until that
-site/release decision is made explicitly.
+the command-line builder excludes both v3 and v4 until a future site/release
+decision is made explicitly.

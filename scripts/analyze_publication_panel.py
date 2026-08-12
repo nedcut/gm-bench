@@ -3,9 +3,9 @@
 
 The unit of inference is the seed. Candidate repeats are averaged within each
 seed before subtracting that seed's deterministic ``pick-trader`` score. The
-bootstrap interval is descriptive. For ``sota-v3``, the exact sign-flip p-value
-is the primary inference and Holm-Bonferroni is applied using the full registered
-family size even when rows are missing.
+bootstrap interval is descriptive. For strict reference-only contracts, the
+exact sign-flip p-value is the primary inference and Holm-Bonferroni is applied
+using the full registered family size even when rows are missing.
 """
 
 from __future__ import annotations
@@ -26,21 +26,27 @@ REGISTRY_PATH = ROOT / "config" / "sota_v2_models.json"
 REGISTRY_PATHS = {
     "sota-v2": REGISTRY_PATH,
     "sota-v3": ROOT / "config" / "sota_v3_models.json",
+    "sota-v4": ROOT / "config" / "sota_v4_models.json",
 }
 LANE_PATHS = {
     "sota-v2": ROOT / "config" / "sota_v2_lane.json",
     "sota-v3": ROOT / "config" / "sota_v3_lane.json",
+    "sota-v4": ROOT / "config" / "sota_v4_lane.json",
 }
 PROTOCOL_PATHS = {
     "sota-v2": ROOT / "config" / "publication_protocol.json",
     "sota-v3": ROOT / "config" / "sota_v3_publication_protocol.json",
+    "sota-v4": ROOT / "config" / "sota_v4_publication_protocol.json",
 }
 DEFAULT_ARTIFACT_DIR = ROOT / "data" / "publication-runs" / "raw"
 DEFAULT_OUTPUT_PATH = ROOT / "results" / "analysis" / "publication-panel-analysis.json"
 DEFAULT_OUTPUT_PATHS = {
     "sota-v2": DEFAULT_OUTPUT_PATH,
     "sota-v3": ROOT / "results" / "analysis" / "publication-panel-analysis-v3.json",
+    "sota-v4": ROOT / "results" / "analysis" / "publication-panel-analysis-v4.json",
 }
+STRICT_REFERENCE_CONTRACTS = frozenset({"sota-v3", "sota-v4"})
+V4_ANALYSIS_LOCK = "sota-v4 analysis is authorization-locked until its publication plan is explicitly authorized"
 BOOTSTRAP_SEED = 20260716
 BOOTSTRAP_ITERATIONS = 10_000
 
@@ -243,8 +249,8 @@ def _registry_specs(registry: Mapping[str, Any]) -> tuple[list[dict[str, Any]], 
     if registry.get("selection_status") != "frozen":
         errors.append("model registry selection_status must be frozen")
     contract = str(registry.get("contract") or "")
-    if contract not in {"sota-v2", "sota-v3"}:
-        errors.append("model registry contract must be 'sota-v2' or 'sota-v3'")
+    if contract not in {"sota-v2", *STRICT_REFERENCE_CONTRACTS}:
+        errors.append("model registry contract must be 'sota-v2', 'sota-v3', or 'sota-v4'")
     if registry.get("preset") != "leaderboard":
         errors.append("model registry preset must be 'leaderboard'")
     shared_fixed_options = registry.get("shared_fixed_options") or {}
@@ -344,11 +350,11 @@ def _registered_lane_issues(
     if expected_seed_panel is not None:
         observed_panel = run_info.get("seed_panel")
         if not isinstance(observed_panel, Mapping):
-            issues.append("run_info.seed_panel must record the frozen v3 seed panel identity")
+            issues.append("run_info.seed_panel must record the frozen private seed panel identity")
         else:
             for key in ("name", "count", "sha256"):
                 if observed_panel.get(key) != expected_seed_panel.get(key):
-                    issues.append(f"run_info.seed_panel.{key} does not match the frozen v3 seed panel")
+                    issues.append(f"run_info.seed_panel.{key} does not match the frozen private seed panel")
 
     options = run_info.get("provider_options") or {}
     if not isinstance(options, Mapping):
@@ -386,14 +392,14 @@ def analyze(
     if policy is None:
         config_errors.append(f"no result-validation policy is registered for {contract!r}")
     expected_seed_panel: Mapping[str, Any] | None = None
-    v3_plan_ready = contract != "sota-v3"
-    if contract == "sota-v3":
+    strict_plan_ready = contract not in STRICT_REFERENCE_CONTRACTS
+    if contract in STRICT_REFERENCE_CONTRACTS:
         if not isinstance(lane, Mapping) or lane.get("contract") != contract:
-            config_errors.append("sota-v3 analysis requires its matching publication lane")
+            config_errors.append(f"{contract} analysis requires its matching publication lane")
         else:
             candidate_panel = lane.get("seed_panel")
             if not isinstance(candidate_panel, Mapping) or candidate_panel.get("status") != "frozen":
-                config_errors.append("sota-v3 analysis requires a frozen seed-panel identity")
+                config_errors.append(f"{contract} analysis requires a frozen seed-panel identity")
             elif (
                 candidate_panel.get("name") not in {"public-leaderboard", "private-env"}
                 or not isinstance(candidate_panel.get("count"), int)
@@ -402,12 +408,12 @@ def analyze(
                 or not isinstance(candidate_panel.get("sha256"), str)
                 or len(str(candidate_panel["sha256"])) != 64
             ):
-                config_errors.append("sota-v3 frozen seed-panel identity is malformed")
+                config_errors.append(f"{contract} frozen seed-panel identity is malformed")
             else:
                 expected_seed_panel = candidate_panel
         if not isinstance(protocol, Mapping) or protocol.get("contract") != contract:
-            config_errors.append("sota-v3 analysis requires its frozen statistical analysis plan")
-        elif isinstance(lane, Mapping):
+            config_errors.append(f"{contract} analysis requires its frozen statistical analysis plan")
+        elif contract == "sota-v3" and isinstance(lane, Mapping):
             plan_issues = v3_statistical_plan_issues(
                 dict(lane),
                 dict(registry),
@@ -416,7 +422,9 @@ def analyze(
             if plan_issues:
                 config_errors.extend(plan_issues)
             else:
-                v3_plan_ready = True
+                strict_plan_ready = True
+        if contract == "sota-v4":
+            config_errors.append(V4_ANALYSIS_LOCK)
     specs_by_identity = {(spec["provider"], spec["model"]): spec for spec in specs}
     candidates: dict[str, list[dict[str, Any]]] = {}
     rejected: list[dict[str, Any]] = []
@@ -430,8 +438,8 @@ def analyze(
         if spec is None:
             continue
         reasons: list[str] = []
-        if contract == "sota-v3" and (expected_seed_panel is None or not v3_plan_ready):
-            reasons.append("sota-v3 frozen lane/statistical configuration is unavailable or invalid")
+        if contract in STRICT_REFERENCE_CONTRACTS and (expected_seed_panel is None or not strict_plan_ready):
+            reasons.append(f"{contract} frozen lane/statistical configuration is unavailable or invalid")
         if policy is None:
             reasons.append(f"no result-validation policy is registered for {contract!r}")
         else:
@@ -507,12 +515,12 @@ def analyze(
         for row in rows
     ]
     # Frozen sota-v2 publication behavior includes connected-interval tiers.
-    # The focused sota-v3 plan predeclares only model-vs-pick-trader contrasts;
-    # assigning model tiers there would imply unsupported pairwise inference.
+    # Strict plans predeclare only model-vs-pick-trader contrasts; assigning
+    # model tiers there would imply unsupported pairwise inference.
     if contract == "sota-v2":
         rows = assign_tiers(rows)
     output_rows = rows
-    if contract == "sota-v3":
+    if contract in STRICT_REFERENCE_CONTRACTS:
         # Private-panel seed identifiers and per-seed scores remain available in
         # the operator's raw artifacts for reproducibility, but must never enter
         # the committed/public analysis. The aggregate exact-test result and raw
@@ -544,7 +552,7 @@ def analyze(
         },
         "sign_flip_inference": (
             "primary; exact under the symmetry assumption"
-            if contract == "sota-v3"
+            if contract in STRICT_REFERENCE_CONTRACTS
             else "descriptive; exact under the symmetry assumption"
         ),
         "config_errors": config_errors,
@@ -552,7 +560,7 @@ def analyze(
         "rejected_artifacts": rejected,
         "models": output_rows,
     }
-    if contract == "sota-v3":
+    if contract in STRICT_REFERENCE_CONTRACTS:
         result["analysis_mode"] = "reference-only"
         result["redaction"] = {
             "private_seed_panel": True,
@@ -565,7 +573,7 @@ def analyze(
         )
         result["model_tiering"] = {
             "status": "not-supported",
-            "reason": "sota-v3 predeclares only model-versus-pick-trader contrasts",
+            "reason": f"{contract} predeclares only model-versus-pick-trader contrasts",
         }
     return result
 
@@ -611,15 +619,17 @@ def main() -> int:
             else []
         )
         contract = str(registry.get("contract") or "")
-        lane = _read_json(args.lane or LANE_PATHS[contract]) if contract == "sota-v3" else None
-        protocol = _read_json(args.protocol or PROTOCOL_PATHS[contract]) if contract == "sota-v3" else None
+        lane = _read_json(args.lane or LANE_PATHS[contract]) if contract in STRICT_REFERENCE_CONTRACTS else None
+        protocol = (
+            _read_json(args.protocol or PROTOCOL_PATHS[contract]) if contract in STRICT_REFERENCE_CONTRACTS else None
+        )
         output_path = args.output or default_output_path(contract)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         sys.exit(f"analyze_publication_panel: {exc}")
 
     result = analyze(registry, payloads, raw_payloads=raw_payloads, lane=lane, protocol=protocol)
     text = json.dumps(result, indent=2, sort_keys=True) + "\n"
-    if result.get("benchmark_version") == "sota-v3" and result.get("publication_ready") is not True:
+    if result.get("benchmark_version") in STRICT_REFERENCE_CONTRACTS and result.get("publication_ready") is not True:
         print(text, end="")
         return 2
     if result["eligible_model_count"] == 0:

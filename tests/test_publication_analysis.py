@@ -50,6 +50,27 @@ def _tier_row(model_id: str, mean_lift: float, interval: tuple[float, float]) ->
 def test_default_analysis_outputs_are_contract_versioned() -> None:
     assert default_output_path("sota-v2").name == "publication-panel-analysis.json"
     assert default_output_path("sota-v3").name == "publication-panel-analysis-v3.json"
+    assert default_output_path("sota-v4").name == "publication-panel-analysis-v4.json"
+
+
+def test_v4_analysis_dispatch_is_explicitly_authorization_locked() -> None:
+    registry = {
+        "contract": "sota-v4",
+        "selection_status": "frozen",
+        "preset": "leaderboard",
+        "models": [],
+    }
+    lane = {
+        "contract": "sota-v4",
+        "seed_panel": {"status": "frozen", "name": "private-env", "count": 16, "sha256": "a" * 64},
+    }
+    protocol = {"contract": "sota-v4", "statistical_analysis_plan": {"status": "frozen"}}
+
+    result = analyze(registry, [], lane=lane, protocol=protocol)
+
+    assert result["benchmark_version"] == "sota-v4"
+    assert result["publication_ready"] is False
+    assert any("sota-v4 analysis is authorization-locked" in issue for issue in result["config_errors"])
 
 
 def test_pick_trader_differencing_averages_repeats_within_seed() -> None:

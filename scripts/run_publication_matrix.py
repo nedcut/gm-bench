@@ -66,7 +66,19 @@ CONTRACT_CONFIGS = {
         ROOT / "config" / "sota_v3_publication_protocol.json",
         ROOT / "config" / "sota_v3_pricing_snapshot.json",
     ),
+    "sota-v4": (
+        ROOT / "config" / "sota_v4_models.json",
+        ROOT / "config" / "sota_v4_lane.json",
+        ROOT / "config" / "sota_v4_smoke_manifest.json",
+        ROOT / "config" / "sota_v4_publication_protocol.json",
+        ROOT / "config" / "sota_v4_pricing_snapshot.json",
+    ),
 }
+# Publication contracts that share the private-panel, strict-smoke execution
+# capabilities introduced in v3. Keep this explicit: contract names are
+# identifiers, not versions that may safely be ordered lexicographically.
+STRICT_PRIVATE_PANEL_CONTRACTS = frozenset({"sota-v3", "sota-v4"})
+AUTHENTICATED_ROUTE_CONTRACTS = frozenset({"sota-v3", "sota-v4"})
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -318,7 +330,7 @@ def build_cells(
         config = _read_json(PANEL_CONFIG)
         lane = _read_json(LANE_CONFIG)
         _require_execution_authorized(authorization_phase, config, lane)
-        if phase == "smoke" and lane.get("contract") == "sota-v3":
+        if phase == "smoke" and lane.get("contract") in STRICT_PRIVATE_PANEL_CONTRACTS:
             _validate_frozen_seed_panel(lane)
         models = list(config.get("models") or [])
         _validate_models(models, expected_provider=str(config.get("provider") or ""))
@@ -340,7 +352,9 @@ def build_cells(
                 profile=str(config["profile"]),
                 preset="smoke",
                 repeats=1,
-                seed_count=len(PRESETS["smoke"]["seeds"]) if lane.get("contract") == "sota-v3" else None,
+                seed_count=(
+                    len(PRESETS["smoke"]["seeds"]) if lane.get("contract") in STRICT_PRIVATE_PANEL_CONTRACTS else None
+                ),
                 cap=frozen_cap,
                 upstream_provider=str(model["upstream_provider"]),
                 endpoint_tag=str(model["endpoint_tag"]),
@@ -385,7 +399,7 @@ def build_cells(
         config = _read_json(PANEL_CONFIG)
         lane = _read_json(LANE_CONFIG)
         _require_execution_authorized(phase, config, lane)
-        if lane.get("contract") == "sota-v3":
+        if lane.get("contract") in STRICT_PRIVATE_PANEL_CONTRACTS:
             _validate_frozen_seed_panel(lane)
         models = list(config.get("models") or [])
         _validate_models(models, expected_provider=str(config.get("provider") or ""))
@@ -417,7 +431,9 @@ def build_cells(
                 profile=str(config["profile"]),
                 preset=str(config["preset"]),
                 repeats=int(config["repeats"]),
-                seed_count=(int(lane["seed_panel"]["count"]) if lane.get("contract") == "sota-v3" else None),
+                seed_count=(
+                    int(lane["seed_panel"]["count"]) if lane.get("contract") in STRICT_PRIVATE_PANEL_CONTRACTS else None
+                ),
                 cap=frozen_cap,
                 upstream_provider=str(model["upstream_provider"]),
                 endpoint_tag=str(model["endpoint_tag"]),
@@ -1984,9 +2000,13 @@ def main(argv: list[str] | None = None, *, _paid_run_lock_held: bool = False) ->
                 _record_run_cell_outcome(run_dir, cell, "complete")
                 continue
         if cell.provider == "openrouter":
-            if args.phase == "route-preflight" and args.contract == "sota-v3" and not env.get("OPENROUTER_API_KEY"):
+            if (
+                (args.phase == "route-preflight" or args.preflight_only)
+                and args.contract in AUTHENTICATED_ROUTE_CONTRACTS
+                and not env.get("OPENROUTER_API_KEY")
+            ):
                 raise SystemExit(
-                    "authenticated v3 route preflight requires OPENROUTER_API_KEY; "
+                    f"authenticated {args.contract} route preflight requires OPENROUTER_API_KEY; "
                     "no endpoint request or model call was made"
                 )
             try:

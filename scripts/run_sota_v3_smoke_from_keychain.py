@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch the authorized SOTA-v3 smoke without exposing private seeds.
+"""Launch an authorized strict publication smoke without exposing private seeds.
 
 The private panel is read from macOS Keychain, verified against the committed
 ordered hash and salted hiding commitment, and passed to the publication runner
@@ -24,13 +24,31 @@ if str(ROOT) not in sys.path:
 
 from gm_bench.benchmark_config import PRIVATE_SEEDS_ENV, seed_panel_hash  # noqa: E402
 from gm_bench.contract import contract_fingerprint, scaffold_fingerprint  # noqa: E402
-from gm_bench.publication import canonical_sha256, v3_route_acceptance_issues  # noqa: E402
+from gm_bench.publication import (  # noqa: E402
+    canonical_sha256,
+    v3_route_acceptance_issues,
+    v4_route_acceptance_issues,
+)
 from scripts.run_publication_matrix import main as publication_main  # noqa: E402
 from scripts.seed_panel_commitment import commitment, parse_ordered_seeds  # noqa: E402
 
 KEYCHAIN_ACCOUNT = "nedcutler"
 KEYCHAIN_SERVICE = "gm-bench-sota-v3-private-panel"
 CANONICAL_OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
+SUPPORTED_CONTRACTS = ("sota-v3", "sota-v4")
+ROUTE_ACCEPTANCE_CHECKS = {
+    "sota-v3": v3_route_acceptance_issues,
+    "sota-v4": v4_route_acceptance_issues,
+}
+
+
+def _contract_path(contract: str, kind: str) -> Path:
+    suffixes = {
+        "lane": "lane",
+        "models": "models",
+        "protocol": "publication_protocol",
+    }
+    return ROOT / "config" / f"{contract.replace('-', '_')}_{suffixes[kind]}.json"
 
 
 def _keychain_record() -> dict[str, object]:
@@ -59,8 +77,8 @@ def _keychain_record() -> dict[str, object]:
     return record
 
 
-def _verified_seed_text() -> str:
-    lane = json.loads((ROOT / "config" / "sota_v3_lane.json").read_text())
+def _verified_seed_text(contract: str = "sota-v3") -> str:
+    lane = json.loads(_contract_path(contract, "lane").read_text())
     panel = lane.get("seed_panel") or {}
     record = _keychain_record()
     seeds_text = record.get("seeds")
@@ -69,7 +87,7 @@ def _verified_seed_text() -> str:
         raise ValueError("Keychain seed record is missing seeds or salt")
     seeds = parse_ordered_seeds(seeds_text)
     if panel.get("status") != "frozen" or panel.get("name") != "private-env":
-        raise ValueError("committed SOTA-v3 lane does not declare a frozen private panel")
+        raise ValueError(f"committed {contract} lane does not declare a frozen private panel")
     if len(seeds) != panel.get("count") or seed_panel_hash(seeds) != panel.get("sha256"):
         raise ValueError("Keychain seed order does not match the committed execution hash")
     if commitment(salt, seeds) != panel.get("hiding_commitment_sha256"):
@@ -77,11 +95,12 @@ def _verified_seed_text() -> str:
     return seeds_text
 
 
-def _record_readiness(path: Path, *, max_spend_usd: float, mode: str) -> None:
-    lane = json.loads((ROOT / "config" / "sota_v3_lane.json").read_text())
-    registry_path = ROOT / "config" / "sota_v3_models.json"
+def _record_readiness(path: Path, *, contract: str, max_spend_usd: float, mode: str) -> None:
+    lane_path = _contract_path(contract, "lane")
+    lane = json.loads(lane_path.read_text())
+    registry_path = _contract_path(contract, "models")
     registry = json.loads(registry_path.read_text())
-    route_issues = v3_route_acceptance_issues(registry)
+    route_issues = ROUTE_ACCEPTANCE_CHECKS[contract](registry)
     if route_issues:
         raise ValueError("cannot record final readiness before route acceptance: " + "; ".join(route_issues))
     fingerprint = contract_fingerprint()
@@ -95,12 +114,18 @@ def _record_readiness(path: Path, *, max_spend_usd: float, mode: str) -> None:
     existing: dict[str, object] = {}
     if path.exists():
         payload = json.loads(path.read_text())
-        if isinstance(payload, dict) and payload.get("contract_fingerprint") == fingerprint:
+        if (
+            isinstance(payload, dict)
+            and payload.get("contract") == contract
+            and payload.get("format") == f"gm-bench-{contract}-final-preflight-v1"
+            and payload.get("contract_fingerprint") == fingerprint
+            and (payload.get("route_preflight") or {}).get("evidence_artifact") == route_relative
+        ):
             existing = payload
     evidence = {
-        "format": "gm-bench-sota-v3-final-preflight-v1",
+        "format": f"gm-bench-{contract}-final-preflight-v1",
         "schema_version": 1,
-        "contract": "sota-v3",
+        "contract": contract,
         "contract_fingerprint": fingerprint,
         "openrouter_scaffold_fingerprint": scaffold_fingerprint("openrouter"),
         "generated_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -142,6 +167,24 @@ def _record_readiness(path: Path, *, max_spend_usd: float, mode: str) -> None:
     path.write_text(json.dumps(evidence, indent=2, sort_keys=True, allow_nan=False) + "\n")
     relative = str(path.resolve().relative_to(ROOT.resolve()))
     accepted = "keychain_dry_run" in evidence and "authenticated_route_and_price_preflight" in evidence
+    if accepted:
+        dry_run = evidence["keychain_dry_run"]
+        live_preflight = evidence["authenticated_route_and_price_preflight"]
+        accepted = (
+            isinstance(dry_run, dict)
+            and dry_run.get("status") == "passed"
+            and dry_run.get("model_ids") == model_ids
+            and dry_run.get("operator_ceiling_usd") == max_spend_usd
+            and dry_run.get("seed_panel_sha256") == panel.get("sha256")
+            and dry_run.get("hiding_commitment_verified") is True
+            and dry_run.get("private_seed_values_included") is False
+            and isinstance(live_preflight, dict)
+            and live_preflight.get("status") == "passed"
+            and live_preflight.get("model_ids") == model_ids
+            and live_preflight.get("completion_calls") == 0
+            and live_preflight.get("canonical_openrouter_api_base") == CANONICAL_OPENROUTER_API_BASE
+            and live_preflight.get("pricing_checked") is True
+        )
     lane["final_preflight_evidence"] = {
         "status": "accepted" if accepted else "pending",
         "artifact": relative,
@@ -150,13 +193,29 @@ def _record_readiness(path: Path, *, max_spend_usd: float, mode: str) -> None:
         "completion_calls": 0,
         "operator_ceiling_usd": max_spend_usd,
     }
-    (ROOT / "config" / "sota_v3_lane.json").write_text(json.dumps(lane, indent=2, allow_nan=False) + "\n")
+    if accepted:
+        from gm_bench.publication import v3_final_preflight_issues
+
+        protocol = json.loads(_contract_path(contract, "protocol").read_text())
+        validation_issues = v3_final_preflight_issues(
+            lane,
+            registry,
+            protocol,
+            contract=contract,
+            repo_root=ROOT,
+        )
+        if validation_issues:
+            lane["final_preflight_evidence"]["status"] = "pending"
+            lane_path.write_text(json.dumps(lane, indent=2, allow_nan=False) + "\n")
+            raise ValueError("recorded final readiness did not validate: " + "; ".join(validation_issues))
+    lane_path.write_text(json.dumps(lane, indent=2, allow_nan=False) + "\n")
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--contract", choices=SUPPORTED_CONTRACTS, default="sota-v3")
     parser.add_argument("--max-spend-usd", required=True, type=float)
-    parser.add_argument("--run-dir", default=str(ROOT / "data" / "publication" / "sota-v3-smokes"))
+    parser.add_argument("--run-dir")
     parser.add_argument("--model-id")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
@@ -178,13 +237,14 @@ def main(argv: list[str] | None = None) -> int:
         readiness_path = readiness_path.resolve()
         if not readiness_path.is_relative_to(ROOT.resolve()):
             parser.error("--record-readiness must be inside the repository")
-    os.environ[PRIVATE_SEEDS_ENV] = _verified_seed_text()
+    run_dir = args.run_dir or str(ROOT / "data" / "publication" / f"{args.contract}-smokes")
+    os.environ[PRIVATE_SEEDS_ENV] = _verified_seed_text(args.contract)
     runner_args = [
         "smoke",
         "--contract",
-        "sota-v3",
+        args.contract,
         "--run-dir",
-        args.run_dir,
+        run_dir,
         "--max-spend-usd",
         str(args.max_spend_usd),
     ]
@@ -198,7 +258,12 @@ def main(argv: list[str] | None = None) -> int:
         result = publication_main(runner_args)
         if result == 0 and readiness_path is not None:
             mode = "preflight-only" if args.preflight_only else "dry-run"
-            _record_readiness(readiness_path, max_spend_usd=args.max_spend_usd, mode=mode)
+            _record_readiness(
+                readiness_path,
+                contract=args.contract,
+                max_spend_usd=args.max_spend_usd,
+                mode=mode,
+            )
         return result
     finally:
         os.environ.pop(PRIVATE_SEEDS_ENV, None)
