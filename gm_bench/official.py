@@ -18,15 +18,22 @@ from gm_bench.benchmark_config import (
     _parse_seeds,
     seed_panel_hash,
 )
-from gm_bench.contract import SOTA_V2_CONTRACT, expected_contract, scaffold_fingerprint
+from gm_bench.contract import SOTA_V2_CONTRACT, SOTA_V3_CONTRACT, expected_contract, scaffold_fingerprint
 from gm_bench.scoring import SCORE_COMPONENT_KEYS, SCORE_COMPONENT_METRICS, contribution_from_metric
 
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
 SOTA_V2_POLICY_NAME = "sota-v2"
 SOTA_V3_POLICY_NAME = "sota-v3"
+SOTA_V4_POLICY_NAME = "sota-v4"
 OUTPUT_BUDGET_SWEEP_POLICY_NAME = "output-budget-sweep"
 SOTA_V1_POLICY_NAME = "sota-v1"
 ARCHIVE_V1_POLICY_NAME = "archive-v1"
+STRICT_SOTA_POLICY_NAMES = {
+    SOTA_V2_POLICY_NAME,
+    SOTA_V3_POLICY_NAME,
+    SOTA_V4_POLICY_NAME,
+    OUTPUT_BUDGET_SWEEP_POLICY_NAME,
+}
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 # Episode scalars are stored at 3 decimals and components at 6, so recombining
 # the components can differ from the stored strategy score by half a milli-point.
@@ -63,6 +70,7 @@ class ResultPolicy:
     require_strict_fallback: bool = False
     expected_contract: dict[str, Any] | None = None
     validate_current_scaffold: bool = True
+    expected_scaffold_fingerprints: dict[str, str] | None = None
     # Failed queries (misfired scout/inspect lookups) carry no protocol penalty,
     # so a model can silently burn its decision budget on them -- the v1 scout
     # contract break did exactly that. Warn early, and let strict policies refuse
@@ -99,6 +107,31 @@ SOTA_V3_POLICY = ResultPolicy(
     # Generic v3 artifact validation retains the eight-seed floor; the
     # publication lane separately binds headline evidence to its frozen
     # 15-seed private panel identity.
+    min_seed_count=len(PRESETS["leaderboard"]["seeds"]),
+    max_decision_failure_rate=0.02,
+    require_contract_provenance=True,
+    require_seed_panel_provenance=True,
+    require_scaffold_provenance=True,
+    require_score_components=True,
+    require_strict_fallback=True,
+    expected_contract=SOTA_V3_CONTRACT,
+    validate_current_scaffold=False,
+    expected_scaffold_fingerprints={
+        "anthropic": "0afbbdcaecfcb1d0",
+        "claude": "4a92675327e27a4d",
+        "codex": "f6b1c953c198f6bc",
+        "cursor": "3bb877c241996ed7",
+        "gemini": "5e700d3151254ed3",
+        "ollama": "5a3778bf70bd341e",
+        "openai": "8275269195e00191",
+        "opencode": "815df462b40d1274",
+        "openrouter": "2462b25854c1298b",
+    },
+    max_failed_query_rate=1.0,
+)
+SOTA_V4_POLICY = ResultPolicy(
+    name=SOTA_V4_POLICY_NAME,
+    min_repeats=1,
     min_seed_count=len(PRESETS["leaderboard"]["seeds"]),
     max_decision_failure_rate=0.02,
     require_contract_provenance=True,
@@ -159,6 +192,7 @@ POLICIES = {
     SOTA_V1_POLICY.name: SOTA_V1_POLICY,
     SOTA_V2_POLICY.name: SOTA_V2_POLICY,
     SOTA_V3_POLICY.name: SOTA_V3_POLICY,
+    SOTA_V4_POLICY.name: SOTA_V4_POLICY,
     ARCHIVE_V1_POLICY.name: ARCHIVE_V1_POLICY,
 }
 REDACTED_SEEDS_SENTINEL = "<redacted>"
@@ -232,7 +266,16 @@ def validate_leaderboard_payload(
             require=policy.require_contract_provenance,
             expected=policy.expected_contract,
         )
-        if policy.validate_current_scaffold:
+        if policy.expected_scaffold_fingerprints is not None:
+            _validate_scaffold_provenance(
+                errors,
+                warnings,
+                run_info,
+                require=policy.require_scaffold_provenance,
+                policy_name=policy.name,
+                expected_fingerprints=policy.expected_scaffold_fingerprints,
+            )
+        elif policy.validate_current_scaffold:
             _validate_scaffold_provenance(
                 errors,
                 warnings,
@@ -242,11 +285,7 @@ def validate_leaderboard_payload(
             )
         elif run_info.get("scaffold_fingerprint"):
             warnings.append("historical scaffold fingerprint retained but cannot be re-derived from current source")
-        strict_sota_lane = policy.name in {
-            SOTA_V2_POLICY_NAME,
-            SOTA_V3_POLICY_NAME,
-            OUTPUT_BUDGET_SWEEP_POLICY_NAME,
-        }
+        strict_sota_lane = policy.name in STRICT_SOTA_POLICY_NAMES
         if run_info.get("session"):
             if strict_sota_lane:
                 errors.append(
@@ -304,7 +343,7 @@ def validate_leaderboard_payload(
 
     baselines = [_dict(result) for result in _list(payload.get("baselines"))]
     baseline_names = [result.get("agent") for result in baselines]
-    if policy.name in {SOTA_V2_POLICY_NAME, SOTA_V3_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME}:
+    if policy.name in STRICT_SOTA_POLICY_NAMES:
         _expect_equal(errors, "baselines", baseline_names, expected_baselines)
     else:
         if not baseline_names:
@@ -375,7 +414,7 @@ def validate_leaderboard_payload(
                 warnings,
                 run_info,
                 usage,
-                strict=policy.name in {SOTA_V2_POLICY_NAME, SOTA_V3_POLICY_NAME, OUTPUT_BUDGET_SWEEP_POLICY_NAME},
+                strict=policy.name in STRICT_SOTA_POLICY_NAMES,
             )
 
     for baseline in baselines:
@@ -472,7 +511,7 @@ def _validate_openrouter_route(
 def redact_leaderboard_payload(
     payload: dict[str, Any],
     *,
-    policy: ResultPolicy = SOTA_V3_POLICY,
+    policy: ResultPolicy = SOTA_V4_POLICY,
 ) -> tuple[dict[str, Any], ValidationReport]:
     """Return a public-safe copy of a leaderboard payload.
 
@@ -657,6 +696,7 @@ def _validate_scaffold_provenance(
     *,
     require: bool = False,
     policy_name: str = "",
+    expected_fingerprints: dict[str, str] | None = None,
 ) -> None:
     """Check the row's prompt scaffold matches the current source.
 
@@ -666,7 +706,9 @@ def _validate_scaffold_provenance(
     """
     recorded = run_info.get("scaffold_fingerprint")
     provider = str(run_info.get("provider") or "")
-    expected = scaffold_fingerprint(provider)
+    expected = (
+        expected_fingerprints.get(provider) if expected_fingerprints is not None else scaffold_fingerprint(provider)
+    )
     if recorded is None:
         if require:
             errors.append(

@@ -8,9 +8,11 @@
 > project develops.
 
 **Last reviewed:** 2026-08-12
-**Current target:** Preserve the published `sota-v2` study as frozen historical
-evidence while reviewing the terminal `sota-v3` strict-smoke outcome. Five of
-eight routes were accepted; panel execution and publication remain locked.
+**Current target:** Preserve the published `sota-v2` study and terminal
+`sota-v3` strict-smoke outcome while validating an initial fail-closed
+`sota-v4` preregistration. Five of eight v3 routes were accepted; v3 panel and
+publication remain locked. V4 authorizes only zero-completion route preflight;
+spend, smoke, panel, and publication remain false.
 **Current state:** The frozen phase-one public panel, blog, GitHub release, and
 results-first site are published. Eight of ten
 `sota-v2`-registered models produced route-matched, cost-complete `sota-v2`
@@ -47,6 +49,16 @@ the frozen retry policy: Luna, Claude, Mistral, DeepSeek, and HY3 passed; GLM
 completed with one model-behavior protocol failure and cannot be rerun; MiniMax
 exhausted two HTTP 429 attempts; Qwen exhausted two HTTP 400 attempts. Panel
 authorization therefore remains blocked.
+
+The v4 package is pre-data and frozen for zero-completion route preflight only. It retains the exact
+unused 16-seed v3 commitment with explicit lineage, replaces the terminal GLM
+slot with `upstage/solar-pro4`, returns MiniMax M3 to the recovered
+policy-selected `minimax/fp8` route, and records Qwen/Alibaba request
+compatibility as unresolved. All route/privacy/final evidence is unresolved;
+no v3 execution artifact is accepted as v4 evidence. The generated cost
+artifact records a `$6.67548672` protocol-maximum smoke estimate under a `$100`
+operator ceiling, but neither the ceiling nor route-preflight authorization
+authorizes spend or the panel.
 
 Pre-data amendment 4 (2026-08-09) makes the cap-pressure rule terminal on its
 first trigger: any truncation or call
@@ -926,6 +938,7 @@ decision and why.
 
 | Date | Decision | Evidence / rationale | Effect |
 | --- | --- | --- | --- |
+| 2026-08-12 | Open an initial fail-closed SOTA-v4 preregistration after the terminal v3 smoke phase. | Preserve an eight-model family and the exact unused 16-seed v3 commitment without reading its secret. Replace the terminal GLM model-behavior slot with `upstage/solar-pro4` under the documented external-selection rule; select the recovered first-party `minimax/fp8` route mechanically under the route policy; retain Qwen/Alibaba only as an unresolved candidate after two v3 HTTP 400 attempts. Public endpoint metadata was read without authentication or completion calls. | Every v4 route/privacy/final-evidence state is unresolved, the smoke manifest is empty, and route-preflight, spend, smoke, panel, and publication authorization remain false. No v3 execution artifact carries forward. See [`sota-v4-preregistration-2026-08-12.md`](run_logs/sota-v4-preregistration-2026-08-12.md). |
 | 2026-08-12 | Complete the frozen eight-route v3 strict-smoke phase without selective model reruns. | Luna, Claude Sonnet 5, Mistral Medium 3.5, DeepSeek V4 Flash, and HY3 passed every strict gate (20/20 decision windows total, zero failed decisions, zero illegal actions, zero fallback, complete route/cost telemetry). GLM completed with one malformed-action fallback and is ineligible because model behavior never authorizes a rerun. MiniMax returned HTTP 429 on both permitted attempts; Qwen returned HTTP 400 on both permitted attempts; both are infrastructure-excluded. Accepted raw artifacts report `$0.182942`; including GLM diagnostic telemetry, all completed artifacts report `$0.217734`. The dynamic guard conservatively reports `$0.66528688` after charging five unresolved call bounds as spent in an append-only five-record reconciliation chain. | The smoke manifest is `in-progress` with five accepted entries and remains `accepted_for_panel: false`. No retries remain for the three terminal cells. Panel execution, publication, and any v3 leaderboard claim remain locked pending an explicit, predeclared next-contract decision; no panel was run. |
 | 2026-08-12 | Recover fail-closed from the first Luna smoke attempt and re-authorize its one remaining infrastructure attempt at OpenRouter scaffold fingerprint `2462b25854c1298b`. | One paid call reported `$0.001168`; a later response omitted authoritative inline cost, so the call guard retained its `$0.02203344` upper bound and stopped before any other model. The recovery polls OpenRouter's generation record for authoritative `total_cost`, persists sanitized telemetry failure context, and can clear an unknown-cost block only by charging its full conservative reservation as spent. The scripted scaffold diagnostic reproduced exactly and the final Keychain/route-price evidence is regenerated before retry. | The failed partial attempt is accounting-only and cannot enter the smoke manifest. Luna has one infrastructure attempt remaining; all other models remain untouched. The runner archives that empty stale checkpoint before reserving the retry, stays serial under the same $100 ceiling, and keeps panel/publication locked. |
 | 2026-08-11 | Re-authorize only the eight serial SOTA-v3 smokes at final contract fingerprint `247e12fe5a7d4f5b` and OpenRouter scaffold fingerprint `d451b0e38cdee0fb`. | The final free gate reproduced the scaffold-view diagnostic exactly, regenerated authenticated exact-route/privacy evidence for all eight routes, constructed all eight Keychain-backed smoke commands without exposing private seeds, and executed authenticated route plus live-price preflight with zero completion calls. The digested record is `results/analysis/sota-v3-final-preflight-evidence.json`. Full Python 3.13 and 3.14 suites, Ruff, contract canaries, synthetic rehearsal, cost regeneration, web lint/build, dependency audit, and wheel build passed. | `spend_authorized` and `smoke_execution_authorized` are true under the $100 operator ceiling. The runner remains serial, canonical-host pinned, dynamically spend-guarded, and process-locked. Panel execution and publication remain false until every strict smoke is independently accepted. |

@@ -27,6 +27,7 @@ RUNTIME_NOTE_COMPLETE = (
     "Runtime observations are sourced from every currently registered model's accepted smoke; "
     "recheck before paid full-panel runs if pricing, routes, or prompts change."
 )
+PRIVATE_PANEL_CONTRACTS = frozenset({"sota-v3", "sota-v4"})
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -67,13 +68,14 @@ def estimate(
     smoke = PRESETS["smoke"]
     repeats = int(models_config["repeats"])
     panel_seed_count = len(leaderboard["seeds"])
-    if lane_config.get("contract") == "sota-v3":
+    contract = lane_config.get("contract")
+    if contract in PRIVATE_PANEL_CONTRACTS:
         seed_panel = lane_config.get("seed_panel")
         if not isinstance(seed_panel, dict):
-            raise ValueError("sota-v3 fixed-panel estimate requires seed_panel metadata")
+            raise ValueError(f"{contract} fixed-panel estimate requires seed_panel metadata")
         panel_seed_count = seed_panel.get("count")
         if not isinstance(panel_seed_count, int) or isinstance(panel_seed_count, bool) or panel_seed_count < 2:
-            raise ValueError("sota-v3 fixed-panel estimate requires a positive seed_panel.count")
+            raise ValueError(f"{contract} fixed-panel estimate requires a positive seed_panel.count")
     panel_decisions_per_model = panel_seed_count * int(leaderboard["seasons"]) * len(PHASES) * repeats
     smoke_decisions_per_run = len(smoke["seeds"]) * int(smoke["seasons"]) * len(PHASES)
     model_count = len(models)
@@ -123,7 +125,7 @@ def estimate(
         if (
             reasoning_rate is None
             and reasoning_enabled
-            and (reasoning_tokens_value is not None or lane_config.get("contract") == "sota-v3")
+            and (reasoning_tokens_value is not None or contract in PRIVATE_PANEL_CONTRACTS)
         ):
             reasoning_rate_key = "completion"
             reasoning_rate = applied_rates["completion"]

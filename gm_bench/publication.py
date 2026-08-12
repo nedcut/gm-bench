@@ -230,6 +230,24 @@ def v3_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
     return issues
 
 
+def _v4_labels(issues: list[str]) -> list[str]:
+    """Retain the frozen v3 validator while reporting the current lane name."""
+
+    return [issue.replace("sota-v3", "sota-v4") for issue in issues]
+
+
+def v4_route_identity_sha256(registry: dict[str, Any], model: dict[str, Any]) -> str:
+    """Bind v4 evidence to the same route-policy fields as frozen v3."""
+
+    return v3_route_identity_sha256(registry, model)
+
+
+def v4_route_acceptance_issues(registry: dict[str, Any]) -> list[str]:
+    """Require fresh v4 route evidence without changing frozen v3 behavior."""
+
+    return _v4_labels(v3_route_acceptance_issues(registry))
+
+
 def v3_final_preflight_issues(
     lane: dict[str, Any], registry: dict[str, Any], protocol: dict[str, Any] | None
 ) -> list[str]:
@@ -500,6 +518,18 @@ def v3_preregistration_coherence_issues(
     return list(dict.fromkeys(issues))
 
 
+def v4_preregistration_coherence_issues(
+    lane: dict[str, Any],
+    registry: dict[str, Any],
+    protocol: dict[str, Any] | None,
+    pricing: dict[str, Any] | None,
+    manifest: dict[str, Any] | None,
+) -> list[str]:
+    """Apply the frozen v3 structural rules to the new v4 preregistration."""
+
+    return _v4_labels(v3_preregistration_coherence_issues(lane, registry, protocol, pricing, manifest))
+
+
 def v3_statistical_plan_issues(
     lane: dict[str, Any],
     registry: dict[str, Any],
@@ -579,6 +609,23 @@ def v3_statistical_plan_issues(
     return issues
 
 
+def v4_statistical_plan_issues(
+    lane: dict[str, Any],
+    registry: dict[str, Any],
+    protocol: dict[str, Any] | None,
+) -> list[str]:
+    """Validate v4 with v3's frozen statistical method and v4 identity."""
+
+    lane_copy = dict(lane)
+    registry_copy = dict(registry)
+    protocol_copy = dict(protocol) if isinstance(protocol, dict) else protocol
+    lane_copy["contract"] = "sota-v3"
+    registry_copy["contract"] = "sota-v3"
+    if isinstance(protocol_copy, dict):
+        protocol_copy["contract"] = "sota-v3"
+    return _v4_labels(v3_statistical_plan_issues(lane_copy, registry_copy, protocol_copy))
+
+
 def publication_execution_issues(
     lane: dict[str, Any],
     registry: dict[str, Any],
@@ -604,27 +651,38 @@ def publication_execution_issues(
         return []
 
     issues: list[str] = []
-    if contract == "sota-v3":
+    if contract in {"sota-v3", "sota-v4"}:
+        coherence_issues = (
+            v3_preregistration_coherence_issues if contract == "sota-v3" else v4_preregistration_coherence_issues
+        )
+        route_issues = v3_route_acceptance_issues if contract == "sota-v3" else v4_route_acceptance_issues
+        statistical_issues = v3_statistical_plan_issues if contract == "sota-v3" else v4_statistical_plan_issues
         if phase != "route-preflight":
-            issues.extend(v3_preregistration_coherence_issues(lane, registry, protocol, pricing, manifest))
-            issues.extend(v3_route_acceptance_issues(registry))
+            issues.extend(coherence_issues(lane, registry, protocol, pricing, manifest))
+            issues.extend(route_issues(registry))
             if phase == "smoke":
-                issues.extend(v3_final_preflight_issues(lane, registry, protocol))
+                if contract == "sota-v3":
+                    issues.extend(v3_final_preflight_issues(lane, registry, protocol))
+                else:
+                    declaration = lane.get("final_preflight_evidence")
+                    if not isinstance(declaration, dict) or declaration.get("status") != "accepted":
+                        issues.append("sota-v4 final-fingerprint preflight evidence is not accepted")
             if (
                 not isinstance(protocol, dict)
                 or protocol.get("contract") != contract
                 or protocol.get("status") != "frozen"
             ):
-                issues.append("sota-v3 publication protocol is not frozen")
+                issues.append(f"{contract} publication protocol is not frozen")
             if (
                 not isinstance(pricing, dict)
                 or pricing.get("contract") != contract
                 or pricing.get("status") != "frozen"
             ):
-                issues.append("sota-v3 pricing snapshot is not frozen")
-            issues.extend(v3_statistical_plan_issues(lane, registry, protocol))
+                issues.append(f"{contract} pricing snapshot is not frozen")
+            issues.extend(statistical_issues(lane, registry, protocol))
         else:
-            issues.extend(_v3_identity_issues(lane, registry, protocol, pricing, manifest))
+            identity_issues = _v3_identity_issues(lane, registry, protocol, pricing, manifest)
+            issues.extend(identity_issues if contract == "sota-v3" else _v4_labels(identity_issues))
             if lane.get("route_preflight_authorized") is not True:
                 issues.append("zero-call route preflight is locked while route_preflight_authorized is false")
         if phase == "route-preflight":
@@ -673,7 +731,7 @@ def publication_execution_issues(
 
     if lane.get("spend_authorized") is not True or registry.get("spend_authorized") is not True:
         issues.append("provider execution is locked until spend is explicitly authorized")
-    if contract == "sota-v3":
+    if contract in {"sota-v3", "sota-v4"}:
         budget_policy = protocol.get("budget_policy") if isinstance(protocol, dict) else None
         if not isinstance(budget_policy, dict) or budget_policy.get("spend_authorized") is not True:
             issues.append("provider execution is locked by the publication protocol budget policy")
@@ -687,7 +745,7 @@ def publication_execution_issues(
         if registry.get("panel_execution_authorized") is not True:
             issues.append("panel execution is locked by the model registry")
         if not isinstance(manifest, dict) or manifest.get("accepted_for_panel") is not True:
-            issues.append("v3 smoke manifest is not accepted for panel execution")
+            issues.append(f"{contract} smoke manifest is not accepted for panel execution")
         issues.extend(
             smoke_manifest_issues(
                 manifest,

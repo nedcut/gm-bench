@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 import scripts.run_publication_matrix as publication_runner
-from gm_bench.contract import BENCHMARK_VERSION, contract_fingerprint
+from gm_bench.contract import SOTA_V3_CONTRACT, contract_fingerprint
 from gm_bench.publication import (
     SMOKE_MANIFEST_FORMAT,
     exact_sign_flip_feasibility,
@@ -27,10 +27,11 @@ def _read(name: str) -> dict:
     return payload
 
 
-def test_v3_lane_pins_current_contract_and_freezes_a_powered_allocation() -> None:
+def test_v3_lane_pins_frozen_contract_and_freezes_a_powered_allocation() -> None:
     lane = _read("sota_v3_lane.json")
 
-    assert lane["contract"] == BENCHMARK_VERSION == "sota-v3"
+    assert lane["contract"] == SOTA_V3_CONTRACT["benchmark_version"] == "sota-v3"
+    assert lane["contract_fingerprint"] == SOTA_V3_CONTRACT["contract_fingerprint"]
     assert lane["contract_fingerprint"] == contract_fingerprint()
     assert lane["mechanics_status"] == "frozen-for-sota-v3-panel"
     assert "requires a new contract fingerprint" in lane["mechanics_change_policy"]
@@ -247,7 +248,7 @@ def test_smoke_authorization_cannot_drift_into_panel_or_publication_authorizatio
 
 
 @pytest.mark.parametrize("mode", ["--dry-run", "--preflight-only"])
-def test_runner_requires_private_seed_escrow_before_provider_access(
+def test_runner_keeps_historical_v3_blocked_before_provider_access(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     mode: str,
@@ -268,7 +269,7 @@ def test_runner_requires_private_seed_escrow_before_provider_access(
         publication_runner.main(["smoke", "--contract", "sota-v3", mode])
 
     assert exc_info.value.code == 2
-    assert "GM_BENCH_PRIVATE_SEEDS is required for the frozen private panel" in capsys.readouterr().err
+    assert "frozen historical evidence ('sota-v3'/'sota-v3')" in capsys.readouterr().err
     assert provider_access == []
 
 
@@ -354,7 +355,7 @@ def test_smoke_readiness_unlocks_smoke_but_not_panel() -> None:
     assert issues(registry, "smoke") == []
     panel_issues = issues(registry, "panel")
     assert "panel execution is locked by the model registry" in panel_issues
-    assert "v3 smoke manifest is not accepted for panel execution" in panel_issues
+    assert "sota-v3 smoke manifest is not accepted for panel execution" in panel_issues
 
     blocked = dict(registry, selection_status="provisional-blocked")
     assert "provider execution is locked until the model registry is frozen" in issues(blocked, "smoke")

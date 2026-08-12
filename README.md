@@ -54,10 +54,11 @@ Read the [phase-one findings](docs/blog/sota-v2-findings.md), inspect the
 [generated analysis](results/analysis/publication-panel-analysis.json), or
 follow the [clean-clone reproduction guide](docs/REPRODUCING_SOTA_V2_RELEASE.md).
 
-The tagged study remains frozen under its literal `sota-v2` contract. Current
-development is `sota-v3` because post-release fixes to numeric-input validation
-and negotiation-window semantics change simulator behavior; the v2 evidence is
-not retroactively rewritten or rerun. See the
+The tagged study remains frozen under its literal `sota-v2` contract. The
+terminal `sota-v3` smoke campaign preserves the post-release simulator fixes;
+current development is `sota-v4`, a fresh prospective publication contract
+created after only five of eight v3 routes cleared the strict smoke gate. The
+v2 and v3 evidence is not retroactively rewritten or rerun. See the
 [living publication-readiness log](docs/PUBLISH_READINESS.md) for the decision
 boundary and remaining work.
 
@@ -116,7 +117,7 @@ GM-Bench includes:
 ## Leaderboard & Website
 
 The [live site](https://nedcut.github.io/gm-bench/) and generated leaderboard
-JSON reflect the frozen `sota-v2` phase-one study until a pre-registered `sota-v3`
+JSON reflect the frozen `sota-v2` phase-one study until a pre-registered `sota-v4`
 model panel is published; current development on `main` does not refresh those
 public headline numbers.
 
@@ -125,7 +126,7 @@ full baseline panel; `GM_BENCH_PRIVATE_SEEDS` swaps in a private panel). Every
 run records usage telemetry — tokens, dollar cost (from `gm_bench/pricing.json`
 or adapter-reported cost), and per-decision latency — alongside scores. Results
 intended for serious frontier-model comparison should pass the stricter
-current-contract validator (`sota-v3` on development HEAD) described in
+current-contract validator (`sota-v4` on development HEAD) described in
 [`docs/production_benchmark.md`](docs/production_benchmark.md). Frozen release
 artifacts remain verifiable with `--policy sota-v2`.
 Runs also stamp a seed-panel hash so private held-out panels can be verified
@@ -144,9 +145,9 @@ artifacts predate the field and validate without it.
 OPENAI_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \
   --preset leaderboard --repeats 3 --json > /tmp/openai-gpt-5.4.raw.json
 python -m gm_bench validate-result /tmp/openai-gpt-5.4.raw.json \
-  --policy sota-v3
+  --policy sota-v4
 python -m gm_bench compact-result /tmp/openai-gpt-5.4.raw.json \
-  --output /tmp/openai-gpt-5.4.compact.json --policy sota-v3
+  --output /tmp/openai-gpt-5.4.compact.json --policy sota-v4
 python -m gm_bench validate-contract
 python -m gm_bench calibrate-score --json
 python web/scripts/build_leaderboard.py   # refresh web/src/data/leaderboard.json
@@ -497,7 +498,7 @@ plays a safe turn (best-value draft pick plus a legal lineup) so one flaky
 decision doesn't ruin an episode. Pass `--strict-fallback` /
 `--no-strict-fallback` to decide explicitly; the effective policy is recorded
 in `run_info.strict_fallback` and in `provider_options.GM_AGENT_STRICT` either
-way, and a soft row is not `sota-v3` eligible. The harness resolves this rather
+way, and a soft row is not eligible for current `sota-v4` (or frozen `sota-v3`). The harness resolves this rather
 than reading the ambient `GM_AGENT_STRICT`: an explicit flag wins, then the lane
 default (strict for `--preset leaderboard`), and only when neither is set does
 config-file `env` or the shell decide. A stale config `env` entry cannot

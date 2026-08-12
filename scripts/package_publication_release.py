@@ -23,6 +23,7 @@ from gm_bench.publication import canonical_sha256, publication_execution_issues 
 
 RELEASE_FORMAT = "gm-bench-publication-release-v1"
 RELEASE_ID = "sota-v2-phase-one-2026-07-19"
+V4_RELEASE_LOCK = "sota-v4 release packaging is authorization-locked until publication is explicitly authorized"
 RUN_METADATA_NAMES = ("run-state.json", "openrouter-reservations.json")
 V3_PUBLIC_ANALYSIS_KEYS = frozenset(
     {
@@ -98,6 +99,18 @@ RELEASE_SPECS = {
             Path("config/sota_v3_smoke_manifest.json"),
         ),
         analysis_path=Path("results/analysis/publication-panel-analysis-v3.json"),
+    ),
+    "sota-v4": ReleaseSpec(
+        contract="sota-v4",
+        registry_path=Path("config/sota_v4_models.json"),
+        config_paths=(
+            Path("config/sota_v4_models.json"),
+            Path("config/sota_v4_lane.json"),
+            Path("config/sota_v4_publication_protocol.json"),
+            Path("config/sota_v4_pricing_snapshot.json"),
+            Path("config/sota_v4_smoke_manifest.json"),
+        ),
+        analysis_path=Path("results/analysis/publication-panel-analysis-v4.json"),
     ),
 }
 
@@ -297,6 +310,8 @@ def build_release(
         spec = RELEASE_SPECS[contract]
     except KeyError as exc:
         raise ValueError(f"unsupported release contract {contract!r}") from exc
+    if contract == "sota-v4":
+        raise ValueError(V4_RELEASE_LOCK)
     resolved_release_date = release_date or spec.default_release_date
     if resolved_release_date is None:
         raise ValueError(f"{contract} release packaging requires an explicit release_date")

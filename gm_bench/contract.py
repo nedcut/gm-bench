@@ -15,7 +15,7 @@ from typing import Any
 
 from gm_bench.scoring import SCORING_VERSION, scoring_scale_fingerprint
 
-BENCHMARK_VERSION = "sota-v3"
+BENCHMARK_VERSION = "sota-v4"
 ACTION_PROTOCOL_VERSION = "actions-v3"
 SIMULATOR_VERSION = "sim-v3"
 OBSERVATION_VERSION = "observation-v2"
@@ -28,6 +28,24 @@ SOTA_V2_CONTRACT = {
     "simulator_version": "sim-v2",
     "observation_version": "observation-v1",
     "contract_fingerprint": "558e8f35ea1d66b9",
+}
+SOTA_V3_CONTRACT = {
+    "benchmark_version": "sota-v3",
+    "action_protocol_version": "actions-v3",
+    "scoring_version": "score-v1",
+    "scoring_scale_fingerprint": "05a60ff4f691e734",
+    "simulator_version": "sim-v3",
+    "observation_version": "observation-v2",
+    "contract_fingerprint": "247e12fe5a7d4f5b",
+}
+SOTA_V4_CONTRACT = {
+    "benchmark_version": "sota-v4",
+    "action_protocol_version": "actions-v3",
+    "scoring_version": "score-v1",
+    "scoring_scale_fingerprint": "05a60ff4f691e734",
+    "simulator_version": "sim-v3",
+    "observation_version": "observation-v2",
+    "contract_fingerprint": "247e12fe5a7d4f5b",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
 # Pinned with the release identity so the site headroom strip cannot drift when

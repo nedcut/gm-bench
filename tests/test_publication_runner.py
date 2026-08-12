@@ -62,6 +62,18 @@ def _reset_publication_config(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(publication_runner, "PRICING_CONFIG", pricing)
 
 
+def test_v4_publication_paths_and_strict_capabilities_are_explicit() -> None:
+    panel, lane, manifest, protocol, pricing = publication_runner.CONTRACT_CONFIGS["sota-v4"]
+
+    assert panel.name == "sota_v4_models.json"
+    assert lane.name == "sota_v4_lane.json"
+    assert manifest.name == "sota_v4_smoke_manifest.json"
+    assert protocol.name == "sota_v4_publication_protocol.json"
+    assert pricing.name == "sota_v4_pricing_snapshot.json"
+    assert publication_runner.STRICT_PRIVATE_PANEL_CONTRACTS == {"sota-v3", "sota-v4"}
+    assert publication_runner.AUTHENTICATED_ROUTE_CONTRACTS == {"sota-v3", "sota-v4"}
+
+
 def _frozen_panel_files(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -284,7 +296,7 @@ def _frozen_panel_files(
     monkeypatch.setattr(publication_runner, "PRICING_CONFIG", pricing_path)
     monkeypatch.setitem(
         publication_runner.CONTRACT_CONFIGS,
-        "sota-v3",
+        BENCHMARK_VERSION,
         (registry_path, lane_path, manifest_path, protocol_path, pricing_path),
     )
     return registry, lane, manifest_path
@@ -616,7 +628,7 @@ def test_preflight_only_still_validates_endpoint_despite_reusable_smoke_artifact
             [
                 "smoke",
                 "--contract",
-                "sota-v3",
+                BENCHMARK_VERSION,
                 "--model-id",
                 model["id"],
                 "--run-dir",
@@ -1086,7 +1098,7 @@ def test_paid_openrouter_run_requires_explicit_spend_ceiling(
             [
                 "smoke",
                 "--contract",
-                "sota-v3",
+                BENCHMARK_VERSION,
                 "--model-id",
                 "openrouter-qwen3.7-plus-alibaba",
                 "--run-dir",
@@ -1341,7 +1353,7 @@ def test_terminal_smoke_is_skipped_before_child_or_new_reservation(
             [
                 "smoke",
                 "--contract",
-                "sota-v3",
+                BENCHMARK_VERSION,
                 "--model-id",
                 cell.experiment_id,
                 "--run-dir",
@@ -1646,8 +1658,8 @@ def test_route_preflight_checks_every_route_before_failing(
     """
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-route-preflight-key")
     registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
-    registry["selection_status"] = "route-preflight-ready"
-    lane["preregistration_status"] = "provisional-blocked"
+    registry["selection_status"] = "frozen"
+    lane["preregistration_status"] = "frozen"
     lane["route_preflight_authorized"] = True
     publication_runner.PANEL_CONFIG.write_text(json.dumps(registry))
     publication_runner.LANE_CONFIG.write_text(json.dumps(lane))
@@ -1671,7 +1683,7 @@ def test_route_preflight_checks_every_route_before_failing(
     )
 
     with pytest.raises(SystemExit) as exc_info:
-        main(["route-preflight", "--contract", "sota-v3", "--run-dir", str(tmp_path)])
+        main(["route-preflight", "--contract", BENCHMARK_VERSION, "--run-dir", str(tmp_path)])
 
     message = str(exc_info.value.code)
     # Every route was probed, including the ones queued behind both failures.
@@ -1709,19 +1721,29 @@ def test_paid_phases_still_abort_on_the_first_bad_route(
     monkeypatch.setattr(publication_runner, "_validate_openrouter_endpoint", fake_validate)
 
     with pytest.raises(SystemExit) as exc_info:
-        main(["smoke", "--contract", "sota-v3", "--run-dir", str(tmp_path), "--max-spend-usd", "1.00"])
+        main(
+            [
+                "smoke",
+                "--contract",
+                BENCHMARK_VERSION,
+                "--run-dir",
+                str(tmp_path),
+                "--max-spend-usd",
+                "1.00",
+            ]
+        )
 
     assert checked == model_ids[:1], "a paid phase kept probing after a bad route"
     assert model_ids[0] in str(exc_info.value.code)
 
 
-def test_v3_route_preflight_requires_bearer_credential_before_endpoint_request(
+def test_current_strict_route_preflight_requires_bearer_credential_before_endpoint_request(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
-    registry["selection_status"] = "route-preflight-ready"
-    lane["preregistration_status"] = "provisional-blocked"
+    registry["selection_status"] = "frozen"
+    lane["preregistration_status"] = "frozen"
     lane["route_preflight_authorized"] = True
     publication_runner.PANEL_CONFIG.write_text(json.dumps(registry))
     publication_runner.LANE_CONFIG.write_text(json.dumps(lane))

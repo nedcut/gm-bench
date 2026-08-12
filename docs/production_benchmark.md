@@ -3,21 +3,22 @@
 GM-Bench has one general result tier plus versioned strict policies:
 
 - `public-leaderboard`: a structurally valid public leaderboard result.
-- `sota-v3`: the current strict validator for new development results.
+- `sota-v4`: the current strict validator for new development results.
+- `sota-v3`: the frozen validator for the terminal five-of-eight smoke campaign.
 - `sota-v2`: the frozen historical validator for the published phase-one study.
 - `sota-v1`: the frozen historical validator for archived v1 evidence. It does
   not make a v1 row comparable to v2; it only keeps the archived contract
   independently auditable.
 
 The public leaderboard can show development and diagnostic rows, including local
-models that are below the scripted baselines. A current `sota-v3` result is the
+models that are below the scripted baselines. A current `sota-v4` result is the
 minimum technical bar for a new serious comparison.
 
-There are two distinct v3 workflows. The generic strict submission flow below
+There are two distinct v4 workflows. The generic strict submission flow below
 uses the public leaderboard preset and at least 3 repeats. Separately, the
-official v3 publication lane is pre-registered in `config/sota_v3_lane.json` and
-`config/sota_v3_models.json`: it is a **private** 16-seed × 1-repeat panel
-against a sealed seed set. That private lane still carries
+official v4 publication lane is pre-registered in `config/sota_v4_lane.json` and
+`config/sota_v4_models.json`: it is a **private** 16-seed × 1-repeat panel
+against the still-hidden seed set originally frozen for v3. That private lane carries
 `publication_authorized: false`. Do not publish its panel or apply its 1-repeat
 design to a generic third-party submission.
 
@@ -29,7 +30,7 @@ pre-v2 evidence while preserving the official-artifact gate.
 
 ## Strict result requirements
 
-A new strict result on development HEAD is produced under `sota-v3`:
+A new strict result on development HEAD is produced under `sota-v4`:
 
 ```bash
 python -m gm_bench model \
@@ -55,24 +56,12 @@ multi-megabyte failed artifact is intentionally not retained. Prefer
 `--preset smoke` first; a clean serial strict panel is
 multi-hour quota spend, not a quick retry.
 
-For the frozen SOTA-v3 strict-smoke lane, do not export or paste the private
-seed values. The owner-authorized panel is stored in macOS Keychain, and the
-launcher verifies both its salted commitment and ordered execution hash before
-passing it to the publication runner in-process. The operator must still type
-an explicit ceiling:
-
-```bash
-uv run python scripts/run_publication_matrix.py route-preflight \
-  --contract sota-v3
-uv run python scripts/run_sota_v3_smoke_from_keychain.py \
-  --max-spend-usd 100
-```
-
-The route preflight makes zero completion calls and should be rerun immediately
-before the paid smoke because health and pricing metadata drift. The launcher
-always retains `GM_BENCH_WORKERS=1`, exact-route pinning, no fallbacks, strict
-failure handling, and the committed reservation/ceiling checks. It authorizes
-no panel work; panel execution remains a separate post-smoke decision.
+The SOTA-v3 strict-smoke lane is terminal and must not be rerun. SOTA-v4 starts
+with route, spend, smoke, panel, and publication authorization disabled. Its
+free preflight and paid smoke commands will be documented only after the new
+cohort, routes, pricing, evidence formats, and Keychain lineage are frozen and
+the corresponding zero-spend gates pass. Panel execution remains a separate
+post-smoke decision.
 
 Fresh-spawn serial model panels write an atomic checkpoint after every completed
 seed/repeat and stop after two consecutive adapter failures. Resume with
@@ -98,7 +87,7 @@ python -m gm_bench model \
 python -m gm_bench redact-result \
   /tmp/gm-bench-<provider>-<model>-private.raw.json \
   --output /tmp/gm-bench-<provider>-<model>-private.redacted.json \
-  --policy sota-v3
+  --policy sota-v4
 ```
 
 It must also satisfy the machine validator:
@@ -106,7 +95,7 @@ It must also satisfy the machine validator:
 ```bash
 python -m gm_bench validate-result \
   /tmp/gm-bench-<provider>-<model>.json \
-  --policy sota-v3
+  --policy sota-v4
 ```
 
 Before publishing claims from a new source contract, run the benchmark

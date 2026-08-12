@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from gm_bench.benchmark_config import PRESETS, seed_panel_metadata  # noqa: E402
-from gm_bench.contract import SOTA_V2_CONTRACT, benchmark_contract, scaffold_fingerprint  # noqa: E402
+from gm_bench.contract import SOTA_V2_CONTRACT, SOTA_V3_CONTRACT  # noqa: E402
 from gm_bench.official import (  # noqa: E402
     POLICIES,
     SOTA_V2_POLICY,
@@ -161,8 +161,8 @@ def synthetic_raw_artifact() -> dict[str, Any]:
             "profile": "compact",
             "gm_bench_version": "0.0.0+rehearsal",
             "evidence_class": "synthetic-non-evidence",
-            "benchmark_contract": benchmark_contract(),
-            "scaffold_fingerprint": scaffold_fingerprint("openrouter"),
+            "benchmark_contract": SOTA_V3_CONTRACT,
+            "scaffold_fingerprint": SOTA_V3_POLICY.expected_scaffold_fingerprints["openrouter"],
             "seed_panel": seed_panel_metadata(seeds, "leaderboard"),
             "protocol_repair_attempts": 1,
             "strict_fallback": True,
@@ -189,7 +189,7 @@ def synthetic_analysis_registry() -> dict[str, Any]:
     return {
         "schema_version": 1,
         "contract": "sota-v3",
-        "contract_fingerprint": benchmark_contract()["contract_fingerprint"],
+        "contract_fingerprint": SOTA_V3_CONTRACT["contract_fingerprint"],
         "provider": "openrouter",
         "profile": "compact",
         "preset": "leaderboard",
@@ -236,7 +236,7 @@ def synthetic_analysis_lane(raw: dict[str, Any]) -> dict[str, Any]:
 def synthetic_analysis_protocol() -> dict[str, Any]:
     return {
         "contract": "sota-v3",
-        "contract_fingerprint": benchmark_contract()["contract_fingerprint"],
+        "contract_fingerprint": SOTA_V3_CONTRACT["contract_fingerprint"],
         "statistical_analysis_plan": {
             "status": "frozen",
             "analysis_mode": "reference-only",
@@ -359,7 +359,7 @@ def _isolated_builder_globals(staging: Path):
             setattr(build_leaderboard, name, value)
 
 
-def _stage_site_inputs(staging: Path, compact: dict[str, Any]) -> None:
+def _stage_site_inputs(staging: Path, compact: dict[str, Any], *, contract: str = "sota-v3") -> None:
     shutil.copytree(ROOT / "config", staging / "config")
     shutil.copytree(ROOT / "results" / "leaderboard", staging / "results" / "leaderboard")
     shutil.copytree(ROOT / "results" / "analysis", staging / "results" / "analysis")
@@ -371,17 +371,23 @@ def _stage_site_inputs(staging: Path, compact: dict[str, Any]) -> None:
     source_modules = ROOT / "web" / "node_modules"
     if source_modules.is_dir():
         (staging / "web" / "node_modules").symlink_to(source_modules, target_is_directory=True)
-    (staging / "results" / "leaderboard" / "synthetic-sota-v3.json").write_text(
+    (staging / "results" / "leaderboard" / f"synthetic-{contract}.json").write_text(
         json.dumps(compact, indent=2, sort_keys=True) + "\n"
     )
 
 
-def _exercise_site_builder(staging: Path, compact: dict[str, Any]) -> dict[str, Any]:
-    _stage_site_inputs(staging, compact)
+def _exercise_site_builder(
+    staging: Path,
+    compact: dict[str, Any],
+    *,
+    excluded_contract: str = "sota-v3",
+    model_label: str = "synthetic-v3",
+) -> dict[str, Any]:
+    _stage_site_inputs(staging, compact, contract=excluded_contract)
     model_config = json.loads((staging / "config" / "sota_v2_models.json").read_text())
     transformed = build_leaderboard.model_row(compact, model_config)
-    if transformed["benchmark_version"] != "sota-v3":
-        raise AssertionError("shared row-ingestion logic lost the artifact's sota-v3 identity")
+    if transformed["benchmark_version"] != excluded_contract:
+        raise AssertionError(f"shared row-ingestion logic lost the artifact's {excluded_contract} identity")
     if transformed["artifact_sha256"] != canonical_sha256(compact):
         raise AssertionError("shared row-ingestion logic did not preserve the compact artifact identity")
     stdout = io.StringIO()
@@ -399,15 +405,22 @@ def _exercise_site_builder(staging: Path, compact: dict[str, Any]) -> dict[str, 
         raise AssertionError("isolated site-data build changed the frozen sota-v2 dataset")
     if generated["contract"]["benchmark_version"] != "sota-v2":
         raise AssertionError("isolated site-data build did not remain on sota-v2")
-    if not any("synthetic-v3" in line and "not sota-v2" in line for line in stderr.getvalue().splitlines()):
-        raise AssertionError("site-data build did not explicitly report excluding the synthetic sota-v3 artifact")
+    if not any(model_label in line and "not sota-v2" in line for line in stderr.getvalue().splitlines()):
+        raise AssertionError(
+            f"site-data build did not explicitly report excluding the synthetic {excluded_contract} artifact"
+        )
+    version_key = (
+        excluded_contract.replace("sota-", "")
+        if excluded_contract == "sota-v3"
+        else excluded_contract.replace("-", "_")
+    )
     return {
         "status": "passed",
         "contract": generated["contract"]["benchmark_version"],
-        "synthetic_v3_excluded": True,
+        f"synthetic_{version_key}_excluded": True,
         "matches_checked_in_dataset": True,
         "shared_row_ingestion": "passed",
-        "public_v3_strategy_selected": False,
+        f"public_{version_key}_strategy_selected": False,
     }
 
 

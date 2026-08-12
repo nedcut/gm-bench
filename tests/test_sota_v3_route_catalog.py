@@ -245,4 +245,4 @@ def test_smoke_authorization_still_cannot_unlock_panel_or_publication() -> None:
         pricing=pricing,
     )
     assert "panel execution is locked by the model registry" in panel_issues
-    assert "v3 smoke manifest is not accepted for panel execution" in panel_issues
+    assert "sota-v3 smoke manifest is not accepted for panel execution" in panel_issues

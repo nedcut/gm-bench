@@ -67,6 +67,32 @@ def test_v3_cost_plan_uses_registered_private_seed_count() -> None:
     assert [row["model"] for row in result["models"] if row["internal_reasoning_tokens_per_decision"]] == []
 
 
+def test_v4_cost_plan_uses_the_frozen_private_seed_count() -> None:
+    models, lane, pricing = _v3_inputs()
+    models = copy.deepcopy(models)
+    lane = copy.deepcopy(lane)
+    models["contract"] = "sota-v4"
+    lane["contract"] = "sota-v4"
+    lane["seed_panel"]["count"] = 12
+
+    result = estimate(models, lane, pricing)
+
+    assert result["assumptions"]["panel_seed_count"] == 12
+    assert result["calls"]["panel_decisions_per_model"] == 240
+
+
+def test_v4_cost_plan_requires_private_panel_metadata() -> None:
+    models, lane, pricing = _v3_inputs()
+    models = copy.deepcopy(models)
+    lane = copy.deepcopy(lane)
+    models["contract"] = "sota-v4"
+    lane["contract"] = "sota-v4"
+    lane.pop("seed_panel")
+
+    with pytest.raises(ValueError, match="sota-v4 fixed-panel estimate requires seed_panel metadata"):
+        estimate(models, lane, pricing)
+
+
 def test_the_committed_plan_fits_under_the_committed_ceiling() -> None:
     """The planning forecast and hard cap must not drift apart silently.
 

@@ -98,7 +98,7 @@ def test_keychain_launcher_records_final_fingerprint_readiness(
         )
     )
     monkeypatch.setattr(launcher, "contract_fingerprint", lambda: fingerprint)
-    monkeypatch.setattr(launcher, "v3_route_acceptance_issues", lambda _registry: [])
+    monkeypatch.setitem(launcher.ROUTE_ACCEPTANCE_CHECKS, "sota-v3", lambda _registry: [])
     monkeypatch.setattr(launcher, "publication_main", lambda _argv: 0)
 
     for mode in modes:
