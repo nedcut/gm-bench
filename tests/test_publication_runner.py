@@ -793,7 +793,10 @@ def test_record_smoke_writes_accepted_manifest_entry(
         )
         == 0
     )
-    entry = json.loads(manifest_path.read_text())["entries"][model["id"]]
+    manifest = json.loads(manifest_path.read_text())
+    entry = manifest["entries"][model["id"]]
+    assert manifest["status"] == "in-progress"
+    assert manifest["accepted_for_panel"] is False
     assert entry["accepted"] is True
     assert entry["artifact_sha256"] == expected_sha
     assert entry["artifact_path"] == str(artifact_path)
@@ -1291,6 +1294,31 @@ def test_completed_ineligible_cell_releases_reservation_without_becoming_retryab
     assert stored["reserved_usd"] == 0
     assert stored["attempt_history"][-1]["status"] == "ineligible"
     assert stored["ineligibility_reason"] == "candidate usage must cover every decision point"
+
+
+def test_completed_smoke_model_behavior_is_ineligible_without_rerun(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry, lane, _manifest_path = _frozen_panel_files(tmp_path, monkeypatch)
+    model = registry["models"][0]
+    cell = build_cells("smoke", model_id=model["id"])[0]
+    artifact = _valid_smoke_artifact(registry, lane, model)
+    artifact["candidate"]["episodes"][0]["failed_decisions"] = 1
+    artifact["candidate"]["summary"]["failed_decisions"] = 1
+    artifact["candidate"]["summary"]["decision_failure_rate"] = 0.25
+    raw = tmp_path / "raw" / f"{cell.experiment_id}--{cell.cap_label}.json"
+    raw.parent.mkdir(parents=True)
+    raw.write_text(json.dumps(artifact))
+
+    assert publication_runner._completed_smoke_model_behavior_issues(cell, tmp_path) == [
+        "artifact candidate episode contains failed decisions",
+        "artifact candidate summary failed_decisions must be zero",
+        "artifact decision_failure_rate must be zero",
+    ]
+
+    artifact["candidate"]["summary"]["usage"]["cost_decisions"] = 3
+    raw.write_text(json.dumps(artifact))
+    assert publication_runner._completed_smoke_model_behavior_issues(cell, tmp_path) == []
 
 
 def test_successful_cell_settlement_releases_reservation_for_next_cell(tmp_path: Path) -> None:

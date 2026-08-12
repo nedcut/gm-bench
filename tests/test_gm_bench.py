@@ -350,9 +350,34 @@ def test_gui_rejects_non_loopback_hosts_by_default(host: str) -> None:
     assert not _is_loopback_host(host)
 
 
-def test_gui_fails_before_binding_non_loopback_host(tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="--allow-remote"):
+def test_gui_fails_before_binding_non_loopback_host(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        gui_module,
+        "ThreadingHTTPServer",
+        lambda *_args, **_kwargs: pytest.fail("server must not be constructed"),
+    )
+    with pytest.raises(ValueError, match="non-loopback"):
         serve("0.0.0.0", db_path=tmp_path / "gui.sqlite")
+
+
+@pytest.mark.parametrize("host", ["127.0.0.1", "0.0.0.0"])
+def test_gui_remote_escape_hatch_is_disabled_before_binding(
+    host: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        gui_module,
+        "ThreadingHTTPServer",
+        lambda *_args, **_kwargs: pytest.fail("server must not be constructed"),
+    )
+    with pytest.raises(ValueError, match="no authentication"):
+        serve(host, db_path=tmp_path / "gui.sqlite", allow_remote=True)
+
+
+def test_gui_entrypoints_cannot_bypass_disabled_remote_mode() -> None:
+    with pytest.raises(ValueError, match="no authentication"):
+        gui_module.main(["--allow-remote"])
+    with pytest.raises(ValueError, match="no authentication"):
+        cli_module.main(["gui", "--allow-remote"])
 
 
 def test_gui_direct_entrypoint_honors_database_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

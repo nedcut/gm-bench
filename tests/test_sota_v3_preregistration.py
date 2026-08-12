@@ -180,9 +180,11 @@ def test_v3_preregistration_authorizes_smoke_but_keeps_panel_and_publication_loc
     assert manifest["format"] == SMOKE_MANIFEST_FORMAT
     assert manifest["contract"] == lane["contract"]
     assert manifest["contract_fingerprint"] == lane["contract_fingerprint"]
-    assert manifest["status"] == "not-started"
+    assert manifest["status"] == "in-progress"
     assert manifest["accepted_for_panel"] is False
-    assert manifest["entries"] == {}
+    assert manifest["entries"]
+    assert set(manifest["entries"]) < set(registry["required_smokes"])
+    assert all(entry["accepted"] is True for entry in manifest["entries"].values())
 
     # A selected cohort without a frozen seed commitment or smokes is incomplete.
     assert len(registry["models"]) == lane["minimum_headline_models"]

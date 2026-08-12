@@ -271,7 +271,11 @@ def main(argv: list[str] | None = None) -> None:
 
     gui_parser = subparsers.add_parser("gui", help="start the local GM-Bench web GUI")
     gui_parser.add_argument("--host", default="127.0.0.1")
-    gui_parser.add_argument("--allow-remote", action="store_true")
+    gui_parser.add_argument(
+        "--allow-remote",
+        action="store_true",
+        help="disabled until the GUI has authentication",
+    )
     gui_parser.add_argument("--port", type=int, default=8765)
     gui_parser.add_argument("--db", default=os.environ.get("GM_BENCH_DB", str(DEFAULT_DB_PATH)))
 

@@ -1395,6 +1395,28 @@ def _record_smoke_issues(
     return issues, entry
 
 
+_MODEL_BEHAVIOR_SMOKE_ISSUES = {
+    "artifact candidate episode contains failed decisions",
+    "artifact candidate summary failed_decisions must be zero",
+    "artifact decision_failure_rate must be zero",
+}
+
+
+def _completed_smoke_model_behavior_issues(cell: Cell, run_dir: Path) -> list[str]:
+    """Identify a complete, fully telemetered smoke rejected only for model behavior."""
+    path = run_dir / "raw" / f"{cell.experiment_id}--{cell.cap_label}.json"
+    if not path.exists():
+        return []
+    try:
+        artifact = _read_json(path)
+        registry = _read_json(PANEL_CONFIG)
+        lane = _read_json(LANE_CONFIG)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return []
+    issues, _entry = _record_smoke_issues(artifact, cell.experiment_id, registry, lane)
+    return issues if issues and set(issues) <= _MODEL_BEHAVIOR_SMOKE_ISSUES else []
+
+
 def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> int:
     try:
         artifact_bytes = artifact_path.read_bytes()
@@ -1456,6 +1478,15 @@ def _record_smoke(model_id: str, artifact_path: Path, manifest_path: Path) -> in
         "recorded_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "accepted": True,
     }
+    required = {str(value) for value in registry.get("required_smokes") or []}
+    recorded = set(manifest["entries"])
+    complete = (
+        bool(required)
+        and recorded == required
+        and all(isinstance(value, dict) and value.get("accepted") is True for value in manifest["entries"].values())
+    )
+    manifest["status"] = "accepted" if complete else "in-progress"
+    manifest["accepted_for_panel"] = complete
     _write_json_atomic(manifest_path, manifest)
     print(f"recorded accepted smoke for {model_id} in {manifest_path}")
     return 0
@@ -1881,6 +1912,17 @@ def main(argv: list[str] | None = None, *, _paid_run_lock_held: bool = False) ->
     preflight_failures: list[str] = []
     for cell in cells:
         env = cell_environment(cell)
+        if args.phase == "smoke" and not args.preflight_only and not args.dry_run:
+            behavior_issues = _completed_smoke_model_behavior_issues(cell, run_dir)
+            if behavior_issues:
+                reservations = _read_json_if_valid(run_dir / "openrouter-reservations.json") or {}
+                stored = (reservations.get("cells") or {}).get(f"{cell.experiment_id}--{cell.cap_label}") or {}
+                measured = float(stored.get("measured_run_spend_usd") or _artifact_spend_usd(run_dir))
+                failure = "completed smoke failed only model-behavior gates: " + "; ".join(behavior_issues)
+                _record_ineligible_cell_reservation(run_dir, cell, measured, failure)
+                _record_run_cell_outcome(run_dir, cell, "ineligible", failure)
+                print(f"preserving completed ineligible smoke without rerun: {cell.experiment_id}")
+                continue
         archived_checkpoint = None
         if args.phase == "smoke" and not args.preflight_only and not args.dry_run:
             try:
@@ -1970,7 +2012,12 @@ def main(argv: list[str] | None = None, *, _paid_run_lock_held: bool = False) ->
             try:
                 subprocess.run(command, cwd=ROOT, env=env, check=True)
             except subprocess.CalledProcessError as exc:
-                cell_error = _checkpoint_failure_detail(run_dir, cell) or f"child process exited {exc.returncode}"
+                behavior_issues = _completed_smoke_model_behavior_issues(cell, run_dir) if args.phase == "smoke" else []
+                if behavior_issues:
+                    cell_error = "completed smoke failed only model-behavior gates: " + "; ".join(behavior_issues)
+                    cell_ineligible = True
+                else:
+                    cell_error = _checkpoint_failure_detail(run_dir, cell) or f"child process exited {exc.returncode}"
                 raise SystemExit(
                     f"publication cell failed: {cell.experiment_id} cap={cell.cap_label} exit={exc.returncode}"
                 ) from exc

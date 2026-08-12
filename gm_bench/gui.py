@@ -28,10 +28,10 @@ def serve(
     *,
     allow_remote: bool = False,
 ) -> None:
-    if not allow_remote and not _is_loopback_host(host):
-        raise ValueError(
-            f"refusing to expose the unauthenticated GUI on non-loopback host {host!r}; pass --allow-remote explicitly"
-        )
+    if allow_remote:
+        raise ValueError("--allow-remote is unavailable because the GUI has no authentication")
+    if not _is_loopback_host(host):
+        raise ValueError(f"refusing to expose the unauthenticated GUI on non-loopback host {host!r}")
     handler = _handler_factory(Path(db_path))
     server = ThreadingHTTPServer((host, port), handler)
     print(f"GM-Bench GUI running at http://{host}:{port}")
@@ -388,7 +388,11 @@ def _parse_seeds(value: str) -> list[int]:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="gm-bench-gui")
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--allow-remote", action="store_true")
+    parser.add_argument(
+        "--allow-remote",
+        action="store_true",
+        help="disabled until the GUI has authentication",
+    )
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--db", default=os.environ.get("GM_BENCH_DB", str(DEFAULT_DB_PATH)))
     args = parser.parse_args(argv)
