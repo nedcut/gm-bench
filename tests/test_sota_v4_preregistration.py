@@ -7,7 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from gm_bench.publication import publication_execution_issues, v3_final_preflight_issues
+from gm_bench.publication import (
+    PENDING_STRICT_SMOKE_CAP_VERIFICATION,
+    publication_execution_issues,
+    v3_final_preflight_issues,
+)
 from scripts.estimate_publication_cost import estimate
 
 CONFIG = Path("config")
@@ -84,6 +88,9 @@ def test_v4_replacement_and_route_selection_are_predata() -> None:
     assert by_model["minimax/minimax-m3"]["endpoint_tag"] == "minimax/fp8"
     assert by_model["minimax/minimax-m3"]["catalog_quantization"] == "fp8"
     assert by_model["qwen/qwen3.8-max"]["request_compatibility_status"].startswith("unresolved-")
+    assert by_model["mistralai/mistral-medium-3-5"]["output_cap_verification"] == (
+        PENDING_STRICT_SMOKE_CAP_VERIFICATION
+    )
     assert registry["selection_status"] == "route-preflight-ready"
     assert registry["selection_frozen_at_utc"] is None
     assert registry["exact_route_acceptance"]["status"] == "unresolved"

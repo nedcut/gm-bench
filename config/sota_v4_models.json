@@ -157,7 +157,12 @@
       "reasoning_effort": null,
       "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
       "absent_options": ["OPENROUTER_REASONING_EFFORT"],
-      "output_cap_verification": {"status": "unresolved-for-v4", "strict_smoke_required": true},
+      "output_cap_verification": {
+        "status": "request-cap-pending-strict-smoke",
+        "catalog_max_completion_tokens": null,
+        "request_parameter": "max_tokens",
+        "strict_smoke_required": true
+      },
       "role": "Retained Mistral identity; null public maximum remains unresolved until fresh v4 evidence."
     },
     {
