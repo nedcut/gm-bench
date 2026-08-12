@@ -7,10 +7,10 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-12
 **Current target:** Preserve the published `sota-v2` study as frozen historical
-evidence while running and accepting the eight authorized serial `sota-v3`
-strict smokes. Panel execution and publication remain separately locked.
+evidence while reviewing the terminal `sota-v3` strict-smoke outcome. Five of
+eight routes were accepted; panel execution and publication remain locked.
 **Current state:** The frozen phase-one public panel, blog, GitHub release, and
 results-first site are published. Eight of ten
 `sota-v2`-registered models produced route-matched, cost-complete `sota-v2`
@@ -29,8 +29,8 @@ Flash and Grok 4.5 — the only two mandatory-reasoning routes — leaving an
 eight-model, uniformly reasoning-disabled cohort (2 frontier-proprietary / 6
 open-weight) at Holm family size 8. The current candidate contains that
 cohort, a frozen 16-seed x 1-repeat statistical design (sensitivity power
-0.8727, Wilson lower 0.8660), a frozen 4,096-token smoke ceiling, an empty
-not-started smoke manifest, explicit runner dispatch, and a zero-spend synthetic
+0.8727, Wilson lower 0.8660), a frozen 4,096-token smoke ceiling, an in-progress
+smoke manifest with five accepted entries, explicit runner dispatch, and a zero-spend synthetic
 rehearsal. Exact-route and synthetic-data privacy acceptance are recorded for
 all eight routes, and the private 16-seed commitment is frozen with its secret
 in macOS Keychain. Final-fingerprint Keychain-backed dry-run and authenticated
@@ -42,8 +42,11 @@ while remaining runner-internal for pairing and replay. Spend and strict-smoke
 execution are authorized under a committed $100 ceiling. The generated cost
 artifact is authoritative for both the one-response-per-window planning
 forecast and the protocol-maximum estimate; the runner separately enforces the
-ceiling before every provider call. Refresh all three views immediately after
-strict-smoke telemetry and before panel authorization.
+ceiling before every provider call. The strict-smoke run is now terminal under
+the frozen retry policy: Luna, Claude, Mistral, DeepSeek, and HY3 passed; GLM
+completed with one model-behavior protocol failure and cannot be rerun; MiniMax
+exhausted two HTTP 429 attempts; Qwen exhausted two HTTP 400 attempts. Panel
+authorization therefore remains blocked.
 
 Pre-data amendment 4 (2026-08-09) makes the cap-pressure rule terminal on its
 first trigger: any truncation or call
@@ -53,8 +56,8 @@ amendment is allowed. The registered 8,192-token value is only a planning
 comparison, not an authorized fallback branch. The reasoning-policy ambiguity
 is resolved by construction, since all eight retained routes are registered
 with reasoning disabled. Panel execution and publication remain false until
-every strict smoke is accepted. There is no real v3 smoke or leaderboard
-artifact yet.
+every required strict smoke is accepted. Real v3 smoke artifacts now exist,
+but there is no v3 panel or leaderboard artifact.
 **Current weekly focus:** [#93 — v3 readiness program: consultant audit
 findings](https://github.com/nedcut/gm-bench/issues/93). Remaining
 [Issue #84](https://github.com/nedcut/gm-bench/issues/84) follow-through is
@@ -923,6 +926,7 @@ decision and why.
 
 | Date | Decision | Evidence / rationale | Effect |
 | --- | --- | --- | --- |
+| 2026-08-12 | Complete the frozen eight-route v3 strict-smoke phase without selective model reruns. | Luna, Claude Sonnet 5, Mistral Medium 3.5, DeepSeek V4 Flash, and HY3 passed every strict gate (20/20 decision windows total, zero failed decisions, zero illegal actions, zero fallback, complete route/cost telemetry). GLM completed with one malformed-action fallback and is ineligible because model behavior never authorizes a rerun. MiniMax returned HTTP 429 on both permitted attempts; Qwen returned HTTP 400 on both permitted attempts; both are infrastructure-excluded. Accepted raw artifacts report `$0.182942`; including GLM diagnostic telemetry, all completed artifacts report `$0.217734`. The dynamic guard conservatively reports `$0.66528688` after charging five unresolved call bounds as spent in an append-only five-record reconciliation chain. | The smoke manifest is `in-progress` with five accepted entries and remains `accepted_for_panel: false`. No retries remain for the three terminal cells. Panel execution, publication, and any v3 leaderboard claim remain locked pending an explicit, predeclared next-contract decision; no panel was run. |
 | 2026-08-12 | Recover fail-closed from the first Luna smoke attempt and re-authorize its one remaining infrastructure attempt at OpenRouter scaffold fingerprint `2462b25854c1298b`. | One paid call reported `$0.001168`; a later response omitted authoritative inline cost, so the call guard retained its `$0.02203344` upper bound and stopped before any other model. The recovery polls OpenRouter's generation record for authoritative `total_cost`, persists sanitized telemetry failure context, and can clear an unknown-cost block only by charging its full conservative reservation as spent. The scripted scaffold diagnostic reproduced exactly and the final Keychain/route-price evidence is regenerated before retry. | The failed partial attempt is accounting-only and cannot enter the smoke manifest. Luna has one infrastructure attempt remaining; all other models remain untouched. The runner archives that empty stale checkpoint before reserving the retry, stays serial under the same $100 ceiling, and keeps panel/publication locked. |
 | 2026-08-11 | Re-authorize only the eight serial SOTA-v3 smokes at final contract fingerprint `247e12fe5a7d4f5b` and OpenRouter scaffold fingerprint `d451b0e38cdee0fb`. | The final free gate reproduced the scaffold-view diagnostic exactly, regenerated authenticated exact-route/privacy evidence for all eight routes, constructed all eight Keychain-backed smoke commands without exposing private seeds, and executed authenticated route plus live-price preflight with zero completion calls. The digested record is `results/analysis/sota-v3-final-preflight-evidence.json`. Full Python 3.13 and 3.14 suites, Ruff, contract canaries, synthetic rehearsal, cost regeneration, web lint/build, dependency audit, and wheel build passed. | `spend_authorized` and `smoke_execution_authorized` are true under the $100 operator ceiling. The runner remains serial, canonical-host pinned, dynamically spend-guarded, and process-locked. Panel execution and publication remain false until every strict smoke is independently accepted. |
 | 2026-08-04 | Adopt `qwen/qwen3.8-max` in place of `qwen/qwen3.7-plus`, and adopt a written [route substitution policy](ROUTE_SUBSTITUTION_POLICY.md). | Qwen 3.8 Max shipped 2026-08-03 and the benchmark is intended to track new releases rather than freeze once. Three substitutions in two days had each been decided ad hoc, which is how a benchmark quietly starts measuring whichever host is cheapest this week. | Cohort stays at ten, so the Holm family, the 16x1 allocation, and the power selection are untouched. The Max tier bills 6.25x/4.69x the Plus tier per token. The policy fixes eligibility, forbids price/throughput/first-party status as substitution criteria, and requires re-establishing route and privacy acceptance for any new counterparty. |
