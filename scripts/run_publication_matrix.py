@@ -34,6 +34,7 @@ PROTOCOL_CONFIG = ROOT / "config" / "publication_protocol.json"
 SMOKE_MANIFEST = ROOT / "config" / "sota_v2_smoke_manifest.json"
 RUN_STATE_FORMAT = "gm-bench-publication-run-v1"
 CALL_SPEND_GUARD_STATE = "openrouter-call-spend-guard.json"
+SPEND_RECONCILIATION = "openrouter-spend-reconciliation.json"
 PAID_RUN_LOCK = ".openrouter-paid-run.lock"
 # Availability floors for a pinned endpoint to stay eligible.
 #
@@ -729,6 +730,60 @@ def _measured_spend_usd(run_dir: Path, env: dict[str, str], budget_start: float)
     ):
         reported_call_spend = 0.0
     return max(account_delta, _artifact_spend_usd(run_dir), float(reported_call_spend))
+
+
+def _reconcile_spend_guard(run_dir: Path) -> dict[str, Any]:
+    """Conservatively absorb an unresolved call reservation as spent."""
+    budget_path = run_dir / "openrouter-budget.json"
+    state_path = run_dir / CALL_SPEND_GUARD_STATE
+    if not budget_path.exists() or not state_path.exists():
+        raise ValueError("spend reconciliation requires existing budget and guard state files")
+    budget = _read_json(budget_path)
+    state = _read_json(state_path)
+    blocked_reason = state.get("blocked_reason")
+    active = state.get("active_call_reservation_usd")
+    reported = state.get("reported_spend_usd")
+    start = budget.get("starting_total_usage_usd")
+    for label, value in (("starting total", start), ("reported spend", reported), ("active reservation", active)):
+        if (
+            not isinstance(value, int | float)
+            or isinstance(value, bool)
+            or not math.isfinite(float(value))
+            or float(value) < 0
+        ):
+            raise ValueError(f"spend reconciliation {label} must be finite and non-negative")
+    if not isinstance(blocked_reason, str) or not blocked_reason or float(active) <= 0:
+        raise ValueError("spend guard has no unresolved blocked reservation to reconcile")
+    reconciled_spend = float(reported) + float(active)
+    ceiling = state.get("ceiling_usd")
+    if not isinstance(ceiling, int | float) or isinstance(ceiling, bool) or reconciled_spend > float(ceiling):
+        raise ValueError("absorbing the unresolved call reservation would exceed the authorized ceiling")
+
+    evidence = {
+        "format": "gm-bench-openrouter-spend-reconciliation-v1",
+        "schema_version": 1,
+        "reconciled_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "starting_total_usage_usd": float(start),
+        "prior_reported_spend_usd": float(reported),
+        "absorbed_unknown_call_spend_usd": float(active),
+        "reconciled_reported_spend_usd": reconciled_spend,
+        "prior_blocked_reason": blocked_reason,
+        "prior_telemetry_error": state.get("telemetry_error"),
+        "method": "charge-full-conservative-call-reservation",
+        "note": "The actual provider cost was unavailable; the full pre-call upper bound is charged as spent.",
+    }
+    evidence_path = run_dir / SPEND_RECONCILIATION
+    _write_json_atomic(evidence_path, evidence)
+    evidence_sha = hashlib.sha256(evidence_path.read_bytes()).hexdigest()
+    state["reported_spend_usd"] = reconciled_spend
+    state["active_call_reservation_usd"] = 0.0
+    state["reconciliation_evidence"] = SPEND_RECONCILIATION
+    state["reconciliation_sha256"] = evidence_sha
+    state.pop("active_call_input_token_bound", None)
+    state.pop("blocked_reason", None)
+    state.pop("telemetry_error", None)
+    _write_json_atomic(state_path, state)
+    return evidence
 
 
 def _call_spend_guard_environment(
@@ -1666,7 +1721,7 @@ def main(argv: list[str] | None = None, *, _paid_run_lock_held: bool = False) ->
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "phase",
-        choices=["route-preflight", "smoke", "sweep", "panel", "record-smoke", "status"],
+        choices=["route-preflight", "smoke", "sweep", "panel", "record-smoke", "status", "reconcile-spend"],
     )
     parser.add_argument(
         "--contract",
@@ -1699,6 +1754,15 @@ def main(argv: list[str] | None = None, *, _paid_run_lock_held: bool = False) ->
         if args.interval <= 0:
             parser.error("--interval must be positive")
         return _status_command(args.run_dir, manifest_path, watch=args.watch, interval=args.interval, as_json=args.json)
+    if args.phase == "reconcile-spend":
+        run_dir = args.run_dir.resolve()
+        try:
+            with _exclusive_paid_run(run_dir):
+                evidence = _reconcile_spend_guard(run_dir)
+        except (OSError, ValueError, json.JSONDecodeError, urllib.error.URLError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(evidence, sort_keys=True))
+        return 0
     if args.phase == "record-smoke":
         if not args.model_id:
             parser.error("record-smoke requires --model-id")

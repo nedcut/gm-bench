@@ -118,6 +118,7 @@ def test_keychain_launcher_records_final_fingerprint_readiness(
     evidence = json.loads((tmp_path / "results" / "analysis" / "final-preflight.json").read_text())
     updated_lane = json.loads(lane_path.read_text())
     assert evidence["contract_fingerprint"] == fingerprint
+    assert evidence["openrouter_scaffold_fingerprint"] == launcher.scaffold_fingerprint("openrouter")
     assert evidence["completion_calls"] == 0
     assert evidence["keychain_dry_run"]["model_ids"] == ["model-a", "model-b"]
     assert evidence["keychain_dry_run"]["private_seed_values_included"] is False

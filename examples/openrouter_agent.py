@@ -7,9 +7,11 @@ OPENROUTER_PROVIDER_ONLY to pin an upstream provider for canonical rows.
 from __future__ import annotations
 
 import json
+import math
 import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -61,6 +63,39 @@ def provider_preferences() -> dict[str, Any]:
     if "OPENROUTER_ZDR" in os.environ:
         preferences["zdr"] = _boolean("OPENROUTER_ZDR", False)
     return preferences
+
+
+def _finite_cost(value: Any) -> float | None:
+    """Return an authoritative finite non-negative provider cost."""
+    try:
+        cost = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(cost) or cost < 0:
+        return None
+    return cost
+
+
+def _generation_cost(base_url: str, api_key: str, generation_id: str) -> float | None:
+    """Recover asynchronously posted OpenRouter cost for one generation."""
+    query = urllib.parse.urlencode({"id": generation_id})
+    request = urllib.request.Request(
+        f"{base_url}/generation?{query}",
+        headers={"Authorization": f"Bearer {api_key}", "User-Agent": "gm-bench-openrouter-agent/1"},
+    )
+    for delay in (0.0, 0.25, 0.5, 1.0, 2.0):
+        if delay:
+            time.sleep(delay)
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                payload = json.loads(response.read().decode())
+        except (urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError):
+            continue
+        record = payload.get("data") if isinstance(payload, dict) else None
+        cost = _finite_cost(record.get("total_cost")) if isinstance(record, dict) else None
+        if cost is not None:
+            return cost
+    return None
 
 
 def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
@@ -124,9 +159,14 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
         )
         # Fixed provider HTTPS endpoint from operator config, not attacker-controlled input.  # nosemgrep
         with urllib.request.urlopen(request, timeout=timeout) as response:
+            response_generation_id = response.headers.get("X-Generation-Id") if hasattr(response, "headers") else None
             data = json.loads(response.read().decode())
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         raw_usage = data.get("usage") or {}
+        generation_id = response_generation_id or data.get("id")
+        cost = _finite_cost(raw_usage.get("cost"))
+        if cost is None and isinstance(generation_id, str) and generation_id:
+            cost = _generation_cost(base_url, api_key, generation_id)
         prompt_details = raw_usage.get("prompt_tokens_details") or {}
         completion_details = raw_usage.get("completion_tokens_details") or {}
         usage = make_usage(
@@ -136,14 +176,14 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
             input_tokens=raw_usage.get("prompt_tokens"),
             output_tokens=raw_usage.get("completion_tokens"),
             total_tokens=raw_usage.get("total_tokens"),
-            cost_usd=raw_usage.get("cost"),
+            cost_usd=cost,
             api_latency_ms=latency_ms,
         )
         assert usage is not None
         choice = data["choices"][0]
         for key, value in {
             "upstream_provider": data.get("provider"),
-            "generation_id": data.get("id"),
+            "generation_id": generation_id,
             "cached_input_tokens": prompt_details.get("cached_tokens"),
             "reasoning_tokens": completion_details.get("reasoning_tokens"),
             # Truncation auditability: the cap-pressure rule needs per-call
@@ -153,6 +193,8 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
         }.items():
             if value is not None:
                 usage[key] = value
+        if cost is None:
+            usage["telemetry_error"] = "OpenRouter returned no authoritative finite generation cost"
         content = choice["message"]["content"]
         try:
             return parse_actions(content), usage

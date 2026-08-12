@@ -26,6 +26,7 @@ from scripts.run_publication_matrix import (
     _cell_reservation_usd,
     _endpoint_issues,
     _panel_artifact_issues,
+    _reconcile_spend_guard,
     _record_failed_cell_reservation,
     _record_ineligible_cell_reservation,
     _reserve_cell,
@@ -178,6 +179,7 @@ def _frozen_panel_files(
         "schema_version": 1,
         "contract": "sota-v3",
         "contract_fingerprint": contract_fingerprint(),
+        "openrouter_scaffold_fingerprint": scaffold_fingerprint("openrouter"),
         "generated_at_utc": "2026-07-30T00:01:00Z",
         "canonical_openrouter_api_base": "https://openrouter.ai/api/v1",
         "completion_calls": 0,
@@ -1966,6 +1968,33 @@ def test_operator_ceiling_rejects_a_run_that_could_outspend_the_committed_cap() 
         publication_runner._enforce_operator_ceiling(ceiling + 0.01, "sota-v3")
     with pytest.raises(ValueError, match=r"\$1200\.00"):
         publication_runner._enforce_operator_ceiling(1200.00, "sota-v3")
+
+
+def test_spend_reconciliation_charges_the_full_unknown_call_reservation(tmp_path: Path) -> None:
+    (tmp_path / "openrouter-budget.json").write_text(json.dumps({"starting_total_usage_usd": 10.0}))
+    state_path = tmp_path / publication_runner.CALL_SPEND_GUARD_STATE
+    state_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "ceiling_usd": 100.0,
+                "reported_spend_usd": 0.001,
+                "active_call_reservation_usd": 0.02,
+                "blocked_reason": "missing cost",
+                "telemetry_error": "lookup exhausted",
+            }
+        )
+    )
+
+    evidence = _reconcile_spend_guard(tmp_path)
+    state = json.loads(state_path.read_text())
+
+    assert evidence["method"] == "charge-full-conservative-call-reservation"
+    assert evidence["reconciled_reported_spend_usd"] == pytest.approx(0.021)
+    assert state["reported_spend_usd"] == pytest.approx(0.021)
+    assert state["active_call_reservation_usd"] == 0
+    assert "blocked_reason" not in state
+    assert (tmp_path / publication_runner.SPEND_RECONCILIATION).is_file()
 
 
 def test_operator_ceiling_stays_permissive_when_no_cap_is_committed(

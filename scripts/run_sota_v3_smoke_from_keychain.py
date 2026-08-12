@@ -23,7 +23,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from gm_bench.benchmark_config import PRIVATE_SEEDS_ENV, seed_panel_hash  # noqa: E402
-from gm_bench.contract import contract_fingerprint  # noqa: E402
+from gm_bench.contract import contract_fingerprint, scaffold_fingerprint  # noqa: E402
 from gm_bench.publication import canonical_sha256, v3_route_acceptance_issues  # noqa: E402
 from scripts.run_publication_matrix import main as publication_main  # noqa: E402
 from scripts.seed_panel_commitment import commitment, parse_ordered_seeds  # noqa: E402
@@ -102,6 +102,7 @@ def _record_readiness(path: Path, *, max_spend_usd: float, mode: str) -> None:
         "schema_version": 1,
         "contract": "sota-v3",
         "contract_fingerprint": fingerprint,
+        "openrouter_scaffold_fingerprint": scaffold_fingerprint("openrouter"),
         "generated_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "canonical_openrouter_api_base": CANONICAL_OPENROUTER_API_BASE,
         "completion_calls": 0,

@@ -289,6 +289,19 @@ class ProviderSpendGuardAgent(Agent):
         ):
             reason = "provider call did not return authoritative finite cost telemetry"
             state["blocked_reason"] = reason
+            if isinstance(usage, dict) and isinstance(usage.get("telemetry_error"), str):
+                state["telemetry_error"] = usage["telemetry_error"][:500]
+            else:
+                adapter_error = next(
+                    (
+                        action.get("error") or action.get("model_error")
+                        for action in actions
+                        if isinstance(action, dict) and (action.get("error") or action.get("model_error"))
+                    ),
+                    None,
+                )
+                if adapter_error is not None:
+                    state["telemetry_error"] = str(adapter_error)[:500]
             # Keep the active reservation: the call may have been billed even
             # though the adapter could not report its cost.
             self._write_state(state)

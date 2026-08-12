@@ -259,6 +259,10 @@ def v3_final_preflight_issues(
     fingerprint = lane.get("contract_fingerprint")
     if evidence.get("contract_fingerprint") != fingerprint or registry.get("contract_fingerprint") != fingerprint:
         issues.append("sota-v3 final-fingerprint preflight evidence is for a different contract")
+    from gm_bench.contract import scaffold_fingerprint
+
+    if evidence.get("openrouter_scaffold_fingerprint") != scaffold_fingerprint("openrouter"):
+        issues.append("sota-v3 final-fingerprint preflight evidence is for a different OpenRouter scaffold")
     if evidence.get("completion_calls") != 0:
         issues.append("sota-v3 final-fingerprint preflight evidence must record zero provider completion calls")
     if evidence.get("canonical_openrouter_api_base") != "https://openrouter.ai/api/v1":
