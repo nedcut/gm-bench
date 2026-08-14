@@ -112,9 +112,13 @@ def test_v4_authorizes_only_serial_strict_smokes() -> None:
         assert record["panel_execution_authorized"] is False
         assert record["publication_authorized"] is False
     assert protocol["budget_policy"]["spend_authorized"] is True
-    assert protocol["budget_policy"]["operator_ceiling_usd"] == 10.0
+    operator_ceiling = protocol["budget_policy"]["operator_ceiling_usd"]
+    assert operator_ceiling == 10.0
     assert lane["final_preflight_evidence"]["status"] == "accepted"
     assert lane["final_preflight_evidence"]["artifact"] == ("results/analysis/sota-v4-final-preflight-evidence.json")
+    assert lane["final_preflight_evidence"]["operator_ceiling_usd"] == operator_ceiling
+    final_preflight = _read(Path(lane["final_preflight_evidence"]["artifact"]))
+    assert final_preflight["keychain_dry_run"]["operator_ceiling_usd"] == operator_ceiling
     assert all("Complete a zero-completion-call final preflight" not in item for item in lane["blockers"])
     assert (
         publication_execution_issues(
