@@ -21,7 +21,7 @@
   "contract": "sota-v4",
   "contract_fingerprint": "247e12fe5a7d4f5b",
   "format": "gm-bench-sota-v4-final-preflight-v1",
-  "generated_at_utc": "2026-08-12T20:50:06+00:00",
+  "generated_at_utc": "2026-08-14T23:17:31+00:00",
   "keychain_dry_run": {
     "commands_constructed": 8,
     "hiding_commitment_verified": true,
@@ -35,7 +35,7 @@
       "openrouter-deepseek-v4-flash-0731-cloudflare",
       "openrouter-hy3-tencent"
     ],
-    "operator_ceiling_usd": 100.0,
+    "operator_ceiling_usd": 10.0,
     "private_seed_values_included": false,
     "seed_panel_sha256": "291fa61cc3dfd8b23fdd79cce3c80a0a98f918f6c8757d35c21b4d8131cc6099",
     "status": "passed"
@@ -43,9 +43,9 @@
   "openrouter_scaffold_fingerprint": "2462b25854c1298b",
   "route_preflight": {
     "evidence_artifact": "results/analysis/sota-v4-route-acceptance-evidence.json",
-    "evidence_sha256": "d8208aecf1189463be2ecbc1c0dcfe2c852080f1de4f1e6cd01c207baf844e51",
+    "evidence_sha256": "5c2f6d425721a04758026cf73f707108cff87897f5c07fd5857723ea11519527",
     "status": "accepted",
-    "verified_at_utc": "2026-08-12T20:49:34+00:00"
+    "verified_at_utc": "2026-08-14T23:17:18+00:00"
   },
   "schema_version": 1
 }

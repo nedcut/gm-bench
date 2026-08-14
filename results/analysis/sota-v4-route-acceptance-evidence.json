@@ -8,7 +8,7 @@
   "contract": "sota-v4",
   "contract_fingerprint": "247e12fe5a7d4f5b",
   "format": "gm-bench-route-acceptance-evidence-v1",
-  "generated_at_utc": "2026-08-12T20:49:34+00:00",
+  "generated_at_utc": "2026-08-14T23:17:18+00:00",
   "official_policy_sources": [
     "https://openrouter.ai/docs/guides/features/zdr",
     "https://openrouter.ai/docs/guides/privacy/provider-logging/",
@@ -44,8 +44,8 @@
           "verbosity"
         ],
         "tag": "amazon-bedrock/global",
-        "uptime_last_1d": 99.88650317719572,
-        "uptime_last_30m": 99.95409685563462
+        "uptime_last_1d": 99.91965088117469,
+        "uptime_last_30m": 99.98252155674669
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -59,7 +59,7 @@
     "openrouter-deepseek-v4-flash-0731-cloudflare": {
       "authenticated_metadata_read": true,
       "endpoint": {
-        "max_completion_tokens": 384000,
+        "max_completion_tokens": 1048576,
         "name": "Cloudflare | deepseek/deepseek-v4-flash-20260731",
         "provider_name": "Cloudflare",
         "status": 0,
@@ -86,7 +86,7 @@
           "top_p"
         ],
         "tag": "cloudflare",
-        "uptime_last_1d": 99.91786295770437,
+        "uptime_last_1d": 99.97952531048789,
         "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
@@ -117,8 +117,8 @@
           "tools"
         ],
         "tag": "openai",
-        "uptime_last_1d": 99.7617396740925,
-        "uptime_last_30m": 99.60275582465935
+        "uptime_last_1d": 99.81835779939672,
+        "uptime_last_30m": 99.87245991373273
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -149,8 +149,8 @@
           "tools"
         ],
         "tag": "tencent/fp8",
-        "uptime_last_1d": 99.8095503699405,
-        "uptime_last_30m": 99.57381318811413
+        "uptime_last_1d": 99.66441189194872,
+        "uptime_last_30m": 98.95356442119032
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -179,8 +179,8 @@
           "top_p"
         ],
         "tag": "minimax/fp8",
-        "uptime_last_1d": 99.64857697312436,
-        "uptime_last_30m": 99.49732446894762
+        "uptime_last_1d": 99.32339853177795,
+        "uptime_last_30m": 97.52650176678446
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -215,8 +215,8 @@
           "top_p"
         ],
         "tag": "mistral",
-        "uptime_last_1d": 99.98347602474466,
-        "uptime_last_30m": 100
+        "uptime_last_1d": 99.99280739399897,
+        "uptime_last_30m": 99.82758620689656
       },
       "output_cap_verification_status": "request-cap-pending-strict-smoke",
       "provider_policy": {
@@ -254,8 +254,8 @@
           "top_p"
         ],
         "tag": "alibaba",
-        "uptime_last_1d": 99.99877699777414,
-        "uptime_last_30m": 99.97325130399894
+        "uptime_last_1d": 99.99984681841856,
+        "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -287,7 +287,7 @@
           "top_p"
         ],
         "tag": "upstage",
-        "uptime_last_1d": 100,
+        "uptime_last_1d": 99.99843618704871,
         "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
