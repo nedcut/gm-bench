@@ -102,19 +102,23 @@ def test_v4_replacement_and_route_selection_are_predata() -> None:
     assert all("deliberately false or unresolved" not in item for item in registry["public_metadata_limitations"])
 
 
-def test_v4_authorizes_only_zero_spend_route_preflight() -> None:
+def test_v4_authorizes_only_serial_strict_smokes() -> None:
     lane, registry, protocol, pricing, manifest = _configs()
 
     assert all(record["route_preflight_authorized"] is True for record in (lane, registry, protocol, pricing))
     for record in (lane, registry, protocol, pricing):
-        assert record["spend_authorized"] is False
-        assert record["smoke_execution_authorized"] is False
+        assert record["spend_authorized"] is True
+        assert record["smoke_execution_authorized"] is True
         assert record["panel_execution_authorized"] is False
         assert record["publication_authorized"] is False
-    assert protocol["budget_policy"]["spend_authorized"] is False
-    assert protocol["budget_policy"]["operator_ceiling_usd"] == 100.0
+    assert protocol["budget_policy"]["spend_authorized"] is True
+    operator_ceiling = protocol["budget_policy"]["operator_ceiling_usd"]
+    assert operator_ceiling == 10.0
     assert lane["final_preflight_evidence"]["status"] == "accepted"
     assert lane["final_preflight_evidence"]["artifact"] == ("results/analysis/sota-v4-final-preflight-evidence.json")
+    assert lane["final_preflight_evidence"]["operator_ceiling_usd"] == operator_ceiling
+    final_preflight = _read(Path(lane["final_preflight_evidence"]["artifact"]))
+    assert final_preflight["keychain_dry_run"]["operator_ceiling_usd"] == operator_ceiling
     assert all("Complete a zero-completion-call final preflight" not in item for item in lane["blockers"])
     assert (
         publication_execution_issues(
@@ -143,8 +147,7 @@ def test_v4_authorizes_only_zero_spend_route_preflight() -> None:
         protocol=protocol,
         pricing=pricing,
     )
-    assert any("spend is explicitly authorized" in issue for issue in smoke_issues)
-    assert any("smoke_execution_authorized is false" in issue for issue in smoke_issues)
+    assert smoke_issues == []
     assert any("panel_execution_authorized is false" in issue for issue in panel_issues)
     assert any("smoke manifest is not accepted" in issue for issue in panel_issues)
 
@@ -155,7 +158,7 @@ def test_v4_final_preflight_status_cannot_bypass_artifact_validation() -> None:
         "status": "accepted",
         "artifact": "results/analysis/missing-v4-final-preflight.json",
         "sha256": "0" * 64,
-        "operator_ceiling_usd": 100.0,
+        "operator_ceiling_usd": 10.0,
     }
 
     issues = v3_final_preflight_issues(lane, registry, protocol, contract="sota-v4")
@@ -190,8 +193,8 @@ def test_v4_cost_artifact_regenerates_and_ceiling_covers_smoke_only() -> None:
     assert protocol["budget_policy"]["cost_estimate_artifact"] == str(COST_ARTIFACT)
     protocol_maximum_smoke = committed["protocol_maximum"]["costs_usd"]["smoke"]
     assert protocol_maximum_smoke == pytest.approx(6.67548672)
-    assert protocol_maximum_smoke < protocol["budget_policy"]["operator_ceiling_usd"] == 100.0
-    assert committed["protocol_maximum"]["costs_usd"]["panel"] > 100.0
+    assert protocol_maximum_smoke < protocol["budget_policy"]["operator_ceiling_usd"] == 10.0
+    assert committed["protocol_maximum"]["costs_usd"]["panel"] > 10.0
 
 
 def test_v4_empty_smoke_manifest_keeps_panel_locked() -> None:
@@ -200,7 +203,7 @@ def test_v4_empty_smoke_manifest_keeps_panel_locked() -> None:
     assert manifest["status"] == "not-started"
     assert manifest["entries"] == {}
     assert manifest["accepted_for_panel"] is False
-    assert lane["smoke_execution_authorized"] is False
+    assert lane["smoke_execution_authorized"] is True
     assert lane["panel_execution_authorized"] is False
     assert protocol["panel_execution_authorized"] is False
     assert protocol["publication_authorized"] is False

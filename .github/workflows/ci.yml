@@ -115,7 +115,7 @@ jobs:
           PY
           )"
             case "$version" in
-              sota-v1|sota-v2|sota-v3) ;;
+              sota-v1|sota-v2|sota-v3|sota-v4) ;;
               *)
                 echo "::error file=$result::unknown benchmark_version '$version'; no validation policy applies"
                 exit 1
@@ -172,6 +172,15 @@ jobs:
             --output /tmp/sota-v3-pre-smoke-cost.regen.json
           if ! diff -u results/analysis/sota-v3-pre-smoke-cost-estimate.json /tmp/sota-v3-pre-smoke-cost.regen.json; then
             echo "::error::results/analysis/sota-v3-pre-smoke-cost-estimate.json is stale; regenerate it from the committed v3 registry, lane, and pricing snapshot"
+            exit 1
+          fi
+          python scripts/estimate_publication_cost.py \
+            --models-config config/sota_v4_models.json \
+            --lane-config config/sota_v4_lane.json \
+            --pricing config/sota_v4_pricing_snapshot.json \
+            --output /tmp/sota-v4-pre-smoke-cost.regen.json
+          if ! diff -u results/analysis/sota-v4-pre-smoke-cost-estimate.json /tmp/sota-v4-pre-smoke-cost.regen.json; then
+            echo "::error::results/analysis/sota-v4-pre-smoke-cost-estimate.json is stale; regenerate it from the committed v4 registry, lane, and pricing snapshot"
             exit 1
           fi
       - name: Verify archived v1 evidence
