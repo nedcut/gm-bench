@@ -102,7 +102,7 @@ def test_v4_replacement_and_route_selection_are_predata() -> None:
     assert all("deliberately false or unresolved" not in item for item in registry["public_metadata_limitations"])
 
 
-def test_v4_relocks_paid_execution_during_qwen_recovery() -> None:
+def test_v4_keeps_paid_execution_locked_after_qwen_recovery() -> None:
     lane, registry, protocol, pricing, manifest = _configs()
 
     assert all(record["route_preflight_authorized"] is True for record in (lane, registry, protocol, pricing))
@@ -114,12 +114,23 @@ def test_v4_relocks_paid_execution_during_qwen_recovery() -> None:
     assert protocol["budget_policy"]["spend_authorized"] is False
     operator_ceiling = protocol["budget_policy"]["operator_ceiling_usd"]
     assert operator_ceiling == 10.0
-    assert lane["final_preflight_evidence"]["status"] == "pending"
+    assert lane["final_preflight_evidence"]["status"] == "accepted"
     assert lane["final_preflight_evidence"]["artifact"] == ("results/analysis/sota-v4-final-preflight-evidence.json")
     assert lane["final_preflight_evidence"]["operator_ceiling_usd"] == operator_ceiling
     final_preflight = _read(Path(lane["final_preflight_evidence"]["artifact"]))
     assert final_preflight["keychain_dry_run"]["operator_ceiling_usd"] == operator_ceiling
     assert any("Qwen/Alibaba HTTP 400" in item for item in lane["blockers"])
+    assert any("separate owner decision" in item for item in lane["blockers"])
+    assert (
+        v3_final_preflight_issues(
+            lane,
+            registry,
+            protocol,
+            contract="sota-v4",
+            repo_root=Path.cwd(),
+        )
+        == []
+    )
     assert (
         publication_execution_issues(
             lane,
@@ -149,7 +160,7 @@ def test_v4_relocks_paid_execution_during_qwen_recovery() -> None:
     )
     assert any("spend is explicitly authorized" in issue for issue in smoke_issues)
     assert any("smoke_execution_authorized is false" in issue for issue in smoke_issues)
-    assert any("final-fingerprint preflight evidence is not accepted" in issue for issue in smoke_issues)
+    assert all("final-fingerprint preflight evidence" not in issue for issue in smoke_issues)
     assert any("panel_execution_authorized is false" in issue for issue in panel_issues)
     assert any("smoke manifest is not accepted" in issue for issue in panel_issues)
 

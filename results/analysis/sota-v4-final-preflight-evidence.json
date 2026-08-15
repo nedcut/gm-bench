@@ -21,7 +21,7 @@
   "contract": "sota-v4",
   "contract_fingerprint": "247e12fe5a7d4f5b",
   "format": "gm-bench-sota-v4-final-preflight-v1",
-  "generated_at_utc": "2026-08-14T23:17:31+00:00",
+  "generated_at_utc": "2026-08-15T00:03:41+00:00",
   "keychain_dry_run": {
     "commands_constructed": 8,
     "hiding_commitment_verified": true,
@@ -40,7 +40,7 @@
     "seed_panel_sha256": "291fa61cc3dfd8b23fdd79cce3c80a0a98f918f6c8757d35c21b4d8131cc6099",
     "status": "passed"
   },
-  "openrouter_scaffold_fingerprint": "2462b25854c1298b",
+  "openrouter_scaffold_fingerprint": "f04724717cc09caf",
   "route_preflight": {
     "evidence_artifact": "results/analysis/sota-v4-route-acceptance-evidence.json",
     "evidence_sha256": "5c2f6d425721a04758026cf73f707108cff87897f5c07fd5857723ea11519527",

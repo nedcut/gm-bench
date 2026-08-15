@@ -111,13 +111,13 @@
   "panel_execution_authorized": false,
   "publication_authorized": false,
   "blockers": [
-    "Diagnose the first sota-v4 Qwen/Alibaba HTTP 400 from sanitized provider detail, reconcile its unresolved call reservation, and refresh final-preflight evidence before any owner decision on the one remaining infrastructure attempt.",
+    "The first sota-v4 Qwen/Alibaba HTTP 400 detail is unrecoverable because the prior adapter discarded its response body. Recovery diagnostics are installed, the unresolved call reservation is conservatively reconciled, and final-preflight evidence is refreshed; obtain a separate owner decision before using the one remaining infrastructure attempt.",
     "Keep panel execution and publication locked until every required strict smoke is independently accepted and a separate owner decision authorizes the panel."
   ],
   "final_preflight_evidence": {
-    "status": "pending",
+    "status": "accepted",
     "artifact": "results/analysis/sota-v4-final-preflight-evidence.json",
-    "sha256": "731c1666a6e1688406324e823ffeb4c6985e0ac8ecfa24c722638e52823592e1",
+    "sha256": "2de09430d8011eda05d7de665b8156a634f6cadc95d1beed3d06b7bcad4e042a",
     "contract_fingerprint": "247e12fe5a7d4f5b",
     "completion_calls": 0,
     "operator_ceiling_usd": 10.0
