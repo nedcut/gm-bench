@@ -61,7 +61,7 @@ def test_current_and_historical_sota_policies_are_distinct() -> None:
     assert SOTA_V4_POLICY.expected_contract == benchmark_contract()
     assert SOTA_V3_POLICY.expected_scaffold_fingerprints["openrouter"] == "2462b25854c1298b"
     assert SOTA_V3_POLICY.expected_scaffold_fingerprints["openai"] == "8275269195e00191"
-    assert SOTA_V4_POLICY.expected_scaffold_fingerprints["openrouter"] == "2462b25854c1298b"
+    assert SOTA_V4_POLICY.expected_scaffold_fingerprints["openrouter"] == "f04724717cc09caf"
 
 
 def test_archived_v1_result_remains_auditable_but_not_v2_eligible() -> None:

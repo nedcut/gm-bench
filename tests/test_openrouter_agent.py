@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import urllib.error
+from io import BytesIO
 
 from examples import openrouter_agent
 
@@ -218,6 +219,74 @@ def test_choose_actions_network_filtered_and_config_errors_return_fallback(monke
     actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
     assert "api_error" in actions[0]["model_error"]
     assert usage["api_latency_ms"] >= 0
+
+
+def test_choose_actions_persists_only_sanitized_http_error_detail(monkeypatch) -> None:
+    body = BytesIO(
+        json.dumps(
+            {
+                "error": {
+                    "code": 400,
+                    "message": "reasoning.enabled is not supported for this route test-key",
+                    "metadata": {
+                        "provider_name": "Alibaba",
+                        "error_type": "invalid_request",
+                        "provider_code": "unsupported_parameter",
+                        "raw": "private prompt material that must not be persisted",
+                    },
+                }
+            }
+        ).encode()
+    )
+    error = urllib.error.HTTPError(
+        "https://openrouter.ai/api/v1/chat/completions",
+        400,
+        "Bad Request",
+        {},
+        body,
+    )
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setattr(
+        openrouter_agent.urllib.request,
+        "urlopen",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(error),
+    )
+
+    actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+
+    detail = usage["telemetry_error"]
+    assert actions[0]["model_error"] == detail
+    assert "HTTP 400 Bad Request" in detail
+    assert "reasoning.enabled is not supported" in detail
+    assert "error_type=invalid_request" in detail
+    assert "provider_code=unsupported_parameter" in detail
+    assert "provider=Alibaba" in detail
+    assert "test-key" not in detail
+    assert "private prompt material" not in detail
+
+
+def test_choose_actions_recovers_charged_http_error_cost(monkeypatch) -> None:
+    error = urllib.error.HTTPError(
+        "https://openrouter.ai/api/v1/chat/completions",
+        400,
+        "Bad Request",
+        {"X-Generation-Id": "gen-error"},
+        BytesIO(b'{"error":{"code":400,"message":"provider rejected request"}}'),
+    )
+
+    def fake_urlopen(request: object, **_kwargs: object):
+        if "/generation?" in request.full_url:
+            return _GenerationResponse({"data": {"total_cost": 0.0025}})
+        raise error
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setattr(openrouter_agent.urllib.request, "urlopen", fake_urlopen)
+
+    actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
+
+    assert "provider rejected request" in actions[0]["model_error"]
+    assert usage["generation_id"] == "gen-error"
+    assert usage["cost_usd"] == 0.0025
 
 
 def test_parse_failure_preserves_paid_usage(monkeypatch) -> None:
