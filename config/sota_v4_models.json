@@ -534,7 +534,7 @@
     "Mistral's null catalog maximum defers 4,096-token request-cap verification to its strict smoke."
   ],
   "unresolved_decisions": [
-    "Resolve Qwen request compatibility only after sanitized provider-error diagnostics, conservative spend reconciliation, refreshed zero-call evidence, and a separate owner decision on its one remaining infrastructure attempt.",
+    "Qwen request compatibility remains unresolved because the first sota-v4 HTTP 400 detail was discarded by the prior adapter. Sanitized diagnostics, conservative spend reconciliation, and refreshed zero-call evidence are complete; a separate owner decision is required before its one remaining infrastructure attempt.",
     "Verify Mistral's 4,096-token request cap only through its authorized strict smoke."
   ],
   "spend_authorized": false,

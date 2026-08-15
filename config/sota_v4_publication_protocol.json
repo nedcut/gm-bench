@@ -66,7 +66,7 @@
     "operator_ceiling_usd": 10.0,
     "spend_enforcement": "dynamic-pre-provider-call",
     "operator_ceiling_basis": "The owner-set $10 smoke ceiling covers the generated $6.67548672 protocol-maximum smoke estimate while keeping the authorization narrowly bounded. The ceiling applies only to the eight serial strict smokes; panel and publication remain unauthorized.",
-    "remaining_blocker": "The first Qwen smoke attempt failed with HTTP 400 before producing a generation. Paid execution is re-locked until its reservation is reconciled, final-preflight evidence is refreshed at the new scaffold fingerprint, and the owner separately decides whether to use the one remaining infrastructure attempt."
+    "remaining_blocker": "The first Qwen smoke attempt failed with HTTP 400 before producing a generation. Its reservation is conservatively reconciled and final-preflight evidence is refreshed at the new scaffold fingerprint; paid execution remains re-locked until the owner separately decides whether to use the one remaining infrastructure attempt."
   },
   "route_preflight_authorized": true,
   "spend_authorized": false,

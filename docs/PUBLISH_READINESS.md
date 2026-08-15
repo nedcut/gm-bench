@@ -13,8 +13,9 @@
 `sota-v4` preregistration. Five of eight v3 routes were accepted; v3 panel and
 publication remain locked. The first paid v4 Qwen/Alibaba request returned
 HTTP 400 without a generation or settled account charge. Paid execution is
-re-locked while that attempt is diagnosed and reconciled; v4 panel and
-publication remain false.
+re-locked after conservative reconciliation and a fresh zero-call preflight;
+using Qwen's final infrastructure attempt requires a separate owner decision.
+V4 panel and publication remain false.
 **Current state:** The frozen phase-one public panel, blog, GitHub release, and
 results-first site are published. Eight of ten
 `sota-v2`-registered models produced route-matched, cost-complete `sota-v2`
@@ -65,9 +66,12 @@ operator ceiling. The owner authorized the eight serial strict smokes on
 2026-08-14, but the first Qwen attempt stopped the sequence. The adapter now
 preserves only bounded, allowlisted provider error detail and reconciliation
 records a contemporaneous aggregate account delta without treating it as
-per-call settlement. A fresh final preflight and separate owner decision are
-required before Qwen's one remaining infrastructure attempt. Panel and
-publication remain unauthorized.
+per-call settlement. The unresolved call bound was conservatively charged as
+spent after a live `$0.00` aggregate account delta, and fresh Keychain-backed
+command construction plus authenticated route-and-price preflight passed at
+OpenRouter scaffold fingerprint `f04724717cc09caf` with zero completion calls.
+Paid execution remains locked pending a separate owner decision on Qwen's one
+remaining infrastructure attempt. Panel and publication remain unauthorized.
 
 Pre-data amendment 4 (2026-08-09) makes the cap-pressure rule terminal on its
 first trigger: any truncation or call
@@ -947,6 +951,7 @@ decision and why.
 
 | Date | Decision | Evidence / rationale | Effect |
 | --- | --- | --- | --- |
+| 2026-08-14 | Complete the fail-closed Qwen reconciliation and refresh the zero-call handoff without authorizing a retry. | A live credits read observed total account usage `$61.234034455` and `$0.00` run delta. The reconciliation did not treat that aggregate delta as per-call settlement; it charged the full unresolved `$0.1832184` call bound as spent, cleared the active call reservation, and retained the cell's attempt/reservation ledger. Keychain-backed command construction and authenticated route-plus-price preflight then passed for all eight routes at contract fingerprint `247e12fe5a7d4f5b` and OpenRouter scaffold fingerprint `f04724717cc09caf`, recording zero completion calls. | The adapter can capture bounded provider detail on a future failure and the guard is internally reconciled, but the original HTTP 400 detail remains unrecoverable. Spend and smoke remain false pending a separate owner decision on Qwen's second and final infrastructure attempt; panel and publication remain false. |
 | 2026-08-14 | Stop SOTA-v4 after the first Qwen/Alibaba strict-smoke attempt and re-lock paid execution. | One provider request returned HTTP 400 with no generation or authoritative per-call cost. The guard retained a `$0.1832184` call reservation, the cell ledger retained `$0.38953`, the checkpoint contains zero episodes and decisions, and two account reads showed `$0.00` run delta. The second reported model failure was the local fail-closed guard, not another provider call. No later model launched. | Preserve attempt 1 as infrastructure-only evidence. Add sanitized HTTP error diagnostics and aggregate-delta reconciliation evidence, refresh the OpenRouter scaffold and final preflight, then require a separate owner decision before using Qwen's final infrastructure attempt. Spend and smoke are false again; panel and publication remain false. |
 | 2026-08-14 | Authorize only the eight serial SOTA-v4 strict smokes under a $10 operator ceiling. | The owner explicitly authorized the proposed smoke sequence. Fresh authenticated route/privacy evidence, Keychain-backed command construction, and live route-plus-price preflight passed for all eight routes with zero completion calls at contract fingerprint `247e12fe5a7d4f5b` and OpenRouter scaffold fingerprint `2462b25854c1298b`. The generated $6.67548672 protocol-maximum smoke estimate fits below the reduced ceiling. | Spend and strict-smoke flags are true only for the frozen eight-model smoke lane. The runner remains serial, canonical-host pinned, dynamically spend-guarded, and process-locked. Stop on the first failed cell; do not consume a second attempt without diagnosis and reconciliation. Panel execution and publication remain false and require a separate owner decision. |
 | 2026-08-12 | Accept the fresh SOTA-v4 zero-completion route/privacy and final-preflight evidence. | Authenticated metadata covered all eight exact routes, the Keychain-backed dry run constructed all eight commands without exposing the carried private panel, and live route-plus-price preflight passed at contract fingerprint `247e12fe5a7d4f5b` and OpenRouter scaffold fingerprint `2462b25854c1298b`. Both evidence artifacts record zero completion calls. Luna and Solar live prices moved downward, so the frozen reservation remains conservative. | Route and final-preflight evidence are accepted. Spend, strict smoke, panel, and publication remain false; Qwen request compatibility and Mistral request-cap behavior remain strict-smoke questions. |
