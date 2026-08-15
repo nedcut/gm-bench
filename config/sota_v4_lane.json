@@ -105,17 +105,17 @@
   "max_cap_amendments": 0,
   "cap_pressure_threshold_tokens": 3072,
   "fallback_output_token_cap": 8192,
-  "spend_authorized": true,
+  "spend_authorized": false,
   "route_preflight_authorized": true,
-  "smoke_execution_authorized": true,
+  "smoke_execution_authorized": false,
   "panel_execution_authorized": false,
   "publication_authorized": false,
   "blockers": [
-    "Resolve qwen/qwen3.8-max request compatibility through its authorized strict smoke; healthy metadata alone is insufficient and no selective model-behavior rerun is allowed.",
+    "Diagnose the first sota-v4 Qwen/Alibaba HTTP 400 from sanitized provider detail, reconcile its unresolved call reservation, and refresh final-preflight evidence before any owner decision on the one remaining infrastructure attempt.",
     "Keep panel execution and publication locked until every required strict smoke is independently accepted and a separate owner decision authorizes the panel."
   ],
   "final_preflight_evidence": {
-    "status": "accepted",
+    "status": "pending",
     "artifact": "results/analysis/sota-v4-final-preflight-evidence.json",
     "sha256": "731c1666a6e1688406324e823ffeb4c6985e0ac8ecfa24c722638e52823592e1",
     "contract_fingerprint": "247e12fe5a7d4f5b",

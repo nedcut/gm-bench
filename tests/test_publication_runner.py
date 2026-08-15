@@ -2205,10 +2205,11 @@ def test_spend_reconciliation_charges_the_full_unknown_call_reservation(tmp_path
         )
     )
 
-    evidence = _reconcile_spend_guard(tmp_path)
+    evidence = _reconcile_spend_guard(tmp_path, observed_total_usage_usd=10.0)
     state = json.loads(state_path.read_text())
 
     assert evidence["method"] == "charge-full-conservative-call-reservation"
+    assert evidence["observed_account_delta_usd"] == 0.0
     assert evidence["reconciled_reported_spend_usd"] == pytest.approx(0.021)
     assert state["reported_spend_usd"] == pytest.approx(0.021)
     assert state["active_call_reservation_usd"] == 0
@@ -2230,7 +2231,7 @@ def test_repeated_spend_reconciliation_preserves_and_hash_links_prior_evidence(t
             }
         )
     )
-    _reconcile_spend_guard(tmp_path)
+    _reconcile_spend_guard(tmp_path, observed_total_usage_usd=10.0)
     first_path = tmp_path / publication_runner.SPEND_RECONCILIATION
     first_bytes = first_path.read_bytes()
     first_sha = hashlib.sha256(first_bytes).hexdigest()
@@ -2238,7 +2239,7 @@ def test_repeated_spend_reconciliation_preserves_and_hash_links_prior_evidence(t
     state.update(active_call_reservation_usd=0.03, blocked_reason="missing cost two")
     state_path.write_text(json.dumps(state))
 
-    second = _reconcile_spend_guard(tmp_path)
+    second = _reconcile_spend_guard(tmp_path, observed_total_usage_usd=10.0)
     state = json.loads(state_path.read_text())
     second_path = tmp_path / "openrouter-spend-reconciliation-2.json"
 
@@ -2268,7 +2269,28 @@ def test_spend_reconciliation_rejects_nonfinite_ceiling(tmp_path: Path) -> None:
     )
 
     with pytest.raises(ValueError, match="authorized ceiling"):
-        _reconcile_spend_guard(tmp_path)
+        _reconcile_spend_guard(tmp_path, observed_total_usage_usd=10.0)
+
+    assert not (tmp_path / publication_runner.SPEND_RECONCILIATION).exists()
+
+
+def test_spend_reconciliation_rejects_account_usage_below_run_start(tmp_path: Path) -> None:
+    (tmp_path / "openrouter-budget.json").write_text(json.dumps({"starting_total_usage_usd": 10.0}))
+    state_path = tmp_path / publication_runner.CALL_SPEND_GUARD_STATE
+    state_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "ceiling_usd": 100.0,
+                "reported_spend_usd": 0.0,
+                "active_call_reservation_usd": 0.02,
+                "blocked_reason": "missing cost",
+            }
+        )
+    )
+
+    with pytest.raises(ValueError, match="no less than the run start"):
+        _reconcile_spend_guard(tmp_path, observed_total_usage_usd=9.99)
 
     assert not (tmp_path / publication_runner.SPEND_RECONCILIATION).exists()
 

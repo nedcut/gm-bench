@@ -791,7 +791,7 @@ def _measured_spend_usd(run_dir: Path, env: dict[str, str], budget_start: float)
     return max(account_delta, _artifact_spend_usd(run_dir), float(reported_call_spend))
 
 
-def _reconcile_spend_guard(run_dir: Path) -> dict[str, Any]:
+def _reconcile_spend_guard(run_dir: Path, *, observed_total_usage_usd: float) -> dict[str, Any]:
     """Conservatively absorb an unresolved call reservation as spent."""
     budget_path = run_dir / "openrouter-budget.json"
     state_path = run_dir / CALL_SPEND_GUARD_STATE
@@ -811,6 +811,13 @@ def _reconcile_spend_guard(run_dir: Path) -> dict[str, Any]:
             or float(value) < 0
         ):
             raise ValueError(f"spend reconciliation {label} must be finite and non-negative")
+    if (
+        not isinstance(observed_total_usage_usd, int | float)
+        or isinstance(observed_total_usage_usd, bool)
+        or not math.isfinite(float(observed_total_usage_usd))
+        or float(observed_total_usage_usd) < float(start)
+    ):
+        raise ValueError("spend reconciliation observed account usage must be finite and no less than the run start")
     if not isinstance(blocked_reason, str) or not blocked_reason or float(active) <= 0:
         raise ValueError("spend guard has no unresolved blocked reservation to reconcile")
     reconciled_spend = float(reported) + float(active)
@@ -831,13 +838,18 @@ def _reconcile_spend_guard(run_dir: Path) -> dict[str, Any]:
         "schema_version": 1,
         "reconciled_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "starting_total_usage_usd": float(start),
+        "observed_total_usage_usd": float(observed_total_usage_usd),
+        "observed_account_delta_usd": float(observed_total_usage_usd) - float(start),
         "prior_reported_spend_usd": float(reported),
         "absorbed_unknown_call_spend_usd": float(active),
         "reconciled_reported_spend_usd": reconciled_spend,
         "prior_blocked_reason": blocked_reason,
         "prior_telemetry_error": state.get("telemetry_error"),
         "method": "charge-full-conservative-call-reservation",
-        "note": "The actual provider cost was unavailable; the full pre-call upper bound is charged as spent.",
+        "note": (
+            "The account delta is aggregate audit context and is not used as per-call settlement. "
+            "The actual provider cost was unavailable, so the full pre-call upper bound is charged as spent."
+        ),
     }
     if isinstance(prior_evidence, str) and prior_evidence and isinstance(prior_sha, str) and prior_sha:
         evidence["previous_reconciliation_evidence"] = prior_evidence
@@ -1872,8 +1884,12 @@ def main(argv: list[str] | None = None, *, _paid_run_lock_held: bool = False) ->
         run_dir = args.run_dir.resolve()
         try:
             with _exclusive_paid_run(run_dir):
-                evidence = _reconcile_spend_guard(run_dir)
-        except (OSError, ValueError, json.JSONDecodeError, urllib.error.URLError) as exc:
+                observed_total_usage_usd = _openrouter_usage_usd(dict(os.environ))
+                evidence = _reconcile_spend_guard(
+                    run_dir,
+                    observed_total_usage_usd=observed_total_usage_usd,
+                )
+        except (OSError, RuntimeError, ValueError, json.JSONDecodeError, urllib.error.URLError) as exc:
             parser.error(str(exc))
         print(json.dumps(evidence, sort_keys=True))
         return 0

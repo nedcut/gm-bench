@@ -156,7 +156,7 @@ SOTA_V4_POLICY = ResultPolicy(
         "ollama": "5a3778bf70bd341e",
         "openai": "8275269195e00191",
         "opencode": "815df462b40d1274",
-        "openrouter": "2462b25854c1298b",
+        "openrouter": "f04724717cc09caf",
     },
     max_failed_query_rate=1.0,
 )

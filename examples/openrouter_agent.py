@@ -101,6 +101,38 @@ def _generation_cost(base_url: str, api_key: str, generation_id: str) -> float |
     return None
 
 
+def _http_error_detail(exc: urllib.error.HTTPError, api_key: str) -> tuple[str, str | None]:
+    """Return bounded, allowlisted OpenRouter error detail without request data."""
+    parts = [f"HTTP {exc.code} {exc.reason}"]
+    generation_id = exc.headers.get("X-Generation-Id") if exc.headers is not None else None
+    try:
+        payload = json.loads(exc.read(16_384).decode("utf-8", errors="replace"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        payload = None
+    error = payload.get("error") if isinstance(payload, dict) else None
+    if isinstance(error, dict):
+        code = error.get("code")
+        if isinstance(code, str | int) and not isinstance(code, bool):
+            parts.append(f"code={code}")
+        message = error.get("message")
+        if isinstance(message, str) and message:
+            cleaned = " ".join(message.split()).replace(api_key, "[redacted]")[:300]
+            parts.append(f"message={cleaned}")
+        metadata = error.get("metadata")
+        if isinstance(metadata, dict):
+            for label, key in (
+                ("error_type", "error_type"),
+                ("provider_code", "provider_code"),
+                ("provider", "provider_name"),
+            ):
+                value = metadata.get(key)
+                if isinstance(value, str) and value:
+                    parts.append(f"{label}={value[:100]}")
+    if isinstance(generation_id, str) and generation_id:
+        parts.append(f"generation_id={generation_id[:200]}")
+    return "; ".join(parts), generation_id if isinstance(generation_id, str) and generation_id else None
+
+
 def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
     if observation.get("phase") == "action_results":
         return [{"type": "end_turn"}], None
@@ -157,6 +189,7 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
                 "Authorization": f"Bearer {api_key}",
                 "HTTP-Referer": "https://github.com/nedcut/gm-bench",
                 "X-OpenRouter-Title": "GM-Bench",
+                "X-OpenRouter-Metadata": "enabled",
             },
             method="POST",
         )
@@ -206,6 +239,22 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
             # protocol behavior, not provider infrastructure failure. Keep it
             # as a scored failed decision without tripping the quota breaker.
             return fallback_actions(observation, f"protocol_error: {exc}"), usage
+    except urllib.error.HTTPError as exc:
+        latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
+        detail, generation_id = _http_error_detail(exc, api_key)
+        cost = _generation_cost(base_url, api_key, generation_id) if generation_id is not None else None
+        usage = make_usage(
+            provider="openrouter",
+            model=model,
+            api_calls=1,
+            cost_usd=cost,
+            api_latency_ms=latency_ms,
+        )
+        assert usage is not None
+        usage["telemetry_error"] = f"api_error: {detail}"
+        if generation_id is not None:
+            usage["generation_id"] = generation_id
+        return fallback_actions(observation, f"api_error: {detail}"), usage
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, IndexError, json.JSONDecodeError) as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         if usage is None:
