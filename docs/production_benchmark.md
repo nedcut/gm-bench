@@ -16,8 +16,9 @@ attempts with a reasoning-mandatory HTTP 400, so it has no publishable panel.
 The outcome-independent successor is `sota-v5`, preregistered in
 `config/sota_v5_lane.json`, `config/sota_v5_models.json`, and
 `config/sota_v5_publication_protocol.json`. V5 retains seven non-Qwen v4
-identities and replaces that slot with Google Gemini 3.7 Flash on a provisional
-Google Vertex global route selected from public metadata before any v5 result.
+identities and replaces that slot with Google Gemini 3.7 Flash. A pre-data
+zero-completion metadata check amended its provisional Vertex route to the
+policy-selected Google AI Studio route before any v5 result.
 The replacement is not a v4 amendment and no v4 data carries forward.
 
 The v5 contract freezes the same unused hidden 16-seed commitment, with an

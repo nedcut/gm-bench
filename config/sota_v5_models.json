@@ -19,7 +19,7 @@
     "https://openrouter.ai/api/v1/models/{model_id}/endpoints",
     "docs/ROUTE_SUBSTITUTION_POLICY.md"
   ],
-  "selection_policy": "Outcome-independent successor to terminal sota-v4: retain its seven non-Qwen identities and replace the terminal Qwen slot with Google Gemini 3.7 Flash on the public Google Vertex global route. This replacement was selected from public catalog metadata before any sota-v5 route, smoke, panel, or result evidence. No sota-v4 result is used to rank or tune the replacement. Every exact route, privacy setting, reasoning-disabled behavior, JSON behavior, and request-cap behavior requires fresh authenticated zero-completion preflight and one separately authorized strict smoke.",
+  "selection_policy": "Outcome-independent successor to terminal sota-v4: retain its seven non-Qwen identities and replace the terminal Qwen slot with Google Gemini 3.7 Flash on the public Google AI Studio route. This replacement was selected from public catalog metadata before any sota-v5 route, smoke, panel, or result evidence. No sota-v4 result is used to rank or tune the replacement. Every exact route, privacy setting, reasoning-disabled behavior, JSON behavior, and request-cap behavior requires fresh authenticated zero-completion preflight and one separately authorized strict smoke.",
   "replacement_selection_rule": {
     "status": "frozen-before-v5-provider-evidence",
     "hard_eligibility": "Stable exact non-alias text-generation snapshot; optional reasoning with an advertised disabled path; response_format and max_tokens support; at least 4,096 completion tokens; general-purpose rather than safety, roleplay, or narrow-modality specialization.",
@@ -35,7 +35,7 @@
       "OpenRouter popularity"
     ],
     "selected_model": "google/gemini-3.7-flash",
-    "selected_route": "google-vertex/global"
+    "selected_route": "google-ai-studio"
   },
   "models": [
     {
@@ -120,27 +120,28 @@
       "role": "Retained v4 same-model FP8 identity; fresh v5 route acceptance required."
     },
     {
-      "id": "openrouter-gemini-3.7-flash-google-vertex-global",
+      "id": "openrouter-gemini-3.7-flash-google-ai-studio",
       "provider": "openrouter",
       "model": "google/gemini-3.7-flash",
       "canonical_slug": "google/gemini-3.7-flash-20260813",
       "transport": "gateway-api",
       "cohort": "frontier-proprietary",
-      "upstream_provider": "Google Vertex",
-      "upstream_provider_slug": "google-vertex/global",
-      "endpoint_tag": "google-vertex/global",
-      "endpoint_name": "Google Vertex | google/gemini-3.7-flash-20260813",
+      "upstream_provider": "Google AI Studio",
+      "upstream_provider_slug": "google-ai-studio",
+      "endpoint_tag": "google-ai-studio",
+      "endpoint_name": "Google AI Studio | google/gemini-3.7-flash-20260813",
       "catalog_route_status": 0,
       "catalog_quantization": "unknown",
       "catalog_max_completion_tokens": 65536,
-      "catalog_uptime_last_30m": 99.76492327844312,
-      "catalog_uptime_last_1d": 99.45657068003108,
+      "catalog_uptime_last_30m": 99.31597947938438,
+      "catalog_uptime_last_1d": 99.6568375762854,
       "catalog_supported_parameters": ["reasoning", "include_reasoning", "max_tokens", "seed", "response_format", "stop", "structured_outputs", "tools", "tool_choice", "reasoning_effort"],
       "reasoning_policy": "disabled",
       "reasoning_effort": null,
       "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
       "absent_options": ["OPENROUTER_REASONING_EFFORT"],
-      "role": "Pre-data replacement for terminal v4 Qwen slot, selected before v5 outcomes from public metadata only. Exact route, privacy, and reasoning-disabled behavior remain unaccepted until zero-call authenticated preflight and strict smoke."
+      "catalog_discount": 0,
+      "role": "Pre-data replacement for terminal v4 Qwen slot, selected before v5 outcomes from public metadata only. Google AI Studio was selected over Google Vertex global by the frozen highest-public-24-hour-uptime route rule; price was excluded from selection. Exact route, privacy, and reasoning-disabled behavior remain unaccepted until zero-call authenticated preflight and strict smoke."
     },
     {
       "id": "openrouter-mistral-medium-3.5-mistral",
@@ -222,7 +223,7 @@
     "openrouter-claude-sonnet-5-bedrock",
     "openrouter-solar-pro4-upstage",
     "openrouter-minimax-m3-minimax",
-    "openrouter-gemini-3.7-flash-google-vertex-global",
+    "openrouter-gemini-3.7-flash-google-ai-studio",
     "openrouter-mistral-medium-3.5-mistral",
     "openrouter-deepseek-v4-flash-0731-cloudflare",
     "openrouter-hy3-tencent"

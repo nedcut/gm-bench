@@ -77,8 +77,12 @@ def test_v5_replaces_qwen_before_any_v5_data() -> None:
     assert "qwen/qwen3.8-max" not in models
     assert "z-ai/glm-5.2" not in models
     replacement = models["google/gemini-3.7-flash"]
-    assert replacement["id"] == "openrouter-gemini-3.7-flash-google-vertex-global"
-    assert replacement["endpoint_tag"] == "google-vertex/global"
+    assert replacement["id"] == "openrouter-gemini-3.7-flash-google-ai-studio"
+    assert replacement["endpoint_tag"] == "google-ai-studio"
+    assert replacement["upstream_provider"] == "Google AI Studio"
+    assert replacement["endpoint_name"] == "Google AI Studio | google/gemini-3.7-flash-20260813"
+    assert replacement["catalog_uptime_last_1d"] == 99.6568375762854
+    assert replacement["catalog_uptime_last_30m"] == 99.31597947938438
     assert replacement["reasoning_policy"] == "disabled"
     assert replacement["fixed_options"] == {"OPENROUTER_REASONING_ENABLED": "false"}
     rule = registry["replacement_selection_rule"]
@@ -88,7 +92,7 @@ def test_v5_replaces_qwen_before_any_v5_data() -> None:
     assert "GM-Bench score or behavior" in rule["excluded_selection_inputs"]
     assert "price" in rule["excluded_selection_inputs"]
     assert protocol["selection_and_lineage"] == {
-        "replacement_model_id": "openrouter-gemini-3.7-flash-google-vertex-global",
+        "replacement_model_id": "openrouter-gemini-3.7-flash-google-ai-studio",
         "replaced_terminal_model_id": "openrouter-qwen3.8-max-alibaba",
         "selection_basis": "public-catalog-metadata-before-v5-data",
         "owner_attestation_required": True,
@@ -193,8 +197,8 @@ def test_v5_cost_artifact_covers_the_ten_dollar_smoke_ceiling() -> None:
         "smoke_calls": 32,
         "total_calls": 2592,
     }
-    assert estimate["protocol_maximum"]["costs_usd"]["smoke"] == pytest.approx(5.47964672)
-    assert estimate["protocol_maximum"]["costs_usd"]["total_with_contingency"] == pytest.approx(532.621661184)
+    assert estimate["protocol_maximum"]["costs_usd"]["smoke"] == pytest.approx(5.90684672)
+    assert estimate["protocol_maximum"]["costs_usd"]["total_with_contingency"] == pytest.approx(574.145501184)
     assert (
         estimate["protocol_maximum"]["costs_usd"]["smoke"] * 1.2
         < protocol["budget_policy"]["operator_ceiling_usd"]
