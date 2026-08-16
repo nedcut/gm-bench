@@ -30,6 +30,7 @@ from scripts.run_publication_matrix import (
     _reconcile_spend_guard,
     _record_failed_cell_reservation,
     _record_ineligible_cell_reservation,
+    _require_paid_smoke_attempt_authorized,
     _reserve_cell,
     _settle_cell_reservation,
     _write_run_state,
@@ -75,6 +76,31 @@ def test_v4_publication_paths_and_strict_capabilities_are_explicit() -> None:
     assert publication_runner.AUTHENTICATED_ROUTE_CONTRACTS == {"sota-v3", "sota-v4"}
 
 
+def test_v4_paid_smoke_authorization_is_qwen_only_and_one_shot(tmp_path: Path) -> None:
+    publication_runner._select_contract_config("sota-v4")
+    qwen = build_cells("route-preflight", model_id="openrouter-qwen3.8-max-alibaba")[0]
+    other = build_cells("route-preflight", model_id="openrouter-gpt-5.6-luna-openai")[0]
+    reservation_path = tmp_path / "openrouter-reservations.json"
+    reservation = {
+        "schema_version": 1,
+        "cells": {
+            f"{qwen.experiment_id}--{qwen.cap_label}": {
+                "attempts": 1,
+                "status": "active",
+            }
+        },
+    }
+    reservation_path.write_text(json.dumps(reservation))
+
+    _require_paid_smoke_attempt_authorized([qwen], tmp_path)
+    with pytest.raises(ValueError, match="permits only openrouter-qwen3.8-max-alibaba"):
+        _require_paid_smoke_attempt_authorized([other], tmp_path)
+    reservation["cells"][f"{qwen.experiment_id}--{qwen.cap_label}"]["attempts"] = 2
+    reservation_path.write_text(json.dumps(reservation))
+    with pytest.raises(ValueError, match="requires openrouter-qwen3.8-max-alibaba at attempt 1 of 2"):
+        _require_paid_smoke_attempt_authorized([qwen], tmp_path)
+
+
 def _frozen_panel_files(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -88,6 +114,13 @@ def _frozen_panel_files(
     registry["spend_authorized"] = True
     registry["route_preflight_authorized"] = True
     registry["panel_execution_authorized"] = True
+    paid_smoke_authorization = {
+        "scope": "single-model-single-infrastructure-attempt",
+        "model_id": registry["models"][0]["id"],
+        "attempt_number": 1,
+        "remaining_attempts": 1,
+    }
+    registry["paid_smoke_authorization"] = paid_smoke_authorization
     registry["exact_route_acceptance"] = {
         "schema_version": 1,
         "status": "accepted",
@@ -160,6 +193,7 @@ def _frozen_panel_files(
     lane["route_preflight_authorized"] = True
     lane["smoke_execution_authorized"] = True
     lane["panel_execution_authorized"] = True
+    lane["paid_smoke_authorization"] = paid_smoke_authorization
     lane["output_budget_status"] = "frozen-native-reasoning-cap"
     lane["execution_profile_authority"] = "lane"
     lane["headline_lane"] = registry["lane"]
@@ -250,6 +284,7 @@ def _frozen_panel_files(
     )
     protocol["budget_policy"]["spend_authorized"] = True
     protocol["budget_policy"]["operator_ceiling_usd"] = 100.0
+    protocol["paid_smoke_authorization"] = paid_smoke_authorization
     protocol["statistical_analysis_plan"] = {
         "status": "frozen",
         "analysis_mode": "reference-only",
@@ -279,6 +314,7 @@ def _frozen_panel_files(
     )
     pricing["planning_assumptions"]["expected_output_tokens_per_decision"] = lane["output_token_cap"]
     pricing["planning_assumptions"]["cost_contingency_multiplier"] = 1.2
+    pricing["paid_smoke_authorization"] = paid_smoke_authorization
     pricing_path.write_text(json.dumps(pricing))
     manifest_path.write_text(
         json.dumps(
@@ -1747,6 +1783,8 @@ def test_paid_phases_still_abort_on_the_first_bad_route(
                 "smoke",
                 "--contract",
                 BENCHMARK_VERSION,
+                "--model-id",
+                model_ids[0],
                 "--run-dir",
                 str(tmp_path),
                 "--max-spend-usd",

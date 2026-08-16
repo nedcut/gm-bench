@@ -102,16 +102,26 @@ def test_v4_replacement_and_route_selection_are_predata() -> None:
     assert all("deliberately false or unresolved" not in item for item in registry["public_metadata_limitations"])
 
 
-def test_v4_keeps_paid_execution_locked_after_qwen_recovery() -> None:
+def test_v4_authorizes_qwen_recovery_smoke_but_not_panel() -> None:
     lane, registry, protocol, pricing, manifest = _configs()
 
     assert all(record["route_preflight_authorized"] is True for record in (lane, registry, protocol, pricing))
     for record in (lane, registry, protocol, pricing):
-        assert record["spend_authorized"] is False
-        assert record["smoke_execution_authorized"] is False
+        assert record["spend_authorized"] is True
+        assert record["smoke_execution_authorized"] is True
         assert record["panel_execution_authorized"] is False
         assert record["publication_authorized"] is False
-    assert protocol["budget_policy"]["spend_authorized"] is False
+    assert protocol["budget_policy"]["spend_authorized"] is True
+    authorization = lane["paid_smoke_authorization"]
+    assert authorization == registry["paid_smoke_authorization"]
+    assert authorization == protocol["paid_smoke_authorization"]
+    assert authorization == pricing["paid_smoke_authorization"]
+    assert authorization == {
+        "scope": "single-model-single-infrastructure-attempt",
+        "model_id": "openrouter-qwen3.8-max-alibaba",
+        "attempt_number": 2,
+        "remaining_attempts": 1,
+    }
     operator_ceiling = protocol["budget_policy"]["operator_ceiling_usd"]
     assert operator_ceiling == 10.0
     assert lane["final_preflight_evidence"]["status"] == "accepted"
@@ -119,8 +129,8 @@ def test_v4_keeps_paid_execution_locked_after_qwen_recovery() -> None:
     assert lane["final_preflight_evidence"]["operator_ceiling_usd"] == operator_ceiling
     final_preflight = _read(Path(lane["final_preflight_evidence"]["artifact"]))
     assert final_preflight["keychain_dry_run"]["operator_ceiling_usd"] == operator_ceiling
-    assert any("Qwen/Alibaba HTTP 400" in item for item in lane["blockers"])
-    assert any("separate owner decision" in item for item in lane["blockers"])
+    assert any("Qwen/Alibaba's second and final infrastructure attempt" in item for item in lane["blockers"])
+    assert any("Run that model alone" in item for item in lane["blockers"])
     assert (
         v3_final_preflight_issues(
             lane,
@@ -158,9 +168,7 @@ def test_v4_keeps_paid_execution_locked_after_qwen_recovery() -> None:
         protocol=protocol,
         pricing=pricing,
     )
-    assert any("spend is explicitly authorized" in issue for issue in smoke_issues)
-    assert any("smoke_execution_authorized is false" in issue for issue in smoke_issues)
-    assert all("final-fingerprint preflight evidence" not in issue for issue in smoke_issues)
+    assert smoke_issues == []
     assert any("panel_execution_authorized is false" in issue for issue in panel_issues)
     assert any("smoke manifest is not accepted" in issue for issue in panel_issues)
 
@@ -216,7 +224,7 @@ def test_v4_empty_smoke_manifest_keeps_panel_locked() -> None:
     assert manifest["status"] == "not-started"
     assert manifest["entries"] == {}
     assert manifest["accepted_for_panel"] is False
-    assert lane["smoke_execution_authorized"] is False
+    assert lane["smoke_execution_authorized"] is True
     assert lane["panel_execution_authorized"] is False
     assert protocol["panel_execution_authorized"] is False
     assert protocol["publication_authorized"] is False
