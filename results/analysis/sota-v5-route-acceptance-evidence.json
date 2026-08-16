@@ -1,0 +1,298 @@
+{
+  "account_authentication": {
+    "method": "OpenRouter credits metadata endpoint returned success",
+    "sensitive_values_included": false,
+    "status": "authenticated"
+  },
+  "completion_calls": 0,
+  "contract": "sota-v5",
+  "contract_fingerprint": "247e12fe5a7d4f5b",
+  "format": "gm-bench-route-acceptance-evidence-v1",
+  "generated_at_utc": "2026-08-16T20:41:48+00:00",
+  "official_policy_sources": [
+    "https://openrouter.ai/docs/guides/features/zdr",
+    "https://openrouter.ai/docs/guides/privacy/provider-logging/",
+    "https://openrouter.ai/docs/guides/routing/provider-selection",
+    "https://openrouter.ai/docs/api/api-reference/endpoints/list-endpoints-zdr"
+  ],
+  "privacy_standard": {
+    "data_classification": "synthetic-benchmark-no-personal-or-confidential-data",
+    "provider_data_collection": "deny",
+    "provider_retention_terms": "reviewed-and-accepted-for-synthetic-benchmark",
+    "provider_training_use_allowed": false,
+    "zero_data_retention_preferred": true,
+    "zero_data_retention_required": false
+  },
+  "routes": {
+    "openrouter-claude-sonnet-5-bedrock": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 128000,
+        "name": "Amazon Bedrock | anthropic/claude-sonnet-5-20260630",
+        "provider_name": "Amazon Bedrock",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "max_tokens",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "stop",
+          "structured_outputs",
+          "tool_choice",
+          "tools",
+          "verbosity"
+        ],
+        "tag": "amazon-bedrock/global",
+        "uptime_last_1d": 99.95084653194975,
+        "uptime_last_30m": 99.96978851963746
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://aws.amazon.com/privacy",
+        "provider_slug": "amazon-bedrock",
+        "terms_of_service_url": "https://aws.amazon.com/service-terms/"
+      },
+      "route_identity_sha256": "3bd1ca3f39614e3258ae6369eba8c01e28892e1a611f58b6c5b5d5ea3fd7e7d5",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-deepseek-v4-flash-0731-cloudflare": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 1048576,
+        "name": "Cloudflare | deepseek/deepseek-v4-flash-20260731",
+        "provider_name": "Cloudflare",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "logit_bias",
+          "logprobs",
+          "max_tokens",
+          "min_p",
+          "presence_penalty",
+          "reasoning",
+          "reasoning_effort",
+          "repetition_penalty",
+          "response_format",
+          "seed",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_k",
+          "top_logprobs",
+          "top_p"
+        ],
+        "tag": "cloudflare",
+        "uptime_last_1d": 99.9742202597745,
+        "uptime_last_30m": 100
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://developers.cloudflare.com/workers-ai/privacy",
+        "provider_slug": "cloudflare",
+        "terms_of_service_url": "https://www.cloudflare.com/service-specific-terms-developer-platform/#developer-platform-terms"
+      },
+      "route_identity_sha256": "64c945796eb187940d667ff09ff1124dbdaa2e05775d1a42dc868df7d2319f06",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-gemini-3.7-flash-google-ai-studio": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 65536,
+        "name": "Google AI Studio | google/gemini-3.7-flash-20260813",
+        "provider_name": "Google AI Studio",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "max_tokens",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "seed",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_p"
+        ],
+        "tag": "google-ai-studio",
+        "uptime_last_1d": 99.6569159715043,
+        "uptime_last_30m": 99.42076954902772
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://cloud.google.com/terms/cloud-privacy-notice",
+        "provider_slug": "google-ai-studio",
+        "terms_of_service_url": "https://cloud.google.com/terms/"
+      },
+      "route_identity_sha256": "389b381541b96acc7dffabcf308cddc54a4482ae04780fc58d8f5c2a31c0270f",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-gpt-5.6-luna-openai": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 128000,
+        "name": "OpenAI | openai/gpt-5.6-luna-20260709",
+        "provider_name": "OpenAI",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "max_tokens",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "seed",
+          "structured_outputs",
+          "tool_choice",
+          "tools"
+        ],
+        "tag": "openai",
+        "uptime_last_1d": 99.86403034996661,
+        "uptime_last_30m": 99.94592578313735
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://openai.com/policies/privacy-policy/",
+        "provider_slug": "openai",
+        "terms_of_service_url": "https://openai.com/policies/row-terms-of-use/"
+      },
+      "route_identity_sha256": "281057d9a1cd395360c7ac689b7ffdcce43b08a6f941d1f41d1c971616d3e0d2",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-hy3-tencent": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 128000,
+        "name": "Tencent | tencent/hy3-20260706",
+        "provider_name": "Tencent",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "max_completion_tokens",
+          "max_tokens",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "stop",
+          "temperature",
+          "tool_choice",
+          "tools"
+        ],
+        "tag": "tencent/fp8",
+        "uptime_last_1d": 99.83715507556948,
+        "uptime_last_30m": 99.92806402301952
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://www.tencentcloud.com/en/document/product/1300/78952",
+        "provider_slug": "tencent",
+        "terms_of_service_url": "https://www.tencentcloud.com/en/document/product/301/78869"
+      },
+      "route_identity_sha256": "1602f58bfb93ffd3d1edec239fe07dd8ffcba20d890e87c159dc72a04d8b5d63",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-minimax-m3-minimax": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 512000,
+        "name": "Minimax | minimax/minimax-m3-20260531",
+        "provider_name": "Minimax",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "max_tokens",
+          "reasoning",
+          "response_format",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_p"
+        ],
+        "tag": "minimax/fp8",
+        "uptime_last_1d": 98.74767670570402,
+        "uptime_last_30m": 98.41511734227369
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://www.minimax.io/platform/protocol/privacy-policy",
+        "provider_slug": "minimax",
+        "terms_of_service_url": "https://www.minimax.io/platform/protocol/terms-of-service"
+      },
+      "route_identity_sha256": "eeadb123ed5151efdd307a08f5903e51116d31d7aec0f14afdb2b3040c98847a",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-mistral-medium-3.5-mistral": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": null,
+        "name": "Mistral | mistralai/mistral-medium-3.5-20260430",
+        "provider_name": "Mistral",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "max_tokens",
+          "presence_penalty",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "seed",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_p"
+        ],
+        "tag": "mistral",
+        "uptime_last_1d": 99.99600992730088,
+        "uptime_last_30m": 100
+      },
+      "output_cap_verification_status": "request-cap-pending-strict-smoke",
+      "provider_policy": {
+        "privacy_policy_url": "https://mistral.ai/terms/#privacy-policy",
+        "provider_slug": "mistral",
+        "terms_of_service_url": "https://mistral.ai/terms/#terms-of-use"
+      },
+      "route_identity_sha256": "b259bd57be25c5fec14df0c926fa7c70302a9fa15d206bd906fe444b42c53460",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-solar-pro4-upstage": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 131072,
+        "name": "Upstage | upstage/solar-pro4-20260810",
+        "provider_name": "Upstage",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "max_tokens",
+          "presence_penalty",
+          "reasoning",
+          "response_format",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_p"
+        ],
+        "tag": "upstage",
+        "uptime_last_1d": 100,
+        "uptime_last_30m": 100
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://www.upstage.ai/privacy-policy",
+        "provider_slug": "upstage",
+        "terms_of_service_url": "https://www.upstage.ai/terms-of-service"
+      },
+      "route_identity_sha256": "1fd82b06ba9b8d3764943b5f7c7f5c2d74314a93894e1909ab4d7be9c14371f2",
+      "zero_data_retention_endpoint": false
+    }
+  },
+  "schema_version": 1
+}

@@ -3,11 +3,11 @@
   "contract": "sota-v5",
   "contract_fingerprint": "247e12fe5a7d4f5b",
   "status": "frozen",
-  "checked_at_utc": "2026-08-16T19:45:49Z",
-  "source": "Point-in-time public OpenRouter catalog and exact public endpoint metadata only; no authentication, Keychain, or completion endpoint was used. Recheck every rate during the authorized zero-call route preflight before any separate spend decision.",
+  "checked_at_utc": "2026-08-16T20:42:56Z",
+  "source": "Point-in-time authenticated OpenRouter exact-endpoint metadata collected during the authorized zero-completion route preflight; no Keychain, private seed, or completion endpoint was used. Recheck every rate immediately before any separate spend decision.",
   "currency": "USD",
   "rates_are_per_token": true,
-  "pricing_scope": "Planning rates for provisional exact upstream routes; no route is accepted for sota-v5 until fresh authenticated zero-call preflight.",
+  "pricing_scope": "Conservative planning rates for the eight accepted exact upstream routes; route acceptance does not authorize paid smoke, panel, or publication execution.",
   "planning_assumptions": {
     "input_tokens_per_decision": 8000,
     "expected_output_tokens_per_decision": 4096,
@@ -24,13 +24,13 @@
     "minimax/minimax-m3": {"provider_slug": "minimax/fp8", "endpoint_name": "Minimax | minimax/minimax-m3-20260531", "prompt": 0.0000003, "completion": 0.0000012},
     "google/gemini-3.7-flash": {"provider_slug": "google-ai-studio", "endpoint_name": "Google AI Studio | google/gemini-3.7-flash-20260813", "prompt": 0.00000075, "completion": 0.00000375, "internal_reasoning": 0.00000375, "catalog_discount": 0, "reasoning_disabled_planning_tokens": 0},
     "mistralai/mistral-medium-3-5": {"provider_slug": "mistral", "endpoint_name": "Mistral | mistralai/mistral-medium-3.5-20260430", "prompt": 0.0000015, "completion": 0.0000075},
-    "deepseek/deepseek-v4-flash-0731": {"provider_slug": "cloudflare", "endpoint_name": "Cloudflare | deepseek/deepseek-v4-flash-20260731", "prompt": 0.00000014, "completion": 0.00000028},
+    "deepseek/deepseek-v4-flash-0731": {"provider_slug": "cloudflare", "endpoint_name": "Cloudflare | deepseek/deepseek-v4-flash-20260731", "prompt": 0.00000044, "completion": 0.00000132},
     "tencent/hy3": {"provider_slug": "tencent/fp8", "endpoint_name": "Tencent | tencent/hy3-20260706", "prompt": 0.000000132, "completion": 0.000000528}
   },
   "public_metadata_limitations": [
-    "Rates and endpoint health are volatile point-in-time public metadata.",
+    "Rates and endpoint health are volatile point-in-time authenticated metadata and must be rechecked immediately before spend.",
     "Gemini 3.7 Flash's internal reasoning rate is recorded for auditability, but the frozen disabled policy assigns zero reasoning tokens; any mandatory reasoning response aborts v5.",
-    "Public metadata does not establish authenticated access, privacy acceptance, successful inference, reasoning-disabled behavior, JSON behavior, request-cap behavior, or authoritative usage cost.",
+    "Authenticated zero-call metadata does not establish successful inference, reasoning-disabled behavior, JSON behavior, request-cap behavior, or authoritative usage cost.",
     "The cost artifact is a pre-smoke planning estimate and must be regenerated after accepted smoke telemetry before panel authorization."
   ],
   "route_preflight_authorized": true,

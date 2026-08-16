@@ -250,12 +250,16 @@ def main(argv: list[str] | None = None) -> int:
         if not readiness_path.is_relative_to(ROOT.resolve()):
             parser.error("--record-readiness must be inside the repository")
     run_dir = args.run_dir or str(ROOT / "data" / "publication" / f"{args.contract}-smokes")
-    inherited_private_seeds = os.environ.get(PRIVATE_SEEDS_ENV)
-    private_seed_text = _verified_seed_text(args.contract) if args.contract != "sota-v5" else None
+    if args.contract == "sota-v5":
+        if PRIVATE_SEEDS_ENV in os.environ:
+            raise ValueError(f"{PRIVATE_SEEDS_ENV} must be unset for seed-free sota-v5 smoke readiness")
+        inherited_private_seeds = None
+        private_seed_text = None
+    else:
+        inherited_private_seeds = os.environ.get(PRIVATE_SEEDS_ENV)
+        private_seed_text = _verified_seed_text(args.contract)
     if private_seed_text is not None:
         os.environ[PRIVATE_SEEDS_ENV] = private_seed_text
-    else:
-        os.environ.pop(PRIVATE_SEEDS_ENV, None)
     runner_args = [
         "smoke",
         "--contract",
@@ -283,10 +287,11 @@ def main(argv: list[str] | None = None) -> int:
             )
         return result
     finally:
-        if inherited_private_seeds is None:
-            os.environ.pop(PRIVATE_SEEDS_ENV, None)
-        else:
-            os.environ[PRIVATE_SEEDS_ENV] = inherited_private_seeds
+        if args.contract != "sota-v5":
+            if inherited_private_seeds is None:
+                os.environ.pop(PRIVATE_SEEDS_ENV, None)
+            else:
+                os.environ[PRIVATE_SEEDS_ENV] = inherited_private_seeds
 
 
 if __name__ == "__main__":

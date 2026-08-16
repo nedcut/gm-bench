@@ -1,0 +1,35 @@
+{
+  "canonical_openrouter_api_base": "https://openrouter.ai/api/v1",
+  "completion_calls": 0,
+  "contract": "sota-v5",
+  "contract_fingerprint": "247e12fe5a7d4f5b",
+  "format": "gm-bench-sota-v5-final-preflight-v1",
+  "generated_at_utc": "2026-08-16T20:41:54+00:00",
+  "openrouter_scaffold_fingerprint": "f04724717cc09caf",
+  "route_preflight": {
+    "evidence_artifact": "results/analysis/sota-v5-route-acceptance-evidence.json",
+    "evidence_sha256": "9b894c82e27b1c6f59afb576b37d6889ba64f2b3c77417775a4a984705fdfa84",
+    "status": "accepted",
+    "verified_at_utc": "2026-08-16T20:41:48+00:00"
+  },
+  "schema_version": 1,
+  "smoke_command_dry_run": {
+    "commands_constructed": 8,
+    "hiding_commitment_verified": false,
+    "model_ids": [
+      "openrouter-gpt-5.6-luna-openai",
+      "openrouter-claude-sonnet-5-bedrock",
+      "openrouter-solar-pro4-upstage",
+      "openrouter-minimax-m3-minimax",
+      "openrouter-gemini-3.7-flash-google-ai-studio",
+      "openrouter-mistral-medium-3.5-mistral",
+      "openrouter-deepseek-v4-flash-0731-cloudflare",
+      "openrouter-hy3-tencent"
+    ],
+    "operator_ceiling_usd": 10.0,
+    "private_seed_accessed": false,
+    "private_seed_values_included": false,
+    "seed_panel_sha256": "291fa61cc3dfd8b23fdd79cce3c80a0a98f918f6c8757d35c21b4d8131cc6099",
+    "status": "passed"
+  }
+}

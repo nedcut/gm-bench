@@ -45,8 +45,9 @@ selection inputs.
 - Primary contrast: paired model lift versus deterministic `pick-trader`;
   no ordinal ranking or model tiers are preregistered.
 - Cost planning initially used the provisional Vertex route. The pre-data
-  Google AI Studio amendment regenerated the protocol-maximum smoke estimate
-  to `$5.90684672`, or `$7.088216064` with the 1.2x contingency, below the
+  Google AI Studio amendment and subsequent authenticated zero-call DeepSeek
+  price refresh regenerated the protocol-maximum smoke estimate to
+  `$6.17324032`, or `$7.407888384` with the 1.2x contingency, below the
   owner-set `$10` smoke ceiling. The panel remains separately unauthorized
   and is estimated above that ceiling.
 
