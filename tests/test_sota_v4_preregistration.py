@@ -87,7 +87,7 @@ def test_v4_replacement_and_route_selection_are_predata() -> None:
     assert by_model["upstage/solar-pro4"]["endpoint_tag"] == "upstage"
     assert by_model["minimax/minimax-m3"]["endpoint_tag"] == "minimax/fp8"
     assert by_model["minimax/minimax-m3"]["catalog_quantization"] == "fp8"
-    assert by_model["qwen/qwen3.8-max"]["request_compatibility_status"].startswith("unresolved-")
+    assert by_model["qwen/qwen3.8-max"]["request_compatibility_status"] == ("terminal-incompatible-reasoning-mandatory")
     assert by_model["mistralai/mistral-medium-3-5"]["output_cap_verification"] == (
         PENDING_STRICT_SMOKE_CAP_VERIFICATION
     )
@@ -102,16 +102,16 @@ def test_v4_replacement_and_route_selection_are_predata() -> None:
     assert all("deliberately false or unresolved" not in item for item in registry["public_metadata_limitations"])
 
 
-def test_v4_authorizes_qwen_recovery_smoke_but_not_panel() -> None:
+def test_v4_terminal_qwen_exclusion_relocks_paid_execution() -> None:
     lane, registry, protocol, pricing, manifest = _configs()
 
     assert all(record["route_preflight_authorized"] is True for record in (lane, registry, protocol, pricing))
     for record in (lane, registry, protocol, pricing):
-        assert record["spend_authorized"] is True
-        assert record["smoke_execution_authorized"] is True
+        assert record["spend_authorized"] is False
+        assert record["smoke_execution_authorized"] is False
         assert record["panel_execution_authorized"] is False
         assert record["publication_authorized"] is False
-    assert protocol["budget_policy"]["spend_authorized"] is True
+    assert protocol["budget_policy"]["spend_authorized"] is False
     authorization = lane["paid_smoke_authorization"]
     assert authorization == registry["paid_smoke_authorization"]
     assert authorization == protocol["paid_smoke_authorization"]
@@ -120,7 +120,9 @@ def test_v4_authorizes_qwen_recovery_smoke_but_not_panel() -> None:
         "scope": "single-model-single-infrastructure-attempt",
         "model_id": "openrouter-qwen3.8-max-alibaba",
         "attempt_number": 2,
-        "remaining_attempts": 1,
+        "remaining_attempts": 0,
+        "consumed_at_utc": "2026-08-16T19:00:48+00:00",
+        "outcome": "excluded-infrastructure-attempt-limit",
     }
     operator_ceiling = protocol["budget_policy"]["operator_ceiling_usd"]
     assert operator_ceiling == 10.0
@@ -129,8 +131,8 @@ def test_v4_authorizes_qwen_recovery_smoke_but_not_panel() -> None:
     assert lane["final_preflight_evidence"]["operator_ceiling_usd"] == operator_ceiling
     final_preflight = _read(Path(lane["final_preflight_evidence"]["artifact"]))
     assert final_preflight["keychain_dry_run"]["operator_ceiling_usd"] == operator_ceiling
-    assert any("Qwen/Alibaba's second and final infrastructure attempt" in item for item in lane["blockers"])
-    assert any("Run that model alone" in item for item in lane["blockers"])
+    assert any("reasoning is mandatory" in item for item in lane["blockers"])
+    assert any("no further paid execution" in item for item in lane["blockers"])
     assert (
         v3_final_preflight_issues(
             lane,
@@ -168,7 +170,12 @@ def test_v4_authorizes_qwen_recovery_smoke_but_not_panel() -> None:
         protocol=protocol,
         pricing=pricing,
     )
-    assert smoke_issues == []
+    assert smoke_issues == [
+        "provider execution is locked until spend is explicitly authorized",
+        "provider execution is locked by the publication protocol budget policy",
+        "provider execution is locked by the pricing snapshot",
+        "provider execution is locked while smoke_execution_authorized is false",
+    ]
     assert any("panel_execution_authorized is false" in issue for issue in panel_issues)
     assert any("smoke manifest is not accepted" in issue for issue in panel_issues)
 
@@ -218,13 +225,13 @@ def test_v4_cost_artifact_regenerates_and_ceiling_covers_smoke_only() -> None:
     assert committed["protocol_maximum"]["costs_usd"]["panel"] > 10.0
 
 
-def test_v4_empty_smoke_manifest_keeps_panel_locked() -> None:
+def test_v4_empty_terminal_smoke_manifest_keeps_panel_locked() -> None:
     lane, _, protocol, _, manifest = _configs()
 
-    assert manifest["status"] == "not-started"
+    assert manifest["status"] == "in-progress"
     assert manifest["entries"] == {}
     assert manifest["accepted_for_panel"] is False
-    assert lane["smoke_execution_authorized"] is True
+    assert lane["smoke_execution_authorized"] is False
     assert lane["panel_execution_authorized"] is False
     assert protocol["panel_execution_authorized"] is False
     assert protocol["publication_authorized"] is False
