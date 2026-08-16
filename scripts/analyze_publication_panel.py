@@ -454,8 +454,17 @@ def analyze(
             if not isinstance(protocol, Mapping) or not isinstance(protocol.get("statistical_analysis_plan"), Mapping):
                 config_errors.append("sota-v5 statistical analysis plan is missing")
                 authorization_ok = False
+            elif protocol.get("status") != "frozen":
+                config_errors.append("sota-v5 publication protocol is not frozen")
+                authorization_ok = False
             elif protocol["statistical_analysis_plan"].get("status") != "frozen":
                 config_errors.append("sota-v5 statistical analysis plan is not frozen")
+                authorization_ok = False
+            if not isinstance(pricing, Mapping) or pricing.get("status") != "frozen":
+                config_errors.append("sota-v5 pricing snapshot is not frozen")
+                authorization_ok = False
+            if not isinstance(lane, Mapping) or lane.get("preregistration_status") != "frozen":
+                config_errors.append("sota-v5 publication lane is not frozen")
                 authorization_ok = False
             if not authorization_ok:
                 config_errors.append(V5_ANALYSIS_AUTHORIZATION_LOCK)

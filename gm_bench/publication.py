@@ -880,11 +880,10 @@ def publication_execution_issues(
 
     if phase == "panel":
         seed_panel = lane.get("seed_panel")
-        if (
-            contract == "sota-v5"
-            and isinstance(seed_panel, dict)
-            and seed_panel.get("owner_attestation_required") is True
-            and seed_panel.get("owner_attestation_status") != "attested-before-seed-access"
+        if contract == "sota-v5" and (
+            not isinstance(seed_panel, dict)
+            or seed_panel.get("owner_attestation_required") is not True
+            or seed_panel.get("owner_attestation_status") != "attested-before-seed-access"
         ):
             issues.append("sota-v5 panel execution requires owner attestation before private seed access")
         if registry.get("panel_execution_authorized") is not True:

@@ -250,9 +250,12 @@ def main(argv: list[str] | None = None) -> int:
         if not readiness_path.is_relative_to(ROOT.resolve()):
             parser.error("--record-readiness must be inside the repository")
     run_dir = args.run_dir or str(ROOT / "data" / "publication" / f"{args.contract}-smokes")
+    inherited_private_seeds = os.environ.get(PRIVATE_SEEDS_ENV)
     private_seed_text = _verified_seed_text(args.contract) if args.contract != "sota-v5" else None
     if private_seed_text is not None:
         os.environ[PRIVATE_SEEDS_ENV] = private_seed_text
+    else:
+        os.environ.pop(PRIVATE_SEEDS_ENV, None)
     runner_args = [
         "smoke",
         "--contract",
@@ -280,7 +283,10 @@ def main(argv: list[str] | None = None) -> int:
             )
         return result
     finally:
-        os.environ.pop(PRIVATE_SEEDS_ENV, None)
+        if inherited_private_seeds is None:
+            os.environ.pop(PRIVATE_SEEDS_ENV, None)
+        else:
+            os.environ[PRIVATE_SEEDS_ENV] = inherited_private_seeds
 
 
 if __name__ == "__main__":

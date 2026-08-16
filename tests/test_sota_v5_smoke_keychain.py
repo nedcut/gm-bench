@@ -73,6 +73,24 @@ def test_v5_launcher_selects_only_the_v5_runner_lane_without_reading_private_see
     assert observed[0][0][run_dir_index].endswith("data/publication/sota-v5-smokes")
 
 
+def test_v5_launcher_clears_inherited_private_seeds_during_invocation(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _install_v5_keychain_fixture(tmp_path, monkeypatch)
+    observed: list[str | None] = []
+    monkeypatch.setenv(PRIVATE_SEEDS_ENV, "must-not-reach-v5-smoke")
+    monkeypatch.setattr(
+        launcher,
+        "publication_main",
+        lambda _argv: observed.append(launcher.os.environ.get(PRIVATE_SEEDS_ENV)) or 0,
+    )
+
+    assert launcher.main(["--contract", "sota-v5", "--max-spend-usd", "10", "--dry-run"]) == 0
+
+    assert observed == [None]
+    assert launcher.os.environ[PRIVATE_SEEDS_ENV] == "must-not-reach-v5-smoke"
+
+
 def test_v5_readiness_records_seed_free_smoke_command_dry_run(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     _install_v5_keychain_fixture(tmp_path, monkeypatch)
     config = tmp_path / "config"

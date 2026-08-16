@@ -205,6 +205,8 @@ def _frozen_panel_files(
         "count": len(private_seeds),
         "sha256": hashlib.sha256(",".join(str(seed) for seed in private_seeds).encode()).hexdigest(),
         "hiding_commitment_sha256": "c" * 64,
+        "owner_attestation_required": True,
+        "owner_attestation_status": "attested-before-seed-access",
     }
     final_evidence_path = tmp_path / "final-preflight.json"
     final_evidence = {

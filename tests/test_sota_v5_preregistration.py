@@ -146,6 +146,23 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     assert any("owner attestation before private seed access" in issue for issue in panel_issues)
 
 
+@pytest.mark.parametrize("seed_panel", [None, {}, {"owner_attestation_required": False}])
+def test_v5_panel_attestation_cannot_be_disabled_by_lane_payload(seed_panel: object) -> None:
+    lane, registry, protocol, pricing, manifest = _configs()
+    lane["seed_panel"] = seed_panel
+
+    issues = publication_execution_issues(
+        lane,
+        registry,
+        manifest,
+        phase="panel",
+        protocol=protocol,
+        pricing=pricing,
+    )
+
+    assert "sota-v5 panel execution requires owner attestation before private seed access" in issues
+
+
 def test_v5_cost_artifact_covers_the_ten_dollar_smoke_ceiling() -> None:
     lane, registry, protocol, pricing, _ = _configs()
     estimate = _read(ROOT / "results/analysis/sota-v5-pre-smoke-cost-estimate.json")
