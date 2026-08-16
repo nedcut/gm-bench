@@ -76,28 +76,11 @@ def test_v4_publication_paths_and_strict_capabilities_are_explicit() -> None:
     assert publication_runner.AUTHENTICATED_ROUTE_CONTRACTS == {"sota-v3", "sota-v4"}
 
 
-def test_v4_paid_smoke_authorization_is_qwen_only_and_one_shot(tmp_path: Path) -> None:
+def test_v4_consumed_paid_smoke_authorization_rejects_another_attempt(tmp_path: Path) -> None:
     publication_runner._select_contract_config("sota-v4")
     qwen = build_cells("route-preflight", model_id="openrouter-qwen3.8-max-alibaba")[0]
-    other = build_cells("route-preflight", model_id="openrouter-gpt-5.6-luna-openai")[0]
-    reservation_path = tmp_path / "openrouter-reservations.json"
-    reservation = {
-        "schema_version": 1,
-        "cells": {
-            f"{qwen.experiment_id}--{qwen.cap_label}": {
-                "attempts": 1,
-                "status": "active",
-            }
-        },
-    }
-    reservation_path.write_text(json.dumps(reservation))
 
-    _require_paid_smoke_attempt_authorized([qwen], tmp_path)
-    with pytest.raises(ValueError, match="permits only openrouter-qwen3.8-max-alibaba"):
-        _require_paid_smoke_attempt_authorized([other], tmp_path)
-    reservation["cells"][f"{qwen.experiment_id}--{qwen.cap_label}"]["attempts"] = 2
-    reservation_path.write_text(json.dumps(reservation))
-    with pytest.raises(ValueError, match="requires openrouter-qwen3.8-max-alibaba at attempt 1 of 2"):
+    with pytest.raises(ValueError, match="exactly one remaining attempt"):
         _require_paid_smoke_attempt_authorized([qwen], tmp_path)
 
 

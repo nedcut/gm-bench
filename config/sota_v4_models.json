@@ -18,7 +18,7 @@
     "https://openrouter.ai/api/v1/models/{model_id}/endpoints",
     "docs/ROUTE_SUBSTITUTION_POLICY.md"
   ],
-  "selection_policy": "Initial eight-model sota-v4 family. Retain the seven named v3 model identities other than GLM 5.2, replace the terminal model-behavior GLM slot with the externally selected new release upstage/solar-pro4, and keep the family size at eight. MiniMax M3 returns to the recovered first-party minimax/fp8 route because it is the same FP8 model and had the highest 24-hour uptime among policy-eligible public candidates at the snapshot. Qwen remains on its sole Alibaba route but is explicitly unresolved after two sota-v3 HTTP 400 attempts. Public metadata records candidates only; no v3 route, privacy, smoke, final-preflight, or panel evidence carries forward.",
+  "selection_policy": "Initial eight-model sota-v4 family. Retain the seven named v3 model identities other than GLM 5.2, replace the terminal model-behavior GLM slot with the externally selected new release upstage/solar-pro4, and keep the family size at eight. MiniMax M3 returns to the recovered first-party minimax/fp8 route because it is the same FP8 model and had the highest 24-hour uptime among policy-eligible public candidates at the snapshot. Qwen remained on its sole Alibaba route pending a strict compatibility test; its final sota-v4 infrastructure attempt established that this endpoint requires reasoning and cannot satisfy the uniform reasoning-disabled lane. Public metadata records candidates only; no v3 route, privacy, smoke, final-preflight, or panel evidence carries forward.",
   "models": [
     {
       "id": "openrouter-gpt-5.6-luna-openai",
@@ -213,8 +213,8 @@
       "absent_options": [
         "OPENROUTER_REASONING_EFFORT"
       ],
-      "request_compatibility_status": "unresolved-after-two-sota-v3-http-400-attempts",
-      "role": "Retained Qwen identity on its only public same-model route. Healthy catalog metadata does not resolve the terminal v3 request failures."
+      "request_compatibility_status": "terminal-incompatible-reasoning-mandatory",
+      "role": "Retained Qwen identity on its only public same-model route. Its second and final sota-v4 infrastructure attempt established that the endpoint requires reasoning and cannot satisfy the uniform reasoning-disabled lane."
     },
     {
       "id": "openrouter-mistral-medium-3.5-mistral",
@@ -530,22 +530,24 @@
   "public_metadata_limitations": [
     "Authenticated zero-call metadata verifies account access and exact-route availability but does not prove inference success.",
     "No v3 route, privacy, smoke, final-preflight, or panel artifact is accepted as v4 evidence.",
-    "Qwen request compatibility remains unresolved after its first sota-v4 strict-smoke request returned HTTP 400 with no generation and the old adapter discarded the provider detail.",
+    "Qwen/Alibaba is terminally incompatible with the uniform reasoning-disabled lane: its final sota-v4 attempt returned HTTP 400 stating that reasoning is mandatory and cannot be disabled, with no generation or episode.",
     "Mistral's null catalog maximum defers 4,096-token request-cap verification to its strict smoke."
   ],
   "unresolved_decisions": [
-    "Qwen request compatibility remains unresolved because the first sota-v4 HTTP 400 detail was discarded by the prior adapter. The owner authorized only its second and final infrastructure attempt after sanitized diagnostics, conservative reconciliation, and refreshed zero-call evidence; run Qwen alone and stop after its outcome.",
+    "Do not rerun Qwen under sota-v4. Decide whether to preserve this contract as terminal or preregister a successor with a newly frozen cohort or reasoning policy; no outcome-driven in-place substitution is authorized.",
     "Verify Mistral's 4,096-token request cap only through a separately owner-authorized future strict smoke; the current one-shot authorization does not include Mistral."
   ],
-  "spend_authorized": true,
+  "spend_authorized": false,
   "route_preflight_authorized": true,
-  "smoke_execution_authorized": true,
+  "smoke_execution_authorized": false,
   "panel_execution_authorized": false,
   "publication_authorized": false,
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
     "model_id": "openrouter-qwen3.8-max-alibaba",
     "attempt_number": 2,
-    "remaining_attempts": 1
+    "remaining_attempts": 0,
+    "consumed_at_utc": "2026-08-16T19:00:48+00:00",
+    "outcome": "excluded-infrastructure-attempt-limit"
   }
 }
