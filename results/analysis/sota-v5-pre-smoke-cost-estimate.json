@@ -27,10 +27,10 @@
     "total_calls": 2592
   },
   "costs_usd": {
-    "panel": 47.25477376,
-    "smoke": 0.590684672,
-    "total_unrounded": 47.845458432,
-    "total_with_1_2x_contingency": 57.4145501184
+    "panel": 49.38592256,
+    "smoke": 0.617324032,
+    "total_unrounded": 50.003246592,
+    "total_with_1_2x_contingency": 60.0038959104
   },
   "models": [
     {
@@ -143,22 +143,22 @@
       "smoke_cost_usd": 0.17088
     },
     {
-      "applied_completion_rate_usd": 2.8e-07,
+      "applied_completion_rate_usd": 1.32e-06,
       "applied_internal_reasoning_rate_usd": 0.0,
-      "applied_prompt_rate_usd": 1.4e-07,
-      "cost_per_decision_usd": 0.00226688,
+      "applied_prompt_rate_usd": 4.4e-07,
+      "cost_per_decision_usd": 0.00892672,
       "experiment_id": "openrouter-deepseek-v4-flash-0731-cloudflare",
       "internal_reasoning_tokens_per_decision": 0,
       "maximum_api_calls_per_decision": 10,
       "model": "deepseek/deepseek-v4-flash-0731",
       "panel_calls": 320,
-      "panel_cost_usd": 0.7254016,
+      "panel_cost_usd": 2.8565504,
       "protocol_maximum_panel_calls": 3200,
-      "protocol_maximum_panel_cost_usd": 7.254016,
+      "protocol_maximum_panel_cost_usd": 28.565504,
       "protocol_maximum_smoke_calls": 40,
-      "protocol_maximum_smoke_cost_usd": 0.0906752,
+      "protocol_maximum_smoke_cost_usd": 0.3570688,
       "smoke_calls": 4,
-      "smoke_cost_usd": 0.00906752
+      "smoke_cost_usd": 0.03570688
     },
     {
       "applied_completion_rate_usd": 5.28e-07,
@@ -179,13 +179,13 @@
       "smoke_cost_usd": 0.012874752
     }
   ],
-  "pricing_checked_at_utc": "2026-08-16T19:45:49Z",
+  "pricing_checked_at_utc": "2026-08-16T20:42:56Z",
   "protocol_maximum": {
     "costs_usd": {
-      "panel": 472.5477376,
-      "smoke": 5.90684672,
-      "total_unrounded": 478.45458432,
-      "total_with_contingency": 574.145501184
+      "panel": 493.8592256,
+      "smoke": 6.17324032,
+      "total_unrounded": 500.03246592,
+      "total_with_contingency": 600.038959104
     },
     "description": "Maximum provider-call multiplicity allowed by the protocol, including every configured repair. Token costs still use the committed per-call planning token bounds; the publication runner's dynamic pre-call guard is the operator-ceiling enforcement mechanism.",
     "max_interaction_rounds_per_decision": 5,

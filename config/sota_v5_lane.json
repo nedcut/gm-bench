@@ -19,8 +19,14 @@
     "status": "frozen",
     "claim_direction": "trails-reference",
     "primary_claim": "Every registered model-plus-compact-scaffold system trails deterministic pick-trader on seed-paired mean lift under the frozen sota-v5 mechanics.",
-    "evaluated_seed_range": [9, 16],
-    "evaluated_repeat_range": [1, 1],
+    "evaluated_seed_range": [
+      9,
+      16
+    ],
+    "evaluated_repeat_range": [
+      1,
+      1
+    ],
     "family_size": 8,
     "holm_family_size": 8,
     "seed_count": 16,
@@ -34,9 +40,17 @@
     "target_familywise_all_reject_power": 0.8,
     "simulation_trials": 10000,
     "simulation_seed": 2026072800,
-    "historical_lift_variances": {"shared_seed": 3770.478399, "model_by_seed": 0.0, "within_seed_noise": 2850.169803},
+    "historical_lift_variances": {
+      "shared_seed": 3770.478399,
+      "model_by_seed": 0.0,
+      "within_seed_noise": 2850.169803
+    },
     "cross_model_covariance": "Compound symmetry: one shared residual lift-seed draw per seed; model-by-seed interaction and repeat-averaged noise are independent by model.",
-    "sensitivity": {"shared_seed_variance_multiplier": 1.25, "noise_variance_multiplier": 1.25, "interaction_variance_floor_as_historical_noise_fraction": 0.1},
+    "sensitivity": {
+      "shared_seed_variance_multiplier": 1.25,
+      "noise_variance_multiplier": 1.25,
+      "interaction_variance_floor_as_historical_noise_fraction": 0.1
+    },
     "selected_allocation": {
       "seed_count": 16,
       "repeats": 1,
@@ -45,9 +59,15 @@
       "holm_first_step_threshold_at_alpha_0_05": 0.00625,
       "exact_sign_flip_holm_feasible": true,
       "base_power_estimate": 0.9629,
-      "base_power_wilson_ci95": [0.959014, 0.96643],
+      "base_power_wilson_ci95": [
+        0.959014,
+        0.96643
+      ],
       "sensitivity_power_estimate": 0.8727,
-      "sensitivity_power_wilson_ci95": [0.866024, 0.87909],
+      "sensitivity_power_wilson_ci95": [
+        0.866024,
+        0.87909
+      ],
       "allocation_selection_note": "Retain the exact unused 16-seed x 1-repeat commitment because the v5 Holm family remains eight. This allocation is carried from v3/v4 only as pre-data design lineage; no v3 or v4 panel was run and no seed or salt was read."
     },
     "selection_rule": "Smallest allocation with 9-16 seeds and 1-3 repeats whose conservative-sensitivity familywise-power Wilson 95% lower bound is at least 0.80; retain the already committed unused 16x1 allocation because the family remains eight.",
@@ -63,7 +83,11 @@
     "secret_escrow": "macos-keychain:gm-bench-sota-v3-private-panel",
     "lineage_contract": "sota-v3",
     "lineage_contract_fingerprint": "247e12fe5a7d4f5b",
-    "lineage_chain": ["sota-v3", "sota-v4", "sota-v5"],
+    "lineage_chain": [
+      "sota-v3",
+      "sota-v4",
+      "sota-v5"
+    ],
     "lineage_use_status": "unused-no-sota-v3-or-sota-v4-panel-execution",
     "owner_attestation_required": true,
     "owner_attestation_status": "pending-before-seed-access",
@@ -95,10 +119,17 @@
   "panel_execution_authorized": false,
   "publication_authorized": false,
   "blockers": [
-    "Fresh authenticated exact-route and synthetic-data privacy evidence is required for all eight provisional routes; the public catalog is not sufficient.",
+    "Final merged-head smoke-command and live-price preflight evidence must be accepted before any paid-smoke authorization.",
     "An owner attestation is required before hidden seed access and panel authorization.",
     "Every required strict smoke must be accepted before a separate panel decision; any route incompatibility, cap pressure, unknown cost, or mandatory reasoning aborts v5 and requires a new preregistration.",
     "SOTA-v4 remains a terminal historical contract and cannot be reopened or used to select v5 after observing v5 data."
   ],
-  "final_preflight_evidence": {"status": "pending", "artifact": "results/analysis/sota-v5-final-preflight-evidence.json", "sha256": null, "completion_calls": 0, "operator_ceiling_usd": 10.0}
+  "final_preflight_evidence": {
+    "status": "pending",
+    "artifact": "results/analysis/sota-v5-final-preflight-evidence.json",
+    "sha256": "f98d02f0ce2e16f16a446095e818ec00161c06852048193677edb52cdc07ff15",
+    "contract_fingerprint": "247e12fe5a7d4f5b",
+    "completion_calls": 0,
+    "operator_ceiling_usd": 10.0
+  }
 }

@@ -51,7 +51,7 @@ def test_v5_cross_file_contract_and_family_are_coherent() -> None:
         == 4096
     )
     assert lane["panel_design_status"] == protocol["panel_design"]["status"] == "frozen"
-    assert registry["selection_status"] == "route-preflight-ready"
+    assert registry["selection_status"] == "frozen"
     assert pricing["status"] == "frozen"
     assert set(model["model"] for model in registry["models"]) == set(pricing["models"])
 
@@ -120,8 +120,8 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     records = (lane, registry, protocol, pricing)
 
     assert all(record["route_preflight_authorized"] is True for record in records)
-    assert registry["exact_route_acceptance"]["status"] == "pending-authenticated-zero-call-preflight"
-    assert registry["exact_route_acceptance"]["entries"] == {}
+    assert registry["exact_route_acceptance"]["status"] == "accepted"
+    assert len(registry["exact_route_acceptance"]["entries"]) == 8
     for record in records:
         assert record["spend_authorized"] is False
         assert record["smoke_execution_authorized"] is False
@@ -151,7 +151,7 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
         protocol=protocol,
         pricing=pricing,
     )
-    assert any("exact-route acceptance status is not accepted" in issue for issue in smoke_issues)
+    assert any("final-fingerprint preflight evidence is not accepted" in issue for issue in smoke_issues)
     assert any("spend is explicitly authorized" in issue for issue in smoke_issues)
     assert any("smoke_execution_authorized is false" in issue for issue in smoke_issues)
     panel_issues = publication_execution_issues(
@@ -197,8 +197,8 @@ def test_v5_cost_artifact_covers_the_ten_dollar_smoke_ceiling() -> None:
         "smoke_calls": 32,
         "total_calls": 2592,
     }
-    assert estimate["protocol_maximum"]["costs_usd"]["smoke"] == pytest.approx(5.90684672)
-    assert estimate["protocol_maximum"]["costs_usd"]["total_with_contingency"] == pytest.approx(574.145501184)
+    assert estimate["protocol_maximum"]["costs_usd"]["smoke"] == pytest.approx(6.17324032)
+    assert estimate["protocol_maximum"]["costs_usd"]["total_with_contingency"] == pytest.approx(600.038959104)
     assert (
         estimate["protocol_maximum"]["costs_usd"]["smoke"] * 1.2
         < protocol["budget_policy"]["operator_ceiling_usd"]
