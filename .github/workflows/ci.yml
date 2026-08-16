@@ -115,7 +115,7 @@ jobs:
           PY
           )"
             case "$version" in
-              sota-v1|sota-v2|sota-v3|sota-v4) ;;
+              sota-v1|sota-v2|sota-v3|sota-v4|sota-v5) ;;
               *)
                 echo "::error file=$result::unknown benchmark_version '$version'; no validation policy applies"
                 exit 1
@@ -183,6 +183,15 @@ jobs:
             echo "::error::results/analysis/sota-v4-pre-smoke-cost-estimate.json is stale; regenerate it from the committed v4 registry, lane, and pricing snapshot"
             exit 1
           fi
+          python scripts/estimate_publication_cost.py \
+            --models-config config/sota_v5_models.json \
+            --lane-config config/sota_v5_lane.json \
+            --pricing config/sota_v5_pricing_snapshot.json \
+            --output /tmp/sota-v5-pre-smoke-cost.regen.json
+          if ! diff -u results/analysis/sota-v5-pre-smoke-cost-estimate.json /tmp/sota-v5-pre-smoke-cost.regen.json; then
+            echo "::error::results/analysis/sota-v5-pre-smoke-cost-estimate.json is stale; regenerate it from the committed v5 registry, lane, and pricing snapshot"
+            exit 1
+          fi
       - name: Verify archived v1 evidence
         # `archive-v1` asserts these are authentic v1 artifacts on the frozen
         # contract. It deliberately does NOT assert they were leaderboard-eligible
@@ -207,3 +216,5 @@ jobs:
             echo "::error::web/src/data/leaderboard.json is stale or was built from artifacts that are not committed; re-run python web/scripts/build_leaderboard.py and commit the result"
             exit 1
           fi
+      - name: SOTA-v5 zero-spend publication rehearsal
+        run: python scripts/sota_v5_rehearsal.py --skip-web-build

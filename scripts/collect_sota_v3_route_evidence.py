@@ -28,6 +28,7 @@ from gm_bench.publication import (  # noqa: E402
     canonical_sha256,
     is_pending_strict_smoke_cap,
     v3_route_identity_sha256,
+    v5_route_identity_sha256,
 )
 
 PRIVACY_STANDARD = {
@@ -142,7 +143,11 @@ def collect(registry: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]
             model.get("endpoint_tag"),
             model.get("endpoint_name"),
         )
-        route_identity = v3_route_identity_sha256(registry, model)
+        route_identity = (
+            v5_route_identity_sha256(registry, model)
+            if registry.get("contract") == "sota-v5"
+            else v3_route_identity_sha256(registry, model)
+        )
         routes[model_id] = {
             "route_identity_sha256": route_identity,
             "endpoint": _public_endpoint_record(endpoint),
@@ -223,7 +228,7 @@ def _write_json(path: Path, payload: dict[str, Any], *, sort_keys: bool = True) 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--contract", choices=("sota-v3", "sota-v4"), default="sota-v3")
+    parser.add_argument("--contract", choices=("sota-v3", "sota-v4", "sota-v5"), default="sota-v3")
     parser.add_argument("--registry", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--apply-registry", action="store_true")

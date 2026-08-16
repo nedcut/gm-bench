@@ -3,21 +3,42 @@
 GM-Bench has one general result tier plus versioned strict policies:
 
 - `public-leaderboard`: a structurally valid public leaderboard result.
-- `sota-v4`: the current strict validator for new development results.
+- `sota-v5`: the current strict validator for new development results.
+- `sota-v4`: the frozen terminal validator for the Qwen-incompatible successor attempt.
 - `sota-v3`: the frozen validator for the terminal five-of-eight smoke campaign.
 - `sota-v2`: the frozen historical validator for the published phase-one study.
 - `sota-v1`: the frozen historical validator for archived v1 evidence. It does
   not make a v1 row comparable to v2; it only keeps the archived contract
   independently auditable.
 
+`sota-v4` is terminal: its Qwen/Alibaba route exhausted its two infrastructure
+attempts with a reasoning-mandatory HTTP 400, so it has no publishable panel.
+The outcome-independent successor is `sota-v5`, preregistered in
+`config/sota_v5_lane.json`, `config/sota_v5_models.json`, and
+`config/sota_v5_publication_protocol.json`. V5 retains seven non-Qwen v4
+identities and replaces that slot with Google Gemini 3.7 Flash on a provisional
+Google Vertex global route selected from public metadata before any v5 result.
+The replacement is not a v4 amendment and no v4 data carries forward.
+
+The v5 contract freezes the same unused hidden 16-seed commitment, with an
+explicit owner attestation required before seed access. It uses a uniform
+reasoning-disabled policy, a 4,096-token cap, one repair, serial execution,
+two infrastructure attempts per cell, exact paired sign-flip tests, and
+Holm-Bonferroni adjustment over eight contrasts. Route preflight is limited to
+zero-completion metadata; v5 spend, smoke, panel, and publication authorizations
+remain false until separately approved. The protocol-maximum smoke estimate is
+below the owner-set `$10` ceiling, while panel authorization remains a separate
+decision. See `docs/run_logs/sota-v5-preregistration-2026-08-16.md` for the
+lineage and boundary record.
+
 The public leaderboard can show development and diagnostic rows, including local
-models that are below the scripted baselines. A current `sota-v4` result is the
+models that are below the scripted baselines. A current `sota-v5` result is the
 minimum technical bar for a new serious comparison.
 
-There are two distinct v4 workflows. The generic strict submission flow below
+There are two distinct v5 workflows. The generic strict submission flow below
 uses the public leaderboard preset and at least 3 repeats. Separately, the
-official v4 publication lane is pre-registered in `config/sota_v4_lane.json` and
-`config/sota_v4_models.json`: it is a **private** 16-seed × 1-repeat panel
+official v5 publication lane is pre-registered in `config/sota_v5_lane.json` and
+`config/sota_v5_models.json`: it is a **private** 16-seed × 1-repeat panel
 against the still-hidden seed set originally frozen for v3. That private lane carries
 `publication_authorized: false`. Do not publish its panel or apply its 1-repeat
 design to a generic third-party submission.
@@ -30,7 +51,7 @@ pre-v2 evidence while preserving the official-artifact gate.
 
 ## Strict result requirements
 
-A new strict result on development HEAD is produced under `sota-v4`:
+A new strict result on development HEAD is produced under `sota-v5`:
 
 ```bash
 python -m gm_bench model \
@@ -56,22 +77,25 @@ multi-megabyte failed artifact is intentionally not retained. Prefer
 `--preset smoke` first; a clean serial strict panel is
 multi-hour quota spend, not a quick retry.
 
-The SOTA-v3 strict-smoke lane is terminal and must not be rerun. SOTA-v4 has a
-frozen cohort and authorizes only authenticated zero-completion route/privacy
-collection and route preflight; spend, smoke, panel, and publication remain
-disabled. Collect the fresh v4 route record without allowing any v3 path to be
-selected:
+The SOTA-v3 and SOTA-v4 strict-smoke lanes are terminal and must not be rerun.
+SOTA-v5 has a frozen prospective cohort and authorizes only authenticated
+zero-completion route/privacy collection and route preflight; spend, smoke,
+panel, and publication remain disabled. Collect the fresh v5 route record
+without allowing a historical contract path to be selected:
 
 ```bash
 uv run python scripts/collect_sota_v3_route_evidence.py \
-  --contract sota-v4 --apply-registry
+  --contract sota-v5 --apply-registry
 uv run python scripts/run_publication_matrix.py route-preflight \
-  --contract sota-v4
+  --contract sota-v5
 ```
 
 These commands read authenticated metadata only and record zero completion
-calls. Paid smoke commands remain unauthorized until this evidence, the final
-Keychain-backed dry run, exact-head CI, and a separate owner decision all pass.
+calls. The v5 smoke-command dry run deliberately does not read Keychain or set
+`GM_BENCH_PRIVATE_SEEDS`; smokes use only the public smoke seed. Paid smoke
+commands remain unauthorized until this evidence, the seed-free final dry run,
+exact-head CI, and a separate owner decision all pass. Keychain verification
+and the explicit owner attestation are deferred to the private panel gate.
 Panel execution remains a separate post-smoke decision.
 
 Fresh-spawn serial model panels write an atomic checkpoint after every completed
@@ -98,7 +122,7 @@ python -m gm_bench model \
 python -m gm_bench redact-result \
   /tmp/gm-bench-<provider>-<model>-private.raw.json \
   --output /tmp/gm-bench-<provider>-<model>-private.redacted.json \
-  --policy sota-v4
+  --policy sota-v5
 ```
 
 It must also satisfy the machine validator:
@@ -106,7 +130,7 @@ It must also satisfy the machine validator:
 ```bash
 python -m gm_bench validate-result \
   /tmp/gm-bench-<provider>-<model>.json \
-  --policy sota-v4
+  --policy sota-v5
 ```
 
 Before publishing claims from a new source contract, run the benchmark

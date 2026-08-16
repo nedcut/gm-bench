@@ -22,6 +22,7 @@ from gm_bench.contract import (
     SOTA_V2_CONTRACT,
     SOTA_V3_CONTRACT,
     SOTA_V4_CONTRACT,
+    SOTA_V5_CONTRACT,
     expected_contract,
     scaffold_fingerprint,
 )
@@ -31,6 +32,7 @@ PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
 SOTA_V2_POLICY_NAME = "sota-v2"
 SOTA_V3_POLICY_NAME = "sota-v3"
 SOTA_V4_POLICY_NAME = "sota-v4"
+SOTA_V5_POLICY_NAME = "sota-v5"
 OUTPUT_BUDGET_SWEEP_POLICY_NAME = "output-budget-sweep"
 SOTA_V1_POLICY_NAME = "sota-v1"
 ARCHIVE_V1_POLICY_NAME = "archive-v1"
@@ -38,6 +40,7 @@ STRICT_SOTA_POLICY_NAMES = {
     SOTA_V2_POLICY_NAME,
     SOTA_V3_POLICY_NAME,
     SOTA_V4_POLICY_NAME,
+    SOTA_V5_POLICY_NAME,
     OUTPUT_BUDGET_SWEEP_POLICY_NAME,
 }
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -160,6 +163,31 @@ SOTA_V4_POLICY = ResultPolicy(
     },
     max_failed_query_rate=1.0,
 )
+SOTA_V5_POLICY = ResultPolicy(
+    name=SOTA_V5_POLICY_NAME,
+    min_repeats=1,
+    min_seed_count=len(PRESETS["leaderboard"]["seeds"]),
+    max_decision_failure_rate=0.02,
+    require_contract_provenance=True,
+    require_seed_panel_provenance=True,
+    require_scaffold_provenance=True,
+    require_score_components=True,
+    require_strict_fallback=True,
+    expected_contract=SOTA_V5_CONTRACT,
+    validate_current_scaffold=False,
+    expected_scaffold_fingerprints={
+        "anthropic": "0afbbdcaecfcb1d0",
+        "claude": "4a92675327e27a4d",
+        "codex": "f6b1c953c198f6bc",
+        "cursor": "3bb877c241996ed7",
+        "gemini": "5e700d3151254ed3",
+        "ollama": "5a3778bf70bd341e",
+        "openai": "8275269195e00191",
+        "opencode": "815df462b40d1274",
+        "openrouter": "f04724717cc09caf",
+    },
+    max_failed_query_rate=1.0,
+)
 OUTPUT_BUDGET_SWEEP_POLICY = ResultPolicy(
     name=OUTPUT_BUDGET_SWEEP_POLICY_NAME,
     min_repeats=3,
@@ -211,6 +239,7 @@ POLICIES = {
     SOTA_V2_POLICY.name: SOTA_V2_POLICY,
     SOTA_V3_POLICY.name: SOTA_V3_POLICY,
     SOTA_V4_POLICY.name: SOTA_V4_POLICY,
+    SOTA_V5_POLICY.name: SOTA_V5_POLICY,
     ARCHIVE_V1_POLICY.name: ARCHIVE_V1_POLICY,
 }
 REDACTED_SEEDS_SENTINEL = "<redacted>"
@@ -529,7 +558,7 @@ def _validate_openrouter_route(
 def redact_leaderboard_payload(
     payload: dict[str, Any],
     *,
-    policy: ResultPolicy = SOTA_V4_POLICY,
+    policy: ResultPolicy = SOTA_V5_POLICY,
 ) -> tuple[dict[str, Any], ValidationReport]:
     """Return a public-safe copy of a leaderboard payload.
 

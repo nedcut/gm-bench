@@ -27,16 +27,19 @@ REGISTRY_PATHS = {
     "sota-v2": REGISTRY_PATH,
     "sota-v3": ROOT / "config" / "sota_v3_models.json",
     "sota-v4": ROOT / "config" / "sota_v4_models.json",
+    "sota-v5": ROOT / "config" / "sota_v5_models.json",
 }
 LANE_PATHS = {
     "sota-v2": ROOT / "config" / "sota_v2_lane.json",
     "sota-v3": ROOT / "config" / "sota_v3_lane.json",
     "sota-v4": ROOT / "config" / "sota_v4_lane.json",
+    "sota-v5": ROOT / "config" / "sota_v5_lane.json",
 }
 PROTOCOL_PATHS = {
     "sota-v2": ROOT / "config" / "publication_protocol.json",
     "sota-v3": ROOT / "config" / "sota_v3_publication_protocol.json",
     "sota-v4": ROOT / "config" / "sota_v4_publication_protocol.json",
+    "sota-v5": ROOT / "config" / "sota_v5_publication_protocol.json",
 }
 DEFAULT_ARTIFACT_DIR = ROOT / "data" / "publication-runs" / "raw"
 DEFAULT_OUTPUT_PATH = ROOT / "results" / "analysis" / "publication-panel-analysis.json"
@@ -44,9 +47,13 @@ DEFAULT_OUTPUT_PATHS = {
     "sota-v2": DEFAULT_OUTPUT_PATH,
     "sota-v3": ROOT / "results" / "analysis" / "publication-panel-analysis-v3.json",
     "sota-v4": ROOT / "results" / "analysis" / "publication-panel-analysis-v4.json",
+    "sota-v5": ROOT / "results" / "analysis" / "publication-panel-analysis-v5.json",
 }
-STRICT_REFERENCE_CONTRACTS = frozenset({"sota-v3", "sota-v4"})
+STRICT_REFERENCE_CONTRACTS = frozenset({"sota-v3", "sota-v4", "sota-v5"})
 V4_ANALYSIS_LOCK = "sota-v4 analysis is authorization-locked until its publication plan is explicitly authorized"
+V5_ANALYSIS_AUTHORIZATION_LOCK = (
+    "sota-v5 analysis requires explicit publication authorization across the frozen lane inputs"
+)
 BOOTSTRAP_SEED = 20260716
 BOOTSTRAP_ITERATIONS = 10_000
 
@@ -250,7 +257,7 @@ def _registry_specs(registry: Mapping[str, Any]) -> tuple[list[dict[str, Any]], 
         errors.append("model registry selection_status must be frozen")
     contract = str(registry.get("contract") or "")
     if contract not in {"sota-v2", *STRICT_REFERENCE_CONTRACTS}:
-        errors.append("model registry contract must be 'sota-v2', 'sota-v3', or 'sota-v4'")
+        errors.append("model registry contract must be one of 'sota-v2', 'sota-v3', 'sota-v4', or 'sota-v5'")
     if registry.get("preset") != "leaderboard":
         errors.append("model registry preset must be 'leaderboard'")
     shared_fixed_options = registry.get("shared_fixed_options") or {}
@@ -384,6 +391,7 @@ def analyze(
     raw_payloads: Sequence[Mapping[str, Any]] = (),
     lane: Mapping[str, Any] | None = None,
     protocol: Mapping[str, Any] | None = None,
+    pricing: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Analyze valid artifacts matching the registry and report missing/rejected rows."""
     specs, config_errors = _registry_specs(registry)
@@ -425,6 +433,34 @@ def analyze(
                 strict_plan_ready = True
         if contract == "sota-v4":
             config_errors.append(V4_ANALYSIS_LOCK)
+        elif contract == "sota-v5":
+            # Keep the successor contract usable once its owner explicitly
+            # authorizes publication, while making the pre-publication state
+            # impossible to mistake for a completed analysis.
+            authorization_inputs = (
+                ("publication lane", lane),
+                ("model registry", registry),
+                ("publication protocol", protocol),
+                ("pricing snapshot", pricing),
+            )
+            authorization_ok = True
+            for label, payload in authorization_inputs:
+                if not isinstance(payload, Mapping) or payload.get("publication_authorized") is not True:
+                    config_errors.append(f"{label} publication_authorized is not true")
+                    authorization_ok = False
+                elif payload.get("contract") != "sota-v5":
+                    config_errors.append(f"{label} contract does not match sota-v5")
+                    authorization_ok = False
+            if not isinstance(protocol, Mapping) or not isinstance(protocol.get("statistical_analysis_plan"), Mapping):
+                config_errors.append("sota-v5 statistical analysis plan is missing")
+                authorization_ok = False
+            elif protocol["statistical_analysis_plan"].get("status") != "frozen":
+                config_errors.append("sota-v5 statistical analysis plan is not frozen")
+                authorization_ok = False
+            if not authorization_ok:
+                config_errors.append(V5_ANALYSIS_AUTHORIZATION_LOCK)
+            else:
+                strict_plan_ready = True
     specs_by_identity = {(spec["provider"], spec["model"]): spec for spec in specs}
     candidates: dict[str, list[dict[str, Any]]] = {}
     rejected: list[dict[str, Any]] = []
@@ -599,6 +635,7 @@ def main() -> int:
     parser.add_argument("--registry", type=Path)
     parser.add_argument("--lane", type=Path)
     parser.add_argument("--protocol", type=Path)
+    parser.add_argument("--pricing", type=Path)
     parser.add_argument("--artifacts-dir", type=Path, default=DEFAULT_ARTIFACT_DIR)
     parser.add_argument("--raw-artifacts-dir", type=Path, help="raw JSON evidence used to verify compact hash links")
     parser.add_argument("--output", type=Path)
@@ -623,11 +660,16 @@ def main() -> int:
         protocol = (
             _read_json(args.protocol or PROTOCOL_PATHS[contract]) if contract in STRICT_REFERENCE_CONTRACTS else None
         )
+        pricing = (
+            _read_json(args.pricing or ROOT / "config" / f"{contract.replace('-', '_')}_pricing_snapshot.json")
+            if contract in {"sota-v5"}
+            else None
+        )
         output_path = args.output or default_output_path(contract)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         sys.exit(f"analyze_publication_panel: {exc}")
 
-    result = analyze(registry, payloads, raw_payloads=raw_payloads, lane=lane, protocol=protocol)
+    result = analyze(registry, payloads, raw_payloads=raw_payloads, lane=lane, protocol=protocol, pricing=pricing)
     text = json.dumps(result, indent=2, sort_keys=True) + "\n"
     if result.get("benchmark_version") in STRICT_REFERENCE_CONTRACTS and result.get("publication_ready") is not True:
         print(text, end="")

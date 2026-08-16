@@ -69,6 +69,31 @@ def test_v4_route_evidence_defaults_cannot_overwrite_v3(monkeypatch: pytest.Monk
     assert not (tmp_path / "results" / "analysis" / "sota-v3-route-acceptance-evidence.json").exists()
 
 
+def test_v5_route_evidence_defaults_are_contract_specific(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    config = tmp_path / "config"
+    config.mkdir()
+    registry = config / "sota_v5_models.json"
+    registry.write_text(json.dumps({"contract": "sota-v5", "models": []}))
+    monkeypatch.setattr(collector, "ROOT", tmp_path)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test")
+    monkeypatch.setattr(
+        collector,
+        "collect",
+        lambda payload, _headers: {
+            "format": "gm-bench-route-acceptance-evidence-v1",
+            "contract": payload["contract"],
+            "generated_at_utc": "2026-08-16T00:00:00+00:00",
+            "completion_calls": 0,
+            "routes": {},
+        },
+    )
+
+    assert collector.main(["--contract", "sota-v5"]) == 0
+    assert (tmp_path / "results" / "analysis" / "sota-v5-route-acceptance-evidence.json").exists()
+    assert not (tmp_path / "results" / "analysis" / "sota-v4-route-acceptance-evidence.json").exists()
+    assert not (tmp_path / "results" / "analysis" / "sota-v3-route-acceptance-evidence.json").exists()
+
+
 def test_route_evidence_rejects_registry_contract_mismatch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     config = tmp_path / "config"
     config.mkdir()

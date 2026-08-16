@@ -72,8 +72,8 @@ def test_v4_publication_paths_and_strict_capabilities_are_explicit() -> None:
     assert manifest.name == "sota_v4_smoke_manifest.json"
     assert protocol.name == "sota_v4_publication_protocol.json"
     assert pricing.name == "sota_v4_pricing_snapshot.json"
-    assert publication_runner.STRICT_PRIVATE_PANEL_CONTRACTS == {"sota-v3", "sota-v4"}
-    assert publication_runner.AUTHENTICATED_ROUTE_CONTRACTS == {"sota-v3", "sota-v4"}
+    assert publication_runner.STRICT_PRIVATE_PANEL_CONTRACTS == {"sota-v3", "sota-v4", "sota-v5"}
+    assert publication_runner.AUTHENTICATED_ROUTE_CONTRACTS == {"sota-v3", "sota-v4", "sota-v5"}
 
 
 def test_v4_consumed_paid_smoke_authorization_rejects_another_attempt(tmp_path: Path) -> None:
@@ -222,13 +222,14 @@ def _frozen_panel_files(
             "evidence_sha256": canonical_sha256(evidence),
             "verified_at_utc": evidence["generated_at_utc"],
         },
-        "keychain_dry_run": {
+        "smoke_command_dry_run": {
             "status": "passed",
             "model_ids": [model["id"] for model in registry["models"]],
             "commands_constructed": len(registry["models"]),
             "operator_ceiling_usd": 100.0,
             "seed_panel_sha256": lane["seed_panel"]["sha256"],
-            "hiding_commitment_verified": True,
+            "hiding_commitment_verified": False,
+            "private_seed_accessed": False,
             "private_seed_values_included": False,
         },
         "authenticated_route_and_price_preflight": {
@@ -438,7 +439,10 @@ def _valid_smoke_artifact(registry: dict, lane: dict, model: dict) -> dict:
                 "OPENROUTER_EXPECTED_ENDPOINT_NAME": model["endpoint_name"],
                 "GM_BENCH_OUTPUT_BUDGET_CELL": str(lane["output_token_cap"]),
             },
-            "benchmark_contract": {"contract_fingerprint": contract_fingerprint()},
+            "benchmark_contract": {
+                "benchmark_version": lane["contract"],
+                "contract_fingerprint": contract_fingerprint(),
+            },
             "scaffold_fingerprint": scaffold_fingerprint(model["provider"]),
         },
         "candidate": {

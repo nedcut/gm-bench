@@ -15,7 +15,11 @@ from typing import Any
 
 from gm_bench.scoring import SCORING_VERSION, scoring_scale_fingerprint
 
-BENCHMARK_VERSION = "sota-v4"
+# SOTA-v4 is a frozen historical lane.  SOTA-v5 is the current contract; the
+# mechanics are intentionally unchanged, so both contracts share the same
+# source-derived fingerprint.  The benchmark version remains part of the
+# contract identity and must never be inferred from the fingerprint alone.
+BENCHMARK_VERSION = "sota-v5"
 ACTION_PROTOCOL_VERSION = "actions-v3"
 SIMULATOR_VERSION = "sim-v3"
 OBSERVATION_VERSION = "observation-v2"
@@ -45,6 +49,16 @@ SOTA_V4_CONTRACT = {
     "scoring_scale_fingerprint": "05a60ff4f691e734",
     "simulator_version": "sim-v3",
     "observation_version": "observation-v2",
+    "contract_fingerprint": "247e12fe5a7d4f5b",
+}
+SOTA_V5_CONTRACT = {
+    "benchmark_version": "sota-v5",
+    "action_protocol_version": "actions-v3",
+    "scoring_version": "score-v1",
+    "scoring_scale_fingerprint": "05a60ff4f691e734",
+    "simulator_version": "sim-v3",
+    "observation_version": "observation-v2",
+    # No score-affecting mechanics changed at the v4 -> v5 boundary.
     "contract_fingerprint": "247e12fe5a7d4f5b",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).

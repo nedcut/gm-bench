@@ -27,7 +27,7 @@ RUNTIME_NOTE_COMPLETE = (
     "Runtime observations are sourced from every currently registered model's accepted smoke; "
     "recheck before paid full-panel runs if pricing, routes, or prompts change."
 )
-PRIVATE_PANEL_CONTRACTS = frozenset({"sota-v3", "sota-v4"})
+PRIVATE_PANEL_CONTRACTS = frozenset({"sota-v3", "sota-v4", "sota-v5"})
 
 
 def _read(path: Path) -> dict[str, Any]:

@@ -24,6 +24,7 @@ from gm_bench.publication import canonical_sha256, publication_execution_issues 
 RELEASE_FORMAT = "gm-bench-publication-release-v1"
 RELEASE_ID = "sota-v2-phase-one-2026-07-19"
 V4_RELEASE_LOCK = "sota-v4 release packaging is authorization-locked until publication is explicitly authorized"
+V5_RELEASE_LOCK = "sota-v5 release packaging is authorization-locked until publication is explicitly authorized"
 RUN_METADATA_NAMES = ("run-state.json", "openrouter-reservations.json")
 V3_PUBLIC_ANALYSIS_KEYS = frozenset(
     {
@@ -112,6 +113,18 @@ RELEASE_SPECS = {
         ),
         analysis_path=Path("results/analysis/publication-panel-analysis-v4.json"),
     ),
+    "sota-v5": ReleaseSpec(
+        contract="sota-v5",
+        registry_path=Path("config/sota_v5_models.json"),
+        config_paths=(
+            Path("config/sota_v5_models.json"),
+            Path("config/sota_v5_lane.json"),
+            Path("config/sota_v5_publication_protocol.json"),
+            Path("config/sota_v5_pricing_snapshot.json"),
+            Path("config/sota_v5_smoke_manifest.json"),
+        ),
+        analysis_path=Path("results/analysis/publication-panel-analysis-v5.json"),
+    ),
 }
 
 
@@ -160,6 +173,8 @@ def _v3_analysis_rows(
     analysis: dict[str, Any],
     registered_ids: set[str],
     expected_seed_count: Any,
+    *,
+    contract: str = "sota-v3",
 ) -> dict[str, dict[str, Any]]:
     issues: list[str] = []
     if not isinstance(expected_seed_count, int) or isinstance(expected_seed_count, bool) or expected_seed_count < 2:
@@ -167,8 +182,8 @@ def _v3_analysis_rows(
     unexpected_analysis_keys = sorted(set(analysis) - V3_PUBLIC_ANALYSIS_KEYS)
     if unexpected_analysis_keys:
         issues.append(f"analysis contains unexpected public fields: {unexpected_analysis_keys!r}")
-    if analysis.get("benchmark_version") != "sota-v3":
-        issues.append("benchmark_version must be exactly 'sota-v3'")
+    if analysis.get("benchmark_version") != contract:
+        issues.append(f"benchmark_version must be exactly {contract!r}")
     if analysis.get("status") != "complete" or analysis.get("publication_ready") is not True:
         issues.append("analysis must be complete and publication_ready")
     if analysis.get("analysis_mode") != "reference-only":
@@ -223,7 +238,7 @@ def _v3_analysis_rows(
     if set(rows) != registered_ids:
         issues.append("analysis model rows must match the registered model family exactly")
     if issues:
-        raise ValueError("sota-v3 release analysis is not publishable: " + "; ".join(dict.fromkeys(issues)))
+        raise ValueError(f"{contract} release analysis is not publishable: " + "; ".join(dict.fromkeys(issues)))
     return rows
 
 
@@ -262,7 +277,58 @@ def _require_v3_release_authorized(
         raise ValueError("sota-v3 release is not authorized: " + "; ".join(dict.fromkeys(issues)))
 
 
-def _require_public_v3_artifact(compact: dict[str, Any], model_id: str, raw_hash: str) -> None:
+def _require_v5_release_authorized(
+    lane: dict[str, Any],
+    registry: dict[str, Any],
+    protocol: dict[str, Any],
+    pricing: dict[str, Any],
+    manifest: dict[str, Any],
+    *,
+    repo_root: Path,
+) -> None:
+    """Require complete v5 evidence plus an explicit publication decision."""
+
+    issues = publication_execution_issues(
+        lane,
+        registry,
+        manifest,
+        phase="panel",
+        protocol=protocol,
+        pricing=pricing,
+        repo_root=repo_root,
+    )
+    for label, payload in (
+        ("lane", lane),
+        ("model registry", registry),
+        ("publication protocol", protocol),
+        ("pricing snapshot", pricing),
+    ):
+        if payload.get("publication_authorized") is not True:
+            issues.append(f"sota-v5 {label} publication_authorized is not true")
+    if issues:
+        raise ValueError("sota-v5 release is not authorized: " + "; ".join(dict.fromkeys(issues)))
+
+
+def _require_v5_publication_flag_files(repo_root: Path) -> None:
+    """Fail on the explicit release decision before reading panel analysis."""
+
+    missing_or_false: list[str] = []
+    for label, relative in (
+        ("lane", "config/sota_v5_lane.json"),
+        ("model registry", "config/sota_v5_models.json"),
+        ("publication protocol", "config/sota_v5_publication_protocol.json"),
+        ("pricing snapshot", "config/sota_v5_pricing_snapshot.json"),
+    ):
+        payload = _read_json(repo_root / relative)
+        if payload.get("publication_authorized") is not True:
+            missing_or_false.append(f"{label} publication_authorized is not true")
+    if missing_or_false:
+        raise ValueError(V5_RELEASE_LOCK + ": " + "; ".join(missing_or_false))
+
+
+def _require_public_v3_artifact(
+    compact: dict[str, Any], model_id: str, raw_hash: str, *, contract: str = "sota-v3"
+) -> None:
     redaction = compact.get("redaction")
     run_info = compact.get("run_info")
     seed_panel = run_info.get("seed_panel") if isinstance(run_info, dict) else None
@@ -295,7 +361,7 @@ def _require_public_v3_artifact(compact: dict[str, Any], model_id: str, raw_hash
     if linked != raw_hash:
         issues.append("publication.raw_artifact_sha256 must match the analysis row")
     if issues:
-        raise ValueError(f"public sota-v3 artifact for {model_id!r} is unsafe: " + "; ".join(issues))
+        raise ValueError(f"public {contract} artifact for {model_id!r} is unsafe: " + "; ".join(issues))
 
 
 def build_release(
@@ -315,6 +381,8 @@ def build_release(
         raise ValueError(f"unsupported release contract {contract!r}") from exc
     if contract == "sota-v4":
         raise ValueError(V4_RELEASE_LOCK)
+    if contract == "sota-v5":
+        _require_v5_publication_flag_files(repo_root)
     resolved_release_date = release_date or spec.default_release_date
     if resolved_release_date is None:
         raise ValueError(f"{contract} release packaging requires an explicit release_date")
@@ -332,23 +400,19 @@ def build_release(
     cap = int(registry["output_token_cap"])
     registered = [row for row in registry.get("models") or [] if isinstance(row, dict)]
     registered_ids = {str(row.get("id")) for row in registered}
-    if contract == "sota-v3":
-        lane = _read_json(repo_root / "config/sota_v3_lane.json")
-        protocol = _read_json(repo_root / "config/sota_v3_publication_protocol.json")
-        pricing = _read_json(repo_root / "config/sota_v3_pricing_snapshot.json")
-        smoke_manifest = _read_json(repo_root / "config/sota_v3_smoke_manifest.json")
-        _require_v3_release_authorized(
-            lane,
-            registry,
-            protocol,
-            pricing,
-            smoke_manifest,
-            repo_root=repo_root,
-        )
+    if contract in {"sota-v3", "sota-v5"}:
+        prefix = contract.replace("-", "_")
+        lane = _read_json(repo_root / f"config/{prefix}_lane.json")
+        protocol = _read_json(repo_root / f"config/{prefix}_publication_protocol.json")
+        pricing = _read_json(repo_root / f"config/{prefix}_pricing_snapshot.json")
+        smoke_manifest = _read_json(repo_root / f"config/{prefix}_smoke_manifest.json")
+        authorization = _require_v3_release_authorized if contract == "sota-v3" else _require_v5_release_authorized
+        authorization(lane, registry, protocol, pricing, smoke_manifest, repo_root=repo_root)
         eligible = _v3_analysis_rows(
             analysis,
             registered_ids,
             (lane.get("seed_panel") or {}).get("count"),
+            contract=contract,
         )
         rejected: dict[str, list[str]] = {}
     else:
@@ -392,10 +456,10 @@ def build_release(
         raw_path: Path | None = None
         raw_archive_name: str | None = None
         raw_bytes: bytes | None = None
-        if contract == "sota-v3":
+        if contract in {"sota-v3", "sota-v5"}:
             compact = _read_json(compact_source)
             compact_raw_hash = str(eligible[model_id]["raw_artifact_sha256"])
-            _require_public_v3_artifact(compact, model_id, compact_raw_hash)
+            _require_public_v3_artifact(compact, model_id, compact_raw_hash, contract=contract)
             compact_path = compact_relative.as_posix()
             add_file(compact_source, compact_path, "redacted-headline-artifact")
             candidate = compact.get("candidate") or {}
@@ -460,7 +524,7 @@ def build_release(
             (
                 "No ordinal model ranking is supported: all eligible rows occupy one overlapping uncertainty tier."
                 if contract == "sota-v2"
-                else "The predeclared sota-v3 analysis is reference-only; no model-to-model tiers are assigned."
+                else f"The predeclared {contract} analysis is reference-only; no model-to-model tiers are assigned."
             ),
         ],
     }
@@ -485,9 +549,9 @@ def verify_archive(archive_path: Path, *, repo_root: Path | None = None) -> dict
         manifest = json.loads(archive.read("manifest.json"))
         if manifest.get("format") != RELEASE_FORMAT:
             raise ValueError("unsupported release manifest format")
-        v3_private_release = manifest.get("contract") == "sota-v3"
-        if v3_private_release and any(name.startswith("raw/") for name in names):
-            raise ValueError("sota-v3 release archives must not contain private raw artifacts")
+        private_release = manifest.get("contract") in {"sota-v3", "sota-v5"}
+        if private_release and any(name.startswith("raw/") for name in names):
+            raise ValueError(f"{manifest.get('contract')} release archives must not contain private raw artifacts")
         expected_names = {str(row["path"]) for row in manifest.get("files") or []} | {"manifest.json"}
         if set(names) != expected_names:
             raise ValueError("archive members do not exactly match the manifest")
@@ -495,15 +559,16 @@ def verify_archive(archive_path: Path, *, repo_root: Path | None = None) -> dict
             data = archive.read(str(row["path"]))
             if len(data) != row.get("bytes") or _sha256(data) != row.get("sha256"):
                 raise ValueError(f"file checksum mismatch: {row.get('path')}")
-        if v3_private_release:
-            spec = RELEASE_SPECS["sota-v3"]
+        if private_release:
+            release_contract = str(manifest.get("contract"))
+            spec = RELEASE_SPECS[release_contract]
             analysis_name = spec.analysis_path.as_posix()
-            lane_name = "config/sota_v3_lane.json"
+            lane_name = f"config/{release_contract.replace('-', '_')}_lane.json"
             registry_name = spec.registry_path.as_posix()
             required = {analysis_name, lane_name, registry_name}
             missing = sorted(required - set(names))
             if missing:
-                raise ValueError(f"sota-v3 release is missing public validation input(s): {missing!r}")
+                raise ValueError(f"{release_contract} release is missing public validation input(s): {missing!r}")
             archived_analysis = json.loads(archive.read(analysis_name))
             archived_lane = json.loads(archive.read(lane_name))
             archived_registry = json.loads(archive.read(registry_name))
@@ -514,18 +579,21 @@ def verify_archive(archive_path: Path, *, repo_root: Path | None = None) -> dict
                 archived_analysis,
                 registered_ids,
                 (archived_lane.get("seed_panel") or {}).get("count"),
+                contract=release_contract,
             )
         for artifact in manifest.get("artifacts") or []:
             raw_path = artifact.get("raw_path")
-            if v3_private_release and raw_path:
-                raise ValueError("sota-v3 release manifest must not reference a private raw artifact")
+            if private_release and raw_path:
+                raise ValueError(
+                    f"{manifest.get('contract')} release manifest must not reference a private raw artifact"
+                )
             if raw_path:
                 raw = json.loads(archive.read(str(raw_path)))
                 if canonical_sha256(raw) != artifact.get("raw_canonical_sha256"):
                     raise ValueError(f"canonical raw hash mismatch: {artifact.get('model_id')}")
             compact_path = artifact.get("compact_artifact")
-            if v3_private_release and (not compact_path or str(compact_path) not in names):
-                raise ValueError("sota-v3 release must archive every redacted headline artifact")
+            if private_release and (not compact_path or str(compact_path) not in names):
+                raise ValueError(f"{manifest.get('contract')} release must archive every redacted headline artifact")
             if compact_path:
                 if str(compact_path) in names:
                     compact = json.loads(archive.read(str(compact_path)))
@@ -536,11 +604,12 @@ def verify_archive(archive_path: Path, *, repo_root: Path | None = None) -> dict
                 linked = (compact.get("publication") or {}).get("raw_artifact_sha256")
                 if linked != artifact.get("raw_canonical_sha256"):
                     raise ValueError(f"committed compact link mismatch: {artifact.get('model_id')}")
-                if v3_private_release:
+                if private_release:
                     _require_public_v3_artifact(
                         compact,
                         str(artifact.get("model_id") or ""),
                         str(artifact.get("raw_canonical_sha256") or ""),
+                        contract=str(manifest.get("contract")),
                     )
     return manifest
 

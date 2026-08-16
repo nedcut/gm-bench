@@ -112,8 +112,8 @@ results, run summaries, and comparison blocks, but that is a visibility fix,
 not a scale change: two rows with the same `score-v1` fingerprint remain
 comparable regardless of how many queries either one failed.
 
-The current `sota-v4` contract (fingerprint recorded in
-`config/sota_v4_lane.json`) still uses the same `score-v1` weights and clamps.
+The current `sota-v5` contract (fingerprint recorded in
+`config/sota_v5_lane.json`) still uses the same `score-v1` weights and clamps.
 Contract economics change the simulated
 rosters, and `cap_room` now correctly uses payroll including retained dead cap;
 neither change modifies the published score scale itself.

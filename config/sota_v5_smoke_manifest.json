@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "format": "gm-bench-smoke-manifest-v1",
+  "contract": "sota-v5",
+  "contract_fingerprint": "247e12fe5a7d4f5b",
+  "status": "not-started",
+  "evidence_state": "pre-data-no-completion-calls",
+  "required_model_count": 8,
+  "required_models": [
+    "openrouter-gpt-5.6-luna-openai",
+    "openrouter-claude-sonnet-5-bedrock",
+    "openrouter-solar-pro4-upstage",
+    "openrouter-minimax-m3-minimax",
+    "openrouter-gemini-3.7-flash-google-vertex-global",
+    "openrouter-mistral-medium-3.5-mistral",
+    "openrouter-deepseek-v4-flash-0731-cloudflare",
+    "openrouter-hy3-tencent"
+  ],
+  "entries": {},
+  "accepted_for_panel": false,
+  "panel_authorization_required": true,
+  "publication_authorization_required": true,
+  "notes": [
+    "A smoke entry is accepted only after fresh exact-route identity, privacy, reasoning-disabled behavior, JSON validity, request-cap behavior, complete usage telemetry, authoritative cost, and scaffold/contract fingerprints are validated.",
+    "No v4 smoke or panel artifact carries forward. A failed or incomplete cell is retained as exclusion evidence and does not authorize the next paid cell.",
+    "The manifest cannot be marked accepted_for_panel until all eight registered models have independently accepted entries and the hidden-seed owner attestation is recorded."
+  ]
+}

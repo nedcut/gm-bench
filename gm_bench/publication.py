@@ -263,6 +263,18 @@ def v4_route_acceptance_issues(registry: dict[str, Any], *, repo_root: Path | No
     return _v4_labels(v3_route_acceptance_issues(registry, repo_root=repo_root))
 
 
+def v5_route_identity_sha256(registry: dict[str, Any], model: dict[str, Any]) -> str:
+    """Bind v5 route evidence to the frozen route-policy identity fields."""
+
+    return v3_route_identity_sha256(registry, model)
+
+
+def v5_route_acceptance_issues(registry: dict[str, Any], *, repo_root: Path | None = None) -> list[str]:
+    """Validate v5 route evidence, including its explicit contract label."""
+
+    return [issue.replace("sota-v3", "sota-v5") for issue in v3_route_acceptance_issues(registry, repo_root=repo_root)]
+
+
 def v3_final_preflight_issues(
     lane: dict[str, Any],
     registry: dict[str, Any],
@@ -313,11 +325,17 @@ def v3_final_preflight_issues(
     if evidence.get("contract_fingerprint") != fingerprint or registry.get("contract_fingerprint") != fingerprint:
         issues.append("sota-v3 final-fingerprint preflight evidence is for a different contract")
     from gm_bench.contract import scaffold_fingerprint
-    from gm_bench.official import SOTA_V3_POLICY
+    from gm_bench.official import SOTA_V3_POLICY, SOTA_V4_POLICY, SOTA_V5_POLICY
 
+    frozen_policies = {
+        "sota-v3": SOTA_V3_POLICY,
+        "sota-v4": SOTA_V4_POLICY,
+        "sota-v5": SOTA_V5_POLICY,
+    }
+    expected_policy = frozen_policies.get(contract)
     expected_scaffold = (
-        SOTA_V3_POLICY.expected_scaffold_fingerprints["openrouter"]
-        if contract == "sota-v3"
+        expected_policy.expected_scaffold_fingerprints["openrouter"]
+        if expected_policy is not None
         else scaffold_fingerprint("openrouter")
     )
     if evidence.get("openrouter_scaffold_fingerprint") != expected_scaffold:
@@ -357,11 +375,16 @@ def v3_final_preflight_issues(
             if acceptance.get("accepted_at_utc") != route_payload.get("generated_at_utc"):
                 issues.append("sota-v3 exact-route acceptance is not from the final route evidence")
 
-    dry_run = evidence.get("keychain_dry_run")
+    dry_run_key = "smoke_command_dry_run" if contract == "sota-v5" else "keychain_dry_run"
+    dry_run = evidence.get(dry_run_key)
     panel = lane.get("seed_panel")
     model_ids = [str(model.get("id") or "") for model in registry.get("models") or [] if isinstance(model, dict)]
     if not isinstance(dry_run, dict) or dry_run.get("status") != "passed":
-        issues.append("sota-v3 final Keychain-backed dry run is not accepted")
+        issues.append(
+            "sota-v3 final smoke-command dry run is not accepted"
+            if contract == "sota-v5"
+            else "sota-v3 final Keychain-backed dry run is not accepted"
+        )
     else:
         if dry_run.get("model_ids") != model_ids or dry_run.get("commands_constructed") != len(model_ids):
             issues.append("sota-v3 final dry run does not cover every registered model")
@@ -369,8 +392,11 @@ def v3_final_preflight_issues(
             issues.append("sota-v3 final dry-run evidence must not include private seed values")
         if not isinstance(panel, dict) or dry_run.get("seed_panel_sha256") != panel.get("sha256"):
             issues.append("sota-v3 final dry run does not bind the frozen private seed panel")
-        if dry_run.get("hiding_commitment_verified") is not True:
-            issues.append("sota-v3 final dry run did not verify the private-panel hiding commitment")
+        expected_seed_access = contract != "sota-v5"
+        if dry_run.get("hiding_commitment_verified") is not expected_seed_access:
+            issues.append("sota-v3 final dry run has the wrong private-panel commitment verification state")
+        if contract == "sota-v5" and dry_run.get("private_seed_accessed") is not False:
+            issues.append("sota-v3 final dry run has the wrong private-seed access state")
         ceiling = declaration.get("operator_ceiling_usd")
         protocol_ceiling = (
             protocol.get("budget_policy", {}).get("operator_ceiling_usd") if isinstance(protocol, dict) else None
@@ -678,6 +704,47 @@ def v4_statistical_plan_issues(
     return _v4_labels(v3_statistical_plan_issues(lane_copy, registry_copy, protocol_copy))
 
 
+def v5_preregistration_coherence_issues(
+    lane: dict[str, Any],
+    registry: dict[str, Any],
+    protocol: dict[str, Any] | None,
+    pricing: dict[str, Any] | None,
+    manifest: dict[str, Any] | None,
+) -> list[str]:
+    """Apply the strict publication design rules to the current v5 lane."""
+
+    return [
+        issue.replace("sota-v3", "sota-v5")
+        for issue in v3_preregistration_coherence_issues(lane, registry, protocol, pricing, manifest)
+    ]
+
+
+def v5_statistical_plan_issues(
+    lane: dict[str, Any],
+    registry: dict[str, Any],
+    protocol: dict[str, Any] | None,
+) -> list[str]:
+    """Validate v5 statistical inputs while preserving exact contract identity."""
+
+    issues: list[str] = []
+    for label, payload in (("lane", lane), ("model registry", registry), ("publication protocol", protocol)):
+        if not isinstance(payload, dict) or payload.get("contract") != "sota-v5":
+            issues.append(f"sota-v5 {label} must declare contract 'sota-v5'")
+    if issues:
+        return issues
+    lane_copy = dict(lane)
+    registry_copy = dict(registry)
+    protocol_copy = dict(protocol) if isinstance(protocol, dict) else protocol
+    lane_copy["contract"] = "sota-v3"
+    registry_copy["contract"] = "sota-v3"
+    if isinstance(protocol_copy, dict):
+        protocol_copy["contract"] = "sota-v3"
+    return [
+        issue.replace("sota-v3", "sota-v5")
+        for issue in v3_statistical_plan_issues(lane_copy, registry_copy, protocol_copy)
+    ]
+
+
 def publication_execution_issues(
     lane: dict[str, Any],
     registry: dict[str, Any],
@@ -704,12 +771,22 @@ def publication_execution_issues(
         return []
 
     issues: list[str] = []
-    if contract in {"sota-v3", "sota-v4"}:
-        coherence_issues = (
-            v3_preregistration_coherence_issues if contract == "sota-v3" else v4_preregistration_coherence_issues
-        )
-        route_issues = v3_route_acceptance_issues if contract == "sota-v3" else v4_route_acceptance_issues
-        statistical_issues = v3_statistical_plan_issues if contract == "sota-v3" else v4_statistical_plan_issues
+    if contract in {"sota-v3", "sota-v4", "sota-v5"}:
+        coherence_issues = {
+            "sota-v3": v3_preregistration_coherence_issues,
+            "sota-v4": v4_preregistration_coherence_issues,
+            "sota-v5": v5_preregistration_coherence_issues,
+        }[contract]
+        route_issues = {
+            "sota-v3": v3_route_acceptance_issues,
+            "sota-v4": v4_route_acceptance_issues,
+            "sota-v5": v5_route_acceptance_issues,
+        }[contract]
+        statistical_issues = {
+            "sota-v3": v3_statistical_plan_issues,
+            "sota-v4": v4_statistical_plan_issues,
+            "sota-v5": v5_statistical_plan_issues,
+        }[contract]
         if phase != "route-preflight":
             issues.extend(coherence_issues(lane, registry, protocol, pricing, manifest))
             issues.extend(route_issues(registry, repo_root=repo_root))
@@ -738,7 +815,11 @@ def publication_execution_issues(
             issues.extend(statistical_issues(lane, registry, protocol))
         else:
             identity_issues = _v3_identity_issues(lane, registry, protocol, pricing, manifest)
-            issues.extend(identity_issues if contract == "sota-v3" else _v4_labels(identity_issues))
+            issues.extend(
+                identity_issues
+                if contract == "sota-v3"
+                else [value.replace("sota-v3", contract) for value in identity_issues]
+            )
             if lane.get("route_preflight_authorized") is not True:
                 issues.append("zero-call route preflight is locked while route_preflight_authorized is false")
         if phase == "route-preflight":
@@ -787,7 +868,7 @@ def publication_execution_issues(
 
     if lane.get("spend_authorized") is not True or registry.get("spend_authorized") is not True:
         issues.append("provider execution is locked until spend is explicitly authorized")
-    if contract in {"sota-v3", "sota-v4"}:
+    if contract in {"sota-v3", "sota-v4", "sota-v5"}:
         budget_policy = protocol.get("budget_policy") if isinstance(protocol, dict) else None
         if not isinstance(budget_policy, dict) or budget_policy.get("spend_authorized") is not True:
             issues.append("provider execution is locked by the publication protocol budget policy")
@@ -798,6 +879,14 @@ def publication_execution_issues(
         issues.append(f"provider execution is locked while {authorization_flag} is false")
 
     if phase == "panel":
+        seed_panel = lane.get("seed_panel")
+        if (
+            contract == "sota-v5"
+            and isinstance(seed_panel, dict)
+            and seed_panel.get("owner_attestation_required") is True
+            and seed_panel.get("owner_attestation_status") != "attested-before-seed-access"
+        ):
+            issues.append("sota-v5 panel execution requires owner attestation before private seed access")
         if registry.get("panel_execution_authorized") is not True:
             issues.append("panel execution is locked by the model registry")
         if not isinstance(manifest, dict) or manifest.get("accepted_for_panel") is not True:

@@ -151,7 +151,12 @@ def _publication_identity_issues(payload: dict[str, Any], config: dict[str, Any]
     return issues
 
 
-def model_row(payload: dict[str, Any], publication_config: dict[str, Any] | None = None) -> dict[str, Any]:
+def model_row(
+    payload: dict[str, Any],
+    publication_config: dict[str, Any] | None = None,
+    *,
+    policy: Any = SOTA_V2_POLICY,
+) -> dict[str, Any]:
     summary = payload["candidate"]["summary"]
     usage = summary.get("usage") or {}
     paired = payload.get("paired") or {}
@@ -159,7 +164,7 @@ def model_row(payload: dict[str, Any], publication_config: dict[str, Any] | None
     run_info = payload.get("run_info") or {}
     contract = run_info.get("benchmark_contract") or {}
     seed_panel = run_info.get("seed_panel") or {}
-    sota_report = _sota_report(payload)
+    sota_report = _sota_report(payload, policy=policy)
     publication_issues = _publication_identity_issues(payload, publication_config) if publication_config else []
     decisions = summary.get("decisions", 0)
     agent = payload.get("agent", "unknown")
@@ -236,10 +241,10 @@ def model_row(payload: dict[str, Any], publication_config: dict[str, Any] | None
     }
 
 
-def _sota_report(payload: dict[str, Any]) -> dict[str, Any]:
+def _sota_report(payload: dict[str, Any], *, policy: Any = SOTA_V2_POLICY) -> dict[str, Any]:
     """Always recompute eligibility; never trust embedded validation_reports."""
 
-    return validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY).to_dict()
+    return validate_leaderboard_payload(payload, policy=policy).to_dict()
 
 
 def _redacted_episode_count(payload: dict[str, Any]) -> int:
@@ -410,17 +415,18 @@ def _panel_analysis_rows(
     if not isinstance(panel_analysis, dict):
         return {}, ["publication panel analysis artifact is missing"]
     candidate_versions = {str(row.get("benchmark_version") or "") for row in candidates}
-    reference_only = candidate_versions == {"sota-v3"}
+    reference_contract = next(iter(candidate_versions)) if candidate_versions in ({"sota-v3"}, {"sota-v5"}) else None
+    reference_only = reference_contract is not None
     if reference_only:
-        if panel_analysis.get("benchmark_version") != "sota-v3":
-            issues.append("sota-v3 publication panel analysis declares the wrong benchmark version")
+        if panel_analysis.get("benchmark_version") != reference_contract:
+            issues.append(f"{reference_contract} publication panel analysis declares the wrong benchmark version")
         if panel_analysis.get("publication_ready") is not True:
-            issues.append("sota-v3 publication panel analysis is not publication-ready")
+            issues.append(f"{reference_contract} publication panel analysis is not publication-ready")
         if panel_analysis.get("analysis_mode") != "reference-only":
-            issues.append("sota-v3 publication panel analysis must use reference-only inference")
+            issues.append(f"{reference_contract} publication panel analysis must use reference-only inference")
         model_tiering = panel_analysis.get("model_tiering") or {}
         if not isinstance(model_tiering, dict) or model_tiering.get("status") != "not-supported":
-            issues.append("sota-v3 publication panel analysis must explicitly disable model tiering")
+            issues.append(f"{reference_contract} publication panel analysis must explicitly disable model tiering")
     analysis_rows = panel_analysis.get("models")
     if not isinstance(analysis_rows, list):
         return {}, ["publication panel analysis has no model rows"]
@@ -448,7 +454,7 @@ def _panel_analysis_rows(
             issues.append("publication panel analysis row is missing a valid primary bootstrap interval")
         if reference_only:
             if "tier" in row:
-                issues.append("sota-v3 reference-only analysis must not assign model tiers")
+                issues.append(f"{reference_contract} reference-only analysis must not assign model tiers")
         elif not isinstance(row.get("tier"), int):
             issues.append("publication panel analysis row is missing its final tier")
         by_identity[identity] = row
@@ -517,8 +523,9 @@ def publication_gate(
         minimum_models=minimum_models,
     )
     panel_analysis_ready = not panel_analysis_issues
+    candidate_versions = {str(row.get("benchmark_version") or "") for row in candidates}
     reference_only = (
-        {str(row.get("benchmark_version") or "") for row in candidates} == {"sota-v3"}
+        candidate_versions in ({"sota-v3"}, {"sota-v5"})
         and isinstance(panel_analysis, dict)
         and panel_analysis.get("analysis_mode") == "reference-only"
     )
