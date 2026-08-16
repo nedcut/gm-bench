@@ -9,7 +9,7 @@ panel. SOTA-v5 is a new, outcome-independent contract. It does not reopen v4,
 reuse v4 results, or treat the Qwen failure as a model ranking observation.
 
 The v5 family retains the seven non-Qwen v4 identities and replaces Qwen with
-`google/gemini-3.7-flash` on the provisional `google-vertex/global` route. The
+`google/gemini-3.7-flash` on the provisional `google-ai-studio` route. The
 replacement was selected from public OpenRouter catalog metadata before any v5
 route, smoke, panel, or result evidence.
 
@@ -44,10 +44,11 @@ selection inputs.
   registered contrasts at alpha 0.05.
 - Primary contrast: paired model lift versus deterministic `pick-trader`;
   no ordinal ranking or model tiers are preregistered.
-- Cost planning: the protocol-maximum smoke estimate is `$5.47964672`, or
-  `$6.575576064` with the 1.2x contingency, below the owner-set `$10` smoke
-  ceiling. The panel remains separately unauthorized and is estimated above
-  that ceiling.
+- Cost planning initially used the provisional Vertex route. The pre-data
+  Google AI Studio amendment regenerated the protocol-maximum smoke estimate
+  to `$5.90684672`, or `$7.088216064` with the 1.2x contingency, below the
+  owner-set `$10` smoke ceiling. The panel remains separately unauthorized
+  and is estimated above that ceiling.
 
 ## Seed lineage and attestation
 

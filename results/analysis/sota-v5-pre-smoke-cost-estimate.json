@@ -27,10 +27,10 @@
     "total_calls": 2592
   },
   "costs_usd": {
-    "panel": 43.83717376,
-    "smoke": 0.547964672,
-    "total_unrounded": 44.385138432,
-    "total_with_1_2x_contingency": 53.2621661184
+    "panel": 47.25477376,
+    "smoke": 0.590684672,
+    "total_unrounded": 47.845458432,
+    "total_with_1_2x_contingency": 57.4145501184
   },
   "models": [
     {
@@ -106,23 +106,23 @@
       "smoke_cost_usd": 0.0292608
     },
     {
-      "applied_completion_rate_usd": 1.875e-06,
-      "applied_internal_reasoning_rate_usd": 1.875e-06,
-      "applied_prompt_rate_usd": 3.75e-07,
-      "cost_per_decision_usd": 0.01068,
-      "experiment_id": "openrouter-gemini-3.7-flash-google-vertex-global",
+      "applied_completion_rate_usd": 3.75e-06,
+      "applied_internal_reasoning_rate_usd": 3.75e-06,
+      "applied_prompt_rate_usd": 7.5e-07,
+      "cost_per_decision_usd": 0.02136,
+      "experiment_id": "openrouter-gemini-3.7-flash-google-ai-studio",
       "internal_reasoning_billing_basis": "internal_reasoning",
       "internal_reasoning_tokens_per_decision": 0,
       "maximum_api_calls_per_decision": 10,
       "model": "google/gemini-3.7-flash",
       "panel_calls": 320,
-      "panel_cost_usd": 3.4176,
+      "panel_cost_usd": 6.8352,
       "protocol_maximum_panel_calls": 3200,
-      "protocol_maximum_panel_cost_usd": 34.176,
+      "protocol_maximum_panel_cost_usd": 68.352,
       "protocol_maximum_smoke_calls": 40,
-      "protocol_maximum_smoke_cost_usd": 0.4272,
+      "protocol_maximum_smoke_cost_usd": 0.8544,
       "smoke_calls": 4,
-      "smoke_cost_usd": 0.04272
+      "smoke_cost_usd": 0.08544
     },
     {
       "applied_completion_rate_usd": 7.5e-06,
@@ -182,10 +182,10 @@
   "pricing_checked_at_utc": "2026-08-16T19:45:49Z",
   "protocol_maximum": {
     "costs_usd": {
-      "panel": 438.3717376,
-      "smoke": 5.47964672,
-      "total_unrounded": 443.85138432,
-      "total_with_contingency": 532.621661184
+      "panel": 472.5477376,
+      "smoke": 5.90684672,
+      "total_unrounded": 478.45458432,
+      "total_with_contingency": 574.145501184
     },
     "description": "Maximum provider-call multiplicity allowed by the protocol, including every configured repair. Token costs still use the committed per-call planning token bounds; the publication runner's dynamic pre-call guard is the operator-ceiling enforcement mechanism.",
     "max_interaction_rounds_per_decision": 5,

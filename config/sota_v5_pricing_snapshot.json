@@ -22,7 +22,7 @@
     "anthropic/claude-sonnet-5": {"provider_slug": "amazon-bedrock/global", "endpoint_name": "Amazon Bedrock | anthropic/claude-sonnet-5-20260630", "prompt": 0.000002, "completion": 0.00001},
     "upstage/solar-pro4": {"provider_slug": "upstage", "endpoint_name": "Upstage | upstage/solar-pro4-20260810", "prompt": 0.0000003, "completion": 0.0000012},
     "minimax/minimax-m3": {"provider_slug": "minimax/fp8", "endpoint_name": "Minimax | minimax/minimax-m3-20260531", "prompt": 0.0000003, "completion": 0.0000012},
-    "google/gemini-3.7-flash": {"provider_slug": "google-vertex/global", "endpoint_name": "Google Vertex | google/gemini-3.7-flash-20260813", "prompt": 0.000000375, "completion": 0.000001875, "internal_reasoning": 0.000001875, "catalog_discount": 0.5, "reasoning_disabled_planning_tokens": 0},
+    "google/gemini-3.7-flash": {"provider_slug": "google-ai-studio", "endpoint_name": "Google AI Studio | google/gemini-3.7-flash-20260813", "prompt": 0.00000075, "completion": 0.00000375, "internal_reasoning": 0.00000375, "catalog_discount": 0, "reasoning_disabled_planning_tokens": 0},
     "mistralai/mistral-medium-3-5": {"provider_slug": "mistral", "endpoint_name": "Mistral | mistralai/mistral-medium-3.5-20260430", "prompt": 0.0000015, "completion": 0.0000075},
     "deepseek/deepseek-v4-flash-0731": {"provider_slug": "cloudflare", "endpoint_name": "Cloudflare | deepseek/deepseek-v4-flash-20260731", "prompt": 0.00000014, "completion": 0.00000028},
     "tencent/hy3": {"provider_slug": "tencent/fp8", "endpoint_name": "Tencent | tencent/hy3-20260706", "prompt": 0.000000132, "completion": 0.000000528}

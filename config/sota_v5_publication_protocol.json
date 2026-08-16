@@ -67,7 +67,7 @@
   "panel_execution_authorized": false,
   "publication_authorized": false,
   "selection_and_lineage": {
-    "replacement_model_id": "openrouter-gemini-3.7-flash-google-vertex-global",
+    "replacement_model_id": "openrouter-gemini-3.7-flash-google-ai-studio",
     "replaced_terminal_model_id": "openrouter-qwen3.8-max-alibaba",
     "selection_basis": "public-catalog-metadata-before-v5-data",
     "owner_attestation_required": true,

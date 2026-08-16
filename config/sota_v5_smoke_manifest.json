@@ -11,7 +11,7 @@
     "openrouter-claude-sonnet-5-bedrock",
     "openrouter-solar-pro4-upstage",
     "openrouter-minimax-m3-minimax",
-    "openrouter-gemini-3.7-flash-google-vertex-global",
+    "openrouter-gemini-3.7-flash-google-ai-studio",
     "openrouter-mistral-medium-3.5-mistral",
     "openrouter-deepseek-v4-flash-0731-cloudflare",
     "openrouter-hy3-tencent"
