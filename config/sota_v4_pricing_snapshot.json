@@ -37,9 +37,15 @@
     "Public metadata does not establish authenticated access, privacy acceptance, successful inference, reasoning-disabled behavior, or request compatibility.",
     "Qwen's healthy public metadata does not resolve the two sota-v3 HTTP 400 request failures."
   ],
-  "spend_authorized": false,
+  "spend_authorized": true,
   "route_preflight_authorized": true,
-  "smoke_execution_authorized": false,
+  "smoke_execution_authorized": true,
   "panel_execution_authorized": false,
-  "publication_authorized": false
+  "publication_authorized": false,
+  "paid_smoke_authorization": {
+    "scope": "single-model-single-infrastructure-attempt",
+    "model_id": "openrouter-qwen3.8-max-alibaba",
+    "attempt_number": 2,
+    "remaining_attempts": 1
+  }
 }

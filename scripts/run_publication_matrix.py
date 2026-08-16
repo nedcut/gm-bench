@@ -1609,6 +1609,54 @@ def _maximum_infrastructure_attempts() -> int:
     return attempts
 
 
+def _require_paid_smoke_attempt_authorized(cells: list[Cell], run_dir: Path) -> None:
+    """Enforce an exact-model, exact-attempt paid-smoke grant under the run lock."""
+    records = {
+        "lane": _read_json(LANE_CONFIG),
+        "model registry": _read_json(PANEL_CONFIG),
+        "publication protocol": _read_json(PROTOCOL_CONFIG),
+        "pricing snapshot": _read_json(PRICING_CONFIG),
+    }
+    authorizations = {label: payload.get("paid_smoke_authorization") for label, payload in records.items()}
+    authorization = authorizations["lane"]
+    if not isinstance(authorization, dict) or any(value != authorization for value in authorizations.values()):
+        raise ValueError("paid smoke authorization must be an identical object across every frozen v4 record")
+    if authorization.get("scope") != "single-model-single-infrastructure-attempt":
+        raise ValueError("paid smoke authorization scope is not single-model-single-infrastructure-attempt")
+    model_id = authorization.get("model_id")
+    attempt_number = authorization.get("attempt_number")
+    remaining_attempts = authorization.get("remaining_attempts")
+    if not isinstance(model_id, str) or not model_id:
+        raise ValueError("paid smoke authorization model_id must be a non-empty string")
+    if (
+        not isinstance(attempt_number, int)
+        or isinstance(attempt_number, bool)
+        or attempt_number < 1
+        or attempt_number > _maximum_infrastructure_attempts()
+    ):
+        raise ValueError("paid smoke authorization attempt_number is outside the frozen infrastructure-attempt limit")
+    if remaining_attempts != 1:
+        raise ValueError("paid smoke authorization must contain exactly one remaining attempt")
+    if len(cells) != 1 or cells[0].experiment_id != model_id:
+        raise ValueError(f"paid smoke authorization permits only {model_id}; pass its exact --model-id")
+
+    cell = cells[0]
+    reservations = _read_json_if_valid(run_dir / "openrouter-reservations.json") or {}
+    stored = (reservations.get("cells") or {}).get(f"{cell.experiment_id}--{cell.cap_label}")
+    expected_prior_attempts = attempt_number - 1
+    prior_attempts = stored.get("attempts") if isinstance(stored, dict) else 0
+    status_matches = stored is None if expected_prior_attempts == 0 else stored.get("status") == "active"
+    if (
+        not isinstance(prior_attempts, int)
+        or isinstance(prior_attempts, bool)
+        or (prior_attempts != expected_prior_attempts or not status_matches)
+    ):
+        raise ValueError(
+            f"paid smoke authorization requires {model_id} at attempt {expected_prior_attempts} of {attempt_number} "
+            "with matching preserved reservation state"
+        )
+
+
 def _checkpoint_failure_detail(run_dir: Path, cell: Cell) -> str | None:
     path = run_dir / "checkpoints" / f"{cell.experiment_id}--{cell.cap_label}.json"
     payload = _read_json_if_valid(path)
@@ -1976,6 +2024,10 @@ def main(argv: list[str] | None = None, *, _paid_run_lock_held: bool = False) ->
                 _record_run_cell_outcome(run_dir, cell, "ineligible", failure)
                 print(f"preserving completed ineligible smoke without rerun: {cell.experiment_id}")
                 continue
+            try:
+                _require_paid_smoke_attempt_authorized(cells, run_dir)
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                raise SystemExit(str(exc)) from exc
         archived_checkpoint = None
         if args.phase == "smoke" and not args.preflight_only and not args.dry_run:
             try:
