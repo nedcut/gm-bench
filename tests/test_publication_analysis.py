@@ -51,6 +51,49 @@ def test_default_analysis_outputs_are_contract_versioned() -> None:
     assert default_output_path("sota-v2").name == "publication-panel-analysis.json"
     assert default_output_path("sota-v3").name == "publication-panel-analysis-v3.json"
     assert default_output_path("sota-v4").name == "publication-panel-analysis-v4.json"
+    assert default_output_path("sota-v5").name == "publication-panel-analysis-v5.json"
+
+
+@pytest.mark.parametrize(
+    ("target", "expected_error"),
+    (
+        ("lane", "sota-v5 publication lane is not frozen"),
+        ("protocol", "sota-v5 publication protocol is not frozen"),
+        ("pricing", "sota-v5 pricing snapshot is not frozen"),
+    ),
+)
+def test_v5_analysis_requires_frozen_configuration(target: str, expected_error: str) -> None:
+    registry = {
+        "contract": "sota-v5",
+        "selection_status": "frozen",
+        "publication_authorized": True,
+        "preset": "leaderboard",
+        "models": [],
+    }
+    lane = {
+        "contract": "sota-v5",
+        "preregistration_status": "frozen",
+        "publication_authorized": True,
+        "seed_panel": {"status": "frozen", "name": "private-env", "count": 16, "sha256": "a" * 64},
+    }
+    protocol = {
+        "contract": "sota-v5",
+        "status": "frozen",
+        "publication_authorized": True,
+        "statistical_analysis_plan": {"status": "frozen"},
+    }
+    pricing = {"contract": "sota-v5", "status": "frozen", "publication_authorized": True}
+    if target == "lane":
+        lane["preregistration_status"] = "draft"
+    elif target == "protocol":
+        protocol["status"] = "draft"
+    else:
+        pricing["status"] = "draft"
+
+    result = analyze(registry, [], lane=lane, protocol=protocol, pricing=pricing)
+
+    assert result["publication_ready"] is False
+    assert expected_error in result["config_errors"]
 
 
 def test_v4_analysis_dispatch_is_explicitly_authorization_locked() -> None:

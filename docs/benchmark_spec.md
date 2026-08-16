@@ -400,7 +400,7 @@ held-out one that is never committed, guarding against seed overfitting.
 - Add a multi-agent arena mode where agents negotiate with each other.
 - Add sport variants with different roster and cap constraints.
 
-Introduced in v2 and retained in the default v3 episode:
+Introduced in v2 and retained in the default v5 episode:
 
 - Four-phase seasons with midseason injuries and waiver wire
 - Multi-round decision windows with query actions, `end_turn`, and
@@ -411,6 +411,6 @@ Introduced in v2 and retained in the default v3 episode:
 - Tiered observations (`full` / `summary`)
 - Persistent agent subprocess sessions (`GM_BENCH_SESSION=1`)
 - Private evaluation seeds, leaderboard package, contract fingerprint, and
-  versioned official-result validation. Current development uses `sota-v4`;
-  `sota-v3` and `sota-v2` remain available for frozen historical evidence (see
+  versioned official-result validation. Current development uses `sota-v5`;
+  `sota-v4`, `sota-v3`, and `sota-v2` remain available for frozen historical evidence (see
   [production_benchmark.md](production_benchmark.md)).

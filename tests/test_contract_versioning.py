@@ -14,6 +14,7 @@ from gm_bench.contract import (
     SOTA_V2_ORACLE_MEAN,
     SOTA_V3_CONTRACT,
     SOTA_V4_CONTRACT,
+    SOTA_V5_CONTRACT,
     benchmark_contract,
 )
 from gm_bench.official import (
@@ -22,16 +23,17 @@ from gm_bench.official import (
     SOTA_V2_POLICY,
     SOTA_V3_POLICY,
     SOTA_V4_POLICY,
+    SOTA_V5_POLICY,
     validate_leaderboard_payload,
 )
 
 
-def test_contract_reports_v4_version_strings() -> None:
-    assert BENCHMARK_VERSION == "sota-v4"
+def test_contract_reports_v5_version_strings() -> None:
+    assert BENCHMARK_VERSION == "sota-v5"
     assert ACTION_PROTOCOL_VERSION == "actions-v3"
     assert SIMULATOR_VERSION == "sim-v3"
     contract = benchmark_contract()
-    assert contract["benchmark_version"] == "sota-v4"
+    assert contract["benchmark_version"] == "sota-v5"
     assert contract["action_protocol_version"] == "actions-v3"
     assert contract["simulator_version"] == "sim-v3"
     # The P0 fixes change action/simulator semantics, not the scoring scale.
@@ -49,6 +51,8 @@ def test_current_and_historical_sota_policies_are_distinct() -> None:
     assert POLICIES["sota-v3"] is SOTA_V3_POLICY
     assert SOTA_V4_POLICY.name == "sota-v4"
     assert POLICIES["sota-v4"] is SOTA_V4_POLICY
+    assert SOTA_V5_POLICY.name == "sota-v5"
+    assert POLICIES["sota-v5"] is SOTA_V5_POLICY
     assert SOTA_V1_POLICY.name == "sota-v1"
     assert POLICIES["sota-v1"] is SOTA_V1_POLICY
     assert SOTA_V1_POLICY is not SOTA_V2_POLICY
@@ -58,10 +62,14 @@ def test_current_and_historical_sota_policies_are_distinct() -> None:
     assert SOTA_V2_ORACLE_MEAN == 431.153
     assert SOTA_V3_POLICY.expected_contract == SOTA_V3_CONTRACT
     assert SOTA_V4_POLICY.expected_contract == SOTA_V4_CONTRACT
-    assert SOTA_V4_POLICY.expected_contract == benchmark_contract()
+    assert SOTA_V5_POLICY.expected_contract == SOTA_V5_CONTRACT
+    assert SOTA_V5_POLICY.expected_contract == benchmark_contract()
+    assert SOTA_V4_CONTRACT["contract_fingerprint"] == SOTA_V5_CONTRACT["contract_fingerprint"]
+    assert SOTA_V4_CONTRACT["benchmark_version"] != SOTA_V5_CONTRACT["benchmark_version"]
     assert SOTA_V3_POLICY.expected_scaffold_fingerprints["openrouter"] == "2462b25854c1298b"
     assert SOTA_V3_POLICY.expected_scaffold_fingerprints["openai"] == "8275269195e00191"
     assert SOTA_V4_POLICY.expected_scaffold_fingerprints["openrouter"] == "f04724717cc09caf"
+    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "f04724717cc09caf"
 
 
 def test_archived_v1_result_remains_auditable_but_not_v2_eligible() -> None:

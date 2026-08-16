@@ -17,11 +17,12 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from gm_bench.benchmark_config import PRIVATE_SEEDS_ENV  # noqa: E402
-from gm_bench.contract import SOTA_V2_CONTRACT, benchmark_contract, scaffold_fingerprint  # noqa: E402
+from gm_bench.contract import SOTA_V2_CONTRACT, SOTA_V4_CONTRACT  # noqa: E402
 from gm_bench.official import (  # noqa: E402
     POLICIES,
     SOTA_V2_POLICY,
     SOTA_V3_POLICY,
+    SOTA_V4_POLICY,
     redact_leaderboard_payload,
     validate_leaderboard_payload,
 )
@@ -40,9 +41,7 @@ from scripts.sota_v3_rehearsal import (  # noqa: E402
 def synthetic_private_artifact() -> dict[str, Any]:
     """Build deterministic private-shaped v4 evidence without a provider call."""
     raw = copy.deepcopy(synthetic_v3_raw_artifact())
-    contract = benchmark_contract()
-    if contract.get("benchmark_version") != "sota-v4":
-        raise AssertionError("SOTA-v4 rehearsal requires current code to declare benchmark_version='sota-v4'")
+    contract = dict(SOTA_V4_CONTRACT)
 
     raw["agent"] = "rehearsal:synthetic-v4"
     raw["candidate"]["agent"] = "rehearsal:synthetic-v4"
@@ -52,7 +51,7 @@ def synthetic_private_artifact() -> dict[str, Any]:
             "agent": "rehearsal:synthetic-v4",
             "model": "synthetic-v4",
             "benchmark_contract": contract,
-            "scaffold_fingerprint": scaffold_fingerprint("openrouter"),
+            "scaffold_fingerprint": SOTA_V4_POLICY.expected_scaffold_fingerprints["openrouter"],
         }
     )
     run_info["seed_panel"]["name"] = "private-env"
@@ -64,7 +63,7 @@ def synthetic_private_artifact() -> dict[str, Any]:
 
 
 def _registry() -> dict[str, Any]:
-    contract = benchmark_contract()
+    contract = SOTA_V4_CONTRACT
     return {
         "schema_version": 1,
         "contract": "sota-v4",
@@ -112,7 +111,7 @@ def _lane(raw: dict[str, Any]) -> dict[str, Any]:
 def _protocol() -> dict[str, Any]:
     return {
         "contract": "sota-v4",
-        "contract_fingerprint": benchmark_contract()["contract_fingerprint"],
+        "contract_fingerprint": SOTA_V4_CONTRACT["contract_fingerprint"],
         "status": "frozen",
         "statistical_analysis_plan": {"status": "frozen", "analysis_mode": "reference-only"},
         "publication_authorized": False,

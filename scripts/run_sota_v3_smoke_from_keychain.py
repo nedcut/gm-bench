@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Launch an authorized strict publication smoke without exposing private seeds.
 
-The private panel is read from macOS Keychain, verified against the committed
-ordered hash and salted hiding commitment, and passed to the publication runner
-only through ``GM_BENCH_PRIVATE_SEEDS`` in this process. The runner still
-requires an explicit spend ceiling and retains every normal route, reservation,
-strict-failure, and smoke-manifest gate.
+Historical v3/v4 launches verify the private panel in macOS Keychain. SOTA-v5
+smokes deliberately do not read it: the public smoke seed needs no private
+panel access, and the carried commitment requires an owner attestation before
+the later panel. The runner still requires an explicit spend ceiling and
+retains every route, reservation, strict-failure, and smoke-manifest gate.
 """
 
 from __future__ import annotations
@@ -28,17 +28,26 @@ from gm_bench.publication import (  # noqa: E402
     canonical_sha256,
     v3_route_acceptance_issues,
     v4_route_acceptance_issues,
+    v5_route_acceptance_issues,
 )
 from scripts.run_publication_matrix import main as publication_main  # noqa: E402
 from scripts.seed_panel_commitment import commitment, parse_ordered_seeds  # noqa: E402
 
 KEYCHAIN_ACCOUNT = "nedcutler"
 KEYCHAIN_SERVICE = "gm-bench-sota-v3-private-panel"
+KEYCHAIN_SERVICES = {
+    "sota-v3": KEYCHAIN_SERVICE,
+    "sota-v4": KEYCHAIN_SERVICE,
+    # V5 deliberately carries the still-unused v3 commitment forward. Reuse
+    # the one escrow instead of copying secret material into a new identity.
+    "sota-v5": KEYCHAIN_SERVICE,
+}
 CANONICAL_OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
-SUPPORTED_CONTRACTS = ("sota-v3", "sota-v4")
+SUPPORTED_CONTRACTS = ("sota-v3", "sota-v4", "sota-v5")
 ROUTE_ACCEPTANCE_CHECKS = {
     "sota-v3": v3_route_acceptance_issues,
     "sota-v4": v4_route_acceptance_issues,
+    "sota-v5": v5_route_acceptance_issues,
 }
 
 
@@ -51,13 +60,13 @@ def _contract_path(contract: str, kind: str) -> Path:
     return ROOT / "config" / f"{contract.replace('-', '_')}_{suffixes[kind]}.json"
 
 
-def _keychain_record() -> dict[str, object]:
+def _keychain_record(contract: str = "sota-v3") -> dict[str, object]:
     result = subprocess.run(  # noqa: S603 - fixed macOS Keychain command
         [
             "security",
             "find-generic-password",
             "-s",
-            KEYCHAIN_SERVICE,
+            KEYCHAIN_SERVICES.get(contract, KEYCHAIN_SERVICE),
             "-a",
             KEYCHAIN_ACCOUNT,
             "-w",
@@ -80,7 +89,7 @@ def _keychain_record() -> dict[str, object]:
 def _verified_seed_text(contract: str = "sota-v3") -> str:
     lane = json.loads(_contract_path(contract, "lane").read_text())
     panel = lane.get("seed_panel") or {}
-    record = _keychain_record()
+    record = _keychain_record(contract)
     seeds_text = record.get("seeds")
     salt = record.get("salt")
     if not isinstance(seeds_text, str) or not isinstance(salt, str):
@@ -138,14 +147,16 @@ def _record_readiness(path: Path, *, contract: str, max_spend_usd: float, mode: 
             "verified_at_utc": route_payload.get("generated_at_utc"),
         },
     }
+    dry_run_key = "smoke_command_dry_run" if contract == "sota-v5" else "keychain_dry_run"
     if mode == "dry-run":
-        evidence["keychain_dry_run"] = {
+        evidence[dry_run_key] = {
             "status": "passed",
             "model_ids": model_ids,
             "commands_constructed": len(model_ids),
             "operator_ceiling_usd": max_spend_usd,
             "seed_panel_sha256": panel.get("sha256"),
-            "hiding_commitment_verified": True,
+            "hiding_commitment_verified": contract != "sota-v5",
+            "private_seed_accessed": contract != "sota-v5",
             "private_seed_values_included": False,
         }
         live_preflight = existing.get("authenticated_route_and_price_preflight")
@@ -160,15 +171,15 @@ def _record_readiness(path: Path, *, contract: str, max_spend_usd: float, mode: 
             "canonical_openrouter_api_base": CANONICAL_OPENROUTER_API_BASE,
             "pricing_checked": True,
         }
-        dry_run = existing.get("keychain_dry_run")
+        dry_run = existing.get(dry_run_key)
         if isinstance(dry_run, dict):
-            evidence["keychain_dry_run"] = dry_run
+            evidence[dry_run_key] = dry_run
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(evidence, indent=2, sort_keys=True, allow_nan=False) + "\n")
     relative = str(path.resolve().relative_to(ROOT.resolve()))
-    accepted = "keychain_dry_run" in evidence and "authenticated_route_and_price_preflight" in evidence
+    accepted = dry_run_key in evidence and "authenticated_route_and_price_preflight" in evidence
     if accepted:
-        dry_run = evidence["keychain_dry_run"]
+        dry_run = evidence[dry_run_key]
         live_preflight = evidence["authenticated_route_and_price_preflight"]
         accepted = (
             isinstance(dry_run, dict)
@@ -176,7 +187,8 @@ def _record_readiness(path: Path, *, contract: str, max_spend_usd: float, mode: 
             and dry_run.get("model_ids") == model_ids
             and dry_run.get("operator_ceiling_usd") == max_spend_usd
             and dry_run.get("seed_panel_sha256") == panel.get("sha256")
-            and dry_run.get("hiding_commitment_verified") is True
+            and dry_run.get("hiding_commitment_verified") is (contract != "sota-v5")
+            and dry_run.get("private_seed_accessed") is (contract != "sota-v5")
             and dry_run.get("private_seed_values_included") is False
             and isinstance(live_preflight, dict)
             and live_preflight.get("status") == "passed"
@@ -238,7 +250,12 @@ def main(argv: list[str] | None = None) -> int:
         if not readiness_path.is_relative_to(ROOT.resolve()):
             parser.error("--record-readiness must be inside the repository")
     run_dir = args.run_dir or str(ROOT / "data" / "publication" / f"{args.contract}-smokes")
-    os.environ[PRIVATE_SEEDS_ENV] = _verified_seed_text(args.contract)
+    inherited_private_seeds = os.environ.get(PRIVATE_SEEDS_ENV)
+    private_seed_text = _verified_seed_text(args.contract) if args.contract != "sota-v5" else None
+    if private_seed_text is not None:
+        os.environ[PRIVATE_SEEDS_ENV] = private_seed_text
+    else:
+        os.environ.pop(PRIVATE_SEEDS_ENV, None)
     runner_args = [
         "smoke",
         "--contract",
@@ -266,7 +283,10 @@ def main(argv: list[str] | None = None) -> int:
             )
         return result
     finally:
-        os.environ.pop(PRIVATE_SEEDS_ENV, None)
+        if inherited_private_seeds is None:
+            os.environ.pop(PRIVATE_SEEDS_ENV, None)
+        else:
+            os.environ[PRIVATE_SEEDS_ENV] = inherited_private_seeds
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ from gm_bench.official import (
     SOTA_V1_POLICY,
     SOTA_V2_POLICY,
     SOTA_V3_POLICY,
-    SOTA_V4_POLICY,
+    SOTA_V5_POLICY,
     _compare_present_values,
     redact_leaderboard_payload,
     validate_leaderboard_payload,
@@ -33,7 +33,7 @@ def test_frozen_sota_v3_policy_does_not_follow_the_current_contract() -> None:
     payload["run_info"]["benchmark_contract"] = dict(SOTA_V3_CONTRACT)
 
     historical = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
-    current = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    current = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
 
     assert historical.ok, historical.errors
     assert not current.ok
@@ -170,7 +170,7 @@ def test_compact_artifact_rejects_tampered_episode_and_aggregate() -> None:
     payload["candidate"]["episodes"][0]["final_score"] = 9999.0
     payload["candidate"]["summary"]["mean_score"] = 9999.0
     payload["normalized"]["candidate_mean_score"] = 9999.0
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any("episode-derived" in error for error in report.errors)
 
@@ -219,29 +219,29 @@ def test_historical_baseline_panel_is_diagnostic_but_not_sota() -> None:
     assert public_report.ok
     assert "historical baseline panel differs from the current official panel" in public_report.warnings
 
-    sota_report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    sota_report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not sota_report.ok
     assert any(error.startswith("baselines must be") for error in sota_report.errors)
 
 
-def test_sota_v4_policy_accepts_the_frozen_one_repeat_estimand() -> None:
-    report = validate_leaderboard_payload(_official_payload(repeats=1), policy=SOTA_V4_POLICY)
+def test_sota_v5_policy_accepts_the_frozen_one_repeat_estimand() -> None:
+    report = validate_leaderboard_payload(_official_payload(repeats=1), policy=SOTA_V5_POLICY)
     assert report.ok, report.errors
 
 
-def test_sota_v4_policy_requires_per_episode_score_components() -> None:
+def test_sota_v5_policy_requires_per_episode_score_components() -> None:
     payload = _official_payload(repeats=3)
     for episode in payload["candidate"]["episodes"]:
         del episode["score_components"]
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any("is missing score_components" in error for error in report.errors)
 
 
-def test_sota_v4_policy_rejects_incomplete_or_inconsistent_components() -> None:
+def test_sota_v5_policy_rejects_incomplete_or_inconsistent_components() -> None:
     payload = _official_payload(repeats=3)
     del payload["candidate"]["episodes"][0]["score_components"]["young_assets_contribution"]
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any("is missing ['young_assets_contribution']" in error for error in report.errors)
 
@@ -252,14 +252,14 @@ def test_sota_v4_policy_rejects_incomplete_or_inconsistent_components() -> None:
     payload["candidate"]["episodes"][0]["score_components"]["recent_wins"] = round(
         1.0 / ACTIVE_SCORE_SCALE.recent_win, 6
     )
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any("do not sum to strategy_score" in error for error in report.errors)
 
     # A coherent contribution total with a lying raw is not reweightable evidence.
     payload = _official_payload(repeats=3)
     payload["candidate"]["episodes"][0]["score_components"]["recent_wins"] = 0.0
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any(
         "recent_wins_contribution does not match the published scale applied to recent_wins" in error
@@ -268,16 +268,16 @@ def test_sota_v4_policy_rejects_incomplete_or_inconsistent_components() -> None:
 
     payload = _official_payload(repeats=3)
     payload["candidate"]["episodes"][0]["final_score"] = 1.0
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any("final_score does not equal strategy_score - protocol_penalty" in error for error in report.errors)
 
 
 @pytest.mark.parametrize("bad", [float("nan"), float("inf"), "12.0", True])
-def test_sota_v4_policy_rejects_non_finite_score_components(bad: object) -> None:
+def test_sota_v5_policy_rejects_non_finite_score_components(bad: object) -> None:
     payload = _official_payload(repeats=3)
     payload["candidate"]["episodes"][0]["score_components"]["cap_room"] = bad
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any("score_components.cap_room must be a finite number" in error for error in report.errors)
 
@@ -294,7 +294,7 @@ def test_frozen_v2_rows_validate_without_score_components() -> None:
     report = validate_leaderboard_payload(payload, policy=SOTA_V2_POLICY)
     assert report.ok, report.errors
     assert not SOTA_V2_POLICY.require_score_components
-    assert SOTA_V4_POLICY.require_score_components
+    assert SOTA_V5_POLICY.require_score_components
 
 
 def test_committed_v2_leaderboard_rows_still_validate() -> None:
@@ -307,31 +307,31 @@ def test_committed_v2_leaderboard_rows_still_validate() -> None:
     assert report.ok, report.errors
 
 
-def test_sota_v4_policy_requires_strict_failure_handling() -> None:
+def test_sota_v5_policy_requires_strict_failure_handling() -> None:
     payload = _official_payload(repeats=3)
     payload["run_info"]["strict_fallback"] = False
     payload["run_info"]["provider_options"]["GM_AGENT_STRICT"] = "0"
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any("strict failure handling" in error for error in report.errors)
 
 
-def test_sota_v4_policy_requires_attested_strictness() -> None:
+def test_sota_v5_policy_requires_attested_strictness() -> None:
     payload = _official_payload(repeats=3)
     del payload["run_info"]["strict_fallback"]
     del payload["run_info"]["provider_options"]["GM_AGENT_STRICT"]
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
-    assert "run_info.strict_fallback is required for sota-v4 rows; the failure-handling policy must be attested" in (
+    assert "run_info.strict_fallback is required for sota-v5 rows; the failure-handling policy must be attested" in (
         report.errors
     )
-    assert "run_info.provider_options.GM_AGENT_STRICT is required for sota-v4 rows" in report.errors
+    assert "run_info.provider_options.GM_AGENT_STRICT is required for sota-v5 rows" in report.errors
 
 
-def test_sota_v4_policy_rejects_disagreeing_strictness_provenance() -> None:
+def test_sota_v5_policy_rejects_disagreeing_strictness_provenance() -> None:
     payload = _official_payload(repeats=3)
     payload["run_info"]["strict_fallback"] = False
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any("must match" in error for error in report.errors)
 
@@ -348,23 +348,23 @@ def test_v2_lane_keeps_soft_fallback_semantics() -> None:
     assert not OUTPUT_BUDGET_SWEEP_POLICY.require_strict_fallback
     assert not SOTA_V1_POLICY.require_strict_fallback
     assert not ARCHIVE_V1_POLICY.require_strict_fallback
-    assert SOTA_V4_POLICY.require_strict_fallback
+    assert SOTA_V5_POLICY.require_strict_fallback
 
 
-def test_sota_v4_policy_rejects_high_failure_rate() -> None:
-    report = validate_leaderboard_payload(_official_payload(repeats=3, failure_rate=0.05), policy=SOTA_V4_POLICY)
+def test_sota_v5_policy_rejects_high_failure_rate() -> None:
+    report = validate_leaderboard_payload(_official_payload(repeats=3, failure_rate=0.05), policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any("decision_failure_rate" in error for error in report.errors)
 
 
-def test_sota_v4_policy_rejects_runaway_failed_queries() -> None:
+def test_sota_v5_policy_rejects_runaway_failed_queries() -> None:
     # The v1 scout-contract break produced 1,124 silently-rejected lookups across
     # 480 decisions (2.34/decision) while reporting a clean summary. That row must
     # not be publishable again.
     payload = _official_payload(repeats=3)
     decisions = int(payload["candidate"]["summary"]["decisions"])
     payload["candidate"]["summary"]["failed_queries"] = decisions * 2 + 1
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any("failed queries" in error for error in report.errors)
 
@@ -373,13 +373,13 @@ def test_failed_queries_warn_below_the_hard_gate() -> None:
     payload = _official_payload(repeats=3)
     decisions = int(payload["candidate"]["summary"]["decisions"])
     payload["candidate"]["summary"]["failed_queries"] = int(decisions * 0.5)
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert report.ok
     assert any("failed queries" in warning for warning in report.warnings)
 
     # A handful of misfired lookups is normal exploration, not a signal.
     payload["candidate"]["summary"]["failed_queries"] = int(decisions * 0.1)
-    quiet = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    quiet = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert quiet.ok
     assert not any("failed queries" in warning for warning in quiet.warnings)
 
@@ -408,16 +408,16 @@ def test_archive_v1_policy_rejects_a_non_v1_artifact() -> None:
     assert any("contract" in error.lower() for error in report.errors)
 
 
-def test_sota_v4_policy_requires_full_usage() -> None:
+def test_sota_v5_policy_requires_full_usage() -> None:
     payload = _official_payload(repeats=3)
     payload["candidate"]["summary"]["usage"]["decisions_with_usage"] = 0
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert "candidate usage must cover every decision point" in report.errors
 
     payload = _official_payload(repeats=3)
     payload["candidate"]["summary"]["usage"]["cost_usd"] = "missing"
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert "candidate usage.cost_usd is required, use null only when pricing is unknown" in report.errors
 
@@ -426,11 +426,11 @@ def test_sota_v4_policy_requires_full_usage() -> None:
     ("run_value", "option_value"),
     [(None, "1"), (1, None), (-1, "-1"), (2, "2"), (0, "1"), ("bad", "1")],
 )
-def test_sota_v4_requires_matching_bounded_repair_provenance(run_value: object, option_value: object) -> None:
+def test_sota_v5_requires_matching_bounded_repair_provenance(run_value: object, option_value: object) -> None:
     payload = _official_payload(repeats=3)
     payload["run_info"]["protocol_repair_attempts"] = run_value
     payload["run_info"]["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] = option_value
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any("repair" in error for error in report.errors)
 
@@ -495,12 +495,12 @@ def test_openrouter_price_route_is_public_diagnostic_but_not_sota() -> None:
     assert public.ok
     assert any("price-routed OpenRouter diagnostic" in warning for warning in public.warnings)
 
-    sota = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    sota = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not sota.ok
     assert any("OPENROUTER_PROVIDER_ONLY" in error for error in sota.errors)
 
 
-def test_sota_v4_accepts_pinned_single_upstream_openrouter_route() -> None:
+def test_sota_v5_accepts_pinned_single_upstream_openrouter_route() -> None:
     payload = _official_payload(repeats=3)
     payload["agent"] = "openrouter:openai/gpt-test"
     payload["candidate"]["agent"] = payload["agent"]
@@ -521,11 +521,11 @@ def test_sota_v4_accepts_pinned_single_upstream_openrouter_route() -> None:
     )
     payload["candidate"]["summary"]["usage"]["upstream_providers"] = ["OpenAI"]
 
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert report.ok
 
 
-def test_sota_v4_rejects_openrouter_upstream_that_differs_from_pin() -> None:
+def test_sota_v5_rejects_openrouter_upstream_that_differs_from_pin() -> None:
     payload = _official_payload(repeats=3)
     payload["agent"] = "openrouter:openai/gpt-test"
     payload["candidate"]["agent"] = payload["agent"]
@@ -546,83 +546,83 @@ def test_sota_v4_rejects_openrouter_upstream_that_differs_from_pin() -> None:
     )
     payload["candidate"]["summary"]["usage"]["upstream_providers"] = ["Azure"]
 
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
 
     assert not report.ok
     assert any("does not match" in error for error in report.errors)
 
 
-def test_sota_v4_policy_requires_contract_provenance() -> None:
+def test_sota_v5_policy_requires_contract_provenance() -> None:
     payload = _official_payload(repeats=3)
     del payload["run_info"]["benchmark_contract"]
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert "run_info.benchmark_contract is required for current-contract validation" in report.errors
 
 
-def test_sota_v4_policy_rejects_missing_scaffold_fingerprint() -> None:
+def test_sota_v5_policy_rejects_missing_scaffold_fingerprint() -> None:
     payload = _official_payload(repeats=3)
     del payload["run_info"]["scaffold_fingerprint"]
-    sota_report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    sota_report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not sota_report.ok
-    assert any("scaffold_fingerprint is required for sota-v4 rows" in error for error in sota_report.errors)
+    assert any("scaffold_fingerprint is required for sota-v5 rows" in error for error in sota_report.errors)
 
     public_report = validate_leaderboard_payload(payload, policy=PUBLIC_LEADERBOARD_POLICY)
     assert public_report.ok
     assert any("scaffold_fingerprint missing" in warning for warning in public_report.warnings)
 
 
-def test_sota_v4_policy_requires_seed_panel_provenance() -> None:
+def test_sota_v5_policy_requires_seed_panel_provenance() -> None:
     payload = _official_payload(repeats=3)
     del payload["run_info"]["seed_panel"]
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert "run_info.seed_panel is required for official seed-panel validation" in report.errors
 
 
-def test_sota_v4_policy_rejects_contract_fingerprint_mismatch() -> None:
+def test_sota_v5_policy_rejects_contract_fingerprint_mismatch() -> None:
     payload = _official_payload(repeats=3)
     payload["run_info"]["benchmark_contract"]["contract_fingerprint"] = "stale"
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any("contract_fingerprint" in error for error in report.errors)
 
 
-def test_sota_v4_policy_accepts_private_panel_when_env_matches(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sota_v5_policy_accepts_private_panel_when_env_matches(monkeypatch: pytest.MonkeyPatch) -> None:
     private_seeds = [101, 102, 110, 111, 112, 113, 114, 115]
     monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-115")
     report = validate_leaderboard_payload(
         _official_payload(repeats=3, seeds=private_seeds),
-        policy=SOTA_V4_POLICY,
+        policy=SOTA_V5_POLICY,
     )
     assert report.ok
 
 
-def test_sota_v4_policy_rejects_too_small_private_panel(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sota_v5_policy_rejects_too_small_private_panel(monkeypatch: pytest.MonkeyPatch) -> None:
     private_seeds = [101, 102, 110, 111]
     monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-111")
     report = validate_leaderboard_payload(
         _official_payload(repeats=3, seeds=private_seeds),
-        policy=SOTA_V4_POLICY,
+        policy=SOTA_V5_POLICY,
     )
     assert not report.ok
-    assert "seeds must contain at least 8 seed(s) for sota-v4" in report.errors
+    assert "seeds must contain at least 8 seed(s) for sota-v5" in report.errors
 
 
-def test_sota_v4_policy_rejects_private_panel_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sota_v5_policy_rejects_private_panel_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
     private_seeds = [101, 102, 110, 111, 112, 113, 114, 115]
     monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-115")
     payload = _official_payload(repeats=3, seeds=private_seeds)
     monkeypatch.delenv(PRIVATE_SEEDS_ENV)
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert f"{PRIVATE_SEEDS_ENV} is required to validate a private leaderboard seed panel" in report.errors
 
 
-def test_sota_v4_policy_rejects_seed_panel_hash_mismatch() -> None:
+def test_sota_v5_policy_rejects_seed_panel_hash_mismatch() -> None:
     payload = _official_payload(repeats=3)
     payload["run_info"]["seed_panel"]["sha256"] = "stale"
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any("seed_panel.sha256" in error for error in report.errors)
 
@@ -633,7 +633,7 @@ def test_redact_leaderboard_payload_removes_private_seed_details(monkeypatch: py
     redacted, report = redact_leaderboard_payload(_official_payload(repeats=3, seeds=private_seeds))
 
     assert report.ok
-    assert redacted["validation_reports"]["sota-v4"]["ok"] is True
+    assert redacted["validation_reports"]["sota-v5"]["ok"] is True
     assert redacted["redaction"]["applied"] is True
     assert redacted["seeds"] == REDACTED_SEEDS_SENTINEL
     assert redacted["candidate"]["seeds"] == REDACTED_SEEDS_SENTINEL
@@ -655,7 +655,7 @@ def test_cli_redact_result_writes_public_safe_artifact(tmp_path: Path, monkeypat
     payload = json.loads(redacted_path.read_text())
     assert payload["seeds"] == REDACTED_SEEDS_SENTINEL
     assert payload["candidate"]["episodes"] == []
-    assert payload["validation_reports"]["sota-v4"]["ok"] is True
+    assert payload["validation_reports"]["sota-v5"]["ok"] is True
 
 
 def test_v2_leaderboard_builder_excludes_redacted_v3_artifact(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -665,7 +665,7 @@ def test_v2_leaderboard_builder_excludes_redacted_v3_artifact(monkeypatch: pytes
     monkeypatch.delenv(PRIVATE_SEEDS_ENV)
 
     # Revalidation must succeed without the private seed env: only the commitment remains.
-    report = validate_leaderboard_payload(redacted, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(redacted, policy=SOTA_V5_POLICY)
     assert report.ok
 
     row = model_row(redacted)
@@ -704,7 +704,7 @@ def test_leaderboard_builder_rejects_forged_redacted_sota_report() -> None:
     payload["redaction"] = {"applied": True, "seed_panel": "private-env", "removed": ["seeds"]}
     payload["validation_reports"] = {"sota-v2": {"policy": "sota-v2", "ok": True, "errors": [], "warnings": []}}
 
-    report = validate_leaderboard_payload(payload, policy=SOTA_V4_POLICY)
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert not report.ok
     assert any("decision_failure_rate" in error for error in report.errors)
 
@@ -712,14 +712,14 @@ def test_leaderboard_builder_rejects_forged_redacted_sota_report() -> None:
     assert row["sota_v2_eligible"] is False
 
 
-def test_sota_v4_policy_accepts_valid_redacted_private_artifact(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sota_v5_policy_accepts_valid_redacted_private_artifact(monkeypatch: pytest.MonkeyPatch) -> None:
     private_seeds = [101, 102, 110, 111, 112, 113, 114, 115]
     monkeypatch.setenv(PRIVATE_SEEDS_ENV, "101,102,110-115")
     redacted, report = redact_leaderboard_payload(_official_payload(repeats=3, seeds=private_seeds))
     assert report.ok
     monkeypatch.delenv(PRIVATE_SEEDS_ENV)
 
-    revalidated = validate_leaderboard_payload(redacted, policy=SOTA_V4_POLICY)
+    revalidated = validate_leaderboard_payload(redacted, policy=SOTA_V5_POLICY)
     assert revalidated.ok
 
 

@@ -9,14 +9,10 @@
 
 **Last reviewed:** 2026-08-16
 **Current target:** Preserve the published `sota-v2` study and terminal
-`sota-v3` strict-smoke outcome while validating an initial fail-closed
-`sota-v4` preregistration. Five of eight v3 routes were accepted; v3 panel and
-publication remain locked. The first paid v4 Qwen/Alibaba request returned
-HTTP 400 without a generation or settled account charge. Its authorized second
-and final infrastructure attempt also returned HTTP 400, now with sanitized
-provider detail proving the exact route requires reasoning and cannot satisfy
-the uniform reasoning-disabled lane. V4 spend, smoke, panel, and publication
-are all re-locked.
+`sota-v3`/`sota-v4` execution records while preparing the prospective
+`sota-v5` successor through authenticated zero-completion route, privacy,
+pricing, and final-preflight evidence. V5 spend, smoke, panel, and publication
+remain false until separate owner decisions.
 **Current state:** The frozen phase-one public panel, blog, GitHub release, and
 results-first site are published. Eight of ten
 `sota-v2`-registered models produced route-matched, cost-complete `sota-v2`
@@ -54,7 +50,7 @@ completed with one model-behavior protocol failure and cannot be rerun; MiniMax
 exhausted two HTTP 429 attempts; Qwen exhausted two HTTP 400 attempts. Panel
 authorization therefore remains blocked.
 
-The v4 package is pre-data and remains locked against paid execution. It retains the exact
+The v4 record is terminal and remains locked against further paid execution. It retains the exact
 unused 16-seed v3 commitment with explicit lineage, replaces the terminal GLM
 slot with `upstage/solar-pro4`, returns MiniMax M3 to the recovered
 policy-selected `minimax/fp8` route, and records Qwen/Alibaba as terminally
@@ -85,6 +81,28 @@ eight-model smoke family without an outcome-driven cohort or reasoning-policy
 change, so spend and smoke are re-locked. Panel and publication remain
 unauthorized.
 
+The next contract is the outcome-independent `sota-v5` successor, frozen in
+the five `config/sota_v5_*.json` files and recorded in
+`docs/run_logs/sota-v5-preregistration-2026-08-16.md`. It retains the seven
+non-Qwen v4 identities and replaces the terminal Qwen slot with
+`google/gemini-3.7-flash` on the provisional `google-vertex/global` route,
+selected from public OpenRouter metadata before any v5 data. V5 carries the
+unused hidden 16-seed commitment through the explicit lineage
+`sota-v3 -> sota-v4 -> sota-v5`, but requires an owner attestation before seed
+access. It freezes a uniform reasoning-disabled policy, a 4,096-token ceiling,
+one repair, serial execution, two infrastructure attempts per cell, and the
+same exact paired sign-flip/Holm plan over eight contrasts. Route preflight is
+the only enabled phase and remains zero-completion metadata collection; all v5
+spend, smoke, panel, and publication authorizations are false. The regenerated
+protocol-maximum smoke estimate is `$5.47964672` (`$6.575576064` with
+contingency), below the `$10` owner ceiling; the panel remains separately
+unauthorized.
+
+V5 smoke readiness is intentionally seed-free: its smoke-command dry run does
+not read Keychain or set `GM_BENCH_PRIVATE_SEEDS`, because strict smokes use the
+public smoke seed. The hidden commitment is verified only after the owner
+attestation and immediately before the separately authorized private panel.
+
 Pre-data amendment 4 (2026-08-09) makes the cap-pressure rule terminal on its
 first trigger: any truncation or call
 reaching 3,072 output tokens invalidates all v3 smokes, aborts this contract,
@@ -95,10 +113,9 @@ is resolved by construction, since all eight retained routes are registered
 with reasoning disabled. Panel execution and publication remain false until
 every required strict smoke is accepted. Real v3 smoke artifacts now exist,
 but there is no v3 panel or leaderboard artifact.
-**Current weekly focus:** [#93 — v3 readiness program: consultant audit
-findings](https://github.com/nedcut/gm-bench/issues/93). Remaining
-[Issue #84](https://github.com/nedcut/gm-bench/issues/84) follow-through is
-tracked separately and does not all block the offline v3 rehearsal.
+**Current weekly focus:** Land the fail-closed v5 preregistration and tooling,
+then record fresh authenticated zero-completion route/privacy/live-price and
+final-preflight evidence. Stop before paid smokes for explicit owner approval.
 **Broader roadmap:** [#60 — Roadmap to a publishable leaderboard + blog
 post](https://github.com/nedcut/gm-bench/issues/60)
 
@@ -111,7 +128,7 @@ portfolio project. The public `sota-v2` evidence gate is now satisfied with
 eight eligible rows under the frozen 4,096-token native-minimum-reasoning lane.
 The evidence does not support an ordinal model ranking: all eight rows occupy
 one overlapping uncertainty tier, and none beats the transparent `pick-trader`
-baseline. A future `sota-v3` release still needs accepted smoke and panel
+baseline. A future `sota-v5` release still needs accepted smoke and panel
 evidence, raw trace assets, claim review, presentation polish, and independent
 reproduction.
 
@@ -963,6 +980,7 @@ decision and why.
 
 | Date | Decision | Evidence / rationale | Effect |
 | --- | --- | --- | --- |
+| 2026-08-16 | Freeze SOTA-v5 as the prospective outcome-independent successor to terminal SOTA-v4. | Before any v5 authenticated route evidence or completion call, retain the seven non-Qwen v4 model identities and select `google/gemini-3.7-flash` on provisional `google-vertex/global` from public catalog metadata to fill the terminal Qwen slot. Preserve the uniform reasoning-disabled 4,096-token policy, family size eight, exact sign-flip/Holm plan, and still-unused 16-seed commitment with explicit lineage and an owner-attestation requirement. The regenerated protocol-maximum smoke estimate is `$5.47964672` (`$6.575576064` with contingency). | Make v5 the current strict contract while freezing v4 literally as historical. Authorize only authenticated zero-completion route/privacy/live-price and final-preflight work. Keep spend, smoke, panel, analysis, release, and publication locked until their separate evidence and owner decisions. See [`sota-v5-preregistration-2026-08-16.md`](run_logs/sota-v5-preregistration-2026-08-16.md). |
 | 2026-08-16 | Mark Qwen/Alibaba terminally incompatible and re-lock all SOTA-v4 paid execution after its final attempt. | The machine-scoped gate admitted only `openrouter-qwen3.8-max-alibaba` at attempt 2/2. Its immediate exact-route/live-price preflight passed, then one provider request returned HTTP 400 with sanitized detail: `Reasoning is mandatory for this endpoint and cannot be disabled.` No generation, episode, decision, raw artifact, or later-model launch occurred. The cell ledger is `excluded` at 2/2. A live credits read observed `$0.00` aggregate run delta; reconciliation still charged the full `$0.1832184` unknown-call bound, hash-linked to the first reconciliation, for `$0.3664368` conservative reported spend. | Consume the one-shot authorization, set its remaining attempts to zero, and re-lock spend/smoke across every frozen record. Keep the manifest `in-progress` with zero accepted entries and `accepted_for_panel: false`. Qwen cannot be rerun or substituted in place; SOTA-v4 panel/publication remain impossible without a separately preregistered successor decision. The same free preflight found unrelated DeepSeek price drift, so DeepSeek also remains unlaunched. |
 | 2026-08-16 | Authorize only Qwen/Alibaba's second and final SOTA-v4 infrastructure attempt. | The owner explicitly approved the retry after the first HTTP 400 was preserved as infrastructure-only evidence, its full `$0.1832184` unknown-call bound was conservatively charged, the active guard block was cleared, and the refreshed zero-call handoff passed at contract fingerprint `247e12fe5a7d4f5b` and OpenRouter scaffold fingerprint `f04724717cc09caf`. | Reopen spend and smoke execution only long enough to run `openrouter-qwen3.8-max-alibaba` alone, serially, under the `$10` ceiling after an immediate zero-completion route-and-price preflight. Stop after its outcome. Do not run another model; panel and publication remain false. |
 | 2026-08-14 | Complete the fail-closed Qwen reconciliation and refresh the zero-call handoff without authorizing a retry. | A live credits read observed total account usage `$61.234034455` and `$0.00` run delta. The reconciliation did not treat that aggregate delta as per-call settlement; it charged the full unresolved `$0.1832184` call bound as spent, cleared the active call reservation, and retained the cell's attempt/reservation ledger. Keychain-backed command construction and authenticated route-plus-price preflight then passed for all eight routes at contract fingerprint `247e12fe5a7d4f5b` and OpenRouter scaffold fingerprint `f04724717cc09caf`, recording zero completion calls. | The adapter can capture bounded provider detail on a future failure and the guard is internally reconciled, but the original HTTP 400 detail remains unrecoverable. Spend and smoke remain false pending a separate owner decision on Qwen's second and final infrastructure attempt; panel and publication remain false. |

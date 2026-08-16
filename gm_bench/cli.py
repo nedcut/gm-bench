@@ -31,7 +31,7 @@ from gm_bench.model_runs import (
 from gm_bench.official import (
     POLICIES,
     PUBLIC_LEADERBOARD_POLICY,
-    SOTA_V4_POLICY,
+    SOTA_V5_POLICY,
     redact_leaderboard_payload,
     validate_leaderboard_payload,
 )
@@ -236,7 +236,7 @@ def main(argv: list[str] | None = None) -> None:
     redact_parser.add_argument(
         "--policy",
         choices=sorted(POLICIES),
-        default=SOTA_V4_POLICY.name,
+        default=SOTA_V5_POLICY.name,
         help="validation policy to record before redaction",
     )
 
@@ -247,7 +247,7 @@ def main(argv: list[str] | None = None) -> None:
     compact_parser.add_argument("path", help="raw model result JSON")
     compact_parser.add_argument("--output", required=True, help="path for the compact publication artifact")
     compact_parser.add_argument(
-        "--policy", choices=sorted(POLICIES), default=SOTA_V4_POLICY.name, help="policy that must pass before writing"
+        "--policy", choices=sorted(POLICIES), default=SOTA_V5_POLICY.name, help="policy that must pass before writing"
     )
 
     validate_contract_parser = subparsers.add_parser(
@@ -332,7 +332,7 @@ def _add_strict_fallback_args(parser: argparse.ArgumentParser) -> None:
         "--no-strict-fallback",
         dest="strict_fallback",
         action="store_false",
-        help="keep the soft fallback policy; the row records strict_fallback=false and is ineligible for sota-v4",
+        help="keep the soft fallback policy; the row records strict_fallback=false and is ineligible for the current strict publication policy",
     )
 
 

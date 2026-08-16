@@ -8,11 +8,11 @@ unless it is called out as a convention. Read
 (`public-leaderboard`, strict versioned policies) and the contract freeze.
 
 > **Current status:** the public site is the frozen `sota-v2` phase-one study.
-> Development HEAD emits `sota-v4`, and the 3-repeat configuration below is the
+> Development HEAD emits `sota-v5`, and the 3-repeat configuration below is the
 > generic strict submission flow for that current contract. It is not the
-> official v4 publication matrix. That separate, pre-registered lane is a
-> private 16-seed × 1-repeat panel (`config/sota_v4_lane.json`) that is not
-> authorized to publish and is not open to third-party submission. A generic v3
+> official v5 publication matrix. That separate, pre-registered lane is a
+> private 16-seed × 1-repeat panel (`config/sota_v5_lane.json`) that is not
+> authorized to publish and is not open to third-party submission. A generic v5
 > row can be validated, but do not add one to `results/leaderboard/` expecting
 > the frozen v2 site to publish it.
 
@@ -40,7 +40,7 @@ leaderboard` is a publication lane: a decision the adapter could not read back
 from the model becomes a bare `noop` rather than a host-supplied draft pick and
 lineup. Do not set `GM_AGENT_STRICT` yourself — the harness resolves it and
 records the result in `run_info.strict_fallback`. `--no-strict-fallback` is a
-legitimate diagnostic choice, but the resulting row is not `sota-v4` eligible.
+legitimate diagnostic choice, but the resulting row is not `sota-v5` eligible.
 
 For a contamination-resistant private-panel row, set a held-out panel first, keep
 the raw JSON local, and publish only the redacted artifact:
@@ -50,7 +50,7 @@ export GM_BENCH_PRIVATE_SEEDS="101,102,110-115"   # >= 8 seeds for the strict po
 python -m gm_bench model --provider <p> --model <m> \
   --preset leaderboard --repeats 3 --json > /tmp/<p>-<m>-private.raw.json
 python -m gm_bench redact-result /tmp/<p>-<m>-private.raw.json \
-  --output /tmp/<p>-<m>-private.redacted.json --policy sota-v4
+  --output /tmp/<p>-<m>-private.redacted.json --policy sota-v5
 ```
 
 `redact-result` writes the output file **only if the selected policy passes**; an
@@ -61,9 +61,9 @@ per-episode detail, and `paired.per_seed` rows.
 ## Validate before you submit
 
 ```bash
-python3 -m gm_bench validate-result /tmp/<name>.raw.json --policy sota-v4
+python3 -m gm_bench validate-result /tmp/<name>.raw.json --policy sota-v5
 python3 -m gm_bench compact-result /tmp/<name>.raw.json \
-  --output /tmp/<name>.compact.json --policy sota-v4
+  --output /tmp/<name>.compact.json --policy sota-v5
 ```
 
 Use `--policy public-leaderboard` for a development/diagnostic row. Exit code is
@@ -89,11 +89,11 @@ Both policies require these; the values are read straight from the payload:
 - Every candidate episode present exactly once per seed/repeat, each with
   `seasons == 5`; each baseline episode present once per seed.
 
-`public-leaderboard` is lenient where the current `sota-v4` policy is strict:
+`public-leaderboard` is lenient where the current `sota-v5` policy is strict:
 
-| Check | `public-leaderboard` | `sota-v4` |
+| Check | `public-leaderboard` | `sota-v5` |
 |---|---|---|
-| Candidate repeats | ≥ 1 | ≥ 3 |
+| Candidate repeats | ≥ 1 | ≥ 1 (the official private v5 estimand); generic public submissions should use 3 |
 | Seed count | ≥ 1 | ≥ 8 (full leaderboard panel) |
 | Decision failure rate | ≤ 20% | ≤ 2% |
 | `benchmark_contract` block | warning if missing | **required**, must match current source exactly |
@@ -103,7 +103,7 @@ Both policies require these; the values are read straight from the payload:
 | Strict failure handling | not checked | **required**: `run_info.strict_fallback` true and `provider_options.GM_AGENT_STRICT == "1"`, agreeing |
 | Per-episode `score_components` | not checked | **required** on every episode row, finite, contributions summing to `strategy_score` |
 
-For `sota-v4`, `run_info.benchmark_contract` must match `expected_contract()`
+For `sota-v5`, `run_info.benchmark_contract` must match `expected_contract()`
 field for field. The historical `sota-v2` policy instead matches the literal
 released contract, including fingerprint `558e8f35ea1d66b9`. A row built against
 a different simulator/scoring/schema source is rejected, not merely flagged.
@@ -119,7 +119,7 @@ validator confirms the two provenance fields agree, not that the adapter
 actually noop-ed on failure. Binding an artifact to real evidence is the job of
 `publication.raw_artifact_sha256` and the release manifest checksums — read
 `validate-result` as "this row is well-formed and self-consistent under
-`sota-v4`", never as "this row is authentic".
+`sota-v5`", never as "this row is authentic".
 
 Seed-panel provenance (`run_info.seed_panel`) must name one of two identities;
 `custom` panels are rejected outright:

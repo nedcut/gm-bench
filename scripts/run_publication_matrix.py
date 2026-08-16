@@ -73,12 +73,19 @@ CONTRACT_CONFIGS = {
         ROOT / "config" / "sota_v4_publication_protocol.json",
         ROOT / "config" / "sota_v4_pricing_snapshot.json",
     ),
+    "sota-v5": (
+        ROOT / "config" / "sota_v5_models.json",
+        ROOT / "config" / "sota_v5_lane.json",
+        ROOT / "config" / "sota_v5_smoke_manifest.json",
+        ROOT / "config" / "sota_v5_publication_protocol.json",
+        ROOT / "config" / "sota_v5_pricing_snapshot.json",
+    ),
 }
 # Publication contracts that share the private-panel, strict-smoke execution
 # capabilities introduced in v3. Keep this explicit: contract names are
 # identifiers, not versions that may safely be ordered lexicographically.
-STRICT_PRIVATE_PANEL_CONTRACTS = frozenset({"sota-v3", "sota-v4"})
-AUTHENTICATED_ROUTE_CONTRACTS = frozenset({"sota-v3", "sota-v4"})
+STRICT_PRIVATE_PANEL_CONTRACTS = frozenset({"sota-v3", "sota-v4", "sota-v5"})
+AUTHENTICATED_ROUTE_CONTRACTS = frozenset({"sota-v3", "sota-v4", "sota-v5"})
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -191,7 +198,7 @@ def _parse_private_seed_env(value: str) -> list[int]:
 
 
 def _validate_frozen_seed_panel(lane: dict[str, Any]) -> None:
-    """Bind a paid run to its frozen public/private panel before cells exist."""
+    """Bind a panel run to its frozen public/private seeds before cells exist."""
     panel = lane.get("seed_panel")
     if not isinstance(panel, dict) or panel.get("status") != "frozen":
         raise ValueError("publication seed panel identity must be frozen before paid smoke or panel execution")
@@ -207,6 +214,12 @@ def _validate_frozen_seed_panel(lane: dict[str, Any]) -> None:
         or len(declared_hash) != 64
     ):
         raise ValueError("publication seed panel must declare a valid name, count, and sha256")
+    if (
+        lane.get("contract") == "sota-v5"
+        and panel.get("owner_attestation_required") is True
+        and panel.get("owner_attestation_status") != "attested-before-seed-access"
+    ):
+        raise ValueError("sota-v5 private seed access requires the frozen owner attestation")
     inherited = os.environ.get(PRIVATE_SEEDS_ENV)
     if name == "public-leaderboard":
         if inherited:
@@ -330,8 +343,6 @@ def build_cells(
         config = _read_json(PANEL_CONFIG)
         lane = _read_json(LANE_CONFIG)
         _require_execution_authorized(authorization_phase, config, lane)
-        if phase == "smoke" and lane.get("contract") in STRICT_PRIVATE_PANEL_CONTRACTS:
-            _validate_frozen_seed_panel(lane)
         models = list(config.get("models") or [])
         _validate_models(models, expected_provider=str(config.get("provider") or ""))
         frozen_cap = lane.get("output_token_cap")
@@ -1349,6 +1360,9 @@ def _record_smoke_issues(
     benchmark_contract = run_info.get("benchmark_contract")
     benchmark_contract = benchmark_contract if isinstance(benchmark_contract, dict) else {}
     current_contract = contract_fingerprint()
+    expected_contract_label = str(lane.get("contract") or registry.get("contract") or "")
+    if benchmark_contract.get("benchmark_version") != expected_contract_label:
+        issues.append("artifact was recorded under a different benchmark contract label")
     current_scaffold = scaffold_fingerprint(str(entry.get("provider") or ""))
     if benchmark_contract.get("contract_fingerprint") != current_contract:
         issues.append("artifact was recorded under a different benchmark contract")
@@ -1620,7 +1634,7 @@ def _require_paid_smoke_attempt_authorized(cells: list[Cell], run_dir: Path) -> 
     authorizations = {label: payload.get("paid_smoke_authorization") for label, payload in records.items()}
     authorization = authorizations["lane"]
     if not isinstance(authorization, dict) or any(value != authorization for value in authorizations.values()):
-        raise ValueError("paid smoke authorization must be an identical object across every frozen v4 record")
+        raise ValueError("paid smoke authorization must be an identical object across every frozen contract record")
     if authorization.get("scope") != "single-model-single-infrastructure-attempt":
         raise ValueError("paid smoke authorization scope is not single-model-single-infrastructure-attempt")
     model_id = authorization.get("model_id")
@@ -1646,10 +1660,25 @@ def _require_paid_smoke_attempt_authorized(cells: list[Cell], run_dir: Path) -> 
     expected_prior_attempts = attempt_number - 1
     prior_attempts = stored.get("attempts") if isinstance(stored, dict) else 0
     status_matches = stored is None if expected_prior_attempts == 0 else stored.get("status") == "active"
+    identity_matches = expected_prior_attempts == 0 or (
+        isinstance(stored, dict)
+        and stored.get("experiment_id") == cell.experiment_id
+        and stored.get("model") == cell.model
+        and stored.get("output_token_cap") == cell.cap
+    )
+    history = stored.get("attempt_history") if isinstance(stored, dict) else None
+    prior_failure_recorded = expected_prior_attempts == 0 or (
+        isinstance(history, list)
+        and len(history) >= expected_prior_attempts
+        and isinstance(history[-1], dict)
+        and history[-1].get("attempt") == expected_prior_attempts
+        and history[-1].get("status") in {"failed", "aborted"}
+    )
     if (
         not isinstance(prior_attempts, int)
         or isinstance(prior_attempts, bool)
-        or (prior_attempts != expected_prior_attempts or not status_matches)
+        or (prior_attempts != expected_prior_attempts or not status_matches or not identity_matches)
+        or not prior_failure_recorded
     ):
         raise ValueError(
             f"paid smoke authorization requires {model_id} at attempt {expected_prior_attempts} of {attempt_number} "
