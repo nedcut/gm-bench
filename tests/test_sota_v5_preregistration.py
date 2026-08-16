@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+import scripts.run_publication_matrix as publication_runner
 from gm_bench.publication import publication_execution_issues
 
 ROOT = Path(__file__).parents[1]
@@ -53,6 +54,20 @@ def test_v5_cross_file_contract_and_family_are_coherent() -> None:
     assert registry["selection_status"] == "route-preflight-ready"
     assert pricing["status"] == "frozen"
     assert set(model["model"] for model in registry["models"]) == set(pricing["models"])
+
+
+def test_v5_real_registry_builds_every_seed_free_smoke_cell(monkeypatch: pytest.MonkeyPatch) -> None:
+    panel, lane, manifest, protocol, pricing = publication_runner.CONTRACT_CONFIGS["sota-v5"]
+    monkeypatch.setattr(publication_runner, "PANEL_CONFIG", panel)
+    monkeypatch.setattr(publication_runner, "LANE_CONFIG", lane)
+    monkeypatch.setattr(publication_runner, "SMOKE_MANIFEST", manifest)
+    monkeypatch.setattr(publication_runner, "PROTOCOL_CONFIG", protocol)
+    monkeypatch.setattr(publication_runner, "PRICING_CONFIG", pricing)
+
+    cells = publication_runner.build_cells("smoke", authorization_phase="route-preflight")
+
+    assert len(cells) == 8
+    assert {cell.experiment_id for cell in cells} == set(_read(panel)["required_smokes"])
 
 
 def test_v5_replaces_qwen_before_any_v5_data() -> None:
