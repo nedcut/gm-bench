@@ -7,12 +7,14 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-08-16
+**Last reviewed:** 2026-08-21
 **Current target:** Preserve the published `sota-v2` study and terminal
 `sota-v3`/`sota-v4` execution records while preparing the prospective
-`sota-v5` successor through authenticated zero-completion route, privacy,
-pricing, and final-preflight evidence. V5 spend, smoke, panel, and publication
-remain false until separate owner decisions.
+`sota-v5` successor. Its authenticated zero-completion route, privacy, pricing,
+seed-free command, and final-preflight evidence were accepted on the prior
+contract. The hardening change relocks final preflight until equivalent
+zero-completion evidence is refreshed on the merged head. V5 spend, smoke,
+panel, and publication remain false.
 **Current state:** The frozen phase-one public panel, blog, GitHub release, and
 results-first site are published. Eight of ten
 `sota-v2`-registered models produced route-matched, cost-complete `sota-v2`
@@ -20,11 +22,20 @@ rows at the shared 4,096-token native-minimum-reasoning cap, clearing the
 predeclared minimum. Grok 4.5 and Mistral Medium 3.5 completed but remain diagnostic because
 their artifacts lacked complete usage or cost coverage. The generated site now
 exposes the eight eligible rows. All models overlap in one uncertainty tier,
-and every eligible model trails `pick-trader`. The three P0 correctness and
+and every eligible model trails `pick-trader`.
+
+### Historical SOTA-v3 execution record
+
+The following state is terminal history. It does not authorize current spend
+or describe the active v5 lane.
+
+The three P0 correctness and
 artifact-integrity fixes landed in #85 as an explicit `sota-v3` contract. The
-current v3 candidate also closes the contract-economics, same-view,
+v3 candidate also closed the contract-economics, same-view,
 gap-diagnostic, site-framing, statistical-tiering, and version-dispatched CI
-items. Pre-data
+items.
+
+Pre-data
 design amendment 3 (2026-08-06,
 `docs/run_logs/sota-v3-design-amendment-2026-08-06.md`) withdrew Gemini 3.6
 Flash and Grok 4.5 — the only two mandatory-reasoning routes — leaving an
@@ -49,6 +60,8 @@ the frozen retry policy: Luna, Claude, Mistral, DeepSeek, and HY3 passed; GLM
 completed with one model-behavior protocol failure and cannot be rerun; MiniMax
 exhausted two HTTP 429 attempts; Qwen exhausted two HTTP 400 attempts. Panel
 authorization therefore remains blocked.
+
+### Historical SOTA-v4 execution record
 
 The v4 record is terminal and remains locked against further paid execution. It retains the exact
 unused 16-seed v3 commitment with explicit lineage, replaces the terminal GLM
@@ -81,19 +94,26 @@ eight-model smoke family without an outcome-driven cohort or reasoning-policy
 change, so spend and smoke are re-locked. Panel and publication remain
 unauthorized.
 
+### Current SOTA-v5 readiness
+
 The next contract is the outcome-independent `sota-v5` successor, frozen in
 the five `config/sota_v5_*.json` files and recorded in
 `docs/run_logs/sota-v5-preregistration-2026-08-16.md`. It retains the seven
 non-Qwen v4 identities and replaces the terminal Qwen slot with
-`google/gemini-3.7-flash` on the provisional `google-ai-studio` route,
+`google/gemini-3.7-flash` on the accepted `google-ai-studio` route,
 selected from public OpenRouter metadata before any v5 data. V5 carries the
 unused hidden 16-seed commitment through the explicit lineage
 `sota-v3 -> sota-v4 -> sota-v5`, but requires an owner attestation before seed
 access. It freezes a uniform reasoning-disabled policy, a 4,096-token ceiling,
 one repair, serial execution, two infrastructure attempts per cell, and the
-same exact paired sign-flip/Holm plan over eight contrasts. Route preflight is
-the only enabled phase and remains zero-completion metadata collection; all v5
-spend, smoke, panel, and publication authorizations are false. The regenerated
+same exact paired sign-flip/Holm plan over eight contrasts. Fresh authenticated
+route/privacy evidence and the seed-free command plus live-price final preflight
+passed for all eight routes with zero completion calls on contract fingerprint
+`247e12fe5a7d4f5b` and OpenRouter scaffold fingerprint `f04724717cc09caf`.
+The subsequent fail-closed API and canonical-host hardening moved those
+fingerprints to `519bf6db27320d8b` and `ec8ede1bcf7774ce`, so final preflight
+is pending again. Route preflight remains the only enabled phase; all v5 spend,
+smoke, panel, and publication authorizations are false. The regenerated
 protocol-maximum smoke estimate is `$6.17324032` (`$7.407888384` with
 contingency), below the `$10` owner ceiling; the panel remains separately
 unauthorized.
@@ -113,9 +133,9 @@ is resolved by construction, since all eight retained routes are registered
 with reasoning disabled. Panel execution and publication remain false until
 every required strict smoke is accepted. Real v3 smoke artifacts now exist,
 but there is no v3 panel or leaderboard artifact.
-**Current weekly focus:** Land the fail-closed v5 preregistration and tooling,
-then record fresh authenticated zero-completion route/privacy/live-price and
-final-preflight evidence. Stop before paid smokes for explicit owner approval.
+**Current weekly focus:** Land the v5 hardening, refresh zero-completion evidence
+on the merged head, and stop before paid smokes for explicit owner approval.
+Panel and publication remain separate decisions.
 **Broader roadmap:** [#60 — Roadmap to a publishable leaderboard + blog
 post](https://github.com/nedcut/gm-bench/issues/60)
 
@@ -980,6 +1000,7 @@ decision and why.
 
 | Date | Decision | Evidence / rationale | Effect |
 | --- | --- | --- | --- |
+| 2026-08-16 | Accept the merged-head SOTA-v5 seed-free command and final live-price preflight evidence without authorizing spend. | After route/pricing PR #126 merged at `49f2b0577f08664c66917074ae983bf7be558452`, authenticated route/privacy evidence was refreshed for all eight exact routes, the wrapper constructed all eight serial smoke commands while `GM_BENCH_PRIVATE_SEEDS` was absent and without Keychain access, and live route-plus-price preflight passed. The route and final artifacts record `completion_calls: 0`, current contract fingerprint `247e12fe5a7d4f5b`, and OpenRouter scaffold fingerprint `f04724717cc09caf`; the final validator and route validator report no issues. | Mark final preflight accepted. Keep the smoke gate blocked only by the four explicit spend/smoke authorization flags. Require separate owner approval before changing those flags or making a completion call; keep owner attestation, panel, analysis, release, site publication, and public v2 data untouched. |
 | 2026-08-16 | Accept all eight SOTA-v5 exact routes and conservatively amend DeepSeek pricing before final preflight. | Authenticated credits, provider, privacy, zero-data-retention, and exact-endpoint metadata passed for all eight routes with `completion_calls: 0`; two routes are zero-data-retention. The subsequent live-price gate found only DeepSeek above its planning snapshot: prompt `$0.00000044/token` and completion `$0.00000132/token`, versus `$0.00000014/$0.00000028`. The collector wrote the route artifact and no provider model call, Keychain, or private-seed read occurred. | Freeze the accepted zero-call route evidence, raise only DeepSeek's conservative planning rates, and regenerate the smoke budget to `$6.17324032` protocol maximum / `$7.407888384` with contingency under the unchanged `$10` ceiling. Keep spend, smoke, panel, analysis, release, and publication false pending merged-head final preflight and owner approval. |
 | 2026-08-16 | Amend the pre-data SOTA-v5 Gemini route to Google AI Studio. | Authenticated zero-completion endpoint metadata showed `google-ai-studio` at `99.6568375762854%` 24-hour uptime versus `99.46602224161464%` for `google-vertex/global`; the frozen route rule selects the highest 24-hour uptime and excludes price. The exact route is `Google AI Studio | google/gemini-3.7-flash-20260813`, status `0`, 65,536-token maximum, unknown quantization, 30-minute uptime `99.31597947938438%`, prompt `$0.00000075/token`, completion/internal-reasoning `$0.00000375/token`, discount `0`. The all-route collector stopped before writing acceptance evidence. No v5 completion, smoke, panel, Keychain, private-seed, or provider model call occurred. | Update only the pre-data model/route identity, planning price, required smoke IDs, and replacement lineage. Keep exact-route acceptance pending; spend, smoke, panel, analysis, release, and publication remain false. The regenerated protocol-maximum smoke estimate is recorded in `results/analysis/sota-v5-pre-smoke-cost-estimate.json`. See [`sota-v5-route-amendment-2026-08-16.md`](run_logs/sota-v5-route-amendment-2026-08-16.md). |
 | 2026-08-16 | Freeze SOTA-v5 as the prospective outcome-independent successor to terminal SOTA-v4. | Before any v5 authenticated route evidence or completion call, retain the seven non-Qwen v4 model identities and select `google/gemini-3.7-flash` on provisional `google-vertex/global` from public catalog metadata to fill the terminal Qwen slot. Preserve the uniform reasoning-disabled 4,096-token policy, family size eight, exact sign-flip/Holm plan, and still-unused 16-seed commitment with explicit lineage and an owner-attestation requirement. The initial protocol-maximum smoke estimate was `$5.47964672` (`$6.575576064` with contingency); the later pre-data route amendment supersedes that planning figure. | Make v5 the current strict contract while freezing v4 literally as historical. Authorize only authenticated zero-completion route/privacy/live-price and final-preflight work. Keep spend, smoke, panel, analysis, release, and publication locked until their separate evidence and owner decisions. See [`sota-v5-preregistration-2026-08-16.md`](run_logs/sota-v5-preregistration-2026-08-16.md). |

@@ -1,17 +1,17 @@
 import { useState } from "react";
 
 const BASELINE_CMDS = `# clone and run — Python 3.11+ required
-python -m gm_bench run --agent value \\
+python3 -m gm_bench run --agent value \\
     --seeds 1 2 3 --seasons 5
 
 # rank every scripted baseline on identical seeds
-python -m gm_bench compare \\
+python3 -m gm_bench compare \\
     --agents random conservative win-now rebuild value \\
     --seeds 1 2 3 --seasons 5`;
 
 const CANDIDATE_CMDS = `# evaluate your agent against the baseline panel
-python -m gm_bench evaluate \\
-    --agent-cmd "python my_agent.py" \\
+python3 -m gm_bench evaluate \\
+    --agent-cmd "python3 my_agent.py" \\
     --baselines random conservative win-now rebuild \\
     --seeds 1 2 3 4 5 --seasons 5
 

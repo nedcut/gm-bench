@@ -2,7 +2,7 @@
   "schema_version": 1,
   "format": "gm-bench-smoke-manifest-v1",
   "contract": "sota-v5",
-  "contract_fingerprint": "247e12fe5a7d4f5b",
+  "contract_fingerprint": "519bf6db27320d8b",
   "status": "not-started",
   "evidence_state": "pre-data-no-completion-calls",
   "required_model_count": 8,

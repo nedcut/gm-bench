@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { max } from "d3-array";
 import { scaleLinear } from "d3-scale";
 import type { BenchmarkView, ResultModel } from "../benchmarkData";
@@ -459,6 +459,8 @@ export default function ResultsExplorer({
 }) {
   const [view, setView] = useState<ChartView>("lift");
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const modelMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const modelMenuRef = useRef<HTMLDivElement>(null);
   const [selectedIds, setSelectedIds] = useState(
     () => new Set(benchmark.models.map((model) => model.id)),
   );
@@ -472,6 +474,18 @@ export default function ResultsExplorer({
     benchmark.models[0];
   const bestModel = benchmark.models[0];
   const panelMean = bestModel?.baseline_panel_mean_score;
+
+  useEffect(() => {
+    if (!modelMenuOpen) return;
+    modelMenuRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setModelMenuOpen(false);
+      modelMenuButtonRef.current?.focus();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [modelMenuOpen]);
 
   const toggleModel = (id: string) => {
     setSelectedIds((current) => {
@@ -567,15 +581,24 @@ export default function ResultsExplorer({
           <span className="toolbar-context">API lane · {filtered.length} visible</span>
           <div className="model-picker">
             <button
+              ref={modelMenuButtonRef}
               type="button"
               className="picker-button"
               onClick={() => setModelMenuOpen((open) => !open)}
               aria-expanded={modelMenuOpen}
+              aria-controls="model-picker-dialog"
+              aria-haspopup="dialog"
             >
               Models ({selectedIds.size}/{benchmark.modelCount})
             </button>
             {modelMenuOpen && (
-              <div className="picker-menu">
+              <div
+                ref={modelMenuRef}
+                id="model-picker-dialog"
+                className="picker-menu"
+                role="dialog"
+                aria-label="Choose visible models"
+              >
                 <div className="picker-menu-actions">
                   <button
                     type="button"

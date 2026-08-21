@@ -78,6 +78,25 @@ def _finite_cost(value: Any) -> float | None:
     return cost
 
 
+def _openrouter_base_url() -> str:
+    """Return the canonical OpenRouter HTTPS base without leaking credentials."""
+
+    value = os.environ.get("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1").rstrip("/")
+    parsed = urllib.parse.urlsplit(value)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != "openrouter.ai"
+        or parsed.port not in {None, 443}
+        or parsed.path != "/api/v1"
+        or parsed.query
+        or parsed.fragment
+        or parsed.username
+        or parsed.password
+    ):
+        raise ValueError("OPENROUTER_API_BASE must be https://openrouter.ai/api/v1")
+    return "https://openrouter.ai/api/v1"
+
+
 def _generation_cost(base_url: str, api_key: str, generation_id: str) -> float | None:
     """Recover asynchronously posted OpenRouter cost for one generation."""
     query = urllib.parse.urlencode({"id": generation_id})
@@ -139,7 +158,10 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
 
     api_key = os.environ.get("OPENROUTER_API_KEY")
     model = os.environ.get("OPENROUTER_MODEL", "openai/gpt-5.4-mini")
-    base_url = os.environ.get("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1").rstrip("/")
+    try:
+        base_url = _openrouter_base_url()
+    except ValueError as exc:
+        return fallback_actions(observation, str(exc)), None
     timeout = resolve_call_timeout("OPENROUTER_TIMEOUT", 180.0)
     if not api_key:
         return fallback_actions(observation, "missing OPENROUTER_API_KEY"), None

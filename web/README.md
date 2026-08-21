@@ -33,7 +33,7 @@ agent against the scripted baseline panel (`random`, `conservative`,
 `win-now`, `rebuild`). To regenerate it, run from the repository root:
 
 ```bash
-python web/scripts/export_snapshot.py --seeds 1 2 3 4 5 --seasons 5
+python3 web/scripts/export_snapshot.py --seeds 1 2 3 4 5 --seasons 5
 ```
 
 Because the simulator is seeded, the same arguments always reproduce the same
@@ -42,7 +42,7 @@ snapshot bytes (no wall-clock timestamps in the export).
 The public leaderboard dataset is a separate evidence build:
 
 ```bash
-python web/scripts/build_leaderboard.py
+python3 web/scripts/build_leaderboard.py
 git diff --exit-code -- web/src/data/leaderboard.json
 ```
 

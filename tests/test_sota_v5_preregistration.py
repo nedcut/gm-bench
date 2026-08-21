@@ -39,7 +39,7 @@ def test_v5_cross_file_contract_and_family_are_coherent() -> None:
 
     assert {record["contract"] for record in records} == {"sota-v5"}
     assert len({record["contract_fingerprint"] for record in records}) == 1
-    assert all(record["contract_fingerprint"] == "247e12fe5a7d4f5b" for record in records)
+    assert all(record["contract_fingerprint"] == "519bf6db27320d8b" for record in records)
     model_ids = [model["id"] for model in registry["models"]]
     assert len(model_ids) == len(set(model_ids)) == 8
     assert model_ids == registry["required_smokes"] == manifest["required_models"]
@@ -150,6 +150,10 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
         phase="smoke",
         protocol=protocol,
         pricing=pricing,
+    )
+    assert len(smoke_issues) == 6
+    assert any(
+        "exact-route evidence artifact is for a different contract fingerprint" in issue for issue in smoke_issues
     )
     assert any("final-fingerprint preflight evidence is not accepted" in issue for issue in smoke_issues)
     assert any("spend is explicitly authorized" in issue for issue in smoke_issues)

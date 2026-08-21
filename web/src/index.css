@@ -237,12 +237,6 @@ code {
   border-color: var(--ink);
 }
 
-@media (max-width: 800px) {
-  .nav-links a:not(.nav-cta) {
-    display: none;
-  }
-}
-
 @media (max-width: 480px) {
   .shell {
     padding-inline: 14px;
@@ -2412,18 +2406,23 @@ tbody tr.tier-start td {
 }
 
 @media (max-width: 760px) {
+  .nav-inner {
+    height: auto;
+    min-height: 56px;
+    flex-wrap: wrap;
+    padding-top: 10px;
+  }
+
   .nav-links {
-    gap: 14px;
+    order: 2;
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
   }
 
   .nav-links a {
-    display: none;
-  }
-
-  .nav-links a[href="#results"],
-  .nav-links a[href="#analysis"] {
     display: block;
-    padding-block: 18px;
+    padding-block: 10px;
   }
 
   .results-shell {

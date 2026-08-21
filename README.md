@@ -143,15 +143,15 @@ contributions still sum to the row's `strategy_score`; frozen `sota-v2`
 artifacts predate the field and validate without it.
 
 ```bash
-OPENAI_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4 \
+OPENAI_API_KEY=... python3 -m gm_bench model --provider openai --model gpt-5.4 \
   --preset leaderboard --repeats 3 --json > /tmp/openai-gpt-5.4.raw.json
-python -m gm_bench validate-result /tmp/openai-gpt-5.4.raw.json \
+python3 -m gm_bench validate-result /tmp/openai-gpt-5.4.raw.json \
   --policy sota-v5
-python -m gm_bench compact-result /tmp/openai-gpt-5.4.raw.json \
+python3 -m gm_bench compact-result /tmp/openai-gpt-5.4.raw.json \
   --output /tmp/openai-gpt-5.4.compact.json --policy sota-v5
-python -m gm_bench validate-contract
-python -m gm_bench calibrate-score --json
-python web/scripts/build_leaderboard.py   # refresh web/src/data/leaderboard.json
+python3 -m gm_bench validate-contract
+python3 -m gm_bench calibrate-score --json
+python3 web/scripts/build_leaderboard.py   # refresh web/src/data/leaderboard.json
 cd web && bun install && bun run dev      # local site
 ```
 
@@ -202,11 +202,11 @@ fingerprint) for two fixes and one reporting requirement:
 ## Quickstart
 
 ```bash
-python -m gm_bench run --agent value --seeds 1 2 3 --seasons 5
-python -m gm_bench compare --agents random conservative win-now rebuild value --seeds 1 2 3 --seasons 5
-python -m gm_bench evaluate --agent value --seeds 1 2 3 4 5 --seasons 5
-python -m gm_bench describe --seed 42
-python -m gm_bench gui
+python3 -m gm_bench run --agent value --seeds 1 2 3 --seasons 5
+python3 -m gm_bench compare --agents random conservative win-now rebuild value --seeds 1 2 3 --seasons 5
+python3 -m gm_bench evaluate --agent value --seeds 1 2 3 4 5 --seasons 5
+python3 -m gm_bench describe --seed 42
+python3 -m gm_bench gui
 ```
 
 ## Model Benchmarking (Recommended)
@@ -217,7 +217,7 @@ panel, and compares against scripted baselines with paired lift statistics.
 
 ```bash
 # Quick smoke test (1 seed, 1 season, 4 LLM calls)
-OPENAI_API_KEY=... python -m gm_bench model \
+OPENAI_API_KEY=... python3 -m gm_bench model \
   --provider openai \
   --model gpt-5.4-mini \
   --preset smoke
@@ -226,14 +226,14 @@ OPENAI_API_KEY=... python -m gm_bench model \
 # Only raise concurrency if the provider can take it: --workers N or GM_BENCH_WORKERS=N.
 
 # Standard panel (3 seeds, 3 seasons)
-python -m gm_bench model \
+python3 -m gm_bench model \
   --provider openai \
   --model gpt-5.4-mini \
   --preset standard \
   --json
 
 # Local Ollama
-python -m gm_bench model \
+python3 -m gm_bench model \
   --provider ollama \
   --model gemma4:e4b \
   --preset smoke \
@@ -244,13 +244,13 @@ Reproducible JSON configs live in `examples/` (the config supplies the provider,
 so no extra flags are needed):
 
 ```bash
-OPENAI_API_KEY=... python -m gm_bench model --config examples/benchmark.smoke.json
+OPENAI_API_KEY=... python3 -m gm_bench model --config examples/benchmark.smoke.json
 ```
 
 List supported providers:
 
 ```bash
-python -m gm_bench providers
+python3 -m gm_bench providers
 ```
 
 Direct OpenAI, Anthropic, Gemini, and OpenRouter setup—including reproducible
@@ -269,7 +269,7 @@ Precompute baseline scores so repeated model runs skip re-simulating scripted
 agents:
 
 ```bash
-python -m gm_bench cache-baselines --preset benchmark
+python3 -m gm_bench cache-baselines --preset benchmark
 ```
 
 Cached baseline episodes are keyed by a fingerprint of the simulator, scoring,
@@ -314,7 +314,7 @@ bootstrap interval at 3-5 seeds — note the exact floor of `2 / 2^n` means a
 Start the browser GUI:
 
 ```bash
-python -m gm_bench gui --port 8765
+python3 -m gm_bench gui --port 8765
 ```
 
 Then open:
@@ -370,8 +370,8 @@ line-delimited `start` / `observation` / `action_results` / `end` events and
 records usage and latency for every interaction round.
 
 ```bash
-python -m gm_bench run --agent-cmd "python examples/external_agent.py" --seeds 1 --seasons 3
-python -m gm_bench run --agent-cmd "python examples/openai_compatible_agent.py" \
+python3 -m gm_bench run --agent-cmd "python3 examples/external_agent.py" --seeds 1 --seasons 3
+python3 -m gm_bench run --agent-cmd "python3 examples/openai_compatible_agent.py" \
   --seeds 1 --seasons 1
 ```
 
@@ -556,13 +556,13 @@ data/gm_bench.sqlite
 Override the path:
 
 ```bash
-GM_BENCH_DB=/tmp/gm-bench.sqlite python -m gm_bench run --agent value --seeds 1 --seasons 1
+GM_BENCH_DB=/tmp/gm-bench.sqlite python3 -m gm_bench run --agent value --seeds 1 --seasons 1
 ```
 
 Disable logging:
 
 ```bash
-python -m gm_bench run --agent value --seeds 1 --seasons 1 --no-log
+python3 -m gm_bench run --agent value --seeds 1 --seasons 1 --no-log
 ```
 
 Useful queries:
@@ -590,7 +590,7 @@ ollama list
 Example:
 
 ```bash
-python -m gm_bench run \
+python3 -m gm_bench run \
   --agent-cmd "python examples/ollama_agent.py" \
   --agent-timeout 240 \
   --seeds 1 \
@@ -601,7 +601,7 @@ python -m gm_bench run \
 Choose a model explicitly:
 
 ```bash
-OLLAMA_MODEL=gemma4:e4b python -m gm_bench run \
+OLLAMA_MODEL=gemma4:e4b python3 -m gm_bench run \
   --agent-cmd "python examples/ollama_agent.py" \
   --agent-timeout 240 \
   --seeds 1 \
@@ -627,7 +627,7 @@ Use the generic chat-completions adapter directly:
 ```bash
 LLM_API_KEY=... \
 LLM_MODEL=gpt-4.1-mini \
-python -m gm_bench evaluate \
+python3 -m gm_bench evaluate \
   --agent-cmd "python examples/openai_compatible_agent.py" \
   --agent-timeout 120 \
   --baselines random conservative win-now rebuild \
@@ -638,7 +638,7 @@ python -m gm_bench evaluate \
 Or use the built-in provider shortcut:
 
 ```bash
-OPENAI_API_KEY=... python -m gm_bench model --provider openai --model gpt-5.4-mini --preset standard
+OPENAI_API_KEY=... python3 -m gm_bench model --provider openai --model gpt-5.4-mini --preset standard
 ```
 
 For non-OpenAI-compatible providers, set:
@@ -655,7 +655,7 @@ The opencode adapter uses `opencode run` and whatever provider/model opencode is
 configured to use:
 
 ```bash
-OPENCODE_MODEL=opencode/deepseek-v4-flash-free python -m gm_bench run \
+OPENCODE_MODEL=opencode/deepseek-v4-flash-free python3 -m gm_bench run \
   --agent-cmd "python examples/opencode_agent.py" \
   --agent-timeout 240 \
   --seeds 1 \
@@ -680,7 +680,7 @@ The Codex adapter uses `codex exec` with a read-only sandbox, no approvals,
 ephemeral sessions, and the shared GM action JSON schema:
 
 ```bash
-python -m gm_bench run \
+python3 -m gm_bench run \
   --agent-cmd "python examples/codex_agent.py" \
   --agent-timeout 180 \
   --seeds 1 \
@@ -691,7 +691,7 @@ python -m gm_bench run \
 Pick a Codex model:
 
 ```bash
-CODEX_MODEL=gpt-5-mini python -m gm_bench evaluate \
+CODEX_MODEL=gpt-5-mini python3 -m gm_bench evaluate \
   --agent-cmd "python examples/codex_agent.py" \
   --agent-timeout 180 \
   --baselines random conservative win-now rebuild \
@@ -702,7 +702,7 @@ CODEX_MODEL=gpt-5-mini python -m gm_bench evaluate \
 Use Codex in local Ollama/OSS mode:
 
 ```bash
-CODEX_OSS=1 CODEX_LOCAL_PROVIDER=ollama CODEX_MODEL=gemma4:e4b python -m gm_bench run \
+CODEX_OSS=1 CODEX_LOCAL_PROVIDER=ollama CODEX_MODEL=gemma4:e4b python3 -m gm_bench run \
   --agent-cmd "python examples/codex_agent.py" \
   --agent-timeout 240 \
   --seeds 1 \
@@ -721,11 +721,11 @@ adapters default to serial, but `GM_BENCH_WORKERS` / `--workers` can override th
 
 ```bash
 # Smoke first (4 decisions) before any full panel
-GM_BENCH_WORKERS=1 CLAUDE_EFFORT=medium python -m gm_bench model \
+GM_BENCH_WORKERS=1 CLAUDE_EFFORT=medium python3 -m gm_bench model \
   --provider claude --model sonnet --preset smoke --verbose --json
 
 # Leaderboard: serial only. Budget a whole 5h window — this is hours, not minutes.
-GM_BENCH_WORKERS=1 CLAUDE_EFFORT=medium python -m gm_bench model \
+GM_BENCH_WORKERS=1 CLAUDE_EFFORT=medium python3 -m gm_bench model \
   --provider claude --model sonnet \
   --preset leaderboard --repeats 3 \
   --agent-timeout 300 --verbose --json --no-log
@@ -734,7 +734,7 @@ GM_BENCH_WORKERS=1 CLAUDE_EFFORT=medium python -m gm_bench model \
 Direct adapter smoke without the model command:
 
 ```bash
-GM_BENCH_WORKERS=1 CLAUDE_MODEL=sonnet python -m gm_bench run \
+GM_BENCH_WORKERS=1 CLAUDE_MODEL=sonnet python3 -m gm_bench run \
   --agent-cmd "python examples/claude_agent.py" \
   --agent-timeout 180 \
   --seeds 1 \
@@ -746,7 +746,7 @@ For a more controlled spend during early tests:
 
 ```bash
 GM_BENCH_WORKERS=1 CLAUDE_MODEL=sonnet CLAUDE_MAX_BUDGET_USD=0.25 \
-  python -m gm_bench evaluate \
+  python3 -m gm_bench evaluate \
   --agent-cmd "python examples/claude_agent.py" \
   --agent-timeout 180 \
   --baselines random conservative win-now rebuild \
@@ -776,11 +776,11 @@ The Gemini adapter calls Google's native `generateContent` API with a
 the stable `gemini-3.5-flash` lane and keep the benchmark serial:
 
 ```bash
-GEMINI_API_KEY=... GM_BENCH_WORKERS=1 python -m gm_bench model \
+GEMINI_API_KEY=... GM_BENCH_WORKERS=1 python3 -m gm_bench model \
   --provider gemini --model gemini-3.5-flash \
   --preset smoke --verbose --json --no-log
 
-GEMINI_API_KEY=... GM_BENCH_WORKERS=1 python -m gm_bench model \
+GEMINI_API_KEY=... GM_BENCH_WORKERS=1 python3 -m gm_bench model \
   --provider gemini --model gemini-3.5-flash \
   --preset leaderboard --repeats 3 \
   --agent-timeout 180 --verbose --json --no-log \

@@ -8,6 +8,7 @@ import random
 import shlex
 import subprocess
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import Any
 
 from gm_bench.action_validation import validate_action_list
@@ -69,6 +70,11 @@ class Agent(ABC):
     def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         """Return (actions, usage). Scripted agents have no model usage to report."""
         return self.act(observation), None
+
+    def clone(self) -> Agent:
+        """Return an independent agent for a parallel episode."""
+
+        return deepcopy(self)
 
 
 class RandomAgent(Agent):

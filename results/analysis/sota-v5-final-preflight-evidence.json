@@ -1,16 +1,33 @@
 {
+  "authenticated_route_and_price_preflight": {
+    "canonical_openrouter_api_base": "https://openrouter.ai/api/v1",
+    "commands_executed": 8,
+    "completion_calls": 0,
+    "model_ids": [
+      "openrouter-gpt-5.6-luna-openai",
+      "openrouter-claude-sonnet-5-bedrock",
+      "openrouter-solar-pro4-upstage",
+      "openrouter-minimax-m3-minimax",
+      "openrouter-gemini-3.7-flash-google-ai-studio",
+      "openrouter-mistral-medium-3.5-mistral",
+      "openrouter-deepseek-v4-flash-0731-cloudflare",
+      "openrouter-hy3-tencent"
+    ],
+    "pricing_checked": true,
+    "status": "passed"
+  },
   "canonical_openrouter_api_base": "https://openrouter.ai/api/v1",
   "completion_calls": 0,
   "contract": "sota-v5",
   "contract_fingerprint": "247e12fe5a7d4f5b",
   "format": "gm-bench-sota-v5-final-preflight-v1",
-  "generated_at_utc": "2026-08-16T20:41:54+00:00",
+  "generated_at_utc": "2026-08-16T21:01:24+00:00",
   "openrouter_scaffold_fingerprint": "f04724717cc09caf",
   "route_preflight": {
     "evidence_artifact": "results/analysis/sota-v5-route-acceptance-evidence.json",
-    "evidence_sha256": "9b894c82e27b1c6f59afb576b37d6889ba64f2b3c77417775a4a984705fdfa84",
+    "evidence_sha256": "66ec780aca717c4d4a5524f2ce3ad31ede3356ecbf874c7367a84ab974570eb1",
     "status": "accepted",
-    "verified_at_utc": "2026-08-16T20:41:48+00:00"
+    "verified_at_utc": "2026-08-16T21:01:04+00:00"
   },
   "schema_version": 1,
   "smoke_command_dry_run": {

@@ -16,7 +16,7 @@ import gm_bench.runner as runner_module
 from examples.claude_agent import build_command as build_claude_command
 from examples.codex_agent import build_command as build_codex_command
 from examples.gm_agent_common import build_prompt, parse_actions
-from gm_bench.agents import ExternalProcessAgent, RandomAgent, ValueAgent
+from gm_bench.agents import Agent, ExternalProcessAgent, RandomAgent, ValueAgent
 from gm_bench.gui import (
     _is_loopback_host,
     _parse_seeds,
@@ -26,6 +26,7 @@ from gm_bench.gui import (
     score_history,
     serve,
 )
+from gm_bench.protocol import EpisodeConfig
 from gm_bench.runner import evaluate_against_baselines, run_episode, run_many
 from gm_bench.session import PersistentProcessAgent
 from gm_bench.simulator import League
@@ -216,6 +217,63 @@ def test_parallel_run_many_matches_sequential_results() -> None:
     assert {episode["seed"] for episode in sequential["episodes"]} == {
         episode["seed"] for episode in parallel["episodes"]
     }
+
+
+def test_parallel_run_many_clones_mutable_agents() -> None:
+    class CountingAgent(ValueAgent):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def act(self, observation: dict[str, object]) -> list[dict[str, object]]:
+            self.calls += 1
+            return super().act(observation)  # type: ignore[arg-type, return-value]
+
+    agent = CountingAgent()
+    payload = run_many(agent, seeds=[1, 2], seasons=1, workers=2)
+
+    assert len(payload["episodes"]) == 2
+    assert agent.calls == 0
+
+
+class _MalformedInProcessAgent(Agent):
+    name = "malformed-in-process"
+
+    def act(self, observation: dict[str, object]) -> list[dict[str, object]]:
+        del observation
+        return [{}]
+
+
+def test_in_process_agents_use_the_strict_action_boundary() -> None:
+    result = run_episode(_MalformedInProcessAgent(), seed=1, seasons=1)
+
+    assert result.failed_decisions == result.decisions
+    malformed_actions = [
+        transaction["action"] for transaction in result.transactions if "error" in transaction["action"]
+    ]
+    assert (
+        malformed_actions
+        == [{"type": "noop", "error": "agent returned invalid actions: every action must have a string type"}]
+        * result.decisions
+    )
+
+
+@pytest.mark.parametrize(
+    ("call", "message"),
+    [
+        (lambda: run_episode(ValueAgent(), seed=True), "seed must be an integer"),
+        (lambda: run_episode(ValueAgent(), seed=1, seasons=0), "seasons must be an integer >= 1"),
+        (lambda: run_many(ValueAgent(), seeds=[], seasons=1), "seeds must be a non-empty list"),
+        (lambda: run_many(ValueAgent(), seeds=[1], repeats=0), "repeats must be an integer >= 1"),
+        (lambda: run_many(ValueAgent(), seeds=[1], workers=0), "workers must be an integer >= 1"),
+        (
+            lambda: run_episode(ValueAgent(), seed=1, config=EpisodeConfig(max_interaction_rounds=0)),
+            "max_interaction_rounds must be an integer >= 1",
+        ),
+    ],
+)
+def test_library_api_rejects_invalid_run_inputs(call: object, message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        call()  # type: ignore[operator]
 
 
 def test_external_agents_default_to_serial_workers(monkeypatch: pytest.MonkeyPatch) -> None:

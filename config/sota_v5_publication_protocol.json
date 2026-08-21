@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "contract": "sota-v5",
-  "contract_fingerprint": "247e12fe5a7d4f5b",
+  "contract_fingerprint": "519bf6db27320d8b",
   "status": "frozen",
   "evidence_state": "pre-data-no-completion-calls",
   "research_question": "Whether each preregistered sota-v5 model-plus-compact-scaffold system trails the named pick-trader reference under the frozen actions-v3, sim-v3, observation-v2, and score-v1 mechanics.",

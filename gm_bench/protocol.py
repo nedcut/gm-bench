@@ -65,6 +65,19 @@ class EpisodeConfig:
     include_midseason: bool = True
     builtin_full_observation: bool = True
 
+    def validate(self) -> None:
+        if self.observation_tier not in {"summary", "full"}:
+            raise ValueError("observation_tier must be 'summary' or 'full'")
+        if (
+            not isinstance(self.max_interaction_rounds, int)
+            or isinstance(self.max_interaction_rounds, bool)
+            or self.max_interaction_rounds < 1
+        ):
+            raise ValueError("max_interaction_rounds must be an integer >= 1")
+        for field in ("persistent_session", "strict", "include_midseason", "builtin_full_observation"):
+            if not isinstance(getattr(self, field), bool):
+                raise ValueError(f"{field} must be a boolean")
+
     def baseline_cache_fingerprint(self) -> str:
         """Fingerprint the fields that change a played-out episode.
 
@@ -75,6 +88,7 @@ class EpisodeConfig:
         keys stay identical to the historical cache and keep hitting.
         """
 
+        self.validate()
         default = EpisodeConfig()
         relevant = (
             "observation_tier",

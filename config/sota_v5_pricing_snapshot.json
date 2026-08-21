@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "contract": "sota-v5",
-  "contract_fingerprint": "247e12fe5a7d4f5b",
+  "contract_fingerprint": "519bf6db27320d8b",
   "status": "frozen",
   "checked_at_utc": "2026-08-16T20:42:56Z",
   "source": "Point-in-time authenticated OpenRouter exact-endpoint metadata collected during the authorized zero-completion route preflight; no Keychain, private seed, or completion endpoint was used. Recheck every rate immediately before any separate spend decision.",

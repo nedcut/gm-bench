@@ -13,3 +13,10 @@ respond with a JSON array matching `gm_action_list.schema.json`.
 
 Model-backed coding-agent adapters may use `gm_actions.schema.json` instead and
 let the adapter unwrap the `actions` field.
+
+`gm_action_list.schema.json` accepts extra properties so adapters may attach
+diagnostic markers such as `model_error`; the runtime validates every
+recognized field and ignores extra diagnostic metadata. `gm_actions.schema.json`
+is the stricter structured-output envelope used by providers that require a
+fixed, fully enumerated object. The difference is deliberate, and the files are
+not interchangeable.

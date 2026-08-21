@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "contract": "sota-v5",
-  "contract_fingerprint": "247e12fe5a7d4f5b",
+  "contract_fingerprint": "519bf6db27320d8b",
   "preregistered_at_utc": "2026-08-16T19:45:49Z",
   "preregistration_status": "frozen",
   "evidence_state": "pre-data-no-v5-provider-calls-smokes-or-panel-results",
@@ -119,7 +119,8 @@
   "panel_execution_authorized": false,
   "publication_authorized": false,
   "blockers": [
-    "Final merged-head smoke-command and live-price preflight evidence must be accepted before any paid-smoke authorization.",
+    "Refresh and accept final preflight evidence on the merged hardening head before any paid-smoke authorization.",
+    "Paid smoke execution remains locked pending a separate explicit owner authorization.",
     "An owner attestation is required before hidden seed access and panel authorization.",
     "Every required strict smoke must be accepted before a separate panel decision; any route incompatibility, cap pressure, unknown cost, or mandatory reasoning aborts v5 and requires a new preregistration.",
     "SOTA-v4 remains a terminal historical contract and cannot be reopened or used to select v5 after observing v5 data."
@@ -127,7 +128,7 @@
   "final_preflight_evidence": {
     "status": "pending",
     "artifact": "results/analysis/sota-v5-final-preflight-evidence.json",
-    "sha256": "f98d02f0ce2e16f16a446095e818ec00161c06852048193677edb52cdc07ff15",
+    "sha256": "f4d771633daf54b22866f6c73d13a3e3232794e3bc211b9e3d3dccf95a0bbe8a",
     "contract_fingerprint": "247e12fe5a7d4f5b",
     "completion_calls": 0,
     "operator_ceiling_usd": 10.0

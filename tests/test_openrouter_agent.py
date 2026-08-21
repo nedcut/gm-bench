@@ -4,6 +4,8 @@ import json
 import urllib.error
 from io import BytesIO
 
+import pytest
+
 from examples import openrouter_agent
 
 
@@ -70,6 +72,29 @@ def test_provider_preferences_are_reproducibility_safe(monkeypatch) -> None:
 def test_finite_cost_rejects_json_booleans() -> None:
     assert openrouter_agent._finite_cost(True) is None
     assert openrouter_agent._finite_cost(False) is None
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "http://openrouter.ai/api/v1",
+        "https://example.test/api/v1",
+        "file:///tmp/openrouter",
+        "https://user:password@openrouter.ai/api/v1",
+        "https://openrouter.ai/api/v1?redirect=https://example.test",
+    ],
+)
+def test_openrouter_base_url_rejects_noncanonical_endpoints(monkeypatch, base_url: str) -> None:
+    monkeypatch.setenv("OPENROUTER_API_BASE", base_url)
+
+    with pytest.raises(ValueError, match="must be https://openrouter.ai/api/v1"):
+        openrouter_agent._openrouter_base_url()
+
+
+def test_openrouter_base_url_accepts_canonical_endpoint(monkeypatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1/")
+
+    assert openrouter_agent._openrouter_base_url() == "https://openrouter.ai/api/v1"
 
 
 def test_choose_actions_records_route_and_authoritative_cost(monkeypatch) -> None:

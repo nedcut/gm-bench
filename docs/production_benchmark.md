@@ -79,10 +79,12 @@ multi-megabyte failed artifact is intentionally not retained. Prefer
 multi-hour quota spend, not a quick retry.
 
 The SOTA-v3 and SOTA-v4 strict-smoke lanes are terminal and must not be rerun.
-SOTA-v5 has a frozen prospective cohort and authorizes only authenticated
-zero-completion route/privacy collection and route preflight; spend, smoke,
-panel, and publication remain disabled. Collect the fresh v5 route record
-without allowing a historical contract path to be selected:
+SOTA-v5 has a frozen prospective cohort. Its authenticated zero-completion
+route/privacy, seed-free command, and live-price final-preflight evidence was
+accepted before the fail-closed API and canonical-host hardening changed the
+contract and OpenRouter scaffold fingerprints. Spend, smoke, panel, and
+publication remain disabled. Refresh the v5 route record on the merged
+hardening head without allowing a historical contract path to be selected:
 
 ```bash
 uv run python scripts/collect_sota_v3_route_evidence.py \
@@ -93,10 +95,11 @@ uv run python scripts/run_publication_matrix.py route-preflight \
 
 These commands read authenticated metadata only and record zero completion
 calls. The v5 smoke-command dry run deliberately does not read Keychain or set
-`GM_BENCH_PRIVATE_SEEDS`; smokes use only the public smoke seed. Paid smoke
-commands remain unauthorized until this evidence, the seed-free final dry run,
-exact-head CI, and a separate owner decision all pass. Keychain verification
-and the explicit owner attestation are deferred to the private panel gate.
+`GM_BENCH_PRIVATE_SEEDS`; smokes use only the public smoke seed. The final
+zero-completion evidence must be accepted on that same merged head; paid smoke
+commands then remain unauthorized until a separate owner decision. Keychain
+verification and the explicit owner attestation are deferred to the private
+panel gate.
 Panel execution remains a separate post-smoke decision.
 
 Fresh-spawn serial model panels write an atomic checkpoint after every completed

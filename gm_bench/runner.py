@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from statistics import mean, pstdev
 from typing import Any, Callable
 
+from gm_bench.action_validation import validate_action_list
 from gm_bench.agents import AGENTS, Agent
 from gm_bench.baseline_cache import cache_key, default_cache_path, load_cache, put_cached_episode, save_cache
 from gm_bench.benchmark_config import validate_baseline_names
@@ -74,6 +75,11 @@ def run_episode(
     config: EpisodeConfig | None = None,
 ) -> BenchmarkResult:
     episode_config = config or EpisodeConfig()
+    episode_config.validate()
+    if not isinstance(seed, int) or isinstance(seed, bool):
+        raise ValueError("seed must be an integer")
+    if not isinstance(seasons, int) or isinstance(seasons, bool) or seasons < 1:
+        raise ValueError("seasons must be an integer >= 1")
     league = League.new(seed=seed, user_team_id=user_team_id)
     phases = list(PHASES) if episode_config.include_midseason else [phase for phase in PHASES if phase != "midseason"]
     total_decisions = seasons * len(phases)
@@ -203,6 +209,10 @@ def run_decision_point(
         harness_latency_ms += elapsed * 1000.0
         if usage is not None:
             usage_records.append({**usage, "interaction_round": round_index})
+        try:
+            actions = validate_action_list(actions)
+        except ValueError as exc:
+            actions = [{"type": "noop", "error": f"agent returned invalid actions: {exc}"}]
         if _decision_failed(actions):
             failed = True
         results = [item.to_dict() for item in league.apply_actions(actions, phase)]
@@ -241,22 +251,34 @@ def run_many(
     from seed (league-generation) luck: paired statistics use the per-seed
     mean across repeats, and summaries report the within-seed spread.
     """
-    jobs = [(seed, repeat) for seed in seeds for repeat in range(1, max(1, repeats) + 1)]
+    if not isinstance(seeds, list) or not seeds:
+        raise ValueError("seeds must be a non-empty list of integers")
+    if any(not isinstance(seed, int) or isinstance(seed, bool) for seed in seeds):
+        raise ValueError("seeds must be a non-empty list of integers")
+    if not isinstance(seasons, int) or isinstance(seasons, bool) or seasons < 1:
+        raise ValueError("seasons must be an integer >= 1")
+    if not isinstance(repeats, int) or isinstance(repeats, bool) or repeats < 1:
+        raise ValueError("repeats must be an integer >= 1")
+    if workers is not None and (not isinstance(workers, int) or isinstance(workers, bool) or workers < 1):
+        raise ValueError("workers must be an integer >= 1")
+    episode_config = config or EpisodeConfig()
+    episode_config.validate()
+    jobs = [(seed, repeat) for seed in seeds for repeat in range(1, repeats + 1)]
+    max_workers = workers if workers is not None else _default_workers(len(jobs))
 
     def one(job: tuple[int, int]) -> dict[str, Any]:
         seed, repeat = job
-        episode_agent = agent.clone() if isinstance(agent, PersistentProcessAgent) else agent
-        result = run_episode(episode_agent, seed=seed, seasons=seasons, progress=progress, config=config)
+        episode_agent = agent.clone() if isinstance(agent, PersistentProcessAgent) or max_workers > 1 else agent
+        result = run_episode(episode_agent, seed=seed, seasons=seasons, progress=progress, config=episode_config)
         return {**result.__dict__, "repeat": repeat}
 
-    max_workers = workers if workers is not None else _default_workers(len(jobs))
     if max_workers <= 1 or len(jobs) <= 1:
         episodes = [one(job) for job in jobs]
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             episodes = list(executor.map(one, jobs))
     payload = _episodes_payload(agent.name, seeds, seasons, episodes)
-    payload["repeats"] = max(1, repeats)
+    payload["repeats"] = repeats
     return payload
 
 
