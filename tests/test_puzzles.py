@@ -142,6 +142,18 @@ def test_a_trade_names_the_partner_and_both_sides() -> None:
     assert rendered == "Trade Finn Frost (F 78) to Austin Jackals for their season-4 first-round pick"
 
 
+def test_a_trade_names_picks_from_the_readers_side() -> None:
+    """Both halves carry season numbers; the label must not swap whose pick it is."""
+    action = {
+        "type": "trade",
+        "partner_team_id": 1,
+        "give_pick_seasons": [4],
+        "receive_player_ids": [7],
+    }
+    rendered = build_puzzles.describe_action(action, PLAYERS, TEAMS)
+    assert rendered == "Trade your season-4 first-round pick to Austin Jackals for Finn Frost (F 78)"
+
+
 def test_an_unknown_team_does_not_break_a_trade_line() -> None:
     action = {"type": "trade", "partner_team_id": 99, "give_player_ids": [9], "receive_player_ids": [7]}
     assert "another team" in build_puzzles.describe_action(action, PLAYERS, TEAMS)

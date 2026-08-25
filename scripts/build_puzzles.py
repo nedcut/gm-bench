@@ -154,8 +154,13 @@ def _name(index: dict[int, dict[str, Any]], player_id: Any) -> str:
     return f"{player['name']} ({player.get('position', '?')} {player.get('overall', 0):.0f})"
 
 
-def _pick_label(season: Any) -> str:
-    return f"their season-{season} first-round pick"
+def _pick_label(season: Any, *, ours: bool) -> str:
+    """Name a draft pick from the reader's side of the deal.
+
+    Both halves of a trade carry season numbers, so a single label would tell a
+    reader they were shipping out the *partner's* pick.
+    """
+    return f"{'your' if ours else 'their'} season-{season} first-round pick"
 
 
 def describe_action(action: dict[str, Any], players: dict[int, dict[str, Any]], teams: dict[int, str]) -> str:
@@ -179,9 +184,9 @@ def describe_action(action: dict[str, Any], players: dict[int, dict[str, Any]], 
     if kind == "trade":
         partner = teams.get(int(action.get("partner_team_id", -1)), "another team")
         out = [_name(players, pid) for pid in action.get("give_player_ids") or []]
-        out += [_pick_label(season) for season in action.get("give_pick_seasons") or []]
+        out += [_pick_label(season, ours=True) for season in action.get("give_pick_seasons") or []]
         back = [_name(players, pid) for pid in action.get("receive_player_ids") or []]
-        back += [_pick_label(season) for season in action.get("receive_pick_seasons") or []]
+        back += [_pick_label(season, ours=False) for season in action.get("receive_pick_seasons") or []]
         return f"Trade {', '.join(out) or 'nothing'} to {partner} for {', '.join(back) or 'nothing'}"
     if kind == "accept_trade_offer":
         return "Accept the incoming trade offer"
