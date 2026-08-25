@@ -233,6 +233,7 @@ def headline_metric(delta: dict[str, float]) -> str:
     even when it is the best option on the board. Naming both sides is the whole
     point -- the trade-off *is* the decision.
     """
+
     def contribution(name: str) -> float:
         return delta.get(f"{name}_contribution", 0.0)
 
@@ -293,7 +294,9 @@ def build_card(record: dict[str, Any], *, rejections: Counter[str] | None = None
     for ghost in record.get("ghosts", []):
         if "error" in ghost:
             continue
-        candidates.append({"source": ghost["agent"], "actions": ghost["actions"], "delta": ghost["delta"], "subject": False})
+        candidates.append(
+            {"source": ghost["agent"], "actions": ghost["actions"], "delta": ghost["delta"], "subject": False}
+        )
 
     # Collapse policies that made the same substantive choice; keep the first,
     # and remember who else agreed so a card can say "two policies did this".

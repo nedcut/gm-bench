@@ -193,10 +193,7 @@ def record_episode(
             before = score_components(league, user_team_id)
             observation = probe_observation(league, phase, tier)
             logged = len(league.transactions)
-            ghosts = [
-                _run_ghost(name, league, phase, ghost_config, before, logged)
-                for name in recorder.ghost_agents
-            ]
+            ghosts = [_run_ghost(name, league, phase, ghost_config, before, logged) for name in recorder.ghost_agents]
 
             point = run_decision_point(league, agent, phase, episode_config)
             after = score_components(league, user_team_id)
@@ -256,8 +253,4 @@ def _actions_since(league: League, logged: int, team_id: int) -> list[dict[str, 
     scan would stop at the first one. Rejected actions are kept: a policy that
     tried an illegal trade still made that choice.
     """
-    return [
-        transaction.action
-        for transaction in league.transactions[logged:]
-        if transaction.team_id == team_id
-    ]
+    return [transaction.action for transaction in league.transactions[logged:] if transaction.team_id == team_id]
