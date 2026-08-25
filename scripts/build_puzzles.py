@@ -243,12 +243,23 @@ def headline_metric(delta: dict[str, float]) -> str:
 
     clauses = []
     if gains:
-        best = max(gains, key=contribution)
-        clauses.append(f"gained {abs(delta.get(best, 0.0)):.1f} of {METRIC_LABELS[best]}")
+        clauses.append(f"gained {_amount(max(gains, key=contribution), delta)}")
     if losses:
-        worst = min(losses, key=contribution)
-        clauses.append(f"gave up {abs(delta.get(worst, 0.0)):.1f} of {METRIC_LABELS[worst]}")
+        clauses.append(f"gave up {_amount(min(losses, key=contribution), delta)}")
     return ", ".join(clauses)
+
+
+def _amount(metric: str, delta: dict[str, float]) -> str:
+    """Render one metric movement in units a reader can picture.
+
+    ``roster_depth`` is stored as a fraction of a 24-man roster, so a signing
+    shows up as 0.042 and rounds to a meaningless "0.0". Convert it to bodies.
+    """
+    raw = abs(delta.get(metric, 0.0))
+    if metric == "roster_depth":
+        players = round(raw * 24)
+        return f"{players} roster {'spot' if players == 1 else 'spots'}"
+    return f"{raw:.1f} of {METRIC_LABELS[metric]}"
 
 
 # --------------------------------------------------------------------------

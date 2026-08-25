@@ -195,3 +195,51 @@ export interface Snapshot {
   };
   sample_transactions: SampleTransaction[];
 }
+
+/* ---------- puzzles ----------
+   Illustrative content built by scripts/build_puzzles.py. Every option is a
+   real scripted policy's choice from the same observation, graded by the
+   immediate change in score components. Not a benchmark artifact. */
+
+export interface PuzzleSituation {
+  team: string;
+  season: number;
+  phase: string;
+  record: string;
+  cap_room: number;
+  payroll: number;
+  roster_size: number;
+  championships: number;
+  free_agents_available: number;
+  offers_on_the_table: number;
+}
+
+export interface PuzzleOption {
+  id: string;
+  lines: string[];
+  chosen_by: string[];
+  immediate_score: number;
+  summary: string;
+  delta: Record<string, number>;
+}
+
+export interface Puzzle {
+  id: string;
+  state_key: string;
+  seed: number;
+  season: number;
+  phase: string;
+  subject: string;
+  worthiness: number;
+  situation: PuzzleSituation;
+  options: PuzzleOption[];
+  answer: string;
+  points_left_on_the_table: number;
+}
+
+export interface PuzzleSet {
+  schema: string;
+  note: string;
+  source_records: number;
+  puzzles: Puzzle[];
+}

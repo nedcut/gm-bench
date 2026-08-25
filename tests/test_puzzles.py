@@ -189,3 +189,14 @@ def test_player_index_finds_players_across_every_bucket() -> None:
 def test_team_index_reads_the_standings_naming_key() -> None:
     observation = {"standings": [{"team_id": 3, "team_name": "Anchorage Auroras"}]}
     assert build_puzzles.team_index(observation)[3] == "Anchorage Auroras"
+
+
+def test_roster_depth_is_reported_in_players_not_fractions() -> None:
+    """It is stored as a fraction of a 24-man roster; 0.042 must not read '0.0'."""
+    delta = _delta(roster_depth=1 / 24, roster_depth_contribution=8.0 / 24)
+    assert build_puzzles.headline_metric(delta) == "gained 1 roster spot"
+
+
+def test_roster_depth_pluralises() -> None:
+    delta = _delta(roster_depth=3 / 24, roster_depth_contribution=8.0 * 3 / 24)
+    assert build_puzzles.headline_metric(delta) == "gained 3 roster spots"

@@ -1,9 +1,11 @@
 import { useState } from "react";
 import snapshotData from "./data/snapshot.json";
 import leaderboardData from "./data/leaderboard.json";
-import type { Leaderboard as LeaderboardData, Snapshot } from "./types";
+import puzzleData from "./data/puzzles.json";
+import type { Leaderboard as LeaderboardData, PuzzleSet, Snapshot } from "./types";
 import { buildBenchmarkView } from "./benchmarkData";
 import Nav from "./components/Nav";
+import Puzzles from "./components/Puzzles";
 import ResultsExplorer from "./components/ResultsExplorer";
 import Analysis from "./components/Analysis";
 import HowItWorks from "./components/HowItWorks";
@@ -12,6 +14,7 @@ import Footer from "./components/Footer";
 
 const snapshot = snapshotData as Snapshot;
 const leaderboard = leaderboardData as LeaderboardData;
+const puzzles = puzzleData as PuzzleSet;
 const benchmark = buildBenchmarkView(leaderboard);
 
 export default function App() {
@@ -26,6 +29,7 @@ export default function App() {
       </a>
       <Nav />
       <main>
+        <Puzzles data={puzzles} />
         <ResultsExplorer
           data={leaderboard}
           benchmark={benchmark}

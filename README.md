@@ -9,6 +9,30 @@ Explore the [live leaderboard](https://nedcut.github.io/gm-bench/), read the
 [phase-one findings](docs/blog/sota-v2-findings.md), or download the
 [tagged evidence release](https://github.com/nedcut/gm-bench/releases/tag/sota-v2-phase-one-2026-07-19).
 
+## Play along
+
+The site opens with 24 real decisions taken from recorded episodes. Each one
+shows the situation and several options, where every option is a move some
+policy actually made from that same observation — no invented distractors. Pick
+one and the board reveals what each choice did to the roster, and who played it.
+
+Options are graded by immediate state change rather than by replaying the rest
+of the season, because a single season is mostly luck: within-seed score noise
+runs to an SD of 53 points and survives pairing, which is wider than the gap
+between most published models. The immediate grade agrees with the published
+finishing order anyway — across 800 recorded decisions `pick-trader` holds the
+best immediate delta 87% of the time, then `value`, `win-now`, `conservative`.
+
+Regenerate the content with:
+
+```bash
+python scripts/record_decisions.py          # play episodes, record every decision
+python scripts/build_puzzles.py --limit 24  # rank divergences into cards
+```
+
+This content is illustrative. It carries no contract fingerprint and is not
+evidence about any policy.
+
 ## Phase-one result
 
 Eight pre-registered model systems produced strict `sota-v2` rows under one

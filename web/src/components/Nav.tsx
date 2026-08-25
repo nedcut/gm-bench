@@ -14,6 +14,7 @@ export function Logo({ size = 24 }: { size?: number }) {
 }
 
 const LINKS = [
+  { href: "#play", label: "Play" },
   { href: "#results", label: "Results" },
   { href: "#analysis", label: "Analysis" },
   { href: "#protocol", label: "Protocol" },
