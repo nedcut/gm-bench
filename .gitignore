@@ -49,3 +49,6 @@ Thumbs.db
 # Seed-panel commitment salts (reveal manually when a panel rotates out).
 *.seed-salt.json
 seed_panel_salts/
+
+# Illustrative puzzle source recordings (regenerate with scripts/record_decisions.py)
+data/decision-records/
