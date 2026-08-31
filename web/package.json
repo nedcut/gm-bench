@@ -5,14 +5,20 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prepare:replay": "python3 ../scripts/build_web_replay_bundle.py",
     "validate:data": "bun scripts/validate_results_data.ts",
-    "build": "bun run validate:data && tsc -b && vite build",
+    "validate:replay:shape": "python3 ../scripts/build_web_replay_bundle.py --bundle /tmp/gm-bench-replay.zip",
+    "validate:replay:node": "bun scripts/validate_replay_node.mjs",
+    "validate:replay": "bun run prepare:replay && bun run validate:replay:node",
+    "generate:replay": "python3 ../scripts/build_web_replay_bundle.py --write-fixture",
+    "build": "bun run validate:data && bun run validate:replay && tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
     "d3-array": "^3.2.4",
     "d3-scale": "^4.0.2",
+    "pyodide": "314.0.6",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
