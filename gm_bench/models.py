@@ -64,8 +64,6 @@ class Player:
     # Hidden provenance prevents a newly signed one-year deal from being
     # converted immediately into a discounted long-term extension.
     contract_signed_season: int = 0
-    morale: float = 0.0
-    drafted_round: int | None = None
     injured_games: int = 0
     # None for D and G; every F is assigned "C" or "W" at generation.
     sub_position: SubPosition | None = None
@@ -82,7 +80,6 @@ class Player:
             "salary": round(self.salary, 2),
             "contract_years": self.contract_years,
             "injury_risk": round(self.injury_risk, 3),
-            "morale": round(self.morale, 2),
         }
 
     @property
@@ -104,8 +101,6 @@ class Player:
 class Team:
     id: int
     name: str
-    market: float
-    patience: float
     roster: list[int] = field(default_factory=list)
     lineup: list[int] = field(default_factory=list)
     wins: int = 0
@@ -132,8 +127,6 @@ class Team:
         payload: dict[str, Any] = {
             "id": self.id,
             "name": self.name,
-            "market": round(self.market, 2),
-            "patience": round(self.patience, 2),
             "wins": self.wins,
             "losses": self.losses,
             "championships": self.championships,

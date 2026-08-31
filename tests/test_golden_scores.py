@@ -17,12 +17,15 @@ from gm_bench.runner import run_episode, run_many
 # expiring contracts: an unresigned expiring incumbent now risks an immediate
 # rival scramble at season end, so ValueAgent (which does not extend every
 # eligible veteran) loses real talent it previously always got to re-sign.
+# Re-pinned again for v6 dead-field removal: Team no longer draws two RNG
+# values (market, patience) at generation, so every generated league (and
+# everything downstream) re-rolled again.
 # The values remain exact replay pins: identical seeds must reproduce them
 # byte-for-byte.
 GOLDEN_VALUE_SCORES_5_SEASONS = {
-    1: 145.567,
-    2: 155.27,
-    3: 153.904,
+    1: 168.625,
+    2: 151.302,
+    3: 218.596,
 }
 
 

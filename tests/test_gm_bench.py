@@ -49,6 +49,34 @@ def test_observation_hides_true_potential() -> None:
     assert "trade_market" in encoded
 
 
+def test_observation_drops_inert_morale_market_patience_fields() -> None:
+    """morale, market, and patience were written and serialized but read by no
+    mechanic (see docs/bench_v6_spec.md's survival test); they must be gone
+    from both the model and the observation, not merely unused."""
+    from dataclasses import fields
+
+    from gm_bench.models import Player, Team
+
+    assert "morale" not in {field.name for field in fields(Player)}
+    assert "market" not in {field.name for field in fields(Team)}
+    assert "patience" not in {field.name for field in fields(Team)}
+
+    league = League.new(seed=11)
+    observation = league.observation("preseason")
+    encoded = json.dumps(observation)
+    assert "morale" not in encoded
+    assert '"market"' not in encoded
+    assert "patience" not in encoded
+    for player in observation["team"]["roster"]:
+        assert "morale" not in player
+    assert "market" not in observation["team"]
+    assert "patience" not in observation["team"]
+
+    # drafted_round was set on every drafted prospect but read by nothing and
+    # never published; a dead write in the same spirit as the fields above.
+    assert "drafted_round" not in {field.name for field in fields(Player)}
+
+
 def test_observation_lineup_rules_match_validation() -> None:
     league = League.new(seed=11)
     rules = league.observation("preseason")["rules"]

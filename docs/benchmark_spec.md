@@ -93,8 +93,8 @@ The benchmark implements a compact hockey-style league:
   season, roster minimums on both sides, and cap constraints.
 - Lineups that matter: `set_lineup` picks the 18 players who dress, which
   drives team strength; young players outside the lineup develop at half rate.
-- Midseason phase: partial-season games (~35% of the schedule), standings and
-  morale updates, random injuries, and a waiver wire with `claim_waiver`.
+- Midseason phase: partial-season games (~35% of the schedule), standings
+  updates, random injuries, and a waiver wire with `claim_waiver`.
 - Seasons, standings, playoffs, championships, aging, development, and expiring
   contracts.
 

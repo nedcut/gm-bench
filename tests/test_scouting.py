@@ -118,10 +118,12 @@ def test_scouting_does_not_perturb_scripted_scores():
     baseline = run_episode(ValueAgent(), seed=1, seasons=5)
     # Re-pinned for the v6 draft lottery, again for v6 free-agent willingness
     # (deterministic pricing, not scout RNG), again for v6 lineup construction
-    # (an extra generator RNG draw per forward), and again for v6 expiring
-    # contracts (the season-boundary expiry scramble); this still pins that
-    # scouting's isolated RNG did not cause the movement.
-    assert baseline.final_score == 145.567
+    # (an extra generator RNG draw per forward), again for v6 expiring
+    # contracts (the season-boundary expiry scramble), and again for v6
+    # dead-field removal (Team no longer draws market/patience RNG values at
+    # generation); this still pins that scouting's isolated RNG did not cause
+    # the movement.
+    assert baseline.final_score == 168.625
 
 
 def test_ambiguous_scout_target_increments_failed_queries_not_declines():

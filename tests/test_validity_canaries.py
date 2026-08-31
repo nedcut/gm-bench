@@ -37,10 +37,12 @@ def test_official_validity_canaries_underperform_value() -> None:
     # Re-pinned for v6 free-agent willingness: repriced signings shift which
     # roster spots the baselines clear via release. Re-pinned again for v6
     # lineup construction: the center-count bonus changes which teams'
-    # rosters carry a releasable surplus.
+    # rosters carry a releasable surplus. Re-pinned again for v6 dead-field
+    # removal: Team no longer draws market/patience RNG values at generation,
+    # so every generated league re-rolled again.
     assert release_coverage == {
         "mechanic": "release",
-        "accepted_actions": 10,
+        "accepted_actions": 11,
         "seed_count": 8,
         "seed_rate": 0.333,
         "minimum_seed_count": 3,

@@ -396,8 +396,7 @@
         "potential",
         "salary",
         "contract_years",
-        "injury_risk",
-        "morale"
+        "injury_risk"
       ],
       "properties": {
         "id": {
@@ -442,9 +441,6 @@
           "minimum": 0,
           "maximum": 1
         },
-        "morale": {
-          "type": "number"
-        },
         "extension_quotes": {
           "$ref": "#/$defs/extension_quotes"
         },
@@ -486,7 +482,6 @@
         "salary",
         "contract_years",
         "injury_risk",
-        "morale",
         "asking_salary",
         "contract_quotes",
         "market_asking_salary",
@@ -534,9 +529,6 @@
           "type": "number",
           "minimum": 0,
           "maximum": 1
-        },
-        "morale": {
-          "type": "number"
         },
         "asking_salary": {
           "type": "number",
@@ -596,8 +588,6 @@
       "required": [
         "id",
         "name",
-        "market",
-        "patience",
         "wins",
         "losses",
         "championships",
@@ -614,12 +604,6 @@
         },
         "name": {
           "type": "string"
-        },
-        "market": {
-          "type": "number"
-        },
-        "patience": {
-          "type": "number"
         },
         "wins": {
           "type": "integer",

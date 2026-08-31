@@ -32,7 +32,10 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # Moved again for v6 expiring contracts: an unresigned expiring incumbent
     # now enters an immediate rival scramble for the best expiring players
     # leaguewide before the user's next decision window.
-    assert contract_fingerprint() == "20e42898d8069386"
+    # Moved again for v6 dead-field removal: the inert morale, market, and
+    # patience fields (never read by any mechanic) are gone from the model,
+    # generator, and observation.
+    assert contract_fingerprint() == "2501fcfbcb5133e9"
     assert "oracle" not in AGENTS
 
 

@@ -146,19 +146,27 @@ def test_scaffold_view_and_pick_trader_leaderboard_seed_smoke() -> None:
     pick_trader_score = pick_trader["summary"]["mean_score"]
     assert math.isfinite(scaffold_score)
     assert math.isfinite(pick_trader_score)
-    # Seed 11 ties on the official panel; re-pinned for the v6 draft lottery,
-    # again for v6 free-agent willingness, again for v6 lineup construction
-    # (an extra generator RNG draw per forward), and again for v6 expiring
-    # contracts (the season-boundary expiry scramble).
-    # Pin the score so contract drift cannot silently invalidate the run log.
-    assert scaffold_score == pytest.approx(pick_trader_score)
-    assert scaffold_score == pytest.approx(229.245, abs=0.001)
+    # Seed 11 tied on the official panel through the v6 draft lottery, v6
+    # free-agent willingness, v6 lineup construction (an extra generator RNG
+    # draw per forward), and v6 expiring contracts (the season-boundary expiry
+    # scramble). Re-pinning for v6 dead-field removal (Team no longer draws
+    # market/patience RNG values at generation) breaks the tie: the reroll
+    # moves enough free agents and trade offers across the compact-profile's
+    # truncation boundary that PickTraderAgent's scripted policy now makes at
+    # least one different call against the truncated view than against the
+    # full one. Pin both scores directly so contract drift cannot silently
+    # invalidate the run log.
+    assert scaffold_score == pytest.approx(278.003, abs=0.001)
+    assert pick_trader_score == pytest.approx(272.596, abs=0.001)
 
 
 def test_tiny_profile_still_yields_a_legal_lineup() -> None:
     # The tiny profile truncates the roster to 18, so the host-computed lineup
     # the prompt gives every model is the only thing keeping the view playable.
-    league = League.new(seed=13)
+    # Re-seeded for v6 dead-field removal: the generator no longer draws
+    # market/patience RNG values per team, so seed 13's top-18-by-overall no
+    # longer misses a position minimum; seed 8 does.
+    league = League.new(seed=8)
     observation = league.observation("preseason")
     view = scaffold_view_observation(observation, "tiny")
     # The policy alone cannot dress a legal lineup from this truncated roster.

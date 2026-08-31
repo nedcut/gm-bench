@@ -447,7 +447,6 @@ class League:
                     continue
                 for _ in range(games_per_pair):
                     self._play_game(home, away, ratings, rng)
-        self._update_morale_from_standings()
 
     def simulate_season(self) -> SeasonSummary:
         rng = self._rng("season")
@@ -533,14 +532,6 @@ class League:
                 # returning below-average player on a still-short lineup could
                 # otherwise nudge the rating down. Recovery must never weaken a team.
                 ratings[team.id] += max(0.0, available_strength - unavailable_strength)
-
-    def _update_morale_from_standings(self) -> None:
-        ordered = sorted(self.teams.values(), key=lambda team: team.wins, reverse=True)
-        for rank, team in enumerate(ordered):
-            delta = 4.0 - rank * 0.6
-            for player_id in team.roster:
-                player = self.players[player_id]
-                player.morale = min(100.0, max(20.0, player.morale + delta))
 
     def _generate_midseason_injuries(self) -> None:
         rng = self._rng("injuries")
@@ -1485,7 +1476,6 @@ class League:
         prospect.salary = 0.95
         prospect.contract_years = 3
         prospect.contract_signed_season = self.season
-        prospect.drafted_round = 1
         self.players[prospect.id] = prospect
         team.roster.append(prospect.id)
         owned = team.draft_picks.get(self.season, [])
