@@ -116,6 +116,24 @@
           "type": "integer",
           "minimum": 1
         },
+        "free_agency_willingness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "win_appeal_weight",
+            "role_appeal_weight",
+            "veteran_age",
+            "young_win_sensitivity",
+            "description"
+          ],
+          "properties": {
+            "win_appeal_weight": { "type": "number", "minimum": 0 },
+            "role_appeal_weight": { "type": "number", "minimum": 0 },
+            "veteran_age": { "type": "integer", "minimum": 16 },
+            "young_win_sensitivity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "description": { "type": "string" }
+          }
+        },
         "contracts": {
           "type": "object",
           "additionalProperties": false,
@@ -449,7 +467,9 @@
         "injury_risk",
         "morale",
         "asking_salary",
-        "contract_quotes"
+        "contract_quotes",
+        "market_asking_salary",
+        "signing_appeal"
       ],
       "properties": {
         "id": {
@@ -495,6 +515,26 @@
         "asking_salary": {
           "type": "number",
           "minimum": 0
+        },
+        "market_asking_salary": {
+          "type": "number",
+          "minimum": 0
+        },
+        "signing_appeal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "team_win_signal",
+            "win_sensitivity",
+            "projected_role",
+            "quote_multiplier"
+          ],
+          "properties": {
+            "team_win_signal": { "type": "number", "minimum": -1, "maximum": 1 },
+            "win_sensitivity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "projected_role": { "type": "string", "enum": ["lineup", "depth"] },
+            "quote_multiplier": { "type": "number", "minimum": 0.5, "maximum": 1.5 }
+          }
         },
         "contract_quotes": {
           "$ref": "#/$defs/contract_quotes"

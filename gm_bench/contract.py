@@ -61,8 +61,9 @@ SOTA_V5_CONTRACT = {
     # sota-v5 is the live (not yet frozen) lane; its fingerprint tracks the
     # in-flight v6 mechanic work. Moved from 247e12fe5a7d4f5b when the draft
     # lottery replaced deterministic draft order and traded picks gained
-    # original-team identity.
-    "contract_fingerprint": "d30fe7eddc093d97",
+    # original-team identity; moved from d30fe7eddc093d97 when free-agent
+    # willingness began pricing the signing team's record and lineup role.
+    "contract_fingerprint": "b7f53b7d638de7a3",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
 # Pinned with the release identity so the site headroom strip cannot drift when

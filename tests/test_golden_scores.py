@@ -8,12 +8,14 @@ from gm_bench.runner import run_episode, run_many
 # Re-pinned for the v6 draft lottery: draft order is now drawn from the seeded
 # RNG instead of following inverse standings, and traded picks carry their
 # original team's identity, so every draft (and everything downstream of it)
-# re-rolled. The values remain exact replay pins: identical seeds must
-# reproduce them byte-for-byte.
+# re-rolled. Re-pinned again for v6 free-agent willingness: every signing
+# (user and opponent) now carries the signing_appeal multiplier, so salaries
+# and rosters re-rolled league-wide. The values remain exact replay pins:
+# identical seeds must reproduce them byte-for-byte.
 GOLDEN_VALUE_SCORES_5_SEASONS = {
-    1: 194.301,
-    2: 222.507,
-    3: 238.802,
+    1: 196.025,
+    2: 200.161,
+    3: 264.465,
 }
 
 

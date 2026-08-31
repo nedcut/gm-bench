@@ -23,7 +23,10 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # Moved again for the v6 draft lottery: draft order is drawn from the
     # seeded RNG over the non-playoff teams, and traded picks carry their
     # original team's identity through the observation and the draft.
-    assert contract_fingerprint() == "d30fe7eddc093d97"
+    # Moved again for v6 free-agent willingness: quotes and reservations now
+    # carry the published signing_appeal multiplier (team record, lineup role,
+    # veteran win sensitivity), and opponent signings price the same way.
+    assert contract_fingerprint() == "b7f53b7d638de7a3"
     assert "oracle" not in AGENTS
 
 

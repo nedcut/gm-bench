@@ -35,6 +35,25 @@ TRADE_LIMIT_PER_PARTNER = 2
 MEMO_MAX_CHARS = 2000
 HARD_CAP_BUFFER = 8.0
 FA_RESERVATION_RANGE = (0.85, 1.0)
+# Free agents price their signing team, not just themselves. One composite
+# multiplier on the market quote, published per free agent as
+# `signing_appeal.quote_multiplier`:
+#
+#     multiplier = 1 - WIN_WEIGHT * win_sensitivity * team_win_signal
+#                    - ROLE_WEIGHT * (+1 if the player cracks the lineup else -1)
+#
+# so a contender with a lineup spot gets up to a 12% discount and a rebuilder
+# offering a bench seat pays up to a 12% premium. Veterans (age >=
+# FA_VETERAN_AGE) weigh winning fully; younger players at half weight, so a
+# rebuilding team can still sign youth near market but must overpay veterans.
+# Offering the published (adjusted) quote always succeeds; the hidden
+# reservation scales off the adjusted quote. Extensions are exempt: the
+# incumbent-discount inequality above is balanced against the pure market
+# quote and must stay that way.
+FA_WIN_APPEAL_WEIGHT = 0.08
+FA_ROLE_APPEAL_WEIGHT = 0.04
+FA_VETERAN_AGE = 28
+FA_YOUNG_WIN_SENSITIVITY = 0.5
 # Releasing a guaranteed deal costs a quarter of the salary for at most two
 # remaining seasons. Bounded on purpose: an unbounded charge is a tax that
 # active policies pay more of by acting more, which adds variance without
@@ -103,6 +122,12 @@ class League:
     partial_season_played: bool = False
     partial_games_per_pair: int = 0
     _action_results: list[ActionResult] = field(default_factory=list)
+    # Willingness quotes freeze for the length of a decision window: the
+    # appeal a player published at observation time is the appeal every offer
+    # in that window is judged against, even if earlier actions in the batch
+    # reshuffled the roster. Keyed by (player_id, team_id); cleared whenever a
+    # new decision window opens or the league state rolls forward.
+    _window_signing_appeal: dict[tuple[int, int], dict[str, Any]] = field(default_factory=dict)
 
     @classmethod
     def new(cls, seed: int, user_team_id: int = 0, num_teams: int = 12) -> "League":
@@ -147,6 +172,19 @@ class League:
                 "trade_value_threshold": TRADE_VALUE_THRESHOLD,
                 "trade_limit_per_partner": TRADE_LIMIT_PER_PARTNER,
                 "fa_reservation_range": list(FA_RESERVATION_RANGE),
+                "free_agency_willingness": {
+                    "win_appeal_weight": FA_WIN_APPEAL_WEIGHT,
+                    "role_appeal_weight": FA_ROLE_APPEAL_WEIGHT,
+                    "veteran_age": FA_VETERAN_AGE,
+                    "young_win_sensitivity": FA_YOUNG_WIN_SENSITIVITY,
+                    "description": (
+                        "Each free agent's quotes are the market rate times their published "
+                        "signing_appeal.quote_multiplier: winning teams and a lineup role earn "
+                        "discounts, losing teams and a depth role cost premiums, and veterans "
+                        f"(age >= {FA_VETERAN_AGE}) weigh winning twice as heavily as younger players. "
+                        "Offering the published quote always succeeds."
+                    ),
+                },
                 "rejected_offer_limit_per_window": REJECTED_OFFER_LIMIT_PER_WINDOW,
                 "contracts": {
                     "dead_cap_fraction": DEAD_CAP_FRACTION,
@@ -267,8 +305,9 @@ class League:
         return self._action_results
 
     def begin_decision_window(self) -> None:
-        """Reset negotiation walk-aways once before an agent decision."""
+        """Reset negotiation walk-aways and quote freezes before an agent decision."""
         self.window_walkaways = {}
+        self._window_signing_appeal = {}
 
     def _dispatch_action(self, action_type: str, action: dict[str, Any], phase: str) -> ActionResult:
         if action_type == "noop":
@@ -316,6 +355,9 @@ class League:
         opponents also make one-for-one trades among themselves.
         """
         rng = self._rng(f"opponents:{phase}")
+        # Opponent windows price against post-user-window state, not the
+        # snapshot frozen for the user's quotes.
+        self._window_signing_appeal = {}
         for team in self.teams.values():
             if team.id == self.user_team_id:
                 continue
@@ -419,6 +461,7 @@ class League:
         # observation(); clear them at the season boundary so a stale offer_id
         # can never be accepted across seasons regardless of call order.
         self.current_offers = {}
+        self._window_signing_appeal = {}
         self.waiver_wire = []
         self.partial_season_played = False
         self.partial_games_per_pair = 0
@@ -618,7 +661,7 @@ class League:
                 action,
                 phase,
                 False,
-                f"player declines the offer; the {years}-year quote is {self._contract_quote(player, years):.2f}",
+                f"player declines the offer; the {years}-year quote is {self._signing_quote(player, years):.2f}",
                 rejected_offer=True,
             )
             return
@@ -954,7 +997,7 @@ class League:
         player_id = int(action.get("player_id", -1))
         if player_id not in self.waiver_wire:
             return self._record(action, phase, False, "player is not on the waiver wire")
-        quote = self._contract_quote(self.players[player_id], 1)
+        quote = self._signing_quote(self.players[player_id], 1)
         if self._payroll(self.user_team) + quote > self.cap + HARD_CAP_BUFFER:
             return self._record(action, phase, False, "claim would exceed hard cap buffer")
         self.waiver_wire.remove(player_id)
@@ -1108,6 +1151,65 @@ class League:
         start_year = 2 if incumbent else 1
         return {str(years): self._contract_quote(player, years, incumbent=incumbent) for years in range(start_year, 6)}
 
+    def _team_win_signal(self, team: Team) -> float:
+        """Recent competitiveness in [-1, 1] from the visible standings.
+
+        Uses the team's current wins/losses record, which persists through the
+        offseason phases until the next season is simulated, so preseason and
+        draft windows price against last season's results and midseason prices
+        against the partial-season standings. A 0-0 record (season one) is
+        neutral.
+        """
+        games = team.wins + team.losses
+        if games == 0:
+            return 0.0
+        return max(-1.0, min(1.0, (team.wins / games - 0.5) * 2.0))
+
+    def _has_lineup_role(self, player: Player, team: Team) -> bool:
+        """Whether the player would crack the team's dressed lineup at his position."""
+        incumbents = [item.overall for item in self._effective_lineup(team) if item.position == player.position]
+        if len(incumbents) < LINEUP_MIN_POSITIONS[player.position]:
+            return True
+        return player.overall > min(incumbents)
+
+    def _signing_appeal(self, player: Player, team: Team) -> dict[str, Any]:
+        """The composite willingness terms a free agent applies to this team.
+
+        Deterministic and computed only from observation-visible state
+        (standings record, roster, player age/overall), so an agent can
+        reproduce every published quote_multiplier exactly. Uses no RNG.
+        Frozen per decision window: the first computation for a
+        (player, team) pair holds until the next window opens, so a quote
+        published in the observation is honored even after earlier actions in
+        the same batch reshuffle the roster.
+        """
+        key = (player.id, team.id)
+        cached = self._window_signing_appeal.get(key)
+        if cached is not None:
+            return cached
+        win_signal = self._team_win_signal(team)
+        win_sensitivity = 1.0 if player.age >= FA_VETERAN_AGE else FA_YOUNG_WIN_SENSITIVITY
+        has_role = self._has_lineup_role(player, team)
+        role_appeal = 1.0 if has_role else -1.0
+        multiplier = 1.0 - FA_WIN_APPEAL_WEIGHT * win_sensitivity * win_signal - FA_ROLE_APPEAL_WEIGHT * role_appeal
+        appeal = {
+            "team_win_signal": round(win_signal, 3),
+            "win_sensitivity": win_sensitivity,
+            "projected_role": "lineup" if has_role else "depth",
+            "quote_multiplier": round(multiplier, 3),
+        }
+        self._window_signing_appeal[key] = appeal
+        return appeal
+
+    def _signing_quote(self, player: Player, years: int, team: Team | None = None) -> float:
+        """A free agent's willingness-adjusted quote for signing with a team."""
+        team = self.user_team if team is None else team
+        multiplier = self._signing_appeal(player, team)["quote_multiplier"]
+        return round(self._contract_quote(player, years) * multiplier, 2)
+
+    def _signing_quotes(self, player: Player, team: Team | None = None) -> dict[str, float]:
+        return {str(years): self._signing_quote(player, years, team) for years in range(1, 6)}
+
     def _extension_eligible(self, player: Player) -> bool:
         """Return whether a final-year incumbent deal predates this season."""
         return player.contract_years == 1 and player.contract_signed_season < self.season
@@ -1119,11 +1221,18 @@ class League:
         re-rolled each season, so the optimal bid can be estimated but not
         solved from the observation. Offering the full ask always succeeds.
         Seeded directly (not via `_rng`) so evaluating an offer never perturbs
-        the league's RNG stream.
+        the league's RNG stream. Free-agent reservations scale off the
+        willingness-adjusted quote; incumbent extensions stay on the pure
+        market quote.
         """
         rng = random.Random(f"{self.seed}:{self.season}:reservation:{player_id}")
         low, high = FA_RESERVATION_RANGE
-        return self._contract_quote(self.players[player_id], years, incumbent=incumbent) * rng.uniform(low, high)
+        player = self.players[player_id]
+        if incumbent:
+            quote = self._contract_quote(player, years, incumbent=True)
+        else:
+            quote = self._signing_quote(player, years)
+        return quote * rng.uniform(low, high)
 
     def _fa_reservation(self, player_id: int) -> float:
         """Backward-compatible one-year free-agent reservation helper."""
@@ -1192,18 +1301,23 @@ class League:
         ]
 
     def _free_agent_public(self, player_id: int) -> dict[str, Any]:
+        """Public free-agent card with willingness-adjusted quotes for the user.
+
+        `asking_salary` and `contract_quotes` are the prices this player will
+        actually accept from the user's team; `market_asking_salary` is the
+        situation-free base rate and `signing_appeal` shows exactly how the
+        multiplier between them was built.
+        """
         player = self.players[player_id].public_dict()
         source = self.players[player_id]
-        player["asking_salary"] = self._contract_quote(source, 1)
-        player["contract_quotes"] = self._contract_quotes(source)
+        player["market_asking_salary"] = self._contract_quote(source, 1)
+        player["asking_salary"] = self._signing_quote(source, 1)
+        player["contract_quotes"] = self._signing_quotes(source)
+        player["signing_appeal"] = self._signing_appeal(source, self.user_team)
         return player
 
     def _waiver_player_public(self, player_id: int) -> dict[str, Any]:
-        player = self.players[player_id].public_dict()
-        source = self.players[player_id]
-        player["asking_salary"] = self._contract_quote(source, 1)
-        player["contract_quotes"] = self._contract_quotes(source)
-        return player
+        return self._free_agent_public(player_id)
 
     def _trade_market_public(self) -> list[dict[str, Any]]:
         market: list[dict[str, Any]] = []
@@ -1491,7 +1605,7 @@ class League:
         for player in candidates[: needed * 2]:
             if needed <= 0:
                 break
-            ask = self._contract_quote(player, 1)
+            ask = self._signing_quote(player, 1, team)
             if self._payroll(team) + ask <= self.cap + 4.0:
                 self._sign_to_team(team, player, rng)
                 needed -= 1
@@ -1557,7 +1671,7 @@ class League:
             payroll_after = (
                 self._payroll(team)
                 - (waived.salary if waived else 0.0)
-                + self._contract_quote(player, 1)
+                + self._signing_quote(player, 1, team)
                 + (self._dead_cap_schedule(waived).get(self.season, 0.0) if waived else 0.0)
             )
             if payroll_after > self.cap + 4.0:
@@ -1578,7 +1692,7 @@ class League:
         team.roster.append(player.id)
         player.team_id = team.id
         years = rng.randint(1, 3)
-        player.salary = self._contract_quote(player, years)
+        player.salary = self._signing_quote(player, years, team)
         player.contract_years = years
         player.contract_signed_season = self.season
 

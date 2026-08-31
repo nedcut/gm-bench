@@ -36,6 +36,20 @@ The benchmark implements a compact hockey-style league:
   today's price against tomorrow's cap.
 - Free agents with published 1-5 year quotes (free agents age and rust while
   unsigned).
+- Free-agent willingness (v6): each free agent prices the signing team through
+  one published multiplier, `signing_appeal.quote_multiplier = 1 - 0.08 *
+  win_sensitivity * team_win_signal - 0.04 * role_appeal`. `team_win_signal` is
+  the team's current record scaled to [-1, 1]; `role_appeal` is +1 when the
+  player would crack the team's dressed lineup at his position and -1 when he
+  would sit; `win_sensitivity` is 1.0 for veterans (age >= 28) and 0.5 for
+  younger players. A contender offering a lineup spot pays up to 12% under the
+  market rate; a rebuilder offering a bench seat pays up to 12% over, so
+  rebuilding teams must overpay veterans while contenders sign at a discount.
+  The multiplier and its components are published per free agent, quotes
+  freeze for the length of a decision window, opponents price signings by the
+  same rule against their own record and lineup, and incumbent extensions are
+  exempt (they stay on the pure market quote that the loyalty-discount
+  inequality is balanced against).
 - Preseason incumbent extensions for final-year players whose current deal
   predates the season. Quotes use next season's market, a 3% loyalty discount,
   and the same term premium. Same-season sign-and-extend is structurally barred.

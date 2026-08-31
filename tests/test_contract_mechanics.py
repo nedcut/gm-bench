@@ -198,7 +198,8 @@ def test_new_one_year_signing_cannot_immediately_harvest_loyalty_discount() -> N
                 "type": "sign_free_agent",
                 "player_id": player.id,
                 "years": 1,
-                "salary": league._contract_quote(player, 1),
+                # Offer the willingness-adjusted published ask, which always lands.
+                "salary": league._signing_quote(player, 1),
             },
             {
                 "type": "extend_contract",
