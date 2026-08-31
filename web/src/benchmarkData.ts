@@ -21,7 +21,25 @@ export type ResultModel = TieredLeaderboardModel & {
  */
 const PRIMARY_LIFT_AGREEMENT_TOLERANCE = 0.001;
 
+/**
+ * Two-sided 95% Student-t multipliers by degrees of freedom (index df-1).
+ *
+ * The runner publishes `score_stddev` as a *population* SD over per-seed means,
+ * and a published panel is eight seeds. Treating that as a known population SD
+ * with z = 1.96 understates the interval by about a fifth at n = 8; the honest
+ * interval applies the sample-SD correction and the t multiplier for n-1. Beyond
+ * this table the two agree closely enough to fall back to z.
+ */
+const T95_BY_DF = [
+  12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262, 2.228, 2.201, 2.179, 2.16,
+  2.145, 2.131, 2.12, 2.11, 2.101, 2.093, 2.086, 2.08, 2.074, 2.069, 2.064, 2.06, 2.056, 2.052,
+  2.048, 2.045, 2.042,
+];
 const Z95 = 1.96;
+
+function t95(df: number): number {
+  return df >= 1 && df <= T95_BY_DF.length ? T95_BY_DF[df - 1] : Z95;
+}
 
 export const MECHANICS = [
   ["cap_free_agency", "Cap & FA"],
@@ -70,15 +88,22 @@ function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+/** Number of seeds this row's across-seed SD was computed over. */
+export function seedCount(model: LeaderboardModel): number {
+  return model.seeds?.length ?? Object.keys(model.per_seed_scores ?? {}).length;
+}
+
+/** Across-seed 95% interval on the mean score, or null when a row cannot support one. */
 export function scoreCi95(model: LeaderboardModel): [number, number] | null {
   if (!finite(model.mean_score)) {
     return null;
   }
-  const n = model.seeds?.length ?? 0;
+  const n = seedCount(model);
   if (n < 2 || !finite(model.score_stddev)) {
     return null;
   }
-  const margin = (Z95 * model.score_stddev) / Math.sqrt(n);
+  const sampleStddev = model.score_stddev * Math.sqrt(n / (n - 1));
+  const margin = (t95(n - 1) * sampleStddev) / Math.sqrt(n);
   return [model.mean_score - margin, model.mean_score + margin];
 }
 
@@ -198,6 +223,8 @@ export interface Reliability {
   malformedDecisions: number | null;
   unrecoverableDecisions: number | null;
   failedDecisions: number | null;
+  /** Share of decisions whose call never returned a usable turn. */
+  failedRate: number | null;
   reported: boolean;
 }
 
@@ -219,9 +246,17 @@ export function reliability(model: LeaderboardModel): Reliability {
     model.unrecoverable_decisions,
     total,
   );
+  // `fallback_rate` is the old key for exactly this quantity, kept readable so
+  // an older published dataset does not silently lose its failure rate.
+  const failedRate = rate(
+    finite(model.decision_failure_rate) ? model.decision_failure_rate : model.fallback_rate,
+    model.failed_decisions,
+    total,
+  );
   return {
     malformedRate,
     unrecoverableRate,
+    failedRate,
     malformedDecisions: finite(model.malformed_decisions) ? model.malformed_decisions : null,
     unrecoverableDecisions: finite(model.unrecoverable_decisions)
       ? model.unrecoverable_decisions
@@ -256,7 +291,9 @@ export function shortModelName(model: string): string {
 
 export function issueLabel(issue: string): string {
   if (issue.includes("illegal actions")) return "Illegal actions";
-  if (issue.includes("fallback")) return "Adapter fallback";
+  // The warning behind this text fires on failed_decisions, so label it that
+  // way: under the strict no-op lane there is no adapter fallback path to name.
+  if (issue.includes("fallback")) return "Failed decisions";
   if (issue.includes("failed queries")) return "Query errors";
   if (issue.includes("strongest scripted baseline")) return "Below bar";
   return "Protocol note";

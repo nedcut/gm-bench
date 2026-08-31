@@ -36,6 +36,20 @@ function Figure({
   );
 }
 
+/* Notes follow whichever source produced the value on screen: a row that
+ * publishes a rate but no count still gets a note describing that rate, and
+ * only a row reporting neither reads as "not reported". */
+function reliabilityNote(
+  value: number | null,
+  count: number | null,
+  fromCount: (count: string) => string,
+  fromRate: string,
+): string {
+  if (count !== null) return fromCount(count.toLocaleString("en-US"));
+  if (value !== null) return fromRate;
+  return "not reported by this row";
+}
+
 function SeedScores({ scores }: { scores: Array<{ seed: number; score: number }> }) {
   const bounds = useMemo(() => {
     const values = scores.map((row) => row.score);
@@ -152,29 +166,34 @@ export default function ModelProfile({
             <Figure
               label="Malformed"
               value={pctOrDash(stats.malformedRate)}
-              note={
-                stats.malformedDecisions === null
-                  ? "not reported by this row"
-                  : `${stats.malformedDecisions.toLocaleString("en-US")} of ${model.decision_points.toLocaleString("en-US")} decisions`
-              }
+              note={reliabilityNote(
+                stats.malformedRate,
+                stats.malformedDecisions,
+                (count) =>
+                  `${count} of ${model.decision_points.toLocaleString("en-US")} decisions`,
+                "share of decisions whose raw output was unusable",
+              )}
             />
             <Figure
               label="Unrecoverable"
               value={pctOrDash(stats.unrecoverableRate)}
-              note={
-                stats.unrecoverableDecisions === null
-                  ? "not reported by this row"
-                  : `${stats.unrecoverableDecisions.toLocaleString("en-US")} became structured no-ops`
-              }
+              note={reliabilityNote(
+                stats.unrecoverableRate,
+                stats.unrecoverableDecisions,
+                (count) => `${count} became structured no-ops`,
+                "share of decisions that became structured no-ops",
+              )}
             />
             <Figure
               label="Failed decisions"
-              value={
-                stats.failedDecisions === null
-                  ? "—"
-                  : stats.failedDecisions.toLocaleString("en-US")
-              }
-              note={stats.failedDecisions === null ? "not reported by this row" : "call never returned a usable turn"}
+              value={pctOrDash(stats.failedRate)}
+              note={reliabilityNote(
+                stats.failedRate,
+                stats.failedDecisions,
+                (count) =>
+                  `${count} of ${model.decision_points.toLocaleString("en-US")} calls never returned a usable turn`,
+                "share of calls that never returned a usable turn",
+              )}
             />
             <Figure
               label="Illegal actions"
@@ -183,13 +202,8 @@ export default function ModelProfile({
             />
             <Figure
               label="Failed queries"
-              value={(model.failed_queries ?? 0).toLocaleString("en-US")}
+              value={numOrDash(model.failed_queries, 0)}
               note="misfired scout and inspect lookups"
-            />
-            <Figure
-              label="Adapter fallback"
-              value={pctOrDash(model.fallback_rate)}
-              note="decisions served by the fallback path"
             />
           </dl>
         </div>
