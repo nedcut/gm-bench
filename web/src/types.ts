@@ -96,7 +96,12 @@ export interface LeaderboardModel {
   full_panel_significant_at_95: boolean | null;
   seed_win_rate: number | null;
   lift_vs_best_baseline: number | null;
-  fallback_rate: number;
+  /**
+   * Legacy name for `decision_failure_rate`. Rows published before the field was
+   * renamed carry this key and nothing else; it never measured an adapter
+   * fallback path, only decisions whose call returned no usable turn.
+   */
+  fallback_rate?: number | null;
   illegal_actions: number;
   total_tokens: number;
   tokens_per_decision: number | null;
@@ -113,6 +118,7 @@ export interface LeaderboardModel {
    * reported" rather than zero.
    */
   failed_decisions?: number | null;
+  /** Share of decisions whose call never returned a usable turn. */
   decision_failure_rate?: number | null;
   malformed_decisions?: number | null;
   unrecoverable_decisions?: number | null;
@@ -269,7 +275,6 @@ export interface ReplayRound {
   round: number;
   observation: ReplayObservation;
   actions: Array<Record<string, unknown>>;
-  usage?: { input_tokens?: number; output_tokens?: number } | null;
 }
 
 export interface ReplayDecision {
@@ -327,16 +332,15 @@ export interface ReplayFixture {
    real scripted policy's choice from the same observation, graded by the
    immediate change in score components. Not a benchmark artifact. */
 
+/* Only what the card renders. The built deck carries more per-situation detail
+   (payroll, championships, free-agent counts); it stays in the JSON. */
 export interface PuzzleSituation {
   team: string;
   season: number;
   phase: string;
   record: string;
   cap_room: number;
-  payroll: number;
   roster_size: number;
-  championships: number;
-  free_agents_available: number;
   offers_on_the_table: number;
 }
 
@@ -353,19 +357,15 @@ export type PuzzleOutcome = "subject_won" | "subject_missed";
 
 export interface Puzzle {
   id: string;
-  state_key: string;
   seed: number;
   season: number;
   phase: string;
   subject: string;
-  mechanic?: "trade" | "draft" | "free_agency" | "contracts" | "roster";
-  worthiness: number;
   situation: PuzzleSituation;
   options: PuzzleOption[];
   answer: string;
-  /** Option letter used by the recorded subject after deterministic permutation. */
-  subject_option?: string;
-  /** Signed immediate-score margin for the recorded subject choice. */
+  /** Signed immediate-score margin for the recorded subject choice against the
+   * best alternative recorded choice. */
   subject_margin?: number;
   /** Whether the recorded subject beat the reference policies on this card. */
   outcome?: PuzzleOutcome;
@@ -374,8 +374,6 @@ export interface Puzzle {
 }
 
 export interface PuzzleSet {
-  schema: string;
   note: string;
-  source_records: number;
   puzzles: Puzzle[];
 }

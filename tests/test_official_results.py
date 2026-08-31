@@ -710,6 +710,59 @@ def test_v2_leaderboard_builder_excludes_redacted_v3_artifact(monkeypatch: pytes
     assert any("benchmark_version" in issue for issue in row["sota_v2_issues"])
 
 
+def test_leaderboard_builder_publishes_v6_reliability_and_route() -> None:
+    payload = _official_payload(repeats=1)
+    payload["candidate"]["summary"].update(
+        {
+            "malformed_decisions": 4,
+            "unrecoverable_decisions": 1,
+            "malformed_rate": 0.025,
+            "unrecoverable_rate": 0.006,
+            "within_seed_score_stddev": 12.5,
+        }
+    )
+    payload["paired"]["per_seed"] = [
+        {"seed": seed, "candidate_score": 300.0 + seed, "baseline_panel_score": 125.0, "lift": 175.0 + seed}
+        for seed in payload["seeds"]
+    ]
+    payload["run_info"]["provider"] = "openrouter"
+    payload["run_info"]["provider_options"].update(
+        {
+            "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER": "Amazon Bedrock",
+            "OPENROUTER_EXPECTED_ENDPOINT_NAME": "Amazon Bedrock | openai/gpt-test",
+            "OPENROUTER_PROVIDER_ONLY": "amazon-bedrock/global",
+        }
+    )
+
+    row = model_row(payload)
+
+    assert row["malformed_decisions"] == 4
+    assert row["unrecoverable_rate"] == 0.006
+    assert row["failed_decisions"] == 0
+    assert row["decision_failure_rate"] == 0.0
+    assert row["within_seed_score_stddev"] == 12.5
+    assert row["per_seed_scores"] == {str(seed): 300.0 + seed for seed in payload["seeds"]}
+    assert row["route"] == "openrouter → Amazon Bedrock | openai/gpt-test (amazon-bedrock/global)"
+
+
+def test_leaderboard_builder_omits_reliability_fields_a_row_never_measured() -> None:
+    """Absence must stay absent: a pre-v6 row reports nothing, not zero."""
+    payload = _official_payload(repeats=1)
+    for field in ("malformed_decisions", "unrecoverable_decisions", "malformed_rate", "unrecoverable_rate"):
+        payload["candidate"]["summary"].pop(field, None)
+
+    row = model_row(payload)
+
+    assert "malformed_rate" not in row
+    assert "unrecoverable_decisions" not in row
+    assert "within_seed_score_stddev" not in row
+    # No paired per-seed rows and no pinned route: publish neither rather than
+    # inventing a distribution or a provider label.
+    assert "per_seed_scores" not in row
+    assert "route" not in row
+    assert "fallback_rate" not in row
+
+
 def test_leaderboard_builder_revalidates_forged_sota_report() -> None:
     payload = _official_payload(repeats=1, failure_rate=0.05)
     payload["validation_reports"] = {"sota-v2": {"ok": True, "errors": []}}

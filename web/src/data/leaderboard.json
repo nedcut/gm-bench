@@ -67,10 +67,11 @@
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.3161,
       "cost_usd": 7.586279,
+      "decision_failure_rate": 0.0,
       "decision_points": 480,
       "decisions_with_usage": 480,
+      "failed_decisions": 0,
       "failed_queries": 453,
-      "fallback_rate": 0.0,
       "full_panel_ci95": [
         -66.061,
         -16.342
@@ -112,6 +113,16 @@
       "model": "meta/muse-spark-1.1",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 1148.7,
+      "per_seed_scores": {
+        "11": 248.494,
+        "12": 305.737,
+        "13": 274.607,
+        "14": 222.254,
+        "15": 188.62,
+        "16": 181.749,
+        "17": 207.93,
+        "18": 225.417
+      },
       "primary_ci95": [
         -209.560916,
         -147.19875
@@ -124,6 +135,7 @@
       "publication_eligible": true,
       "publication_issues": [],
       "raw_artifact_sha256": "7b664cbd57aab8975905a08ff057cf528211fd67efc52aac0ffde5b6d829e030",
+      "route": "openrouter \u2192 Meta | meta/muse-spark-1.1-20260709",
       "score_stddev": 39.764,
       "seasons": 5,
       "seed_panel": "public-leaderboard",
@@ -149,7 +161,8 @@
       ],
       "tier": 1,
       "tokens_per_decision": 10084.2,
-      "total_tokens": 4840432
+      "total_tokens": 4840432,
+      "within_seed_score_stddev": 56.741
     },
     {
       "api_latency_s_per_decision": 13.03,
@@ -159,10 +172,11 @@
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.0534,
       "cost_usd": 1.281193,
+      "decision_failure_rate": 0.017,
       "decision_points": 480,
       "decisions_with_usage": 480,
+      "failed_decisions": 8,
       "failed_queries": 209,
-      "fallback_rate": 0.017,
       "full_panel_ci95": [
         -81.974,
         -30.464
@@ -204,6 +218,16 @@
       "model": "z-ai/glm-5.2",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 410.0,
+      "per_seed_scores": {
+        "11": 198.909,
+        "12": 210.673,
+        "13": 216.247,
+        "14": 235.725,
+        "15": 200.563,
+        "16": 147.347,
+        "17": 244.64,
+        "18": 286.21
+      },
       "primary_ci95": [
         -239.071375,
         -144.18575
@@ -216,6 +240,7 @@
       "publication_eligible": true,
       "publication_issues": [],
       "raw_artifact_sha256": "36d1ed42d44f97041253f162d8173d82d58b1ba12c58131ffd510bd180df0727",
+      "route": "openrouter \u2192 Novita | z-ai/glm-5.2-20260616 (novita/fp8)",
       "score_stddev": 37.736,
       "seasons": 5,
       "seed_panel": "public-leaderboard",
@@ -242,7 +267,8 @@
       ],
       "tier": 1,
       "tokens_per_decision": 10764.4,
-      "total_tokens": 5166907
+      "total_tokens": 5166907,
+      "within_seed_score_stddev": 38.667
     },
     {
       "api_latency_s_per_decision": 1.49,
@@ -252,10 +278,11 @@
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.2634,
       "cost_usd": 6.320513,
+      "decision_failure_rate": 0.013,
       "decision_points": 480,
       "decisions_with_usage": 480,
+      "failed_decisions": 6,
       "failed_queries": 5,
-      "fallback_rate": 0.013,
       "full_panel_ci95": [
         -89.586,
         -27.162
@@ -297,6 +324,16 @@
       "model": "google/gemini-3.5-flash",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 62.2,
+      "per_seed_scores": {
+        "11": 179.596,
+        "12": 228.073,
+        "13": 218.597,
+        "14": 187.538,
+        "15": 161.742,
+        "16": 249.007,
+        "17": 259.947,
+        "18": 240.491
+      },
       "primary_ci95": [
         -241.056333,
         -143.75275
@@ -309,6 +346,7 @@
       "publication_eligible": true,
       "publication_issues": [],
       "raw_artifact_sha256": "2fd28b3ab507e76dc512ead32564b0328635b5b66f0a330d71a470f3b1b8a786",
+      "route": "openrouter \u2192 Google AI Studio | google/gemini-3.5-flash-20260519 (google-ai-studio)",
       "score_stddev": 33.263,
       "seasons": 5,
       "seed_panel": "public-leaderboard",
@@ -334,7 +372,8 @@
       ],
       "tier": 1,
       "tokens_per_decision": 8770.7,
-      "total_tokens": 4209929
+      "total_tokens": 4209929,
+      "within_seed_score_stddev": 41.754
     },
     {
       "api_latency_s_per_decision": 4.2,
@@ -344,10 +383,11 @@
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.0,
       "cost_usd": 0.0,
+      "decision_failure_rate": 0.0,
       "decision_points": 480,
       "decisions_with_usage": 480,
+      "failed_decisions": 0,
       "failed_queries": 36,
-      "fallback_rate": 0.0,
       "full_panel_ci95": [
         -91.535,
         -63.891
@@ -389,6 +429,16 @@
       "model": "tencent/hy3:free",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 104.6,
+      "per_seed_scores": {
+        "11": 175.823,
+        "12": 206.05,
+        "13": 169.769,
+        "14": 213.247,
+        "15": 188.015,
+        "16": 218.39,
+        "17": 184.724,
+        "18": 210.71
+      },
       "primary_ci95": [
         -252.634708,
         -179.442375
@@ -401,6 +451,7 @@
       "publication_eligible": true,
       "publication_issues": [],
       "raw_artifact_sha256": "e4fdd8876e631be94466352fe23e795d122b3a85e70dbb30b0c2c84951935eec",
+      "route": "openrouter \u2192 Novita | tencent/hy3-20260706:free (novita)",
       "score_stddev": 17.328,
       "seasons": 5,
       "seed_panel": "public-leaderboard",
@@ -425,7 +476,8 @@
       ],
       "tier": 1,
       "tokens_per_decision": 7743.3,
-      "total_tokens": 3716793
+      "total_tokens": 3716793,
+      "within_seed_score_stddev": 32.707
     },
     {
       "api_latency_s_per_decision": 3.96,
@@ -435,10 +487,11 @@
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.0539,
       "cost_usd": 1.293793,
+      "decision_failure_rate": 0.0,
       "decision_points": 480,
       "decisions_with_usage": 480,
+      "failed_decisions": 0,
       "failed_queries": 44,
-      "fallback_rate": 0.0,
       "full_panel_ci95": [
         -116.78,
         -73.081
@@ -480,6 +533,16 @@
       "model": "qwen/qwen3.7-plus",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 194.1,
+      "per_seed_scores": {
+        "11": 147.156,
+        "12": 162.474,
+        "13": 165.137,
+        "14": 213.92,
+        "15": 175.608,
+        "16": 140.678,
+        "17": 217.295,
+        "18": 181.889
+      },
       "primary_ci95": [
         -277.546,
         -187.278
@@ -492,6 +555,7 @@
       "publication_eligible": true,
       "publication_issues": [],
       "raw_artifact_sha256": "e544be5ae70d7bbb5b228fab3742d07e89504a286a3ca244a01eb68924acf6c3",
+      "route": "openrouter \u2192 Alibaba | qwen/qwen3.7-plus-20260602 (alibaba)",
       "score_stddev": 26.355,
       "seasons": 5,
       "seed_panel": "public-leaderboard",
@@ -516,7 +580,8 @@
       ],
       "tier": 1,
       "tokens_per_decision": 8039.6,
-      "total_tokens": 3859013
+      "total_tokens": 3859013,
+      "within_seed_score_stddev": 29.607
     },
     {
       "api_latency_s_per_decision": 1.45,
@@ -526,10 +591,11 @@
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.195,
       "cost_usd": 4.680175,
+      "decision_failure_rate": 0.0,
       "decision_points": 480,
       "decisions_with_usage": 480,
+      "failed_decisions": 0,
       "failed_queries": 5,
-      "fallback_rate": 0.0,
       "full_panel_ci95": [
         -114.217,
         -83.091
@@ -571,6 +637,16 @@
       "model": "openai/gpt-5.6-luna",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 99.8,
+      "per_seed_scores": {
+        "11": 137.16,
+        "12": 226.22,
+        "13": 168.027,
+        "14": 194.436,
+        "15": 155.724,
+        "16": 167.975,
+        "17": 168.773,
+        "18": 173.091
+      },
       "primary_ci95": [
         -273.144667,
         -200.7945
@@ -583,6 +659,7 @@
       "publication_eligible": true,
       "publication_issues": [],
       "raw_artifact_sha256": "1af66b6e0e0f6f492e10d29b5e27635e0a0187781a512262cbfdc1e6b847ac81",
+      "route": "openrouter \u2192 OpenAI | openai/gpt-5.6-luna-20260709",
       "score_stddev": 24.839,
       "seasons": 5,
       "seed_panel": "public-leaderboard",
@@ -607,7 +684,8 @@
       ],
       "tier": 1,
       "tokens_per_decision": 7611.2,
-      "total_tokens": 3653397
+      "total_tokens": 3653397,
+      "within_seed_score_stddev": 35.771
     },
     {
       "api_latency_s_per_decision": 6.4,
@@ -617,10 +695,11 @@
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.4606,
       "cost_usd": 11.05436,
+      "decision_failure_rate": 0.0,
       "decision_points": 480,
       "decisions_with_usage": 480,
+      "failed_decisions": 0,
       "failed_queries": 137,
-      "fallback_rate": 0.0,
       "full_panel_ci95": [
         -154.031,
         -104.212
@@ -662,6 +741,16 @@
       "model": "anthropic/claude-sonnet-5",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 392.6,
+      "per_seed_scores": {
+        "11": 116.985,
+        "12": 172.292,
+        "13": 112.787,
+        "14": 124.9,
+        "15": 166.97,
+        "16": 118.29,
+        "17": 178.447,
+        "18": 146.476
+      },
       "primary_ci95": [
         -316.991292,
         -217.256625
@@ -674,6 +763,7 @@
       "publication_eligible": true,
       "publication_issues": [],
       "raw_artifact_sha256": "f2e1057f7e72a99bb556b30c058ccc827eb7316bff287d075f2061cee244d799",
+      "route": "openrouter \u2192 Amazon Bedrock | anthropic/claude-sonnet-5-20260630 (amazon-bedrock/global)",
       "score_stddev": 25.552,
       "seasons": 5,
       "seed_panel": "public-leaderboard",
@@ -699,7 +789,8 @@
       ],
       "tier": 1,
       "tokens_per_decision": 9944.4,
-      "total_tokens": 4773328
+      "total_tokens": 4773328,
+      "within_seed_score_stddev": 25.59
     },
     {
       "api_latency_s_per_decision": 3.08,
@@ -709,10 +800,11 @@
       "contract_fingerprint": "558e8f35ea1d66b9",
       "cost_per_episode_usd": 0.0515,
       "cost_usd": 1.237149,
+      "decision_failure_rate": 0.002,
       "decision_points": 480,
       "decisions_with_usage": 480,
+      "failed_decisions": 1,
       "failed_queries": 65,
-      "fallback_rate": 0.002,
       "full_panel_ci95": [
         -167.324,
         -116.177
@@ -754,6 +846,16 @@
       "model": "minimax/minimax-m3",
       "output_token_cap": 4096,
       "output_tokens_per_decision": 115.1,
+      "per_seed_scores": {
+        "11": 98.365,
+        "12": 144.612,
+        "13": 107.611,
+        "14": 120.417,
+        "15": 177.757,
+        "16": 99.804,
+        "17": 159.197,
+        "18": 131.276
+      },
       "primary_ci95": [
         -329.425375,
         -229.092667
@@ -766,6 +868,7 @@
       "publication_eligible": true,
       "publication_issues": [],
       "raw_artifact_sha256": "29a94c23afe74508bdf3e82e4d79697d508de4a715b865c99a6317805f75c32f",
+      "route": "openrouter \u2192 Minimax | minimax/minimax-m3-20260531 (minimax/fp8)",
       "score_stddev": 27.051,
       "seasons": 5,
       "seed_panel": "public-leaderboard",
@@ -791,7 +894,8 @@
       ],
       "tier": 1,
       "tokens_per_decision": 8728.2,
-      "total_tokens": 4189533
+      "total_tokens": 4189533,
+      "within_seed_score_stddev": 19.889
     }
   ],
   "preset": {
