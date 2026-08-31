@@ -31,6 +31,9 @@ from web.scripts.build_leaderboard import model_row
 def test_frozen_sota_v3_policy_does_not_follow_the_current_contract() -> None:
     payload = _official_payload(repeats=1)
     payload["run_info"]["benchmark_contract"] = dict(SOTA_V3_CONTRACT)
+    # A frozen v3 row carries the scaffold it was produced with, not the live
+    # one (the live scaffold moved with the v6 mechanic work).
+    payload["run_info"]["scaffold_fingerprint"] = SOTA_V3_POLICY.expected_scaffold_fingerprints["openai"]
 
     historical = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
     current = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)

@@ -96,7 +96,7 @@ def generate_league_data(
             name=name,
             market=rng.uniform(0.75, 1.25),
             patience=rng.uniform(0.75, 1.25),
-            draft_picks={year: 1 for year in range(1, 8)},
+            draft_picks={year: [team_id] for year in range(1, 8)},
         )
 
     for team in teams.values():

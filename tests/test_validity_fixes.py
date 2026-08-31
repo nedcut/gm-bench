@@ -7,7 +7,7 @@ from gm_bench.agents import ExploitAgent, ValueAgent
 from gm_bench.models import LINEUP_MIN_POSITIONS, LINEUP_SIZE, ROSTER_MIN
 from gm_bench.runner import run_episode
 from gm_bench.scoring import score_breakdown
-from gm_bench.simulator import MEMO_MAX_CHARS, TRADE_LIMIT_PER_PARTNER, League
+from gm_bench.simulator import MEMO_MAX_CHARS, PLAYOFF_SPOTS, TRADE_LIMIT_PER_PARTNER, League
 from gm_bench.validity import CapHoardAgent
 
 
@@ -188,14 +188,24 @@ def test_draft_order_is_inverse_standings() -> None:
     assert order.index(3) < order.index(7)
 
 
-def test_user_pick_slot_respects_standings() -> None:
+def test_user_pick_slot_is_lottery_bounded_by_standings() -> None:
+    """Worst record guarantees a lottery slot, not the first pick.
+
+    Replaces the deterministic guarantee (worst record -> nobody drafts
+    ahead): under the v6 lottery the worst team draws one of the top
+    ``num_teams - PLAYOFF_SPOTS`` slots, so at most the other lottery teams
+    can pick ahead of it, and the number that actually drafted ahead must
+    equal the user's drawn slot.
+    """
     league = League.new(seed=5)
     for team in league.teams.values():
         team.wins = 30 if team.id != league.user_team_id else 0
     class_size_before = len(league.prospects)
     league.run_opponent_draft(before_user=True)
-    # Worst record → user picks first, nobody drafts ahead.
-    assert len(league.prospects) == class_size_before
+    drafted_ahead = class_size_before - len(league.prospects)
+    lottery_group = league.num_teams - PLAYOFF_SPOTS
+    assert 0 <= drafted_ahead <= lottery_group - 1
+    assert league.lottery_order.index(league.user_team_id) == drafted_ahead
     league.run_opponent_draft(before_user=False)
     assert len(league.prospects) == class_size_before - (league.num_teams - 1)
 

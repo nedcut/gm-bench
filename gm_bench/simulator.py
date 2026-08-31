@@ -66,6 +66,8 @@ SCOUT_REPORT_NOISE = 1.5
 # splits the season, the pre- and post-break legs must sum to exactly this so a
 # midseason episode plays the same total schedule as a non-midseason one.
 REGULAR_SEASON_GAMES_PER_PAIR = 3
+# Playoff bracket size; teams outside it at draft time form the lottery group.
+PLAYOFF_SPOTS = 8
 
 
 @dataclass
@@ -93,6 +95,11 @@ class League:
     scout_points_used: int = 0
     scout_reports: dict[int, float] = field(default_factory=dict)
     waiver_wire: list[int] = field(default_factory=list)
+    # Season the current lottery_order was drawn for (0 = not drawn yet) and
+    # the drawn slot order of original-team ids. Drawn once per season at the
+    # start of the draft phase from the seeded RNG stream.
+    lottery_season: int = 0
+    lottery_order: list[int] = field(default_factory=list)
     partial_season_played: bool = False
     partial_games_per_pair: int = 0
     _action_results: list[ActionResult] = field(default_factory=list)
@@ -166,6 +173,7 @@ class League:
             "team": self.user_team.public_dict(self.players, self.cap, self.season, full_roster=full),
             "standings": self._standings_public(),
             "draft_order": self._draft_order(),
+            "draft_lottery": self._draft_lottery_public(),
             "incoming_offers": self._incoming_offers_public(),
             "scout_reports": {str(player_id): report for player_id, report in sorted(self.scout_reports.items())},
             "history": [summary.__dict__ for summary in self.summaries[-5:]],
@@ -173,6 +181,7 @@ class League:
             "memo": self.agent_memo,
             "available_actions": self._available_actions(phase),
         }
+        payload["team"]["picks"] = self._user_picks_public()
         if action_results:
             payload["action_results"] = action_results
         if full:
@@ -318,22 +327,27 @@ class League:
             self._opponent_trades()
 
     def run_opponent_draft(self, before_user: bool) -> None:
-        """Let opponents draft in inverse-standings order around the user's slot.
+        """Let opponents draft in lottery-slot order around the user's window.
 
-        Called twice per draft phase: once before the user's decision (teams
-        picking ahead of the user) and once after (teams picking behind). The
-        order is worst record first, team id as tiebreak.
+        Called twice per draft phase: once before the user's decision (slots
+        ahead of the user's earliest owned slot) and once after (slots behind
+        it). Each slot belongs to an ORIGINAL team; the pick is exercised by
+        whoever owns that team's pick now. The user exercises every owned pick
+        in the single decision window at its earliest owned slot.
         """
-        order = self._draft_order()
-        if self.user_team_id in order:
-            user_index = order.index(self.user_team_id)
-            picking = order[:user_index] if before_user else order[user_index + 1 :]
+        self.run_draft_lottery()
+        slots = self._draft_slots()
+        user_slots = [index for index, (_, owner_id) in enumerate(slots) if owner_id == self.user_team_id]
+        first_user_slot = user_slots[0] if user_slots else None
+        if first_user_slot is None:
+            picking = [] if before_user else slots
         else:
-            picking = [] if before_user else order
-        for team_id in picking:
-            # A team that traded for extra picks exercises all of them at its slot.
-            for _ in range(self.teams[team_id].draft_picks.get(self.season, 0)):
-                self._opponent_draft_pick(self.teams[team_id])
+            picking = slots[:first_user_slot] if before_user else slots[first_user_slot + 1 :]
+        for origin_id, owner_id in picking:
+            # Skip the user's own slots and slots already exercised (owner None).
+            if owner_id is None or owner_id == self.user_team_id:
+                continue
+            self._opponent_draft_pick(self.teams[owner_id], origin_id)
 
     def prepare_midseason(self) -> None:
         if self.partial_season_played:
@@ -380,7 +394,7 @@ class League:
                 for _ in range(games_per_pair):
                     self._play_game(home, away, ratings, rng)
 
-        playoff_teams = sorted(self.teams.values(), key=lambda team: team.wins, reverse=True)[:8]
+        playoff_teams = sorted(self.teams.values(), key=lambda team: team.wins, reverse=True)[:PLAYOFF_SPOTS]
         champion = self._simulate_playoffs(playoff_teams, ratings, rng)
         champion.championships += 1
 
@@ -409,7 +423,7 @@ class League:
         self.partial_season_played = False
         self.partial_games_per_pair = 0
         for team in self.teams.values():
-            team.draft_picks.setdefault(self.season, 1)
+            team.draft_picks.setdefault(self.season, [team.id])
         self.prospects = generate_draft_class(self.seed, self.season, self.num_teams * 5)
         return summary
 
@@ -955,12 +969,16 @@ class League:
     def _tradeable_pick_seasons(self) -> list[int]:
         return list(range(self.season + 1, self.season + PICK_TRADE_MAX_SEASONS_AHEAD + 1))
 
-    def _picks_owned(self, team: Team, season: int) -> int:
-        # The generator pre-grants one pick per team for early seasons; a season
-        # beyond that horizon that no trade has touched is an implicit single pick.
+    def _pick_origins_owned(self, team: Team, season: int) -> list[int]:
+        # The generator pre-grants each team its own pick for early seasons; a
+        # season beyond that horizon that no trade has touched is an implicit
+        # single pick originally belonging to the team itself.
         if season in team.draft_picks:
             return team.draft_picks[season]
-        return 1 if season > self.season else 0
+        return [team.id] if season > self.season else []
+
+    def _picks_owned(self, team: Team, season: int) -> int:
+        return len(self._pick_origins_owned(team, season))
 
     def _validate_pick_seasons(self, owner: Team, seasons: list[int]) -> str | None:
         window = self._tradeable_pick_seasons()
@@ -973,8 +991,18 @@ class League:
         return None
 
     def _transfer_pick(self, giver: Team, receiver: Team, season: int) -> None:
-        giver.draft_picks[season] = self._picks_owned(giver, season) - 1
-        receiver.draft_picks[season] = self._picks_owned(receiver, season) + 1
+        """Move one of the giver's season picks, original identity attached.
+
+        Trades name a season, not a specific pick. When the giver holds more
+        than one pick for that season it keeps the best-projected one: the
+        pick transferred is the one whose ORIGINAL team currently has the most
+        wins (highest team id as tiebreak).
+        """
+        giver_origins = list(self._pick_origins_owned(giver, season))
+        origin_id = max(giver_origins, key=lambda team_id: (self.teams[team_id].wins, team_id))
+        giver_origins.remove(origin_id)
+        giver.draft_picks[season] = giver_origins
+        receiver.draft_picks[season] = [*self._pick_origins_owned(receiver, season), origin_id]
 
     def _draft(self, action: dict[str, Any], phase: str) -> None:
         if phase != "draft":
@@ -984,7 +1012,7 @@ class League:
         if prospect_id not in self.prospects:
             self._record(action, phase, False, "prospect not in current draft class")
             return
-        if self.user_team.draft_picks.get(self.season, 0) <= 0:
+        if not self.user_team.draft_picks.get(self.season, []):
             self._record(action, phase, False, "no current-season draft pick available")
             return
         prospect = self._assign_prospect(self.user_team, prospect_id)
@@ -1101,6 +1129,53 @@ class League:
         """Backward-compatible one-year free-agent reservation helper."""
         return self._contract_reservation(player_id)
 
+    def _draft_lottery_public(self) -> dict[str, Any]:
+        """Publish the lottery rule and this season's (drawn or projected) slots."""
+        group_size = max(1, self.num_teams - PLAYOFF_SPOTS)
+        drawn = self.lottery_season == self.season
+        return {
+            "drawn": drawn,
+            "lottery_slots": group_size,
+            "weights_worst_first": [float(group_size - rank) for rank in range(group_size)],
+            "description": (
+                f"The {group_size} non-playoff teams are drawn into the top slots, worst record "
+                "weighted heaviest but never guaranteed; playoff teams follow worst record first. "
+                "Every pick is exercised at its ORIGINAL team's slot, wherever it was traded to."
+            ),
+            "slots": [
+                {
+                    "slot": index + 1,
+                    "pick_from_team_id": origin_id,
+                    "owner_team_id": owner_id,
+                }
+                for index, (origin_id, owner_id) in enumerate(self._draft_slots())
+            ],
+        }
+
+    def _user_picks_public(self) -> list[dict[str, Any]]:
+        """Every pick the user owns: whose it originally was and its rough slot."""
+        slot_origins = self._slot_origins()
+        projection = self._inverse_standings()
+        picks: list[dict[str, Any]] = []
+        for season in sorted(self.user_team.draft_picks):
+            if season < self.season:
+                continue
+            for origin_id in sorted(self.user_team.draft_picks[season]):
+                if season == self.season:
+                    slot = slot_origins.index(origin_id) + 1 if origin_id in slot_origins else None
+                else:
+                    # Future picks can only be projected from today's standings.
+                    slot = projection.index(origin_id) + 1
+                picks.append(
+                    {
+                        "season": season,
+                        "from_team_id": origin_id,
+                        "from_team_name": self.teams[origin_id].name,
+                        "projected_slot": slot,
+                    }
+                )
+        return picks
+
     def _standings_public(self) -> list[dict[str, Any]]:
         return [
             {
@@ -1110,7 +1185,8 @@ class League:
                 "losses": team.losses,
                 "championships": team.championships,
                 "public_strength": round(self._team_strength(team, apply_injury_noise=False), 1),
-                "draft_picks": dict(sorted(team.draft_picks.items())),
+                "draft_picks": {season: len(origins) for season, origins in sorted(team.draft_picks.items())},
+                "pick_origins": {season: sorted(origins) for season, origins in sorted(team.draft_picks.items())},
             }
             for team in sorted(self.teams.values(), key=lambda item: item.wins, reverse=True)
         ]
@@ -1167,13 +1243,71 @@ class League:
         rng = random.Random(f"{self.seed}:{self.season}:valuation:{partner_id}:{player_id}")
         return rng.uniform(0.9, 1.1)
 
-    def _draft_order(self) -> list[int]:
-        """Current-season pick order: worst record first, team id as tiebreak."""
-        ordered = sorted(self.teams.values(), key=lambda team: (team.wins, team.id))
-        return [team.id for team in ordered if team.draft_picks.get(self.season, 0) > 0]
+    def _inverse_standings(self) -> list[int]:
+        """Team ids worst record first, team id as tiebreak."""
+        return [team.id for team in sorted(self.teams.values(), key=lambda team: (team.wins, team.id))]
 
-    def _opponent_draft_pick(self, team: Team) -> None:
-        if not self.prospects or team.draft_picks.get(self.season, 0) <= 0:
+    def run_draft_lottery(self) -> None:
+        """Draw this season's draft-slot order once, from the seeded RNG.
+
+        The non-playoff teams (worst ``num_teams - PLAYOFF_SPOTS`` records at
+        draft time) are drawn without replacement into the top slots. The
+        lottery team ranked ``i`` from the bottom (i = 0 is the worst record)
+        carries weight ``group_size - i``: with four lottery teams the
+        first-slot odds are 40/30/20/10, so bad teams are favored but nothing
+        is guaranteed. Playoff teams follow in inverse-standings order.
+        Idempotent per season; a second call never redraws.
+        """
+        if self.lottery_season == self.season:
+            return
+        rng = self._rng("draft_lottery")
+        standings = self._inverse_standings()
+        group_size = max(1, self.num_teams - PLAYOFF_SPOTS)
+        pool = standings[:group_size]
+        weights = {team_id: float(group_size - rank) for rank, team_id in enumerate(pool)}
+        order: list[int] = []
+        while pool:
+            total = sum(weights[team_id] for team_id in pool)
+            roll = rng.random() * total
+            for team_id in pool:
+                roll -= weights[team_id]
+                if roll <= 0:
+                    order.append(team_id)
+                    pool = [other for other in pool if other != team_id]
+                    break
+            else:  # pragma: no cover - float edge, roll landed past the last weight
+                order.append(pool.pop())
+        self.lottery_order = order + standings[group_size:]
+        self.lottery_season = self.season
+
+    def _slot_origins(self) -> list[int]:
+        """Original-team ids in this season's slot order.
+
+        After the lottery is drawn this is the drawn order; before it, the
+        projection (inverse standings), which is what pre-draft observations
+        show as the likely order.
+        """
+        if self.lottery_season == self.season:
+            return list(self.lottery_order)
+        return self._inverse_standings()
+
+    def _pick_owner(self, season: int, origin_id: int) -> int | None:
+        """Who currently owns the pick that originally belonged to origin_id."""
+        for team in self.teams.values():
+            if origin_id in team.draft_picks.get(season, []):
+                return team.id
+        return None
+
+    def _draft_slots(self) -> list[tuple[int, int | None]]:
+        """(original_team_id, current_owner_id) per slot; None once exercised."""
+        return [(origin_id, self._pick_owner(self.season, origin_id)) for origin_id in self._slot_origins()]
+
+    def _draft_order(self) -> list[int]:
+        """Current owner of each remaining current-season slot, in slot order."""
+        return [owner_id for _, owner_id in self._draft_slots() if owner_id is not None]
+
+    def _opponent_draft_pick(self, team: Team, origin_id: int) -> None:
+        if not self.prospects or origin_id not in team.draft_picks.get(self.season, []):
             return
         prospect_id = max(
             self.prospects,
@@ -1182,7 +1316,7 @@ class League:
                 -pid,
             ),
         )
-        prospect = self._assign_prospect(team, prospect_id)
+        prospect = self._assign_prospect(team, prospect_id, origin_id)
         self._record(
             {"type": "draft", "prospect_id": prospect.id},
             "draft",
@@ -1191,7 +1325,7 @@ class League:
             team_id=team.id,
         )
 
-    def _assign_prospect(self, team: Team, prospect_id: int) -> Player:
+    def _assign_prospect(self, team: Team, prospect_id: int, origin_id: int | None = None) -> Player:
         prospect = self.prospects.pop(prospect_id)
         prospect.team_id = team.id
         prospect.salary = 0.95
@@ -1200,7 +1334,13 @@ class League:
         prospect.drafted_round = 1
         self.players[prospect.id] = prospect
         team.roster.append(prospect.id)
-        team.draft_picks[self.season] -= 1
+        owned = team.draft_picks.get(self.season, [])
+        if origin_id is None:
+            # The user drafts without naming a slot: spend the earliest-slot
+            # (most valuable) pick first, deterministically.
+            slot_order = self._slot_origins()
+            origin_id = min(owned, key=slot_order.index)
+        owned.remove(origin_id)
         return prospect
 
     def _remove_from_team(self, team: Team, player_id: int) -> None:

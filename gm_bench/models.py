@@ -24,9 +24,11 @@ LINEUP_SIZE = 18
 LINEUP_MIN_POSITIONS: dict[str, int] = {"F": 10, "D": 4, "G": 1}
 ROSTER_MIN = 18
 
-# Draft-pick trading: picks are generic one-per-team-per-season selections,
-# exercised at the owner's standings slot. A pick's value approximates the
-# asset value of a mid-round prospect, discounted per season of distance.
+# Draft-pick trading: every pick is identified by the team it originally
+# belonged to and is exercised at that ORIGINAL team's draft slot, so an
+# acquired pick is a bet on how that team finishes. A pick's value
+# approximates the asset value of a mid-round prospect, discounted per season
+# of distance.
 PICK_BASE_VALUE = 12.0
 PICK_VALUE_DISCOUNT = 0.8
 PICK_TRADE_MAX_SEASONS_AHEAD = 3
@@ -98,7 +100,10 @@ class Team:
     losses: int = 0
     championships: int = 0
     playoff_rounds: int = 0
-    draft_picks: dict[int, int] = field(default_factory=dict)
+    # season -> list of original-team ids for each pick this team owns. A
+    # pick is exercised at its ORIGINAL team's draft slot, so origin identity
+    # (not just the count) is what a trade transfers.
+    draft_picks: dict[int, list[int]] = field(default_factory=dict)
     dead_cap: dict[int, float] = field(default_factory=dict)
 
     def public_dict(
@@ -124,7 +129,8 @@ class Team:
             "payroll": round(payroll, 2),
             "cap_room": round(cap - payroll, 2),
             "dead_cap": {str(year): round(charge, 2) for year, charge in sorted(self.dead_cap.items())},
-            "draft_picks": dict(sorted(self.draft_picks.items())),
+            "draft_picks": {season: len(origins) for season, origins in sorted(self.draft_picks.items())},
+            "pick_origins": {season: sorted(origins) for season, origins in sorted(self.draft_picks.items())},
             "lineup": list(self.lineup),
         }
         if full_roster:

@@ -64,12 +64,15 @@ def test_current_and_historical_sota_policies_are_distinct() -> None:
     assert SOTA_V4_POLICY.expected_contract == SOTA_V4_CONTRACT
     assert SOTA_V5_POLICY.expected_contract == SOTA_V5_CONTRACT
     assert SOTA_V5_POLICY.expected_contract == benchmark_contract()
-    assert SOTA_V4_CONTRACT["contract_fingerprint"] == SOTA_V5_CONTRACT["contract_fingerprint"]
+    # The v5 lane diverged from frozen v4 when the v6 mechanic work landed
+    # (draft lottery + pick identity moved the live sources).
+    assert SOTA_V4_CONTRACT["contract_fingerprint"] != SOTA_V5_CONTRACT["contract_fingerprint"]
+    assert SOTA_V4_CONTRACT["contract_fingerprint"] == "247e12fe5a7d4f5b"
     assert SOTA_V4_CONTRACT["benchmark_version"] != SOTA_V5_CONTRACT["benchmark_version"]
     assert SOTA_V3_POLICY.expected_scaffold_fingerprints["openrouter"] == "2462b25854c1298b"
     assert SOTA_V3_POLICY.expected_scaffold_fingerprints["openai"] == "8275269195e00191"
     assert SOTA_V4_POLICY.expected_scaffold_fingerprints["openrouter"] == "f04724717cc09caf"
-    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "f04724717cc09caf"
+    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "12cae0f4a05570f8"
 
 
 def test_archived_v1_result_remains_auditable_but_not_v2_eligible() -> None:

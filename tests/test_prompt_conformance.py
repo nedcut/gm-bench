@@ -92,7 +92,7 @@ def test_prompt_states_current_draft_action_limit() -> None:
     assert "Emit only action types listed in available_actions" in prompt
     assert "emit at most 1 draft action" in prompt
 
-    league.user_team.draft_picks[league.season] = 0
+    league.user_team.draft_picks[league.season] = []
     prompt = build_prompt(league.observation("draft"))
     assert "emit at most 0 draft actions" in prompt
 

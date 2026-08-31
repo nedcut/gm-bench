@@ -175,16 +175,18 @@ SOTA_V5_POLICY = ResultPolicy(
     require_strict_fallback=True,
     expected_contract=SOTA_V5_CONTRACT,
     validate_current_scaffold=False,
+    # Live-lane pins: moved with the shared observation compaction when the
+    # v6 draft lottery added pick identity to the model view.
     expected_scaffold_fingerprints={
-        "anthropic": "0afbbdcaecfcb1d0",
-        "claude": "4a92675327e27a4d",
-        "codex": "f6b1c953c198f6bc",
-        "cursor": "3bb877c241996ed7",
-        "gemini": "5e700d3151254ed3",
-        "ollama": "5a3778bf70bd341e",
-        "openai": "8275269195e00191",
-        "opencode": "815df462b40d1274",
-        "openrouter": "f04724717cc09caf",
+        "anthropic": "fb283b36e136087d",
+        "claude": "cd7d3aa129317d38",
+        "codex": "c71a6a7e8a9612a5",
+        "cursor": "4016c77d7ca63747",
+        "gemini": "37f2c14a53669690",
+        "ollama": "4dc51abf8a23fdad",
+        "openai": "bd2f267214c377e8",
+        "opencode": "dab626a7f168825e",
+        "openrouter": "12cae0f4a05570f8",
     },
     max_failed_query_rate=1.0,
 )

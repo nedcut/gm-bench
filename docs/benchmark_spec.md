@@ -54,8 +54,12 @@ The benchmark implements a compact hockey-style league:
 - Opponent-initiated trades: at the trade deadline, opponents make
   one-for-one swaps among themselves whenever both sides' hidden valuations
   agree, recorded in the transaction feed.
-- Draft classes with noisy projections, drafted competitively: every team
-  picks once per season in inverse-standings order around the user's slot.
+- Draft classes with noisy projections, drafted competitively: slot order
+  comes from a weighted lottery over the non-playoff teams (worst record
+  favored, nothing guaranteed), with playoff teams following worst record
+  first. Every pick carries its ORIGINAL team's identity and is exercised at
+  that team's slot, so a pick acquired by trade is a bet on how the original
+  team finishes.
 - Trade acceptance based on asset value perturbed by hidden per-partner
   valuation noise (re-rolled each season), a per-partner trade limit per
   season, roster minimums on both sides, and cap constraints.
@@ -205,10 +209,20 @@ provider defaults such as `ollama` = $0). Unknown models yield
 a local override table. Episode usage is also logged to SQLite
 (`episodes.total_tokens`, `episodes.cost_usd`, `episodes.usage_json`).
 
-During the draft phase, opponents with worse records pick before the user's
-decision and opponents with better records pick after it, so the visible draft
-class at the user's turn already reflects earlier selections. Every team's
-pick is replenished each season, so episodes of any length keep a draft.
+At the start of the draft phase the season's lottery is drawn once from the
+seeded RNG: the non-playoff teams are drawn without replacement into the top
+slots (the team ranked `i` from the bottom of a group of `n` carries weight
+`n - i`, so with four lottery teams the first-slot odds are 40/30/20/10), and
+playoff teams follow in inverse-standings order. Opponents holding slots ahead
+of the user's earliest owned slot pick before the user's decision and the rest
+pick after it, so the visible draft class at the user's turn already reflects
+earlier selections. Each pick is exercised at its original team's slot by
+whoever owns it now; the observation shows the rule, the drawn (or projected)
+slot order in `draft_lottery`, and every owned pick's origin and projected
+slot in `team.picks`. Trading a season's pick when several are held transfers
+the one whose original team currently has the most wins — the giver keeps the
+best-projected pick. Every team's own pick is replenished each season, so
+episodes of any length keep a draft.
 
 ## Built-In Agents
 

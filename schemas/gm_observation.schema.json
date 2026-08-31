@@ -207,10 +207,68 @@
       }
     },
     "draft_order": {
-      "description": "Team ids with a current-season pick remaining, in pick order (worst record first).",
+      "description": "Current owner of each remaining current-season draft slot, in slot order. Slots follow the drawn lottery order during the draft phase and the projected (worst record first) order before it.",
       "type": "array",
       "items": {
         "type": "integer"
+      }
+    },
+    "draft_lottery": {
+      "description": "Draft-lottery rule and this season's slot order: drawn once per season during the draft phase, projected from standings before that. Every pick is exercised at its original team's slot.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drawn",
+        "lottery_slots",
+        "weights_worst_first",
+        "description",
+        "slots"
+      ],
+      "properties": {
+        "drawn": {
+          "type": "boolean"
+        },
+        "lottery_slots": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "weights_worst_first": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "description": {
+          "type": "string"
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "slot",
+              "pick_from_team_id",
+              "owner_team_id"
+            ],
+            "properties": {
+              "slot": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "pick_from_team_id": {
+                "type": "integer"
+              },
+              "owner_team_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
       }
     },
     "trade_market": {
@@ -529,10 +587,53 @@
           }
         },
         "draft_picks": {
+          "description": "Owned pick counts keyed by season number.",
           "type": "object",
           "additionalProperties": {
             "type": "integer",
             "minimum": 0
+          }
+        },
+        "pick_origins": {
+          "description": "Original-team ids of each owned pick, keyed by season number. A pick is exercised at its original team's draft slot.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "picks": {
+          "description": "Every owned pick with its original team and the slot it projects to from current standings (final slot once the lottery is drawn).",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "season",
+              "from_team_id",
+              "from_team_name",
+              "projected_slot"
+            ],
+            "properties": {
+              "season": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "from_team_id": {
+                "type": "integer"
+              },
+              "from_team_name": {
+                "type": "string"
+              },
+              "projected_slot": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            }
           }
         },
         "lineup": {
@@ -609,10 +710,21 @@
           "type": "number"
         },
         "draft_picks": {
+          "description": "Owned pick counts keyed by season number.",
           "type": "object",
           "additionalProperties": {
             "type": "integer",
             "minimum": 0
+          }
+        },
+        "pick_origins": {
+          "description": "Original-team ids of each owned pick, keyed by season number.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
           }
         }
       }

@@ -58,8 +58,11 @@ SOTA_V5_CONTRACT = {
     "scoring_scale_fingerprint": "05a60ff4f691e734",
     "simulator_version": "sim-v3",
     "observation_version": "observation-v2",
-    # No score-affecting mechanics changed at the v4 -> v5 boundary.
-    "contract_fingerprint": "247e12fe5a7d4f5b",
+    # sota-v5 is the live (not yet frozen) lane; its fingerprint tracks the
+    # in-flight v6 mechanic work. Moved from 247e12fe5a7d4f5b when the draft
+    # lottery replaced deterministic draft order and traded picks gained
+    # original-team identity.
+    "contract_fingerprint": "d30fe7eddc093d97",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
 # Pinned with the release identity so the site headroom strip cannot drift when
