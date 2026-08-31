@@ -45,7 +45,10 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # pipe-delimited tables inside the ~6,500-token budget, the candidate lists
     # it carries are shorter, and the transaction ledger publishes two seasons
     # of roster-changing moves instead of the last twelve transactions.
-    assert contract_fingerprint() == "989775a0ca5c7ad1"
+    # Moved again for the v6 execution rules: one paid model call per decision
+    # phase, no paid retry, and deterministic local repair of malformed output
+    # (gm_bench/repair.py) with a structured no-op when intent is ambiguous.
+    assert contract_fingerprint() == "3167d95f860770c5"
     assert "oracle" not in AGENTS
 
 

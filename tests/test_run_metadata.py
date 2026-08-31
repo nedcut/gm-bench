@@ -31,9 +31,13 @@ def test_provider_agent_carries_resolved_metadata(monkeypatch: pytest.MonkeyPatc
         "agent_timeout": 120.0,
         "session": False,
         "transport": "direct-api",
-        "protocol_repair_attempts": 1,
+        "protocol_repair_attempts": 0,
         "strict_fallback": False,
-        "provider_options": {"GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1", "GM_AGENT_STRICT": "0"},
+        "provider_options": {
+            "OPENAI_MAX_TOKENS": "4096",
+            "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
+            "GM_AGENT_STRICT": "0",
+        },
     }
 
 
@@ -119,8 +123,8 @@ def test_cli_model_run_info_records_resolved_provider_metadata(monkeypatch: pyte
     assert run_info["profile"] == "compact"
     assert run_info["preset"] == "smoke"
     assert run_info["transport"] == "direct-api"
-    assert run_info["protocol_repair_attempts"] == 1
-    assert run_info["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "1"
+    assert run_info["protocol_repair_attempts"] == 0
+    assert run_info["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "0"
     assert run_info["benchmark_contract"] == benchmark_contract()
     assert run_info["seed_panel"]["name"] == "custom"
 

@@ -59,7 +59,11 @@ def test_provider_registry_resolves_direct_and_gateway_apis(monkeypatch: pytest.
         "OPENROUTER_REQUIRE_PARAMETERS": "false",
         "OPENROUTER_DATA_COLLECTION": "deny",
         "OPENROUTER_JSON_MODE": "false",
-        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+        # v6 execution rules: 4,096-token output ceiling, reasoning off where
+        # the route allows it, and no paid retry.
+        "OPENROUTER_MAX_TOKENS": "4096",
+        "OPENROUTER_REASONING_ENABLED": "false",
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
         "GM_AGENT_STRICT": "0",
     }
 
@@ -72,11 +76,18 @@ def test_protocol_repair_ignores_generic_no_usable_actions_fallback() -> None:
     assert not _model_format_failed([{"type": "noop", "model_error": "model produced no usable actions"}])
 
 
-def test_build_provider_agent_clamps_repair_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_provider_agent_defaults_to_no_paid_retry_and_clamps_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """v6 buys one call per phase; an operator may replay the old lane, not exceed it."""
     monkeypatch.setenv("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", "9")
-    agent = build_provider_agent("openai", model="gpt-test")
-    assert agent.metadata["protocol_repair_attempts"] == 1
-    assert agent.metadata["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "1"
+    default_agent = build_provider_agent("openai", model="gpt-test")
+    assert default_agent.metadata["protocol_repair_attempts"] == 0
+    assert default_agent.metadata["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "0"
+
+    clamped = build_provider_agent("openai", model="gpt-test", extra_env={"GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "9"})
+    assert clamped.metadata["protocol_repair_attempts"] == 1
+    assert clamped.metadata["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "1"
 
 
 def test_external_agent_bounded_protocol_repair(monkeypatch: pytest.MonkeyPatch) -> None:

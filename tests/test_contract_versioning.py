@@ -74,8 +74,11 @@ def test_current_and_historical_sota_policies_are_distinct() -> None:
     assert SOTA_V4_POLICY.expected_scaffold_fingerprints["openrouter"] == "f04724717cc09caf"
     # Moved from 12cae0f4a05570f8 with the v6 compact observation render: the
     # shared compaction that every adapter's prompt is built from was rewritten
-    # into pipe-delimited tables, so the live lane's prompt text is new.
-    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "be227cafa39bc085"
+    # into pipe-delimited tables, so the live lane's prompt text is new. Moved
+    # again from be227cafa39bc085 when providers.py pinned the v6 call
+    # conditions: a 4,096-token output ceiling, reasoning off where the route
+    # allows it, and no paid retry.
+    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "94216f23c31fff74"
 
 
 def test_archived_v1_result_remains_auditable_but_not_v2_eligible() -> None:

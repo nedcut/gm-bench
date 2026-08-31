@@ -984,9 +984,16 @@ def _reliability_line(result: dict[str, Any]) -> str:
     latencies = [
         episode["mean_decision_seconds"] for episode in result["episodes"] if "mean_decision_seconds" in episode
     ]
+    # Malformed and unrecoverable output sit on the reliability line, beside the
+    # score and never inside it: a model that formats badly should be visibly
+    # unreliable rather than quietly cheaper or quietly worse.
     line = (
         f"decisions={summary.get('decisions', 0)} failed_decisions={summary.get('failed_decisions', 0)} "
-        f"(rate {summary.get('decision_failure_rate', 0.0)}) memo_writes={summary.get('memo_writes', 0)}"
+        f"(rate {summary.get('decision_failure_rate', 0.0)}) "
+        f"malformed={summary.get('malformed_decisions', 0)} (rate {summary.get('malformed_rate', 0.0)}) "
+        f"unrecoverable={summary.get('unrecoverable_decisions', 0)} "
+        f"(rate {summary.get('unrecoverable_rate', 0.0)}) "
+        f"memo_writes={summary.get('memo_writes', 0)}"
     )
     if latencies:
         line += f" mean_decision_seconds={round(sum(latencies) / len(latencies), 3)}"

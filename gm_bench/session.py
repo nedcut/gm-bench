@@ -11,11 +11,11 @@ import tempfile
 import time
 from typing import Any, BinaryIO
 
-from gm_bench.action_validation import validate_action_list
 from gm_bench.agents import Agent, external_agent_environment
 from gm_bench.protocol import QUERY_ACTION_TYPES
+from gm_bench.repair import repair_adapter_output
 from gm_bench.scaffold_view import model_adapter_observation
-from gm_bench.telemetry import normalize_usage, require_finite_json_numbers
+from gm_bench.telemetry import normalize_usage
 
 
 class PersistentProcessAgent(Agent):
@@ -134,25 +134,10 @@ class PersistentProcessAgent(Agent):
         if line == "":
             stderr = self._stderr_tail()
             return ([{"type": "noop", "error": f"persistent agent exited early: {stderr[-500:]}"}], None)
-        try:
-            payload = json.loads(line)
-        except json.JSONDecodeError:
-            return ([{"type": "noop", "error": "persistent agent returned invalid JSON"}], None)
-        actions = payload.get("actions", payload) if isinstance(payload, dict) else payload
-        if isinstance(actions, dict) and isinstance(actions.get("actions"), list):
-            actions = actions["actions"]
-        if not isinstance(actions, list):
-            return ([{"type": "noop", "error": "persistent agent must return an actions list"}], None)
-        try:
-            require_finite_json_numbers(actions)
-        except ValueError:
-            return ([{"type": "noop", "error": "persistent agent returned non-finite action values"}], None)
-        try:
-            actions = validate_action_list(actions)
-        except ValueError as exc:
-            return ([{"type": "noop", "error": f"persistent agent returned invalid actions: {exc}"}], None)
-        usage = normalize_usage(payload.get("usage")) if isinstance(payload, dict) else None
-        return actions, usage
+        # Same one-call rule as the fresh-spawn lane: repair what is
+        # unambiguous, record a structured no-op for the rest, buy nothing.
+        outcome = repair_adapter_output(line, source="persistent agent")
+        return outcome.actions, normalize_usage(outcome.usage)
 
     def _read_stdout_line(self) -> str | None:
         """Read one newline-terminated line within ``timeout_seconds``.

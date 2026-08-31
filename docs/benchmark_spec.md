@@ -108,12 +108,27 @@ receive observations for four phases:
 - `trade_deadline` — opponent trade proposals in `incoming_offers`
 - `draft`
 
+### One paid call per phase
+
+Under the v6 execution rules an agent that pays for its calls gets exactly one
+per decision phase: five seasons of four phases is twenty calls per seed, and
+no more. There is no paid retry — a malformed reply is repaired locally or
+recorded as a structured no-op (see "Malformed output and local repair"). A
+model cannot buy extra thinking by spending query rounds, and the per-seed cost
+of a row is fixed before it starts.
+
+Built-in scripted policies run in-process and make no API calls, so they keep
+the multi-round query loop below and their episodes are unchanged. Operators
+replaying the pre-v6 model lane can set
+`EpisodeConfig(single_paid_call_per_phase=False)`.
+
 ### Multi-round windows
 
-Each phase is one decision window that may span up to five interaction rounds.
-Round 0 delivers the phase observation; later rounds include `action_results`
-from the prior round and an incremented `interaction_round`. Query actions
-return same-turn feedback; send `end_turn` to stop gathering information.
+Each phase is one decision window that may span up to five interaction rounds
+for an agent that makes no paid calls. Round 0 delivers the phase observation;
+later rounds include `action_results` from the prior round and an incremented
+`interaction_round`. Query actions return same-turn feedback; send `end_turn`
+to stop gathering information.
 
 Query actions:
 
@@ -412,6 +427,42 @@ marker as a failed decision and reports `decisions`, `failed_decisions`,
 per-episode decision wall-time latency. This keeps the benchmark honest: a
 model that never produces usable output is visibly failing rather than
 silently scoring like the fallback policy.
+
+### Malformed output and local repair
+
+Because v6 buys no second call, the harness repairs malformed output itself,
+for free, and only where the intent is unambiguous. The rules are fixed and
+published in `gm_bench/repair.py`:
+
+| Rule | Repaired | Left alone |
+|---|---|---|
+| `strip_code_fence` | exactly one Markdown fence around the payload | two or more fenced blocks |
+| `strip_surrounding_prose` | one balanced JSON value inside chatter | a second bracketed value after it |
+| `strip_trailing_comma` | a comma directly before `]` or `}` | a *missing* comma between items |
+| `wrap_single_action` | a lone action object where a list was required | an object with no `type` |
+| `normalize_action_type` | a spelling that case-folds onto exactly one canonical type (`"SET-LINEUP"`) | a near-miss that matches nothing (`"sign"`) |
+| `coerce_numeric_string` | a plain decimal literal in a numeric field (`"player_id": "42"`) | anything else (`"42nd"`, `"1e3"`) |
+
+Repair never changes which actions were requested, only how they were spelled,
+so it cannot lift a score. Whatever the rules cannot settle becomes a
+structured no-op for the whole phase.
+
+Every episode reports `malformed_decisions` and `unrecoverable_decisions` (the
+subset repair could not save), and every run summary adds `malformed_rate` and
+`unrecoverable_rate`. These sit beside the score and are never folded into it:
+a model that formats badly should read as visibly unreliable, not as quietly
+worse at hockey. A transport failure (timeout, crashed adapter) carries `error`
+alone and is counted as a failed decision but not as malformed output — it says
+nothing about the model's formatting.
+
+### Output budget and reasoning
+
+The output ceiling is 4,096 tokens including reasoning tokens, pinned per
+provider in `gm_bench/providers.py` and recorded in
+`run_info.provider_options`. Reasoning is disabled where the route allows it;
+models that cannot turn it off run at their minimum effort, set per model in
+the panel config. Reasoning tokens are recorded per call in
+`usage.per_decision` and summarized as `mean_reasoning_tokens_per_decision`.
 
 Failure handling is itself a measurement condition, so the harness resolves it
 rather than inheriting it from the operator's shell, and records the effective

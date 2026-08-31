@@ -176,21 +176,24 @@ SOTA_V5_POLICY = ResultPolicy(
     expected_contract=SOTA_V5_CONTRACT,
     validate_current_scaffold=False,
     # Live-lane pins: moved with the shared observation compaction when the
-    # v6 draft lottery added pick identity to the model view, and moved again
+    # v6 draft lottery added pick identity to the model view, moved again
     # (from anthropic fb283b36e136087d and its eight siblings) when the v6
     # compact render replaced the JSON observation with pipe-delimited tables
-    # inside the ~6,500-token budget. Prompt text changed, so no pre-render row
-    # is comparable to a post-render one.
+    # inside the ~6,500-token budget, and moved again (from anthropic
+    # 1e5a550831d03984 and its eight siblings) when providers.py adopted the v6
+    # execution rules: a 4,096-token output ceiling, reasoning disabled where
+    # the route allows it, and no paid retry. Prompt text and call conditions
+    # changed, so no earlier row is comparable to a later one.
     expected_scaffold_fingerprints={
-        "anthropic": "1e5a550831d03984",
-        "claude": "be41b9e69caa45a4",
-        "codex": "6024dfa4758866ce",
-        "cursor": "73bdf0bc1176606d",
-        "gemini": "e6bf56ec107478be",
-        "ollama": "ebd6d55ac6f93ca0",
-        "openai": "f9718a0ab001c573",
-        "opencode": "542a0aba8b1bf7b4",
-        "openrouter": "be227cafa39bc085",
+        "anthropic": "cb8cca527bcd62ac",
+        "claude": "9b0514f96bea2810",
+        "codex": "27a7aa63cf1f987f",
+        "cursor": "d999bd1c2ebaa3bf",
+        "gemini": "ca2823bf50668bac",
+        "ollama": "ef9fad5362b79186",
+        "openai": "268fb58269131c1c",
+        "opencode": "557587e8f5474ef7",
+        "openrouter": "94216f23c31fff74",
     },
     max_failed_query_rate=1.0,
 )

@@ -34,6 +34,11 @@ NON_PENALIZED_TYPES = QUERY_ACTION_TYPES | frozenset({"noop", "memo", "end_turn"
 
 SCOUTS_PER_SEASON = 3
 MAX_INTERACTION_ROUNDS = 5
+# v6 execution rules (docs/bench_v6_spec.md): one paid model call per decision
+# phase, so five seasons of four phases is exactly twenty calls per seed, and a
+# 4,096-token output ceiling that includes reasoning tokens.
+V6_PAID_CALLS_PER_DECISION = 1
+V6_OUTPUT_TOKEN_CEILING = 4096
 PARTIAL_SEASON_FRACTION = 0.35
 INJURY_GAMES_DEFAULT = 8
 
@@ -64,6 +69,11 @@ class EpisodeConfig:
     strict: bool = False
     include_midseason: bool = True
     builtin_full_observation: bool = True
+    # v6 gives an agent that pays for its calls exactly one of them per phase,
+    # whatever `max_interaction_rounds` allows. Scripted in-process policies buy
+    # nothing, so they keep the multi-round query loop and their episodes are
+    # untouched. Set False to replay the pre-v6 multi-round model lane.
+    single_paid_call_per_phase: bool = True
 
     def baseline_cache_fingerprint(self) -> str:
         """Fingerprint the fields that change a played-out episode.
@@ -71,7 +81,9 @@ class EpisodeConfig:
         Two runs whose configs differ here produce different episodes, so their
         cached baseline scores must not collide. ``persistent_session`` is
         excluded: it only selects the candidate's transport and never alters an
-        in-process scripted baseline. The default config returns ``""`` so its
+        in-process scripted baseline. ``single_paid_call_per_phase`` is excluded
+        for the same reason -- the cache only ever stores scripted baselines,
+        and they make no paid calls. The default config returns ``""`` so its
         keys stay identical to the historical cache and keep hitting.
         """
 

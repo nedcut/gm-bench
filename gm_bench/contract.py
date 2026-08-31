@@ -80,8 +80,11 @@ SOTA_V5_CONTRACT = {
     # v6 compact observation render replaced the verbose JSON view with
     # pipe-delimited tables inside the ~6,500-token budget, tightened the
     # candidate lists a model reads, and gave the transaction ledger its
-    # roster-changing two-season selection rule.
-    "contract_fingerprint": "989775a0ca5c7ad1",
+    # roster-changing two-season selection rule; moved from 989775a0ca5c7ad1
+    # when the runner adopted the v6 execution rules: one paid model call per
+    # decision phase, no paid retry, and deterministic local repair of
+    # malformed output with a structured no-op when intent is ambiguous.
+    "contract_fingerprint": "3167d95f860770c5",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
 # Pinned with the release identity so the site headroom strip cannot drift when
@@ -104,6 +107,10 @@ _CONTRACT_SOURCES = (
     # duration, and the canonical action set all affect played-out episodes.
     "gm_bench/protocol.py",
     "gm_bench/runner.py",
+    # Local repair decides which malformed model outputs still reach the
+    # simulator and which become structured no-ops, so two rows produced under
+    # different repair rules played different episodes.
+    "gm_bench/repair.py",
     # The compaction rules are score-affecting for the scaffold-view baseline,
     # whose whole result is a function of them; without this the baseline cache
     # would serve a pre-edit score after the model view changed.
