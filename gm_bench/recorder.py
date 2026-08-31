@@ -54,6 +54,7 @@ from gm_bench.protocol import PHASES, EpisodeConfig
 from gm_bench.runner import _observation_tier_for_agent, run_decision_point
 from gm_bench.scaffold_view import compact_observation, scaffold_view_observation
 from gm_bench.scoring import SCORE_COMPONENT_METRICS, score_components
+from gm_bench.session import PersistentProcessAgent
 from gm_bench.simulator import League
 
 RECORD_SCHEMA = "gm-bench-decision-record-v1"
@@ -251,58 +252,65 @@ def record_episode(
     model_subject = bool(getattr(agent, "metadata", {}).get("provider"))
     ghost_config = _ghost_config(episode_config, tier)
 
-    for season_index in range(1, seasons + 1):
-        for phase in phases:
-            if phase == "midseason":
-                league.prepare_midseason()
-            if phase == "trade_deadline":
-                league.prepare_trade_deadline()
-            if phase == "draft":
-                league.run_opponent_draft(before_user=True)
+    persistent = isinstance(agent, PersistentProcessAgent)
+    try:
+        if persistent:
+            agent.start_episode(seed, seasons)
+        for season_index in range(1, seasons + 1):
+            for phase in phases:
+                if phase == "midseason":
+                    league.prepare_midseason()
+                if phase == "trade_deadline":
+                    league.prepare_trade_deadline()
+                if phase == "draft":
+                    league.run_opponent_draft(before_user=True)
 
-            before = score_components(league, user_team_id)
-            raw_observation = probe_observation(league, phase, tier)
-            observation = compact_observation(raw_observation, profile) if model_subject else raw_observation
-            logged = len(league.transactions)
-            ghosts = [
-                _run_ghost(
-                    name,
-                    league,
-                    phase,
-                    ghost_config,
-                    before,
-                    logged,
-                    profile=profile if model_subject else None,
+                before = score_components(league, user_team_id)
+                raw_observation = probe_observation(league, phase, tier)
+                observation = compact_observation(raw_observation, profile) if model_subject else raw_observation
+                logged = len(league.transactions)
+                ghosts = [
+                    _run_ghost(
+                        name,
+                        league,
+                        phase,
+                        ghost_config,
+                        before,
+                        logged,
+                        profile=profile if model_subject else None,
+                    )
+                    for name in recorder.ghost_agents
+                ]
+
+                capture = _capture_agent(agent, profile=profile)
+                point = run_decision_point(league, capture, phase, episode_config)
+                after = score_components(league, user_team_id)
+                recorder.write(
+                    {
+                        "agent": recorder.agent_name,
+                        "season": season_index,
+                        "phase": phase,
+                        "observation": observation,
+                        "actions": _actions_since(league, logged, user_team_id),
+                        "interaction_rounds": capture.rounds,
+                        "results": point["results"],
+                        "usage_records": point["usage_records"],
+                        "decision_seconds": point["decision_seconds"],
+                        "harness_latency_ms": point["harness_latency_ms"],
+                        "delta": component_delta(before, after),
+                        "failed": point["failed"],
+                        "illegal_actions_total": league.illegal_actions,
+                        "ghosts": ghosts,
+                    }
                 )
-                for name in recorder.ghost_agents
-            ]
 
-            capture = _DecisionCaptureAgent(agent, profile=profile)
-            point = run_decision_point(league, capture, phase, episode_config)
-            after = score_components(league, user_team_id)
-            recorder.write(
-                {
-                    "agent": recorder.agent_name,
-                    "season": season_index,
-                    "phase": phase,
-                    "observation": observation,
-                    "actions": _actions_since(league, logged, user_team_id),
-                    "interaction_rounds": capture.rounds,
-                    "results": point["results"],
-                    "usage_records": point["usage_records"],
-                    "decision_seconds": point["decision_seconds"],
-                    "harness_latency_ms": point["harness_latency_ms"],
-                    "delta": component_delta(before, after),
-                    "failed": point["failed"],
-                    "illegal_actions_total": league.illegal_actions,
-                    "ghosts": ghosts,
-                }
-            )
-
-            if phase == "draft":
-                league.run_opponent_draft(before_user=False)
-            league.run_autopilot_opponents(phase)
-        league.simulate_season()
+                if phase == "draft":
+                    league.run_opponent_draft(before_user=False)
+                league.run_autopilot_opponents(phase)
+            league.simulate_season()
+    finally:
+        if persistent:
+            agent.end_episode()
     return league
 
 
@@ -353,15 +361,15 @@ class _DecisionCaptureAgent(Agent):
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
         actions, usage = self.wrapped.act_with_usage(observation)
-        self._capture(observation, actions, usage)
+        self._capture_observation(observation, actions, usage)
         return actions
 
     def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         actions, usage = self.wrapped.act_with_usage(observation)
-        self._capture(observation, actions, usage)
+        self._capture_observation(observation, actions, usage)
         return actions, usage
 
-    def _capture(
+    def _capture_observation(
         self, observation: dict[str, Any], actions: list[dict[str, Any]], usage: dict[str, Any] | None
     ) -> None:
         self.rounds.append(
@@ -372,6 +380,41 @@ class _DecisionCaptureAgent(Agent):
                 "usage": copy.deepcopy(usage),
             }
         )
+
+
+class _PersistentDecisionCaptureAgent(_DecisionCaptureAgent, PersistentProcessAgent):
+    """Keep persistent follow-up dispatch while recording each response."""
+
+    def __init__(self, wrapped: PersistentProcessAgent, *, profile: str) -> None:
+        # The recorder owns no process. The wrapped agent receives lifecycle
+        # calls once per episode; this proxy exists only for runner dispatch.
+        _DecisionCaptureAgent.__init__(self, wrapped, profile=profile)
+        self.wrapped = wrapped
+
+    def act_on_results(self, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        actions, _usage = self.act_on_results_with_usage(results)
+        return actions
+
+    def act_on_results_with_usage(
+        self,
+        results: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        actions, usage = self.wrapped.act_on_results_with_usage(results)
+        self.rounds.append(
+            {
+                "round": len(self.rounds),
+                "action_results": copy.deepcopy(results),
+                "actions": copy.deepcopy(actions),
+                "usage": copy.deepcopy(usage),
+            }
+        )
+        return actions, usage
+
+
+def _capture_agent(agent: Agent, *, profile: str) -> _DecisionCaptureAgent:
+    if isinstance(agent, PersistentProcessAgent):
+        return _PersistentDecisionCaptureAgent(agent, profile=profile)
+    return _DecisionCaptureAgent(agent, profile=profile)
 
 
 class _ScaffoldGhostAgent(Agent):
@@ -478,7 +521,9 @@ def replay_fixture(fixture: dict[str, Any]) -> League:
     seed = fixture.get("seed")
     if not isinstance(seed, int) or isinstance(seed, bool):
         raise ValueError("replay fixture seed must be an integer")
-    raw_config = fixture.get("config") or {}
+    raw_config = fixture.get("config")
+    if raw_config is None:
+        raw_config = {}
     if not isinstance(raw_config, dict):
         raise ValueError("replay fixture config must be an object")
     allowed = {field.name for field in dataclasses.fields(EpisodeConfig)}
@@ -504,9 +549,17 @@ def replay_fixture(fixture: dict[str, Any]) -> League:
                 league.run_opponent_draft(before_user=True)
             record = decisions[cursor]
             cursor += 1
+            if not isinstance(record, dict):
+                raise ValueError(f"replay fixture decision {cursor} must be an object")
             if record.get("season") != season_index or record.get("phase") != phase:
                 raise ValueError(f"replay fixture decision {cursor} is out of phase order")
-            rounds = record.get("interaction_rounds") or [{"round": 0, "actions": record.get("actions", [])}]
+            rounds = record.get("interaction_rounds")
+            if rounds is None or rounds == []:
+                rounds = [{"round": 0, "actions": record.get("actions", [])}]
+            elif not isinstance(rounds, list):
+                raise ValueError(f"replay fixture decision {cursor} interaction_rounds must be a list")
+            if not all(isinstance(round_record, dict) for round_record in rounds):
+                raise ValueError(f"replay fixture decision {cursor} interaction rounds must be objects")
             agent = _ReplayAgent(rounds)
             run_decision_point(league, agent, phase, config)
             if agent.index != len(rounds):

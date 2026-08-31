@@ -205,7 +205,7 @@ export default function Puzzles({ data }: { data: PuzzleSet }) {
   const last = index === puzzles.length - 1;
 
   return (
-    <section className="section" id="play">
+    <section className="section" id="play" tabIndex={-1}>
       <div className="shell">
         <div className="section-head">
           <p className="kicker">Play along</p>
