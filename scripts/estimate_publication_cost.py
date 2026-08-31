@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from gm_bench.benchmark_config import PRESETS  # noqa: E402
-from gm_bench.protocol import MAX_INTERACTION_ROUNDS, PHASES  # noqa: E402
+from gm_bench.protocol import MAX_INTERACTION_ROUNDS, PHASES, V6_PAID_CALLS_PER_DECISION  # noqa: E402
 
 RUNTIME_STATUS_PENDING = "pending-smoke-telemetry"
 RUNTIME_STATUS_COMPLETE = "complete-from-accepted-smokes"
@@ -28,6 +28,11 @@ RUNTIME_NOTE_COMPLETE = (
     "recheck before paid full-panel runs if pricing, routes, or prompts change."
 )
 PRIVATE_PANEL_CONTRACTS = frozenset({"sota-v3", "sota-v4", "sota-v5"})
+# Lanes planned before the v6 execution rules, where one decision could buy up
+# to MAX_INTERACTION_ROUNDS provider calls. Their committed plans are frozen
+# evidence and must keep regenerating exactly, so they keep the old maximum and
+# the old field name. Every later lane is priced at one paid call per decision.
+PRE_V6_CALL_CONTRACTS = frozenset({"sota-v2", "sota-v3", "sota-v4"})
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -76,6 +81,12 @@ def estimate(
         panel_seed_count = seed_panel.get("count")
         if not isinstance(panel_seed_count, int) or isinstance(panel_seed_count, bool) or panel_seed_count < 2:
             raise ValueError(f"{contract} fixed-panel estimate requires a positive seed_panel.count")
+    # v6 gives a paying agent one call per decision phase, so the protocol
+    # maximum is that call plus any configured repair -- not the five
+    # interaction rounds of the pre-v6 lane, which only unpaid in-process
+    # policies still get.
+    pre_v6_lane = contract in PRE_V6_CALL_CONTRACTS
+    calls_per_decision_limit = MAX_INTERACTION_ROUNDS if pre_v6_lane else V6_PAID_CALLS_PER_DECISION
     panel_decisions_per_model = panel_seed_count * int(leaderboard["seasons"]) * len(PHASES) * repeats
     smoke_decisions_per_run = len(smoke["seeds"]) * int(smoke["seasons"]) * len(PHASES)
     model_count = len(models)
@@ -156,7 +167,7 @@ def estimate(
         repair_attempts = int(fixed_options.get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", 0))
         if repair_attempts < 0:
             raise ValueError("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS must be non-negative")
-        maximum_calls_per_decision = MAX_INTERACTION_ROUNDS * (1 + repair_attempts)
+        maximum_calls_per_decision = calls_per_decision_limit * (1 + repair_attempts)
         maximum_panel_calls = panel_decisions_per_model * maximum_calls_per_decision
         maximum_smoke_calls = smoke_decisions_per_run * maximum_calls_per_decision
         protocol_max_panel_cost = panel_cost * maximum_calls_per_decision
@@ -249,11 +260,29 @@ def estimate(
             "total_calls": panel_calls + smoke_calls,
         },
         "protocol_maximum": {
-            "max_interaction_rounds_per_decision": MAX_INTERACTION_ROUNDS,
-            "description": (
-                "Maximum provider-call multiplicity allowed by the protocol, including every configured repair. "
-                "Token costs still use the committed per-call planning token bounds; the publication runner's "
-                "dynamic pre-call guard is the operator-ceiling enforcement mechanism."
+            **(
+                {
+                    "max_interaction_rounds_per_decision": MAX_INTERACTION_ROUNDS,
+                    "description": (
+                        "Maximum provider-call multiplicity allowed by the protocol, including every "
+                        "configured repair. Token costs still use the committed per-call planning token "
+                        "bounds; the publication runner's dynamic pre-call guard is the operator-ceiling "
+                        "enforcement mechanism."
+                    ),
+                }
+                if pre_v6_lane
+                else {
+                    "paid_calls_per_decision": V6_PAID_CALLS_PER_DECISION,
+                    # Kept for comparison with pre-v6 plans, which budgeted five
+                    # rounds per decision. It no longer bounds a paid lane.
+                    "pre_v6_max_interaction_rounds_per_decision": MAX_INTERACTION_ROUNDS,
+                    "description": (
+                        "Maximum provider-call multiplicity allowed by the v6 protocol: one paid call per "
+                        "decision phase plus every configured repair. Token costs still use the committed "
+                        "per-call planning token bounds; the publication runner's dynamic pre-call guard is "
+                        "the operator-ceiling enforcement mechanism."
+                    ),
+                }
             ),
             "panel_calls": protocol_max_panel_calls,
             "smoke_calls": protocol_max_smoke_calls,

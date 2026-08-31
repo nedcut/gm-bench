@@ -46,10 +46,11 @@ def test_v3_cost_plan_uses_registered_private_seed_count() -> None:
     assert result["calls"]["panel_decisions_per_model"] == 320
     assert result["calls"]["panel_calls"] == 2_560
     assert result["calls"]["total_calls"] == 2_592
-    # `calls` is the one-response-per-window planning forecast. The protocol
-    # can actually make five interaction calls, each with one repair, so the
-    # estimator must expose that 10x maximum instead of presenting 2,592 as a
-    # worst-case API-call count.
+    # `calls` is the one-response-per-window planning forecast. The pre-v6
+    # protocol could actually make five interaction calls, each with one repair,
+    # so this frozen plan exposes that 10x maximum instead of presenting 2,592
+    # as a worst-case API-call count. (The v6 lane is priced at one paid call
+    # per decision instead; see test_v6_lane_prices_one_paid_call_per_decision.)
     assert result["protocol_maximum"]["max_interaction_rounds_per_decision"] == 5
     assert result["protocol_maximum"]["total_calls"] == 25_920
     # Recosted 2026-08-06 for amendment-3, which withdrew Gemini 3.6 Flash and
@@ -65,6 +66,30 @@ def test_v3_cost_plan_uses_registered_private_seed_count() -> None:
     # The cohort is now uniformly reasoning-disabled; no row may bill internal
     # reasoning. This is the cost-side statement of the amendment's whole point.
     assert [row["model"] for row in result["models"] if row["internal_reasoning_tokens_per_decision"]] == []
+
+
+def test_v6_lane_prices_one_paid_call_per_decision() -> None:
+    """The v6 lane's worst case is 20 calls a seed, not 100.
+
+    Pricing the v6 panel off MAX_INTERACTION_ROUNDS reserved five times the
+    calls the protocol can now make, which is not a conservative plan so much as
+    a wrong one: it hides how much of the ceiling the real lane uses.
+    """
+    models = json.loads(Path("config/sota_v5_models.json").read_text())
+    lane = json.loads(Path("config/sota_v5_lane.json").read_text())
+    pricing = json.loads(Path("config/sota_v5_pricing_snapshot.json").read_text())
+    result = estimate(models, lane, pricing)
+
+    assert result["protocol_maximum"]["paid_calls_per_decision"] == 1
+    # The pre-v6 figure survives, labelled, so an older plan stays readable.
+    assert result["protocol_maximum"]["pre_v6_max_interaction_rounds_per_decision"] == 5
+    # 20 calls per five-season seed. The registry still configures one protocol
+    # repair, so the maximum is 2x the forecast rather than the 10x the pre-v6
+    # five-round lane reserved. (That repair attempt is itself no longer
+    # publishable under sota-v5 and has to be re-frozen at zero before the
+    # panel; the estimator prices whatever the registry says.)
+    assert result["calls"]["panel_decisions_per_model"] == 320
+    assert result["protocol_maximum"]["total_calls"] == 2 * result["calls"]["total_calls"]
 
 
 def test_v4_cost_plan_uses_the_frozen_private_seed_count() -> None:
