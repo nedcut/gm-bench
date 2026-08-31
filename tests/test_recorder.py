@@ -10,21 +10,30 @@ Two properties are load-bearing:
 
 from __future__ import annotations
 
+import importlib
 import json
 from pathlib import Path
 
+import pytest
+
 from gm_bench.agents import AGENTS
-from gm_bench.contract import contract_fingerprint
+from gm_bench.contract import contract_fingerprint, scaffold_fingerprint
+from gm_bench.model_runs import ModelRunAborted, preflight_provider
 from gm_bench.protocol import EpisodeConfig
 from gm_bench.recorder import (
+    CANONICAL_FLOAT_DECIMALS,
     DEFAULT_GHOSTS,
     IMMEDIATE_METRICS,
     RECORD_SCHEMA,
     DecisionRecorder,
     _ghost_config,
+    canonical_state,
+    canonical_state_digest,
+    canonicalize_state,
     component_delta,
     probe_observation,
     record_episode,
+    validate_replay_fixture,
 )
 from gm_bench.runner import run_episode
 from gm_bench.scoring import score_components, score_team
@@ -43,6 +52,11 @@ class _SummaryTolerantAgent:
         return self.act(observation), None
 
 
+class _CompactModelAgent(_SummaryTolerantAgent):
+    name = "fake-model"
+    metadata = {"provider": "ollama", "model": "fake-1", "profile": "tiny", "strict_fallback": True}
+
+
 def _record(tmp_path: Path, agent_name: str, *, seed: int = 11, seasons: int = 2, **kwargs: object) -> list[dict]:
     path = tmp_path / "decisions.jsonl"
     with DecisionRecorder(path, agent_name=agent_name, **kwargs) as recorder:  # type: ignore[arg-type]
@@ -50,9 +64,13 @@ def _record(tmp_path: Path, agent_name: str, *, seed: int = 11, seasons: int = 2
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
 
 
-def test_recording_leaves_the_frozen_contract_alone() -> None:
+def test_recording_leaves_the_frozen_contract_alone(tmp_path: Path) -> None:
     """Importing the recorder must not move the byte-exact contract fingerprint."""
-    assert contract_fingerprint() == "247e12fe5a7d4f5b"
+    recorder = DecisionRecorder(tmp_path / "probe.jsonl", agent_name="probe", ghost_agents=None)
+    try:
+        assert recorder.provenance["contract_fingerprint"] == contract_fingerprint()
+    finally:
+        recorder.close()
 
 
 def test_recorded_episode_matches_run_episode() -> None:
@@ -202,3 +220,141 @@ def test_unknown_ghost_is_rejected(tmp_path: Path) -> None:
         assert "not-an-agent" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("expected ValueError for an unknown ghost agent")
+
+
+def test_model_records_compact_view_and_provenance(tmp_path: Path) -> None:
+    path = tmp_path / "model.jsonl"
+    with DecisionRecorder(
+        path, agent_name="fake-model", ghost_agents=["value"], agent_metadata=_CompactModelAgent.metadata
+    ) as recorder:
+        record_episode(_CompactModelAgent(), seed=11, recorder=recorder, seasons=1)
+    first = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+    assert first["agent_metadata"]["profile"] == "tiny"
+    assert first["provenance"]["contract_fingerprint"] == contract_fingerprint()
+    assert first["provenance"]["scaffold_fingerprint"] == scaffold_fingerprint("ollama")
+    assert "seed" not in first["observation"]
+    # The compact profile makes the scripted ghost use the scaffold view too.
+    assert first["ghosts"][0]["interaction_rounds"]
+
+
+def test_replay_fixture_round_trips(tmp_path: Path) -> None:
+    path = tmp_path / "decisions.jsonl"
+    fixture_path = tmp_path / "decisions.replay.json"
+    with DecisionRecorder(path, agent_name="value", ghost_agents=None) as recorder:
+        league = record_episode(AGENTS["value"](), seed=11, recorder=recorder, seasons=1)
+        recorder.export_replay_fixture(fixture_path, league, config=EpisodeConfig())
+    result = validate_replay_fixture(fixture_path)
+    assert result["valid"] is True
+    assert result["decisions"] == 4
+
+
+def test_canonical_state_rounds_float_tails_but_preserves_material_changes() -> None:
+    base = {"nested": {3: 1.2345678901234}, "zero": -0.0}
+    sub_precision = {"nested": {"3": 1.23456789012344}, "zero": 0.0}
+    material = {"nested": {"3": 1.2345678901244}, "zero": 0.0}
+    assert CANONICAL_FLOAT_DECIMALS == 12
+    assert canonical_state_digest(base) == canonical_state_digest(sub_precision)
+    assert canonical_state_digest(base) != canonical_state_digest(material)
+    assert canonicalize_state(base) == {"nested": {"3": 1.234567890123}, "zero": 0.0}
+
+
+def test_replay_fixture_expected_state_is_normalized(tmp_path: Path) -> None:
+    path = tmp_path / "decisions.jsonl"
+    fixture_path = tmp_path / "decisions.replay.json"
+    with DecisionRecorder(path, agent_name="value", ghost_agents=None) as recorder:
+        league = record_episode(AGENTS["value"](), seed=11, recorder=recorder, seasons=1)
+        recorder.export_replay_fixture(fixture_path, league, config=EpisodeConfig())
+    fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+    assert fixture["expected"]["state"] == canonical_state(league)
+    assert fixture["expected"]["state_digest"] == canonical_state_digest(league)
+
+
+def test_canonicalize_state_rejects_non_finite_float() -> None:
+    with pytest.raises(ValueError, match="non-finite"):
+        canonicalize_state({"bad": float("nan")})
+
+
+def test_recording_preflight_requires_credentials_without_completion(monkeypatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with pytest.raises(ModelRunAborted, match="OPENAI_API_KEY"):
+        preflight_provider("openai", require_credentials=True)
+
+
+def test_recording_provider_defaults_to_strict_fallback(tmp_path: Path, monkeypatch) -> None:
+    script = importlib.import_module("scripts.record_decisions")
+    seen: dict[str, object] = {}
+
+    monkeypatch.setattr(script, "preflight_provider", lambda provider, **kwargs: seen.update(kwargs))
+
+    def fake_build(provider: str, **kwargs: object):
+        seen.update(kwargs)
+        return AGENTS["value"]()
+
+    monkeypatch.setattr(script, "build_provider_agent", fake_build)
+    assert (
+        script.main(
+            [
+                "--provider",
+                "openai",
+                "--seeds",
+                "1",
+                "--seasons",
+                "0",
+                "--ghosts",
+                "value",
+                "--output",
+                str(tmp_path),
+            ]
+        )
+        == 0
+    )
+    assert seen["require_credentials"] is True
+    assert seen["strict_fallback"] is True
+
+
+def test_recording_provider_aborts_repeated_failures_outside_builder_input(tmp_path: Path, monkeypatch) -> None:
+    script = importlib.import_module("scripts.record_decisions")
+    output = tmp_path / "records"
+
+    class BrokenProvider(_SummaryTolerantAgent):
+        name = "openai:broken"
+        metadata = {"provider": "openai", "model": "broken", "profile": "compact"}
+
+        def act_with_usage(self, observation: dict) -> tuple[list[dict], None]:
+            return [{"type": "noop", "model_error": "backend unavailable"}], None
+
+    monkeypatch.setattr(script, "preflight_provider", lambda provider, **kwargs: None)
+    monkeypatch.setattr(script, "build_provider_agent", lambda provider, **kwargs: BrokenProvider())
+
+    with pytest.raises(SystemExit) as exc_info:
+        script.main(
+            [
+                "--provider",
+                "openai",
+                "--seeds",
+                "1",
+                "--seasons",
+                "1",
+                "--ghosts",
+                "value",
+                "--output",
+                str(output),
+            ]
+        )
+    assert exc_info.value.code == 2
+    assert not list(output.glob("*.jsonl"))
+    assert list(output.glob("*.partial"))
+
+
+def test_recording_preflight_failure_creates_no_output(tmp_path: Path, monkeypatch) -> None:
+    script = importlib.import_module("scripts.record_decisions")
+    output = tmp_path / "records"
+
+    def fail_preflight(provider: str, **kwargs: object) -> None:
+        raise ModelRunAborted("preflight blocked")
+
+    monkeypatch.setattr(script, "preflight_provider", fail_preflight)
+    with pytest.raises(SystemExit) as exc_info:
+        script.main(["--provider", "openai", "--seeds", "1", "--output", str(output)])
+    assert exc_info.value.code == 2
+    assert not output.exists()

@@ -40,18 +40,30 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import hashlib
 import json
+import math
+import subprocess
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 from gm_bench.agents import AGENTS, Agent
+from gm_bench.contract import contract_fingerprint, scaffold_fingerprint
 from gm_bench.protocol import PHASES, EpisodeConfig
 from gm_bench.runner import _observation_tier_for_agent, run_decision_point
+from gm_bench.scaffold_view import compact_observation, scaffold_view_observation
 from gm_bench.scoring import SCORE_COMPONENT_METRICS, score_components
 from gm_bench.simulator import League
 
 RECORD_SCHEMA = "gm-bench-decision-record-v1"
+REPLAY_SCHEMA = "gm-bench-decision-replay-v1"
+RECORDER_VERSION = "1"
+# JSON number formatting differs subtly between CPython and Pyodide. Replay
+# fixtures intentionally canonicalize finite floats to this precision so a
+# browser replay can attest the same state without pretending to preserve
+# meaningless binary tail bits. Non-finite values remain an error.
+CANONICAL_FLOAT_DECIMALS = 12
 # Ordered best-first. Several ghosts on one state give a puzzle real distractors:
 # every option is a policy that genuinely wanted that move, from the same
 # information, rather than a plausible-looking invention.
@@ -92,6 +104,7 @@ class DecisionRecorder:
         agent_name: str,
         ghost_agents: str | Sequence[str] | None = DEFAULT_GHOSTS,
         include_observation: bool = True,
+        agent_metadata: dict[str, Any] | None = None,
     ) -> None:
         if ghost_agents is None:
             ghosts: tuple[str, ...] = ()
@@ -106,22 +119,77 @@ class DecisionRecorder:
         self.agent_name = agent_name
         self.ghost_agents = ghosts
         self.include_observation = include_observation
+        self.agent_metadata: dict[str, Any] = dict(agent_metadata or {})
+        self.provenance = _provenance()
         self.seed: int | None = None
         self.decision_index = 0
+        self._records: list[dict[str, Any]] = []
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._handle = self.path.open("w", encoding="utf-8")
 
     def start_episode(self, seed: int) -> None:
         self.seed = seed
         self.decision_index = 0
+        self._records = []
 
     def write(self, record: dict[str, Any]) -> None:
         self.decision_index += 1
-        payload = {"schema": RECORD_SCHEMA, "seed": self.seed, "decision_index": self.decision_index, **record}
+        provider = self.agent_metadata.get("provider")
+        if provider and "scaffold_fingerprint" not in self.provenance:
+            self.provenance = _provenance(str(provider))
+        payload = {
+            "schema": RECORD_SCHEMA,
+            "seed": self.seed,
+            "decision_index": self.decision_index,
+            "agent_metadata": self.agent_metadata,
+            "provenance": self.provenance,
+            **record,
+        }
         if not self.include_observation:
             payload.pop("observation", None)
+        self._records.append(copy.deepcopy(payload))
         self._handle.write(json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n")
         self._handle.flush()
+
+    def export_replay_fixture(
+        self,
+        path: str | Path,
+        league: League,
+        *,
+        config: EpisodeConfig,
+        user_team_id: int = 0,
+    ) -> Path:
+        """Write a self-contained, no-provider-call replay fixture."""
+        fixture = {
+            "schema": REPLAY_SCHEMA,
+            "seed": self.seed,
+            "config": dataclasses.asdict(config),
+            "user_team_id": user_team_id,
+            "agent": self.agent_name,
+            "metadata": self.agent_metadata,
+            "provenance": self.provenance,
+            "decisions": [
+                {
+                    "decision_index": record["decision_index"],
+                    "season": record["season"],
+                    "phase": record["phase"],
+                    # Every round is retained when the capture wrapper could
+                    # observe it; old/manual records truthfully fall back to
+                    # the flattened action list as one round.
+                    "interaction_rounds": record.get("interaction_rounds")
+                    or [{"round": 0, "actions": record.get("actions", [])}],
+                }
+                for record in self._records
+            ],
+            "expected": {
+                "state": canonical_state(league),
+                "state_digest": canonical_state_digest(league),
+            },
+        }
+        destination = Path(path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(json.dumps(fixture, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+        return destination
 
     def close(self) -> None:
         if not self._handle.closed:
@@ -179,6 +247,8 @@ def record_episode(
     recorder.start_episode(seed)
     phases = list(PHASES) if episode_config.include_midseason else [phase for phase in PHASES if phase != "midseason"]
     tier = _observation_tier_for_agent(agent, episode_config)
+    profile = _agent_profile(agent)
+    model_subject = bool(getattr(agent, "metadata", {}).get("provider"))
     ghost_config = _ghost_config(episode_config, tier)
 
     for season_index in range(1, seasons + 1):
@@ -191,11 +261,24 @@ def record_episode(
                 league.run_opponent_draft(before_user=True)
 
             before = score_components(league, user_team_id)
-            observation = probe_observation(league, phase, tier)
+            raw_observation = probe_observation(league, phase, tier)
+            observation = compact_observation(raw_observation, profile) if model_subject else raw_observation
             logged = len(league.transactions)
-            ghosts = [_run_ghost(name, league, phase, ghost_config, before, logged) for name in recorder.ghost_agents]
+            ghosts = [
+                _run_ghost(
+                    name,
+                    league,
+                    phase,
+                    ghost_config,
+                    before,
+                    logged,
+                    profile=profile if model_subject else None,
+                )
+                for name in recorder.ghost_agents
+            ]
 
-            point = run_decision_point(league, agent, phase, episode_config)
+            capture = _DecisionCaptureAgent(agent, profile=profile)
+            point = run_decision_point(league, capture, phase, episode_config)
             after = score_components(league, user_team_id)
             recorder.write(
                 {
@@ -204,7 +287,11 @@ def record_episode(
                     "phase": phase,
                     "observation": observation,
                     "actions": _actions_since(league, logged, user_team_id),
+                    "interaction_rounds": capture.rounds,
                     "results": point["results"],
+                    "usage_records": point["usage_records"],
+                    "decision_seconds": point["decision_seconds"],
+                    "harness_latency_ms": point["harness_latency_ms"],
                     "delta": component_delta(before, after),
                     "failed": point["failed"],
                     "illegal_actions_total": league.illegal_actions,
@@ -226,6 +313,8 @@ def _run_ghost(
     config: EpisodeConfig,
     before: dict[str, float],
     logged: int,
+    *,
+    profile: str | None = None,
 ) -> dict[str, Any]:
     """Play one policy's turn on a throwaway copy of this league.
 
@@ -233,16 +322,218 @@ def _run_ghost(
     this is illustrative content, and losing one card beats losing an episode.
     """
     ghost_league = copy.deepcopy(league)
+    ghost_agent: Agent = _ScaffoldGhostAgent(AGENTS[name](), profile) if profile else AGENTS[name]()
+    capture = _DecisionCaptureAgent(ghost_agent, profile=profile)
     try:
-        point = run_decision_point(ghost_league, AGENTS[name](), phase, config)
+        point = run_decision_point(ghost_league, capture, phase, config)
     except Exception as exc:  # noqa: BLE001 - recording must not break a run
         return {"agent": name, "error": f"{type(exc).__name__}: {exc}"}
     return {
         "agent": name,
+        "interaction_rounds": capture.rounds,
         "actions": _actions_since(ghost_league, logged, ghost_league.user_team_id),
         "results": point["results"],
+        "usage_records": point["usage_records"],
+        "failed": point["failed"],
+        "decision_seconds": point["decision_seconds"],
+        "harness_latency_ms": point["harness_latency_ms"],
         "delta": component_delta(before, score_components(ghost_league, ghost_league.user_team_id)),
     }
+
+
+class _DecisionCaptureAgent(Agent):
+    """Delegate an agent while retaining exact per-round calls for fixtures."""
+
+    def __init__(self, wrapped: Agent, *, profile: str) -> None:
+        self.wrapped = wrapped
+        self.name = wrapped.name
+        self.profile = profile
+        self.rounds: list[dict[str, Any]] = []
+        self.metadata = getattr(wrapped, "metadata", {})
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        actions, usage = self.wrapped.act_with_usage(observation)
+        self._capture(observation, actions, usage)
+        return actions
+
+    def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        actions, usage = self.wrapped.act_with_usage(observation)
+        self._capture(observation, actions, usage)
+        return actions, usage
+
+    def _capture(
+        self, observation: dict[str, Any], actions: list[dict[str, Any]], usage: dict[str, Any] | None
+    ) -> None:
+        self.rounds.append(
+            {
+                "round": int(observation.get("interaction_round", len(self.rounds))),
+                "observation": compact_observation(observation, self.profile),
+                "actions": copy.deepcopy(actions),
+                "usage": copy.deepcopy(usage),
+            }
+        )
+
+
+class _ScaffoldGhostAgent(Agent):
+    """Run the requested scripted policy on the model's compact scaffold."""
+
+    def __init__(self, wrapped: Agent, profile: str) -> None:
+        self.wrapped = wrapped
+        self.name = wrapped.name
+        self.profile = profile
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        return self.wrapped.act(scaffold_view_observation(observation, self.profile))
+
+    def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        return self.wrapped.act_with_usage(scaffold_view_observation(observation, self.profile))
+
+
+def _agent_profile(agent: Agent) -> str:
+    metadata = getattr(agent, "metadata", {})
+    profile = metadata.get("profile") if isinstance(metadata, dict) else None
+    return profile if profile in {"tiny", "compact"} else "compact"
+
+
+def _provenance(provider: str | None = None) -> dict[str, Any]:
+    try:
+        checkout = Path(__file__).resolve().parents[1]
+        head = (
+            subprocess.run(
+                ["git", "-C", str(checkout), "rev-parse", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=2,
+            ).stdout.strip()
+            or None
+        )
+    except (OSError, subprocess.SubprocessError):
+        head = None
+    provenance: dict[str, Any] = {
+        "recorder_version": RECORDER_VERSION,
+        "contract_fingerprint": contract_fingerprint(),
+        "git_head": head,
+    }
+    if provider:
+        provenance["scaffold_fingerprint"] = scaffold_fingerprint(provider)
+    return provenance
+
+
+def canonicalize_state(value: Any) -> Any:
+    """Normalize JSON-shaped state for cross-runtime replay comparison."""
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError("non-finite replay state value is not allowed")
+        rounded = round(value, CANONICAL_FLOAT_DECIMALS)
+        return 0.0 if rounded == 0.0 else rounded
+    if isinstance(value, dict):
+        return {str(key): canonicalize_state(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [canonicalize_state(item) for item in value]
+    return value
+
+
+def canonical_state(league: League) -> dict[str, Any]:
+    """Return the normalized full simulator state used by replay fixtures."""
+    payload = dataclasses.asdict(league)
+    payload.pop("_action_results", None)
+    normalized = canonicalize_state(payload)
+    assert isinstance(normalized, dict)
+    return normalized
+
+
+def _canonical_state(league: League) -> dict[str, Any]:
+    """Backward-compatible private alias for callers of the initial API."""
+    return canonical_state(league)
+
+
+def canonical_state_digest(league: League | dict[str, Any]) -> str:
+    state = canonical_state(league) if isinstance(league, League) else canonicalize_state(league)
+    encoded = json.dumps(state, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+class _ReplayAgent(Agent):
+    name = "replay"
+
+    def __init__(self, rounds: list[dict[str, Any]]) -> None:
+        self.rounds = rounds
+        self.index = 0
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        if self.index >= len(self.rounds):
+            raise ValueError("replay fixture ran out of interaction rounds")
+        actions = self.rounds[self.index].get("actions")
+        self.index += 1
+        if not isinstance(actions, list):
+            raise ValueError("replay interaction round actions must be a list")
+        return copy.deepcopy(actions)
+
+
+def replay_fixture(fixture: dict[str, Any]) -> League:
+    """Replay a fixture's recorded subject actions without any provider calls."""
+    if fixture.get("schema") != REPLAY_SCHEMA:
+        raise ValueError(f"unsupported replay schema: {fixture.get('schema')!r}")
+    seed = fixture.get("seed")
+    if not isinstance(seed, int) or isinstance(seed, bool):
+        raise ValueError("replay fixture seed must be an integer")
+    raw_config = fixture.get("config") or {}
+    if not isinstance(raw_config, dict):
+        raise ValueError("replay fixture config must be an object")
+    allowed = {field.name for field in dataclasses.fields(EpisodeConfig)}
+    config = EpisodeConfig(**{key: value for key, value in raw_config.items() if key in allowed})
+    user_team_id = int(fixture.get("user_team_id", 0))
+    decisions = fixture.get("decisions")
+    if not isinstance(decisions, list):
+        raise ValueError("replay fixture decisions must be a list")
+    league = League.new(seed=seed, user_team_id=user_team_id)
+    phases = list(PHASES) if config.include_midseason else [phase for phase in PHASES if phase != "midseason"]
+    expected_windows = len(phases) * max(0, len(decisions) // len(phases)) if phases else 0
+    if len(decisions) != expected_windows or len(decisions) % len(phases) != 0:
+        raise ValueError("replay fixture does not contain complete season phase windows")
+    cursor = 0
+    seasons = len(decisions) // len(phases)
+    for season_index in range(1, seasons + 1):
+        for phase in phases:
+            if phase == "midseason":
+                league.prepare_midseason()
+            if phase == "trade_deadline":
+                league.prepare_trade_deadline()
+            if phase == "draft":
+                league.run_opponent_draft(before_user=True)
+            record = decisions[cursor]
+            cursor += 1
+            if record.get("season") != season_index or record.get("phase") != phase:
+                raise ValueError(f"replay fixture decision {cursor} is out of phase order")
+            rounds = record.get("interaction_rounds") or [{"round": 0, "actions": record.get("actions", [])}]
+            agent = _ReplayAgent(rounds)
+            run_decision_point(league, agent, phase, config)
+            if agent.index != len(rounds):
+                raise ValueError(f"replay fixture contains unused rounds at decision {cursor}")
+            if phase == "draft":
+                league.run_opponent_draft(before_user=False)
+            league.run_autopilot_opponents(phase)
+        league.simulate_season()
+    return league
+
+
+def validate_replay_fixture(source: str | Path | dict[str, Any]) -> dict[str, Any]:
+    """Replay and verify a fixture, returning a small validation summary."""
+    if isinstance(source, (str, Path)):
+        payload = json.loads(Path(source).read_text(encoding="utf-8"))
+    else:
+        payload = source
+    if not isinstance(payload, dict):
+        raise ValueError("replay fixture must be a JSON object")
+    expected = payload.get("expected")
+    if not isinstance(expected, dict) or not isinstance(expected.get("state_digest"), str):
+        raise ValueError("replay fixture expected.state_digest is required")
+    league = replay_fixture(payload)
+    digest = canonical_state_digest(league)
+    if digest != expected["state_digest"]:
+        raise ValueError(f"replay final-state digest mismatch: expected {expected['state_digest']}, got {digest}")
+    return {"valid": True, "schema": REPLAY_SCHEMA, "state_digest": digest, "decisions": len(payload["decisions"])}
 
 
 def _actions_since(league: League, logged: int, team_id: int) -> list[dict[str, Any]]:

@@ -20,6 +20,7 @@ contract fingerprint, and must never be cited as evidence about any policy.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from collections import Counter
@@ -60,6 +61,19 @@ PHASE_LABELS = {
     "draft": "Draft",
 }
 
+# These are presentation mechanics, not simulator mechanics.  A card gets the
+# highest-priority mechanic present in any candidate move, which makes the
+# selection rule legible and keeps a run of free-agent cards from crowding every
+# other kind of decision out of the little illustrative deck.
+MECHANICS = ("trade", "draft", "free_agency", "contracts", "roster")
+ACTION_MECHANICS = {
+    "trade": frozenset({"trade", "accept_trade_offer", "reject_trade_offer", "counter_trade_offer"}),
+    "draft": frozenset({"draft"}),
+    "free_agency": frozenset({"sign_free_agent", "claim_waiver"}),
+    "contracts": frozenset({"extend_contract"}),
+    "roster": frozenset({"release"}),
+}
+
 
 # --------------------------------------------------------------------------
 # grading
@@ -77,24 +91,23 @@ def puzzle_worthiness(subject_delta: dict[str, float], option_deltas: list[dict[
     THIS IS THE TUNING KNOB. It decides which decisions become puzzles, and it
     is a judgment call rather than a fact about the simulator.
 
-    The current rule is "how much did the subject leave on the table": the gap
-    in immediate score between the best available option and the one the subject
-    took. That surfaces the decisions which actually explain a policy's deficit,
-    which is what the cards are meant to illustrate.
+    The current rule is the absolute gap in immediate score between the best
+    available alternative and the one the subject took. That keeps both kinds
+    of interesting decision: a subject can have left value on the table, or
+    can have found a move that beat every ghost. ``build_card`` reports the
+    signed margin separately and only calls a negative margin "points left on
+    the table".
 
-    Two deliberate choices worth revisiting:
+    One deliberate choice worth revisiting:
 
-    * Signed, not absolute. A decision where the subject beat every ghost scores
-      0.0 and is dropped. Those exist and can be interesting, but they make a
-      confusing card -- the "right" answer is then the one nobody recommends.
-    * Ungated by mechanic. Cap-room arithmetic can dominate, because ``cap_room``
-      is clamped to a +/-12 band while ``total_assets`` is not. If cards start
-      looking repetitive, weight by mechanic here rather than filtering later.
+    * The grade is presentation-only. It is not a claim about the simulator's
+      long-run result, and phase is retained in this signature for callers that
+      have historically passed it.
     """
     if not option_deltas:
         return 0.0
     best = max(option_score(delta) for delta in option_deltas)
-    return max(0.0, best - option_score(subject_delta))
+    return abs(best - option_score(subject_delta))
 
 
 # --------------------------------------------------------------------------
@@ -114,15 +127,63 @@ def option_key(actions: Iterable[dict[str, Any]]) -> str:
     )
 
 
+def stable_option_order(options: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
+    """Return a deterministic permutation of options for presentation.
+
+    Python's hash is intentionally process-randomised, so it cannot be used to
+    shuffle cards reproducibly.  Hashing the canonical choice identity gives
+    the same order on every machine while still varying the subject's position
+    when the card/state or its choices differ.
+    """
+
+    def sort_key(option: dict[str, Any]) -> bytes:
+        identity = option_key(option["actions"])
+        return hashlib.sha256(f"{key}\0{identity}".encode("utf-8")).digest()
+
+    return sorted(options, key=sort_key)
+
+
+def observation_state_key(observation: dict[str, Any]) -> str:
+    """Identify the actual observation rather than its nominal seed window.
+
+    Agents on the same seed diverge after their first move. Seed, season, and
+    phase therefore do not prove that two later cards describe the same state.
+    The recorder payload is already JSON-shaped, so hashing its canonical JSON
+    keeps true duplicates together without collapsing different trajectories.
+    """
+    encoded = json.dumps(observation, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def classify_mechanic(actions: Iterable[dict[str, Any]]) -> str:
+    """Classify a substantive choice for the illustrative deck."""
+    types = {action.get("type") for action in substantive(actions)}
+    for mechanic in MECHANICS:
+        if types & ACTION_MECHANICS[mechanic]:
+            return mechanic
+    # A substantive action unknown to this presentation taxonomy is still a
+    # roster decision rather than a reason to discard an otherwise useful card.
+    return "roster"
+
+
 # --------------------------------------------------------------------------
 # rendering
 # --------------------------------------------------------------------------
 
 
+def _team_roster(observation: dict[str, Any]) -> list[dict[str, Any]]:
+    """Read either the full recorder roster or the compact model view."""
+    team = observation.get("team", {}) or {}
+    roster = team.get("roster")
+    if roster is None:
+        roster = team.get("top_roster")
+    return roster if isinstance(roster, list) else []
+
+
 def player_index(observation: dict[str, Any]) -> dict[int, dict[str, Any]]:
     """Every player the observation names, by id."""
     index: dict[int, dict[str, Any]] = {}
-    for player in observation.get("team", {}).get("roster", []):
+    for player in _team_roster(observation):
         index[player["id"]] = player
     for bucket in ("free_agents", "waiver_wire", "draft_class"):
         for player in observation.get(bucket, []) or []:
@@ -199,7 +260,25 @@ def describe_action(action: dict[str, Any], players: dict[int, dict[str, Any]], 
 
 def describe_option(actions: list[dict[str, Any]], players: dict, teams: dict) -> list[str]:
     lines = [describe_action(action, players, teams) for action in substantive(actions)]
-    return lines or ["Stand pat - make no roster move this window"]
+    if not lines:
+        return ["Stand pat - make no roster move this window"]
+
+    counts = Counter(lines)
+    rendered = []
+    for line in dict.fromkeys(lines):
+        count = counts[line]
+        if count == 1:
+            rendered.append(line)
+        elif line in {
+            "Accept the incoming trade offer",
+            "Reject the incoming trade offer",
+            "Counter the incoming trade offer",
+        }:
+            verb = line.split(" ", 1)[0]
+            rendered.append(f"{verb} {count} incoming trade offers")
+        else:
+            rendered.append(f"{line} ({count} times)")
+    return rendered
 
 
 def situation(observation: dict[str, Any]) -> dict[str, Any]:
@@ -211,7 +290,7 @@ def situation(observation: dict[str, Any]) -> dict[str, Any]:
         "record": f"{team.get('wins', 0)}-{team.get('losses', 0)}",
         "cap_room": round(team.get("cap_room", 0.0), 2),
         "payroll": round(team.get("payroll", 0.0), 2),
-        "roster_size": len(team.get("roster", [])),
+        "roster_size": len(_team_roster(observation)),
         "championships": team.get("championships", 0),
         "free_agents_available": len(observation.get("free_agents", []) or []),
         "offers_on_the_table": len(observation.get("incoming_offers", []) or []),
@@ -283,7 +362,7 @@ def gate(record: dict[str, Any], observation: dict[str, Any], options: list[dict
     """
     if record["agent"] in EXCLUDED_SUBJECTS:
         return "excluded subject"
-    if len(observation.get("team", {}).get("roster", [])) < MIN_ROSTER_FOR_A_CARD:
+    if len(_team_roster(observation)) < MIN_ROSTER_FOR_A_CARD:
         return "roster has collapsed"
     if any(len(substantive(option["actions"])) > MAX_ACTIONS_PER_OPTION for option in options):
         return "an option is too long to read"
@@ -329,6 +408,12 @@ def build_card(record: dict[str, Any], *, rejections: Counter[str] | None = None
         return None
 
     others = [option["delta"] for option in options if not option["subject"]]
+    # The subject margin is signed so the UI and any downstream reader can
+    # distinguish a subject win from a subject miss.  Worthiness is absolute,
+    # but "points left" is never allowed to become positive for a win.
+    subject_score = option_score(subject["delta"])
+    best_other_score = max(option_score(delta) for delta in others)
+    subject_margin = subject_score - best_other_score
     worth = puzzle_worthiness(subject["delta"], others, record["phase"])
     if worth <= 0.0:
         return None
@@ -336,9 +421,13 @@ def build_card(record: dict[str, Any], *, rejections: Counter[str] | None = None
     players = player_index(observation)
     teams = team_index(observation)
     best = max(options, key=lambda option: option_score(option["delta"]))
+    ordered_options = stable_option_order(
+        options,
+        f"s{record['seed']}-y{record['season']}-{record['phase']}-{record['agent']}",
+    )
 
     rendered = []
-    for index, option in enumerate(options):
+    for index, option in enumerate(ordered_options):
         rendered.append(
             {
                 "id": chr(ord("a") + index),
@@ -349,22 +438,26 @@ def build_card(record: dict[str, Any], *, rejections: Counter[str] | None = None
                 "delta": {name: round(option["delta"].get(name, 0.0), 2) for name in IMMEDIATE_METRICS},
             }
         )
-    answer = rendered[options.index(best)]["id"]
+    answer = rendered[ordered_options.index(best)]["id"]
+    subject_option = rendered[ordered_options.index(subject)]["id"]
+    outcome = "subject_won" if subject_margin > 0 else "subject_missed"
 
     return {
         "id": f"{record['agent']}-s{record['seed']}-y{record['season']}-{record['phase']}",
-        # Options come from the league state, not from the subject, so the same
-        # window recorded under five subjects yields five near-identical cards.
-        "state_key": f"s{record['seed']}-y{record['season']}-{record['phase']}",
+        "state_key": observation_state_key(observation),
         "seed": record["seed"],
         "season": record["season"],
         "phase": record["phase"],
         "subject": record["agent"],
+        "mechanic": classify_mechanic(action for option in options for action in option["actions"]),
         "worthiness": round(worth, 2),
+        "subject_margin": round(subject_margin, 2),
+        "outcome": outcome,
         "situation": situation(observation),
-        "options": sorted(rendered, key=lambda option: option["id"]),
+        "options": rendered,
         "answer": answer,
-        "points_left_on_the_table": round(worth, 1),
+        "subject_option": subject_option,
+        "points_left_on_the_table": round(max(0.0, -subject_margin), 1),
     }
 
 
@@ -384,22 +477,13 @@ def main(argv: list[str] | None = None) -> int:
     records = [json.loads(line) for path in paths for line in path.read_text(encoding="utf-8").splitlines()]
     rejections: Counter[str] = Counter()
     cards = [card for card in (build_card(record, rejections=rejections) for record in records) if card]
-    cards.sort(key=lambda card: card["worthiness"], reverse=True)
+    cards.sort(key=lambda card: (-card["worthiness"], card["id"]))
     cards = _dedupe_by_state(cards, rejections)
 
     if args.stats:
         return _print_stats(records, cards, rejections)
 
-    if args.per_phase:
-        kept: list[dict[str, Any]] = []
-        seen: Counter[str] = Counter()
-        for card in cards:
-            if seen[card["phase"]] >= args.per_phase:
-                continue
-            seen[card["phase"]] += 1
-            kept.append(card)
-        cards = kept
-    cards = cards[: args.limit]
+    cards = _select_balanced(cards, args.limit, per_phase=args.per_phase)
 
     payload = {
         "schema": PUZZLE_SCHEMA,
@@ -418,10 +502,11 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _dedupe_by_state(cards: list[dict[str, Any]], rejections: Counter[str]) -> list[dict[str, Any]]:
-    """Keep the sharpest card per league state.
+    """Keep the sharpest contrast per league state.
 
-    Expects ``cards`` pre-sorted by worthiness, so the survivor is the subject
-    that left the most on the table in that window.
+    Expects ``cards`` pre-sorted by worthiness, so the survivor has the largest
+    subject-versus-alternative contrast in that window, whether the subject
+    won or lost.
     """
     seen: set[str] = set()
     kept = []
@@ -432,6 +517,48 @@ def _dedupe_by_state(cards: list[dict[str, Any]], rejections: Counter[str]) -> l
         seen.add(card["state_key"])
         kept.append(card)
     return kept
+
+
+def _select_balanced(cards: list[dict[str, Any]], limit: int, *, per_phase: int = 0) -> list[dict[str, Any]]:
+    """Select a reproducible, mechanic-balanced illustrative deck.
+
+    Cards are taken round-robin across mechanics, with each mechanic's cards
+    already ordered by worthiness.  Thus a full 24-card deck has five cards in
+    four mechanics and four in the fifth when all five have enough candidates;
+    sparse mechanics simply yield their available cards and the remaining
+    slots are filled from the other groups.  ``per_phase`` remains the old
+    optional hard cap and is applied while selecting, not after the balance
+    pass, so it cannot accidentally starve a mechanic.
+    """
+    if limit <= 0:
+        return []
+    groups: dict[str, list[dict[str, Any]]] = {mechanic: [] for mechanic in MECHANICS}
+    for card in cards:
+        groups.setdefault(card.get("mechanic", "roster"), []).append(card)
+    for group in groups.values():
+        group.sort(key=lambda card: (-card["worthiness"], card["id"]))
+
+    selected: list[dict[str, Any]] = []
+    positions = {mechanic: 0 for mechanic in groups}
+    phase_counts: Counter[str] = Counter()
+    while len(selected) < limit:
+        made_progress = False
+        for mechanic in MECHANICS:
+            group = groups.get(mechanic, [])
+            while positions[mechanic] < len(group):
+                card = group[positions[mechanic]]
+                positions[mechanic] += 1
+                if per_phase and phase_counts[card["phase"]] >= per_phase:
+                    continue
+                selected.append(card)
+                phase_counts[card["phase"]] += 1
+                made_progress = True
+                break
+            if len(selected) >= limit:
+                break
+        if not made_progress:
+            break
+    return selected
 
 
 def _print_stats(records: list[dict[str, Any]], cards: list[dict[str, Any]], rejections: Counter[str]) -> int:
