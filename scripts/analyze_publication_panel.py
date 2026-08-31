@@ -56,6 +56,11 @@ V5_ANALYSIS_AUTHORIZATION_LOCK = (
 )
 BOOTSTRAP_SEED = 20260716
 BOOTSTRAP_ITERATIONS = 10_000
+# docs/scoring_calibration.md: the v6 panel's 30-point minimum detectable
+# difference holds only for rows whose own run-to-run score spread is at or
+# below about 25 points. A noisier row still publishes its score; what it
+# cannot support is a claim that it is separated from another row.
+WITHIN_SEED_SEPARATION_THRESHOLD = 25.0
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -389,6 +394,66 @@ def _registered_lane_issues(
     return issues
 
 
+def _candidate_within_seed_stddev(payload: Mapping[str, Any]) -> float | None:
+    """Read the row's own run-to-run score spread, or None when unreported."""
+    value = ((payload.get("candidate") or {}).get("summary") or {}).get("within_seed_score_stddev")
+    if not isinstance(value, int | float) or isinstance(value, bool) or not math.isfinite(float(value)):
+        return None
+    return float(value)
+
+
+def within_seed_separation_caveats(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    threshold: float = WITHIN_SEED_SEPARATION_THRESHOLD,
+) -> dict[str, Any]:
+    """Report which rows are too noisy to support a separation claim.
+
+    The panel's minimum detectable difference is a statement about rows whose
+    within-seed repeat noise is near the value the power analysis assumed. A row
+    that is noisier than the threshold is not wrong and is not withheld: its
+    score, its lift, and its reference contrast all publish exactly as before.
+    What the panel cannot say is that such a row is *separated* from another
+    one, so every pair containing it is listed here as unclaimable.
+
+    A row that never reports the statistic is treated as unknown rather than
+    quiet: it is listed too, because an unmeasured spread cannot clear a bound.
+    """
+    noisy: list[dict[str, Any]] = []
+    unknown: list[str] = []
+    for row in rows:
+        model_id = str(row["model_id"])
+        stddev = row.get("within_seed_score_stddev")
+        if stddev is None:
+            unknown.append(model_id)
+        elif float(stddev) > threshold:
+            noisy.append({"model_id": model_id, "within_seed_score_stddev": float(stddev)})
+    blocked = {entry["model_id"] for entry in noisy} | set(unknown)
+    model_ids = sorted(str(row["model_id"]) for row in rows)
+    unclaimable = [
+        [left, right]
+        for index, left in enumerate(model_ids)
+        for right in model_ids[index + 1 :]
+        if left in blocked or right in blocked
+    ]
+    return {
+        "statistic": "within_seed_score_stddev",
+        "threshold": threshold,
+        "basis": (
+            "docs/scoring_calibration.md: the 30-point minimum detectable difference at 29 paired seeds holds for "
+            "rows whose within-seed score standard deviation is at or below about 25."
+        ),
+        "rule": (
+            "Reported caveat, not a row rejection. A row above the threshold publishes its score and its "
+            "reference contrast; no separation claim is supported for any pair that includes it."
+        ),
+        "models_exceeding_threshold": sorted(noisy, key=lambda entry: str(entry["model_id"])),
+        "models_missing_the_statistic": sorted(unknown),
+        "unclaimable_separation_pairs": unclaimable,
+        "separation_claims_supported": not blocked,
+    }
+
+
 def analyze(
     registry: Mapping[str, Any],
     payloads: Sequence[Mapping[str, Any]],
@@ -535,6 +600,7 @@ def analyze(
                 "bootstrap_ci95": [round(ci_low, 6), round(ci_high, 6)],
                 "sign_flip_p_value": sign_flip_p_value(lifts),
                 "seed_win_rate": round(sum(lift > 0.0 for lift in lifts) / len(lifts), 6),
+                "within_seed_score_stddev": _candidate_within_seed_stddev(payload),
                 "artifact_sha256": artifact_sha256,
                 "raw_artifact_sha256": raw_artifact_sha256 or artifact_sha256,
             }
@@ -564,11 +630,29 @@ def analyze(
         }
         for row in rows
     ]
+    separation_threshold = WITHIN_SEED_SEPARATION_THRESHOLD
+    plan = protocol.get("statistical_analysis_plan") if isinstance(protocol, Mapping) else None
+    caveat_config = plan.get("within_seed_noise_caveat") if isinstance(plan, Mapping) else None
+    if isinstance(caveat_config, Mapping):
+        configured = caveat_config.get("threshold")
+        if isinstance(configured, int | float) and not isinstance(configured, bool) and float(configured) > 0:
+            separation_threshold = float(configured)
+    within_seed_noise = within_seed_separation_caveats(rows, threshold=separation_threshold)
+
     # Frozen sota-v2 publication behavior includes connected-interval tiers.
     # Strict plans predeclare only model-vs-pick-trader contrasts; assigning
     # model tiers there would imply unsupported pairwise inference.
+    tiering: dict[str, Any] | None = None
     if contract == "sota-v2":
         rows = assign_tiers(rows)
+        # Tiers are the one place this analyzer does claim two models are
+        # apart, so the caveat has to travel with them.
+        tiering = {
+            "status": "supported-with-within-seed-caveat"
+            if within_seed_noise["separation_claims_supported"] is False
+            else "supported",
+            "within_seed_noise_caveat": within_seed_noise,
+        }
     output_rows = rows
     if contract in STRICT_REFERENCE_CONTRACTS:
         # Private-panel seed identifiers and per-seed scores remain available in
@@ -606,10 +690,13 @@ def analyze(
             else "descriptive; exact under the symmetry assumption"
         ),
         "config_errors": config_errors,
+        "within_seed_noise": within_seed_noise,
         "missing_models": missing,
         "rejected_artifacts": rejected,
         "models": output_rows,
     }
+    if tiering is not None:
+        result["model_tiering"] = tiering
     if contract in STRICT_REFERENCE_CONTRACTS:
         result["analysis_mode"] = "reference-only"
         result["redaction"] = {

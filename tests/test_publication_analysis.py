@@ -19,6 +19,7 @@ from scripts.analyze_publication_panel import (
     holm_adjust,
     per_seed_pick_trader_lifts,
     sign_flip_p_value,
+    within_seed_separation_caveats,
 )
 
 
@@ -598,3 +599,91 @@ def test_analysis_rejects_invalid_raw_artifact_hash(monkeypatch: pytest.MonkeyPa
 
     assert result["status"] == "no-eligible-artifacts"
     assert any("raw_artifact_sha256" in reason for reason in result["rejected_artifacts"][0]["reasons"])
+
+
+def _noise_rows(*pairs: tuple[str, float | None]) -> list[dict]:
+    return [{"model_id": model_id, "within_seed_score_stddev": stddev} for model_id, stddev in pairs]
+
+
+def test_quiet_rows_support_separation_claims() -> None:
+    caveat = within_seed_separation_caveats(_noise_rows(("a", 12.0), ("b", 25.0), ("c", 0.0)))
+
+    assert caveat["separation_claims_supported"] is True
+    assert caveat["models_exceeding_threshold"] == []
+    assert caveat["unclaimable_separation_pairs"] == []
+    assert caveat["threshold"] == 25.0
+
+
+def test_a_noisy_row_blocks_only_the_pairs_it_is_in() -> None:
+    caveat = within_seed_separation_caveats(_noise_rows(("a", 12.0), ("b", 41.5), ("c", 3.0)))
+
+    assert caveat["separation_claims_supported"] is False
+    assert caveat["models_exceeding_threshold"] == [{"model_id": "b", "within_seed_score_stddev": 41.5}]
+    # Every pair containing b is unclaimable; a-versus-c is untouched.
+    assert caveat["unclaimable_separation_pairs"] == [["a", "b"], ["b", "c"]]
+
+
+def test_an_unmeasured_spread_cannot_clear_the_bound() -> None:
+    caveat = within_seed_separation_caveats(_noise_rows(("a", 5.0), ("b", None)))
+
+    assert caveat["models_missing_the_statistic"] == ["b"]
+    assert caveat["unclaimable_separation_pairs"] == [["a", "b"]]
+    assert caveat["separation_claims_supported"] is False
+
+
+def test_the_threshold_follows_the_frozen_analysis_plan() -> None:
+    rows = _noise_rows(("a", 30.0))
+
+    assert within_seed_separation_caveats(rows, threshold=40.0)["models_exceeding_threshold"] == []
+    assert within_seed_separation_caveats(rows, threshold=20.0)["models_exceeding_threshold"] == [
+        {"model_id": "a", "within_seed_score_stddev": 30.0}
+    ]
+
+
+def test_analysis_publishes_a_noisy_row_and_caveats_its_tier(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A noisy row is a reported caveat, never a withheld row."""
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    payload = _registered_payload(seed_count=6)
+    payload["candidate"]["summary"]["within_seed_score_stddev"] = 56.7
+
+    result = analyze(_frozen_registry(), [payload])
+
+    assert result["status"] == "complete"
+    assert result["eligible_model_count"] == 1
+    assert result["models"][0]["within_seed_score_stddev"] == 56.7
+    assert result["models"][0]["tier"] == 1
+    noise = result["within_seed_noise"]
+    assert noise["separation_claims_supported"] is False
+    assert noise["models_exceeding_threshold"] == [{"model_id": "demo", "within_seed_score_stddev": 56.7}]
+    # The tiers are the only separation claim this analyzer makes, so the
+    # caveat has to travel with them.
+    assert result["model_tiering"]["status"] == "supported-with-within-seed-caveat"
+    assert result["model_tiering"]["within_seed_noise_caveat"] is noise
+
+
+def test_analysis_reports_a_quiet_panel_as_separable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    payload = _registered_payload(seed_count=6)
+    payload["candidate"]["summary"]["within_seed_score_stddev"] = 4.2
+
+    result = analyze(_frozen_registry(), [payload])
+
+    assert result["within_seed_noise"]["separation_claims_supported"] is True
+    assert result["model_tiering"]["status"] == "supported"
+
+
+def test_the_v5_analysis_plan_carries_the_within_seed_threshold() -> None:
+    protocol = json.loads((Path("config") / "sota_v5_publication_protocol.json").read_text())
+    caveat = protocol["statistical_analysis_plan"]["within_seed_noise_caveat"]
+
+    assert caveat["statistic"] == "within_seed_score_stddev"
+    assert caveat["threshold"] == publication_analysis.WITHIN_SEED_SEPARATION_THRESHOLD == 25.0
+    assert "within_seed_score_stddev" in protocol["statistical_analysis_plan"]["required_outputs"]

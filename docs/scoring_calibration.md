@@ -421,6 +421,18 @@ seeds even though the simulator does. That is a reporting obligation, not a
 blocker: record each row's `within_seed_score_stddev` and do not claim
 separation for a pair whose noisiest member exceeds the band.
 
+`scripts/analyze_publication_panel.py` enforces that obligation rather than
+leaving it to prose. Every eligible row carries its own
+`within_seed_score_stddev`, and the analysis output carries a
+`within_seed_noise` block naming the rows above the threshold, the model pairs
+whose separation is therefore unclaimable, and — where the analyzer does assign
+tiers — the same caveat attached to `model_tiering`. A row that never reports
+the statistic counts as unclaimable too: an unmeasured spread cannot clear a
+bound. The threshold defaults to 25 and is read from the frozen analysis plan's
+`statistical_analysis_plan.within_seed_noise_caveat.threshold` when one is
+committed. Nothing here withholds a row: a noisy model publishes its score and
+its reference contrast exactly as a quiet one does.
+
 Two quantities are easy to confuse and are not the same thing:
 
 - **Canary margins** (`gm_bench/validity.py`, run by `validate-contract`) are
