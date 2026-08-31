@@ -30,10 +30,10 @@ const MAX_CONTEXT_CARDS = 2;
  * Anchor puzzle cards to the decision on screen.
  *
  * Exact anchoring (same seed, season and phase) is preferred, but the committed
- * fixture is one season of seed 1 and the puzzle deck was built from other
- * seeds, so in practice the match is by phase. Cards therefore carry their own
- * seed and season in their header and are labelled as coming from another
- * recorded episode when they do.
+ * fixture is seed 1 and the puzzle deck was built from other seeds, so in
+ * practice the match is by phase. Cards therefore carry their own seed and
+ * season in their header and are labelled as coming from another recorded
+ * episode when they do.
  */
 function contextPuzzles(
   puzzles: Puzzle[],
