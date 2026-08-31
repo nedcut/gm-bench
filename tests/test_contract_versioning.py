@@ -79,8 +79,10 @@ def test_current_and_historical_sota_policies_are_distinct() -> None:
     # conditions: a 4,096-token output ceiling, reasoning off where the route
     # allows it, and no paid retry. Moved again from 94216f23c31fff74 when the
     # rendered pick_holdings column and team.draft_picks stopped publishing
-    # seasons already drafted in.
-    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "c85f76ad90723418"
+    # seasons already drafted in, and again from c85f76ad90723418 when the
+    # roster column header stopped labelling the four extension quotes as a
+    # five-term 1y..5y table.
+    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "a830a2b5d8eac49d"
 
 
 def test_archived_v1_result_remains_auditable_but_not_v2_eligible() -> None:

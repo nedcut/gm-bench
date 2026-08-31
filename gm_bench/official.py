@@ -184,19 +184,21 @@ SOTA_V5_POLICY = ResultPolicy(
     # execution rules: a 4,096-token output ceiling, reasoning disabled where
     # the route allows it, and no paid retry. Moved once more (from anthropic
     # cb8cca527bcd62ac and its eight siblings) when the rendered pick_holdings
-    # column and team.draft_picks dropped seasons already drafted in. Prompt
-    # text and call conditions changed, so no earlier row is comparable to a
-    # later one.
+    # column and team.draft_picks dropped seasons already drafted in, and again
+    # (from anthropic 8836cdb8343a6627 and its eight siblings) when the roster
+    # column header stopped labelling the four extension quotes as a five-term
+    # 1y..5y table. Prompt text and call conditions changed, so no earlier row
+    # is comparable to a later one.
     expected_scaffold_fingerprints={
-        "anthropic": "8836cdb8343a6627",
-        "claude": "ee3be467c4909091",
-        "codex": "a38a0deb3f8b3b18",
-        "cursor": "4ea1f56fda01ce2b",
-        "gemini": "df244fc0c6fb97d8",
-        "ollama": "d7493365dab559f3",
-        "openai": "f0f323e3894cff29",
-        "opencode": "321f276169aa2349",
-        "openrouter": "c85f76ad90723418",
+        "anthropic": "114bfcf2b845a1ff",
+        "claude": "bd4c087d865e4986",
+        "codex": "f68b5f1ba2c60118",
+        "cursor": "82b5ed85aea94483",
+        "gemini": "5b118c72ed3f14ae",
+        "ollama": "771594e5db4605a3",
+        "openai": "a8665e929481ba19",
+        "opencode": "21f822e455de8f89",
+        "openrouter": "a830a2b5d8eac49d",
     },
     max_failed_query_rate=1.0,
 )

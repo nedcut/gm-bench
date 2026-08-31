@@ -86,8 +86,10 @@ SOTA_V5_CONTRACT = {
     # malformed output with a structured no-op when intent is ambiguous; moved
     # from 3167d95f860770c5 when the rendered pick_holdings column and
     # team.draft_picks stopped publishing seasons already drafted in, which had
-    # made every team that had ever used a pick read as having traded it away.
-    "contract_fingerprint": "bcfe0ce8c23ddc85",
+    # made every team that had ever used a pick read as having traded it away;
+    # moved from bcfe0ce8c23ddc85 when the roster column header stopped
+    # labelling the four extension quotes as a five-term 1y..5y table.
+    "contract_fingerprint": "5db845650f34d4db",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
 # Pinned with the release identity so the site headroom strip cannot drift when

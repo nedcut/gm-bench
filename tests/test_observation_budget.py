@@ -237,9 +237,18 @@ def test_expiring_contracts_publish_quotes_and_the_expiry_risk() -> None:
         league.players[player_id].contract_years = 1
     rendered = _rendered(league, "preseason")
     extension_quotes = [row.rsplit("|", maxsplit=1)[-1] for row in rendered["team"]["roster"]]
-    assert any("/" in quotes for quotes in extension_quotes), "no incumbent published extension_quotes"
+    published = [quotes for quotes in extension_quotes if "/" in quotes]
+    assert published, "no incumbent published extension_quotes"
     assert "expires to free agency" in rendered["rules"]["contracts"]
-    assert "extension_quotes" in rendered["team"]["roster_columns"]
+
+    # The header has to name the first term, because the series cannot: an
+    # extension runs 2-5 years, so there are four prices and the first is the
+    # two-year one. A "1y..5y" label would have a model price a two-year deal
+    # off the three-year quote and never find the five-year one.
+    assert "extension_quotes(2y..5y" in rendered["team"]["roster_columns"]
+    assert all(len(quotes.split("/")) == 4 for quotes in published)
+    player = league.players[league.user_team.roster[0]]
+    assert sorted(int(term) for term in league._contract_quotes(player, incumbent=True)) == [2, 3, 4, 5]
 
 
 def test_a_released_player_is_rendered_as_blocked_from_re_signing() -> None:

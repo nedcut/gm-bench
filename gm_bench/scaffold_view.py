@@ -44,7 +44,10 @@ _ACTION_RESULT_ROW_BUDGET = 14
 # Characters of a single action argument echoed back beside its result.
 _ARGUMENT_ECHO_CHARS = 80
 
-_ROSTER_COLUMNS = "id|name|pos|age|overall|potential|salary|contract_years|injury_risk%|release_dead_cap(per season x seasons=total)|extension_quotes(1y..5y)"
+# An extension runs 2-5 years (`League._contract_quotes` starts incumbents at
+# year 2), so the series carries four prices, not five. Labelling it "1y..5y"
+# made the first price read as a one-year quote and hid the five-year one.
+_ROSTER_COLUMNS = "id|name|pos|age|overall|potential|salary|contract_years|injury_risk%|release_dead_cap(per season x seasons=total)|extension_quotes(2y..5y; an extension must run 2-5 years)"
 _FREE_AGENT_COLUMNS = (
     "id|name|pos|age|overall|potential|injury_risk%|contract_quotes(1y..5y; the 1y quote is his "
     "asking_salary, already multiplied by quote_multiplier)|"
@@ -159,7 +162,11 @@ def _position(player: dict[str, Any]) -> str:
 
 
 def _quotes(quotes: Any) -> str:
-    """Render a 1-5 year price table as a slash-joined series."""
+    """Render a term price table as a slash-joined series, shortest term first.
+
+    Free-agent quotes run 1-5 years and extension quotes 2-5, so the matching
+    ``*_columns`` header has to name the first term; the series itself cannot.
+    """
     if not isinstance(quotes, dict) or not quotes:
         return "-"
     return "/".join(_num(quotes[key]) for key in sorted(quotes, key=lambda item: int(item)))

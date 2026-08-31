@@ -49,8 +49,10 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # phase, no paid retry, and deterministic local repair of malformed output
     # (gm_bench/repair.py) with a structured no-op when intent is ambiguous.
     # Moved again from 3167d95f860770c5 when the rendered pick_holdings column
-    # and team.draft_picks stopped publishing seasons already drafted in.
-    assert contract_fingerprint() == "bcfe0ce8c23ddc85"
+    # and team.draft_picks stopped publishing seasons already drafted in, and
+    # again from bcfe0ce8c23ddc85 when the roster column header stopped
+    # labelling the four extension quotes as a five-term 1y..5y table.
+    assert contract_fingerprint() == "5db845650f34d4db"
     assert "oracle" not in AGENTS
 
 
