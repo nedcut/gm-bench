@@ -55,8 +55,11 @@ def synthetic_private_artifact() -> dict[str, Any]:
             "model": "synthetic-v5",
             "benchmark_contract": contract,
             "evidence_class": "synthetic-non-evidence",
+            # v6 buys no paid retry; the shared v3 fixture predates that rule.
+            "protocol_repair_attempts": 0,
         }
     )
+    raw["run_info"]["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] = "0"
     policy = POLICIES.get("sota-v5")
     if policy is not None:
         raw["run_info"]["scaffold_fingerprint"] = policy.expected_scaffold_fingerprints["openrouter"]

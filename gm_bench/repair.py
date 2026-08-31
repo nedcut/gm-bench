@@ -33,6 +33,13 @@ requested, only how they were spelled, so it cannot lift a score; it exists so
 a formatting slip is measured as a formatting slip instead of silently
 deciding the episode.
 
+Model adapters do not parse or repair the model's reply themselves. They put
+it verbatim in the envelope's ``raw_text`` field beside their usage block, so
+these rules are the only ones that decide what a reply means and the recorded
+malformed rate is the model's own formatting record. A bare ``actions`` list is
+still accepted, for third-party adapters and for the case where an adapter
+failed before the model answered and has no model text to forward.
+
 Two markers travel back to the runner on the first action, mirroring the
 existing ``error``/``model_error`` convention: ``malformed_output`` (why the
 raw output was not usable as delivered) and ``repaired_by`` (which rules made
@@ -58,6 +65,8 @@ from gm_bench.telemetry import require_finite_json_numbers
 
 MALFORMED_MARKER = "malformed_output"
 REPAIR_MARKER = "repaired_by"
+# Envelope field carrying the model's reply exactly as the backend returned it.
+RAW_TEXT_FIELD = "raw_text"
 RESERVED_MARKERS = (MALFORMED_MARKER, REPAIR_MARKER)
 
 RULE_STRIP_CODE_FENCE = "strip_code_fence"
@@ -119,16 +128,30 @@ def repair_adapter_output(text: str, *, source: str) -> RepairOutcome:
     if text_error is not None:
         return _unrecoverable(f"{source} {text_error}")
 
+    # The adapter's own envelope is transport, not model output: its usage is
+    # kept whatever the model's text turns out to be, and the repair rules are
+    # applied to the model's text rather than to the envelope around it.
+    envelope_usage = _envelope_usage(payload)
+    raw_text = _raw_model_text(payload)
+    if raw_text is not None:
+        payload, text_rules, text_error = _parse_payload(raw_text)
+        if text_error is not None:
+            return _unrecoverable(f"{source} model {text_error}", usage=envelope_usage)
+
     actions, usage, shape_rules, shape_error = _extract_actions(payload)
     if shape_error is not None:
-        return _unrecoverable(f"{source} {shape_error}")
+        return _unrecoverable(f"{source} {shape_error}", usage=envelope_usage)
+    if raw_text is not None:
+        # Telemetry comes from the adapter, never from inside the model's own
+        # text, which must not be able to declare what its call cost.
+        usage = envelope_usage
 
     actions = [_without_reserved_markers(action) for action in actions]
     rules = text_rules + shape_rules
 
     outcome_error = _reject_non_finite(actions)
     if outcome_error is not None:
-        return _unrecoverable(f"{source} {outcome_error}")
+        return _unrecoverable(f"{source} {outcome_error}", usage=usage)
 
     validation_error = _validation_error(actions)
     if validation_error is not None:
@@ -136,7 +159,7 @@ def repair_adapter_output(text: str, *, source: str) -> RepairOutcome:
         rules = rules + structural_rules
         validation_error = _validation_error(actions)
         if validation_error is not None:
-            return _unrecoverable(f"{source} returned invalid actions: {validation_error}")
+            return _unrecoverable(f"{source} returned invalid actions: {validation_error}", usage=usage)
 
     if not rules:
         return RepairOutcome(
@@ -186,15 +209,37 @@ def is_unrecoverable(actions: Any) -> bool:
     return not any(isinstance(action, dict) and REPAIR_MARKER in action for action in actions)
 
 
-def _unrecoverable(reason: str) -> RepairOutcome:
+def _unrecoverable(reason: str, *, usage: Any = None) -> RepairOutcome:
+    """A structured no-op that still reports the tokens the call actually cost.
+
+    The decision is worthless, but it was paid for. Dropping the usage would
+    understate the run's cost and, worse, hand the spend guard a call with no
+    finite cost telemetry -- which fails closed and halts the whole run over
+    one garbled reply. A decision with no usage at all (crashed adapter) still
+    reports nothing, and still fails closed.
+    """
     return RepairOutcome(
         actions=structured_noop(reason),
-        usage=None,
+        usage=usage,
         malformed=True,
         unrecoverable=True,
         rules_applied=(),
         reason=reason[:300],
     )
+
+
+def _envelope_usage(payload: Any) -> Any:
+    if isinstance(payload, dict) and RAW_TEXT_FIELD in payload:
+        return payload.get("usage")
+    return None
+
+
+def _raw_model_text(payload: Any) -> str | None:
+    """The model's verbatim reply, when the adapter forwarded one."""
+    if not isinstance(payload, dict):
+        return None
+    raw = payload.get(RAW_TEXT_FIELD)
+    return raw if isinstance(raw, str) else None
 
 
 def _without_reserved_markers(action: Any) -> Any:

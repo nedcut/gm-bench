@@ -93,8 +93,13 @@ SOTA_V5_CONTRACT = {
     # it cannot deliver under the one-call rule, restored the roster to the
     # summary observation tier, stopped reading an exercised current-season
     # pick as one its team had traded away, and the ledger began publishing the
-    # agent's own refused roster moves with the reason they failed.
-    "contract_fingerprint": "245ff803ecb349db",
+    # agent's own refused roster moves with the reason they failed; moved from
+    # 245ff803ecb349db when the harness's published repair rules became the only
+    # rules that decide what a model's reply means (adapters now forward the raw
+    # text), the one-call rule started keying on whether an agent pays rather
+    # than on its registered name, and an unrepairable reply began reporting the
+    # usage it cost instead of discarding it.
+    "contract_fingerprint": "a600b7da0c302231",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
 # Pinned with the release identity so the site headroom strip cannot drift when

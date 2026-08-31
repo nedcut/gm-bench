@@ -19,7 +19,6 @@ try:
         build_prompt,
         fallback_actions,
         make_usage,
-        parse_actions,
         resolve_call_timeout,
         run_agent_main,
     )
@@ -28,7 +27,6 @@ except ModuleNotFoundError:
         build_prompt,
         fallback_actions,
         make_usage,
-        parse_actions,
         resolve_call_timeout,
         run_agent_main,
     )
@@ -96,7 +94,7 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
             for block in data.get("content", [])
             if isinstance(block, dict) and block.get("type") == "text"
         )
-        return parse_actions(content), usage
+        return content, usage
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         usage = make_usage(provider="anthropic", model=model, api_calls=1, api_latency_ms=latency_ms)

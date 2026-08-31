@@ -22,7 +22,6 @@ try:
         build_prompt,
         fallback_actions,
         make_usage,
-        parse_actions,
         resolve_call_timeout,
         run_agent_main,
     )
@@ -31,7 +30,6 @@ except ModuleNotFoundError:
         build_prompt,
         fallback_actions,
         make_usage,
-        parse_actions,
         resolve_call_timeout,
         run_agent_main,
     )
@@ -116,7 +114,7 @@ def choose_actions(
             # failure does not leave a dangling unanswered user turn.
             _history.append({"role": "user", "content": user_content})
             _history.append({"role": "assistant", "content": content})
-        return parse_actions(content), usage
+        return content, usage
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, IndexError, json.JSONDecodeError) as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         usage = make_usage(provider="openai", model=model, api_calls=1, api_latency_ms=latency_ms)

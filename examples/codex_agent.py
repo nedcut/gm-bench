@@ -26,14 +26,13 @@ import time
 from pathlib import Path
 
 try:
-    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions, resolve_call_timeout
+    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, resolve_call_timeout
 except ModuleNotFoundError:
     from examples.gm_agent_common import (
         build_prompt,
         emit,
         fallback_actions,
         make_usage,
-        parse_actions,
         resolve_call_timeout,
     )
 
@@ -91,7 +90,7 @@ def main() -> None:
                 usage,
             )
             return
-        emit(parse_actions(content), usage)
+        emit(content, usage)
     except (subprocess.TimeoutExpired, OSError, ValueError, json.JSONDecodeError) as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         emit(

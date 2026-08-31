@@ -17,14 +17,13 @@ import time
 from typing import Any
 
 try:
-    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions, resolve_call_timeout
+    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, resolve_call_timeout
 except ModuleNotFoundError:
     from examples.gm_agent_common import (
         build_prompt,
         emit,
         fallback_actions,
         make_usage,
-        parse_actions,
         resolve_call_timeout,
     )
 
@@ -67,7 +66,7 @@ def main() -> None:
             )
             return
         content = extract_opencode_text(completed.stdout)
-        emit(parse_actions(content), usage)
+        emit(content, usage)
     except (subprocess.TimeoutExpired, ValueError, json.JSONDecodeError) as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         emit(

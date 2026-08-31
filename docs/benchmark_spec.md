@@ -188,7 +188,12 @@ Scripted agents read the observation the simulator emits. Model adapters read
 one compact render of it, built by `gm_bench/scaffold_view.py` and shared by
 every adapter, so no model gets a private view. It exists to hold the whole
 prompt inside the v6 budget — target ~6,500 tokens, hard ceiling 8,000 — which
-the previous JSON view exceeded at roughly 11,600.
+the previous JSON view exceeded at roughly 11,600. Measured on the one-call
+lane with `o200k_base` against the deliberately inflating budget-stress agent
+(four seeds x five seasons, 80 prompts): median 5,265 tokens, worst 6,013. The
+pre-v6 multi-round lane, where echoed `action_results` are the largest block
+the view can carry, peaks at 7,602 and is the case
+`tests/test_observation_budget.py` measures separately.
 
 - Rosters, standings, free agents, prospects, the trade market, the waiver
   wire, incoming offers, season results, and the transaction ledger are
@@ -258,12 +263,21 @@ same league-wide pick horizon, so pick churn cannot mint score.
 
 ### Adapter stdout protocol and usage telemetry
 
-External adapters may print either of two shapes to stdout:
+External adapters may print any of three shapes to stdout:
 
+- An envelope `{"raw_text": "...", "usage": {...}}` carrying the model's reply
+  exactly as the backend returned it. This is what every built-in adapter
+  emits: the harness's published repair rules then decide what the reply means,
+  so the same rules that are documented are the ones that are measured, and
+  `malformed_rate` reflects the model's formatting rather than the adapter's
+  tolerance. Usage is read from the envelope, never from inside the model's own
+  text.
+- An envelope `{"actions": [...], "usage": {...}}` that reports an
+  adapter-produced action list plus usage. Built-in adapters use it only when
+  they failed before the model answered (missing key, transport error), and
+  mark the substitution with `model_error`.
 - A bare JSON action list (`[...]`) — the original protocol, still accepted so
   third-party adapters keep working.
-- An envelope `{"actions": [...], "usage": {...}}` that also reports model
-  usage for the decision.
 
 Recognized `usage` keys (all optional; unknown keys are dropped):
 `provider`, `model`, `api_calls`, `input_tokens`, `output_tokens`,
@@ -432,7 +446,15 @@ silently scoring like the fallback policy.
 
 Because v6 buys no second call, the harness repairs malformed output itself,
 for free, and only where the intent is unambiguous. The rules are fixed and
-published in `gm_bench/repair.py`:
+published in `gm_bench/repair.py`, and they are the only rules in the loop:
+built-in adapters put the model's reply verbatim in their envelope's `raw_text`
+field beside their usage block and do no parsing of their own. (They used to,
+under looser unpublished rules — picking the first parseable JSON value out of
+prose, renaming natural-language trade keys onto schema keys — which both hid
+formatting failures from `malformed_rate` and scored models under rules no
+reader could see.) A bare `actions` list is still accepted in the envelope, for
+third-party adapters and for the case where an adapter failed before the model
+answered and so has no model text to forward.
 
 | Rule | Repaired | Left alone |
 |---|---|---|
@@ -445,7 +467,11 @@ published in `gm_bench/repair.py`:
 
 Repair never changes which actions were requested, only how they were spelled,
 so it cannot lift a score. Whatever the rules cannot settle becomes a
-structured no-op for the whole phase.
+structured no-op for the whole phase — including a well-formed action whose
+fields are mis-keyed, which is not a formatting failure at all: it reaches the
+simulator as written and is refused there, counted against the model as its own
+illegal action. A no-op still reports the usage the call cost, so an unusable
+reply is visible in cost telemetry rather than free.
 
 Every episode reports `malformed_decisions` and `unrecoverable_decisions` (the
 subset repair could not save), and every run summary adds `malformed_rate` and
@@ -464,14 +490,24 @@ models that cannot turn it off run at their minimum effort, set per model in
 the panel config. Reasoning tokens are recorded per call in
 `usage.per_decision` and summarized as `mean_reasoning_tokens_per_decision`.
 
+The ceiling and the other per-provider pins (reasoning, routing, privacy, no
+paid retry) are measurement conditions rather than defaults: they beat an
+inherited shell value, so an ambient `OPENROUTER_MAX_TOKENS` cannot quietly
+change what a row measured. Overriding one takes a config-file `env` entry,
+which is recorded in `run_info.provider_options`. A `sota-v5` row must record
+zero protocol repair attempts and the 4,096-token ceiling its provider pins; an
+operator can still replay the pre-v6 paid-retry lane, it is just not
+publishable as v6.
+
 Failure handling is itself a measurement condition, so the harness resolves it
 rather than inheriting it from the operator's shell, and records the effective
 value as `run_info.strict_fallback` plus `provider_options.GM_AGENT_STRICT`.
-From `sota-v3` on, publication lanes default to strict — the fallback is a pure
-noop, and no roster movement is ever credited to a model that produced nothing.
-`--no-strict-fallback` keeps the soft policy; such a row is recorded as
-non-strict and is ineligible for `sota-v3`. The frozen `sota-v1`/`sota-v2` rows
-predate the flag and were measured under the soft fallback.
+Strict is the default on every lane — the fallback is a pure noop, and no
+roster movement is ever credited to a model that produced nothing.
+`--no-strict-fallback` opts into the soft policy, whose host-chosen draft and
+lineup moves do land in the score; such a row is recorded as non-strict and is
+ineligible for `sota-v3` and later. The frozen `sota-v1`/`sota-v2` rows predate
+the flag and were measured under the soft fallback.
 
 ## Reproducibility
 

@@ -55,6 +55,11 @@ class ProviderSpec:
     credential_env: tuple[str, ...] = ()
     extra_env: dict[str, str] = field(default_factory=dict)
     provenance_env: tuple[str, ...] = ()
+    # The env var this provider's output-token ceiling is pinned through, when
+    # the backend accepts one. Publication validation reads it to check a row
+    # was measured at the v6 ceiling rather than at whatever the backend
+    # defaulted to. CLI harnesses that expose no output limit leave it None.
+    output_ceiling_env: str | None = None
 
 
 class ProtocolRepairAgent(Agent):
@@ -64,6 +69,9 @@ class ProtocolRepairAgent(Agent):
         self.wrapped = wrapped
         self.attempts = attempts
         self.name = wrapped.name
+        # The wrapped agent decides whether a decision is paid for, and the
+        # runner reads that from the outermost wrapper.
+        self.pays_for_calls = getattr(wrapped, "pays_for_calls", False)
         self.env = getattr(wrapped, "env", None)
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
@@ -128,6 +136,9 @@ class ProviderSpendGuardAgent(Agent):
     ) -> None:
         self.wrapped = wrapped
         self.name = wrapped.name
+        # The wrapped agent decides whether a decision is paid for, and the
+        # runner reads that from the outermost wrapper.
+        self.pays_for_calls = getattr(wrapped, "pays_for_calls", False)
         self.env = getattr(wrapped, "env", None)
         self.state_path = state_path
         self.ceiling_usd = ceiling_usd
@@ -416,6 +427,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
         credential_env=("OPENAI_API_KEY",),
         extra_env={"OPENAI_MAX_TOKENS": str(V6_OUTPUT_TOKEN_CEILING)},
         provenance_env=("OPENAI_MAX_TOKENS", "OPENAI_TEMPERATURE", "OPENAI_JSON_MODE"),
+        output_ceiling_env="OPENAI_MAX_TOKENS",
     ),
     "anthropic": ProviderSpec(
         name="anthropic",
@@ -428,6 +440,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
         credential_env=("ANTHROPIC_API_KEY",),
         extra_env={"ANTHROPIC_MAX_TOKENS": str(V6_OUTPUT_TOKEN_CEILING)},
         provenance_env=("ANTHROPIC_MAX_TOKENS", "ANTHROPIC_TEMPERATURE"),
+        output_ceiling_env="ANTHROPIC_MAX_TOKENS",
     ),
     "gemini": ProviderSpec(
         name="gemini",
@@ -440,6 +453,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
         credential_env=("GEMINI_API_KEY", "GOOGLE_API_KEY"),
         extra_env={"GEMINI_MAX_OUTPUT_TOKENS": str(V6_OUTPUT_TOKEN_CEILING)},
         provenance_env=("GEMINI_MAX_OUTPUT_TOKENS", "GEMINI_TEMPERATURE"),
+        output_ceiling_env="GEMINI_MAX_OUTPUT_TOKENS",
     ),
     "openrouter": ProviderSpec(
         name="openrouter",
@@ -479,6 +493,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
             "OPENROUTER_REASONING_EFFORT",
             "OPENROUTER_REASONING_MAX_TOKENS",
         ),
+        output_ceiling_env="OPENROUTER_MAX_TOKENS",
     ),
     "ollama": ProviderSpec(
         name="ollama",
@@ -631,21 +646,26 @@ def build_provider_agent(
         "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
         # Failure handling is a measurement condition, so it is always pinned
         # and always recorded. A harness-resolved policy wins over an ambient
-        # value; without one the inherited environment still decides.
+        # value; without one the strict policy applies and the operator must
+        # opt out of it deliberately (--no-strict-fallback), because the soft
+        # fallback credits host-chosen roster moves to the model.
         "GM_AGENT_STRICT": (
             _strict_env_value(strict_fallback)
             if strict_fallback is not None
-            else os.environ.get("GM_AGENT_STRICT", "0")
+            else os.environ.get("GM_AGENT_STRICT", "1")
         ),
     }
     if profile is not None:
         env["GM_AGENT_PROFILE"] = profile
     elif spec.default_profile and "GM_AGENT_PROFILE" not in os.environ:
         env["GM_AGENT_PROFILE"] = spec.default_profile
-    # Precedence is config env > inherited shell env > provider defaults.
-    # Material controls must never silently replace an operator override.
-    for key, value in spec.extra_env.items():
-        env[key] = os.environ.get(key, value)
+    # Precedence is config env > provider pins > inherited shell env. These
+    # pins are the v6 call conditions -- the output ceiling, reasoning, and
+    # routing -- not conveniences, so an ambient shell value cannot quietly
+    # change what a publishable row measured. Overriding one takes an explicit
+    # config `env` block, which is recorded in provider_options and therefore
+    # visible in the artifact.
+    env.update(spec.extra_env)
     # Config-file env is the most explicit provider configuration.
     if extra_env:
         env.update(extra_env)

@@ -355,6 +355,7 @@ class _DecisionCaptureAgent(Agent):
     def __init__(self, wrapped: Agent, *, profile: str) -> None:
         self.wrapped = wrapped
         self.name = wrapped.name
+        self.pays_for_calls = getattr(wrapped, "pays_for_calls", False)
         self.profile = profile
         self.rounds: list[dict[str, Any]] = []
         self.metadata = getattr(wrapped, "metadata", {})
@@ -423,6 +424,7 @@ class _ScaffoldGhostAgent(Agent):
     def __init__(self, wrapped: Agent, profile: str) -> None:
         self.wrapped = wrapped
         self.name = wrapped.name
+        self.pays_for_calls = getattr(wrapped, "pays_for_calls", False)
         self.profile = profile
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:

@@ -44,7 +44,9 @@ def test_choose_actions_uses_native_api_and_counts_thinking_as_output(monkeypatc
 
     actions, usage = gemini_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
 
-    assert actions == [{"type": "noop"}]
+    # The adapter forwards the model's reply verbatim; gm_bench.repair, not
+    # the adapter, decides what it means.
+    assert actions == '{"actions":[{"type":"noop"}]}'
     assert captured["url"].endswith("/models/gemini-3.5-flash:generateContent")
     assert captured["headers"]["X-goog-api-key"] == "test-key"
     assert captured["payload"]["generationConfig"]["responseMimeType"] == "application/json"

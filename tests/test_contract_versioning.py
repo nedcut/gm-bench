@@ -85,8 +85,12 @@ def test_current_and_historical_sota_policies_are_distinct() -> None:
     # was rewritten for the one-call lane: it stopped advertising the query
     # actions whose answers a model never sees, stopped promising echoed
     # action_results, and now describes the draft lottery, extension quotes and
-    # release_dead_cap in the compact render's own terms.
-    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "c91c15f2a03e0cc0"
+    # release_dead_cap in the compact render's own terms. Moved again from
+    # c91c15f2a03e0cc0 when the adapters stopped parsing and repairing model
+    # text and began forwarding the reply verbatim, strict failure handling
+    # became the default, and the provider pins stopped yielding to ambient
+    # shell values.
+    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "c582e126bbb6af10"
 
 
 def test_archived_v1_result_remains_auditable_but_not_v2_eligible() -> None:

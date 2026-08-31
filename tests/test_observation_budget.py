@@ -51,6 +51,10 @@ class _BudgetStressAgent:
     """
 
     name = "budget-stress"
+    # Stands in for a model adapter, so it is charged like one: the one-call
+    # rule applies to agents that pay, not to agents the harness does not
+    # recognise by name.
+    pays_for_calls = True
 
     def __init__(self, sink: list[tuple[int, str, str]]) -> None:
         self.sink = sink

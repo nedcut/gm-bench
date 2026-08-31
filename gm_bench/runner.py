@@ -251,13 +251,16 @@ def _interaction_rounds_for_agent(agent: Agent, config: EpisodeConfig) -> int:
 
     Under the v6 execution rules an agent that pays for its calls gets exactly
     one per phase — twenty per five-season seed — so a model cannot buy extra
-    thinking by spending query rounds. Built-in scripted policies make no API
+    thinking by spending query rounds. In-process scripted policies make no API
     calls, so the multi-round query loop stays open for them and their episodes
-    (and every cached baseline score) are unchanged. Agent identity is read the
-    same way ``_observation_tier_for_agent`` reads it: transport wrappers copy
-    the wrapped agent's name, and only in-process policies appear in ``AGENTS``.
+    (and every cached baseline score) are unchanged.
+
+    The test is whether the agent pays, not whether its name is registered: a
+    scripted diagnostic that renames itself (``scaffold-view:tiny``) still buys
+    nothing and must keep the same rounds as the row it is compared against.
+    Transport wrappers copy ``pays_for_calls`` from the agent they wrap.
     """
-    if config.single_paid_call_per_phase and agent.name not in AGENTS:
+    if config.single_paid_call_per_phase and getattr(agent, "pays_for_calls", False):
         return V6_PAID_CALLS_PER_DECISION
     return config.max_interaction_rounds
 

@@ -20,7 +20,6 @@ try:
         build_prompt,
         fallback_actions,
         make_usage,
-        parse_actions,
         resolve_call_timeout,
         run_agent_main,
     )
@@ -29,7 +28,6 @@ except ModuleNotFoundError:
         build_prompt,
         fallback_actions,
         make_usage,
-        parse_actions,
         resolve_call_timeout,
         run_agent_main,
     )
@@ -231,14 +229,11 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
                 usage[key] = value
         if cost is None:
             usage["telemetry_error"] = "OpenRouter returned no authoritative finite generation cost"
+        # Forwarded verbatim: the harness's published repair rules decide what
+        # this text means. Unusable content is model protocol behavior, scored
+        # as a malformed decision, and never a provider infrastructure failure.
         content = choice["message"]["content"]
-        try:
-            return parse_actions(content), usage
-        except ValueError as exc:
-            # An authenticated, metered response with unusable content is model
-            # protocol behavior, not provider infrastructure failure. Keep it
-            # as a scored failed decision without tripping the quota breaker.
-            return fallback_actions(observation, f"protocol_error: {exc}"), usage
+        return content if isinstance(content, str) else json.dumps(content), usage
     except urllib.error.HTTPError as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         detail, generation_id = _http_error_detail(exc, api_key)

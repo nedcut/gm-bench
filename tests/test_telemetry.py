@@ -328,7 +328,10 @@ def test_external_process_agent_rejects_nested_non_finite_action_values(tmp_path
 
     assert actions[0]["type"] == "noop"
     assert "non-finite action values" in actions[0]["error"]
-    assert usage is None
+    # The garbled reply was still paid for: its usage travels with the no-op so
+    # cost telemetry stays true and the fail-closed spend guard is not tripped
+    # by a decision that did have authoritative telemetry.
+    assert usage == {"provider": "test"}
 
 
 def test_external_process_agent_accepts_bare_list(tmp_path):

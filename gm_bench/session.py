@@ -22,6 +22,7 @@ class PersistentProcessAgent(Agent):
     """Keeps one subprocess alive for an entire episode with line-delimited JSON events."""
 
     name = "external-session"
+    pays_for_calls = True
 
     def __init__(
         self,

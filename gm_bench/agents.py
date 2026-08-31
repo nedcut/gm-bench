@@ -61,6 +61,10 @@ def _contract_quote(player: dict[str, Any], years: int) -> float:
 
 class Agent(ABC):
     name = "agent"
+    # Whether a decision costs money. The v6 one-call-per-phase rule applies to
+    # agents that pay; in-process scripted policies buy nothing and keep the
+    # multi-round query loop. Wrappers copy this from the agent they wrap.
+    pays_for_calls = False
 
     @abstractmethod
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
@@ -690,6 +694,10 @@ class ExploitAgent(Agent):
 
 class ExternalProcessAgent(Agent):
     name = "external"
+    # Every adapter lane the harness spawns is treated as paid: the harness
+    # cannot see whether the subprocess calls an API, and charging a free
+    # adapter one call is safe where handing a paid one five calls is not.
+    pays_for_calls = True
 
     def __init__(
         self,

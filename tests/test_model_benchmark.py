@@ -64,7 +64,9 @@ def test_provider_registry_resolves_direct_and_gateway_apis(monkeypatch: pytest.
         "OPENROUTER_MAX_TOKENS": "4096",
         "OPENROUTER_REASONING_ENABLED": "false",
         "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
-        "GM_AGENT_STRICT": "0",
+        # Strict failure handling is the default everywhere; the soft fallback
+        # is opt-in and not publishable.
+        "GM_AGENT_STRICT": "1",
     }
 
 
@@ -143,17 +145,32 @@ def test_protocol_repair_preserves_route_changes_and_does_not_publish_partial_co
     assert merged["upstream_providers"] == ["provider-a", "provider-b"]
 
 
-def test_provider_environment_precedence(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_provider_pins_beat_the_shell_but_not_a_config_env_block(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The v6 call conditions are enforced, not defaulted.
+
+    An ambient shell value used to win over a provider pin, so a stale
+    OPENROUTER_MAX_TOKENS in an operator's terminal could quietly buy a row a
+    larger output budget than the panel allows and still produce a publishable
+    artifact. Only a config-file `env` block can override a pin now, and that
+    choice is recorded in provider_options where a reader can see it.
+    """
     monkeypatch.setenv("OPENROUTER_JSON_MODE", "true")
+    monkeypatch.setenv("OPENROUTER_MAX_TOKENS", "32000")
     monkeypatch.setenv("GM_BENCH_OUTPUT_BUDGET_CELL", "uncapped")
     inherited = build_provider_agent("openrouter", model="test")
-    assert inherited.env["OPENROUTER_JSON_MODE"] == "true"
-    assert inherited.metadata["provider_options"]["OPENROUTER_JSON_MODE"] == "true"
+    assert inherited.env["OPENROUTER_JSON_MODE"] == "false"
+    assert inherited.env["OPENROUTER_MAX_TOKENS"] == "4096"
+    assert inherited.metadata["provider_options"]["OPENROUTER_JSON_MODE"] == "false"
+    assert inherited.metadata["provider_options"]["OPENROUTER_MAX_TOKENS"] == "4096"
     assert inherited.metadata["provider_options"]["GM_BENCH_OUTPUT_BUDGET_CELL"] == "uncapped"
 
-    configured = build_provider_agent("openrouter", model="test", extra_env={"OPENROUTER_JSON_MODE": "false"})
-    assert configured.env["OPENROUTER_JSON_MODE"] == "false"
-    assert configured.metadata["provider_options"]["OPENROUTER_JSON_MODE"] == "false"
+    configured = build_provider_agent(
+        "openrouter", model="test", extra_env={"OPENROUTER_JSON_MODE": "true", "OPENROUTER_MAX_TOKENS": "2048"}
+    )
+    assert configured.env["OPENROUTER_JSON_MODE"] == "true"
+    assert configured.env["OPENROUTER_MAX_TOKENS"] == "2048"
+    assert configured.metadata["provider_options"]["OPENROUTER_JSON_MODE"] == "true"
+    assert configured.metadata["provider_options"]["OPENROUTER_MAX_TOKENS"] == "2048"
 
 
 def test_luna_configs_pin_reproducible_execution() -> None:

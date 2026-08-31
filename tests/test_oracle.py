@@ -57,7 +57,12 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # cannot deliver, the summary tier publishes the roster again, an exercised
     # current-season pick no longer reads as a traded one, and the ledger
     # carries the agent's own refused roster moves with their reasons.
-    assert contract_fingerprint() == "245ff803ecb349db"
+    # Moved again from 245ff803ecb349db when gm_bench/repair.py became the only
+    # rule set that decides what a model's reply means (adapters forward raw
+    # text now), the one-call rule started keying on whether an agent pays
+    # rather than on its registered name, and an unrepairable reply began
+    # carrying the usage it cost instead of discarding it.
+    assert contract_fingerprint() == "a600b7da0c302231"
     assert "oracle" not in AGENTS
 
 

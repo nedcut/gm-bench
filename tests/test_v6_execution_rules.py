@@ -17,11 +17,13 @@ from typing import Any
 
 import pytest
 
-from gm_bench.agents import AGENTS, ExternalProcessAgent
+from gm_bench.agents import AGENTS, ExternalProcessAgent, ScaffoldViewAgent
 from gm_bench.cli import _reliability_line
 from gm_bench.protocol import MAX_INTERACTION_ROUNDS, EpisodeConfig
+from gm_bench.providers import ProtocolRepairAgent
 from gm_bench.repair import (
     MALFORMED_MARKER,
+    RAW_TEXT_FIELD,
     REPAIR_MARKER,
     RULE_COERCE_NUMERIC_STRING,
     RULE_NORMALIZE_ACTION_TYPE,
@@ -212,6 +214,103 @@ def test_scripted_policies_keep_the_multi_round_query_loop() -> None:
 
     assert _interaction_rounds_for_agent(AGENTS["value"](), config) == MAX_INTERACTION_ROUNDS
     assert _interaction_rounds_for_agent(ExternalProcessAgent("fake", name="openrouter:x"), config) == 1
+
+
+def test_a_renamed_scripted_diagnostic_still_gets_the_scripted_round_budget() -> None:
+    """The one-call rule follows the money, not the agent's registered name.
+
+    ScaffoldViewAgent renames itself for a non-default profile so the baseline
+    cache cannot serve a tiny-profile episode to a compact run. Keying the rule
+    on "not in AGENTS" therefore silently cut the tiny-profile diagnostic to one
+    round, changing what it measures against the compact row it exists to be
+    compared with. It pays for nothing, so it keeps five rounds.
+    """
+    config = EpisodeConfig()
+    compact = AGENTS["scaffold-view"]()
+    tiny = ScaffoldViewAgent(profile="tiny")
+
+    assert tiny.name == "scaffold-view:tiny"
+    assert tiny.name not in AGENTS
+    assert not tiny.pays_for_calls
+    assert _interaction_rounds_for_agent(tiny, config) == MAX_INTERACTION_ROUNDS
+    assert _interaction_rounds_for_agent(compact, config) == MAX_INTERACTION_ROUNDS
+
+
+def test_wrapping_a_paid_adapter_does_not_lose_the_one_call_rule() -> None:
+    """The runner reads the outermost wrapper, so transport wrappers carry it."""
+    config = EpisodeConfig()
+    wrapped = ProtocolRepairAgent(ExternalProcessAgent("fake", name="openrouter:x"), attempts=0)
+
+    assert wrapped.pays_for_calls
+    assert _interaction_rounds_for_agent(wrapped, config) == 1
+
+
+# --- the adapter forwards, the harness judges ---------------------------------
+
+
+def _raw(text: str, **usage: Any) -> str:
+    return json.dumps({RAW_TEXT_FIELD: text, "usage": usage or None})
+
+
+def test_a_model_that_wraps_its_answer_in_prose_reads_as_malformed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The rate has to see what the adapters used to hide.
+
+    Adapters previously scanned the reply for the first parseable JSON value
+    and emitted a clean action list, so a model that fenced or narrated every
+    answer scored with malformed_decisions at zero. Now the raw text travels to
+    gm_bench.repair, which repairs it under a published rule and records that
+    it had to.
+    """
+
+    def replies(index: int, observation: dict[str, Any]) -> str:
+        return _raw('Here is my plan:\n```json\n{"actions":[{"type":"noop"}]}\n```', api_calls=1)
+
+    adapter = _FakeAdapter(replies)
+    monkeypatch.setattr("gm_bench.agents.subprocess.run", adapter)
+
+    summary = run_many(ExternalProcessAgent("fake"), seeds=[7], seasons=1)["summary"]
+
+    assert summary["decisions"] == 4
+    assert summary["malformed_decisions"] == 4
+    assert summary["malformed_rate"] == 1.0
+    # Repaired, not lost: the model's own noop still reached the simulator.
+    assert summary["unrecoverable_decisions"] == 0
+    assert summary["usage"]["api_calls"] == 4
+
+
+def test_a_garbled_reply_is_a_no_op_that_still_reports_what_it_cost(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Cost telemetry must survive an unusable answer.
+
+    Discarding the usage understated spend and, on the publication lane, handed
+    the fail-closed spend guard a call with no finite cost telemetry -- halting
+    an entire run because one reply was garbage.
+    """
+
+    def replies(index: int, observation: dict[str, Any]) -> str:
+        return _raw("I would rather not.", api_calls=1, input_tokens=100, output_tokens=7, cost_usd=0.002)
+
+    adapter = _FakeAdapter(replies)
+    monkeypatch.setattr("gm_bench.agents.subprocess.run", adapter)
+
+    summary = run_many(ExternalProcessAgent("fake"), seeds=[7], seasons=1)["summary"]
+
+    assert summary["unrecoverable_decisions"] == 4
+    assert summary["usage"]["api_calls"] == 4
+    assert summary["usage"]["output_tokens"] == 28
+    assert summary["usage"]["cost_usd"] == pytest.approx(0.008)
+
+
+def test_the_model_cannot_declare_its_own_usage_inside_its_text(monkeypatch: pytest.MonkeyPatch) -> None:
+    def replies(index: int, observation: dict[str, Any]) -> str:
+        return _raw('{"actions":[{"type":"noop"}],"usage":{"api_calls":99,"cost_usd":0.0}}', api_calls=1, cost_usd=0.5)
+
+    adapter = _FakeAdapter(replies)
+    monkeypatch.setattr("gm_bench.agents.subprocess.run", adapter)
+
+    summary = run_many(ExternalProcessAgent("fake"), seeds=[7], seasons=1)["summary"]
+
+    assert summary["usage"]["api_calls"] == 4
+    assert summary["usage"]["cost_usd"] == pytest.approx(2.0)
 
 
 # --- the model-managed notebook round-trips through the one-call loop ----------

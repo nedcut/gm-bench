@@ -5,6 +5,7 @@ import urllib.error
 from io import BytesIO
 
 from examples import openrouter_agent
+from gm_bench.repair import RAW_TEXT_FIELD, repair_adapter_output
 
 
 class _Response:
@@ -92,7 +93,7 @@ def test_choose_actions_records_route_and_authoritative_cost(monkeypatch) -> Non
 
     actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
 
-    assert actions == [{"type": "noop"}]
+    assert actions == '{"actions":[{"type":"noop"}]}'
     assert captured["payload"]["provider"]["only"] == ["openai"]
     assert captured["payload"]["provider"]["quantizations"] == ["fp16", "fp8"]
     assert captured["payload"]["provider"]["allow_fallbacks"] is False
@@ -130,7 +131,7 @@ def test_choose_actions_recovers_missing_cost_from_generation(monkeypatch) -> No
 
     actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
 
-    assert actions == [{"type": "noop"}]
+    assert actions == '{"actions":[{"type":"noop"}]}'
     assert usage["generation_id"] == "gen-header"
     assert usage["cost_usd"] == 0.0042
     assert any("id=gen-header" in url for url in requests)
@@ -196,7 +197,7 @@ def test_choose_actions_can_disable_reasoning_without_effort_mapping(monkeypatch
 
     actions, _ = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
 
-    assert actions == [{"type": "noop"}]
+    assert actions == '{"actions":[{"type":"noop"}]}'
     assert captured["payload"]["reasoning"] == {"enabled": False}
 
 
@@ -289,7 +290,14 @@ def test_choose_actions_recovers_charged_http_error_cost(monkeypatch) -> None:
     assert usage["cost_usd"] == 0.0025
 
 
-def test_parse_failure_preserves_paid_usage(monkeypatch) -> None:
+def test_unusable_model_text_is_forwarded_with_the_usage_it_cost(monkeypatch) -> None:
+    """Garbage from the model is the model's decision, and it is still billed.
+
+    The adapter neither parses nor labels it: the text goes to the harness,
+    which records a malformed decision under the published rules, and the paid
+    usage travels with it so cost telemetry and the spend guard stay truthful.
+    """
+
     class Malformed(_Response):
         def read(self) -> bytes:
             payload = json.loads(super().read())
@@ -300,7 +308,10 @@ def test_parse_failure_preserves_paid_usage(monkeypatch) -> None:
     monkeypatch.setattr(openrouter_agent.urllib.request, "urlopen", lambda *args, **kwargs: Malformed())
     actions, usage = openrouter_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
 
-    assert "model did not return" in actions[0]["model_error"]
+    assert actions == "not json"
+    outcome = repair_adapter_output(json.dumps({RAW_TEXT_FIELD: actions, "usage": usage}), source="external agent")
+    assert outcome.unrecoverable
+    assert outcome.usage["cost_usd"] == 0.00123
     assert usage["input_tokens"] == 100
     assert usage["output_tokens"] == 20
     assert usage["cost_usd"] == 0.00123

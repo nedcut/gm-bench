@@ -425,8 +425,11 @@ observation). Each season has four decision phases:
 - `draft`
 
 By default the runner launches external agents once per decision point: one
-observation JSON object on stdin, a JSON action list (or `{"actions": [...],
-"usage": {...}}` envelope) on stdout. For a persistent subprocess that stays
+observation JSON object on stdin, and on stdout either the model's reply
+forwarded verbatim (`{"raw_text": "...", "usage": {...}}`, which the built-in
+adapters emit so the published repair rules in `gm_bench/repair.py` are the
+only ones that judge it) or a JSON action list (or `{"actions": [...],
+"usage": {...}}` envelope) the adapter produced itself. For a persistent subprocess that stays
 alive across the whole episode, use a session-capable adapter with
 `GM_BENCH_SESSION=1` (see `examples/gm_agent_common.py`); the runner exchanges
 line-delimited `start` / `observation` / `action_results` / `end` events and
@@ -554,18 +557,17 @@ reports `decisions`, `failed_decisions`, `decision_failure_rate`, and
 that never produces usable output no longer silently scores like the fallback
 policy — the failure rate is right next to the score.
 
-Publication lanes run strict from `sota-v3` on: a failed decision becomes a
-pure `noop`, so the score reflects only actions the model itself produced. That
-is the default for `model --preset leaderboard` and for every
-`run_publication_matrix` cell. Other `model` runs keep the soft fallback, which
-plays a safe turn (best-value draft pick plus a legal lineup) so one flaky
-decision doesn't ruin an episode. Pass `--strict-fallback` /
-`--no-strict-fallback` to decide explicitly; the effective policy is recorded
-in `run_info.strict_fallback` and in `provider_options.GM_AGENT_STRICT` either
-way, and a soft row is not eligible for current `sota-v5` (or frozen terminal `sota-v4`/`sota-v3`). The harness resolves this rather
-than reading the ambient `GM_AGENT_STRICT`: an explicit flag wins, then the lane
-default (strict for `--preset leaderboard`), and only when neither is set does
-config-file `env` or the shell decide. A stale config `env` entry cannot
+Strict failure handling is the default everywhere: a failed decision becomes a
+pure `noop`, so the score reflects only actions the model itself produced. The
+soft fallback — which plays a safe turn of host-chosen moves (best-value draft
+pick plus a legal lineup) — is opt-in via `--no-strict-fallback`, because those
+moves land in the score and make it partly the harness's. A soft row is
+recorded as such and is not eligible for current `sota-v5` (or frozen terminal
+`sota-v4`/`sota-v3`). The effective policy is recorded in
+`run_info.strict_fallback` and in `provider_options.GM_AGENT_STRICT` either
+way. The harness resolves this rather than reading the ambient
+`GM_AGENT_STRICT`: an explicit flag wins, then the lane default, then
+config-file `env` or the shell, and strict when nothing says otherwise. A stale config `env` entry cannot
 downgrade a leaderboard row. External `--agent-cmd` runs are unaffected: they
 get whatever environment you launch them with. The frozen `sota-v1`/`sota-v2`
 rows predate the flag and were measured under the soft fallback.

@@ -120,7 +120,8 @@ def test_evaluate_exposes_candidate_failure_rate() -> None:
     assert normalized["candidate_memo_writes"] == 0
 
 
-def test_fallback_actions_always_carry_model_error_marker() -> None:
+def test_fallback_actions_always_carry_model_error_marker(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GM_AGENT_STRICT", "0")
     observation = League.new(seed=1).observation("draft")
     actions = fallback_actions(observation)
     assert actions
@@ -128,8 +129,18 @@ def test_fallback_actions_always_carry_model_error_marker() -> None:
     assert any(action["type"] == "set_lineup" for action in actions)
 
 
-def test_strict_mode_makes_fallback_a_pure_noop(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("GM_AGENT_STRICT", "1")
+def test_fallback_is_a_pure_noop_unless_the_soft_lane_is_opted_into(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Strict is the default, so a decision the model never made moves nothing.
+
+    The soft fallback substitutes a host-chosen draft pick and lineup whose
+    moves land in the score. That is opt-in (GM_AGENT_STRICT=0) and not
+    publishable; with no setting at all, and with the setting on, the fallback
+    is a bare noop.
+    """
     observation = League.new(seed=1).observation("draft")
+    monkeypatch.delenv("GM_AGENT_STRICT", raising=False)
+    assert fallback_actions(observation, "api_error: 500") == [{"type": "noop", "model_error": "api_error: 500"}]
+
+    monkeypatch.setenv("GM_AGENT_STRICT", "1")
     actions = fallback_actions(observation, "api_error: 500")
     assert actions == [{"type": "noop", "model_error": "api_error: 500"}]

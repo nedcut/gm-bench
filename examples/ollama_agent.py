@@ -24,7 +24,6 @@ try:
         emit,
         fallback_actions,
         make_usage,
-        parse_actions,
         resolve_call_timeout,
         run_session_loop,
         strip_terminal_codes,
@@ -35,7 +34,6 @@ except ModuleNotFoundError:
         emit,
         fallback_actions,
         make_usage,
-        parse_actions,
         resolve_call_timeout,
         run_session_loop,
         strip_terminal_codes,
@@ -76,27 +74,12 @@ def choose_actions(
     schema = load_action_schema()
     prompt = build_prompt(observation)
     try:
+        # One generation per decision, forwarded verbatim. The adapter neither
+        # parses nor re-prompts: a second local call would be a second attempt
+        # at the same decision, and any parsing here would replace the
+        # published repair rules with an unpublished second rule set.
         content = generate(host, model, prompt, timeout, schema, think=think)
-        try:
-            return parse_actions(content), merged_usage(model)
-        except ValueError as exc:
-            repair_prompt = (
-                f"{prompt}\n\nYour previous answer was invalid: {str(content)[:300]!r}. "
-                "Return exactly one JSON object with an actions array and no other text."
-            )
-            # Retry unconstrained: the schema-pinned first attempt already failed
-            # to parse, so pinning the same schema again just reproduces it. Drop
-            # the format constraint (schema=None) so a weak model can emit
-            # *something* parseable, guided by the textual instruction above.
-            repaired = generate(host, model, repair_prompt, timeout, None, think=think)
-            try:
-                return parse_actions(repaired), merged_usage(model)
-            except ValueError:
-                snippet = str(repaired or content).replace("\n", " ")[:220]
-                return (
-                    fallback_actions(observation, f"ollama_parse_error: {exc}; content={snippet!r}"),
-                    merged_usage(model),
-                )
+        return content, merged_usage(model)
     except (
         subprocess.TimeoutExpired,
         urllib.error.URLError,

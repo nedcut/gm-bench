@@ -214,7 +214,10 @@ def test_persistent_agent_rejects_nested_non_finite_action_values(tmp_path) -> N
 
     assert actions[0]["type"] == "noop"
     assert "non-finite action values" in actions[0]["error"]
-    assert usage is None
+    # The garbled reply was still paid for: its usage travels with the no-op so
+    # cost telemetry stays true and the fail-closed spend guard is not tripped
+    # by a decision that did have authoritative telemetry.
+    assert usage == {"provider": "test"}
 
 
 def test_run_episode_cleans_up_when_persistent_start_fails() -> None:

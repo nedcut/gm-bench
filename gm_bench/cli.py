@@ -323,10 +323,7 @@ def _add_strict_fallback_args(parser: argparse.ArgumentParser) -> None:
         dest="strict_fallback",
         action="store_true",
         default=None,
-        help=(
-            "on a failed decision emit a bare noop instead of a host-supplied draft and lineup "
-            "(default for --preset leaderboard)"
-        ),
+        help=("on a failed decision emit a bare noop instead of a host-supplied draft and lineup (the default)"),
     )
     parser.add_argument(
         "--no-strict-fallback",

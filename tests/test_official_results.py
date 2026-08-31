@@ -22,6 +22,7 @@ from gm_bench.official import (
     redact_leaderboard_payload,
     validate_leaderboard_payload,
 )
+from gm_bench.protocol import V6_OUTPUT_TOKEN_CEILING
 from gm_bench.publication import compact_result
 from gm_bench.scoring import ACTIVE_SCORE_SCALE, SCORE_COMPONENT_KEYS
 from scripts.analyze_output_budget import analyze
@@ -156,9 +157,15 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
             "benchmark_contract": benchmark_contract(),
             "scaffold_fingerprint": scaffold_fingerprint("openai"),
             "seed_panel": seed_panel_metadata(seeds, "leaderboard"),
-            "protocol_repair_attempts": 1,
+            # v6 conditions: no paid retry, strict failure handling, and the
+            # pinned output ceiling the provider records.
+            "protocol_repair_attempts": 0,
             "strict_fallback": True,
-            "provider_options": {"GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1", "GM_AGENT_STRICT": "1"},
+            "provider_options": {
+                "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
+                "GM_AGENT_STRICT": "1",
+                "OPENAI_MAX_TOKENS": str(V6_OUTPUT_TOKEN_CEILING),
+            },
         },
     }
 
@@ -427,9 +434,12 @@ def test_sota_v5_policy_requires_full_usage() -> None:
 
 @pytest.mark.parametrize(
     ("run_value", "option_value"),
-    [(None, "1"), (1, None), (-1, "-1"), (2, "2"), (0, "1"), ("bad", "1")],
+    # v6 buys no paid retry, so one attempt is as ineligible as two: a row
+    # measured on the pre-v6 replay lane is still a real artifact, just not a
+    # publishable v6 one.
+    [(None, "0"), (0, None), (-1, "-1"), (1, "1"), (2, "2"), (0, "1"), ("bad", "0")],
 )
-def test_sota_v5_requires_matching_bounded_repair_provenance(run_value: object, option_value: object) -> None:
+def test_sota_v5_requires_matching_zero_repair_provenance(run_value: object, option_value: object) -> None:
     payload = _official_payload(repeats=3)
     payload["run_info"]["protocol_repair_attempts"] = run_value
     payload["run_info"]["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] = option_value
@@ -446,7 +456,9 @@ def test_output_budget_analysis_rejects_duplicate_cells() -> None:
     payload["run_info"]["provider_options"] = {
         "OPENAI_MAX_TOKENS": "256",
         "GM_BENCH_OUTPUT_BUDGET_CELL": "256",
-        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+        # Matches run_info.protocol_repair_attempts in the shared fixture; the
+        # two halves of the provenance have to agree.
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
     }
     usage = payload["candidate"]["summary"]["usage"]
     usage.update({"input_tokens": 1000, "output_tokens": 500, "cost_decisions": usage["decisions_with_usage"]})
@@ -517,7 +529,8 @@ def test_sota_v5_accepts_pinned_single_upstream_openrouter_route() -> None:
                 "OPENROUTER_PROVIDER_ONLY": "openai",
                 "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-test-20260714",
                 "OPENROUTER_ALLOW_FALLBACKS": "false",
-                "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+                "OPENROUTER_MAX_TOKENS": str(V6_OUTPUT_TOKEN_CEILING),
+                "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
                 "GM_AGENT_STRICT": "1",
             },
         }
@@ -526,6 +539,24 @@ def test_sota_v5_accepts_pinned_single_upstream_openrouter_route() -> None:
 
     report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert report.ok
+
+
+def test_sota_v5_rejects_a_row_measured_at_a_larger_output_ceiling() -> None:
+    """The output budget is a measurement condition, not a default.
+
+    A row that bought a bigger output budget than the panel allows is not
+    comparable with one that did not, even if every other condition matches.
+    """
+    payload = _official_payload(repeats=3)
+    payload["run_info"]["provider_options"]["OPENAI_MAX_TOKENS"] = "32000"
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
+    assert not report.ok
+    assert any("4096-token output ceiling" in error for error in report.errors)
+
+    del payload["run_info"]["provider_options"]["OPENAI_MAX_TOKENS"]
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
+    assert not report.ok
+    assert any("OPENAI_MAX_TOKENS is required" in error for error in report.errors)
 
 
 def test_sota_v5_rejects_openrouter_upstream_that_differs_from_pin() -> None:
