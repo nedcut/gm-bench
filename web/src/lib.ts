@@ -37,6 +37,15 @@ function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+/** Percentage, or an em dash when a row simply does not report the field. */
+export function pctOrDash(value: number | null | undefined, digits = 1): string {
+  return finite(value) ? pct(value, digits) : "—";
+}
+
+export function numOrDash(value: number | null | undefined, digits = 1): string {
+  return finite(value) ? fmt(value, digits) : "—";
+}
+
 export function formatTokensPerDecision(model: {
   tokens_per_decision: number | null;
   input_tokens_per_decision?: number | null;

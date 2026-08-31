@@ -3145,41 +3145,10 @@ tbody tr.tier-start td {
   }
 }
 
-/* ---------- play along ----------
+/* ---------- decision cards ----------
    Same wire register as the tables. Red is still the bar to beat — here that is
    the best move available on the board — and blue still marks the candidate,
-   which is now the visitor's pick. */
-
-.puzzle-score {
-  display: flex;
-  gap: 28px;
-  padding: 12px 18px;
-  margin-bottom: 18px;
-  background: var(--card);
-  border: 1px solid var(--line-strong);
-  border-radius: 2px;
-}
-
-.puzzle-score dt {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--faint);
-  margin-bottom: 2px;
-}
-
-.puzzle-score dd {
-  font-family: var(--font-score);
-  font-size: 26px;
-  line-height: 1;
-  color: var(--ink);
-}
-
-.puzzle-score-sub {
-  font-size: 15px;
-  color: var(--faint);
-}
+   which is now the visitor's pick. These cards live inside the replay view. */
 
 .puzzle-card {
   background: var(--card);
@@ -3345,63 +3314,7 @@ tbody tr.tier-start td {
   color: var(--ink);
 }
 
-.puzzle-controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 14px;
-}
-
-.puzzle-progress {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--faint);
-}
-
-.puzzle-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.puzzle-buttons button {
-  padding: 8px 16px;
-  font: inherit;
-  font-size: 14px;
-  color: var(--ink);
-  background: var(--card);
-  border: 1px solid var(--line-strong);
-  border-radius: 2px;
-  cursor: pointer;
-}
-
-.puzzle-buttons button:hover:not(:disabled) {
-  border-color: var(--steel);
-}
-
-.puzzle-buttons button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.puzzle-buttons .is-primary {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--paper);
-}
-
-.puzzle-note {
-  margin-top: 16px;
-  font-size: 12.5px;
-  color: var(--faint);
-  max-width: 72ch;
-}
-
 @media (max-width: 640px) {
-  .puzzle-score {
-    gap: 18px;
-  }
-
   .puzzle-facts {
     gap: 16px;
   }
@@ -3409,4 +3322,338 @@ tbody tr.tier-start td {
   .puzzle-situation {
     flex-direction: column;
   }
+}
+
+/* ---------- v6 surfaces ----------
+   Leaderboard reliability cells, the model profile, and the replay browser.
+   All three reuse the panel/table register above; nothing here introduces a
+   new color, and every "not reported" state is spelled out rather than shown
+   as a zero. */
+
+.results-table td.stacked-cell {
+  line-height: 1.35;
+}
+
+.score-value {
+  display: block;
+}
+
+.score-sub {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--faint);
+}
+
+.reliability-missing {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.row-profile-link {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  text-decoration: none;
+}
+
+.row-profile-link:hover,
+.row-profile-link:focus-visible {
+  color: var(--blue);
+}
+
+.profile-section .section-head h2 {
+  font-family: var(--font-body);
+}
+
+.profile-figures,
+.replay-stats,
+.replay-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  margin-top: 4px;
+}
+
+.profile-figures dt,
+.replay-stats dt,
+.replay-facts dt,
+.profile-provenance dt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 3px;
+}
+
+.profile-figures dd,
+.replay-stats dd,
+.replay-facts dd {
+  font-family: var(--font-score);
+  font-size: 26px;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.profile-figures span,
+.replay-stats span,
+.replay-facts span {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.profile-provenance {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px 28px;
+}
+
+.profile-provenance dd {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.profile-issues {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+  color: var(--faint);
+  max-width: 78ch;
+}
+
+.profile-issues li + li {
+  margin-top: 4px;
+}
+
+.profile-replay-link {
+  max-width: 78ch;
+}
+
+.seed-scores {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.seed-scores li {
+  display: grid;
+  grid-template-columns: 78px 1fr 64px;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 0;
+}
+
+.seed-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.seed-track {
+  display: block;
+  height: 8px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+}
+
+.seed-track i {
+  display: block;
+  height: 100%;
+  background: var(--blue);
+}
+
+.seed-value {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  text-align: right;
+  color: var(--ink);
+}
+
+.replay-stepper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 18px 0 14px;
+}
+
+.replay-stepper button {
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--steel);
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.replay-stepper button:hover {
+  border-color: var(--steel);
+}
+
+.replay-stepper button.is-active {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.replay-decision {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px 28px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.replay-column h4 {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 10px;
+}
+
+.replay-column .replay-facts dd {
+  font-size: 20px;
+}
+
+.replay-round-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--faint);
+  margin-top: 8px;
+}
+
+.replay-actions,
+.replay-outcome {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.replay-actions li,
+.replay-outcome li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.replay-actions li:last-child,
+.replay-outcome li:last-child {
+  border-bottom: none;
+}
+
+.replay-outcome li.is-rejected,
+.txn-row.is-rejected .txn-msg {
+  color: var(--red);
+}
+
+.replay-memo {
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: var(--steel);
+}
+
+.replay-memo span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-right: 6px;
+}
+
+.replay-season + .replay-season {
+  margin-top: 18px;
+}
+
+.replay-season-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.replay-season-head h4 {
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.replay-season-head span {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.replay-puzzles .puzzle-card + .puzzle-card {
+  margin-top: 14px;
+}
+
+.replay-note {
+  margin-top: 14px;
+  font-size: 12.5px;
+  color: var(--faint);
+  max-width: 78ch;
+}
+
+.replay-roster {
+  margin-top: 12px;
+}
+
+.replay-roster > summary {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--steel);
+  cursor: pointer;
+}
+
+.replay-roster-scroll {
+  margin-top: 8px;
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--line);
+}
+
+.replay-roster-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+.replay-roster-scroll th {
+  position: sticky;
+  top: 0;
+  text-align: left;
+  padding: 6px 8px;
+  color: var(--faint);
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+
+.replay-roster-scroll td {
+  padding: 4px 8px;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
 }

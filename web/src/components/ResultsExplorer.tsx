@@ -2,9 +2,15 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { max } from "d3-array";
 import { scaleLinear } from "d3-scale";
 import type { BenchmarkView, ResultModel } from "../benchmarkData";
-import { issueLabels, shortModelName } from "../benchmarkData";
+import {
+  issueLabels,
+  reliability,
+  scoreCi95,
+  shortModelName,
+  withinSeedStddev,
+} from "../benchmarkData";
 import type { Leaderboard as LeaderboardData } from "../types";
-import { fmt, formatTokensPerDecision } from "../lib";
+import { fmt, formatTokensPerDecision, pctOrDash } from "../lib";
 
 type ChartView = "lift" | "cost";
 type SortKey = "score" | "lift" | "cost";
@@ -30,6 +36,46 @@ function ObservationDisclosure({ model }: { model: ResultModel }) {
         </ul>
       </div>
     </details>
+  );
+}
+
+/* The score never travels alone: its across-seed interval sits under it, and
+   the model's own within-seed spread joins it when the row reports one. */
+function ScoreCell({ model }: { model: ResultModel }) {
+  const interval = scoreCi95(model);
+  const withinSeed = withinSeedStddev(model);
+  return (
+    <>
+      <span className="score-value">{fmt(model.mean_score, 1)}</span>
+      {interval && (
+        <span className="score-sub">
+          95% [{fmt(interval[0], 1)}, {fmt(interval[1], 1)}]
+        </span>
+      )}
+      {withinSeed !== null && (
+        <span className="score-sub" title="Mean per-seed spread across repeats">
+          within-seed SD {fmt(withinSeed, 1)}
+        </span>
+      )}
+    </>
+  );
+}
+
+/* Malformed and unrecoverable output rates are reported beside the score and
+   never folded into it (v6 spec). A row that predates the fields shows an em
+   dash, because "not reported" is not "zero". */
+function ReliabilityCell({ model }: { model: ResultModel }) {
+  const stats = reliability(model);
+  if (!stats.reported) {
+    return <span className="reliability-missing">not reported</span>;
+  }
+  return (
+    <>
+      <span className="score-value">{pctOrDash(stats.malformedRate)}</span>
+      <span className="score-sub">
+        {pctOrDash(stats.unrecoverableRate)} unrecoverable
+      </span>
+    </>
   );
 }
 
@@ -411,6 +457,9 @@ function ResultsTable({
               </button>
             </th>
             <th title="95% interval on the paired lift, not on the score">95% lift CI</th>
+            <th title="Malformed output rate, and the unrecoverable share local repair could not save. Reported beside the score, never inside it.">
+              Malformed
+            </th>
             <th aria-sort={sort === "cost" ? "ascending" : "none"}>
               <button type="button" onClick={() => setSort("cost")}>
                 Cost / episode
@@ -427,11 +476,23 @@ function ResultsTable({
                 <button type="button" onClick={() => onSelect(model.id)}>
                   {model.model}
                 </button>
+                <a
+                  className="row-profile-link"
+                  href="#profile"
+                  onClick={() => onSelect(model.id)}
+                >
+                  profile ↓
+                </a>
               </td>
-              <td className="numeric strong">{fmt(model.mean_score, 1)}</td>
+              <td className="numeric strong stacked-cell">
+                <ScoreCell model={model} />
+              </td>
               <td className="numeric">{fmt(model.primary_lift, 1)}</td>
               <td className="numeric ci-cell">
                 [{fmt(model.primary_ci95[0], 1)}, {fmt(model.primary_ci95[1], 1)}]
+              </td>
+              <td className="numeric stacked-cell">
+                <ReliabilityCell model={model} />
               </td>
               <td className="numeric">${fmt(model.cost_per_episode_usd, 2)}</td>
               <td className="numeric tokens-cell">{formatTokensPerDecision(model)}</td>
@@ -669,7 +730,7 @@ export default function ResultsExplorer({
               </span>
               <span>${fmt(selectedModel.cost_per_episode_usd, 2)} / episode</span>
               <span>{formatTokensPerDecision(selectedModel)} tokens / decision</span>
-              <a href="#analysis">Inspect mechanics ↓</a>
+              <a href="#profile">Open profile ↓</a>
             </div>
           )}
         </div>

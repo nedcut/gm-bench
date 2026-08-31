@@ -183,6 +183,73 @@ export function buildBenchmarkView(data: Leaderboard): BenchmarkView {
   };
 }
 
+/**
+ * v6 reliability, read defensively.
+ *
+ * The spec requires malformed and unrecoverable output rates to sit beside the
+ * score rather than inside it, but rows published before v6 have neither field.
+ * `null` here means "this row does not report it" and must render as an em
+ * dash, never as a reassuring zero. Where a row carries counts but no rate, the
+ * rate is derived from its own decision total instead of being invented.
+ */
+export interface Reliability {
+  malformedRate: number | null;
+  unrecoverableRate: number | null;
+  malformedDecisions: number | null;
+  unrecoverableDecisions: number | null;
+  failedDecisions: number | null;
+  reported: boolean;
+}
+
+function rate(
+  explicit: number | null | undefined,
+  count: number | null | undefined,
+  total: number,
+): number | null {
+  if (finite(explicit)) return explicit;
+  if (finite(count) && total > 0) return count / total;
+  return null;
+}
+
+export function reliability(model: LeaderboardModel): Reliability {
+  const total = model.decision_points;
+  const malformedRate = rate(model.malformed_rate, model.malformed_decisions, total);
+  const unrecoverableRate = rate(
+    model.unrecoverable_rate,
+    model.unrecoverable_decisions,
+    total,
+  );
+  return {
+    malformedRate,
+    unrecoverableRate,
+    malformedDecisions: finite(model.malformed_decisions) ? model.malformed_decisions : null,
+    unrecoverableDecisions: finite(model.unrecoverable_decisions)
+      ? model.unrecoverable_decisions
+      : null,
+    failedDecisions: finite(model.failed_decisions) ? model.failed_decisions : null,
+    reported: malformedRate !== null || unrecoverableRate !== null,
+  };
+}
+
+export function withinSeedStddev(model: LeaderboardModel): number | null {
+  return finite(model.within_seed_score_stddev) ? model.within_seed_score_stddev : null;
+}
+
+export interface SeedScore {
+  seed: number;
+  score: number;
+}
+
+/** Per-seed scores in seed order, or an empty list when the row omits them. */
+export function perSeedScores(model: LeaderboardModel): SeedScore[] {
+  const rows: SeedScore[] = [];
+  for (const [key, score] of Object.entries(model.per_seed_scores ?? {})) {
+    const seed = Number(key);
+    if (Number.isFinite(seed) && finite(score)) rows.push({ seed, score });
+  }
+  return rows.sort((a, b) => a.seed - b.seed);
+}
+
 export function shortModelName(model: string): string {
   return model.split("/").pop() ?? model;
 }

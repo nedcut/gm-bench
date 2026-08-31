@@ -11,6 +11,13 @@ Cloudflare Pages, ...). The demo walkthrough reads
 `src/data/leaderboard.json`, which is generated only from committed,
 policy-validated evidence.
 
+Four surfaces share one model selection, in page order: the leaderboard
+(`#results`), the model profile (`#profile`), the mechanics analysis
+(`#analysis`), and the replay browser (`#replay`). The v6 reliability fields
+(`malformed_rate`, `unrecoverable_rate`, `within_seed_score_stddev`,
+`per_seed_scores`, `route`) are optional on every leaderboard row: rows that
+predate them render "not reported" rather than a zero.
+
 ## Develop
 
 ```bash
@@ -38,6 +45,16 @@ python web/scripts/export_snapshot.py --seeds 1 2 3 4 5 --seasons 5
 
 Because the simulator is seeded, the same arguments always reproduce the same
 snapshot bytes (no wall-clock timestamps in the export).
+
+The replay browser and the browser verifier both read
+`public/replay/replay_fixture.json`: one five-season episode of the
+`conservative` policy on seed 1. A normal build validates the committed fixture
+but never rewrites it, so regenerate it explicitly after a simulator change:
+
+```bash
+python scripts/build_web_replay_bundle.py --write-fixture
+cd web && bun run build   # replays it in Pyodide and checks the state digest
+```
 
 The public leaderboard dataset is a separate evidence build:
 

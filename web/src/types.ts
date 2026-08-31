@@ -106,6 +106,28 @@ export interface LeaderboardModel {
   protocol_repairs_succeeded: number;
   mechanic_breakdown: Record<string, { accepted: number; rejected: number }>;
   failed_queries?: number;
+  /**
+   * v6 reliability fields, emitted by gm_bench.runner.summarize_episodes and
+   * reported *beside* the score, never folded into it. Rows published before
+   * v6 do not carry them, so every consumer must treat absence as "not
+   * reported" rather than zero.
+   */
+  failed_decisions?: number | null;
+  decision_failure_rate?: number | null;
+  malformed_decisions?: number | null;
+  unrecoverable_decisions?: number | null;
+  malformed_rate?: number | null;
+  unrecoverable_rate?: number | null;
+  /**
+   * Mean per-seed score spread across repeats — the model's own run-to-run
+   * noise, as distinct from `score_stddev` across seeds. Optional for the same
+   * reason: pre-v6 rows never computed it.
+   */
+  within_seed_score_stddev?: number | null;
+  /** Per-seed mean scores keyed by seed, when the row publishes them. */
+  per_seed_scores?: Record<string, number> | null;
+  /** Pinned provider route for the run, when one was pinned. */
+  route?: string | null;
   cost_usd: number | null;
   cost_per_episode_usd: number | null;
   api_latency_s_per_decision: number | null;
@@ -194,6 +216,110 @@ export interface Snapshot {
     seasons: SeasonRow[];
   };
   sample_transactions: SampleTransaction[];
+}
+
+/* ---------- replay fixture ----------
+   public/replay/replay_fixture.json, written by
+   scripts/build_web_replay_bundle.py --write-fixture. The same file the Pyodide
+   verifier replays, so the browsable episode and the verified episode can never
+   describe different runs. Everything the site reads beyond the schema and the
+   decision list is optional: a fixture is a reproducibility artifact first. */
+
+export interface ReplayPlayer {
+  id: number;
+  name?: string;
+  position?: string;
+  age?: number;
+  overall?: number;
+  potential?: number;
+  salary?: number;
+  contract_years?: number;
+}
+
+export interface ReplayObservation {
+  season?: number;
+  phase?: string;
+  interaction_round?: number;
+  memo?: string;
+  hint?: string | null;
+  action_results?: Array<{ accepted?: boolean; message?: string }> | null;
+  team?: {
+    id?: number;
+    name?: string;
+    /** v6 renders the record as a string; older observations carry counts. */
+    record?: string;
+    wins?: number;
+    losses?: number;
+    cap_room?: number;
+    payroll?: number;
+    championships?: number;
+    /** v6 tabular roster: pipe-delimited rows described by `roster_columns`. */
+    roster?: string[];
+    roster_columns?: string;
+    /** Pre-v6 roster shape, kept so old fixtures still render. */
+    top_roster?: ReplayPlayer[];
+  };
+  free_agents?: unknown[];
+  draft_class?: unknown[];
+  trade_market?: unknown[];
+  incoming_offers?: unknown[];
+}
+
+export interface ReplayRound {
+  round: number;
+  observation: ReplayObservation;
+  actions: Array<Record<string, unknown>>;
+  usage?: { input_tokens?: number; output_tokens?: number } | null;
+}
+
+export interface ReplayDecision {
+  decision_index: number;
+  season: number;
+  phase: string;
+  interaction_rounds: ReplayRound[];
+}
+
+export interface ReplayTransaction {
+  season: number;
+  phase: string;
+  team_id: number;
+  accepted: boolean;
+  message: string;
+  action: Record<string, unknown>;
+}
+
+export interface ReplaySeasonSummary {
+  season: number;
+  wins: number;
+  losses: number;
+  playoff_rounds: number;
+  champion_team_id?: number | null;
+  cap_room?: number;
+  payroll?: number;
+  score_after_season?: number;
+}
+
+export interface ReplayFixture {
+  schema: string;
+  agent: string;
+  seed: number;
+  user_team_id: number;
+  provenance?: {
+    contract_fingerprint?: string | null;
+    recorder_version?: string | null;
+    git_head?: string | null;
+  };
+  decisions: ReplayDecision[];
+  expected: {
+    state_digest: string;
+    state?: {
+      players?: Record<string, ReplayPlayer>;
+      prospects?: Record<string, ReplayPlayer>;
+      teams?: Record<string, { id?: number; name?: string }>;
+      transactions?: ReplayTransaction[];
+      summaries?: ReplaySeasonSummary[];
+    };
+  };
 }
 
 /* ---------- puzzles ----------
