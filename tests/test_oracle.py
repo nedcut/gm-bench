@@ -52,7 +52,12 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # and team.draft_picks stopped publishing seasons already drafted in, and
     # again from bcfe0ce8c23ddc85 when the roster column header stopped
     # labelling the four extension quotes as a five-term 1y..5y table.
-    assert contract_fingerprint() == "5db845650f34d4db"
+    # Moved again from 5db845650f34d4db for the observation fixes that follow
+    # from the one-call rule: the render no longer advertises query answers it
+    # cannot deliver, the summary tier publishes the roster again, an exercised
+    # current-season pick no longer reads as a traded one, and the ledger
+    # carries the agent's own refused roster moves with their reasons.
+    assert contract_fingerprint() == "245ff803ecb349db"
     assert "oracle" not in AGENTS
 
 

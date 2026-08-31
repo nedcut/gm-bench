@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from examples import gm_agent_common
+from gm_bench import scaffold_view
 from gm_bench.agents import AGENTS, PickTraderAgent, ScaffoldViewAgent
 from gm_bench.benchmark_config import PRESETS
 from gm_bench.runner import run_episode, run_many
@@ -49,29 +50,70 @@ def test_scaffold_view_is_registered_as_a_baseline() -> None:
 
 
 def test_adapter_and_reference_share_one_compaction() -> None:
+    """Every player the reference holds re-renders into the model's own row.
+
+    The two shapes differ in form, not content: the model reads rendered rows
+    and the scripted reference reads the dicts those rows were built from. The
+    enforceable version of that claim is byte equality after re-rendering the
+    reference's objects through the same row builders -- an ids-only comparison
+    would pass while the render quietly dropped a column.
+    """
     # Not equality of two implementations -- there is only one, re-exported.
     assert gm_agent_common.compact_observation is compact_observation
 
     league = League.new(seed=11)
+    league.prepare_trade_deadline()
     observation = league.observation("offseason")
     compact = compact_observation(observation)
     view = scaffold_view_observation(observation)
 
-    # The model reads rendered rows and the reference reads dicts, so the shared
-    # guarantee is that both describe the same players, in the same order, from
-    # the one selection -- checked by the ids the rows lead with.
-    def row_ids(rows: list[str]) -> list[int]:
-        return [int(row.split("|", maxsplit=1)[0]) for row in rows]
+    assert compact["team"]["roster"] == scaffold_view._roster_rows(view["team"]["roster"])
+    assert compact["free_agents"] == scaffold_view._free_agent_rows(view["free_agents"])
+    assert compact["draft_class"] == scaffold_view._draft_rows(view["draft_class"], view["scout_reports"])
+    assert compact["trade_market"] == scaffold_view._trade_rows(view["trade_market"])
+    assert compact["incoming_offers"] == scaffold_view._offer_rows(view["incoming_offers"])
+    assert compact["incoming_offers"], "the trade-deadline offers must be part of this comparison"
+    assert compact.get("waiver_wire", []) == scaffold_view._waiver_rows(view["waiver_wire"])
 
-    assert row_ids(compact["team"]["roster"]) == [player["id"] for player in view["team"]["roster"]]
-    for key in ("free_agents", "draft_class"):
-        assert row_ids(compact[key]) == [player["id"] for player in view[key]]
-    assert [row.split("|")[0] for row in compact["trade_market"]] == [
-        f"T{offer['team_id']}" for offer in view["trade_market"]
+
+def test_reference_only_holds_the_two_documented_unbudgeted_fields() -> None:
+    """The module docstring's sharing claim, enforced field by field.
+
+    Everything the reference receives raw is either published whole by the
+    render or named in ``_UNBUDGETED_REFERENCE_FIELDS``. Without this the
+    docstring can silently become false again, which is exactly how the
+    reference came to hold all-season pick data the model's standings row never
+    carried.
+    """
+    league = League.new(seed=11)
+    for _ in range(2):
+        league.run_opponent_draft(before_user=True)
+        league.run_opponent_draft(before_user=False)
+        league.simulate_season()
+    league._transfer_pick(league.user_team, league.teams[4], league.season + 1)
+    observation = league.observation("preseason")
+    compact = compact_observation(observation)
+    view = scaffold_view_observation(observation)
+
+    assert scaffold_view._UNBUDGETED_REFERENCE_FIELDS == ("action_results", "recent_transactions")
+
+    # Rules: the reference gets the nested dict because a scripted policy cannot
+    # parse prose, but every value in it is published to the model as well
+    # (asserted leaf by leaf in test_observation_budget).
+    assert view["rules"] == observation["rules"]
+
+    # Standings, history, draft order, the lottery and scout reports are the
+    # same content in both shapes -- including the pick seasons, which the
+    # render stops at the current season.
+    assert [team["team_id"] for team in view["standings"]] == [
+        int(row.split("|")[0].lstrip("T")) for row in compact["standings"]
     ]
-    assert [row.split(" ", maxsplit=1)[0] for row in compact["incoming_offers"]] == [
-        offer["offer_id"] for offer in view["incoming_offers"]
-    ]
+    seasons = {season for team in view["standings"] for season in team["pick_origins"]}
+    assert seasons and min(seasons) == league.season
+    assert any("-S" in row or "+S" in row for row in compact["standings"])
+    assert len(view["history"]) == len(compact["history"])
+    assert view["draft_order"] == compact["draft_order_inverse_standings"]
+    assert view["scout_reports"] == observation["scout_reports"]
 
 
 def test_model_prompt_and_scaffold_view_do_not_expose_seed() -> None:
@@ -109,8 +151,10 @@ def test_scaffold_view_policy_receives_the_truncated_candidates(monkeypatch: pyt
     # The truncation is announced to the model, so it knows the list is a slice.
     assert "top 10 of" in compact["free_agents_note"]
     # Standings and the ledger reach the model in v6, so the reference sees them
-    # too; nothing may be in one shape and missing from the other.
-    assert view["standings"] == observation["standings"]
+    # too -- with the same cut the rendered pick_holdings column applies, rather
+    # than every past season's pick origins.
+    assert [team["team_id"] for team in view["standings"]] == [team["team_id"] for team in observation["standings"]]
+    assert all(min(team["pick_origins"], default=league.season) >= league.season for team in view["standings"])
     assert view["waiver_wire"] == []
 
 

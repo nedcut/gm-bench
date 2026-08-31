@@ -136,6 +136,10 @@ LEDGER_ACTION_TYPES = frozenset(
 LEDGER_SEASONS_BACK = 1
 LEDGER_OWN_LIMIT = 24
 LEDGER_RIVAL_LIMIT = 10
+# The agent's own refused roster moves, with the simulator's reason. Small on
+# purpose: it is a memory aid against repeating one mistake for five seasons,
+# not a transcript, and every row spends prompt budget.
+LEDGER_OWN_REJECTED_LIMIT = 6
 SCOUT_POINTS_PER_SEASON = 3
 SCOUT_REPORT_NOISE = 1.5
 # A full season is this many games per team pairing. When a midseason break
@@ -345,21 +349,40 @@ class League:
         actually happened; rival moves are kept to a much shorter tail because
         they are market signal, not accountability, and opponent extension
         paperwork alone would otherwise fill the whole window.
+
+        The user's own *rejected* roster moves are kept too, to
+        ``LEDGER_OWN_REJECTED_LIMIT``. Under the v6 one-call rule the
+        ``action_results`` that carried the refusal are never shown to the
+        agent, so without this row a lowball offer or an illegal trade left no
+        trace anywhere and could be repeated every season for five seasons.
+        Rival rejections stay out: they are neither the agent's own record nor
+        market signal, and each one costs tokens.
         """
         oldest_season = self.season - LEDGER_SEASONS_BACK
         own: list[int] = []
+        # Keyed by (action type, reason) and holding the latest index, so an
+        # agent that repeats one illegal move eight times in a batch spends one
+        # ledger row on it instead of flushing every other lesson out of the cap.
+        own_rejected: dict[tuple[str, str], int] = {}
         rival: list[int] = []
         for index, transaction in enumerate(self.transactions):
-            if transaction.season < oldest_season or not transaction.accepted:
+            if transaction.season < oldest_season:
                 continue
             action_type = transaction.action.get("type") if isinstance(transaction.action, dict) else None
             if action_type not in LEDGER_ACTION_TYPES:
                 continue
-            if transaction.team_id == self.user_team_id:
+            if transaction.team_id != self.user_team_id:
+                if transaction.accepted:
+                    rival.append(index)
+            elif transaction.accepted:
                 own.append(index)
             else:
-                rival.append(index)
-        kept = sorted(set(own[-LEDGER_OWN_LIMIT:]) | set(rival[-LEDGER_RIVAL_LIMIT:]))
+                own_rejected[(str(action_type), transaction.message)] = index
+        kept = sorted(
+            set(own[-LEDGER_OWN_LIMIT:])
+            | set(sorted(own_rejected.values())[-LEDGER_OWN_REJECTED_LIMIT:])
+            | set(rival[-LEDGER_RIVAL_LIMIT:])
+        )
         return [self.transactions[index].__dict__ for index in kept]
 
     def _list_summary(self, ids: list[int], *, key: Any, limit: int) -> dict[str, Any]:

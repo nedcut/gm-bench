@@ -88,8 +88,13 @@ SOTA_V5_CONTRACT = {
     # team.draft_picks stopped publishing seasons already drafted in, which had
     # made every team that had ever used a pick read as having traded it away;
     # moved from bcfe0ce8c23ddc85 when the roster column header stopped
-    # labelling the four extension quotes as a five-term 1y..5y table.
-    "contract_fingerprint": "5db845650f34d4db",
+    # labelling the four extension quotes as a five-term 1y..5y table; moved
+    # from 5db845650f34d4db when the render stopped advertising query answers
+    # it cannot deliver under the one-call rule, restored the roster to the
+    # summary observation tier, stopped reading an exercised current-season
+    # pick as one its team had traded away, and the ledger began publishing the
+    # agent's own refused roster moves with the reason they failed.
+    "contract_fingerprint": "245ff803ecb349db",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
 # Pinned with the release identity so the site headroom strip cannot drift when

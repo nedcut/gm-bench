@@ -20,7 +20,7 @@ from gm_bench.agent_utils import position_aware_lineup, public_asset_value
 from gm_bench.protocol import EpisodeConfig
 from gm_bench.runner import run_episode
 from gm_bench.scaffold_view import compact_observation
-from gm_bench.simulator import MEMO_MAX_CHARS, League
+from gm_bench.simulator import LEDGER_OWN_REJECTED_LIMIT, MEMO_MAX_CHARS, League
 
 # The execution rule is written in tokens, and the repo has no tokenizer
 # dependency, so the bound is enforced in characters at a conservative ratio.
@@ -230,6 +230,43 @@ def test_pick_holdings_report_only_picks_that_can_still_be_spent() -> None:
     assert sum(counts.values()) == len(rendered["team"]["picks"])
 
 
+def test_exercised_current_season_picks_do_not_read_as_trades_at_the_draft() -> None:
+    """The draft phase is where the exercised/traded ambiguity actually bites.
+
+    Opponents pick before the user, so by the time the user's draft observation
+    is built every one of them has emptied its current-season origin list. Read
+    naively that is eleven teams advertising a pick for sale. A pick some other
+    team now holds was traded; a pick no team holds was used.
+    """
+    league = League.new(seed=42)
+    league.run_opponent_draft(before_user=True)
+    league.run_opponent_draft(before_user=False)
+    league.simulate_season()
+    assert league.season == 2
+
+    league.run_opponent_draft(before_user=True)
+    assert any(not league.teams[team_id].draft_picks.get(2) for team_id in range(1, 12)), (
+        "no opponent had picked yet, so this is not the ambiguous case"
+    )
+    rendered = _rendered(league, "draft")
+    holdings = {row.split("|")[0]: row.split("|")[-1] for row in rendered["standings"]}
+    assert all(value == "own" for value in holdings.values()), holdings
+
+    # A real current-season trade still shows on both sides, so the fix did not
+    # simply silence the column.
+    league._transfer_pick(league.user_team, league.teams[4], 2)
+    holdings = {row.split("|")[0]: row.split("|")[-1] for row in _rendered(league, "draft")["standings"]}
+    assert holdings["T0"] == "-S2"
+    assert holdings["T4"] == "+S2(T0)"
+
+    # Reading the column truthfully must not cost the standings pick data for
+    # seasons that can still be traded.
+    league._transfer_pick(league.user_team, league.teams[5], 4)
+    holdings = {row.split("|")[0]: row.split("|")[-1] for row in _rendered(league, "draft")["standings"]}
+    assert holdings["T0"] == "-S2 -S4"
+    assert holdings["T5"] == "+S4(T0)"
+
+
 def test_expiring_contracts_publish_quotes_and_the_expiry_risk() -> None:
     league = League.new(seed=11)
     league.season = 2
@@ -261,6 +298,44 @@ def test_a_released_player_is_rendered_as_blocked_from_re_signing() -> None:
     assert "will not re-sign with you" in rendered["rules"]["contracts"]
 
 
+def test_the_ledger_carries_your_own_refused_moves_with_the_reason() -> None:
+    """One call per phase means a rejection has to survive somewhere.
+
+    The ``action_results`` that explained the refusal are never shown to a model
+    that gets a single call per phase, so before this the mistake left no trace
+    anywhere and could be repeated every season for five seasons. Only the
+    user's own rejections are kept, capped, and marked as attempts rather than
+    moves.
+    """
+    league = League.new(seed=11)
+    league.apply_actions(
+        [{"type": "sign_free_agent", "player_id": 999_999, "years": 1, "salary": 1.0}] * 9,
+        "preseason",
+    )
+    rival_id = next(team_id for team_id in league.teams if team_id != league.user_team_id)
+    league._record({"type": "release", "player_id": 1}, "preseason", False, "rival mistake", team_id=rival_id)
+
+    rendered = _rendered(league, "preseason")
+    rejected = [row for row in rendered["recent_transactions"] if "REJECTED:" in row]
+    assert len(rejected) == 1, rejected
+    assert rejected[0].split("|")[2] == "YOU"
+    # The reason travels with the row; without it the model relearns nothing.
+    assert "free agent" in rejected[0].lower()
+    # Nine attempts, one lesson: repeating a mistake inside a batch must not
+    # flush every other lesson out of the six-row cap.
+    assert "REJECTED:" in rendered["recent_transactions_columns"]
+    # Rival refusals stay out: not the agent's record, not market signal.
+    assert not any("rival mistake" in row for row in rendered["recent_transactions"])
+
+    # Distinct failures accumulate up to the cap, newest kept.
+    for index in range(LEDGER_OWN_REJECTED_LIMIT + 2):
+        league._record({"type": "release", "player_id": index}, "preseason", False, f"reason {index}")
+    rejected = [row for row in _rendered(league, "preseason")["recent_transactions"] if "REJECTED:" in row]
+    assert len(rejected) == LEDGER_OWN_REJECTED_LIMIT
+    assert rejected[-1].endswith(f"reason {LEDGER_OWN_REJECTED_LIMIT + 1}")
+    assert not any("reason 0" in row for row in rejected)
+
+
 def test_echoed_query_results_cannot_inflate_the_view() -> None:
     """A batch of information actions is bounded, and says so when it is cut."""
     league = League.new(seed=11)
@@ -274,3 +349,84 @@ def test_echoed_query_results_cannot_inflate_the_view() -> None:
     # The first answer is served whole up to the budget, so asking one question
     # at a time keeps working.
     assert sum(1 for row in rendered["action_results"] if row.startswith("  ")) >= 12
+    # Results dropped whole by the cut count as omitted too: three of the four
+    # queries never render an outcome line at all, and a count that ignored them
+    # would tell the model less was lost than actually was.
+    omitted = int(rendered["action_results"][-1].split(maxsplit=1)[0].lstrip("("))
+    rendered_outcomes = sum(1 for row in rendered["action_results"] if row.startswith(("ok|", "REJECTED|")))
+    assert rendered_outcomes < len(results)
+    assert omitted >= len(results) - rendered_outcomes
+
+
+def test_summary_tier_still_publishes_the_roster_and_the_candidate_lists() -> None:
+    """The degraded tier has to stay playable, not silently lose the team.
+
+    The summary tier publishes ``team.roster_summary`` instead of player cards.
+    The render walked the (absent) card list and emitted an empty table with no
+    note, so the model was handed a franchise with no players and nothing saying
+    why.
+    """
+    league = League.new(seed=11)
+    observation = league.observation("offseason", tier="summary")
+    rendered = compact_observation(observation, "compact")
+
+    summary = observation["team"]["roster_summary"]
+    assert summary["count"] > 0
+    assert rendered["team"]["roster_summary"] == summary
+    note = rendered["team"]["roster_note"]
+    assert f"{summary['count']} players" in note
+    assert str(summary["top_player_ids"][0]) in note
+    # An empty rows table with the full column header would read as "you have no
+    # players", so the header goes with the rows.
+    assert not rendered["team"].get("roster")
+    assert "roster_columns" not in rendered["team"]
+
+    # Candidate lists survive as the ids the tier does publish, ordered by the
+    # rule that actually chose them.
+    assert rendered["free_agents_ids_only"] == observation["free_agents_summary"]["top_ids"]
+    assert rendered["draft_class_ids_only"] == observation["draft_class_summary"]["top_ids"]
+    assert "overall rating (ids only, summary tier)" in rendered["free_agents_note"]
+    assert "public asset value" not in rendered["free_agents_note"]
+    assert rendered["trade_market_note"] == (
+        f"none of the {observation['trade_market_summary']['count']} listed players are published "
+        "at this observation tier"
+    )
+    assert rendered["waiver_wire_summary"] == observation["waiver_wire_summary"]
+
+    # The full tier is unaffected: cards, the column header, and the asset-value
+    # rule are all still there.
+    full = compact_observation(league.observation("offseason"), "compact")
+    assert full["team"]["roster"] and "roster_columns" in full["team"]
+    assert "roster_summary" not in full["team"]
+    assert "public asset value" in full["free_agents_note"]
+
+
+def test_every_published_rule_value_reaches_the_rendered_rules_block() -> None:
+    """A rule the render drops is a mechanic the model cannot compute.
+
+    Four values (the two extension eligibility constants,
+    expiry_scramble_candidates, and young_win_sensitivity) were being dropped
+    silently, and the scripted reference policy reads the same rules dict, so
+    the drop was also an asymmetry between the two shapes.
+    """
+    league = League.new(seed=11)
+    observation = league.observation("preseason")
+    text = " ".join(compact_observation(observation, "compact")["rules"].values())
+
+    missing = []
+    for section, value in observation["rules"].items():
+        for name, leaf in value.items() if isinstance(value, dict) else [(section, value)]:
+            if name == "description" or isinstance(leaf, (dict, list)):
+                continue
+            rendered = str(leaf) if isinstance(leaf, str) else _rendered_number(leaf)
+            if rendered not in text:
+                missing.append(f"{section}.{name}={leaf!r}")
+    assert not missing, missing
+    # The nested collections, spot-checked in the form the render gives them.
+    assert "F>=10" in text and "G>=1" in text
+    assert "S2:" in text
+
+
+def _rendered_number(value: Any) -> str:
+    rounded = round(float(value), 2)
+    return str(int(rounded)) if rounded == int(rounded) else str(rounded)

@@ -45,15 +45,8 @@ _ACTION_EXAMPLES: tuple[tuple[str, str, str], ...] = (
     ("Core actions", "set_lineup", '{"type":"set_lineup","player_ids":[18 unique roster player ids]}'),
     ("Core actions", "claim_waiver", '{"type":"claim_waiver","player_id":55}'),
     ("Core actions", "memo", '{"type":"memo","text":"plan notes carried to your next decision"}'),
-    ("Information actions", "inspect_team", '{"type":"inspect_team","team_id":3}'),
-    ("Information actions", "inspect_player", '{"type":"inspect_player","player_id":88}'),
     (
-        "Information actions",
-        "list_free_agents",
-        '{"type":"list_free_agents","position":"F","min_overall":55,"limit":12}',
-    ),
-    (
-        "Information actions",
+        "Scouting (the one query whose answer survives to your next decision)",
         "scout",
         '{"type":"scout","player_id":88} or {"type":"scout","prospect_id":1010001}',
     ),
@@ -73,9 +66,12 @@ _ACTION_EXAMPLES: tuple[tuple[str, str, str], ...] = (
         '{"type":"counter_trade_offer","offer_id":"offer-3-1-trade_deadline-12-34",'
         '"give_player_ids":[2],"receive_player_ids":[9]}',
     ),
-    ("Control actions", "end_turn", '{"type":"end_turn"} to finish an information-gathering round'),
     ("Control actions", "noop", '{"type":"noop"}'),
 )
+# inspect_team, inspect_player, list_free_agents and end_turn stay legal in the
+# simulator (the scripted multi-round lane uses them) but are deliberately not
+# advertised here. A model gets one call per decision phase, so a query's answer
+# is never returned to it, and end_turn only cuts its own batch short.
 
 
 def _current_pick_count(compact: dict[str, Any]) -> int:
@@ -104,7 +100,7 @@ def _render_action_guide(compact: dict[str, Any]) -> str:
         noun = "action" if pick_count == 1 else "actions"
         lines.append(
             f"You own {pick_count} current-season draft pick(s); emit at most {pick_count} draft {noun} in this "
-            "decision, and do not retry after action_results reports that no current-season pick remains."
+            "decision. Any draft action beyond that is refused and counts against you."
         )
     lines.append("")
 
@@ -133,16 +129,19 @@ def build_prompt(observation: dict[str, Any]) -> str:
         "Choose legal front-office actions that maximize long-term benchmark score: wins, playoffs, titles, young assets, cap health, and valid decisions.\n\n"
         'Return ONLY a JSON object shaped like {"actions":[...]}. Do not use markdown. Do not explain.\n\n'
         + _render_action_guide(compact)
-        + "Information-action results appear in action_results on the next interaction round.\n"
-        "Observations may be summary-tier: use inspect/list/scout before committing. "
-        "Public potential ratings are noisy; scout (limited points per season, see rules.scouting) buys a "
-        "near-true potential reading, echoed forever in scout_reports — most valuable before drafting or big trades.\n"
+        + "This is your only call this phase. Your actions are applied as one batch and the phase then advances, "
+        "so you never see their results: the observation below is everything you get. Asking a question instead of "
+        "acting (inspect_team, inspect_player, list_free_agents) spends the decision and answers nothing.\n"
+        "The one query worth making is scout: public potential ratings are noisy, and a scout report (limited "
+        "points per season, see rules.scouting) is stored in scout_reports and readable at every later decision, "
+        "so it pays before a draft or a big trade.\n"
         "Opponents may send you trade offers in incoming_offers; accept, reject, or counter them. "
         "Every offer looks fair to the SENDER's private valuation — some are bargains, some dump bad contracts on you. "
         "Judge with public stats before accepting; ignoring an offer is free.\n"
         "Future draft picks are tradeable assets: give_pick_seasons/receive_pick_seasons list future season numbers "
         "(up to rules.pick_trading.max_seasons_ahead ahead; rough values in rules.pick_trading.pick_value_estimate); "
-        "owned picks per season are in team.draft_picks and future picks count toward your final score.\n"
+        "your own counts from this season onward are in team.draft_picks, every team's acquisitions and departures "
+        "are in the standings pick_holdings column, and future picks count toward your final score.\n"
         "Midseason has waiver claims after partial-season games. "
         "Constraints: lineup must include exactly 18 unique current roster players with at least 10 F, 4 D, and 1 G. "
         "Only players in the lineup develop at full speed; the lineup also sets team strength. "
@@ -151,15 +150,18 @@ def build_prompt(observation: dict[str, Any]) -> str:
         "but after rejected_offer_limit_per_window declines a counterparty stops negotiating until your next "
         "decision window. Free agents accept offers down to a hidden reservation within fa_reservation_range of "
         "their ask; offering the full ask always works. "
-        "Free-agent contract_quotes price each 1-5 year term; salaries and the cap inflate annually, while longer "
-        "terms cost a premium. In preseason, eligible final-year incumbents expose extension_quotes. Each roster "
-        "player's release_dead_cap publishes the exact by-season and total charge for releasing that contract now; "
-        "future retained charges appear in team.dead_cap. "
-        "Opponents draft in inverse-standings order, so top prospects may be gone before your pick. "
+        "A free agent's contract_quotes column prices each 1-5 year term in order; salaries and the cap inflate "
+        "annually, while longer terms cost a premium. In preseason, a final-year incumbent you may extend shows "
+        "extension_quotes: four prices for 2-, 3-, 4- and 5-year terms. A roster row's release_dead_cap reads "
+        "'per-season x seasons=total' — the exact charge for releasing that contract now; charges already retained "
+        "from past releases are in team.dead_cap. "
+        "Draft order is set by the lottery in draft_lottery once it is drawn, and projected by "
+        "draft_order_inverse_standings before that; teams picking ahead of you take top prospects first. "
         "Opponent teams also sign free agents after every phase and trade among "
         "themselves at the deadline, so a free agent visible now may be gone at your next decision. "
         "Use the memo action to carry multi-season plans forward; your last memo "
-        "is echoed in the observation. Review action_results before repeating failed moves. "
+        "is echoed in the observation. recent_transactions rows marked REJECTED: are your own refused moves with "
+        "the reason they failed — do not repeat them. "
         "Do not invent IDs. Keep signings under cap room unless the player is clearly worth it. "
         + (
             f"If unsure, at least set this valid lineup: {json.dumps(fallback_lineup)}.\n\n"

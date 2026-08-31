@@ -81,8 +81,12 @@ def test_current_and_historical_sota_policies_are_distinct() -> None:
     # rendered pick_holdings column and team.draft_picks stopped publishing
     # seasons already drafted in, and again from c85f76ad90723418 when the
     # roster column header stopped labelling the four extension quotes as a
-    # five-term 1y..5y table.
-    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "a830a2b5d8eac49d"
+    # five-term 1y..5y table. Moved again from a830a2b5d8eac49d when the prompt
+    # was rewritten for the one-call lane: it stopped advertising the query
+    # actions whose answers a model never sees, stopped promising echoed
+    # action_results, and now describes the draft lottery, extension quotes and
+    # release_dead_cap in the compact render's own terms.
+    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "c91c15f2a03e0cc0"
 
 
 def test_archived_v1_result_remains_auditable_but_not_v2_eligible() -> None:

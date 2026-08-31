@@ -14,8 +14,22 @@ selection as pipe-delimited rows, because the v6 budget is ~6,500 prompt tokens
 against an 8,000 ceiling and per-field JSON keys repeated across ~70 player
 records cost more than the records themselves. ``scaffold_view_observation``
 returns the same selection as Python objects so a scripted policy can read it.
-Neither shape may carry information the other lacks: the truncation limits and
-the field set both come from ``_select``.
+
+What the two shapes share, exactly: every player-bearing list (roster, free
+agents, draft class, trade market, incoming offers, waiver wire) comes from
+``_select``, so both shapes carry the same records, in the same order, cut at
+the same limits -- ``test_scaffold_view_baseline`` pins this by re-rendering the
+reference's objects and requiring the rendered rows back byte for byte. The
+rest of the observation is passed to the reference in raw form, because a
+scripted policy cannot parse rows: ``rules`` (every published value of which the
+render also publishes), ``standings`` (with pick seasons cut the same way),
+``history``, ``draft_order``, ``draft_lottery``, ``scout_reports``,
+``recent_transactions`` and ``action_results``. Two of those the reference does
+see more of than a model does, and both are listed in
+``_UNBUDGETED_REFERENCE_FIELDS``: ``action_results`` is row-budgeted in the
+render and whole here, and a ledger row's raw ``action`` dict is summarized in
+the render as its message. The scripted reference reads neither, so the measured
+gap stays a statement about view truncation.
 """
 
 from __future__ import annotations
@@ -58,9 +72,20 @@ _DRAFT_COLUMNS = "id|name|pos|age|overall|potential|injury_risk%|scouted_potenti
 _TRADE_COLUMNS = "team_id|team_name|estimated_price|player: " + _DRAFT_COLUMNS.replace(
     "|scouted_potential", "|salary|contract_years"
 )
-_STANDINGS_COLUMNS = "team_id|team_name|wins-losses|championships|public_strength|pick_holdings(+acquired/-traded away)"
+_STANDINGS_COLUMNS = (
+    "team_id|team_name|wins-losses|championships|public_strength|"
+    "pick_holdings(+acquired/-traded away, current season onward; a pick already used in the draft is not listed)"
+)
 _HISTORY_COLUMNS = "season|wins-losses|playoff_rounds|champion_team_id|payroll|cap_room|score_after_season"
-_LEDGER_COLUMNS = "season|phase|team|move"
+_LEDGER_COLUMNS = (
+    "season|phase|team|move (a move prefixed REJECTED: was attempted by you and refused, for the stated reason)"
+)
+
+# The fields ``scaffold_view_observation`` hands the reference policy in a form
+# the rendered view does not fully reproduce. Kept as a named, tested list so
+# the module docstring's claim about what the two shapes share cannot quietly
+# stop being true; the scripted reference reads neither field.
+_UNBUDGETED_REFERENCE_FIELDS = ("action_results", "recent_transactions")
 
 
 def model_adapter_observation(observation: dict[str, Any]) -> dict[str, Any]:
@@ -105,7 +130,7 @@ def _select(observation: dict[str, Any], profile: str | None) -> dict[str, Any]:
         items = observation.get(key) or []
         if not items and observation.get(summary_key):
             # Summary-tier observations publish ids only; keep them so the model
-            # still knows who to inspect.
+            # still knows which players exist and can act on one by id.
             return [{"id": player_id} for player_id in observation[summary_key].get("top_ids", [])][: limits[key]]
         return sorted(_players(items), key=public_asset_value, reverse=True)[: limits[key]]
 
@@ -119,6 +144,7 @@ def _select(observation: dict[str, Any], profile: str | None) -> dict[str, Any]:
         "team": team,
         "roster": roster[: limits["roster"]],
         "roster_total": len(roster),
+        "roster_summary": team.get("roster_summary") or {},
         "free_agents": candidates("free_agents", "free_agents_summary"),
         "free_agents_total": len(_players(observation.get("free_agents")))
         or _summary_count(observation, "free_agents_summary"),
@@ -304,19 +330,24 @@ def _offer_rows(offers: list[dict[str, Any]]) -> list[str]:
     ]
 
 
-def _pick_holdings(team_id: Any, holdings: Any, season: Any) -> str:
+def _pick_holdings(team_id: Any, holdings: Any, season: Any, held_elsewhere: Any = None) -> str:
     """Summarize a team's picks as departures from "its own pick every season".
 
     Twelve teams times seven seasons of "team N owns team N's pick" is pure
     redundancy; what a trade partner needs is which picks were acquired and
     which were traded away.
 
-    Seasons before ``season`` are dropped. A pick that has already been
-    exercised leaves an empty origin list behind, which is indistinguishable
-    here from a pick that was traded away, so publishing past seasons would
-    label every team that has ever drafted as having sold off its first-
-    rounders. Only picks from the current season onward can still be spent or
-    traded, and only those are shown.
+    Seasons before ``season`` are dropped: those picks are spent history.
+    Inside the current season the raw holdings are still ambiguous, because a
+    pick that has already been used in the draft leaves the same empty origin
+    list behind as a pick that was traded away -- and opponents draft before
+    the user, so at the user's draft-phase observation every opponent that has
+    picked would otherwise read as having sold its first-rounder.
+    ``held_elsewhere`` resolves it: a pick whose original team no longer holds
+    it but which some other team does was traded, and one no team holds was
+    exercised and is simply not listed. Callers without a league-wide view pass
+    None, and current-season departures are then left unstated rather than
+    guessed. Future seasons cannot have been exercised, so they need neither.
     """
     if not isinstance(holdings, dict) or not holdings:
         return "own"
@@ -328,8 +359,13 @@ def _pick_holdings(team_id: Any, holdings: Any, season: Any) -> str:
         origins = list(holdings[pick_season] or [])
         extras = [origin for origin in origins if origin != team_id]
         notes += [f"+S{pick_season}(T{origin})" for origin in extras]
-        if team_id not in origins:
-            notes.append(f"-S{pick_season}")
+        if team_id in origins:
+            continue
+        if current is not None and int(pick_season) == current:
+            still_held = (held_elsewhere or {}).get(int(pick_season)) or set()
+            if held_elsewhere is None or team_id not in still_held:
+                continue
+        notes.append(f"-S{pick_season}")
     return " ".join(notes) if notes else "own"
 
 
@@ -340,8 +376,25 @@ def _season_number(season: Any) -> int | None:
         return None
 
 
+def _origins_still_held(standings: Any) -> dict[int, set[Any]]:
+    """Per season, every pick origin some team in the league still holds.
+
+    A pick that was traded is in its new owner's list; a pick that was used in
+    the draft is in nobody's. That difference is what lets ``_pick_holdings``
+    tell "sold it" from "already drafted with it".
+    """
+    held: dict[int, set[Any]] = {}
+    for team in standings or []:
+        if not isinstance(team, dict):
+            continue
+        for pick_season, origins in (team.get("pick_origins") or {}).items():
+            held.setdefault(int(pick_season), set()).update(origins or [])
+    return held
+
+
 def _standings_rows(standings: Any, season: Any) -> list[str]:
     rows = []
+    held_elsewhere = _origins_still_held(standings)
     for team in standings or []:
         if not isinstance(team, dict):
             continue
@@ -353,7 +406,7 @@ def _standings_rows(standings: Any, season: Any) -> list[str]:
                     f"{_num(team.get('wins'))}-{_num(team.get('losses'))}",
                     _num(team.get("championships")),
                     _num(team.get("public_strength")),
-                    _pick_holdings(team.get("team_id"), team.get("pick_origins"), season),
+                    _pick_holdings(team.get("team_id"), team.get("pick_origins"), season, held_elsewhere),
                 ]
             )
         )
@@ -382,13 +435,21 @@ def _history_rows(history: Any) -> list[str]:
 
 
 def _ledger_rows(transactions: Any, user_team_id: Any) -> list[str]:
+    """Render the ledger, marking the rows that did not happen.
+
+    The ledger carries the user's own rejected roster moves as well as the
+    accepted ones (see ``League._recent_transactions_public``), and a rejection
+    reason reads exactly like a completed move unless it is labelled.
+    """
     rows = []
     for transaction in transactions or []:
         if not isinstance(transaction, dict):
             continue
         actor = "YOU" if transaction.get("team_id") == user_team_id else f"T{_num(transaction.get('team_id'))}"
+        outcome = "" if transaction.get("accepted", True) else "REJECTED: "
         rows.append(
-            f"S{_num(transaction.get('season'))}|{transaction.get('phase', '?')}|{actor}|{transaction.get('message', '')}"
+            f"S{_num(transaction.get('season'))}|{transaction.get('phase', '?')}|{actor}|"
+            f"{outcome}{transaction.get('message', '')}"
         )
     return rows
 
@@ -408,9 +469,8 @@ def _action_result_rows(results: Any, scout_reports: dict[str, Any], season: Any
     rows: list[str] = []
     budget = _ACTION_RESULT_ROW_BUDGET
     dropped = 0
-    for result in results or []:
-        if not isinstance(result, dict):
-            continue
+    pending = [result for result in results or [] if isinstance(result, dict)]
+    for index, result in enumerate(pending):
         action = result.get("action") if isinstance(result.get("action"), dict) else {}
         arguments = " ".join(f"{key}={_compact_argument(value)}" for key, value in action.items() if key != "type")
         outcome = "ok" if result.get("accepted") else "REJECTED"
@@ -429,6 +489,12 @@ def _action_result_rows(results: Any, scout_reports: dict[str, Any], season: Any
             rows += [f"  {row}" for row in attached[:room]]
             dropped += len(attached) - min(room, len(attached))
         if len(rows) >= budget:
+            # Everything after this result is dropped whole -- its outcome line
+            # as well as its attached rows -- so it counts as omitted too.
+            # Counting only the rows cut *inside* a rendered result understated
+            # the loss, and a model cannot tell an unanswered action from an
+            # unsent one.
+            dropped += len(pending) - index - 1
             break
     if dropped:
         rows.append(f"({dropped} further result rows omitted; the observation caps echoed query results)")
@@ -499,6 +565,13 @@ def _rules_text(rules: Any) -> dict[str, str]:
     v6 mechanic is made legible, and paraphrasing them here would fork the
     explanation from the constants it describes. Only the machine-readable
     numbers around them are flattened.
+
+    Every published rule value is rendered. Some are also implied elsewhere --
+    ``young_win_sensitivity`` reappears per player in ``signing_appeal``, and
+    the extension eligibility constants are visible in which roster rows carry
+    ``extension_quotes`` -- but silently dropping them cost a model the ability
+    to check its own arithmetic, and left the scripted reference policy holding
+    rules the model was never shown.
     """
     if not isinstance(rules, dict):
         return {}
@@ -525,14 +598,21 @@ def _rules_text(rules: Any) -> dict[str, str]:
             f"rejected_offer_limit_per_window={_num(rules.get('rejected_offer_limit_per_window'))} "
             f"win_appeal_weight={_num(willingness.get('win_appeal_weight'))} "
             f"role_appeal_weight={_num(willingness.get('role_appeal_weight'))} "
-            f"veteran_age={_num(willingness.get('veteran_age'))}. {willingness.get('description', '')}"
+            f"veteran_age={_num(willingness.get('veteran_age'))} "
+            f"young_win_sensitivity={_num(willingness.get('young_win_sensitivity'))}. "
+            f"{willingness.get('description', '')}"
         ),
         "contracts": (
             f"dead_cap_fraction={_num(contracts.get('dead_cap_fraction'))} "
             f"dead_cap_max_seasons={_num(contracts.get('dead_cap_max_seasons'))} "
             f"annual_market_inflation={_num(contracts.get('annual_market_inflation'))} "
             f"additional_year_premium={_num(contracts.get('additional_year_premium'))} "
-            f"incumbent_extension_discount={_num(contracts.get('incumbent_extension_discount'))}. "
+            f"incumbent_extension_discount={_num(contracts.get('incumbent_extension_discount'))} "
+            f"extension_eligibility_years_remaining="
+            f"{_num(contracts.get('extension_eligibility_years_remaining'))} "
+            f"extension_minimum_contract_age_seasons="
+            f"{_num(contracts.get('extension_minimum_contract_age_seasons'))} "
+            f"expiry_scramble_candidates={_num(contracts.get('expiry_scramble_candidates'))}. "
             f"{contracts.get('expiry_risk', '')} {contracts.get('release_resign_block', '')}"
         ),
         "trades": (
@@ -584,10 +664,22 @@ def _team_block(observation: dict[str, Any], selection: dict[str, Any]) -> dict[
         "roster_columns": _ROSTER_COLUMNS,
         "roster": _roster_rows(selection["roster"]),
     }
-    if roster_total > len(selection["roster"]):
+    summary = selection["roster_summary"]
+    if not block["roster"] and summary:
+        # Summary-tier observations carry no player cards at all. Publishing the
+        # empty table and nothing else silently deleted the roster; the counts
+        # and the best players' ids are what that tier does have.
+        del block["roster_columns"]
+        block["roster_summary"] = summary
+        block["roster_note"] = (
+            f"summary tier: no player cards this observation. {_num(summary.get('count'))} players, "
+            f"average overall {_num(summary.get('avg_overall'))}, best by overall: "
+            + ",".join(_num(player_id) for player_id in summary.get("top_player_ids") or [])
+        )
+    elif roster_total > len(selection["roster"]):
         block["roster_note"] = (
             f"roster truncated to the top {limits['roster']} of {roster_total} players by overall; "
-            "inspect_team shows the rest"
+            "the rest are not shown"
         )
     return block
 
@@ -607,9 +699,27 @@ def _id_only(players: list[dict[str, Any]]) -> list[int]:
 
 
 def _truncation_note(kind: str, shown: int, total: int, rule: str) -> str:
-    if total > shown:
-        return f"showing the top {shown} of {total} {kind} by {rule}; information actions reach the rest"
-    return f"showing all {total} {kind}"
+    """State the cut truthfully for the path that produced it.
+
+    Never promises that an information action reaches the rest: under the v6
+    one-call rule the answer to such a query is never returned to the model, so
+    whatever this note leaves out is simply absent from the decision.
+    """
+    if total <= shown:
+        return f"showing all {total} {kind}"
+    if shown == 0:
+        return f"none of the {total} {kind} are published at this observation tier"
+    return f"showing the top {shown} of {total} {kind} by {rule}; the rest are not shown"
+
+
+def _candidate_rule(players: list[dict[str, Any]]) -> str:
+    """How the published candidates were chosen, per tier.
+
+    The full tier ranks cards by public asset value. The summary tier never
+    gets cards: the simulator picks its ids by overall rating, so a note
+    claiming asset-value ordering there would describe a rule nothing ran.
+    """
+    return "public asset value" if _carded(players) else "overall rating (ids only, summary tier)"
 
 
 def compact_observation(observation: dict[str, Any], profile: str | None = None) -> dict[str, Any]:
@@ -642,13 +752,19 @@ def compact_observation(observation: dict[str, Any], profile: str | None = None)
         "free_agents": _free_agent_rows(_carded(selection["free_agents"])),
         "free_agents_ids_only": _id_only(selection["free_agents"]),
         "free_agents_note": _truncation_note(
-            "free agents", len(selection["free_agents"]), selection["free_agents_total"], "public asset value"
+            "free agents",
+            len(selection["free_agents"]),
+            selection["free_agents_total"],
+            _candidate_rule(selection["free_agents"]),
         ),
         "draft_class_columns": _DRAFT_COLUMNS,
         "draft_class": _draft_rows(_carded(selection["draft_class"]), scout_reports),
         "draft_class_ids_only": _id_only(selection["draft_class"]),
         "draft_class_note": _truncation_note(
-            "prospects", len(selection["draft_class"]), selection["draft_class_total"], "public asset value"
+            "prospects",
+            len(selection["draft_class"]),
+            selection["draft_class_total"],
+            _candidate_rule(selection["draft_class"]),
         ),
         "trade_market_columns": _TRADE_COLUMNS,
         "trade_market": _trade_rows(selection["trade_market"]),
@@ -693,16 +809,46 @@ def scaffold_fallback_lineup(observation: dict[str, Any]) -> list[int]:
     return position_aware_lineup(roster) if roster else []
 
 
+def _visible_standings(standings: Any, season: Any) -> list[Any]:
+    """Standings with each team's pick origins cut to the seasons the render shows.
+
+    The rendered ``pick_holdings`` column stops at the current season, because
+    earlier picks are spent history. Handing the reference policy every past
+    season's origins would give it the one thing the model's standings row does
+    not have.
+    """
+    visible = []
+    for team in standings or []:
+        if not isinstance(team, dict) or "pick_origins" not in team:
+            visible.append(team)
+            continue
+        origins = team.get("pick_origins") or {}
+        current = _season_number(season)
+        visible.append(
+            {
+                **team,
+                "pick_origins": {
+                    pick_season: value
+                    for pick_season, value in origins.items()
+                    if current is None or int(pick_season) >= current
+                },
+            }
+        )
+    return visible
+
+
 def scaffold_view_observation(observation: dict[str, Any], profile: str | None = None) -> dict[str, Any]:
     """The same selection as ``compact_observation``, shaped for a scripted policy.
 
     Only the rendering is undone: the rows a model reads become the dicts they
     were built from, and the flattened rules text becomes the rules dict. Every
-    truncation stays in place, and no field is present here that the rendered
-    rows do not publish. The payload is deliberately *not* round tripped through
-    JSON -- that would turn ``team.draft_picks`` season keys into strings and
-    make scripted ``.get(season)`` lookups miss, which is a Python typing
-    artifact rather than information a model is denied.
+    truncation stays in place. The two exceptions -- the fields this shape
+    carries in fuller form than the render does -- are ``_UNBUDGETED_REFERENCE_
+    FIELDS``, and neither is read by the scripted policy; see the module
+    docstring. The payload is deliberately *not* round tripped through JSON --
+    that would turn ``team.draft_picks`` season keys into strings and make
+    scripted ``.get(season)`` lookups miss, which is a Python typing artifact
+    rather than information a model is denied.
     """
     selection = _select(observation, profile)
     team = dict(selection["team"])
@@ -717,7 +863,7 @@ def scaffold_view_observation(observation: dict[str, Any], profile: str | None =
         "interaction_round": observation.get("interaction_round", 0),
         "rules": observation.get("rules") or {},
         "team": team,
-        "standings": observation.get("standings") or [],
+        "standings": _visible_standings(observation.get("standings"), observation.get("season")),
         "free_agents": list(selection["free_agents"]),
         "draft_class": list(selection["draft_class"]),
         "trade_market": list(selection["trade_market"]),

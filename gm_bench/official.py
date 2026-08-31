@@ -187,18 +187,23 @@ SOTA_V5_POLICY = ResultPolicy(
     # column and team.draft_picks dropped seasons already drafted in, and again
     # (from anthropic 8836cdb8343a6627 and its eight siblings) when the roster
     # column header stopped labelling the four extension quotes as a five-term
-    # 1y..5y table. Prompt text and call conditions changed, so no earlier row
-    # is comparable to a later one.
+    # 1y..5y table. Moved again (from anthropic 114bfcf2b845a1ff and its eight
+    # siblings) when the prompt was rewritten for the one-call lane: it no
+    # longer advertises inspect_team, inspect_player, list_free_agents or
+    # end_turn, no longer promises that query answers come back in
+    # action_results, and states the draft-order, extension-quote and
+    # release_dead_cap facts in the compact render's own terms. Prompt text and
+    # call conditions changed, so no earlier row is comparable to a later one.
     expected_scaffold_fingerprints={
-        "anthropic": "114bfcf2b845a1ff",
-        "claude": "bd4c087d865e4986",
-        "codex": "f68b5f1ba2c60118",
-        "cursor": "82b5ed85aea94483",
-        "gemini": "5b118c72ed3f14ae",
-        "ollama": "771594e5db4605a3",
-        "openai": "a8665e929481ba19",
-        "opencode": "21f822e455de8f89",
-        "openrouter": "a830a2b5d8eac49d",
+        "anthropic": "84f91d6addcecfb3",
+        "claude": "cf6bc248f94dcd51",
+        "codex": "95c56e6f4bd7c28d",
+        "cursor": "3805bf99dade677e",
+        "gemini": "d395010a13c7c02d",
+        "ollama": "9fe9903f6085e6a1",
+        "openai": "8e9bb988a5e44726",
+        "opencode": "63a429ecfde0749b",
+        "openrouter": "c91c15f2a03e0cc0",
     },
     max_failed_query_rate=1.0,
 )
