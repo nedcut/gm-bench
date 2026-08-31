@@ -332,6 +332,7 @@
       }
     },
     "recent_transactions": {
+      "description": "Accepted roster-changing moves from the current season and the one before it, oldest first: up to 24 of the user's own moves plus a shorter tail of rival moves as market signal. Lineup changes, information actions, and rejected attempts are not included.",
       "type": "array",
       "items": {
         "$ref": "#/$defs/transaction"

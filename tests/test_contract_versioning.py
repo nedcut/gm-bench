@@ -72,7 +72,10 @@ def test_current_and_historical_sota_policies_are_distinct() -> None:
     assert SOTA_V3_POLICY.expected_scaffold_fingerprints["openrouter"] == "2462b25854c1298b"
     assert SOTA_V3_POLICY.expected_scaffold_fingerprints["openai"] == "8275269195e00191"
     assert SOTA_V4_POLICY.expected_scaffold_fingerprints["openrouter"] == "f04724717cc09caf"
-    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "12cae0f4a05570f8"
+    # Moved from 12cae0f4a05570f8 with the v6 compact observation render: the
+    # shared compaction that every adapter's prompt is built from was rewritten
+    # into pipe-delimited tables, so the live lane's prompt text is new.
+    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "be227cafa39bc085"
 
 
 def test_archived_v1_result_remains_auditable_but_not_v2_eligible() -> None:

@@ -41,7 +41,11 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # Moved again when that block was made per (team, player) rather than one
     # team per player, so a rival's later drop cannot erase it, and when waiver
     # claims started enforcing it alongside free-agent signings.
-    assert contract_fingerprint() == "b97c8a1d61b321cc"
+    # Moved again for the v6 compact observation render: the model view is now
+    # pipe-delimited tables inside the ~6,500-token budget, the candidate lists
+    # it carries are shorter, and the transaction ledger publishes two seasons
+    # of roster-changing moves instead of the last twelve transactions.
+    assert contract_fingerprint() == "989775a0ca5c7ad1"
     assert "oracle" not in AGENTS
 
 

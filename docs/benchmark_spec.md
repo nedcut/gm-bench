@@ -167,6 +167,37 @@ persistent-session events, and child-process environments. This prevents a
 public adapter from reconstructing hidden potentials, reservation prices, or
 trade biases from the private evaluation seed.
 
+### The compact render models read
+
+Scripted agents read the observation the simulator emits. Model adapters read
+one compact render of it, built by `gm_bench/scaffold_view.py` and shared by
+every adapter, so no model gets a private view. It exists to hold the whole
+prompt inside the v6 budget — target ~6,500 tokens, hard ceiling 8,000 — which
+the previous JSON view exceeded at roughly 11,600.
+
+- Rosters, standings, free agents, prospects, the trade market, the waiver
+  wire, incoming offers, season results, and the transaction ledger are
+  pipe-delimited rows. Each table ships a `*_columns` line whose column names
+  are the observation fields the values came from.
+- Candidate lists are cut to the v6 budget: 26 roster players by overall, 10
+  free agents, 8 prospects, and 6 trade listings by public asset value, 3
+  incoming offers, 4 waiver players. The rule is the same for every agent and
+  every list states how many of how many it is showing.
+- The ledger carries accepted roster-changing moves from the current season and
+  the one before it — up to 24 of the agent's own, plus a shorter rival tail —
+  alongside one line per completed season.
+- Echoed query answers in `action_results` are capped at a fixed number of rows
+  and say when they were cut, so a batch of information actions cannot inflate
+  the prompt past the ceiling.
+- The rules block keeps the simulator's own descriptions of the center bonus,
+  free-agent willingness, and extension expiry verbatim; only the numbers
+  around them are flattened.
+
+`compact_observation` renders those rows; `scaffold_view_observation` returns
+the same selection as Python objects for the `scaffold-view` diagnostic. Both
+come from one selection function, so neither shape can carry information the
+other lacks.
+
 ### Persistent sessions
 
 By default external agents are launched fresh at each decision point, so the

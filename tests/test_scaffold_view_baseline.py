@@ -57,9 +57,21 @@ def test_adapter_and_reference_share_one_compaction() -> None:
     compact = compact_observation(observation)
     view = scaffold_view_observation(observation)
 
-    assert view["team"]["roster"] == compact["team"]["top_roster"]
-    for key in ("free_agents", "draft_class", "trade_market", "incoming_offers", "rules", "scout_reports"):
-        assert view[key] == compact[key]
+    # The model reads rendered rows and the reference reads dicts, so the shared
+    # guarantee is that both describe the same players, in the same order, from
+    # the one selection -- checked by the ids the rows lead with.
+    def row_ids(rows: list[str]) -> list[int]:
+        return [int(row.split("|", maxsplit=1)[0]) for row in rows]
+
+    assert row_ids(compact["team"]["roster"]) == [player["id"] for player in view["team"]["roster"]]
+    for key in ("free_agents", "draft_class"):
+        assert row_ids(compact[key]) == [player["id"] for player in view[key]]
+    assert [row.split("|")[0] for row in compact["trade_market"]] == [
+        f"T{offer['team_id']}" for offer in view["trade_market"]
+    ]
+    assert [row.split(" ", maxsplit=1)[0] for row in compact["incoming_offers"]] == [
+        offer["offer_id"] for offer in view["incoming_offers"]
+    ]
 
 
 def test_model_prompt_and_scaffold_view_do_not_expose_seed() -> None:
@@ -80,19 +92,26 @@ def test_model_prompt_and_scaffold_view_do_not_expose_seed() -> None:
 def test_scaffold_view_policy_receives_the_truncated_candidates(monkeypatch: pytest.MonkeyPatch) -> None:
     league = League.new(seed=11)
     observation = league.observation("offseason")
-    assert len(observation["free_agents"]) > 16
-    assert len(observation["trade_market"]) > 12
+    assert len(observation["free_agents"]) > 10
+    assert len(observation["trade_market"]) > 6
 
     view = _capture_view(monkeypatch, observation)
 
-    assert len(view["free_agents"]) == 16
-    assert len(view["draft_class"]) <= 16
-    assert len(view["trade_market"]) == 12
+    # The v6 candidate budget: 10 free agents, 8 prospects, 6 trade offers.
+    assert len(view["free_agents"]) == 10
+    assert len(view["draft_class"]) <= 8
+    assert len(view["trade_market"]) == 6
     assert len(view["incoming_offers"]) <= 3
-    assert view["free_agents"] == compact_observation(observation)["free_agents"]
-    # Fields the scaffold drops entirely stay dropped.
-    assert "standings" not in view
-    assert "waiver_wire" not in view
+    compact = compact_observation(observation)
+    assert [player["id"] for player in view["free_agents"]] == [
+        int(row.split("|", maxsplit=1)[0]) for row in compact["free_agents"]
+    ]
+    # The truncation is announced to the model, so it knows the list is a slice.
+    assert "top 10 of" in compact["free_agents_note"]
+    # Standings and the ledger reach the model in v6, so the reference sees them
+    # too; nothing may be in one shape and missing from the other.
+    assert view["standings"] == observation["standings"]
+    assert view["waiver_wire"] == []
 
 
 def test_pick_trader_still_sees_the_untruncated_observation(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -114,11 +133,11 @@ def test_pick_trader_still_sees_the_untruncated_observation(monkeypatch: pytest.
 def test_scaffold_view_draft_class_truncation(monkeypatch: pytest.MonkeyPatch) -> None:
     league = League.new(seed=11)
     observation = league.observation("draft")
-    assert len(observation["draft_class"]) > 16
+    assert len(observation["draft_class"]) > 8
 
     view = _capture_view(monkeypatch, observation)
 
-    assert len(view["draft_class"]) == 16
+    assert len(view["draft_class"]) == 8
 
 
 def test_scaffold_view_actions_are_legal_across_phases() -> None:
@@ -156,7 +175,12 @@ def test_scaffold_view_and_pick_trader_leaderboard_seed_smoke() -> None:
     # least one different call against the truncated view than against the
     # full one. Pin both scores directly so contract drift cannot silently
     # invalidate the run log.
-    assert scaffold_score == pytest.approx(278.003, abs=0.001)
+    # The scaffold-view score moved from 278.003 because the v6 compact render
+    # tightened the candidate budget it reads (16 free agents to 10, 16
+    # prospects to 8, 12 trade listings to 6), so the policy chooses from
+    # shorter lists; pick-trader reads the untruncated observation and is
+    # unchanged, which is why only one of the two numbers moves.
+    assert scaffold_score == pytest.approx(250.989, abs=0.001)
     assert pick_trader_score == pytest.approx(272.596, abs=0.001)
 
 
@@ -209,7 +233,7 @@ def test_ambient_profile_cannot_decide_the_reference_view(monkeypatch: pytest.Mo
     monkeypatch.setenv("GM_AGENT_PROFILE", "tiny")
     league = League.new(seed=11)
     view = _capture_view(monkeypatch, league.observation("offseason"))
-    assert len(view["trade_market"]) == 12
+    assert len(view["trade_market"]) == 6
     assert ScaffoldViewAgent().profile == "compact"
 
 

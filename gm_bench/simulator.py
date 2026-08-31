@@ -114,6 +114,28 @@ RELEASE_RESIGN_BLOCK = (
     "a way to re-price his contract."
 )
 REJECTED_OFFER_LIMIT_PER_WINDOW = 2
+# The published transaction ledger. A flat "last N transactions" window is
+# mostly opponent extension paperwork by the time it reaches an agent, and it
+# forgets the agent's own moves within a single busy phase. The ledger instead
+# keeps roster-changing moves only, over the current season and the one before
+# it, with the agent's own history kept deep enough to survive a full offseason
+# and a shallower rival tail as market signal.
+LEDGER_ACTION_TYPES = frozenset(
+    {
+        "sign_free_agent",
+        "extend_contract",
+        "draft",
+        "trade",
+        "release",
+        "claim_waiver",
+        "accept_trade_offer",
+        "accept_offer",
+        "counter_trade_offer",
+    }
+)
+LEDGER_SEASONS_BACK = 1
+LEDGER_OWN_LIMIT = 24
+LEDGER_RIVAL_LIMIT = 10
 SCOUT_POINTS_PER_SEASON = 3
 SCOUT_REPORT_NOISE = 1.5
 # A full season is this many games per team pairing. When a midseason break
@@ -219,7 +241,7 @@ class League:
                         "Each forward's sub_position is 'C' (center) or 'W' (wing), roughly "
                         f"{CENTER_SHARE:.0%} of forwards are centers league-wide. A dressed lineup "
                         f"earns +{CENTER_LINEUP_BONUS_PER} team strength per dressed center up to "
-                        f"{CENTER_LINEUP_TARGET} (max +{CENTER_LINEUP_TARGET * CENTER_LINEUP_BONUS_PER}). "
+                        f"{CENTER_LINEUP_TARGET} (max +{round(CENTER_LINEUP_TARGET * CENTER_LINEUP_BONUS_PER, 2)}). "
                         "Filling forward slots by overall alone often misses this."
                     ),
                 },
@@ -279,7 +301,7 @@ class League:
             "incoming_offers": self._incoming_offers_public(),
             "scout_reports": {str(player_id): report for player_id, report in sorted(self.scout_reports.items())},
             "history": [summary.__dict__ for summary in self.summaries[-5:]],
-            "recent_transactions": [transaction.__dict__ for transaction in self.transactions[-12:]],
+            "recent_transactions": self._recent_transactions_public(),
             "memo": self.agent_memo,
             "available_actions": self._available_actions(phase),
         }
@@ -314,6 +336,31 @@ class League:
                 "Send end_turn when finished gathering information."
             )
         return payload
+
+    def _recent_transactions_public(self) -> list[dict[str, Any]]:
+        """The roster-changing ledger for the current and previous season.
+
+        Chronological. The user's own accepted moves are kept to
+        ``LEDGER_OWN_LIMIT`` so a multi-season plan can be audited against what
+        actually happened; rival moves are kept to a much shorter tail because
+        they are market signal, not accountability, and opponent extension
+        paperwork alone would otherwise fill the whole window.
+        """
+        oldest_season = self.season - LEDGER_SEASONS_BACK
+        own: list[int] = []
+        rival: list[int] = []
+        for index, transaction in enumerate(self.transactions):
+            if transaction.season < oldest_season or not transaction.accepted:
+                continue
+            action_type = transaction.action.get("type") if isinstance(transaction.action, dict) else None
+            if action_type not in LEDGER_ACTION_TYPES:
+                continue
+            if transaction.team_id == self.user_team_id:
+                own.append(index)
+            else:
+                rival.append(index)
+        kept = sorted(set(own[-LEDGER_OWN_LIMIT:]) | set(rival[-LEDGER_RIVAL_LIMIT:]))
+        return [self.transactions[index].__dict__ for index in kept]
 
     def _list_summary(self, ids: list[int], *, key: Any, limit: int) -> dict[str, Any]:
         ordered = sorted(ids, key=key, reverse=True)

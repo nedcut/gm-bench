@@ -76,8 +76,12 @@ SOTA_V5_CONTRACT = {
     # from ad97fb57f513a751 when that release block became a set of
     # (team, player) pairs, so a later drop by another team no longer erases
     # an earlier team's block, and waiver claims began honouring the block the
-    # same way free-agent signings do.
-    "contract_fingerprint": "b97c8a1d61b321cc",
+    # same way free-agent signings do; moved from b97c8a1d61b321cc when the
+    # v6 compact observation render replaced the verbose JSON view with
+    # pipe-delimited tables inside the ~6,500-token budget, tightened the
+    # candidate lists a model reads, and gave the transaction ledger its
+    # roster-changing two-season selection rule.
+    "contract_fingerprint": "989775a0ca5c7ad1",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
 # Pinned with the release identity so the site headroom strip cannot drift when
