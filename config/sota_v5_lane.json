@@ -1,8 +1,11 @@
 {
   "schema_version": 2,
   "contract": "sota-v5",
-  "contract_fingerprint": "247e12fe5a7d4f5b",
+  "contract_fingerprint": "a600b7da0c302231",
   "preregistered_at_utc": "2026-08-16T19:45:49Z",
+  "amended_at_utc": "2026-08-31T00:00:00Z",
+  "amendment_revision": "2026-08-31-v6-execution-rules-amendment",
+  "amendment_record": "docs/run_logs/sota-v5-v6-execution-amendment-2026-08-31.md",
   "preregistration_status": "frozen",
   "evidence_state": "pre-data-no-v5-provider-calls-smokes-or-panel-results",
   "headline_lane": "api",
@@ -20,23 +23,23 @@
     "claim_direction": "trails-reference",
     "primary_claim": "Every registered model-plus-compact-scaffold system trails deterministic pick-trader on seed-paired mean lift under the frozen sota-v5 mechanics.",
     "evaluated_seed_range": [
-      9,
-      16
+      16,
+      29
     ],
     "evaluated_repeat_range": [
       1,
       1
     ],
-    "family_size": 8,
-    "holm_family_size": 8,
-    "seed_count": 16,
+    "family_size": 16,
+    "holm_family_size": 16,
+    "seed_count": 29,
     "repeats": 1,
-    "episodes_per_model": 16,
+    "episodes_per_model": 29,
     "multiplicity_method": "holm-bonferroni",
     "alpha": 0.05,
     "reference_agent": "pick-trader",
     "target_effect_score_points": -100,
-    "target_effect_basis": "Conservative against the frozen sota-v2 observed lifts; no v4 result is used to select the v5 replacement or tune this target.",
+    "target_effect_basis": "Unchanged from the 2026-08-16 preregistration and still conservative against the frozen sota-v2 observed lifts. No v5 or v6 model result exists to tune it.",
     "target_familywise_all_reject_power": 0.8,
     "simulation_trials": 10000,
     "simulation_seed": 2026072800,
@@ -52,84 +55,85 @@
       "interaction_variance_floor_as_historical_noise_fraction": 0.1
     },
     "selected_allocation": {
-      "seed_count": 16,
+      "seed_count": 29,
       "repeats": 1,
-      "episodes_per_model": 16,
-      "minimum_exact_two_sided_sign_flip_p_value": 3.0517578125e-05,
-      "holm_first_step_threshold_at_alpha_0_05": 0.00625,
+      "episodes_per_model": 29,
+      "minimum_exact_two_sided_sign_flip_p_value": 3.725290298461914e-09,
+      "holm_first_step_threshold_at_alpha_0_05": 0.003125,
       "exact_sign_flip_holm_feasible": true,
-      "base_power_estimate": 0.9629,
-      "base_power_wilson_ci95": [
-        0.959014,
-        0.96643
-      ],
-      "sensitivity_power_estimate": 0.8727,
-      "sensitivity_power_wilson_ci95": [
-        0.866024,
-        0.87909
-      ],
-      "allocation_selection_note": "Retain the exact unused 16-seed x 1-repeat commitment because the v5 Holm family remains eight. This allocation is carried from v3/v4 only as pre-data design lineage; no v3 or v4 panel was run and no seed or salt was read."
+      "allocation_selection_note": "29 seeds x 1 repeat is the frozen v6 panel width from docs/bench_v6_spec.md, set by the minimum detectable difference target (30 points) rather than by this lane's earlier familywise-power search. docs/scoring_calibration.md measures a 26-point MDD at 29 paired seeds against a paired-residual SD of 40.1 and an assumed within-seed repeat SD of 15.0. Widening the family from 8 to 16 tightens the Holm first step from 0.00625 to 0.003125; the exact sign-flip floor at 29 seeds is 2/2**29 = 3.73e-09, which clears it by six orders of magnitude, so the wider family costs nothing in feasibility.",
+      "supersedes": "The 16-seed x 1-repeat allocation frozen on 2026-08-16, which was carried forward from sota-v3 with an unused private commitment. That commitment is retired unused; see seed_panel."
     },
-    "selection_rule": "Smallest allocation with 9-16 seeds and 1-3 repeats whose conservative-sensitivity familywise-power Wilson 95% lower bound is at least 0.80; retain the already committed unused 16x1 allocation because the family remains eight.",
-    "lineage": "The 16-seed allocation, exact unused commitment, and pre-data power calculation are carried forward unchanged from sota-v3 through v4. v5 requires a fresh owner attestation of unused status before seed access."
+    "selection_rule": "The v6 panel width is fixed at 29 paired seeds by the minimum-detectable-difference target in docs/bench_v6_spec.md and the calibration in docs/scoring_calibration.md. This lane's earlier smallest-allocation-clearing-0.80-familywise-power search is superseded: it optimized a different quantity (all-reject power against a -100 planning effect) on a narrower family.",
+    "lineage": "The 2026-08-16 lane carried a 16-seed allocation and commitment forward from sota-v3 and sota-v4. Neither lane ever ran a panel and no seed or salt was read, so retiring that commitment reveals nothing and costs no measurement.",
+    "within_seed_variance_caveat": "The 26-point projection assumes a within-seed model repeat SD near 15.0. Saved v5-era leaderboard artifacts span 19.9 to 56.7 on that statistic. Every published row records within_seed_score_stddev, and no separation claim is made for a pair whose noisier member exceeds 25."
   },
   "seed_panel": {
-    "status": "frozen",
+    "status": "pending-authorized-generation",
     "name": "private-env",
-    "count": 16,
-    "sha256": "291fa61cc3dfd8b23fdd79cce3c80a0a98f918f6c8757d35c21b4d8131cc6099",
-    "hiding_commitment_sha256": "7f8da7ca4db4a698ea2b0506af8568c89744e18508d8dedbfeb1c87e90a2b5f8",
+    "count": 29,
     "generation_method": "uniform-rejection-sampling-secrets-randbelow-63bit-v1",
-    "secret_escrow": "macos-keychain:gm-bench-sota-v3-private-panel",
-    "lineage_contract": "sota-v3",
-    "lineage_contract_fingerprint": "247e12fe5a7d4f5b",
-    "lineage_chain": [
-      "sota-v3",
-      "sota-v4",
-      "sota-v5"
-    ],
-    "lineage_use_status": "unused-no-sota-v3-or-sota-v4-panel-execution",
+    "secret_escrow": "macos-keychain:gm-bench-sota-v5-v6-private-panel",
     "owner_attestation_required": true,
     "owner_attestation_status": "pending-before-seed-access",
-    "owner_attestation_scope": "Owner must attest that the commitment and seed values remain unused, no v3 or v4 panel read them, and v5 panel execution will use the exact committed values without post-data substitution.",
+    "owner_attestation_scope": "Owner must attest that the new 29-seed commitment and its seed values are unused, that no earlier panel read them, and that panel execution will use the exact committed values without post-data substitution.",
     "secret_values_read_for_v5_preregistration": false,
-    "seed_values_included": false
+    "seed_values_included": false,
+    "retired_commitment": {
+      "count": 16,
+      "sha256": "291fa61cc3dfd8b23fdd79cce3c80a0a98f918f6c8757d35c21b4d8131cc6099",
+      "hiding_commitment_sha256": "7f8da7ca4db4a698ea2b0506af8568c89744e18508d8dedbfeb1c87e90a2b5f8",
+      "secret_escrow": "macos-keychain:gm-bench-sota-v3-private-panel",
+      "lineage_chain": [
+        "sota-v3",
+        "sota-v4",
+        "sota-v5"
+      ],
+      "lineage_use_status": "unused-no-sota-v3-sota-v4-or-sota-v5-panel-execution",
+      "retired_at_utc": "2026-08-31T00:00:00Z",
+      "retired_because": "It commits to 16 seeds and the v6 panel is 29. It was never used and its seeds were never read, so it is retired rather than revealed; its digests are kept here so the retirement is checkable. It must not be reused, extended, or partially revealed."
+    },
+    "blocked_on": "scripts/seed_panel_commitment.py generate --lane config/sota_v5_lane.json --secret-file <path outside the checkout>, then committing the returned sha256 and hiding_commitment_sha256 here and setting status to frozen. Generating private seed material and choosing its escrow is an owner action, so it is deliberately not done by this amendment; panel execution stays blocked until it is."
   },
   "reference_agent": "pick-trader",
-  "protocol_repair_attempts": 1,
+  "protocol_repair_attempts": 0,
   "strict_fallback_required": true,
   "model_registry": "config/sota_v5_models.json",
   "smoke_manifest": "config/sota_v5_smoke_manifest.json",
   "publication_protocol": "config/sota_v5_publication_protocol.json",
   "pricing_snapshot": "config/sota_v5_pricing_snapshot.json",
-  "cost_estimate_artifact": "results/analysis/sota-v5-pre-smoke-cost-estimate.json",
-  "minimum_headline_models": 8,
-  "reasoning_policy": "disabled",
+  "cost_estimate_artifact": "results/analysis/sota-v6-panel-cost-estimate.json",
+  "superseded_cost_estimate_artifact": "results/analysis/sota-v5-pre-smoke-cost-estimate.json",
+  "minimum_headline_models": 16,
+  "reasoning_policy": "per-model-disabled-or-mandatory-minimum",
   "output_token_cap": 4096,
-  "output_budget_status": "frozen-native-reasoning-cap",
+  "output_budget_status": "frozen-v6-output-ceiling-including-reasoning",
   "output_policy_basis": "fixed-safety-ceiling",
-  "output_policy_amendment_rule": "Any cap pressure or mandatory-reasoning incompatibility aborts sota-v5 and requires a new preregistration; no in-place result-informed cap or reasoning-policy amendment is authorized.",
-  "cap_pressure_action": "abort-sota-v5-and-repreregister",
+  "output_policy_amendment_rule": "The 4,096-token ceiling is frozen. Cap pressure on a single row excludes that row from the panel with its evidence retained; it does not raise the cap and does not silently re-run the row at a larger budget. No result-informed cap amendment is authorized.",
+  "cap_pressure_action": "exclude-the-pressured-row-and-record-the-evidence",
   "max_cap_amendments": 0,
   "cap_pressure_threshold_tokens": 3072,
   "fallback_output_token_cap": 8192,
+  "fallback_output_token_cap_status": "Recorded for schema compatibility only. Under this amendment no fallback branch is authorized: the cap is frozen at 4,096 and a pressured row is excluded rather than re-run at 8,192.",
   "spend_authorized": false,
   "route_preflight_authorized": true,
   "smoke_execution_authorized": false,
   "panel_execution_authorized": false,
   "publication_authorized": false,
   "blockers": [
-    "Final merged-head smoke-command and live-price preflight evidence must be accepted before any paid-smoke authorization.",
+    "A new 29-seed private panel must be generated, committed, and frozen; the retired 16-seed commitment is the wrong width and must not be reused.",
+    "The authenticated zero-completion route and privacy preflight must accept all sixteen registered routes; the committed acceptance is for the withdrawn eight-model cohort under a stale fingerprint.",
+    "The final-fingerprint preflight evidence must be regenerated against a600b7da0c302231.",
     "An owner attestation is required before hidden seed access and panel authorization.",
-    "Every required strict smoke must be accepted before a separate panel decision; any route incompatibility, cap pressure, unknown cost, or mandatory reasoning aborts v5 and requires a new preregistration.",
-    "SOTA-v4 remains a terminal historical contract and cannot be reopened or used to select v5 after observing v5 data."
+    "Every required strict smoke must be accepted before a separate panel decision.",
+    "SOTA-v2, v3 and v4 remain terminal historical contracts and cannot be reopened or used to select anything here."
   ],
   "final_preflight_evidence": {
     "status": "pending",
     "artifact": "results/analysis/sota-v5-final-preflight-evidence.json",
-    "sha256": "f98d02f0ce2e16f16a446095e818ec00161c06852048193677edb52cdc07ff15",
-    "contract_fingerprint": "247e12fe5a7d4f5b",
+    "contract_fingerprint": "a600b7da0c302231",
     "completion_calls": 0,
-    "operator_ceiling_usd": 10.0
+    "operator_ceiling_usd": 100.0,
+    "stale_because": "The committed artifact is digested against contract fingerprint 247e12fe5a7d4f5b, the withdrawn eight-model cohort, and the $10 smoke-only ceiling. Its sha256 is deliberately not restated here: regenerating the artifact is authenticated panel-time work and this amendment makes no acceptance claim about it."
   }
 }

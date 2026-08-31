@@ -83,13 +83,13 @@ def test_v6_lane_prices_one_paid_call_per_decision() -> None:
     assert result["protocol_maximum"]["paid_calls_per_decision"] == 1
     # The pre-v6 figure survives, labelled, so an older plan stays readable.
     assert result["protocol_maximum"]["pre_v6_max_interaction_rounds_per_decision"] == 5
-    # 20 calls per five-season seed. The registry still configures one protocol
-    # repair, so the maximum is 2x the forecast rather than the 10x the pre-v6
-    # five-round lane reserved. (That repair attempt is itself no longer
-    # publishable under sota-v5 and has to be re-frozen at zero before the
-    # panel; the estimator prices whatever the registry says.)
-    assert result["calls"]["panel_decisions_per_model"] == 320
-    assert result["protocol_maximum"]["total_calls"] == 2 * result["calls"]["total_calls"]
+    # 20 calls per five-season seed across the 29-seed v6 panel. The registry
+    # now configures zero protocol repairs, so the plan and the protocol
+    # maximum are the same number: v6 buys no retry, and there is nothing left
+    # to multiply by.
+    assert result["calls"]["panel_decisions_per_model"] == 580
+    assert result["calls"]["panel_calls"] == 16 * 580
+    assert result["protocol_maximum"]["total_calls"] == result["calls"]["total_calls"]
 
 
 def test_v4_cost_plan_uses_the_frozen_private_seed_count() -> None:

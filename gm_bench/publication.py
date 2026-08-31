@@ -662,8 +662,12 @@ def v3_statistical_plan_issues(
     if inference_method != "exact-enumeration-sign-flip":
         issues.append("sota-v3 inference_method is not implemented; currently supported: 'exact-enumeration-sign-flip'")
         return issues
-    if seed_count > 20:
-        issues.append("sota-v3 exact-enumeration-sign-flip requires at most 20 seeds")
+    # Must track the analyzer's own bound in scripts/analyze_publication_panel.py.
+    # Raised from 20 with the v6 29-seed panel: the analyzer enumerates by
+    # meet-in-the-middle, so 29 seeds cost 2**15 sorted subset sums rather than
+    # 2**29 sign assignments, and the test stays exhaustive either way.
+    if seed_count > 30:
+        issues.append("sota-v3 exact-enumeration-sign-flip requires at most 30 seeds")
         return issues
     try:
         feasibility = exact_sign_flip_feasibility(seed_count, family_size)

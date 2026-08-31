@@ -95,16 +95,21 @@ def bootstrap_mean_ci(
 
 
 def sign_flip_p_value(values: Sequence[float]) -> float | None:
-    """Return the exact two-sided sign-flip p-value for up to 20 seeds.
+    """Return the exact two-sided sign-flip p-value for up to 30 seeds.
 
     Meet-in-the-middle subset sums preserve the exhaustive test exactly while
     reducing work from O(2**n) to O(2**(n/2) log 2**(n/2)). This keeps design
     simulation practical without changing the analyzer's inferential procedure.
+
+    The 20-seed bound was inherited from the original exhaustive loop, where 30
+    seeds would have meant a billion sign assignments. Meet-in-the-middle costs
+    2**15 sorted sums and 2**15 binary searches at 30 seeds, so the v6 panel's
+    29 seeds are cheap; the limit stays finite only to keep memory bounded.
     """
     if len(values) < 2:
         return None
-    if len(values) > 20:
-        raise ValueError("exact sign-flip enumeration is limited to 20 seeds")
+    if len(values) > 30:
+        raise ValueError("exact sign-flip enumeration is limited to 30 seeds")
 
     numeric = [float(value) for value in values]
     observed_sum = abs(sum(numeric))

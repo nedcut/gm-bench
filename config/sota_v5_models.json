@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "contract": "sota-v5",
-  "contract_fingerprint": "247e12fe5a7d4f5b",
+  "contract_fingerprint": "a600b7da0c302231",
   "lane": "api",
   "provider": "openrouter",
   "provider_policy": "openrouter-only",
@@ -10,163 +10,166 @@
   "preset": "leaderboard",
   "repeats": 1,
   "selection_status": "frozen",
-  "selection_frozen_at_utc": "2026-08-16T20:41:48+00:00",
-  "selection_revision": "2026-08-16-sota-v5-successor-preregistration",
+  "selection_frozen_at_utc": "2026-08-31T00:00:00Z",
+  "selection_revision": "2026-08-31-v6-execution-rules-amendment",
+  "amendment": {
+    "revision": "2026-08-31-v6-execution-rules-amendment",
+    "amended_at_utc": "2026-08-31T00:00:00Z",
+    "supersedes_revision": "2026-08-16-sota-v5-successor-preregistration",
+    "amendment_record": "docs/run_logs/sota-v5-v6-execution-amendment-2026-08-31.md",
+    "evidence_state_at_amendment": "pre-data-no-v5-provider-calls-smokes-or-panel-results",
+    "authorized_calls_made": "none; every value here comes from free unauthenticated OpenRouter model and endpoint metadata",
+    "what_changed": [
+      "Contract fingerprint re-pinned from 247e12fe5a7d4f5b to a600b7da0c302231, and the simulator and observation versions from sim-v3/observation-v2 to sim-v4/observation-v3, because the v6 mechanic and render work moved every score-affecting source under this lane.",
+      "Cohort replaced: the eight-model 2026-08-16 successor cohort is withdrawn and the sixteen-model v6 panel from docs/bench_v6_spec.md is registered, with x-ai/grok-4.6 as the frontier slot.",
+      "Seed panel widened from the committed but unused 16-seed private panel to the 29 paired seeds the v6 power analysis calls for; the old commitment is retired unused and a new one must be generated and committed before panel authorization.",
+      "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS moved from \"1\" to \"0\": the v6 publication gate (gm_bench/official.py SOTA_V5_POLICY.max_protocol_repair_attempts) refuses any row measured with a paid retry.",
+      "Reasoning policy moved from lane-wide 'disabled' to per-model: disabled where the catalog advertises a disabled path, minimum advertised effort where the catalog marks reasoning mandatory. A mandatory-reasoning route no longer aborts the lane.",
+      "Route rule moved from highest-24-hour-uptime to least-lossy-quantization-then-lowest-planning-cost among healthy eligible routes, because the uptime rule was selecting premium priority and fast service tiers at up to twice the price for the same model identity.",
+      "Operator ceiling moved from the $10 smoke-only ceiling to the $100 panel hard ceiling from the v6 spec, with the ~$75 base expectation recorded beside it."
+    ],
+    "what_is_unchanged": [
+      "Contract label sota-v5, provider OpenRouter, compact profile, leaderboard preset, one repeat per seed.",
+      "The 4,096-token output ceiling and the fixed-safety-ceiling output policy basis.",
+      "pick-trader as the named reference agent, seed as the unit of inference, exact-enumeration sign-flip with Holm-Bonferroni at alpha 0.05.",
+      "Fail-closed authorization: spend, smoke, panel, and publication authorization all remain false.",
+      "No sota-v2, v3, or v4 evidence carries forward, and no published row is rewritten."
+    ],
+    "why_amending_rather_than_re_preregistering": "The sota-v5 registry has published no rows and observed no v5 model data, so no outcome could have influenced any choice recorded here. Amending in place with a dated record keeps the lineage auditable; a silent overwrite would not."
+  },
   "catalog_snapshot_status": "public-metadata-candidates-unaccepted",
-  "catalog_checked_at_utc": "2026-08-16T19:45:49Z",
+  "catalog_checked_at_utc": "2026-08-31T00:00:00Z",
   "catalog_sources": [
     "https://openrouter.ai/api/v1/models",
     "https://openrouter.ai/api/v1/models/{model_id}/endpoints",
+    "docs/bench_v6_spec.md",
     "docs/ROUTE_SUBSTITUTION_POLICY.md"
   ],
-  "selection_policy": "Outcome-independent successor to terminal sota-v4: retain its seven non-Qwen identities and replace the terminal Qwen slot with Google Gemini 3.7 Flash on the public Google AI Studio route. This replacement was selected from public catalog metadata before any sota-v5 route, smoke, panel, or result evidence. No sota-v4 result is used to rank or tune the replacement. Every exact route, privacy setting, reasoning-disabled behavior, JSON behavior, and request-cap behavior requires fresh authenticated zero-completion preflight and one separately authorized strict smoke.",
-  "replacement_selection_rule": {
-    "status": "frozen-before-v5-provider-evidence",
-    "hard_eligibility": "Stable exact non-alias text-generation snapshot; optional reasoning with an advertised disabled path; response_format and max_tokens support; at least 4,096 completion tokens; general-purpose rather than safety, roleplay, or narrow-modality specialization.",
-    "coverage_priority": "Prefer the missing Google frontier family because the seven retained identities already cover OpenAI, Anthropic, Upstage, MiniMax, Mistral, DeepSeek, and Tencent, while the published phase-one study treated Google as a distinct frontier anchor.",
-    "route_rule": "Within the selected model identity, use the policy-eligible exact route with the highest public 24-hour uptime; require fresh authenticated identity, privacy, parameter, and live-price evidence before acceptance.",
-    "tie_break": "Newest stable exact snapshot, then deterministic lexicographic model id.",
+  "selection_policy": "The sixteen model identities are the frozen v6 panel from docs/bench_v6_spec.md, settled from the vision contract and the feasibility study before any v5 or v6 model result existed. This amendment does not choose models; it registers the frozen panel against the v6 execution rules and picks one exact route per identity from free public catalog metadata. No GM-Bench score, model output, or apparent model quality is an input to any choice recorded here. Every exact route, privacy setting, reasoning behaviour, JSON behaviour, and request-cap behaviour still requires an authenticated zero-completion preflight and one separately authorized strict smoke.",
+  "route_selection_rule": {
+    "status": "frozen-2026-08-31-before-any-v5-or-v6-model-data",
+    "hard_eligibility": "Healthy exact route (catalog status 0) on the registered model identity, advertising max_tokens, reasoning, response_format and structured_outputs, with max_completion_tokens of at least 4,096 and 24-hour public uptime of at least 99.0%.",
+    "ordering": [
+      "Prefer the least lossy advertised quantization available for that identity (unknown/bf16/fp16 over fp8/int8 over fp4/int4), because quantization changes the measured system.",
+      "Then the lowest planning cost at the committed 8,000-input / 4,096-output planning bound.",
+      "Then the highest 24-hour uptime, then the lexicographically smallest endpoint tag."
+    ],
+    "supersedes": "The 2026-08-16 highest-24-hour-uptime route rule. That rule selected premium 'priority' and 'fast' service tiers that cost up to twice the standard tier for the same model identity and pushed the cap-priced panel from $109.51 to $162.84, with no measurement benefit.",
+    "price_is_not_an_outcome_input": "Route price is a property of the endpoint, not of any observed result. Using it to order routes within an already-frozen model identity cannot make the selection outcome-dependent; using it to choose which model identities run still cannot happen, and the panel identities were frozen in the v6 spec.",
     "excluded_selection_inputs": [
       "GM-Bench score or behavior",
       "candidate completion output",
-      "price",
+      "OpenRouter popularity",
       "latency",
-      "throughput",
-      "OpenRouter popularity"
+      "throughput"
+    ]
+  },
+  "reasoning_policy_rule": {
+    "status": "frozen-2026-08-31",
+    "rule": "Per model, not per lane. Where the public catalog reports reasoning.mandatory=false, pin the advertised disabled path (OPENROUTER_REASONING_ENABLED=false) and leave OPENROUTER_REASONING_EFFORT absent. Where it reports reasoning.mandatory=true, run at the lowest advertised supported effort and record the reasoning tokens beside the score.",
+    "output_ceiling_interaction": "The 4,096-token ceiling includes reasoning tokens. For a mandatory-reasoning row, minimum-effort reasoning is billed inside that ceiling, so whether a full action list still fits is a smoke-time question that free metadata cannot answer.",
+    "mandatory_reasoning_models": [
+      "openrouter-grok-4.6-xai",
+      "openrouter-gemini-3.7-flash-google-ai-studio",
+      "openrouter-glm-5.3-flash-cloudflare",
+      "openrouter-gpt-oss-20b-deepinfra"
     ],
-    "selected_model": "google/gemini-3.7-flash",
-    "selected_route": "google-ai-studio"
+    "metadata_source": "https://openrouter.ai/api/v1/models reasoning block, read unauthenticated on 2026-08-31",
+    "supersedes": "The 2026-08-16 lane-wide 'disabled' policy whose mandatory_reasoning_action aborted the lane. The v6 execution rules keep mandatory-reasoning models in the panel at minimum effort instead."
   },
   "models": [
     {
-      "id": "openrouter-gpt-5.6-luna-openai",
+      "id": "openrouter-grok-4.6-xai",
       "provider": "openrouter",
-      "model": "openai/gpt-5.6-luna",
-      "canonical_slug": "openai/gpt-5.6-luna-20260709",
+      "model": "x-ai/grok-4.6",
+      "canonical_slug": "x-ai/grok-4.6-20260810",
       "transport": "gateway-api",
-      "cohort": "frontier-proprietary",
-      "upstream_provider": "OpenAI",
-      "upstream_provider_slug": "openai",
-      "endpoint_tag": "openai",
-      "endpoint_name": "OpenAI | openai/gpt-5.6-luna-20260709",
+      "tier": "frontier",
+      "upstream_provider": "xAI",
+      "upstream_provider_slug": "xai/zdr",
+      "endpoint_tag": "xai/zdr",
+      "endpoint_name": "xAI | x-ai/grok-4.6-20260810",
       "catalog_route_status": 0,
-      "catalog_max_completion_tokens": 128000,
+      "catalog_quantization": "unknown",
+      "catalog_max_completion_tokens": 450000,
+      "catalog_uptime_last_1d": 99.92376176831765,
+      "catalog_uptime_last_30m": 99.93446920052425,
       "catalog_supported_parameters": [
-        "reasoning",
         "include_reasoning",
+        "logprobs",
+        "max_tokens",
+        "reasoning",
+        "reasoning_effort",
+        "response_format",
         "seed",
-        "max_tokens",
-        "response_format",
         "structured_outputs",
-        "tools",
+        "temperature",
         "tool_choice",
-        "reasoning_effort"
+        "tools",
+        "top_logprobs",
+        "top_p"
       ],
-      "reasoning_policy": "disabled",
-      "reasoning_effort": null,
-      "fixed_options": {
-        "OPENROUTER_REASONING_ENABLED": "false"
+      "catalog_discount": 0,
+      "catalog_reasoning": {
+        "mandatory": true,
+        "default_enabled": true,
+        "supported_efforts": [
+          "xhigh",
+          "high",
+          "medium",
+          "low"
+        ],
+        "default_effort": "high"
       },
-      "absent_options": [
-        "OPENROUTER_REASONING_EFFORT"
-      ],
-      "role": "Retained v4 OpenAI frontier identity; fresh v5 route acceptance required."
+      "reasoning_policy": "mandatory-minimum",
+      "reasoning_effort": "low",
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "true",
+        "OPENROUTER_REASONING_EFFORT": "low"
+      },
+      "absent_options": [],
+      "reasoning_decision": "Public catalog marks reasoning mandatory with no advertised disabled path, so this row runs at the lowest advertised effort ('low' of ['xhigh', 'high', 'medium', 'low']) with reasoning tokens recorded beside the score.",
+      "output_ceiling_headroom": {
+        "status": "verify-at-smoke-time",
+        "reason": "The 4,096-token ceiling includes reasoning tokens, and public metadata publishes no reasoning-token distribution at minimum effort. Only an accepted strict smoke can show whether a full action list still fits under the ceiling once minimum-effort reasoning is billed inside it."
+      }
     },
     {
-      "id": "openrouter-claude-sonnet-5-bedrock",
+      "id": "openrouter-claude-haiku-4.5-anthropic",
       "provider": "openrouter",
-      "model": "anthropic/claude-sonnet-5",
-      "canonical_slug": "anthropic/claude-sonnet-5-20260630",
+      "model": "anthropic/claude-haiku-4.5",
+      "canonical_slug": "anthropic/claude-4.5-haiku-20251001",
       "transport": "gateway-api",
-      "cohort": "frontier-proprietary",
-      "upstream_provider": "Amazon Bedrock",
-      "upstream_provider_slug": "amazon-bedrock/global",
-      "endpoint_tag": "amazon-bedrock/global",
-      "endpoint_name": "Amazon Bedrock | anthropic/claude-sonnet-5-20260630",
+      "tier": "flash",
+      "upstream_provider": "Anthropic",
+      "upstream_provider_slug": "anthropic",
+      "endpoint_tag": "anthropic",
+      "endpoint_name": "Anthropic | anthropic/claude-4.5-haiku-20251001",
       "catalog_route_status": 0,
-      "catalog_max_completion_tokens": 128000,
+      "catalog_quantization": "unknown",
+      "catalog_max_completion_tokens": 64000,
+      "catalog_uptime_last_1d": 99.96487230608564,
+      "catalog_uptime_last_30m": 99.97732940376332,
       "catalog_supported_parameters": [
-        "reasoning",
         "include_reasoning",
         "max_tokens",
+        "reasoning",
+        "response_format",
         "stop",
-        "tools",
-        "tool_choice",
         "structured_outputs",
-        "response_format",
-        "verbosity",
-        "reasoning_effort"
-      ],
-      "reasoning_policy": "disabled",
-      "reasoning_effort": null,
-      "fixed_options": {
-        "OPENROUTER_REASONING_ENABLED": "false"
-      },
-      "absent_options": [
-        "OPENROUTER_REASONING_EFFORT"
-      ],
-      "role": "Retained v4 Anthropic frontier identity; fresh v5 route acceptance required."
-    },
-    {
-      "id": "openrouter-solar-pro4-upstage",
-      "provider": "openrouter",
-      "model": "upstage/solar-pro4",
-      "canonical_slug": "upstage/solar-pro4-20260810",
-      "transport": "gateway-api",
-      "cohort": "open-weight",
-      "upstream_provider": "Upstage",
-      "upstream_provider_slug": "upstage",
-      "endpoint_tag": "upstage",
-      "endpoint_name": "Upstage | upstage/solar-pro4-20260810",
-      "catalog_route_status": 0,
-      "catalog_max_completion_tokens": 131072,
-      "catalog_supported_parameters": [
-        "reasoning",
-        "include_reasoning",
         "temperature",
-        "max_tokens",
-        "top_p",
-        "frequency_penalty",
-        "presence_penalty",
-        "response_format",
-        "structured_outputs",
-        "tools",
-        "tool_choice"
-      ],
-      "reasoning_policy": "disabled",
-      "reasoning_effort": null,
-      "fixed_options": {
-        "OPENROUTER_REASONING_ENABLED": "false"
-      },
-      "absent_options": [
-        "OPENROUTER_REASONING_EFFORT"
-      ],
-      "role": "Retained v4 Upstage open-weight identity; fresh v5 route acceptance required."
-    },
-    {
-      "id": "openrouter-minimax-m3-minimax",
-      "provider": "openrouter",
-      "model": "minimax/minimax-m3",
-      "canonical_slug": "minimax/minimax-m3-20260531",
-      "transport": "gateway-api",
-      "cohort": "open-weight",
-      "upstream_provider": "Minimax",
-      "upstream_provider_slug": "minimax/fp8",
-      "endpoint_tag": "minimax/fp8",
-      "endpoint_name": "Minimax | minimax/minimax-m3-20260531",
-      "catalog_route_status": 0,
-      "catalog_quantization": "fp8",
-      "catalog_max_completion_tokens": 512000,
-      "catalog_supported_parameters": [
-        "reasoning",
-        "include_reasoning",
-        "max_tokens",
-        "temperature",
-        "top_p",
-        "response_format",
         "tool_choice",
-        "tools"
+        "tools",
+        "top_k",
+        "top_p"
       ],
+      "catalog_discount": 0,
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": null,
+        "supported_efforts": null,
+        "default_effort": null
+      },
       "reasoning_policy": "disabled",
       "reasoning_effort": null,
       "fixed_options": {
@@ -175,7 +178,11 @@
       "absent_options": [
         "OPENROUTER_REASONING_EFFORT"
       ],
-      "role": "Retained v4 same-model FP8 identity; fresh v5 route acceptance required."
+      "reasoning_decision": "Public catalog marks reasoning optional (mandatory=false), so this row pins the advertised disabled path and spends its whole 4,096-token ceiling on the visible reply.",
+      "output_ceiling_headroom": {
+        "status": "metadata-sufficient",
+        "reason": "With reasoning disabled the whole 4,096-token ceiling is available to the action list; every reasoning-disabled route in the v2/v3 smoke record peaked at or below 604 output tokens per call."
+      }
     },
     {
       "id": "openrouter-gemini-3.7-flash-google-ai-studio",
@@ -183,68 +190,96 @@
       "model": "google/gemini-3.7-flash",
       "canonical_slug": "google/gemini-3.7-flash-20260813",
       "transport": "gateway-api",
-      "cohort": "frontier-proprietary",
+      "tier": "mid",
       "upstream_provider": "Google AI Studio",
-      "upstream_provider_slug": "google-ai-studio",
-      "endpoint_tag": "google-ai-studio",
+      "upstream_provider_slug": "google-ai-studio/flex",
+      "endpoint_tag": "google-ai-studio/flex",
       "endpoint_name": "Google AI Studio | google/gemini-3.7-flash-20260813",
       "catalog_route_status": 0,
       "catalog_quantization": "unknown",
       "catalog_max_completion_tokens": 65536,
-      "catalog_uptime_last_30m": 99.31597947938438,
-      "catalog_uptime_last_1d": 99.6568375762854,
+      "catalog_uptime_last_1d": 99.51350255636389,
+      "catalog_uptime_last_30m": 99.81547924141466,
       "catalog_supported_parameters": [
-        "reasoning",
         "include_reasoning",
         "max_tokens",
-        "seed",
+        "reasoning",
+        "reasoning_effort",
         "response_format",
-        "stop",
+        "seed",
         "structured_outputs",
-        "tools",
+        "temperature",
         "tool_choice",
-        "reasoning_effort"
+        "tools",
+        "top_p"
       ],
-      "reasoning_policy": "disabled",
-      "reasoning_effort": null,
-      "fixed_options": {
-        "OPENROUTER_REASONING_ENABLED": "false"
+      "catalog_discount": 0.5,
+      "catalog_reasoning": {
+        "mandatory": true,
+        "default_enabled": true,
+        "supported_efforts": [
+          "high",
+          "medium",
+          "low"
+        ],
+        "default_effort": "medium"
       },
-      "absent_options": [
-        "OPENROUTER_REASONING_EFFORT"
+      "reasoning_policy": "mandatory-minimum",
+      "reasoning_effort": "low",
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "true",
+        "OPENROUTER_REASONING_EFFORT": "low"
+      },
+      "absent_options": [],
+      "reasoning_decision": "Public catalog marks reasoning mandatory with no advertised disabled path, so this row runs at the lowest advertised effort ('low' of ['high', 'medium', 'low']) with reasoning tokens recorded beside the score.",
+      "output_ceiling_headroom": {
+        "status": "verify-at-smoke-time",
+        "reason": "The 4,096-token ceiling includes reasoning tokens, and public metadata publishes no reasoning-token distribution at minimum effort. Only an accepted strict smoke can show whether a full action list still fits under the ceiling once minimum-effort reasoning is billed inside it."
+      }
+    },
+    {
+      "id": "openrouter-grok-4.3-xai",
+      "provider": "openrouter",
+      "model": "x-ai/grok-4.3",
+      "canonical_slug": "x-ai/grok-4.3-20260430",
+      "transport": "gateway-api",
+      "tier": "mid",
+      "upstream_provider": "xAI",
+      "upstream_provider_slug": "xai/zdr",
+      "endpoint_tag": "xai/zdr",
+      "endpoint_name": "xAI | x-ai/grok-4.3-20260430",
+      "catalog_route_status": 0,
+      "catalog_quantization": "unknown",
+      "catalog_max_completion_tokens": 900000,
+      "catalog_uptime_last_1d": 99.97387725132202,
+      "catalog_uptime_last_30m": 100,
+      "catalog_supported_parameters": [
+        "include_reasoning",
+        "logprobs",
+        "max_tokens",
+        "reasoning",
+        "reasoning_effort",
+        "response_format",
+        "seed",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_logprobs",
+        "top_p"
       ],
       "catalog_discount": 0,
-      "role": "Pre-data replacement for terminal v4 Qwen slot, selected before v5 outcomes from public metadata only. Google AI Studio was selected over Google Vertex global by the frozen highest-public-24-hour-uptime route rule; price was excluded from selection. Exact route, privacy, and reasoning-disabled behavior remain unaccepted until zero-call authenticated preflight and strict smoke."
-    },
-    {
-      "id": "openrouter-mistral-medium-3.5-mistral",
-      "provider": "openrouter",
-      "model": "mistralai/mistral-medium-3-5",
-      "canonical_slug": "mistralai/mistral-medium-3.5-20260430",
-      "transport": "gateway-api",
-      "cohort": "open-weight",
-      "upstream_provider": "Mistral",
-      "upstream_provider_slug": "mistral",
-      "endpoint_tag": "mistral",
-      "endpoint_name": "Mistral | mistralai/mistral-medium-3.5-20260430",
-      "catalog_route_status": 0,
-      "catalog_max_completion_tokens": null,
-      "catalog_supported_parameters": [
-        "reasoning",
-        "include_reasoning",
-        "max_tokens",
-        "temperature",
-        "top_p",
-        "stop",
-        "frequency_penalty",
-        "presence_penalty",
-        "seed",
-        "response_format",
-        "structured_outputs",
-        "tools",
-        "tool_choice",
-        "reasoning_effort"
-      ],
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": true,
+        "supported_efforts": [
+          "high",
+          "medium",
+          "low",
+          "none"
+        ],
+        "default_effort": "low"
+      },
       "reasoning_policy": "disabled",
       "reasoning_effort": null,
       "fixed_options": {
@@ -253,49 +288,499 @@
       "absent_options": [
         "OPENROUTER_REASONING_EFFORT"
       ],
-      "output_cap_verification": {
-        "status": "request-cap-pending-strict-smoke",
-        "catalog_max_completion_tokens": null,
-        "request_parameter": "max_tokens",
-        "strict_smoke_required": true
-      },
-      "role": "Retained v4 Mistral identity; null public maximum remains unresolved until fresh v5 evidence."
+      "reasoning_decision": "Public catalog marks reasoning optional (mandatory=false), so this row pins the advertised disabled path and spends its whole 4,096-token ceiling on the visible reply.",
+      "output_ceiling_headroom": {
+        "status": "metadata-sufficient",
+        "reason": "With reasoning disabled the whole 4,096-token ceiling is available to the action list; every reasoning-disabled route in the v2/v3 smoke record peaked at or below 604 output tokens per call."
+      }
     },
     {
-      "id": "openrouter-deepseek-v4-flash-0731-cloudflare",
+      "id": "openrouter-gpt-5.4-mini-openai",
+      "provider": "openrouter",
+      "model": "openai/gpt-5.4-mini",
+      "canonical_slug": "openai/gpt-5.4-mini-20260317",
+      "transport": "gateway-api",
+      "tier": "mid",
+      "upstream_provider": "OpenAI",
+      "upstream_provider_slug": "openai/flex",
+      "endpoint_tag": "openai/flex",
+      "endpoint_name": "OpenAI | openai/gpt-5.4-mini-20260317",
+      "catalog_route_status": 0,
+      "catalog_quantization": "unknown",
+      "catalog_max_completion_tokens": 128000,
+      "catalog_uptime_last_1d": 99.73521624007061,
+      "catalog_uptime_last_30m": null,
+      "catalog_supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "reasoning_effort",
+        "response_format",
+        "seed",
+        "structured_outputs",
+        "tool_choice",
+        "tools"
+      ],
+      "catalog_discount": 0,
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": false,
+        "supported_efforts": [
+          "xhigh",
+          "high",
+          "medium",
+          "low",
+          "none"
+        ],
+        "default_effort": "medium"
+      },
+      "reasoning_policy": "disabled",
+      "reasoning_effort": null,
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
+      "reasoning_decision": "Public catalog marks reasoning optional (mandatory=false), so this row pins the advertised disabled path and spends its whole 4,096-token ceiling on the visible reply.",
+      "output_ceiling_headroom": {
+        "status": "metadata-sufficient",
+        "reason": "With reasoning disabled the whole 4,096-token ceiling is available to the action list; every reasoning-disabled route in the v2/v3 smoke record peaked at or below 604 output tokens per call."
+      }
+    },
+    {
+      "id": "openrouter-glm-5-streamlake",
+      "provider": "openrouter",
+      "model": "z-ai/glm-5",
+      "canonical_slug": "z-ai/glm-5-20260211",
+      "transport": "gateway-api",
+      "tier": "open-weight",
+      "upstream_provider": "StreamLake",
+      "upstream_provider_slug": "streamlake/fp8",
+      "endpoint_tag": "streamlake/fp8",
+      "endpoint_name": "StreamLake | z-ai/glm-5-20260211",
+      "catalog_route_status": 0,
+      "catalog_quantization": "fp8",
+      "catalog_max_completion_tokens": 128000,
+      "catalog_uptime_last_1d": 99.9272912692867,
+      "catalog_uptime_last_30m": 100,
+      "catalog_supported_parameters": [
+        "include_reasoning",
+        "logprobs",
+        "max_tokens",
+        "reasoning",
+        "response_format",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_logprobs",
+        "top_p"
+      ],
+      "catalog_discount": 0.4,
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": true,
+        "supported_efforts": null,
+        "default_effort": null
+      },
+      "reasoning_policy": "disabled",
+      "reasoning_effort": null,
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
+      "reasoning_decision": "Public catalog marks reasoning optional (mandatory=false), so this row pins the advertised disabled path and spends its whole 4,096-token ceiling on the visible reply.",
+      "output_ceiling_headroom": {
+        "status": "metadata-sufficient",
+        "reason": "With reasoning disabled the whole 4,096-token ceiling is available to the action list; every reasoning-disabled route in the v2/v3 smoke record peaked at or below 604 output tokens per call."
+      }
+    },
+    {
+      "id": "openrouter-kimi-k2.5-siliconflow",
+      "provider": "openrouter",
+      "model": "moonshotai/kimi-k2.5",
+      "canonical_slug": "moonshotai/kimi-k2.5-0127",
+      "transport": "gateway-api",
+      "tier": "open-weight",
+      "upstream_provider": "SiliconFlow",
+      "upstream_provider_slug": "siliconflow/int4",
+      "endpoint_tag": "siliconflow/int4",
+      "endpoint_name": "SiliconFlow | moonshotai/kimi-k2.5-0127",
+      "catalog_route_status": 0,
+      "catalog_quantization": "int4",
+      "catalog_max_completion_tokens": 235929,
+      "catalog_uptime_last_1d": 99.88208878463642,
+      "catalog_uptime_last_30m": 100,
+      "catalog_supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "response_format",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_p"
+      ],
+      "catalog_discount": 0,
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": true,
+        "supported_efforts": null,
+        "default_effort": null
+      },
+      "reasoning_policy": "disabled",
+      "reasoning_effort": null,
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
+      "reasoning_decision": "Public catalog marks reasoning optional (mandatory=false), so this row pins the advertised disabled path and spends its whole 4,096-token ceiling on the visible reply.",
+      "output_ceiling_headroom": {
+        "status": "metadata-sufficient",
+        "reason": "With reasoning disabled the whole 4,096-token ceiling is available to the action list; every reasoning-disabled route in the v2/v3 smoke record peaked at or below 604 output tokens per call."
+      }
+    },
+    {
+      "id": "openrouter-qwen3.5-397b-a17b-parasail",
+      "provider": "openrouter",
+      "model": "qwen/qwen3.5-397b-a17b",
+      "canonical_slug": "qwen/qwen3.5-397b-a17b-20260216",
+      "transport": "gateway-api",
+      "tier": "open-weight",
+      "upstream_provider": "Parasail",
+      "upstream_provider_slug": "parasail/fp8",
+      "endpoint_tag": "parasail/fp8",
+      "endpoint_name": "Parasail | qwen/qwen3.5-397b-a17b-20260216",
+      "catalog_route_status": 0,
+      "catalog_quantization": "fp8",
+      "catalog_max_completion_tokens": 235929,
+      "catalog_uptime_last_1d": 99.30184667414488,
+      "catalog_uptime_last_30m": 100,
+      "catalog_supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logit_bias",
+        "logprobs",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_logprobs",
+        "top_p"
+      ],
+      "catalog_discount": 0,
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": null,
+        "supported_efforts": null,
+        "default_effort": null
+      },
+      "reasoning_policy": "disabled",
+      "reasoning_effort": null,
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
+      "reasoning_decision": "Public catalog marks reasoning optional (mandatory=false), so this row pins the advertised disabled path and spends its whole 4,096-token ceiling on the visible reply.",
+      "output_ceiling_headroom": {
+        "status": "metadata-sufficient",
+        "reason": "With reasoning disabled the whole 4,096-token ceiling is available to the action list; every reasoning-disabled route in the v2/v3 smoke record peaked at or below 604 output tokens per call."
+      }
+    },
+    {
+      "id": "openrouter-minimax-m3-parasail",
+      "provider": "openrouter",
+      "model": "minimax/minimax-m3",
+      "canonical_slug": "minimax/minimax-m3-20260531",
+      "transport": "gateway-api",
+      "tier": "open-weight",
+      "upstream_provider": "Parasail",
+      "upstream_provider_slug": "parasail/fp8",
+      "endpoint_tag": "parasail/fp8",
+      "endpoint_name": "Parasail | minimax/minimax-m3-20260531",
+      "catalog_route_status": 0,
+      "catalog_quantization": "fp8",
+      "catalog_max_completion_tokens": 524288,
+      "catalog_uptime_last_1d": 99.64835988753514,
+      "catalog_uptime_last_30m": 99.90697674418605,
+      "catalog_supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logit_bias",
+        "logprobs",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_logprobs",
+        "top_p"
+      ],
+      "catalog_discount": 0,
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": null,
+        "supported_efforts": null,
+        "default_effort": null
+      },
+      "reasoning_policy": "disabled",
+      "reasoning_effort": null,
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
+      "reasoning_decision": "Public catalog marks reasoning optional (mandatory=false), so this row pins the advertised disabled path and spends its whole 4,096-token ceiling on the visible reply.",
+      "output_ceiling_headroom": {
+        "status": "metadata-sufficient",
+        "reason": "With reasoning disabled the whole 4,096-token ceiling is available to the action list; every reasoning-disabled route in the v2/v3 smoke record peaked at or below 604 output tokens per call."
+      }
+    },
+    {
+      "id": "openrouter-gemini-3.1-flash-lite-google-ai-studio",
+      "provider": "openrouter",
+      "model": "google/gemini-3.1-flash-lite",
+      "canonical_slug": "google/gemini-3.1-flash-lite-20260507",
+      "transport": "gateway-api",
+      "tier": "flash",
+      "upstream_provider": "Google AI Studio",
+      "upstream_provider_slug": "google-ai-studio/flex",
+      "endpoint_tag": "google-ai-studio/flex",
+      "endpoint_name": "Google AI Studio | google/gemini-3.1-flash-lite-20260507",
+      "catalog_route_status": 0,
+      "catalog_quantization": "unknown",
+      "catalog_max_completion_tokens": 65536,
+      "catalog_uptime_last_1d": 99.92616861243137,
+      "catalog_uptime_last_30m": 100,
+      "catalog_supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "reasoning_effort",
+        "response_format",
+        "seed",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "catalog_discount": 0,
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": true,
+        "supported_efforts": [
+          "high",
+          "medium",
+          "low",
+          "minimal"
+        ],
+        "default_effort": "minimal"
+      },
+      "reasoning_policy": "disabled",
+      "reasoning_effort": null,
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
+      "reasoning_decision": "Public catalog marks reasoning optional (mandatory=false), so this row pins the advertised disabled path and spends its whole 4,096-token ceiling on the visible reply.",
+      "output_ceiling_headroom": {
+        "status": "metadata-sufficient",
+        "reason": "With reasoning disabled the whole 4,096-token ceiling is available to the action list; every reasoning-disabled route in the v2/v3 smoke record peaked at or below 604 output tokens per call."
+      }
+    },
+    {
+      "id": "openrouter-gpt-5.6-luna-openai",
+      "provider": "openrouter",
+      "model": "openai/gpt-5.6-luna",
+      "canonical_slug": "openai/gpt-5.6-luna-20260709",
+      "transport": "gateway-api",
+      "tier": "flash",
+      "upstream_provider": "OpenAI",
+      "upstream_provider_slug": "openai/flex",
+      "endpoint_tag": "openai/flex",
+      "endpoint_name": "OpenAI | openai/gpt-5.6-luna-20260709",
+      "catalog_route_status": 0,
+      "catalog_quantization": "unknown",
+      "catalog_max_completion_tokens": 128000,
+      "catalog_uptime_last_1d": 99.99367172165176,
+      "catalog_uptime_last_30m": 99.98448048420889,
+      "catalog_supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "reasoning_effort",
+        "response_format",
+        "seed",
+        "structured_outputs",
+        "tool_choice",
+        "tools"
+      ],
+      "catalog_discount": 0,
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": true,
+        "supported_efforts": [
+          "max",
+          "xhigh",
+          "high",
+          "medium",
+          "low",
+          "none"
+        ],
+        "default_effort": "medium"
+      },
+      "reasoning_policy": "disabled",
+      "reasoning_effort": null,
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
+      "reasoning_decision": "Public catalog marks reasoning optional (mandatory=false), so this row pins the advertised disabled path and spends its whole 4,096-token ceiling on the visible reply.",
+      "output_ceiling_headroom": {
+        "status": "metadata-sufficient",
+        "reason": "With reasoning disabled the whole 4,096-token ceiling is available to the action list; every reasoning-disabled route in the v2/v3 smoke record peaked at or below 604 output tokens per call."
+      }
+    },
+    {
+      "id": "openrouter-glm-5.3-flash-cloudflare",
+      "provider": "openrouter",
+      "model": "z-ai/glm-5.3-flash",
+      "canonical_slug": "z-ai/glm-5.3-flash-20260826",
+      "transport": "gateway-api",
+      "tier": "flash",
+      "upstream_provider": "Cloudflare",
+      "upstream_provider_slug": "cloudflare",
+      "endpoint_tag": "cloudflare",
+      "endpoint_name": "Cloudflare | z-ai/glm-5.3-flash-20260826",
+      "catalog_route_status": 0,
+      "catalog_quantization": "unknown",
+      "catalog_max_completion_tokens": 1179648,
+      "catalog_uptime_last_1d": 99.5025723936204,
+      "catalog_uptime_last_30m": 99.94966147340867,
+      "catalog_supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logit_bias",
+        "logprobs",
+        "max_tokens",
+        "min_p",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_logprobs",
+        "top_p"
+      ],
+      "catalog_discount": 0,
+      "catalog_reasoning": {
+        "mandatory": true,
+        "default_enabled": true,
+        "supported_efforts": [
+          "max",
+          "high",
+          "low"
+        ],
+        "default_effort": "max"
+      },
+      "reasoning_policy": "mandatory-minimum",
+      "reasoning_effort": "low",
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "true",
+        "OPENROUTER_REASONING_EFFORT": "low"
+      },
+      "absent_options": [],
+      "reasoning_decision": "Public catalog marks reasoning mandatory with no advertised disabled path, so this row runs at the lowest advertised effort ('low' of ['max', 'high', 'low']) with reasoning tokens recorded beside the score.",
+      "output_ceiling_headroom": {
+        "status": "verify-at-smoke-time",
+        "reason": "The 4,096-token ceiling includes reasoning tokens, and public metadata publishes no reasoning-token distribution at minimum effort. Only an accepted strict smoke can show whether a full action list still fits under the ceiling once minimum-effort reasoning is billed inside it."
+      }
+    },
+    {
+      "id": "openrouter-deepseek-v4-flash-0731-together",
       "provider": "openrouter",
       "model": "deepseek/deepseek-v4-flash-0731",
       "canonical_slug": "deepseek/deepseek-v4-flash-20260731",
       "transport": "gateway-api",
-      "cohort": "open-weight",
-      "upstream_provider": "Cloudflare",
-      "upstream_provider_slug": "cloudflare",
-      "endpoint_tag": "cloudflare",
-      "endpoint_name": "Cloudflare | deepseek/deepseek-v4-flash-20260731",
+      "tier": "flash",
+      "upstream_provider": "Together",
+      "upstream_provider_slug": "together",
+      "endpoint_tag": "together",
+      "endpoint_name": "Together | deepseek/deepseek-v4-flash-20260731",
       "catalog_route_status": 0,
-      "catalog_max_completion_tokens": 384000,
+      "catalog_quantization": "unknown",
+      "catalog_max_completion_tokens": 943718,
+      "catalog_uptime_last_1d": 99.63987066111234,
+      "catalog_uptime_last_30m": 99.27402627333487,
       "catalog_supported_parameters": [
-        "reasoning",
-        "include_reasoning",
-        "max_tokens",
-        "temperature",
-        "top_p",
-        "top_k",
-        "seed",
-        "repetition_penalty",
         "frequency_penalty",
-        "presence_penalty",
-        "min_p",
-        "stop",
+        "include_reasoning",
         "logit_bias",
+        "max_tokens",
+        "min_p",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "repetition_penalty",
         "response_format",
+        "stop",
         "structured_outputs",
-        "tools",
+        "temperature",
         "tool_choice",
-        "logprobs",
-        "top_logprobs",
-        "reasoning_effort"
+        "tools",
+        "top_k",
+        "top_p"
       ],
+      "catalog_discount": 0,
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": true,
+        "supported_efforts": [
+          "max",
+          "high",
+          "low"
+        ],
+        "default_effort": "high"
+      },
       "reasoning_policy": "disabled",
       "reasoning_effort": null,
       "fixed_options": {
@@ -304,34 +789,50 @@
       "absent_options": [
         "OPENROUTER_REASONING_EFFORT"
       ],
-      "role": "Retained v4 DeepSeek identity; fresh v5 route and price acceptance required."
+      "reasoning_decision": "Public catalog marks reasoning optional (mandatory=false), so this row pins the advertised disabled path and spends its whole 4,096-token ceiling on the visible reply.",
+      "output_ceiling_headroom": {
+        "status": "metadata-sufficient",
+        "reason": "With reasoning disabled the whole 4,096-token ceiling is available to the action list; every reasoning-disabled route in the v2/v3 smoke record peaked at or below 604 output tokens per call."
+      }
     },
     {
-      "id": "openrouter-hy3-tencent",
+      "id": "openrouter-qwen3.5-27b-siliconflow",
       "provider": "openrouter",
-      "model": "tencent/hy3",
-      "canonical_slug": "tencent/hy3-20260706",
+      "model": "qwen/qwen3.5-27b",
+      "canonical_slug": "qwen/qwen3.5-27b-20260224",
       "transport": "gateway-api",
-      "cohort": "open-weight",
-      "upstream_provider": "Tencent",
-      "upstream_provider_slug": "tencent/fp8",
-      "endpoint_tag": "tencent/fp8",
-      "endpoint_name": "Tencent | tencent/hy3-20260706",
+      "tier": "local-runnable",
+      "upstream_provider": "SiliconFlow",
+      "upstream_provider_slug": "siliconflow/fp8",
+      "endpoint_tag": "siliconflow/fp8",
+      "endpoint_name": "SiliconFlow | qwen/qwen3.5-27b-20260224",
       "catalog_route_status": 0,
       "catalog_quantization": "fp8",
-      "catalog_max_completion_tokens": 128000,
+      "catalog_max_completion_tokens": 235929,
+      "catalog_uptime_last_1d": 99.34605373545293,
+      "catalog_uptime_last_30m": 100,
       "catalog_supported_parameters": [
-        "reasoning",
+        "frequency_penalty",
         "include_reasoning",
-        "temperature",
-        "stop",
-        "max_completion_tokens",
         "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
         "response_format",
-        "tools",
+        "structured_outputs",
+        "temperature",
         "tool_choice",
-        "reasoning_effort"
+        "tools",
+        "top_k",
+        "top_p"
       ],
+      "catalog_discount": 0,
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": null,
+        "supported_efforts": null,
+        "default_effort": null
+      },
       "reasoning_policy": "disabled",
       "reasoning_effort": null,
       "fixed_options": {
@@ -340,7 +841,126 @@
       "absent_options": [
         "OPENROUTER_REASONING_EFFORT"
       ],
-      "role": "Retained v4 Tencent FP8 identity; fresh v5 route acceptance required."
+      "reasoning_decision": "Public catalog marks reasoning optional (mandatory=false), so this row pins the advertised disabled path and spends its whole 4,096-token ceiling on the visible reply.",
+      "output_ceiling_headroom": {
+        "status": "metadata-sufficient",
+        "reason": "With reasoning disabled the whole 4,096-token ceiling is available to the action list; every reasoning-disabled route in the v2/v3 smoke record peaked at or below 604 output tokens per call."
+      }
+    },
+    {
+      "id": "openrouter-nemotron-3-nano-30b-a3b-crusoe",
+      "provider": "openrouter",
+      "model": "nvidia/nemotron-3-nano-30b-a3b",
+      "canonical_slug": "nvidia/nemotron-3-nano-30b-a3b",
+      "transport": "gateway-api",
+      "tier": "local-runnable",
+      "upstream_provider": "Crusoe",
+      "upstream_provider_slug": "crusoe/fp8",
+      "endpoint_tag": "crusoe/fp8",
+      "endpoint_name": "Crusoe | nvidia/nemotron-3-nano-30b-a3b",
+      "catalog_route_status": 0,
+      "catalog_quantization": "fp8",
+      "catalog_max_completion_tokens": 235929,
+      "catalog_uptime_last_1d": 100,
+      "catalog_uptime_last_30m": 100,
+      "catalog_supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logit_bias",
+        "max_tokens",
+        "min_p",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tools",
+        "top_k",
+        "top_p"
+      ],
+      "catalog_discount": 0,
+      "catalog_reasoning": {
+        "mandatory": false,
+        "default_enabled": null,
+        "supported_efforts": null,
+        "default_effort": null
+      },
+      "reasoning_policy": "disabled",
+      "reasoning_effort": null,
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "false"
+      },
+      "absent_options": [
+        "OPENROUTER_REASONING_EFFORT"
+      ],
+      "reasoning_decision": "Public catalog marks reasoning optional (mandatory=false), so this row pins the advertised disabled path and spends its whole 4,096-token ceiling on the visible reply.",
+      "output_ceiling_headroom": {
+        "status": "metadata-sufficient",
+        "reason": "With reasoning disabled the whole 4,096-token ceiling is available to the action list; every reasoning-disabled route in the v2/v3 smoke record peaked at or below 604 output tokens per call."
+      }
+    },
+    {
+      "id": "openrouter-gpt-oss-20b-deepinfra",
+      "provider": "openrouter",
+      "model": "openai/gpt-oss-20b",
+      "canonical_slug": "openai/gpt-oss-20b",
+      "transport": "gateway-api",
+      "tier": "local-runnable",
+      "upstream_provider": "DeepInfra",
+      "upstream_provider_slug": "deepinfra/bf16",
+      "endpoint_tag": "deepinfra/bf16",
+      "endpoint_name": "DeepInfra | openai/gpt-oss-20b",
+      "catalog_route_status": 0,
+      "catalog_quantization": "bf16",
+      "catalog_max_completion_tokens": 117964,
+      "catalog_uptime_last_1d": 99.91703886632646,
+      "catalog_uptime_last_30m": 99.97692634646911,
+      "catalog_supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logit_bias",
+        "max_tokens",
+        "min_p",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_p"
+      ],
+      "catalog_discount": 0,
+      "catalog_reasoning": {
+        "mandatory": true,
+        "default_enabled": null,
+        "supported_efforts": [
+          "high",
+          "medium",
+          "low"
+        ],
+        "default_effort": "medium"
+      },
+      "reasoning_policy": "mandatory-minimum",
+      "reasoning_effort": "low",
+      "fixed_options": {
+        "OPENROUTER_REASONING_ENABLED": "true",
+        "OPENROUTER_REASONING_EFFORT": "low"
+      },
+      "absent_options": [],
+      "reasoning_decision": "Public catalog marks reasoning mandatory with no advertised disabled path, so this row runs at the lowest advertised effort ('low' of ['high', 'medium', 'low']) with reasoning tokens recorded beside the score.",
+      "output_ceiling_headroom": {
+        "status": "verify-at-smoke-time",
+        "reason": "The 4,096-token ceiling includes reasoning tokens, and public metadata publishes no reasoning-token distribution at minimum effort. Only an accepted strict smoke can show whether a full action list still fits under the ceiling once minimum-effort reasoning is billed inside it."
+      }
     }
   ],
   "shared_fixed_options": {
@@ -350,27 +970,142 @@
     "OPENROUTER_JSON_MODE": "true",
     "OPENROUTER_MAX_TOKENS": "4096",
     "GM_AGENT_STRICT": "1",
-    "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1"
+    "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0"
   },
-  "shared_absent_options": [
-    "OPENROUTER_REASONING_EFFORT"
-  ],
+  "shared_absent_options": [],
   "output_token_cap": 4096,
-  "output_budget_status": "frozen-native-reasoning-cap",
+  "output_budget_status": "frozen-v6-output-ceiling-including-reasoning",
   "required_smokes": [
-    "openrouter-gpt-5.6-luna-openai",
-    "openrouter-claude-sonnet-5-bedrock",
-    "openrouter-solar-pro4-upstage",
-    "openrouter-minimax-m3-minimax",
+    "openrouter-grok-4.6-xai",
+    "openrouter-claude-haiku-4.5-anthropic",
     "openrouter-gemini-3.7-flash-google-ai-studio",
-    "openrouter-mistral-medium-3.5-mistral",
-    "openrouter-deepseek-v4-flash-0731-cloudflare",
-    "openrouter-hy3-tencent"
+    "openrouter-grok-4.3-xai",
+    "openrouter-gpt-5.4-mini-openai",
+    "openrouter-glm-5-streamlake",
+    "openrouter-kimi-k2.5-siliconflow",
+    "openrouter-qwen3.5-397b-a17b-parasail",
+    "openrouter-minimax-m3-parasail",
+    "openrouter-gemini-3.1-flash-lite-google-ai-studio",
+    "openrouter-gpt-5.6-luna-openai",
+    "openrouter-glm-5.3-flash-cloudflare",
+    "openrouter-deepseek-v4-flash-0731-together",
+    "openrouter-qwen3.5-27b-siliconflow",
+    "openrouter-nemotron-3-nano-30b-a3b-crusoe",
+    "openrouter-gpt-oss-20b-deepinfra"
   ],
+  "ascending_cost_run_order": {
+    "status": "frozen-2026-08-31",
+    "basis": "Ascending planning panel cost from results/analysis/sota-v6-panel-cost-estimate.json (29 seeds x 5 seasons x 4 phases = 580 paid calls per model at 8,000 input and 4,096 output tokens). Running the cheap rows first means a route, render, or repair problem surfaces on the cheapest cells, and the two most expensive rows (grok-4.6 at $23.53 and claude-haiku-4.5 at $16.52, 37% of the panel between them) are the last money committed.",
+    "order": [
+      {
+        "experiment_id": "openrouter-gpt-oss-20b-deepinfra",
+        "model": "openai/gpt-oss-20b",
+        "planning_panel_cost_usd": 0.4718,
+        "planning_smoke_cost_usd": 0.003254
+      },
+      {
+        "experiment_id": "openrouter-nemotron-3-nano-30b-a3b-crusoe",
+        "model": "nvidia/nemotron-3-nano-30b-a3b",
+        "planning_panel_cost_usd": 0.7071,
+        "planning_smoke_cost_usd": 0.004877
+      },
+      {
+        "experiment_id": "openrouter-deepseek-v4-flash-0731-together",
+        "model": "deepseek/deepseek-v4-flash-0731",
+        "planning_panel_cost_usd": 1.3148,
+        "planning_smoke_cost_usd": 0.009068
+      },
+      {
+        "experiment_id": "openrouter-glm-5.3-flash-cloudflare",
+        "model": "z-ai/glm-5.3-flash",
+        "planning_panel_cost_usd": 1.8838,
+        "planning_smoke_cost_usd": 0.012992
+      },
+      {
+        "experiment_id": "openrouter-gpt-5.6-luna-openai",
+        "model": "openai/gpt-5.6-luna",
+        "planning_panel_cost_usd": 1.8894,
+        "planning_smoke_cost_usd": 0.01303
+      },
+      {
+        "experiment_id": "openrouter-gemini-3.1-flash-lite-google-ai-studio",
+        "model": "google/gemini-3.1-flash-lite",
+        "planning_panel_cost_usd": 2.3618,
+        "planning_smoke_cost_usd": 0.016288
+      },
+      {
+        "experiment_id": "openrouter-minimax-m3-parasail",
+        "model": "minimax/minimax-m3",
+        "planning_panel_cost_usd": 4.2428,
+        "planning_smoke_cost_usd": 0.029261
+      },
+      {
+        "experiment_id": "openrouter-qwen3.5-27b-siliconflow",
+        "model": "qwen/qwen3.5-27b",
+        "planning_panel_cost_usd": 5.9114,
+        "planning_smoke_cost_usd": 0.040768
+      },
+      {
+        "experiment_id": "openrouter-gemini-3.7-flash-google-ai-studio",
+        "model": "google/gemini-3.7-flash",
+        "planning_panel_cost_usd": 6.1944,
+        "planning_smoke_cost_usd": 0.04272
+      },
+      {
+        "experiment_id": "openrouter-gpt-5.4-mini-openai",
+        "model": "openai/gpt-5.4-mini",
+        "planning_panel_cost_usd": 7.0853,
+        "planning_smoke_cost_usd": 0.048864
+      },
+      {
+        "experiment_id": "openrouter-glm-5-streamlake",
+        "model": "z-ai/glm-5",
+        "planning_panel_cost_usd": 7.3453,
+        "planning_smoke_cost_usd": 0.050657
+      },
+      {
+        "experiment_id": "openrouter-kimi-k2.5-siliconflow",
+        "model": "moonshotai/kimi-k2.5",
+        "planning_panel_cost_usd": 7.4333,
+        "planning_smoke_cost_usd": 0.051264
+      },
+      {
+        "experiment_id": "openrouter-qwen3.5-397b-a17b-parasail",
+        "model": "qwen/qwen3.5-397b-a17b",
+        "planning_panel_cost_usd": 10.8724,
+        "planning_smoke_cost_usd": 0.074982
+      },
+      {
+        "experiment_id": "openrouter-grok-4.3-xai",
+        "model": "x-ai/grok-4.3",
+        "planning_panel_cost_usd": 11.7392,
+        "planning_smoke_cost_usd": 0.08096
+      },
+      {
+        "experiment_id": "openrouter-claude-haiku-4.5-anthropic",
+        "model": "anthropic/claude-haiku-4.5",
+        "planning_panel_cost_usd": 16.5184,
+        "planning_smoke_cost_usd": 0.11392
+      },
+      {
+        "experiment_id": "openrouter-grok-4.6-xai",
+        "model": "x-ai/grok-4.6",
+        "planning_panel_cost_usd": 23.5341,
+        "planning_smoke_cost_usd": 0.162304
+      }
+    ],
+    "planning_panel_total_usd": 109.5053
+  },
   "exact_route_acceptance": {
     "schema_version": 2,
-    "status": "accepted",
-    "accepted_at_utc": "2026-08-16T20:41:48+00:00",
+    "status": "pending-authenticated-preflight",
+    "superseded_acceptance": {
+      "status": "accepted",
+      "accepted_at_utc": "2026-08-16T20:41:48+00:00",
+      "evidence_artifact": "results/analysis/sota-v5-route-acceptance-evidence.json",
+      "model_count": 8,
+      "retired_because": "It accepted eight routes for the withdrawn 2026-08-16 cohort under contract fingerprint 247e12fe5a7d4f5b. None of those routes is registered here and the fingerprint has moved, so the acceptance is retired rather than carried forward. The evidence artifact is kept unedited as history."
+    },
     "evidence_artifact": "results/analysis/sota-v5-route-acceptance-evidence.json",
     "privacy_standard": {
       "data_classification": "synthetic-benchmark-no-personal-or-confidential-data",
@@ -380,155 +1115,21 @@
       "zero_data_retention_required": false,
       "zero_data_retention_preferred": true
     },
-    "entries": {
-      "openrouter-gpt-5.6-luna-openai": {
-        "route_identity_sha256": "281057d9a1cd395360c7ac689b7ffdcce43b08a6f941d1f41d1c971616d3e0d2",
-        "authenticated": true,
-        "verified_at_utc": "2026-08-16T20:41:48+00:00",
-        "route_evidence_sha256": "2454e9ca99a2db51a2e7db1764b07d9085d1c87c1cb1d6e5ff98efc54808864a",
-        "privacy_acceptance": {
-          "status": "accepted",
-          "route_identity_sha256": "281057d9a1cd395360c7ac689b7ffdcce43b08a6f941d1f41d1c971616d3e0d2",
-          "data_collection_policy_accepted": true,
-          "retention_policy_accepted": true,
-          "training_use_policy_accepted": true,
-          "zero_data_retention_endpoint": false,
-          "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-16T20:41:48+00:00",
-          "evidence_sha256": "27302fe22d19e2a5568fdb8869278b593ad3222b5bb734c9ec38a3d86688eee0"
-        }
-      },
-      "openrouter-claude-sonnet-5-bedrock": {
-        "route_identity_sha256": "3bd1ca3f39614e3258ae6369eba8c01e28892e1a611f58b6c5b5d5ea3fd7e7d5",
-        "authenticated": true,
-        "verified_at_utc": "2026-08-16T20:41:48+00:00",
-        "route_evidence_sha256": "2bedf312cdf6b884943e91a82dd8cc7eafa3f781b6a6f097b7b110a3aebfb72b",
-        "privacy_acceptance": {
-          "status": "accepted",
-          "route_identity_sha256": "3bd1ca3f39614e3258ae6369eba8c01e28892e1a611f58b6c5b5d5ea3fd7e7d5",
-          "data_collection_policy_accepted": true,
-          "retention_policy_accepted": true,
-          "training_use_policy_accepted": true,
-          "zero_data_retention_endpoint": true,
-          "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-16T20:41:48+00:00",
-          "evidence_sha256": "1deef3ac06450bf1918377af5d0b1b5d2005c7667eee2e6dacd601d9def663d4"
-        }
-      },
-      "openrouter-solar-pro4-upstage": {
-        "route_identity_sha256": "1fd82b06ba9b8d3764943b5f7c7f5c2d74314a93894e1909ab4d7be9c14371f2",
-        "authenticated": true,
-        "verified_at_utc": "2026-08-16T20:41:48+00:00",
-        "route_evidence_sha256": "c4073b2039e3865aaf78268bb8531f6dbcab92d9b00468bd46ab8ce718bc2a3e",
-        "privacy_acceptance": {
-          "status": "accepted",
-          "route_identity_sha256": "1fd82b06ba9b8d3764943b5f7c7f5c2d74314a93894e1909ab4d7be9c14371f2",
-          "data_collection_policy_accepted": true,
-          "retention_policy_accepted": true,
-          "training_use_policy_accepted": true,
-          "zero_data_retention_endpoint": false,
-          "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-16T20:41:48+00:00",
-          "evidence_sha256": "f9d600d46d9eba94b31e1c35e85f41f6d36b76173f12b156a4b95dee9fc67b06"
-        }
-      },
-      "openrouter-minimax-m3-minimax": {
-        "route_identity_sha256": "eeadb123ed5151efdd307a08f5903e51116d31d7aec0f14afdb2b3040c98847a",
-        "authenticated": true,
-        "verified_at_utc": "2026-08-16T20:41:48+00:00",
-        "route_evidence_sha256": "a57243dccb2ee528cd9c4650a99d79a48bfa304deb89ab8159e1ef4072f23937",
-        "privacy_acceptance": {
-          "status": "accepted",
-          "route_identity_sha256": "eeadb123ed5151efdd307a08f5903e51116d31d7aec0f14afdb2b3040c98847a",
-          "data_collection_policy_accepted": true,
-          "retention_policy_accepted": true,
-          "training_use_policy_accepted": true,
-          "zero_data_retention_endpoint": false,
-          "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-16T20:41:48+00:00",
-          "evidence_sha256": "5e34d78ec6269b6aad7f43d688de64298759d4db3df9528d392bdefba74a3e11"
-        }
-      },
-      "openrouter-gemini-3.7-flash-google-ai-studio": {
-        "route_identity_sha256": "389b381541b96acc7dffabcf308cddc54a4482ae04780fc58d8f5c2a31c0270f",
-        "authenticated": true,
-        "verified_at_utc": "2026-08-16T20:41:48+00:00",
-        "route_evidence_sha256": "4f125d2d82151816280d1c5ffe0a00a2dffb9362e64048d8ba97d1f6d6bf9412",
-        "privacy_acceptance": {
-          "status": "accepted",
-          "route_identity_sha256": "389b381541b96acc7dffabcf308cddc54a4482ae04780fc58d8f5c2a31c0270f",
-          "data_collection_policy_accepted": true,
-          "retention_policy_accepted": true,
-          "training_use_policy_accepted": true,
-          "zero_data_retention_endpoint": false,
-          "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-16T20:41:48+00:00",
-          "evidence_sha256": "f2eb34f4120cf55f024d46acd93f303f8a51d8598a563ed1730f596ab1d614a0"
-        }
-      },
-      "openrouter-mistral-medium-3.5-mistral": {
-        "route_identity_sha256": "b259bd57be25c5fec14df0c926fa7c70302a9fa15d206bd906fe444b42c53460",
-        "authenticated": true,
-        "verified_at_utc": "2026-08-16T20:41:48+00:00",
-        "route_evidence_sha256": "976c4ebdc186ebd63fc394ac5eea96c02432c477a17e7f6843bd2abc1adc1ff4",
-        "privacy_acceptance": {
-          "status": "accepted",
-          "route_identity_sha256": "b259bd57be25c5fec14df0c926fa7c70302a9fa15d206bd906fe444b42c53460",
-          "data_collection_policy_accepted": true,
-          "retention_policy_accepted": true,
-          "training_use_policy_accepted": true,
-          "zero_data_retention_endpoint": false,
-          "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-16T20:41:48+00:00",
-          "evidence_sha256": "4fa50fab333468dc93140d673e3ec06b51b962a9f74d7aa20835dcedcec55935"
-        }
-      },
-      "openrouter-deepseek-v4-flash-0731-cloudflare": {
-        "route_identity_sha256": "64c945796eb187940d667ff09ff1124dbdaa2e05775d1a42dc868df7d2319f06",
-        "authenticated": true,
-        "verified_at_utc": "2026-08-16T20:41:48+00:00",
-        "route_evidence_sha256": "3b963b3ce02cb59b943ff1e133d20740d4f03ac0a3104893dad406a652fe48cb",
-        "privacy_acceptance": {
-          "status": "accepted",
-          "route_identity_sha256": "64c945796eb187940d667ff09ff1124dbdaa2e05775d1a42dc868df7d2319f06",
-          "data_collection_policy_accepted": true,
-          "retention_policy_accepted": true,
-          "training_use_policy_accepted": true,
-          "zero_data_retention_endpoint": false,
-          "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-16T20:41:48+00:00",
-          "evidence_sha256": "ca6ae84c7cd3363ad3dfa90f3e0a43880d1711d0499a848945e09267a1a9994e"
-        }
-      },
-      "openrouter-hy3-tencent": {
-        "route_identity_sha256": "1602f58bfb93ffd3d1edec239fe07dd8ffcba20d890e87c159dc72a04d8b5d63",
-        "authenticated": true,
-        "verified_at_utc": "2026-08-16T20:41:48+00:00",
-        "route_evidence_sha256": "5a4bc61e8daac111314afe79319fd2595f11d8d381bcbe458f468fecf1cd2dca",
-        "privacy_acceptance": {
-          "status": "accepted",
-          "route_identity_sha256": "1602f58bfb93ffd3d1edec239fe07dd8ffcba20d890e87c159dc72a04d8b5d63",
-          "data_collection_policy_accepted": true,
-          "retention_policy_accepted": true,
-          "training_use_policy_accepted": true,
-          "zero_data_retention_endpoint": true,
-          "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-08-16T20:41:48+00:00",
-          "evidence_sha256": "2db0036a7b77d9c200051933d3afa803d118f1fdd8ce564de5a29e0dd788263d"
-        }
-      }
-    }
+    "entries": {},
+    "blocked_on": "scripts/collect_sota_v3_route_evidence.py --apply-registry against the sixteen registered routes. That collector needs an OpenRouter bearer token for the credits, providers, and zero-data-retention metadata endpoints, so it is panel-time work: this amendment was written with free unauthenticated metadata only and makes no acceptance claim."
   },
   "public_metadata_limitations": [
-    "The accepted authenticated zero-call route evidence proves point-in-time access and synthetic-data privacy acceptance, but not successful inference, reasoning-disabled behavior, JSON behavior, request-cap behavior, or authoritative per-call cost.",
-    "Google Gemini 3.7 Flash is a pre-data replacement selected before any v5 result. Its accepted authenticated route exposes reasoning controls, but only a strict smoke can establish inference compatibility.",
-    "Mistral's catalog maximum completion token field is null and remains a strict-smoke check.",
-    "No v4 route, privacy, smoke, or panel evidence carries forward into v5."
+    "Every route, price, uptime and reasoning value here was read from the free unauthenticated OpenRouter model and endpoint listings on 2026-08-31. Unauthenticated metadata does not establish account access, privacy terms, successful inference, reasoning behaviour, JSON behaviour, request-cap behaviour, or authoritative per-call cost.",
+    "moonshotai/kimi-k2.5 has exactly one eligible route above the 99% uptime floor and it is int4-quantized. That is a measurement caveat for this row, not a route failure; record the quantization beside the score.",
+    "google/gemini-3.7-flash and google/gemini-3.1-flash-lite are pinned to Google AI Studio 'flex' service tiers, which trade queueing latency for price. Latency is reported, not scored, but confirm the tier answers at all during the smoke.",
+    "The four mandatory-reasoning rows (grok-4.6, gemini-3.7-flash, glm-5.3-flash, gpt-oss-20b) spend part of the 4,096-token ceiling on reasoning. Whether a full action list still fits is unverifiable from metadata and is marked verify-at-smoke-time per row.",
+    "Prices are volatile point-in-time values and must be rechecked immediately before any spend decision."
   ],
   "unresolved_decisions": [
-    "Complete and accept the merged-head smoke-command and live-price final preflight without completion calls before any paid-smoke authorization.",
-    "Require an owner attestation that the hidden 16-seed commitment remains unused and that no v3 or v4 panel read the seed values.",
-    "Require one accepted strict smoke per route; any cap pressure, mandatory reasoning, unknown cost, or incompatible route terminates v5 and requires a new preregistration."
+    "Generate and commit a new 29-seed private panel commitment; the retired 16-seed commitment is the wrong width for the v6 power analysis and must not be reused or partially revealed.",
+    "Run the authenticated zero-completion route and privacy preflight over all sixteen registered routes and accept exact_route_acceptance before any paid smoke.",
+    "Regenerate the final-fingerprint preflight evidence against a600b7da0c302231; the committed artifact is for 247e12fe5a7d4f5b and for the withdrawn cohort.",
+    "Run one accepted strict smoke per route. A mandatory-reasoning row that cannot fit an action list under the 4,096-token ceiling at minimum effort is excluded from the panel with its evidence retained; it no longer aborts the lane."
   ],
   "route_preflight_authorized": true,
   "spend_authorized": false,
