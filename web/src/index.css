@@ -275,6 +275,37 @@ code {
 
 /* ---------- hero ---------- */
 
+.homepage-lead {
+  padding: 42px 0 34px;
+  border-bottom: 1px solid var(--line-strong);
+  background:
+    linear-gradient(180deg, var(--hero-grad-top) 0%, var(--paper) 88%),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 47px,
+      var(--hero-lines) 47px,
+      var(--hero-lines) 48px
+    );
+}
+
+.homepage-lead h1 {
+  max-width: 29ch;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: clamp(30px, 4.4vw, 54px);
+  line-height: 1.04;
+  letter-spacing: -0.04em;
+  text-transform: none;
+}
+
+.homepage-lead h1 + p {
+  max-width: 52ch;
+  margin-top: 12px;
+  color: var(--steel);
+  font-size: 15px;
+}
+
 .hero {
   padding: 48px 0 0;
   border-bottom: 1px solid var(--line-strong);
@@ -1278,6 +1309,31 @@ tbody tr.tier-start td {
 .copy-btn:hover {
   color: #fff;
   border-color: #fff;
+}
+
+.replay-check {
+  margin-top: 18px;
+}
+
+.replay-check .copy-btn {
+  color: var(--blue);
+  border-color: var(--line-strong);
+}
+
+.replay-check .copy-btn:hover {
+  color: var(--ink);
+  border-color: var(--blue);
+}
+
+.replay-check .copy-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.replay-check-note {
+  margin-top: 6px;
+  color: var(--faint);
+  font-size: 12px;
 }
 
 /* ---------- adapters (inline in Run) ---------- */
@@ -2562,7 +2618,7 @@ tbody tr.tier-start td {
   padding: 28px 4px 22px;
 }
 
-.result-overview-copy h1 {
+.result-overview-copy h2 {
   max-width: 720px;
   margin-top: 4px;
   font-family: var(--font-body);
@@ -3080,7 +3136,7 @@ tbody tr.tier-start td {
 }
 
 @media (max-width: 480px) {
-  .result-overview-copy h1 {
+  .result-overview-copy h2 {
     font-size: 29px;
   }
 

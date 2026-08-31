@@ -24,11 +24,23 @@ export default function App() {
 
   return (
     <>
-      <a className="skip-link" href="#results">
-        Skip to results
+      <a className="skip-link" href="#play">
+        Skip to play
       </a>
       <Nav />
       <main>
+        <section className="homepage-lead" aria-labelledby="page-title">
+          <div className="shell">
+            <p className="kicker">GM-Bench · decision benchmark</p>
+            <h1 id="page-title">
+              LLMs ran a hockey franchise. A short script built the dynasties. They did not.
+            </h1>
+            <p>
+              Play the decisions first, then inspect the score gap, mechanics, and protocol behind
+              the result.
+            </p>
+          </div>
+        </section>
         <Puzzles data={puzzles} />
         <ResultsExplorer
           data={leaderboard}

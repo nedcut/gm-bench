@@ -223,6 +223,8 @@ export interface PuzzleOption {
   delta: Record<string, number>;
 }
 
+export type PuzzleOutcome = "subject_won" | "subject_missed";
+
 export interface Puzzle {
   id: string;
   state_key: string;
@@ -230,11 +232,19 @@ export interface Puzzle {
   season: number;
   phase: string;
   subject: string;
+  mechanic?: "trade" | "draft" | "free_agency" | "contracts" | "roster";
   worthiness: number;
   situation: PuzzleSituation;
   options: PuzzleOption[];
   answer: string;
-  points_left_on_the_table: number;
+  /** Option letter used by the recorded subject after deterministic permutation. */
+  subject_option?: string;
+  /** Signed immediate-score margin for the recorded subject choice. */
+  subject_margin?: number;
+  /** Whether the recorded subject beat the reference policies on this card. */
+  outcome?: PuzzleOutcome;
+  /** Non-negative miss magnitude retained for older puzzle fixtures. */
+  points_left_on_the_table?: number;
 }
 
 export interface PuzzleSet {

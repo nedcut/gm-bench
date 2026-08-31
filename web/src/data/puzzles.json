@@ -2,9 +2,209 @@
   "note": "Illustrative content generated at HEAD. Options are real choices made by scripted policies from the same observation, graded by immediate state change. Not a benchmark artifact and not evidence about any policy.",
   "puzzles": [
     {
-      "answer": "b",
-      "id": "rebuild-s8-y1-preseason",
+      "answer": "a",
+      "id": "value-s8-y3-trade_deadline",
+      "mechanic": "trade",
       "options": [
+        {
+          "chosen_by": [
+            "pick-trader"
+          ],
+          "delta": {
+            "cap_room": 4.48,
+            "current_strength": 0.02,
+            "future_pick_assets": 9.6,
+            "roster_depth": 0.0,
+            "total_assets": -9.92,
+            "young_assets": 0.0
+          },
+          "id": "a",
+          "immediate_score": 1.52,
+          "lines": [
+            "Reject 3 incoming trade offers",
+            "Trade Quin Jensen (F 57) to Austin Jackals for their season-4 first-round pick"
+          ],
+          "summary": "gained 4.5 of cap room, gave up 9.9 of asset value"
+        },
+        {
+          "chosen_by": [
+            "conservative",
+            "value",
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": 0.0,
+            "current_strength": 0.16,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "b",
+          "immediate_score": 0.05,
+          "lines": [
+            "Stand pat - make no roster move this window"
+          ],
+          "summary": "barely moved the roster"
+        }
+      ],
+      "outcome": "subject_missed",
+      "phase": "trade_deadline",
+      "points_left_on_the_table": 1.5,
+      "season": 3,
+      "seed": 8,
+      "situation": {
+        "cap_room": 0.46,
+        "championships": 1,
+        "free_agents_available": 58,
+        "offers_on_the_table": 3,
+        "payroll": 92.56,
+        "phase": "Trade deadline",
+        "record": "50-27",
+        "roster_size": 28,
+        "season": 3,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "7e2772a1e80ae2fd82d7959e493323961e2ef0dac58704906f9a3df394e5b634",
+      "subject": "value",
+      "subject_margin": -1.48,
+      "subject_option": "b",
+      "worthiness": 1.48
+    },
+    {
+      "answer": "a",
+      "id": "win-now-s11-y2-draft",
+      "mechanic": "draft",
+      "options": [
+        {
+          "chosen_by": [
+            "value"
+          ],
+          "delta": {
+            "cap_room": -4.12,
+            "current_strength": -0.14,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 81.05,
+            "young_assets": 81.05
+          },
+          "id": "a",
+          "immediate_score": 26.08,
+          "lines": [
+            "Sign Kai Novak (F 52) for $1.86M x 3y",
+            "Sign Ivan Grant (F 50) for $1.31M x 3y",
+            "Draft Kai Ivers (D 74)"
+          ],
+          "summary": "gained 81.1 of young asset value, gave up 4.1 of cap room"
+        },
+        {
+          "chosen_by": [
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": -0.95,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 51.32,
+            "young_assets": 51.32
+          },
+          "id": "b",
+          "immediate_score": 17.12,
+          "lines": [
+            "Draft Drew Price (F 74)"
+          ],
+          "summary": "gained 51.3 of young asset value, gave up 0.9 of cap room"
+        },
+        {
+          "chosen_by": [
+            "pick-trader"
+          ],
+          "delta": {
+            "cap_room": -4.12,
+            "current_strength": -0.26,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 73.46,
+            "young_assets": 73.46
+          },
+          "id": "c",
+          "immediate_score": 23.46,
+          "lines": [
+            "Sign Kai Novak (F 52) for $1.86M x 3y",
+            "Sign Ivan Grant (F 50) for $1.31M x 3y",
+            "Draft Drew Price (F 74)"
+          ],
+          "summary": "gained 73.5 of young asset value, gave up 4.1 of cap room"
+        },
+        {
+          "chosen_by": [
+            "conservative"
+          ],
+          "delta": {
+            "cap_room": -0.95,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 58.91,
+            "young_assets": 58.91
+          },
+          "id": "d",
+          "immediate_score": 19.7,
+          "lines": [
+            "Draft Kai Ivers (D 74)"
+          ],
+          "summary": "gained 58.9 of young asset value, gave up 0.9 of cap room"
+        }
+      ],
+      "outcome": "subject_missed",
+      "phase": "draft",
+      "points_left_on_the_table": 9.0,
+      "season": 2,
+      "seed": 11,
+      "situation": {
+        "cap_room": 3.72,
+        "championships": 0,
+        "free_agents_available": 44,
+        "offers_on_the_table": 3,
+        "payroll": 85.72,
+        "phase": "Draft",
+        "record": "16-28",
+        "roster_size": 25,
+        "season": 2,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "56848b6bb410e275e4b6f3f1db0f9865085768e028d36a3abe99ff831c1db040",
+      "subject": "win-now",
+      "subject_margin": -8.96,
+      "subject_option": "b",
+      "worthiness": 8.96
+    },
+    {
+      "answer": "c",
+      "id": "rebuild-s8-y1-preseason",
+      "mechanic": "free_agency",
+      "options": [
+        {
+          "chosen_by": [
+            "value"
+          ],
+          "delta": {
+            "cap_room": -10.78,
+            "current_strength": -0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.04,
+            "total_assets": 58.71,
+            "young_assets": 38.01
+          },
+          "id": "a",
+          "immediate_score": 12.79,
+          "lines": [
+            "Sign Kai Diaz (F 72) for $6.42M x 3y",
+            "Sign Nico Vale (G 63) for $4.36M x 3y"
+          ],
+          "summary": "gained 58.7 of asset value, gave up 10.8 of cap room"
+        },
         {
           "chosen_by": [
             "rebuild"
@@ -17,7 +217,7 @@
             "total_assets": 0.0,
             "young_assets": 0.0
           },
-          "id": "a",
+          "id": "b",
           "immediate_score": -0.11,
           "lines": [
             "Stand pat - make no roster move this window"
@@ -36,7 +236,7 @@
             "total_assets": 54.72,
             "young_assets": 54.72
           },
-          "id": "b",
+          "id": "c",
           "immediate_score": 15.4,
           "lines": [
             "Extend Theo Olsen (F 62) for $4.35M x 4y",
@@ -45,46 +245,6 @@
             "Sign Cal Anders (F 58) for $3.16M x 3y"
           ],
           "summary": "gained 54.7 of young asset value, gave up 10.1 of cap room"
-        },
-        {
-          "chosen_by": [
-            "value"
-          ],
-          "delta": {
-            "cap_room": -10.78,
-            "current_strength": -0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.04,
-            "total_assets": 58.71,
-            "young_assets": 38.01
-          },
-          "id": "c",
-          "immediate_score": 12.79,
-          "lines": [
-            "Sign Kai Diaz (F 72) for $6.42M x 3y",
-            "Sign Nico Vale (G 63) for $4.36M x 3y"
-          ],
-          "summary": "gained 58.7 of asset value, gave up 10.8 of cap room"
-        },
-        {
-          "chosen_by": [
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": -11.37,
-            "current_strength": -0.03,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.04,
-            "total_assets": 51.12,
-            "young_assets": 51.12
-          },
-          "id": "d",
-          "immediate_score": 13.73,
-          "lines": [
-            "Sign Finn Diaz (D 75) for $6.87M x 2y",
-            "Sign Kai Hayes (F 64) for $4.50M x 2y"
-          ],
-          "summary": "gained 51.1 of young asset value, gave up 11.4 of cap room"
         },
         {
           "chosen_by": [
@@ -98,14 +258,35 @@
             "total_assets": 0.0,
             "young_assets": 0.0
           },
-          "id": "e",
+          "id": "d",
           "immediate_score": 0.09,
           "lines": [
             "Sign Alex Chen (F 46) for $0.70M x 1y"
           ],
           "summary": "gained 1 roster spot"
+        },
+        {
+          "chosen_by": [
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": -11.37,
+            "current_strength": -0.03,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.04,
+            "total_assets": 51.12,
+            "young_assets": 51.12
+          },
+          "id": "e",
+          "immediate_score": 13.73,
+          "lines": [
+            "Sign Finn Diaz (D 75) for $6.87M x 2y",
+            "Sign Kai Hayes (F 64) for $4.50M x 2y"
+          ],
+          "summary": "gained 51.1 of young asset value, gave up 11.4 of cap room"
         }
       ],
+      "outcome": "subject_missed",
       "phase": "preseason",
       "points_left_on_the_table": 15.5,
       "season": 1,
@@ -122,32 +303,175 @@
         "season": 1,
         "team": "Anchorage Auroras"
       },
-      "state_key": "s8-y1-preseason",
+      "state_key": "b3e5e975c6786f97102f57ba1b00b4d7bb0103080ecd59804786dbd72775c10d",
       "subject": "rebuild",
+      "subject_margin": -15.51,
+      "subject_option": "b",
       "worthiness": 15.51
     },
     {
-      "answer": "b",
-      "id": "conservative-s8-y1-midseason",
+      "answer": "a",
+      "id": "value-s8-y2-trade_deadline",
+      "mechanic": "trade",
       "options": [
+        {
+          "chosen_by": [
+            "pick-trader"
+          ],
+          "delta": {
+            "cap_room": 4.48,
+            "current_strength": -0.24,
+            "future_pick_assets": 9.6,
+            "roster_depth": 0.0,
+            "total_assets": -11.03,
+            "young_assets": 0.0
+          },
+          "id": "a",
+          "immediate_score": 1.27,
+          "lines": [
+            "Reject 3 incoming trade offers",
+            "Trade Quin Jensen (F 59) to Denver Comets for their season-3 first-round pick"
+          ],
+          "summary": "gained 4.5 of cap room, gave up 11.0 of asset value"
+        },
+        {
+          "chosen_by": [
+            "conservative",
+            "value",
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": 0.0,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "b",
+          "immediate_score": 0.0,
+          "lines": [
+            "Stand pat - make no roster move this window"
+          ],
+          "summary": "barely moved the roster"
+        }
+      ],
+      "outcome": "subject_missed",
+      "phase": "trade_deadline",
+      "points_left_on_the_table": 1.3,
+      "season": 2,
+      "seed": 8,
+      "situation": {
+        "cap_room": 0.52,
+        "championships": 1,
+        "free_agents_available": 47,
+        "offers_on_the_table": 3,
+        "payroll": 88.92,
+        "phase": "Trade deadline",
+        "record": "27-17",
+        "roster_size": 25,
+        "season": 2,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "4de61fbe291a7e7164d933ffbbaf3918fc15c6b92ff1e40489102313df21819d",
+      "subject": "value",
+      "subject_margin": -1.27,
+      "subject_option": "b",
+      "worthiness": 1.27
+    },
+    {
+      "answer": "a",
+      "id": "value-s11-y3-draft",
+      "mechanic": "draft",
+      "options": [
+        {
+          "chosen_by": [
+            "pick-trader",
+            "value",
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": -0.95,
+            "current_strength": -0.12,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 46.18,
+            "young_assets": 46.18
+          },
+          "id": "a",
+          "immediate_score": 15.34,
+          "lines": [
+            "Draft Finn Diaz (F 71)"
+          ],
+          "summary": "gained 46.2 of young asset value, gave up 0.9 of cap room"
+        },
         {
           "chosen_by": [
             "conservative"
           ],
           "delta": {
-            "cap_room": -0.7,
+            "cap_room": -0.95,
+            "current_strength": 0.04,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 20.4,
+            "young_assets": 20.4
+          },
+          "id": "b",
+          "immediate_score": 6.62,
+          "lines": [
+            "Draft Quin Quill (F 46)"
+          ],
+          "summary": "gained 20.4 of young asset value, gave up 0.9 of cap room"
+        }
+      ],
+      "outcome": "subject_won",
+      "phase": "draft",
+      "points_left_on_the_table": 0.0,
+      "season": 3,
+      "seed": 11,
+      "situation": {
+        "cap_room": 0.48,
+        "championships": 0,
+        "free_agents_available": 47,
+        "offers_on_the_table": 3,
+        "payroll": 92.54,
+        "phase": "Draft",
+        "record": "38-39",
+        "roster_size": 31,
+        "season": 3,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "bed1c46db34ea8e29b5ecd432c76932194bc0fced892d4d258640fdbe71d4cff",
+      "subject": "value",
+      "subject_margin": 8.72,
+      "subject_option": "a",
+      "worthiness": 8.72
+    },
+    {
+      "answer": "b",
+      "id": "conservative-s8-y1-midseason",
+      "mechanic": "free_agency",
+      "options": [
+        {
+          "chosen_by": [
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": -6.22,
             "current_strength": 0.0,
             "future_pick_assets": 0.0,
             "roster_depth": 0.0,
-            "total_assets": 1.14,
-            "young_assets": 0.0
+            "total_assets": 23.36,
+            "young_assets": 23.36
           },
           "id": "a",
-          "immediate_score": -0.06,
+          "immediate_score": 5.77,
           "lines": [
-            "Sign Owen Quill (F 46) for $0.70M x 1y"
+            "Sign Cal Grant (F 58) for $3.12M x 2y",
+            "Sign Cal Anders (F 58) for $3.10M x 2y"
           ],
-          "summary": "barely moved the roster"
+          "summary": "gained 23.4 of young asset value, gave up 6.2 of cap room"
         },
         {
           "chosen_by": [
@@ -174,25 +498,25 @@
         },
         {
           "chosen_by": [
-            "win-now"
+            "conservative"
           ],
           "delta": {
-            "cap_room": -6.22,
+            "cap_room": -0.7,
             "current_strength": 0.0,
             "future_pick_assets": 0.0,
             "roster_depth": 0.0,
-            "total_assets": 23.36,
-            "young_assets": 23.36
+            "total_assets": 1.14,
+            "young_assets": 0.0
           },
           "id": "c",
-          "immediate_score": 5.77,
+          "immediate_score": -0.06,
           "lines": [
-            "Sign Cal Grant (F 58) for $3.12M x 2y",
-            "Sign Cal Anders (F 58) for $3.10M x 2y"
+            "Sign Owen Quill (F 46) for $0.70M x 1y"
           ],
-          "summary": "gained 23.4 of young asset value, gave up 6.2 of cap room"
+          "summary": "barely moved the roster"
         }
       ],
+      "outcome": "subject_missed",
       "phase": "midseason",
       "points_left_on_the_table": 11.4,
       "season": 1,
@@ -209,228 +533,41 @@
         "season": 1,
         "team": "Anchorage Auroras"
       },
-      "state_key": "s8-y1-midseason",
+      "state_key": "0d2531d71eb9536e3545c3e4ee79fa3d7aa92d1b0e95ac40db238f65ce45065f",
       "subject": "conservative",
+      "subject_margin": -11.43,
+      "subject_option": "c",
       "worthiness": 11.43
     },
     {
-      "answer": "b",
-      "id": "win-now-s3-y1-midseason",
+      "answer": "a",
+      "id": "win-now-s8-y1-trade_deadline",
+      "mechanic": "trade",
       "options": [
-        {
-          "chosen_by": [
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": 0.0,
-            "current_strength": 7.12,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 0.0,
-            "young_assets": 0.0
-          },
-          "id": "a",
-          "immediate_score": 1.99,
-          "lines": [
-            "Stand pat - make no roster move this window"
-          ],
-          "summary": "gained 7.1 of current strength"
-        },
         {
           "chosen_by": [
             "pick-trader"
           ],
           "delta": {
-            "cap_room": -6.88,
-            "current_strength": 7.12,
-            "future_pick_assets": 0.0,
+            "cap_room": 3.35,
+            "current_strength": 2.31,
+            "future_pick_assets": 9.6,
             "roster_depth": 0.0,
-            "total_assets": 42.91,
-            "young_assets": 36.78
-          },
-          "id": "b",
-          "immediate_score": 13.07,
-          "lines": [
-            "Sign Cal Hayes (F 54) for $2.22M x 3y",
-            "Sign Owen Hayes (F 46) for $0.73M x 3y",
-            "Sign Jules Jensen (F 54) for $2.39M x 3y",
-            "Sign Gabe Evans (F 52) for $1.54M x 1y"
-          ],
-          "summary": "gained 42.9 of asset value, gave up 6.9 of cap room"
-        },
-        {
-          "chosen_by": [
-            "value"
-          ],
-          "delta": {
-            "cap_room": -5.34,
-            "current_strength": 7.12,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 36.78,
-            "young_assets": 36.78
-          },
-          "id": "c",
-          "immediate_score": 12.63,
-          "lines": [
-            "Sign Cal Hayes (F 54) for $2.22M x 3y",
-            "Sign Owen Hayes (F 46) for $0.73M x 3y",
-            "Sign Jules Jensen (F 54) for $2.39M x 3y"
-          ],
-          "summary": "gained 36.8 of young asset value, gave up 5.3 of cap room"
-        },
-        {
-          "chosen_by": [
-            "conservative"
-          ],
-          "delta": {
-            "cap_room": -0.7,
-            "current_strength": 7.12,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 0.0,
+            "total_assets": -13.08,
             "young_assets": 0.0
           },
-          "id": "d",
-          "immediate_score": 1.75,
-          "lines": [
-            "Sign Drew Chen (F 47) for $0.70M x 1y"
-          ],
-          "summary": "gained 7.1 of current strength"
-        }
-      ],
-      "phase": "midseason",
-      "points_left_on_the_table": 11.1,
-      "season": 1,
-      "seed": 3,
-      "situation": {
-        "cap_room": 7.02,
-        "championships": 0,
-        "free_agents_available": 32,
-        "offers_on_the_table": 0,
-        "payroll": 78.98,
-        "phase": "Midseason",
-        "record": "7-4",
-        "roster_size": 27,
-        "season": 1,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s3-y1-midseason",
-      "subject": "win-now",
-      "worthiness": 11.08
-    },
-    {
-      "answer": "c",
-      "id": "win-now-s11-y2-draft",
-      "options": [
-        {
-          "chosen_by": [
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 51.32,
-            "young_assets": 51.32
-          },
           "id": "a",
-          "immediate_score": 17.12,
+          "immediate_score": 1.26,
           "lines": [
-            "Draft Drew Price (F 74)"
+            "Reject 3 incoming trade offers",
+            "Trade Vik Quill (F 59) to Miami Palms for their season-2 first-round pick"
           ],
-          "summary": "gained 51.3 of young asset value, gave up 0.9 of cap room"
+          "summary": "gained 9.6 of future pick value, gave up 13.1 of asset value"
         },
         {
           "chosen_by": [
-            "pick-trader"
-          ],
-          "delta": {
-            "cap_room": -4.12,
-            "current_strength": -0.26,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 73.46,
-            "young_assets": 73.46
-          },
-          "id": "b",
-          "immediate_score": 23.46,
-          "lines": [
-            "Sign Kai Novak (F 52) for $1.86M x 3y",
-            "Sign Ivan Grant (F 50) for $1.31M x 3y",
-            "Draft Drew Price (F 74)"
-          ],
-          "summary": "gained 73.5 of young asset value, gave up 4.1 of cap room"
-        },
-        {
-          "chosen_by": [
-            "value"
-          ],
-          "delta": {
-            "cap_room": -4.12,
-            "current_strength": -0.14,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 81.05,
-            "young_assets": 81.05
-          },
-          "id": "c",
-          "immediate_score": 26.08,
-          "lines": [
-            "Sign Kai Novak (F 52) for $1.86M x 3y",
-            "Sign Ivan Grant (F 50) for $1.31M x 3y",
-            "Draft Kai Ivers (D 74)"
-          ],
-          "summary": "gained 81.1 of young asset value, gave up 4.1 of cap room"
-        },
-        {
-          "chosen_by": [
-            "conservative"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 58.91,
-            "young_assets": 58.91
-          },
-          "id": "d",
-          "immediate_score": 19.7,
-          "lines": [
-            "Draft Kai Ivers (D 74)"
-          ],
-          "summary": "gained 58.9 of young asset value, gave up 0.9 of cap room"
-        }
-      ],
-      "phase": "draft",
-      "points_left_on_the_table": 9.0,
-      "season": 2,
-      "seed": 11,
-      "situation": {
-        "cap_room": 3.72,
-        "championships": 0,
-        "free_agents_available": 44,
-        "offers_on_the_table": 3,
-        "payroll": 85.72,
-        "phase": "Draft",
-        "record": "16-28",
-        "roster_size": 25,
-        "season": 2,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s11-y2-draft",
-      "subject": "win-now",
-      "worthiness": 8.96
-    },
-    {
-      "answer": "b",
-      "id": "rebuild-s21-y1-midseason",
-      "options": [
-        {
-          "chosen_by": [
-            "rebuild",
+            "conservative",
+            "value",
             "win-now"
           ],
           "delta": {
@@ -441,200 +578,42 @@
             "total_assets": 0.0,
             "young_assets": 0.0
           },
-          "id": "a",
+          "id": "b",
           "immediate_score": 0.0,
           "lines": [
             "Stand pat - make no roster move this window"
           ],
           "summary": "barely moved the roster"
-        },
-        {
-          "chosen_by": [
-            "pick-trader",
-            "value"
-          ],
-          "delta": {
-            "cap_room": -4.65,
-            "current_strength": 0.11,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 27.38,
-            "young_assets": 27.38
-          },
-          "id": "b",
-          "immediate_score": 7.71,
-          "lines": [
-            "Sign Pax Stone (F 56) for $2.74M x 3y",
-            "Sign Jules Reed (F 52) for $1.91M x 3y"
-          ],
-          "summary": "gained 27.4 of young asset value, gave up 4.7 of cap room"
-        },
-        {
-          "chosen_by": [
-            "conservative"
-          ],
-          "delta": {
-            "cap_room": -0.7,
-            "current_strength": 0.11,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 0.0,
-            "young_assets": 0.0
-          },
-          "id": "c",
-          "immediate_score": -0.21,
-          "lines": [
-            "Sign Nico Diaz (F 46) for $0.70M x 1y"
-          ],
-          "summary": "barely moved the roster"
         }
       ],
-      "phase": "midseason",
-      "points_left_on_the_table": 7.7,
+      "outcome": "subject_missed",
+      "phase": "trade_deadline",
+      "points_left_on_the_table": 1.3,
       "season": 1,
-      "seed": 21,
+      "seed": 8,
       "situation": {
-        "cap_room": 5.41,
+        "cap_room": -0.12,
         "championships": 0,
-        "free_agents_available": 35,
-        "offers_on_the_table": 0,
-        "payroll": 80.59,
-        "phase": "Midseason",
+        "free_agents_available": 32,
+        "offers_on_the_table": 3,
+        "payroll": 86.12,
+        "phase": "Trade deadline",
         "record": "6-5",
-        "roster_size": 24,
+        "roster_size": 25,
         "season": 1,
         "team": "Anchorage Auroras"
       },
-      "state_key": "s21-y1-midseason",
-      "subject": "rebuild",
-      "worthiness": 7.71
-    },
-    {
-      "answer": "c",
-      "id": "conservative-s21-y1-preseason",
-      "options": [
-        {
-          "chosen_by": [
-            "conservative"
-          ],
-          "delta": {
-            "cap_room": -0.7,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.04,
-            "total_assets": 0.0,
-            "young_assets": 0.0
-          },
-          "id": "a",
-          "immediate_score": 0.09,
-          "lines": [
-            "Sign Alex Ivers (F 45) for $0.70M x 1y"
-          ],
-          "summary": "gained 1 roster spot"
-        },
-        {
-          "chosen_by": [
-            "pick-trader"
-          ],
-          "delta": {
-            "cap_room": -5.53,
-            "current_strength": -0.05,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.04,
-            "total_assets": 22.8,
-            "young_assets": -0.63
-          },
-          "id": "b",
-          "immediate_score": 1.92,
-          "lines": [
-            "Extend Owen Frost (G 59) for $3.46M x 4y",
-            "Sign Ivan Quill (F 65) for $4.88M x 3y"
-          ],
-          "summary": "gained 22.8 of asset value, gave up 5.5 of cap room"
-        },
-        {
-          "chosen_by": [
-            "value"
-          ],
-          "delta": {
-            "cap_room": -5.77,
-            "current_strength": -0.11,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.04,
-            "total_assets": 27.94,
-            "young_assets": 27.94
-          },
-          "id": "c",
-          "immediate_score": 7.78,
-          "lines": [
-            "Sign Cal Anders (F 69) for $5.77M x 3y"
-          ],
-          "summary": "gained 27.9 of young asset value, gave up 5.8 of cap room"
-        },
-        {
-          "chosen_by": [
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": -5.73,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.04,
-            "total_assets": 22.55,
-            "young_assets": 22.55
-          },
-          "id": "d",
-          "immediate_score": 6.0,
-          "lines": [
-            "Sign Drew Hayes (F 70) for $5.73M x 2y"
-          ],
-          "summary": "gained 22.6 of young asset value, gave up 5.7 of cap room"
-        }
-      ],
-      "phase": "preseason",
-      "points_left_on_the_table": 7.7,
-      "season": 1,
-      "seed": 21,
-      "situation": {
-        "cap_room": 6.18,
-        "championships": 0,
-        "free_agents_available": 36,
-        "offers_on_the_table": 0,
-        "payroll": 79.82,
-        "phase": "Preseason",
-        "record": "0-0",
-        "roster_size": 23,
-        "season": 1,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s21-y1-preseason",
-      "subject": "conservative",
-      "worthiness": 7.7
+      "state_key": "729dfdf79fb15c83f5c25bfe537c7ddcb853917b3375b72c37c280e4d6204c4c",
+      "subject": "win-now",
+      "subject_margin": -1.26,
+      "subject_option": "b",
+      "worthiness": 1.26
     },
     {
       "answer": "c",
       "id": "conservative-s3-y1-draft",
+      "mechanic": "draft",
       "options": [
-        {
-          "chosen_by": [
-            "conservative"
-          ],
-          "delta": {
-            "cap_room": -1.65,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 23.0,
-            "young_assets": 23.0
-          },
-          "id": "a",
-          "immediate_score": 7.24,
-          "lines": [
-            "Sign Kai Diaz (D 46) for $0.70M x 1y",
-            "Draft Pax Vale (G 53)"
-          ],
-          "summary": "gained 23.0 of young asset value, gave up 1.6 of cap room"
-        },
         {
           "chosen_by": [
             "pick-trader"
@@ -647,7 +626,7 @@
             "total_assets": 49.1,
             "young_assets": 42.97
           },
-          "id": "b",
+          "id": "a",
           "immediate_score": 13.94,
           "lines": [
             "Sign Owen Hayes (F 46) for $0.73M x 3y",
@@ -656,6 +635,26 @@
             "Draft Quin Ivers (F 63)"
           ],
           "summary": "gained 49.1 of asset value, gave up 4.7 of cap room"
+        },
+        {
+          "chosen_by": [
+            "conservative"
+          ],
+          "delta": {
+            "cap_room": -1.65,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 23.0,
+            "young_assets": 23.0
+          },
+          "id": "b",
+          "immediate_score": 7.24,
+          "lines": [
+            "Sign Kai Diaz (D 46) for $0.70M x 1y",
+            "Draft Pax Vale (G 53)"
+          ],
+          "summary": "gained 23.0 of young asset value, gave up 1.6 of cap room"
         },
         {
           "chosen_by": [
@@ -698,6 +697,7 @@
           "summary": "gained 23.1 of young asset value, gave up 0.9 of cap room"
         }
       ],
+      "outcome": "subject_missed",
       "phase": "draft",
       "points_left_on_the_table": 7.0,
       "season": 1,
@@ -714,13 +714,1297 @@
         "season": 1,
         "team": "Anchorage Auroras"
       },
-      "state_key": "s3-y1-draft",
+      "state_key": "51c081ddc5c64740a70003c3ce6e86e134ac4e7ee4f5b6cd0d8e21c6cb7fb403",
       "subject": "conservative",
+      "subject_margin": -6.95,
+      "subject_option": "b",
       "worthiness": 6.95
+    },
+    {
+      "answer": "c",
+      "id": "win-now-s3-y1-midseason",
+      "mechanic": "free_agency",
+      "options": [
+        {
+          "chosen_by": [
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": 0.0,
+            "current_strength": 7.12,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "a",
+          "immediate_score": 1.99,
+          "lines": [
+            "Stand pat - make no roster move this window"
+          ],
+          "summary": "gained 7.1 of current strength"
+        },
+        {
+          "chosen_by": [
+            "value"
+          ],
+          "delta": {
+            "cap_room": -5.34,
+            "current_strength": 7.12,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 36.78,
+            "young_assets": 36.78
+          },
+          "id": "b",
+          "immediate_score": 12.63,
+          "lines": [
+            "Sign Cal Hayes (F 54) for $2.22M x 3y",
+            "Sign Owen Hayes (F 46) for $0.73M x 3y",
+            "Sign Jules Jensen (F 54) for $2.39M x 3y"
+          ],
+          "summary": "gained 36.8 of young asset value, gave up 5.3 of cap room"
+        },
+        {
+          "chosen_by": [
+            "pick-trader"
+          ],
+          "delta": {
+            "cap_room": -6.88,
+            "current_strength": 7.12,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 42.91,
+            "young_assets": 36.78
+          },
+          "id": "c",
+          "immediate_score": 13.07,
+          "lines": [
+            "Sign Cal Hayes (F 54) for $2.22M x 3y",
+            "Sign Owen Hayes (F 46) for $0.73M x 3y",
+            "Sign Jules Jensen (F 54) for $2.39M x 3y",
+            "Sign Gabe Evans (F 52) for $1.54M x 1y"
+          ],
+          "summary": "gained 42.9 of asset value, gave up 6.9 of cap room"
+        },
+        {
+          "chosen_by": [
+            "conservative"
+          ],
+          "delta": {
+            "cap_room": -0.7,
+            "current_strength": 7.12,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "d",
+          "immediate_score": 1.75,
+          "lines": [
+            "Sign Drew Chen (F 47) for $0.70M x 1y"
+          ],
+          "summary": "gained 7.1 of current strength"
+        }
+      ],
+      "outcome": "subject_missed",
+      "phase": "midseason",
+      "points_left_on_the_table": 11.1,
+      "season": 1,
+      "seed": 3,
+      "situation": {
+        "cap_room": 7.02,
+        "championships": 0,
+        "free_agents_available": 32,
+        "offers_on_the_table": 0,
+        "payroll": 78.98,
+        "phase": "Midseason",
+        "record": "7-4",
+        "roster_size": 27,
+        "season": 1,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "bae94a4f7b727109e4113410f7e2116e48c5738a67f8dc71b9e2a66ee3d6f750",
+      "subject": "win-now",
+      "subject_margin": -11.08,
+      "subject_option": "a",
+      "worthiness": 11.08
+    },
+    {
+      "answer": "a",
+      "id": "value-s2-y2-trade_deadline",
+      "mechanic": "trade",
+      "options": [
+        {
+          "chosen_by": [
+            "pick-trader"
+          ],
+          "delta": {
+            "cap_room": 0.85,
+            "current_strength": 2.44,
+            "future_pick_assets": 9.6,
+            "roster_depth": 0.0,
+            "total_assets": -8.18,
+            "young_assets": 0.0
+          },
+          "id": "a",
+          "immediate_score": 1.21,
+          "lines": [
+            "Reject 3 incoming trade offers",
+            "Trade Alex Evans (F 48) to Denver Comets for their season-3 first-round pick"
+          ],
+          "summary": "gained 9.6 of future pick value, gave up 8.2 of asset value"
+        },
+        {
+          "chosen_by": [
+            "conservative",
+            "value",
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": 0.0,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "b",
+          "immediate_score": 0.0,
+          "lines": [
+            "Stand pat - make no roster move this window"
+          ],
+          "summary": "barely moved the roster"
+        }
+      ],
+      "outcome": "subject_missed",
+      "phase": "trade_deadline",
+      "points_left_on_the_table": 1.2,
+      "season": 2,
+      "seed": 2,
+      "situation": {
+        "cap_room": 0.19,
+        "championships": 0,
+        "free_agents_available": 38,
+        "offers_on_the_table": 3,
+        "payroll": 89.25,
+        "phase": "Trade deadline",
+        "record": "29-15",
+        "roster_size": 30,
+        "season": 2,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "1525f35fef05a75c948c474372951f60911c86bdadfa8e5e6c506b2c9e592087",
+      "subject": "value",
+      "subject_margin": -1.21,
+      "subject_option": "b",
+      "worthiness": 1.21
+    },
+    {
+      "answer": "d",
+      "id": "win-now-s3-y1-draft",
+      "mechanic": "draft",
+      "options": [
+        {
+          "chosen_by": [
+            "value"
+          ],
+          "delta": {
+            "cap_room": -1.68,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 40.14,
+            "young_assets": 40.14
+          },
+          "id": "a",
+          "immediate_score": 13.06,
+          "lines": [
+            "Sign Owen Hayes (F 46) for $0.73M x 3y",
+            "Draft Rafi Olsen (F 62)"
+          ],
+          "summary": "gained 40.1 of young asset value, gave up 1.7 of cap room"
+        },
+        {
+          "chosen_by": [
+            "conservative"
+          ],
+          "delta": {
+            "cap_room": -1.65,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 23.0,
+            "young_assets": 23.0
+          },
+          "id": "b",
+          "immediate_score": 7.24,
+          "lines": [
+            "Sign Drew Chen (F 47) for $0.70M x 1y",
+            "Draft Pax Vale (G 53)"
+          ],
+          "summary": "gained 23.0 of young asset value, gave up 1.6 of cap room"
+        },
+        {
+          "chosen_by": [
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": -0.95,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 23.14,
+            "young_assets": 23.14
+          },
+          "id": "c",
+          "immediate_score": 7.53,
+          "lines": [
+            "Draft Ben Lund (F 65)"
+          ],
+          "summary": "gained 23.1 of young asset value, gave up 0.9 of cap room"
+        },
+        {
+          "chosen_by": [
+            "pick-trader"
+          ],
+          "delta": {
+            "cap_room": -3.12,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 42.97,
+            "young_assets": 42.97
+          },
+          "id": "d",
+          "immediate_score": 13.52,
+          "lines": [
+            "Sign Owen Hayes (F 46) for $0.73M x 3y",
+            "Sign Theo Price (F 50) for $1.44M x 3y",
+            "Draft Quin Ivers (F 63)"
+          ],
+          "summary": "gained 43.0 of young asset value, gave up 3.1 of cap room"
+        }
+      ],
+      "outcome": "subject_missed",
+      "phase": "draft",
+      "points_left_on_the_table": 6.0,
+      "season": 1,
+      "seed": 3,
+      "situation": {
+        "cap_room": 7.02,
+        "championships": 0,
+        "free_agents_available": 30,
+        "offers_on_the_table": 3,
+        "payroll": 78.98,
+        "phase": "Draft",
+        "record": "7-4",
+        "roster_size": 27,
+        "season": 1,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "3fc77339db1eb8c1d4faee8e786f730b42dea6605d865ebb5feb3431c2741af8",
+      "subject": "win-now",
+      "subject_margin": -5.98,
+      "subject_option": "c",
+      "worthiness": 5.98
+    },
+    {
+      "answer": "b",
+      "id": "rebuild-s21-y1-midseason",
+      "mechanic": "free_agency",
+      "options": [
+        {
+          "chosen_by": [
+            "conservative"
+          ],
+          "delta": {
+            "cap_room": -0.7,
+            "current_strength": 0.11,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "a",
+          "immediate_score": -0.21,
+          "lines": [
+            "Sign Nico Diaz (F 46) for $0.70M x 1y"
+          ],
+          "summary": "barely moved the roster"
+        },
+        {
+          "chosen_by": [
+            "pick-trader",
+            "value"
+          ],
+          "delta": {
+            "cap_room": -4.65,
+            "current_strength": 0.11,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 27.38,
+            "young_assets": 27.38
+          },
+          "id": "b",
+          "immediate_score": 7.71,
+          "lines": [
+            "Sign Pax Stone (F 56) for $2.74M x 3y",
+            "Sign Jules Reed (F 52) for $1.91M x 3y"
+          ],
+          "summary": "gained 27.4 of young asset value, gave up 4.7 of cap room"
+        },
+        {
+          "chosen_by": [
+            "rebuild",
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": 0.0,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "c",
+          "immediate_score": 0.0,
+          "lines": [
+            "Stand pat - make no roster move this window"
+          ],
+          "summary": "barely moved the roster"
+        }
+      ],
+      "outcome": "subject_missed",
+      "phase": "midseason",
+      "points_left_on_the_table": 7.7,
+      "season": 1,
+      "seed": 21,
+      "situation": {
+        "cap_room": 5.41,
+        "championships": 0,
+        "free_agents_available": 35,
+        "offers_on_the_table": 0,
+        "payroll": 80.59,
+        "phase": "Midseason",
+        "record": "6-5",
+        "roster_size": 24,
+        "season": 1,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "20222fbf62f92cbed2ac5ec45cdce7a64910cfa89ea16fdf6ece54388cfcaca9",
+      "subject": "rebuild",
+      "subject_margin": -7.71,
+      "subject_option": "c",
+      "worthiness": 7.71
+    },
+    {
+      "answer": "b",
+      "id": "value-s11-y3-trade_deadline",
+      "mechanic": "trade",
+      "options": [
+        {
+          "chosen_by": [
+            "conservative",
+            "value",
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": 0.0,
+            "current_strength": -0.1,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "a",
+          "immediate_score": -0.03,
+          "lines": [
+            "Stand pat - make no roster move this window"
+          ],
+          "summary": "barely moved the roster"
+        },
+        {
+          "chosen_by": [
+            "pick-trader"
+          ],
+          "delta": {
+            "cap_room": 4.45,
+            "current_strength": -0.21,
+            "future_pick_assets": 9.6,
+            "roster_depth": 0.0,
+            "total_assets": -12.05,
+            "young_assets": 0.0
+          },
+          "id": "b",
+          "immediate_score": 1.11,
+          "lines": [
+            "Reject 3 incoming trade offers",
+            "Trade Quin Grant (D 60) to Montreal Saints for their season-4 first-round pick"
+          ],
+          "summary": "gained 4.5 of cap room, gave up 12.1 of asset value"
+        }
+      ],
+      "outcome": "subject_missed",
+      "phase": "trade_deadline",
+      "points_left_on_the_table": 1.1,
+      "season": 3,
+      "seed": 11,
+      "situation": {
+        "cap_room": 0.48,
+        "championships": 0,
+        "free_agents_available": 48,
+        "offers_on_the_table": 3,
+        "payroll": 92.54,
+        "phase": "Trade deadline",
+        "record": "38-39",
+        "roster_size": 31,
+        "season": 3,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "87fb732ba36747f793436075143c8a9ebc174132f0bb8a109182d8fa68b8c59e",
+      "subject": "value",
+      "subject_margin": -1.13,
+      "subject_option": "a",
+      "worthiness": 1.13
+    },
+    {
+      "answer": "a",
+      "id": "value-s8-y1-draft",
+      "mechanic": "draft",
+      "options": [
+        {
+          "chosen_by": [
+            "pick-trader",
+            "value",
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": -0.95,
+            "current_strength": -0.12,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 30.78,
+            "young_assets": 30.78
+          },
+          "id": "a",
+          "immediate_score": 10.1,
+          "lines": [
+            "Draft Eli Anders (D 65)"
+          ],
+          "summary": "gained 30.8 of young asset value, gave up 0.9 of cap room"
+        },
+        {
+          "chosen_by": [
+            "conservative"
+          ],
+          "delta": {
+            "cap_room": -0.95,
+            "current_strength": -0.11,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 20.71,
+            "young_assets": 20.71
+          },
+          "id": "b",
+          "immediate_score": 6.68,
+          "lines": [
+            "Draft Hugo Stone (F 48)"
+          ],
+          "summary": "gained 20.7 of young asset value, gave up 0.9 of cap room"
+        }
+      ],
+      "outcome": "subject_won",
+      "phase": "draft",
+      "points_left_on_the_table": 0.0,
+      "season": 1,
+      "seed": 8,
+      "situation": {
+        "cap_room": 0.47,
+        "championships": 0,
+        "free_agents_available": 32,
+        "offers_on_the_table": 3,
+        "payroll": 85.53,
+        "phase": "Draft",
+        "record": "6-5",
+        "roster_size": 25,
+        "season": 1,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "c700cec70e4a404141b7aaeb5ba01cb7089d23047e78a762c43e5c6c6ca5b625",
+      "subject": "value",
+      "subject_margin": 3.42,
+      "subject_option": "a",
+      "worthiness": 3.42
+    },
+    {
+      "answer": "b",
+      "id": "conservative-s21-y1-preseason",
+      "mechanic": "free_agency",
+      "options": [
+        {
+          "chosen_by": [
+            "pick-trader"
+          ],
+          "delta": {
+            "cap_room": -5.53,
+            "current_strength": -0.05,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.04,
+            "total_assets": 22.8,
+            "young_assets": -0.63
+          },
+          "id": "a",
+          "immediate_score": 1.92,
+          "lines": [
+            "Extend Owen Frost (G 59) for $3.46M x 4y",
+            "Sign Ivan Quill (F 65) for $4.88M x 3y"
+          ],
+          "summary": "gained 22.8 of asset value, gave up 5.5 of cap room"
+        },
+        {
+          "chosen_by": [
+            "value"
+          ],
+          "delta": {
+            "cap_room": -5.77,
+            "current_strength": -0.11,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.04,
+            "total_assets": 27.94,
+            "young_assets": 27.94
+          },
+          "id": "b",
+          "immediate_score": 7.78,
+          "lines": [
+            "Sign Cal Anders (F 69) for $5.77M x 3y"
+          ],
+          "summary": "gained 27.9 of young asset value, gave up 5.8 of cap room"
+        },
+        {
+          "chosen_by": [
+            "conservative"
+          ],
+          "delta": {
+            "cap_room": -0.7,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.04,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "c",
+          "immediate_score": 0.09,
+          "lines": [
+            "Sign Alex Ivers (F 45) for $0.70M x 1y"
+          ],
+          "summary": "gained 1 roster spot"
+        },
+        {
+          "chosen_by": [
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": -5.73,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.04,
+            "total_assets": 22.55,
+            "young_assets": 22.55
+          },
+          "id": "d",
+          "immediate_score": 6.0,
+          "lines": [
+            "Sign Drew Hayes (F 70) for $5.73M x 2y"
+          ],
+          "summary": "gained 22.6 of young asset value, gave up 5.7 of cap room"
+        }
+      ],
+      "outcome": "subject_missed",
+      "phase": "preseason",
+      "points_left_on_the_table": 7.7,
+      "season": 1,
+      "seed": 21,
+      "situation": {
+        "cap_room": 6.18,
+        "championships": 0,
+        "free_agents_available": 36,
+        "offers_on_the_table": 0,
+        "payroll": 79.82,
+        "phase": "Preseason",
+        "record": "0-0",
+        "roster_size": 23,
+        "season": 1,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "dd965e389e7279f8a8ebab7cda0b95e2f4b8b127b490f1e23c9e110ad8fb2c48",
+      "subject": "conservative",
+      "subject_margin": -7.7,
+      "subject_option": "c",
+      "worthiness": 7.7
+    },
+    {
+      "answer": "b",
+      "id": "win-now-s21-y2-trade_deadline",
+      "mechanic": "trade",
+      "options": [
+        {
+          "chosen_by": [
+            "conservative",
+            "value",
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": 0.0,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "a",
+          "immediate_score": 0.0,
+          "lines": [
+            "Stand pat - make no roster move this window"
+          ],
+          "summary": "barely moved the roster"
+        },
+        {
+          "chosen_by": [
+            "pick-trader"
+          ],
+          "delta": {
+            "cap_room": 8.9,
+            "current_strength": -0.64,
+            "future_pick_assets": 9.6,
+            "roster_depth": -0.04,
+            "total_assets": -18.99,
+            "young_assets": 0.0
+          },
+          "id": "b",
+          "immediate_score": 1.1,
+          "lines": [
+            "Accept the incoming trade offer",
+            "Reject 2 incoming trade offers",
+            "Trade Finn Reed (D 62) to Portland Pines for their season-3 first-round pick"
+          ],
+          "summary": "gained 8.9 of cap room, gave up 19.0 of asset value"
+        }
+      ],
+      "outcome": "subject_missed",
+      "phase": "trade_deadline",
+      "points_left_on_the_table": 1.1,
+      "season": 2,
+      "seed": 21,
+      "situation": {
+        "cap_room": -0.83,
+        "championships": 0,
+        "free_agents_available": 44,
+        "offers_on_the_table": 3,
+        "payroll": 90.27,
+        "phase": "Trade deadline",
+        "record": "32-12",
+        "roster_size": 24,
+        "season": 2,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "dfa83196e7fc6a84b2eb08ddc3c237a9f9458a08664030773d7c2af989129835",
+      "subject": "win-now",
+      "subject_margin": -1.1,
+      "subject_option": "a",
+      "worthiness": 1.1
+    },
+    {
+      "answer": "b",
+      "id": "win-now-s8-y1-draft",
+      "mechanic": "draft",
+      "options": [
+        {
+          "chosen_by": [
+            "conservative"
+          ],
+          "delta": {
+            "cap_room": -0.95,
+            "current_strength": -0.24,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 20.71,
+            "young_assets": 20.71
+          },
+          "id": "a",
+          "immediate_score": 6.64,
+          "lines": [
+            "Draft Hugo Stone (F 48)"
+          ],
+          "summary": "gained 20.7 of young asset value, gave up 0.9 of cap room"
+        },
+        {
+          "chosen_by": [
+            "pick-trader",
+            "value",
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": -0.95,
+            "current_strength": -0.24,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 30.78,
+            "young_assets": 30.78
+          },
+          "id": "b",
+          "immediate_score": 10.07,
+          "lines": [
+            "Draft Eli Anders (D 65)"
+          ],
+          "summary": "gained 30.8 of young asset value, gave up 0.9 of cap room"
+        }
+      ],
+      "outcome": "subject_won",
+      "phase": "draft",
+      "points_left_on_the_table": 0.0,
+      "season": 1,
+      "seed": 8,
+      "situation": {
+        "cap_room": -0.12,
+        "championships": 0,
+        "free_agents_available": 32,
+        "offers_on_the_table": 3,
+        "payroll": 86.12,
+        "phase": "Draft",
+        "record": "6-5",
+        "roster_size": 25,
+        "season": 1,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "a2422227f131c8d827acbb0a7b390a13ed2fc7c36bf9c3acf46ddbecd67b3e7f",
+      "subject": "win-now",
+      "subject_margin": 3.42,
+      "subject_option": "b",
+      "worthiness": 3.42
+    },
+    {
+      "answer": "b",
+      "id": "value-s3-y1-midseason",
+      "mechanic": "free_agency",
+      "options": [
+        {
+          "chosen_by": [
+            "conservative"
+          ],
+          "delta": {
+            "cap_room": -0.7,
+            "current_strength": 4.14,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "a",
+          "immediate_score": 0.91,
+          "lines": [
+            "Sign Drew Chen (F 47) for $0.70M x 1y"
+          ],
+          "summary": "gained 4.1 of current strength"
+        },
+        {
+          "chosen_by": [
+            "pick-trader",
+            "value"
+          ],
+          "delta": {
+            "cap_room": -5.37,
+            "current_strength": 4.01,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 30.6,
+            "young_assets": 19.69
+          },
+          "id": "b",
+          "immediate_score": 7.68,
+          "lines": [
+            "Sign Owen Hayes (F 46) for $0.73M x 3y",
+            "Sign Jules Jensen (F 54) for $2.39M x 3y",
+            "Sign Milo Hayes (D 54) for $2.25M x 1y"
+          ],
+          "summary": "gained 30.6 of asset value, gave up 5.4 of cap room"
+        },
+        {
+          "chosen_by": [
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": 0.0,
+            "current_strength": 4.14,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "c",
+          "immediate_score": 1.16,
+          "lines": [
+            "Stand pat - make no roster move this window"
+          ],
+          "summary": "gained 4.1 of current strength"
+        }
+      ],
+      "outcome": "subject_won",
+      "phase": "midseason",
+      "points_left_on_the_table": 0.0,
+      "season": 1,
+      "seed": 3,
+      "situation": {
+        "cap_room": 6.28,
+        "championships": 0,
+        "free_agents_available": 31,
+        "offers_on_the_table": 0,
+        "payroll": 79.72,
+        "phase": "Midseason",
+        "record": "9-2",
+        "roster_size": 28,
+        "season": 1,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "56960b1c336473169507769fb7351e1ab4a8a49a1b77c5d020e318ae05020cb7",
+      "subject": "value",
+      "subject_margin": 6.52,
+      "subject_option": "b",
+      "worthiness": 6.52
+    },
+    {
+      "answer": "b",
+      "id": "value-s1-y2-trade_deadline",
+      "mechanic": "trade",
+      "options": [
+        {
+          "chosen_by": [
+            "conservative",
+            "value",
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": 0.0,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "a",
+          "immediate_score": 0.0,
+          "lines": [
+            "Stand pat - make no roster move this window"
+          ],
+          "summary": "barely moved the roster"
+        },
+        {
+          "chosen_by": [
+            "pick-trader"
+          ],
+          "delta": {
+            "cap_room": 3.78,
+            "current_strength": -0.17,
+            "future_pick_assets": 9.6,
+            "roster_depth": 0.0,
+            "total_assets": -12.78,
+            "young_assets": 0.0
+          },
+          "id": "b",
+          "immediate_score": 0.77,
+          "lines": [
+            "Accept the incoming trade offer",
+            "Reject 2 incoming trade offers",
+            "Trade Cal Olsen (D 57) to Portland Pines for their season-3 first-round pick"
+          ],
+          "summary": "gained 9.6 of future pick value, gave up 12.8 of asset value"
+        }
+      ],
+      "outcome": "subject_missed",
+      "phase": "trade_deadline",
+      "points_left_on_the_table": 0.8,
+      "season": 2,
+      "seed": 1,
+      "situation": {
+        "cap_room": 0.65,
+        "championships": 1,
+        "free_agents_available": 43,
+        "offers_on_the_table": 3,
+        "payroll": 88.79,
+        "phase": "Trade deadline",
+        "record": "21-23",
+        "roster_size": 29,
+        "season": 2,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "9274daa3db8429c6c5c14daf4a54bf12590054c3c52892687c903d99654bbbdb",
+      "subject": "value",
+      "subject_margin": -0.77,
+      "subject_option": "a",
+      "worthiness": 0.77
+    },
+    {
+      "answer": "b",
+      "id": "rebuild-s3-y1-draft",
+      "mechanic": "draft",
+      "options": [
+        {
+          "chosen_by": [
+            "rebuild"
+          ],
+          "delta": {
+            "cap_room": -0.95,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 22.07,
+            "young_assets": 22.07
+          },
+          "id": "a",
+          "immediate_score": 7.17,
+          "lines": [
+            "Draft Theo Jensen (F 53)"
+          ],
+          "summary": "gained 22.1 of young asset value, gave up 0.9 of cap room"
+        },
+        {
+          "chosen_by": [
+            "pick-trader"
+          ],
+          "delta": {
+            "cap_room": -3.93,
+            "current_strength": -2.53,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 40.34,
+            "young_assets": 34.21
+          },
+          "id": "b",
+          "immediate_score": 10.53,
+          "lines": [
+            "Sign Gabe Evans (F 52) for $1.54M x 1y",
+            "Sign Theo Price (F 50) for $1.44M x 3y",
+            "Draft Quin Ivers (F 63)"
+          ],
+          "summary": "gained 40.3 of asset value, gave up 3.9 of cap room"
+        },
+        {
+          "chosen_by": [
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": -0.95,
+            "current_strength": -2.27,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 23.14,
+            "young_assets": 23.14
+          },
+          "id": "c",
+          "immediate_score": 6.9,
+          "lines": [
+            "Draft Ben Lund (F 65)"
+          ],
+          "summary": "gained 23.1 of young asset value, gave up 2.3 of current strength"
+        },
+        {
+          "chosen_by": [
+            "value"
+          ],
+          "delta": {
+            "cap_room": -2.49,
+            "current_strength": 0.2,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 35.39,
+            "young_assets": 29.26
+          },
+          "id": "d",
+          "immediate_score": 10.11,
+          "lines": [
+            "Sign Gabe Evans (F 52) for $1.54M x 1y",
+            "Draft Quin Ivers (F 63)"
+          ],
+          "summary": "gained 35.4 of asset value, gave up 2.5 of cap room"
+        },
+        {
+          "chosen_by": [
+            "conservative"
+          ],
+          "delta": {
+            "cap_room": -1.65,
+            "current_strength": -2.27,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 22.07,
+            "young_assets": 22.07
+          },
+          "id": "e",
+          "immediate_score": 6.29,
+          "lines": [
+            "Sign Drew Chen (F 47) for $0.70M x 1y",
+            "Draft Theo Jensen (F 53)"
+          ],
+          "summary": "gained 22.1 of young asset value, gave up 2.3 of current strength"
+        }
+      ],
+      "outcome": "subject_missed",
+      "phase": "draft",
+      "points_left_on_the_table": 3.4,
+      "season": 1,
+      "seed": 3,
+      "situation": {
+        "cap_room": 27.7,
+        "championships": 0,
+        "free_agents_available": 31,
+        "offers_on_the_table": 3,
+        "payroll": 58.3,
+        "phase": "Draft",
+        "record": "8-3",
+        "roster_size": 26,
+        "season": 1,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "627af82188f32a599a0cc03a089a3f06260641fd34f0dd0a80eaa0b7002ed273",
+      "subject": "rebuild",
+      "subject_margin": -3.36,
+      "subject_option": "a",
+      "worthiness": 3.36
+    },
+    {
+      "answer": "a",
+      "id": "value-s11-y2-midseason",
+      "mechanic": "free_agency",
+      "options": [
+        {
+          "chosen_by": [
+            "pick-trader",
+            "value"
+          ],
+          "delta": {
+            "cap_room": -4.46,
+            "current_strength": 1.92,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 28.78,
+            "young_assets": 19.08
+          },
+          "id": "a",
+          "immediate_score": 7.01,
+          "lines": [
+            "Sign Ivan Grant (F 50) for $1.31M x 3y",
+            "Sign Leo Mason (F 49) for $1.27M x 3y",
+            "Sign Leo Jensen (F 52) for $1.88M x 3y"
+          ],
+          "summary": "gained 28.8 of asset value, gave up 4.5 of cap room"
+        },
+        {
+          "chosen_by": [
+            "conservative",
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": 0.0,
+            "current_strength": 1.97,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "b",
+          "immediate_score": 0.55,
+          "lines": [
+            "Stand pat - make no roster move this window"
+          ],
+          "summary": "gained 2.0 of current strength"
+        }
+      ],
+      "outcome": "subject_won",
+      "phase": "midseason",
+      "points_left_on_the_table": 0.0,
+      "season": 2,
+      "seed": 11,
+      "situation": {
+        "cap_room": 5.11,
+        "championships": 0,
+        "free_agents_available": 42,
+        "offers_on_the_table": 0,
+        "payroll": 84.33,
+        "phase": "Midseason",
+        "record": "16-28",
+        "roster_size": 26,
+        "season": 2,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "08599c67f9af5753d7222a02215a6affe2cc29b280655b4f5905299653e1291d",
+      "subject": "value",
+      "subject_margin": 6.46,
+      "subject_option": "a",
+      "worthiness": 6.46
+    },
+    {
+      "answer": "b",
+      "id": "win-now-s1-y2-trade_deadline",
+      "mechanic": "trade",
+      "options": [
+        {
+          "chosen_by": [
+            "conservative",
+            "value",
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": 0.0,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 0.0,
+            "young_assets": 0.0
+          },
+          "id": "a",
+          "immediate_score": 0.0,
+          "lines": [
+            "Stand pat - make no roster move this window"
+          ],
+          "summary": "barely moved the roster"
+        },
+        {
+          "chosen_by": [
+            "pick-trader"
+          ],
+          "delta": {
+            "cap_room": 3.79,
+            "current_strength": -0.32,
+            "future_pick_assets": 9.6,
+            "roster_depth": 0.0,
+            "total_assets": -13.06,
+            "young_assets": 0.0
+          },
+          "id": "b",
+          "immediate_score": 0.68,
+          "lines": [
+            "Reject 3 incoming trade offers",
+            "Trade Theo Jensen (F 64) to Calgary Peaks for their season-3 first-round pick"
+          ],
+          "summary": "gained 9.6 of future pick value, gave up 13.1 of asset value"
+        }
+      ],
+      "outcome": "subject_missed",
+      "phase": "trade_deadline",
+      "points_left_on_the_table": 0.7,
+      "season": 2,
+      "seed": 1,
+      "situation": {
+        "cap_room": -1.08,
+        "championships": 0,
+        "free_agents_available": 44,
+        "offers_on_the_table": 3,
+        "payroll": 90.52,
+        "phase": "Trade deadline",
+        "record": "24-20",
+        "roster_size": 28,
+        "season": 2,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "143f8080fe107579777ce6f94a8eb5f670e1cb68702365c757d467f05b21da0c",
+      "subject": "win-now",
+      "subject_margin": -0.68,
+      "subject_option": "a",
+      "worthiness": 0.68
+    },
+    {
+      "answer": "c",
+      "id": "win-now-s11-y1-draft",
+      "mechanic": "draft",
+      "options": [
+        {
+          "chosen_by": [
+            "pick-trader"
+          ],
+          "delta": {
+            "cap_room": -2.77,
+            "current_strength": -0.22,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 69.22,
+            "young_assets": 69.22
+          },
+          "id": "a",
+          "immediate_score": 22.5,
+          "lines": [
+            "Sign Kai Novak (F 52) for $1.82M x 3y",
+            "Draft Nico Stone (D 74)"
+          ],
+          "summary": "gained 69.2 of young asset value, gave up 2.8 of cap room"
+        },
+        {
+          "chosen_by": [
+            "conservative",
+            "win-now"
+          ],
+          "delta": {
+            "cap_room": -0.95,
+            "current_strength": 0.0,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 58.86,
+            "young_assets": 58.86
+          },
+          "id": "b",
+          "immediate_score": 19.68,
+          "lines": [
+            "Draft Vik Ivers (F 74)"
+          ],
+          "summary": "gained 58.9 of young asset value, gave up 0.9 of cap room"
+        },
+        {
+          "chosen_by": [
+            "value"
+          ],
+          "delta": {
+            "cap_room": -2.77,
+            "current_strength": -0.16,
+            "future_pick_assets": 0.0,
+            "roster_depth": 0.0,
+            "total_assets": 70.7,
+            "young_assets": 70.7
+          },
+          "id": "c",
+          "immediate_score": 23.02,
+          "lines": [
+            "Sign Kai Novak (F 52) for $1.82M x 3y",
+            "Draft Vik Ivers (F 74)"
+          ],
+          "summary": "gained 70.7 of young asset value, gave up 2.8 of cap room"
+        }
+      ],
+      "outcome": "subject_missed",
+      "phase": "draft",
+      "points_left_on_the_table": 3.3,
+      "season": 1,
+      "seed": 11,
+      "situation": {
+        "cap_room": 2.37,
+        "championships": 0,
+        "free_agents_available": 30,
+        "offers_on_the_table": 3,
+        "payroll": 83.63,
+        "phase": "Draft",
+        "record": "0-11",
+        "roster_size": 27,
+        "season": 1,
+        "team": "Anchorage Auroras"
+      },
+      "state_key": "35053c590823cca61939907da7abe14ba6dd1b2aa1647a2f01f1aed98097c52e",
+      "subject": "win-now",
+      "subject_margin": -3.34,
+      "subject_option": "b",
+      "worthiness": 3.34
     },
     {
       "answer": "b",
       "id": "win-now-s11-y2-midseason",
+      "mechanic": "free_agency",
       "options": [
         {
           "chosen_by": [
@@ -764,6 +2048,7 @@
           "summary": "gained 22.1 of young asset value, gave up 3.2 of cap room"
         }
       ],
+      "outcome": "subject_missed",
       "phase": "midseason",
       "points_left_on_the_table": 6.4,
       "season": 2,
@@ -780,1274 +2065,11 @@
         "season": 2,
         "team": "Anchorage Auroras"
       },
-      "state_key": "s11-y2-midseason",
+      "state_key": "7ee233398b1cf55597f6c3346caffae29487f5dbca6bc090b738b263b7c4e143",
       "subject": "win-now",
+      "subject_margin": -6.42,
+      "subject_option": "a",
       "worthiness": 6.42
-    },
-    {
-      "answer": "b",
-      "id": "win-now-s11-y1-midseason",
-      "options": [
-        {
-          "chosen_by": [
-            "conservative",
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": 0.0,
-            "current_strength": 3.59,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 0.0,
-            "young_assets": 0.0
-          },
-          "id": "a",
-          "immediate_score": 1.01,
-          "lines": [
-            "Stand pat - make no roster move this window"
-          ],
-          "summary": "gained 3.6 of current strength"
-        },
-        {
-          "chosen_by": [
-            "pick-trader",
-            "value"
-          ],
-          "delta": {
-            "cap_room": -1.82,
-            "current_strength": 3.59,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 11.84,
-            "young_assets": 11.84
-          },
-          "id": "b",
-          "immediate_score": 4.39,
-          "lines": [
-            "Sign Kai Novak (F 52) for $1.82M x 3y"
-          ],
-          "summary": "gained 11.8 of young asset value, gave up 1.8 of cap room"
-        }
-      ],
-      "phase": "midseason",
-      "points_left_on_the_table": 3.4,
-      "season": 1,
-      "seed": 11,
-      "situation": {
-        "cap_room": 2.37,
-        "championships": 0,
-        "free_agents_available": 32,
-        "offers_on_the_table": 0,
-        "payroll": 83.63,
-        "phase": "Midseason",
-        "record": "0-11",
-        "roster_size": 27,
-        "season": 1,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s11-y1-midseason",
-      "subject": "win-now",
-      "worthiness": 3.39
-    },
-    {
-      "answer": "c",
-      "id": "win-now-s11-y1-draft",
-      "options": [
-        {
-          "chosen_by": [
-            "conservative",
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 58.86,
-            "young_assets": 58.86
-          },
-          "id": "a",
-          "immediate_score": 19.68,
-          "lines": [
-            "Draft Vik Ivers (F 74)"
-          ],
-          "summary": "gained 58.9 of young asset value, gave up 0.9 of cap room"
-        },
-        {
-          "chosen_by": [
-            "pick-trader"
-          ],
-          "delta": {
-            "cap_room": -2.77,
-            "current_strength": -0.22,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 69.22,
-            "young_assets": 69.22
-          },
-          "id": "b",
-          "immediate_score": 22.5,
-          "lines": [
-            "Sign Kai Novak (F 52) for $1.82M x 3y",
-            "Draft Nico Stone (D 74)"
-          ],
-          "summary": "gained 69.2 of young asset value, gave up 2.8 of cap room"
-        },
-        {
-          "chosen_by": [
-            "value"
-          ],
-          "delta": {
-            "cap_room": -2.77,
-            "current_strength": -0.16,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 70.7,
-            "young_assets": 70.7
-          },
-          "id": "c",
-          "immediate_score": 23.02,
-          "lines": [
-            "Sign Kai Novak (F 52) for $1.82M x 3y",
-            "Draft Vik Ivers (F 74)"
-          ],
-          "summary": "gained 70.7 of young asset value, gave up 2.8 of cap room"
-        }
-      ],
-      "phase": "draft",
-      "points_left_on_the_table": 3.3,
-      "season": 1,
-      "seed": 11,
-      "situation": {
-        "cap_room": 2.37,
-        "championships": 0,
-        "free_agents_available": 30,
-        "offers_on_the_table": 3,
-        "payroll": 83.63,
-        "phase": "Draft",
-        "record": "0-11",
-        "roster_size": 27,
-        "season": 1,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s11-y1-draft",
-      "subject": "win-now",
-      "worthiness": 3.34
-    },
-    {
-      "answer": "b",
-      "id": "win-now-s2-y2-draft",
-      "options": [
-        {
-          "chosen_by": [
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 22.87,
-            "young_assets": 22.87
-          },
-          "id": "a",
-          "immediate_score": 7.44,
-          "lines": [
-            "Draft Vik Olsen (F 60)"
-          ],
-          "summary": "gained 22.9 of young asset value, gave up 0.9 of cap room"
-        },
-        {
-          "chosen_by": [
-            "pick-trader",
-            "value"
-          ],
-          "delta": {
-            "cap_room": -2.95,
-            "current_strength": 2.13,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 43.11,
-            "young_assets": 23.95
-          },
-          "id": "b",
-          "immediate_score": 10.77,
-          "lines": [
-            "Sign Hugo Keller (F 49) for $1.15M x 3y",
-            "Sign Alex Evans (F 48) for $0.85M x 1y",
-            "Draft Rafi Ivers (D 58)"
-          ],
-          "summary": "gained 43.1 of asset value, gave up 3.0 of cap room"
-        },
-        {
-          "chosen_by": [
-            "conservative"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 16.74,
-            "young_assets": 16.74
-          },
-          "id": "c",
-          "immediate_score": 5.36,
-          "lines": [
-            "Draft Alex Vale (F 48)"
-          ],
-          "summary": "gained 16.7 of young asset value, gave up 0.9 of cap room"
-        }
-      ],
-      "phase": "draft",
-      "points_left_on_the_table": 3.3,
-      "season": 2,
-      "seed": 2,
-      "situation": {
-        "cap_room": 2.32,
-        "championships": 0,
-        "free_agents_available": 42,
-        "offers_on_the_table": 3,
-        "payroll": 87.12,
-        "phase": "Draft",
-        "record": "27-17",
-        "roster_size": 27,
-        "season": 2,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s2-y2-draft",
-      "subject": "win-now",
-      "worthiness": 3.33
-    },
-    {
-      "answer": "b",
-      "id": "win-now-s8-y2-midseason",
-      "options": [
-        {
-          "chosen_by": [
-            "conservative",
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": 0.0,
-            "current_strength": 2.18,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 0.0,
-            "young_assets": 0.0
-          },
-          "id": "a",
-          "immediate_score": 0.61,
-          "lines": [
-            "Stand pat - make no roster move this window"
-          ],
-          "summary": "gained 2.2 of current strength"
-        },
-        {
-          "chosen_by": [
-            "pick-trader",
-            "value"
-          ],
-          "delta": {
-            "cap_room": -1.7,
-            "current_strength": 2.18,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 9.45,
-            "young_assets": 9.45
-          },
-          "id": "b",
-          "immediate_score": 3.23,
-          "lines": [
-            "Sign Jules Jensen (F 51) for $1.70M x 3y"
-          ],
-          "summary": "gained 9.4 of young asset value, gave up 1.7 of cap room"
-        }
-      ],
-      "phase": "midseason",
-      "points_left_on_the_table": 2.6,
-      "season": 2,
-      "seed": 8,
-      "situation": {
-        "cap_room": 1.95,
-        "championships": 0,
-        "free_agents_available": 49,
-        "offers_on_the_table": 0,
-        "payroll": 87.49,
-        "phase": "Midseason",
-        "record": "25-19",
-        "roster_size": 24,
-        "season": 2,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s8-y2-midseason",
-      "subject": "win-now",
-      "worthiness": 2.62
-    },
-    {
-      "answer": "b",
-      "id": "win-now-s8-y2-draft",
-      "options": [
-        {
-          "chosen_by": [
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 22.05,
-            "young_assets": 22.05
-          },
-          "id": "a",
-          "immediate_score": 7.17,
-          "lines": [
-            "Draft Hugo Ivers (F 59)"
-          ],
-          "summary": "gained 22.1 of young asset value, gave up 0.9 of cap room"
-        },
-        {
-          "chosen_by": [
-            "pick-trader"
-          ],
-          "delta": {
-            "cap_room": -2.65,
-            "current_strength": -0.17,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 31.59,
-            "young_assets": 31.59
-          },
-          "id": "b",
-          "immediate_score": 9.76,
-          "lines": [
-            "Sign Jules Jensen (F 51) for $1.70M x 3y",
-            "Draft Theo Hayes (F 55)"
-          ],
-          "summary": "gained 31.6 of young asset value, gave up 2.6 of cap room"
-        },
-        {
-          "chosen_by": [
-            "value"
-          ],
-          "delta": {
-            "cap_room": -2.65,
-            "current_strength": 2.24,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 28.65,
-            "young_assets": 28.65
-          },
-          "id": "c",
-          "immediate_score": 9.44,
-          "lines": [
-            "Sign Jules Jensen (F 51) for $1.70M x 3y",
-            "Draft Hugo Price (F 49)"
-          ],
-          "summary": "gained 28.7 of young asset value, gave up 2.6 of cap room"
-        },
-        {
-          "chosen_by": [
-            "conservative"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 19.2,
-            "young_assets": 19.2
-          },
-          "id": "d",
-          "immediate_score": 6.2,
-          "lines": [
-            "Draft Hugo Price (F 49)"
-          ],
-          "summary": "gained 19.2 of young asset value, gave up 0.9 of cap room"
-        }
-      ],
-      "phase": "draft",
-      "points_left_on_the_table": 2.6,
-      "season": 2,
-      "seed": 8,
-      "situation": {
-        "cap_room": 1.95,
-        "championships": 0,
-        "free_agents_available": 48,
-        "offers_on_the_table": 3,
-        "payroll": 87.49,
-        "phase": "Draft",
-        "record": "25-19",
-        "roster_size": 24,
-        "season": 2,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s8-y2-draft",
-      "subject": "win-now",
-      "worthiness": 2.6
-    },
-    {
-      "answer": "b",
-      "id": "rebuild-s13-y1-draft",
-      "options": [
-        {
-          "chosen_by": [
-            "conservative",
-            "rebuild"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 24.83,
-            "young_assets": 24.83
-          },
-          "id": "a",
-          "immediate_score": 8.44,
-          "lines": [
-            "Draft Rafi Hayes (F 53)"
-          ],
-          "summary": "gained 24.8 of young asset value"
-        },
-        {
-          "chosen_by": [
-            "pick-trader"
-          ],
-          "delta": {
-            "cap_room": -3.5,
-            "current_strength": -0.02,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 43.29,
-            "young_assets": 27.68
-          },
-          "id": "b",
-          "immediate_score": 11.03,
-          "lines": [
-            "Release Jules Ivers (D 42)",
-            "Sign Ivan Diaz (F 52) for $1.59M x 1y",
-            "Sign Finn Chen (D 51) for $1.52M x 1y",
-            "Draft Owen Stone (F 57)"
-          ],
-          "summary": "gained 43.3 of asset value, gave up 3.5 of cap room"
-        },
-        {
-          "chosen_by": [
-            "value"
-          ],
-          "delta": {
-            "cap_room": -4.06,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 43.29,
-            "young_assets": 27.68
-          },
-          "id": "c",
-          "immediate_score": 10.85,
-          "lines": [
-            "Sign Ivan Diaz (F 52) for $1.59M x 1y",
-            "Sign Finn Chen (D 51) for $1.52M x 1y",
-            "Draft Owen Stone (F 57)"
-          ],
-          "summary": "gained 43.3 of asset value, gave up 4.1 of cap room"
-        },
-        {
-          "chosen_by": [
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 28.63,
-            "young_assets": 28.63
-          },
-          "id": "d",
-          "immediate_score": 9.74,
-          "lines": [
-            "Draft Eli Keller (F 64)"
-          ],
-          "summary": "gained 28.6 of young asset value"
-        }
-      ],
-      "phase": "draft",
-      "points_left_on_the_table": 2.6,
-      "season": 1,
-      "seed": 13,
-      "situation": {
-        "cap_room": 29.59,
-        "championships": 0,
-        "free_agents_available": 31,
-        "offers_on_the_table": 3,
-        "payroll": 56.41,
-        "phase": "Draft",
-        "record": "7-4",
-        "roster_size": 27,
-        "season": 1,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s13-y1-draft",
-      "subject": "rebuild",
-      "worthiness": 2.59
-    },
-    {
-      "answer": "b",
-      "id": "win-now-s2-y2-midseason",
-      "options": [
-        {
-          "chosen_by": [
-            "conservative",
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": 0.0,
-            "current_strength": 1.86,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 0.0,
-            "young_assets": 0.0
-          },
-          "id": "a",
-          "immediate_score": 0.52,
-          "lines": [
-            "Stand pat - make no roster move this window"
-          ],
-          "summary": "gained 1.9 of current strength"
-        },
-        {
-          "chosen_by": [
-            "pick-trader",
-            "value"
-          ],
-          "delta": {
-            "cap_room": -2.0,
-            "current_strength": 1.86,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 19.16,
-            "young_assets": 0.0
-          },
-          "id": "b",
-          "immediate_score": 2.89,
-          "lines": [
-            "Sign Hugo Keller (F 49) for $1.15M x 3y",
-            "Sign Alex Evans (F 48) for $0.85M x 1y"
-          ],
-          "summary": "gained 19.2 of asset value, gave up 2.0 of cap room"
-        }
-      ],
-      "phase": "midseason",
-      "points_left_on_the_table": 2.4,
-      "season": 2,
-      "seed": 2,
-      "situation": {
-        "cap_room": 2.32,
-        "championships": 0,
-        "free_agents_available": 44,
-        "offers_on_the_table": 0,
-        "payroll": 87.12,
-        "phase": "Midseason",
-        "record": "27-17",
-        "roster_size": 27,
-        "season": 2,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s2-y2-midseason",
-      "subject": "win-now",
-      "worthiness": 2.37
-    },
-    {
-      "answer": "b",
-      "id": "win-now-s13-y3-midseason",
-      "options": [
-        {
-          "chosen_by": [
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": 0.0,
-            "current_strength": 2.91,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 0.0,
-            "young_assets": 0.0
-          },
-          "id": "a",
-          "immediate_score": 0.82,
-          "lines": [
-            "Stand pat - make no roster move this window"
-          ],
-          "summary": "gained 2.9 of current strength"
-        },
-        {
-          "chosen_by": [
-            "pick-trader",
-            "value"
-          ],
-          "delta": {
-            "cap_room": -4.44,
-            "current_strength": 2.91,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 22.6,
-            "young_assets": 0.0
-          },
-          "id": "b",
-          "immediate_score": 2.88,
-          "lines": [
-            "Sign Eli Chen (F 52) for $1.78M x 1y",
-            "Sign Cal Quill (F 52) for $1.76M x 1y",
-            "Sign Nico Novak (F 48) for $0.90M x 1y"
-          ],
-          "summary": "gained 22.6 of asset value, gave up 4.4 of cap room"
-        },
-        {
-          "chosen_by": [
-            "conservative"
-          ],
-          "delta": {
-            "cap_room": -0.76,
-            "current_strength": 2.91,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 3.05,
-            "young_assets": 3.05
-          },
-          "id": "c",
-          "immediate_score": 1.59,
-          "lines": [
-            "Sign Owen Mason (D 47) for $0.76M x 1y"
-          ],
-          "summary": "gained 2.9 of current strength"
-        }
-      ],
-      "phase": "midseason",
-      "points_left_on_the_table": 2.1,
-      "season": 3,
-      "seed": 13,
-      "situation": {
-        "cap_room": 5.11,
-        "championships": 1,
-        "free_agents_available": 55,
-        "offers_on_the_table": 0,
-        "payroll": 87.91,
-        "phase": "Midseason",
-        "record": "44-33",
-        "roster_size": 31,
-        "season": 3,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s13-y3-midseason",
-      "subject": "win-now",
-      "worthiness": 2.06
-    },
-    {
-      "answer": "b",
-      "id": "win-now-s2-y1-draft",
-      "options": [
-        {
-          "chosen_by": [
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 39.35,
-            "young_assets": 39.35
-          },
-          "id": "a",
-          "immediate_score": 13.05,
-          "lines": [
-            "Draft Ivan Quill (F 69)"
-          ],
-          "summary": "gained 39.3 of young asset value, gave up 0.9 of cap room"
-        },
-        {
-          "chosen_by": [
-            "pick-trader",
-            "value"
-          ],
-          "delta": {
-            "cap_room": -2.14,
-            "current_strength": 1.98,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 50.47,
-            "young_assets": 39.35
-          },
-          "id": "b",
-          "immediate_score": 14.96,
-          "lines": [
-            "Sign Hugo Keller (F 49) for $1.19M x 3y",
-            "Draft Ivan Quill (F 69)"
-          ],
-          "summary": "gained 50.5 of asset value, gave up 2.1 of cap room"
-        },
-        {
-          "chosen_by": [
-            "conservative"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 28.68,
-            "young_assets": 28.68
-          },
-          "id": "c",
-          "immediate_score": 9.42,
-          "lines": [
-            "Draft Ben Diaz (G 58)"
-          ],
-          "summary": "gained 28.7 of young asset value, gave up 0.9 of cap room"
-        }
-      ],
-      "phase": "draft",
-      "points_left_on_the_table": 1.9,
-      "season": 1,
-      "seed": 2,
-      "situation": {
-        "cap_room": 1.32,
-        "championships": 0,
-        "free_agents_available": 30,
-        "offers_on_the_table": 3,
-        "payroll": 84.68,
-        "phase": "Draft",
-        "record": "8-3",
-        "roster_size": 27,
-        "season": 1,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s2-y1-draft",
-      "subject": "win-now",
-      "worthiness": 1.92
-    },
-    {
-      "answer": "b",
-      "id": "win-now-s5-y1-draft",
-      "options": [
-        {
-          "chosen_by": [
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 44.84,
-            "young_assets": 44.84
-          },
-          "id": "a",
-          "immediate_score": 14.91,
-          "lines": [
-            "Draft Ben Frost (D 73)"
-          ],
-          "summary": "gained 44.8 of young asset value, gave up 0.9 of cap room"
-        },
-        {
-          "chosen_by": [
-            "pick-trader",
-            "value"
-          ],
-          "delta": {
-            "cap_room": -1.68,
-            "current_strength": -0.18,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 53.93,
-            "young_assets": 48.35
-          },
-          "id": "b",
-          "immediate_score": 16.69,
-          "lines": [
-            "Sign Quin Chen (F 47) for $0.73M x 3y",
-            "Draft Ben Ivers (F 71)"
-          ],
-          "summary": "gained 48.3 of young asset value, gave up 1.7 of cap room"
-        },
-        {
-          "chosen_by": [
-            "conservative"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 28.21,
-            "young_assets": 28.21
-          },
-          "id": "c",
-          "immediate_score": 9.26,
-          "lines": [
-            "Draft Eli Price (F 53)"
-          ],
-          "summary": "gained 28.2 of young asset value, gave up 0.9 of cap room"
-        }
-      ],
-      "phase": "draft",
-      "points_left_on_the_table": 1.8,
-      "season": 1,
-      "seed": 5,
-      "situation": {
-        "cap_room": 0.95,
-        "championships": 0,
-        "free_agents_available": 31,
-        "offers_on_the_table": 3,
-        "payroll": 85.05,
-        "phase": "Draft",
-        "record": "4-7",
-        "roster_size": 26,
-        "season": 1,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s5-y1-draft",
-      "subject": "win-now",
-      "worthiness": 1.78
-    },
-    {
-      "answer": "b",
-      "id": "value-s2-y3-draft",
-      "options": [
-        {
-          "chosen_by": [
-            "conservative",
-            "value"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 20.58,
-            "young_assets": 20.58
-          },
-          "id": "a",
-          "immediate_score": 6.67,
-          "lines": [
-            "Draft Jules Mason (D 52)"
-          ],
-          "summary": "gained 20.6 of young asset value, gave up 0.9 of cap room"
-        },
-        {
-          "chosen_by": [
-            "pick-trader"
-          ],
-          "delta": {
-            "cap_room": -1.74,
-            "current_strength": 1.93,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 24.85,
-            "young_assets": 24.85
-          },
-          "id": "b",
-          "immediate_score": 8.38,
-          "lines": [
-            "Sign Vik Evans (F 45) for $0.79M x 3y",
-            "Draft Milo Chen (G 55)"
-          ],
-          "summary": "gained 24.8 of young asset value, gave up 1.7 of cap room"
-        },
-        {
-          "chosen_by": [
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": 0.05,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 24.98,
-            "young_assets": 24.98
-          },
-          "id": "c",
-          "immediate_score": 8.17,
-          "lines": [
-            "Draft Owen Hayes (F 68)"
-          ],
-          "summary": "gained 25.0 of young asset value, gave up 0.9 of cap room"
-        }
-      ],
-      "phase": "draft",
-      "points_left_on_the_table": 1.7,
-      "season": 3,
-      "seed": 2,
-      "situation": {
-        "cap_room": 0.98,
-        "championships": 0,
-        "free_agents_available": 40,
-        "offers_on_the_table": 3,
-        "payroll": 92.04,
-        "phase": "Draft",
-        "record": "44-33",
-        "roster_size": 35,
-        "season": 3,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s2-y3-draft",
-      "subject": "value",
-      "worthiness": 1.71
-    },
-    {
-      "answer": "b",
-      "id": "value-s11-y5-draft",
-      "options": [
-        {
-          "chosen_by": [
-            "value"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": -0.07,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 26.29,
-            "young_assets": 26.29
-          },
-          "id": "a",
-          "immediate_score": 8.59,
-          "lines": [
-            "Draft Leo Novak (D 59)"
-          ],
-          "summary": "gained 26.3 of young asset value, gave up 0.9 of cap room"
-        },
-        {
-          "chosen_by": [
-            "pick-trader",
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": -0.07,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 31.13,
-            "young_assets": 31.13
-          },
-          "id": "b",
-          "immediate_score": 10.23,
-          "lines": [
-            "Draft Milo Price (F 68)"
-          ],
-          "summary": "gained 31.1 of young asset value, gave up 0.9 of cap room"
-        },
-        {
-          "chosen_by": [
-            "conservative"
-          ],
-          "delta": {
-            "cap_room": -0.95,
-            "current_strength": -0.07,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 21.91,
-            "young_assets": 21.91
-          },
-          "id": "c",
-          "immediate_score": 7.1,
-          "lines": [
-            "Draft Gabe Frost (F 54)"
-          ],
-          "summary": "gained 21.9 of young asset value, gave up 0.9 of cap room"
-        }
-      ],
-      "phase": "draft",
-      "points_left_on_the_table": 1.6,
-      "season": 5,
-      "seed": 11,
-      "situation": {
-        "cap_room": 0.68,
-        "championships": 1,
-        "free_agents_available": 74,
-        "offers_on_the_table": 3,
-        "payroll": 99.93,
-        "phase": "Draft",
-        "record": "76-67",
-        "roster_size": 28,
-        "season": 5,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s11-y5-draft",
-      "subject": "value",
-      "worthiness": 1.64
-    },
-    {
-      "answer": "b",
-      "id": "value-s8-y3-trade_deadline",
-      "options": [
-        {
-          "chosen_by": [
-            "conservative",
-            "value",
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": 0.0,
-            "current_strength": 0.16,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 0.0,
-            "young_assets": 0.0
-          },
-          "id": "a",
-          "immediate_score": 0.05,
-          "lines": [
-            "Stand pat - make no roster move this window"
-          ],
-          "summary": "barely moved the roster"
-        },
-        {
-          "chosen_by": [
-            "pick-trader"
-          ],
-          "delta": {
-            "cap_room": 4.48,
-            "current_strength": 0.02,
-            "future_pick_assets": 9.6,
-            "roster_depth": 0.0,
-            "total_assets": -9.92,
-            "young_assets": 0.0
-          },
-          "id": "b",
-          "immediate_score": 1.52,
-          "lines": [
-            "Reject the incoming trade offer",
-            "Reject the incoming trade offer",
-            "Reject the incoming trade offer",
-            "Trade Quin Jensen (F 57) to Austin Jackals for their season-4 first-round pick"
-          ],
-          "summary": "gained 4.5 of cap room, gave up 9.9 of asset value"
-        }
-      ],
-      "phase": "trade_deadline",
-      "points_left_on_the_table": 1.5,
-      "season": 3,
-      "seed": 8,
-      "situation": {
-        "cap_room": 0.46,
-        "championships": 1,
-        "free_agents_available": 58,
-        "offers_on_the_table": 3,
-        "payroll": 92.56,
-        "phase": "Trade deadline",
-        "record": "50-27",
-        "roster_size": 28,
-        "season": 3,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s8-y3-trade_deadline",
-      "subject": "value",
-      "worthiness": 1.48
-    },
-    {
-      "answer": "b",
-      "id": "win-now-s2-y1-midseason",
-      "options": [
-        {
-          "chosen_by": [
-            "conservative",
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": 0.0,
-            "current_strength": 3.97,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 0.0,
-            "young_assets": 0.0
-          },
-          "id": "a",
-          "immediate_score": 1.11,
-          "lines": [
-            "Stand pat - make no roster move this window"
-          ],
-          "summary": "gained 4.0 of current strength"
-        },
-        {
-          "chosen_by": [
-            "pick-trader",
-            "value"
-          ],
-          "delta": {
-            "cap_room": -1.19,
-            "current_strength": 3.97,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 11.12,
-            "young_assets": 0.0
-          },
-          "id": "b",
-          "immediate_score": 2.48,
-          "lines": [
-            "Sign Hugo Keller (F 49) for $1.19M x 3y"
-          ],
-          "summary": "gained 11.1 of asset value, gave up 1.2 of cap room"
-        }
-      ],
-      "phase": "midseason",
-      "points_left_on_the_table": 1.4,
-      "season": 1,
-      "seed": 2,
-      "situation": {
-        "cap_room": 1.32,
-        "championships": 0,
-        "free_agents_available": 32,
-        "offers_on_the_table": 0,
-        "payroll": 84.68,
-        "phase": "Midseason",
-        "record": "8-3",
-        "roster_size": 27,
-        "season": 1,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s2-y1-midseason",
-      "subject": "win-now",
-      "worthiness": 1.36
-    },
-    {
-      "answer": "b",
-      "id": "value-s8-y2-trade_deadline",
-      "options": [
-        {
-          "chosen_by": [
-            "conservative",
-            "value",
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": 0.0,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 0.0,
-            "young_assets": 0.0
-          },
-          "id": "a",
-          "immediate_score": 0.0,
-          "lines": [
-            "Stand pat - make no roster move this window"
-          ],
-          "summary": "barely moved the roster"
-        },
-        {
-          "chosen_by": [
-            "pick-trader"
-          ],
-          "delta": {
-            "cap_room": 4.48,
-            "current_strength": -0.24,
-            "future_pick_assets": 9.6,
-            "roster_depth": 0.0,
-            "total_assets": -11.03,
-            "young_assets": 0.0
-          },
-          "id": "b",
-          "immediate_score": 1.27,
-          "lines": [
-            "Reject the incoming trade offer",
-            "Reject the incoming trade offer",
-            "Reject the incoming trade offer",
-            "Trade Quin Jensen (F 59) to Denver Comets for their season-3 first-round pick"
-          ],
-          "summary": "gained 4.5 of cap room, gave up 11.0 of asset value"
-        }
-      ],
-      "phase": "trade_deadline",
-      "points_left_on_the_table": 1.3,
-      "season": 2,
-      "seed": 8,
-      "situation": {
-        "cap_room": 0.52,
-        "championships": 1,
-        "free_agents_available": 47,
-        "offers_on_the_table": 3,
-        "payroll": 88.92,
-        "phase": "Trade deadline",
-        "record": "27-17",
-        "roster_size": 25,
-        "season": 2,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s8-y2-trade_deadline",
-      "subject": "value",
-      "worthiness": 1.27
-    },
-    {
-      "answer": "b",
-      "id": "win-now-s8-y1-trade_deadline",
-      "options": [
-        {
-          "chosen_by": [
-            "conservative",
-            "value",
-            "win-now"
-          ],
-          "delta": {
-            "cap_room": 0.0,
-            "current_strength": 0.0,
-            "future_pick_assets": 0.0,
-            "roster_depth": 0.0,
-            "total_assets": 0.0,
-            "young_assets": 0.0
-          },
-          "id": "a",
-          "immediate_score": 0.0,
-          "lines": [
-            "Stand pat - make no roster move this window"
-          ],
-          "summary": "barely moved the roster"
-        },
-        {
-          "chosen_by": [
-            "pick-trader"
-          ],
-          "delta": {
-            "cap_room": 3.35,
-            "current_strength": 2.31,
-            "future_pick_assets": 9.6,
-            "roster_depth": 0.0,
-            "total_assets": -13.08,
-            "young_assets": 0.0
-          },
-          "id": "b",
-          "immediate_score": 1.26,
-          "lines": [
-            "Reject the incoming trade offer",
-            "Reject the incoming trade offer",
-            "Reject the incoming trade offer",
-            "Trade Vik Quill (F 59) to Miami Palms for their season-2 first-round pick"
-          ],
-          "summary": "gained 9.6 of future pick value, gave up 13.1 of asset value"
-        }
-      ],
-      "phase": "trade_deadline",
-      "points_left_on_the_table": 1.3,
-      "season": 1,
-      "seed": 8,
-      "situation": {
-        "cap_room": -0.12,
-        "championships": 0,
-        "free_agents_available": 32,
-        "offers_on_the_table": 3,
-        "payroll": 86.12,
-        "phase": "Trade deadline",
-        "record": "6-5",
-        "roster_size": 25,
-        "season": 1,
-        "team": "Anchorage Auroras"
-      },
-      "state_key": "s8-y1-trade_deadline",
-      "subject": "win-now",
-      "worthiness": 1.26
     }
   ],
   "schema": "gm-bench-puzzles-v1",

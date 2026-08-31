@@ -18,9 +18,27 @@ const PHASE_BLURB: Record<string, string> = {
 function verdictFor(picked: PuzzleOption, best: PuzzleOption): string {
   const gap = best.immediate_score - picked.immediate_score;
   if (gap <= 0.001) return "Best call on the board.";
-  if (gap < 1) return "Line ball — a fraction behind the best call.";
+  if (gap < 1) return "Line ball, a fraction behind the best call.";
   if (gap < 5) return "Reasonable, but there was more on the table.";
   return "The board had a much better move.";
+}
+
+function subjectChoice(puzzle: Puzzle): PuzzleOption | undefined {
+  return puzzle.options.find((option) => option.chosen_by.includes(puzzle.subject));
+}
+
+function subjectMargin(puzzle: Puzzle, best: PuzzleOption): number | null {
+  if (puzzle.subject_margin !== undefined) return puzzle.subject_margin;
+  const choice = subjectChoice(puzzle);
+  if (choice) return choice.immediate_score - best.immediate_score;
+  if (puzzle.points_left_on_the_table !== undefined) return -puzzle.points_left_on_the_table;
+  return null;
+}
+
+function subjectOutcome(puzzle: Puzzle, margin: number | null): "subject_won" | "subject_missed" | null {
+  if (puzzle.outcome) return puzzle.outcome;
+  if (margin === null) return null;
+  return margin >= -0.001 ? "subject_won" : "subject_missed";
 }
 
 function Scoreline({ answered, matched, dropped }: { answered: number; matched: number; dropped: number }) {
@@ -57,6 +75,9 @@ function Card({
   const { situation } = puzzle;
   const best = puzzle.options.find((option) => option.id === puzzle.answer) ?? puzzle.options[0];
   const revealed = picked !== null;
+  const subject = subjectChoice(puzzle);
+  const margin = subjectMargin(puzzle, best);
+  const outcome = subjectOutcome(puzzle, margin);
 
   return (
     <div className="puzzle-card">
@@ -110,8 +131,8 @@ function Card({
                   {option.id.toUpperCase()}
                 </span>
                 <span className="puzzle-option-body">
-                  {option.lines.map((line) => (
-                    <span key={line} className="puzzle-line">
+                  {option.lines.map((line, lineIndex) => (
+                    <span key={`${option.id}-${lineIndex}`} className="puzzle-line">
                       {line}
                     </span>
                   ))}
@@ -135,10 +156,20 @@ function Card({
         <p className="puzzle-verdict">
           {verdictFor(puzzle.options.find((o) => o.id === picked) ?? best, best)}{" "}
           <span className="puzzle-verdict-sub">
-            The <code>{puzzle.subject}</code> policy took{" "}
-            {puzzle.options.find((option) => option.chosen_by.includes(puzzle.subject))?.id.toUpperCase() ?? "—"} here,
-            giving up {puzzle.points_left_on_the_table.toFixed(1)} points of immediate value against the best move on
-            the board.
+            {subject ? (
+              <>
+                The <code>{puzzle.subject}</code> policy took {subject.id.toUpperCase()} here. {" "}
+                {outcome === "subject_won" && margin !== null
+                  ? margin > 0.001
+                    ? `It beat the other recorded choices by ${margin.toFixed(1)} points on the immediate score proxy.`
+                    : "It matched the best recorded choice on the immediate score proxy."
+                  : outcome === "subject_missed" && margin !== null
+                    ? `It left ${Math.abs(margin).toFixed(1)} points of immediate roster value on the table against the best recorded choice.`
+                    : "Its result is not classified in this fixture."}
+              </>
+            ) : (
+              <>The subject policy's recorded choice is not identified in this fixture.</>
+            )}
           </span>
         </p>
       )}
@@ -181,8 +212,9 @@ export default function Puzzles({ data }: { data: PuzzleSet }) {
           <h2>You make the call</h2>
           <p>
             Real decisions from recorded episodes. Every option is a move some policy actually made
-            from this same information — nothing here is invented. Options are graded on what they do
-            to the roster immediately, so luck never decides who was right.
+            from this same information. Nothing here is invented. Options are graded on what they do
+            to the roster immediately with a deterministic score proxy, so the result does not depend
+            on how the rest of the season happens to play out.
           </p>
         </div>
 
