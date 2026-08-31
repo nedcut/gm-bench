@@ -48,7 +48,9 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # Moved again for the v6 execution rules: one paid model call per decision
     # phase, no paid retry, and deterministic local repair of malformed output
     # (gm_bench/repair.py) with a structured no-op when intent is ambiguous.
-    assert contract_fingerprint() == "3167d95f860770c5"
+    # Moved again from 3167d95f860770c5 when the rendered pick_holdings column
+    # and team.draft_picks stopped publishing seasons already drafted in.
+    assert contract_fingerprint() == "bcfe0ce8c23ddc85"
     assert "oracle" not in AGENTS
 
 

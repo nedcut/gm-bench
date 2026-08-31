@@ -77,8 +77,10 @@ def test_current_and_historical_sota_policies_are_distinct() -> None:
     # into pipe-delimited tables, so the live lane's prompt text is new. Moved
     # again from be227cafa39bc085 when providers.py pinned the v6 call
     # conditions: a 4,096-token output ceiling, reasoning off where the route
-    # allows it, and no paid retry.
-    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "94216f23c31fff74"
+    # allows it, and no paid retry. Moved again from 94216f23c31fff74 when the
+    # rendered pick_holdings column and team.draft_picks stopped publishing
+    # seasons already drafted in.
+    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"] == "c85f76ad90723418"
 
 
 def test_archived_v1_result_remains_auditable_but_not_v2_eligible() -> None:

@@ -17,6 +17,7 @@ import pytest
 
 from examples import gm_agent_common
 from gm_bench.agent_utils import position_aware_lineup, public_asset_value
+from gm_bench.protocol import EpisodeConfig
 from gm_bench.runner import run_episode
 from gm_bench.scaffold_view import compact_observation
 from gm_bench.simulator import MEMO_MAX_CHARS, League
@@ -40,6 +41,13 @@ class _BudgetStressAgent:
     whose answers are echoed back in ``action_results``, and free-agent hoarding
     to grow the roster past the render's row limit. This is the shape of the
     worst case, not a policy anyone would run.
+
+    Under the v6 execution rules this agent gets one round per phase, so only
+    its first branch runs: the notebook and the query flood are paid for, but
+    the echoed answers never come back and the roster never grows. The second
+    branch, and the ``action_results`` rows that make the prompt largest, are
+    reachable only through the pre-v6 multi-round lane, which
+    ``test_multi_round_lane_worst_case_still_fits`` measures separately.
     """
 
     name = "budget-stress"
@@ -123,6 +131,27 @@ def test_token_ceiling_holds_on_a_real_tokenizer(stress_prompts: list[tuple[int,
     assert worst <= TOKEN_CEILING
 
 
+def test_multi_round_lane_worst_case_still_fits() -> None:
+    """The largest prompt the render can produce, on the lane that can produce it.
+
+    Echoed ``action_results`` are the biggest single block the view carries and
+    only appear from interaction round 1 onward, which the v6 one-call lane
+    never reaches. Measured here on the exact tokenizer rather than the
+    character proxy: this lane's headroom under the ceiling is thinner than the
+    proxy's own conservatism, so the proxy cannot certify it.
+    """
+    tiktoken = pytest.importorskip("tiktoken", reason="this lane is too close to the ceiling for the char proxy")
+    encoding = tiktoken.get_encoding("o200k_base")
+    prompts: list[tuple[int, str, str]] = []
+    config = EpisodeConfig(single_paid_call_per_phase=False)
+    for seed in BUDGET_SEEDS:
+        run_episode(_BudgetStressAgent(prompts), seed=seed, seasons=5, config=config)
+    echoed = [prompt for _, _, prompt in prompts if '"interaction_round": 1' in prompt]
+    assert echoed, "no prompt reached a second round, so nothing echoed query results"
+    assert all('"action_results": ["ok|' in prompt for prompt in echoed)
+    assert max(len(encoding.encode(prompt)) for _, _, prompt in prompts) <= TOKEN_CEILING
+
+
 def _rendered(league: League, phase: str) -> dict[str, Any]:
     return compact_observation(league.observation(phase), "compact")
 
@@ -164,6 +193,41 @@ def test_every_v6_mechanic_has_a_visible_signal() -> None:
     # The rules block survives compaction section by section.
     assert set(rendered["rules"]) == {"cap", "lineup", "free_agency", "contracts", "trades", "scouting"}
     assert "seed" not in blob
+
+
+def test_pick_holdings_report_only_picks_that_can_still_be_spent() -> None:
+    """An exercised pick must not read as a pick the team traded away.
+
+    A drafted-in season leaves an empty origin list behind, which renders the
+    same way as a genuine departure. Publishing past seasons therefore labelled
+    every team that had ever drafted as having sold its first-rounders, and
+    buried the one real trade among eleven rows of noise.
+    """
+    league = League.new(seed=42)
+    for _ in range(2):
+        league.run_opponent_draft(before_user=True)
+        league.run_opponent_draft(before_user=False)
+        league.simulate_season()
+    assert league.season == 3
+    assert league.teams[4].draft_picks[1] == [], "opponents must have spent their season-1 picks"
+
+    league._transfer_pick(league.user_team, league.teams[4], 5)
+    rendered = _rendered(league, "preseason")
+    holdings = {row.split("|")[0]: row.split("|")[-1] for row in rendered["standings"]}
+
+    # The only departure on the board is the pick the user actually traded, and
+    # its arrival is the only acquisition.
+    assert holdings["T0"] == "-S5"
+    assert holdings["T4"] == "+S5(T0)"
+    assert all(holdings[f"T{team_id}"] == "own" for team_id in range(1, 12) if team_id != 4)
+    assert not any("S1" in value or "S2" in value for value in holdings.values())
+
+    # The user's own per-season counts start at the current season for the same
+    # reason, and agree with the pick rows beside them.
+    counts = rendered["team"]["draft_picks"]
+    assert min(counts) == league.season
+    assert counts[5] == 0
+    assert sum(counts.values()) == len(rendered["team"]["picks"])
 
 
 def test_expiring_contracts_publish_quotes_and_the_expiry_risk() -> None:

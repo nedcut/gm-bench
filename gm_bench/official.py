@@ -182,18 +182,21 @@ SOTA_V5_POLICY = ResultPolicy(
     # inside the ~6,500-token budget, and moved again (from anthropic
     # 1e5a550831d03984 and its eight siblings) when providers.py adopted the v6
     # execution rules: a 4,096-token output ceiling, reasoning disabled where
-    # the route allows it, and no paid retry. Prompt text and call conditions
-    # changed, so no earlier row is comparable to a later one.
+    # the route allows it, and no paid retry. Moved once more (from anthropic
+    # cb8cca527bcd62ac and its eight siblings) when the rendered pick_holdings
+    # column and team.draft_picks dropped seasons already drafted in. Prompt
+    # text and call conditions changed, so no earlier row is comparable to a
+    # later one.
     expected_scaffold_fingerprints={
-        "anthropic": "cb8cca527bcd62ac",
-        "claude": "9b0514f96bea2810",
-        "codex": "27a7aa63cf1f987f",
-        "cursor": "d999bd1c2ebaa3bf",
-        "gemini": "ca2823bf50668bac",
-        "ollama": "ef9fad5362b79186",
-        "openai": "268fb58269131c1c",
-        "opencode": "557587e8f5474ef7",
-        "openrouter": "94216f23c31fff74",
+        "anthropic": "8836cdb8343a6627",
+        "claude": "ee3be467c4909091",
+        "codex": "a38a0deb3f8b3b18",
+        "cursor": "4ea1f56fda01ce2b",
+        "gemini": "df244fc0c6fb97d8",
+        "ollama": "d7493365dab559f3",
+        "openai": "f0f323e3894cff29",
+        "opencode": "321f276169aa2349",
+        "openrouter": "c85f76ad90723418",
     },
     max_failed_query_rate=1.0,
 )

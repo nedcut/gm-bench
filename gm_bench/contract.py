@@ -83,8 +83,11 @@ SOTA_V5_CONTRACT = {
     # roster-changing two-season selection rule; moved from 989775a0ca5c7ad1
     # when the runner adopted the v6 execution rules: one paid model call per
     # decision phase, no paid retry, and deterministic local repair of
-    # malformed output with a structured no-op when intent is ambiguous.
-    "contract_fingerprint": "3167d95f860770c5",
+    # malformed output with a structured no-op when intent is ambiguous; moved
+    # from 3167d95f860770c5 when the rendered pick_holdings column and
+    # team.draft_picks stopped publishing seasons already drafted in, which had
+    # made every team that had ever used a pick read as having traded it away.
+    "contract_fingerprint": "bcfe0ce8c23ddc85",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
 # Pinned with the release identity so the site headroom strip cannot drift when

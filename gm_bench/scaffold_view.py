@@ -297,26 +297,43 @@ def _offer_rows(offers: list[dict[str, Any]]) -> list[str]:
     ]
 
 
-def _pick_holdings(team_id: Any, holdings: Any) -> str:
+def _pick_holdings(team_id: Any, holdings: Any, season: Any) -> str:
     """Summarize a team's picks as departures from "its own pick every season".
 
     Twelve teams times seven seasons of "team N owns team N's pick" is pure
     redundancy; what a trade partner needs is which picks were acquired and
     which were traded away.
+
+    Seasons before ``season`` are dropped. A pick that has already been
+    exercised leaves an empty origin list behind, which is indistinguishable
+    here from a pick that was traded away, so publishing past seasons would
+    label every team that has ever drafted as having sold off its first-
+    rounders. Only picks from the current season onward can still be spent or
+    traded, and only those are shown.
     """
     if not isinstance(holdings, dict) or not holdings:
         return "own"
+    current = _season_number(season)
     notes = []
-    for season in sorted(holdings, key=lambda item: int(item)):
-        origins = list(holdings[season] or [])
+    for pick_season in sorted(holdings, key=lambda item: int(item)):
+        if current is not None and int(pick_season) < current:
+            continue
+        origins = list(holdings[pick_season] or [])
         extras = [origin for origin in origins if origin != team_id]
-        notes += [f"+S{season}(T{origin})" for origin in extras]
+        notes += [f"+S{pick_season}(T{origin})" for origin in extras]
         if team_id not in origins:
-            notes.append(f"-S{season}")
+            notes.append(f"-S{pick_season}")
     return " ".join(notes) if notes else "own"
 
 
-def _standings_rows(standings: Any) -> list[str]:
+def _season_number(season: Any) -> int | None:
+    try:
+        return int(season)
+    except (TypeError, ValueError):
+        return None
+
+
+def _standings_rows(standings: Any, season: Any) -> list[str]:
     rows = []
     for team in standings or []:
         if not isinstance(team, dict):
@@ -329,7 +346,7 @@ def _standings_rows(standings: Any) -> list[str]:
                     f"{_num(team.get('wins'))}-{_num(team.get('losses'))}",
                     _num(team.get("championships")),
                     _num(team.get("public_strength")),
-                    _pick_holdings(team.get("team_id"), team.get("pick_origins")),
+                    _pick_holdings(team.get("team_id"), team.get("pick_origins"), season),
                 ]
             )
         )
@@ -369,7 +386,7 @@ def _ledger_rows(transactions: Any, user_team_id: Any) -> list[str]:
     return rows
 
 
-def _action_result_rows(results: Any, scout_reports: dict[str, Any]) -> list[str]:
+def _action_result_rows(results: Any, scout_reports: dict[str, Any], season: Any) -> list[str]:
     """Render one interaction round's results, with a hard row budget.
 
     An information action answers with whole player records -- ``inspect_team``
@@ -393,7 +410,7 @@ def _action_result_rows(results: Any, scout_reports: dict[str, Any]) -> list[str
         rows.append(f"{outcome}|{action.get('type', '?')} {arguments}|{result.get('message', '')}".rstrip())
         data = result.get("data") if isinstance(result.get("data"), dict) else {}
         for kind, renderer in (
-            ("team", lambda team: [_inspected_team_line(team)]),
+            ("team", lambda team: [_inspected_team_line(team, season)]),
             ("free_agents", lambda players: _free_agent_rows(_players(players))),
             ("roster", lambda players: _roster_rows(_players(players))),
             ("player", lambda player: _roster_rows(_players([player]))),
@@ -411,14 +428,14 @@ def _action_result_rows(results: Any, scout_reports: dict[str, Any]) -> list[str
     return rows
 
 
-def _inspected_team_line(team: Any) -> str:
+def _inspected_team_line(team: Any, season: Any) -> str:
     if not isinstance(team, dict):
         return "-"
     return (
         f"  T{_num(team.get('id'))} {team.get('name', '?')} {_num(team.get('wins'))}-{_num(team.get('losses'))} "
         f"championships {_num(team.get('championships'))} payroll {_num(team.get('payroll'))} "
         f"cap_room {_num(team.get('cap_room'))} "
-        f"picks {_pick_holdings(team.get('id'), team.get('pick_origins'))}"
+        f"picks {_pick_holdings(team.get('id'), team.get('pick_origins'), season)}"
     ).strip()
 
 
@@ -528,6 +545,16 @@ def _rules_text(rules: Any) -> dict[str, str]:
     }
 
 
+def _owned_pick_counts(draft_picks: Any, season: Any) -> Any:
+    """The user's per-season pick counts, from the current season onward."""
+    if not isinstance(draft_picks, dict):
+        return draft_picks
+    current = _season_number(season)
+    if current is None:
+        return draft_picks
+    return {pick_season: count for pick_season, count in draft_picks.items() if int(pick_season) >= current}
+
+
 def _team_block(observation: dict[str, Any], selection: dict[str, Any]) -> dict[str, Any]:
     team = selection["team"]
     limits = selection["limits"]
@@ -540,7 +567,11 @@ def _team_block(observation: dict[str, Any], selection: dict[str, Any]) -> dict[
         "payroll": team.get("payroll"),
         "cap_room": team.get("cap_room"),
         "dead_cap": {str(season): _num(charge) for season, charge in sorted((team.get("dead_cap") or {}).items())},
-        "draft_picks": team.get("draft_picks"),
+        # Same cut as `team.picks` and as the standings column: a season the
+        # user has already drafted in reads as "0 picks owned", which the prompt
+        # ("owned picks per season are in team.draft_picks") would otherwise
+        # present as a pick the user no longer has.
+        "draft_picks": _owned_pick_counts(team.get("draft_picks"), observation.get("season")),
         "picks": _pick_rows(team.get("picks")),
         "current_lineup": team.get("lineup") or [],
         "roster_columns": _ROSTER_COLUMNS,
@@ -599,7 +630,7 @@ def compact_observation(observation: dict[str, Any], profile: str | None = None)
         "rules": _rules_text(observation.get("rules")),
         "team": _team_block(observation, selection),
         "standings_columns": _STANDINGS_COLUMNS,
-        "standings": _standings_rows(observation.get("standings")),
+        "standings": _standings_rows(observation.get("standings"), observation.get("season")),
         "free_agents_columns": _FREE_AGENT_COLUMNS,
         "free_agents": _free_agent_rows(_carded(selection["free_agents"])),
         "free_agents_ids_only": _id_only(selection["free_agents"]),
@@ -627,7 +658,9 @@ def compact_observation(observation: dict[str, Any], profile: str | None = None)
         "recent_transactions": _ledger_rows(observation.get("recent_transactions"), team.get("id")),
         "available_actions": observation.get("available_actions", []),
         "action_results_columns": "outcome|action|message, followed by indented result rows",
-        "action_results": _action_result_rows(observation.get("action_results"), scout_reports),
+        "action_results": _action_result_rows(
+            observation.get("action_results"), scout_reports, observation.get("season")
+        ),
         "memo": observation.get("memo", ""),
     }
     for key in ("free_agents_ids_only", "draft_class_ids_only"):
@@ -667,6 +700,9 @@ def scaffold_view_observation(observation: dict[str, Any], profile: str | None =
     selection = _select(observation, profile)
     team = dict(selection["team"])
     team["roster"] = list(selection["roster"])
+    # Cut to the same seasons the rendered `team.draft_picks` publishes, so the
+    # reference policy is not handed pick counts for seasons a model cannot see.
+    team["draft_picks"] = _owned_pick_counts(team.get("draft_picks"), observation.get("season"))
     payload: dict[str, Any] = {
         "season": observation.get("season"),
         "phase": observation.get("phase"),
