@@ -29,7 +29,10 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # Moved again for v6 lineup construction: forwards now carry a published
     # center-or-wing sub_position, and a dressed lineup earns a bonus for
     # having enough natural centers.
-    assert contract_fingerprint() == "d9722e44b0cf991c"
+    # Moved again for v6 expiring contracts: an unresigned expiring incumbent
+    # now enters an immediate rival scramble for the best expiring players
+    # leaguewide before the user's next decision window.
+    assert contract_fingerprint() == "20e42898d8069386"
     assert "oracle" not in AGENTS
 
 

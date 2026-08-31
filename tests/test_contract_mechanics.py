@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from gm_bench.simulator import DEAD_CAP_FRACTION, DEAD_CAP_MAX_SEASONS, MARKET_INFLATION, League
+from gm_bench.simulator import (
+    DEAD_CAP_FRACTION,
+    DEAD_CAP_MAX_SEASONS,
+    EXPIRY_SCRAMBLE_CANDIDATES,
+    MARKET_INFLATION,
+    League,
+)
 
 
 def _expiring_player(league: League):
@@ -236,6 +242,84 @@ def test_summary_tier_inspection_publishes_extension_quote() -> None:
     assert result.data is not None
     assert result.data["player"]["extension_quotes"] == league._contract_quotes(player, incumbent=True)
     assert result.data["player"]["release_dead_cap"] == league._release_dead_cap_public(player)
+
+
+def test_unextended_top_expiring_player_can_be_lost_to_a_rival() -> None:
+    """Letting a good player's contract lapse without extending him must hurt.
+
+    A star who is not extended in his walk-year preseason plays out his final
+    year, then expires to free agency at season end. Right there, before the
+    user gets another decision window, rivals get one signing look at the
+    best expiring players leaguewide (`_expiry_market_scramble`). He can end
+    up on another team entirely, not just sitting in the pool for the user to
+    re-sign later at the same price.
+    """
+    league = League.new(seed=24)
+    league.cap = 1000.0
+    player = _expiring_player(league)
+    player.overall = 91.0
+    player.potential = 91.0
+    player.true_potential = 91.0
+
+    league.simulate_season()
+
+    assert player.team_id is not None
+    assert player.team_id != league.user_team_id
+    assert player.id not in league.free_agents
+    assert player.id not in league.user_team.roster
+
+
+def test_extending_before_expiry_removes_the_walk_year_risk() -> None:
+    """The same star, extended in the window, never enters the open market."""
+    league = League.new(seed=24)
+    league.cap = 1000.0
+    player = _expiring_player(league)
+    player.overall = 91.0
+    player.potential = 91.0
+    player.true_potential = 91.0
+    quote = league._contract_quote(player, 4, incumbent=True)
+    result = league.apply_actions(
+        [{"type": "extend_contract", "player_id": player.id, "years": 4, "salary": quote}],
+        "preseason",
+    )[0]
+    assert result.accepted
+
+    league.simulate_season()
+
+    assert player.id in league.user_team.roster
+    assert player.team_id == league.user_team_id
+
+
+def test_expiry_scramble_never_touches_a_player_outside_the_top_n() -> None:
+    """The rival scramble is bounded to the best expiring players leaguewide.
+
+    A full season's worth of ordinary short-deal expiries can number in the
+    dozens; scrambling all of them would swamp the extend-or-lose decision
+    with unrelated churn. Give the scramble more free agents than
+    `EXPIRY_SCRAMBLE_CANDIDATES`, all attractive enough to be signed, and the
+    lowest-ranked one (outside the top N) must be left alone entirely,
+    independent of whether any opponent would have wanted him.
+    """
+    league = League.new(seed=24)
+    league.cap = 1000.0
+    fa_ids = league.free_agents[: EXPIRY_SCRAMBLE_CANDIDATES + 2]
+    for rank, player_id in enumerate(fa_ids):
+        league.players[player_id].overall = 80.0 - rank
+    excluded_id = fa_ids[-1]
+
+    league._expiry_market_scramble(fa_ids, league._rng("test_scramble"))
+
+    assert excluded_id in league.free_agents
+
+
+def test_observation_publishes_the_expiry_risk_rule() -> None:
+    league = League.new(seed=24)
+
+    rules = league.observation("preseason")["rules"]["contracts"]
+
+    assert rules["expiry_scramble_candidates"] == EXPIRY_SCRAMBLE_CANDIDATES
+    assert isinstance(rules["expiry_risk"], str)
+    assert str(EXPIRY_SCRAMBLE_CANDIDATES) in rules["expiry_risk"]
 
 
 def test_opponents_deterministically_retain_good_expiring_players() -> None:

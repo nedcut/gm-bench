@@ -55,6 +55,12 @@ FA_WIN_APPEAL_WEIGHT = 0.08
 FA_ROLE_APPEAL_WEIGHT = 0.04
 FA_VETERAN_AGE = 28
 FA_YOUNG_WIN_SENSITIVITY = 0.5
+# A pending free agent not extended during his walk-year preseason expires at
+# season end and enters an immediate rival scramble (`_expiry_market_scramble`)
+# before the user's next decision window. Bounded to the best expiring players
+# leaguewide per season so ordinary short-deal churn (dozens of players a
+# season) does not dwarf the actual extend-or-lose decision with noise.
+EXPIRY_SCRAMBLE_CANDIDATES = 6
 # Lineup construction rewards more than the highest overalls: each forward is
 # a natural center or wing (`sub_position`, published on every player), and a
 # dressed lineup needs enough centers to staff its scoring lines. Sorting a
@@ -214,6 +220,15 @@ class League:
                     "incumbent_extension_discount": INCUMBENT_EXTENSION_DISCOUNT,
                     "extension_eligibility_years_remaining": 1,
                     "extension_minimum_contract_age_seasons": 1,
+                    "expiry_scramble_candidates": EXPIRY_SCRAMBLE_CANDIDATES,
+                    "expiry_risk": (
+                        "A roster player publishing extension_quotes is in his final contract year: "
+                        "extend_contract this preseason at the loyalty-discounted incumbent quote, or he "
+                        "expires to free agency at season end. Right after he expires, rival teams get one "
+                        f"signing look at the {EXPIRY_SCRAMBLE_CANDIDATES} best expiring players leaguewide, "
+                        "before your next decision window opens, so waiting is a real risk of losing a top "
+                        "expiring player, not a free option to re-sign him later at the same price."
+                    ),
                 },
                 "pick_trading": {
                     "max_seasons_ahead": PICK_TRADE_MAX_SEASONS_AHEAD,
@@ -460,7 +475,12 @@ class League:
         champion = self._simulate_playoffs(playoff_teams, ratings, rng)
         champion.championships += 1
 
-        self._age_and_contracts(rng)
+        expired_player_ids = self._age_and_contracts(rng)
+        # Opponents already priced the (old) roster this window; a freshly
+        # expired player is new information, so quote caches must not leak
+        # across the scramble.
+        self._window_signing_appeal = {}
+        self._expiry_market_scramble(expired_player_ids, rng)
         payroll = self._payroll(self.user_team)
         summary = SeasonSummary(
             season=self.season,
@@ -1564,7 +1584,7 @@ class League:
             bracket = next_round
         return bracket[0]
 
-    def _age_and_contracts(self, rng: random.Random) -> None:
+    def _age_and_contracts(self, rng: random.Random) -> list[int]:
         # The current season's retained charge has now been served. Future
         # entries remain and bind the team after the rollover.
         for team in self.teams.values():
@@ -1572,6 +1592,7 @@ class League:
         dressed: set[int] = set()
         for team in self.teams.values():
             dressed.update(player.id for player in self._effective_lineup(team))
+        expired: list[int] = []
         for player in list(self.players.values()):
             player.age += 1
             if player.team_id is None:
@@ -1605,6 +1626,8 @@ class League:
                 player.contract_years = 0
                 player.contract_signed_season = 0
                 self.free_agents.append(player.id)
+                expired.append(player.id)
+        return expired
 
     def _trim_expiring_contracts(self, team: Team, rng: random.Random) -> None:
         if len(team.roster) <= 23:
@@ -1662,7 +1685,9 @@ class League:
                 team_id=team.id,
             )
 
-    def _opponent_opportunistic_signing(self, team: Team, rng: random.Random) -> None:
+    def _opponent_opportunistic_signing(
+        self, team: Team, rng: random.Random, candidate_ids: list[int] | None = None
+    ) -> None:
         """Sign one clear upgrade over the team's weakest dressed player.
 
         This is what makes free agency competitive: opponents grab standout
@@ -1670,16 +1695,19 @@ class League:
         the user, so waiting on a signing carries real risk. A team with a
         full roster waives its least valuable player to make room, but only
         when the incoming player is clearly better than the one waived.
+        `candidate_ids` narrows the search (used by the season-boundary expiry
+        scramble); it defaults to the whole free-agent pool.
         """
         lineup = self._effective_lineup(team)
         if not lineup:
             return
         floor_overall = min(player.overall for player in lineup)
+        pool = self.free_agents if candidate_ids is None else candidate_ids
         upgrades = sorted(
             (
                 self.players[player_id]
-                for player_id in self.free_agents
-                if self.players[player_id].overall >= floor_overall + 2.0
+                for player_id in pool
+                if player_id in self.free_agents and self.players[player_id].overall >= floor_overall + 2.0
             ),
             key=lambda player: player.overall,
             reverse=True,
@@ -1717,6 +1745,36 @@ class League:
         player.salary = self._signing_quote(player, years, team)
         player.contract_years = years
         player.contract_signed_season = self.season
+
+    def _expiry_market_scramble(self, expired_player_ids: list[int], rng: random.Random) -> None:
+        """Rival teams get one shot at this season's best freshly expired contracts.
+
+        This is the teeth behind the preseason extension window: without it, a
+        player who lapses into free agency at season end just sits in the pool
+        until the user's next preseason, where the user always acts before any
+        opponent gets to sign him (`run_autopilot_opponents` only runs after
+        the user's decision each phase). That made walking away from an
+        extension free. Running the same clear-upgrade check opponents already
+        use between phases (see `_opponent_opportunistic_signing`) once here,
+        immediately after `_age_and_contracts` frees these players and before
+        the next season's phases begin, means a good player who is not
+        extended in his walk-year preseason can really be gone: signed by a
+        rival before the user gets another look.
+
+        A full season's worth of expiries (short deals cycling through as
+        normal churn) can number in the dozens leaguewide; scrambling for all
+        of them would let ordinary roster turnover, not the extend-or-lose
+        decision, dominate the season. Restricted to the
+        `EXPIRY_SCRAMBLE_CANDIDATES` best expiring players leaguewide so the
+        risk tracks the players an extension decision was actually about.
+        """
+        candidates = sorted(expired_player_ids, key=lambda player_id: self.players[player_id].overall, reverse=True)[
+            :EXPIRY_SCRAMBLE_CANDIDATES
+        ]
+        for team in self.teams.values():
+            if team.id == self.user_team_id:
+                continue
+            self._opponent_opportunistic_signing(team, rng, candidate_ids=candidates)
 
     def _opponent_trades(self) -> None:
         """One deadline round of one-for-one swaps between opponent teams.

@@ -65,8 +65,10 @@ SOTA_V5_CONTRACT = {
     # willingness began pricing the signing team's record and lineup role;
     # moved from b7f53b7d638de7a3 when forwards gained a published
     # center-or-wing sub_position and lineups earned a bonus for dressing
-    # enough natural centers.
-    "contract_fingerprint": "d9722e44b0cf991c",
+    # enough natural centers; moved from d9722e44b0cf991c when an
+    # extension-eligible incumbent left unresigned began expiring into an
+    # immediate rival scramble for the best expiring players leaguewide.
+    "contract_fingerprint": "20e42898d8069386",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
 # Pinned with the release identity so the site headroom strip cannot drift when

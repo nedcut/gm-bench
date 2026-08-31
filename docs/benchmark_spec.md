@@ -57,6 +57,18 @@ The benchmark implements a compact hockey-style league:
   five-year extension still costs more per year than a one-year free-agent deal
   (ratio 1.0895). Otherwise extending is both cheaper and longer, every
   incumbent is extended on sight, and contract length stops being a decision.
+- Expiring contracts create real re-sign-or-lose pressure (v6). A final-year
+  incumbent publishes `extension_quotes` for exactly one preseason before his
+  deal lapses; not extending him there is not a free wait-and-see option. He
+  plays out the season, expires to free agency, and — before the user's next
+  decision window, which is otherwise the user's first look at every FA pool —
+  rival teams get one signing attempt at the best expiring players leaguewide
+  (`expiry_scramble_candidates`, currently 6). A star left unextended can be
+  gone entirely, not just re-signable next preseason at the same price.
+  Scoped to the best expiring players only: a full season's ordinary short-deal
+  churn runs into the dozens leaguewide, and scrambling all of it would drown
+  the extend-or-lose decision in unrelated noise. Both the eligibility window
+  and the scramble rule are published in `rules.contracts`.
 - Releases retain 25% of salary as dead cap for at most the next two guaranteed
   seasons. Each roster player publishes the exact by-season and total charge
   before release; the charge applies equally to the user and opponent teams.
@@ -64,7 +76,9 @@ The benchmark implements a compact hockey-style league:
   every phase and deterministically extend valuable expiring incumbents —
   filling roster needs and poaching standout players, waiving their least
   valuable player to make room when full — so the pool is never reserved for
-  the user between decision points.
+  the user between decision points. At the season boundary, opponents also
+  get one scramble pass at the best players who just expired, before the
+  user's next preseason (see expiring contracts, above).
 - Opponent-initiated trades: at the trade deadline, opponents make
   one-for-one swaps among themselves whenever both sides' hidden valuations
   agree, recorded in the transaction feed.

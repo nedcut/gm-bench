@@ -154,7 +154,9 @@
             "additional_year_premium",
             "incumbent_extension_discount",
             "extension_eligibility_years_remaining",
-            "extension_minimum_contract_age_seasons"
+            "extension_minimum_contract_age_seasons",
+            "expiry_scramble_candidates",
+            "expiry_risk"
           ],
           "properties": {
             "dead_cap_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -163,7 +165,9 @@
             "additional_year_premium": { "type": "number", "minimum": 0 },
             "incumbent_extension_discount": { "type": "number", "minimum": 0, "maximum": 1 },
             "extension_eligibility_years_remaining": { "type": "integer", "minimum": 1 },
-            "extension_minimum_contract_age_seasons": { "type": "integer", "minimum": 1 }
+            "extension_minimum_contract_age_seasons": { "type": "integer", "minimum": 1 },
+            "expiry_scramble_candidates": { "type": "integer", "minimum": 1 },
+            "expiry_risk": { "type": "string" }
           }
         },
         "scouting": {

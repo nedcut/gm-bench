@@ -147,11 +147,12 @@ def test_scaffold_view_and_pick_trader_leaderboard_seed_smoke() -> None:
     assert math.isfinite(scaffold_score)
     assert math.isfinite(pick_trader_score)
     # Seed 11 ties on the official panel; re-pinned for the v6 draft lottery,
-    # again for v6 free-agent willingness, and again for v6 lineup
-    # construction (an extra generator RNG draw per forward).
+    # again for v6 free-agent willingness, again for v6 lineup construction
+    # (an extra generator RNG draw per forward), and again for v6 expiring
+    # contracts (the season-boundary expiry scramble).
     # Pin the score so contract drift cannot silently invalidate the run log.
     assert scaffold_score == pytest.approx(pick_trader_score)
-    assert scaffold_score == pytest.approx(236.328, abs=0.001)
+    assert scaffold_score == pytest.approx(229.245, abs=0.001)
 
 
 def test_tiny_profile_still_yields_a_legal_lineup() -> None:

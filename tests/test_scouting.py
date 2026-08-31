@@ -117,10 +117,11 @@ def test_scouting_does_not_perturb_scripted_scores():
     """Scout RNG is stream-isolated: a non-scouting run must be unchanged."""
     baseline = run_episode(ValueAgent(), seed=1, seasons=5)
     # Re-pinned for the v6 draft lottery, again for v6 free-agent willingness
-    # (deterministic pricing, not scout RNG), and again for v6 lineup
-    # construction (an extra generator RNG draw per forward); this still pins
-    # that scouting's isolated RNG did not cause the movement.
-    assert baseline.final_score == 196.66
+    # (deterministic pricing, not scout RNG), again for v6 lineup construction
+    # (an extra generator RNG draw per forward), and again for v6 expiring
+    # contracts (the season-boundary expiry scramble); this still pins that
+    # scouting's isolated RNG did not cause the movement.
+    assert baseline.final_score == 145.567
 
 
 def test_ambiguous_scout_target_increments_failed_queries_not_declines():
