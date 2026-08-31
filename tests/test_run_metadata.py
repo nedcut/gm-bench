@@ -188,6 +188,13 @@ def test_ad_hoc_runs_are_strict_too_and_still_record_it(monkeypatch: pytest.Monk
     assert run_info["strict_fallback"] is True
     assert run_info["provider_options"]["GM_AGENT_STRICT"] == "1"
 
+    # And a stale ambient value cannot take the ad-hoc lane back to the soft
+    # fallback: the harness decides on every lane, not just the publication one.
+    monkeypatch.setenv("GM_AGENT_STRICT", "0")
+    ambient = _captured_model_run(monkeypatch, ["model", "--provider", "openai", "--preset", "smoke", "--no-log"])
+    assert ambient["strict_fallback"] is True
+    assert ambient["provider_options"]["GM_AGENT_STRICT"] == "1"
+
 
 def test_the_soft_fallback_lane_is_still_reachable_by_asking_for_it(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("GM_AGENT_STRICT", raising=False)
