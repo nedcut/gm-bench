@@ -76,7 +76,10 @@ export default function PuzzleCard({ puzzle }: { puzzle: Puzzle }) {
         </div>
         <dl className="puzzle-facts">
           <div>
-            <dt>Record</dt>
+            {/* Built from the observation's wins and losses, which accumulate
+                across the episode: a season-3 card reads 50-27 over a 33-game
+                season. Same quantity the replay labels "Career record". */}
+            <dt>Career record</dt>
             <dd>{situation.record}</dd>
           </div>
           <div>
