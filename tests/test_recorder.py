@@ -37,6 +37,7 @@ from gm_bench.recorder import (
 )
 from gm_bench.runner import run_episode
 from gm_bench.scoring import score_components, score_team
+from gm_bench.session import PersistentProcessAgent
 from gm_bench.simulator import League
 
 
@@ -237,6 +238,52 @@ def test_model_records_compact_view_and_provenance(tmp_path: Path) -> None:
     assert first["ghosts"][0]["interaction_rounds"]
 
 
+def test_persistent_recording_preserves_lifecycle_and_follow_up_dispatch(tmp_path: Path) -> None:
+    class QueryThenEndSession(PersistentProcessAgent):
+        def __init__(self) -> None:
+            super().__init__("unused", name="test:session")
+            self.events: list[object] = []
+            self.started = False
+
+        def start_episode(self, seed: int, seasons: int) -> None:
+            self.started = True
+            self.events.append(("start", seed, seasons))
+
+        def end_episode(self) -> None:
+            self.events.append("end")
+            self.started = False
+
+        def act_with_usage(self, observation: dict) -> tuple[list[dict], None]:
+            assert self.started
+            self.events.append("observation")
+            return [{"type": "inspect_team", "team_id": 1}], None
+
+        def act_on_results_with_usage(self, results: list[dict]) -> tuple[list[dict], None]:
+            assert self.started
+            self.events.append(("action_results", results))
+            return [{"type": "end_turn"}], None
+
+    path = tmp_path / "session.jsonl"
+    agent = QueryThenEndSession()
+    with DecisionRecorder(path, agent_name=agent.name, ghost_agents=None) as recorder:
+        record_episode(
+            agent,
+            seed=11,
+            recorder=recorder,
+            seasons=1,
+            config=EpisodeConfig(max_interaction_rounds=2),
+        )
+
+    records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    assert agent.events[0] == ("start", 11, 1)
+    assert agent.events[-1] == "end"
+    assert [event if isinstance(event, str) else event[0] for event in agent.events].count("observation") == 4
+    assert [event if isinstance(event, str) else event[0] for event in agent.events].count("action_results") == 4
+    assert all(len(record["interaction_rounds"]) == 2 for record in records)
+    assert all("observation" in record["interaction_rounds"][0] for record in records)
+    assert all("action_results" in record["interaction_rounds"][1] for record in records)
+
+
 def test_replay_fixture_round_trips(tmp_path: Path) -> None:
     path = tmp_path / "decisions.jsonl"
     fixture_path = tmp_path / "decisions.replay.json"
@@ -246,6 +293,20 @@ def test_replay_fixture_round_trips(tmp_path: Path) -> None:
     result = validate_replay_fixture(fixture_path)
     assert result["valid"] is True
     assert result["decisions"] == 4
+
+
+@pytest.mark.parametrize("rounds", [{}, "bad", [None], [1]])
+def test_replay_fixture_rejects_malformed_interaction_rounds(tmp_path: Path, rounds: object) -> None:
+    path = tmp_path / "decisions.jsonl"
+    fixture_path = tmp_path / "decisions.replay.json"
+    with DecisionRecorder(path, agent_name="value", ghost_agents=None) as recorder:
+        league = record_episode(AGENTS["value"](), seed=11, recorder=recorder, seasons=1)
+        recorder.export_replay_fixture(fixture_path, league, config=EpisodeConfig())
+    fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+    fixture["decisions"][0]["interaction_rounds"] = rounds
+
+    with pytest.raises(ValueError, match="interaction_rounds|interaction rounds"):
+        validate_replay_fixture(fixture)
 
 
 def test_canonical_state_rounds_float_tails_but_preserves_material_changes() -> None:
