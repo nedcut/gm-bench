@@ -27,10 +27,10 @@
     "total_calls": 9344
   },
   "costs_usd": {
-    "panel": 109.5052992,
-    "smoke": 0.75520896,
-    "total_unrounded": 110.26050816,
-    "total_with_1_2x_contingency": 132.312609792
+    "panel": 116.5905792,
+    "smoke": 0.80407296,
+    "total_unrounded": 117.39465216,
+    "total_with_1_2x_contingency": 140.873582592
   },
   "models": [
     {
@@ -108,22 +108,22 @@
       "smoke_cost_usd": 0.08096
     },
     {
-      "applied_completion_rate_usd": 2.25e-06,
+      "applied_completion_rate_usd": 4.5e-06,
       "applied_internal_reasoning_rate_usd": 0.0,
-      "applied_prompt_rate_usd": 3.75e-07,
-      "cost_per_decision_usd": 0.012216,
+      "applied_prompt_rate_usd": 7.5e-07,
+      "cost_per_decision_usd": 0.024432,
       "experiment_id": "openrouter-gpt-5.4-mini-openai",
       "internal_reasoning_tokens_per_decision": 0,
       "maximum_api_calls_per_decision": 1,
       "model": "openai/gpt-5.4-mini",
       "panel_calls": 580,
-      "panel_cost_usd": 7.08528,
+      "panel_cost_usd": 14.17056,
       "protocol_maximum_panel_calls": 580,
-      "protocol_maximum_panel_cost_usd": 7.08528,
+      "protocol_maximum_panel_cost_usd": 14.17056,
       "protocol_maximum_smoke_calls": 4,
-      "protocol_maximum_smoke_cost_usd": 0.048864,
+      "protocol_maximum_smoke_cost_usd": 0.097728,
       "smoke_calls": 4,
-      "smoke_cost_usd": 0.048864
+      "smoke_cost_usd": 0.097728
     },
     {
       "applied_completion_rate_usd": 1.92e-06,
@@ -330,10 +330,10 @@
   "pricing_checked_at_utc": "2026-08-31T00:00:00Z",
   "protocol_maximum": {
     "costs_usd": {
-      "panel": 109.5052992,
-      "smoke": 0.75520896,
-      "total_unrounded": 110.26050816,
-      "total_with_contingency": 132.312609792
+      "panel": 116.5905792,
+      "smoke": 0.80407296,
+      "total_unrounded": 117.39465216,
+      "total_with_contingency": 140.873582592
     },
     "description": "Maximum provider-call multiplicity allowed by the v6 protocol: one paid call per decision phase plus every configured repair. Token costs still use the committed per-call planning token bounds; the publication runner's dynamic pre-call guard is the operator-ceiling enforcement mechanism.",
     "paid_calls_per_decision": 1,

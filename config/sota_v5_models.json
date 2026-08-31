@@ -48,7 +48,7 @@
   "selection_policy": "The sixteen model identities are the frozen v6 panel from docs/bench_v6_spec.md, settled from the vision contract and the feasibility study before any v5 or v6 model result existed. This amendment does not choose models; it registers the frozen panel against the v6 execution rules and picks one exact route per identity from free public catalog metadata. No GM-Bench score, model output, or apparent model quality is an input to any choice recorded here. Every exact route, privacy setting, reasoning behaviour, JSON behaviour, and request-cap behaviour still requires an authenticated zero-completion preflight and one separately authorized strict smoke.",
   "route_selection_rule": {
     "status": "frozen-2026-08-31-before-any-v5-or-v6-model-data",
-    "hard_eligibility": "Healthy exact route (catalog status 0) on the registered model identity, advertising max_tokens, reasoning, response_format and structured_outputs, with max_completion_tokens of at least 4,096 and 24-hour public uptime of at least 99.0%.",
+    "hard_eligibility": "Healthy exact route (catalog status 0) on the registered model identity, advertising max_tokens, reasoning, response_format and structured_outputs, with max_completion_tokens of at least 4,096, and publishing both uptime fields: 24-hour uptime of at least 99.0% and 30-minute uptime of at least 90.0%. The 30-minute floor is the one scripts/run_publication_matrix.py enforces at preflight, and it fails closed on a missing value, so a route that publishes no 30-minute figure is not eligible here either.",
     "ordering": [
       "Prefer the least lossy advertised quantization available for that identity (unknown/bf16/fp16 over fp8/int8 over fp4/int4), because quantization changes the measured system.",
       "Then the lowest planning cost at the committed 8,000-input / 4,096-output planning bound.",
@@ -302,14 +302,14 @@
       "transport": "gateway-api",
       "tier": "mid",
       "upstream_provider": "OpenAI",
-      "upstream_provider_slug": "openai/flex",
-      "endpoint_tag": "openai/flex",
+      "upstream_provider_slug": "openai",
+      "endpoint_tag": "openai",
       "endpoint_name": "OpenAI | openai/gpt-5.4-mini-20260317",
       "catalog_route_status": 0,
       "catalog_quantization": "unknown",
       "catalog_max_completion_tokens": 128000,
-      "catalog_uptime_last_1d": 99.73521624007061,
-      "catalog_uptime_last_30m": null,
+      "catalog_uptime_last_1d": 99.80836458284175,
+      "catalog_uptime_last_30m": 99.86519719464432,
       "catalog_supported_parameters": [
         "include_reasoning",
         "max_tokens",
@@ -995,7 +995,7 @@
   ],
   "ascending_cost_run_order": {
     "status": "frozen-2026-08-31",
-    "basis": "Ascending planning panel cost from results/analysis/sota-v6-panel-cost-estimate.json (29 seeds x 5 seasons x 4 phases = 580 paid calls per model at 8,000 input and 4,096 output tokens). Running the cheap rows first means a route, render, or repair problem surfaces on the cheapest cells, and the two most expensive rows (grok-4.6 at $23.53 and claude-haiku-4.5 at $16.52, 37% of the panel between them) are the last money committed.",
+    "basis": "Ascending planning panel cost from results/analysis/sota-v6-panel-cost-estimate.json (29 seeds x 5 seasons x 4 phases = 580 paid calls per model at 8,000 input and 4,096 output tokens). Running the cheap rows first means a route, render, or repair problem surfaces on the cheapest cells, and the two most expensive rows (grok-4.6 at $23.53 and claude-haiku-4.5 at $16.52) are the last money committed.",
     "order": [
       {
         "experiment_id": "openrouter-gpt-oss-20b-deepinfra",
@@ -1052,12 +1052,6 @@
         "planning_smoke_cost_usd": 0.04272
       },
       {
-        "experiment_id": "openrouter-gpt-5.4-mini-openai",
-        "model": "openai/gpt-5.4-mini",
-        "planning_panel_cost_usd": 7.0853,
-        "planning_smoke_cost_usd": 0.048864
-      },
-      {
         "experiment_id": "openrouter-glm-5-streamlake",
         "model": "z-ai/glm-5",
         "planning_panel_cost_usd": 7.3453,
@@ -1082,6 +1076,12 @@
         "planning_smoke_cost_usd": 0.08096
       },
       {
+        "experiment_id": "openrouter-gpt-5.4-mini-openai",
+        "model": "openai/gpt-5.4-mini",
+        "planning_panel_cost_usd": 14.1706,
+        "planning_smoke_cost_usd": 0.097728
+      },
+      {
         "experiment_id": "openrouter-claude-haiku-4.5-anthropic",
         "model": "anthropic/claude-haiku-4.5",
         "planning_panel_cost_usd": 16.5184,
@@ -1094,7 +1094,7 @@
         "planning_smoke_cost_usd": 0.162304
       }
     ],
-    "planning_panel_total_usd": 109.5053
+    "planning_panel_total_usd": 116.5906
   },
   "exact_route_acceptance": {
     "schema_version": 2,

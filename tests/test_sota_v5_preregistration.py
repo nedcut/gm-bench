@@ -174,6 +174,11 @@ def test_v5_every_registered_route_is_eligible_on_public_metadata() -> None:
         assert {"max_tokens", "reasoning", "response_format", "structured_outputs"} <= advertised
         assert model["catalog_route_status"] == 0
         assert model["catalog_uptime_last_1d"] >= 99.0
+        # run_publication_matrix fails closed on a missing 30-minute figure, so
+        # a route that publishes none cannot be registered here either.
+        assert isinstance(model["catalog_uptime_last_30m"], int | float)
+        assert not isinstance(model["catalog_uptime_last_30m"], bool)
+        assert model["catalog_uptime_last_30m"] >= 90.0
         assert model["catalog_max_completion_tokens"] >= registry["output_token_cap"]
         assert model["upstream_provider_slug"] == model["endpoint_tag"]
 

@@ -54,7 +54,7 @@ registered here and the fingerprint it was collected under has moved.
 The frozen rule was "the policy-eligible exact route with the highest public
 24-hour uptime". Applied to the v6 panel it selects premium `priority` and
 `fast` service tiers — the same model identity at up to twice the price — and
-pushes the cap-priced panel from **$109.51 to $162.84** with no measurement
+pushes the cap-priced panel from **$116.59 to $162.84** with no measurement
 benefit.
 
 The rule now orders eligible routes by least-lossy advertised quantization
@@ -67,7 +67,13 @@ spec and is not reopened here.
 
 Eligibility is unchanged in substance: healthy exact route, advertising
 `max_tokens`, `reasoning`, `response_format` and `structured_outputs`, with at
-least 4,096 completion tokens, plus a 99.0% 24-hour uptime floor.
+least 4,096 completion tokens. It gains two health floors — 99.0% over 24 hours
+and 90.0% over 30 minutes — and requires both figures to be published. The
+30-minute floor is the one `scripts/run_publication_matrix.py` already enforces
+at preflight, and it fails closed on a missing value. Selecting on 24-hour
+uptime alone had picked the `openai/flex` route for `gpt-5.4-mini`, which
+publishes no 30-minute figure at all and would have failed the preflight it was
+supposed to pass. Honouring the runner's own floor costs $7.08 on that row.
 
 Two routes carry caveats worth reading before the smoke:
 
@@ -150,20 +156,20 @@ At today's public rates on the selected routes:
 
 | quantity | USD |
 | --- | ---: |
-| input only, 8,000 tokens per decision | 35.70 |
-| completion, per 1,000 output tokens across the panel | 18.02 |
-| cap-priced panel (4,096 output on every call) | 109.51 |
-| cap-priced panel + smoke gate | 110.26 |
-| the same with the 1.2x contingency | 132.31 |
-| at ~1,000-token replies (the reasoning-disabled smoke record) | ~54 |
-| the same with every completion doubled | ~72 |
+| input only, 8,000 tokens per decision | 37.44 |
+| completion, per 1,000 output tokens across the panel | 19.32 |
+| cap-priced panel (4,096 output on every call) | 116.59 |
+| cap-priced panel + smoke gate | 117.39 |
+| the same with the 1.2x contingency | 140.87 |
+| at ~1,000-token replies (the reasoning-disabled smoke record) | ~57 |
+| the same with every completion doubled | ~76 |
 
 **The ~$75 base and $100 hard ceiling still hold, and with more margin than the
-spec assumed** — the expected panel plans at about $54, and a 2x
-completion-token overrun lands near $72. Both are under $100.
+spec assumed** — the expected panel plans at about $57, and a 2x
+completion-token overrun lands near $76. Both are under $100.
 
 **The cap-priced planning maximum does not fit under the ceiling, and is not
-meant to.** $110.26 assumes every one of 9,344 calls returns the full 4,096-token
+meant to.** $117.39 assumes every one of 9,344 calls returns the full 4,096-token
 ceiling, which no reasoning-disabled row in the smoke record comes close to. The
 $100 ceiling is enforced by the runner's dynamic pre-call spend guard, the same
 arrangement the 2026-08-16 protocol already used when its $10 smoke ceiling sat
@@ -171,10 +177,10 @@ below a $600 panel maximum. `tests/test_sota_v5_preregistration.py` pins the
 relationship so it cannot drift silently.
 
 The registry now freezes an **ascending-cost run order**. The cheapest thirteen
-rows total $57.71 and finish before the ceiling is anywhere near in play; the
-two most expensive rows (`grok-4.6` at $23.53 and `claude-haiku-4.5` at $16.52,
-37% of the panel between them) are the last money committed, so a route, render,
-or repair problem surfaces on cheap cells first.
+rows total $62.37 and finish before the ceiling is anywhere near in play; the
+three most expensive rows (`grok-4.6` at $23.53, `claude-haiku-4.5` at $16.52,
+and `gpt-5.4-mini` at $14.17, 46% of the panel between them) are the last money
+committed, so a route, render, or repair problem surfaces on cheap cells first.
 
 `results/analysis/sota-v6-panel-cost-estimate.json` is a new artifact.
 `results/analysis/sota-v5-pre-smoke-cost-estimate.json` is left untouched as

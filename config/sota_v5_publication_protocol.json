@@ -84,14 +84,14 @@
     "expected_base_spend_usd": 75.0,
     "spend_authorized": false,
     "spend_enforcement": "dynamic-pre-provider-call",
-    "operator_ceiling_basis": "The $100 hard ceiling is the v6 spec's. It is enforced by the runner's dynamic pre-call spend guard, not by the planning maximum: the cap-priced protocol maximum -- every one of the 9,280 panel calls returning the full 4,096-token ceiling -- is $109.51 for the panel, $110.26 with the smoke gate, and $132.31 with the 1.2x contingency. That deliberately exceeds the ceiling. At the roughly 1,000-token replies the reasoning-disabled v2/v3 smoke record shows, the panel plans at about $54, and doubling every completion still lands near $72. Both stay under $100. A run that approaches the ceiling stops for an explicit owner decision rather than silently spending more, and the ascending-cost run order means the cheapest thirteen rows finish before the ceiling is anywhere near in play.",
+    "operator_ceiling_basis": "The $100 hard ceiling is the v6 spec's. It is enforced by the runner's dynamic pre-call spend guard, not by the planning maximum: the cap-priced protocol maximum -- every one of the 9,280 panel calls returning the full 4,096-token ceiling -- is $116.59 for the panel, $117.39 with the smoke gate, and $140.87 with the 1.2x contingency. That deliberately exceeds the ceiling. Input alone is $37.44 and each 1,000 completion tokens across the panel costs $19.32, so at the roughly 1,000-token replies the reasoning-disabled v2/v3 smoke record shows the panel plans at about $57, and doubling every completion still lands near $76. Both stay under $100. A run that approaches the ceiling stops for an explicit owner decision rather than silently spending more, and the ascending-cost run order means the cheapest rows finish before the ceiling is anywhere near in play.",
     "cost_components_usd": {
-      "input_only_at_8000_tokens": 35.7,
-      "per_1000_completion_tokens_across_the_panel": 18.02,
-      "cap_priced_panel": 109.5053,
-      "cap_priced_smoke_gate": 0.755209,
-      "cap_priced_total": 110.2605,
-      "cap_priced_total_with_contingency": 132.3126
+      "input_only_at_8000_tokens": 37.44,
+      "per_1000_completion_tokens_across_the_panel": 19.32,
+      "cap_priced_panel": 116.5906,
+      "cap_priced_smoke_gate": 0.804073,
+      "cap_priced_total": 117.3947,
+      "cap_priced_total_with_contingency": 140.8736
     },
     "run_order": "ascending planning cost; see config/sota_v5_models.json ascending_cost_run_order",
     "panel_spend_requires_separate_authorization": true

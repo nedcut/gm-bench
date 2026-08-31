@@ -51,10 +51,10 @@
       "completion": 2.5e-06
     },
     "openai/gpt-5.4-mini": {
-      "provider_slug": "openai/flex",
+      "provider_slug": "openai",
       "endpoint_name": "OpenAI | openai/gpt-5.4-mini-20260317",
-      "prompt": 3.75e-07,
-      "completion": 2.25e-06
+      "prompt": 7.5e-07,
+      "completion": 4.5e-06
     },
     "z-ai/glm-5": {
       "provider_slug": "streamlake/fp8",
