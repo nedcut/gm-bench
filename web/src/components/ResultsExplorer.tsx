@@ -49,7 +49,7 @@ function ScoreCell({ model }: { model: ResultModel }) {
       <span className="score-value">{fmt(model.mean_score, 1)}</span>
       {interval && (
         <span className="score-sub">
-          95% [{fmt(interval[0], 1)}, {fmt(interval[1], 1)}]
+          95% across-seed [{fmt(interval[0], 1)}, {fmt(interval[1], 1)}]
         </span>
       )}
       {withinSeed !== null && (
@@ -95,10 +95,15 @@ function ForestPlot({
   const top = 46;
   const bottom = 58;
   const height = top + models.length * rowHeight + bottom;
-  const ciValues = models.flatMap((model) => model.primary_ci95);
+  // Both ends of the domain come from the data. A hard-coded upper bound of 20
+  // would clip the first row that beats the bar, which is the one result the
+  // chart most needs to show.
+  const ciValues = models.flatMap((model) => [...model.primary_ci95, model.primary_lift]);
   const minLift = Math.min(-20, Math.floor((Math.min(...ciValues) - 8) / 20) * 20);
-  const x = scaleLinear().domain([minLift, 20]).range([left, width - right]);
+  const maxLift = Math.max(20, Math.ceil((Math.max(...ciValues) + 8) / 20) * 20);
+  const x = scaleLinear().domain([minLift, maxLift]).range([left, width - right]);
   const ticks = x.ticks(8);
+  const allBelowBar = models.every((model) => model.primary_ci95[1] < 0);
 
   return (
     <div className="chart-scroll">
@@ -110,8 +115,10 @@ function ForestPlot({
       >
         <title id="forest-title">Paired score-point lift versus pick-trader</title>
         <desc id="forest-desc">
-          Every published model has a negative paired lift and a 95 percent confidence
-          interval below zero. Higher values are better.
+          {allBelowBar
+            ? `All ${models.length} published models have a negative paired lift and a 95 percent interval below zero.`
+            : `Paired lift versus pick-trader for ${models.length} published models, with 95 percent intervals.`}{" "}
+          Higher values are better.
         </desc>
         <text x={left} y="27" className="chart-axis-note">
           Higher is better →
@@ -275,6 +282,7 @@ function CostScatter({
     }
   });
   const labelById = new Map(labels.map((label) => [label.id, label]));
+  const allBelowBar = models.every((model) => model.mean_score < scriptedBar);
 
   return (
     <div className="chart-scroll">
@@ -286,8 +294,10 @@ function CostScatter({
       >
         <title id="scatter-title">GM-Bench score versus cost per episode</title>
         <desc id="scatter-desc">
-          All model scores fall well below the scripted bar. Models farther up and left are
-          more efficient.
+          {allBelowBar
+            ? "Every model score falls below the scripted bar."
+            : "Model scores are plotted against the scripted bar."}{" "}
+          Models farther up and left are more efficient.
         </desc>
         <text x={left} y="22" className="chart-axis-note">
           More efficient ↖
@@ -555,8 +565,8 @@ export default function ResultsExplorer({
             <p className="kicker">Phase one results</p>
             <h2>Performance against the pick-trader bar.</h2>
             <p>
-              Paired seed-level differences for eight published model-plus-scaffold
-              systems.
+              Paired seed-level differences for {benchmark.modelCount} published
+              model-plus-scaffold system{benchmark.modelCount === 1 ? "" : "s"}.
             </p>
             <small>
               Descriptive intervals; the predeclared Holm-adjusted family test rejects
@@ -676,13 +686,17 @@ export default function ResultsExplorer({
               </span>
               <h2>
                 {view === "lift"
-                  ? "Every paired difference is below the pick-trader bar."
+                  ? filtered.every((model) => model.primary_lift < 0)
+                    ? "Every paired difference is below the pick-trader bar."
+                    : "Paired difference versus the pick-trader bar"
                   : "Score vs cost per episode"}
               </h2>
               <p>
                 {view === "lift"
                   ? `Paired lift versus pick-trader — the contrast frozen in the publication protocol. Whiskers are descriptive 95% bootstrap intervals; the predeclared Holm-adjusted test rejects for ${benchmark.holmRejectedCount} of ${benchmark.modelCount} rows.`
-                  : "Price varies widely, but no observed mean reaches the pick-trader bar."}
+                  : benchmark.modelsAboveBar === 0
+                    ? "Price varies widely, but no observed mean reaches the pick-trader bar."
+                    : `Price varies widely; ${benchmark.modelsAboveBar} of ${benchmark.modelCount} observed means reach the pick-trader bar.`}
               </p>
             </div>
             <span>{filtered.length} models</span>
