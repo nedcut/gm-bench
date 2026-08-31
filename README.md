@@ -9,6 +9,69 @@ Explore the [live leaderboard](https://nedcut.github.io/gm-bench/), read the
 [phase-one findings](docs/blog/sota-v2-findings.md), or download the
 [tagged evidence release](https://github.com/nedcut/gm-bench/releases/tag/sota-v2-phase-one-2026-07-19).
 
+## Play along
+
+The site opens with 24 real decisions taken from recorded episodes. Each one
+shows the situation and several options, where every option is a move some
+policy actually made from that same observation. There are no invented
+distractors. Pick one and the board reveals what each choice did to the roster,
+and who played it.
+
+Options are graded by immediate state change rather than by replaying the rest
+of the season, because a single season is mostly luck: within-seed score noise
+runs to an SD of 53 points and survives pairing, which is wider than the gap
+between most published models. The immediate grade is a deterministic content
+filter, not a claim about the best long-term hockey decision. Across 800
+recorded decisions `pick-trader` holds the best immediate delta 87% of the time,
+then `value`, `win-now`, `conservative`.
+
+The shipped deck balances the available mechanics: eight trade cards, eight
+draft cards, and eight free-agency cards. It includes both policy misses and
+cards where the subject beat every comparison policy. Option letters are
+permuted deterministically, so neither the subject nor the answer occupies a
+fixed position.
+
+Regenerate the content with:
+
+```bash
+python scripts/record_decisions.py          # play episodes, record every decision
+python scripts/build_puzzles.py --limit 24  # rank divergences into cards
+```
+
+Each recorded episode also writes a replay fixture containing its ordered
+interaction rounds and expected final-state digest. Validate one without
+calling a provider:
+
+```bash
+python scripts/replay_decisions.py data/decision-records/value-seed1.replay.json
+```
+
+Model-backed recording is opt-in and makes real provider calls. Provider mode
+runs serially, defaults to strict failure handling, records the exact compact
+view and usage metadata, and checks credentials before creating output files.
+Start with one public seed before scaling:
+
+```bash
+python scripts/record_decisions.py \
+  --provider openai --model gpt-5.4-mini \
+  --seeds 1 --seasons 1 --output data/model-decision-records
+```
+
+The site can replay a committed scripted fixture in a Pyodide Web Worker. The
+fixture comes from local CPython; the web build verifies that Pyodide reaches
+the same normalized state digest. Regenerate it only when intentionally
+changing the replay fixture:
+
+```bash
+cd web
+bun run generate:replay
+bun run validate:replay
+```
+
+The puzzle deck is illustrative and is not evidence about any policy. Recorder
+provenance and replay digests establish integrity; they do not turn these cards
+into benchmark or publication evidence.
+
 ## Phase-one result
 
 Eight pre-registered model systems produced strict `sota-v2` rows under one

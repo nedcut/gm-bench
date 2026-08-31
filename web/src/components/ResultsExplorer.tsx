@@ -492,7 +492,7 @@ export default function ResultsExplorer({
         <div className="result-overview">
           <div className="result-overview-copy">
             <p className="kicker">Phase one results</p>
-            <h1>Performance against the pick-trader bar.</h1>
+            <h2>Performance against the pick-trader bar.</h2>
             <p>
               Paired seed-level differences for eight published model-plus-scaffold
               systems.

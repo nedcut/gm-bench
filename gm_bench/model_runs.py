@@ -208,8 +208,21 @@ def _failure_detail(actions: Any) -> str:
     return "model returned no usable actions"
 
 
-def preflight_provider(provider: str) -> None:
-    """Perform credential/tool checks without making a billed model request."""
+def preflight_provider(provider: str, *, require_credentials: bool = False) -> None:
+    """Perform zero-completion tool checks, optionally requiring API credentials."""
+    provider = provider.lower()
+    # Direct API adapters fail only when their first subprocess is launched;
+    # check credentials here so a recorder cannot leave a partial JSONL set.
+    direct_credentials = {
+        "openai": ("OPENAI_API_KEY",),
+        "anthropic": ("ANTHROPIC_API_KEY",),
+        "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+        "openrouter": ("OPENROUTER_API_KEY",),
+    }
+    required = direct_credentials.get(provider)
+    if require_credentials and required and not any(os.environ.get(name) for name in required):
+        names = " or ".join(required)
+        raise ModelRunAborted(f"{provider} preflight failed: set {names}")
     if provider == "claude":
         executable = shutil.which("claude")
         if executable is None:

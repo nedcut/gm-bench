@@ -1,0 +1,339 @@
+"""Tests for puzzle extraction.
+
+Cards are illustrative, but they still make a claim on screen -- "this option
+was better" -- so the grading, the gates, and the plain-language rendering all
+need to be right.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import sys
+from collections import Counter
+from pathlib import Path
+
+_SPEC = importlib.util.spec_from_file_location(
+    "build_puzzles", Path(__file__).resolve().parents[1] / "scripts" / "build_puzzles.py"
+)
+assert _SPEC and _SPEC.loader
+build_puzzles = importlib.util.module_from_spec(_SPEC)
+sys.modules["build_puzzles"] = build_puzzles
+_SPEC.loader.exec_module(build_puzzles)
+
+
+def _delta(**metrics: float) -> dict[str, float]:
+    from gm_bench.recorder import IMMEDIATE_METRICS
+
+    delta = {name: 0.0 for name in IMMEDIATE_METRICS}
+    delta.update({f"{name}_contribution": 0.0 for name in IMMEDIATE_METRICS})
+    delta.update(metrics)
+    return delta
+
+
+# -- grading ---------------------------------------------------------------
+
+
+def test_option_score_sums_weighted_contributions() -> None:
+    delta = _delta(total_assets_contribution=1.5, cap_room_contribution=-0.5)
+    assert build_puzzles.option_score(delta) == 1.0
+
+
+def test_worthiness_matches_the_subject_miss_magnitude() -> None:
+    subject = _delta(total_assets_contribution=2.0)
+    better = _delta(total_assets_contribution=9.0)
+    assert build_puzzles.puzzle_worthiness(subject, [better], "preseason") == 7.0
+
+
+def test_worthiness_keeps_a_subject_win_interesting() -> None:
+    subject = _delta(total_assets_contribution=9.0)
+    worse = _delta(total_assets_contribution=2.0)
+    assert build_puzzles.puzzle_worthiness(subject, [worse], "preseason") == 7.0
+
+
+def test_worthiness_needs_something_to_compare_against() -> None:
+    assert build_puzzles.puzzle_worthiness(_delta(), [], "draft") == 0.0
+
+
+def test_stable_option_order_is_reproducible_and_keyed() -> None:
+    options = [
+        {"actions": [{"type": "release", "player_id": 1}]},
+        {"actions": [{"type": "release", "player_id": 2}]},
+        {"actions": [{"type": "release", "player_id": 3}]},
+    ]
+    first = [option["actions"][0]["player_id"] for option in build_puzzles.stable_option_order(options, "s1")]
+    second = [option["actions"][0]["player_id"] for option in build_puzzles.stable_option_order(options, "s1")]
+    other = [option["actions"][0]["player_id"] for option in build_puzzles.stable_option_order(options, "s2")]
+    assert first == second
+    assert sorted(other) == [1, 2, 3]
+
+
+def test_mechanic_classification_covers_the_illustrative_deck() -> None:
+    assert build_puzzles.classify_mechanic([{"type": "trade"}]) == "trade"
+    assert build_puzzles.classify_mechanic([{"type": "draft"}]) == "draft"
+    assert build_puzzles.classify_mechanic([{"type": "sign_free_agent"}]) == "free_agency"
+    assert build_puzzles.classify_mechanic([{"type": "extend_contract"}]) == "contracts"
+    assert build_puzzles.classify_mechanic([{"type": "release"}]) == "roster"
+
+
+def test_card_classifies_a_ghost_trade_when_subject_stands_pat() -> None:
+    record = _record_for_card(
+        agent="value",
+        subject_score=2.0,
+        ghost_score=9.0,
+        subject_action={"type": "noop"},
+    )
+    record["ghosts"][0]["actions"] = [{"type": "trade", "partner_team_id": 1}]
+    card = build_puzzles.build_card(record)
+    assert card is not None
+    assert card["mechanic"] == "trade"
+
+
+# -- option identity -------------------------------------------------------
+
+
+def test_routine_actions_do_not_make_two_choices_different() -> None:
+    """Every policy sets a lineup and writes a memo; that is not a decision."""
+    left = [{"type": "set_lineup", "player_ids": [1, 2]}, {"type": "memo", "text": "a"}]
+    right = [{"type": "memo", "text": "totally different prose"}]
+    assert build_puzzles.option_key(left) == build_puzzles.option_key(right)
+
+
+def test_a_real_move_makes_two_choices_different() -> None:
+    stand_pat = [{"type": "noop"}]
+    signing = [{"type": "sign_free_agent", "player_id": 4, "salary": 1.0, "years": 2}]
+    assert build_puzzles.option_key(stand_pat) != build_puzzles.option_key(signing)
+
+
+def test_option_key_ignores_action_order() -> None:
+    one = {"type": "release", "player_id": 1}
+    two = {"type": "release", "player_id": 2}
+    assert build_puzzles.option_key([one, two]) == build_puzzles.option_key([two, one])
+
+
+def test_state_key_tracks_the_observation_not_only_the_seed_window() -> None:
+    first = {"seed": 1, "season": 2, "phase": "draft", "team": {"roster": [{"id": 1}]}}
+    same = {"phase": "draft", "team": {"roster": [{"id": 1}]}, "season": 2, "seed": 1}
+    diverged = {"seed": 1, "season": 2, "phase": "draft", "team": {"roster": [{"id": 2}]}}
+    assert build_puzzles.observation_state_key(first) == build_puzzles.observation_state_key(same)
+    assert build_puzzles.observation_state_key(first) != build_puzzles.observation_state_key(diverged)
+
+
+# -- gates -----------------------------------------------------------------
+
+
+def _options(count: int) -> list[dict]:
+    return [{"actions": [{"type": "release", "player_id": index}]} for index in range(count)]
+
+
+def test_a_collapsed_roster_is_not_a_decision() -> None:
+    observation = {"team": {"roster": [{"id": index} for index in range(7)]}}
+    reason = build_puzzles.gate({"agent": "value"}, observation, _options(2))
+    assert reason == "roster has collapsed"
+
+
+def test_random_is_not_a_policy() -> None:
+    observation = {"team": {"roster": [{"id": index} for index in range(24)]}}
+    assert build_puzzles.gate({"agent": "random"}, observation, _options(2)) == "excluded subject"
+
+
+def test_an_unreadably_long_option_is_dropped() -> None:
+    observation = {"team": {"roster": [{"id": index} for index in range(24)]}}
+    long_option = {"actions": [{"type": "release", "player_id": i} for i in range(9)]}
+    reason = build_puzzles.gate({"agent": "value"}, observation, [*_options(1), long_option])
+    assert reason == "an option is too long to read"
+
+
+def test_a_healthy_window_passes_the_gates() -> None:
+    observation = {"team": {"roster": [{"id": index} for index in range(24)]}}
+    assert build_puzzles.gate({"agent": "value"}, observation, _options(2)) is None
+
+
+def _record_for_card(*, agent: str, subject_score: float, ghost_score: float, subject_action: dict) -> dict:
+    players = [{"id": index, "name": f"Player {index}", "position": "F", "overall": 70} for index in range(24)]
+    return {
+        "agent": agent,
+        "seed": 1,
+        "season": 1,
+        "phase": "draft",
+        "actions": [subject_action],
+        "delta": _delta(total_assets_contribution=subject_score),
+        "observation": {"team": {"roster": players}},
+        "ghosts": [
+            {
+                "agent": "ghost",
+                "actions": [{"type": "release", "player_id": 2}],
+                "delta": _delta(total_assets_contribution=ghost_score),
+            }
+        ],
+    }
+
+
+def test_subject_win_is_retained_with_truthful_margin_and_points_left() -> None:
+    card = build_puzzles.build_card(
+        _record_for_card(
+            agent="value", subject_score=9.0, ghost_score=2.0, subject_action={"type": "draft", "prospect_id": 1}
+        )
+    )
+    assert card is not None
+    assert card["outcome"] == "subject_won"
+    assert card["subject_margin"] == 7.0
+    assert card["points_left_on_the_table"] == 0.0
+    assert card["answer"] == card["subject_option"]
+    assert card["mechanic"] == "draft"
+
+
+def test_compact_model_observation_uses_top_roster_for_cards() -> None:
+    record = _record_for_card(
+        agent="fake-model",
+        subject_score=2.0,
+        ghost_score=9.0,
+        subject_action={"type": "draft", "prospect_id": 1},
+    )
+    team = record["observation"]["team"]
+    team["top_roster"] = team.pop("roster")
+    card = build_puzzles.build_card(record)
+    assert card is not None
+    assert card["situation"]["roster_size"] == 24
+    assert any("Player 1" in line for option in card["options"] for line in option["lines"])
+
+
+def test_subject_option_is_not_pinned_to_a() -> None:
+    cards = [
+        build_puzzles.build_card(
+            _record_for_card(
+                agent=agent,
+                subject_score=2.0,
+                ghost_score=9.0,
+                subject_action={"type": "draft", "prospect_id": 1},
+            )
+        )
+        for agent in ("value", "oracle")
+    ]
+    subject_options = {card["subject_option"] for card in cards if card is not None}
+    assert subject_options == {"a", "b"}
+    assert {card["outcome"] for card in cards if card is not None} == {"subject_missed"}
+
+
+def test_balanced_selection_round_robins_mechanics() -> None:
+    cards = [
+        {"id": f"{mechanic}-{index}", "mechanic": mechanic, "phase": "draft", "worthiness": 100 - index}
+        for mechanic in build_puzzles.MECHANICS
+        for index in range(6)
+    ]
+    selected = build_puzzles._select_balanced(cards, 24)
+    counts = Counter(card["mechanic"] for card in selected)
+    assert len(selected) == 24
+    assert sorted(counts.values()) == [4, 5, 5, 5, 5]
+
+
+def test_dedupe_keeps_the_sharpest_card_per_state() -> None:
+    cards = [
+        {"state_key": "s1-y1-draft", "worthiness": 9.0, "id": "keep"},
+        {"state_key": "s1-y1-draft", "worthiness": 2.0, "id": "drop"},
+        {"state_key": "s1-y2-draft", "worthiness": 1.0, "id": "other"},
+    ]
+    kept = build_puzzles._dedupe_by_state(cards, Counter())
+    assert [card["id"] for card in kept] == ["keep", "other"]
+
+
+# -- rendering -------------------------------------------------------------
+
+
+PLAYERS = {
+    7: {"id": 7, "name": "Finn Frost", "position": "F", "overall": 78.2},
+    9: {"id": 9, "name": "Owen Jensen", "position": "G", "overall": 58.4},
+}
+TEAMS = {1: "Austin Jackals"}
+
+
+def test_signing_reads_as_a_sentence() -> None:
+    action = {"type": "sign_free_agent", "player_id": 7, "salary": 9.487, "years": 4}
+    assert build_puzzles.describe_action(action, PLAYERS, TEAMS) == "Sign Finn Frost (F 78) for $9.49M x 4y"
+
+
+def test_a_trade_names_the_partner_and_both_sides() -> None:
+    action = {
+        "type": "trade",
+        "partner_team_id": 1,
+        "give_player_ids": [7],
+        "receive_pick_seasons": [4],
+    }
+    rendered = build_puzzles.describe_action(action, PLAYERS, TEAMS)
+    assert rendered == "Trade Finn Frost (F 78) to Austin Jackals for their season-4 first-round pick"
+
+
+def test_a_trade_names_picks_from_the_readers_side() -> None:
+    """Both halves carry season numbers; the label must not swap whose pick it is."""
+    action = {
+        "type": "trade",
+        "partner_team_id": 1,
+        "give_pick_seasons": [4],
+        "receive_player_ids": [7],
+    }
+    rendered = build_puzzles.describe_action(action, PLAYERS, TEAMS)
+    assert rendered == "Trade your season-4 first-round pick to Austin Jackals for Finn Frost (F 78)"
+
+
+def test_an_unknown_team_does_not_break_a_trade_line() -> None:
+    action = {"type": "trade", "partner_team_id": 99, "give_player_ids": [9], "receive_player_ids": [7]}
+    assert "another team" in build_puzzles.describe_action(action, PLAYERS, TEAMS)
+
+
+def test_doing_nothing_is_described_as_a_choice() -> None:
+    assert build_puzzles.describe_option([{"type": "noop"}], PLAYERS, TEAMS) == [
+        "Stand pat - make no roster move this window"
+    ]
+
+
+def test_repeated_trade_offer_responses_are_collapsed_for_readability() -> None:
+    actions = [{"type": "reject_trade_offer", "offer_id": offer_id} for offer_id in (1, 2, 3)]
+    assert build_puzzles.describe_option(actions, PLAYERS, TEAMS) == ["Reject 3 incoming trade offers"]
+
+
+def test_summary_names_both_sides_of_a_trade_off() -> None:
+    """A pick-for-player swap is not 'gave up asset value'; it is an exchange."""
+    delta = _delta(
+        total_assets=-9.9,
+        total_assets_contribution=-1.6,
+        cap_room=4.5,
+        cap_room_contribution=1.6,
+    )
+    summary = build_puzzles.headline_metric(delta)
+    assert "gained 4.5 of cap room" in summary
+    assert "gave up 9.9 of asset value" in summary
+
+
+def test_summary_says_so_when_nothing_moved() -> None:
+    assert build_puzzles.headline_metric(_delta()) == "barely moved the roster"
+
+
+def test_summary_reports_a_one_sided_option_once() -> None:
+    delta = _delta(young_assets=54.7, young_assets_contribution=9.8)
+    assert build_puzzles.headline_metric(delta) == "gained 54.7 of young asset value"
+
+
+def test_player_index_finds_players_across_every_bucket() -> None:
+    observation = {
+        "team": {"roster": [{"id": 1, "name": "A"}]},
+        "free_agents": [{"id": 2, "name": "B"}],
+        "waiver_wire": [{"id": 3, "name": "C"}],
+        "draft_class": [{"id": 4, "name": "D"}],
+        "trade_market": [{"player": {"id": 5, "name": "E"}}],
+    }
+    assert sorted(build_puzzles.player_index(observation)) == [1, 2, 3, 4, 5]
+
+
+def test_team_index_reads_the_standings_naming_key() -> None:
+    observation = {"standings": [{"team_id": 3, "team_name": "Anchorage Auroras"}]}
+    assert build_puzzles.team_index(observation)[3] == "Anchorage Auroras"
+
+
+def test_roster_depth_is_reported_in_players_not_fractions() -> None:
+    """It is stored as a fraction of a 24-man roster; 0.042 must not read '0.0'."""
+    delta = _delta(roster_depth=1 / 24, roster_depth_contribution=8.0 / 24)
+    assert build_puzzles.headline_metric(delta) == "gained 1 roster spot"
+
+
+def test_roster_depth_pluralises() -> None:
+    delta = _delta(roster_depth=3 / 24, roster_depth_contribution=8.0 * 3 / 24)
+    assert build_puzzles.headline_metric(delta) == "gained 3 roster spots"
