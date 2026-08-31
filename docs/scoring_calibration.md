@@ -60,11 +60,11 @@ Where:
    end-of-episode state. Shipping youth and picks for one strong season is
    therefore credited once and charged against the stock terms for every season
    that follows. Only `championships` — a career count — is a permanent win
-   reward, so real title contention is still worth paying for. The frozen
-   `sota-v2` panel below (contract `558e8f35ea1d66b9`) shows the effect:
-   `win-now` (275.834) trails the balanced `value` heuristic (354.619) and the
-   asset-aware `pick-trader` (411.619). These are v2-era measurements; they have
-   not been re-run under the current contract.
+   reward, so real title contention is still worth paying for. The v6 48-seed
+   panel below (contract `ad97fb57f513a751`) shows the effect: `win-now`
+   (179.979) sits level with the balanced `value` heuristic (186.587, paired
+   *t* = 1.12, unresolved) and both trail the asset-aware `pick-trader`
+   (254.565, paired *t* = 10.38 over `value`).
 5. **Legality is enforced economically** — Illegal actions directly reduce score.
 
 ## Baseline normalization
@@ -118,6 +118,14 @@ Contract economics change the simulated
 rosters, and `cap_room` now correctly uses payroll including retained dead cap;
 neither change modifies the published score scale itself.
 
+The v6 simulator work (draft lottery, free-agent willingness, centre-aware
+lineups, expiring contracts, inert-field removal, and the released-player
+re-signing fix) likewise leaves `score-v1` untouched: contract fingerprint
+`ad97fb57f513a751`, scoring-scale fingerprint `05a60ff4f691e734`. The Phase 2b
+re-calibration below found no reason to change a weight — the sensitivity
+ladder separates every intended rung by more than the 30-point MDD target on
+its own, so re-weighting would only be fitting noise.
+
 Reproduce the complete machine-readable scale and calibration:
 
 ```bash
@@ -142,55 +150,104 @@ also change strength, cap room, and wins.
 
 ## Reference-policy calibration
 
-Reference policies are calibrated on a **24-seed panel (seeds 11-34, five
-seasons)**. The frozen public v2 model panel used eight seeds; the preregistered
-private v3 panel uses 16. These panels are sized by different constraints and
+Everything in this section and the two that follow was measured on
+2026-08-31 against **contract fingerprint `ad97fb57f513a751`** (scoring scale
+`score-v1`, `05a60ff4f691e734`) — the v6 simulator with the draft lottery,
+free-agent willingness, centre-aware lineups, expiring contracts, inert-field
+removal, and the released-player re-signing fix. Any edit to a file in
+`_CONTRACT_SOURCES` invalidates these numbers.
+
+Reference policies are calibrated on a **48-seed panel (seeds 11-58, five
+seasons)**; `validate-contract` gates on the 24-seed slice (11-34), and the v6
+model panel uses 29 seeds. These panels are sized by different constraints and
 need not share a width: every policy here is scripted and costs only CPU, while
 the model-panel width is set by its power rule and API-spend boundary.
 
-Eight seeds cannot support an ordering claim on this engine. The same two
-policies, measured paired on matched seeds:
+Panel width still decides which orderings can be claimed, but v6 moved the
+threshold. The `pick-trader` over `value` contrast, measured paired on matched
+seeds under contract `ad97fb57f513a751`:
 
-| seeds | mean difference | paired *t* |
-| ---: | ---: | ---: |
-| 8 (frozen v2 public width) | -0.11 | -0.004 |
-| 16 (preregistered v3 width) | 36.14 | 2.015 |
-| 24 (canary width) | 36.37 | 2.559 |
-| 48 | 35.51 | 3.999 |
+| seeds | mean difference | paired *t* | seeds won |
+| ---: | ---: | ---: | ---: |
+| 8 (frozen v2 public width) | 44.62 | 3.76 | 7/8 |
+| 16 (preregistered v3 width) | 68.06 | 7.11 | 15/16 |
+| 24 (canary width) | 63.64 | 8.93 | 23/24 |
+| 48 | 67.98 | 10.38 | 44/48 |
 
-`pick-trader` wins 39 of 48 seeds. Using the 48-seed paired variance, the
-approximate two-sided 80%-power requirement is 24 seeds. Neither the eight-seed
-v2 slice nor the 16-seed v3 allocation supports a general reference-ordering
-claim. `validate-contract` therefore gates only its narrow canary invariants on
-paired *t* >= 2.0 over the wider calibration panel rather than pinning a full
-ranked ladder.
+Under the v5 contract this same contrast was effectively zero at eight seeds
+(paired *t* = -0.004) and only reached *t* = 2.559 at 24. The v6 mechanics
+widened the gap rather than the noise, so it now resolves at every width above.
+That is a statement about this one large contrast, not a licence to rank
+adjacent policies on a narrow panel: the top four references remain mutually
+unresolved even at 48 seeds (see the ladder below). `validate-contract` still
+gates only its narrow canary invariants on paired *t* >= 2.0 over the 24-seed
+panel rather than pinning a full ranked ladder.
 
-Current `gm-bench-v3` reference-policy validation:
+Current v6 reference-policy validation (48 seeds, 11-58, five seasons,
+contract `ad97fb57f513a751`; `sd` is the across-seed standard deviation):
 
-| Reference | Mean score | Illegal actions | Role |
-| --- | ---: | ---: | --- |
-| `shrewd` | 288.64 | 0 | Dead-cap-aware roster and development policy |
-| `strategic` | 285.02 | 0 | Scouting, offers, memo, extensions, and shrewd roster core |
-| `scaffold-view` | 281.88 | 0 | Pick-trader policy on the compact adapter payload |
-| `pick-trader` | 279.07 | 0 | Official scripted bar |
-| `win-now` | 244.37 | 0 | Short-horizon win maximizer |
-| `value` | 242.70 | 0 | Public-value roster heuristic |
-| `conservative` | 132.35 | 0 | Low-churn roster holder |
-| `rebuild` | 130.35 | 0 | Youth-oriented tear-down |
-| `exploit` | 128.03 | 71 | Unmodified red-team canary |
-| `random` | 93.10 | 0 | Floor / noise baseline |
+| Reference | Mean score | sd | Illegal actions | Role |
+| --- | ---: | ---: | ---: | --- |
+| `scaffold-view` | 259.35 | 53.17 | 0 | Pick-trader policy on the compact adapter payload |
+| `shrewd` | 256.27 | 47.45 | 0 | Dead-cap-aware roster and development policy |
+| `pick-trader` | 254.57 | 48.88 | 1 | Official scripted bar |
+| `strategic` | 246.31 | 41.16 | 1 | Scouting, offers, memo, extensions, and shrewd roster core |
+| `value` | 186.59 | 38.92 | 0 | Public-value roster heuristic |
+| `win-now` | 179.98 | 30.79 | 0 | Short-horizon win maximizer |
+| `rebuild` | 135.91 | 26.69 | 0 | Youth-oriented tear-down |
+| `conservative` | 130.38 | 19.01 | 0 | Low-churn roster holder |
+| `exploit` | 128.17 | 22.48 | 193 | Unmodified red-team canary |
+| `random` | 95.32 | 16.34 | 0 | Floor / noise baseline |
 
-Two reference invariants are asserted: `pick-trader > value` (paired *t* =
-2.559) and `shrewd > value` (paired *t* = 3.184). The four policies at the top
-sit within 10 points of each other against per-seed standard deviations near 50,
-so their relative order is not established and is not pinned. Reporting them as
-a ranked ladder would overstate what the panel shows.
+Two reference invariants are asserted: `pick-trader > value` (24-seed paired
+*t* = 8.93) and `shrewd > value` (24-seed paired *t* = 6.46). The four policies
+at the top sit within 13 points of each other against per-seed standard
+deviations near 50, so their relative order is still not established and is not
+pinned. Reporting them as a ranked ladder would overstate what the panel shows.
+
+### v6 sensitivity ladder
+
+Measured 2026-08-31 against contract `ad97fb57f513a751`, 48 paired seeds
+(11-58), five seasons, one run per seed — every policy here is deterministic,
+so a seed is a complete observation. Differences are **paired per seed**, not
+differences of means. `sd` is the standard deviation of the per-seed
+difference, which is the quantity the MDD projection uses.
+
+| Pairing | Paired mean | sd | paired *t* | seeds won |
+| --- | ---: | ---: | ---: | ---: |
+| `scaffold-view` > `value` | 72.76 | 49.05 | 10.28 | 45/48 |
+| `shrewd` > `value` | 69.68 | 54.46 | 8.86 | 44/48 |
+| `pick-trader` > `value` | 67.98 | 45.38 | 10.38 | 44/48 |
+| `strategic` > `value` | 59.73 | 45.03 | 9.19 | 43/48 |
+| `shrewd` > `win-now` | 76.29 | 54.23 | 9.75 | 45/48 |
+| `shrewd` > `random` | 160.95 | 46.91 | 23.77 | 48/48 |
+| `win-now` > `random` | 84.66 | 30.54 | 19.20 | 48/48 |
+| `conservative` > `random` | 35.06 | 22.40 | 10.84 | 46/48 |
+| `value` > `random` | 91.27 | 38.78 | 16.30 | 48/48 |
+| `value` > `rebuild` | 50.67 | 34.16 | 10.28 | 45/48 |
+| `value` > `conservative` | 56.21 | 39.55 | 9.85 | 47/48 |
+| `value` > `exploit` (damaged) | 58.42 | 41.86 | 9.67 | 46/48 |
+| `value` > `pick-hoard` (damaged) | 51.40 | 33.57 | 10.61 | 47/48 |
+| `value` > `cap-hoard` (damaged) | 65.11 | 34.35 | 13.13 | 48/48 |
+| `value` > `accept-everything` (damaged) | 50.87 | 45.56 | 7.74 | 45/48 |
+| `value` > `win-now` | 6.61 | 40.70 | 1.12 | 28/48 | 
+| `pick-trader` > `strategic` | 8.25 | 43.12 | 1.33 | 29/48 |
+| `shrewd` > `strategic` | 9.95 | 35.42 | 1.95 | 28/48 |
+| `shrewd` > `pick-trader` | 1.70 | 53.88 | 0.22 | 20/48 |
+
+The four damaged agents are the existing `validate-contract` canaries
+(`exploit`, `pick-hoard`, `cap-hoard`, `accept-everything`); no new agent was
+written for this ladder. Every rung the design intends to separate — strong
+over mid, mid over weak, honest over damaged — clears 50 paired points, well
+above the 30-point MDD target. The last four rows are the rungs the design does
+**not** claim: `value`/`win-now` are two different mid policies rather than a
+tier step, and the top three references are deliberately close variants of one
+another. They are reported so their non-separation stays visible.
 
 Note that contract economics cost `pick-trader` its former lead: with releases
 priced and incumbents retainable, cap hygiene and retention now compete with
-pick accumulation. On the frozen 8-seed v2 public panel the same run puts
-`pick-trader` fifth, which is noise rather than a result -- exactly the
-divergence the width table above predicts.
+pick accumulation. Its position among the top four moves with panel width, which
+is noise rather than a result.
 
 ### Mechanic liveness
 
@@ -198,11 +255,16 @@ A mechanic that never fires is inert regardless of its constants, so liveness is
 measured rather than assumed. Over the 24-seed panel (120 team-seasons), the
 agent's own team:
 
-| Mechanic | Count |
-| --- | ---: |
-| Extensions accepted | 216 |
-| Contract terms signed | 4y: 163, 3y: 53, FA 1y: 769, FA 3y: 260 |
-| Releases accepted | 7 |
+| Mechanic | Count | Seeds covered |
+| --- | ---: | ---: |
+| Memo writes accepted | 120 | 24/24 |
+| Scouting accepted | 360 | 24/24 |
+| Offer responses accepted | 359 | 24/24 |
+| Incoming offers accepted | 17 | 12/24 |
+| Pick trades accepted | 72 | 23/24 |
+| Extensions accepted | 223 | 24/24 |
+| Releases accepted | 11 | 8/24 |
+| Contract terms signed | ext 4y: 161, ext 3y: 62, FA 1y: 1065, FA 3y: 253 | — |
 
 Releases are rare by design: dead cap is a deterrent, and a policy that pays it
 anyway is choosing to. Before the fix in #91 the count was **zero and could not
@@ -214,25 +276,28 @@ The strategic policy's panel ablations are also deterministic:
 
 | Policy variant | Mean score | Change vs `strategic` |
 | --- | ---: | ---: |
-| Full `strategic` | 285.025 | 0.000 |
-| No scouting | 288.917 | +3.892 |
-| No incoming-offer policy | 270.023 | -15.002 |
-| No memo writes | 285.025 | 0.000 |
-| `shrewd` core only | 288.643 | +3.618 |
-| Pick trading enabled (`pick-trader`) | 279.066 | -5.959 |
+| Full `strategic` | 256.630 | 0.000 |
+| No scouting | 263.978 | +7.348 |
+| No incoming-offer policy | 259.607 | +2.977 |
+| No memo writes | 256.630 | 0.000 |
+| `shrewd` core only | 264.049 | +7.419 |
+| Pick trading enabled (`pick-trader`) | 251.328 | -5.302 |
 
-This is intentionally not presented as causal estimation: mechanics interact
-over five seasons. On this panel, removing scouting improves the mean, removing
-the incoming-offer policy hurts it, and enabling the pick-sale policy lowers it.
-Those are calibration results, not general causal claims about information,
-negotiation, or trading. Memo persistence has zero direct effect for this
+These are measured on the 24-seed panel (seeds 11-34) under contract
+`ad97fb57f513a751`. This is intentionally not presented as causal estimation:
+mechanics interact over five seasons. On this panel every ablation of
+`strategic` lands within about seven points of the full policy, which is inside
+the noise the 48-seed ladder above reports for adjacent references, so the
+signs should not be read as effects. Only the pick-sale policy is a consistent
+small cost. Memo persistence has zero direct effect for this
 deterministic reference, which can reconstruct its policy from the observation.
 `validate-contract` asserts `pick-trader > value` and `shrewd > value`. Both keep
 the mean-margin check and additionally require the per-seed paired difference to
-clear a t ratio of 2.0. The adjacent `pick-trader`/`strategic` and
-`strategic`/`shrewd` comparisons remain calibration rows: their paired t ratios
-are -0.494 and -0.326, respectively, both reversed in sign from the historical
-ordering and neither resolvable. The validator separately
+clear a t ratio of 2.0; the `shrewd > value` mean-margin floor moved back to 25
+points now that the contrast measures 76.4 (see `gm_bench/validity.py`). The
+adjacent `pick-trader`/`strategic` and `strategic`/`shrewd` comparisons remain
+calibration rows: their 48-seed paired t ratios are 1.33 and 1.95, neither
+resolvable. The validator separately
 requires accepted memo, scout, offer-response, offer-acceptance, pick-trade,
 and extension actions across minimum fractions of the official panel, so these
 mechanics cannot silently become dead protocol surface.
@@ -243,7 +308,8 @@ mechanics cannot silently become dead protocol surface.
 baseline and not part of the `sota-v3` baseline panel. On the public leaderboard
 panel (seeds 11-18, five seasons), it scores **274.789**, versus **267.875** for
 `pick-trader` — so perfect knowledge of draft-class `true_potential` is still
-worth something under contract economics.
+worth something under contract economics. These two numbers were measured under
+an earlier contract and were not re-run for v6.
 
 Read that gap with the panel-width caveat above in mind: eight seeds cannot
 resolve a difference of this size, and the number is quoted as a diagnostic
@@ -278,29 +344,79 @@ The diagnostic scripts make the uncertainty around the hand-tuned scale
 explicit.  They are intentionally separate from the benchmark contract:
 
 ```bash
-python scripts/power_analysis.py --result results/leaderboard/ollama-gemma4-e4b.json
+python scripts/power_analysis.py --result results/leaderboard/archive-v1/ollama-gemma4-e4b.json
 python scripts/weight_sensitivity.py
 ```
 
-On the current reference panel (seeds 11-18, five seasons), power analysis
-uses the scripted policies' centred same-seed differences as the empirical
-paired-noise distribution.  It uses three repeats and the supplied artifact's
-observed within-seed score SD of 15.037, simulates two model rows with a true
-gap, and tests the synthetic paired lifts at p < 0.05 using a normal
-approximation to the sign-flip null.  At eight seeds the exact sign-flip test
-also has minimum p-value `2 / 2^8 = 0.0078125` (resolution `1 / 2^8`).
+Power analysis uses the scripted policies' centred same-seed differences as the
+empirical paired-noise distribution, adds independent Gaussian repeat noise for
+the model row, and tests the synthetic paired lifts at p < 0.05 using a normal
+approximation to the sign-flip null.
+
+### v6 power analysis
+
+Re-measured 2026-08-31 against contract `ad97fb57f513a751` on the full 48-seed
+residual panel, so the seed counts below are resampled from 48 directly
+measured seeds rather than extrapolated from eight:
+
+```bash
+python scripts/power_analysis.py --seeds $(seq 11 58) --repeats 1 \
+  --within-seed-stddev 15.037 --seed-counts 8 12 16 24 29 48 \
+  --trials 2000 --gap-step 1.0
+```
+
+Observed paired-residual SD across the eight reference policies is **40.146**
+(mean per-pair paired SD 39.52). The v6 spec hoped simulator fixes would shrink
+paired variance; they did not. What improved instead is the size of the real
+gaps, which is why the ladder above separates far more cleanly than the v5
+ladder did. The MDD is what it is because of that SD, not because of a
+variance win.
+
+`repeats=1` matches the v6 panel design (29 seeds, one episode per seed), so
+model repeat noise does not average down and enters the paired difference at
+`sqrt(2) x within_seed_sd`.
 
 | Seed count | MDD at 80% simulated detection rate |
 | ---: | ---: |
-| 8 | 62 points |
-| 12 | 46 points |
-| 16 | 40 points |
-| 24 | 30 points |
+| 8 | 58 points |
+| 12 | 44 points |
+| 16 | 36 points |
+| 24 | 29 points |
+| **29 (v6 panel width)** | **26 points** |
+| 48 | 20 points |
 
-The 12-, 16-, and 24-seed entries resample the observed eight-seed paired
-residuals, so they are design extrapolations rather than claims that new seed
-panels were directly measured.  Re-run the script with a different result JSON
-when evaluating a model with materially different repeat noise.
+**The 30-point MDD target in `docs/bench_v6_spec.md` holds at 29 paired seeds,
+with 4 points of margin.** The v6 spec's anchor of "MDD ~40 at 16 seeds" now
+measures 36, so the spec's 29.7-point projection was slightly conservative.
+
+This projection is sensitive to the model row's within-seed repeat noise, which
+is a property of the model rather than of the simulator and therefore cannot be
+measured from scripted policies. At 29 seeds:
+
+| Assumed within-seed repeat SD | MDD at 29 seeds |
+| ---: | ---: |
+| 0 (deterministic row) | 22 points |
+| 15.0 (v5 anchor artifact) | 26 points |
+| 25.0 | 30 points |
+| 35.0 | 35 points |
+
+The 30-point target therefore holds for any model whose within-seed score SD is
+at or below about 25. Saved v5-era leaderboard artifacts span 19.9 to 56.7 on
+that statistic, so a high-variance model row can still fail to separate at 29
+seeds even though the simulator does. That is a reporting obligation, not a
+blocker: record each row's `within_seed_score_stddev` and do not claim
+separation for a pair whose noisiest member exceeds the band.
+
+Two quantities are easy to confuse and are not the same thing:
+
+- **Canary margins** (`gm_bench/validity.py`, run by `validate-contract`) are
+  fixed thresholds on *scripted* policy contrasts on the 24-seed panel. They
+  ask "is the simulator still scoring honest play above degenerate play?" and
+  are pass/fail gates on a deterministic quantity.
+- **The MDD** is a projection about *model* rows on the 29-seed panel. It asks
+  "how far apart must two models be before this panel can tell them apart?" A
+  canary margin of 76 points says nothing about whether two models 20 points
+  apart are distinguishable.
 
 For scale sensitivity, `weight_sensitivity.py` runs the scripted panel once and
 reads the raw end-of-episode components straight off each episode row.

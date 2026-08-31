@@ -13,13 +13,14 @@ from gm_bench.runner import run_many
 
 CANARY_MIN_FINAL_MARGIN = 25.0
 CANARY_MIN_STRATEGY_MARGIN = 25.0
-# Re-calibrated for the v6 draft lottery. The deterministic inverse-standings
-# draft handed the weaker `value` roster a guaranteed top pick every season;
-# replacing that certainty with lottery odds compressed the measured
-# shrewd-over-value gap on the 24-seed canary panel from 45.9 to 24.5 mean
-# points. The paired significance check still asserts the ordering; this
-# margin only guards against the gap collapsing outright.
-CAP_HYGIENE_MIN_FINAL_MARGIN = 15.0
+# Moved from 15.0 back to 25.0 because the compression that forced it down is
+# gone. When the draft lottery landed, `value` was recycling players it had
+# just released, and the shrewd-over-value gap on the 24-seed canary panel read
+# 24.5 mean points (down from 45.9 under the deterministic inverse-standings
+# draft). Closing the re-signing loophole in `1c4975b` put the gap at 76.4 mean
+# points, paired t=6.46, so the temporary 15.0 floor no longer describes
+# anything the panel can reach.
+CAP_HYGIENE_MIN_FINAL_MARGIN = 25.0
 CANARY_MIN_PAIRED_T = 2.0
 MECHANIC_MIN_SEED_RATES = {
     "memo": 0.75,
