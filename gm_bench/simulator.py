@@ -93,6 +93,26 @@ TERM_PREMIUM = 0.02
 # and contract length stops being a decision at all. At 4%/2%/3% the ratio is
 # 1.0895. `tests/test_contract_mechanics.py` locks the direction.
 INCUMBENT_EXTENSION_DISCOUNT = 0.03
+# A team cannot re-sign a player it released, for the rest of that season.
+#
+# Without this rule the extension mechanic has a hole: a contender holding a
+# final-year player releases him and signs him straight back out of free
+# agency in the same window. The free-agent quote carries the contender's
+# willingness discount (down to 0.88) and one fewer year of inflation than the
+# extension quote, so the round trip buys the same player for roughly 10-15%
+# less than his loyalty-discounted extension price, with only a single bounded
+# dead-cap charge against it. Pricing the round trip instead of forbidding it
+# would need a second, hidden price table; one flat rule is legible, is
+# published in the observation (`contracts.release_resign_block`) and on the
+# blocked free agent's own card, and leaves both legitimate flows intact:
+# releasing a bad contract still works, and every other team may sign the
+# released player immediately.
+RELEASE_RESIGN_BLOCK = (
+    "A player you release will not re-sign with you for the rest of this season. "
+    "Any other team may sign him immediately, and you may sign him again from next "
+    "season onward. Releasing a player is therefore a decision to lose him now, not "
+    "a way to re-price his contract."
+)
 REJECTED_OFFER_LIMIT_PER_WINDOW = 2
 SCOUT_POINTS_PER_SEASON = 3
 SCOUT_REPORT_NOISE = 1.5
@@ -129,6 +149,10 @@ class League:
     scout_points_used: int = 0
     scout_reports: dict[int, float] = field(default_factory=dict)
     waiver_wire: list[int] = field(default_factory=list)
+    # Players a team dropped to free agency this season, mapped to the team
+    # that dropped them. That team may not sign them back until the next
+    # season (see RELEASE_RESIGN_BLOCK); cleared at the season rollover.
+    released_by: dict[int, int] = field(default_factory=dict)
     # Season the current lottery_order was drawn for (0 = not drawn yet) and
     # the drawn slot order of original-team ids. Drawn once per season at the
     # start of the draft phase from the seeded RNG stream.
@@ -218,6 +242,7 @@ class League:
                     "annual_market_inflation": MARKET_INFLATION,
                     "additional_year_premium": TERM_PREMIUM,
                     "incumbent_extension_discount": INCUMBENT_EXTENSION_DISCOUNT,
+                    "release_resign_block": RELEASE_RESIGN_BLOCK,
                     "extension_eligibility_years_remaining": 1,
                     "extension_minimum_contract_age_seasons": 1,
                     "expiry_scramble_candidates": EXPIRY_SCRAMBLE_CANDIDATES,
@@ -502,6 +527,9 @@ class League:
         self.current_offers = {}
         self._window_signing_appeal = {}
         self.waiver_wire = []
+        # The re-signing block is a one-season penalty: a new season reopens
+        # every released player to the team that released him.
+        self.released_by = {}
         self.partial_season_played = False
         self.partial_games_per_pair = 0
         for team in self.teams.values():
@@ -668,6 +696,14 @@ class League:
         if player_id not in self.free_agents or player_id not in self.players:
             self._record(action, phase, False, "player is not an available free agent")
             return
+        if self._resign_blocked(self.user_team_id, player_id):
+            self._record(
+                action,
+                phase,
+                False,
+                "you released this player this season; he will not re-sign with you until next season",
+            )
+            return
         if years < 1 or years > 5:
             self._record(action, phase, False, "contract years must be 1-5")
             return
@@ -775,6 +811,7 @@ class League:
         player.contract_signed_season = 0
         player.salary = 0.0
         self.free_agents.append(player_id)
+        self.released_by[player_id] = self.user_team_id
         self._record(action, phase, True, f"released {player.name}")
 
     def _trade(self, action: dict[str, Any], phase: str) -> None:
@@ -1241,6 +1278,10 @@ class League:
     def _signing_quotes(self, player: Player, team: Team | None = None) -> dict[str, float]:
         return {str(years): self._signing_quote(player, years, team) for years in range(1, 6)}
 
+    def _resign_blocked(self, team_id: int, player_id: int) -> bool:
+        """Whether this team released this player earlier in the current season."""
+        return self.released_by.get(player_id) == team_id
+
     def _extension_eligible(self, player: Player) -> bool:
         """Return whether a final-year incumbent deal predates this season."""
         return player.contract_years == 1 and player.contract_signed_season < self.season
@@ -1337,7 +1378,9 @@ class League:
         `asking_salary` and `contract_quotes` are the prices this player will
         actually accept from the user's team; `market_asking_salary` is the
         situation-free base rate and `signing_appeal` shows exactly how the
-        multiplier between them was built.
+        multiplier between them was built. A player the user released this
+        season carries `resign_blocked` so the quotes are never read as an
+        offer he would actually take (see `RELEASE_RESIGN_BLOCK`).
         """
         player = self.players[player_id].public_dict()
         source = self.players[player_id]
@@ -1345,6 +1388,10 @@ class League:
         player["asking_salary"] = self._signing_quote(source, 1)
         player["contract_quotes"] = self._signing_quotes(source)
         player["signing_appeal"] = self._signing_appeal(source, self.user_team)
+        # Present only when true: the common case is unblocked, and the
+        # observation has a token budget to keep.
+        if self._resign_blocked(self.user_team_id, player_id):
+            player["resign_blocked"] = True
         return player
 
     def _waiver_player_public(self, player_id: int) -> dict[str, Any]:
@@ -1631,11 +1678,14 @@ class League:
             player.contract_years = 0
             player.contract_signed_season = 0
             self.free_agents.append(player.id)
+            self.released_by[player.id] = team.id
 
     def _opponent_signings(self, team: Team, rng: random.Random) -> None:
         needed = max(0, 21 - len(team.roster))
         candidates = sorted(
-            (self.players[player_id] for player_id in self.free_agents), key=lambda player: player.overall, reverse=True
+            (self.players[player_id] for player_id in self.free_agents if not self._resign_blocked(team.id, player_id)),
+            key=lambda player: player.overall,
+            reverse=True,
         )
         for player in candidates[: needed * 2]:
             if needed <= 0:
@@ -1697,7 +1747,9 @@ class League:
             (
                 self.players[player_id]
                 for player_id in pool
-                if player_id in self.free_agents and self.players[player_id].overall >= floor_overall + 2.0
+                if player_id in self.free_agents
+                and not self._resign_blocked(team.id, player_id)
+                and self.players[player_id].overall >= floor_overall + 2.0
             ),
             key=lambda player: player.overall,
             reverse=True,
@@ -1724,6 +1776,7 @@ class League:
                 waived.contract_years = 0
                 waived.contract_signed_season = 0
                 self.free_agents.append(waived.id)
+                self.released_by[waived.id] = team.id
             self._sign_to_team(team, player, rng)
             return
 

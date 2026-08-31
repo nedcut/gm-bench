@@ -156,7 +156,8 @@
             "extension_eligibility_years_remaining",
             "extension_minimum_contract_age_seasons",
             "expiry_scramble_candidates",
-            "expiry_risk"
+            "expiry_risk",
+            "release_resign_block"
           ],
           "properties": {
             "dead_cap_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -167,7 +168,8 @@
             "extension_eligibility_years_remaining": { "type": "integer", "minimum": 1 },
             "extension_minimum_contract_age_seasons": { "type": "integer", "minimum": 1 },
             "expiry_scramble_candidates": { "type": "integer", "minimum": 1 },
-            "expiry_risk": { "type": "string" }
+            "expiry_risk": { "type": "string" },
+            "release_resign_block": { "type": "string" }
           }
         },
         "scouting": {
@@ -556,6 +558,10 @@
         },
         "contract_quotes": {
           "$ref": "#/$defs/contract_quotes"
+        },
+        "resign_blocked": {
+          "description": "Present and true only when your team released this player this season and cannot sign him back until next season.",
+          "type": "boolean"
         }
       }
     },

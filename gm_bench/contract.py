@@ -70,8 +70,10 @@ SOTA_V5_CONTRACT = {
     # immediate rival scramble for the best expiring players leaguewide;
     # moved from 20e42898d8069386 when the inert morale, market, and
     # patience fields (never read by any mechanic) were removed from the
-    # model, generator, and observation.
-    "contract_fingerprint": "2501fcfbcb5133e9",
+    # model, generator, and observation; moved from 2501fcfbcb5133e9 when a
+    # team lost the right to re-sign a player it released until the next
+    # season, closing the release-then-re-sign dodge around extensions.
+    "contract_fingerprint": "ad97fb57f513a751",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
 # Pinned with the release identity so the site headroom strip cannot drift when

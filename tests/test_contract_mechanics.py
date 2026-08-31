@@ -346,3 +346,191 @@ def test_opponents_deterministically_retain_good_expiring_players() -> None:
     assert first.players[candidate.id].contract_years == 4
     assert first.players[candidate.id].salary == second.players[candidate.id].salary
     assert first.rng_state_offset == offset
+
+
+def _contender_with_expiring_star(seed: int = 24) -> tuple[League, "object"]:
+    """A winning team holding a veteran final-year player who cracks its lineup.
+
+    This is the exact situation the release-and-re-sign arbitrage targeted:
+    the willingness discount is at its deepest for a contender offering a
+    lineup role to a veteran.
+    """
+    league = League.new(seed=seed)
+    league.cap = 1000.0
+    league.user_team.wins, league.user_team.losses = 60, 10
+    player = _expiring_player(league)
+    player.age = 30
+    return league, player
+
+
+def test_contender_cannot_release_and_resign_its_own_expiring_player() -> None:
+    """Releasing a final-year player must not be a cheaper extension.
+
+    A contender's free-agent quotes carry the willingness discount (down to
+    0.88) and one less year of inflation than the extension quote, so a
+    release-then-re-sign round trip used to buy the same player back for
+    roughly 10% under his loyalty-discounted extension price against a single
+    bounded dead-cap charge. The price gap is asserted here to show the
+    incentive is still live; the rule is what closes it.
+    """
+    league, player = _contender_with_expiring_star()
+    extension_quote = league._contract_quote(player, 3, incumbent=True)
+
+    released = league.apply_actions([{"type": "release", "player_id": player.id}], "preseason")[0]
+    assert released.accepted
+    free_agent_quote = league._signing_quote(player, 3)
+    # The arbitrage the rule exists to kill: buying him back is cheaper than
+    # keeping him.
+    assert free_agent_quote < extension_quote
+
+    result = league.apply_actions(
+        [{"type": "sign_free_agent", "player_id": player.id, "years": 3, "salary": free_agent_quote}],
+        "preseason",
+    )[0]
+
+    assert not result.accepted
+    assert "will not re-sign with you until next season" in result.message
+    assert player.id not in league.user_team.roster
+    assert player.id in league.free_agents
+    # Nor does paying full freight, or waiting for a later window in the same
+    # season, buy him back.
+    league.begin_decision_window()
+    retry = league.apply_actions(
+        [{"type": "sign_free_agent", "player_id": player.id, "years": 3, "salary": extension_quote * 2}],
+        "midseason",
+    )[0]
+    assert not retry.accepted
+    assert player.id not in league.user_team.roster
+
+
+def test_release_and_resign_block_lifts_at_the_next_season() -> None:
+    """The block is a one-season penalty, not a permanent blacklist."""
+    league, player = _contender_with_expiring_star()
+    assert league.apply_actions([{"type": "release", "player_id": player.id}], "preseason")[0].accepted
+    assert league.released_by[player.id] == league.user_team_id
+
+    league.simulate_season()
+
+    assert league.released_by == {}
+    if player.id in league.free_agents:
+        result = league.apply_actions(
+            [
+                {
+                    "type": "sign_free_agent",
+                    "player_id": player.id,
+                    "years": 1,
+                    "salary": league._signing_quote(player, 1),
+                }
+            ],
+            "preseason",
+        )[0]
+        assert result.accepted
+
+
+def test_releasing_a_bad_contract_and_signing_a_rivals_castoff_still_work() -> None:
+    """The rule must not touch the two legitimate flows it sits next to."""
+    league = League.new(seed=24)
+    league.cap = 1000.0
+    bad_contract = league.players[league.user_team.roster[0]]
+    bad_contract.contract_years = 3
+    bad_contract.salary = 20.0
+
+    released = league.apply_actions([{"type": "release", "player_id": bad_contract.id}], "preseason")[0]
+    assert released.accepted
+    assert bad_contract.id not in league.user_team.roster
+
+    # A player another team dropped is signable by the user at once.
+    rival = league.teams[1]
+    rival.roster.extend(league.free_agents[:6])
+    for player_id in rival.roster:
+        league.players[player_id].team_id = rival.id
+        if player_id in league.free_agents:
+            league.free_agents.remove(player_id)
+    league._trim_expiring_contracts(rival, league._rng("test_trim"))
+    castoff_id = next(pid for pid, team_id in league.released_by.items() if team_id == rival.id)
+
+    result = league.apply_actions(
+        [
+            {
+                "type": "sign_free_agent",
+                "player_id": castoff_id,
+                "years": 1,
+                "salary": league._signing_quote(league.players[castoff_id], 1),
+            }
+        ],
+        "preseason",
+    )[0]
+
+    assert result.accepted
+    assert castoff_id in league.user_team.roster
+
+
+def test_opponents_cannot_re_sign_the_players_they_just_dropped() -> None:
+    """The same rule binds the autopilot teams, so it is not a user-only tax."""
+    league = League.new(seed=24)
+    league.cap = 1000.0
+    rival = league.teams[1]
+    rival.roster.extend(league.free_agents[:6])
+    for player_id in list(rival.roster):
+        league.players[player_id].team_id = rival.id
+        if player_id in league.free_agents:
+            league.free_agents.remove(player_id)
+    league._trim_expiring_contracts(rival, league._rng("test_trim"))
+    dropped = [player_id for player_id, team_id in league.released_by.items() if team_id == rival.id]
+    assert dropped
+    # Make the man they just dropped the most attractive free agent alive and
+    # leave the rival short-handed, so only the rule can keep them apart.
+    for player_id in dropped:
+        league.players[player_id].overall = 95.0
+    del rival.roster[18:]
+    roster_before = len(rival.roster)
+
+    league._opponent_signings(rival, league._rng("test_signings"))
+
+    assert len(rival.roster) > roster_before
+    assert not any(player_id in rival.roster for player_id in dropped)
+
+
+def test_trading_a_player_away_carries_his_contract_so_it_cannot_reprice() -> None:
+    """The adjacent arbitrage — trade him out, buy him back — does not exist.
+
+    A traded player keeps his salary and remaining term and never reaches free
+    agency, so there is no cheaper price to re-acquire him at; getting him back
+    costs trade value, not a discounted contract.
+    """
+    league, player = _contender_with_expiring_star()
+    salary, years = player.salary, player.contract_years
+    partner = league.teams[1]
+    incoming = min((league.players[pid] for pid in partner.roster), key=lambda item: item.asset_value)
+
+    result = league.apply_actions(
+        [
+            {
+                "type": "trade",
+                "partner_team_id": partner.id,
+                "give_player_ids": [player.id],
+                "receive_player_ids": [incoming.id],
+            }
+        ],
+        "preseason",
+    )[0]
+
+    assert result.accepted
+    assert player.id in partner.roster
+    assert player.id not in league.free_agents
+    assert player.salary == salary
+    assert player.contract_years == years
+
+
+def test_observation_publishes_the_release_resign_block() -> None:
+    league, player = _contender_with_expiring_star()
+
+    rules = league.observation("preseason")["rules"]["contracts"]
+    assert "release" in rules["release_resign_block"].lower()
+
+    assert league.apply_actions([{"type": "release", "player_id": player.id}], "preseason")[0].accepted
+    card = next(item for item in league.observation("preseason")["free_agents"] if item["id"] == player.id)
+
+    assert card["resign_blocked"] is True
+    other = next(item for item in league.observation("preseason")["free_agents"] if item["id"] != player.id)
+    assert "resign_blocked" not in other

@@ -35,7 +35,10 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # Moved again for v6 dead-field removal: the inert morale, market, and
     # patience fields (never read by any mechanic) are gone from the model,
     # generator, and observation.
-    assert contract_fingerprint() == "2501fcfbcb5133e9"
+    # Moved again for the release-then-re-sign fix: a team may not sign back a
+    # player it released until the next season, so releasing an expiring
+    # incumbent can no longer undercut his extension quote.
+    assert contract_fingerprint() == "ad97fb57f513a751"
     assert "oracle" not in AGENTS
 
 
