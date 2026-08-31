@@ -16,6 +16,7 @@ import gm_bench.runner as runner_module
 from examples.claude_agent import build_command as build_claude_command
 from examples.codex_agent import build_command as build_codex_command
 from examples.gm_agent_common import build_prompt, parse_actions
+from gm_bench.agent_utils import position_aware_lineup
 from gm_bench.agents import ExternalProcessAgent, RandomAgent, ValueAgent
 from gm_bench.gui import (
     _is_loopback_host,
@@ -54,6 +55,61 @@ def test_observation_lineup_rules_match_validation() -> None:
     assert rules["lineup_size"] == 18
     assert rules["lineup_min_positions"] == {"F": 10, "D": 4, "G": 1}
     assert "positions" not in rules
+
+
+def test_observation_publishes_the_center_lineup_bonus_and_forward_sub_position() -> None:
+    """The center-count bonus must be legible: a target, a rate, and every forward's role."""
+    league = League.new(seed=11)
+    observation = league.observation("preseason")
+    bonus_rules = observation["rules"]["lineup_center_bonus"]
+    assert bonus_rules["target"] > 0
+    assert bonus_rules["bonus_per_center"] > 0
+    roster = observation["team"]["roster"]
+    forwards = [player for player in roster if player["position"] == "F"]
+    assert forwards
+    assert all(player["sub_position"] in ("C", "W") for player in forwards)
+    assert all(player["sub_position"] is None for player in roster if player["position"] != "F")
+
+
+def test_center_aware_lineup_beats_pure_overall_sort_despite_lower_total_overall() -> None:
+    """Sorting a lineup by overall alone should not be the strongest legal lineup.
+
+    Swapping a slightly weaker winger for a natural center to reach the
+    lineup's center target must win on team strength even though it loses on
+    total overall -- the tradeoff the mechanic exists to create.
+    """
+    league = League.new(seed=41)
+    team = league.user_team
+    roster = [league.players[player_id].public_dict() for player_id in team.roster]
+
+    naive_lineup = position_aware_lineup(roster)
+    center_aware_lineup = position_aware_lineup(
+        roster, lambda player: player["overall"] + (100.0 if player["sub_position"] == "C" else 0.0)
+    )
+    assert naive_lineup != center_aware_lineup
+
+    def centers_dressed(lineup: list[int]) -> int:
+        return sum(
+            1
+            for player_id in lineup
+            if league.players[player_id].position == "F" and league.players[player_id].sub_position == "C"
+        )
+
+    naive_centers = centers_dressed(naive_lineup)
+    center_aware_centers = centers_dressed(center_aware_lineup)
+    assert center_aware_centers > naive_centers
+
+    naive_overall_total = sum(league.players[player_id].overall for player_id in naive_lineup)
+    center_aware_overall_total = sum(league.players[player_id].overall for player_id in center_aware_lineup)
+    # The naive sort really is picking higher-rated players overall...
+    assert naive_overall_total > center_aware_overall_total
+
+    team.lineup = naive_lineup
+    naive_strength = league._team_strength(team, apply_injury_noise=False)
+    team.lineup = center_aware_lineup
+    center_aware_strength = league._team_strength(team, apply_injury_noise=False)
+    # ...but still fields the weaker team.
+    assert center_aware_strength > naive_strength
 
 
 def test_trade_market_uses_public_estimates_not_hidden_asset_value() -> None:

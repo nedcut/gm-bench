@@ -62,8 +62,11 @@ SOTA_V5_CONTRACT = {
     # in-flight v6 mechanic work. Moved from 247e12fe5a7d4f5b when the draft
     # lottery replaced deterministic draft order and traded picks gained
     # original-team identity; moved from d30fe7eddc093d97 when free-agent
-    # willingness began pricing the signing team's record and lineup role.
-    "contract_fingerprint": "b7f53b7d638de7a3",
+    # willingness began pricing the signing team's record and lineup role;
+    # moved from b7f53b7d638de7a3 when forwards gained a published
+    # center-or-wing sub_position and lineups earned a bonus for dressing
+    # enough natural centers.
+    "contract_fingerprint": "d9722e44b0cf991c",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
 # Pinned with the release identity so the site headroom strip cannot drift when

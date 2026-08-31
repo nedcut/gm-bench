@@ -9,6 +9,7 @@ from typing import Any
 
 from gm_bench.generator import generate_draft_class, generate_league_data
 from gm_bench.models import (
+    CENTER_SHARE,
     LINEUP_MIN_POSITIONS,
     LINEUP_SIZE,
     PICK_TRADE_MAX_SEASONS_AHEAD,
@@ -54,6 +55,14 @@ FA_WIN_APPEAL_WEIGHT = 0.08
 FA_ROLE_APPEAL_WEIGHT = 0.04
 FA_VETERAN_AGE = 28
 FA_YOUNG_WIN_SENSITIVITY = 0.5
+# Lineup construction rewards more than the highest overalls: each forward is
+# a natural center or wing (`sub_position`, published on every player), and a
+# dressed lineup needs enough centers to staff its scoring lines. Sorting a
+# roster by overall alone ignores this and regularly falls short, since
+# centers are only ~1/3 of forwards league-wide. Bonus, not a hard
+# requirement, so it trades off cleanly against overall rating.
+CENTER_LINEUP_TARGET = 3
+CENTER_LINEUP_BONUS_PER = 0.4
 # Releasing a guaranteed deal costs a quarter of the salary for at most two
 # remaining seasons. Bounded on purpose: an unbounded charge is a tax that
 # active policies pay more of by acting more, which adds variance without
@@ -169,6 +178,17 @@ class League:
                 "roster_min": ROSTER_MIN,
                 "lineup_size": LINEUP_SIZE,
                 "lineup_min_positions": LINEUP_MIN_POSITIONS,
+                "lineup_center_bonus": {
+                    "target": CENTER_LINEUP_TARGET,
+                    "bonus_per_center": CENTER_LINEUP_BONUS_PER,
+                    "description": (
+                        "Each forward's sub_position is 'C' (center) or 'W' (wing), roughly "
+                        f"{CENTER_SHARE:.0%} of forwards are centers league-wide. A dressed lineup "
+                        f"earns +{CENTER_LINEUP_BONUS_PER} team strength per dressed center up to "
+                        f"{CENTER_LINEUP_TARGET} (max +{CENTER_LINEUP_TARGET * CENTER_LINEUP_BONUS_PER}). "
+                        "Filling forward slots by overall alone often misses this."
+                    ),
+                },
                 "trade_value_threshold": TRADE_VALUE_THRESHOLD,
                 "trade_limit_per_partner": TRADE_LIMIT_PER_PARTNER,
                 "fa_reservation_range": list(FA_RESERVATION_RANGE),
@@ -1514,6 +1534,8 @@ class League:
         if not lineup:
             return 20.0
         position_bonus = min(sum(1 for player in lineup if player.position == "G"), 2) * 2.5
+        centers = sum(1 for player in lineup if player.position == "F" and player.sub_position == "C")
+        position_bonus += min(centers, CENTER_LINEUP_TARGET) * CENTER_LINEUP_BONUS_PER
         weighted = 0.0
         total_weight = 0.0
         for index, player in enumerate(lineup):

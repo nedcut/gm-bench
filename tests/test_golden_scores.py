@@ -10,12 +10,15 @@ from gm_bench.runner import run_episode, run_many
 # original team's identity, so every draft (and everything downstream of it)
 # re-rolled. Re-pinned again for v6 free-agent willingness: every signing
 # (user and opponent) now carries the signing_appeal multiplier, so salaries
-# and rosters re-rolled league-wide. The values remain exact replay pins:
-# identical seeds must reproduce them byte-for-byte.
+# and rosters re-rolled league-wide. Re-pinned again for v6 lineup
+# construction: every forward now draws a center-or-wing sub_position at
+# generation, consuming an extra RNG draw per forward, so every generated
+# league (and everything downstream) re-rolled again. The values remain exact
+# replay pins: identical seeds must reproduce them byte-for-byte.
 GOLDEN_VALUE_SCORES_5_SEASONS = {
-    1: 196.025,
-    2: 200.161,
-    3: 264.465,
+    1: 196.66,
+    2: 268.74,
+    3: 265.689,
 }
 
 

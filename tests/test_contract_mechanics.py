@@ -136,6 +136,15 @@ def test_extension_never_dominates_free_agency() -> None:
 def test_salary_cap_and_market_prices_inflate_together() -> None:
     league = League.new(seed=24)
     player = league.players[league.free_agents[0]]
+    # Pin overall/age below the asking-salary floor (44 overall) so this
+    # season's normal free-agent "rust" decline cannot move the floored
+    # asking_salary at all; the only thing that can move the quote is market
+    # inflation, which is what this test verifies. Otherwise the outcome
+    # rides on whichever free agent generation happens to draw into slot 0
+    # (whether their post-decline overall stays below the floor too), which
+    # is incidental to what the test verifies.
+    player.overall = 40.0
+    player.age = 25
     initial_cap = league.cap
     initial_ask = league._contract_quote(player, 1)
 

@@ -6,6 +6,13 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 Position = Literal["F", "D", "G"]
+# Forwards carry a hidden-until-published lineup role: a natural center or a
+# natural wing. Centers are the scarcer role (roughly a third of forwards
+# league-wide, mirroring one center per line), so a lineup assembled by
+# overall rating alone drifts below the count a real bench needs. See
+# `CENTER_LINEUP_TARGET` / `CENTER_LINEUP_BONUS` in gm_bench/simulator.py for
+# the resulting tradeoff.
+SubPosition = Literal["C", "W"]
 ActionType = Literal[
     "sign_free_agent",
     "extend_contract",
@@ -23,6 +30,8 @@ ActionType = Literal[
 LINEUP_SIZE = 18
 LINEUP_MIN_POSITIONS: dict[str, int] = {"F": 10, "D": 4, "G": 1}
 ROSTER_MIN = 18
+# Share of forwards generated as natural centers (see `SubPosition`).
+CENTER_SHARE = 1.0 / 3.0
 
 # Draft-pick trading: every pick is identified by the team it originally
 # belonged to and is exercised at that ORIGINAL team's draft slot, so an
@@ -58,12 +67,15 @@ class Player:
     morale: float = 0.0
     drafted_round: int | None = None
     injured_games: int = 0
+    # None for D and G; every F is assigned "C" or "W" at generation.
+    sub_position: SubPosition | None = None
 
     def public_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
             "position": self.position,
+            "sub_position": self.sub_position,
             "age": self.age,
             "overall": round(self.overall, 1),
             "potential": round(self.potential, 1),

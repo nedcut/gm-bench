@@ -26,7 +26,10 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # Moved again for v6 free-agent willingness: quotes and reservations now
     # carry the published signing_appeal multiplier (team record, lineup role,
     # veteran win sensitivity), and opponent signings price the same way.
-    assert contract_fingerprint() == "b7f53b7d638de7a3"
+    # Moved again for v6 lineup construction: forwards now carry a published
+    # center-or-wing sub_position, and a dressed lineup earns a bonus for
+    # having enough natural centers.
+    assert contract_fingerprint() == "d9722e44b0cf991c"
     assert "oracle" not in AGENTS
 
 

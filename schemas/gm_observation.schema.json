@@ -94,6 +94,16 @@
             }
           }
         },
+        "lineup_center_bonus": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target", "bonus_per_center", "description"],
+          "properties": {
+            "target": { "type": "integer", "minimum": 0 },
+            "bonus_per_center": { "type": "number", "minimum": 0 },
+            "description": { "type": "string" }
+          }
+        },
         "trade_value_threshold": {
           "type": "number",
           "minimum": 0,
@@ -376,6 +386,7 @@
         "id",
         "name",
         "position",
+        "sub_position",
         "age",
         "overall",
         "potential",
@@ -398,6 +409,11 @@
             "D",
             "G"
           ]
+        },
+        "sub_position": {
+          "description": "Forward role: 'C' (center) or 'W' (wing). Null for D and G.",
+          "type": ["string", "null"],
+          "enum": ["C", "W", null]
         },
         "age": {
           "type": "integer",
@@ -459,6 +475,7 @@
         "id",
         "name",
         "position",
+        "sub_position",
         "age",
         "overall",
         "potential",
@@ -485,6 +502,11 @@
             "D",
             "G"
           ]
+        },
+        "sub_position": {
+          "description": "Forward role: 'C' (center) or 'W' (wing). Null for D and G.",
+          "type": ["string", "null"],
+          "enum": ["C", "W", null]
         },
         "age": {
           "type": "integer",
