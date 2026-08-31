@@ -5,6 +5,7 @@ import {
   describeAction,
   loadReplayFixture,
   nameIndex,
+  observedSeasonRecord,
   phaseLabel,
   rosterTable,
   seasonRecord,
@@ -29,20 +30,27 @@ const MAX_CONTEXT_CARDS = 2;
 /**
  * Anchor puzzle cards to the decision on screen.
  *
- * Exact anchoring (same seed, season and phase) is preferred, but the committed
- * fixture is seed 1 and the puzzle deck was built from other seeds, so in
- * practice the match is by phase. Cards therefore carry their own seed and
- * season in their header and are labelled as coming from another recorded
- * episode when they do.
+ * Exact anchoring means the same episode: same policy as well as same seed,
+ * season and phase. A card recorded from a different policy came from a
+ * different episode even when the coordinates line up, so it cannot be labelled
+ * "recorded at this decision point". The committed fixture is seed 1 and the
+ * puzzle deck was built from other seeds, so in practice the match is by phase.
+ * Cards therefore carry their own seed and season in their header and are
+ * labelled as coming from another recorded episode when they do.
  */
 function contextPuzzles(
   puzzles: Puzzle[],
+  agent: string,
   seed: number,
   season: number,
   phase: string,
 ): { cards: Puzzle[]; exact: boolean } {
   const exact = puzzles.filter(
-    (puzzle) => puzzle.seed === seed && puzzle.season === season && puzzle.phase === phase,
+    (puzzle) =>
+      puzzle.subject === agent &&
+      puzzle.seed === seed &&
+      puzzle.season === season &&
+      puzzle.phase === phase,
   );
   if (exact.length > 0) return { cards: exact.slice(0, MAX_CONTEXT_CARDS), exact: true };
   const samePhase = puzzles.filter((puzzle) => puzzle.phase === phase);
@@ -89,10 +97,20 @@ export default function ReplayBrowser({ puzzles }: { puzzles: PuzzleSet }) {
   const outcome = fixture && decision ? decisionOutcome(fixture, decision) : [];
   const context =
     fixture && decision
-      ? contextPuzzles(puzzles.puzzles, fixture.seed, decision.season, decision.phase)
+      ? contextPuzzles(
+          puzzles.puzzles,
+          fixture.agent,
+          fixture.seed,
+          decision.season,
+          decision.phase,
+        )
       : null;
   const summaries = fixture?.expected.state?.summaries ?? [];
   const finalScore = summaries.at(-1)?.score_after_season;
+  // Counted, never assumed: a fixture without season summaries still knows how
+  // many seasons its decisions cover.
+  const seasonsRecorded =
+    summaries.length || new Set((fixture?.decisions ?? []).map((entry) => entry.season)).size;
 
   return (
     <section className="section replay-section" id="replay" tabIndex={-1}>
@@ -141,7 +159,10 @@ export default function ReplayBrowser({ puzzles }: { puzzles: PuzzleSet }) {
                 </span>
               </div>
               <dl className="replay-stats">
-                <Stat label="Seasons recorded" value={String(summaries.length || 1)} />
+                <Stat
+                  label="Seasons recorded"
+                  value={seasonsRecorded === 0 ? "—" : String(seasonsRecorded)}
+                />
                 <Stat
                   label="Score after final season"
                   value={finalScore === undefined ? "—" : fmt(finalScore, 1)}
@@ -153,13 +174,15 @@ export default function ReplayBrowser({ puzzles }: { puzzles: PuzzleSet }) {
                 <Stat label="State digest" value={`${fixture.expected.state_digest.slice(0, 12)}…`} />
               </dl>
 
-              <div className="replay-stepper" role="tablist" aria-label="Decision points">
+              {/* Plain buttons in a labelled group. The tab pattern would owe a
+                  reader aria-controls, a tabpanel, roving tabindex and arrow-key
+                  handling; this list is simpler than that contract. */}
+              <div className="replay-stepper" role="group" aria-label="Decision points">
                 {fixture.decisions.map((entry, index) => (
                   <button
                     key={entry.decision_index}
                     type="button"
-                    role="tab"
-                    aria-selected={index === decisionIndex}
+                    aria-pressed={index === decisionIndex}
                     className={index === decisionIndex ? "is-active" : ""}
                     onClick={() => setDecisionIndex(index)}
                   >
@@ -174,7 +197,13 @@ export default function ReplayBrowser({ puzzles }: { puzzles: PuzzleSet }) {
                   {team ? (
                     <>
                       <dl className="replay-facts">
-                        <Stat label="Record" value={teamRecord(observation)} />
+                        <Stat
+                          label="Season record"
+                          value={
+                            observedSeasonRecord(observation, summaries, decision.season) ?? "—"
+                          }
+                        />
+                        <Stat label="Career record" value={teamRecord(observation)} />
                         <Stat
                           label="Cap room"
                           value={team.cap_room === undefined ? "—" : `$${fmt(team.cap_room, 2)}M`}

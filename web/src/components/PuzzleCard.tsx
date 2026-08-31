@@ -24,10 +24,20 @@ function subjectChoice(puzzle: Puzzle): PuzzleOption | undefined {
   return puzzle.options.find((option) => option.chosen_by.includes(puzzle.subject));
 }
 
-function subjectMargin(puzzle: Puzzle, best: PuzzleOption): number | null {
+/* The stored `subject_margin` measures the subject's choice against the best
+ * *alternative* recorded choice, which is why it can be positive. Comparing
+ * against the best option overall would score the subject's own pick against
+ * itself and could never come out ahead, so the fallback measures the same
+ * quantity the fixture stores. */
+function subjectMargin(puzzle: Puzzle): number | null {
   if (puzzle.subject_margin !== undefined) return puzzle.subject_margin;
   const choice = subjectChoice(puzzle);
-  if (choice) return choice.immediate_score - best.immediate_score;
+  if (choice) {
+    const alternatives = puzzle.options.filter((option) => option.id !== choice.id);
+    if (alternatives.length === 0) return null;
+    const bestAlternative = Math.max(...alternatives.map((option) => option.immediate_score));
+    return choice.immediate_score - bestAlternative;
+  }
   if (puzzle.points_left_on_the_table !== undefined) return -puzzle.points_left_on_the_table;
   return null;
 }
@@ -47,7 +57,7 @@ export default function PuzzleCard({ puzzle }: { puzzle: Puzzle }) {
   const best = puzzle.options.find((option) => option.id === puzzle.answer) ?? puzzle.options[0];
   const revealed = picked !== null;
   const subject = subjectChoice(puzzle);
-  const margin = subjectMargin(puzzle, best);
+  const margin = subjectMargin(puzzle);
   const outcome = subjectOutcome(puzzle, margin);
 
   return (

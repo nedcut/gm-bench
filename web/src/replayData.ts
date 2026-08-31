@@ -71,6 +71,28 @@ function money(value: unknown): string {
   return typeof value === "number" ? `$${value.toFixed(2)}M` : "";
 }
 
+/** Draft picks trade by season in v6, so a trade line has to name them. */
+function tradeSide(
+  playerIds: unknown,
+  pickSeasons: unknown,
+  names: Map<number, string>,
+): string {
+  const parts = Array.isArray(playerIds)
+    ? playerIds.map((id) => playerLabel(names, id))
+    : [];
+  if (Array.isArray(pickSeasons)) {
+    for (const season of pickSeasons) {
+      if (typeof season === "number") parts.push(`season ${season} pick`);
+    }
+  }
+  return parts.length > 0 ? parts.join(", ") : "nothing";
+}
+
+function offerLabel(action: Record<string, unknown>): string {
+  const id = action.offer_id;
+  return typeof id === "string" && id ? `offer ${id}` : "the standing offer";
+}
+
 /** One human line per action, so a reader can follow a decision without JSON. */
 export function describeAction(
   action: Record<string, unknown>,
@@ -95,14 +117,33 @@ export function describeAction(
       const partner = action.partner_team_id;
       const partnerName =
         typeof partner === "number" ? (teams.get(partner) ?? `team ${partner}`) : "a partner";
-      const give = Array.isArray(action.give_player_ids)
-        ? action.give_player_ids.map((id) => playerLabel(names, id)).join(", ")
-        : "—";
-      const receive = Array.isArray(action.receive_player_ids)
-        ? action.receive_player_ids.map((id) => playerLabel(names, id)).join(", ")
-        : "—";
+      const give = tradeSide(action.give_player_ids, action.give_pick_seasons, names);
+      const receive = tradeSide(action.receive_player_ids, action.receive_pick_seasons, names);
       return `Trade with ${partnerName} — send ${give}, receive ${receive}`;
     }
+    case "accept_trade_offer":
+      return `Accept ${offerLabel(action)}`;
+    case "reject_trade_offer":
+      return `Reject ${offerLabel(action)}`;
+    case "counter_trade_offer": {
+      // A side the counter leaves out keeps the offer's own terms, so only the
+      // sides the model actually restated are described here.
+      const sides: string[] = [];
+      if (action.give_player_ids !== undefined || action.give_pick_seasons !== undefined) {
+        sides.push(`send ${tradeSide(action.give_player_ids, action.give_pick_seasons, names)}`);
+      }
+      if (action.receive_player_ids !== undefined || action.receive_pick_seasons !== undefined) {
+        sides.push(
+          `receive ${tradeSide(action.receive_player_ids, action.receive_pick_seasons, names)}`,
+        );
+      }
+      const terms = sides.length > 0 ? sides.join(", ") : "terms as offered";
+      return `Counter ${offerLabel(action)} — ${terms}`;
+    }
+    case "claim_waiver":
+      return `Claim ${playerLabel(names, action.player_id)} off waivers`;
+    case "scout":
+      return `Scout ${playerLabel(names, action.prospect_id ?? action.player_id)}`;
     case "memo":
       return `Memo — "${String(action.text ?? "")}"`;
     case "noop":
@@ -112,12 +153,49 @@ export function describeAction(
   }
 }
 
+/**
+ * The record an observation carries is the team's career total, not this
+ * season's: it accumulates across the episode exactly as the season summaries
+ * do. Callers must label it accordingly, or use `observedSeasonRecord` below.
+ */
 export function teamRecord(observation: ReplayObservation | undefined): string {
   const team = observation?.team;
   if (!team) return "—";
   if (team.record) return team.record;
   if (team.wins === undefined && team.losses === undefined) return "—";
   return `${team.wins ?? 0}-${team.losses ?? 0}`;
+}
+
+function careerWinsLosses(
+  observation: ReplayObservation | undefined,
+): { wins: number; losses: number } | null {
+  const team = observation?.team;
+  if (!team) return null;
+  if (typeof team.wins === "number" && typeof team.losses === "number") {
+    return { wins: team.wins, losses: team.losses };
+  }
+  const parsed = /^(\d+)-(\d+)/.exec(team.record ?? "");
+  if (!parsed) return null;
+  return { wins: Number(parsed[1]), losses: Number(parsed[2]) };
+}
+
+/**
+ * The record inside the season on screen, de-cumulated the same way
+ * `seasonRecord` de-cumulates the season summaries: subtract everything
+ * recorded up to the end of the previous season.
+ */
+export function observedSeasonRecord(
+  observation: ReplayObservation | undefined,
+  summaries: ReplaySeasonSummary[],
+  season: number,
+): string | null {
+  const career = careerWinsLosses(observation);
+  if (!career) return null;
+  const previous = summaries.filter((row) => row.season < season).sort((a, b) => a.season - b.season).at(-1);
+  const wins = career.wins - (previous?.wins ?? 0);
+  const losses = career.losses - (previous?.losses ?? 0);
+  if (wins < 0 || losses < 0) return null;
+  return `${wins}-${losses}`;
 }
 
 export interface RosterTable {

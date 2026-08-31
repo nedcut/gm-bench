@@ -3645,7 +3645,9 @@ tbody tr.tier-start td {
   top: 0;
   text-align: left;
   padding: 6px 8px;
-  color: var(--faint);
+  /* --steel, not --faint: at 10.5px on --paper-2 the faint ink is 4.07:1 in the
+     light register, under the 4.5:1 the text needs at this size. */
+  color: var(--steel);
   background: var(--paper-2);
   border-bottom: 1px solid var(--line-strong);
   white-space: nowrap;
