@@ -16,8 +16,11 @@ result, not a failure.
 
 - Minimum detectable difference (MDD): **30 points** between any two panel
   models. This separates capability tiers, not adjacent frontier models.
-- Anchor: MDD ~40 points at 16 seeds (docs/scoring_calibration.md), scaling
-  ~1/sqrt(n). 29 paired seeds per model gives a projected MDD of 29.7.
+- Anchor: MDD ~36 points at 16 seeds, and a projected 26 points at 29 paired
+  seeds per model, so the 30-point target holds with margin. Measured on the
+  48-seed residual panel in docs/scoring_calibration.md (paired-residual SD
+  40.1, assumed within-seed model repeat noise 15.0); the projection holds for
+  model rows whose within-seed SD is about 25 or below.
 - The sensitivity ladder (scripted weak/mid/strong policies plus damaged
   agents) must demonstrate separation at this target before any paid model
   run. Its results are published, and the tie interpretation is written down

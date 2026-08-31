@@ -61,10 +61,12 @@ Where:
    therefore credited once and charged against the stock terms for every season
    that follows. Only `championships` — a career count — is a permanent win
    reward, so real title contention is still worth paying for. The v6 48-seed
-   panel below (contract `ad97fb57f513a751`) shows the effect: `win-now`
-   (179.979) sits level with the balanced `value` heuristic (186.587, paired
-   *t* = 1.12, unresolved) and both trail the asset-aware `pick-trader`
-   (254.565, paired *t* = 10.38 over `value`).
+   panel below (contract `ad97fb57f513a751`) shows the accumulation half of
+   this: the asset-aware `pick-trader` (254.565) beats the balanced `value`
+   heuristic (186.587) by a paired *t* of 10.38. It does not show the win-now
+   half — `win-now` (179.979) and `value` are unresolved against each other
+   (paired *t* = 1.12), so the panel says nothing either way about short-horizon
+   mortgaging being punished relative to a balanced policy.
 5. **Legality is enforced economically** — Illegal actions directly reduce score.
 
 ## Baseline normalization
@@ -238,8 +240,14 @@ difference, which is the quantity the MDD projection uses.
 The four damaged agents are the existing `validate-contract` canaries
 (`exploit`, `pick-hoard`, `cap-hoard`, `accept-everything`); no new agent was
 written for this ladder. Every rung the design intends to separate — strong
-over mid, mid over weak, honest over damaged — clears 50 paired points, well
-above the 30-point MDD target. The last four rows are the rungs the design does
+over mid, mid over weak, honest over damaged — clears 35 paired points at a
+paired *t* of 7.7 or better, so the tiers separate cleanly. That is the only
+claim the ladder makes. These are 48-seed scripted-policy gaps, a different
+quantity from the 30-point MDD, which is a statement about what a 29-seed model
+row can resolve; every intended rung but one sits far above the MDD band
+(`conservative` > `random` at 35.06 is the sole rung anywhere near it), so the
+ladder cannot corroborate that figure either way and the MDD rests on the power
+simulation below. The last four rows are the rungs the design does
 **not** claim: `value`/`win-now` are two different mid policies rather than a
 tier step, and the top three references are deliberately close variants of one
 another. They are reported so their non-separation stays visible.
@@ -294,7 +302,13 @@ deterministic reference, which can reconstruct its policy from the observation.
 `validate-contract` asserts `pick-trader > value` and `shrewd > value`. Both keep
 the mean-margin check and additionally require the per-seed paired difference to
 clear a t ratio of 2.0; the `shrewd > value` mean-margin floor moved back to 25
-points now that the contrast measures 76.4 (see `gm_bench/validity.py`). The
+points now that the contrast measures 76.4. That floor had been dropped to 15
+when the same contrast read 24.5 after the draft lottery landed, and it was the
+v6 mechanic work as a whole that brought it back — 24.50, then 36.80 with
+free-agent willingness, 41.83 with the center lineup, 56.15 with expiring
+contracts, 84.51 once the inert fields were removed, and 76.36 with the
+release-then-re-sign block on top, which costs `shrewd` more than `value` and so
+gives back about 8 points of the gap (see `gm_bench/validity.py`). The
 adjacent `pick-trader`/`strategic` and `strategic`/`shrewd` comparisons remain
 calibration rows: their 48-seed paired t ratios are 1.33 and 1.95, neither
 resolvable. The validator separately

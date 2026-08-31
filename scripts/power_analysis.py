@@ -170,7 +170,11 @@ def _print_human(result: dict[str, Any]) -> None:
         value = row["minimum_detectable_difference"]
         text = f"{value:.3f}" if value is not None else "not reached"
         print(f"  {count:>2} seeds: {text} at {row['target_power']:.0%} power")
-    print("Larger seed-count entries are resampled extrapolations from the eight-seed panel.")
+    measured = len(panel["seeds"])
+    print(
+        f"Seed-count entries above {measured} are resampled extrapolations from the {measured}-seed panel; "
+        f"entries at or below {measured} resample within the measured panel."
+    )
 
 
 def main(argv: list[str] | None = None) -> None:
