@@ -15,14 +15,18 @@ from typing import Any
 
 from gm_bench.scoring import SCORING_VERSION, scoring_scale_fingerprint
 
-# SOTA-v4 is a frozen historical lane.  SOTA-v5 is the current contract; the
-# mechanics are intentionally unchanged, so both contracts share the same
-# source-derived fingerprint.  The benchmark version remains part of the
-# contract identity and must never be inferred from the fingerprint alone.
+# SOTA-v4 is a frozen historical lane.  SOTA-v5 is the current contract and has
+# diverged from it: the v6 mechanic work rebuilt the simulator (draft lottery
+# and pick identity, free-agent willingness, lineup construction, expiring-
+# contract pressure, removal of the inert fields) and rewrote the observation
+# render, so sim-v3/observation-v2 became sim-v4/observation-v3 and the
+# source-derived fingerprint moved with them.  The benchmark version remains
+# part of the contract identity and must never be inferred from the
+# fingerprint alone.
 BENCHMARK_VERSION = "sota-v5"
 ACTION_PROTOCOL_VERSION = "actions-v3"
-SIMULATOR_VERSION = "sim-v3"
-OBSERVATION_VERSION = "observation-v2"
+SIMULATOR_VERSION = "sim-v4"
+OBSERVATION_VERSION = "observation-v3"
 
 SOTA_V2_CONTRACT = {
     "benchmark_version": "sota-v2",
@@ -56,8 +60,8 @@ SOTA_V5_CONTRACT = {
     "action_protocol_version": "actions-v3",
     "scoring_version": "score-v1",
     "scoring_scale_fingerprint": "05a60ff4f691e734",
-    "simulator_version": "sim-v3",
-    "observation_version": "observation-v2",
+    "simulator_version": "sim-v4",
+    "observation_version": "observation-v3",
     # sota-v5 is the live (not yet frozen) lane; its fingerprint tracks the
     # in-flight v6 mechanic work. Moved from 247e12fe5a7d4f5b when the draft
     # lottery replaced deterministic draft order and traded picks gained

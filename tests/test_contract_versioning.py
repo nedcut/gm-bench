@@ -9,6 +9,7 @@ from gm_bench.contract import (
     _CONTRACT_SOURCES,
     ACTION_PROTOCOL_VERSION,
     BENCHMARK_VERSION,
+    OBSERVATION_VERSION,
     SIMULATOR_VERSION,
     SOTA_V2_CONTRACT,
     SOTA_V2_ORACLE_MEAN,
@@ -31,13 +32,28 @@ from gm_bench.official import (
 def test_contract_reports_v5_version_strings() -> None:
     assert BENCHMARK_VERSION == "sota-v5"
     assert ACTION_PROTOCOL_VERSION == "actions-v3"
-    assert SIMULATOR_VERSION == "sim-v3"
+    # The v6 work rebuilt five simulator mechanics and the whole observation
+    # render, so both moved: sim-v3 -> sim-v4 and observation-v2 ->
+    # observation-v3. The action set itself is unchanged, so actions-v3 stays.
+    assert SIMULATOR_VERSION == "sim-v4"
+    assert OBSERVATION_VERSION == "observation-v3"
     contract = benchmark_contract()
     assert contract["benchmark_version"] == "sota-v5"
     assert contract["action_protocol_version"] == "actions-v3"
-    assert contract["simulator_version"] == "sim-v3"
+    assert contract["simulator_version"] == "sim-v4"
+    assert contract["observation_version"] == "observation-v3"
     # The P0 fixes change action/simulator semantics, not the scoring scale.
     assert contract["scoring_version"] == "score-v1"
+
+
+def test_frozen_lanes_keep_their_pre_v6_simulator_and_observation_versions() -> None:
+    # sim-v3/observation-v2 stay attached to the frozen v3 and v4 evidence; the
+    # live lane moving off them must never rewrite what those rows were run on.
+    for frozen in (SOTA_V3_CONTRACT, SOTA_V4_CONTRACT):
+        assert frozen["simulator_version"] == "sim-v3"
+        assert frozen["observation_version"] == "observation-v2"
+    assert SOTA_V5_CONTRACT["simulator_version"] == "sim-v4"
+    assert SOTA_V5_CONTRACT["observation_version"] == "observation-v3"
 
 
 def test_contract_fingerprint_covers_protocol_constants() -> None:
