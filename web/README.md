@@ -11,9 +11,10 @@ Cloudflare Pages, ...). The demo walkthrough reads
 `src/data/leaderboard.json`, which is generated only from committed,
 policy-validated evidence.
 
-Four surfaces share one model selection, in page order: the leaderboard
-(`#results`), the model profile (`#profile`), the mechanics analysis
-(`#analysis`), and the replay browser (`#replay`). The v6 reliability fields
+Three surfaces share one model selection, in page order: the leaderboard
+(`#results`), the model profile (`#profile`), and the mechanics analysis
+(`#analysis`). The replay browser (`#replay`) plays one committed episode and
+does not follow the selection. The v6 reliability fields
 (`malformed_rate`, `unrecoverable_rate`, `within_seed_score_stddev`,
 `per_seed_scores`, `route`) are optional on every leaderboard row: rows that
 predate them render "not reported" rather than a zero.
