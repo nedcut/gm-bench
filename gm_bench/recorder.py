@@ -474,6 +474,10 @@ def canonicalize_state(value: Any) -> Any:
         return {str(key): canonicalize_state(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
         return [canonicalize_state(item) for item in value]
+    if isinstance(value, (set, frozenset)):
+        # Sets carry no order of their own (League.released_by is one), so the
+        # replay digest sorts them into a stable sequence before hashing.
+        return sorted((canonicalize_state(item) for item in value), key=repr)
     return value
 
 

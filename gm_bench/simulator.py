@@ -149,10 +149,14 @@ class League:
     scout_points_used: int = 0
     scout_reports: dict[int, float] = field(default_factory=dict)
     waiver_wire: list[int] = field(default_factory=list)
-    # Players a team dropped to free agency this season, mapped to the team
-    # that dropped them. That team may not sign them back until the next
-    # season (see RELEASE_RESIGN_BLOCK); cleared at the season rollover.
-    released_by: dict[int, int] = field(default_factory=dict)
+    # (team_id, player_id) pairs for every drop to free agency this season.
+    # That team may not sign that player back until the next season (see
+    # RELEASE_RESIGN_BLOCK); cleared at the season rollover. A set of pairs
+    # rather than a player->team map because one player can be dropped by
+    # several teams in a season, and each of those blocks has to survive: a
+    # later drop by a rival must not lift the block on the team that dropped
+    # him first.
+    released_by: set[tuple[int, int]] = field(default_factory=set)
     # Season the current lottery_order was drawn for (0 = not drawn yet) and
     # the drawn slot order of original-team ids. Drawn once per season at the
     # start of the draft phase from the seeded RNG stream.
@@ -529,7 +533,7 @@ class League:
         self.waiver_wire = []
         # The re-signing block is a one-season penalty: a new season reopens
         # every released player to the team that released him.
-        self.released_by = {}
+        self.released_by = set()
         self.partial_season_played = False
         self.partial_games_per_pair = 0
         for team in self.teams.values():
@@ -811,7 +815,7 @@ class League:
         player.contract_signed_season = 0
         player.salary = 0.0
         self.free_agents.append(player_id)
-        self.released_by[player_id] = self.user_team_id
+        self.released_by.add((self.user_team_id, player_id))
         self._record(action, phase, True, f"released {player.name}")
 
     def _trade(self, action: dict[str, Any], phase: str) -> None:
@@ -1065,6 +1069,16 @@ class League:
         player_id = int(action.get("player_id", -1))
         if player_id not in self.waiver_wire:
             return self._record(action, phase, False, "player is not on the waiver wire")
+        # The release block is unconditional: a waiver claim is another way of
+        # signing a free agent, so a player the user dropped this season cannot
+        # come back through the wire either.
+        if self._resign_blocked(self.user_team_id, player_id):
+            return self._record(
+                action,
+                phase,
+                False,
+                "you released this player this season; he will not re-sign with you until next season",
+            )
         quote = self._signing_quote(self.players[player_id], 1)
         if self._payroll(self.user_team) + quote > self.cap + HARD_CAP_BUFFER:
             return self._record(action, phase, False, "claim would exceed hard cap buffer")
@@ -1280,7 +1294,7 @@ class League:
 
     def _resign_blocked(self, team_id: int, player_id: int) -> bool:
         """Whether this team released this player earlier in the current season."""
-        return self.released_by.get(player_id) == team_id
+        return (team_id, player_id) in self.released_by
 
     def _extension_eligible(self, player: Player) -> bool:
         """Return whether a final-year incumbent deal predates this season."""
@@ -1678,7 +1692,7 @@ class League:
             player.contract_years = 0
             player.contract_signed_season = 0
             self.free_agents.append(player.id)
-            self.released_by[player.id] = team.id
+            self.released_by.add((team.id, player.id))
 
     def _opponent_signings(self, team: Team, rng: random.Random) -> None:
         needed = max(0, 21 - len(team.roster))
@@ -1776,7 +1790,7 @@ class League:
                 waived.contract_years = 0
                 waived.contract_signed_season = 0
                 self.free_agents.append(waived.id)
-                self.released_by[waived.id] = team.id
+                self.released_by.add((team.id, waived.id))
             self._sign_to_team(team, player, rng)
             return
 

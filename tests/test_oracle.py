@@ -38,7 +38,10 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # Moved again for the release-then-re-sign fix: a team may not sign back a
     # player it released until the next season, so releasing an expiring
     # incumbent can no longer undercut his extension quote.
-    assert contract_fingerprint() == "ad97fb57f513a751"
+    # Moved again when that block was made per (team, player) rather than one
+    # team per player, so a rival's later drop cannot erase it, and when waiver
+    # claims started enforcing it alongside free-agent signings.
+    assert contract_fingerprint() == "b97c8a1d61b321cc"
     assert "oracle" not in AGENTS
 
 

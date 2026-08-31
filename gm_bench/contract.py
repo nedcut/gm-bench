@@ -72,8 +72,12 @@ SOTA_V5_CONTRACT = {
     # patience fields (never read by any mechanic) were removed from the
     # model, generator, and observation; moved from 2501fcfbcb5133e9 when a
     # team lost the right to re-sign a player it released until the next
-    # season, closing the release-then-re-sign dodge around extensions.
-    "contract_fingerprint": "ad97fb57f513a751",
+    # season, closing the release-then-re-sign dodge around extensions; moved
+    # from ad97fb57f513a751 when that release block became a set of
+    # (team, player) pairs, so a later drop by another team no longer erases
+    # an earlier team's block, and waiver claims began honouring the block the
+    # same way free-agent signings do.
+    "contract_fingerprint": "b97c8a1d61b321cc",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
 # Pinned with the release identity so the site headroom strip cannot drift when

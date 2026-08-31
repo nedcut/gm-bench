@@ -407,24 +407,27 @@ def test_release_and_resign_block_lifts_at_the_next_season() -> None:
     """The block is a one-season penalty, not a permanent blacklist."""
     league, player = _contender_with_expiring_star()
     assert league.apply_actions([{"type": "release", "player_id": player.id}], "preseason")[0].accepted
-    assert league.released_by[player.id] == league.user_team_id
+    assert (league.user_team_id, player.id) in league.released_by
 
     league.simulate_season()
 
-    assert league.released_by == {}
-    if player.id in league.free_agents:
-        result = league.apply_actions(
-            [
-                {
-                    "type": "sign_free_agent",
-                    "player_id": player.id,
-                    "years": 1,
-                    "salary": league._signing_quote(player, 1),
-                }
-            ],
-            "preseason",
-        )[0]
-        assert result.accepted
+    assert league.released_by == set()
+    # The property under test only means anything while he is still available,
+    # so the precondition is asserted rather than branched on: if a rival ever
+    # signs him during the rollover the test fails instead of passing vacuously.
+    assert player.id in league.free_agents
+    result = league.apply_actions(
+        [
+            {
+                "type": "sign_free_agent",
+                "player_id": player.id,
+                "years": 1,
+                "salary": league._signing_quote(player, 1),
+            }
+        ],
+        "preseason",
+    )[0]
+    assert result.accepted
 
 
 def test_releasing_a_bad_contract_and_signing_a_rivals_castoff_still_work() -> None:
@@ -447,7 +450,7 @@ def test_releasing_a_bad_contract_and_signing_a_rivals_castoff_still_work() -> N
         if player_id in league.free_agents:
             league.free_agents.remove(player_id)
     league._trim_expiring_contracts(rival, league._rng("test_trim"))
-    castoff_id = next(pid for pid, team_id in league.released_by.items() if team_id == rival.id)
+    castoff_id = next(pid for team_id, pid in league.released_by if team_id == rival.id)
 
     result = league.apply_actions(
         [
@@ -476,7 +479,7 @@ def test_opponents_cannot_re_sign_the_players_they_just_dropped() -> None:
         if player_id in league.free_agents:
             league.free_agents.remove(player_id)
     league._trim_expiring_contracts(rival, league._rng("test_trim"))
-    dropped = [player_id for player_id, team_id in league.released_by.items() if team_id == rival.id]
+    dropped = [player_id for team_id, player_id in league.released_by if team_id == rival.id]
     assert dropped
     # Make the man they just dropped the most attractive free agent alive and
     # leave the rival short-handed, so only the rule can keep them apart.
@@ -489,6 +492,84 @@ def test_opponents_cannot_re_sign_the_players_they_just_dropped() -> None:
 
     assert len(rival.roster) > roster_before
     assert not any(player_id in rival.roster for player_id in dropped)
+
+
+def test_a_rival_dropping_the_same_player_does_not_lift_the_users_block() -> None:
+    """Two teams can hold a block on one player at the same time.
+
+    The release record used to be a player-to-team map, so a rival dropping a
+    player the user had already released overwrote the user's block and handed
+    back the release-then-re-sign discount for free.
+    """
+    league = League.new(seed=24)
+    league.cap = 1000.0
+    # A replacement-level body, so he is unambiguously the man the rival trims
+    # when it needs a roster spot back.
+    player = min((league.players[pid] for pid in league.user_team.roster), key=lambda item: item.asset_value)
+    player.age, player.overall, player.potential = 38, 48.0, 48.0
+    assert league.apply_actions([{"type": "release", "player_id": player.id}], "preseason")[0].accepted
+
+    # A rival signs him and then trims him back to free agency in the same
+    # season, writing its own release record over the top of the user's.
+    rival = league.teams[1]
+    league.free_agents.remove(player.id)
+    player.team_id = rival.id
+    player.contract_years = 1
+    # A full rival roster of clearly better players plus him: the one spot the
+    # preseason trim gives back is his.
+    keep = sorted(rival.roster, key=lambda pid: league.players[pid].asset_value, reverse=True)[:23]
+    for player_id in rival.roster:
+        if player_id not in keep:
+            league.players[player_id].team_id = None
+        else:
+            keeper = league.players[player_id]
+            keeper.age = min(keeper.age, 27)
+            keeper.overall = max(keeper.overall, 70.0)
+            keeper.potential = max(keeper.potential, 70.0)
+    rival.roster = [*keep, player.id]
+    assert len(rival.roster) == 24
+    assert min(league.players[pid].asset_value for pid in keep) > player.asset_value
+    league._trim_expiring_contracts(rival, league._rng("test_trim"))
+
+    assert (rival.id, player.id) in league.released_by
+    assert (league.user_team_id, player.id) in league.released_by
+    assert player.id in league.free_agents
+
+    league.begin_decision_window()
+    result = league.apply_actions(
+        [
+            {
+                "type": "sign_free_agent",
+                "player_id": player.id,
+                "years": 3,
+                "salary": league._signing_quote(player, 3) * 2,
+            }
+        ],
+        "preseason",
+    )[0]
+
+    assert not result.accepted
+    assert "will not re-sign with you until next season" in result.message
+    assert player.id not in league.user_team.roster
+
+
+def test_a_released_player_cannot_come_back_through_the_waiver_wire() -> None:
+    """A waiver claim is a signing, so the release block covers it too."""
+    league, player = _contender_with_expiring_star()
+    assert league.apply_actions([{"type": "release", "player_id": player.id}], "preseason")[0].accepted
+
+    # He reaches the wire the way any waived player does: a rival picks him up
+    # and later drops him onto waivers.
+    league.free_agents.remove(player.id)
+    league.waiver_wire.append(player.id)
+
+    league.begin_decision_window()
+    result = league.apply_actions([{"type": "claim_waiver", "player_id": player.id}], "midseason")[0]
+
+    assert not result.accepted
+    assert "will not re-sign with you until next season" in result.message
+    assert player.id not in league.user_team.roster
+    assert player.id in league.waiver_wire
 
 
 def test_trading_a_player_away_carries_his_contract_so_it_cannot_reprice() -> None:
