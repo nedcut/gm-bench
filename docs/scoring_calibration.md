@@ -61,7 +61,7 @@ Where:
    therefore credited once and charged against the stock terms for every season
    that follows. Only `championships` — a career count — is a permanent win
    reward, so real title contention is still worth paying for. The v6 48-seed
-   panel below (contract `ad97fb57f513a751`) shows the accumulation half of
+   panel below (contract `a600b7da0c302231`) shows the accumulation half of
    this: the asset-aware `pick-trader` (254.565) beats the balanced `value`
    heuristic (186.587) by a paired *t* of 10.38. It does not show the win-now
    half — `win-now` (179.979) and `value` are unresolved against each other
@@ -123,7 +123,7 @@ neither change modifies the published score scale itself.
 The v6 simulator work (draft lottery, free-agent willingness, centre-aware
 lineups, expiring contracts, inert-field removal, and the released-player
 re-signing fix) likewise leaves `score-v1` untouched: contract fingerprint
-`ad97fb57f513a751`, scoring-scale fingerprint `05a60ff4f691e734`. The Phase 2b
+`a600b7da0c302231`, scoring-scale fingerprint `05a60ff4f691e734`. The Phase 2b
 re-calibration below found no reason to change a weight — the sensitivity
 ladder separates every intended rung by more than the 30-point MDD target on
 its own, so re-weighting would only be fitting noise.
@@ -153,11 +153,20 @@ also change strength, cap room, and wins.
 ## Reference-policy calibration
 
 Everything in this section and the two that follow was measured on
-2026-08-31 against **contract fingerprint `ad97fb57f513a751`** (scoring scale
+2026-08-31 against **contract fingerprint `a600b7da0c302231`** (scoring scale
 `score-v1`, `05a60ff4f691e734`) — the v6 simulator with the draft lottery,
 free-agent willingness, centre-aware lineups, expiring contracts, inert-field
 removal, and the released-player re-signing fix. Any edit to a file in
 `_CONTRACT_SOURCES` invalidates these numbers.
+
+Re-measured from `a600b7da0c302231` because the compact observation render, the
+one-call execution rules, and the adapter/repair split all moved the fingerprint
+after the first measurement. Only `scaffold-view` changed, and only because it
+is the one reference whose whole result is a function of the model view: it
+reads the compact payload, and `gm_bench/scaffold_view.py` is in
+`_CONTRACT_SOURCES` for exactly that reason. Every other scripted policy scores
+the simulator state directly and reproduced its previous mean, standard
+deviation, and illegal-action count exactly.
 
 Reference policies are calibrated on a **48-seed panel (seeds 11-58, five
 seasons)**; `validate-contract` gates on the 24-seed slice (11-34), and the v6
@@ -167,7 +176,7 @@ the model-panel width is set by its power rule and API-spend boundary.
 
 Panel width still decides which orderings can be claimed, but v6 moved the
 threshold. The `pick-trader` over `value` contrast, measured paired on matched
-seeds under contract `ad97fb57f513a751`:
+seeds under contract `a600b7da0c302231`:
 
 | seeds | mean difference | paired *t* | seeds won |
 | ---: | ---: | ---: | ---: |
@@ -186,11 +195,11 @@ gates only its narrow canary invariants on paired *t* >= 2.0 over the 24-seed
 panel rather than pinning a full ranked ladder.
 
 Current v6 reference-policy validation (48 seeds, 11-58, five seasons,
-contract `ad97fb57f513a751`; `sd` is the across-seed standard deviation):
+contract `a600b7da0c302231`; `sd` is the across-seed standard deviation):
 
 | Reference | Mean score | sd | Illegal actions | Role |
 | --- | ---: | ---: | ---: | --- |
-| `scaffold-view` | 259.35 | 53.17 | 0 | Pick-trader policy on the compact adapter payload |
+| `scaffold-view` | 257.42 | 52.21 | 2 | Pick-trader policy on the compact adapter payload |
 | `shrewd` | 256.27 | 47.45 | 0 | Dead-cap-aware roster and development policy |
 | `pick-trader` | 254.57 | 48.88 | 1 | Official scripted bar |
 | `strategic` | 246.31 | 41.16 | 1 | Scouting, offers, memo, extensions, and shrewd roster core |
@@ -209,7 +218,7 @@ pinned. Reporting them as a ranked ladder would overstate what the panel shows.
 
 ### v6 sensitivity ladder
 
-Measured 2026-08-31 against contract `ad97fb57f513a751`, 48 paired seeds
+Measured 2026-08-31 against contract `a600b7da0c302231`, 48 paired seeds
 (11-58), five seasons, one run per seed — every policy here is deterministic,
 so a seed is a complete observation. Differences are **paired per seed**, not
 differences of means. `sd` is the standard deviation of the per-seed
@@ -217,7 +226,7 @@ difference, which is the quantity the MDD projection uses.
 
 | Pairing | Paired mean | sd | paired *t* | seeds won |
 | --- | ---: | ---: | ---: | ---: |
-| `scaffold-view` > `value` | 72.76 | 49.05 | 10.28 | 45/48 |
+| `scaffold-view` > `value` | 70.84 | 55.38 | 8.86 | 43/48 |
 | `shrewd` > `value` | 69.68 | 54.46 | 8.86 | 44/48 |
 | `pick-trader` > `value` | 67.98 | 45.38 | 10.38 | 44/48 |
 | `strategic` > `value` | 59.73 | 45.03 | 9.19 | 43/48 |
@@ -292,7 +301,7 @@ The strategic policy's panel ablations are also deterministic:
 | Pick trading enabled (`pick-trader`) | 251.328 | -5.302 |
 
 These are measured on the 24-seed panel (seeds 11-34) under contract
-`ad97fb57f513a751`. This is intentionally not presented as causal estimation:
+`a600b7da0c302231`. This is intentionally not presented as causal estimation:
 mechanics interact over five seasons. On this panel every ablation of
 `strategic` lands within about seven points of the full policy, which is inside
 the noise the 48-seed ladder above reports for adjacent references, so the
@@ -369,7 +378,7 @@ approximation to the sign-flip null.
 
 ### v6 power analysis
 
-Re-measured 2026-08-31 against contract `ad97fb57f513a751` on the full 48-seed
+Re-measured 2026-08-31 against contract `a600b7da0c302231` on the full 48-seed
 residual panel, so the seed counts below are resampled from 48 directly
 measured seeds rather than extrapolated from eight:
 
