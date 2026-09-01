@@ -10,7 +10,7 @@
   "preset": "leaderboard",
   "repeats": 1,
   "selection_status": "frozen",
-  "selection_frozen_at_utc": "2026-09-01T19:26:53+00:00",
+  "selection_frozen_at_utc": "2026-09-01T21:10:17+00:00",
   "selection_revision": "2026-09-01-v6-route-and-cohort-amendment",
   "amendment": {
     "revision": "2026-09-01-v6-route-and-cohort-amendment",
@@ -26,7 +26,8 @@
       "nvidia/nemotron-3-nano-30b-a3b (excluded by the frozen smoke gate on its own behavior: one malformed decision) is withdrawn and replaced by nvidia/nemotron-3-super-120b-a12b on DigitalOcean.",
       "The route rule gains one exclusion: a route that reached the lane's infrastructure attempt limit is ineligible for re-registration. Without it the frozen rule mechanically re-selects Cloudflare and Parasail.",
       "The free ':free' variants (including nvidia/nemotron-3-ultra-550b-a55b:free) were considered and rejected: their terms log prompts for provider improvement, which the lane's data-collection=deny pin and the private seed panel forbid; the Nvidia free endpoints also advertise no response_format and run at about 4 tokens per second.",
-      "Addendum 2026-09-01T19:40Z: z-ai/glm-5.3-flash moves again, from Fireworks (one attempt consumed on HTTP 429) to DeepInfra fp8 by owner direction. The frozen ordering prefers the unquantized Fireworks route; the owner chose the fp8 route at half the price rather than spend the final Fireworks attempt. Fireworks' unused final attempt is voided. Z.AI first-party was requested and rejected: no structured_outputs and 24-hour uptime below the 99% floor."
+      "Addendum 2026-09-01T19:40Z: z-ai/glm-5.3-flash moves again, from Fireworks (one attempt consumed on HTTP 429) to DeepInfra fp8 by owner direction. The frozen ordering prefers the unquantized Fireworks route; the owner chose the fp8 route at half the price rather than spend the final Fireworks attempt. Fireworks' unused final attempt is voided. Z.AI first-party was requested and rejected: no structured_outputs and 24-hour uptime below the 99% floor.",
+      "Addendum 2026-09-01T20:45Z: nvidia/nemotron-3-super-120b-a12b was excluded at the infrastructure attempt limit (DigitalOcean HTTP 429 on both re-run attempts) and DigitalOcean was its only rule-eligible route. The owner asked for tencent/hy3 and xiaomi/mimo-v2.5; neither has a route advertising both response_format and structured_outputs. The slot goes to nvidia/nemotron-3.5-lightning on CoreWeave bf16, its only rule-eligible route."
     ],
     "identity_revision_inputs": [
       "Owner direction on 2026-09-01.",
@@ -73,7 +74,7 @@
     }
   },
   "catalog_snapshot_status": "public-metadata-candidates-unaccepted",
-  "catalog_checked_at_utc": "2026-09-01T19:40:00Z",
+  "catalog_checked_at_utc": "2026-09-01T20:45:00Z",
   "catalog_sources": [
     "https://openrouter.ai/api/v1/models",
     "https://openrouter.ai/api/v1/models/{model_id}/endpoints",
@@ -886,44 +887,44 @@
       }
     },
     {
-      "id": "openrouter-nemotron-3-super-120b-a12b-digitalocean",
+      "id": "openrouter-nemotron-3.5-lightning-coreweave",
       "provider": "openrouter",
-      "model": "nvidia/nemotron-3-super-120b-a12b",
-      "canonical_slug": "nvidia/nemotron-3-super-120b-a12b-20230311",
+      "model": "nvidia/nemotron-3.5-lightning",
+      "canonical_slug": "nvidia/nemotron-3.5-lightning-20260807",
       "transport": "gateway-api",
       "tier": "open-weight",
-      "upstream_provider": "DigitalOcean",
-      "upstream_provider_slug": "digitalocean",
-      "endpoint_tag": "digitalocean",
-      "endpoint_name": "DigitalOcean | nvidia/nemotron-3-super-120b-a12b-20230311",
+      "upstream_provider": "CoreWeave",
+      "upstream_provider_slug": "coreweave/bf16",
+      "endpoint_tag": "coreweave/bf16",
+      "endpoint_name": "CoreWeave | nvidia/nemotron-3.5-lightning-20260807",
       "catalog_route_status": 0,
-      "catalog_quantization": "unknown",
-      "catalog_max_completion_tokens": 900000,
-      "catalog_uptime_last_1d": 99.78174383909824,
-      "catalog_uptime_last_30m": 99.77678571428571,
+      "catalog_quantization": "bf16",
+      "catalog_max_completion_tokens": 235929,
+      "catalog_uptime_last_1d": 99.99720373580897,
+      "catalog_uptime_last_30m": 100,
       "catalog_supported_parameters": [
+        "frequency_penalty",
         "include_reasoning",
         "logprobs",
         "max_tokens",
+        "presence_penalty",
         "reasoning",
-        "reasoning_effort",
+        "repetition_penalty",
         "response_format",
+        "seed",
+        "stop",
         "structured_outputs",
         "temperature",
-        "tool_choice",
-        "tools",
+        "top_k",
         "top_logprobs",
         "top_p"
       ],
       "catalog_discount": 0,
       "catalog_reasoning": {
         "mandatory": false,
-        "default_enabled": true,
-        "supported_efforts": [
-          "medium",
-          "low"
-        ],
-        "default_effort": "medium"
+        "default_enabled": null,
+        "supported_efforts": null,
+        "default_effort": null
       },
       "reasoning_policy": "disabled",
       "reasoning_effort": null,
@@ -937,7 +938,8 @@
       "output_ceiling_headroom": {
         "status": "metadata-sufficient",
         "reason": "With reasoning disabled the whole 4,096-token ceiling is available to the action list; every reasoning-disabled route in the v2/v3 smoke record peaked at or below 604 output tokens per call."
-      }
+      },
+      "route_note": "Registered 2026-09-01 after nvidia/nemotron-3-super-120b-a12b was excluded at the infrastructure attempt limit on its only rule-eligible route. CoreWeave bf16 is the only route for this identity meeting the frozen rule."
     },
     {
       "id": "openrouter-gpt-oss-20b-deepinfra",
@@ -1027,11 +1029,11 @@
     "openrouter-glm-5.3-flash-deepinfra",
     "openrouter-deepseek-v4-flash-0731-together",
     "openrouter-qwen3.5-27b-siliconflow",
-    "openrouter-nemotron-3-super-120b-a12b-digitalocean",
+    "openrouter-nemotron-3.5-lightning-coreweave",
     "openrouter-gpt-oss-20b-deepinfra"
   ],
   "ascending_cost_run_order": {
-    "status": "frozen-2026-08-31; regenerated 2026-09-01 for the route-and-cohort amendment and its addendum",
+    "status": "frozen-2026-08-31; regenerated 2026-09-01 for the route-and-cohort amendment and its addenda",
     "basis": "Ascending planning panel cost from results/analysis/sota-v6-panel-cost-estimate.json (29 seeds x 5 seasons x 4 phases = 580 paid calls per model at 8,000 input and 4,096 output tokens). Running the cheap rows first means a route, render, or repair problem surfaces on the cheapest cells, and the two most expensive rows (x-ai/grok-4.6 at $23.53 and anthropic/claude-haiku-4.5 at $16.52) are the last money committed.",
     "order": [
       {
@@ -1045,6 +1047,12 @@
         "model": "z-ai/glm-5.3-flash",
         "planning_panel_cost_usd": 0.9419,
         "planning_smoke_cost_usd": 0.006496
+      },
+      {
+        "experiment_id": "openrouter-nemotron-3.5-lightning-coreweave",
+        "model": "nvidia/nemotron-3.5-lightning",
+        "planning_panel_cost_usd": 1.0579,
+        "planning_smoke_cost_usd": 0.007296
       },
       {
         "experiment_id": "openrouter-deepseek-v4-flash-0731-together",
@@ -1069,12 +1077,6 @@
         "model": "google/gemini-3.1-flash-lite",
         "planning_panel_cost_usd": 2.3618,
         "planning_smoke_cost_usd": 0.016288
-      },
-      {
-        "experiment_id": "openrouter-nemotron-3-super-120b-a12b-digitalocean",
-        "model": "nvidia/nemotron-3-super-120b-a12b",
-        "planning_panel_cost_usd": 2.9362,
-        "planning_smoke_cost_usd": 0.02025
       },
       {
         "experiment_id": "openrouter-qwen3.5-27b-siliconflow",
@@ -1131,14 +1133,21 @@
         "planning_smoke_cost_usd": 0.162304
       }
     ],
-    "planning_panel_total_usd": 115.1821
+    "planning_panel_total_usd": 113.3038
   },
   "exact_route_acceptance": {
     "schema_version": 2,
     "status": "accepted",
-    "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+    "accepted_at_utc": "2026-09-01T21:10:17+00:00",
     "evidence_artifact": "results/route_evidence/sota-v5-route-acceptance-evidence.json",
     "superseded_acceptance": [
+      {
+        "status": "accepted",
+        "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+        "evidence_artifact": "results/route_evidence/sota-v5-route-acceptance-evidence-2026-09-01T194500-superseded.json",
+        "model_count": 16,
+        "retired_because": "It accepted the sixteen routes with nvidia/nemotron-3-super-120b-a12b on DigitalOcean. That row was excluded at the infrastructure attempt limit and replaced by nvidia/nemotron-3.5-lightning on CoreWeave bf16 (amendment addendum), so the acceptance was regenerated. The evidence artifact is kept unedited under the dated name."
+      },
       {
         "status": "accepted",
         "accepted_at_utc": "2026-09-01T19:06:54+00:00",
@@ -1173,8 +1182,8 @@
       "openrouter-grok-4.6-xai": {
         "route_identity_sha256": "76d2e94593368e73c46780d18e2d042513dee7e2df8ebdd6d38d38fcc3645d25",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "0f20abada72fefdc921f65523f544457977b693f97bb607adde5b6971d13fab8",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "8090e2e0c076d19c3029a52ed4fe044d0d76879bfd3809aa6b134e4f471b8ae9",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "76d2e94593368e73c46780d18e2d042513dee7e2df8ebdd6d38d38fcc3645d25",
@@ -1183,15 +1192,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "f4f6c2d971ec0127cc7f5e7c7d15675cacc9da3af04c494f28c6e78be0cef9f8"
         }
       },
       "openrouter-claude-haiku-4.5-anthropic": {
         "route_identity_sha256": "936fb06a7805c9f27dfa43d0e27c7edd59627061bbc5704a85c6dc23d0b916e1",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "1ca5365763f79164f063d17af9634e701ce4db1df4ca7168abf5d4ce5b8d4f8d",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "39ecd382dc6c4fe77398f36a812501b3dae75116b5036591742769abcd582d97",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "936fb06a7805c9f27dfa43d0e27c7edd59627061bbc5704a85c6dc23d0b916e1",
@@ -1200,15 +1209,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "c577f4b9a3585977126cdb9c43f442710438b8b80e6a562bbb2cbb59a4a076eb"
         }
       },
       "openrouter-gemini-3.7-flash-google-ai-studio": {
         "route_identity_sha256": "2c4b136926508c87781f7740dcf2adeeeb8beec49bb608ed98add7df2f7ad8a1",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "1ccacd460499bed108bf98ff3d5cf623255875dae2db6bfc4f9017dbf0b905c8",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "a1cf4a24267ee36f415e58076dc328eb7e8b42fbdbdca2201ae69bc5ce0a1127",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "2c4b136926508c87781f7740dcf2adeeeb8beec49bb608ed98add7df2f7ad8a1",
@@ -1217,15 +1226,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "8ac2419139f466eecb160b7205445b969f2c42f54ab3eac37c879a3f46e2053f"
         }
       },
       "openrouter-grok-4.3-xai": {
         "route_identity_sha256": "37c7efd399d7bb3b07ac895e4a49bc8da13f2fe9ed19e58cab8341201e30a561",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "a362514534503735d40ddbb7a71de1f0c43c795348879eb4c370f73cd9fd6d25",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "92378a75c16deb8b567c727fb957c6f3e3692d04f294c752e7ffad5324265e8f",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "37c7efd399d7bb3b07ac895e4a49bc8da13f2fe9ed19e58cab8341201e30a561",
@@ -1234,15 +1243,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "65a3e3e28aa2f72d23b09ce4bada1f5bf3cbf4f983262e6a8c9be06375ddf3e5"
         }
       },
       "openrouter-gpt-5.4-mini-openai": {
         "route_identity_sha256": "920b8de714b4e4fefe11b1fd537db7d1d63e9a2a34f1b73dfc79ca4cbfa80367",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "639d39e5d5badb40bf6bdd8bb90d12ca65a4816e7d712e52c7c3530646a4fb95",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "969050fc18a6fece2f97b7cc5926b1ac81ee1af9f56117ec12ab681a02a3e7c4",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "920b8de714b4e4fefe11b1fd537db7d1d63e9a2a34f1b73dfc79ca4cbfa80367",
@@ -1251,15 +1260,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "85c941c82a7406c73337645033a0dd21471121458069dab2b0b3eff194d1f3c3"
         }
       },
       "openrouter-glm-5-streamlake": {
         "route_identity_sha256": "9842cf28122782ef6ba1962fbf6766ade62d5e61e3f4d4677423abb2878f9fba",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "135fc8ace83645bff18dd0f71d52615ae395e050a7d4e501b92acbbddd38abbd",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "1bbc7b78fea49a953eb63a711a3d6ec67d58746a58fa9f145a74552b3d1b197d",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "9842cf28122782ef6ba1962fbf6766ade62d5e61e3f4d4677423abb2878f9fba",
@@ -1268,15 +1277,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "fd6d02430e6e2dcd20f16359b2877019439f5853ab7a828dbbfbd5a703e977ff"
         }
       },
       "openrouter-kimi-k2.5-siliconflow": {
         "route_identity_sha256": "cc4b5b08e5e0587be98a8ca0805ba4e30a86b4f74f65413ba598ac869d15ee45",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "d70fb6d896288bfdeaf322e750c7cae9aa01e65e60a1f4175af214dea755b321",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "e2b83d75630d576bf7a3681d247b2c9e5f76306f0a61bfc77cd6fc1217aaa78f",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "cc4b5b08e5e0587be98a8ca0805ba4e30a86b4f74f65413ba598ac869d15ee45",
@@ -1285,15 +1294,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "165eaab282df92276952983d76d7163491df5888f2fb02b806c240ed4ae7f90c"
         }
       },
       "openrouter-qwen3.8-flash-alibaba": {
         "route_identity_sha256": "e979078692db7d1740d17403618d77cf5697a760d1e7778f35bd3adc10674693",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "368c8fc55d3705d073050536446a2a36e75d22099924a1a8ec80b9fc5b776cf1",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "c3e252dfd07e4ee69a244c626725cadce4db8ca2ee3f05b5aa3abbe7382a61c4",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "e979078692db7d1740d17403618d77cf5697a760d1e7778f35bd3adc10674693",
@@ -1302,15 +1311,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "73d130cc9f46b8ac897cdde28044616f45980dcbb7add9710e202e6017335c4d"
         }
       },
       "openrouter-minimax-m3-modelrun": {
         "route_identity_sha256": "774ff02ba706345e17f9f9caa500be871d4bbd078ac8b6c8d24516ce1309ce23",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "b0c3a3a58d7e0d7af90fae20496dec9e31d7da0b16d173624db3963d7df0a7fd",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "be7a9d8847bdbee836f4503b0fc320ec7bc08951d2525aa7b2c5b374ad8b7925",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "774ff02ba706345e17f9f9caa500be871d4bbd078ac8b6c8d24516ce1309ce23",
@@ -1319,15 +1328,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "9a79a5b18c0017dc9d1de3c06cac682a80cfea5e9dc86bc0b542f310d4bfa1bf"
         }
       },
       "openrouter-gemini-3.1-flash-lite-google-ai-studio": {
         "route_identity_sha256": "d50a0bdea01239bfa0fcb2e97a0f90177f505716e5366016fc3957018b876a82",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "f59386dc5ffa3225a15039b17c4ffae1922eb204bc718b9dc19964bf0a035859",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "45f50ffc26400000eecf633a4825f622d29de38c832270a90e8516883ec42e77",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "d50a0bdea01239bfa0fcb2e97a0f90177f505716e5366016fc3957018b876a82",
@@ -1336,15 +1345,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "9dc10589943ed128356cd96b50ddfe58faf0ada1dec69accac68de50373ded70"
         }
       },
       "openrouter-gpt-5.6-luna-openai": {
         "route_identity_sha256": "b11026437b1d4b22f0e327b84ee452d7be2f14de714af243b1729ef057489127",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "f4a281fe8f98c86c62e6f4731a4f04a104ef56ff2dc5a89cd9948421395b9e48",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "4fc329de93ba8b97f75debee05c116e84ffc367174453736cd4f83a41e505384",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "b11026437b1d4b22f0e327b84ee452d7be2f14de714af243b1729ef057489127",
@@ -1353,15 +1362,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "03017eb20fba1c90f462da54b61cff04ee00f935107fdf1b3649113628d602be"
         }
       },
       "openrouter-glm-5.3-flash-deepinfra": {
         "route_identity_sha256": "e85bca85036c9b75f27a4fab82b64c7b90487d7ab64f23d86851a2890f85e801",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "90a5463daf63e9f12f8af8ace4d8666e249ecffa4587d5ba2b47c5c82f48c3e3",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "3bfe08e53a3c6ff94c8625273e06c07777094b6b9a55e4218d519b5dbc500268",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "e85bca85036c9b75f27a4fab82b64c7b90487d7ab64f23d86851a2890f85e801",
@@ -1370,15 +1379,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "7b9ab754ad36bd40b6d12ff1177aa1c07ca9538f9fe25d3fedb463da32516972"
         }
       },
       "openrouter-deepseek-v4-flash-0731-together": {
         "route_identity_sha256": "5d64668835cfb8d410da1e6ec6cd1b8872426241b72c087c495de50896fd5234",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "96b2fa096577dc3111b7aa5d7dccf7ef3dda3e18a08d76f236e560b332e60feb",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "51984b66f1ab2354f9ed3a5bd86741d0066b9d13efdda09be25196038d103a03",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "5d64668835cfb8d410da1e6ec6cd1b8872426241b72c087c495de50896fd5234",
@@ -1387,15 +1396,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "536bf02078ceb769be43eded85b4b148f9d648e58a852b7f2e21e8246d72f0f4"
         }
       },
       "openrouter-qwen3.5-27b-siliconflow": {
         "route_identity_sha256": "555855117a20aa1c18f0a2bd00875d4bcaec0d98b8b6ac81a82e9c4d4d4d9ea7",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "117c7fda39121645e34dfadfce77c1d952c79cf904c00a2c395b75df1b8babb9",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "892a4fc2667fe491f07aa7c5cf91d14b1b838a02595340fddf4a3db745446412",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "555855117a20aa1c18f0a2bd00875d4bcaec0d98b8b6ac81a82e9c4d4d4d9ea7",
@@ -1404,32 +1413,32 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "b38dcfca3dffcda043c8aa0656a05c73e0082060e96d5b542feaba743134c8d2"
         }
       },
-      "openrouter-nemotron-3-super-120b-a12b-digitalocean": {
-        "route_identity_sha256": "80854144bfe71fc5916e9c18f132bcc9de0f3b0f05438e725d81100f281a4f41",
+      "openrouter-nemotron-3.5-lightning-coreweave": {
+        "route_identity_sha256": "ebb630ab41707bad0e285010ae0b2a1ba48aaf0095f5a65ac1e4f53f35a00343",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "87144626f2f4fa4635e835b87fca849fe26144730788ce779580c0b571510e38",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "db26fc4acb49884ec955099792ea1d37e4f8b4f8831fc3b22f6365d482015330",
         "privacy_acceptance": {
           "status": "accepted",
-          "route_identity_sha256": "80854144bfe71fc5916e9c18f132bcc9de0f3b0f05438e725d81100f281a4f41",
+          "route_identity_sha256": "ebb630ab41707bad0e285010ae0b2a1ba48aaf0095f5a65ac1e4f53f35a00343",
           "data_collection_policy_accepted": true,
           "retention_policy_accepted": true,
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
-          "evidence_sha256": "7b95e14c9da729abd2e3cb034dc43175856c25eabafd5c04d73f6ce89daf3603"
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
+          "evidence_sha256": "87cda090fd88ff22baec8920cc08282a8bbbfad07360851423f63ea5697ae54f"
         }
       },
       "openrouter-gpt-oss-20b-deepinfra": {
         "route_identity_sha256": "c03a9e9364038c4e3a21d33d07de61275348cca865190d3d83dfec4955a853d1",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:26:53+00:00",
-        "route_evidence_sha256": "72c60778acf022264a60d5b07f99cd78fc458759345131a3cb8a93f035751c28",
+        "verified_at_utc": "2026-09-01T21:10:17+00:00",
+        "route_evidence_sha256": "a207a0fd9ab77efe487241e9cad3efb6e37351644602c7ec269a682d9e805e41",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "c03a9e9364038c4e3a21d33d07de61275348cca865190d3d83dfec4955a853d1",
@@ -1438,7 +1447,7 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "accepted_at_utc": "2026-09-01T21:10:17+00:00",
           "evidence_sha256": "97b4343368885449105f70d1685645a37e00309a5971b66798ecd3ab31cbe818"
         }
       }
@@ -1463,13 +1472,13 @@
   "panel_execution_authorized": false,
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
-    "model_id": "openrouter-nemotron-3-super-120b-a12b-digitalocean",
-    "attempt_number": 2,
+    "model_id": "openrouter-nemotron-3.5-lightning-coreweave",
+    "attempt_number": 1,
     "remaining_attempts": 0,
-    "granted_at_utc": "2026-09-01T20:33:10Z",
-    "granted_because": "Owner-authorized 2026-09-01 re-run under the fixed one-paid-call rule; final infrastructure retry after attempt 1 hit DigitalOcean HTTP 429 (partially billed, reconciled), taken after an eighteen-minute cool-down.",
-    "consumed_at_utc": "2026-09-01T20:33:20Z",
-    "outcome": "excluded-at-infrastructure-attempt-limit: DigitalOcean HTTP 429 on both attempts; no other route for nvidia/nemotron-3-super-120b-a12b meets the frozen eligibility rule"
+    "granted_at_utc": "2026-09-01T20:45:00Z",
+    "granted_because": "Owner-authorized 2026-09-01 smoke under the fixed one-paid-call rule; fresh cell for the replacement identity nvidia/nemotron-3.5-lightning.",
+    "consumed_at_utc": "2026-09-01T20:58:00Z",
+    "outcome": "smoke-completed-but-ineligible-on-model-behavior: one unrecoverable draft decision (invalid actions) plus a repaired scout and an illegal trade; all four calls finished stop with no truncation; model behavior never authorizes a rerun"
   },
   "publication_authorized": false
 }

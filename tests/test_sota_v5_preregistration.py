@@ -92,7 +92,7 @@ def test_v5_registers_the_frozen_v6_panel() -> None:
         "z-ai/glm-5.3-flash",
         "deepseek/deepseek-v4-flash-0731",
         "qwen/qwen3.5-27b",
-        "nvidia/nemotron-3-super-120b-a12b",
+        "nvidia/nemotron-3.5-lightning",
         "openai/gpt-oss-20b",
     }
     assert models["x-ai/grok-4.6"]["tier"] == "frontier"
@@ -109,6 +109,7 @@ def test_v5_registers_the_frozen_v6_panel() -> None:
     # Four rows were revised after the smoke gate; the withdrawn identities must stay named, not deleted.
     assert "qwen/qwen3.5-397b-a17b" not in models
     assert "nvidia/nemotron-3-nano-30b-a3b" not in models
+    assert "nvidia/nemotron-3-super-120b-a12b" not in models
     assert registry["route_selection_rule"]["lane_infrastructure_exclusion"]
     assert "qwen/qwen3.8-max" not in models
     assert "upstage/solar-pro4" not in models
@@ -278,7 +279,7 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     assert len(acceptance["entries"]) == 16
     assert set(acceptance["entries"]) == set(registry["required_smokes"])
     superseded = acceptance["superseded_acceptance"]
-    assert [record["model_count"] for record in superseded] == [16, 16, 8]
+    assert [record["model_count"] for record in superseded] == [16, 16, 16, 8]
     assert all(record["status"] == "accepted" for record in superseded)
     assert superseded[0]["evidence_artifact"].endswith("-superseded.json")
     # Spend and smoke execution were authorized on the owner's explicit
@@ -299,7 +300,12 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     # until every row is re-recorded from a smoke run under the fixed rule.
     assert lane["paid_calls_per_decision"] == V6_PAID_CALLS_PER_DECISION == 1
     assert manifest["accepted_for_panel"] is False
-    assert manifest["entries"] == {}
+    # Fifteen rows are re-recorded under the one-call rule; the sixteenth slot
+    # is open after both Nvidia candidates failed the strict gate.
+    assert len(manifest["entries"]) == 15
+    assert set(manifest["entries"]) < set(registry["required_smokes"])
+    for entry in manifest["entries"].values():
+        assert entry["api_calls"] == 4
     invalidated = manifest["invalidated_entries_2026_09_01"]["entries"]
     assert len(invalidated) == 16
     # Fourteen of the invalidated artifacts bought extra query rounds; the
@@ -314,7 +320,7 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
         "provider execution is locked while panel_execution_authorized is false",
         "panel execution is locked by the model registry",
     ]
-    assert sum("has no smoke manifest entry" in issue for issue in panel_issues) == 16
+    assert sum("has no smoke manifest entry" in issue for issue in panel_issues) == 1
     for phase in ("route-preflight", "smoke"):
         assert (
             publication_execution_issues(

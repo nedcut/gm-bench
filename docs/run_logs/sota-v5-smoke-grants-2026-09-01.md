@@ -86,3 +86,5 @@ records exactly four calls, one per phase.
 
 A driver bug on the third pass tried to re-grant an already-accepted row; the
 grant gate refused before any call, consuming nothing.
+
+| openrouter-nemotron-3.5-lightning-coreweave | 1 | **ineligible — model behavior**. Replacement identity for the excluded nemotron-3-super slot (amendment addendum 20:45Z). Exactly four calls, all finished `stop`, no truncation; one unrecoverable draft decision ("every action must be an object"), one repaired scout, one illegal trade. Model behavior never authorizes a rerun; the slot is open again. |

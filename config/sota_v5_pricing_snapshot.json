@@ -3,10 +3,10 @@
   "contract": "sota-v5",
   "contract_fingerprint": "a600b7da0c302231",
   "status": "frozen",
-  "checked_at_utc": "2026-09-01T19:40:00Z",
+  "checked_at_utc": "2026-09-01T20:45:00Z",
   "amendment_revision": "2026-09-01-v6-route-and-cohort-amendment",
   "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
-  "source": "Free unauthenticated OpenRouter model and endpoint listings (https://openrouter.ai/api/v1/models and /api/v1/models/{id}/endpoints), read on 2026-08-31 for the sixteen registered v6 exact routes. No API key, Keychain entry, private seed, or completion endpoint was used. Supersedes the 2026-08-16 authenticated snapshot for the withdrawn eight-model cohort. Recheck every rate immediately before any spend decision. Four rows re-read on 2026-09-01 for the route-and-cohort amendment (z-ai/glm-5.3-flash on DeepInfra fp8 (moved from Fireworks 2026-09-01T19:40Z), minimax/minimax-m3 on ModelRun fp4, qwen/qwen3.8-flash on Alibaba, nvidia/nemotron-3-super-120b-a12b on DigitalOcean).",
+  "source": "Free unauthenticated OpenRouter model and endpoint listings (https://openrouter.ai/api/v1/models and /api/v1/models/{id}/endpoints), read on 2026-08-31 for the sixteen registered v6 exact routes. No API key, Keychain entry, private seed, or completion endpoint was used. Supersedes the 2026-08-16 authenticated snapshot for the withdrawn eight-model cohort. Recheck every rate immediately before any spend decision. Four rows re-read on 2026-09-01 for the route-and-cohort amendment (z-ai/glm-5.3-flash on DeepInfra fp8 (moved from Fireworks 2026-09-01T19:40Z), minimax/minimax-m3 on ModelRun fp4, qwen/qwen3.8-flash on Alibaba, nvidia/nemotron-3-super-120b-a12b on DigitalOcean). nvidia/nemotron-3.5-lightning on CoreWeave bf16 read on 2026-09-01 after nemotron-3-super was excluded.",
   "currency": "USD",
   "rates_are_per_token": true,
   "pricing_scope": "Conservative planning rates for the sixteen registered exact routes. These rates are catalog metadata, not route acceptance: no route is accepted and no paid smoke, panel, or publication execution is authorized.",
@@ -20,25 +20,24 @@
     "basis": "Frozen pre-data planning inputs for results/analysis/sota-v6-panel-cost-estimate.json. Input is the v6 hard observation ceiling (8,000) rather than the ~6,500 target, so the estimate stays conservative. Output is the full 4,096-token ceiling on every call, which is a per-call worst case, not an expectation. Internal reasoning tokens are planned at zero because the v6 ceiling includes reasoning: a mandatory-reasoning row spends part of the same 4,096 tokens on reasoning rather than adding tokens on top of it."
   },
   "runtime_observations": {
-    "source": "Mean provider API seconds per decision from each registered model's accepted strict smoke artifact listed in config/sota_v5_smoke_manifest.json (four decisions per smoke, serialized calls).",
-    "observed_at_utc": "2026-09-01T19:55:00Z",
+    "source": "Mean provider API seconds per decision from each registered model's accepted strict smoke artifact listed in config/sota_v5_smoke_manifest.json (four decisions per smoke, one paid call per decision, serialized calls; data/publication/sota-v5-smokes-v2).",
+    "observed_at_utc": "2026-09-01T20:50:00Z",
     "api_seconds_per_decision": {
-      "anthropic/claude-haiku-4.5": 6.134,
-      "deepseek/deepseek-v4-flash-0731": 9.376,
-      "google/gemini-3.1-flash-lite": 1.112,
-      "google/gemini-3.7-flash": 6.301,
-      "minimax/minimax-m3": 4.691,
-      "moonshotai/kimi-k2.5": 7.823,
-      "nvidia/nemotron-3-super-120b-a12b": 6.549,
-      "openai/gpt-5.4-mini": 1.96,
-      "openai/gpt-5.6-luna": 4.3,
-      "openai/gpt-oss-20b": 2.144,
-      "qwen/qwen3.5-27b": 17.504,
-      "qwen/qwen3.8-flash": 4.56,
-      "x-ai/grok-4.3": 1.817,
-      "x-ai/grok-4.6": 22.981,
-      "z-ai/glm-5": 5.478,
-      "z-ai/glm-5.3-flash": 17.438
+      "anthropic/claude-haiku-4.5": 5.369,
+      "deepseek/deepseek-v4-flash-0731": 1.738,
+      "google/gemini-3.1-flash-lite": 0.956,
+      "google/gemini-3.7-flash": 3.05,
+      "minimax/minimax-m3": 1.604,
+      "moonshotai/kimi-k2.5": 4.202,
+      "openai/gpt-5.4-mini": 1.803,
+      "openai/gpt-5.6-luna": 3.246,
+      "openai/gpt-oss-20b": 1.633,
+      "qwen/qwen3.5-27b": 6.381,
+      "qwen/qwen3.8-flash": 7.111,
+      "x-ai/grok-4.3": 1.214,
+      "x-ai/grok-4.6": 9.651,
+      "z-ai/glm-5": 3.229,
+      "z-ai/glm-5.3-flash": 17.558
     }
   },
   "models": {
@@ -131,17 +130,17 @@
       "prompt": 3e-08,
       "completion": 1.4e-07
     },
-    "nvidia/nemotron-3-super-120b-a12b": {
-      "provider_slug": "digitalocean",
-      "endpoint_name": "DigitalOcean | nvidia/nemotron-3-super-120b-a12b-20230311",
-      "prompt": 3e-07,
-      "completion": 6.5e-07
-    },
     "qwen/qwen3.8-flash": {
       "provider_slug": "alibaba",
       "endpoint_name": "Alibaba | qwen/qwen3.8-flash-20260826",
       "prompt": 1.5e-07,
       "completion": 4.7e-07
+    },
+    "nvidia/nemotron-3.5-lightning": {
+      "provider_slug": "coreweave/bf16",
+      "endpoint_name": "CoreWeave | nvidia/nemotron-3.5-lightning-20260807",
+      "prompt": 1e-07,
+      "completion": 2.5e-07
     }
   },
   "public_metadata_limitations": [
@@ -157,13 +156,13 @@
   "panel_execution_authorized": false,
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
-    "model_id": "openrouter-nemotron-3-super-120b-a12b-digitalocean",
-    "attempt_number": 2,
+    "model_id": "openrouter-nemotron-3.5-lightning-coreweave",
+    "attempt_number": 1,
     "remaining_attempts": 0,
-    "granted_at_utc": "2026-09-01T20:33:10Z",
-    "granted_because": "Owner-authorized 2026-09-01 re-run under the fixed one-paid-call rule; final infrastructure retry after attempt 1 hit DigitalOcean HTTP 429 (partially billed, reconciled), taken after an eighteen-minute cool-down.",
-    "consumed_at_utc": "2026-09-01T20:33:20Z",
-    "outcome": "excluded-at-infrastructure-attempt-limit: DigitalOcean HTTP 429 on both attempts; no other route for nvidia/nemotron-3-super-120b-a12b meets the frozen eligibility rule"
+    "granted_at_utc": "2026-09-01T20:45:00Z",
+    "granted_because": "Owner-authorized 2026-09-01 smoke under the fixed one-paid-call rule; fresh cell for the replacement identity nvidia/nemotron-3.5-lightning.",
+    "consumed_at_utc": "2026-09-01T20:58:00Z",
+    "outcome": "smoke-completed-but-ineligible-on-model-behavior: one unrecoverable draft decision (invalid actions) plus a repaired scout and an illegal trade; all four calls finished stop with no truncation; model behavior never authorizes a rerun"
   },
   "publication_authorized": false
 }

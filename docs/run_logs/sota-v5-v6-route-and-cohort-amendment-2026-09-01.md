@@ -118,3 +118,23 @@ input and the model identity is unchanged. The fp8 quantization is a
 measurement caveat like kimi-k2.5's int4 and minimax-m3's fp4. The Fireworks
 cell's unused final attempt is voided; its consumed attempt stays in the
 ledger.
+
+## Addendum 2026-09-01T20:45Z — nemotron-3-super replaced by nemotron-3.5-lightning
+
+After the PR #129 review, every smoke was re-run under the fixed
+one-paid-call rule. nvidia/nemotron-3-super-120b-a12b hit DigitalOcean HTTP
+429 on both attempts and is excluded at the frozen infrastructure limit.
+DigitalOcean was its only route meeting the eligibility rule (DeepInfra bf16
+advertises no `structured_outputs`), so the identity cannot be re-routed.
+
+The owner asked for tencent/hy3; under the full rule it has no eligible route
+(the Tencent first-party route lacks `structured_outputs`, the others lack
+`response_format`), and neither does xiaomi/mimo-v2.5. The owner then chose
+**nvidia/nemotron-3.5-lightning** on **CoreWeave bf16** ($0.10/$0.25 per M,
+100% uptime), the only route for that identity meeting the rule and the
+newest Nvidia release in the catalog (2026-08-11). It keeps the slot in the
+same family as the frozen spec's nemotron-3-nano. Reasoning is optional and
+is pinned off.
+
+Inputs, as before: owner direction, the route-failure ledger, and public
+catalog metadata. No score or model output from any smoke was used.

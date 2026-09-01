@@ -130,13 +130,13 @@
   "panel_execution_authorized": false,
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
-    "model_id": "openrouter-nemotron-3-super-120b-a12b-digitalocean",
-    "attempt_number": 2,
+    "model_id": "openrouter-nemotron-3.5-lightning-coreweave",
+    "attempt_number": 1,
     "remaining_attempts": 0,
-    "granted_at_utc": "2026-09-01T20:33:10Z",
-    "granted_because": "Owner-authorized 2026-09-01 re-run under the fixed one-paid-call rule; final infrastructure retry after attempt 1 hit DigitalOcean HTTP 429 (partially billed, reconciled), taken after an eighteen-minute cool-down.",
-    "consumed_at_utc": "2026-09-01T20:33:20Z",
-    "outcome": "excluded-at-infrastructure-attempt-limit: DigitalOcean HTTP 429 on both attempts; no other route for nvidia/nemotron-3-super-120b-a12b meets the frozen eligibility rule"
+    "granted_at_utc": "2026-09-01T20:45:00Z",
+    "granted_because": "Owner-authorized 2026-09-01 smoke under the fixed one-paid-call rule; fresh cell for the replacement identity nvidia/nemotron-3.5-lightning.",
+    "consumed_at_utc": "2026-09-01T20:58:00Z",
+    "outcome": "smoke-completed-but-ineligible-on-model-behavior: one unrecoverable draft decision (invalid actions) plus a repaired scout and an illegal trade; all four calls finished stop with no truncation; model behavior never authorizes a rerun"
   },
   "publication_authorized": false,
   "blockers": [
@@ -152,7 +152,7 @@
   "final_preflight_evidence": {
     "status": "accepted",
     "artifact": "results/analysis/sota-v5-final-preflight-evidence.json",
-    "sha256": "8c3d56ebf0925c8d3d220920038ac9967092b919af7ff78cb42f391bd513649e",
+    "sha256": "5eb4050fff4120c2eac64338529ae4520433174ef3f11a9461ed0f3cd69fa1cb",
     "contract_fingerprint": "a600b7da0c302231",
     "completion_calls": 0,
     "operator_ceiling_usd": 100.0
