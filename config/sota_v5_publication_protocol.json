@@ -88,14 +88,14 @@
     "expected_base_spend_usd": 75.0,
     "spend_authorized": true,
     "spend_enforcement": "dynamic-pre-provider-call",
-    "operator_ceiling_basis": "The $100 hard ceiling is the v6 spec's. It is enforced by the runner's dynamic pre-call spend guard, not by the planning maximum: the cap-priced protocol maximum -- every one of the 9,280 panel calls returning the full 4,096-token ceiling -- is $116.12 for the panel, $116.92 with the smoke gate, and $140.31 with the 1.2x contingency. That deliberately exceeds the ceiling. Input alone is $39.07 and each 1,000 completion tokens across the panel costs $18.81, so at the roughly 1,000-token replies the reasoning-disabled v2/v3 smoke record shows the panel plans at about $58, and doubling every completion still lands near $77. Both stay under $100. A run that approaches the ceiling stops for an explicit owner decision rather than silently spending more, and the ascending-cost run order means the cheapest rows finish before the ceiling is anywhere near in play. Figures regenerated 2026-09-01 for the route-and-cohort amendment.",
+    "operator_ceiling_basis": "The $100 hard ceiling is the v6 spec's. It is enforced by the runner's dynamic pre-call spend guard, not by the planning maximum: the cap-priced protocol maximum -- every one of the 9,280 panel calls returning the full 4,096-token ceiling -- is $115.18 for the panel, $115.98 with the smoke gate, and $139.17 with the 1.2x contingency. That deliberately exceeds the ceiling. Input alone is $38.72 and each 1,000 completion tokens across the panel costs $18.67, so at the roughly 1,000-token replies the reasoning-disabled v2/v3 smoke record shows the panel plans at about $57, and doubling every completion still lands near $76. Both stay under $100. A run that approaches the ceiling stops for an explicit owner decision rather than silently spending more, and the ascending-cost run order means the cheapest rows finish before the ceiling is anywhere near in play. Figures regenerated 2026-09-01 for the route-and-cohort amendment and its addendum.",
     "cost_components_usd": {
-      "input_only_at_8000_tokens": 39.07,
-      "per_1000_completion_tokens_across_the_panel": 18.81,
-      "cap_priced_panel": 116.124,
-      "cap_priced_smoke_gate": 0.800855,
-      "cap_priced_total": 116.9248,
-      "cap_priced_total_with_contingency": 140.3098
+      "input_only_at_8000_tokens": 38.72,
+      "per_1000_completion_tokens_across_the_panel": 18.67,
+      "cap_priced_panel": 115.1821,
+      "cap_priced_smoke_gate": 0.794359,
+      "cap_priced_total": 115.9764,
+      "cap_priced_total_with_contingency": 139.1717
     },
     "run_order": "ascending planning cost; see config/sota_v5_models.json ascending_cost_run_order",
     "panel_spend_requires_separate_authorization": true
@@ -106,11 +106,11 @@
   "panel_execution_authorized": false,
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
-    "model_id": "openrouter-glm-5.3-flash-fireworks",
-    "attempt_number": 2,
+    "model_id": "openrouter-glm-5.3-flash-deepinfra",
+    "attempt_number": 1,
     "remaining_attempts": 1,
-    "granted_at_utc": "2026-09-01T19:16:45Z",
-    "granted_because": "Owner-authorized 2026-09-01 smoke sequence (route-and-cohort amendment rows); final infrastructure retry after attempt 1 hit Fireworks HTTP 429 rate limiting on two consecutive calls, taken after a deliberate cool-down; the unknown spend was reconciled."
+    "granted_at_utc": "2026-09-01T19:40:00Z",
+    "granted_because": "Owner-authorized 2026-09-01 smoke sequence; fresh cell after the owner moved z-ai/glm-5.3-flash from Fireworks to DeepInfra fp8. The staged Fireworks final-retry grant is voided unconsumed."
   },
   "publication_authorized": false,
   "selection_and_lineage": {
@@ -132,10 +132,11 @@
         "openrouter-glm-5.3-flash-cloudflare",
         "openrouter-minimax-m3-parasail",
         "openrouter-qwen3.5-397b-a17b-parasail",
-        "openrouter-nemotron-3-nano-30b-a3b-crusoe"
+        "openrouter-nemotron-3-nano-30b-a3b-crusoe",
+        "openrouter-glm-5.3-flash-fireworks"
       ],
       "registered_model_ids": [
-        "openrouter-glm-5.3-flash-fireworks",
+        "openrouter-glm-5.3-flash-deepinfra",
         "openrouter-minimax-m3-modelrun",
         "openrouter-qwen3.8-flash-alibaba",
         "openrouter-nemotron-3-super-120b-a12b-digitalocean"

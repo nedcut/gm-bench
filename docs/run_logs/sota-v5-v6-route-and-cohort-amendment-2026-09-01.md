@@ -95,3 +95,20 @@ authorization remain false.
 Regenerate exact-route acceptance evidence for all sixteen rows (free,
 authenticated, zero completion calls), regenerate the panel cost estimate and
 ascending run order, then grant and run strict smokes for the four new rows.
+
+## Addendum 2026-09-01T19:40Z — glm-5.3-flash moves to DeepInfra fp8
+
+Fireworks consumed one attempt on HTTP 429 (two consecutive calls). The owner
+asked about the Z.AI first-party route at its 50% discount; it fails the
+frozen rule twice (no `structured_outputs`; 24-hour uptime 98.1% against the
+99.0% floor) and was rejected. The owner then chose **DeepInfra fp8** — the
+same discounted rate ($0.075/$0.25 per M), every required parameter, uptime
+99.1/99.4 — rather than spend the final Fireworks attempt.
+
+This is an owner-directed deviation from the frozen ordering, which prefers
+the unquantized Fireworks route, and is recorded as such in
+`route_selection_rule.owner_directed_deviations`. Price is not an outcome
+input and the model identity is unchanged. The fp8 quantization is a
+measurement caveat like kimi-k2.5's int4 and minimax-m3's fp4. The Fireworks
+cell's unused final attempt is voided; its consumed attempt stays in the
+ledger.

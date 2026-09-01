@@ -10,7 +10,7 @@
   "preset": "leaderboard",
   "repeats": 1,
   "selection_status": "frozen",
-  "selection_frozen_at_utc": "2026-09-01T19:06:54+00:00",
+  "selection_frozen_at_utc": "2026-09-01T19:26:53+00:00",
   "selection_revision": "2026-09-01-v6-route-and-cohort-amendment",
   "amendment": {
     "revision": "2026-09-01-v6-route-and-cohort-amendment",
@@ -25,7 +25,8 @@
       "qwen/qwen3.5-397b-a17b (one Parasail attempt consumed by HTTP 429, preflight then refused on missing uptime telemetry) is withdrawn and replaced by qwen/qwen3.8-flash on Alibaba, the vendor's current flash release.",
       "nvidia/nemotron-3-nano-30b-a3b (excluded by the frozen smoke gate on its own behavior: one malformed decision) is withdrawn and replaced by nvidia/nemotron-3-super-120b-a12b on DigitalOcean.",
       "The route rule gains one exclusion: a route that reached the lane's infrastructure attempt limit is ineligible for re-registration. Without it the frozen rule mechanically re-selects Cloudflare and Parasail.",
-      "The free ':free' variants (including nvidia/nemotron-3-ultra-550b-a55b:free) were considered and rejected: their terms log prompts for provider improvement, which the lane's data-collection=deny pin and the private seed panel forbid; the Nvidia free endpoints also advertise no response_format and run at about 4 tokens per second."
+      "The free ':free' variants (including nvidia/nemotron-3-ultra-550b-a55b:free) were considered and rejected: their terms log prompts for provider improvement, which the lane's data-collection=deny pin and the private seed panel forbid; the Nvidia free endpoints also advertise no response_format and run at about 4 tokens per second.",
+      "Addendum 2026-09-01T19:40Z: z-ai/glm-5.3-flash moves again, from Fireworks (one attempt consumed on HTTP 429) to DeepInfra fp8 by owner direction. The frozen ordering prefers the unquantized Fireworks route; the owner chose the fp8 route at half the price rather than spend the final Fireworks attempt. Fireworks' unused final attempt is voided. Z.AI first-party was requested and rejected: no structured_outputs and 24-hour uptime below the 99% floor."
     ],
     "identity_revision_inputs": [
       "Owner direction on 2026-09-01.",
@@ -71,7 +72,7 @@
     }
   },
   "catalog_snapshot_status": "public-metadata-candidates-unaccepted",
-  "catalog_checked_at_utc": "2026-09-01T17:30:00Z",
+  "catalog_checked_at_utc": "2026-09-01T19:40:00Z",
   "catalog_sources": [
     "https://openrouter.ai/api/v1/models",
     "https://openrouter.ai/api/v1/models/{model_id}/endpoints",
@@ -96,7 +97,16 @@
       "latency",
       "throughput"
     ],
-    "lane_infrastructure_exclusion": "Added 2026-09-01. A route that reached the lane's frozen two-attempt infrastructure limit, as recorded in the run-directory reservation ledger, is ineligible for re-registration under any model identity; the ordering then re-applies to the remaining eligible routes. Cloudflare (z-ai/glm-5.3-flash) and Parasail (minimax/minimax-m3, qwen/qwen3.5-397b-a17b) are excluded on this basis; both would otherwise be the mechanical winners."
+    "lane_infrastructure_exclusion": "Added 2026-09-01. A route that reached the lane's frozen two-attempt infrastructure limit, as recorded in the run-directory reservation ledger, is ineligible for re-registration under any model identity; the ordering then re-applies to the remaining eligible routes. Cloudflare (z-ai/glm-5.3-flash) and Parasail (minimax/minimax-m3, qwen/qwen3.5-397b-a17b) are excluded on this basis; both would otherwise be the mechanical winners.",
+    "owner_directed_deviations": [
+      {
+        "model": "z-ai/glm-5.3-flash",
+        "route": "deepinfra/fp8",
+        "at_utc": "2026-09-01T19:40:00Z",
+        "deviation": "fp8 chosen over an eligible unquantized route (Fireworks) before that route reached the attempt limit.",
+        "basis": "Owner direction after Fireworks HTTP 429; price is not an outcome input and the model identity is unchanged."
+      }
+    ]
   },
   "reasoning_policy_rule": {
     "status": "frozen-2026-08-31",
@@ -105,7 +115,7 @@
     "mandatory_reasoning_models": [
       "openrouter-grok-4.6-xai",
       "openrouter-gemini-3.7-flash-google-ai-studio",
-      "openrouter-glm-5.3-flash-fireworks",
+      "openrouter-glm-5.3-flash-deepinfra",
       "openrouter-gpt-oss-20b-deepinfra"
     ],
     "metadata_source": "https://openrouter.ai/api/v1/models reasoning block, read unauthenticated on 2026-08-31; the four rows amended on 2026-09-01 re-read unauthenticated on 2026-09-01",
@@ -702,42 +712,42 @@
       }
     },
     {
-      "id": "openrouter-glm-5.3-flash-fireworks",
+      "id": "openrouter-glm-5.3-flash-deepinfra",
       "provider": "openrouter",
       "model": "z-ai/glm-5.3-flash",
       "canonical_slug": "z-ai/glm-5.3-flash-20260826",
       "transport": "gateway-api",
       "tier": "flash",
-      "upstream_provider": "Fireworks",
-      "upstream_provider_slug": "fireworks",
-      "endpoint_tag": "fireworks",
-      "endpoint_name": "Fireworks | z-ai/glm-5.3-flash-20260826",
+      "upstream_provider": "DeepInfra",
+      "upstream_provider_slug": "deepinfra/fp8",
+      "endpoint_tag": "deepinfra/fp8",
+      "endpoint_name": "DeepInfra | z-ai/glm-5.3-flash-20260826",
       "catalog_route_status": 0,
-      "catalog_quantization": "unknown",
-      "catalog_max_completion_tokens": 943718,
-      "catalog_uptime_last_1d": 99.23180019742703,
-      "catalog_uptime_last_30m": 99.33593874114321,
+      "catalog_quantization": "fp8",
+      "catalog_max_completion_tokens": 131072,
+      "catalog_uptime_last_1d": 99.0728091956799,
+      "catalog_uptime_last_30m": 99.35461851127866,
       "catalog_supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
         "logit_bias",
-        "logprobs",
         "max_tokens",
+        "min_p",
         "presence_penalty",
         "reasoning",
         "reasoning_effort",
         "repetition_penalty",
         "response_format",
+        "seed",
         "stop",
         "structured_outputs",
         "temperature",
         "tool_choice",
         "tools",
         "top_k",
-        "top_logprobs",
         "top_p"
       ],
-      "catalog_discount": 0,
+      "catalog_discount": 0.5,
       "catalog_reasoning": {
         "mandatory": true,
         "default_enabled": true,
@@ -759,7 +769,8 @@
       "output_ceiling_headroom": {
         "status": "verify-at-smoke-time",
         "reason": "The 4,096-token ceiling includes reasoning tokens, and public metadata publishes no reasoning-token distribution at minimum effort. Only an accepted strict smoke can show whether a full action list still fits under the ceiling once minimum-effort reasoning is billed inside it."
-      }
+      },
+      "route_note": "Owner-directed 2026-09-01: chosen over the unquantized Fireworks route after Fireworks consumed one attempt on HTTP 429; fp8 quantization is recorded as a measurement caveat. Same 50%-discounted rate as the ineligible Z.AI first-party route (which advertises no structured_outputs and sits under the 99% uptime floor)."
     },
     {
       "id": "openrouter-deepseek-v4-flash-0731-together",
@@ -1012,14 +1023,14 @@
     "openrouter-minimax-m3-modelrun",
     "openrouter-gemini-3.1-flash-lite-google-ai-studio",
     "openrouter-gpt-5.6-luna-openai",
-    "openrouter-glm-5.3-flash-fireworks",
+    "openrouter-glm-5.3-flash-deepinfra",
     "openrouter-deepseek-v4-flash-0731-together",
     "openrouter-qwen3.5-27b-siliconflow",
     "openrouter-nemotron-3-super-120b-a12b-digitalocean",
     "openrouter-gpt-oss-20b-deepinfra"
   ],
   "ascending_cost_run_order": {
-    "status": "frozen-2026-08-31; regenerated 2026-09-01 for the route-and-cohort amendment",
+    "status": "frozen-2026-08-31; regenerated 2026-09-01 for the route-and-cohort amendment and its addendum",
     "basis": "Ascending planning panel cost from results/analysis/sota-v6-panel-cost-estimate.json (29 seeds x 5 seasons x 4 phases = 580 paid calls per model at 8,000 input and 4,096 output tokens). Running the cheap rows first means a route, render, or repair problem surfaces on the cheapest cells, and the two most expensive rows (x-ai/grok-4.6 at $23.53 and anthropic/claude-haiku-4.5 at $16.52) are the last money committed.",
     "order": [
       {
@@ -1027,6 +1038,12 @@
         "model": "openai/gpt-oss-20b",
         "planning_panel_cost_usd": 0.4718,
         "planning_smoke_cost_usd": 0.003254
+      },
+      {
+        "experiment_id": "openrouter-glm-5.3-flash-deepinfra",
+        "model": "z-ai/glm-5.3-flash",
+        "planning_panel_cost_usd": 0.9419,
+        "planning_smoke_cost_usd": 0.006496
       },
       {
         "experiment_id": "openrouter-deepseek-v4-flash-0731-together",
@@ -1039,12 +1056,6 @@
         "model": "qwen/qwen3.8-flash",
         "planning_panel_cost_usd": 1.8126,
         "planning_smoke_cost_usd": 0.0125
-      },
-      {
-        "experiment_id": "openrouter-glm-5.3-flash-fireworks",
-        "model": "z-ai/glm-5.3-flash",
-        "planning_panel_cost_usd": 1.8838,
-        "planning_smoke_cost_usd": 0.012992
       },
       {
         "experiment_id": "openrouter-gpt-5.6-luna-openai",
@@ -1119,14 +1130,21 @@
         "planning_smoke_cost_usd": 0.162304
       }
     ],
-    "planning_panel_total_usd": 116.124
+    "planning_panel_total_usd": 115.1821
   },
   "exact_route_acceptance": {
     "schema_version": 2,
     "status": "accepted",
-    "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+    "accepted_at_utc": "2026-09-01T19:26:53+00:00",
     "evidence_artifact": "results/route_evidence/sota-v5-route-acceptance-evidence.json",
     "superseded_acceptance": [
+      {
+        "status": "accepted",
+        "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+        "evidence_artifact": "results/route_evidence/sota-v5-route-acceptance-evidence-2026-09-01T190621-superseded.json",
+        "model_count": 16,
+        "retired_because": "It accepted the sixteen routes registered by the 2026-09-01 route-and-cohort amendment with z-ai/glm-5.3-flash on Fireworks. The owner moved that row to DeepInfra fp8 the same day (amendment addendum), so the acceptance was regenerated. The evidence artifact is kept unedited under the dated name."
+      },
       {
         "status": "accepted",
         "accepted_at_utc": "2026-09-01T02:30:50+00:00",
@@ -1154,8 +1172,8 @@
       "openrouter-grok-4.6-xai": {
         "route_identity_sha256": "76d2e94593368e73c46780d18e2d042513dee7e2df8ebdd6d38d38fcc3645d25",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "a6d5bfc9290e5855aef7ede6b5f13587b18090542891601e33126efd84848ef5",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "0f20abada72fefdc921f65523f544457977b693f97bb607adde5b6971d13fab8",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "76d2e94593368e73c46780d18e2d042513dee7e2df8ebdd6d38d38fcc3645d25",
@@ -1164,15 +1182,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "f4f6c2d971ec0127cc7f5e7c7d15675cacc9da3af04c494f28c6e78be0cef9f8"
         }
       },
       "openrouter-claude-haiku-4.5-anthropic": {
         "route_identity_sha256": "936fb06a7805c9f27dfa43d0e27c7edd59627061bbc5704a85c6dc23d0b916e1",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "d8b70c9274f5bce37df0a85b07e6f33c4567f4d69eb971a0c77b5b0e110f66e5",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "1ca5365763f79164f063d17af9634e701ce4db1df4ca7168abf5d4ce5b8d4f8d",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "936fb06a7805c9f27dfa43d0e27c7edd59627061bbc5704a85c6dc23d0b916e1",
@@ -1181,15 +1199,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "c577f4b9a3585977126cdb9c43f442710438b8b80e6a562bbb2cbb59a4a076eb"
         }
       },
       "openrouter-gemini-3.7-flash-google-ai-studio": {
         "route_identity_sha256": "2c4b136926508c87781f7740dcf2adeeeb8beec49bb608ed98add7df2f7ad8a1",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "01ebbb507fd836c32250563117c946b84c81668699b6b880b747eda90d78240f",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "1ccacd460499bed108bf98ff3d5cf623255875dae2db6bfc4f9017dbf0b905c8",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "2c4b136926508c87781f7740dcf2adeeeb8beec49bb608ed98add7df2f7ad8a1",
@@ -1198,15 +1216,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "8ac2419139f466eecb160b7205445b969f2c42f54ab3eac37c879a3f46e2053f"
         }
       },
       "openrouter-grok-4.3-xai": {
         "route_identity_sha256": "37c7efd399d7bb3b07ac895e4a49bc8da13f2fe9ed19e58cab8341201e30a561",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "fbb1ec6445eab6d5f188df4a8c29efbe3d8fe2a806eb48e46b2a71657ac39a7e",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "a362514534503735d40ddbb7a71de1f0c43c795348879eb4c370f73cd9fd6d25",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "37c7efd399d7bb3b07ac895e4a49bc8da13f2fe9ed19e58cab8341201e30a561",
@@ -1215,15 +1233,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "65a3e3e28aa2f72d23b09ce4bada1f5bf3cbf4f983262e6a8c9be06375ddf3e5"
         }
       },
       "openrouter-gpt-5.4-mini-openai": {
         "route_identity_sha256": "920b8de714b4e4fefe11b1fd537db7d1d63e9a2a34f1b73dfc79ca4cbfa80367",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "7ce42f54a895e4b5f9e37a1e561235c1bc80ad28ffc39a5fc74b49bf436e260a",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "639d39e5d5badb40bf6bdd8bb90d12ca65a4816e7d712e52c7c3530646a4fb95",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "920b8de714b4e4fefe11b1fd537db7d1d63e9a2a34f1b73dfc79ca4cbfa80367",
@@ -1232,15 +1250,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "85c941c82a7406c73337645033a0dd21471121458069dab2b0b3eff194d1f3c3"
         }
       },
       "openrouter-glm-5-streamlake": {
         "route_identity_sha256": "9842cf28122782ef6ba1962fbf6766ade62d5e61e3f4d4677423abb2878f9fba",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "316d2b2e3fdeeb11cb884ee366d04438a97bf1a780d1dc87273f42bcbb6e9db0",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "135fc8ace83645bff18dd0f71d52615ae395e050a7d4e501b92acbbddd38abbd",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "9842cf28122782ef6ba1962fbf6766ade62d5e61e3f4d4677423abb2878f9fba",
@@ -1249,15 +1267,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "fd6d02430e6e2dcd20f16359b2877019439f5853ab7a828dbbfbd5a703e977ff"
         }
       },
       "openrouter-kimi-k2.5-siliconflow": {
         "route_identity_sha256": "cc4b5b08e5e0587be98a8ca0805ba4e30a86b4f74f65413ba598ac869d15ee45",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "a4f36b92e8170651ace23d199ae446c0266896880d86ff23b45031c0dc40d5c3",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "d70fb6d896288bfdeaf322e750c7cae9aa01e65e60a1f4175af214dea755b321",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "cc4b5b08e5e0587be98a8ca0805ba4e30a86b4f74f65413ba598ac869d15ee45",
@@ -1266,15 +1284,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "165eaab282df92276952983d76d7163491df5888f2fb02b806c240ed4ae7f90c"
         }
       },
       "openrouter-qwen3.8-flash-alibaba": {
         "route_identity_sha256": "e979078692db7d1740d17403618d77cf5697a760d1e7778f35bd3adc10674693",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "a7c22d7a116dc3e650dae10465dbf89ad39372ce6a1a692eaee82f6ac4b8d5ac",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "368c8fc55d3705d073050536446a2a36e75d22099924a1a8ec80b9fc5b776cf1",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "e979078692db7d1740d17403618d77cf5697a760d1e7778f35bd3adc10674693",
@@ -1283,15 +1301,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "73d130cc9f46b8ac897cdde28044616f45980dcbb7add9710e202e6017335c4d"
         }
       },
       "openrouter-minimax-m3-modelrun": {
         "route_identity_sha256": "774ff02ba706345e17f9f9caa500be871d4bbd078ac8b6c8d24516ce1309ce23",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "a9e0987db9be4fde72a2124866d1c55cb47f15494797ceb64a06d363af121141",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "b0c3a3a58d7e0d7af90fae20496dec9e31d7da0b16d173624db3963d7df0a7fd",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "774ff02ba706345e17f9f9caa500be871d4bbd078ac8b6c8d24516ce1309ce23",
@@ -1300,15 +1318,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "9a79a5b18c0017dc9d1de3c06cac682a80cfea5e9dc86bc0b542f310d4bfa1bf"
         }
       },
       "openrouter-gemini-3.1-flash-lite-google-ai-studio": {
         "route_identity_sha256": "d50a0bdea01239bfa0fcb2e97a0f90177f505716e5366016fc3957018b876a82",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "7d131ff1590a1cf3795fa7b61a982e26c7e9d4e14eb3f11e7c87c114e750738c",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "f59386dc5ffa3225a15039b17c4ffae1922eb204bc718b9dc19964bf0a035859",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "d50a0bdea01239bfa0fcb2e97a0f90177f505716e5366016fc3957018b876a82",
@@ -1317,15 +1335,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "9dc10589943ed128356cd96b50ddfe58faf0ada1dec69accac68de50373ded70"
         }
       },
       "openrouter-gpt-5.6-luna-openai": {
         "route_identity_sha256": "b11026437b1d4b22f0e327b84ee452d7be2f14de714af243b1729ef057489127",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "a1bd2fdb6d69359c5bf97dd21c4fa361cb637da1d51e06cde5d2828ce49eedc9",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "f4a281fe8f98c86c62e6f4731a4f04a104ef56ff2dc5a89cd9948421395b9e48",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "b11026437b1d4b22f0e327b84ee452d7be2f14de714af243b1729ef057489127",
@@ -1334,32 +1352,32 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": false,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "03017eb20fba1c90f462da54b61cff04ee00f935107fdf1b3649113628d602be"
         }
       },
-      "openrouter-glm-5.3-flash-fireworks": {
-        "route_identity_sha256": "dc4019af46c86306407b406bbbf52c82e45be33c377dae6e778240e6874ec8ca",
+      "openrouter-glm-5.3-flash-deepinfra": {
+        "route_identity_sha256": "e85bca85036c9b75f27a4fab82b64c7b90487d7ab64f23d86851a2890f85e801",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "de3dfb2340fb271b229653cee1ea7808cef6fdb72ffda2adbbee33265cbe0e62",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "90a5463daf63e9f12f8af8ace4d8666e249ecffa4587d5ba2b47c5c82f48c3e3",
         "privacy_acceptance": {
           "status": "accepted",
-          "route_identity_sha256": "dc4019af46c86306407b406bbbf52c82e45be33c377dae6e778240e6874ec8ca",
+          "route_identity_sha256": "e85bca85036c9b75f27a4fab82b64c7b90487d7ab64f23d86851a2890f85e801",
           "data_collection_policy_accepted": true,
           "retention_policy_accepted": true,
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
-          "evidence_sha256": "4a6c9c2237d69b60d10db74e5b45a9f9e2445a5d1ee70ee4e378ac55456d583c"
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
+          "evidence_sha256": "7b9ab754ad36bd40b6d12ff1177aa1c07ca9538f9fe25d3fedb463da32516972"
         }
       },
       "openrouter-deepseek-v4-flash-0731-together": {
         "route_identity_sha256": "5d64668835cfb8d410da1e6ec6cd1b8872426241b72c087c495de50896fd5234",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "da17a0abb18a0bf03df6484699d7fb19e855886e9437175bf2a5a50a6fcaeaa0",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "96b2fa096577dc3111b7aa5d7dccf7ef3dda3e18a08d76f236e560b332e60feb",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "5d64668835cfb8d410da1e6ec6cd1b8872426241b72c087c495de50896fd5234",
@@ -1368,15 +1386,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "536bf02078ceb769be43eded85b4b148f9d648e58a852b7f2e21e8246d72f0f4"
         }
       },
       "openrouter-qwen3.5-27b-siliconflow": {
         "route_identity_sha256": "555855117a20aa1c18f0a2bd00875d4bcaec0d98b8b6ac81a82e9c4d4d4d9ea7",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "16f4cce5dc0e405fda18a013a1c4ce3113b4d7fc18eac6bcb727db0b00d2e854",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "117c7fda39121645e34dfadfce77c1d952c79cf904c00a2c395b75df1b8babb9",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "555855117a20aa1c18f0a2bd00875d4bcaec0d98b8b6ac81a82e9c4d4d4d9ea7",
@@ -1385,15 +1403,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "b38dcfca3dffcda043c8aa0656a05c73e0082060e96d5b542feaba743134c8d2"
         }
       },
       "openrouter-nemotron-3-super-120b-a12b-digitalocean": {
         "route_identity_sha256": "80854144bfe71fc5916e9c18f132bcc9de0f3b0f05438e725d81100f281a4f41",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "36501da44559fdfa17a98d624c3ea57c84f0d71836ca69d0fdd5ec39e2500cda",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "87144626f2f4fa4635e835b87fca849fe26144730788ce779580c0b571510e38",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "80854144bfe71fc5916e9c18f132bcc9de0f3b0f05438e725d81100f281a4f41",
@@ -1402,15 +1420,15 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "7b95e14c9da729abd2e3cb034dc43175856c25eabafd5c04d73f6ce89daf3603"
         }
       },
       "openrouter-gpt-oss-20b-deepinfra": {
         "route_identity_sha256": "c03a9e9364038c4e3a21d33d07de61275348cca865190d3d83dfec4955a853d1",
         "authenticated": true,
-        "verified_at_utc": "2026-09-01T19:06:54+00:00",
-        "route_evidence_sha256": "bfbc7347c6b407de6a37f267f65e17122cbe6521762a3763db6ec3b4d7a43708",
+        "verified_at_utc": "2026-09-01T19:26:53+00:00",
+        "route_evidence_sha256": "72c60778acf022264a60d5b07f99cd78fc458759345131a3cb8a93f035751c28",
         "privacy_acceptance": {
           "status": "accepted",
           "route_identity_sha256": "c03a9e9364038c4e3a21d33d07de61275348cca865190d3d83dfec4955a853d1",
@@ -1419,7 +1437,7 @@
           "training_use_policy_accepted": true,
           "zero_data_retention_endpoint": true,
           "zero_data_retention_requirement_satisfied": true,
-          "accepted_at_utc": "2026-09-01T19:06:54+00:00",
+          "accepted_at_utc": "2026-09-01T19:26:53+00:00",
           "evidence_sha256": "97b4343368885449105f70d1685645a37e00309a5971b66798ecd3ab31cbe818"
         }
       }
@@ -1444,11 +1462,11 @@
   "panel_execution_authorized": false,
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
-    "model_id": "openrouter-glm-5.3-flash-fireworks",
-    "attempt_number": 2,
+    "model_id": "openrouter-glm-5.3-flash-deepinfra",
+    "attempt_number": 1,
     "remaining_attempts": 1,
-    "granted_at_utc": "2026-09-01T19:16:45Z",
-    "granted_because": "Owner-authorized 2026-09-01 smoke sequence (route-and-cohort amendment rows); final infrastructure retry after attempt 1 hit Fireworks HTTP 429 rate limiting on two consecutive calls, taken after a deliberate cool-down; the unknown spend was reconciled."
+    "granted_at_utc": "2026-09-01T19:40:00Z",
+    "granted_because": "Owner-authorized 2026-09-01 smoke sequence; fresh cell after the owner moved z-ai/glm-5.3-flash from Fireworks to DeepInfra fp8. The staged Fireworks final-retry grant is voided unconsumed."
   },
   "publication_authorized": false
 }

@@ -3,10 +3,10 @@
   "contract": "sota-v5",
   "contract_fingerprint": "a600b7da0c302231",
   "status": "frozen",
-  "checked_at_utc": "2026-09-01T17:30:00Z",
+  "checked_at_utc": "2026-09-01T19:40:00Z",
   "amendment_revision": "2026-09-01-v6-route-and-cohort-amendment",
   "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
-  "source": "Free unauthenticated OpenRouter model and endpoint listings (https://openrouter.ai/api/v1/models and /api/v1/models/{id}/endpoints), read on 2026-08-31 for the sixteen registered v6 exact routes. No API key, Keychain entry, private seed, or completion endpoint was used. Supersedes the 2026-08-16 authenticated snapshot for the withdrawn eight-model cohort. Recheck every rate immediately before any spend decision. Four rows re-read on 2026-09-01 for the route-and-cohort amendment (z-ai/glm-5.3-flash on Fireworks, minimax/minimax-m3 on ModelRun fp4, qwen/qwen3.8-flash on Alibaba, nvidia/nemotron-3-super-120b-a12b on DigitalOcean).",
+  "source": "Free unauthenticated OpenRouter model and endpoint listings (https://openrouter.ai/api/v1/models and /api/v1/models/{id}/endpoints), read on 2026-08-31 for the sixteen registered v6 exact routes. No API key, Keychain entry, private seed, or completion endpoint was used. Supersedes the 2026-08-16 authenticated snapshot for the withdrawn eight-model cohort. Recheck every rate immediately before any spend decision. Four rows re-read on 2026-09-01 for the route-and-cohort amendment (z-ai/glm-5.3-flash on DeepInfra fp8 (moved from Fireworks 2026-09-01T19:40Z), minimax/minimax-m3 on ModelRun fp4, qwen/qwen3.8-flash on Alibaba, nvidia/nemotron-3-super-120b-a12b on DigitalOcean).",
   "currency": "USD",
   "rates_are_per_token": true,
   "pricing_scope": "Conservative planning rates for the sixteen registered exact routes. These rates are catalog metadata, not route acceptance: no route is accepted and no paid smoke, panel, or publication execution is authorized.",
@@ -90,10 +90,11 @@
       "completion": 6e-07
     },
     "z-ai/glm-5.3-flash": {
-      "provider_slug": "fireworks",
-      "endpoint_name": "Fireworks | z-ai/glm-5.3-flash-20260826",
-      "prompt": 1.5e-07,
-      "completion": 5e-07
+      "provider_slug": "deepinfra/fp8",
+      "endpoint_name": "DeepInfra | z-ai/glm-5.3-flash-20260826",
+      "prompt": 7.5e-08,
+      "completion": 2.5e-07,
+      "catalog_discount": 0.5
     },
     "deepseek/deepseek-v4-flash-0731": {
       "provider_slug": "together",
@@ -139,11 +140,11 @@
   "panel_execution_authorized": false,
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
-    "model_id": "openrouter-glm-5.3-flash-fireworks",
-    "attempt_number": 2,
+    "model_id": "openrouter-glm-5.3-flash-deepinfra",
+    "attempt_number": 1,
     "remaining_attempts": 1,
-    "granted_at_utc": "2026-09-01T19:16:45Z",
-    "granted_because": "Owner-authorized 2026-09-01 smoke sequence (route-and-cohort amendment rows); final infrastructure retry after attempt 1 hit Fireworks HTTP 429 rate limiting on two consecutive calls, taken after a deliberate cool-down; the unknown spend was reconciled."
+    "granted_at_utc": "2026-09-01T19:40:00Z",
+    "granted_because": "Owner-authorized 2026-09-01 smoke sequence; fresh cell after the owner moved z-ai/glm-5.3-flash from Fireworks to DeepInfra fp8. The staged Fireworks final-retry grant is voided unconsumed."
   },
   "publication_authorized": false
 }

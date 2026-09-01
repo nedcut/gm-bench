@@ -8,7 +8,7 @@
   "contract": "sota-v5",
   "contract_fingerprint": "a600b7da0c302231",
   "format": "gm-bench-route-acceptance-evidence-v1",
-  "generated_at_utc": "2026-09-01T19:26:53+00:00",
+  "generated_at_utc": "2026-09-01T19:06:54+00:00",
   "official_policy_sources": [
     "https://openrouter.ai/docs/guides/features/zdr",
     "https://openrouter.ai/docs/guides/privacy/provider-logging/",
@@ -45,8 +45,8 @@
           "top_p"
         ],
         "tag": "anthropic",
-        "uptime_last_1d": 99.9006232192791,
-        "uptime_last_30m": 99.90806409246126
+        "uptime_last_1d": 99.91102162913911,
+        "uptime_last_30m": 99.989650175947
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -84,8 +84,8 @@
           "top_p"
         ],
         "tag": "together",
-        "uptime_last_1d": 98.49828279526272,
-        "uptime_last_30m": 99.31719428926132
+        "uptime_last_1d": 98.49991734741964,
+        "uptime_last_30m": 99.19462527124018
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -117,8 +117,8 @@
           "top_p"
         ],
         "tag": "google-ai-studio/flex",
-        "uptime_last_1d": 99.96655738267215,
-        "uptime_last_30m": 99.97650927883485
+        "uptime_last_1d": 99.9665453339319,
+        "uptime_last_30m": 99.95257666772052
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -150,8 +150,8 @@
           "top_p"
         ],
         "tag": "google-ai-studio/flex",
-        "uptime_last_1d": 99.324295414227,
-        "uptime_last_30m": 99.65898400752587
+        "uptime_last_1d": 99.31708442510835,
+        "uptime_last_30m": 99.38492347303676
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -184,8 +184,8 @@
           "top_p"
         ],
         "tag": "streamlake/fp8",
-        "uptime_last_1d": 99.96353525684853,
-        "uptime_last_30m": 99.7215777262181
+        "uptime_last_1d": 99.96451093336245,
+        "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -196,44 +196,44 @@
       "route_identity_sha256": "9842cf28122782ef6ba1962fbf6766ade62d5e61e3f4d4677423abb2878f9fba",
       "zero_data_retention_endpoint": false
     },
-    "openrouter-glm-5.3-flash-deepinfra": {
+    "openrouter-glm-5.3-flash-fireworks": {
       "authenticated_metadata_read": true,
       "endpoint": {
-        "max_completion_tokens": 131072,
-        "name": "DeepInfra | z-ai/glm-5.3-flash-20260826",
-        "provider_name": "DeepInfra",
+        "max_completion_tokens": 943718,
+        "name": "Fireworks | z-ai/glm-5.3-flash-20260826",
+        "provider_name": "Fireworks",
         "status": 0,
         "supported_parameters": [
           "frequency_penalty",
           "include_reasoning",
           "logit_bias",
+          "logprobs",
           "max_tokens",
-          "min_p",
           "presence_penalty",
           "reasoning",
           "reasoning_effort",
           "repetition_penalty",
           "response_format",
-          "seed",
           "stop",
           "structured_outputs",
           "temperature",
           "tool_choice",
           "tools",
           "top_k",
+          "top_logprobs",
           "top_p"
         ],
-        "tag": "deepinfra/fp8",
-        "uptime_last_1d": 99.0743595523821,
-        "uptime_last_30m": 99.35338345864662
+        "tag": "fireworks",
+        "uptime_last_1d": 99.23310832184784,
+        "uptime_last_30m": 99.39683660046842
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
-        "privacy_policy_url": "https://deepinfra.com/privacy",
-        "provider_slug": "deepinfra",
-        "terms_of_service_url": "https://deepinfra.com/terms"
+        "privacy_policy_url": "https://fireworks.ai/privacy-policy",
+        "provider_slug": "fireworks",
+        "terms_of_service_url": "https://fireworks.ai/terms-of-service"
       },
-      "route_identity_sha256": "e85bca85036c9b75f27a4fab82b64c7b90487d7ab64f23d86851a2890f85e801",
+      "route_identity_sha256": "dc4019af46c86306407b406bbbf52c82e45be33c377dae6e778240e6874ec8ca",
       "zero_data_retention_endpoint": true
     },
     "openrouter-gpt-5.4-mini-openai": {
@@ -255,8 +255,8 @@
           "tools"
         ],
         "tag": "openai",
-        "uptime_last_1d": 99.78529910858464,
-        "uptime_last_30m": 99.85194407523933
+        "uptime_last_1d": 99.7859367889966,
+        "uptime_last_30m": 99.85155633900821
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -286,8 +286,8 @@
           "tools"
         ],
         "tag": "openai/flex",
-        "uptime_last_1d": 99.94632368597439,
-        "uptime_last_30m": 96.20052770448548
+        "uptime_last_1d": 99.96947232191334,
+        "uptime_last_30m": 98.90751757706869
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -326,8 +326,8 @@
           "top_p"
         ],
         "tag": "deepinfra/bf16",
-        "uptime_last_1d": 99.9481860500871,
-        "uptime_last_30m": 99.98352010547133
+        "uptime_last_1d": 99.9482399435766,
+        "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -361,8 +361,8 @@
           "top_p"
         ],
         "tag": "xai/zdr",
-        "uptime_last_1d": 99.97321414905178,
-        "uptime_last_30m": 99.97613365155131
+        "uptime_last_1d": 99.97360432889006,
+        "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -396,8 +396,8 @@
           "top_p"
         ],
         "tag": "xai/zdr",
-        "uptime_last_1d": 99.76859926975045,
-        "uptime_last_30m": 99.75347377857463
+        "uptime_last_1d": 99.76951685844494,
+        "uptime_last_30m": 99.85033140902287
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -429,7 +429,7 @@
           "top_p"
         ],
         "tag": "siliconflow/int4",
-        "uptime_last_1d": 99.93467348589726,
+        "uptime_last_1d": 99.93481975805635,
         "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
@@ -465,8 +465,8 @@
           "top_p"
         ],
         "tag": "modelrun/fp4",
-        "uptime_last_1d": 99.0710742468442,
-        "uptime_last_30m": 100
+        "uptime_last_1d": 99.06737287564522,
+        "uptime_last_30m": 99.88719684151157
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -499,8 +499,8 @@
           "top_p"
         ],
         "tag": "digitalocean",
-        "uptime_last_1d": 99.77926795194189,
-        "uptime_last_30m": 100
+        "uptime_last_1d": 99.78138144786362,
+        "uptime_last_30m": 99.78947368421053
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -534,8 +534,8 @@
           "top_p"
         ],
         "tag": "siliconflow/fp8",
-        "uptime_last_1d": 99.01392843617185,
-        "uptime_last_30m": 99.91909385113269
+        "uptime_last_1d": 98.99724313282957,
+        "uptime_last_30m": 99.74207811348563
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -572,8 +572,8 @@
           "top_p"
         ],
         "tag": "alibaba",
-        "uptime_last_1d": 99.99300287094326,
-        "uptime_last_30m": 100
+        "uptime_last_1d": 99.99296321252804,
+        "uptime_last_30m": 99.98882806390348
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {

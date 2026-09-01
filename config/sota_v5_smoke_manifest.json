@@ -449,7 +449,7 @@
     "openrouter-minimax-m3-modelrun",
     "openrouter-gemini-3.1-flash-lite-google-ai-studio",
     "openrouter-gpt-5.6-luna-openai",
-    "openrouter-glm-5.3-flash-fireworks",
+    "openrouter-glm-5.3-flash-deepinfra",
     "openrouter-deepseek-v4-flash-0731-together",
     "openrouter-qwen3.5-27b-siliconflow",
     "openrouter-nemotron-3-super-120b-a12b-digitalocean",

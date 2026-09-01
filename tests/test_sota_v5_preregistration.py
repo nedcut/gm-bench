@@ -158,7 +158,7 @@ def test_v5_records_a_reasoning_decision_for_every_panel_model() -> None:
     assert set(mandatory) == {
         "openrouter-grok-4.6-xai",
         "openrouter-gemini-3.7-flash-google-ai-studio",
-        "openrouter-glm-5.3-flash-fireworks",
+        "openrouter-glm-5.3-flash-deepinfra",
         "openrouter-gpt-oss-20b-deepinfra",
     }
     # Mandatory reasoning used to abort the lane, which would have killed the
@@ -273,7 +273,7 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     assert len(acceptance["entries"]) == 16
     assert set(acceptance["entries"]) == set(registry["required_smokes"])
     superseded = acceptance["superseded_acceptance"]
-    assert [record["model_count"] for record in superseded] == [16, 8]
+    assert [record["model_count"] for record in superseded] == [16, 16, 8]
     assert all(record["status"] == "accepted" for record in superseded)
     assert superseded[0]["evidence_artifact"].endswith("-superseded.json")
     # Spend and smoke execution were authorized on the owner's explicit

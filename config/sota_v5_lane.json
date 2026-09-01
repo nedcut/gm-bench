@@ -129,11 +129,11 @@
   "panel_execution_authorized": false,
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
-    "model_id": "openrouter-glm-5.3-flash-fireworks",
-    "attempt_number": 2,
+    "model_id": "openrouter-glm-5.3-flash-deepinfra",
+    "attempt_number": 1,
     "remaining_attempts": 1,
-    "granted_at_utc": "2026-09-01T19:16:45Z",
-    "granted_because": "Owner-authorized 2026-09-01 smoke sequence (route-and-cohort amendment rows); final infrastructure retry after attempt 1 hit Fireworks HTTP 429 rate limiting on two consecutive calls, taken after a deliberate cool-down; the unknown spend was reconciled."
+    "granted_at_utc": "2026-09-01T19:40:00Z",
+    "granted_because": "Owner-authorized 2026-09-01 smoke sequence; fresh cell after the owner moved z-ai/glm-5.3-flash from Fireworks to DeepInfra fp8. The staged Fireworks final-retry grant is voided unconsumed."
   },
   "publication_authorized": false,
   "blockers": [
@@ -149,7 +149,7 @@
   "final_preflight_evidence": {
     "status": "accepted",
     "artifact": "results/analysis/sota-v5-final-preflight-evidence.json",
-    "sha256": "48a656be352a209fcb1f815a1cfaf854df7089cd5d97a5bb9d71dfa7be96112c",
+    "sha256": "8c3d56ebf0925c8d3d220920038ac9967092b919af7ff78cb42f391bd513649e",
     "contract_fingerprint": "a600b7da0c302231",
     "completion_calls": 0,
     "operator_ceiling_usd": 100.0
