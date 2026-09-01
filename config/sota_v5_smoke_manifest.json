@@ -1,5 +1,5 @@
 {
-  "accepted_for_panel": false,
+  "accepted_for_panel": true,
   "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
   "amendment_revision": "2026-09-01-v6-route-and-cohort-amendment",
   "contract": "sota-v5",
@@ -144,6 +144,34 @@
       "truncated_calls": 0,
       "upstream_provider": "StreamLake",
       "upstream_provider_slug": "streamlake/fp8"
+    },
+    "openrouter-glm-5.3-flash-deepinfra": {
+      "accepted": true,
+      "api_calls": 5,
+      "artifact_path": "data/publication/sota-v5-smokes/raw/openrouter-glm-5.3-flash-deepinfra--4096.json",
+      "artifact_sha256": "dea19d5c73443d51b657d8b203723a2a973697d6a80061e6fd09643768214206",
+      "calls_with_finish_reason": 5,
+      "contract_fingerprint": "a600b7da0c302231",
+      "cost_decisions": 4,
+      "decision_failure_rate": 0.0,
+      "decisions_with_usage": 4,
+      "endpoint_name": "DeepInfra | z-ai/glm-5.3-flash-20260826",
+      "endpoint_tag": "deepinfra/fp8",
+      "max_output_tokens_per_call": 624,
+      "model": "z-ai/glm-5.3-flash",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts": 0,
+      "protocol_repairs_succeeded": 0,
+      "provider": "openrouter",
+      "reasoning_effort": "low",
+      "reasoning_policy": "mandatory-minimum",
+      "reasoning_tokens": 902,
+      "recorded_at_utc": "2026-09-01T19:30:34+00:00",
+      "scaffold_fingerprint": "c582e126bbb6af10",
+      "strict_fallback": true,
+      "truncated_calls": 0,
+      "upstream_provider": "DeepInfra",
+      "upstream_provider_slug": "deepinfra/fp8"
     },
     "openrouter-gpt-5.4-mini-openai": {
       "accepted": true,
@@ -456,5 +484,5 @@
     "openrouter-gpt-oss-20b-deepinfra"
   ],
   "schema_version": 1,
-  "status": "in-progress"
+  "status": "accepted"
 }

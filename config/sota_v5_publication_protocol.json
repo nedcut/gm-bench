@@ -108,9 +108,11 @@
     "scope": "single-model-single-infrastructure-attempt",
     "model_id": "openrouter-glm-5.3-flash-deepinfra",
     "attempt_number": 1,
-    "remaining_attempts": 1,
+    "remaining_attempts": 0,
     "granted_at_utc": "2026-09-01T19:40:00Z",
-    "granted_because": "Owner-authorized 2026-09-01 smoke sequence; fresh cell after the owner moved z-ai/glm-5.3-flash from Fireworks to DeepInfra fp8. The staged Fireworks final-retry grant is voided unconsumed."
+    "granted_because": "Owner-authorized 2026-09-01 smoke sequence; fresh cell after the owner moved z-ai/glm-5.3-flash from Fireworks to DeepInfra fp8. The staged Fireworks final-retry grant is voided unconsumed.",
+    "consumed_at_utc": "2026-09-01T19:52:00Z",
+    "outcome": "accepted-smoke-recorded-in-manifest"
   },
   "publication_authorized": false,
   "selection_and_lineage": {

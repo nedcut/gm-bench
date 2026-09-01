@@ -287,7 +287,18 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     assert lane["final_preflight_evidence"]["status"] == "accepted"
     assert lane["final_preflight_evidence"]["completion_calls"] == 0
     assert manifest["format"] == "gm-bench-smoke-manifest-v1"
-    assert manifest["accepted_for_panel"] is False
+    # Every registered row holds an accepted smoke, so the manifest is
+    # accepted for panel execution; the panel must still be locked by the
+    # two authorization flags and nothing else.
+    assert manifest["accepted_for_panel"] is True
+    assert len(manifest["entries"]) == 16
+    assert set(manifest["entries"]) == set(registry["required_smokes"])
+    assert publication_execution_issues(
+        lane, registry, manifest, phase="panel", protocol=protocol, pricing=pricing
+    ) == [
+        "provider execution is locked while panel_execution_authorized is false",
+        "panel execution is locked by the model registry",
+    ]
     for phase in ("route-preflight", "smoke"):
         assert (
             publication_execution_issues(

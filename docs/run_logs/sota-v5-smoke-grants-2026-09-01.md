@@ -51,6 +51,6 @@ qwen3.5-397b Parasail row was voided in place.
 | - | --- | --- | --- |
 | 12' | openrouter-qwen3.8-flash-alibaba | 1 | **accepted**. Clean, 801 output tokens, no illegal actions, $0.0047. |
 | 4' | openrouter-glm-5.3-flash-fireworks | 1 | **withdrawn by owner direction**. Attempt 1: Fireworks HTTP 429 on two consecutive calls (the model is the most-used on OpenRouter this week); unknown spend reconciled. The staged final-retry grant was voided unconsumed when the owner moved the row to DeepInfra fp8 (amendment addendum). |
-| 4'' | openrouter-glm-5.3-flash-deepinfra | | see below |
+| 4'' | openrouter-glm-5.3-flash-deepinfra | 1 | **accepted** (fp8 quantization caveat carries to publication copy). Mandatory-reasoning row at low effort: clean, no illegal actions, 2,073 output tokens across four decisions including reasoning, zero truncation, $0.0026. Sixteen of sixteen registered rows now hold accepted smokes. |
 | 2' | openrouter-nemotron-3-super-120b-a12b-digitalocean | 1 | **accepted**. Clean decisions; one illegal action scored as a 2.5 penalty. $0.0075. |
 | 7' | openrouter-minimax-m3-modelrun | 1 | **accepted** (fp4 quantization caveat carries to publication copy). Clean, no illegal actions, $0.0264. |
