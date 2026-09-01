@@ -1,0 +1,566 @@
+{
+  "cells": {
+    "openrouter-claude-haiku-4.5-anthropic--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T15:32:14+00:00",
+          "measured_run_spend_before_usd": 0.244010868,
+          "measured_run_spend_usd": 0.2748258679999999,
+          "reserved_usd": 0.136704,
+          "started_at_utc": "2026-09-01T15:31:49+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-claude-haiku-4.5-anthropic",
+      "measured_run_spend_usd": 0.2748258679999999,
+      "model": "anthropic/claude-haiku-4.5",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T15:32:14+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.136704
+    },
+    "openrouter-deepseek-v4-flash-0731-together--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T15:18:45+00:00",
+          "measured_run_spend_before_usd": 0.006177447999999999,
+          "measured_run_spend_usd": 0.010936447999999998,
+          "reserved_usd": 0.010881,
+          "started_at_utc": "2026-09-01T15:18:06+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-deepseek-v4-flash-0731-together",
+      "measured_run_spend_usd": 0.010936447999999998,
+      "model": "deepseek/deepseek-v4-flash-0731",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T15:18:45+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.010881
+    },
+    "openrouter-gemini-3.1-flash-lite-google-ai-studio--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T15:22:53+00:00",
+          "measured_run_spend_before_usd": 0.049859788,
+          "measured_run_spend_usd": 0.053912788,
+          "reserved_usd": 0.019546,
+          "started_at_utc": "2026-09-01T15:22:48+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-gemini-3.1-flash-lite-google-ai-studio",
+      "measured_run_spend_usd": 0.053912788,
+      "model": "google/gemini-3.1-flash-lite",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T15:22:53+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.019546
+    },
+    "openrouter-gemini-3.7-flash-google-ai-studio--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T15:28:02+00:00",
+          "measured_run_spend_before_usd": 0.135153868,
+          "measured_run_spend_usd": 0.15337786800000003,
+          "reserved_usd": 0.051264,
+          "started_at_utc": "2026-09-01T15:27:36+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-gemini-3.7-flash-google-ai-studio",
+      "measured_run_spend_usd": 0.15337786800000003,
+      "model": "google/gemini-3.7-flash",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T15:28:02+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.051264
+    },
+    "openrouter-glm-5-streamlake--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T15:28:55+00:00",
+          "measured_run_spend_before_usd": 0.15337786800000003,
+          "measured_run_spend_usd": 0.17024486800000002,
+          "reserved_usd": 0.060789,
+          "started_at_utc": "2026-09-01T15:28:33+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-glm-5-streamlake",
+      "measured_run_spend_usd": 0.17024486800000002,
+      "model": "z-ai/glm-5",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T15:28:55+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.060789
+    },
+    "openrouter-glm-5.3-flash-cloudflare--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "error": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+          "finished_at_utc": "2026-09-01T15:19:30+00:00",
+          "measured_run_spend_before_usd": 0.010936447999999998,
+          "measured_run_spend_usd": 0.010936447999999998,
+          "reserved_usd": 0.01559,
+          "started_at_utc": "2026-09-01T15:19:12+00:00",
+          "status": "failed"
+        },
+        {
+          "attempt": 2,
+          "error": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+          "finished_at_utc": "2026-09-01T15:21:26+00:00",
+          "measured_run_spend_before_usd": 0.026780647999999994,
+          "measured_run_spend_usd": 0.029582647999999996,
+          "reserved_usd": 0.01559,
+          "started_at_utc": "2026-09-01T15:20:33+00:00",
+          "status": "failed"
+        }
+      ],
+      "attempts": 2,
+      "cost_contingency_multiplier": 1.2,
+      "excluded_at_utc": "2026-09-01T15:21:26+00:00",
+      "exclusion_reason": "infrastructure attempt limit reached",
+      "experiment_id": "openrouter-glm-5.3-flash-cloudflare",
+      "last_failure": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+      "last_failure_at_utc": "2026-09-01T15:21:26+00:00",
+      "measured_run_spend_usd": 0.029582647999999996,
+      "model": "z-ai/glm-5.3-flash",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "status": "excluded",
+      "total_reserved_usd": 0.03118
+    },
+    "openrouter-glm-5.3-flash-deepinfra--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T19:30:20+00:00",
+          "measured_run_spend_before_usd": 0.5073926280000001,
+          "measured_run_spend_usd": 0.509962628,
+          "reserved_usd": 0.007795,
+          "started_at_utc": "2026-09-01T19:29:09+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-glm-5.3-flash-deepinfra",
+      "measured_run_spend_usd": 0.509962628,
+      "model": "z-ai/glm-5.3-flash",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T19:30:20+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.007795
+    },
+    "openrouter-glm-5.3-flash-fireworks--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "error": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+          "finished_at_utc": "2026-09-01T19:15:06+00:00",
+          "measured_run_spend_before_usd": 0.4528595879999999,
+          "measured_run_spend_usd": 0.456757588,
+          "reserved_usd": 0.01559,
+          "started_at_utc": "2026-09-01T19:11:59+00:00",
+          "status": "failed"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-glm-5.3-flash-fireworks",
+      "last_failure": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+      "last_failure_at_utc": "2026-09-01T19:15:06+00:00",
+      "measured_run_spend_usd": 0.456757588,
+      "model": "z-ai/glm-5.3-flash",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.01559,
+      "status": "active",
+      "total_reserved_usd": 0.01559
+    },
+    "openrouter-gpt-5.4-mini-openai--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T15:31:28+00:00",
+          "measured_run_spend_before_usd": 0.222229868,
+          "measured_run_spend_usd": 0.244010868,
+          "reserved_usd": 0.117274,
+          "started_at_utc": "2026-09-01T15:31:20+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-gpt-5.4-mini-openai",
+      "measured_run_spend_usd": 0.244010868,
+      "model": "openai/gpt-5.4-mini",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T15:31:28+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.117274
+    },
+    "openrouter-gpt-5.6-luna-openai--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T15:22:25+00:00",
+          "measured_run_spend_before_usd": 0.04617078799999999,
+          "measured_run_spend_usd": 0.049859788,
+          "reserved_usd": 0.015636,
+          "started_at_utc": "2026-09-01T15:22:07+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-gpt-5.6-luna-openai",
+      "measured_run_spend_usd": 0.049859788,
+      "model": "openai/gpt-5.6-luna",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T15:22:25+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.015636
+    },
+    "openrouter-gpt-oss-20b-deepinfra--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "error": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+          "finished_at_utc": "2026-09-01T03:23:41+00:00",
+          "measured_run_spend_before_usd": 0.0,
+          "measured_run_spend_usd": 0.0,
+          "reserved_usd": 0.003905,
+          "started_at_utc": "2026-09-01T03:23:36+00:00",
+          "status": "failed"
+        },
+        {
+          "attempt": 2,
+          "finished_at_utc": "2026-09-01T15:13:55+00:00",
+          "measured_run_spend_before_usd": 0.0033654479999999996,
+          "measured_run_spend_usd": 0.004286447999999999,
+          "reserved_usd": 0.003905,
+          "started_at_utc": "2026-09-01T15:13:45+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 2,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-gpt-oss-20b-deepinfra",
+      "last_failure": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+      "last_failure_at_utc": "2026-09-01T03:23:41+00:00",
+      "measured_run_spend_usd": 0.004286447999999999,
+      "model": "openai/gpt-oss-20b",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T15:13:55+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.00781,
+      "voided_attempts": [
+        {
+          "attempt": 2,
+          "finished_at_utc": "2026-09-01T15:06:01+00:00",
+          "measured_run_spend_delta_usd": 0.0,
+          "recorded_error_was_stale_copy": true,
+          "started_at_utc": "2026-09-01T15:06:00+00:00",
+          "voided_at_utc": "2026-09-01T15:20:00+00:00",
+          "voided_because": "Zero-provider-call local pre-call abort: the model runner refused to resume from the attempt-1 checkpoint whose provider_options carried the stomped pre-fix pins (OPENROUTER_JSON_MODE/REASONING_ENABLED/REQUIRE_PARAMETERS). No completion request was made and no spend occurred (measured delta 0). The runner's frozen retry design states a provenance-only local failure cannot consume the final retry; the stale-checkpoint archiver only compared fingerprints and missed provider_options drift (fixed in scripts/run_publication_matrix.py the same day, with regression tests). The recorded error text was also copied from the stale attempt-1 checkpoint, not this run."
+        }
+      ]
+    },
+    "openrouter-grok-4.3-xai--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T15:30:55+00:00",
+          "measured_run_spend_before_usd": 0.188511868,
+          "measured_run_spend_usd": 0.222229868,
+          "reserved_usd": 0.097152,
+          "started_at_utc": "2026-09-01T15:30:48+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-grok-4.3-xai",
+      "measured_run_spend_usd": 0.222229868,
+      "model": "x-ai/grok-4.3",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T15:30:55+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.097152
+    },
+    "openrouter-grok-4.6-xai--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T15:34:17+00:00",
+          "measured_run_spend_before_usd": 0.2748258679999999,
+          "measured_run_spend_usd": 0.3858438679999999,
+          "reserved_usd": 0.194765,
+          "started_at_utc": "2026-09-01T15:32:44+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-grok-4.6-xai",
+      "measured_run_spend_usd": 0.3858438679999999,
+      "model": "x-ai/grok-4.6",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T15:34:17+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.194765
+    },
+    "openrouter-kimi-k2.5-siliconflow--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T15:29:51+00:00",
+          "measured_run_spend_before_usd": 0.17024486800000002,
+          "measured_run_spend_usd": 0.188511868,
+          "reserved_usd": 0.061517,
+          "started_at_utc": "2026-09-01T15:29:19+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-kimi-k2.5-siliconflow",
+      "measured_run_spend_usd": 0.188511868,
+      "model": "moonshotai/kimi-k2.5",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T15:29:51+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.061517
+    },
+    "openrouter-minimax-m3-modelrun--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T19:16:32+00:00",
+          "measured_run_spend_before_usd": 0.48096962800000004,
+          "measured_run_spend_usd": 0.5073926280000001,
+          "reserved_usd": 0.087782,
+          "started_at_utc": "2026-09-01T19:16:13+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-minimax-m3-modelrun",
+      "measured_run_spend_usd": 0.5073926280000001,
+      "model": "minimax/minimax-m3",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T19:16:32+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.087782
+    },
+    "openrouter-minimax-m3-parasail--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "error": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+          "finished_at_utc": "2026-09-01T15:24:38+00:00",
+          "measured_run_spend_before_usd": 0.053912788,
+          "measured_run_spend_usd": 0.060321788,
+          "reserved_usd": 0.035113,
+          "started_at_utc": "2026-09-01T15:23:20+00:00",
+          "status": "failed"
+        },
+        {
+          "attempt": 2,
+          "error": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+          "finished_at_utc": "2026-09-01T15:25:24+00:00",
+          "measured_run_spend_before_usd": 0.09415242800000001,
+          "measured_run_spend_usd": 0.09415242800000001,
+          "reserved_usd": 0.035113,
+          "started_at_utc": "2026-09-01T15:25:19+00:00",
+          "status": "failed"
+        }
+      ],
+      "attempts": 2,
+      "cost_contingency_multiplier": 1.2,
+      "excluded_at_utc": "2026-09-01T15:25:24+00:00",
+      "exclusion_reason": "infrastructure attempt limit reached",
+      "experiment_id": "openrouter-minimax-m3-parasail",
+      "last_failure": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+      "last_failure_at_utc": "2026-09-01T15:25:24+00:00",
+      "measured_run_spend_usd": 0.09415242800000001,
+      "model": "minimax/minimax-m3",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "status": "excluded",
+      "total_reserved_usd": 0.070226
+    },
+    "openrouter-nemotron-3-nano-30b-a3b-crusoe--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "error": "completed smoke failed only model-behavior gates: artifact candidate episode contains failed decisions; artifact candidate summary failed_decisions must be zero; artifact decision_failure_rate must be zero",
+          "finished_at_utc": "2026-09-01T15:15:29+00:00",
+          "measured_run_spend_before_usd": 0.004286447999999999,
+          "measured_run_spend_usd": 0.006177447999999999,
+          "reserved_usd": 0.005852,
+          "started_at_utc": "2026-09-01T15:15:25+00:00",
+          "status": "ineligible"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-nemotron-3-nano-30b-a3b-crusoe",
+      "ineligibility_reason": "completed smoke failed only model-behavior gates: artifact candidate episode contains failed decisions; artifact candidate summary failed_decisions must be zero; artifact decision_failure_rate must be zero",
+      "ineligible_at_utc": "2026-09-01T15:15:29+00:00",
+      "measured_run_spend_usd": 0.006177447999999999,
+      "model": "nvidia/nemotron-3-nano-30b-a3b",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "status": "ineligible",
+      "total_reserved_usd": 0.005852
+    },
+    "openrouter-nemotron-3-super-120b-a12b-digitalocean--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T19:16:00+00:00",
+          "measured_run_spend_before_usd": 0.47349062799999997,
+          "measured_run_spend_usd": 0.48096962800000004,
+          "reserved_usd": 0.0243,
+          "started_at_utc": "2026-09-01T19:15:34+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-nemotron-3-super-120b-a12b-digitalocean",
+      "measured_run_spend_usd": 0.48096962800000004,
+      "model": "nvidia/nemotron-3-super-120b-a12b",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T19:16:00+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.0243
+    },
+    "openrouter-qwen3.5-27b-siliconflow--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T15:27:14+00:00",
+          "measured_run_spend_before_usd": 0.126823868,
+          "measured_run_spend_usd": 0.135153868,
+          "reserved_usd": 0.048922,
+          "started_at_utc": "2026-09-01T15:26:04+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-qwen3.5-27b-siliconflow",
+      "measured_run_spend_usd": 0.135153868,
+      "model": "qwen/qwen3.5-27b",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T15:27:14+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.048922
+    },
+    "openrouter-qwen3.5-397b-a17b-parasail--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "error": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+          "finished_at_utc": "2026-09-01T15:48:08+00:00",
+          "measured_run_spend_before_usd": 0.3858438679999999,
+          "measured_run_spend_usd": 0.3858438679999999,
+          "reserved_usd": 0.089979,
+          "started_at_utc": "2026-09-01T15:48:03+00:00",
+          "status": "failed"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-qwen3.5-397b-a17b-parasail",
+      "last_failure": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+      "last_failure_at_utc": "2026-09-01T15:48:08+00:00",
+      "measured_run_spend_usd": 0.3858438679999999,
+      "model": "qwen/qwen3.5-397b-a17b",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.089979,
+      "status": "active",
+      "total_reserved_usd": 0.089979
+    },
+    "openrouter-qwen3.8-flash-alibaba--4096": {
+      "attempt_history": [
+        {
+          "attempt": 1,
+          "finished_at_utc": "2026-09-01T19:11:42+00:00",
+          "measured_run_spend_before_usd": 0.4481605879999999,
+          "measured_run_spend_usd": 0.4528595879999999,
+          "reserved_usd": 0.015001,
+          "started_at_utc": "2026-09-01T19:11:24+00:00",
+          "status": "succeeded"
+        }
+      ],
+      "attempts": 1,
+      "cost_contingency_multiplier": 1.2,
+      "experiment_id": "openrouter-qwen3.8-flash-alibaba",
+      "measured_run_spend_usd": 0.4528595879999999,
+      "model": "qwen/qwen3.8-flash",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts_reserved_per_decision": 0,
+      "reserved_usd": 0.0,
+      "settled_at_utc": "2026-09-01T19:11:42+00:00",
+      "status": "settled",
+      "total_reserved_usd": 0.015001
+    }
+  },
+  "schema_version": 1
+}

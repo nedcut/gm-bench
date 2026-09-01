@@ -1,0 +1,15 @@
+{
+  "env": {
+    "GM_AGENT_STRICT": "1",
+    "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
+    "OPENROUTER_ALLOW_FALLBACKS": "false",
+    "OPENROUTER_DATA_COLLECTION": "deny",
+    "OPENROUTER_EXPECTED_ENDPOINT_NAME": "Google AI Studio | google/gemini-3.1-flash-lite-20260507",
+    "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER": "Google AI Studio",
+    "OPENROUTER_JSON_MODE": "true",
+    "OPENROUTER_MAX_TOKENS": "4096",
+    "OPENROUTER_PROVIDER_ONLY": "google-ai-studio/flex",
+    "OPENROUTER_REASONING_ENABLED": "false",
+    "OPENROUTER_REQUIRE_PARAMETERS": "true"
+  }
+}

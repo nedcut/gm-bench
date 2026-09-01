@@ -1,0 +1,1227 @@
+{
+  "agent": "openrouter:minimax/minimax-m3",
+  "completed": [
+    {
+      "repeat": 1,
+      "seed": 1
+    }
+  ],
+  "episodes": [
+    {
+      "agent": "openrouter:minimax/minimax-m3",
+      "championships": 0,
+      "decisions": 4,
+      "failed_decisions": 0,
+      "failed_queries": 0,
+      "final_score": 99.249,
+      "illegal_actions": 0,
+      "malformed_decisions": 0,
+      "max_decision_seconds": 6.8398,
+      "mean_decision_seconds": 4.8088,
+      "memo_writes": 3,
+      "protocol_penalty": 0.0,
+      "query_declines": 1,
+      "rejected_offers": 0,
+      "repeat": 1,
+      "score_components": {
+        "cap_room": 42.53,
+        "cap_room_contribution": 10.0,
+        "championships": 0.0,
+        "championships_contribution": 0.0,
+        "current_strength": 60.622642,
+        "current_strength_contribution": 16.97434,
+        "future_pick_assets": 32.27136,
+        "future_pick_assets_contribution": 5.163418,
+        "playoff_rounds": 0.0,
+        "playoff_rounds_contribution": 0.0,
+        "protocol_penalty": 0.0,
+        "recent_wins": 19.0,
+        "recent_wins_contribution": 7.98,
+        "roster_depth": 0.708333,
+        "roster_depth_contribution": 5.666667,
+        "total_assets": 214.420543,
+        "total_assets_contribution": 34.307287,
+        "young_assets": 106.426642,
+        "young_assets_contribution": 19.156796
+      },
+      "season_summaries": [
+        {
+          "cap_room": 39.09,
+          "champion_team_id": 9,
+          "losses": 14,
+          "payroll": 46.91,
+          "playoff_rounds": 0,
+          "score_after_season": 91.772,
+          "season": 1,
+          "wins": 19
+        }
+      ],
+      "seasons": 1,
+      "seed": 1,
+      "strategy_score": 99.249,
+      "transactions": [
+        {
+          "accepted": true,
+          "action": {
+            "text": "Preseason S1: We have 19.45 cap room. Top draft prospect Kai Frost (1010001) is age 20 F/W 58/76.9. Use scout on him (1 of 3 points). Lineup from bench in order of strength with Finn Jensen/Owen Hayes/Theo Evans up top. Pending extension decisions on Finn Jensen, Gabe Reed, Milo Quill, Jules Mason, Rafi Ivers, Jules Chen, Kai Anders - evaluate after scouting. Hold cap for in-season trades. Target younger FAs under 4M to fill gaps; avoid overpaying 30+ FA on multi-year deals.",
+            "type": "memo"
+          },
+          "message": "memo saved",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 44,
+            "salary": 6.61,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Austin Jackals extended Eli Chen for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 1
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 24,
+            "salary": 4.43,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Austin Jackals extended Gabe Hayes for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 1
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 32,
+            "salary": 3.26,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Austin Jackals extended Kai Vale for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 1
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 38,
+            "salary": 3.83,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Austin Jackals extended Vik Quill for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 1
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 30,
+            "salary": 2.71,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Austin Jackals extended Alex Jensen for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 1
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 59,
+            "salary": 7.55,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Boston Harbors extended Pax Keller for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 2
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 48,
+            "salary": 3.12,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Boston Harbors extended Jules Anders for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 2
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 64,
+            "salary": 3.45,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Boston Harbors extended Eli Berg for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 2
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 65,
+            "salary": 2.4,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Boston Harbors extended Ben Olsen for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 2
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 51,
+            "salary": 2.69,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Boston Harbors extended Milo Ivers for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 2
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 86,
+            "salary": 5.12,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Calgary Peaks extended Eli Mason for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 3
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 81,
+            "salary": 3.17,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Calgary Peaks extended Eli Novak for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 3
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 91,
+            "salary": 3.02,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Calgary Peaks extended Cal Reed for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 3
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 73,
+            "salary": 2.46,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Calgary Peaks extended Finn Novak for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 3
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 92,
+            "salary": 3.22,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Calgary Peaks extended Jules Vale for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 3
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 84,
+            "salary": 3.22,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Calgary Peaks extended Rafi Novak for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 3
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 115,
+            "salary": 6.09,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Chicago Steel extended Theo Reed for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 4
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 114,
+            "salary": 2.61,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Chicago Steel extended Leo Keller for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 4
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 111,
+            "salary": 2.4,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Chicago Steel extended Hugo Mason for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 4
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 93,
+            "salary": 1.86,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Chicago Steel extended Kai Lund for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 4
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 104,
+            "salary": 1.93,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Chicago Steel extended Vik Novak for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 4
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 98,
+            "salary": 3.07,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Chicago Steel extended Leo Chen for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 4
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 102,
+            "salary": 1.94,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Chicago Steel extended Ben Diaz for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 4
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 100,
+            "salary": 2.39,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Chicago Steel extended Vik Evans for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 4
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 105,
+            "salary": 1.49,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Chicago Steel extended Quin Frost for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 4
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 112,
+            "salary": 0.75,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Chicago Steel extended Owen Ivers for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 4
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 119,
+            "salary": 4.71,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Denver Comets extended Drew Novak for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 5
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 130,
+            "salary": 4.91,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Denver Comets extended Cal Hayes for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 5
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 116,
+            "salary": 1.61,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Denver Comets extended Milo Novak for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 5
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 148,
+            "salary": 3.98,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Halifax Schooners extended Nico Anders for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 6
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 142,
+            "salary": 2.6,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Halifax Schooners extended Gabe Chen for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 6
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 151,
+            "salary": 3.39,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Halifax Schooners extended Jules Lund for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 6
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 160,
+            "salary": 1.76,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Halifax Schooners extended Quin Quill for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 6
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 143,
+            "salary": 0.75,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Halifax Schooners extended Theo Lund for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 6
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 175,
+            "salary": 2.96,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Miami Palms extended Pax Mason for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 7
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 163,
+            "salary": 1.97,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Miami Palms extended Gabe Keller for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 7
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 193,
+            "salary": 5.21,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Montreal Saints extended Eli Quill for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 8
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 189,
+            "salary": 4.52,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Montreal Saints extended Jules Berg for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 8
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 201,
+            "salary": 2.96,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Montreal Saints extended Ivan Vale for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 8
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 220,
+            "salary": 7.44,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Nashville Sound extended Owen Anders for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 9
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 209,
+            "salary": 3.53,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Nashville Sound extended Milo Evans for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 9
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 236,
+            "salary": 3.53,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Portland Pines extended Quin Price for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 10
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 239,
+            "salary": 3.87,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Portland Pines extended Hugo Evans for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 10
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 240,
+            "salary": 2.29,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Portland Pines extended Pax Frost for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 10
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 242,
+            "salary": 2.16,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Portland Pines extended Vik Olsen for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 10
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 274,
+            "salary": 3.86,
+            "type": "extend_contract",
+            "years": 4
+          },
+          "message": "Seattle Surge extended Nico Vale for 4 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 11
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 256,
+            "salary": 4.73,
+            "type": "extend_contract",
+            "years": 3
+          },
+          "message": "Seattle Surge extended Theo Keller for 3 year(s)",
+          "phase": "preseason",
+          "season": 1,
+          "team_id": 11
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_ids": [
+              19,
+              14,
+              15,
+              21,
+              17,
+              13,
+              9,
+              23,
+              11,
+              10,
+              12,
+              4,
+              8,
+              3,
+              5,
+              6,
+              1,
+              2
+            ],
+            "type": "set_lineup"
+          },
+          "message": "lineup set",
+          "phase": "midseason",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "player_id": 1010001,
+            "type": "scout"
+          },
+          "message": "scouted Kai Frost: potential \u2248 77.5",
+          "phase": "midseason",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "text": "S1 Mid: 7-4 record, 19.45 cap room. Scouted Kai Frost (1010001) for draft prep. Lineup set with best available players; using Theo Evans/Jules Mason/Theo Olsen as 3 centers for full +1.2 strength bonus. Several extension-eligible F/W/D players at year-end (Finn Jensen, Gabe Reed, Milo Quill, Jules Mason, Rafi Ivers, Jules Chen, Kai Anders) - revisit next window after scouting completes. Top FA targets if needed: Hugo Reed (82.5 pot, 1.79 ask, vet with sens1 fills top-six needs cheaply) but veteran pricing sensitivity requires competitive record. Avoid overpaying for short-term rentals. Hold remaining cap for trade deadline moves (2 trades/partner, ~3 points scouting left this season).",
+            "type": "memo"
+          },
+          "message": "memo saved",
+          "phase": "midseason",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "type": "end_turn"
+          },
+          "message": "turn ended",
+          "phase": "midseason",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "offer_id": "offer-9-1-trade_deadline-213-2",
+            "type": "reject_trade_offer"
+          },
+          "message": "declined offer from Nashville Sound",
+          "phase": "trade_deadline",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "offer_id": "offer-8-1-trade_deadline-207-2",
+            "type": "reject_trade_offer"
+          },
+          "message": "declined offer from Montreal Saints",
+          "phase": "trade_deadline",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "offer_id": "offer-3-1-trade_deadline-71-2",
+            "type": "reject_trade_offer"
+          },
+          "message": "declined offer from Calgary Peaks",
+          "phase": "trade_deadline",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "prospect_id": 1010015,
+            "type": "scout"
+          },
+          "message": "scouted Jules Diaz: potential \u2248 76.9",
+          "phase": "trade_deadline",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "text": "S1 Trade Deadline: 7-4 record, 19.45 cap room. Rejected all 3 offers for Kai Anders (G ovr46.2 pot56.7) - terrible value, dumping my only true backup G for low-ovr D/F with modest potential. Scouted Jules Diaz (1010015) as next draft prep target. Key upcoming decisions: S2 draft picks valuable (slot 9 projected, scouts valuable). Consider packaging expiring contracts (Finn Jensen 1.41, Gabe Reed 1.05, Milo Quill 1.11, Jules Mason 0.66, Rafi Ivers 0.54, Kai Anders 0.19) for upgrades before deadline. Hold for now - team still in playoff hunt. May pursue top-six F/W via free agency after season (Hugo Reed 82.5 pot cheap). Cap healthy at 19.45 room.",
+            "type": "memo"
+          },
+          "message": "memo saved",
+          "phase": "trade_deadline",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "type": "noop"
+          },
+          "message": "no-op",
+          "phase": "trade_deadline",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "type": "end_turn"
+          },
+          "message": "turn ended",
+          "phase": "trade_deadline",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "give_player_ids": [
+              46
+            ],
+            "partner_team_id": 4,
+            "receive_player_ids": [
+              107
+            ],
+            "type": "trade"
+          },
+          "message": "Austin Jackals traded Gabe Olsen to Chicago Steel for Nico Olsen",
+          "phase": "trade_deadline",
+          "season": 1,
+          "team_id": 1
+        },
+        {
+          "accepted": true,
+          "action": {
+            "give_player_ids": [
+              134
+            ],
+            "partner_team_id": 6,
+            "receive_player_ids": [
+              304
+            ],
+            "type": "trade"
+          },
+          "message": "Denver Comets traded Owen Grant to Halifax Schooners for Alex Diaz",
+          "phase": "trade_deadline",
+          "season": 1,
+          "team_id": 5
+        },
+        {
+          "accepted": true,
+          "action": {
+            "give_player_ids": [
+              196
+            ],
+            "partner_team_id": 9,
+            "receive_player_ids": [
+              222
+            ],
+            "type": "trade"
+          },
+          "message": "Montreal Saints traded Drew Diaz to Nashville Sound for Pax Stone",
+          "phase": "trade_deadline",
+          "season": 1,
+          "team_id": 8
+        },
+        {
+          "accepted": true,
+          "action": {
+            "prospect_id": 1010015,
+            "type": "draft"
+          },
+          "message": "Boston Harbors drafted Jules Diaz",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 2
+        },
+        {
+          "accepted": true,
+          "action": {
+            "prospect_id": 1010054,
+            "type": "draft"
+          },
+          "message": "Calgary Peaks drafted Nico Anders",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 3
+        },
+        {
+          "accepted": true,
+          "action": {
+            "prospect_id": 1010030,
+            "type": "draft"
+          },
+          "message": "Halifax Schooners drafted Hugo Ivers",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 6
+        },
+        {
+          "accepted": true,
+          "action": {
+            "prospect_id": 1010028,
+            "type": "draft"
+          },
+          "message": "Miami Palms drafted Hugo Stone",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 7
+        },
+        {
+          "accepted": true,
+          "action": {
+            "prospect_id": 1010048,
+            "type": "draft"
+          },
+          "message": "Seattle Surge drafted Rafi Ivers",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 11
+        },
+        {
+          "accepted": true,
+          "action": {
+            "prospect_id": 1010001,
+            "type": "draft"
+          },
+          "message": "Austin Jackals drafted Kai Frost",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 1
+        },
+        {
+          "accepted": true,
+          "action": {
+            "prospect_id": 1010006,
+            "type": "draft"
+          },
+          "message": "Chicago Steel drafted Theo Vale",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 4
+        },
+        {
+          "accepted": true,
+          "action": {
+            "prospect_id": 1010059,
+            "type": "draft"
+          },
+          "message": "Denver Comets drafted Ivan Diaz",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 5
+        },
+        {
+          "accepted": true,
+          "action": {
+            "prospect_id": 1010045,
+            "type": "scout"
+          },
+          "message": "scouted Theo Berg: potential \u2248 72.5",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": false,
+          "action": {
+            "prospect_id": 1010050,
+            "type": "scout"
+          },
+          "message": "no scouting points left this season",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "prospect_id": 1010045,
+            "type": "draft"
+          },
+          "message": "drafted Theo Berg",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "type": "end_turn"
+          },
+          "message": "turn ended",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 0
+        },
+        {
+          "accepted": true,
+          "action": {
+            "prospect_id": 1010012,
+            "type": "draft"
+          },
+          "message": "Montreal Saints drafted Finn Anders",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 8
+        },
+        {
+          "accepted": true,
+          "action": {
+            "prospect_id": 1010020,
+            "type": "draft"
+          },
+          "message": "Nashville Sound drafted Gabe Olsen",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 9
+        },
+        {
+          "accepted": true,
+          "action": {
+            "prospect_id": 1010016,
+            "type": "draft"
+          },
+          "message": "Portland Pines drafted Ben Quill",
+          "phase": "draft",
+          "season": 1,
+          "team_id": 10
+        }
+      ],
+      "unrecoverable_decisions": 0,
+      "usage": {
+        "api_calls": 6,
+        "api_latency_ms": 18762.9,
+        "cached_input_tokens": 1024,
+        "calls_with_finish_reason": 6,
+        "cost_decisions": 4,
+        "cost_usd": 0.026423,
+        "decisions_with_usage": 4,
+        "harness_latency_ms": 19235.4,
+        "input_tokens": 33040,
+        "max_output_tokens_per_call": 289,
+        "model": "minimax/minimax-m3",
+        "output_tokens": 752,
+        "per_decision": [
+          {
+            "api_calls": 1,
+            "api_latency_ms": 3224.7,
+            "cached_input_tokens": 128,
+            "cost_usd": 0.00408,
+            "finish_reason": "stop",
+            "generation_id": "gen-1788290173-ChUgW1TTBwu50IHBywWs",
+            "input_tokens": 4966,
+            "interaction_round": 0,
+            "model": "minimax/minimax-m3",
+            "native_finish_reason": "stop",
+            "output_tokens": 144,
+            "phase": "preseason",
+            "provider": "openrouter",
+            "reasoning_tokens": 0,
+            "season": 1,
+            "total_tokens": 5110,
+            "upstream_provider": "ModelRun"
+          },
+          {
+            "api_calls": 1,
+            "api_latency_ms": 4896.7,
+            "cached_input_tokens": 128,
+            "cost_usd": 0.004731,
+            "finish_reason": "stop",
+            "generation_id": "gen-1788290176-HAAfzZSJVuFDO4XJpkgA",
+            "input_tokens": 5418,
+            "interaction_round": 0,
+            "model": "minimax/minimax-m3",
+            "native_finish_reason": "stop",
+            "output_tokens": 248,
+            "phase": "midseason",
+            "provider": "openrouter",
+            "reasoning_tokens": 0,
+            "season": 1,
+            "total_tokens": 5666,
+            "upstream_provider": "ModelRun"
+          },
+          {
+            "api_calls": 1,
+            "api_latency_ms": 4627.3,
+            "cached_input_tokens": 128,
+            "cost_usd": 0.005184,
+            "finish_reason": "stop",
+            "generation_id": "gen-1788290181-T0Yv7E94kfsX1tjQaufZ",
+            "input_tokens": 5858,
+            "interaction_round": 0,
+            "model": "minimax/minimax-m3",
+            "native_finish_reason": "stop",
+            "output_tokens": 289,
+            "phase": "trade_deadline",
+            "provider": "openrouter",
+            "reasoning_tokens": 0,
+            "season": 1,
+            "total_tokens": 6147,
+            "upstream_provider": "ModelRun"
+          },
+          {
+            "api_calls": 1,
+            "api_latency_ms": 2048.5,
+            "cached_input_tokens": 256,
+            "cost_usd": 0.004153,
+            "finish_reason": "stop",
+            "generation_id": "gen-1788290186-Ftai3u6GQd4IBVxpRb9O",
+            "input_tokens": 5682,
+            "interaction_round": 1,
+            "model": "minimax/minimax-m3",
+            "native_finish_reason": "stop",
+            "output_tokens": 15,
+            "phase": "trade_deadline",
+            "provider": "openrouter",
+            "reasoning_tokens": 0,
+            "season": 1,
+            "total_tokens": 5697,
+            "upstream_provider": "ModelRun"
+          },
+          {
+            "api_calls": 1,
+            "api_latency_ms": 1856.0,
+            "cached_input_tokens": 128,
+            "cost_usd": 0.004187,
+            "finish_reason": "stop",
+            "generation_id": "gen-1788290188-cX5aXFWIgVqJuiQvWTLE",
+            "input_tokens": 5505,
+            "interaction_round": 0,
+            "model": "minimax/minimax-m3",
+            "native_finish_reason": "stop",
+            "output_tokens": 45,
+            "phase": "draft",
+            "provider": "openrouter",
+            "reasoning_tokens": 0,
+            "season": 1,
+            "total_tokens": 5550,
+            "upstream_provider": "ModelRun"
+          },
+          {
+            "api_calls": 1,
+            "api_latency_ms": 2109.7,
+            "cached_input_tokens": 256,
+            "cost_usd": 0.004088,
+            "finish_reason": "stop",
+            "generation_id": "gen-1788290190-m3y7x7w21uHnwp79UhZ6",
+            "input_tokens": 5611,
+            "interaction_round": 1,
+            "model": "minimax/minimax-m3",
+            "native_finish_reason": "stop",
+            "output_tokens": 11,
+            "phase": "draft",
+            "provider": "openrouter",
+            "reasoning_tokens": 0,
+            "season": 1,
+            "total_tokens": 5622,
+            "upstream_provider": "ModelRun"
+          }
+        ],
+        "protocol_repair_attempts": 0,
+        "protocol_repairs_succeeded": 0,
+        "provider": "openrouter",
+        "reasoning_tokens": 0,
+        "total_tokens": 33792,
+        "truncated_calls": 0,
+        "upstream_provider": "ModelRun",
+        "upstream_providers": [
+          "ModelRun"
+        ]
+      },
+      "wins": 19
+    }
+  ],
+  "format": "gm-bench-model-checkpoint-v1",
+  "metadata": {
+    "agent_timeout": 120.0,
+    "model": "minimax/minimax-m3",
+    "profile": "compact",
+    "protocol_repair_attempts": 0,
+    "provider": "openrouter",
+    "provider_options": {
+      "GM_AGENT_STRICT": "1",
+      "GM_BENCH_OUTPUT_BUDGET_CELL": "4096",
+      "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
+      "OPENROUTER_ALLOW_FALLBACKS": "false",
+      "OPENROUTER_API_BASE": "https://openrouter.ai/api/v1",
+      "OPENROUTER_DATA_COLLECTION": "deny",
+      "OPENROUTER_EXPECTED_ENDPOINT_NAME": "ModelRun | minimax/minimax-m3-20260531",
+      "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER": "ModelRun",
+      "OPENROUTER_JSON_MODE": "true",
+      "OPENROUTER_MAX_TOKENS": "4096",
+      "OPENROUTER_PROVIDER_ONLY": "modelrun/fp4",
+      "OPENROUTER_PROVIDER_SORT": "price",
+      "OPENROUTER_REASONING_ENABLED": "false",
+      "OPENROUTER_REQUIRE_PARAMETERS": "true"
+    },
+    "session": false,
+    "strict_fallback": true,
+    "transport": "gateway-api"
+  },
+  "provenance": {
+    "benchmark_contract": {
+      "action_protocol_version": "actions-v3",
+      "benchmark_version": "sota-v5",
+      "contract_fingerprint": "a600b7da0c302231",
+      "observation_version": "observation-v3",
+      "scoring_scale_fingerprint": "05a60ff4f691e734",
+      "scoring_version": "score-v1",
+      "simulator_version": "sim-v4"
+    },
+    "scaffold_fingerprint": "c582e126bbb6af10"
+  },
+  "repeats": 1,
+  "seasons": 1,
+  "seeds": [
+    1
+  ],
+  "status": "complete"
+}

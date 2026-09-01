@@ -1,0 +1,38 @@
+{
+  "active_call_reservation_usd": 0.0,
+  "ceiling_usd": 100.0,
+  "reconciliation_evidence": "openrouter-spend-reconciliation-7.json",
+  "reconciliation_history": [
+    {
+      "evidence": "openrouter-spend-reconciliation.json",
+      "sha256": "d17c74cae5338f536cb40a8afe7259c3dc84ab4cfde179bdbb8cef743dcf7d10"
+    },
+    {
+      "evidence": "openrouter-spend-reconciliation-2.json",
+      "sha256": "b4e17e594c1797f7220060d5e9db79ddaec8842d288de845eb470b43a7ac9e18"
+    },
+    {
+      "evidence": "openrouter-spend-reconciliation-3.json",
+      "sha256": "e181dbd4c76aa6e906775c41ea1117a89b7cf414121f43e38e67d8014c4c3bf8"
+    },
+    {
+      "evidence": "openrouter-spend-reconciliation-4.json",
+      "sha256": "4b65a41f7992921fe8b5fa67f812ae9eb7641587d76cdb29908edc68b260c31a"
+    },
+    {
+      "evidence": "openrouter-spend-reconciliation-5.json",
+      "sha256": "2387f6837087e4445f7bc8fc14be005ceb6419eb598cccdd85d1a4400bb9701e"
+    },
+    {
+      "evidence": "openrouter-spend-reconciliation-6.json",
+      "sha256": "5ad83404d89a998cf2d1e0a080be3c7940237b2d2b2f3c82dbd639957ff232b2"
+    },
+    {
+      "evidence": "openrouter-spend-reconciliation-7.json",
+      "sha256": "95a452457765cc1c8a5e047a670f4916f9300bab53346b2e35903b5f1c67cc9f"
+    }
+  ],
+  "reconciliation_sha256": "95a452457765cc1c8a5e047a670f4916f9300bab53346b2e35903b5f1c67cc9f",
+  "reported_spend_usd": 0.509962628,
+  "schema_version": 1
+}

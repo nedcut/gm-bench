@@ -1,0 +1,17 @@
+{
+  "absorbed_unknown_call_spend_usd": 0.016733039999999998,
+  "format": "gm-bench-openrouter-spend-reconciliation-v1",
+  "method": "charge-full-conservative-call-reservation",
+  "note": "The account delta is aggregate audit context and is not used as per-call settlement. The actual provider cost was unavailable, so the full pre-call upper bound is charged as spent.",
+  "observed_account_delta_usd": 0.2912143440000037,
+  "observed_total_usage_usd": 61.525248799,
+  "previous_reconciliation_evidence": "openrouter-spend-reconciliation-6.json",
+  "previous_reconciliation_sha256": "5ad83404d89a998cf2d1e0a080be3c7940237b2d2b2f3c82dbd639957ff232b2",
+  "prior_blocked_reason": "provider call did not return authoritative finite cost telemetry",
+  "prior_reported_spend_usd": 0.456757588,
+  "prior_telemetry_error": "api_error: HTTP 429 Too Many Requests; code=429; message=Provider returned error; provider=Fireworks; generation_id=gen-1788290101-tLQmRoyhZzjxVwQickS4",
+  "reconciled_at_utc": "2026-09-01T19:15:18+00:00",
+  "reconciled_reported_spend_usd": 0.47349062799999997,
+  "schema_version": 1,
+  "starting_total_usage_usd": 61.234034455
+}

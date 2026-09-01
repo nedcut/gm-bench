@@ -1,0 +1,123 @@
+{
+  "cell_outcomes": {
+    "openrouter-claude-haiku-4.5-anthropic": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T15:32:14+00:00"
+    },
+    "openrouter-deepseek-v4-flash-0731-together": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T15:18:45+00:00"
+    },
+    "openrouter-gemini-3.1-flash-lite-google-ai-studio": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T15:22:53+00:00"
+    },
+    "openrouter-gemini-3.7-flash-google-ai-studio": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T15:28:02+00:00"
+    },
+    "openrouter-glm-5-streamlake": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T15:28:55+00:00"
+    },
+    "openrouter-glm-5.3-flash-cloudflare": {
+      "error": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+      "status": "excluded",
+      "updated_at_utc": "2026-09-01T15:21:26+00:00"
+    },
+    "openrouter-glm-5.3-flash-deepinfra": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T19:30:20+00:00"
+    },
+    "openrouter-glm-5.3-flash-fireworks": {
+      "error": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+      "status": "aborted",
+      "updated_at_utc": "2026-09-01T19:15:06+00:00"
+    },
+    "openrouter-gpt-5.4-mini-openai": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T15:31:28+00:00"
+    },
+    "openrouter-gpt-5.6-luna-openai": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T15:22:25+00:00"
+    },
+    "openrouter-gpt-oss-20b-deepinfra": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T15:13:55+00:00"
+    },
+    "openrouter-grok-4.3-xai": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T15:30:55+00:00"
+    },
+    "openrouter-grok-4.6-xai": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T15:34:17+00:00"
+    },
+    "openrouter-kimi-k2.5-siliconflow": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T15:29:51+00:00"
+    },
+    "openrouter-minimax-m3-modelrun": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T19:16:32+00:00"
+    },
+    "openrouter-minimax-m3-parasail": {
+      "error": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+      "status": "excluded",
+      "updated_at_utc": "2026-09-01T15:25:24+00:00"
+    },
+    "openrouter-nemotron-3-nano-30b-a3b-crusoe": {
+      "error": "completed smoke failed only model-behavior gates: artifact candidate episode contains failed decisions; artifact candidate summary failed_decisions must be zero; artifact decision_failure_rate must be zero",
+      "status": "ineligible",
+      "updated_at_utc": "2026-09-01T15:15:29+00:00"
+    },
+    "openrouter-nemotron-3-super-120b-a12b-digitalocean": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T19:16:00+00:00"
+    },
+    "openrouter-qwen3.5-27b-siliconflow": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T15:27:14+00:00"
+    },
+    "openrouter-qwen3.5-397b-a17b-parasail": {
+      "error": "aborting after 2 consecutive model failures: spend_guard: provider call did not return authoritative finite cost telemetry",
+      "status": "aborted",
+      "updated_at_utc": "2026-09-01T15:48:08+00:00"
+    },
+    "openrouter-qwen3.8-flash-alibaba": {
+      "status": "complete",
+      "updated_at_utc": "2026-09-01T19:11:42+00:00"
+    }
+  },
+  "format": "gm-bench-publication-run-v1",
+  "launched_model_ids": [
+    "openrouter-claude-haiku-4.5-anthropic",
+    "openrouter-deepseek-v4-flash-0731-together",
+    "openrouter-gemini-3.1-flash-lite-google-ai-studio",
+    "openrouter-gemini-3.7-flash-google-ai-studio",
+    "openrouter-glm-5-streamlake",
+    "openrouter-glm-5.3-flash-cloudflare",
+    "openrouter-glm-5.3-flash-deepinfra",
+    "openrouter-glm-5.3-flash-fireworks",
+    "openrouter-gpt-5.4-mini-openai",
+    "openrouter-gpt-5.6-luna-openai",
+    "openrouter-gpt-oss-20b-deepinfra",
+    "openrouter-grok-4.3-xai",
+    "openrouter-grok-4.6-xai",
+    "openrouter-kimi-k2.5-siliconflow",
+    "openrouter-minimax-m3-modelrun",
+    "openrouter-minimax-m3-parasail",
+    "openrouter-nemotron-3-nano-30b-a3b-crusoe",
+    "openrouter-nemotron-3-super-120b-a12b-digitalocean",
+    "openrouter-qwen3.5-27b-siliconflow",
+    "openrouter-qwen3.5-397b-a17b-parasail",
+    "openrouter-qwen3.8-flash-alibaba"
+  ],
+  "output_token_cap": 4096,
+  "phase": "smoke",
+  "schema_version": 1,
+  "spend_ceiling_usd": 100.0,
+  "started_at_utc": "2026-09-01T03:23:36+00:00",
+  "updated_at_utc": "2026-09-01T19:30:20+00:00"
+}

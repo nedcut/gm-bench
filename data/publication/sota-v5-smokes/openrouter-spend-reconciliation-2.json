@@ -1,0 +1,17 @@
+{
+  "absorbed_unknown_call_spend_usd": 0.015844199999999996,
+  "format": "gm-bench-openrouter-spend-reconciliation-v1",
+  "method": "charge-full-conservative-call-reservation",
+  "note": "The account delta is aggregate audit context and is not used as per-call settlement. The actual provider cost was unavailable, so the full pre-call upper bound is charged as spent.",
+  "observed_account_delta_usd": 0.007569940000003328,
+  "observed_total_usage_usd": 61.241604395,
+  "previous_reconciliation_evidence": "openrouter-spend-reconciliation.json",
+  "previous_reconciliation_sha256": "d17c74cae5338f536cb40a8afe7259c3dc84ab4cfde179bdbb8cef743dcf7d10",
+  "prior_blocked_reason": "provider call did not return authoritative finite cost telemetry",
+  "prior_reported_spend_usd": 0.010936447999999998,
+  "prior_telemetry_error": "api_error: 'choices'",
+  "reconciled_at_utc": "2026-09-01T15:19:55+00:00",
+  "reconciled_reported_spend_usd": 0.026780647999999994,
+  "schema_version": 1,
+  "starting_total_usage_usd": 61.234034455
+}
