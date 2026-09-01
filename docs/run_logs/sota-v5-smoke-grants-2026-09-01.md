@@ -54,3 +54,35 @@ qwen3.5-397b Parasail row was voided in place.
 | 4'' | openrouter-glm-5.3-flash-deepinfra | 1 | **accepted** (fp8 quantization caveat carries to publication copy). Mandatory-reasoning row at low effort: clean, no illegal actions, 2,073 output tokens across four decisions including reasoning, zero truncation, $0.0026. Sixteen of sixteen registered rows now hold accepted smokes. |
 | 2' | openrouter-nemotron-3-super-120b-a12b-digitalocean | 1 | **accepted**. Clean decisions; one illegal action scored as a 2.5 penalty. $0.0075. |
 | 7' | openrouter-minimax-m3-modelrun | 1 | **accepted** (fp4 quantization caveat carries to publication copy). Clean, no illegal actions, $0.0264. |
+
+## Re-run under the fixed one-paid-call rule (2026-09-01, after PR #129 review)
+
+Review of PR #129 found that `FailFastAgent` dropped `pays_for_calls`, so every
+smoke above ran with the five-round query loop open; fourteen artifacts
+record 5 to 7 calls for 4 decisions. All sixteen manifest entries were
+invalidated (preserved under `invalidated_entries_2026_09_01`) and every
+model re-granted one attempt in ascending-cost order in a fresh run
+directory, `data/publication/sota-v5-smokes-v2`. Each accepted artifact below
+records exactly four calls, one per phase.
+
+| model_id | attempts | outcome |
+| --- | --- | --- |
+| openrouter-gpt-oss-20b-deepinfra | 1 so far | Attempt 1: DeepInfra HTTP 429 on two consecutive calls (not billed; reconciled). Final attempt pending after a cool-down. |
+| openrouter-glm-5.3-flash-deepinfra | 1 | **accepted** |
+| openrouter-deepseek-v4-flash-0731-together | 1 | **accepted** |
+| openrouter-qwen3.8-flash-alibaba | 1 | **accepted** |
+| openrouter-gpt-5.6-luna-openai | 1 | **accepted** |
+| openrouter-gemini-3.1-flash-lite-google-ai-studio | 1 | **accepted** |
+| openrouter-nemotron-3-super-120b-a12b-digitalocean | 1 so far | Attempt 1: DigitalOcean HTTP 429 on two consecutive calls (partially billed; reconciled). Final attempt pending after a cool-down. |
+| openrouter-qwen3.5-27b-siliconflow | 1 | **accepted** |
+| openrouter-gemini-3.7-flash-google-ai-studio | 1 | **accepted** (mandatory low reasoning inside the ceiling) |
+| openrouter-glm-5-streamlake | 1 | **accepted** |
+| openrouter-kimi-k2.5-siliconflow | 1 | **accepted** (int4 caveat) |
+| openrouter-minimax-m3-modelrun | 1 | **accepted** (fp4 caveat) |
+| openrouter-grok-4.3-xai | 1 | **accepted** |
+| openrouter-gpt-5.4-mini-openai | 1 | **accepted** |
+| openrouter-claude-haiku-4.5-anthropic | 1 | **accepted** |
+| openrouter-grok-4.6-xai | 1 | **accepted** (frontier; mandatory low reasoning inside the ceiling) |
+
+A driver bug on the third pass tried to re-grant an already-accepted row; the
+grant gate refused before any call, consuming nothing.
