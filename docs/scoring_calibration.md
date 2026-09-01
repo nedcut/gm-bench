@@ -241,7 +241,7 @@ difference, which is the quantity the MDD projection uses.
 | `value` > `pick-hoard` (damaged) | 51.40 | 33.57 | 10.61 | 47/48 |
 | `value` > `cap-hoard` (damaged) | 65.11 | 34.35 | 13.13 | 48/48 |
 | `value` > `accept-everything` (damaged) | 50.87 | 45.56 | 7.74 | 45/48 |
-| `value` > `win-now` | 6.61 | 40.70 | 1.12 | 28/48 | 
+| `value` > `win-now` | 6.61 | 40.70 | 1.12 | 28/48 |
 | `pick-trader` > `strategic` | 8.25 | 43.12 | 1.33 | 29/48 |
 | `shrewd` > `strategic` | 9.95 | 35.42 | 1.95 | 28/48 |
 | `shrewd` > `pick-trader` | 1.70 | 53.88 | 0.22 | 20/48 |
