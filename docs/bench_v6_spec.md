@@ -14,13 +14,21 @@ result, not a failure.
 
 ## Sensitivity target
 
-- Minimum detectable difference (MDD): **30 points** between any two panel
-  models. This separates capability tiers, not adjacent frontier models.
+- Minimum detectable difference (MDD): **30 points**. This is a design
+  sensitivity figure from the calibration panel — how large a score gap the
+  panel width can resolve — used to choose the seed count. It is not an
+  inference plan: it says the panel is coarse enough that adjacent frontier
+  models will not separate, and fine enough to be worth running.
 - Anchor: MDD ~36 points at 16 seeds, and a projected 26 points at 29 paired
   seeds per model, so the 30-point target holds with margin. Measured on the
   48-seed residual panel in docs/scoring_calibration.md (paired-residual SD
   40.1, assumed within-seed model repeat noise 15.0); the projection holds for
   model rows whose within-seed SD is about 25 or below.
+- The only supported inference is the predeclared contrast: each registered
+  model against the pick-trader reference, exactly as frozen in
+  config/sota_v5_publication_protocol.json. That plan is reference-only. No
+  model-versus-model comparison, ordinal ranking, or capability tiering is
+  planned, run, or published, and the MDD figure does not authorize one.
 - The sensitivity ladder (scripted weak/mid/strong policies plus damaged
   agents) must demonstrate separation at this target before any paid model
   run. Its results are published, and the tie interpretation is written down
