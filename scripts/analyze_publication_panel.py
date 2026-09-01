@@ -67,9 +67,12 @@ if str(ROOT) not in sys.path:
 
 from gm_bench.official import POLICIES, validate_leaderboard_payload  # noqa: E402
 from gm_bench.publication import (  # noqa: E402
+    WITHIN_SEED_ONE_REPEAT_BASIS,
+    WITHIN_SEED_UNMEASURED_ONE_REPEAT,
     canonical_sha256,
     raw_artifact_link_issues,
     v3_statistical_plan_issues,
+    within_seed_stddev_measurement,
 )
 
 
@@ -394,20 +397,12 @@ def _registered_lane_issues(
     return issues
 
 
-def _candidate_within_seed_stddev(payload: Mapping[str, Any]) -> float | None:
-    """Read the row's own run-to-run score spread, or None when unreported."""
-    value = ((payload.get("candidate") or {}).get("summary") or {}).get("within_seed_score_stddev")
-    if not isinstance(value, int | float) or isinstance(value, bool) or not math.isfinite(float(value)):
-        return None
-    return float(value)
-
-
 def within_seed_separation_caveats(
     rows: Sequence[Mapping[str, Any]],
     *,
     threshold: float = WITHIN_SEED_SEPARATION_THRESHOLD,
 ) -> dict[str, Any]:
-    """Report which rows are too noisy to support a separation claim.
+    """Report which rows are too noisy — or too unmeasured — to support a separation claim.
 
     The panel's minimum detectable difference is a statement about rows whose
     within-seed repeat noise is near the value the power analysis assumed. A row
@@ -416,15 +411,30 @@ def within_seed_separation_caveats(
     What the panel cannot say is that such a row is *separated* from another
     one, so every pair containing it is listed here as unclaimable.
 
-    A row that never reports the statistic is treated as unknown rather than
-    quiet: it is listed too, because an unmeasured spread cannot clear a bound.
+    Three states, not two:
+
+    * **Measured.** The row ran repeats and its spread is a real number. Above
+      the threshold it blocks its pairs; at or below it, it clears.
+    * **Unmeasured under a one-repeat lane.** The v6 panel pins one episode per
+      seed, so no row can measure its own repeat noise. That is exactly the case
+      docs/scoring_calibration.md's MDD table covers by assumption: the 26-point
+      figure at 29 seeds was computed *assuming* a within-seed SD near 15. Such a
+      row therefore stays claimable, but the claim rests on that assumption and
+      the assumption is named here rather than left implicit.
+    * **Unreported.** A row that carries no value at all — a pre-v6 artifact from
+      before the field existed — is unknown rather than quiet. Nothing, not even
+      an assumption, covers it, so it blocks its pairs.
     """
     noisy: list[dict[str, Any]] = []
+    unmeasured: list[str] = []
     unknown: list[str] = []
     for row in rows:
         model_id = str(row["model_id"])
         stddev = row.get("within_seed_score_stddev")
-        if stddev is None:
+        status = row.get("within_seed_score_stddev_status")
+        if status == WITHIN_SEED_UNMEASURED_ONE_REPEAT:
+            unmeasured.append(model_id)
+        elif stddev is None:
             unknown.append(model_id)
         elif float(stddev) > threshold:
             noisy.append({"model_id": model_id, "within_seed_score_stddev": float(stddev)})
@@ -445,12 +455,17 @@ def within_seed_separation_caveats(
         ),
         "rule": (
             "Reported caveat, not a row rejection. A row above the threshold publishes its score and its "
-            "reference contrast; no separation claim is supported for any pair that includes it."
+            "reference contrast; no separation claim is supported for any pair that includes it. A row that "
+            "cannot measure the statistic because its lane ran one episode per seed stays claimable under the "
+            "calibration panel's assumed repeat noise, and says so."
         ),
+        "unmeasured_basis": WITHIN_SEED_ONE_REPEAT_BASIS,
         "models_exceeding_threshold": sorted(noisy, key=lambda entry: str(entry["model_id"])),
+        "models_with_unmeasured_within_seed_noise": sorted(unmeasured),
         "models_missing_the_statistic": sorted(unknown),
         "unclaimable_separation_pairs": unclaimable,
         "separation_claims_supported": not blocked,
+        "separation_claims_rest_on_assumed_repeat_noise": bool(unmeasured),
     }
 
 
@@ -590,6 +605,7 @@ def analyze(
 
         lifts = [float(row["lift"]) for row in per_seed]
         ci_low, ci_high = bootstrap_mean_ci(lifts)
+        within_seed_value, within_seed_status = within_seed_stddev_measurement(payload)
         candidates.setdefault(spec["id"], []).append(
             {
                 "model_id": spec["id"],
@@ -600,7 +616,8 @@ def analyze(
                 "bootstrap_ci95": [round(ci_low, 6), round(ci_high, 6)],
                 "sign_flip_p_value": sign_flip_p_value(lifts),
                 "seed_win_rate": round(sum(lift > 0.0 for lift in lifts) / len(lifts), 6),
-                "within_seed_score_stddev": _candidate_within_seed_stddev(payload),
+                "within_seed_score_stddev": within_seed_value,
+                "within_seed_score_stddev_status": within_seed_status,
                 "artifact_sha256": artifact_sha256,
                 "raw_artifact_sha256": raw_artifact_sha256 or artifact_sha256,
             }
@@ -647,10 +664,14 @@ def analyze(
         rows = assign_tiers(rows)
         # Tiers are the one place this analyzer does claim two models are
         # apart, so the caveat has to travel with them.
+        if within_seed_noise["separation_claims_supported"] is False:
+            tier_status = "supported-with-within-seed-caveat"
+        elif within_seed_noise["separation_claims_rest_on_assumed_repeat_noise"]:
+            tier_status = "supported-under-assumed-repeat-noise"
+        else:
+            tier_status = "supported"
         tiering = {
-            "status": "supported-with-within-seed-caveat"
-            if within_seed_noise["separation_claims_supported"] is False
-            else "supported",
+            "status": tier_status,
             "within_seed_noise_caveat": within_seed_noise,
         }
     output_rows = rows

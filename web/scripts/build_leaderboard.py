@@ -41,7 +41,13 @@ from gm_bench.benchmark_config import PRESETS, PRIVATE_LEADERBOARD_PANEL_NAME  #
 from gm_bench.contract import SOTA_V2_CONTRACT, SOTA_V2_ORACLE_MEAN  # noqa: E402
 from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
-from gm_bench.publication import canonical_sha256, mechanic_breakdown, smoke_manifest_issues  # noqa: E402
+from gm_bench.publication import (  # noqa: E402
+    WITHIN_SEED_MEASURED,
+    canonical_sha256,
+    mechanic_breakdown,
+    smoke_manifest_issues,
+    within_seed_stddev_measurement,
+)
 from gm_bench.runner import run_many  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
@@ -297,6 +303,11 @@ def model_row(
     for field in SUMMARY_PASSTHROUGH_FIELDS:
         if field in summary:
             row[field] = summary[field]
+    # A one-episode-per-seed row has no repeats to spread across, so the
+    # runner's 0.0 there is an absence. Publishing it would print a reassuring
+    # zero on a site that renders a missing field as "not reported".
+    if within_seed_stddev_measurement(payload)[1] != WITHIN_SEED_MEASURED:
+        row.pop("within_seed_score_stddev", None)
     per_seed_scores = _per_seed_scores(paired)
     if per_seed_scores:
         row["per_seed_scores"] = per_seed_scores

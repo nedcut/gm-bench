@@ -56,8 +56,12 @@
     "within_seed_noise_caveat": {
       "statistic": "within_seed_score_stddev",
       "threshold": 25.0,
-      "rule": "Report the caveat on any published row whose within-seed score standard deviation exceeds 25, and refuse a separation claim for a pair whose noisier member exceeds it. This is a reported caveat, not a row rejection: the row still publishes with its score.",
-      "basis": "docs/scoring_calibration.md: the 30-point MDD target holds only for rows whose within-seed SD is at or below about 25."
+      "rule": "Report the caveat on any published row whose within-seed score standard deviation exceeds 25, and refuse a separation claim for a pair whose noisier member exceeds it. This is a reported caveat, not a row rejection: the row still publishes with its score. This lane pins one episode per seed, so no v6 panel row can measure the statistic at all; such a row publishes it as unmeasured rather than as zero, and its separation claim stays supported only under the calibration panel's assumed repeat noise, which every row must state. A row that reports no value for another reason is unknown, not quiet, and blocks its pairs.",
+      "measurable_under_this_lane": false,
+      "unmeasured_status": "unmeasured-one-repeat",
+      "unmeasured_basis": "within-seed noise unmeasured under the one-repeat lane; the MDD projection relies on the calibration panel's assumed repeat noise (~15, docs/scoring_calibration.md)",
+      "unmeasured_claimability": "claimable-with-explicit-assumption-caveat",
+      "basis": "docs/scoring_calibration.md: the 30-point MDD target holds only for rows whose within-seed SD is at or below about 25, and the 26-point figure at 29 seeds was computed assuming a within-seed repeat SD near 15."
     },
     "required_outputs": [
       "paired_lift",

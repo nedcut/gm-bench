@@ -232,3 +232,55 @@ python3 -m pytest -q \
   tests/test_publication_analysis.py \
   tests/test_sota_v5_preregistration.py
 ```
+
+## Addendum, 2026-08-31 — the within-seed noise caveat is unmeasurable on this lane
+
+Still no spend, still no completion call, still pre-data. This addendum records
+a correction to the caveat frozen earlier the same day, not a new decision about
+what the panel measures.
+
+**The problem.** The caveat rule said "refuse a separation claim for a pair whose
+noisier member exceeds 25", read against each row's
+`within_seed_score_stddev`. But this lane pins `repeats: 1`, and
+`gm_bench/runner.py` `_within_seed_stddev` returns `0.0` when no seed ran more
+than once, because there is no spread to average. Every one of the sixteen panel
+rows would therefore have reported `0.0`, cleared the 25-point threshold
+trivially, and published as perfectly quiet. The guard could never have fired on
+any row it was written for. That zero is an absence, not a measurement.
+
+**The correction.** The statistic is now reported in three states rather than
+two, and the distinction lives at the consumer seams
+(`gm_bench/publication.py` `within_seed_stddev_measurement`, read by
+`scripts/analyze_publication_panel.py` and `web/scripts/build_leaderboard.py`).
+`gm_bench/runner.py` is untouched: it is a contract-fingerprint source and
+`a600b7da0c302231` does not move for this.
+
+- *Measured* — the row ran repeats. Unchanged behavior: above 25 it blocks the
+  separation claim for every pair it is in.
+- *Unmeasured under a one-repeat lane* — the v6 case. The row publishes no
+  number at all (the site prints "not reported", not `0.0`), and the analysis
+  output names it under `models_with_unmeasured_within_seed_noise` with the
+  basis "within-seed noise unmeasured under the one-repeat lane; the MDD
+  projection relies on the calibration panel's assumed repeat noise (~15,
+  `docs/scoring_calibration.md`)".
+- *Unreported* — a row carrying no value for any other reason, such as an
+  artifact predating the field. Unknown, not quiet: it still blocks its pairs.
+
+**The claimability decision: claimable with an explicit assumption caveat, not
+unclaimable.** An unmeasured-because-one-repeat row keeps its separation claim.
+The alternative — treating it like an unreported row and blocking every pair —
+would refuse every claim the v6 panel was designed to make, which is not what
+the calibration work supports. `docs/scoring_calibration.md`'s MDD table is
+computed at `repeats=1` and prices repeat noise by *assumption*: the 26-point
+figure at 29 seeds assumes a within-seed repeat SD near 15, and the same table
+gives 30 points at an assumed SD of 25 and 35 points at 35. The panel's design
+sensitivity was therefore never derived from measured per-row noise; it was
+always an assumption. The honest move is to state the assumption on every row
+rather than to hide it behind a zero or to refuse claims the design already
+accounts for. The analysis output carries
+`separation_claims_rest_on_assumed_repeat_noise: true` for exactly this reason,
+and `config/sota_v5_publication_protocol.json` records the decision as
+`unmeasured_claimability: "claimable-with-explicit-assumption-caveat"`.
+
+The threshold, the reference contrast, the reference-only analysis mode, the
+seed allocation, the budget, and every authorization flag are unchanged.

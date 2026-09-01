@@ -49,6 +49,67 @@ def raw_artifact_link_issues(
     return []
 
 
+# How a row's `within_seed_score_stddev` should be read.
+#
+# `gm_bench.runner._within_seed_stddev` returns 0.0 when no seed ran more than
+# once, because there is no spread to average. That zero is an absence, not a
+# measurement, and a consumer that reads it as a measurement concludes every
+# one-repeat row is perfectly quiet. The v6 lane pins `repeats: 1`, so *every*
+# panel row would look quiet and the noise caveat could never fire. These
+# statuses let each consumer tell the three cases apart.
+WITHIN_SEED_MEASURED = "measured"
+WITHIN_SEED_UNMEASURED_ONE_REPEAT = "unmeasured-one-repeat"
+WITHIN_SEED_UNREPORTED = "unreported"
+WITHIN_SEED_ONE_REPEAT_BASIS = (
+    "within-seed noise unmeasured under the one-repeat lane; the MDD projection relies on the calibration "
+    "panel's assumed repeat noise (~15, docs/scoring_calibration.md)"
+)
+
+
+def _episodes_per_seed(candidate: Any) -> int | None:
+    """How many episodes this row ran per seed, or None when that is not knowable.
+
+    Counted from the episodes themselves when they are present and every seed
+    ran the same number of times; a redacted or compacted row without episodes
+    falls back to the declared `repeats`. A ragged episode set has no single
+    per-seed repeat count, so it reports None rather than guessing.
+    """
+    if not isinstance(candidate, dict):
+        return None
+    episodes = candidate.get("episodes")
+    if isinstance(episodes, list) and episodes:
+        counts: dict[Any, int] = {}
+        for episode in episodes:
+            if isinstance(episode, dict) and "seed" in episode:
+                counts[episode["seed"]] = counts.get(episode["seed"], 0) + 1
+        if counts:
+            observed = set(counts.values())
+            return observed.pop() if len(observed) == 1 else None
+    repeats = candidate.get("repeats")
+    if isinstance(repeats, int) and not isinstance(repeats, bool) and repeats >= 1:
+        return repeats
+    return None
+
+
+def within_seed_stddev_measurement(payload: Any) -> tuple[float | None, str]:
+    """Return this row's within-seed score spread and how to read it.
+
+    Returns `(None, WITHIN_SEED_UNMEASURED_ONE_REPEAT)` for a one-episode-per-seed
+    row: the runner's 0.0 there means "nothing to measure", and passing it on as a
+    number would publish a reassuring zero. Returns `(None, WITHIN_SEED_UNREPORTED)`
+    for a row that carries no usable value at all — the pre-v6 artifacts that
+    predate the field.
+    """
+    candidate = payload.get("candidate") if isinstance(payload, dict) else None
+    summary = candidate.get("summary") if isinstance(candidate, dict) else None
+    value = summary.get("within_seed_score_stddev") if isinstance(summary, dict) else None
+    if _episodes_per_seed(candidate) == 1:
+        return None, WITHIN_SEED_UNMEASURED_ONE_REPEAT
+    if not isinstance(value, int | float) or isinstance(value, bool) or not math.isfinite(float(value)):
+        return None, WITHIN_SEED_UNREPORTED
+    return float(value), WITHIN_SEED_MEASURED
+
+
 FROZEN_OUTPUT_POLICY_BASES = frozenset(
     {
         "fixed-safety-ceiling",

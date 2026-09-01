@@ -711,7 +711,9 @@ def test_v2_leaderboard_builder_excludes_redacted_v3_artifact(monkeypatch: pytes
 
 
 def test_leaderboard_builder_publishes_v6_reliability_and_route() -> None:
-    payload = _official_payload(repeats=1)
+    # Three repeats, because `within_seed_score_stddev` is only a measurement
+    # when a seed ran more than once; see the one-repeat test below.
+    payload = _official_payload(repeats=3)
     payload["candidate"]["summary"].update(
         {
             "malformed_decisions": 4,
@@ -743,6 +745,31 @@ def test_leaderboard_builder_publishes_v6_reliability_and_route() -> None:
     assert row["within_seed_score_stddev"] == 12.5
     assert row["per_seed_scores"] == {str(seed): 300.0 + seed for seed in payload["seeds"]}
     assert row["route"] == "openrouter → Amazon Bedrock | openai/gpt-test (amazon-bedrock/global)"
+
+
+def test_leaderboard_builder_omits_the_within_seed_spread_on_a_one_repeat_row() -> None:
+    """The v6 lane pins one episode per seed, so the runner's 0.0 is an absence."""
+    payload = _official_payload(repeats=1)
+    # Exactly what gm_bench.runner.summarize_episodes writes when no seed repeated.
+    payload["candidate"]["summary"]["within_seed_score_stddev"] = 0.0
+    payload["candidate"]["summary"]["malformed_rate"] = 0.025
+
+    row = model_row(payload)
+
+    assert "within_seed_score_stddev" not in row
+    # Only the unmeasurable statistic drops out; the rest of the block publishes.
+    assert row["malformed_rate"] == 0.025
+
+
+def test_leaderboard_builder_omits_the_within_seed_spread_on_a_redacted_one_repeat_row() -> None:
+    """A redacted row carries no episodes, so `repeats` is the only repeat evidence."""
+    payload = _official_payload(repeats=1)
+    payload["candidate"]["episodes"] = []
+    payload["candidate"]["summary"]["within_seed_score_stddev"] = 0.0
+
+    row = model_row(payload)
+
+    assert "within_seed_score_stddev" not in row
 
 
 def test_leaderboard_builder_omits_reliability_fields_a_row_never_measured() -> None:

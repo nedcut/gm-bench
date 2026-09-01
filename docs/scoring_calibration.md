@@ -435,9 +435,21 @@ leaving it to prose. Every eligible row carries its own
 `within_seed_score_stddev`, and the analysis output carries a
 `within_seed_noise` block naming the rows above the threshold, the model pairs
 whose separation is therefore unclaimable, and — where the analyzer does assign
-tiers — the same caveat attached to `model_tiering`. A row that never reports
-the statistic counts as unclaimable too: an unmeasured spread cannot clear a
-bound. The threshold defaults to 25 and is read from the frozen analysis plan's
+tiers — the same caveat attached to `model_tiering`.
+
+The v6 panel runs one episode per seed, so no panel row can measure this
+statistic on itself: with no repeats there is no spread to average, and
+`gm_bench/runner.py` reports `0.0` for the absence. Such a row publishes the
+statistic as unmeasured rather than as zero, and keeps its separation claim
+under the assumption this table is built on — the 26-point figure at 29 seeds
+assumes a within-seed repeat SD near 15. The analysis output names those rows
+under `models_with_unmeasured_within_seed_noise` and sets
+`separation_claims_rest_on_assumed_repeat_noise`, so the assumption travels with
+the claim instead of disappearing into a reassuring zero. A row that reports no
+value for any *other* reason — an artifact predating the field — is unknown
+rather than quiet and does count as unclaimable: nothing covers it.
+
+The threshold defaults to 25 and is read from the frozen analysis plan's
 `statistical_analysis_plan.within_seed_noise_caveat.threshold` when one is
 committed. Nothing here withholds a row: a noisy model publishes its score and
 its reference contrast exactly as a quiet one does.

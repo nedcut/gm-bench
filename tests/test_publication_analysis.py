@@ -11,6 +11,12 @@ from types import SimpleNamespace
 import pytest
 
 import scripts.analyze_publication_panel as publication_analysis
+from gm_bench.publication import (
+    WITHIN_SEED_MEASURED,
+    WITHIN_SEED_UNMEASURED_ONE_REPEAT,
+    WITHIN_SEED_UNREPORTED,
+    within_seed_stddev_measurement,
+)
 from scripts.analyze_publication_panel import (
     analyze,
     assign_tiers,
@@ -687,3 +693,120 @@ def test_the_v5_analysis_plan_carries_the_within_seed_threshold() -> None:
     assert caveat["statistic"] == "within_seed_score_stddev"
     assert caveat["threshold"] == publication_analysis.WITHIN_SEED_SEPARATION_THRESHOLD == 25.0
     assert "within_seed_score_stddev" in protocol["statistical_analysis_plan"]["required_outputs"]
+
+
+def test_a_one_repeat_row_reads_as_unmeasured_rather_than_zero() -> None:
+    """The runner writes 0.0 when nothing repeated; that is an absence, not a spread."""
+    payload = {"candidate": {"repeats": 1, "summary": {"within_seed_score_stddev": 0.0}}}
+
+    assert within_seed_stddev_measurement(payload) == (None, WITHIN_SEED_UNMEASURED_ONE_REPEAT)
+
+
+def test_a_repeated_row_reads_as_measured() -> None:
+    payload = {"candidate": {"repeats": 3, "summary": {"within_seed_score_stddev": 18.4}}}
+
+    assert within_seed_stddev_measurement(payload) == (18.4, WITHIN_SEED_MEASURED)
+
+
+def test_one_repeat_is_read_from_episodes_when_repeats_is_absent() -> None:
+    payload = {
+        "candidate": {
+            "episodes": [{"seed": 11, "final_score": 1.0}, {"seed": 12, "final_score": 2.0}],
+            "summary": {"within_seed_score_stddev": 0.0},
+        }
+    }
+
+    assert within_seed_stddev_measurement(payload) == (None, WITHIN_SEED_UNMEASURED_ONE_REPEAT)
+
+
+def test_a_row_that_never_carried_the_field_reads_as_unreported() -> None:
+    payload = {"candidate": {"repeats": 3, "summary": {}}}
+
+    assert within_seed_stddev_measurement(payload) == (None, WITHIN_SEED_UNREPORTED)
+
+
+def test_unmeasured_one_repeat_rows_stay_claimable_under_the_assumed_repeat_noise() -> None:
+    """The MDD table already prices repeat noise by assumption, so name the assumption."""
+    rows = [
+        {"model_id": "a", "within_seed_score_stddev": 12.0, "within_seed_score_stddev_status": WITHIN_SEED_MEASURED},
+        {
+            "model_id": "b",
+            "within_seed_score_stddev": None,
+            "within_seed_score_stddev_status": WITHIN_SEED_UNMEASURED_ONE_REPEAT,
+        },
+    ]
+
+    caveat = within_seed_separation_caveats(rows)
+
+    assert caveat["models_with_unmeasured_within_seed_noise"] == ["b"]
+    assert caveat["models_missing_the_statistic"] == []
+    assert caveat["unclaimable_separation_pairs"] == []
+    assert caveat["separation_claims_supported"] is True
+    assert caveat["separation_claims_rest_on_assumed_repeat_noise"] is True
+    assert "assumed repeat noise" in caveat["unmeasured_basis"]
+
+
+def test_an_unreported_row_still_blocks_its_pairs_when_others_are_unmeasured() -> None:
+    """Unmeasured-by-lane is covered by an assumption; unreported is covered by nothing."""
+    rows = [
+        {
+            "model_id": "a",
+            "within_seed_score_stddev": None,
+            "within_seed_score_stddev_status": WITHIN_SEED_UNMEASURED_ONE_REPEAT,
+        },
+        {"model_id": "b", "within_seed_score_stddev": None, "within_seed_score_stddev_status": WITHIN_SEED_UNREPORTED},
+    ]
+
+    caveat = within_seed_separation_caveats(rows)
+
+    assert caveat["models_missing_the_statistic"] == ["b"]
+    assert caveat["unclaimable_separation_pairs"] == [["a", "b"]]
+    assert caveat["separation_claims_supported"] is False
+
+
+def test_analysis_marks_a_one_repeat_panel_row_unmeasured_instead_of_quiet(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End to end: a `repeats: 1` lane must not publish sixteen trivially clean rows."""
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    seeds = list(range(11, 17))
+    payload = _payload({seed: [float(seed)] for seed in seeds}, {seed: float(seed - 1) for seed in seeds})
+    payload["candidate"]["repeats"] = 1
+    payload["run_info"].update(_registered_payload(seed_count=6)["run_info"])
+    payload["candidate"]["summary"] = {
+        "decisions": 6,
+        "usage": {"cost_decisions": 6, "upstream_providers": ["DemoProvider"]},
+        # What the runner actually writes for a one-repeat lane.
+        "within_seed_score_stddev": 0.0,
+    }
+    registry = {**_frozen_registry(), "repeats": 1}
+
+    result = analyze(registry, [payload])
+
+    assert result["status"] == "complete"
+    row = result["models"][0]
+    assert row["within_seed_score_stddev"] is None
+    assert row["within_seed_score_stddev_status"] == WITHIN_SEED_UNMEASURED_ONE_REPEAT
+    noise = result["within_seed_noise"]
+    assert noise["models_with_unmeasured_within_seed_noise"] == ["demo"]
+    assert noise["models_exceeding_threshold"] == []
+    assert noise["separation_claims_supported"] is True
+    assert noise["separation_claims_rest_on_assumed_repeat_noise"] is True
+    assert result["model_tiering"]["status"] == "supported-under-assumed-repeat-noise"
+
+
+def test_the_v5_plan_records_the_one_repeat_claimability_decision() -> None:
+    lane = json.loads((Path("config") / "sota_v5_lane.json").read_text())
+    protocol = json.loads((Path("config") / "sota_v5_publication_protocol.json").read_text())
+    caveat = protocol["statistical_analysis_plan"]["within_seed_noise_caveat"]
+
+    # The rule text has to match the lane it runs under.
+    assert lane["repeats"] == 1
+    assert caveat["measurable_under_this_lane"] is False
+    assert caveat["unmeasured_status"] == WITHIN_SEED_UNMEASURED_ONE_REPEAT
+    assert caveat["unmeasured_claimability"] == "claimable-with-explicit-assumption-caveat"
+    assert caveat["unmeasured_basis"] == publication_analysis.WITHIN_SEED_ONE_REPEAT_BASIS
