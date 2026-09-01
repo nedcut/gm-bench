@@ -1408,5 +1408,15 @@
   "spend_authorized": true,
   "smoke_execution_authorized": true,
   "panel_execution_authorized": false,
+  "paid_smoke_authorization": {
+    "scope": "single-model-single-infrastructure-attempt",
+    "model_id": "openrouter-gpt-oss-20b-deepinfra",
+    "attempt_number": 2,
+    "remaining_attempts": 0,
+    "granted_at_utc": "2026-09-01T15:06:00Z",
+    "granted_because": "Owner-authorized 2026-09-01 smoke sequence; final infrastructure retry after attempt 1 failed on the now-fixed env-precedence bug (reasoning pin stomped by provider defaults) and its spend was reconciled.",
+    "consumed_at_utc": "2026-09-01T15:13:55Z",
+    "outcome": "accepted-smoke-recorded-in-manifest"
+  },
   "publication_authorized": false
 }
