@@ -62,6 +62,8 @@ ceiling** (2x completion-token overrun stays under $100). Prices are the
 | nvidia/nemotron-3-nano-30b-a3b | local-runnable |
 | openai/gpt-oss-20b | local-runnable |
 
+**Amended 2026-09-01** (docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md): after the smoke gate, qwen/qwen3.5-397b-a17b is replaced by qwen/qwen3.8-flash (flash) and nvidia/nemotron-3-nano-30b-a3b by nvidia/nemotron-3-super-120b-a12b (open-weight); z-ai/glm-5.3-flash and minimax/minimax-m3 keep their slots on new routes. The table above is the original frozen panel and is left as written.
+
 Eligibility rule: a model joins only if a healthy route advertises
 structured_outputs. Pin providers for models where few routes qualify
 (minimax-m3, nemotron-3-nano). Run the zero-cost route preflight before any

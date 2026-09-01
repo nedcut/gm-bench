@@ -4,8 +4,8 @@
   "contract_fingerprint": "a600b7da0c302231",
   "status": "frozen",
   "evidence_state": "pre-data-no-completion-calls",
-  "amendment_revision": "2026-08-31-v6-execution-rules-amendment",
-  "amendment_record": "docs/run_logs/sota-v5-v6-execution-amendment-2026-08-31.md",
+  "amendment_revision": "2026-09-01-v6-route-and-cohort-amendment",
+  "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
   "research_question": "Whether each preregistered sota-v5 model-plus-compact-scaffold system trails the named pick-trader reference under the frozen actions-v3, sim-v4, observation-v3, and score-v1 mechanics.",
   "panel_design": {
     "status": "frozen",
@@ -88,14 +88,14 @@
     "expected_base_spend_usd": 75.0,
     "spend_authorized": true,
     "spend_enforcement": "dynamic-pre-provider-call",
-    "operator_ceiling_basis": "The $100 hard ceiling is the v6 spec's. It is enforced by the runner's dynamic pre-call spend guard, not by the planning maximum: the cap-priced protocol maximum -- every one of the 9,280 panel calls returning the full 4,096-token ceiling -- is $116.59 for the panel, $117.39 with the smoke gate, and $140.87 with the 1.2x contingency. That deliberately exceeds the ceiling. Input alone is $37.44 and each 1,000 completion tokens across the panel costs $19.32, so at the roughly 1,000-token replies the reasoning-disabled v2/v3 smoke record shows the panel plans at about $57, and doubling every completion still lands near $76. Both stay under $100. A run that approaches the ceiling stops for an explicit owner decision rather than silently spending more, and the ascending-cost run order means the cheapest rows finish before the ceiling is anywhere near in play.",
+    "operator_ceiling_basis": "The $100 hard ceiling is the v6 spec's. It is enforced by the runner's dynamic pre-call spend guard, not by the planning maximum: the cap-priced protocol maximum -- every one of the 9,280 panel calls returning the full 4,096-token ceiling -- is $116.12 for the panel, $116.92 with the smoke gate, and $140.31 with the 1.2x contingency. That deliberately exceeds the ceiling. Input alone is $39.07 and each 1,000 completion tokens across the panel costs $18.81, so at the roughly 1,000-token replies the reasoning-disabled v2/v3 smoke record shows the panel plans at about $58, and doubling every completion still lands near $77. Both stay under $100. A run that approaches the ceiling stops for an explicit owner decision rather than silently spending more, and the ascending-cost run order means the cheapest rows finish before the ceiling is anywhere near in play. Figures regenerated 2026-09-01 for the route-and-cohort amendment.",
     "cost_components_usd": {
-      "input_only_at_8000_tokens": 37.44,
-      "per_1000_completion_tokens_across_the_panel": 19.32,
-      "cap_priced_panel": 116.5906,
-      "cap_priced_smoke_gate": 0.804073,
-      "cap_priced_total": 117.3947,
-      "cap_priced_total_with_contingency": 140.8736
+      "input_only_at_8000_tokens": 39.07,
+      "per_1000_completion_tokens_across_the_panel": 18.81,
+      "cap_priced_panel": 116.124,
+      "cap_priced_smoke_gate": 0.800855,
+      "cap_priced_total": 116.9248,
+      "cap_priced_total_with_contingency": 140.3098
     },
     "run_order": "ascending planning cost; see config/sota_v5_models.json ascending_cost_run_order",
     "panel_spend_requires_separate_authorization": true
@@ -107,10 +107,12 @@
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
     "model_id": "openrouter-qwen3.5-397b-a17b-parasail",
-    "attempt_number": 1,
-    "remaining_attempts": 1,
-    "granted_at_utc": "2026-09-01T16:14:00Z",
-    "granted_because": "Owner-authorized 2026-09-01 smoke sequence; one attempt per model in the frozen ascending-cost order."
+    "attempt_number": 2,
+    "remaining_attempts": 0,
+    "granted_at_utc": "2026-09-01T16:50:00Z",
+    "granted_because": "Owner-authorized 2026-09-01 smoke sequence; final infrastructure retry after attempt 1 hit Parasail HTTP 429 rate limiting (the same incident that excluded minimax-m3), taken after a deliberate cool-down once endpoint uptime telemetry returned; the unknown spend was reconciled.",
+    "voided_at_utc": "2026-09-01T17:30:00Z",
+    "outcome": "voided-unconsumed: the qwen/qwen3.5-397b-a17b Parasail row was withdrawn by the 2026-09-01 route-and-cohort amendment before this final retry ran"
   },
   "publication_authorized": false,
   "selection_and_lineage": {
@@ -121,6 +123,25 @@
     "withdrawn_cohort_model_count": 8,
     "selection_basis": "frozen-v6-spec-panel-before-any-v5-or-v6-model-data",
     "owner_attestation_required": true,
-    "v4_terminal": true
+    "v4_terminal": true,
+    "cohort_amendment_2026_09_01": {
+      "revision": "2026-09-01-v6-route-and-cohort-amendment",
+      "record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
+      "rows_kept_unchanged": 12,
+      "rows_rerouted_same_identity": 2,
+      "rows_replaced": 2,
+      "withdrawn_model_ids": [
+        "openrouter-glm-5.3-flash-cloudflare",
+        "openrouter-minimax-m3-parasail",
+        "openrouter-qwen3.5-397b-a17b-parasail",
+        "openrouter-nemotron-3-nano-30b-a3b-crusoe"
+      ],
+      "registered_model_ids": [
+        "openrouter-glm-5.3-flash-fireworks",
+        "openrouter-minimax-m3-modelrun",
+        "openrouter-qwen3.8-flash-alibaba",
+        "openrouter-nemotron-3-super-120b-a12b-digitalocean"
+      ]
+    }
   }
 }

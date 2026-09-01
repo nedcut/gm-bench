@@ -63,7 +63,7 @@ def test_v5_cross_file_contract_and_family_are_coherent() -> None:
     assert registry["selection_status"] == "frozen"
     assert pricing["status"] == "frozen"
     assert set(model["model"] for model in registry["models"]) == set(pricing["models"])
-    revision = "2026-08-31-v6-execution-rules-amendment"
+    revision = "2026-09-01-v6-route-and-cohort-amendment"
     assert registry["selection_revision"] == revision
     for record in (lane, protocol, pricing, manifest):
         assert record["amendment_revision"] == revision
@@ -74,7 +74,7 @@ def test_v5_registers_the_frozen_v6_panel() -> None:
     _, registry, protocol, _, _ = _configs()
     models = {model["model"]: model for model in registry["models"]}
 
-    # The sixteen identities are the frozen v6 spec panel, not a fresh choice.
+    # Twelve identities are the frozen v6 spec panel; four were revised by the dated 2026-09-01 amendment.
     assert set(models) == {
         "x-ai/grok-4.6",
         "anthropic/claude-haiku-4.5",
@@ -83,14 +83,14 @@ def test_v5_registers_the_frozen_v6_panel() -> None:
         "openai/gpt-5.4-mini",
         "z-ai/glm-5",
         "moonshotai/kimi-k2.5",
-        "qwen/qwen3.5-397b-a17b",
+        "qwen/qwen3.8-flash",
         "minimax/minimax-m3",
         "google/gemini-3.1-flash-lite",
         "openai/gpt-5.6-luna",
         "z-ai/glm-5.3-flash",
         "deepseek/deepseek-v4-flash-0731",
         "qwen/qwen3.5-27b",
-        "nvidia/nemotron-3-nano-30b-a3b",
+        "nvidia/nemotron-3-super-120b-a12b",
         "openai/gpt-oss-20b",
     }
     assert models["x-ai/grok-4.6"]["tier"] == "frontier"
@@ -98,7 +98,13 @@ def test_v5_registers_the_frozen_v6_panel() -> None:
     assert protocol["selection_and_lineage"]["panel_source"] == "docs/bench_v6_spec.md"
     # The withdrawn cohort is named, not quietly deleted.
     assert protocol["selection_and_lineage"]["withdrawn_cohort_model_count"] == 8
-    assert registry["amendment"]["supersedes_revision"] == "2026-08-16-sota-v5-successor-preregistration"
+    assert registry["amendment"]["supersedes_revision"] == "2026-08-31-v6-execution-rules-amendment"
+    # The route-and-cohort amendment keeps the execution-rules amendment nested, which in turn names the withdrawn cohort.
+    assert registry["amendment"]["supersedes_amendment"]["supersedes_revision"] == "2026-08-16-sota-v5-successor-preregistration"
+    # Four rows were revised after the smoke gate; the withdrawn identities must stay named, not deleted.
+    assert "qwen/qwen3.5-397b-a17b" not in models
+    assert "nvidia/nemotron-3-nano-30b-a3b" not in models
+    assert registry["route_selection_rule"]["lane_infrastructure_exclusion"]
     assert "qwen/qwen3.8-max" not in models
     assert "upstage/solar-pro4" not in models
 
@@ -152,7 +158,7 @@ def test_v5_records_a_reasoning_decision_for_every_panel_model() -> None:
     assert set(mandatory) == {
         "openrouter-grok-4.6-xai",
         "openrouter-gemini-3.7-flash-google-ai-studio",
-        "openrouter-glm-5.3-flash-cloudflare",
+        "openrouter-glm-5.3-flash-fireworks",
         "openrouter-gpt-oss-20b-deepinfra",
     }
     # Mandatory reasoning used to abort the lane, which would have killed the
@@ -258,14 +264,18 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     records = (lane, registry, protocol, pricing)
 
     assert all(record["route_preflight_authorized"] is True for record in records)
-    # All sixteen v6 routes were accepted by the authenticated zero-completion
-    # preflight on 2026-09-01; the withdrawn eight-route acceptance stays
-    # recorded as superseded rather than silently deleted.
+    # All sixteen routes were re-accepted by the authenticated zero-completion
+    # preflight after the 2026-09-01 route-and-cohort amendment; the earlier
+    # sixteen-route acceptance and the withdrawn eight-route acceptance both
+    # stay recorded as superseded rather than silently deleted.
     acceptance = registry["exact_route_acceptance"]
     assert acceptance["status"] == "accepted"
     assert len(acceptance["entries"]) == 16
-    assert acceptance["superseded_acceptance"]["model_count"] == 8
-    assert acceptance["superseded_acceptance"]["status"] == "accepted"
+    assert set(acceptance["entries"]) == set(registry["required_smokes"])
+    superseded = acceptance["superseded_acceptance"]
+    assert [record["model_count"] for record in superseded] == [16, 8]
+    assert all(record["status"] == "accepted" for record in superseded)
+    assert superseded[0]["evidence_artifact"].endswith("-superseded.json")
     # Spend and smoke execution were authorized on the owner's explicit
     # 2026-09-01 instruction; panel and publication stay locked.
     for record in records:

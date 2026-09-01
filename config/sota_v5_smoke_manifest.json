@@ -1,7 +1,7 @@
 {
   "accepted_for_panel": false,
-  "amendment_record": "docs/run_logs/sota-v5-v6-execution-amendment-2026-08-31.md",
-  "amendment_revision": "2026-08-31-v6-execution-rules-amendment",
+  "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
+  "amendment_revision": "2026-09-01-v6-route-and-cohort-amendment",
   "contract": "sota-v5",
   "contract_fingerprint": "a600b7da0c302231",
   "entries": {
@@ -361,14 +361,14 @@
     "openrouter-gpt-5.4-mini-openai",
     "openrouter-glm-5-streamlake",
     "openrouter-kimi-k2.5-siliconflow",
-    "openrouter-qwen3.5-397b-a17b-parasail",
-    "openrouter-minimax-m3-parasail",
+    "openrouter-qwen3.8-flash-alibaba",
+    "openrouter-minimax-m3-modelrun",
     "openrouter-gemini-3.1-flash-lite-google-ai-studio",
     "openrouter-gpt-5.6-luna-openai",
-    "openrouter-glm-5.3-flash-cloudflare",
+    "openrouter-glm-5.3-flash-fireworks",
     "openrouter-deepseek-v4-flash-0731-together",
     "openrouter-qwen3.5-27b-siliconflow",
-    "openrouter-nemotron-3-nano-30b-a3b-crusoe",
+    "openrouter-nemotron-3-super-120b-a12b-digitalocean",
     "openrouter-gpt-oss-20b-deepinfra"
   ],
   "schema_version": 1,

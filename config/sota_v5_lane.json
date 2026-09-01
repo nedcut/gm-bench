@@ -4,8 +4,8 @@
   "contract_fingerprint": "a600b7da0c302231",
   "preregistered_at_utc": "2026-08-16T19:45:49Z",
   "amended_at_utc": "2026-08-31T00:00:00Z",
-  "amendment_revision": "2026-08-31-v6-execution-rules-amendment",
-  "amendment_record": "docs/run_logs/sota-v5-v6-execution-amendment-2026-08-31.md",
+  "amendment_revision": "2026-09-01-v6-route-and-cohort-amendment",
+  "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
   "preregistration_status": "frozen",
   "evidence_state": "pre-data-no-v5-provider-calls-smokes-or-panel-results",
   "headline_lane": "api",
@@ -130,10 +130,12 @@
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
     "model_id": "openrouter-qwen3.5-397b-a17b-parasail",
-    "attempt_number": 1,
-    "remaining_attempts": 1,
-    "granted_at_utc": "2026-09-01T16:14:00Z",
-    "granted_because": "Owner-authorized 2026-09-01 smoke sequence; one attempt per model in the frozen ascending-cost order."
+    "attempt_number": 2,
+    "remaining_attempts": 0,
+    "granted_at_utc": "2026-09-01T16:50:00Z",
+    "granted_because": "Owner-authorized 2026-09-01 smoke sequence; final infrastructure retry after attempt 1 hit Parasail HTTP 429 rate limiting (the same incident that excluded minimax-m3), taken after a deliberate cool-down once endpoint uptime telemetry returned; the unknown spend was reconciled.",
+    "voided_at_utc": "2026-09-01T17:30:00Z",
+    "outcome": "voided-unconsumed: the qwen/qwen3.5-397b-a17b Parasail row was withdrawn by the 2026-09-01 route-and-cohort amendment before this final retry ran"
   },
   "publication_authorized": false,
   "blockers": [
@@ -149,7 +151,7 @@
   "final_preflight_evidence": {
     "status": "accepted",
     "artifact": "results/analysis/sota-v5-final-preflight-evidence.json",
-    "sha256": "dfb313feb0291608ca0fe9962bd7d691f65efd21c6d1efdf5ef5f008f61cbbdc",
+    "sha256": "48a656be352a209fcb1f815a1cfaf854df7089cd5d97a5bb9d71dfa7be96112c",
     "contract_fingerprint": "a600b7da0c302231",
     "completion_calls": 0,
     "operator_ceiling_usd": 100.0

@@ -8,7 +8,7 @@
   "contract": "sota-v5",
   "contract_fingerprint": "a600b7da0c302231",
   "format": "gm-bench-route-acceptance-evidence-v1",
-  "generated_at_utc": "2026-09-01T19:06:54+00:00",
+  "generated_at_utc": "2026-09-01T02:30:50+00:00",
   "official_policy_sources": [
     "https://openrouter.ai/docs/guides/features/zdr",
     "https://openrouter.ai/docs/guides/privacy/provider-logging/",
@@ -45,8 +45,8 @@
           "top_p"
         ],
         "tag": "anthropic",
-        "uptime_last_1d": 99.91102162913911,
-        "uptime_last_30m": 99.989650175947
+        "uptime_last_1d": 99.96595951431576,
+        "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -84,8 +84,8 @@
           "top_p"
         ],
         "tag": "together",
-        "uptime_last_1d": 98.49991734741964,
-        "uptime_last_30m": 99.19462527124018
+        "uptime_last_1d": 99.60121942613888,
+        "uptime_last_30m": 99.57910373854915
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -117,8 +117,8 @@
           "top_p"
         ],
         "tag": "google-ai-studio/flex",
-        "uptime_last_1d": 99.9665453339319,
-        "uptime_last_30m": 99.95257666772052
+        "uptime_last_1d": 99.97966456703321,
+        "uptime_last_30m": 99.91582491582491
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -150,8 +150,8 @@
           "top_p"
         ],
         "tag": "google-ai-studio/flex",
-        "uptime_last_1d": 99.31708442510835,
-        "uptime_last_30m": 99.38492347303676
+        "uptime_last_1d": 99.6289813984436,
+        "uptime_last_30m": 99.72561736093789
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -184,8 +184,8 @@
           "top_p"
         ],
         "tag": "streamlake/fp8",
-        "uptime_last_1d": 99.96451093336245,
-        "uptime_last_30m": 100
+        "uptime_last_1d": 99.95666817671506,
+        "uptime_last_30m": 99.94279176201373
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -196,12 +196,12 @@
       "route_identity_sha256": "9842cf28122782ef6ba1962fbf6766ade62d5e61e3f4d4677423abb2878f9fba",
       "zero_data_retention_endpoint": false
     },
-    "openrouter-glm-5.3-flash-fireworks": {
+    "openrouter-glm-5.3-flash-cloudflare": {
       "authenticated_metadata_read": true,
       "endpoint": {
-        "max_completion_tokens": 943718,
-        "name": "Fireworks | z-ai/glm-5.3-flash-20260826",
-        "provider_name": "Fireworks",
+        "max_completion_tokens": 1179648,
+        "name": "Cloudflare | z-ai/glm-5.3-flash-20260826",
+        "provider_name": "Cloudflare",
         "status": 0,
         "supported_parameters": [
           "frequency_penalty",
@@ -209,11 +209,13 @@
           "logit_bias",
           "logprobs",
           "max_tokens",
+          "min_p",
           "presence_penalty",
           "reasoning",
           "reasoning_effort",
           "repetition_penalty",
           "response_format",
+          "seed",
           "stop",
           "structured_outputs",
           "temperature",
@@ -223,18 +225,18 @@
           "top_logprobs",
           "top_p"
         ],
-        "tag": "fireworks",
-        "uptime_last_1d": 99.23310832184784,
-        "uptime_last_30m": 99.39683660046842
+        "tag": "cloudflare",
+        "uptime_last_1d": 99.54947993137876,
+        "uptime_last_30m": 99.22833767199702
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
-        "privacy_policy_url": "https://fireworks.ai/privacy-policy",
-        "provider_slug": "fireworks",
-        "terms_of_service_url": "https://fireworks.ai/terms-of-service"
+        "privacy_policy_url": "https://developers.cloudflare.com/workers-ai/privacy",
+        "provider_slug": "cloudflare",
+        "terms_of_service_url": "https://www.cloudflare.com/service-specific-terms-developer-platform/#developer-platform-terms"
       },
-      "route_identity_sha256": "dc4019af46c86306407b406bbbf52c82e45be33c377dae6e778240e6874ec8ca",
-      "zero_data_retention_endpoint": true
+      "route_identity_sha256": "e6f42c3784e900263502becd550aaf9349a048ce3e8964f0adf9aed6978108c8",
+      "zero_data_retention_endpoint": false
     },
     "openrouter-gpt-5.4-mini-openai": {
       "authenticated_metadata_read": true,
@@ -255,8 +257,8 @@
           "tools"
         ],
         "tag": "openai",
-        "uptime_last_1d": 99.7859367889966,
-        "uptime_last_30m": 99.85155633900821
+        "uptime_last_1d": 99.80873943314089,
+        "uptime_last_30m": 99.85096543713152
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -286,8 +288,8 @@
           "tools"
         ],
         "tag": "openai/flex",
-        "uptime_last_1d": 99.96947232191334,
-        "uptime_last_30m": 98.90751757706869
+        "uptime_last_1d": 99.99007271210337,
+        "uptime_last_30m": 99.61717254580257
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -326,8 +328,8 @@
           "top_p"
         ],
         "tag": "deepinfra/bf16",
-        "uptime_last_1d": 99.9482399435766,
-        "uptime_last_30m": 100
+        "uptime_last_1d": 99.92462733960713,
+        "uptime_last_30m": 99.99828854307951
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -361,8 +363,8 @@
           "top_p"
         ],
         "tag": "xai/zdr",
-        "uptime_last_1d": 99.97360432889006,
-        "uptime_last_30m": 100
+        "uptime_last_1d": 99.975838115373,
+        "uptime_last_30m": 99.90601503759399
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -396,8 +398,8 @@
           "top_p"
         ],
         "tag": "xai/zdr",
-        "uptime_last_1d": 99.76951685844494,
-        "uptime_last_30m": 99.85033140902287
+        "uptime_last_1d": 99.95921080460465,
+        "uptime_last_30m": 99.64028776978418
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -429,8 +431,8 @@
           "top_p"
         ],
         "tag": "siliconflow/int4",
-        "uptime_last_1d": 99.93481975805635,
-        "uptime_last_30m": 100
+        "uptime_last_1d": 99.89330438891842,
+        "uptime_last_30m": 99.98011928429423
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -441,74 +443,82 @@
       "route_identity_sha256": "cc4b5b08e5e0587be98a8ca0805ba4e30a86b4f74f65413ba598ac869d15ee45",
       "zero_data_retention_endpoint": true
     },
-    "openrouter-minimax-m3-modelrun": {
+    "openrouter-minimax-m3-parasail": {
       "authenticated_metadata_read": true,
       "endpoint": {
-        "max_completion_tokens": 943718,
-        "name": "ModelRun | minimax/minimax-m3-20260531",
-        "provider_name": "ModelRun",
+        "max_completion_tokens": 524288,
+        "name": "Parasail | minimax/minimax-m3-20260531",
+        "provider_name": "Parasail",
         "status": 0,
         "supported_parameters": [
           "frequency_penalty",
           "include_reasoning",
+          "logit_bias",
+          "logprobs",
           "max_tokens",
           "presence_penalty",
           "reasoning",
           "repetition_penalty",
           "response_format",
+          "seed",
           "stop",
           "structured_outputs",
           "temperature",
           "tool_choice",
           "tools",
           "top_k",
-          "top_p"
-        ],
-        "tag": "modelrun/fp4",
-        "uptime_last_1d": 99.06737287564522,
-        "uptime_last_30m": 99.88719684151157
-      },
-      "output_cap_verification_status": "endpoint-metadata-verified",
-      "provider_policy": {
-        "privacy_policy_url": "https://www.modular.com/legal/privacy",
-        "provider_slug": "modelrun",
-        "terms_of_service_url": "https://www.modular.com/legal/terms"
-      },
-      "route_identity_sha256": "774ff02ba706345e17f9f9caa500be871d4bbd078ac8b6c8d24516ce1309ce23",
-      "zero_data_retention_endpoint": true
-    },
-    "openrouter-nemotron-3-super-120b-a12b-digitalocean": {
-      "authenticated_metadata_read": true,
-      "endpoint": {
-        "max_completion_tokens": 900000,
-        "name": "DigitalOcean | nvidia/nemotron-3-super-120b-a12b-20230311",
-        "provider_name": "DigitalOcean",
-        "status": 0,
-        "supported_parameters": [
-          "include_reasoning",
-          "logprobs",
-          "max_tokens",
-          "reasoning",
-          "reasoning_effort",
-          "response_format",
-          "structured_outputs",
-          "temperature",
-          "tool_choice",
-          "tools",
           "top_logprobs",
           "top_p"
         ],
-        "tag": "digitalocean",
-        "uptime_last_1d": 99.78138144786362,
-        "uptime_last_30m": 99.78947368421053
+        "tag": "parasail/fp8",
+        "uptime_last_1d": 99.60818313686913,
+        "uptime_last_30m": 99.37421777221527
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
-        "privacy_policy_url": "https://www.digitalocean.com/legal/privacy-policy",
-        "provider_slug": "digitalocean",
-        "terms_of_service_url": "https://www.digitalocean.com/legal/terms-of-service-agreement"
+        "privacy_policy_url": "https://www.parasail.io/legal/privacy-policy",
+        "provider_slug": "parasail",
+        "terms_of_service_url": "https://parasail.io/legal/terms-of-service"
       },
-      "route_identity_sha256": "80854144bfe71fc5916e9c18f132bcc9de0f3b0f05438e725d81100f281a4f41",
+      "route_identity_sha256": "6f49001ea00ee17f2d2811502b0ef6db24a6397d4b0ed036c43cabf7e621ee88",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-nemotron-3-nano-30b-a3b-crusoe": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 235929,
+        "name": "Crusoe | nvidia/nemotron-3-nano-30b-a3b",
+        "provider_name": "Crusoe",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "logit_bias",
+          "max_tokens",
+          "min_p",
+          "presence_penalty",
+          "reasoning",
+          "repetition_penalty",
+          "response_format",
+          "seed",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tools",
+          "top_k",
+          "top_p"
+        ],
+        "tag": "crusoe/fp8",
+        "uptime_last_1d": 100,
+        "uptime_last_30m": 100
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://legal.crusoe.ai/open-router#cloud-privacy-policy",
+        "provider_slug": "crusoe",
+        "terms_of_service_url": "https://legal.crusoe.ai/open-router#managed-inference-tos-open-router"
+      },
+      "route_identity_sha256": "9a2ff9a9ce3dded84bc143da4380cc86f20955f27c0f82490ab59958e7de0851",
       "zero_data_retention_endpoint": true
     },
     "openrouter-qwen3.5-27b-siliconflow": {
@@ -534,8 +544,8 @@
           "top_p"
         ],
         "tag": "siliconflow/fp8",
-        "uptime_last_1d": 98.99724313282957,
-        "uptime_last_30m": 99.74207811348563
+        "uptime_last_1d": 99.31648498019558,
+        "uptime_last_30m": 99.1769547325103
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -546,20 +556,22 @@
       "route_identity_sha256": "555855117a20aa1c18f0a2bd00875d4bcaec0d98b8b6ac81a82e9c4d4d4d9ea7",
       "zero_data_retention_endpoint": true
     },
-    "openrouter-qwen3.8-flash-alibaba": {
+    "openrouter-qwen3.5-397b-a17b-parasail": {
       "authenticated_metadata_read": true,
       "endpoint": {
-        "max_completion_tokens": 131072,
-        "name": "Alibaba | qwen/qwen3.8-flash-20260826",
-        "provider_name": "Alibaba",
+        "max_completion_tokens": 235929,
+        "name": "Parasail | qwen/qwen3.5-397b-a17b-20260216",
+        "provider_name": "Parasail",
         "status": 0,
         "supported_parameters": [
           "frequency_penalty",
           "include_reasoning",
+          "logit_bias",
           "logprobs",
           "max_tokens",
           "presence_penalty",
           "reasoning",
+          "repetition_penalty",
           "response_format",
           "seed",
           "stop",
@@ -571,18 +583,18 @@
           "top_logprobs",
           "top_p"
         ],
-        "tag": "alibaba",
-        "uptime_last_1d": 99.99296321252804,
-        "uptime_last_30m": 99.98882806390348
+        "tag": "parasail/fp8",
+        "uptime_last_1d": 99.36611541720275,
+        "uptime_last_30m": 97.05882352941177
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
-        "privacy_policy_url": "https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-privacy-policy",
-        "provider_slug": "alibaba",
-        "terms_of_service_url": "https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-product-terms-of-service-v-3-8-0"
+        "privacy_policy_url": "https://www.parasail.io/legal/privacy-policy",
+        "provider_slug": "parasail",
+        "terms_of_service_url": "https://parasail.io/legal/terms-of-service"
       },
-      "route_identity_sha256": "e979078692db7d1740d17403618d77cf5697a760d1e7778f35bd3adc10674693",
-      "zero_data_retention_endpoint": false
+      "route_identity_sha256": "8cdb10ddb265ed62aaa6a7c5beaf754d091c0345440f88e4a56d3567f7b17d72",
+      "zero_data_retention_endpoint": true
     }
   },
   "schema_version": 1
