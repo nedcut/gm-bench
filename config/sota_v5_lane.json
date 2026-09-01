@@ -130,13 +130,13 @@
   "panel_execution_authorized": false,
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
-    "model_id": "openrouter-grok-4.6-xai",
-    "attempt_number": 1,
+    "model_id": "openrouter-nemotron-3-super-120b-a12b-digitalocean",
+    "attempt_number": 2,
     "remaining_attempts": 0,
-    "granted_at_utc": "2026-09-01T20:13:46Z",
-    "granted_because": "Owner-authorized 2026-09-01 re-run of every smoke under the fixed one-paid-call-per-phase rule (PR #129 review); one attempt per model in the frozen ascending-cost order.",
-    "consumed_at_utc": "2026-09-01T20:13:46Z",
-    "outcome": "accepted-smoke-recorded-in-manifest"
+    "granted_at_utc": "2026-09-01T20:33:10Z",
+    "granted_because": "Owner-authorized 2026-09-01 re-run under the fixed one-paid-call rule; final infrastructure retry after attempt 1 hit DigitalOcean HTTP 429 (partially billed, reconciled), taken after an eighteen-minute cool-down.",
+    "consumed_at_utc": "2026-09-01T20:33:20Z",
+    "outcome": "excluded-at-infrastructure-attempt-limit: DigitalOcean HTTP 429 on both attempts; no other route for nvidia/nemotron-3-super-120b-a12b meets the frozen eligibility rule"
   },
   "publication_authorized": false,
   "blockers": [

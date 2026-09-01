@@ -67,13 +67,13 @@ records exactly four calls, one per phase.
 
 | model_id | attempts | outcome |
 | --- | --- | --- |
-| openrouter-gpt-oss-20b-deepinfra | 1 so far | Attempt 1: DeepInfra HTTP 429 on two consecutive calls (not billed; reconciled). Final attempt pending after a cool-down. |
+| openrouter-gpt-oss-20b-deepinfra | 2 | **accepted** on the final attempt after an eighteen-minute cool-down. Attempt 1: DeepInfra HTTP 429 on two consecutive calls (not billed; reconciled). |
 | openrouter-glm-5.3-flash-deepinfra | 1 | **accepted** |
 | openrouter-deepseek-v4-flash-0731-together | 1 | **accepted** |
 | openrouter-qwen3.8-flash-alibaba | 1 | **accepted** |
 | openrouter-gpt-5.6-luna-openai | 1 | **accepted** |
 | openrouter-gemini-3.1-flash-lite-google-ai-studio | 1 | **accepted** |
-| openrouter-nemotron-3-super-120b-a12b-digitalocean | 1 so far | Attempt 1: DigitalOcean HTTP 429 on two consecutive calls (partially billed; reconciled). Final attempt pending after a cool-down. |
+| openrouter-nemotron-3-super-120b-a12b-digitalocean | 2 | **excluded — infrastructure attempt limit**. DigitalOcean HTTP 429 on two consecutive calls on both attempts, eighteen minutes apart; unknown spend reconciled after each. DigitalOcean is the only route for this identity that meets the frozen eligibility rule (DeepInfra bf16 advertises no structured_outputs), so the slot needs an owner decision. |
 | openrouter-qwen3.5-27b-siliconflow | 1 | **accepted** |
 | openrouter-gemini-3.7-flash-google-ai-studio | 1 | **accepted** (mandatory low reasoning inside the ceiling) |
 | openrouter-glm-5-streamlake | 1 | **accepted** |
