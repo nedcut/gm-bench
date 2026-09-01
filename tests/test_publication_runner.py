@@ -521,6 +521,29 @@ def test_publication_cells_keep_strict_after_registry_fixed_options(monkeypatch:
     assert cell_environment(loosened)["GM_AGENT_STRICT"] == "1"
 
 
+def test_paid_cell_pins_travel_in_the_config_env_block(tmp_path: Path) -> None:
+    """Provider pins outrank ambient env at adapter launch, so a cell pin
+    passed only as ambient env (a mandatory-reasoning row's
+    OPENROUTER_REASONING_ENABLED=true) would be stomped back to the provider
+    default. The paid command must carry the pins in the --config env block,
+    the channel that outranks provider pins and is recorded in
+    provider_options."""
+    cell = build_cells("smoke")[0]
+    command = cell_command(cell, tmp_path)
+    config_path = Path(command[command.index("--config") + 1])
+    payload = json.loads(config_path.read_text())
+    env = payload["env"]
+    assert env["OPENROUTER_REASONING_ENABLED"] == cell.fixed_options["OPENROUTER_REASONING_ENABLED"]
+    assert env["OPENROUTER_MAX_TOKENS"] == str(cell.cap)
+    for key, value in cell.fixed_options.items():
+        assert env[key] == value
+    # Absent options must not sneak in through the config block either.
+    for key in cell.absent_options:
+        assert key not in env
+    # Preflight commands make no completion call and stay config-free.
+    assert "--config" not in cell_command(cell, tmp_path, preflight=True)
+
+
 def test_runner_rejects_cap_outside_pre_registered_sweep() -> None:
     with pytest.raises(ValueError, match="not in the pre-registered sweep"):
         build_cells("sweep", cap=999)
@@ -1239,6 +1262,37 @@ def test_call_guard_rejects_reasoning_without_a_committed_token_allowance(
     pricing["planning_assumptions"].pop("expected_internal_reasoning_tokens_per_decision", None)
     monkeypatch.setattr(publication_runner, "_read_json", lambda _path: pricing)
 
+    with pytest.raises(ValueError, match="positive committed"):
+        _call_spend_guard_environment(
+            cell,
+            tmp_path,
+            ceiling_usd=100.0,
+            measured_spend_floor_usd=0.0,
+        )
+
+
+def test_call_guard_accepts_zero_reasoning_allowance_when_cap_includes_reasoning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The v6 lane bills reasoning inside the output cap, so the full-cap
+    completion reservation already prices it and zero extra tokens is honest."""
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=4096)[0]
+    cell = replace(cell, fixed_options={"OPENROUTER_REASONING_ENABLED": "true"})
+    pricing = json.loads(Path("config/sota_v3_pricing_snapshot.json").read_text())
+    pricing["planning_assumptions"]["expected_internal_reasoning_tokens_per_decision"] = 0
+    pricing["planning_assumptions"]["reasoning_tokens_billed_within_output_cap"] = True
+    monkeypatch.setattr(publication_runner, "_read_json", lambda _path: pricing)
+
+    guard = _call_spend_guard_environment(
+        cell,
+        tmp_path,
+        ceiling_usd=100.0,
+        measured_spend_floor_usd=0.0,
+    )
+    prefix = "GM_BENCH_OPENROUTER_SPEND_GUARD_"
+    assert guard[f"{prefix}OUTPUT_TOKEN_CAP"] == "4096"
+    # Anything other than the exact boolean true keeps the strict refusal.
+    pricing["planning_assumptions"]["reasoning_tokens_billed_within_output_cap"] = "true"
     with pytest.raises(ValueError, match="positive committed"):
         _call_spend_guard_environment(
             cell,

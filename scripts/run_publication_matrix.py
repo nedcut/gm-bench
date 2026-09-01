@@ -504,6 +504,19 @@ def cell_command(cell: Cell, run_dir: Path, *, preflight: bool = False) -> list[
     if preflight:
         return [*command, "--preflight-only"]
     stem = f"{cell.experiment_id}--{cell.cap_label}"
+    # The adapter launch layer deliberately ranks provider pins above the
+    # inherited process environment, so a cell pin passed only as ambient env
+    # (e.g. OPENROUTER_REASONING_ENABLED=true on a mandatory-reasoning row)
+    # would be silently stomped by the provider default. The config env block
+    # is the one channel that outranks provider pins and is recorded in
+    # provider_options, so the cell's measurement conditions travel there.
+    config_env = dict(cell.fixed_options)
+    if cell.provider == "openrouter" and cell.cap is not None:
+        config_env["OPENROUTER_MAX_TOKENS"] = str(cell.cap)
+    config_path = run_dir / "configs" / f"{stem}.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(json.dumps({"env": config_env}, indent=2, sort_keys=True) + "\n")
+    command.extend(["--config", str(config_path)])
     command.extend(
         [
             "--checkpoint",
@@ -910,7 +923,13 @@ def _call_spend_guard_environment(
     reasoning_enabled = cell.fixed_options.get("OPENROUTER_REASONING_ENABLED") == "true"
     reasoning_tokens = int(assumptions.get("expected_internal_reasoning_tokens_per_decision") or 0)
     reasoning_rate = rates.get("internal_reasoning")
-    if reasoning_enabled and reasoning_tokens <= 0:
+    # A lane whose output ceiling includes reasoning (the v6 rule: reasoning
+    # spends part of the same capped completion budget, billed at the
+    # completion rate) may commit zero extra reasoning tokens, because the
+    # full-cap completion reservation above already prices them. Lanes billing
+    # reasoning on top of the cap must still commit a positive allowance.
+    reasoning_within_cap = assumptions.get("reasoning_tokens_billed_within_output_cap") is True
+    if reasoning_enabled and reasoning_tokens <= 0 and not reasoning_within_cap:
         raise ValueError(
             "reasoning-enabled paid publication cells require a positive committed "
             "expected_internal_reasoning_tokens_per_decision"

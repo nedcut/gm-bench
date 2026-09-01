@@ -14,6 +14,7 @@
     "input_tokens_per_decision": 8000,
     "expected_output_tokens_per_decision": 4096,
     "expected_internal_reasoning_tokens_per_decision": 0,
+    "reasoning_tokens_billed_within_output_cap": true,
     "cost_contingency_multiplier": 1.2,
     "runtime_contingency_multiplier": 1.2,
     "basis": "Frozen pre-data planning inputs for results/analysis/sota-v6-panel-cost-estimate.json. Input is the v6 hard observation ceiling (8,000) rather than the ~6,500 target, so the estimate stays conservative. Output is the full 4,096-token ceiling on every call, which is a per-call worst case, not an expectation. Internal reasoning tokens are planned at zero because the v6 ceiling includes reasoning: a mandatory-reasoning row spends part of the same 4,096 tokens on reasoning rather than adding tokens on top of it."
@@ -136,5 +137,13 @@
   "spend_authorized": true,
   "smoke_execution_authorized": true,
   "panel_execution_authorized": false,
+  "paid_smoke_authorization": {
+    "scope": "single-model-single-infrastructure-attempt",
+    "model_id": "openrouter-gpt-oss-20b-deepinfra",
+    "attempt_number": 1,
+    "remaining_attempts": 1,
+    "granted_at_utc": "2026-09-01T02:55:00Z",
+    "granted_because": "Owner-authorized 2026-09-01 smoke sequence; one attempt per model in the frozen ascending-cost order."
+  },
   "publication_authorized": false
 }
