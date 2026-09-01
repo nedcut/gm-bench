@@ -11,7 +11,7 @@
     "status": "frozen",
     "holm_family_size": 16,
     "selected_allocation": "29 seeds x 1 repeat",
-    "allocation_basis": "Minimum detectable difference of 30 points between panel models (docs/bench_v6_spec.md); docs/scoring_calibration.md measures 26 points at 29 paired seeds.",
+    "allocation_basis": "Design sensitivity target of a 30-point minimum detectable difference from the calibration panel (docs/bench_v6_spec.md); docs/scoring_calibration.md measures 26 points at 29 paired seeds. This sized the seed allocation only; the sole supported inference remains each model's predeclared contrast versus pick-trader (see statistical_analysis_plan.ranking_rule).",
     "minimum_exact_two_sided_sign_flip_p_value": 3.725290298461914e-09,
     "holm_first_step_threshold_at_alpha_0_05": 0.003125,
     "seed_panel_lineage": "The sota-v3 -> v4 -> v5 16-seed commitment is retired unused; a new 29-seed commitment must be generated, frozen, and owner-attested before seed access.",

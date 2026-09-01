@@ -284,3 +284,13 @@ and `config/sota_v5_publication_protocol.json` records the decision as
 
 The threshold, the reference contrast, the reference-only analysis mode, the
 seed allocation, the budget, and every authorization flag are unchanged.
+
+## Addendum (2026-08-31, later): allocation_basis wording aligned with the reference-only plan
+
+`panel_design.allocation_basis` still described the 30-point minimum detectable
+difference as holding "between panel models", the same conflation the spec
+rewording removed: the figure sized the seed allocation, but the frozen plan
+supports no pairwise inference. The field now names it a design sensitivity
+target from the calibration panel and points at
+`statistical_analysis_plan.ranking_rule` for the only supported contrast.
+Prose only; no threshold, allocation, budget, or authorization flag changed.
