@@ -312,6 +312,7 @@
       "internal_reasoning_tokens_per_decision": 0,
       "maximum_api_calls_per_decision": 1,
       "model": "openai/gpt-5.6-sol",
+      "observed_api_seconds_per_decision": 1.918,
       "panel_calls": 580,
       "panel_cost_usd": 16.5184,
       "protocol_maximum_panel_calls": 580,
@@ -358,7 +359,7 @@
     "total_calls": 9344
   },
   "runtime": {
-    "note": "Regenerate this artifact from accepted smoke telemetry before approving the full panel; latency is reported only for models with committed observations.",
+    "note": "Runtime observations are sourced from every currently registered model's accepted smoke; recheck before paid full-panel runs if pricing, routes, or prompts change.",
     "observation_source": "Mean provider API seconds per decision from each registered model's accepted strict smoke artifact listed in config/sota_v5_smoke_manifest.json (four decisions per smoke, one paid call per decision, serialized calls; data/publication/sota-v5-smokes-v2).",
     "observed_api_seconds_per_decision_by_model": {
       "anthropic/claude-haiku-4.5": 5.369,
@@ -369,6 +370,7 @@
       "moonshotai/kimi-k2.5": 4.202,
       "openai/gpt-5.4-mini": 1.803,
       "openai/gpt-5.6-luna": 3.246,
+      "openai/gpt-5.6-sol": 1.918,
       "openai/gpt-oss-20b": 1.633,
       "qwen/qwen3.5-27b": 6.381,
       "qwen/qwen3.8-flash": 7.111,
@@ -377,8 +379,8 @@
       "z-ai/glm-5": 3.229,
       "z-ai/glm-5.3-flash": 17.558
     },
-    "observed_at_utc": "2026-09-01T20:50:00Z",
-    "status": "pending-smoke-telemetry"
+    "observed_at_utc": "2026-09-01T21:10:00Z",
+    "status": "complete-from-accepted-smokes"
   },
   "schema_version": 3,
   "supersedes": {

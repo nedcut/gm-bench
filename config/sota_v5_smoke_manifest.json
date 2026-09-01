@@ -1,5 +1,5 @@
 {
-  "accepted_for_panel": false,
+  "accepted_for_panel": true,
   "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
   "amendment_revision": "2026-09-01-v6-route-and-cohort-amendment",
   "contract": "sota-v5",
@@ -223,6 +223,34 @@
       "reasoning_policy": "disabled",
       "reasoning_tokens": 0,
       "recorded_at_utc": "2026-09-01T20:10:54+00:00",
+      "scaffold_fingerprint": "c582e126bbb6af10",
+      "strict_fallback": true,
+      "truncated_calls": 0,
+      "upstream_provider": "OpenAI",
+      "upstream_provider_slug": "openai/flex"
+    },
+    "openrouter-gpt-5.6-sol-openai": {
+      "accepted": true,
+      "api_calls": 4,
+      "artifact_path": "data/publication/sota-v5-smokes-v2/raw/openrouter-gpt-5.6-sol-openai--4096.json",
+      "artifact_sha256": "2188f53cb28afef2e2f42720ba4b3d7d031ed283fa4e49e8fb22f7db52c54a12",
+      "calls_with_finish_reason": 4,
+      "contract_fingerprint": "a600b7da0c302231",
+      "cost_decisions": 4,
+      "decision_failure_rate": 0.0,
+      "decisions_with_usage": 4,
+      "endpoint_name": "OpenAI | openai/gpt-5.6-sol-20260709",
+      "endpoint_tag": "openai/flex",
+      "max_output_tokens_per_call": 180,
+      "model": "openai/gpt-5.6-sol",
+      "output_token_cap": 4096,
+      "protocol_repair_attempts": 0,
+      "protocol_repairs_succeeded": 0,
+      "provider": "openrouter",
+      "reasoning_effort": null,
+      "reasoning_policy": "disabled",
+      "reasoning_tokens": 0,
+      "recorded_at_utc": "2026-09-01T21:18:20+00:00",
       "scaffold_fingerprint": "c582e126bbb6af10",
       "strict_fallback": true,
       "truncated_calls": 0,
@@ -910,5 +938,5 @@
     "openrouter-gpt-oss-20b-deepinfra"
   ],
   "schema_version": 1,
-  "status": "in-progress"
+  "status": "accepted"
 }

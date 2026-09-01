@@ -300,11 +300,11 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     # stay recorded as invalidated evidence, and the manifest is not accepted
     # until every row is re-recorded from a smoke run under the fixed rule.
     assert lane["paid_calls_per_decision"] == V6_PAID_CALLS_PER_DECISION == 1
-    assert manifest["accepted_for_panel"] is False
-    # Fifteen rows are re-recorded under the one-call rule; the sixteenth slot
-    # is open after both Nvidia candidates failed the strict gate.
-    assert len(manifest["entries"]) == 15
-    assert set(manifest["entries"]) < set(registry["required_smokes"])
+    # Every registered row is re-recorded under the one-call rule with exactly
+    # four calls, so the manifest is accepted for panel; the panel must still be
+    # locked by the two authorization flags and nothing else.
+    assert manifest["accepted_for_panel"] is True
+    assert set(manifest["entries"]) == set(registry["required_smokes"])
     for entry in manifest["entries"].values():
         assert entry["api_calls"] == 4
     invalidated = manifest["invalidated_entries_2026_09_01"]["entries"]
@@ -317,11 +317,10 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     panel_issues = publication_execution_issues(
         lane, registry, manifest, phase="panel", protocol=protocol, pricing=pricing
     )
-    assert panel_issues[:2] == [
+    assert panel_issues == [
         "provider execution is locked while panel_execution_authorized is false",
         "panel execution is locked by the model registry",
     ]
-    assert sum("has no smoke manifest entry" in issue for issue in panel_issues) == 1
     for phase in ("route-preflight", "smoke"):
         assert (
             publication_execution_issues(
