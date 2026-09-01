@@ -183,13 +183,17 @@ jobs:
             echo "::error::results/analysis/sota-v4-pre-smoke-cost-estimate.json is stale; regenerate it from the committed v4 registry, lane, and pricing snapshot"
             exit 1
           fi
+          # The v5 lane's current estimate is the v6 panel artifact named in
+          # config/sota_v5_lane.json cost_estimate_artifact. The earlier
+          # sota-v5-pre-smoke-cost-estimate.json is retired history
+          # (superseded_cost_estimate_artifact) and is deliberately not regenerated.
           python scripts/estimate_publication_cost.py \
             --models-config config/sota_v5_models.json \
             --lane-config config/sota_v5_lane.json \
             --pricing config/sota_v5_pricing_snapshot.json \
-            --output /tmp/sota-v5-pre-smoke-cost.regen.json
-          if ! diff -u results/analysis/sota-v5-pre-smoke-cost-estimate.json /tmp/sota-v5-pre-smoke-cost.regen.json; then
-            echo "::error::results/analysis/sota-v5-pre-smoke-cost-estimate.json is stale; regenerate it from the committed v5 registry, lane, and pricing snapshot"
+            --output /tmp/sota-v6-panel-cost.regen.json
+          if ! diff -u results/analysis/sota-v6-panel-cost-estimate.json /tmp/sota-v6-panel-cost.regen.json; then
+            echo "::error::results/analysis/sota-v6-panel-cost-estimate.json is stale; regenerate it from the committed v5 registry, lane, and pricing snapshot"
             exit 1
           fi
       - name: Verify archived v1 evidence
