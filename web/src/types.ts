@@ -141,6 +141,12 @@ export interface LeaderboardModel {
   decisions_with_usage: number;
   decision_points: number;
   seeds: number[] | null;
+  /**
+   * How wide this row's own seed panel was. Survives redaction, where `seeds`
+   * does not: a private-panel row hides its seed values but still publishes
+   * its count. Never substitute the public preset's panel width here.
+   */
+  seed_count: number | null;
   seasons: number | null;
   baseline_panel_mean_score: number | null;
   benchmark_version: string | null;

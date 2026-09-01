@@ -236,6 +236,11 @@ def model_row(
     episodes = len(payload["candidate"].get("episodes", [])) or _redacted_episode_count(payload)
     cost = usage.get("cost_usd")
     seeds = payload.get("seeds")
+    # How wide this row's own panel was. It survives redaction -- the seed
+    # *values* are private, the count is not -- so the site can say "29 seeds"
+    # without borrowing the public preset's panel width, which would be a
+    # different number attributed to this row.
+    seed_count = _row_seed_count(payload)
     if seeds == REDACTED_SEEDS_SENTINEL:
         seeds = None
     elif seed_panel.get("name") == PRIVATE_LEADERBOARD_PANEL_NAME:
@@ -286,6 +291,7 @@ def model_row(
         "decision_points": decisions,
         "session": bool(run_info.get("session", False)),
         "seeds": seeds,
+        "seed_count": seed_count,
         "seasons": payload.get("seasons"),
         "baseline_panel_mean_score": normalized.get("baseline_panel_mean_score"),
         "benchmark_version": contract.get("benchmark_version"),
@@ -321,6 +327,22 @@ def _sota_report(payload: dict[str, Any], *, policy: Any = SOTA_V2_POLICY) -> di
     """Always recompute eligibility; never trust embedded validation_reports."""
 
     return validate_leaderboard_payload(payload, policy=policy).to_dict()
+
+
+def _row_seed_count(payload: dict[str, Any]) -> int | None:
+    """How many seeds this row ran, or None when the artifact does not say.
+
+    Reads the row's own seeds when it publishes them and falls back to the
+    frozen seed panel's declared count, which a redacted private-panel artifact
+    keeps. Never falls back to the public preset: that is a different panel.
+    """
+    seeds = payload.get("seeds")
+    if isinstance(seeds, list):
+        return len(seeds)
+    count = ((payload.get("run_info") or {}).get("seed_panel") or {}).get("count")
+    if isinstance(count, int) and not isinstance(count, bool) and count >= 0:
+        return count
+    return None
 
 
 def _redacted_episode_count(payload: dict[str, Any]) -> int:

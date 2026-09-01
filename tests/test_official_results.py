@@ -705,6 +705,9 @@ def test_v2_leaderboard_builder_excludes_redacted_v3_artifact(monkeypatch: pytes
     row = model_row(redacted)
 
     assert row["seeds"] is None
+    # The seed values are private; the panel width is not, and the site needs it
+    # so it never labels the public preset's panel as this row's.
+    assert row["seed_count"] == len(private_seeds)
     assert row["seed_panel"] == "private-env"
     assert row["sota_v2_eligible"] is False
     assert any("benchmark_version" in issue for issue in row["sota_v2_issues"])

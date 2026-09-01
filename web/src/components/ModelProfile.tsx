@@ -18,6 +18,10 @@ import type { Leaderboard as LeaderboardData } from "../types";
  * optional, so each block states plainly when a row does not report something
  * instead of printing a zero that reads like a measurement. */
 
+/* `run_info.seed_panel.name` for a row run on a private seed panel; such a row
+ * publishes its panel width and commitment hash but never its seed values. */
+const PRIVATE_SEED_PANEL = "private-env";
+
 function Figure({
   label,
   value,
@@ -90,7 +94,13 @@ export default function ModelProfile({
   const withinSeed = withinSeedStddev(model);
   const stats = reliability(model);
   const seedScores = perSeedScores(model);
-  const seeds = model.seeds ?? data.preset.seeds;
+  // A private-panel row publishes its seed count but not its seed values.
+  // Falling back to `data.preset.seeds` would label the *public* preset's
+  // panel as this row's, so there is no fallback: the count comes from the
+  // row itself, and an absent count reads as an em dash.
+  const seeds = model.seeds;
+  const seedCount = seeds?.length ?? model.seed_count;
+  const seedCountLabel = seedCount === null ? "an unreported number of" : seedCount;
 
   return (
     <section className="section profile-section" id="profile" tabIndex={-1}>
@@ -100,7 +110,7 @@ export default function ModelProfile({
           <h2>{shortModelName(model.model)}</h2>
           <p>
             <code>{model.model}</code> via {model.provider} · {model.lane ?? "api"} lane ·{" "}
-            {model.benchmark_version ?? "unversioned"} run over {seeds.length} seeds ×{" "}
+            {model.benchmark_version ?? "unversioned"} run over {seedCountLabel} seeds ×{" "}
             {model.seasons ?? data.preset.seasons} seasons.
           </p>
         </div>
@@ -145,14 +155,25 @@ export default function ModelProfile({
         <div className="panel">
           <div className="panel-title">
             <h3>Per-seed scores</h3>
-            <span>{seeds.length} seeds</span>
+            <span>
+              {model.seed_panel === PRIVATE_SEED_PANEL ? "private panel · " : ""}
+              {seedCount === null ? "—" : `${seedCount} seeds`}
+            </span>
           </div>
           {seedScores.length > 0 ? (
             <SeedScores scores={seedScores} />
-          ) : (
+          ) : seeds ? (
             <p>
               This row publishes the seed panel but not its per-seed scores. Seeds run:{" "}
               <code>{seeds.join(", ")}</code>.
+            </p>
+          ) : (
+            <p>
+              This row ran a private seed panel, so neither its seed values nor its per-seed
+              scores are published —{" "}
+              {seedCount === null
+                ? "and it does not report how wide the panel was."
+                : `only that the panel was ${seedCount} seeds wide, and the commitment hash below.`}
             </p>
           )}
         </div>
