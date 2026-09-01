@@ -555,7 +555,25 @@ def _prepare_smoke_retry_checkpoint(cell: Cell, run_dir: Path) -> Path | None:
     stored_contract = (
         benchmark_contract.get("contract_fingerprint") if isinstance(benchmark_contract, dict) else benchmark_contract
     )
-    if stored_contract == expected_contract and provenance.get("scaffold_fingerprint") == expected_scaffold:
+    metadata = payload.get("metadata")
+    stored_options = metadata.get("provider_options") if isinstance(metadata, dict) else None
+    stored_options = stored_options if isinstance(stored_options, dict) else {}
+    expected_pins = dict(cell.fixed_options)
+    if cell.provider == "openrouter" and cell.cap is not None:
+        expected_pins["OPENROUTER_MAX_TOKENS"] = str(cell.cap)
+    # The model runner refuses to resume when recorded provider_options drift
+    # from the cell's pins, so a checkpoint that disagrees on any pin (or
+    # carries a registered-absent option) is stale provenance exactly like a
+    # fingerprint mismatch: left in place it would burn a paid attempt on a
+    # guaranteed local pre-call abort.
+    pins_match = all(str(stored_options.get(key)) == str(value) for key, value in expected_pins.items())
+    absent_clean = not any(key in stored_options for key in cell.absent_options)
+    if (
+        stored_contract == expected_contract
+        and provenance.get("scaffold_fingerprint") == expected_scaffold
+        and pins_match
+        and absent_clean
+    ):
         return None
     episodes = payload.get("episodes")
     completed = payload.get("completed")

@@ -593,6 +593,13 @@ def test_smoke_retry_archives_empty_aborted_stale_checkpoint(tmp_path: Path) -> 
     assert "--resume" not in cell_command(cell, tmp_path)
 
 
+def _current_checkpoint_pins(cell) -> dict[str, str]:
+    pins = dict(cell.fixed_options)
+    if cell.provider == "openrouter" and cell.cap is not None:
+        pins["OPENROUTER_MAX_TOKENS"] = str(cell.cap)
+    return pins
+
+
 def test_smoke_retry_preserves_current_checkpoint_for_resume(tmp_path: Path) -> None:
     cell = build_cells("smoke")[0]
     stem = f"{cell.experiment_id}--{cell.cap_label}"
@@ -607,6 +614,7 @@ def test_smoke_retry_preserves_current_checkpoint_for_resume(tmp_path: Path) -> 
                     "benchmark_contract": {"contract_fingerprint": contract_fingerprint()},
                     "scaffold_fingerprint": scaffold_fingerprint(cell.provider),
                 },
+                "metadata": {"provider_options": _current_checkpoint_pins(cell)},
                 "episodes": [],
                 "completed": [],
             }
@@ -616,6 +624,73 @@ def test_smoke_retry_preserves_current_checkpoint_for_resume(tmp_path: Path) -> 
     assert publication_runner._prepare_smoke_retry_checkpoint(cell, tmp_path) is None
     assert checkpoint.is_file()
     assert "--resume" in cell_command(cell, tmp_path)
+
+
+def test_smoke_retry_archives_empty_aborted_checkpoint_with_drifted_pins(tmp_path: Path) -> None:
+    """The model runner refuses to resume when recorded provider_options drift
+    from the cell's pins, so leaving such a checkpoint in place would burn a
+    paid infrastructure attempt on a guaranteed local pre-call abort. Matching
+    fingerprints alone must not preserve it."""
+    cell = build_cells("smoke")[0]
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    checkpoint = tmp_path / "checkpoints" / f"{stem}.json"
+    checkpoint.parent.mkdir(parents=True)
+    drifted = _current_checkpoint_pins(cell)
+    pin_key = next(iter(cell.fixed_options))
+    drifted[pin_key] = "drifted-" + drifted[pin_key]
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "format": "gm-bench-model-checkpoint-v1",
+                "status": "aborted",
+                "provenance": {
+                    "benchmark_contract": {"contract_fingerprint": contract_fingerprint()},
+                    "scaffold_fingerprint": scaffold_fingerprint(cell.provider),
+                },
+                "metadata": {"provider_options": drifted},
+                "episodes": [],
+                "completed": [],
+            }
+        )
+    )
+    (tmp_path / "openrouter-reservations.json").write_text(json.dumps({"cells": {stem: {"attempts": 1}}}))
+
+    archived = publication_runner._prepare_smoke_retry_checkpoint(cell, tmp_path)
+
+    assert archived == tmp_path / "checkpoints" / "failed-attempts" / f"{stem}--attempt-1.json"
+    assert not checkpoint.exists()
+
+
+def test_smoke_retry_archives_empty_aborted_checkpoint_carrying_absent_option(tmp_path: Path) -> None:
+    cell = build_cells("smoke")[0]
+    if not cell.absent_options:
+        pytest.skip("cell registers no absent options")
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    checkpoint = tmp_path / "checkpoints" / f"{stem}.json"
+    checkpoint.parent.mkdir(parents=True)
+    polluted = _current_checkpoint_pins(cell)
+    polluted[cell.absent_options[0]] = "true"
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "format": "gm-bench-model-checkpoint-v1",
+                "status": "aborted",
+                "provenance": {
+                    "benchmark_contract": {"contract_fingerprint": contract_fingerprint()},
+                    "scaffold_fingerprint": scaffold_fingerprint(cell.provider),
+                },
+                "metadata": {"provider_options": polluted},
+                "episodes": [],
+                "completed": [],
+            }
+        )
+    )
+    (tmp_path / "openrouter-reservations.json").write_text(json.dumps({"cells": {stem: {"attempts": 1}}}))
+
+    archived = publication_runner._prepare_smoke_retry_checkpoint(cell, tmp_path)
+
+    assert archived is not None
+    assert not checkpoint.exists()
 
 
 def test_smoke_retry_rejects_nonempty_stale_checkpoint_before_reservation(tmp_path: Path) -> None:
