@@ -258,49 +258,50 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     records = (lane, registry, protocol, pricing)
 
     assert all(record["route_preflight_authorized"] is True for record in records)
-    # The eight accepted routes belonged to the withdrawn cohort under a stale
-    # fingerprint, so acceptance is retired rather than carried forward. The
-    # retirement is recorded; it is not a silent deletion.
+    # All sixteen v6 routes were accepted by the authenticated zero-completion
+    # preflight on 2026-09-01; the withdrawn eight-route acceptance stays
+    # recorded as superseded rather than silently deleted.
     acceptance = registry["exact_route_acceptance"]
-    assert acceptance["status"] == "pending-authenticated-preflight"
-    assert acceptance["entries"] == {}
+    assert acceptance["status"] == "accepted"
+    assert len(acceptance["entries"]) == 16
     assert acceptance["superseded_acceptance"]["model_count"] == 8
     assert acceptance["superseded_acceptance"]["status"] == "accepted"
+    # Spend and smoke execution were authorized on the owner's explicit
+    # 2026-09-01 instruction; panel and publication stay locked.
     for record in records:
-        assert record["spend_authorized"] is False
-        assert record["smoke_execution_authorized"] is False
+        assert record["spend_authorized"] is True
+        assert record["smoke_execution_authorized"] is True
         assert record["panel_execution_authorized"] is False
         assert record["publication_authorized"] is False
-    assert protocol["budget_policy"]["spend_authorized"] is False
+    assert protocol["budget_policy"]["spend_authorized"] is True
+    assert lane["final_preflight_evidence"]["status"] == "accepted"
+    assert lane["final_preflight_evidence"]["completion_calls"] == 0
     assert manifest["format"] == "gm-bench-smoke-manifest-v1"
-    assert manifest["status"] == "not-started"
-    assert manifest["entries"] == {}
     assert manifest["accepted_for_panel"] is False
-    # A zero-call route preflight is still allowed to run: that is how the
-    # missing acceptance gets collected.
-    assert (
-        publication_execution_issues(
-            lane,
-            registry,
-            manifest,
-            phase="route-preflight",
-            protocol=protocol,
-            pricing=pricing,
+    for phase in ("route-preflight", "smoke"):
+        assert (
+            publication_execution_issues(
+                lane,
+                registry,
+                manifest,
+                phase=phase,
+                protocol=protocol,
+                pricing=pricing,
+            )
+            == []
         )
-        == []
-    )
-    smoke_issues = publication_execution_issues(
-        lane,
+    # Withdrawing any single authorization must re-lock the smoke phase.
+    unauthorized_lane = copy.deepcopy(lane)
+    unauthorized_lane["smoke_execution_authorized"] = False
+    relocked = publication_execution_issues(
+        unauthorized_lane,
         registry,
         manifest,
         phase="smoke",
         protocol=protocol,
         pricing=pricing,
     )
-    assert any("exact-route acceptance status is not accepted" in issue for issue in smoke_issues)
-    assert any("final-fingerprint preflight evidence is not accepted" in issue for issue in smoke_issues)
-    assert any("spend is explicitly authorized" in issue for issue in smoke_issues)
-    assert any("smoke_execution_authorized is false" in issue for issue in smoke_issues)
+    assert any("smoke_execution_authorized is false" in issue for issue in relocked)
     panel_issues = publication_execution_issues(
         lane,
         registry,

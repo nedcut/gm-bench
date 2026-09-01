@@ -123,25 +123,27 @@
   "cap_pressure_threshold_tokens": 3072,
   "fallback_output_token_cap": 8192,
   "fallback_output_token_cap_status": "Recorded for schema compatibility only. Under this amendment no fallback branch is authorized: the cap is frozen at 4,096 and a pressured row is excluded rather than re-run at 8,192.",
-  "spend_authorized": false,
+  "spend_authorized": true,
   "route_preflight_authorized": true,
-  "smoke_execution_authorized": false,
+  "smoke_execution_authorized": true,
   "panel_execution_authorized": false,
   "publication_authorized": false,
   "blockers": [
-    "A new 29-seed private panel must be generated, committed, and frozen; the retired 16-seed commitment is the wrong width and must not be reused.",
-    "The authenticated zero-completion route and privacy preflight must accept all sixteen registered routes; the committed acceptance is for the withdrawn eight-model cohort under a stale fingerprint.",
-    "The final-fingerprint preflight evidence must be regenerated against a600b7da0c302231.",
-    "An owner attestation is required before hidden seed access and panel authorization.",
     "Every required strict smoke must be accepted before a separate panel decision.",
     "SOTA-v2, v3 and v4 remain terminal historical contracts and cannot be reopened or used to select anything here."
   ],
+  "resolved_blockers_2026_09_01": [
+    "The 29-seed private panel was generated, escrowed to the keychain, committed, and frozen with its owner attestation on 2026-09-01.",
+    "The authenticated zero-completion route and privacy preflight accepted all sixteen registered routes (results/route_evidence/sota-v5-route-acceptance-evidence.json).",
+    "The final-fingerprint preflight evidence was regenerated and accepted against a600b7da0c302231 at the $100 operator ceiling.",
+    "Spend and smoke execution were authorized on the owner's explicit 2026-09-01 instruction; panel execution stays locked until every smoke is accepted."
+  ],
   "final_preflight_evidence": {
-    "status": "pending",
+    "status": "accepted",
     "artifact": "results/analysis/sota-v5-final-preflight-evidence.json",
+    "sha256": "dfb313feb0291608ca0fe9962bd7d691f65efd21c6d1efdf5ef5f008f61cbbdc",
     "contract_fingerprint": "a600b7da0c302231",
     "completion_calls": 0,
-    "operator_ceiling_usd": 100.0,
-    "stale_because": "The committed artifact is digested against contract fingerprint 247e12fe5a7d4f5b, the withdrawn eight-model cohort, and the $10 smoke-only ceiling. Its sha256 is deliberately not restated here: regenerating the artifact is authenticated panel-time work and this amendment makes no acceptance claim about it."
+    "operator_ceiling_usd": 100.0
   }
 }

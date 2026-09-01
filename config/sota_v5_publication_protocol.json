@@ -86,7 +86,7 @@
     "operator_must_pass_max_spend_usd": true,
     "operator_ceiling_usd": 100.0,
     "expected_base_spend_usd": 75.0,
-    "spend_authorized": false,
+    "spend_authorized": true,
     "spend_enforcement": "dynamic-pre-provider-call",
     "operator_ceiling_basis": "The $100 hard ceiling is the v6 spec's. It is enforced by the runner's dynamic pre-call spend guard, not by the planning maximum: the cap-priced protocol maximum -- every one of the 9,280 panel calls returning the full 4,096-token ceiling -- is $116.59 for the panel, $117.39 with the smoke gate, and $140.87 with the 1.2x contingency. That deliberately exceeds the ceiling. Input alone is $37.44 and each 1,000 completion tokens across the panel costs $19.32, so at the roughly 1,000-token replies the reasoning-disabled v2/v3 smoke record shows the panel plans at about $57, and doubling every completion still lands near $76. Both stay under $100. A run that approaches the ceiling stops for an explicit owner decision rather than silently spending more, and the ascending-cost run order means the cheapest rows finish before the ceiling is anywhere near in play.",
     "cost_components_usd": {
@@ -101,8 +101,8 @@
     "panel_spend_requires_separate_authorization": true
   },
   "route_preflight_authorized": true,
-  "spend_authorized": false,
-  "smoke_execution_authorized": false,
+  "spend_authorized": true,
+  "smoke_execution_authorized": true,
   "panel_execution_authorized": false,
   "publication_authorized": false,
   "selection_and_lineage": {
