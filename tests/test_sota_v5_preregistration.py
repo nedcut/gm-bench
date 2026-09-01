@@ -100,7 +100,10 @@ def test_v5_registers_the_frozen_v6_panel() -> None:
     assert protocol["selection_and_lineage"]["withdrawn_cohort_model_count"] == 8
     assert registry["amendment"]["supersedes_revision"] == "2026-08-31-v6-execution-rules-amendment"
     # The route-and-cohort amendment keeps the execution-rules amendment nested, which in turn names the withdrawn cohort.
-    assert registry["amendment"]["supersedes_amendment"]["supersedes_revision"] == "2026-08-16-sota-v5-successor-preregistration"
+    assert (
+        registry["amendment"]["supersedes_amendment"]["supersedes_revision"]
+        == "2026-08-16-sota-v5-successor-preregistration"
+    )
     # Four rows were revised after the smoke gate; the withdrawn identities must stay named, not deleted.
     assert "qwen/qwen3.5-397b-a17b" not in models
     assert "nvidia/nemotron-3-nano-30b-a3b" not in models
