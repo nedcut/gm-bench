@@ -116,6 +116,7 @@
   "reasoning_policy": "per-model-disabled-or-mandatory-minimum",
   "output_token_cap": 4096,
   "output_budget_status": "frozen-v6-output-ceiling-including-reasoning",
+  "paid_calls_per_decision": 1,
   "output_policy_basis": "fixed-safety-ceiling",
   "output_policy_amendment_rule": "The 4,096-token ceiling is frozen. Cap pressure on a single row excludes that row from the panel with its evidence retained; it does not raise the cap and does not silently re-run the row at a larger budget. No result-informed cap amendment is authorized.",
   "cap_pressure_action": "exclude-the-pressured-row-and-record-the-evidence",

@@ -1100,7 +1100,18 @@ def smoke_manifest_issues(
             issues.append(f"{prefix} successful protocol repairs must match repair attempts")
         api_calls = int(entry.get("api_calls") or 0)
         minimum_api_calls = expected_decisions + repair_attempts
-        if api_calls < minimum_api_calls:
+        paid_calls_per_decision = lane.get("paid_calls_per_decision")
+        if isinstance(paid_calls_per_decision, int) and not isinstance(paid_calls_per_decision, bool):
+            # A lane that freezes the paid-call count (v6: exactly one per phase)
+            # must reject a smoke that bought extra query rounds, because such a
+            # smoke measured a different protocol than the panel will run.
+            exact_api_calls = expected_decisions * paid_calls_per_decision + repair_attempts
+            if api_calls != exact_api_calls:
+                issues.append(
+                    f"{prefix} must record exactly {exact_api_calls} API calls "
+                    f"({paid_calls_per_decision} paid call per decision plus repairs); it records {api_calls}"
+                )
+        elif api_calls < minimum_api_calls:
             issues.append(f"{prefix} must record at least {minimum_api_calls} API calls for its decisions and repairs")
         if int(entry.get("calls_with_finish_reason") or 0) != api_calls:
             issues.append(f"{prefix} finish-reason telemetry does not cover every API call")

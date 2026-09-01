@@ -8,8 +8,12 @@ has run, and no seed was read.
 
 ## Why
 
-The 2026-09-01 smoke sequence lost four of sixteen rows, none for a reason the
-panel is meant to measure:
+The 2026-09-01 smoke sequence lost four of sixteen rows. Three were route
+failures the panel does not measure. One, nemotron-3-nano, was withdrawn on
+its own smoke behavior: a malformed decision, and malformed rate is a
+reported panel outcome (docs/bench_v6_spec.md). That withdrawal is therefore
+outcome-dependent and is stated as such; what was not outcome-dependent is
+the choice of its replacement, made without any score or perceived quality.
 
 | Row | What happened |
 | --- | --- |
@@ -67,8 +71,10 @@ rankings for the week ending 2026-08-31; public pricing and endpoint metadata;
 the Ox Alpha disclosure.
 
 Not used: any GM-Bench score, model output, or apparent quality from the
-twelve accepted smokes. No kept row changes. No withdrawn row was withdrawn
-for its score.
+twelve accepted smokes. No kept row changes. No row was withdrawn for its
+score; nemotron-3-nano was withdrawn for a reported behavior outcome (one
+malformed decision under the frozen gate), which is the one outcome-dependent
+step in this amendment.
 
 This is a post-data cohort amendment and is labelled as such. The 2026-08-31
 selection basis ("before any v5 or v6 model data") no longer describes the

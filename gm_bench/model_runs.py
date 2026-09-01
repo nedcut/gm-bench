@@ -89,6 +89,10 @@ class FailFastAgent(Agent):
         self.inner = inner
         self.name = inner.name
         self.metadata = getattr(inner, "metadata", {})
+        # The runner's one-paid-call-per-phase rule keys on this flag. A wrapper
+        # that drops it turns a paying model into a "free" agent and reopens the
+        # five-round query loop the v6 rules close.
+        self.pays_for_calls = getattr(inner, "pays_for_calls", False)
         self._state = _FailFastState(threshold)
 
     @property
@@ -134,6 +138,7 @@ class FailFastSessionAgent(PersistentProcessAgent):
         self.inner = inner
         self.name = inner.name
         self.metadata = getattr(inner, "metadata", {})
+        self.pays_for_calls = getattr(inner, "pays_for_calls", False)
         self._state = _state or _FailFastState(threshold)
 
     def __getattr__(self, name: str) -> Any:

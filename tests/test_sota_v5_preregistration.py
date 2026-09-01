@@ -10,9 +10,11 @@ import pytest
 
 import scripts.run_publication_matrix as publication_runner
 from gm_bench.official import SOTA_V5_POLICY
+from gm_bench.protocol import V6_PAID_CALLS_PER_DECISION
 from gm_bench.publication import (
     exact_sign_flip_feasibility,
     publication_execution_issues,
+    smoke_manifest_issues,
     v5_statistical_plan_issues,
 )
 
@@ -290,18 +292,29 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     assert lane["final_preflight_evidence"]["status"] == "accepted"
     assert lane["final_preflight_evidence"]["completion_calls"] == 0
     assert manifest["format"] == "gm-bench-smoke-manifest-v1"
-    # Every registered row holds an accepted smoke, so the manifest is
-    # accepted for panel execution; the panel must still be locked by the
-    # two authorization flags and nothing else.
-    assert manifest["accepted_for_panel"] is True
-    assert len(manifest["entries"]) == 16
-    assert set(manifest["entries"]) == set(registry["required_smokes"])
-    assert publication_execution_issues(
+    # The sixteen 2026-09-01 smokes were invalidated after review: the
+    # fail-fast wrapper had dropped pays_for_calls, so they ran with the
+    # five-round query loop open instead of the frozen one-call rule. They
+    # stay recorded as invalidated evidence, and the manifest is not accepted
+    # until every row is re-recorded from a smoke run under the fixed rule.
+    assert lane["paid_calls_per_decision"] == V6_PAID_CALLS_PER_DECISION == 1
+    assert manifest["accepted_for_panel"] is False
+    assert manifest["entries"] == {}
+    invalidated = manifest["invalidated_entries_2026_09_01"]["entries"]
+    assert len(invalidated) == 16
+    # Fourteen of the invalidated artifacts bought extra query rounds; the
+    # exact-count gate must refuse every one of those.
+    replayed = {**manifest, "entries": invalidated, "accepted_for_panel": True}
+    exact_issues = [issue for issue in smoke_manifest_issues(replayed, registry, lane) if "exactly" in issue]
+    assert len(exact_issues) == 14
+    panel_issues = publication_execution_issues(
         lane, registry, manifest, phase="panel", protocol=protocol, pricing=pricing
-    ) == [
+    )
+    assert panel_issues[:2] == [
         "provider execution is locked while panel_execution_authorized is false",
         "panel execution is locked by the model registry",
     ]
+    assert sum("has no smoke manifest entry" in issue for issue in panel_issues) == 16
     for phase in ("route-preflight", "smoke"):
         assert (
             publication_execution_issues(

@@ -1457,7 +1457,17 @@ def _record_smoke_issues(
         issues.append("artifact successful protocol repairs must match repair attempts")
     api_calls = usage.get("api_calls")
     minimum_api_calls = expected_decisions + repair_attempts
-    if not isinstance(api_calls, int) or isinstance(api_calls, bool) or api_calls < minimum_api_calls:
+    paid_calls_per_decision = lane.get("paid_calls_per_decision")
+    if not isinstance(api_calls, int) or isinstance(api_calls, bool):
+        issues.append(f"artifact must record at least {minimum_api_calls} API calls for its decisions and repairs")
+    elif isinstance(paid_calls_per_decision, int) and not isinstance(paid_calls_per_decision, bool):
+        exact_api_calls = expected_decisions * paid_calls_per_decision + repair_attempts
+        if api_calls != exact_api_calls:
+            issues.append(
+                f"artifact must record exactly {exact_api_calls} API calls "
+                f"({paid_calls_per_decision} paid call per decision plus repairs); it records {api_calls}"
+            )
+    elif api_calls < minimum_api_calls:
         issues.append(f"artifact must record at least {minimum_api_calls} API calls for its decisions and repairs")
     calls_with_finish_reason = usage.get("calls_with_finish_reason")
     if calls_with_finish_reason != api_calls:

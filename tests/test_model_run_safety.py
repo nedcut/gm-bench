@@ -495,3 +495,69 @@ def test_session_fail_fast_wrapper_delegates_unknown_attributes_to_inner() -> No
     assert wrapped.transport == "stdio"
     with pytest.raises(AttributeError):
         _ = wrapped.definitely_not_a_real_attribute
+
+
+class _PayingAgent(Agent):
+    """A stand-in for a model-backed agent: it pays for every call it makes."""
+
+    name = "paying"
+    pays_for_calls = True
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        return []
+
+
+def test_fail_fast_wrappers_keep_the_paid_call_flag() -> None:
+    """The runner's one-paid-call-per-phase rule keys on ``pays_for_calls``. A
+    wrapper that drops it turns a paying model into a "free" agent and reopens
+    the five-round query loop the v6 rules close. Both fail-fast wrappers must
+    copy the flag from the agent they wrap."""
+    from gm_bench.protocol import MAX_INTERACTION_ROUNDS, V6_PAID_CALLS_PER_DECISION, EpisodeConfig
+    from gm_bench.runner import _interaction_rounds_for_agent
+
+    wrapped = FailFastAgent(_PayingAgent(), threshold=2)
+    assert wrapped.pays_for_calls is True
+    assert _interaction_rounds_for_agent(wrapped, EpisodeConfig()) == V6_PAID_CALLS_PER_DECISION
+
+    free = FailFastAgent(CountingValueAgent(), threshold=2)
+    assert free.pays_for_calls is False
+    assert _interaction_rounds_for_agent(free, EpisodeConfig()) == MAX_INTERACTION_ROUNDS
+
+    session = fail_fast_agent(PersistentProcessAgent("fake-session"), threshold=2)
+    assert session.pays_for_calls is True
+
+
+def test_resumable_candidate_pays_exactly_one_call_per_phase(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression for the review finding on PR #129: the resumable publication
+    path wraps the provider agent in FailFastAgent before run_episode, and the
+    wrapper used to drop pays_for_calls, so a paid smoke bought up to five
+    query rounds per phase. One season is four phases, so exactly four calls."""
+    import subprocess
+
+    from gm_bench.agents import ExternalProcessAgent
+
+    observations: list[dict[str, Any]] = []
+
+    def fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        observations.append(json.loads(kwargs["input"]))
+        stdout = json.dumps(
+            {
+                "actions": [{"type": "inspect_team", "team_id": 1}],
+                "usage": {"api_calls": 1, "model": "fake/model", "input_tokens": 10, "output_tokens": 5},
+            }
+        )
+        return subprocess.CompletedProcess(args[0], 0, stdout, "")
+
+    monkeypatch.setattr("gm_bench.agents.subprocess.run", fake_run)
+
+    result = run_resumable_candidate(
+        ExternalProcessAgent("fake"),
+        seeds=[3],
+        seasons=1,
+        repeats=1,
+        checkpoint_path=tmp_path / "checkpoint.json",
+        fail_fast=2,
+    )
+
+    assert len(observations) == 4
+    assert result["episodes"][0]["usage"]["api_calls"] == 4
