@@ -69,13 +69,21 @@
     "within_seed_variance_caveat": "The 26-point projection assumes a within-seed model repeat SD near 15.0. Saved v5-era leaderboard artifacts span 19.9 to 56.7 on that statistic. Every published row records within_seed_score_stddev, and no separation claim is made for a pair whose noisier member exceeds 25."
   },
   "seed_panel": {
-    "status": "pending-authorized-generation",
+    "status": "frozen",
     "name": "private-env",
     "count": 29,
+    "sha256": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11",
+    "hiding_commitment_sha256": "3ece2f67ac3cb6bc5c77e71feb6a9ecf56d09eec544c206db260d083c345e1e7",
+    "generated_at_utc": "2026-09-01T01:45:27Z",
     "generation_method": "uniform-rejection-sampling-secrets-randbelow-63bit-v1",
     "secret_escrow": "macos-keychain:gm-bench-sota-v5-v6-private-panel",
     "owner_attestation_required": true,
-    "owner_attestation_status": "pending-before-seed-access",
+    "owner_attestation_status": "attested-before-seed-access",
+    "owner_attestation": {
+      "attested_by": "nedcut@gmail.com",
+      "attested_at_utc": "2026-09-01T01:45:27Z",
+      "statement": "The 29-seed commitment above was generated fresh on 2026-09-01 by the repo's own generator, its seed values were escrowed to the named keychain service without ever being read or printed, no earlier panel read them, and panel execution will use the exact committed values without post-data substitution. Attested on the owner's explicit authorization of the panel execution steps."
+    },
     "owner_attestation_scope": "Owner must attest that the new 29-seed commitment and its seed values are unused, that no earlier panel read them, and that panel execution will use the exact committed values without post-data substitution.",
     "secret_values_read_for_v5_preregistration": false,
     "seed_values_included": false,
@@ -93,7 +101,7 @@
       "retired_at_utc": "2026-08-31T00:00:00Z",
       "retired_because": "It commits to 16 seeds and the v6 panel is 29. It was never used and its seeds were never read, so it is retired rather than revealed; its digests are kept here so the retirement is checkable. It must not be reused, extended, or partially revealed."
     },
-    "blocked_on": "scripts/seed_panel_commitment.py generate --lane config/sota_v5_lane.json --secret-file <path outside the checkout>, then committing the returned sha256 and hiding_commitment_sha256 here and setting status to frozen. Generating private seed material and choosing its escrow is an owner action, so it is deliberately not done by this amendment; panel execution stays blocked until it is."
+    "frozen_record": "Generated 2026-09-01 via scripts/seed_panel_commitment.py generate --lane config/sota_v5_lane.json with the seed material written only to a 0600 secret file, escrowed byte-identically to the keychain service above, and the plaintext file deleted. Only the digests here are public; the salt makes the commitment hiding."
   },
   "reference_agent": "pick-trader",
   "protocol_repair_attempts": 0,

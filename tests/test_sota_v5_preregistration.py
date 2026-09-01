@@ -190,7 +190,9 @@ def test_v5_retires_the_sixteen_seed_commitment_without_revealing_it() -> None:
     # 29 paired seeds is the frozen v6 width; the carried-forward commitment was
     # for 16 and is retired unused rather than reused or partially revealed.
     assert seed_panel["count"] == 29
-    assert seed_panel["status"] == "pending-authorized-generation"
+    assert seed_panel["status"] == "frozen"
+    assert seed_panel["sha256"] == "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11"
+    assert seed_panel["hiding_commitment_sha256"] == "3ece2f67ac3cb6bc5c77e71feb6a9ecf56d09eec544c206db260d083c345e1e7"
     assert seed_panel["seed_values_included"] is False
     assert seed_panel["secret_values_read_for_v5_preregistration"] is False
     assert protocol["panel_design"]["seed_values_read_for_preregistration"] is False
@@ -201,7 +203,7 @@ def test_v5_retires_the_sixteen_seed_commitment_without_revealing_it() -> None:
     assert retired["lineage_chain"] == ["sota-v3", "sota-v4", "sota-v5"]
     assert "unused" in retired["lineage_use_status"]
     assert seed_panel["owner_attestation_required"] is True
-    assert seed_panel["owner_attestation_status"] == "pending-before-seed-access"
+    assert seed_panel["owner_attestation_status"] == "attested-before-seed-access"
 
 
 def test_v5_twenty_nine_seeds_still_clear_the_holm_first_step() -> None:
@@ -218,18 +220,16 @@ def test_v5_twenty_nine_seeds_still_clear_the_holm_first_step() -> None:
         feasibility["minimum_two_sided_p_value"]
     )
 
-    # The only statistical-plan blocker left is the unfrozen seed panel, which
-    # is an owner action rather than a design contradiction.
-    frozen_panel_lane = copy.deepcopy(lane)
-    frozen_panel_lane["seed_panel"].update(
-        status="frozen",
-        sha256="0" * 64,
-        hiding_commitment_sha256="a" * 64,
-    )
-    assert v5_statistical_plan_issues(frozen_panel_lane, registry, protocol) == []
+    # The seed panel froze on 2026-09-01, so the real lane carries no
+    # statistical-plan blocker; unfreezing it must still raise one.
+    assert v5_statistical_plan_issues(lane, registry, protocol) == []
+    unfrozen_panel_lane = copy.deepcopy(lane)
+    unfrozen_panel_lane["seed_panel"].update(status="pending-authorized-generation")
+    unfrozen_panel_lane["seed_panel"].pop("sha256")
+    unfrozen_panel_lane["seed_panel"].pop("hiding_commitment_sha256")
     assert "seed panel identity is not frozen" in " ".join(
         publication_execution_issues(
-            lane,
+            unfrozen_panel_lane,
             registry,
             manifest,
             phase="panel",
@@ -309,7 +309,20 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
         protocol=protocol,
         pricing=pricing,
     )
-    assert any("owner attestation before private seed access" in issue for issue in panel_issues)
+    # Attested on 2026-09-01, so the real lane no longer raises the attestation
+    # blocker; resetting the attestation must still bring it back.
+    assert not any("owner attestation before private seed access" in issue for issue in panel_issues)
+    unattested_lane = copy.deepcopy(lane)
+    unattested_lane["seed_panel"]["owner_attestation_status"] = "pending-before-seed-access"
+    unattested_issues = publication_execution_issues(
+        unattested_lane,
+        registry,
+        manifest,
+        phase="panel",
+        protocol=protocol,
+        pricing=pricing,
+    )
+    assert any("owner attestation before private seed access" in issue for issue in unattested_issues)
 
 
 @pytest.mark.parametrize("seed_panel", [None, {}, {"owner_attestation_required": False}])
