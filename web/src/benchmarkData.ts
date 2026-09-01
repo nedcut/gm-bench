@@ -90,7 +90,7 @@ function finite(value: unknown): value is number {
 
 /** Number of seeds this row's across-seed SD was computed over. */
 export function seedCount(model: LeaderboardModel): number {
-  return model.seeds?.length ?? Object.keys(model.per_seed_scores ?? {}).length;
+  return model.seeds?.length ?? model.seed_count ?? Object.keys(model.per_seed_scores ?? {}).length;
 }
 
 /** Across-seed 95% interval on the mean score, or null when a row cannot support one. */
