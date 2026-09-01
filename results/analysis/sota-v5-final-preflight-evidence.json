@@ -18,7 +18,7 @@
       "openrouter-glm-5.3-flash-deepinfra",
       "openrouter-deepseek-v4-flash-0731-together",
       "openrouter-qwen3.5-27b-siliconflow",
-      "openrouter-nemotron-3.5-lightning-coreweave",
+      "openrouter-gpt-5.6-sol-openai",
       "openrouter-gpt-oss-20b-deepinfra"
     ],
     "pricing_checked": true,
@@ -29,13 +29,13 @@
   "contract": "sota-v5",
   "contract_fingerprint": "a600b7da0c302231",
   "format": "gm-bench-sota-v5-final-preflight-v1",
-  "generated_at_utc": "2026-09-01T21:11:12+00:00",
+  "generated_at_utc": "2026-09-01T21:16:33+00:00",
   "openrouter_scaffold_fingerprint": "c582e126bbb6af10",
   "route_preflight": {
     "evidence_artifact": "results/route_evidence/sota-v5-route-acceptance-evidence.json",
-    "evidence_sha256": "db95b35905002ba77ec76405ca7203b2b960d0ebced5d2dc27d5e822bd0380c7",
+    "evidence_sha256": "ae09648e7961223e2d39e8970929dd23ffd471ca92111e82c131d6b5997e393c",
     "status": "accepted",
-    "verified_at_utc": "2026-09-01T21:10:17+00:00"
+    "verified_at_utc": "2026-09-01T21:15:47+00:00"
   },
   "schema_version": 1,
   "smoke_command_dry_run": {
@@ -56,7 +56,7 @@
       "openrouter-glm-5.3-flash-deepinfra",
       "openrouter-deepseek-v4-flash-0731-together",
       "openrouter-qwen3.5-27b-siliconflow",
-      "openrouter-nemotron-3.5-lightning-coreweave",
+      "openrouter-gpt-5.6-sol-openai",
       "openrouter-gpt-oss-20b-deepinfra"
     ],
     "operator_ceiling_usd": 100.0,

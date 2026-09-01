@@ -92,7 +92,7 @@ def test_v5_registers_the_frozen_v6_panel() -> None:
         "z-ai/glm-5.3-flash",
         "deepseek/deepseek-v4-flash-0731",
         "qwen/qwen3.5-27b",
-        "nvidia/nemotron-3.5-lightning",
+        "openai/gpt-5.6-sol",
         "openai/gpt-oss-20b",
     }
     assert models["x-ai/grok-4.6"]["tier"] == "frontier"
@@ -110,6 +110,7 @@ def test_v5_registers_the_frozen_v6_panel() -> None:
     assert "qwen/qwen3.5-397b-a17b" not in models
     assert "nvidia/nemotron-3-nano-30b-a3b" not in models
     assert "nvidia/nemotron-3-super-120b-a12b" not in models
+    assert "nvidia/nemotron-3.5-lightning" not in models
     assert registry["route_selection_rule"]["lane_infrastructure_exclusion"]
     assert "qwen/qwen3.8-max" not in models
     assert "upstage/solar-pro4" not in models
@@ -279,7 +280,7 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     assert len(acceptance["entries"]) == 16
     assert set(acceptance["entries"]) == set(registry["required_smokes"])
     superseded = acceptance["superseded_acceptance"]
-    assert [record["model_count"] for record in superseded] == [16, 16, 16, 8]
+    assert [record["model_count"] for record in superseded] == [16, 16, 16, 16, 8]
     assert all(record["status"] == "accepted" for record in superseded)
     assert superseded[0]["evidence_artifact"].endswith("-superseded.json")
     # Spend and smoke execution were authorized on the owner's explicit

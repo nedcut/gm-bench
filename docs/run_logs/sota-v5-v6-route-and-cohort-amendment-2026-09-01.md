@@ -138,3 +138,18 @@ is pinned off.
 
 Inputs, as before: owner direction, the route-failure ledger, and public
 catalog metadata. No score or model output from any smoke was used.
+
+## Addendum 2026-09-01T21:00Z — slot 16 goes to gpt-5.6-sol
+
+nvidia/nemotron-3.5-lightning completed its one-call smoke but is ineligible
+on model behavior: one unrecoverable draft decision, with all four calls
+finished cleanly and no truncation. Model behavior never authorizes a rerun,
+so both Nvidia candidates for the slot have now failed the strict gate — one
+on its route, one on its output.
+
+The owner chose **openai/gpt-5.6-sol** on the **OpenAI flex** route
+($1.00/$5.00 per M), the rule winner among its two eligible routes.
+Reasoning is optional (the catalog advertises a `none` effort) and is pinned
+off. This is the second withdrawal in this amendment based on a reported
+behavior outcome; as before, the replacement identity was chosen from public
+adoption and pricing metadata, never from any smoke score.

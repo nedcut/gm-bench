@@ -3,10 +3,10 @@
   "contract": "sota-v5",
   "contract_fingerprint": "a600b7da0c302231",
   "status": "frozen",
-  "checked_at_utc": "2026-09-01T20:45:00Z",
+  "checked_at_utc": "2026-09-01T21:00:00Z",
   "amendment_revision": "2026-09-01-v6-route-and-cohort-amendment",
   "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
-  "source": "Free unauthenticated OpenRouter model and endpoint listings (https://openrouter.ai/api/v1/models and /api/v1/models/{id}/endpoints), read on 2026-08-31 for the sixteen registered v6 exact routes. No API key, Keychain entry, private seed, or completion endpoint was used. Supersedes the 2026-08-16 authenticated snapshot for the withdrawn eight-model cohort. Recheck every rate immediately before any spend decision. Four rows re-read on 2026-09-01 for the route-and-cohort amendment (z-ai/glm-5.3-flash on DeepInfra fp8 (moved from Fireworks 2026-09-01T19:40Z), minimax/minimax-m3 on ModelRun fp4, qwen/qwen3.8-flash on Alibaba, nvidia/nemotron-3-super-120b-a12b on DigitalOcean). nvidia/nemotron-3.5-lightning on CoreWeave bf16 read on 2026-09-01 after nemotron-3-super was excluded.",
+  "source": "Free unauthenticated OpenRouter model and endpoint listings (https://openrouter.ai/api/v1/models and /api/v1/models/{id}/endpoints), read on 2026-08-31 for the sixteen registered v6 exact routes. No API key, Keychain entry, private seed, or completion endpoint was used. Supersedes the 2026-08-16 authenticated snapshot for the withdrawn eight-model cohort. Recheck every rate immediately before any spend decision. Four rows re-read on 2026-09-01 for the route-and-cohort amendment (z-ai/glm-5.3-flash on DeepInfra fp8 (moved from Fireworks 2026-09-01T19:40Z), minimax/minimax-m3 on ModelRun fp4, qwen/qwen3.8-flash on Alibaba, nvidia/nemotron-3-super-120b-a12b on DigitalOcean). nvidia/nemotron-3.5-lightning on CoreWeave bf16 read on 2026-09-01 after nemotron-3-super was excluded. openai/gpt-5.6-sol on OpenAI flex read on 2026-09-01 after nemotron-3.5-lightning failed the behavior gate.",
   "currency": "USD",
   "rates_are_per_token": true,
   "pricing_scope": "Conservative planning rates for the sixteen registered exact routes. These rates are catalog metadata, not route acceptance: no route is accepted and no paid smoke, panel, or publication execution is authorized.",
@@ -136,11 +136,11 @@
       "prompt": 1.5e-07,
       "completion": 4.7e-07
     },
-    "nvidia/nemotron-3.5-lightning": {
-      "provider_slug": "coreweave/bf16",
-      "endpoint_name": "CoreWeave | nvidia/nemotron-3.5-lightning-20260807",
-      "prompt": 1e-07,
-      "completion": 2.5e-07
+    "openai/gpt-5.6-sol": {
+      "provider_slug": "openai/flex",
+      "endpoint_name": "OpenAI | openai/gpt-5.6-sol-20260709",
+      "prompt": 1e-06,
+      "completion": 5e-06
     }
   },
   "public_metadata_limitations": [
@@ -156,13 +156,11 @@
   "panel_execution_authorized": false,
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
-    "model_id": "openrouter-nemotron-3.5-lightning-coreweave",
+    "model_id": "openrouter-gpt-5.6-sol-openai",
     "attempt_number": 1,
-    "remaining_attempts": 0,
-    "granted_at_utc": "2026-09-01T20:45:00Z",
-    "granted_because": "Owner-authorized 2026-09-01 smoke under the fixed one-paid-call rule; fresh cell for the replacement identity nvidia/nemotron-3.5-lightning.",
-    "consumed_at_utc": "2026-09-01T20:58:00Z",
-    "outcome": "smoke-completed-but-ineligible-on-model-behavior: one unrecoverable draft decision (invalid actions) plus a repaired scout and an illegal trade; all four calls finished stop with no truncation; model behavior never authorizes a rerun"
+    "remaining_attempts": 1,
+    "granted_at_utc": "2026-09-01T21:00:00Z",
+    "granted_because": "Owner-authorized 2026-09-01 smoke under the fixed one-paid-call rule; fresh cell for the replacement identity openai/gpt-5.6-sol."
   },
   "publication_authorized": false
 }

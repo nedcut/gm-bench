@@ -8,7 +8,7 @@
   "contract": "sota-v5",
   "contract_fingerprint": "a600b7da0c302231",
   "format": "gm-bench-route-acceptance-evidence-v1",
-  "generated_at_utc": "2026-09-01T21:15:47+00:00",
+  "generated_at_utc": "2026-09-01T21:10:17+00:00",
   "official_policy_sources": [
     "https://openrouter.ai/docs/guides/features/zdr",
     "https://openrouter.ai/docs/guides/privacy/provider-logging/",
@@ -45,8 +45,8 @@
           "top_p"
         ],
         "tag": "anthropic",
-        "uptime_last_1d": 99.88895833030537,
-        "uptime_last_30m": 99.73245523770323
+        "uptime_last_1d": 99.89080534677267,
+        "uptime_last_30m": 99.82622127823905
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -84,8 +84,8 @@
           "top_p"
         ],
         "tag": "together",
-        "uptime_last_1d": 98.51279833027232,
-        "uptime_last_30m": 98.86969417611928
+        "uptime_last_1d": 98.51197337619148,
+        "uptime_last_30m": 98.93849692673177
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -117,8 +117,8 @@
           "top_p"
         ],
         "tag": "google-ai-studio/flex",
-        "uptime_last_1d": 99.96918667862458,
-        "uptime_last_30m": 99.97056226081837
+        "uptime_last_1d": 99.96866060437398,
+        "uptime_last_30m": 99.97060552616108
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -150,8 +150,8 @@
           "top_p"
         ],
         "tag": "google-ai-studio/flex",
-        "uptime_last_1d": 99.3648134239734,
-        "uptime_last_30m": 99.7991657654874
+        "uptime_last_1d": 99.36271498771498,
+        "uptime_last_30m": 99.83739837398375
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -184,7 +184,7 @@
           "top_p"
         ],
         "tag": "streamlake/fp8",
-        "uptime_last_1d": 99.95157473480315,
+        "uptime_last_1d": 99.95160391916941,
         "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
@@ -224,8 +224,8 @@
           "top_p"
         ],
         "tag": "deepinfra/fp8",
-        "uptime_last_1d": 99.10660693314776,
-        "uptime_last_30m": 99.20966420966421
+        "uptime_last_1d": 99.10603363657867,
+        "uptime_last_30m": 99.10289068556872
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -286,7 +286,7 @@
           "tools"
         ],
         "tag": "openai/flex",
-        "uptime_last_1d": 99.92301013417266,
+        "uptime_last_1d": 99.9229533246489,
         "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
@@ -296,37 +296,6 @@
         "terms_of_service_url": "https://openai.com/policies/row-terms-of-use/"
       },
       "route_identity_sha256": "b11026437b1d4b22f0e327b84ee452d7be2f14de714af243b1729ef057489127",
-      "zero_data_retention_endpoint": false
-    },
-    "openrouter-gpt-5.6-sol-openai": {
-      "authenticated_metadata_read": true,
-      "endpoint": {
-        "max_completion_tokens": 128000,
-        "name": "OpenAI | openai/gpt-5.6-sol-20260709",
-        "provider_name": "OpenAI",
-        "status": 0,
-        "supported_parameters": [
-          "include_reasoning",
-          "max_tokens",
-          "reasoning",
-          "reasoning_effort",
-          "response_format",
-          "seed",
-          "structured_outputs",
-          "tool_choice",
-          "tools"
-        ],
-        "tag": "openai/flex",
-        "uptime_last_1d": 99.97231493780193,
-        "uptime_last_30m": 99.98226635928356
-      },
-      "output_cap_verification_status": "endpoint-metadata-verified",
-      "provider_policy": {
-        "privacy_policy_url": "https://openai.com/policies/privacy-policy/",
-        "provider_slug": "openai",
-        "terms_of_service_url": "https://openai.com/policies/row-terms-of-use/"
-      },
-      "route_identity_sha256": "cae46bb82931e8f58dae48ac6948e4a99275bc2761d7a2023aab8e10864326d3",
       "zero_data_retention_endpoint": false
     },
     "openrouter-gpt-oss-20b-deepinfra": {
@@ -357,8 +326,8 @@
           "top_p"
         ],
         "tag": "deepinfra/bf16",
-        "uptime_last_1d": 99.94726668983903,
-        "uptime_last_30m": 99.81545119002163
+        "uptime_last_1d": 99.94734294201783,
+        "uptime_last_30m": 99.88050921457787
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -392,7 +361,7 @@
           "top_p"
         ],
         "tag": "xai/zdr",
-        "uptime_last_1d": 99.9816763903955,
+        "uptime_last_1d": 99.9816832372314,
         "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
@@ -460,7 +429,7 @@
           "top_p"
         ],
         "tag": "siliconflow/int4",
-        "uptime_last_1d": 99.93669193346898,
+        "uptime_last_1d": 99.9356789091143,
         "uptime_last_30m": 100
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
@@ -496,8 +465,8 @@
           "top_p"
         ],
         "tag": "modelrun/fp4",
-        "uptime_last_1d": 99.08585562383661,
-        "uptime_last_30m": 99.80528511821974
+        "uptime_last_1d": 99.08958391939238,
+        "uptime_last_30m": 99.9415546464056
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {
@@ -506,6 +475,43 @@
         "terms_of_service_url": "https://www.modular.com/legal/terms"
       },
       "route_identity_sha256": "774ff02ba706345e17f9f9caa500be871d4bbd078ac8b6c8d24516ce1309ce23",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-nemotron-3.5-lightning-coreweave": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 235929,
+        "name": "CoreWeave | nvidia/nemotron-3.5-lightning-20260807",
+        "provider_name": "CoreWeave",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "logprobs",
+          "max_tokens",
+          "presence_penalty",
+          "reasoning",
+          "repetition_penalty",
+          "response_format",
+          "seed",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "top_k",
+          "top_logprobs",
+          "top_p"
+        ],
+        "tag": "coreweave/bf16",
+        "uptime_last_1d": 99.99720373580897,
+        "uptime_last_30m": 100
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://docs.coreweave.com/policies/terms-of-service/privacy-policy",
+        "provider_slug": "coreweave",
+        "terms_of_service_url": "https://docs.coreweave.com/policies/terms-of-service"
+      },
+      "route_identity_sha256": "ebb630ab41707bad0e285010ae0b2a1ba48aaf0095f5a65ac1e4f53f35a00343",
       "zero_data_retention_endpoint": true
     },
     "openrouter-qwen3.5-27b-siliconflow": {
@@ -531,8 +537,8 @@
           "top_p"
         ],
         "tag": "siliconflow/fp8",
-        "uptime_last_1d": 98.83423254789693,
-        "uptime_last_30m": 99.2412746585736
+        "uptime_last_1d": 98.83511435683734,
+        "uptime_last_30m": 99.04552129221733
       },
       "output_cap_verification_status": "endpoint-metadata-verified",
       "provider_policy": {

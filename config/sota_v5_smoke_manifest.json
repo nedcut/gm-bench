@@ -906,7 +906,7 @@
     "openrouter-glm-5.3-flash-deepinfra",
     "openrouter-deepseek-v4-flash-0731-together",
     "openrouter-qwen3.5-27b-siliconflow",
-    "openrouter-nemotron-3.5-lightning-coreweave",
+    "openrouter-gpt-5.6-sol-openai",
     "openrouter-gpt-oss-20b-deepinfra"
   ],
   "schema_version": 1,
