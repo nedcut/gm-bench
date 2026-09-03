@@ -20,8 +20,8 @@
     "basis": "Frozen pre-data planning inputs for results/analysis/sota-v6-panel-cost-estimate.json. Input is the v6 hard observation ceiling (8,000) rather than the ~6,500 target, so the estimate stays conservative. Output is the full 4,096-token ceiling on every call, which is a per-call worst case, not an expectation. Internal reasoning tokens are planned at zero because the v6 ceiling includes reasoning: a mandatory-reasoning row spends part of the same 4,096 tokens on reasoning rather than adding tokens on top of it."
   },
   "runtime_observations": {
-    "source": "Mean provider API seconds per decision from each registered model's accepted strict smoke artifact listed in config/sota_v5_smoke_manifest.json (four decisions per smoke, one paid call per decision, serialized calls; data/publication/sota-v5-smokes-v2). The z-ai/glm-5.3-flash observation (17.558 s on DeepInfra fp8) was dropped on 2026-09-02 when the row moved to Fireworks; it is re-recorded from the Fireworks smoke.",
-    "observed_at_utc": "2026-09-01T21:10:00Z",
+    "source": "Mean provider API seconds per decision from each registered model's accepted strict smoke artifact listed in config/sota_v5_smoke_manifest.json (four decisions per smoke, one paid call per decision, serialized calls; data/publication/sota-v5-smokes-v2). The z-ai/glm-5.3-flash observation (17.558 s on DeepInfra fp8) was dropped on 2026-09-02 when the row moved to Fireworks; it was re-recorded from the accepted Fireworks one-call smoke on 2026-09-02 (4.594 s per decision).",
+    "observed_at_utc": "2026-09-03T01:10:18Z",
     "api_seconds_per_decision": {
       "anthropic/claude-haiku-4.5": 5.369,
       "deepseek/deepseek-v4-flash-0731": 1.738,
@@ -37,7 +37,8 @@
       "qwen/qwen3.8-flash": 7.111,
       "x-ai/grok-4.3": 1.214,
       "x-ai/grok-4.6": 9.651,
-      "z-ai/glm-5": 3.229
+      "z-ai/glm-5": 3.229,
+      "z-ai/glm-5.3-flash": 4.594
     }
   },
   "models": {
@@ -157,9 +158,11 @@
     "scope": "single-model-single-infrastructure-attempt",
     "model_id": "openrouter-glm-5.3-flash-fireworks",
     "attempt_number": 1,
-    "remaining_attempts": 1,
+    "remaining_attempts": 0,
     "granted_at_utc": "2026-09-03T01:04:47Z",
-    "granted_because": "Owner-authorized 2026-09-02 smoke under the fixed one-paid-call rule; fresh cell after z-ai/glm-5.3-flash moved from DeepInfra fp8 (24-hour uptime fell to 97.6%, under the 99.0% floor, and its 30-minute telemetry went missing) back to the unquantized Fireworks route, the frozen rule's mechanical winner. Cell openrouter-glm-5.3-flash-fireworks carries a fresh two-attempt budget in data/publication/sota-v5-smokes-v2."
+    "granted_because": "Owner-authorized 2026-09-02 smoke under the fixed one-paid-call rule; fresh cell after z-ai/glm-5.3-flash moved from DeepInfra fp8 (24-hour uptime fell to 97.6%, under the 99.0% floor, and its 30-minute telemetry went missing) back to the unquantized Fireworks route, the frozen rule's mechanical winner. Cell openrouter-glm-5.3-flash-fireworks carries a fresh two-attempt budget in data/publication/sota-v5-smokes-v2.",
+    "consumed_at_utc": "2026-09-03T01:08:30Z",
+    "outcome": "accepted-smoke-recorded-in-manifest"
   },
   "publication_authorized": false
 }

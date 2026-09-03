@@ -290,3 +290,18 @@ What changed:
 
 The other DeepInfra row, gpt-oss-20b bf16, is unaffected: 100% 30-minute and
 99.96% 24-hour uptime at the same read.
+
+### Smoke and readiness after the return (2026-09-03T01:08Z)
+
+The Fireworks one-call smoke ran on the first attempt and was accepted:
+exactly four calls, all finished cleanly, zero truncation, no illegal
+actions, 887 reasoning tokens billed inside the 4,096-token ceiling, peak
+487 output tokens per call, 4.6 s per decision, $0.0041. The manifest is
+accepted for panel again with sixteen entries; the grant is recorded as
+consumed in all four config records, and the runtime observation and cost
+estimate are regenerated (runtime telemetry complete).
+
+Readiness after the smoke: the free authenticated route preflight passed
+all sixteen routes, and the escrow-backed panel dry run constructed all
+sixteen cells in the frozen ascending order without a provider call or a
+printed seed. Steps 4 and 5 (launch and watch) remain owner actions.

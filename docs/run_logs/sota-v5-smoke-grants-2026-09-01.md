@@ -103,4 +103,4 @@ two-attempt budget; its consumed 2026-09-01 attempt stays in the
 
 | model_id | attempts | outcome |
 | --- | --- | --- |
-| openrouter-glm-5.3-flash-fireworks | granted, not yet run | Attempt 1 of 2 granted on the owner's 2026-09-02 instruction. |
+| openrouter-glm-5.3-flash-fireworks | 1 | **accepted**. Mandatory-reasoning row at low effort: exactly four calls, all finished cleanly, zero truncation, no illegal actions, 887 reasoning tokens inside the ceiling, peak 487 output tokens per call, 4.6 s per decision, $0.0041. Sixteen of sixteen registered rows hold accepted one-call smokes again. |

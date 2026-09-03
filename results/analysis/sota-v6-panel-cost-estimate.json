@@ -255,6 +255,7 @@
       "internal_reasoning_tokens_per_decision": 0,
       "maximum_api_calls_per_decision": 1,
       "model": "z-ai/glm-5.3-flash",
+      "observed_api_seconds_per_decision": 4.594,
       "panel_calls": 580,
       "panel_cost_usd": 1.88384,
       "protocol_maximum_panel_calls": 580,
@@ -358,8 +359,8 @@
     "total_calls": 9344
   },
   "runtime": {
-    "note": "Regenerate this artifact from accepted smoke telemetry before approving the full panel; latency is reported only for models with committed observations.",
-    "observation_source": "Mean provider API seconds per decision from each registered model's accepted strict smoke artifact listed in config/sota_v5_smoke_manifest.json (four decisions per smoke, one paid call per decision, serialized calls; data/publication/sota-v5-smokes-v2). The z-ai/glm-5.3-flash observation (17.558 s on DeepInfra fp8) was dropped on 2026-09-02 when the row moved to Fireworks; it is re-recorded from the Fireworks smoke.",
+    "note": "Runtime observations are sourced from every currently registered model's accepted smoke; recheck before paid full-panel runs if pricing, routes, or prompts change.",
+    "observation_source": "Mean provider API seconds per decision from each registered model's accepted strict smoke artifact listed in config/sota_v5_smoke_manifest.json (four decisions per smoke, one paid call per decision, serialized calls; data/publication/sota-v5-smokes-v2). The z-ai/glm-5.3-flash observation (17.558 s on DeepInfra fp8) was dropped on 2026-09-02 when the row moved to Fireworks; it was re-recorded from the accepted Fireworks one-call smoke on 2026-09-02 (4.594 s per decision).",
     "observed_api_seconds_per_decision_by_model": {
       "anthropic/claude-haiku-4.5": 5.369,
       "deepseek/deepseek-v4-flash-0731": 1.738,
@@ -375,10 +376,11 @@
       "qwen/qwen3.8-flash": 7.111,
       "x-ai/grok-4.3": 1.214,
       "x-ai/grok-4.6": 9.651,
-      "z-ai/glm-5": 3.229
+      "z-ai/glm-5": 3.229,
+      "z-ai/glm-5.3-flash": 4.594
     },
-    "observed_at_utc": "2026-09-01T21:10:00Z",
-    "status": "pending-smoke-telemetry"
+    "observed_at_utc": "2026-09-03T01:10:18Z",
+    "status": "complete-from-accepted-smokes"
   },
   "schema_version": 3,
   "supersedes": {

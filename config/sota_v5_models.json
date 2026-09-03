@@ -1493,9 +1493,11 @@
     "scope": "single-model-single-infrastructure-attempt",
     "model_id": "openrouter-glm-5.3-flash-fireworks",
     "attempt_number": 1,
-    "remaining_attempts": 1,
+    "remaining_attempts": 0,
     "granted_at_utc": "2026-09-03T01:04:47Z",
-    "granted_because": "Owner-authorized 2026-09-02 smoke under the fixed one-paid-call rule; fresh cell after z-ai/glm-5.3-flash moved from DeepInfra fp8 (24-hour uptime fell to 97.6%, under the 99.0% floor, and its 30-minute telemetry went missing) back to the unquantized Fireworks route, the frozen rule's mechanical winner. Cell openrouter-glm-5.3-flash-fireworks carries a fresh two-attempt budget in data/publication/sota-v5-smokes-v2."
+    "granted_because": "Owner-authorized 2026-09-02 smoke under the fixed one-paid-call rule; fresh cell after z-ai/glm-5.3-flash moved from DeepInfra fp8 (24-hour uptime fell to 97.6%, under the 99.0% floor, and its 30-minute telemetry went missing) back to the unquantized Fireworks route, the frozen rule's mechanical winner. Cell openrouter-glm-5.3-flash-fireworks carries a fresh two-attempt budget in data/publication/sota-v5-smokes-v2.",
+    "consumed_at_utc": "2026-09-03T01:08:30Z",
+    "outcome": "accepted-smoke-recorded-in-manifest"
   },
   "publication_authorized": false
 }

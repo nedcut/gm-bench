@@ -5,7 +5,6 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -267,31 +266,6 @@ def test_v5_real_registry_builds_every_seed_free_smoke_cell(monkeypatch: pytest.
     assert {cell.experiment_id for cell in cells} == set(_read(panel)["required_smokes"])
 
 
-def _fireworks_smoke_entry_placeholder(registry: dict[str, Any], withdrawn_entry: dict[str, Any]) -> dict[str, Any]:
-    """Shape the withdrawn DeepInfra entry as if the Fireworks cell had been recorded.
-
-    Only route identity fields change; every telemetry field is the withdrawn
-    row's. This stands in for the pending Fireworks smoke so the rest of the
-    panel path (frozen status, cap, run order) can still be exercised.
-    """
-    model = next(m for m in registry["models"] if m["id"] == "openrouter-glm-5.3-flash-fireworks")
-    entry = copy.deepcopy(withdrawn_entry)
-    for key in ("upstream_provider", "upstream_provider_slug", "endpoint_tag", "endpoint_name"):
-        entry[key] = model[key]
-    return entry
-
-
-def _patched_read_json(runner: Any, manifest_path: Path, replacement: dict[str, Any]) -> Any:
-    original = runner._read_json
-
-    def read(path: Path) -> Any:
-        if Path(path) == Path(manifest_path):
-            return copy.deepcopy(replacement)
-        return original(path)
-
-    return read
-
-
 def test_v5_real_registry_builds_every_panel_cell_once_the_owner_flips_the_flags(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -310,20 +284,6 @@ def test_v5_real_registry_builds_every_panel_cell_once_the_owner_flips_the_flags
     # Stand in for the owner's flag flip and the Keychain-verified seed panel.
     monkeypatch.setattr(publication_runner, "_require_execution_authorized", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(publication_runner, "_validate_frozen_seed_panel", lambda _lane: None)
-
-    # Until the Fireworks glm-5.3-flash cell holds an accepted one-call smoke
-    # (its DeepInfra smoke was withdrawn with the route on 2026-09-02), the
-    # missing manifest entry is the one remaining lock on the panel path.
-    with pytest.raises(ValueError, match="openrouter-glm-5.3-flash-fireworks' has no smoke manifest entry"):
-        publication_runner.build_cells("panel")
-    accepted_manifest = copy.deepcopy(_read(manifest))
-    accepted_manifest["entries"]["openrouter-glm-5.3-flash-fireworks"] = _fireworks_smoke_entry_placeholder(
-        _read(panel), accepted_manifest["withdrawn_entries_2026_09_02"]["entries"]["openrouter-glm-5.3-flash-deepinfra"]
-    )
-    accepted_manifest["accepted_for_panel"] = True
-    monkeypatch.setattr(
-        publication_runner, "_read_json", _patched_read_json(publication_runner, manifest, accepted_manifest)
-    )
 
     cells = publication_runner.build_cells("panel")
 
@@ -375,13 +335,13 @@ def test_v5_authorizations_match_the_owner_instructions() -> None:
     # stay recorded as invalidated evidence, and the manifest is not accepted
     # until every row is re-recorded from a smoke run under the fixed rule.
     assert lane["paid_calls_per_decision"] == V6_PAID_CALLS_PER_DECISION == 1
-    # Fifteen registered rows hold one-call smokes with exactly four calls.
-    # The z-ai/glm-5.3-flash row moved from DeepInfra fp8 back to Fireworks on
-    # 2026-09-02 (DeepInfra fell under the uptime floor), so its accepted
-    # DeepInfra smoke is withdrawn with the route and the Fireworks cell must
-    # earn its own before the manifest is accepted for panel again.
-    assert manifest["accepted_for_panel"] is False
-    assert set(manifest["entries"]) == set(registry["required_smokes"]) - {"openrouter-glm-5.3-flash-fireworks"}
+    # Every registered row holds a one-call smoke with exactly four calls, so
+    # the manifest is accepted for panel. The z-ai/glm-5.3-flash row moved from
+    # DeepInfra fp8 back to Fireworks on 2026-09-02 (DeepInfra fell under the
+    # uptime floor); its DeepInfra smoke is kept as withdrawn evidence and the
+    # Fireworks cell holds its own accepted smoke.
+    assert manifest["accepted_for_panel"] is True
+    assert set(manifest["entries"]) == set(registry["required_smokes"])
     withdrawn = manifest["withdrawn_entries_2026_09_02"]["entries"]
     assert set(withdrawn) == {"openrouter-glm-5.3-flash-deepinfra"}
     for entry in [*manifest["entries"].values(), *withdrawn.values()]:
@@ -404,12 +364,7 @@ def test_v5_authorizations_match_the_owner_instructions() -> None:
     panel_issues = publication_execution_issues(
         lane, registry, manifest, phase="panel", protocol=protocol, pricing=pricing
     )
-    # With the flags flipped, the only remaining panel lock is the missing
-    # Fireworks smoke.
-    assert panel_issues == [
-        "sota-v5 smoke manifest is not accepted for panel execution",
-        "registered model 'openrouter-glm-5.3-flash-fireworks' has no smoke manifest entry",
-    ]
+    assert panel_issues == []
     # Withdrawing the registry's panel authorization alone must re-lock it.
     unauthorized_registry = copy.deepcopy(registry)
     unauthorized_registry["panel_execution_authorized"] = False
