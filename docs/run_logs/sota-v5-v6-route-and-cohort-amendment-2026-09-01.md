@@ -153,3 +153,50 @@ Reasoning is optional (the catalog advertises a `none` effort) and is pinned
 off. This is the second withdrawal in this amendment based on a reported
 behavior outcome; as before, the replacement identity was chosen from public
 adoption and pricing metadata, never from any smoke score.
+
+## Addendum 2026-09-01T23:30Z — panel launch path rehearsed, two blockers fixed
+
+A second review pass rehearsed the exact panel launch path with the four
+authorization flags flipped on temporary copies of the configs (no provider
+call, no config committed with a flipped flag). Two things would have stopped
+the run after the owner's flip:
+
+- The runner's panel phase accepted only the three pre-v6 `output_budget_status`
+  values, so the v6 lane's `frozen-v6-output-ceiling-including-reasoning`
+  would have locked the panel with "lane has not frozen the output-budget
+  policy" even with every flag true. The accepted set now lives in
+  `gm_bench.publication.FROZEN_OUTPUT_BUDGET_STATUSES` and includes the v6
+  value. A regression test builds all sixteen panel cells from the committed
+  configs with only the flag check and the seed check stubbed.
+- Nothing launched the panel with the 29-seed escrow. The smoke launcher is
+  seed-free for sota-v5 by design and still maps sota-v5 to the retired v3
+  Keychain service. `scripts/run_sota_v5_panel_from_keychain.py` reads the
+  service named by the lane's `seed_panel.secret_escrow`
+  (`gm-bench-sota-v5-v6-private-panel`), verifies the escrowed order against
+  the committed execution hash and the salted hiding commitment, refuses an
+  inherited `GM_BENCH_PRIVATE_SEEDS`, hands the seeds to the runner only through
+  the child environment, and defaults to a fresh run directory
+  (`data/publication/sota-v5-panel`). It refuses a run directory that holds
+  smoke state, because smoke and panel cells share reservation keys and the
+  default `data/publication-runs` still carries an aborted attempt-1 smoke
+  reservation for gpt-oss-20b from 2026-09-01T03:08Z.
+
+The escrow was verified against the committed lane on 2026-09-01: count 29,
+execution sha256 and hiding commitment both match. No seed value was printed.
+
+### Launch procedure (owner action, not yet taken)
+
+1. Flip `panel_execution_authorized` to `true` in all four config records
+   (lane, model registry, publication protocol, pricing snapshot) in one
+   commit that says so.
+2. Run the free route preflight one more time
+   (`scripts/run_publication_matrix.py --contract sota-v5 route-preflight`).
+3. Rehearse: `scripts/run_sota_v5_panel_from_keychain.py --max-spend-usd 100 --dry-run`.
+4. Launch: `scripts/run_sota_v5_panel_from_keychain.py --max-spend-usd 100`
+   with `OPENROUTER_API_KEY` in the environment and `GM_BENCH_PRIVATE_SEEDS`
+   unset. Cells run serialized in registry order; the pre-call spend guard
+   and per-cell reservation stop the run before the $100 ceiling.
+5. Watch with `scripts/run_publication_matrix.py --contract sota-v5 status --run-dir data/publication/sota-v5-panel --watch`.
+
+Publication stays unauthorized until the panel completes and its artifacts
+pass the publication gate.

@@ -104,6 +104,7 @@ from gm_bench.providers import (  # noqa: E402
     SPEND_GUARD_ENV_PREFIX,
 )
 from gm_bench.publication import (  # noqa: E402
+    FROZEN_OUTPUT_BUDGET_STATUSES,
     SMOKE_MANIFEST_FORMAT,
     is_pending_strict_smoke_cap,
     publication_execution_issues,
@@ -415,11 +416,7 @@ def build_cells(
         models = list(config.get("models") or [])
         _validate_models(models, expected_provider=str(config.get("provider") or ""))
         frozen_cap = lane.get("output_token_cap")
-        if lane.get("output_budget_status") not in {
-            "frozen-saturation",
-            "frozen-fixed-budget",
-            "frozen-native-reasoning-cap",
-        }:
+        if lane.get("output_budget_status") not in FROZEN_OUTPUT_BUDGET_STATUSES:
             raise ValueError("full panel is locked until the selected lane freezes the output-budget policy")
         if config.get("selection_status") != "frozen":
             raise ValueError("full panel is locked until the selected model registry is frozen")
@@ -455,11 +452,35 @@ def build_cells(
             )
             for model in models
         ]
+        cells = _in_frozen_run_order(config, cells)
     if model_id:
         cells = [cell for cell in cells if cell.experiment_id == model_id]
         if not cells:
             raise ValueError(f"unknown model id: {model_id}")
     return cells
+
+
+def _in_frozen_run_order(config: dict[str, Any], cells: list[Cell]) -> list[Cell]:
+    """Order panel cells by the registry's frozen ascending-cost run order.
+
+    The publication protocol commits to running the cheapest rows first so a
+    route or render problem surfaces on cheap cells and the spend guard bites
+    late. The registry records that order; a registry without one runs in
+    registry order. A frozen order that does not cover exactly the registered
+    ids is a preregistration defect, not something to guess around.
+    """
+    run_order = config.get("ascending_cost_run_order")
+    if not isinstance(run_order, dict):
+        return cells
+    if not str(run_order.get("status") or "").startswith("frozen"):
+        raise ValueError("ascending_cost_run_order must be frozen before panel execution")
+    ordered_ids = [
+        str(entry.get("experiment_id") or "") for entry in run_order.get("order") or [] if isinstance(entry, dict)
+    ]
+    by_id = {cell.experiment_id: cell for cell in cells}
+    if sorted(ordered_ids) != sorted(by_id):
+        raise ValueError("ascending_cost_run_order does not cover exactly the registered model ids")
+    return [by_id[experiment_id] for experiment_id in ordered_ids]
 
 
 def cell_environment(cell: Cell) -> dict[str, str]:

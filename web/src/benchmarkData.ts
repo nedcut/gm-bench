@@ -183,15 +183,21 @@ export function buildBenchmarkView(data: Leaderboard): BenchmarkView {
     throw new Error("Leaderboard is missing a finite scripted bar or partial oracle reference");
   }
 
-  const decisionPoints = models[0]?.decision_points ?? 0;
-  const denominator = data.preset.seeds.length * data.preset.decision_points_per_episode;
-  const repeats = denominator > 0 ? decisionPoints / denominator : 0;
-  if (!Number.isInteger(repeats) || repeats < 1) {
+  // Repeats are derived per row from that row's own seed count, not from the
+  // public preset's panel width: a redacted private-panel row publishes
+  // seed_count (29) with seeds null, and dividing its decisions by the public
+  // preset's 8 seeds would not yield a whole number.
+  const repeatsFor = (model: ResultModel): number => {
+    const denominator = seedCount(model) * data.preset.decision_points_per_episode;
+    return denominator > 0 ? model.decision_points / denominator : 0;
+  };
+  const repeats = models.length > 0 ? repeatsFor(models[0]) : 0;
+  if (models.length > 0 && (!Number.isInteger(repeats) || repeats < 1)) {
     throw new Error("Leaderboard decision counts do not yield a whole repeat count");
   }
   for (const model of models) {
-    if (model.decision_points !== decisionPoints) {
-      throw new Error("Leaderboard rows disagree on decision_points");
+    if (repeatsFor(model) !== repeats) {
+      throw new Error("Leaderboard rows disagree on repeats per seed");
     }
   }
 

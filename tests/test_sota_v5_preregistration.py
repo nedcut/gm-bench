@@ -266,6 +266,39 @@ def test_v5_real_registry_builds_every_seed_free_smoke_cell(monkeypatch: pytest.
     assert {cell.experiment_id for cell in cells} == set(_read(panel)["required_smokes"])
 
 
+def test_v5_real_registry_builds_every_panel_cell_once_the_owner_flips_the_flags(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The only remaining panel locks must be the authorization flags and the seeds.
+
+    Everything else the runner checks on the panel path (frozen output-budget
+    status, frozen registry, accepted manifest, cap) must already pass on the
+    committed configs, or flipping the flags would still not start the run.
+    """
+    panel, lane, manifest, protocol, pricing = publication_runner.CONTRACT_CONFIGS["sota-v5"]
+    monkeypatch.setattr(publication_runner, "PANEL_CONFIG", panel)
+    monkeypatch.setattr(publication_runner, "LANE_CONFIG", lane)
+    monkeypatch.setattr(publication_runner, "SMOKE_MANIFEST", manifest)
+    monkeypatch.setattr(publication_runner, "PROTOCOL_CONFIG", protocol)
+    monkeypatch.setattr(publication_runner, "PRICING_CONFIG", pricing)
+    # Stand in for the owner's flag flip and the Keychain-verified seed panel.
+    monkeypatch.setattr(publication_runner, "_require_execution_authorized", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(publication_runner, "_validate_frozen_seed_panel", lambda _lane: None)
+
+    cells = publication_runner.build_cells("panel")
+
+    assert len(cells) == 16
+    assert {cell.experiment_id for cell in cells} == set(_read(panel)["required_smokes"])
+    assert {cell.seed_count for cell in cells} == {29}
+    assert {cell.cap for cell in cells} == {4096}
+    assert {(cell.preset, cell.repeats) for cell in cells} == {("leaderboard", 1)}
+    # The protocol promises the cheapest rows run first; the runner must honor it.
+    frozen_order = [entry["experiment_id"] for entry in _read(panel)["ascending_cost_run_order"]["order"]]
+    assert [cell.experiment_id for cell in cells] == frozen_order
+    assert cells[0].experiment_id == "openrouter-gpt-oss-20b-deepinfra"
+    assert cells[-1].experiment_id == "openrouter-grok-4.6-xai"
+
+
 def test_v5_is_fail_closed_before_paid_smokes() -> None:
     lane, registry, protocol, pricing, manifest = _configs()
     records = (lane, registry, protocol, pricing)

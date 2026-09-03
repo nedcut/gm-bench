@@ -116,6 +116,16 @@ FROZEN_OUTPUT_POLICY_BASES = frozenset(
         "common-safety-ceiling-with-native-minimum-reasoning",
     }
 )
+# Lane ``output_budget_status`` values that unlock the full panel. The v6 value
+# is the frozen 4,096-token ceiling that includes reasoning tokens.
+FROZEN_OUTPUT_BUDGET_STATUSES = frozenset(
+    {
+        "frozen-saturation",
+        "frozen-fixed-budget",
+        "frozen-native-reasoning-cap",
+        "frozen-v6-output-ceiling-including-reasoning",
+    }
+)
 _ROUTE_IDENTITY_KEYS = (
     "provider",
     "model",
