@@ -378,7 +378,7 @@ the $100 ceiling.
 | gpt-5.4-mini (OpenAI) | **Completed** on attempt 1 at 08:08Z, $2.45. |
 | claude-haiku-4.5 (Anthropic) | Aborted at seed 14 of 29 on two consecutive invalid-JSON replies with zero truncation (peak 918 output tokens per call; 260 malformed decisions across the 13 completed seeds). **Ineligible on model behavior**, no rerun, $1.78 in the artifact. |
 | gpt-5.6-sol (OpenAI flex) | Both attempts (08:26Z and 08:43Z) aborted within seconds on two consecutive billed responses that carried no `choices` array (`api_error: 'choices'`; spend guard: no cost telemetry). Not a 429-class status, so the transient backoff did not apply. **Excluded at the infrastructure limit.** $0.23 absorbed conservatively across the two reconciliations. |
-| grok-4.6 (xAI) | Attempt 1 started 08:44Z and aborted before 16:03Z on a read timeout at the spend guard (`The read operation timed out`); reconciled at 16:03Z, $0.26 absorbed. Roughly twelve seeds had completed, judging by spend. The deferred Fireworks cell ran next; attempt 2 then resumed from the checkpoint at 18:30Z and **completed** at 19:42Z: 580/580, $9.18 in the artifact. |
+| grok-4.6 (xAI) | Attempt 1 started 08:44Z and aborted at 09:42Z at seed 13 of 29 during a local network outage: two consecutive read timeouts at the spend guard (`The read operation timed out`), then `No route to host` on the runner's usage poll, which crashed the runner before it logged the failure. Reconciled at 16:03Z, $0.26 absorbed. The attempt-2 relaunch at 16:03Z was refused by the route preflight (xAI zdr status -2, 30-minute uptime 91.1%) with no attempt consumed, so the deferred Fireworks cell ran first. Attempt 2 resumed from the checkpoint at 18:30Z and **completed** at 19:42Z: 580/580, $9.18 in the artifact. Twelve seeds come from attempt 1 and seventeen from attempt 2, the same resume rule deepseek-v4-flash and gpt-5.6-luna used. |
 | glm-5.3-flash (Fireworks) | Launched last as deferred, 16:04Z. **Completed on attempt 1** at 18:29Z: 580/580, $0.60 in the artifact. The transient backoff fired 122 times on this cell (121 Fireworks HTTP 429, one 503; up to four retries on a single decision) and absorbed $2.30 of reservation conservatively. Without the amendment this cell would have lost both attempts in its first hour. |
 
 Final tally: 11 complete and gate-passing, 3 ineligible on model behavior
@@ -394,10 +394,13 @@ Two observations, recorded and not acted on:
   next contract, not this one; widening the trigger list after seeing the
   outcome would be outcome-dependent.
 - grok-4.6's attempt-1 record in `openrouter-reservations.json` still reads
-  `active` with no finish time. The retry path appends a fresh attempt
-  without closing a prior one that never reached the failure-logging step.
-  The attempt counter is correct (2 of 2) and the cell settled; only the
-  history entry is unclosed.
+  `active` with no finish time. The runner crashed on the usage poll during
+  the outage before its failure-logging step, and the retry path appends a
+  fresh attempt without closing a prior one left open that way. The attempt
+  counter is correct (2 of 2) and the cell settled; only the history entry
+  is unclosed.
+- That attempt was lost to the operator's network, not the provider. The
+  frozen two-attempt limit does not distinguish the two, so it counted.
 
 Analysis is still refused: `analyze_publication_panel.py` requires
 `publication_authorized: true` across the lane, registry, protocol, and
