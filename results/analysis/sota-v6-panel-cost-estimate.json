@@ -27,10 +27,10 @@
     "total_calls": 9344
   },
   "costs_usd": {
-    "panel": 128.7642688,
-    "smoke": 0.88802944,
-    "total_unrounded": 129.65229824,
-    "total_with_1_2x_contingency": 155.582757888
+    "panel": 129.7061888,
+    "smoke": 0.89452544,
+    "total_unrounded": 130.60071424,
+    "total_with_1_2x_contingency": 156.720857088
   },
   "models": [
     {
@@ -246,24 +246,23 @@
       "smoke_cost_usd": 0.0130304
     },
     {
-      "applied_completion_rate_usd": 2.5e-07,
-      "applied_internal_reasoning_rate_usd": 2.5e-07,
-      "applied_prompt_rate_usd": 7.5e-08,
-      "cost_per_decision_usd": 0.001624,
-      "experiment_id": "openrouter-glm-5.3-flash-deepinfra",
+      "applied_completion_rate_usd": 5e-07,
+      "applied_internal_reasoning_rate_usd": 5e-07,
+      "applied_prompt_rate_usd": 1.5e-07,
+      "cost_per_decision_usd": 0.003248,
+      "experiment_id": "openrouter-glm-5.3-flash-fireworks",
       "internal_reasoning_billing_basis": "completion",
       "internal_reasoning_tokens_per_decision": 0,
       "maximum_api_calls_per_decision": 1,
       "model": "z-ai/glm-5.3-flash",
-      "observed_api_seconds_per_decision": 17.558,
       "panel_calls": 580,
-      "panel_cost_usd": 0.94192,
+      "panel_cost_usd": 1.88384,
       "protocol_maximum_panel_calls": 580,
-      "protocol_maximum_panel_cost_usd": 0.94192,
+      "protocol_maximum_panel_cost_usd": 1.88384,
       "protocol_maximum_smoke_calls": 4,
-      "protocol_maximum_smoke_cost_usd": 0.006496,
+      "protocol_maximum_smoke_cost_usd": 0.012992,
       "smoke_calls": 4,
-      "smoke_cost_usd": 0.006496
+      "smoke_cost_usd": 0.012992
     },
     {
       "applied_completion_rate_usd": 2.8e-07,
@@ -343,13 +342,13 @@
       "smoke_cost_usd": 0.00325376
     }
   ],
-  "pricing_checked_at_utc": "2026-09-01T21:00:00Z",
+  "pricing_checked_at_utc": "2026-09-03T01:04:47Z",
   "protocol_maximum": {
     "costs_usd": {
-      "panel": 128.7642688,
-      "smoke": 0.88802944,
-      "total_unrounded": 129.65229824,
-      "total_with_contingency": 155.582757888
+      "panel": 129.7061888,
+      "smoke": 0.89452544,
+      "total_unrounded": 130.60071424,
+      "total_with_contingency": 156.720857088
     },
     "description": "Maximum provider-call multiplicity allowed by the v6 protocol: one paid call per decision phase plus every configured repair. Token costs still use the committed per-call planning token bounds; the publication runner's dynamic pre-call guard is the operator-ceiling enforcement mechanism.",
     "paid_calls_per_decision": 1,
@@ -359,8 +358,8 @@
     "total_calls": 9344
   },
   "runtime": {
-    "note": "Runtime observations are sourced from every currently registered model's accepted smoke; recheck before paid full-panel runs if pricing, routes, or prompts change.",
-    "observation_source": "Mean provider API seconds per decision from each registered model's accepted strict smoke artifact listed in config/sota_v5_smoke_manifest.json (four decisions per smoke, one paid call per decision, serialized calls; data/publication/sota-v5-smokes-v2).",
+    "note": "Regenerate this artifact from accepted smoke telemetry before approving the full panel; latency is reported only for models with committed observations.",
+    "observation_source": "Mean provider API seconds per decision from each registered model's accepted strict smoke artifact listed in config/sota_v5_smoke_manifest.json (four decisions per smoke, one paid call per decision, serialized calls; data/publication/sota-v5-smokes-v2). The z-ai/glm-5.3-flash observation (17.558 s on DeepInfra fp8) was dropped on 2026-09-02 when the row moved to Fireworks; it is re-recorded from the Fireworks smoke.",
     "observed_api_seconds_per_decision_by_model": {
       "anthropic/claude-haiku-4.5": 5.369,
       "deepseek/deepseek-v4-flash-0731": 1.738,
@@ -376,11 +375,10 @@
       "qwen/qwen3.8-flash": 7.111,
       "x-ai/grok-4.3": 1.214,
       "x-ai/grok-4.6": 9.651,
-      "z-ai/glm-5": 3.229,
-      "z-ai/glm-5.3-flash": 17.558
+      "z-ai/glm-5": 3.229
     },
     "observed_at_utc": "2026-09-01T21:10:00Z",
-    "status": "complete-from-accepted-smokes"
+    "status": "pending-smoke-telemetry"
   },
   "schema_version": 3,
   "supersedes": {

@@ -89,3 +89,18 @@ grant gate refused before any call, consuming nothing.
 
 | openrouter-nemotron-3.5-lightning-coreweave | 1 | **ineligible — model behavior**. Replacement identity for the excluded nemotron-3-super slot (amendment addendum 20:45Z). Exactly four calls, all finished `stop`, no truncation; one unrecoverable draft decision ("every action must be an object"), one repaired scout, one illegal trade. Model behavior never authorizes a rerun; the slot is open again. |
 | openrouter-gpt-5.6-sol-openai | 1 | **accepted**. Replacement identity for slot 16 (amendment addendum 21:00Z). Exactly four calls, clean, no illegal actions. Sixteen of sixteen registered rows now hold accepted one-call smokes. |
+
+## Route return to Fireworks (2026-09-02)
+
+The DeepInfra fp8 route for z-ai/glm-5.3-flash fell under the 99.0% 24-hour
+uptime floor and stopped publishing 30-minute telemetry on 2026-09-02, so the
+row returned to Fireworks, the frozen rule's winner (amendment addendum,
+evening of 2026-09-02). The accepted DeepInfra entry above is withdrawn with
+its route and kept under `withdrawn_entries_2026_09_02` in the manifest. The
+Fireworks cell is new in `data/publication/sota-v5-smokes-v2` with a fresh
+two-attempt budget; its consumed 2026-09-01 attempt stays in the
+`sota-v5-smokes` ledger.
+
+| model_id | attempts | outcome |
+| --- | --- | --- |
+| openrouter-glm-5.3-flash-fireworks | granted, not yet run | Attempt 1 of 2 granted on the owner's 2026-09-02 instruction. |

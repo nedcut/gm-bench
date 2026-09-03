@@ -1,5 +1,5 @@
 {
-  "accepted_for_panel": true,
+  "accepted_for_panel": false,
   "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
   "amendment_revision": "2026-09-01-v6-route-and-cohort-amendment",
   "contract": "sota-v5",
@@ -144,34 +144,6 @@
       "truncated_calls": 0,
       "upstream_provider": "StreamLake",
       "upstream_provider_slug": "streamlake/fp8"
-    },
-    "openrouter-glm-5.3-flash-deepinfra": {
-      "accepted": true,
-      "api_calls": 4,
-      "artifact_path": "data/publication/sota-v5-smokes-v2/raw/openrouter-glm-5.3-flash-deepinfra--4096.json",
-      "artifact_sha256": "459f3247879efd15ec9c52885547235a010df1f56b399c783cf57f0a5bedb99c",
-      "calls_with_finish_reason": 4,
-      "contract_fingerprint": "a600b7da0c302231",
-      "cost_decisions": 4,
-      "decision_failure_rate": 0.0,
-      "decisions_with_usage": 4,
-      "endpoint_name": "DeepInfra | z-ai/glm-5.3-flash-20260826",
-      "endpoint_tag": "deepinfra/fp8",
-      "max_output_tokens_per_call": 697,
-      "model": "z-ai/glm-5.3-flash",
-      "output_token_cap": 4096,
-      "protocol_repair_attempts": 0,
-      "protocol_repairs_succeeded": 0,
-      "provider": "openrouter",
-      "reasoning_effort": "low",
-      "reasoning_policy": "mandatory-minimum",
-      "reasoning_tokens": 903,
-      "recorded_at_utc": "2026-09-01T20:10:03+00:00",
-      "scaffold_fingerprint": "c582e126bbb6af10",
-      "strict_fallback": true,
-      "truncated_calls": 0,
-      "upstream_provider": "DeepInfra",
-      "upstream_provider_slug": "deepinfra/fp8"
     },
     "openrouter-gpt-5.4-mini-openai": {
       "accepted": true,
@@ -931,12 +903,46 @@
     "openrouter-minimax-m3-modelrun",
     "openrouter-gemini-3.1-flash-lite-google-ai-studio",
     "openrouter-gpt-5.6-luna-openai",
-    "openrouter-glm-5.3-flash-deepinfra",
+    "openrouter-glm-5.3-flash-fireworks",
     "openrouter-deepseek-v4-flash-0731-together",
     "openrouter-qwen3.5-27b-siliconflow",
     "openrouter-gpt-5.6-sol-openai",
     "openrouter-gpt-oss-20b-deepinfra"
   ],
   "schema_version": 1,
-  "status": "accepted"
+  "status": "in-progress",
+  "withdrawn_entries_2026_09_02": {
+    "withdrawn_at_utc": "2026-09-03T01:04:47Z",
+    "reason": "The accepted one-call smoke for z-ai/glm-5.3-flash on DeepInfra fp8 is withdrawn with the route: on 2026-09-02 the endpoint fell under the 99.0% 24-hour uptime floor and published no 30-minute telemetry, so the row moved back to Fireworks. The artifact stays on disk as evidence; the Fireworks cell needs its own accepted smoke.",
+    "entries": {
+      "openrouter-glm-5.3-flash-deepinfra": {
+        "accepted": true,
+        "api_calls": 4,
+        "artifact_path": "data/publication/sota-v5-smokes-v2/raw/openrouter-glm-5.3-flash-deepinfra--4096.json",
+        "artifact_sha256": "459f3247879efd15ec9c52885547235a010df1f56b399c783cf57f0a5bedb99c",
+        "calls_with_finish_reason": 4,
+        "contract_fingerprint": "a600b7da0c302231",
+        "cost_decisions": 4,
+        "decision_failure_rate": 0.0,
+        "decisions_with_usage": 4,
+        "endpoint_name": "DeepInfra | z-ai/glm-5.3-flash-20260826",
+        "endpoint_tag": "deepinfra/fp8",
+        "max_output_tokens_per_call": 697,
+        "model": "z-ai/glm-5.3-flash",
+        "output_token_cap": 4096,
+        "protocol_repair_attempts": 0,
+        "protocol_repairs_succeeded": 0,
+        "provider": "openrouter",
+        "reasoning_effort": "low",
+        "reasoning_policy": "mandatory-minimum",
+        "reasoning_tokens": 903,
+        "recorded_at_utc": "2026-09-01T20:10:03+00:00",
+        "scaffold_fingerprint": "c582e126bbb6af10",
+        "strict_fallback": true,
+        "truncated_calls": 0,
+        "upstream_provider": "DeepInfra",
+        "upstream_provider_slug": "deepinfra/fp8"
+      }
+    }
+  }
 }

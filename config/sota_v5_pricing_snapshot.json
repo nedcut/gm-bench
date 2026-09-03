@@ -3,10 +3,10 @@
   "contract": "sota-v5",
   "contract_fingerprint": "a600b7da0c302231",
   "status": "frozen",
-  "checked_at_utc": "2026-09-01T21:00:00Z",
+  "checked_at_utc": "2026-09-03T01:04:47Z",
   "amendment_revision": "2026-09-01-v6-route-and-cohort-amendment",
   "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
-  "source": "Free unauthenticated OpenRouter model and endpoint listings (https://openrouter.ai/api/v1/models and /api/v1/models/{id}/endpoints), read on 2026-08-31 for the sixteen registered v6 exact routes. No API key, Keychain entry, private seed, or completion endpoint was used. Supersedes the 2026-08-16 authenticated snapshot for the withdrawn eight-model cohort. Recheck every rate immediately before any spend decision. Four rows re-read on 2026-09-01 for the route-and-cohort amendment (z-ai/glm-5.3-flash on DeepInfra fp8 (moved from Fireworks 2026-09-01T19:40Z), minimax/minimax-m3 on ModelRun fp4, qwen/qwen3.8-flash on Alibaba, nvidia/nemotron-3-super-120b-a12b on DigitalOcean). nvidia/nemotron-3.5-lightning on CoreWeave bf16 read on 2026-09-01 after nemotron-3-super was excluded. openai/gpt-5.6-sol on OpenAI flex read on 2026-09-01 after nemotron-3.5-lightning failed the behavior gate.",
+  "source": "Free unauthenticated OpenRouter model and endpoint listings (https://openrouter.ai/api/v1/models and /api/v1/models/{id}/endpoints), read on 2026-08-31 for the sixteen registered v6 exact routes. No API key, Keychain entry, private seed, or completion endpoint was used. Supersedes the 2026-08-16 authenticated snapshot for the withdrawn eight-model cohort. Recheck every rate immediately before any spend decision. Four rows re-read on 2026-09-01 for the route-and-cohort amendment (z-ai/glm-5.3-flash on Fireworks (re-read 2026-09-02 after moving back from DeepInfra fp8), minimax/minimax-m3 on ModelRun fp4, qwen/qwen3.8-flash on Alibaba, nvidia/nemotron-3-super-120b-a12b on DigitalOcean). nvidia/nemotron-3.5-lightning on CoreWeave bf16 read on 2026-09-01 after nemotron-3-super was excluded. openai/gpt-5.6-sol on OpenAI flex read on 2026-09-01 after nemotron-3.5-lightning failed the behavior gate.",
   "currency": "USD",
   "rates_are_per_token": true,
   "pricing_scope": "Conservative planning rates for the sixteen registered exact routes. These rates are catalog metadata, not route acceptance: no route is accepted and no paid smoke, panel, or publication execution is authorized.",
@@ -20,7 +20,7 @@
     "basis": "Frozen pre-data planning inputs for results/analysis/sota-v6-panel-cost-estimate.json. Input is the v6 hard observation ceiling (8,000) rather than the ~6,500 target, so the estimate stays conservative. Output is the full 4,096-token ceiling on every call, which is a per-call worst case, not an expectation. Internal reasoning tokens are planned at zero because the v6 ceiling includes reasoning: a mandatory-reasoning row spends part of the same 4,096 tokens on reasoning rather than adding tokens on top of it."
   },
   "runtime_observations": {
-    "source": "Mean provider API seconds per decision from each registered model's accepted strict smoke artifact listed in config/sota_v5_smoke_manifest.json (four decisions per smoke, one paid call per decision, serialized calls; data/publication/sota-v5-smokes-v2).",
+    "source": "Mean provider API seconds per decision from each registered model's accepted strict smoke artifact listed in config/sota_v5_smoke_manifest.json (four decisions per smoke, one paid call per decision, serialized calls; data/publication/sota-v5-smokes-v2). The z-ai/glm-5.3-flash observation (17.558 s on DeepInfra fp8) was dropped on 2026-09-02 when the row moved to Fireworks; it is re-recorded from the Fireworks smoke.",
     "observed_at_utc": "2026-09-01T21:10:00Z",
     "api_seconds_per_decision": {
       "anthropic/claude-haiku-4.5": 5.369,
@@ -37,8 +37,7 @@
       "qwen/qwen3.8-flash": 7.111,
       "x-ai/grok-4.3": 1.214,
       "x-ai/grok-4.6": 9.651,
-      "z-ai/glm-5": 3.229,
-      "z-ai/glm-5.3-flash": 17.558
+      "z-ai/glm-5": 3.229
     }
   },
   "models": {
@@ -107,11 +106,10 @@
       "completion": 6e-07
     },
     "z-ai/glm-5.3-flash": {
-      "provider_slug": "deepinfra/fp8",
-      "endpoint_name": "DeepInfra | z-ai/glm-5.3-flash-20260826",
-      "prompt": 7.5e-08,
-      "completion": 2.5e-07,
-      "catalog_discount": 0.5
+      "provider_slug": "fireworks",
+      "endpoint_name": "Fireworks | z-ai/glm-5.3-flash-20260826",
+      "prompt": 1.5e-07,
+      "completion": 5e-07
     },
     "deepseek/deepseek-v4-flash-0731": {
       "provider_slug": "together",
@@ -157,13 +155,11 @@
   "panel_execution_authorized": true,
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
-    "model_id": "openrouter-gpt-5.6-sol-openai",
+    "model_id": "openrouter-glm-5.3-flash-fireworks",
     "attempt_number": 1,
-    "remaining_attempts": 0,
-    "granted_at_utc": "2026-09-01T21:00:00Z",
-    "granted_because": "Owner-authorized 2026-09-01 smoke under the fixed one-paid-call rule; fresh cell for the replacement identity openai/gpt-5.6-sol.",
-    "consumed_at_utc": "2026-09-01T21:08:00Z",
-    "outcome": "accepted-smoke-recorded-in-manifest"
+    "remaining_attempts": 1,
+    "granted_at_utc": "2026-09-03T01:04:47Z",
+    "granted_because": "Owner-authorized 2026-09-02 smoke under the fixed one-paid-call rule; fresh cell after z-ai/glm-5.3-flash moved from DeepInfra fp8 (24-hour uptime fell to 97.6%, under the 99.0% floor, and its 30-minute telemetry went missing) back to the unquantized Fireworks route, the frozen rule's mechanical winner. Cell openrouter-glm-5.3-flash-fireworks carries a fresh two-attempt budget in data/publication/sota-v5-smokes-v2."
   },
   "publication_authorized": false
 }

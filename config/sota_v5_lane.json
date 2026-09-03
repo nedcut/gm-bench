@@ -130,13 +130,11 @@
   "panel_execution_authorized": true,
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
-    "model_id": "openrouter-gpt-5.6-sol-openai",
+    "model_id": "openrouter-glm-5.3-flash-fireworks",
     "attempt_number": 1,
-    "remaining_attempts": 0,
-    "granted_at_utc": "2026-09-01T21:00:00Z",
-    "granted_because": "Owner-authorized 2026-09-01 smoke under the fixed one-paid-call rule; fresh cell for the replacement identity openai/gpt-5.6-sol.",
-    "consumed_at_utc": "2026-09-01T21:08:00Z",
-    "outcome": "accepted-smoke-recorded-in-manifest"
+    "remaining_attempts": 1,
+    "granted_at_utc": "2026-09-03T01:04:47Z",
+    "granted_because": "Owner-authorized 2026-09-02 smoke under the fixed one-paid-call rule; fresh cell after z-ai/glm-5.3-flash moved from DeepInfra fp8 (24-hour uptime fell to 97.6%, under the 99.0% floor, and its 30-minute telemetry went missing) back to the unquantized Fireworks route, the frozen rule's mechanical winner. Cell openrouter-glm-5.3-flash-fireworks carries a fresh two-attempt budget in data/publication/sota-v5-smokes-v2."
   },
   "publication_authorized": false,
   "blockers": [
@@ -152,7 +150,7 @@
   "final_preflight_evidence": {
     "status": "accepted",
     "artifact": "results/analysis/sota-v5-final-preflight-evidence.json",
-    "sha256": "b8cce574e3712b0971c9a45a06569ebba5cefb7384868f54112bbefb7253fc98",
+    "sha256": "03d5939b120fbe4a9a9637a57f3d4231b74811450fe02fbaff56b52f605d9b01",
     "contract_fingerprint": "a600b7da0c302231",
     "completion_calls": 0,
     "operator_ceiling_usd": 100.0

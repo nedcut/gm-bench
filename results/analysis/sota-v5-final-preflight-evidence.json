@@ -15,7 +15,7 @@
       "openrouter-minimax-m3-modelrun",
       "openrouter-gemini-3.1-flash-lite-google-ai-studio",
       "openrouter-gpt-5.6-luna-openai",
-      "openrouter-glm-5.3-flash-deepinfra",
+      "openrouter-glm-5.3-flash-fireworks",
       "openrouter-deepseek-v4-flash-0731-together",
       "openrouter-qwen3.5-27b-siliconflow",
       "openrouter-gpt-5.6-sol-openai",
@@ -29,13 +29,13 @@
   "contract": "sota-v5",
   "contract_fingerprint": "a600b7da0c302231",
   "format": "gm-bench-sota-v5-final-preflight-v1",
-  "generated_at_utc": "2026-09-01T21:16:33+00:00",
+  "generated_at_utc": "2026-09-03T01:05:45+00:00",
   "openrouter_scaffold_fingerprint": "c582e126bbb6af10",
   "route_preflight": {
     "evidence_artifact": "results/route_evidence/sota-v5-route-acceptance-evidence.json",
-    "evidence_sha256": "ae09648e7961223e2d39e8970929dd23ffd471ca92111e82c131d6b5997e393c",
+    "evidence_sha256": "4f820c5b48d9da081f66c9ba31259ff2982c3ba756f401739a1e75138454d46e",
     "status": "accepted",
-    "verified_at_utc": "2026-09-01T21:15:47+00:00"
+    "verified_at_utc": "2026-09-03T01:04:53+00:00"
   },
   "schema_version": 1,
   "smoke_command_dry_run": {
@@ -53,7 +53,7 @@
       "openrouter-minimax-m3-modelrun",
       "openrouter-gemini-3.1-flash-lite-google-ai-studio",
       "openrouter-gpt-5.6-luna-openai",
-      "openrouter-glm-5.3-flash-deepinfra",
+      "openrouter-glm-5.3-flash-fireworks",
       "openrouter-deepseek-v4-flash-0731-together",
       "openrouter-qwen3.5-27b-siliconflow",
       "openrouter-gpt-5.6-sol-openai",

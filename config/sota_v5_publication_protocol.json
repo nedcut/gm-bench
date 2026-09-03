@@ -88,14 +88,14 @@
     "expected_base_spend_usd": 75.0,
     "spend_authorized": true,
     "spend_enforcement": "dynamic-pre-provider-call",
-    "operator_ceiling_basis": "The $100 hard ceiling is the v6 spec's. It is enforced by the runner's dynamic pre-call spend guard, not by the planning maximum: the cap-priced protocol maximum -- every one of the 9,280 panel calls returning the full 4,096-token ceiling -- is $128.76 for the panel, $129.65 with the smoke gate, and $155.58 with the 1.2x contingency. That deliberately exceeds the ceiling. Input alone is $41.97 and each 1,000 completion tokens across the panel costs $21.19, so at the roughly 1,000-token replies the reasoning-disabled v2/v3 smoke record shows the panel plans at about $63, and doubling every completion still lands near $84. Both stay under $100. A run that approaches the ceiling stops for an explicit owner decision rather than silently spending more, and the ascending-cost run order means the cheapest rows finish before the ceiling is anywhere near in play. Figures regenerated 2026-09-01 for the route-and-cohort amendment and its addenda.",
+    "operator_ceiling_basis": "The $100 hard ceiling is the v6 spec's. It is enforced by the runner's dynamic pre-call spend guard, not by the planning maximum: the cap-priced protocol maximum -- every one of the 9,280 panel calls returning the full 4,096-token ceiling -- is $129.71 for the panel, $130.60 with the smoke gate, and $156.72 with the 1.2x contingency. That deliberately exceeds the ceiling. Input alone is $42.32 and each 1,000 completion tokens across the panel costs $21.34, so at the roughly 1,000-token replies the reasoning-disabled v2/v3 smoke record shows the panel plans at about $64, and doubling every completion still lands near $85. Both stay under $100. A run that approaches the ceiling stops for an explicit owner decision rather than silently spending more, and the ascending-cost run order means the cheapest rows finish before the ceiling is anywhere near in play. Figures regenerated 2026-09-01 for the route-and-cohort amendment and its addenda, and again 2026-09-02 for the glm-5.3-flash return to Fireworks.",
     "cost_components_usd": {
-      "input_only_at_8000_tokens": 41.97,
-      "per_1000_completion_tokens_across_the_panel": 21.19,
-      "cap_priced_panel": 128.7643,
-      "cap_priced_smoke_gate": 0.888029,
-      "cap_priced_total": 129.6523,
-      "cap_priced_total_with_contingency": 155.5828
+      "input_only_at_8000_tokens": 42.32,
+      "per_1000_completion_tokens_across_the_panel": 21.34,
+      "cap_priced_panel": 129.7062,
+      "cap_priced_smoke_gate": 0.894525,
+      "cap_priced_total": 130.6007,
+      "cap_priced_total_with_contingency": 156.7209
     },
     "run_order": "ascending planning cost; see config/sota_v5_models.json ascending_cost_run_order",
     "panel_spend_requires_separate_authorization": true
@@ -106,13 +106,11 @@
   "panel_execution_authorized": true,
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
-    "model_id": "openrouter-gpt-5.6-sol-openai",
+    "model_id": "openrouter-glm-5.3-flash-fireworks",
     "attempt_number": 1,
-    "remaining_attempts": 0,
-    "granted_at_utc": "2026-09-01T21:00:00Z",
-    "granted_because": "Owner-authorized 2026-09-01 smoke under the fixed one-paid-call rule; fresh cell for the replacement identity openai/gpt-5.6-sol.",
-    "consumed_at_utc": "2026-09-01T21:08:00Z",
-    "outcome": "accepted-smoke-recorded-in-manifest"
+    "remaining_attempts": 1,
+    "granted_at_utc": "2026-09-03T01:04:47Z",
+    "granted_because": "Owner-authorized 2026-09-02 smoke under the fixed one-paid-call rule; fresh cell after z-ai/glm-5.3-flash moved from DeepInfra fp8 (24-hour uptime fell to 97.6%, under the 99.0% floor, and its 30-minute telemetry went missing) back to the unquantized Fireworks route, the frozen rule's mechanical winner. Cell openrouter-glm-5.3-flash-fireworks carries a fresh two-attempt budget in data/publication/sota-v5-smokes-v2."
   },
   "publication_authorized": false,
   "selection_and_lineage": {
@@ -137,10 +135,11 @@
         "openrouter-nemotron-3-nano-30b-a3b-crusoe",
         "openrouter-glm-5.3-flash-fireworks",
         "openrouter-nemotron-3-super-120b-a12b-digitalocean",
-        "openrouter-nemotron-3.5-lightning-coreweave"
+        "openrouter-nemotron-3.5-lightning-coreweave",
+        "openrouter-glm-5.3-flash-deepinfra"
       ],
       "registered_model_ids": [
-        "openrouter-glm-5.3-flash-deepinfra",
+        "openrouter-glm-5.3-flash-fireworks",
         "openrouter-minimax-m3-modelrun",
         "openrouter-qwen3.8-flash-alibaba",
         "openrouter-gpt-5.6-sol-openai"

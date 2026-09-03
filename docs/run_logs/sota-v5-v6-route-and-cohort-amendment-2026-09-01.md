@@ -233,3 +233,60 @@ warranted on a telemetry gap alone and would be a further owner-directed
 deviation.
 
 Steps 4 and 5 (dry run, launch, watch) have not been taken.
+
+## Addendum 2026-09-02 (evening) — glm-5.3-flash returns to Fireworks
+
+The DeepInfra fp8 route did not recover. Across four single-route preflights
+over about forty minutes the endpoints API kept returning
+`uptime_last_30m: null` for it, and its 24-hour uptime read **97.6%**, under
+the frozen 99.0% floor in `route_selection_rule.hard_eligibility`. The route
+therefore fails hard eligibility on its own, independent of the telemetry
+gap, and the row must move.
+
+Applying the frozen ordering to the eligible glm-5.3-flash routes read on
+2026-09-02 (status 0, structured_outputs, 24-hour uptime at or above 99.0%):
+
+| Route | Quantization | Price per M | 24h uptime |
+| --- | --- | --- | --- |
+| **Fireworks** | unknown (unquantized) | $0.15/$0.50 | 99.14% |
+| Friendli | unknown | $0.15/$0.50 | 99.10% |
+| Reka | fp8 | $0.15/$0.50 | 99.34% |
+| Modal | fp8 | $0.15/$0.50 | 99.07% |
+| Phala | fp8 | $0.15/$0.50 | 99.23% |
+
+Fireworks wins on the first tie-break that separates the unquantized pair
+(highest 24-hour uptime). It consumed one smoke attempt on HTTP 429 on
+2026-09-01, under the two-attempt limit, so the infrastructure exclusion does
+not apply. The owner asked for Fireworks; the rule selects it independently,
+so the 2026-09-01 owner-directed fp8 deviation is retired rather than
+replaced by another one. This is a same-identity re-route: no model is
+added, withdrawn, or reordered for any reason other than route eligibility,
+and no score or model output informed it.
+
+What changed:
+
+- Registry: `openrouter-glm-5.3-flash-deepinfra` replaced by
+  `openrouter-glm-5.3-flash-fireworks` (tag `fireworks`, $0.15/$0.50, no
+  discount, reasoning mandatory-minimum at `low` as before). The deviation
+  record is kept with a retirement note.
+- Pricing snapshot: glm-5.3-flash rates doubled back to the undiscounted
+  Fireworks rate. The row's DeepInfra runtime observation (17.6 s per
+  decision) is dropped until the Fireworks smoke replaces it.
+- Cost estimate, ascending run order, and protocol budget figures
+  regenerated: cap-priced panel $129.71 (was $128.76), input-only $42.32,
+  $21.34 per 1,000 completion tokens, planning at about $64 at 1,000-token
+  replies. The Fireworks cell moves from second to fourth in run order.
+- Route acceptance regenerated for all sixteen routes (authenticated, zero
+  completion calls); the 21:15Z acceptance is preserved under a dated
+  superseded name. Final readiness evidence regenerated (dry run plus
+  authenticated preflight).
+- Smoke manifest: the accepted DeepInfra entry moves to
+  `withdrawn_entries_2026_09_02` with its artifact retained;
+  `accepted_for_panel` drops to false until the Fireworks cell holds an
+  accepted one-call smoke. The panel authorization flags stay true; the
+  runner locks the panel on the missing entry alone.
+- A single-attempt smoke grant is issued for the Fireworks cell (attempt 1
+  of 2, fresh budget in `data/publication/sota-v5-smokes-v2`).
+
+The other DeepInfra row, gpt-oss-20b bf16, is unaffected: 100% 30-minute and
+99.96% 24-hour uptime at the same read.
