@@ -200,3 +200,36 @@ execution sha256 and hiding commitment both match. No seed value was printed.
 
 Publication stays unauthorized until the panel completes and its artifacts
 pass the publication gate.
+
+## Addendum 2026-09-02 — launch steps 1 to 3 taken; DeepInfra telemetry gap
+
+On the owner's instruction the first three launch steps were taken:
+
+1. The launch-path fixes (v6 output-budget status, escrow launcher, frozen
+   run-order enforcement, per-row repeats in the web view) were committed as
+   7e50db4 and pushed to PR #129.
+2. `panel_execution_authorized` was flipped to `true` in all four config
+   records in commit 0c40a66. `publication_authorized` stays `false`. The
+   preregistration test now asserts the authorized state and checks that
+   withdrawing the registry's flag alone re-locks the panel.
+3. The free authenticated route preflight ran against all sixteen routes
+   (zero completion calls). Fifteen passed with matching provider, tag, and
+   endpoint name. **openrouter-glm-5.3-flash-deepinfra failed** three times
+   over several minutes with "matching endpoint has no finite numeric 30m
+   uptime telemetry": the endpoints API returned `uptime_last_30m: null` for
+   the DeepInfra fp8 endpoint (status 0, every other field unchanged) while
+   every other glm-5.3-flash endpoint reported a number. The rule fails
+   closed on missing telemetry, as it did for Parasail on 2026-09-01 before
+   that telemetry returned.
+
+Consequence for launch: the panel phase re-runs the same endpoint check on
+each cell immediately before launching it and stops at the first failure.
+glm-5.3-flash-deepinfra is the second cell in the frozen ascending-cost
+order, so if the gap persists at launch time the run completes gpt-oss-20b
+and then exits before spending on any other row. Nothing is consumed by
+that exit. The owner should re-run the single-route preflight until it
+passes, then proceed to the dry run and launch; a re-route is not
+warranted on a telemetry gap alone and would be a further owner-directed
+deviation.
+
+Steps 4 and 5 (dry run, launch, watch) have not been taken.
