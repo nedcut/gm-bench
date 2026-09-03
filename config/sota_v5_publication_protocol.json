@@ -57,6 +57,19 @@
       "why": "On 2026-09-03 four of the first four panel cells lost an infrastructure attempt to a pair of consecutive transient statuses (Together 429, Alibaba 429 twice, OpenAI flex 503) with no completion produced and nothing billed. The two-attempt limit was written for dead routes, not for a 600-call cell meeting two transient statuses in a row."
     }
   },
+  "exclusion_policy": {
+    "status": "frozen",
+    "rule": "every-registered-row-accounted-for",
+    "definition": "A registered row is accounted for when it is either eligible (a passing artifact under the publication gate) or excluded under a rule that was frozen before the panel ran, with its evidence retained and listed in the committed exclusion register. Publication requires every one of the sixteen registered rows to be accounted for. The Holm family stays at the registered sixteen, so no p-value gets easier because a row is missing. The headline floor drops from sixteen to eight. A registered row that is missing with no register entry still blocks publication.",
+    "minimum_headline_models": 8,
+    "minimum_basis": "Eight is the cohort size the sota-v3 amendment 3 of 2026-08-06 (docs/run_logs/sota-v3-design-amendment-2026-08-06.md) already accepted as publishable, a decision taken before any v5 or v6 model data existed and not derived from this panel's outcome.",
+    "holm_family_size": 16,
+    "holm_family_unchanged": true,
+    "exclusion_register": "config/sota_v5_panel_exclusions.json",
+    "decided_after_data": true,
+    "amended_at_utc": "2026-09-03T20:45:00+00:00",
+    "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md"
+  },
   "statistical_analysis_plan": {
     "status": "frozen",
     "analysis_mode": "reference-only",

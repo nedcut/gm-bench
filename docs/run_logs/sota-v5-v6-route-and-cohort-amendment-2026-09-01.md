@@ -407,3 +407,66 @@ Analysis is still refused: `analyze_publication_panel.py` requires
 pricing snapshot, and all four remain `false`. It reports
 `no-eligible-artifacts` until the owner flips them in one commit that says
 so. Publication remains unauthorized.
+
+## Addendum 2026-09-03T20:45Z — publication family rule amended after data: accounted-for rows, floor 8
+
+This decision was taken by the owner on 2026-09-03 after seeing the panel
+outcome above: eleven of sixteen registered rows eligible, three ineligible on
+model behavior, two excluded at the infrastructure limit. It is a post-data
+amendment and is recorded as one (`exclusion_policy.decided_after_data: true`
+in the publication protocol). Nothing about how any row was run, scored, or
+gated changes; both fingerprints are unchanged (a600b7da0c302231,
+c582e126bbb6af10).
+
+**The rule before.** `publication_ready` required all sixteen registered rows
+to be eligible: `minimum_headline_models` was 16 in the lane, equal to the
+family size. Under that rule the panel could not be published at all, because
+the frozen rules forbid rerunning the three model-behavior rows and the two
+infrastructure-limit rows have used both attempts.
+
+**The rule now.** A registered row is "accounted for" when it is either
+eligible (a passing artifact) or excluded under a rule that was frozen before
+the panel ran, with its evidence retained and listed in a committed exclusion
+register. Publication requires every registered row to be accounted for. A
+registered row that is missing with no register entry still blocks
+publication. The register is `config/sota_v5_panel_exclusions.json`; the rule
+is `exclusion_policy` in `config/sota_v5_publication_protocol.json`; the lane's
+`minimum_headline_models` is now 8 with a `minimum_headline_models_basis`
+pointer to that policy.
+
+**Why the family stays at sixteen.** Holm's adjustment divides alpha by the
+number of hypotheses still open. Shrinking the family to the eleven rows that
+happened to come back would make every remaining p-value easier to reject,
+and which rows came back was decided by the data. The family therefore stays
+at the registered sixteen and the analysis applies the full size when rows
+are missing, as the 19:45Z addendum already stated.
+
+**Where the floor of 8 comes from.** Eight is the cohort size the sota-v3
+amendment 3 of 2026-08-06
+(docs/run_logs/sota-v3-design-amendment-2026-08-06.md) accepted as
+publishable, before any v5 or v6 model data existed. It is reused here as a
+prior decision, not derived from the count of eligible rows; eleven clears it
+with margin, and a panel that lost more than eight rows would still not
+publish.
+
+**Register entries.** Every entry names the frozen rule it was excluded under
+and the retained checkpoint with its SHA-256. The two infrastructure-limit
+cells have empty-episode checkpoints, hashed all the same.
+
+| Row | Status | Frozen rule | Attempts | Decisions | Cost (USD) |
+| --- | --- | --- | --- | --- | --- |
+| gpt-oss-20b (DeepInfra) | ineligible-model-behavior | max_decision_failure_rate 0.02 (SOTA_V5_POLICY); measured 0.0207 | 1 | 580 | 0.0989 |
+| claude-haiku-4.5 (Anthropic) | ineligible-model-behavior | fail-fast on two consecutive malformed replies; no rerun on model behavior | 1 | 260 | 1.7801 |
+| glm-5 (Streamlake) | ineligible-model-behavior | fail-fast on two consecutive malformed replies; no rerun on model behavior | 1 | 480 | 1.4243 |
+| qwen3.8-flash (Alibaba) | excluded-infrastructure-limit | rerun_policy two-attempt infrastructure limit | 2 | 0 | 0.0 |
+| gpt-5.6-sol (OpenAI flex) | excluded-infrastructure-limit | rerun_policy two-attempt infrastructure limit | 2 | 0 | 0.0 |
+
+The two infrastructure-limit rows carry zero in the artifact; the $0.23
+absorbed by gpt-5.6-sol's reconciliations sits in the spend guard's
+conservative ledger, not in a result artifact.
+
+**What this addendum does not do.** `publication_authorized` stays `false` in
+the lane, registry, protocol, and pricing snapshot. The analyzer and packager
+do not yet read the register or the accounted-for rule; those changes land
+separately, and the flags flip only after they do and the analysis artifacts
+are produced under the amended rule.

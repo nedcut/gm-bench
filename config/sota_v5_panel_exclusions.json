@@ -1,0 +1,82 @@
+{
+  "format": "gm-bench-panel-exclusion-register-v1",
+  "schema_version": 1,
+  "contract": "sota-v5",
+  "contract_fingerprint": "a600b7da0c302231",
+  "status": "frozen",
+  "run_dir": "data/publication/sota-v5-panel",
+  "recorded_at_utc": "2026-09-03T20:45:00+00:00",
+  "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
+  "entries": [
+    {
+      "id": "openrouter-gpt-oss-20b-deepinfra",
+      "status": "ineligible-model-behavior",
+      "rule": "publication gate max_decision_failure_rate 0.02 (gm_bench/official.py SOTA_V5_POLICY)",
+      "reason": "Completed 580 of 580 decisions on attempt 1, but 12 unrecoverable decisions put the decision failure rate at 0.0207, over the 0.020 gate.",
+      "attempts": 1,
+      "decisions_completed": 580,
+      "cost_usd": 0.0989,
+      "evidence": {
+        "checkpoint": "checkpoints/openrouter-gpt-oss-20b-deepinfra--4096.json",
+        "checkpoint_sha256": "cfa4d4d4d0f052f2368c1ce7cb703a54fe4800be32fad4d164c96f963183b065"
+      },
+      "recorded_at_utc": "2026-09-03T20:45:00+00:00"
+    },
+    {
+      "id": "openrouter-claude-haiku-4.5-anthropic",
+      "status": "ineligible-model-behavior",
+      "rule": "fail-fast on two consecutive malformed replies; model_behavior_never_authorizes_a_rerun (config/sota_v5_publication_protocol.json rerun_policy)",
+      "reason": "Aborted at seed 14 of 29 on two consecutive invalid-JSON replies with zero truncation; 260 decisions from 13 completed seeds are retained.",
+      "attempts": 1,
+      "decisions_completed": 260,
+      "cost_usd": 1.7801,
+      "evidence": {
+        "checkpoint": "checkpoints/openrouter-claude-haiku-4.5-anthropic--4096.json",
+        "checkpoint_sha256": "9da2be5a81e040edd0cff30bb6b0e05bdd758e9f25da476c1ba7c2d4d55f959a"
+      },
+      "recorded_at_utc": "2026-09-03T20:45:00+00:00"
+    },
+    {
+      "id": "openrouter-glm-5-streamlake",
+      "status": "ineligible-model-behavior",
+      "rule": "fail-fast on two consecutive malformed replies; model_behavior_never_authorizes_a_rerun (config/sota_v5_publication_protocol.json rerun_policy)",
+      "reason": "Aborted at seed 25 of 29 on two consecutive malformed replies (every action must be an object); 480 decisions from 24 completed seeds are retained.",
+      "attempts": 1,
+      "decisions_completed": 480,
+      "cost_usd": 1.4243,
+      "evidence": {
+        "checkpoint": "checkpoints/openrouter-glm-5-streamlake--4096.json",
+        "checkpoint_sha256": "f15724efb0920fc709409557ba2eeadd5880dcb4a888d8bb7aca9ff46fd28937"
+      },
+      "recorded_at_utc": "2026-09-03T20:45:00+00:00"
+    },
+    {
+      "id": "openrouter-qwen3.8-flash-alibaba",
+      "status": "excluded-infrastructure-limit",
+      "rule": "rerun_policy two-attempt infrastructure limit (config/sota_v5_publication_protocol.json)",
+      "reason": "Both attempts aborted within the first seed on pairs of Alibaba HTTP 429 responses; Alibaba was the only eligible route, so the identity could not be re-routed.",
+      "attempts": 2,
+      "decisions_completed": 0,
+      "cost_usd": 0.0,
+      "evidence": {
+        "checkpoint": "checkpoints/openrouter-qwen3.8-flash-alibaba--4096.json",
+        "checkpoint_sha256": "bdf9f77ab5afc82e477a2fc79ccae7d78c4b34e3baa98492d32a6b0cf5afa982"
+      },
+      "recorded_at_utc": "2026-09-03T20:45:00+00:00"
+    },
+    {
+      "id": "openrouter-gpt-5.6-sol-openai",
+      "status": "excluded-infrastructure-limit",
+      "rule": "rerun_policy two-attempt infrastructure limit (config/sota_v5_publication_protocol.json)",
+      "reason": "Both attempts aborted within seconds on two consecutive billed responses that carried no choices array, which is not a transient status the backoff covers.",
+      "attempts": 2,
+      "decisions_completed": 0,
+      "cost_usd": 0.0,
+      "evidence": {
+        "checkpoint": "checkpoints/openrouter-gpt-5.6-sol-openai--4096.json",
+        "checkpoint_sha256": "e0add324f79973624550b23035e51a1ec2d27bfe8e3b9046b15895ea4ed1ff12"
+      },
+      "recorded_at_utc": "2026-09-03T20:45:00+00:00"
+    }
+  ]
+}

@@ -496,3 +496,78 @@ def test_v5_run_order_spends_the_cheapest_rows_first() -> None:
     assert registry["ascending_cost_run_order"]["planning_panel_total_usd"] == pytest.approx(
         estimate["costs_usd"]["panel"], abs=1e-3
     )
+
+
+def test_v5_publication_floor_was_lowered_after_data_with_the_family_unchanged() -> None:
+    lane, registry, protocol, pricing, manifest = _configs()
+    policy = protocol["exclusion_policy"]
+
+    # Owner amendment of 2026-09-03, taken after eleven of sixteen rows came
+    # back eligible. It is recorded as post-data rather than presented as a
+    # preregistered rule.
+    assert policy["status"] == "frozen"
+    assert policy["rule"] == "every-registered-row-accounted-for"
+    assert policy["decided_after_data"] is True
+    assert policy["amendment_record"] == lane["amendment_record"]
+    assert policy["minimum_headline_models"] == lane["minimum_headline_models"] == 8
+    assert "2026-08-06" in policy["minimum_basis"]
+    assert lane["minimum_headline_models_basis"].startswith("config/sota_v5_publication_protocol.json exclusion_policy")
+    # No p-value gets easier: the Holm family stays at the registered sixteen.
+    assert policy["holm_family_unchanged"] is True
+    assert (
+        policy["holm_family_size"]
+        == protocol["panel_design"]["holm_family_size"]
+        == lane["statistical_panel_design"]["holm_family_size"]
+        == len(registry["models"])
+        == 16
+    )
+    assert policy["exclusion_register"] == lane["exclusion_register"] == "config/sota_v5_panel_exclusions.json"
+    # Sixteen registered rows still clear the lowered floor on the execution path.
+    issues = publication_execution_issues(lane, registry, manifest, phase="panel", protocol=protocol, pricing=pricing)
+    assert not any("minimum_headline_models" in issue for issue in issues)
+
+
+def test_v5_exclusion_register_accounts_for_the_five_missing_rows() -> None:
+    lane, registry, protocol, _, _ = _configs()
+    register = _read(ROOT / lane["exclusion_register"])
+
+    assert register["format"] == "gm-bench-panel-exclusion-register-v1"
+    assert register["schema_version"] == 1
+    assert register["contract"] == "sota-v5"
+    assert register["contract_fingerprint"] == protocol["contract_fingerprint"]
+    assert register["status"] == "frozen"
+    assert register["run_dir"] == "data/publication/sota-v5-panel"
+    assert register["amendment_record"] == protocol["exclusion_policy"]["amendment_record"]
+
+    entries = register["entries"]
+    assert len(entries) == 5
+    ids = [entry["id"] for entry in entries]
+    assert len(set(ids)) == 5
+    registered = {model["id"] for model in registry["models"]}
+    assert set(ids) <= registered
+    # Eleven eligible plus five accounted-for rows is the whole family.
+    assert len(registered) - len(ids) == 11
+    assert {entry["status"] for entry in entries} <= {
+        "ineligible-model-behavior",
+        "excluded-infrastructure-limit",
+    }
+    assert sum(entry["status"] == "ineligible-model-behavior" for entry in entries) == 3
+    assert sum(entry["status"] == "excluded-infrastructure-limit" for entry in entries) == 2
+    for entry in entries:
+        assert entry["rule"]
+        assert entry["reason"]
+        assert isinstance(entry["attempts"], int) and 1 <= entry["attempts"] <= 2
+        assert isinstance(entry["decisions_completed"], int) and entry["decisions_completed"] >= 0
+        assert isinstance(entry["cost_usd"], float) and entry["cost_usd"] >= 0.0
+        assert entry["recorded_at_utc"] == register["recorded_at_utc"]
+        evidence = entry["evidence"]
+        if evidence is not None:
+            assert evidence["checkpoint"] == f"checkpoints/{entry['id']}--4096.json"
+            digest = evidence["checkpoint_sha256"]
+            assert len(digest) == 64
+            assert set(digest) <= set("0123456789abcdef")
+        if entry["status"] == "excluded-infrastructure-limit":
+            assert entry["attempts"] == 2
+            assert entry["decisions_completed"] == 0
+        else:
+            assert entry["decisions_completed"] > 0
