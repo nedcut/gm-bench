@@ -305,3 +305,54 @@ Readiness after the smoke: the free authenticated route preflight passed
 all sixteen routes, and the escrow-backed panel dry run constructed all
 sixteen cells in the frozen ascending order without a provider call or a
 printed seed. Steps 4 and 5 (launch and watch) remain owner actions.
+
+## Panel execution log and execution amendment — 2026-09-03 (UTC)
+
+Launched 2026-09-03T01:22Z from the seed escrow at the $100 ceiling, cells
+serialized in the frozen ascending order.
+
+| Cell | Outcome |
+| --- | --- |
+| gpt-oss-20b (DeepInfra) | Completed 580/580 with zero truncation; 12 unrecoverable decisions, failure rate 2.07% against the 2.0% publication gate. **Ineligible on model behavior**, no rerun, artifact and ledger retained, $0.099. |
+| deepseek-v4-flash (Together) | Attempt 1 aborted at seed 27 on two consecutive Together HTTP 429s (spend guard: no cost telemetry). Reconciled, fifteen-minute cool-down, attempt 2 resumed from the checkpoint and **completed**: 580/580, zero failures, zero truncation, $0.436. |
+| qwen3.8-flash (Alibaba) | Both attempts aborted within the first seed on Alibaba HTTP 429 pairs, fifteen minutes apart. **Excluded at the infrastructure limit**. Alibaba was the only eligible route, so the identity cannot be re-routed. |
+| glm-5.3-flash (Fireworks) | Pre-launch route check refused: OpenRouter flagged the endpoint unhealthy (status -2, 30-minute uptime 94.5%). No attempt consumed, no spend. **Deferred to the end of the order**; the only departure from the frozen order, and it moves a cell that costs nothing until it launches. |
+| gpt-5.6-luna (OpenAI flex) | Attempt 1 aborted at seed 19 on two consecutive OpenAI HTTP 503s. Reconciled; retry pending under the amendment below. |
+
+The runner stops the whole panel after an ineligible cell and refuses to
+step past it on relaunch, while the frozen policy excludes the row and keeps
+the lane alive. The remaining cells are therefore launched one at a time
+with `--model-id` through the same escrow launcher; every gate applies
+unchanged per cell.
+
+### Execution amendment: bounded backoff on transient provider statuses
+
+Four of the first four launched cells lost an infrastructure attempt to a
+pair of consecutive transient statuses with no completion produced and
+nothing billed. The two-attempt limit was written for dead routes; a
+600-call cell meeting two transient statuses in a row is a near certainty
+over a ten-hour run, and one row was already lost to it. On the owner's
+decision the execution rules gain a bounded retry:
+
+- Scope: `gm_bench/model_runs.py` (`TransientRetryAgent`), between the
+  fail-fast breaker and the provider agent. It is outside every contract
+  and scaffold fingerprint source; both fingerprints are unchanged
+  (a600b7da0c302231, c582e126bbb6af10), so completed cells stay comparable.
+- Trigger: HTTP 429, 502, 503, 504, or 529 reported by the adapter or by the
+  spend guard's telemetry error. Nothing else is retried; a malformed reply
+  is still model behavior.
+- Bound: at most four retries per decision, backing off 20, 40, 80, 160
+  seconds with up to 25% jitter. Exhausted retries fall through to the
+  fail-fast breaker exactly as before.
+- Spend: before each retry the unresolved reservation is charged in full as
+  spent (the same conservative method as `reconcile-spend`) and the retry is
+  recorded in the run directory's guard state. A retried request is not a
+  second paid call: only the completed call's usage is returned, and the
+  count of retries is surfaced beside it.
+- Recorded in `rerun_policy.transient_status_backoff` in the publication
+  protocol. Model behavior still never authorizes a rerun; the two-attempt
+  infrastructure limit still applies to whole-cell failures.
+
+Rows already excluded stay excluded. The chain resumes with the
+gpt-5.6-luna retry (attempt 2 of 2, from seed 19), then the remaining
+cells in order, then the deferred Fireworks cell.

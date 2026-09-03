@@ -37,7 +37,25 @@
     "sota_v3_and_sota_v4_attempts_and_artifacts_do_not_carry_forward": true,
     "unknown_cost_action": "stop-and-reconcile-before-any-retry",
     "provider_calls_serialized": true,
-    "provider_workers": 1
+    "provider_workers": 1,
+    "transient_status_backoff": {
+      "added_at_utc": "2026-09-03T03:20:00Z",
+      "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
+      "statuses": [
+        "HTTP 429",
+        "HTTP 502",
+        "HTTP 503",
+        "HTTP 504",
+        "HTTP 529"
+      ],
+      "max_retries_per_decision": 4,
+      "backoff_seconds": "20 * 2**n with up to 25% jitter (20, 40, 80, 160)",
+      "counts_as_paid_call": false,
+      "counts_toward_fail_fast": "only after the retries are exhausted",
+      "spend_reconciliation": "the unresolved call reservation is charged in full as spent before each retry (charge-full-conservative-call-reservation) and the retry is recorded in the run directory's guard state",
+      "scope": "gm_bench/model_runs.py TransientRetryAgent, outside every contract and scaffold fingerprint source; model behavior is untouched and still never authorizes a rerun",
+      "why": "On 2026-09-03 four of the first four panel cells lost an infrastructure attempt to a pair of consecutive transient statuses (Together 429, Alibaba 429 twice, OpenAI flex 503) with no completion produced and nothing billed. The two-attempt limit was written for dead routes, not for a 600-call cell meeting two transient statuses in a row."
+    }
   },
   "statistical_analysis_plan": {
     "status": "frozen",

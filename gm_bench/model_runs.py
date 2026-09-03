@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
 import threading
+import time
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean
 from typing import Any
@@ -196,6 +199,166 @@ class FailFastSessionAgent(PersistentProcessAgent):
         return FailFastSessionAgent(self.inner.clone(), _state=self._state)
 
 
+TRANSIENT_RETRY_ATTEMPTS_ENV = "GM_BENCH_TRANSIENT_RETRY_ATTEMPTS"
+TRANSIENT_RETRY_BASE_SECONDS_ENV = "GM_BENCH_TRANSIENT_RETRY_BASE_SECONDS"
+DEFAULT_TRANSIENT_RETRY_ATTEMPTS = 4
+DEFAULT_TRANSIENT_RETRY_BASE_SECONDS = 20.0
+# Gateway/provider statuses that mean "not now", never "this model misbehaved".
+_TRANSIENT_HTTP_STATUSES = ("429", "502", "503", "504", "529")
+_TRANSIENT_HTTP_PATTERN = re.compile(r"\bHTTP (?:" + "|".join(_TRANSIENT_HTTP_STATUSES) + r")\b")
+_UNKNOWN_COST_BLOCK = "provider call did not return authoritative finite cost telemetry"
+
+
+def _transient_provider_error(actions: Any, guard_state: dict[str, Any] | None) -> str | None:
+    """Return the transient HTTP error behind a failed decision, or None.
+
+    A decision counts as transient only when the adapter (or the spend guard
+    that wrapped it) surfaced a rate-limit or gateway-unavailable status. A
+    malformed reply, a schema failure, or any other adapter error is model
+    behavior or a real fault and is left to the fail-fast breaker.
+    """
+    candidates: list[str] = []
+    if isinstance(actions, list):
+        for action in actions:
+            if isinstance(action, dict):
+                marker = action.get("model_error") or action.get("error")
+                if marker:
+                    candidates.append(str(marker))
+    if guard_state is not None:
+        telemetry_error = guard_state.get("telemetry_error")
+        if isinstance(telemetry_error, str) and guard_state.get("blocked_reason") == _UNKNOWN_COST_BLOCK:
+            candidates.append(telemetry_error)
+    for text in candidates:
+        if text.startswith("protocol_error:"):
+            continue
+        if _TRANSIENT_HTTP_PATTERN.search(text):
+            return text[:300]
+    return None
+
+
+class TransientRetryAgent(Agent):
+    """Retry a decision after a transient provider status before it counts as a failure.
+
+    The frozen v6 rules give each publication cell two infrastructure attempts
+    and abort a cell after two consecutive adapter failures. A pair of HTTP 429
+    or 503 responses therefore consumed an attempt even though no completion
+    was produced and nothing was billed. This wrapper sits between the
+    fail-fast breaker and the provider agent: on a transient status it backs
+    off (base * 2**n seconds with jitter), reconciles the spend guard's
+    unresolved reservation the same conservative way the publication runner
+    does (charged in full as spent), and re-issues the same observation. Only
+    the final attempt's usage is returned, so ``api_calls`` still counts paid
+    completions; the retries are recorded in the guard state and surfaced in
+    the returned usage as ``transient_retries``.
+    """
+
+    def __init__(
+        self,
+        inner: Agent,
+        *,
+        attempts: int = DEFAULT_TRANSIENT_RETRY_ATTEMPTS,
+        base_seconds: float = DEFAULT_TRANSIENT_RETRY_BASE_SECONDS,
+        guard_state_path: Path | None = None,
+        sleep=time.sleep,
+        log=None,
+    ) -> None:
+        if attempts < 0 or base_seconds < 0:
+            raise ValueError("transient retry attempts and base seconds must be non-negative")
+        self.inner = inner
+        self.name = inner.name
+        self.metadata = getattr(inner, "metadata", {})
+        self.pays_for_calls = getattr(inner, "pays_for_calls", False)
+        self.attempts = attempts
+        self.base_seconds = base_seconds
+        self.guard_state_path = guard_state_path
+        self._sleep = sleep
+        self._log = log or (lambda message: print(message, file=__import__("sys").stderr))
+        self.total_retries = 0
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        actions, _usage = self.act_with_usage(observation)
+        return actions
+
+    def _guard_state(self) -> dict[str, Any] | None:
+        if self.guard_state_path is None or not self.guard_state_path.exists():
+            return None
+        try:
+            payload = json.loads(self.guard_state_path.read_text())
+        except (OSError, ValueError):
+            return None
+        return payload if isinstance(payload, dict) else None
+
+    def _release_guard(self, state: dict[str, Any], error: str, retry: int) -> None:
+        """Absorb the unresolved reservation as spent and clear the block."""
+        if state.get("blocked_reason") != _UNKNOWN_COST_BLOCK:
+            return
+        active = float(state.get("active_call_reservation_usd") or 0.0)
+        state["reported_spend_usd"] = round(float(state.get("reported_spend_usd") or 0.0) + active, 9)
+        state["active_call_reservation_usd"] = 0.0
+        state.pop("active_call_input_token_bound", None)
+        state.pop("blocked_reason", None)
+        state.pop("telemetry_error", None)
+        history = state.setdefault("transient_retries", [])
+        if isinstance(history, list):
+            history.append(
+                {
+                    "retry": retry,
+                    "at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                    "error": error,
+                    "absorbed_reservation_usd": active,
+                    "method": "charge-full-conservative-call-reservation",
+                }
+            )
+        assert self.guard_state_path is not None
+        temporary = self.guard_state_path.with_suffix(self.guard_state_path.suffix + ".tmp")
+        temporary.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
+        os.replace(temporary, self.guard_state_path)
+
+    def act_with_usage(self, observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        retries = 0
+        while True:
+            actions, usage = self.inner.act_with_usage(observation)
+            guard_state = self._guard_state()
+            error = _transient_provider_error(actions, guard_state)
+            if error is None or retries >= self.attempts:
+                if retries and isinstance(usage, dict):
+                    usage = {**usage, "transient_retries": retries}
+                return actions, usage
+            retries += 1
+            self.total_retries += 1
+            if guard_state is not None:
+                self._release_guard(guard_state, error, retries)
+            delay = self.base_seconds * (2 ** (retries - 1))
+            delay += random.uniform(0, delay * 0.25) if delay else 0.0
+            self._log(f"transient provider error ({error[:120]}); retry {retries}/{self.attempts} after {delay:.0f}s")
+            self._sleep(delay)
+
+
+def transient_retry_agent(agent: Agent, env: dict[str, str] | None = None) -> Agent:
+    """Wrap a fresh-spawn provider agent with the transient-status retry policy.
+
+    Session-lane agents are left alone: their process lifecycle is dispatched
+    on type by the frozen runner and a retry inside one episode would need a
+    different design.
+    """
+    if isinstance(agent, PersistentProcessAgent):
+        return agent
+    env = os.environ if env is None else env
+    attempts_text = env.get(TRANSIENT_RETRY_ATTEMPTS_ENV)
+    base_text = env.get(TRANSIENT_RETRY_BASE_SECONDS_ENV)
+    attempts = int(attempts_text) if attempts_text not in (None, "") else DEFAULT_TRANSIENT_RETRY_ATTEMPTS
+    base_seconds = float(base_text) if base_text not in (None, "") else DEFAULT_TRANSIENT_RETRY_BASE_SECONDS
+    if attempts == 0:
+        return agent
+    state_path = env.get("GM_BENCH_OPENROUTER_SPEND_GUARD_STATE_PATH")
+    return TransientRetryAgent(
+        agent,
+        attempts=attempts,
+        base_seconds=base_seconds,
+        guard_state_path=Path(state_path) if state_path else None,
+    )
+
+
 def fail_fast_agent(agent: Agent, threshold: int) -> Agent:
     """Wrap ``agent`` with the fail-fast breaker appropriate for its lane."""
     if isinstance(agent, PersistentProcessAgent):
@@ -348,7 +511,7 @@ def _run_resumable_candidate_locked(
                     )
                 episodes[key] = episode
 
-    wrapped = fail_fast_agent(agent, fail_fast)
+    wrapped = fail_fast_agent(transient_retry_agent(agent), fail_fast)
     _write_checkpoint(
         checkpoint_path, wrapped.name, seeds, seasons, repeats, episodes, metadata, provenance, status="running"
     )
