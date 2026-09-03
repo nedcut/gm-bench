@@ -1478,7 +1478,7 @@
   "route_preflight_authorized": true,
   "spend_authorized": true,
   "smoke_execution_authorized": true,
-  "panel_execution_authorized": false,
+  "panel_execution_authorized": true,
   "paid_smoke_authorization": {
     "scope": "single-model-single-infrastructure-attempt",
     "model_id": "openrouter-gpt-5.6-sol-openai",

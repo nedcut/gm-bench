@@ -299,7 +299,7 @@ def test_v5_real_registry_builds_every_panel_cell_once_the_owner_flips_the_flags
     assert cells[-1].experiment_id == "openrouter-grok-4.6-xai"
 
 
-def test_v5_is_fail_closed_before_paid_smokes() -> None:
+def test_v5_authorizations_match_the_owner_instructions() -> None:
     lane, registry, protocol, pricing, manifest = _configs()
     records = (lane, registry, protocol, pricing)
 
@@ -317,11 +317,13 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     assert all(record["status"] == "accepted" for record in superseded)
     assert superseded[0]["evidence_artifact"].endswith("-superseded.json")
     # Spend and smoke execution were authorized on the owner's explicit
-    # 2026-09-01 instruction; panel and publication stay locked.
+    # 2026-09-01 instruction, and panel execution on the owner's 2026-09-02
+    # instruction once all sixteen one-call smokes were accepted; publication
+    # stays locked until the panel artifacts pass the publication gate.
     for record in records:
         assert record["spend_authorized"] is True
         assert record["smoke_execution_authorized"] is True
-        assert record["panel_execution_authorized"] is False
+        assert record["panel_execution_authorized"] is True
         assert record["publication_authorized"] is False
     assert protocol["budget_policy"]["spend_authorized"] is True
     assert lane["final_preflight_evidence"]["status"] == "accepted"
@@ -334,8 +336,8 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     # until every row is re-recorded from a smoke run under the fixed rule.
     assert lane["paid_calls_per_decision"] == V6_PAID_CALLS_PER_DECISION == 1
     # Every registered row is re-recorded under the one-call rule with exactly
-    # four calls, so the manifest is accepted for panel; the panel must still be
-    # locked by the two authorization flags and nothing else.
+    # four calls, so the manifest is accepted for panel and, with the
+    # authorization flags flipped, nothing else locks the panel phase.
     assert manifest["accepted_for_panel"] is True
     assert set(manifest["entries"]) == set(registry["required_smokes"])
     for entry in manifest["entries"].values():
@@ -350,10 +352,14 @@ def test_v5_is_fail_closed_before_paid_smokes() -> None:
     panel_issues = publication_execution_issues(
         lane, registry, manifest, phase="panel", protocol=protocol, pricing=pricing
     )
-    assert panel_issues == [
-        "provider execution is locked while panel_execution_authorized is false",
-        "panel execution is locked by the model registry",
-    ]
+    assert panel_issues == []
+    # Withdrawing the registry's panel authorization alone must re-lock it.
+    unauthorized_registry = copy.deepcopy(registry)
+    unauthorized_registry["panel_execution_authorized"] = False
+    relocked_panel = publication_execution_issues(
+        lane, unauthorized_registry, manifest, phase="panel", protocol=protocol, pricing=pricing
+    )
+    assert "panel execution is locked by the model registry" in relocked_panel
     for phase in ("route-preflight", "smoke"):
         assert (
             publication_execution_issues(
