@@ -5,13 +5,18 @@ The unit of inference is the seed. Candidate repeats are averaged within each
 seed before subtracting that seed's deterministic ``pick-trader`` score. The
 bootstrap interval is descriptive. For strict reference-only contracts, the
 exact sign-flip p-value is the primary inference and Holm-Bonferroni is applied
-using the full registered family size even when rows are missing.
+using the full registered family size even when rows are missing. Under the
+accounted-for rule, a registered row without an eligible artifact must appear
+in the lane's frozen exclusion register with its evidence retained, the family
+stays at the registered size, and a row absent from both still blocks
+publication.
 """
 
 from __future__ import annotations
 
 import argparse
 import bisect
+import hashlib
 import json
 import math
 import random
@@ -54,6 +59,9 @@ V4_ANALYSIS_LOCK = "sota-v4 analysis is authorization-locked until its publicati
 V5_ANALYSIS_AUTHORIZATION_LOCK = (
     "sota-v5 analysis requires explicit publication authorization across the frozen lane inputs"
 )
+EXCLUSION_REGISTER_FORMAT = "gm-bench-panel-exclusion-register-v1"
+EXCLUSION_REGISTER_SCHEMA_VERSION = 1
+EXCLUSION_STATUSES = frozenset({"ineligible-model-behavior", "excluded-infrastructure-limit"})
 BOOTSTRAP_SEED = 20260716
 BOOTSTRAP_ITERATIONS = 10_000
 # docs/scoring_calibration.md: the v6 panel's 30-point minimum detectable
@@ -397,6 +405,109 @@ def _registered_lane_issues(
     return issues
 
 
+def _is_sha256_hex(value: Any) -> bool:
+    return isinstance(value, str) and len(value) == 64 and set(value) <= set("0123456789abcdef")
+
+
+def _exclusion_register_entries(
+    register: Mapping[str, Any],
+    *,
+    contract: str,
+    contract_fingerprint: str | None,
+    registered_ids: set[str],
+    run_dir: Path | None = None,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Validate a frozen exclusion register and return its public entries.
+
+    Every entry must name a registered model, carry one of the two frozen
+    exclusion statuses, and (when evidence is present) a well-formed checkpoint
+    digest. With ``run_dir`` the digest is checked against the retained file's
+    bytes; without it the register is taken at its word. Seeds never enter the
+    returned entries.
+    """
+    errors: list[str] = []
+    if register.get("format") != EXCLUSION_REGISTER_FORMAT:
+        errors.append(f"exclusion register format must be {EXCLUSION_REGISTER_FORMAT!r}")
+    if register.get("schema_version") != EXCLUSION_REGISTER_SCHEMA_VERSION:
+        errors.append(f"exclusion register schema_version must be {EXCLUSION_REGISTER_SCHEMA_VERSION}")
+    if register.get("contract") != contract:
+        errors.append(f"exclusion register contract does not match {contract}")
+    if contract_fingerprint and register.get("contract_fingerprint") != contract_fingerprint:
+        errors.append("exclusion register contract_fingerprint does not match the frozen lane")
+    if register.get("status") != "frozen":
+        errors.append("exclusion register status must be frozen")
+    raw_entries = register.get("entries")
+    if not isinstance(raw_entries, list):
+        errors.append("exclusion register entries must be a list")
+        return [], errors
+
+    entries: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for index, raw in enumerate(raw_entries):
+        if not isinstance(raw, Mapping):
+            errors.append(f"exclusion register entries[{index}] must be an object")
+            continue
+        model_id = str(raw.get("id") or "").strip()
+        if not model_id:
+            errors.append(f"exclusion register entries[{index}] requires an id")
+            continue
+        if model_id not in registered_ids:
+            errors.append(f"exclusion register names an unregistered model: {model_id}")
+        if model_id in seen:
+            errors.append(f"exclusion register lists {model_id} more than once")
+        seen.add(model_id)
+        status = raw.get("status")
+        if status not in EXCLUSION_STATUSES:
+            errors.append(f"exclusion register entry {model_id} has an unknown status {status!r}")
+        for field in ("rule", "reason"):
+            if not str(raw.get(field) or "").strip():
+                errors.append(f"exclusion register entry {model_id} requires a non-empty {field}")
+        for field in ("attempts", "decisions_completed"):
+            value = raw.get(field)
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                errors.append(f"exclusion register entry {model_id} {field} must be a non-negative integer")
+        cost = raw.get("cost_usd")
+        if not isinstance(cost, int | float) or isinstance(cost, bool) or cost < 0:
+            errors.append(f"exclusion register entry {model_id} cost_usd must be a non-negative number")
+        evidence = raw.get("evidence")
+        digest: str | None = None
+        if evidence is not None:
+            if not isinstance(evidence, Mapping):
+                errors.append(f"exclusion register entry {model_id} evidence must be an object or null")
+            else:
+                checkpoint = evidence.get("checkpoint")
+                digest = evidence.get("checkpoint_sha256")
+                if not isinstance(checkpoint, str) or not checkpoint:
+                    errors.append(f"exclusion register entry {model_id} evidence requires a checkpoint path")
+                if not _is_sha256_hex(digest):
+                    errors.append(f"exclusion register entry {model_id} checkpoint_sha256 is not a sha256 hex digest")
+                    digest = None
+                elif run_dir is not None and isinstance(checkpoint, str) and checkpoint:
+                    checkpoint_path = run_dir / checkpoint
+                    try:
+                        observed = hashlib.sha256(checkpoint_path.read_bytes()).hexdigest()
+                    except OSError as exc:
+                        errors.append(f"exclusion register entry {model_id} evidence is unreadable: {exc}")
+                    else:
+                        if observed != digest:
+                            errors.append(
+                                f"exclusion register entry {model_id} checkpoint_sha256 does not match {checkpoint}"
+                            )
+        entries.append(
+            {
+                "model_id": model_id,
+                "status": status,
+                "rule": raw.get("rule"),
+                "reason": raw.get("reason"),
+                "attempts": raw.get("attempts"),
+                "decisions_completed": raw.get("decisions_completed"),
+                "cost_usd": raw.get("cost_usd"),
+                "checkpoint_sha256": digest,
+            }
+        )
+    return entries, errors
+
+
 def within_seed_separation_caveats(
     rows: Sequence[Mapping[str, Any]],
     *,
@@ -477,13 +588,31 @@ def analyze(
     lane: Mapping[str, Any] | None = None,
     protocol: Mapping[str, Any] | None = None,
     pricing: Mapping[str, Any] | None = None,
+    exclusions: Mapping[str, Any] | None = None,
+    run_dir: Path | None = None,
 ) -> dict[str, Any]:
-    """Analyze valid artifacts matching the registry and report missing/rejected rows."""
+    """Analyze valid artifacts matching the registry and report missing/rejected rows.
+
+    ``exclusions`` is the lane's frozen exclusion register; a registered row
+    listed there counts as accounted for rather than missing. ``run_dir`` lets
+    the register's checkpoint digests be checked against the retained files.
+    """
     specs, config_errors = _registry_specs(registry)
     contract = str(registry.get("contract") or "")
     policy = POLICIES.get(contract)
     if policy is None:
         config_errors.append(f"no result-validation policy is registered for {contract!r}")
+    excluded_entries: list[dict[str, Any]] = []
+    if exclusions is not None:
+        lane_fingerprint = lane.get("contract_fingerprint") if isinstance(lane, Mapping) else None
+        excluded_entries, register_errors = _exclusion_register_entries(
+            exclusions,
+            contract=contract,
+            contract_fingerprint=str(lane_fingerprint or registry.get("contract_fingerprint") or "") or None,
+            registered_ids={spec["id"] for spec in specs},
+            run_dir=run_dir,
+        )
+        config_errors.extend(register_errors)
     expected_seed_panel: Mapping[str, Any] | None = None
     strict_plan_ready = contract not in STRICT_REFERENCE_CONTRACTS
     if contract in STRICT_REFERENCE_CONTRACTS:
@@ -687,8 +816,22 @@ def analyze(
             public_row["seed_count"] = len(per_seed)
             output_rows.append(public_row)
     present = {str(row["model_id"]) for row in rows}
-    missing = [spec["id"] for spec in specs if spec["id"] not in present]
+    excluded_ids = {str(entry["model_id"]) for entry in excluded_entries}
+    for model_id in sorted(present & excluded_ids):
+        config_errors.append(f"model {model_id} is both eligible and listed in the exclusion register")
+    missing = [spec["id"] for spec in specs if spec["id"] not in present and spec["id"] not in excluded_ids]
     eligible_count = len(rows)
+    registered_ids = {spec["id"] for spec in specs}
+    accounted_for_count = len((present | excluded_ids) & registered_ids)
+    minimum_headline_models = len(specs)
+    exclusion_policy = protocol.get("exclusion_policy") if isinstance(protocol, Mapping) else None
+    for source in (exclusion_policy, lane):
+        if not isinstance(source, Mapping):
+            continue
+        configured = source.get("minimum_headline_models")
+        if isinstance(configured, int) and not isinstance(configured, bool) and configured > 0:
+            minimum_headline_models = configured
+            break
     status = "complete" if specs and not missing and not rejected and not config_errors else "partial"
     if eligible_count == 0:
         status = "no-eligible-artifacts"
@@ -726,8 +869,17 @@ def analyze(
             "per_seed_rows_included": False,
             "public_view": "aggregate-only",
         }
+        result["minimum_headline_models"] = minimum_headline_models
+        result["accounted_for_model_count"] = accounted_for_count
+        result["excluded_models"] = sorted(excluded_entries, key=lambda entry: str(entry["model_id"]))
+        # Every registered row must be accounted for (eligible or in the frozen
+        # register), the eligible rows must clear the headline floor, and the
+        # Holm family must still be the registered family so no p-value eased.
         result["publication_ready"] = (
-            status == "complete" and not config_errors and not missing and not rejected and eligible_count == len(specs)
+            status == "complete"
+            and eligible_count >= minimum_headline_models
+            and accounted_for_count == len(specs)
+            and result["holm_family_size"] == len(specs)
         )
         result["model_tiering"] = {
             "status": "not-supported",
@@ -760,6 +912,16 @@ def main() -> int:
     parser.add_argument("--pricing", type=Path)
     parser.add_argument("--artifacts-dir", type=Path, default=DEFAULT_ARTIFACT_DIR)
     parser.add_argument("--raw-artifacts-dir", type=Path, help="raw JSON evidence used to verify compact hash links")
+    parser.add_argument(
+        "--exclusions",
+        type=Path,
+        help="frozen exclusion register; defaults to the sota-v5 lane's exclusion_register path",
+    )
+    parser.add_argument(
+        "--run-dir",
+        type=Path,
+        help="panel run directory used to verify the register's checkpoint digests against the retained files",
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
@@ -787,11 +949,26 @@ def main() -> int:
             if contract in {"sota-v5"}
             else None
         )
+        exclusions_path = args.exclusions
+        if exclusions_path is None and contract == "sota-v5" and isinstance(lane, Mapping):
+            register_ref = lane.get("exclusion_register")
+            if isinstance(register_ref, str) and register_ref:
+                exclusions_path = ROOT / register_ref
+        exclusions = _read_json(exclusions_path) if exclusions_path is not None else None
         output_path = args.output or default_output_path(contract)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         sys.exit(f"analyze_publication_panel: {exc}")
 
-    result = analyze(registry, payloads, raw_payloads=raw_payloads, lane=lane, protocol=protocol, pricing=pricing)
+    result = analyze(
+        registry,
+        payloads,
+        raw_payloads=raw_payloads,
+        lane=lane,
+        protocol=protocol,
+        pricing=pricing,
+        exclusions=exclusions,
+        run_dir=args.run_dir,
+    )
     text = json.dumps(result, indent=2, sort_keys=True) + "\n"
     if result.get("benchmark_version") in STRICT_REFERENCE_CONTRACTS and result.get("publication_ready") is not True:
         print(text, end="")

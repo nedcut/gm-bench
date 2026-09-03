@@ -810,3 +810,255 @@ def test_the_v5_plan_records_the_one_repeat_claimability_decision() -> None:
     assert caveat["unmeasured_status"] == WITHIN_SEED_UNMEASURED_ONE_REPEAT
     assert caveat["unmeasured_claimability"] == "claimable-with-explicit-assumption-caveat"
     assert caveat["unmeasured_basis"] == publication_analysis.WITHIN_SEED_ONE_REPEAT_BASIS
+
+
+V5_FINGERPRINT = "a" * 16
+V5_SEED_PANEL = {"name": "private-env", "count": 4, "sha256": "b" * 64}
+
+
+def _v5_registry(model_count: int = 16) -> dict:
+    registry = _frozen_registry()
+    registry.update(
+        {
+            "contract": "sota-v5",
+            "contract_fingerprint": V5_FINGERPRINT,
+            "publication_authorized": True,
+            "models": [
+                {
+                    "id": f"row-{index:02d}",
+                    "provider": "openrouter",
+                    "model": f"demo/model-{index:02d}",
+                    "transport": "gateway-api",
+                    "upstream_provider": "DemoProvider",
+                    "upstream_provider_slug": "demo-provider/fp8",
+                    "endpoint_tag": "demo-provider/fp8",
+                    "endpoint_name": f"DemoProvider | demo/model-{index:02d}",
+                    "fixed_options": {"OPENROUTER_REASONING_ENABLED": "false"},
+                    "absent_options": [],
+                }
+                for index in range(model_count)
+            ],
+        }
+    )
+    return registry
+
+
+def _v5_payload(index: int, *, seed_count: int = 4) -> dict:
+    payload = _registered_payload(seed_count=seed_count)
+    payload["run_info"]["model"] = f"demo/model-{index:02d}"
+    payload["run_info"]["benchmark_contract"] = {
+        "benchmark_version": "sota-v5",
+        "contract_fingerprint": V5_FINGERPRINT,
+    }
+    payload["run_info"]["seed_panel"] = dict(V5_SEED_PANEL)
+    payload["run_info"]["provider_options"]["OPENROUTER_EXPECTED_ENDPOINT_NAME"] = (
+        f"DemoProvider | demo/model-{index:02d}"
+    )
+    return payload
+
+
+def _v5_inputs(*, minimum_headline_models: int = 8) -> tuple[dict, dict, dict]:
+    lane = {
+        "contract": "sota-v5",
+        "contract_fingerprint": V5_FINGERPRINT,
+        "preregistration_status": "frozen",
+        "publication_authorized": True,
+        "minimum_headline_models": minimum_headline_models,
+        "exclusion_register": "config/sota_v5_panel_exclusions.json",
+        "seed_panel": {"status": "frozen", **V5_SEED_PANEL},
+    }
+    protocol = {
+        "contract": "sota-v5",
+        "contract_fingerprint": V5_FINGERPRINT,
+        "status": "frozen",
+        "publication_authorized": True,
+        "statistical_analysis_plan": {"status": "frozen"},
+        "exclusion_policy": {
+            "status": "frozen",
+            "rule": "every-registered-row-accounted-for",
+            "minimum_headline_models": minimum_headline_models,
+            "holm_family_size": 16,
+        },
+    }
+    pricing = {"contract": "sota-v5", "status": "frozen", "publication_authorized": True}
+    return lane, protocol, pricing
+
+
+def _v5_register(ids: list[str], *, digest: str = "c" * 64) -> dict:
+    return {
+        "format": "gm-bench-panel-exclusion-register-v1",
+        "schema_version": 1,
+        "contract": "sota-v5",
+        "contract_fingerprint": V5_FINGERPRINT,
+        "status": "frozen",
+        "run_dir": "data/publication/sota-v5-panel",
+        "recorded_at_utc": "2026-09-03T20:45:00+00:00",
+        "amendment_record": "docs/run_logs/example.md",
+        "entries": [
+            {
+                "id": model_id,
+                "status": "ineligible-model-behavior" if position < 3 else "excluded-infrastructure-limit",
+                "rule": "frozen rule pointer",
+                "reason": "one plain sentence.",
+                "attempts": 1 if position < 3 else 2,
+                "decisions_completed": 100 if position < 3 else 0,
+                "cost_usd": 0.5 if position < 3 else 0.0,
+                "evidence": {"checkpoint": f"checkpoints/{model_id}--4096.json", "checkpoint_sha256": digest},
+                "recorded_at_utc": "2026-09-03T20:45:00+00:00",
+            }
+            for position, model_id in enumerate(ids)
+        ],
+    }
+
+
+def _v5_panel(monkeypatch: pytest.MonkeyPatch, *, eligible: int = 11) -> tuple[dict, list[dict], dict]:
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(ok=True, errors=[]),
+    )
+    registry = _v5_registry()
+    payloads = [_v5_payload(index) for index in range(eligible)]
+    register = _v5_register([f"row-{index:02d}" for index in range(eligible, 16)])
+    return registry, payloads, register
+
+
+def test_v5_registered_exclusions_account_for_the_family_without_easing_holm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry, payloads, register = _v5_panel(monkeypatch)
+    lane, protocol, pricing = _v5_inputs()
+
+    result = analyze(registry, payloads, lane=lane, protocol=protocol, pricing=pricing, exclusions=register)
+
+    assert result["config_errors"] == []
+    assert result["status"] == "complete"
+    assert result["publication_ready"] is True
+    assert result["registered_model_count"] == 16
+    assert result["eligible_model_count"] == 11
+    assert result["holm_family_size"] == 16
+    assert result["minimum_headline_models"] == 8
+    assert result["accounted_for_model_count"] == 16
+    assert result["missing_models"] == []
+    assert [entry["model_id"] for entry in result["excluded_models"]] == [f"row-{index:02d}" for index in range(11, 16)]
+    entry = result["excluded_models"][0]
+    assert set(entry) == {
+        "model_id",
+        "status",
+        "rule",
+        "reason",
+        "attempts",
+        "decisions_completed",
+        "cost_usd",
+        "checkpoint_sha256",
+    }
+    assert entry["checkpoint_sha256"] == "c" * 64
+    # Holm still divides by the registered sixteen, not the eleven present.
+    p_values = {row["model_id"]: row["sign_flip_p_value"] for row in result["models"]}
+    assert result["models"][0]["holm_adjusted_p_value"] == pytest.approx(
+        holm_adjust(p_values, family_size=16)[result["models"][0]["model_id"]], abs=1e-6
+    )
+    rendered = json.dumps(result, sort_keys=True)
+    assert '"per_seed"' not in rendered
+    for private_seed in range(11, 15):
+        assert f'"seed": {private_seed}' not in rendered
+
+
+def test_v5_row_absent_from_both_artifacts_and_register_still_blocks(monkeypatch: pytest.MonkeyPatch) -> None:
+    registry, payloads, register = _v5_panel(monkeypatch)
+    lane, protocol, pricing = _v5_inputs()
+    register["entries"] = [entry for entry in register["entries"] if entry["id"] != "row-13"]
+
+    result = analyze(registry, payloads, lane=lane, protocol=protocol, pricing=pricing, exclusions=register)
+
+    assert result["missing_models"] == ["row-13"]
+    assert result["status"] == "partial"
+    assert result["publication_ready"] is False
+    assert result["accounted_for_model_count"] == 15
+    assert result["holm_family_size"] == 16
+    assert len(result["excluded_models"]) == 4
+
+
+def test_v5_row_that_is_both_eligible_and_excluded_is_a_config_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    registry, payloads, register = _v5_panel(monkeypatch)
+    lane, protocol, pricing = _v5_inputs()
+    register["entries"][0]["id"] = "row-00"
+
+    result = analyze(registry, payloads, lane=lane, protocol=protocol, pricing=pricing, exclusions=register)
+
+    assert "model row-00 is both eligible and listed in the exclusion register" in result["config_errors"]
+    assert result["publication_ready"] is False
+    assert result["missing_models"] == ["row-11"]
+
+
+def test_v5_eligible_rows_below_the_headline_floor_are_not_publishable(monkeypatch: pytest.MonkeyPatch) -> None:
+    registry, payloads, register = _v5_panel(monkeypatch, eligible=7)
+    lane, protocol, pricing = _v5_inputs()
+
+    result = analyze(registry, payloads, lane=lane, protocol=protocol, pricing=pricing, exclusions=register)
+
+    assert result["config_errors"] == []
+    assert result["missing_models"] == []
+    assert result["status"] == "complete"
+    assert result["eligible_model_count"] == 7
+    assert result["accounted_for_model_count"] == 16
+    assert result["minimum_headline_models"] == 8
+    assert result["publication_ready"] is False
+
+
+def test_v5_register_digests_are_checked_against_the_run_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    registry, payloads, register = _v5_panel(monkeypatch)
+    lane, protocol, pricing = _v5_inputs()
+    checkpoints = tmp_path / "checkpoints"
+    checkpoints.mkdir()
+    for entry in register["entries"]:
+        path = checkpoints / f"{entry['id']}--4096.json"
+        path.write_text(json.dumps({"episodes": []}))
+        entry["evidence"]["checkpoint_sha256"] = publication_analysis.hashlib.sha256(path.read_bytes()).hexdigest()
+    (checkpoints / "row-15--4096.json").write_text(json.dumps({"episodes": [1]}))
+
+    without_run_dir = analyze(registry, payloads, lane=lane, protocol=protocol, pricing=pricing, exclusions=register)
+    with_run_dir = analyze(
+        registry, payloads, lane=lane, protocol=protocol, pricing=pricing, exclusions=register, run_dir=tmp_path
+    )
+
+    assert without_run_dir["publication_ready"] is True
+    assert with_run_dir["publication_ready"] is False
+    assert with_run_dir["config_errors"] == [
+        "exclusion register entry row-15 checkpoint_sha256 does not match checkpoints/row-15--4096.json"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("mutate", "expected_error"),
+    (
+        (lambda register: register.update(status="draft"), "exclusion register status must be frozen"),
+        (
+            lambda register: register.update(contract_fingerprint="f" * 16),
+            "exclusion register contract_fingerprint does not match the frozen lane",
+        ),
+        (
+            lambda register: register["entries"][0].update(id="not-registered"),
+            "exclusion register names an unregistered model: not-registered",
+        ),
+        (
+            lambda register: register["entries"][0].update(status="skipped"),
+            "exclusion register entry row-11 has an unknown status 'skipped'",
+        ),
+        (
+            lambda register: register["entries"][0]["evidence"].update(checkpoint_sha256="xyz"),
+            "exclusion register entry row-11 checkpoint_sha256 is not a sha256 hex digest",
+        ),
+    ),
+)
+def test_v5_register_shape_faults_are_config_errors(
+    monkeypatch: pytest.MonkeyPatch, mutate, expected_error: str
+) -> None:
+    registry, payloads, register = _v5_panel(monkeypatch)
+    lane, protocol, pricing = _v5_inputs()
+    mutate(register)
+
+    result = analyze(registry, payloads, lane=lane, protocol=protocol, pricing=pricing, exclusions=register)
+
+    assert expected_error in result["config_errors"]
+    assert result["publication_ready"] is False
