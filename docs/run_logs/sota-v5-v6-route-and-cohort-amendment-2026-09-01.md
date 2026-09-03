@@ -356,3 +356,51 @@ decision the execution rules gain a bounded retry:
 Rows already excluded stay excluded. The chain resumes with the
 gpt-5.6-luna retry (attempt 2 of 2, from seed 19), then the remaining
 cells in order, then the deferred Fireworks cell.
+
+## Addendum 2026-09-03T19:45Z — panel complete; eleven rows eligible
+
+The chain ran to the end. The last cell (grok-4.6, attempt 2) settled at
+19:42Z. No cell is active and nothing is reserved. Spend in artifacts is
+$23.71; the spend guard's conservative figure, which charges every
+reconciled or retried reservation in full, is $30.29. Both sit far under
+the $100 ceiling.
+
+| Cell | Outcome |
+| --- | --- |
+| gpt-5.6-luna (OpenAI flex) | Attempt 2 resumed from seed 19 at 03:59Z and **completed** at 04:09Z: 580/580, $0.43. |
+| gemini-3.1-flash-lite | **Completed** on attempt 1 at 04:20Z, $0.46. |
+| qwen3.5-27b (SiliconFlow) | **Completed** on attempt 1 at 05:24Z, $0.99. |
+| gemini-3.7-flash | **Completed** on attempt 1 at 05:47Z, $1.88. |
+| glm-5 (Streamlake) | Aborted at seed 25 of 29 on two consecutive malformed replies (`every action must be an object`). **Ineligible on model behavior**, no rerun, $1.42 in the artifact. |
+| kimi-k2.5 (SiliconFlow) | **Completed** on attempt 1 at 07:24Z, $1.58. |
+| minimax-m3 (Modelrun) | **Completed** on attempt 1 at 07:44Z, $2.10. |
+| grok-4.3 (xAI) | **Completed** on attempt 1 at 07:52Z, $3.52. |
+| gpt-5.4-mini (OpenAI) | **Completed** on attempt 1 at 08:08Z, $2.45. |
+| claude-haiku-4.5 (Anthropic) | Aborted at seed 14 of 29 on two consecutive invalid-JSON replies with zero truncation (peak 918 output tokens per call; 260 malformed decisions across the 13 completed seeds). **Ineligible on model behavior**, no rerun, $1.78 in the artifact. |
+| gpt-5.6-sol (OpenAI flex) | Both attempts (08:26Z and 08:43Z) aborted within seconds on two consecutive billed responses that carried no `choices` array (`api_error: 'choices'`; spend guard: no cost telemetry). Not a 429-class status, so the transient backoff did not apply. **Excluded at the infrastructure limit.** $0.23 absorbed conservatively across the two reconciliations. |
+| grok-4.6 (xAI) | Attempt 1 started 08:44Z and aborted before 16:03Z on a read timeout at the spend guard (`The read operation timed out`); reconciled at 16:03Z, $0.26 absorbed. Roughly twelve seeds had completed, judging by spend. The deferred Fireworks cell ran next; attempt 2 then resumed from the checkpoint at 18:30Z and **completed** at 19:42Z: 580/580, $9.18 in the artifact. |
+| glm-5.3-flash (Fireworks) | Launched last as deferred, 16:04Z. **Completed on attempt 1** at 18:29Z: 580/580, $0.60 in the artifact. The transient backoff fired 122 times on this cell (121 Fireworks HTTP 429, one 503; up to four retries on a single decision) and absorbed $2.30 of reservation conservatively. Without the amendment this cell would have lost both attempts in its first hour. |
+
+Final tally: 11 complete and gate-passing, 3 ineligible on model behavior
+(gpt-oss-20b, glm-5, claude-haiku-4.5), 2 excluded at the infrastructure
+limit (qwen3.8-flash, gpt-5.6-sol). The Holm family stays at the registered
+sixteen; the analysis applies the full family size when rows are missing.
+
+Two observations, recorded and not acted on:
+
+- gpt-5.6-sol's failure signature (billed response, no `choices`) is the
+  one Cloudflare showed for glm-5.3-flash at smoke. The transient backoff
+  deliberately does not cover it. Whether it should is a question for the
+  next contract, not this one; widening the trigger list after seeing the
+  outcome would be outcome-dependent.
+- grok-4.6's attempt-1 record in `openrouter-reservations.json` still reads
+  `active` with no finish time. The retry path appends a fresh attempt
+  without closing a prior one that never reached the failure-logging step.
+  The attempt counter is correct (2 of 2) and the cell settled; only the
+  history entry is unclosed.
+
+Analysis is still refused: `analyze_publication_panel.py` requires
+`publication_authorized: true` across the lane, registry, protocol, and
+pricing snapshot, and all four remain `false`. It reports
+`no-eligible-artifacts` until the owner flips them in one commit that says
+so. Publication remains unauthorized.
