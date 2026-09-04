@@ -43,7 +43,9 @@ def test_choose_actions_calls_native_messages_api(monkeypatch) -> None:
 
     actions, usage = anthropic_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
 
-    assert actions == [{"type": "noop"}]
+    # The adapter forwards the model's reply verbatim; gm_bench.repair, not
+    # the adapter, decides what it means.
+    assert actions == '{"actions":[{"type":"noop"}]}'
     assert captured["url"].endswith("/v1/messages")
     assert captured["headers"]["X-api-key"] == "test-key"
     assert captured["payload"]["model"] == "claude-sonnet-4-6"

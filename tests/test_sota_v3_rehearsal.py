@@ -354,11 +354,13 @@ def test_panel_like_action_fails_closed_on_both_authorization_locks() -> None:
             protocol=mutated_protocol,
             pricing=ready_pricing,
         )
+    # The bound moved 20 -> 30 with the v6 29-seed panel: the analyzer
+    # enumerates by meet-in-the-middle, so 29 seeds are cheap. 31 is still out.
     oversized_exact_lane = {
         **ready_lane,
-        "seed_panel": {**ready_lane["seed_panel"], "count": 21},
+        "seed_panel": {**ready_lane["seed_panel"], "count": 31},
     }
-    assert "sota-v3 exact-enumeration-sign-flip requires at most 20 seeds" in execution_authorization_issues(
+    assert "sota-v3 exact-enumeration-sign-flip requires at most 30 seeds" in execution_authorization_issues(
         oversized_exact_lane,
         mode="smoke",
         registry=ready_registry,

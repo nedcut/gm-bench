@@ -49,8 +49,10 @@ def test_player_for_pick_trade_transfers_ownership():
     assert action is not None, "no partner accepted any player-for-pick offer"
     partner = league.teams[action["partner_team_id"]]
     season = league.season + 1
-    assert league.user_team.draft_picks[season] == 2
-    assert partner.draft_picks[season] == 0
+    # The acquired pick keeps its original team's identity: the user now holds
+    # its own pick plus the PARTNER's pick, and the partner holds none.
+    assert sorted(league.user_team.draft_picks[season]) == sorted([league.user_team_id, partner.id])
+    assert partner.draft_picks[season] == []
     assert action["give_player_ids"][0] in partner.roster
 
 
@@ -155,10 +157,12 @@ def test_empty_side_rejected():
 def test_team_without_pick_skips_draft_and_double_pick_drafts_twice():
     league = make_league()
     season = league.season
-    # Give team 1's current-season pick to team 2 directly (simulating a past trade).
+    # Give team 1's current-season pick to team 2 directly (simulating a past
+    # trade). The pick keeps team 1's identity: team 2 exercises it at team
+    # 1's draft slot, drafting twice in total, while team 1 never drafts.
     team_1, team_2 = league.teams[1], league.teams[2]
-    team_1.draft_picks[season] = 0
-    team_2.draft_picks[season] = 2
+    team_1.draft_picks[season] = []
+    team_2.draft_picks[season] = [team_2.id, team_1.id]
     sizes_before = {team.id: len(team.roster) for team in league.teams.values()}
     league.run_opponent_draft(before_user=True)
     league.run_opponent_draft(before_user=False)
@@ -195,7 +199,7 @@ def test_far_future_pick_churn_is_score_neutral():
     else:
         # Rejection is also fine (bias made the swap unpalatable) — but it must
         # not have moved pick ownership.
-        assert league.user_team.draft_picks.get(far_season, 1) == 1
+        assert league.user_team.draft_picks.get(far_season, [league.user_team_id]) == [league.user_team_id]
 
 
 def test_acquired_pick_raises_score():
@@ -204,9 +208,9 @@ def test_acquired_pick_raises_score():
     assert action is not None
     season = league.season + 1
     with_pick = score_team(league, league.user_team_id)
-    league.user_team.draft_picks[season] -= 1  # counterfactually remove the acquired pick
+    removed = league.user_team.draft_picks[season].pop()  # counterfactually remove the acquired pick
     without_pick = score_team(league, league.user_team_id)
-    league.user_team.draft_picks[season] += 1
+    league.user_team.draft_picks[season].append(removed)
     assert with_pick - without_pick > 0
     expected = pick_value(league.season, season) * 0.16
     assert abs((with_pick - without_pick) - expected) < 1e-6

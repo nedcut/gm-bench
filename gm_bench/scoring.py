@@ -153,8 +153,11 @@ def score_components(league: "League", team_id: int) -> dict[str, float]:
     for any_team in league.teams.values():
         if any_team.draft_picks:
             horizon = max(horizon, max(any_team.draft_picks))
+    # Picks are valued by count and distance only; the origin team's record is
+    # deliberately not priced in here. The bet on the origin's future pays off
+    # (or doesn't) through the draft slot the pick eventually becomes.
     pick_assets = sum(
-        team.draft_picks.get(season, 1) * pick_value(league.season, season)
+        (len(team.draft_picks[season]) if season in team.draft_picks else 1) * pick_value(league.season, season)
         for season in range(league.season + 1, horizon + 1)
     )
     cap_room = league.cap - payroll

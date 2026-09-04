@@ -59,8 +59,14 @@ def test_provider_registry_resolves_direct_and_gateway_apis(monkeypatch: pytest.
         "OPENROUTER_REQUIRE_PARAMETERS": "false",
         "OPENROUTER_DATA_COLLECTION": "deny",
         "OPENROUTER_JSON_MODE": "false",
-        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
-        "GM_AGENT_STRICT": "0",
+        # v6 execution rules: 4,096-token output ceiling, reasoning off where
+        # the route allows it, and no paid retry.
+        "OPENROUTER_MAX_TOKENS": "4096",
+        "OPENROUTER_REASONING_ENABLED": "false",
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
+        # Strict failure handling is the default everywhere; the soft fallback
+        # is opt-in and not publishable.
+        "GM_AGENT_STRICT": "1",
     }
 
 
@@ -72,11 +78,18 @@ def test_protocol_repair_ignores_generic_no_usable_actions_fallback() -> None:
     assert not _model_format_failed([{"type": "noop", "model_error": "model produced no usable actions"}])
 
 
-def test_build_provider_agent_clamps_repair_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_provider_agent_defaults_to_no_paid_retry_and_clamps_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """v6 buys one call per phase; an operator may replay the old lane, not exceed it."""
     monkeypatch.setenv("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", "9")
-    agent = build_provider_agent("openai", model="gpt-test")
-    assert agent.metadata["protocol_repair_attempts"] == 1
-    assert agent.metadata["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "1"
+    default_agent = build_provider_agent("openai", model="gpt-test")
+    assert default_agent.metadata["protocol_repair_attempts"] == 0
+    assert default_agent.metadata["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "0"
+
+    clamped = build_provider_agent("openai", model="gpt-test", extra_env={"GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "9"})
+    assert clamped.metadata["protocol_repair_attempts"] == 1
+    assert clamped.metadata["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "1"
 
 
 def test_external_agent_bounded_protocol_repair(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -132,17 +145,32 @@ def test_protocol_repair_preserves_route_changes_and_does_not_publish_partial_co
     assert merged["upstream_providers"] == ["provider-a", "provider-b"]
 
 
-def test_provider_environment_precedence(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_provider_pins_beat_the_shell_but_not_a_config_env_block(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The v6 call conditions are enforced, not defaulted.
+
+    An ambient shell value used to win over a provider pin, so a stale
+    OPENROUTER_MAX_TOKENS in an operator's terminal could quietly buy a row a
+    larger output budget than the panel allows and still produce a publishable
+    artifact. Only a config-file `env` block can override a pin now, and that
+    choice is recorded in provider_options where a reader can see it.
+    """
     monkeypatch.setenv("OPENROUTER_JSON_MODE", "true")
+    monkeypatch.setenv("OPENROUTER_MAX_TOKENS", "32000")
     monkeypatch.setenv("GM_BENCH_OUTPUT_BUDGET_CELL", "uncapped")
     inherited = build_provider_agent("openrouter", model="test")
-    assert inherited.env["OPENROUTER_JSON_MODE"] == "true"
-    assert inherited.metadata["provider_options"]["OPENROUTER_JSON_MODE"] == "true"
+    assert inherited.env["OPENROUTER_JSON_MODE"] == "false"
+    assert inherited.env["OPENROUTER_MAX_TOKENS"] == "4096"
+    assert inherited.metadata["provider_options"]["OPENROUTER_JSON_MODE"] == "false"
+    assert inherited.metadata["provider_options"]["OPENROUTER_MAX_TOKENS"] == "4096"
     assert inherited.metadata["provider_options"]["GM_BENCH_OUTPUT_BUDGET_CELL"] == "uncapped"
 
-    configured = build_provider_agent("openrouter", model="test", extra_env={"OPENROUTER_JSON_MODE": "false"})
-    assert configured.env["OPENROUTER_JSON_MODE"] == "false"
-    assert configured.metadata["provider_options"]["OPENROUTER_JSON_MODE"] == "false"
+    configured = build_provider_agent(
+        "openrouter", model="test", extra_env={"OPENROUTER_JSON_MODE": "true", "OPENROUTER_MAX_TOKENS": "2048"}
+    )
+    assert configured.env["OPENROUTER_JSON_MODE"] == "true"
+    assert configured.env["OPENROUTER_MAX_TOKENS"] == "2048"
+    assert configured.metadata["provider_options"]["OPENROUTER_JSON_MODE"] == "true"
+    assert configured.metadata["provider_options"]["OPENROUTER_MAX_TOKENS"] == "2048"
 
 
 def test_luna_configs_pin_reproducible_execution() -> None:

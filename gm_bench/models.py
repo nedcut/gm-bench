@@ -6,6 +6,13 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 Position = Literal["F", "D", "G"]
+# Forwards carry a hidden-until-published lineup role: a natural center or a
+# natural wing. Centers are the scarcer role (roughly a third of forwards
+# league-wide, mirroring one center per line), so a lineup assembled by
+# overall rating alone drifts below the count a real bench needs. See
+# `CENTER_LINEUP_TARGET` / `CENTER_LINEUP_BONUS` in gm_bench/simulator.py for
+# the resulting tradeoff.
+SubPosition = Literal["C", "W"]
 ActionType = Literal[
     "sign_free_agent",
     "extend_contract",
@@ -23,10 +30,14 @@ ActionType = Literal[
 LINEUP_SIZE = 18
 LINEUP_MIN_POSITIONS: dict[str, int] = {"F": 10, "D": 4, "G": 1}
 ROSTER_MIN = 18
+# Share of forwards generated as natural centers (see `SubPosition`).
+CENTER_SHARE = 1.0 / 3.0
 
-# Draft-pick trading: picks are generic one-per-team-per-season selections,
-# exercised at the owner's standings slot. A pick's value approximates the
-# asset value of a mid-round prospect, discounted per season of distance.
+# Draft-pick trading: every pick is identified by the team it originally
+# belonged to and is exercised at that ORIGINAL team's draft slot, so an
+# acquired pick is a bet on how that team finishes. A pick's value
+# approximates the asset value of a mid-round prospect, discounted per season
+# of distance.
 PICK_BASE_VALUE = 12.0
 PICK_VALUE_DISCOUNT = 0.8
 PICK_TRADE_MAX_SEASONS_AHEAD = 3
@@ -53,22 +64,22 @@ class Player:
     # Hidden provenance prevents a newly signed one-year deal from being
     # converted immediately into a discounted long-term extension.
     contract_signed_season: int = 0
-    morale: float = 0.0
-    drafted_round: int | None = None
     injured_games: int = 0
+    # None for D and G; every F is assigned "C" or "W" at generation.
+    sub_position: SubPosition | None = None
 
     def public_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
             "position": self.position,
+            "sub_position": self.sub_position,
             "age": self.age,
             "overall": round(self.overall, 1),
             "potential": round(self.potential, 1),
             "salary": round(self.salary, 2),
             "contract_years": self.contract_years,
             "injury_risk": round(self.injury_risk, 3),
-            "morale": round(self.morale, 2),
         }
 
     @property
@@ -90,15 +101,16 @@ class Player:
 class Team:
     id: int
     name: str
-    market: float
-    patience: float
     roster: list[int] = field(default_factory=list)
     lineup: list[int] = field(default_factory=list)
     wins: int = 0
     losses: int = 0
     championships: int = 0
     playoff_rounds: int = 0
-    draft_picks: dict[int, int] = field(default_factory=dict)
+    # season -> list of original-team ids for each pick this team owns. A
+    # pick is exercised at its ORIGINAL team's draft slot, so origin identity
+    # (not just the count) is what a trade transfers.
+    draft_picks: dict[int, list[int]] = field(default_factory=dict)
     dead_cap: dict[int, float] = field(default_factory=dict)
 
     def public_dict(
@@ -115,8 +127,6 @@ class Team:
         payload: dict[str, Any] = {
             "id": self.id,
             "name": self.name,
-            "market": round(self.market, 2),
-            "patience": round(self.patience, 2),
             "wins": self.wins,
             "losses": self.losses,
             "championships": self.championships,
@@ -124,7 +134,8 @@ class Team:
             "payroll": round(payroll, 2),
             "cap_room": round(cap - payroll, 2),
             "dead_cap": {str(year): round(charge, 2) for year, charge in sorted(self.dead_cap.items())},
-            "draft_picks": dict(sorted(self.draft_picks.items())),
+            "draft_picks": {season: len(origins) for season, origins in sorted(self.draft_picks.items())},
+            "pick_origins": {season: sorted(origins) for season, origins in sorted(self.draft_picks.items())},
             "lineup": list(self.lineup),
         }
         if full_roster:

@@ -1,5 +1,4 @@
 import type { Snapshot } from "../types";
-import ReplayVerifier from "./ReplayVerifier";
 
 const PHASES = [
   {
@@ -131,8 +130,6 @@ export default function HowItWorks({ snapshot }: { snapshot: Snapshot }) {
             <CodeCard title="actions ← stdout" code={ACTIONS_SNIPPET} />
           </div>
         </div>
-
-        <ReplayVerifier />
 
         <div className="panel" style={{ marginTop: 18 }}>
           <div className="panel-title">

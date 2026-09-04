@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import math
 import os
 import re
 import sys
@@ -18,16 +17,22 @@ _CHECKOUT_ROOT = Path(__file__).resolve().parents[1]
 if (_CHECKOUT_ROOT / "gm_bench").is_dir() and str(_CHECKOUT_ROOT) not in sys.path:
     sys.path.insert(0, str(_CHECKOUT_ROOT))
 
-from gm_bench.action_validation import validate_action_list  # noqa: E402
 from gm_bench.agent_utils import position_aware_lineup, public_asset_value  # noqa: E402
+from gm_bench.repair import RAW_TEXT_FIELD  # noqa: E402
 from gm_bench.scaffold_view import compact_observation, scaffold_fallback_lineup  # noqa: E402
 
 # compact_observation/scaffold_fallback_lineup are re-exported rather than
 # defined here: the scaffold-view baseline in gm_bench.agents is scored on the
 # same payload, and two copies of the truncation rules would drift.
 
-# decide() may return a bare action list or (actions, usage) for telemetry.
-DecideResult = list[dict[str, Any]] | tuple[list[dict[str, Any]], dict[str, Any] | None]
+# decide() returns the model's raw reply text, or a bare action list when the
+# adapter itself failed before the model answered, optionally paired with usage
+# for telemetry. Adapters never parse or repair the model's text: the published
+# rules in gm_bench/repair.py are the only ones that decide what a reply means,
+# so the recorded malformed rate is the model's own formatting record.
+DecideResult = (
+    str | list[dict[str, Any]] | tuple[str, dict[str, Any] | None] | tuple[list[dict[str, Any]], dict[str, Any] | None]
+)
 DecideFn = Callable[[dict[str, Any]], DecideResult]
 
 
@@ -45,15 +50,8 @@ _ACTION_EXAMPLES: tuple[tuple[str, str, str], ...] = (
     ("Core actions", "set_lineup", '{"type":"set_lineup","player_ids":[18 unique roster player ids]}'),
     ("Core actions", "claim_waiver", '{"type":"claim_waiver","player_id":55}'),
     ("Core actions", "memo", '{"type":"memo","text":"plan notes carried to your next decision"}'),
-    ("Information actions", "inspect_team", '{"type":"inspect_team","team_id":3}'),
-    ("Information actions", "inspect_player", '{"type":"inspect_player","player_id":88}'),
     (
-        "Information actions",
-        "list_free_agents",
-        '{"type":"list_free_agents","position":"F","min_overall":55,"limit":12}',
-    ),
-    (
-        "Information actions",
+        "Scouting (the one query whose answer survives to your next decision)",
         "scout",
         '{"type":"scout","player_id":88} or {"type":"scout","prospect_id":1010001}',
     ),
@@ -73,9 +71,12 @@ _ACTION_EXAMPLES: tuple[tuple[str, str, str], ...] = (
         '{"type":"counter_trade_offer","offer_id":"offer-3-1-trade_deadline-12-34",'
         '"give_player_ids":[2],"receive_player_ids":[9]}',
     ),
-    ("Control actions", "end_turn", '{"type":"end_turn"} to finish an information-gathering round'),
     ("Control actions", "noop", '{"type":"noop"}'),
 )
+# inspect_team, inspect_player, list_free_agents and end_turn stay legal in the
+# simulator (the scripted multi-round lane uses them) but are deliberately not
+# advertised here. A model gets one call per decision phase, so a query's answer
+# is never returned to it, and end_turn only cuts its own batch short.
 
 
 def _current_pick_count(compact: dict[str, Any]) -> int:
@@ -104,7 +105,7 @@ def _render_action_guide(compact: dict[str, Any]) -> str:
         noun = "action" if pick_count == 1 else "actions"
         lines.append(
             f"You own {pick_count} current-season draft pick(s); emit at most {pick_count} draft {noun} in this "
-            "decision, and do not retry after action_results reports that no current-season pick remains."
+            "decision. Any draft action beyond that is refused and counts against you."
         )
     lines.append("")
 
@@ -133,16 +134,19 @@ def build_prompt(observation: dict[str, Any]) -> str:
         "Choose legal front-office actions that maximize long-term benchmark score: wins, playoffs, titles, young assets, cap health, and valid decisions.\n\n"
         'Return ONLY a JSON object shaped like {"actions":[...]}. Do not use markdown. Do not explain.\n\n'
         + _render_action_guide(compact)
-        + "Information-action results appear in action_results on the next interaction round.\n"
-        "Observations may be summary-tier: use inspect/list/scout before committing. "
-        "Public potential ratings are noisy; scout (limited points per season, see rules.scouting) buys a "
-        "near-true potential reading, echoed forever in scout_reports — most valuable before drafting or big trades.\n"
+        + "This is your only call this phase. Your actions are applied as one batch and the phase then advances, "
+        "so you never see their results: the observation below is everything you get. Asking a question instead of "
+        "acting (inspect_team, inspect_player, list_free_agents) spends the decision and answers nothing.\n"
+        "The one query worth making is scout: public potential ratings are noisy, and a scout report (limited "
+        "points per season, see rules.scouting) is stored in scout_reports and readable at every later decision, "
+        "so it pays before a draft or a big trade.\n"
         "Opponents may send you trade offers in incoming_offers; accept, reject, or counter them. "
         "Every offer looks fair to the SENDER's private valuation — some are bargains, some dump bad contracts on you. "
         "Judge with public stats before accepting; ignoring an offer is free.\n"
         "Future draft picks are tradeable assets: give_pick_seasons/receive_pick_seasons list future season numbers "
         "(up to rules.pick_trading.max_seasons_ahead ahead; rough values in rules.pick_trading.pick_value_estimate); "
-        "owned picks per season are in team.draft_picks and future picks count toward your final score.\n"
+        "your own counts from this season onward are in team.draft_picks, every team's acquisitions and departures "
+        "are in the standings pick_holdings column, and future picks count toward your final score.\n"
         "Midseason has waiver claims after partial-season games. "
         "Constraints: lineup must include exactly 18 unique current roster players with at least 10 F, 4 D, and 1 G. "
         "Only players in the lineup develop at full speed; the lineup also sets team strength. "
@@ -151,15 +155,18 @@ def build_prompt(observation: dict[str, Any]) -> str:
         "but after rejected_offer_limit_per_window declines a counterparty stops negotiating until your next "
         "decision window. Free agents accept offers down to a hidden reservation within fa_reservation_range of "
         "their ask; offering the full ask always works. "
-        "Free-agent contract_quotes price each 1-5 year term; salaries and the cap inflate annually, while longer "
-        "terms cost a premium. In preseason, eligible final-year incumbents expose extension_quotes. Each roster "
-        "player's release_dead_cap publishes the exact by-season and total charge for releasing that contract now; "
-        "future retained charges appear in team.dead_cap. "
-        "Opponents draft in inverse-standings order, so top prospects may be gone before your pick. "
+        "A free agent's contract_quotes column prices each 1-5 year term in order; salaries and the cap inflate "
+        "annually, while longer terms cost a premium. In preseason, a final-year incumbent you may extend shows "
+        "extension_quotes: four prices for 2-, 3-, 4- and 5-year terms. A roster row's release_dead_cap reads "
+        "'per-season x seasons=total' — the exact charge for releasing that contract now; charges already retained "
+        "from past releases are in team.dead_cap. "
+        "Draft order is set by the lottery in draft_lottery once it is drawn, and projected by "
+        "draft_order_inverse_standings before that; teams picking ahead of you take top prospects first. "
         "Opponent teams also sign free agents after every phase and trade among "
         "themselves at the deadline, so a free agent visible now may be gone at your next decision. "
         "Use the memo action to carry multi-season plans forward; your last memo "
-        "is echoed in the observation. Review action_results before repeating failed moves. "
+        "is echoed in the observation. recent_transactions rows marked REJECTED: are your own refused moves with "
+        "the reason they failed — do not repeat them. "
         "Do not invent IDs. Keep signings under cap room unless the player is clearly worth it. "
         + (
             f"If unsure, at least set this valid lineup: {json.dumps(fallback_lineup)}.\n\n"
@@ -170,140 +177,15 @@ def build_prompt(observation: dict[str, Any]) -> str:
     )
 
 
-def parse_actions(text: Any) -> list[dict[str, Any]]:
-    if not isinstance(text, str):
-        raise ValueError(f"model response content must be a string, got {type(text).__name__}")
-    stripped = strip_terminal_codes(text).strip()
-    try:
-        parsed = json.loads(stripped, parse_constant=_reject_non_finite_json_constant)
-        return _actions_from_json(parsed)
-    except json.JSONDecodeError:
-        pass
-
-    fenced = re.search(r"```(?:json)?\s*(.*?)\s*```", stripped, re.DOTALL)
-    if fenced:
-        try:
-            parsed = json.loads(fenced.group(1), parse_constant=_reject_non_finite_json_constant)
-            return _actions_from_json(parsed)
-        except json.JSONDecodeError:
-            pass
-
-    for parsed in _scan_json_values(stripped, "{"):
-        try:
-            return _actions_from_json(parsed)
-        except ValueError:
-            continue
-
-    for parsed in _scan_json_values(stripped, "["):
-        try:
-            return _actions_from_json(parsed)
-        except ValueError:
-            continue
-    raise ValueError("model did not return a JSON action array")
-
-
-def _reject_non_finite_json_constant(value: str) -> None:
-    raise ValueError(f"non-finite JSON number {value!r} is not allowed")
-
-
-def _actions_from_json(parsed: Any) -> list[dict[str, Any]]:
-    _reject_non_finite_numbers(parsed)
-    if isinstance(parsed, dict) and isinstance(parsed.get("actions"), list):
-        parsed = parsed["actions"]
-    if isinstance(parsed, dict):
-        parsed = [parsed]
-    if not isinstance(parsed, list):
-        raise ValueError("model JSON was not an action list")
-    # A well-formed but empty action list is a legitimate "do nothing this
-    # window" decision, not a parse failure. Return an explicit noop so it is
-    # attributed to the model, not the fallback policy. (Items that fail to
-    # normalize below still raise, because that is a real formatting failure.)
-    if not parsed:
-        return [{"type": "noop"}]
-    if any(not isinstance(action, dict) for action in parsed):
-        raise ValueError("model JSON action list contained a non-object item")
-    actions = [_normalize_action_keys(action) for action in parsed]
-    return validate_action_list(actions)
-
-
-def _reject_non_finite_numbers(value: Any) -> None:
-    """Reject numeric overflow as well as JSON's named NaN/Infinity tokens.
-
-    ``json.loads`` calls ``parse_constant`` for the non-standard literals
-    ``NaN`` and ``Infinity``, but a standards-compliant number such as
-    ``1e999`` silently becomes ``float("inf")``. Walk the parsed payload so
-    neither spelling can reach simulator integer/float coercions.
-    """
-
-    if isinstance(value, float) and not math.isfinite(value):
-        raise ValueError("non-finite JSON number is not allowed")
-    if isinstance(value, dict):
-        for item in value.values():
-            _reject_non_finite_numbers(item)
-    elif isinstance(value, list):
-        for item in value:
-            _reject_non_finite_numbers(item)
-
-
-# Canonical trade-field name -> natural-but-wrong names models emit for it.
-# Aliasing is a pure key rename (see _normalize_action_keys): it never resolves
-# names to ids or invents content, so an unrepairable payload stays illegal.
-_TRADE_KEY_ALIASES: dict[str, tuple[str, ...]] = {
-    "partner_team_id": ("team_id", "target_team_id", "opponent_team_id", "destination_team_id"),
-    "give_player_ids": ("players_to_send", "offered_players", "players_offered"),
-    "receive_player_ids": ("players_to_acquire", "requested_players", "players_requested"),
-}
-
-
-def _normalize_action_keys(action: dict[str, Any]) -> dict[str, Any]:
-    """Mechanical key repair only: accept common aliases for canonical keys.
-
-    Small local models often emit {"action": "draft", ...} or
-    {"action_type": "draft", ...}, and phrase trade fields naturally
-    ({"players_to_send": [...]}) instead of the schema's give_player_ids.
-    Renaming the key preserves the model's decision verbatim; semantic mistakes
-    (an unknown action type, a bad id) still flow through to the simulator and
-    are penalized as the model's own errors. Aliases only apply when the
-    canonical key is absent/null/empty, and the stale key is dropped.
-    """
-    for alias in ("action", "action_type"):
-        if "type" not in action and isinstance(action.get(alias), str):
-            renamed = dict(action)
-            renamed["type"] = renamed.pop(alias)
-            action = renamed
-    for canonical, aliases in _TRADE_KEY_ALIASES.items():
-        if _has_usable_value(action.get(canonical)):
-            continue
-        for alias in aliases:
-            if _has_usable_value(action.get(alias)):
-                renamed = dict(action)
-                renamed[canonical] = renamed.pop(alias)
-                action = renamed
-                break
-    return action
-
-
-def _has_usable_value(value: Any) -> bool:
-    if value is None:
-        return False
-    if isinstance(value, str | list | tuple | dict | set) and not value:
-        return False
-    return True
-
-
-def _scan_json_values(text: str, opener: str) -> list[Any]:
-    decoder = json.JSONDecoder(parse_constant=_reject_non_finite_json_constant)
-    values: list[Any] = []
-    for match in re.finditer(re.escape(opener), text):
-        try:
-            value, _ = decoder.raw_decode(text[match.start() :])
-        except json.JSONDecodeError:
-            continue
-        values.append(value)
-    return values
-
-
 def strip_terminal_codes(text: str) -> str:
+    """Remove terminal escape sequences and C0 control bytes from a reply.
+
+    Transport hygiene, not repair: CLI harnesses colour and reposition their
+    stdout, and a raw control byte is not legal inside a JSON string, so leaving
+    them in would record a terminal artifact as the model's formatting error.
+    Tabs, newlines and carriage returns are preserved.
+    """
+
     text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
     return re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
 
@@ -363,12 +245,25 @@ def make_usage(
     return cleaned or None
 
 
-def emit(actions: list[dict[str, Any]], usage: dict[str, Any] | None = None) -> None:
-    """Print a consistent response envelope for one-shot and session adapters."""
-    print(json.dumps({"actions": actions, "usage": usage}), flush=True)
+def emit(response: Any, usage: dict[str, Any] | None = None) -> None:
+    """Print a consistent response envelope for one-shot and session adapters.
+
+    A list is an adapter-produced action list, used only when the adapter
+    failed before the model answered (no key, transport error) and therefore
+    has no model text to forward. Anything else is the model's reply, forwarded
+    verbatim in ``raw_text`` for the harness's published repair rules to judge
+    — including a backend that returned no text at all, which is a malformed
+    decision the model owns and not something the adapter may paper over.
+    """
+    if isinstance(response, list):
+        payload: dict[str, Any] = {"actions": response, "usage": usage}
+    else:
+        text = response if isinstance(response, str) else json.dumps(response)
+        payload = {RAW_TEXT_FIELD: strip_terminal_codes(text), "usage": usage}
+    print(json.dumps(payload), flush=True)
 
 
-def _unpack_decide_result(result: DecideResult) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+def _unpack_decide_result(result: DecideResult) -> tuple[str | list[dict[str, Any]], dict[str, Any] | None]:
     if isinstance(result, tuple):
         return result[0], result[1]
     return result, None
@@ -413,11 +308,13 @@ def fallback_actions(observation: dict[str, Any], error: str | None = None) -> l
 
     The first action always carries a `model_error` marker so the runner can
     count the decision as failed instead of crediting the fallback policy to
-    the model. With GM_AGENT_STRICT=1 the fallback is a pure noop, so the
-    score reflects only what the model itself produced.
+    the model. Strict handling is the default: the fallback is a pure noop, so
+    the score reflects only what the model itself produced. Set
+    GM_AGENT_STRICT=0 to opt into the legacy soft fallback, which substitutes
+    host-chosen draft and lineup moves and is not publishable.
     """
     marker = (error or "model produced no usable actions")[:300]
-    if os.environ.get("GM_AGENT_STRICT", "0") == "1":
+    if os.environ.get("GM_AGENT_STRICT", "1") == "1":
         return [{"type": "noop", "model_error": marker}]
     actions: list[dict[str, Any]] = []
     draft_class = observation.get("draft_class") or []

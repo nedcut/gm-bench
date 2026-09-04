@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import random
 
-from gm_bench.models import Player, Team
+from gm_bench.models import CENTER_SHARE, Player, Team
+
+
+def _sub_position(rng: random.Random, position: str) -> str | None:
+    if position != "F":
+        return None
+    return "C" if rng.random() < CENTER_SHARE else "W"
+
 
 FIRST_NAMES = [
     "Alex",
@@ -94,14 +101,13 @@ def generate_league_data(
         teams[team_id] = Team(
             id=team_id,
             name=name,
-            market=rng.uniform(0.75, 1.25),
-            patience=rng.uniform(0.75, 1.25),
-            draft_picks={year: 1 for year in range(1, 8)},
+            draft_picks={year: [team_id] for year in range(1, 8)},
         )
 
     for team in teams.values():
         for slot in range(roster_size):
             position = "G" if slot < 2 else "D" if slot < 8 else "F"
+            sub_position = _sub_position(rng, position)
             age = int(min(38, max(18, rng.gauss(26.5, 4.6))))
             true_potential = min(92.0, max(42.0, rng.gauss(62.0, 9.0)))
             development_gap = max(0.0, true_potential - 50.0) * rng.uniform(0.18, 0.58)
@@ -122,6 +128,7 @@ def generate_league_data(
                 contract_years=contract_years,
                 team_id=team.id,
                 injury_risk=rng.uniform(0.02, 0.16) + max(age - 31, 0) * 0.012,
+                sub_position=sub_position,
             )
             players[player.id] = player
             team.roster.append(player.id)
@@ -129,6 +136,7 @@ def generate_league_data(
 
     for slot in range(num_teams * 3):
         position = "G" if slot % 12 == 0 else "D" if slot % 4 == 0 else "F"
+        sub_position = _sub_position(rng, position)
         age = int(min(37, max(19, rng.gauss(28.0, 4.8))))
         true_potential = min(86.0, max(40.0, rng.gauss(56.5, 7.0)))
         overall = min(82.0, max(39.0, true_potential - max(age - 29, 0) * rng.uniform(1.0, 2.0) + rng.gauss(0, 4.0)))
@@ -144,6 +152,7 @@ def generate_league_data(
             contract_years=0,
             team_id=None,
             injury_risk=rng.uniform(0.03, 0.19),
+            sub_position=sub_position,
         )
         players[player.id] = player
         free_agents.append(player.id)
@@ -159,6 +168,7 @@ def generate_draft_class(seed: int, season: int, count: int) -> dict[int, Player
     base_id = 1_000_000 + season * 10_000
     for index in range(count):
         position = "G" if index % 13 == 0 else "D" if index % 4 == 0 else "F"
+        sub_position = _sub_position(rng, position)
         true_potential = min(95.0, max(38.0, rng.gauss(63.0, 11.0)))
         public_potential = min(97.0, max(36.0, true_potential + rng.gauss(0, 8.0)))
         overall = min(74.0, max(35.0, true_potential - rng.uniform(9.0, 22.0) + rng.gauss(0, 3.0)))
@@ -174,6 +184,7 @@ def generate_draft_class(seed: int, season: int, count: int) -> dict[int, Player
             contract_years=3,
             team_id=None,
             injury_risk=rng.uniform(0.02, 0.12),
+            sub_position=sub_position,
         )
         prospects[prospect.id] = prospect
     return prospects

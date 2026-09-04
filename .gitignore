@@ -14,6 +14,9 @@ dist/
 .ruff_cache/
 .coverage
 htmlcov/
+.playwright-cli/
+output/
+.python-version
 
 .venv/
 venv/
@@ -24,9 +27,11 @@ data/*.sqlite-journal
 data/*.sqlite-wal
 data/*.sqlite-shm
 data/baseline_cache.json
+data/*.lock
 data/model_checkpoints/
 # Raw paid-run evidence stays outside git (docs/PUBLISH_READINESS.md requires
 # hash-linked preservation, not committed artifacts).
+data/publication/
 data/publication-runs/
 
 # Local UI checks: MCP Playwright page/console dumps and ad-hoc root-level

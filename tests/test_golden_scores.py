@@ -5,15 +5,27 @@ from __future__ import annotations
 from gm_bench.agents import RandomAgent, ValueAgent
 from gm_bench.runner import run_episode, run_many
 
-# Re-pinned for contract economics: term-priced signings, incumbent retention,
-# dead-cap-aware payroll, and opponent extensions change five-season rosters.
-# `value` itself never releases, so the reachable-release fix (#91) moves these
-# only through the league around it -- opponents now retain and release
-# differently, which changes who reaches the free-agent pool and when.
+# Re-pinned for the v6 draft lottery: draft order is now drawn from the seeded
+# RNG instead of following inverse standings, and traded picks carry their
+# original team's identity, so every draft (and everything downstream of it)
+# re-rolled. Re-pinned again for v6 free-agent willingness: every signing
+# (user and opponent) now carries the signing_appeal multiplier, so salaries
+# and rosters re-rolled league-wide. Re-pinned again for v6 lineup
+# construction: every forward now draws a center-or-wing sub_position at
+# generation, consuming an extra RNG draw per forward, so every generated
+# league (and everything downstream) re-rolled again. Re-pinned again for v6
+# expiring contracts: an unresigned expiring incumbent now risks an immediate
+# rival scramble at season end, so ValueAgent (which does not extend every
+# eligible veteran) loses real talent it previously always got to re-sign.
+# Re-pinned again for v6 dead-field removal: Team no longer draws two RNG
+# values (market, patience) at generation, so every generated league (and
+# everything downstream) re-rolled again.
+# The values remain exact replay pins: identical seeds must reproduce them
+# byte-for-byte.
 GOLDEN_VALUE_SCORES_5_SEASONS = {
-    1: 276.237,
-    2: 181.826,
-    3: 248.955,
+    1: 168.625,
+    2: 151.302,
+    3: 218.596,
 }
 
 

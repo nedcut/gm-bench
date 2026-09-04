@@ -41,7 +41,13 @@ from gm_bench.benchmark_config import PRESETS, PRIVATE_LEADERBOARD_PANEL_NAME  #
 from gm_bench.contract import SOTA_V2_CONTRACT, SOTA_V2_ORACLE_MEAN  # noqa: E402
 from gm_bench.official import REDACTED_SEEDS_SENTINEL, SOTA_V2_POLICY, validate_leaderboard_payload  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
-from gm_bench.publication import canonical_sha256, mechanic_breakdown, smoke_manifest_issues  # noqa: E402
+from gm_bench.publication import (  # noqa: E402
+    WITHIN_SEED_MEASURED,
+    canonical_sha256,
+    mechanic_breakdown,
+    smoke_manifest_issues,
+    within_seed_stddev_measurement,
+)
 from gm_bench.runner import run_many  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
@@ -151,6 +157,62 @@ def _publication_identity_issues(payload: dict[str, Any], config: dict[str, Any]
     return issues
 
 
+# Reliability and spread fields that gm_bench.runner.summarize_episodes computes
+# for v6 runs. They are copied through only when the artifact actually carries
+# them: rows recorded before these fields existed must reach the site absent, so
+# the site can say "not reported" instead of printing a reassuring zero.
+SUMMARY_PASSTHROUGH_FIELDS = (
+    "failed_decisions",
+    "decision_failure_rate",
+    "malformed_decisions",
+    "unrecoverable_decisions",
+    "malformed_rate",
+    "unrecoverable_rate",
+    "within_seed_score_stddev",
+)
+
+
+def _per_seed_scores(paired: dict[str, Any]) -> dict[str, float]:
+    """Seed -> that seed's candidate score, from the paired analysis.
+
+    ``paired.per_seed`` already holds exactly the quantity the profile plots:
+    the seed's mean candidate score across repeats. Redacted private-panel
+    artifacts drop these rows, and then the row simply publishes no per-seed
+    scores rather than an invented distribution.
+    """
+    scores: dict[str, float] = {}
+    for entry in paired.get("per_seed") or []:
+        if not isinstance(entry, dict):
+            continue
+        seed = entry.get("seed")
+        score = entry.get("candidate_score")
+        if isinstance(seed, int) and not isinstance(seed, bool) and _finite_number(score):
+            scores[str(seed)] = float(score)
+    return scores
+
+
+def _route_display(run_info: dict[str, Any], usage: dict[str, Any]) -> str | None:
+    """Flatten the pinned route into one display string, or ``None`` when unpinned.
+
+    The nested route identity in ``gm_bench.publication`` stays as it is; this is
+    only the label the site prints beside a row. The upstream provider observed
+    on the run wins over the pinned expectation when the two are unambiguous,
+    because the served route is the one the score came from.
+    """
+    options = run_info.get("provider_options") or {}
+    observed = sorted({str(value) for value in usage.get("upstream_providers") or [] if value})
+    upstream = observed[0] if len(observed) == 1 else str(options.get("OPENROUTER_EXPECTED_UPSTREAM_PROVIDER") or "")
+    endpoint = str(options.get("OPENROUTER_EXPECTED_ENDPOINT_NAME") or "")
+    slug = str(options.get("OPENROUTER_PROVIDER_ONLY") or "")
+    detail = endpoint or upstream
+    if not detail:
+        return None
+    if slug and slug not in detail:
+        detail = f"{detail} ({slug})"
+    provider = str(run_info.get("provider") or "")
+    return f"{provider} → {detail}" if provider else detail
+
+
 def model_row(
     payload: dict[str, Any],
     publication_config: dict[str, Any] | None = None,
@@ -174,11 +236,16 @@ def model_row(
     episodes = len(payload["candidate"].get("episodes", [])) or _redacted_episode_count(payload)
     cost = usage.get("cost_usd")
     seeds = payload.get("seeds")
+    # How wide this row's own panel was. It survives redaction -- the seed
+    # *values* are private, the count is not -- so the site can say "29 seeds"
+    # without borrowing the public preset's panel width, which would be a
+    # different number attributed to this row.
+    seed_count = _row_seed_count(payload)
     if seeds == REDACTED_SEEDS_SENTINEL:
         seeds = None
     elif seed_panel.get("name") == PRIVATE_LEADERBOARD_PANEL_NAME:
         seeds = None
-    return {
+    row: dict[str, Any] = {
         "id": agent,
         "model": model_name,
         "provider": provider,
@@ -202,7 +269,6 @@ def model_row(
         "full_panel_significant_at_95": paired.get("significant_at_95"),
         "seed_win_rate": paired.get("candidate_seed_win_rate"),
         "lift_vs_best_baseline": (paired.get("best_baseline") or {}).get("paired_lift_mean"),
-        "fallback_rate": summary.get("decision_failure_rate", 0.0),
         "illegal_actions": summary.get("illegal_actions", 0),
         "total_tokens": usage.get("total_tokens", 0),
         "tokens_per_decision": round(usage.get("total_tokens", 0) / decisions, 1) if decisions else None,
@@ -225,6 +291,7 @@ def model_row(
         "decision_points": decisions,
         "session": bool(run_info.get("session", False)),
         "seeds": seeds,
+        "seed_count": seed_count,
         "seasons": payload.get("seasons"),
         "baseline_panel_mean_score": normalized.get("baseline_panel_mean_score"),
         "benchmark_version": contract.get("benchmark_version"),
@@ -239,12 +306,43 @@ def model_row(
         "raw_artifact_sha256": (payload.get("publication") or {}).get("raw_artifact_sha256")
         or canonical_sha256(payload),
     }
+    for field in SUMMARY_PASSTHROUGH_FIELDS:
+        if field in summary:
+            row[field] = summary[field]
+    # A one-episode-per-seed row has no repeats to spread across, so the
+    # runner's 0.0 there is an absence. Publishing it would print a reassuring
+    # zero on a site that renders a missing field as "not reported".
+    if within_seed_stddev_measurement(payload)[1] != WITHIN_SEED_MEASURED:
+        row.pop("within_seed_score_stddev", None)
+    per_seed_scores = _per_seed_scores(paired)
+    if per_seed_scores:
+        row["per_seed_scores"] = per_seed_scores
+    route = _route_display(run_info, usage)
+    if route is not None:
+        row["route"] = route
+    return row
 
 
 def _sota_report(payload: dict[str, Any], *, policy: Any = SOTA_V2_POLICY) -> dict[str, Any]:
     """Always recompute eligibility; never trust embedded validation_reports."""
 
     return validate_leaderboard_payload(payload, policy=policy).to_dict()
+
+
+def _row_seed_count(payload: dict[str, Any]) -> int | None:
+    """How many seeds this row ran, or None when the artifact does not say.
+
+    Reads the row's own seeds when it publishes them and falls back to the
+    frozen seed panel's declared count, which a redacted private-panel artifact
+    keeps. Never falls back to the public preset: that is a different panel.
+    """
+    seeds = payload.get("seeds")
+    if isinstance(seeds, list):
+        return len(seeds)
+    count = ((payload.get("run_info") or {}).get("seed_panel") or {}).get("count")
+    if isinstance(count, int) and not isinstance(count, bool) and count >= 0:
+        return count
+    return None
 
 
 def _redacted_episode_count(payload: dict[str, Any]) -> int:

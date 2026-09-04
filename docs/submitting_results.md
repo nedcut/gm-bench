@@ -35,10 +35,9 @@ baseline panel. `--repeats 3` runs the candidate three times per seed so samplin
 noise is observable; the baselines are deterministic and run once. This produces a
 public-panel row.
 
-That command also selects strict failure handling, because `--preset
-leaderboard` is a publication lane: a decision the adapter could not read back
-from the model becomes a bare `noop` rather than a host-supplied draft pick and
-lineup. Do not set `GM_AGENT_STRICT` yourself — the harness resolves it and
+That command runs under strict failure handling, which is the default on every
+lane: a decision the adapter could not read back from the model becomes a bare
+`noop` rather than a host-supplied draft pick and lineup. Do not set `GM_AGENT_STRICT` yourself — the harness resolves it and
 records the result in `run_info.strict_fallback`. `--no-strict-fallback` is a
 legitimate diagnostic choice, but the resulting row is not `sota-v5` eligible.
 

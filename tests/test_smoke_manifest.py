@@ -162,3 +162,24 @@ def test_smoke_manifest_accepts_strict_fallback_when_policy_demands_it() -> None
     for entry in manifest["entries"].values():
         entry["strict_fallback"] = True
     assert smoke_manifest_issues(manifest, registry, lane, require_strict_fallback=True) == []
+
+
+def test_lane_frozen_paid_call_count_requires_exact_api_calls() -> None:
+    """A lane that freezes the paid-call count (v6: exactly one per phase) must
+    refuse a smoke that bought extra query rounds, because that smoke measured
+    a different protocol than the panel will run. Review of PR #129 found
+    fourteen accepted smokes with five to seven calls for four decisions."""
+    registry, lane = _registry_and_lane()
+    lane = {**lane, "paid_calls_per_decision": 1}
+    manifest = _valid_manifest(registry, lane)
+    assert smoke_manifest_issues(manifest, registry, lane) == []
+
+    model_id = next(iter(manifest["entries"]))
+    manifest["entries"][model_id]["api_calls"] = 5
+    manifest["entries"][model_id]["calls_with_finish_reason"] = 5
+    issues = smoke_manifest_issues(manifest, registry, lane)
+    assert any("must record exactly 4 API calls" in issue and "it records 5" in issue for issue in issues)
+
+    # A lane without the frozen count keeps the historical "at least" rule.
+    lane_without = {key: value for key, value in lane.items() if key != "paid_calls_per_decision"}
+    assert not any("exactly" in issue for issue in smoke_manifest_issues(manifest, registry, lane_without))

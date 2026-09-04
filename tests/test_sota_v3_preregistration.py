@@ -32,7 +32,12 @@ def test_v3_lane_pins_frozen_contract_and_freezes_a_powered_allocation() -> None
 
     assert lane["contract"] == SOTA_V3_CONTRACT["benchmark_version"] == "sota-v3"
     assert lane["contract_fingerprint"] == SOTA_V3_CONTRACT["contract_fingerprint"]
-    assert lane["contract_fingerprint"] == contract_fingerprint()
+    # The lane is frozen at the fingerprint its panel was bought under. The
+    # live engine has since moved (v6 draft lottery + pick identity), so the
+    # lane is intentionally no longer runnable on main: old studies live in
+    # tags and artifacts, and the frozen pin below is the audit anchor.
+    assert lane["contract_fingerprint"] == "247e12fe5a7d4f5b"
+    assert lane["contract_fingerprint"] != contract_fingerprint()
     assert lane["mechanics_status"] == "frozen-for-sota-v3-panel"
     assert "requires a new contract fingerprint" in lane["mechanics_change_policy"]
     assert lane["design_amendment"]["amendment_id"] == "sota-v3-design-amendment-4"

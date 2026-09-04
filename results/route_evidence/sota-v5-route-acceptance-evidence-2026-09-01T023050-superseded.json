@@ -1,0 +1,601 @@
+{
+  "account_authentication": {
+    "method": "OpenRouter credits metadata endpoint returned success",
+    "sensitive_values_included": false,
+    "status": "authenticated"
+  },
+  "completion_calls": 0,
+  "contract": "sota-v5",
+  "contract_fingerprint": "a600b7da0c302231",
+  "format": "gm-bench-route-acceptance-evidence-v1",
+  "generated_at_utc": "2026-09-01T02:30:50+00:00",
+  "official_policy_sources": [
+    "https://openrouter.ai/docs/guides/features/zdr",
+    "https://openrouter.ai/docs/guides/privacy/provider-logging/",
+    "https://openrouter.ai/docs/guides/routing/provider-selection",
+    "https://openrouter.ai/docs/api/api-reference/endpoints/list-endpoints-zdr"
+  ],
+  "privacy_standard": {
+    "data_classification": "synthetic-benchmark-no-personal-or-confidential-data",
+    "provider_data_collection": "deny",
+    "provider_retention_terms": "reviewed-and-accepted-for-synthetic-benchmark",
+    "provider_training_use_allowed": false,
+    "zero_data_retention_preferred": true,
+    "zero_data_retention_required": false
+  },
+  "routes": {
+    "openrouter-claude-haiku-4.5-anthropic": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 64000,
+        "name": "Anthropic | anthropic/claude-4.5-haiku-20251001",
+        "provider_name": "Anthropic",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "max_tokens",
+          "reasoning",
+          "response_format",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_k",
+          "top_p"
+        ],
+        "tag": "anthropic",
+        "uptime_last_1d": 99.96595951431576,
+        "uptime_last_30m": 100
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://www.anthropic.com/legal/privacy",
+        "provider_slug": "anthropic",
+        "terms_of_service_url": "https://www.anthropic.com/legal/commercial-terms"
+      },
+      "route_identity_sha256": "936fb06a7805c9f27dfa43d0e27c7edd59627061bbc5704a85c6dc23d0b916e1",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-deepseek-v4-flash-0731-together": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 943718,
+        "name": "Together | deepseek/deepseek-v4-flash-20260731",
+        "provider_name": "Together",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "logit_bias",
+          "max_tokens",
+          "min_p",
+          "presence_penalty",
+          "reasoning",
+          "reasoning_effort",
+          "repetition_penalty",
+          "response_format",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_k",
+          "top_p"
+        ],
+        "tag": "together",
+        "uptime_last_1d": 99.60121942613888,
+        "uptime_last_30m": 99.57910373854915
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://www.together.ai/privacy",
+        "provider_slug": "together",
+        "terms_of_service_url": "https://www.together.ai/terms-of-service"
+      },
+      "route_identity_sha256": "5d64668835cfb8d410da1e6ec6cd1b8872426241b72c087c495de50896fd5234",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-gemini-3.1-flash-lite-google-ai-studio": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 65536,
+        "name": "Google AI Studio | google/gemini-3.1-flash-lite-20260507",
+        "provider_name": "Google AI Studio",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "max_tokens",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "seed",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_p"
+        ],
+        "tag": "google-ai-studio/flex",
+        "uptime_last_1d": 99.97966456703321,
+        "uptime_last_30m": 99.91582491582491
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://cloud.google.com/terms/cloud-privacy-notice",
+        "provider_slug": "google-ai-studio",
+        "terms_of_service_url": "https://cloud.google.com/terms/"
+      },
+      "route_identity_sha256": "d50a0bdea01239bfa0fcb2e97a0f90177f505716e5366016fc3957018b876a82",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-gemini-3.7-flash-google-ai-studio": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 65536,
+        "name": "Google AI Studio | google/gemini-3.7-flash-20260813",
+        "provider_name": "Google AI Studio",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "max_tokens",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "seed",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_p"
+        ],
+        "tag": "google-ai-studio/flex",
+        "uptime_last_1d": 99.6289813984436,
+        "uptime_last_30m": 99.72561736093789
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://cloud.google.com/terms/cloud-privacy-notice",
+        "provider_slug": "google-ai-studio",
+        "terms_of_service_url": "https://cloud.google.com/terms/"
+      },
+      "route_identity_sha256": "2c4b136926508c87781f7740dcf2adeeeb8beec49bb608ed98add7df2f7ad8a1",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-glm-5-streamlake": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 128000,
+        "name": "StreamLake | z-ai/glm-5-20260211",
+        "provider_name": "StreamLake",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "logprobs",
+          "max_tokens",
+          "reasoning",
+          "response_format",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p"
+        ],
+        "tag": "streamlake/fp8",
+        "uptime_last_1d": 99.95666817671506,
+        "uptime_last_30m": 99.94279176201373
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://www.streamlake.ai/document/DOC/mgkci47q13qr66h9i54",
+        "provider_slug": "streamlake",
+        "terms_of_service_url": "https://www.streamlake.ai/document/DOC/mgkchnd89grpt1961fw"
+      },
+      "route_identity_sha256": "9842cf28122782ef6ba1962fbf6766ade62d5e61e3f4d4677423abb2878f9fba",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-glm-5.3-flash-cloudflare": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 1179648,
+        "name": "Cloudflare | z-ai/glm-5.3-flash-20260826",
+        "provider_name": "Cloudflare",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "logit_bias",
+          "logprobs",
+          "max_tokens",
+          "min_p",
+          "presence_penalty",
+          "reasoning",
+          "reasoning_effort",
+          "repetition_penalty",
+          "response_format",
+          "seed",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_k",
+          "top_logprobs",
+          "top_p"
+        ],
+        "tag": "cloudflare",
+        "uptime_last_1d": 99.54947993137876,
+        "uptime_last_30m": 99.22833767199702
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://developers.cloudflare.com/workers-ai/privacy",
+        "provider_slug": "cloudflare",
+        "terms_of_service_url": "https://www.cloudflare.com/service-specific-terms-developer-platform/#developer-platform-terms"
+      },
+      "route_identity_sha256": "e6f42c3784e900263502becd550aaf9349a048ce3e8964f0adf9aed6978108c8",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-gpt-5.4-mini-openai": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 128000,
+        "name": "OpenAI | openai/gpt-5.4-mini-20260317",
+        "provider_name": "OpenAI",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "max_tokens",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "seed",
+          "structured_outputs",
+          "tool_choice",
+          "tools"
+        ],
+        "tag": "openai",
+        "uptime_last_1d": 99.80873943314089,
+        "uptime_last_30m": 99.85096543713152
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://openai.com/policies/privacy-policy/",
+        "provider_slug": "openai",
+        "terms_of_service_url": "https://openai.com/policies/row-terms-of-use/"
+      },
+      "route_identity_sha256": "920b8de714b4e4fefe11b1fd537db7d1d63e9a2a34f1b73dfc79ca4cbfa80367",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-gpt-5.6-luna-openai": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 128000,
+        "name": "OpenAI | openai/gpt-5.6-luna-20260709",
+        "provider_name": "OpenAI",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "max_tokens",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "seed",
+          "structured_outputs",
+          "tool_choice",
+          "tools"
+        ],
+        "tag": "openai/flex",
+        "uptime_last_1d": 99.99007271210337,
+        "uptime_last_30m": 99.61717254580257
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://openai.com/policies/privacy-policy/",
+        "provider_slug": "openai",
+        "terms_of_service_url": "https://openai.com/policies/row-terms-of-use/"
+      },
+      "route_identity_sha256": "b11026437b1d4b22f0e327b84ee452d7be2f14de714af243b1729ef057489127",
+      "zero_data_retention_endpoint": false
+    },
+    "openrouter-gpt-oss-20b-deepinfra": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 117964,
+        "name": "DeepInfra | openai/gpt-oss-20b",
+        "provider_name": "DeepInfra",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "logit_bias",
+          "max_tokens",
+          "min_p",
+          "presence_penalty",
+          "reasoning",
+          "reasoning_effort",
+          "repetition_penalty",
+          "response_format",
+          "seed",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_k",
+          "top_p"
+        ],
+        "tag": "deepinfra/bf16",
+        "uptime_last_1d": 99.92462733960713,
+        "uptime_last_30m": 99.99828854307951
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://deepinfra.com/privacy",
+        "provider_slug": "deepinfra",
+        "terms_of_service_url": "https://deepinfra.com/terms"
+      },
+      "route_identity_sha256": "c03a9e9364038c4e3a21d33d07de61275348cca865190d3d83dfec4955a853d1",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-grok-4.3-xai": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 900000,
+        "name": "xAI | x-ai/grok-4.3-20260430",
+        "provider_name": "xAI",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "logprobs",
+          "max_tokens",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "seed",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p"
+        ],
+        "tag": "xai/zdr",
+        "uptime_last_1d": 99.975838115373,
+        "uptime_last_30m": 99.90601503759399
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://x.ai/legal/privacy-policy",
+        "provider_slug": "xai",
+        "terms_of_service_url": "https://x.ai/legal/terms-of-service-enterprise"
+      },
+      "route_identity_sha256": "37c7efd399d7bb3b07ac895e4a49bc8da13f2fe9ed19e58cab8341201e30a561",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-grok-4.6-xai": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 450000,
+        "name": "xAI | x-ai/grok-4.6-20260810",
+        "provider_name": "xAI",
+        "status": 0,
+        "supported_parameters": [
+          "include_reasoning",
+          "logprobs",
+          "max_tokens",
+          "reasoning",
+          "reasoning_effort",
+          "response_format",
+          "seed",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p"
+        ],
+        "tag": "xai/zdr",
+        "uptime_last_1d": 99.95921080460465,
+        "uptime_last_30m": 99.64028776978418
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://x.ai/legal/privacy-policy",
+        "provider_slug": "xai",
+        "terms_of_service_url": "https://x.ai/legal/terms-of-service-enterprise"
+      },
+      "route_identity_sha256": "76d2e94593368e73c46780d18e2d042513dee7e2df8ebdd6d38d38fcc3645d25",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-kimi-k2.5-siliconflow": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 235929,
+        "name": "SiliconFlow | moonshotai/kimi-k2.5-0127",
+        "provider_name": "SiliconFlow",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "max_tokens",
+          "reasoning",
+          "response_format",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_k",
+          "top_p"
+        ],
+        "tag": "siliconflow/int4",
+        "uptime_last_1d": 99.89330438891842,
+        "uptime_last_30m": 99.98011928429423
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://docs.siliconflow.com/en/legals/privacy-policy",
+        "provider_slug": "siliconflow",
+        "terms_of_service_url": "https://docs.siliconflow.com/en/legals/terms-of-service"
+      },
+      "route_identity_sha256": "cc4b5b08e5e0587be98a8ca0805ba4e30a86b4f74f65413ba598ac869d15ee45",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-minimax-m3-parasail": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 524288,
+        "name": "Parasail | minimax/minimax-m3-20260531",
+        "provider_name": "Parasail",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "logit_bias",
+          "logprobs",
+          "max_tokens",
+          "presence_penalty",
+          "reasoning",
+          "repetition_penalty",
+          "response_format",
+          "seed",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_k",
+          "top_logprobs",
+          "top_p"
+        ],
+        "tag": "parasail/fp8",
+        "uptime_last_1d": 99.60818313686913,
+        "uptime_last_30m": 99.37421777221527
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://www.parasail.io/legal/privacy-policy",
+        "provider_slug": "parasail",
+        "terms_of_service_url": "https://parasail.io/legal/terms-of-service"
+      },
+      "route_identity_sha256": "6f49001ea00ee17f2d2811502b0ef6db24a6397d4b0ed036c43cabf7e621ee88",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-nemotron-3-nano-30b-a3b-crusoe": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 235929,
+        "name": "Crusoe | nvidia/nemotron-3-nano-30b-a3b",
+        "provider_name": "Crusoe",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "logit_bias",
+          "max_tokens",
+          "min_p",
+          "presence_penalty",
+          "reasoning",
+          "repetition_penalty",
+          "response_format",
+          "seed",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tools",
+          "top_k",
+          "top_p"
+        ],
+        "tag": "crusoe/fp8",
+        "uptime_last_1d": 100,
+        "uptime_last_30m": 100
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://legal.crusoe.ai/open-router#cloud-privacy-policy",
+        "provider_slug": "crusoe",
+        "terms_of_service_url": "https://legal.crusoe.ai/open-router#managed-inference-tos-open-router"
+      },
+      "route_identity_sha256": "9a2ff9a9ce3dded84bc143da4380cc86f20955f27c0f82490ab59958e7de0851",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-qwen3.5-27b-siliconflow": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 235929,
+        "name": "SiliconFlow | qwen/qwen3.5-27b-20260224",
+        "provider_name": "SiliconFlow",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "max_tokens",
+          "presence_penalty",
+          "reasoning",
+          "repetition_penalty",
+          "response_format",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_k",
+          "top_p"
+        ],
+        "tag": "siliconflow/fp8",
+        "uptime_last_1d": 99.31648498019558,
+        "uptime_last_30m": 99.1769547325103
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://docs.siliconflow.com/en/legals/privacy-policy",
+        "provider_slug": "siliconflow",
+        "terms_of_service_url": "https://docs.siliconflow.com/en/legals/terms-of-service"
+      },
+      "route_identity_sha256": "555855117a20aa1c18f0a2bd00875d4bcaec0d98b8b6ac81a82e9c4d4d4d9ea7",
+      "zero_data_retention_endpoint": true
+    },
+    "openrouter-qwen3.5-397b-a17b-parasail": {
+      "authenticated_metadata_read": true,
+      "endpoint": {
+        "max_completion_tokens": 235929,
+        "name": "Parasail | qwen/qwen3.5-397b-a17b-20260216",
+        "provider_name": "Parasail",
+        "status": 0,
+        "supported_parameters": [
+          "frequency_penalty",
+          "include_reasoning",
+          "logit_bias",
+          "logprobs",
+          "max_tokens",
+          "presence_penalty",
+          "reasoning",
+          "repetition_penalty",
+          "response_format",
+          "seed",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_k",
+          "top_logprobs",
+          "top_p"
+        ],
+        "tag": "parasail/fp8",
+        "uptime_last_1d": 99.36611541720275,
+        "uptime_last_30m": 97.05882352941177
+      },
+      "output_cap_verification_status": "endpoint-metadata-verified",
+      "provider_policy": {
+        "privacy_policy_url": "https://www.parasail.io/legal/privacy-policy",
+        "provider_slug": "parasail",
+        "terms_of_service_url": "https://parasail.io/legal/terms-of-service"
+      },
+      "route_identity_sha256": "8cdb10ddb265ed62aaa6a7c5beaf754d091c0345440f88e4a56d3567f7b17d72",
+      "zero_data_retention_endpoint": true
+    }
+  },
+  "schema_version": 1
+}

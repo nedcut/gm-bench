@@ -68,14 +68,20 @@ coverage, or ambiguous OpenRouter routing. Illegal strategic actions and their
 protocol penalties remain valid model outcomes and stay in the scored result.
 Both configs atomically persist the complete JSON artifact with `output`;
 terminal truncation cannot destroy the result. Explicit CLI flags override
-config values, config `env` overrides inherited shell values, and inherited
-shell values override provider defaults.
+config values, and config `env` overrides everything below it. Below that come
+the provider pins in `gm_bench/providers.py` — the v6 call conditions: the
+4,096-token output ceiling, reasoning disabled where the route allows it,
+routing and privacy settings, and no paid retry. Those pins beat inherited
+shell values, so a stale `OPENROUTER_MAX_TOKENS` in a terminal cannot quietly
+buy a row a larger output budget than the panel allows. Overriding one takes a
+config `env` entry, which is recorded in `run_info.provider_options` where a
+reader can see the choice. Settings no pin covers still come from the shell.
 
 Failure handling is the one setting the harness refuses to inherit silently, and
 the one setting where config-file `env` does *not* win. `GM_AGENT_STRICT` is
 resolved per run — an explicit `--strict-fallback` / `--no-strict-fallback` flag
 first, then the lane policy (strict for `--preset leaderboard`), then config-file
-`env`, then any ambient value, then off — normalized to `"1"`/`"0"`, and stamped
+`env`, then any ambient value, then strict — normalized to `"1"`/`"0"`, and stamped
 into both `run_info.strict_fallback` and `run_info.provider_options`. Neither a
 stale `GM_AGENT_STRICT=0` in the shell nor a stale entry in a lane config can
 downgrade a leaderboard row. The flags are available on `model`, `run`, and

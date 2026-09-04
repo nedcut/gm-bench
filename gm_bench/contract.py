@@ -15,14 +15,18 @@ from typing import Any
 
 from gm_bench.scoring import SCORING_VERSION, scoring_scale_fingerprint
 
-# SOTA-v4 is a frozen historical lane.  SOTA-v5 is the current contract; the
-# mechanics are intentionally unchanged, so both contracts share the same
-# source-derived fingerprint.  The benchmark version remains part of the
-# contract identity and must never be inferred from the fingerprint alone.
+# SOTA-v4 is a frozen historical lane.  SOTA-v5 is the current contract and has
+# diverged from it: the v6 mechanic work rebuilt the simulator (draft lottery
+# and pick identity, free-agent willingness, lineup construction, expiring-
+# contract pressure, removal of the inert fields) and rewrote the observation
+# render, so sim-v3/observation-v2 became sim-v4/observation-v3 and the
+# source-derived fingerprint moved with them.  The benchmark version remains
+# part of the contract identity and must never be inferred from the
+# fingerprint alone.
 BENCHMARK_VERSION = "sota-v5"
 ACTION_PROTOCOL_VERSION = "actions-v3"
-SIMULATOR_VERSION = "sim-v3"
-OBSERVATION_VERSION = "observation-v2"
+SIMULATOR_VERSION = "sim-v4"
+OBSERVATION_VERSION = "observation-v3"
 
 SOTA_V2_CONTRACT = {
     "benchmark_version": "sota-v2",
@@ -56,10 +60,50 @@ SOTA_V5_CONTRACT = {
     "action_protocol_version": "actions-v3",
     "scoring_version": "score-v1",
     "scoring_scale_fingerprint": "05a60ff4f691e734",
-    "simulator_version": "sim-v3",
-    "observation_version": "observation-v2",
-    # No score-affecting mechanics changed at the v4 -> v5 boundary.
-    "contract_fingerprint": "247e12fe5a7d4f5b",
+    "simulator_version": "sim-v4",
+    "observation_version": "observation-v3",
+    # sota-v5 is the live (not yet frozen) lane; its fingerprint tracks the
+    # in-flight v6 mechanic work. Moved from 247e12fe5a7d4f5b when the draft
+    # lottery replaced deterministic draft order and traded picks gained
+    # original-team identity; moved from d30fe7eddc093d97 when free-agent
+    # willingness began pricing the signing team's record and lineup role;
+    # moved from b7f53b7d638de7a3 when forwards gained a published
+    # center-or-wing sub_position and lineups earned a bonus for dressing
+    # enough natural centers; moved from d9722e44b0cf991c when an
+    # extension-eligible incumbent left unresigned began expiring into an
+    # immediate rival scramble for the best expiring players leaguewide;
+    # moved from 20e42898d8069386 when the inert morale, market, and
+    # patience fields (never read by any mechanic) were removed from the
+    # model, generator, and observation; moved from 2501fcfbcb5133e9 when a
+    # team lost the right to re-sign a player it released until the next
+    # season, closing the release-then-re-sign dodge around extensions; moved
+    # from ad97fb57f513a751 when that release block became a set of
+    # (team, player) pairs, so a later drop by another team no longer erases
+    # an earlier team's block, and waiver claims began honouring the block the
+    # same way free-agent signings do; moved from b97c8a1d61b321cc when the
+    # v6 compact observation render replaced the verbose JSON view with
+    # pipe-delimited tables inside the ~6,500-token budget, tightened the
+    # candidate lists a model reads, and gave the transaction ledger its
+    # roster-changing two-season selection rule; moved from 989775a0ca5c7ad1
+    # when the runner adopted the v6 execution rules: one paid model call per
+    # decision phase, no paid retry, and deterministic local repair of
+    # malformed output with a structured no-op when intent is ambiguous; moved
+    # from 3167d95f860770c5 when the rendered pick_holdings column and
+    # team.draft_picks stopped publishing seasons already drafted in, which had
+    # made every team that had ever used a pick read as having traded it away;
+    # moved from bcfe0ce8c23ddc85 when the roster column header stopped
+    # labelling the four extension quotes as a five-term 1y..5y table; moved
+    # from 5db845650f34d4db when the render stopped advertising query answers
+    # it cannot deliver under the one-call rule, restored the roster to the
+    # summary observation tier, stopped reading an exercised current-season
+    # pick as one its team had traded away, and the ledger began publishing the
+    # agent's own refused roster moves with the reason they failed; moved from
+    # 245ff803ecb349db when the harness's published repair rules became the only
+    # rules that decide what a model's reply means (adapters now forward the raw
+    # text), the one-call rule started keying on whether an agent pays rather
+    # than on its registered name, and an unrepairable reply began reporting the
+    # usage it cost instead of discarding it.
+    "contract_fingerprint": "a600b7da0c302231",
 }
 # Hidden-info diagnostic mean on the frozen public panel (seeds 11-18 × 5).
 # Pinned with the release identity so the site headroom strip cannot drift when
@@ -82,6 +126,10 @@ _CONTRACT_SOURCES = (
     # duration, and the canonical action set all affect played-out episodes.
     "gm_bench/protocol.py",
     "gm_bench/runner.py",
+    # Local repair decides which malformed model outputs still reach the
+    # simulator and which become structured no-ops, so two rows produced under
+    # different repair rules played different episodes.
+    "gm_bench/repair.py",
     # The compaction rules are score-affecting for the scaffold-view baseline,
     # whose whole result is a function of them; without this the baseline cache
     # would serve a pre-edit score after the model view changed.

@@ -5,13 +5,19 @@ The unit of inference is the seed. Candidate repeats are averaged within each
 seed before subtracting that seed's deterministic ``pick-trader`` score. The
 bootstrap interval is descriptive. For strict reference-only contracts, the
 exact sign-flip p-value is the primary inference and Holm-Bonferroni is applied
-using the full registered family size even when rows are missing.
+using the full registered family size even when rows are missing. Under the
+accounted-for rule, a registered row without an eligible artifact must appear
+in the lane's frozen exclusion register with its evidence retained, the family
+stays at the registered size, and a row absent from both still blocks
+publication. An artifact rejected for a row the register already excludes is
+that register's evidence, not an unexplained rejection.
 """
 
 from __future__ import annotations
 
 import argparse
 import bisect
+import hashlib
 import json
 import math
 import random
@@ -54,17 +60,28 @@ V4_ANALYSIS_LOCK = "sota-v4 analysis is authorization-locked until its publicati
 V5_ANALYSIS_AUTHORIZATION_LOCK = (
     "sota-v5 analysis requires explicit publication authorization across the frozen lane inputs"
 )
+EXCLUSION_REGISTER_FORMAT = "gm-bench-panel-exclusion-register-v1"
+EXCLUSION_REGISTER_SCHEMA_VERSION = 1
+EXCLUSION_STATUSES = frozenset({"ineligible-model-behavior", "excluded-infrastructure-limit"})
 BOOTSTRAP_SEED = 20260716
 BOOTSTRAP_ITERATIONS = 10_000
+# docs/scoring_calibration.md: the v6 panel's 30-point minimum detectable
+# difference holds only for rows whose own run-to-run score spread is at or
+# below about 25 points. A noisier row still publishes its score; what it
+# cannot support is a claim that it is separated from another row.
+WITHIN_SEED_SEPARATION_THRESHOLD = 25.0
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from gm_bench.official import POLICIES, validate_leaderboard_payload  # noqa: E402
 from gm_bench.publication import (  # noqa: E402
+    WITHIN_SEED_ONE_REPEAT_BASIS,
+    WITHIN_SEED_UNMEASURED_ONE_REPEAT,
     canonical_sha256,
     raw_artifact_link_issues,
     v3_statistical_plan_issues,
+    within_seed_stddev_measurement,
 )
 
 
@@ -95,16 +112,21 @@ def bootstrap_mean_ci(
 
 
 def sign_flip_p_value(values: Sequence[float]) -> float | None:
-    """Return the exact two-sided sign-flip p-value for up to 20 seeds.
+    """Return the exact two-sided sign-flip p-value for up to 30 seeds.
 
     Meet-in-the-middle subset sums preserve the exhaustive test exactly while
     reducing work from O(2**n) to O(2**(n/2) log 2**(n/2)). This keeps design
     simulation practical without changing the analyzer's inferential procedure.
+
+    The 20-seed bound was inherited from the original exhaustive loop, where 30
+    seeds would have meant a billion sign assignments. Meet-in-the-middle costs
+    2**15 sorted sums and 2**15 binary searches at 30 seeds, so the v6 panel's
+    29 seeds are cheap; the limit stays finite only to keep memory bounded.
     """
     if len(values) < 2:
         return None
-    if len(values) > 20:
-        raise ValueError("exact sign-flip enumeration is limited to 20 seeds")
+    if len(values) > 30:
+        raise ValueError("exact sign-flip enumeration is limited to 30 seeds")
 
     numeric = [float(value) for value in values]
     observed_sum = abs(sum(numeric))
@@ -384,6 +406,181 @@ def _registered_lane_issues(
     return issues
 
 
+def _is_sha256_hex(value: Any) -> bool:
+    return isinstance(value, str) and len(value) == 64 and set(value) <= set("0123456789abcdef")
+
+
+def _exclusion_register_entries(
+    register: Mapping[str, Any],
+    *,
+    contract: str,
+    contract_fingerprint: str | None,
+    registered_ids: set[str],
+    run_dir: Path | None = None,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Validate a frozen exclusion register and return its public entries.
+
+    Every entry must name a registered model, carry one of the two frozen
+    exclusion statuses, and (when evidence is present) a well-formed checkpoint
+    digest. With ``run_dir`` the digest is checked against the retained file's
+    bytes; without it the register is taken at its word. Seeds never enter the
+    returned entries.
+    """
+    errors: list[str] = []
+    if register.get("format") != EXCLUSION_REGISTER_FORMAT:
+        errors.append(f"exclusion register format must be {EXCLUSION_REGISTER_FORMAT!r}")
+    if register.get("schema_version") != EXCLUSION_REGISTER_SCHEMA_VERSION:
+        errors.append(f"exclusion register schema_version must be {EXCLUSION_REGISTER_SCHEMA_VERSION}")
+    if register.get("contract") != contract:
+        errors.append(f"exclusion register contract does not match {contract}")
+    if contract_fingerprint and register.get("contract_fingerprint") != contract_fingerprint:
+        errors.append("exclusion register contract_fingerprint does not match the frozen lane")
+    if register.get("status") != "frozen":
+        errors.append("exclusion register status must be frozen")
+    raw_entries = register.get("entries")
+    if not isinstance(raw_entries, list):
+        errors.append("exclusion register entries must be a list")
+        return [], errors
+
+    entries: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for index, raw in enumerate(raw_entries):
+        if not isinstance(raw, Mapping):
+            errors.append(f"exclusion register entries[{index}] must be an object")
+            continue
+        model_id = str(raw.get("id") or "").strip()
+        if not model_id:
+            errors.append(f"exclusion register entries[{index}] requires an id")
+            continue
+        if model_id not in registered_ids:
+            errors.append(f"exclusion register names an unregistered model: {model_id}")
+        if model_id in seen:
+            errors.append(f"exclusion register lists {model_id} more than once")
+        seen.add(model_id)
+        status = raw.get("status")
+        if status not in EXCLUSION_STATUSES:
+            errors.append(f"exclusion register entry {model_id} has an unknown status {status!r}")
+        for field in ("rule", "reason"):
+            if not str(raw.get(field) or "").strip():
+                errors.append(f"exclusion register entry {model_id} requires a non-empty {field}")
+        for field in ("attempts", "decisions_completed"):
+            value = raw.get(field)
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                errors.append(f"exclusion register entry {model_id} {field} must be a non-negative integer")
+        cost = raw.get("cost_usd")
+        if not isinstance(cost, int | float) or isinstance(cost, bool) or cost < 0:
+            errors.append(f"exclusion register entry {model_id} cost_usd must be a non-negative number")
+        evidence = raw.get("evidence")
+        digest: str | None = None
+        if evidence is not None:
+            if not isinstance(evidence, Mapping):
+                errors.append(f"exclusion register entry {model_id} evidence must be an object or null")
+            else:
+                checkpoint = evidence.get("checkpoint")
+                digest = evidence.get("checkpoint_sha256")
+                if not isinstance(checkpoint, str) or not checkpoint:
+                    errors.append(f"exclusion register entry {model_id} evidence requires a checkpoint path")
+                if not _is_sha256_hex(digest):
+                    errors.append(f"exclusion register entry {model_id} checkpoint_sha256 is not a sha256 hex digest")
+                    digest = None
+                elif run_dir is not None and isinstance(checkpoint, str) and checkpoint:
+                    checkpoint_path = run_dir / checkpoint
+                    try:
+                        observed = hashlib.sha256(checkpoint_path.read_bytes()).hexdigest()
+                    except OSError as exc:
+                        errors.append(f"exclusion register entry {model_id} evidence is unreadable: {exc}")
+                    else:
+                        if observed != digest:
+                            errors.append(
+                                f"exclusion register entry {model_id} checkpoint_sha256 does not match {checkpoint}"
+                            )
+        entries.append(
+            {
+                "model_id": model_id,
+                "status": status,
+                "rule": raw.get("rule"),
+                "reason": raw.get("reason"),
+                "attempts": raw.get("attempts"),
+                "decisions_completed": raw.get("decisions_completed"),
+                "cost_usd": raw.get("cost_usd"),
+                "checkpoint_sha256": digest,
+            }
+        )
+    return entries, errors
+
+
+def within_seed_separation_caveats(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    threshold: float = WITHIN_SEED_SEPARATION_THRESHOLD,
+) -> dict[str, Any]:
+    """Report which rows are too noisy — or too unmeasured — to support a separation claim.
+
+    The panel's minimum detectable difference is a statement about rows whose
+    within-seed repeat noise is near the value the power analysis assumed. A row
+    that is noisier than the threshold is not wrong and is not withheld: its
+    score, its lift, and its reference contrast all publish exactly as before.
+    What the panel cannot say is that such a row is *separated* from another
+    one, so every pair containing it is listed here as unclaimable.
+
+    Three states, not two:
+
+    * **Measured.** The row ran repeats and its spread is a real number. Above
+      the threshold it blocks its pairs; at or below it, it clears.
+    * **Unmeasured under a one-repeat lane.** The v6 panel pins one episode per
+      seed, so no row can measure its own repeat noise. That is exactly the case
+      docs/scoring_calibration.md's MDD table covers by assumption: the 26-point
+      figure at 29 seeds was computed *assuming* a within-seed SD near 15. Such a
+      row therefore stays claimable, but the claim rests on that assumption and
+      the assumption is named here rather than left implicit.
+    * **Unreported.** A row that carries no value at all — a pre-v6 artifact from
+      before the field existed — is unknown rather than quiet. Nothing, not even
+      an assumption, covers it, so it blocks its pairs.
+    """
+    noisy: list[dict[str, Any]] = []
+    unmeasured: list[str] = []
+    unknown: list[str] = []
+    for row in rows:
+        model_id = str(row["model_id"])
+        stddev = row.get("within_seed_score_stddev")
+        status = row.get("within_seed_score_stddev_status")
+        if status == WITHIN_SEED_UNMEASURED_ONE_REPEAT:
+            unmeasured.append(model_id)
+        elif stddev is None:
+            unknown.append(model_id)
+        elif float(stddev) > threshold:
+            noisy.append({"model_id": model_id, "within_seed_score_stddev": float(stddev)})
+    blocked = {entry["model_id"] for entry in noisy} | set(unknown)
+    model_ids = sorted(str(row["model_id"]) for row in rows)
+    unclaimable = [
+        [left, right]
+        for index, left in enumerate(model_ids)
+        for right in model_ids[index + 1 :]
+        if left in blocked or right in blocked
+    ]
+    return {
+        "statistic": "within_seed_score_stddev",
+        "threshold": threshold,
+        "basis": (
+            "docs/scoring_calibration.md: the 30-point minimum detectable difference at 29 paired seeds holds for "
+            "rows whose within-seed score standard deviation is at or below about 25."
+        ),
+        "rule": (
+            "Reported caveat, not a row rejection. A row above the threshold publishes its score and its "
+            "reference contrast; no separation claim is supported for any pair that includes it. A row that "
+            "cannot measure the statistic because its lane ran one episode per seed stays claimable under the "
+            "calibration panel's assumed repeat noise, and says so."
+        ),
+        "unmeasured_basis": WITHIN_SEED_ONE_REPEAT_BASIS,
+        "models_exceeding_threshold": sorted(noisy, key=lambda entry: str(entry["model_id"])),
+        "models_with_unmeasured_within_seed_noise": sorted(unmeasured),
+        "models_missing_the_statistic": sorted(unknown),
+        "unclaimable_separation_pairs": unclaimable,
+        "separation_claims_supported": not blocked,
+        "separation_claims_rest_on_assumed_repeat_noise": bool(unmeasured),
+    }
+
+
 def analyze(
     registry: Mapping[str, Any],
     payloads: Sequence[Mapping[str, Any]],
@@ -392,13 +589,31 @@ def analyze(
     lane: Mapping[str, Any] | None = None,
     protocol: Mapping[str, Any] | None = None,
     pricing: Mapping[str, Any] | None = None,
+    exclusions: Mapping[str, Any] | None = None,
+    run_dir: Path | None = None,
 ) -> dict[str, Any]:
-    """Analyze valid artifacts matching the registry and report missing/rejected rows."""
+    """Analyze valid artifacts matching the registry and report missing/rejected rows.
+
+    ``exclusions`` is the lane's frozen exclusion register; a registered row
+    listed there counts as accounted for rather than missing. ``run_dir`` lets
+    the register's checkpoint digests be checked against the retained files.
+    """
     specs, config_errors = _registry_specs(registry)
     contract = str(registry.get("contract") or "")
     policy = POLICIES.get(contract)
     if policy is None:
         config_errors.append(f"no result-validation policy is registered for {contract!r}")
+    excluded_entries: list[dict[str, Any]] = []
+    if exclusions is not None:
+        lane_fingerprint = lane.get("contract_fingerprint") if isinstance(lane, Mapping) else None
+        excluded_entries, register_errors = _exclusion_register_entries(
+            exclusions,
+            contract=contract,
+            contract_fingerprint=str(lane_fingerprint or registry.get("contract_fingerprint") or "") or None,
+            registered_ids={spec["id"] for spec in specs},
+            run_dir=run_dir,
+        )
+        config_errors.extend(register_errors)
     expected_seed_panel: Mapping[str, Any] | None = None
     strict_plan_ready = contract not in STRICT_REFERENCE_CONTRACTS
     if contract in STRICT_REFERENCE_CONTRACTS:
@@ -520,6 +735,7 @@ def analyze(
 
         lifts = [float(row["lift"]) for row in per_seed]
         ci_low, ci_high = bootstrap_mean_ci(lifts)
+        within_seed_value, within_seed_status = within_seed_stddev_measurement(payload)
         candidates.setdefault(spec["id"], []).append(
             {
                 "model_id": spec["id"],
@@ -530,6 +746,8 @@ def analyze(
                 "bootstrap_ci95": [round(ci_low, 6), round(ci_high, 6)],
                 "sign_flip_p_value": sign_flip_p_value(lifts),
                 "seed_win_rate": round(sum(lift > 0.0 for lift in lifts) / len(lifts), 6),
+                "within_seed_score_stddev": within_seed_value,
+                "within_seed_score_stddev_status": within_seed_status,
                 "artifact_sha256": artifact_sha256,
                 "raw_artifact_sha256": raw_artifact_sha256 or artifact_sha256,
             }
@@ -559,11 +777,33 @@ def analyze(
         }
         for row in rows
     ]
+    separation_threshold = WITHIN_SEED_SEPARATION_THRESHOLD
+    plan = protocol.get("statistical_analysis_plan") if isinstance(protocol, Mapping) else None
+    caveat_config = plan.get("within_seed_noise_caveat") if isinstance(plan, Mapping) else None
+    if isinstance(caveat_config, Mapping):
+        configured = caveat_config.get("threshold")
+        if isinstance(configured, int | float) and not isinstance(configured, bool) and float(configured) > 0:
+            separation_threshold = float(configured)
+    within_seed_noise = within_seed_separation_caveats(rows, threshold=separation_threshold)
+
     # Frozen sota-v2 publication behavior includes connected-interval tiers.
     # Strict plans predeclare only model-vs-pick-trader contrasts; assigning
     # model tiers there would imply unsupported pairwise inference.
+    tiering: dict[str, Any] | None = None
     if contract == "sota-v2":
         rows = assign_tiers(rows)
+        # Tiers are the one place this analyzer does claim two models are
+        # apart, so the caveat has to travel with them.
+        if within_seed_noise["separation_claims_supported"] is False:
+            tier_status = "supported-with-within-seed-caveat"
+        elif within_seed_noise["separation_claims_rest_on_assumed_repeat_noise"]:
+            tier_status = "supported-under-assumed-repeat-noise"
+        else:
+            tier_status = "supported"
+        tiering = {
+            "status": tier_status,
+            "within_seed_noise_caveat": within_seed_noise,
+        }
     output_rows = rows
     if contract in STRICT_REFERENCE_CONTRACTS:
         # Private-panel seed identifiers and per-seed scores remain available in
@@ -577,8 +817,27 @@ def analyze(
             public_row["seed_count"] = len(per_seed)
             output_rows.append(public_row)
     present = {str(row["model_id"]) for row in rows}
-    missing = [spec["id"] for spec in specs if spec["id"] not in present]
+    excluded_ids = {str(entry["model_id"]) for entry in excluded_entries}
+    for model_id in sorted(present & excluded_ids):
+        config_errors.append(f"model {model_id} is both eligible and listed in the exclusion register")
+    # A rejected artifact for a row the frozen register already excludes is the
+    # register's own evidence (the register carries the reason and checkpoint
+    # hash), so it is accounted for rather than an unexplained rejection. Only
+    # rejections the register does not cover keep the analysis partial.
+    rejected = [entry for entry in rejected if str(entry["model_id"]) not in excluded_ids]
+    missing = [spec["id"] for spec in specs if spec["id"] not in present and spec["id"] not in excluded_ids]
     eligible_count = len(rows)
+    registered_ids = {spec["id"] for spec in specs}
+    accounted_for_count = len((present | excluded_ids) & registered_ids)
+    minimum_headline_models = len(specs)
+    exclusion_policy = protocol.get("exclusion_policy") if isinstance(protocol, Mapping) else None
+    for source in (exclusion_policy, lane):
+        if not isinstance(source, Mapping):
+            continue
+        configured = source.get("minimum_headline_models")
+        if isinstance(configured, int) and not isinstance(configured, bool) and configured > 0:
+            minimum_headline_models = configured
+            break
     status = "complete" if specs and not missing and not rejected and not config_errors else "partial"
     if eligible_count == 0:
         status = "no-eligible-artifacts"
@@ -601,10 +860,13 @@ def analyze(
             else "descriptive; exact under the symmetry assumption"
         ),
         "config_errors": config_errors,
+        "within_seed_noise": within_seed_noise,
         "missing_models": missing,
         "rejected_artifacts": rejected,
         "models": output_rows,
     }
+    if tiering is not None:
+        result["model_tiering"] = tiering
     if contract in STRICT_REFERENCE_CONTRACTS:
         result["analysis_mode"] = "reference-only"
         result["redaction"] = {
@@ -613,8 +875,17 @@ def analyze(
             "per_seed_rows_included": False,
             "public_view": "aggregate-only",
         }
+        result["minimum_headline_models"] = minimum_headline_models
+        result["accounted_for_model_count"] = accounted_for_count
+        result["excluded_models"] = sorted(excluded_entries, key=lambda entry: str(entry["model_id"]))
+        # Every registered row must be accounted for (eligible or in the frozen
+        # register), the eligible rows must clear the headline floor, and the
+        # Holm family must still be the registered family so no p-value eased.
         result["publication_ready"] = (
-            status == "complete" and not config_errors and not missing and not rejected and eligible_count == len(specs)
+            status == "complete"
+            and eligible_count >= minimum_headline_models
+            and accounted_for_count == len(specs)
+            and result["holm_family_size"] == len(specs)
         )
         result["model_tiering"] = {
             "status": "not-supported",
@@ -647,6 +918,16 @@ def main() -> int:
     parser.add_argument("--pricing", type=Path)
     parser.add_argument("--artifacts-dir", type=Path, default=DEFAULT_ARTIFACT_DIR)
     parser.add_argument("--raw-artifacts-dir", type=Path, help="raw JSON evidence used to verify compact hash links")
+    parser.add_argument(
+        "--exclusions",
+        type=Path,
+        help="frozen exclusion register; defaults to the sota-v5 lane's exclusion_register path",
+    )
+    parser.add_argument(
+        "--run-dir",
+        type=Path,
+        help="panel run directory used to verify the register's checkpoint digests against the retained files",
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
@@ -674,11 +955,26 @@ def main() -> int:
             if contract in {"sota-v5"}
             else None
         )
+        exclusions_path = args.exclusions
+        if exclusions_path is None and contract == "sota-v5" and isinstance(lane, Mapping):
+            register_ref = lane.get("exclusion_register")
+            if isinstance(register_ref, str) and register_ref:
+                exclusions_path = ROOT / register_ref
+        exclusions = _read_json(exclusions_path) if exclusions_path is not None else None
         output_path = args.output or default_output_path(contract)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         sys.exit(f"analyze_publication_panel: {exc}")
 
-    result = analyze(registry, payloads, raw_payloads=raw_payloads, lane=lane, protocol=protocol, pricing=pricing)
+    result = analyze(
+        registry,
+        payloads,
+        raw_payloads=raw_payloads,
+        lane=lane,
+        protocol=protocol,
+        pricing=pricing,
+        exclusions=exclusions,
+        run_dir=args.run_dir,
+    )
     text = json.dumps(result, indent=2, sort_keys=True) + "\n"
     if result.get("benchmark_version") in STRICT_REFERENCE_CONTRACTS and result.get("publication_ready") is not True:
         print(text, end="")

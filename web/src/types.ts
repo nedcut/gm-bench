@@ -96,7 +96,12 @@ export interface LeaderboardModel {
   full_panel_significant_at_95: boolean | null;
   seed_win_rate: number | null;
   lift_vs_best_baseline: number | null;
-  fallback_rate: number;
+  /**
+   * Legacy name for `decision_failure_rate`. Rows published before the field was
+   * renamed carry this key and nothing else; it never measured an adapter
+   * fallback path, only decisions whose call returned no usable turn.
+   */
+  fallback_rate?: number | null;
   illegal_actions: number;
   total_tokens: number;
   tokens_per_decision: number | null;
@@ -106,6 +111,29 @@ export interface LeaderboardModel {
   protocol_repairs_succeeded: number;
   mechanic_breakdown: Record<string, { accepted: number; rejected: number }>;
   failed_queries?: number;
+  /**
+   * v6 reliability fields, emitted by gm_bench.runner.summarize_episodes and
+   * reported *beside* the score, never folded into it. Rows published before
+   * v6 do not carry them, so every consumer must treat absence as "not
+   * reported" rather than zero.
+   */
+  failed_decisions?: number | null;
+  /** Share of decisions whose call never returned a usable turn. */
+  decision_failure_rate?: number | null;
+  malformed_decisions?: number | null;
+  unrecoverable_decisions?: number | null;
+  malformed_rate?: number | null;
+  unrecoverable_rate?: number | null;
+  /**
+   * Mean per-seed score spread across repeats — the model's own run-to-run
+   * noise, as distinct from `score_stddev` across seeds. Optional for the same
+   * reason: pre-v6 rows never computed it.
+   */
+  within_seed_score_stddev?: number | null;
+  /** Per-seed mean scores keyed by seed, when the row publishes them. */
+  per_seed_scores?: Record<string, number> | null;
+  /** Pinned provider route for the run, when one was pinned. */
+  route?: string | null;
   cost_usd: number | null;
   cost_per_episode_usd: number | null;
   api_latency_s_per_decision: number | null;
@@ -113,6 +141,12 @@ export interface LeaderboardModel {
   decisions_with_usage: number;
   decision_points: number;
   seeds: number[] | null;
+  /**
+   * How wide this row's own seed panel was. Survives redaction, where `seeds`
+   * does not: a private-panel row hides its seed values but still publishes
+   * its count. Never substitute the public preset's panel width here.
+   */
+  seed_count: number | null;
   seasons: number | null;
   baseline_panel_mean_score: number | null;
   benchmark_version: string | null;
@@ -196,21 +230,123 @@ export interface Snapshot {
   sample_transactions: SampleTransaction[];
 }
 
+/* ---------- replay fixture ----------
+   public/replay/replay_fixture.json, written by
+   scripts/build_web_replay_bundle.py --write-fixture. The same file the Pyodide
+   verifier replays, so the browsable episode and the verified episode can never
+   describe different runs. Everything the site reads beyond the schema and the
+   decision list is optional: a fixture is a reproducibility artifact first. */
+
+export interface ReplayPlayer {
+  id: number;
+  name?: string;
+  position?: string;
+  age?: number;
+  overall?: number;
+  potential?: number;
+  salary?: number;
+  contract_years?: number;
+}
+
+export interface ReplayObservation {
+  season?: number;
+  phase?: string;
+  interaction_round?: number;
+  memo?: string;
+  hint?: string | null;
+  action_results?: Array<{ accepted?: boolean; message?: string }> | null;
+  team?: {
+    id?: number;
+    name?: string;
+    /** v6 renders the record as a string; older observations carry counts. */
+    record?: string;
+    wins?: number;
+    losses?: number;
+    cap_room?: number;
+    payroll?: number;
+    championships?: number;
+    /** v6 tabular roster: pipe-delimited rows described by `roster_columns`. */
+    roster?: string[];
+    roster_columns?: string;
+    /** Pre-v6 roster shape, kept so old fixtures still render. */
+    top_roster?: ReplayPlayer[];
+  };
+  free_agents?: unknown[];
+  draft_class?: unknown[];
+  trade_market?: unknown[];
+  incoming_offers?: unknown[];
+}
+
+export interface ReplayRound {
+  round: number;
+  observation: ReplayObservation;
+  actions: Array<Record<string, unknown>>;
+}
+
+export interface ReplayDecision {
+  decision_index: number;
+  season: number;
+  phase: string;
+  interaction_rounds: ReplayRound[];
+}
+
+export interface ReplayTransaction {
+  season: number;
+  phase: string;
+  team_id: number;
+  accepted: boolean;
+  message: string;
+  action: Record<string, unknown>;
+}
+
+export interface ReplaySeasonSummary {
+  season: number;
+  wins: number;
+  losses: number;
+  playoff_rounds: number;
+  champion_team_id?: number | null;
+  cap_room?: number;
+  payroll?: number;
+  score_after_season?: number;
+}
+
+export interface ReplayFixture {
+  schema: string;
+  agent: string;
+  seed: number;
+  user_team_id: number;
+  provenance?: {
+    contract_fingerprint?: string | null;
+    recorder_version?: string | null;
+    git_head?: string | null;
+  };
+  decisions: ReplayDecision[];
+  expected: {
+    state_digest: string;
+    state?: {
+      players?: Record<string, ReplayPlayer>;
+      prospects?: Record<string, ReplayPlayer>;
+      teams?: Record<string, { id?: number; name?: string }>;
+      transactions?: ReplayTransaction[];
+      summaries?: ReplaySeasonSummary[];
+    };
+  };
+}
+
 /* ---------- puzzles ----------
    Illustrative content built by scripts/build_puzzles.py. Every option is a
    real scripted policy's choice from the same observation, graded by the
    immediate change in score components. Not a benchmark artifact. */
 
+/* Only what the card renders. The built deck carries more per-situation detail
+   (payroll, championships, free-agent counts); it stays in the JSON. */
 export interface PuzzleSituation {
   team: string;
   season: number;
   phase: string;
   record: string;
   cap_room: number;
-  payroll: number;
   roster_size: number;
-  championships: number;
-  free_agents_available: number;
   offers_on_the_table: number;
 }
 
@@ -227,19 +363,15 @@ export type PuzzleOutcome = "subject_won" | "subject_missed";
 
 export interface Puzzle {
   id: string;
-  state_key: string;
   seed: number;
   season: number;
   phase: string;
   subject: string;
-  mechanic?: "trade" | "draft" | "free_agency" | "contracts" | "roster";
-  worthiness: number;
   situation: PuzzleSituation;
   options: PuzzleOption[];
   answer: string;
-  /** Option letter used by the recorded subject after deterministic permutation. */
-  subject_option?: string;
-  /** Signed immediate-score margin for the recorded subject choice. */
+  /** Signed immediate-score margin for the recorded subject choice against the
+   * best alternative recorded choice. */
   subject_margin?: number;
   /** Whether the recorded subject beat the reference policies on this card. */
   outcome?: PuzzleOutcome;
@@ -248,8 +380,6 @@ export interface Puzzle {
 }
 
 export interface PuzzleSet {
-  schema: string;
   note: string;
-  source_records: number;
   puzzles: Puzzle[];
 }

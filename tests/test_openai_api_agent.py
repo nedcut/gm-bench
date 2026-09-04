@@ -46,7 +46,9 @@ def test_choose_actions_calls_direct_openai_api(monkeypatch) -> None:
 
     actions, usage = openai_compatible_agent.choose_actions({"phase": "preseason", "team": {"roster": []}})
 
-    assert actions == [{"type": "noop"}]
+    # The adapter forwards the model's reply verbatim; gm_bench.repair, not
+    # the adapter, decides what it means.
+    assert actions == '{"actions":[{"type":"noop"}]}'
     assert captured["url"].endswith("/v1/chat/completions")
     assert captured["headers"]["Authorization"] == "Bearer test-key"
     assert captured["payload"]["response_format"] == {"type": "json_object"}

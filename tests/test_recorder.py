@@ -271,7 +271,9 @@ def test_persistent_recording_preserves_lifecycle_and_follow_up_dispatch(tmp_pat
             seed=11,
             recorder=recorder,
             seasons=1,
-            config=EpisodeConfig(max_interaction_rounds=2),
+            # Multi-round follow-up dispatch is the pre-v6 model lane, kept
+            # working and pinned here; v6 itself allows one paid call per phase.
+            config=EpisodeConfig(max_interaction_rounds=2, single_paid_call_per_phase=False),
         )
 
     records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]

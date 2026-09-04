@@ -5,8 +5,9 @@ import puzzleData from "./data/puzzles.json";
 import type { Leaderboard as LeaderboardData, PuzzleSet, Snapshot } from "./types";
 import { buildBenchmarkView } from "./benchmarkData";
 import Nav from "./components/Nav";
-import Puzzles from "./components/Puzzles";
 import ResultsExplorer from "./components/ResultsExplorer";
+import ModelProfile from "./components/ModelProfile";
+import ReplayBrowser from "./components/ReplayBrowser";
 import Analysis from "./components/Analysis";
 import HowItWorks from "./components/HowItWorks";
 import Quickstart from "./components/Quickstart";
@@ -24,8 +25,8 @@ export default function App() {
 
   return (
     <>
-      <a className="skip-link" href="#play">
-        Skip to play
+      <a className="skip-link" href="#results">
+        Skip to results
       </a>
       <Nav />
       <main>
@@ -36,23 +37,28 @@ export default function App() {
               LLMs ran a hockey franchise. A short script built the dynasties. They did not.
             </h1>
             <p>
-              Play the decisions first, then inspect the score gap, mechanics, and protocol behind
-              the result.
+              Read the scoreboard, open a model's row, then follow a recorded episode decision by
+              decision.
             </p>
           </div>
         </section>
-        <Puzzles data={puzzles} />
         <ResultsExplorer
           data={leaderboard}
           benchmark={benchmark}
           selectedModelId={selectedModelId}
           onSelectModel={setSelectedModelId}
         />
+        <ModelProfile
+          data={leaderboard}
+          benchmark={benchmark}
+          selectedModelId={selectedModelId}
+        />
         <Analysis
           benchmark={benchmark}
           selectedModelId={selectedModelId}
           onSelectModel={setSelectedModelId}
         />
+        <ReplayBrowser puzzles={puzzles} />
         <HowItWorks snapshot={snapshot} />
         <Quickstart />
       </main>

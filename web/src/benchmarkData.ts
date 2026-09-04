@@ -21,7 +21,25 @@ export type ResultModel = TieredLeaderboardModel & {
  */
 const PRIMARY_LIFT_AGREEMENT_TOLERANCE = 0.001;
 
+/**
+ * Two-sided 95% Student-t multipliers by degrees of freedom (index df-1).
+ *
+ * The runner publishes `score_stddev` as a *population* SD over per-seed means,
+ * and a published panel is eight seeds. Treating that as a known population SD
+ * with z = 1.96 understates the interval by about a fifth at n = 8; the honest
+ * interval applies the sample-SD correction and the t multiplier for n-1. Beyond
+ * this table the two agree closely enough to fall back to z.
+ */
+const T95_BY_DF = [
+  12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262, 2.228, 2.201, 2.179, 2.16,
+  2.145, 2.131, 2.12, 2.11, 2.101, 2.093, 2.086, 2.08, 2.074, 2.069, 2.064, 2.06, 2.056, 2.052,
+  2.048, 2.045, 2.042,
+];
 const Z95 = 1.96;
+
+function t95(df: number): number {
+  return df >= 1 && df <= T95_BY_DF.length ? T95_BY_DF[df - 1] : Z95;
+}
 
 export const MECHANICS = [
   ["cap_free_agency", "Cap & FA"],
@@ -70,15 +88,22 @@ function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+/** Number of seeds this row's across-seed SD was computed over. */
+export function seedCount(model: LeaderboardModel): number {
+  return model.seeds?.length ?? model.seed_count ?? Object.keys(model.per_seed_scores ?? {}).length;
+}
+
+/** Across-seed 95% interval on the mean score, or null when a row cannot support one. */
 export function scoreCi95(model: LeaderboardModel): [number, number] | null {
   if (!finite(model.mean_score)) {
     return null;
   }
-  const n = model.seeds?.length ?? 0;
+  const n = seedCount(model);
   if (n < 2 || !finite(model.score_stddev)) {
     return null;
   }
-  const margin = (Z95 * model.score_stddev) / Math.sqrt(n);
+  const sampleStddev = model.score_stddev * Math.sqrt(n / (n - 1));
+  const margin = (t95(n - 1) * sampleStddev) / Math.sqrt(n);
   return [model.mean_score - margin, model.mean_score + margin];
 }
 
@@ -158,15 +183,21 @@ export function buildBenchmarkView(data: Leaderboard): BenchmarkView {
     throw new Error("Leaderboard is missing a finite scripted bar or partial oracle reference");
   }
 
-  const decisionPoints = models[0]?.decision_points ?? 0;
-  const denominator = data.preset.seeds.length * data.preset.decision_points_per_episode;
-  const repeats = denominator > 0 ? decisionPoints / denominator : 0;
-  if (!Number.isInteger(repeats) || repeats < 1) {
+  // Repeats are derived per row from that row's own seed count, not from the
+  // public preset's panel width: a redacted private-panel row publishes
+  // seed_count (29) with seeds null, and dividing its decisions by the public
+  // preset's 8 seeds would not yield a whole number.
+  const repeatsFor = (model: ResultModel): number => {
+    const denominator = seedCount(model) * data.preset.decision_points_per_episode;
+    return denominator > 0 ? model.decision_points / denominator : 0;
+  };
+  const repeats = models.length > 0 ? repeatsFor(models[0]) : 0;
+  if (models.length > 0 && (!Number.isInteger(repeats) || repeats < 1)) {
     throw new Error("Leaderboard decision counts do not yield a whole repeat count");
   }
   for (const model of models) {
-    if (model.decision_points !== decisionPoints) {
-      throw new Error("Leaderboard rows disagree on decision_points");
+    if (repeatsFor(model) !== repeats) {
+      throw new Error("Leaderboard rows disagree on repeats per seed");
     }
   }
 
@@ -183,13 +214,92 @@ export function buildBenchmarkView(data: Leaderboard): BenchmarkView {
   };
 }
 
+/**
+ * v6 reliability, read defensively.
+ *
+ * The spec requires malformed and unrecoverable output rates to sit beside the
+ * score rather than inside it, but rows published before v6 have neither field.
+ * `null` here means "this row does not report it" and must render as an em
+ * dash, never as a reassuring zero. Where a row carries counts but no rate, the
+ * rate is derived from its own decision total instead of being invented.
+ */
+export interface Reliability {
+  malformedRate: number | null;
+  unrecoverableRate: number | null;
+  malformedDecisions: number | null;
+  unrecoverableDecisions: number | null;
+  failedDecisions: number | null;
+  /** Share of decisions whose call never returned a usable turn. */
+  failedRate: number | null;
+  reported: boolean;
+}
+
+function rate(
+  explicit: number | null | undefined,
+  count: number | null | undefined,
+  total: number,
+): number | null {
+  if (finite(explicit)) return explicit;
+  if (finite(count) && total > 0) return count / total;
+  return null;
+}
+
+export function reliability(model: LeaderboardModel): Reliability {
+  const total = model.decision_points;
+  const malformedRate = rate(model.malformed_rate, model.malformed_decisions, total);
+  const unrecoverableRate = rate(
+    model.unrecoverable_rate,
+    model.unrecoverable_decisions,
+    total,
+  );
+  // `fallback_rate` is the old key for exactly this quantity, kept readable so
+  // an older published dataset does not silently lose its failure rate.
+  const failedRate = rate(
+    finite(model.decision_failure_rate) ? model.decision_failure_rate : model.fallback_rate,
+    model.failed_decisions,
+    total,
+  );
+  return {
+    malformedRate,
+    unrecoverableRate,
+    failedRate,
+    malformedDecisions: finite(model.malformed_decisions) ? model.malformed_decisions : null,
+    unrecoverableDecisions: finite(model.unrecoverable_decisions)
+      ? model.unrecoverable_decisions
+      : null,
+    failedDecisions: finite(model.failed_decisions) ? model.failed_decisions : null,
+    reported: malformedRate !== null || unrecoverableRate !== null,
+  };
+}
+
+export function withinSeedStddev(model: LeaderboardModel): number | null {
+  return finite(model.within_seed_score_stddev) ? model.within_seed_score_stddev : null;
+}
+
+export interface SeedScore {
+  seed: number;
+  score: number;
+}
+
+/** Per-seed scores in seed order, or an empty list when the row omits them. */
+export function perSeedScores(model: LeaderboardModel): SeedScore[] {
+  const rows: SeedScore[] = [];
+  for (const [key, score] of Object.entries(model.per_seed_scores ?? {})) {
+    const seed = Number(key);
+    if (Number.isFinite(seed) && finite(score)) rows.push({ seed, score });
+  }
+  return rows.sort((a, b) => a.seed - b.seed);
+}
+
 export function shortModelName(model: string): string {
   return model.split("/").pop() ?? model;
 }
 
 export function issueLabel(issue: string): string {
   if (issue.includes("illegal actions")) return "Illegal actions";
-  if (issue.includes("fallback")) return "Adapter fallback";
+  // The warning behind this text fires on failed_decisions, so label it that
+  // way: under the strict no-op lane there is no adapter fallback path to name.
+  if (issue.includes("fallback")) return "Failed decisions";
   if (issue.includes("failed queries")) return "Query errors";
   if (issue.includes("strongest scripted baseline")) return "Below bar";
   return "Protocol note";

@@ -8,6 +8,28 @@ using it verbatim, and it is imported by the ``scaffold-view`` baseline in
 ``gm_bench.agents`` so a registered agent can be measured on exactly the view
 models see. A second copy would make the measured gap a statement about a
 scaffold nobody runs the moment either copy changed.
+
+Two shapes are built from one selection. ``compact_observation`` renders the
+selection as pipe-delimited rows, because the v6 budget is ~6,500 prompt tokens
+against an 8,000 ceiling and per-field JSON keys repeated across ~70 player
+records cost more than the records themselves. ``scaffold_view_observation``
+returns the same selection as Python objects so a scripted policy can read it.
+
+What the two shapes share, exactly: every player-bearing list (roster, free
+agents, draft class, trade market, incoming offers, waiver wire) comes from
+``_select``, so both shapes carry the same records, in the same order, cut at
+the same limits -- ``test_scaffold_view_baseline`` pins this by re-rendering the
+reference's objects and requiring the rendered rows back byte for byte. The
+rest of the observation is passed to the reference in raw form, because a
+scripted policy cannot parse rows: ``rules`` (every published value of which the
+render also publishes), ``standings`` (with pick seasons cut the same way),
+``history``, ``draft_order``, ``draft_lottery``, ``scout_reports``,
+``recent_transactions`` and ``action_results``. Two of those the reference does
+see more of than a model does, and both are listed in
+``_UNBUDGETED_REFERENCE_FIELDS``: ``action_results`` is row-budgeted in the
+render and whole here, and a ledger row's raw ``action`` dict is summarized in
+the render as its message. The scripted reference reads neither, so the measured
+gap stays a statement about view truncation.
 """
 
 from __future__ import annotations
@@ -16,6 +38,54 @@ import os
 from typing import Any
 
 from gm_bench.agent_utils import position_aware_lineup, public_asset_value
+
+# Truncation limits per profile: roster, free agents, draft class, trade market,
+# waiver wire. "compact" is the v6 benchmark lane and matches the spec's budget
+# (~10 free agents, 8 prospects, 6 trade offers). "tiny" is the degraded-view
+# diagnostic. Every list is cut by a stated, published rule -- roster by overall,
+# candidate lists by public asset value -- so every model is truncated
+# identically and knows it was truncated.
+_LIMITS: dict[str, dict[str, int]] = {
+    "compact": {"roster": 26, "free_agents": 10, "draft_class": 8, "trade_market": 6, "waiver_wire": 4},
+    "tiny": {"roster": 18, "free_agents": 6, "draft_class": 6, "trade_market": 0, "waiver_wire": 3},
+}
+
+# Rows of echoed query answers kept in ``action_results``. One batch may send 24
+# information actions, each answering with whole player records, so this is the
+# one part of the view an agent could otherwise inflate past the token ceiling
+# on its own.
+_ACTION_RESULT_ROW_BUDGET = 14
+# Characters of a single action argument echoed back beside its result.
+_ARGUMENT_ECHO_CHARS = 80
+
+# An extension runs 2-5 years (`League._contract_quotes` starts incumbents at
+# year 2), so the series carries four prices, not five. Labelling it "1y..5y"
+# made the first price read as a one-year quote and hid the five-year one.
+_ROSTER_COLUMNS = "id|name|pos|age|overall|potential|salary|contract_years|injury_risk%|release_dead_cap(per season x seasons=total)|extension_quotes(2y..5y; an extension must run 2-5 years)"
+_FREE_AGENT_COLUMNS = (
+    "id|name|pos|age|overall|potential|injury_risk%|contract_quotes(1y..5y; the 1y quote is his "
+    "asking_salary, already multiplied by quote_multiplier)|"
+    "signing_appeal(projected_role,quote_multiplier,win_sensitivity)|flags"
+)
+_WAIVER_COLUMNS = "id|name|pos|age|overall|potential|injury_risk%|claim_cost(1 year)|flags"
+_DRAFT_COLUMNS = "id|name|pos|age|overall|potential|injury_risk%|scouted_potential"
+_TRADE_COLUMNS = "team_id|team_name|estimated_price|player: " + _DRAFT_COLUMNS.replace(
+    "|scouted_potential", "|salary|contract_years"
+)
+_STANDINGS_COLUMNS = (
+    "team_id|team_name|wins-losses|championships|public_strength|"
+    "pick_holdings(+acquired/-traded away, current season onward; a pick already used in the draft is not listed)"
+)
+_HISTORY_COLUMNS = "season|wins-losses|playoff_rounds|champion_team_id|payroll|cap_room|score_after_season"
+_LEDGER_COLUMNS = (
+    "season|phase|team|move (a move prefixed REJECTED: was attempted by you and refused, for the stated reason)"
+)
+
+# The fields ``scaffold_view_observation`` hands the reference policy in a form
+# the rendered view does not fully reproduce. Kept as a named, tested list so
+# the module docstring's claim about what the two shapes share cannot quietly
+# stop being true; the scripted reference reads neither field.
+_UNBUDGETED_REFERENCE_FIELDS = ("action_results", "recent_transactions")
 
 
 def model_adapter_observation(observation: dict[str, Any]) -> dict[str, Any]:
@@ -30,8 +100,20 @@ def model_adapter_observation(observation: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in observation.items() if key != "seed"}
 
 
-def compact_observation(observation: dict[str, Any], profile: str | None = None) -> dict[str, Any]:
-    """Compact an observation to the view a model adapter receives.
+def _resolve_profile(profile: str | None) -> str:
+    if profile is None:
+        profile = os.environ.get("GM_AGENT_PROFILE", "compact")
+    return profile if profile in _LIMITS else "compact"
+
+
+def _players(candidates: Any) -> list[dict[str, Any]]:
+    if not isinstance(candidates, list):
+        return []
+    return [player for player in candidates if isinstance(player, dict) and "overall" in player]
+
+
+def _select(observation: dict[str, Any], profile: str | None) -> dict[str, Any]:
+    """Sort and truncate the observation's lists once, for both output shapes.
 
     ``profile`` selects the truncation limits. Adapters leave it None and
     inherit ``GM_AGENT_PROFILE`` from the subprocess environment the harness
@@ -40,75 +122,680 @@ def compact_observation(observation: dict[str, Any], profile: str | None = None)
     operator's shell rather than the lane, so inheriting it would let an ambient
     value silently decide which view was measured.
     """
-    if profile is None:
-        profile = os.environ.get("GM_AGENT_PROFILE", "compact")
-    if profile == "tiny":
-        roster_limit = 18
-        free_agent_limit = 6
-        draft_limit = 6
-        trade_limit = 0
-    else:
-        roster_limit = 24
-        free_agent_limit = 16
-        draft_limit = 16
-        trade_limit = 12
+    limits = _LIMITS[_resolve_profile(profile)]
     team = observation.get("team") or {}
-    roster = team.get("roster") or []
-    roster_sorted = sorted(roster, key=lambda player: player["overall"], reverse=True) if roster else []
-    free_agents = observation.get("free_agents") or []
-    if not free_agents and observation.get("free_agents_summary"):
-        free_agents = [{"id": pid} for pid in observation["free_agents_summary"].get("top_ids", [])]
-    free_agents_sorted = sorted(
-        [player for player in free_agents if isinstance(player, dict) and "overall" in player],
-        key=public_asset_value,
-        reverse=True,
-    )
-    draft_class = observation.get("draft_class") or []
-    if not draft_class and observation.get("draft_class_summary"):
-        draft_class = [{"id": pid} for pid in observation["draft_class_summary"].get("top_ids", [])]
-    draft_sorted = sorted(
-        [player for player in draft_class if isinstance(player, dict) and "overall" in player],
-        key=public_asset_value,
-        reverse=True,
-    )
+    roster = sorted(_players(team.get("roster")), key=lambda player: player["overall"], reverse=True)
+
+    def candidates(key: str, summary_key: str) -> list[dict[str, Any]]:
+        items = observation.get(key) or []
+        if not items and observation.get(summary_key):
+            # Summary-tier observations publish ids only; keep them so the model
+            # still knows which players exist and can act on one by id.
+            return [{"id": player_id} for player_id in observation[summary_key].get("top_ids", [])][: limits[key]]
+        return sorted(_players(items), key=public_asset_value, reverse=True)[: limits[key]]
+
     trade_market = observation.get("trade_market") or []
+    trade_offers = [
+        offer for offer in trade_market if isinstance(offer, dict) and isinstance(offer.get("player"), dict)
+    ]
+    trade_offers.sort(key=lambda offer: public_asset_value(offer["player"]), reverse=True)
+    return {
+        "limits": limits,
+        "team": team,
+        "roster": roster[: limits["roster"]],
+        "roster_total": len(roster),
+        "roster_summary": team.get("roster_summary") or {},
+        "free_agents": candidates("free_agents", "free_agents_summary"),
+        "free_agents_total": len(_players(observation.get("free_agents")))
+        or _summary_count(observation, "free_agents_summary"),
+        "draft_class": candidates("draft_class", "draft_class_summary"),
+        "draft_class_total": len(_players(observation.get("draft_class")))
+        or _summary_count(observation, "draft_class_summary"),
+        "trade_market": trade_offers[: limits["trade_market"]],
+        "trade_market_total": len(trade_offers) or _summary_count(observation, "trade_market_summary"),
+        "waiver_wire": sorted(_players(observation.get("waiver_wire")), key=public_asset_value, reverse=True)[
+            : limits["waiver_wire"]
+        ],
+        "incoming_offers": [offer for offer in (observation.get("incoming_offers") or []) if isinstance(offer, dict)][
+            :3
+        ],
+    }
+
+
+def _summary_count(observation: dict[str, Any], key: str) -> int:
+    summary = observation.get(key)
+    return int(summary.get("count", 0)) if isinstance(summary, dict) else 0
+
+
+def _num(value: Any) -> str:
+    """Render a number without trailing zeros, and non-numbers as a dash."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return "-"
+    rounded = round(float(value), 2)
+    return str(int(rounded)) if rounded == int(rounded) else str(rounded)
+
+
+def _pct(value: Any) -> str:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return "-"
+    return str(round(float(value) * 100))
+
+
+def _position(player: dict[str, Any]) -> str:
+    position = str(player.get("position", "?"))
+    sub_position = player.get("sub_position")
+    return f"{position}/{sub_position}" if sub_position else position
+
+
+def _quotes(quotes: Any) -> str:
+    """Render a term price table as a slash-joined series, shortest term first.
+
+    Free-agent quotes run 1-5 years and extension quotes 2-5, so the matching
+    ``*_columns`` header has to name the first term; the series itself cannot.
+    """
+    if not isinstance(quotes, dict) or not quotes:
+        return "-"
+    return "/".join(_num(quotes[key]) for key in sorted(quotes, key=lambda item: int(item)))
+
+
+def _dead_cap(charge: Any) -> str:
+    """Render a release charge as "per-season x seasons (total)".
+
+    The simulator books one flat charge per retained season, so listing the
+    seasons out one by one repeats the same number; the compressed form keeps
+    both halves a cap plan needs -- what it costs each season and in total.
+    """
+    if not isinstance(charge, dict):
+        return "-"
+    by_season = charge.get("by_season") or {}
+    if not by_season:
+        return _num(charge.get("total"))
+    seasons = sorted(by_season, key=lambda item: int(item))
+    amounts = {_num(by_season[season]) for season in seasons}
+    total = _num(charge.get("total"))
+    if len(amounts) == 1:
+        return f"{amounts.pop()}x{len(seasons)}s={total}"
+    return f"{'+'.join(f'S{season}:{_num(by_season[season])}' for season in seasons)}={total}"
+
+
+def _player_core(player: dict[str, Any]) -> list[str]:
+    """The id/name/position/age/overall/potential/injury columns every table shares."""
+    return [
+        _num(player.get("id")),
+        str(player.get("name", "?")),
+        _position(player),
+        _num(player.get("age")),
+        _num(player.get("overall")),
+        _num(player.get("potential")),
+        _pct(player.get("injury_risk")),
+    ]
+
+
+def _roster_rows(roster: list[dict[str, Any]]) -> list[str]:
+    rows = []
+    for player in roster:
+        core = _player_core(player)
+        rows.append(
+            "|".join(
+                core[:6]
+                + [
+                    _num(player.get("salary")),
+                    _num(player.get("contract_years")),
+                    core[6],
+                    _dead_cap(player.get("release_dead_cap")),
+                    _quotes(player.get("extension_quotes")),
+                ]
+            )
+        )
+    return rows
+
+
+def _free_agent_rows(free_agents: list[dict[str, Any]]) -> list[str]:
+    rows = []
+    for player in free_agents:
+        appeal = player.get("signing_appeal") or {}
+        flags = "resign_blocked" if player.get("resign_blocked") else ""
+        rows.append(
+            "|".join(
+                [
+                    "|".join(_player_core(player)),
+                    _quotes(player.get("contract_quotes")),
+                    f"{appeal.get('projected_role', '-')},x{_num(appeal.get('quote_multiplier'))},"
+                    f"sens{_num(appeal.get('win_sensitivity'))}",
+                    flags,
+                ]
+            )
+        )
+    return rows
+
+
+def _waiver_rows(players: list[dict[str, Any]]) -> list[str]:
+    """Waiver claims are one-year, take-it-or-leave-it: one price, no term table."""
+    return [
+        "|".join(
+            _player_core(player)
+            + [
+                _num(player.get("asking_salary")),
+                "resign_blocked" if player.get("resign_blocked") else "",
+            ]
+        )
+        for player in players
+    ]
+
+
+def _draft_rows(prospects: list[dict[str, Any]], scout_reports: dict[str, Any]) -> list[str]:
+    return [
+        "|".join(_player_core(prospect) + [_num(scout_reports.get(str(prospect.get("id"))))]) for prospect in prospects
+    ]
+
+
+def _trade_rows(offers: list[dict[str, Any]]) -> list[str]:
+    rows = []
+    for offer in offers:
+        player = offer["player"]
+        rows.append(
+            "|".join(
+                [
+                    f"T{_num(offer.get('team_id'))}",
+                    str(offer.get("team_name", "?")),
+                    _num(offer.get("estimated_price")),
+                    "|".join(_player_core(player)),
+                    _num(player.get("salary")),
+                    _num(player.get("contract_years")),
+                ]
+            )
+        )
+    return rows
+
+
+def _offer_side(players: Any, pick_seasons: Any) -> str:
+    parts = [
+        f"{_num(player.get('id'))} {player.get('name', '?')} {_position(player)} "
+        f"ovr{_num(player.get('overall'))} pot{_num(player.get('potential'))} "
+        f"{_num(player.get('salary'))}x{_num(player.get('contract_years'))}y"
+        for player in players or []
+        if isinstance(player, dict)
+    ]
+    parts += [f"S{_num(season)} pick" for season in pick_seasons or []]
+    return "; ".join(parts) if parts else "nothing"
+
+
+def _offer_rows(offers: list[dict[str, Any]]) -> list[str]:
+    return [
+        f"{offer.get('offer_id')} from T{_num(offer.get('team_id'))} {offer.get('team_name', '?')} "
+        f"|| you receive: {_offer_side(offer.get('you_receive_players'), offer.get('you_receive_pick_seasons'))} "
+        f"|| they receive: {_offer_side(offer.get('they_receive_players'), offer.get('they_receive_pick_seasons'))} "
+        f"|| expires: {offer.get('expires', 'this decision point')}"
+        for offer in offers
+    ]
+
+
+def _pick_holdings(team_id: Any, holdings: Any, season: Any, held_elsewhere: Any = None) -> str:
+    """Summarize a team's picks as departures from "its own pick every season".
+
+    Twelve teams times seven seasons of "team N owns team N's pick" is pure
+    redundancy; what a trade partner needs is which picks were acquired and
+    which were traded away.
+
+    Seasons before ``season`` are dropped: those picks are spent history.
+    Inside the current season the raw holdings are still ambiguous, because a
+    pick that has already been used in the draft leaves the same empty origin
+    list behind as a pick that was traded away -- and opponents draft before
+    the user, so at the user's draft-phase observation every opponent that has
+    picked would otherwise read as having sold its first-rounder.
+    ``held_elsewhere`` resolves it: a pick whose original team no longer holds
+    it but which some other team does was traded, and one no team holds was
+    exercised and is simply not listed. Callers without a league-wide view pass
+    None, and current-season departures are then left unstated rather than
+    guessed. Future seasons cannot have been exercised, so they need neither.
+    """
+    if not isinstance(holdings, dict) or not holdings:
+        return "own"
+    current = _season_number(season)
+    notes = []
+    for pick_season in sorted(holdings, key=lambda item: int(item)):
+        if current is not None and int(pick_season) < current:
+            continue
+        origins = list(holdings[pick_season] or [])
+        extras = [origin for origin in origins if origin != team_id]
+        notes += [f"+S{pick_season}(T{origin})" for origin in extras]
+        if team_id in origins:
+            continue
+        if current is not None and int(pick_season) == current:
+            still_held = (held_elsewhere or {}).get(int(pick_season)) or set()
+            if held_elsewhere is None or team_id not in still_held:
+                continue
+        notes.append(f"-S{pick_season}")
+    return " ".join(notes) if notes else "own"
+
+
+def _season_number(season: Any) -> int | None:
+    try:
+        return int(season)
+    except (TypeError, ValueError):
+        return None
+
+
+def _origins_still_held(standings: Any) -> dict[int, set[Any]]:
+    """Per season, every pick origin some team in the league still holds.
+
+    A pick that was traded is in its new owner's list; a pick that was used in
+    the draft is in nobody's. That difference is what lets ``_pick_holdings``
+    tell "sold it" from "already drafted with it".
+    """
+    held: dict[int, set[Any]] = {}
+    for team in standings or []:
+        if not isinstance(team, dict):
+            continue
+        for pick_season, origins in (team.get("pick_origins") or {}).items():
+            held.setdefault(int(pick_season), set()).update(origins or [])
+    return held
+
+
+def _standings_rows(standings: Any, season: Any) -> list[str]:
+    rows = []
+    held_elsewhere = _origins_still_held(standings)
+    for team in standings or []:
+        if not isinstance(team, dict):
+            continue
+        rows.append(
+            "|".join(
+                [
+                    f"T{_num(team.get('team_id'))}",
+                    str(team.get("team_name", "?")),
+                    f"{_num(team.get('wins'))}-{_num(team.get('losses'))}",
+                    _num(team.get("championships")),
+                    _num(team.get("public_strength")),
+                    _pick_holdings(team.get("team_id"), team.get("pick_origins"), season, held_elsewhere),
+                ]
+            )
+        )
+    return rows
+
+
+def _history_rows(history: Any) -> list[str]:
+    rows = []
+    for summary in history or []:
+        if not isinstance(summary, dict):
+            continue
+        rows.append(
+            "|".join(
+                [
+                    f"S{_num(summary.get('season'))}",
+                    f"{_num(summary.get('wins'))}-{_num(summary.get('losses'))}",
+                    f"playoff_rounds {_num(summary.get('playoff_rounds'))}",
+                    f"champion T{_num(summary.get('champion_team_id'))}",
+                    f"payroll {_num(summary.get('payroll'))}",
+                    f"cap_room {_num(summary.get('cap_room'))}",
+                    f"score {_num(summary.get('score_after_season'))}",
+                ]
+            )
+        )
+    return rows
+
+
+def _ledger_rows(transactions: Any, user_team_id: Any) -> list[str]:
+    """Render the ledger, marking the rows that did not happen.
+
+    The ledger carries the user's own rejected roster moves as well as the
+    accepted ones (see ``League._recent_transactions_public``), and a rejection
+    reason reads exactly like a completed move unless it is labelled.
+    """
+    rows = []
+    for transaction in transactions or []:
+        if not isinstance(transaction, dict):
+            continue
+        actor = "YOU" if transaction.get("team_id") == user_team_id else f"T{_num(transaction.get('team_id'))}"
+        outcome = "" if transaction.get("accepted", True) else "REJECTED: "
+        rows.append(
+            f"S{_num(transaction.get('season'))}|{transaction.get('phase', '?')}|{actor}|"
+            f"{outcome}{transaction.get('message', '')}"
+        )
+    return rows
+
+
+def _action_result_rows(results: Any, scout_reports: dict[str, Any], season: Any) -> list[str]:
+    """Render one interaction round's results, with a hard row budget.
+
+    An information action answers with whole player records -- ``inspect_team``
+    returns a full opponent roster, ``list_free_agents`` up to 24 free-agent
+    cards -- and up to 24 actions may be sent in one batch. Echoed verbatim that
+    is several times the entire observation budget, so the attached records are
+    rendered as the same rows the rest of the view uses and cut off at
+    ``_ACTION_RESULT_ROW_BUDGET``. The cut is announced, the outcome line of
+    every result is always kept, and results are served in order, so a model
+    that asks one question at a time always sees its full answer.
+    """
+    rows: list[str] = []
+    budget = _ACTION_RESULT_ROW_BUDGET
+    dropped = 0
+    pending = [result for result in results or [] if isinstance(result, dict)]
+    for index, result in enumerate(pending):
+        action = result.get("action") if isinstance(result.get("action"), dict) else {}
+        arguments = " ".join(f"{key}={_compact_argument(value)}" for key, value in action.items() if key != "type")
+        outcome = "ok" if result.get("accepted") else "REJECTED"
+        rows.append(f"{outcome}|{action.get('type', '?')} {arguments}|{result.get('message', '')}".rstrip())
+        data = result.get("data") if isinstance(result.get("data"), dict) else {}
+        for kind, renderer in (
+            ("team", lambda team: [_inspected_team_line(team, season)]),
+            ("free_agents", lambda players: _free_agent_rows(_players(players))),
+            ("roster", lambda players: _roster_rows(_players(players))),
+            ("player", lambda player: _roster_rows(_players([player]))),
+        ):
+            if kind not in data:
+                continue
+            attached = renderer(data[kind])
+            room = max(0, budget - len(rows))
+            rows += [f"  {row}" for row in attached[:room]]
+            dropped += len(attached) - min(room, len(attached))
+        if len(rows) >= budget:
+            # Everything after this result is dropped whole -- its outcome line
+            # as well as its attached rows -- so it counts as omitted too.
+            # Counting only the rows cut *inside* a rendered result understated
+            # the loss, and a model cannot tell an unanswered action from an
+            # unsent one.
+            dropped += len(pending) - index - 1
+            break
+    if dropped:
+        rows.append(f"({dropped} further result rows omitted; the observation caps echoed query results)")
+    return rows
+
+
+def _inspected_team_line(team: Any, season: Any) -> str:
+    if not isinstance(team, dict):
+        return "-"
+    return (
+        f"  T{_num(team.get('id'))} {team.get('name', '?')} {_num(team.get('wins'))}-{_num(team.get('losses'))} "
+        f"championships {_num(team.get('championships'))} payroll {_num(team.get('payroll'))} "
+        f"cap_room {_num(team.get('cap_room'))} "
+        f"picks {_pick_holdings(team.get('id'), team.get('pick_origins'), season)}"
+    ).strip()
+
+
+def _compact_argument(value: Any) -> str:
+    """Echo an argument back at bounded length.
+
+    The echo exists so a model can tell which of several identical-looking
+    actions a result belongs to. A memo action carries the full 2,000-character
+    notebook, which the observation already publishes once under ``memo``, so
+    long values are cut rather than repeated.
+    """
+    if isinstance(value, list):
+        rendered = ",".join(_num(item) if isinstance(item, (int, float)) else str(item) for item in value) or "-"
+    elif isinstance(value, (int, float)) and not isinstance(value, bool):
+        rendered = _num(value)
+    else:
+        rendered = str(value)
+    return rendered if len(rendered) <= _ARGUMENT_ECHO_CHARS else rendered[:_ARGUMENT_ECHO_CHARS] + "..."
+
+
+def _pick_rows(picks: Any) -> list[str]:
+    rows = []
+    for pick in picks or []:
+        if not isinstance(pick, dict):
+            continue
+        rows.append(
+            f"S{_num(pick.get('season'))} from T{_num(pick.get('from_team_id'))} "
+            f"{pick.get('from_team_name', '?')} (projected slot {_num(pick.get('projected_slot'))})"
+        )
+    return rows
+
+
+def _lottery_text(lottery: Any) -> str:
+    if not isinstance(lottery, dict) or not lottery:
+        return "not published this phase"
+    weights = "/".join(_num(weight) for weight in lottery.get("weights_worst_first") or [])
+    slots = " ".join(
+        f"{_num(slot.get('slot'))}:from T{_num(slot.get('pick_from_team_id'))}->owner T{_num(slot.get('owner_team_id'))}"
+        for slot in lottery.get("slots") or []
+        if isinstance(slot, dict)
+    )
+    return (
+        f"drawn={lottery.get('drawn')} lottery_slots={_num(lottery.get('lottery_slots'))} "
+        f"weights_worst_first={weights}. {lottery.get('description', '')} "
+        f"slots (slot:pick origin->current owner): {slots}"
+    )
+
+
+def _rules_text(rules: Any) -> dict[str, str]:
+    """Re-render the rules block as one short line (or paragraph) per mechanic.
+
+    The prose descriptions the simulator publishes for the center bonus, free-
+    agent willingness, and extension expiry are kept verbatim: they are how each
+    v6 mechanic is made legible, and paraphrasing them here would fork the
+    explanation from the constants it describes. Only the machine-readable
+    numbers around them are flattened.
+
+    Every published rule value is rendered. Some are also implied elsewhere --
+    ``young_win_sensitivity`` reappears per player in ``signing_appeal``, and
+    the extension eligibility constants are visible in which roster rows carry
+    ``extension_quotes`` -- but silently dropping them cost a model the ability
+    to check its own arithmetic, and left the scripted reference policy holding
+    rules the model was never shown.
+    """
+    if not isinstance(rules, dict):
+        return {}
+    lineup = rules.get("lineup_min_positions") or {}
+    center = rules.get("lineup_center_bonus") or {}
+    willingness = rules.get("free_agency_willingness") or {}
+    contracts = rules.get("contracts") or {}
+    picks = rules.get("pick_trading") or {}
+    scouting = rules.get("scouting") or {}
+    reservation = rules.get("fa_reservation_range") or []
+    return {
+        "cap": (
+            f"salary_cap={_num(rules.get('salary_cap'))} hard_cap_buffer={_num(rules.get('hard_cap_buffer'))} "
+            f"roster_min={_num(rules.get('roster_min'))}"
+        ),
+        "lineup": (
+            f"lineup_size={_num(rules.get('lineup_size'))} minimums="
+            + ",".join(f"{position}>={_num(count)}" for position, count in sorted(lineup.items()))
+            + f". Center bonus: target={_num(center.get('target'))} "
+            f"bonus_per_center={_num(center.get('bonus_per_center'))}. {center.get('description', '')}"
+        ),
+        "free_agency": (
+            f"fa_reservation_range={'-'.join(_num(bound) for bound in reservation)} "
+            f"rejected_offer_limit_per_window={_num(rules.get('rejected_offer_limit_per_window'))} "
+            f"win_appeal_weight={_num(willingness.get('win_appeal_weight'))} "
+            f"role_appeal_weight={_num(willingness.get('role_appeal_weight'))} "
+            f"veteran_age={_num(willingness.get('veteran_age'))} "
+            f"young_win_sensitivity={_num(willingness.get('young_win_sensitivity'))}. "
+            f"{willingness.get('description', '')}"
+        ),
+        "contracts": (
+            f"dead_cap_fraction={_num(contracts.get('dead_cap_fraction'))} "
+            f"dead_cap_max_seasons={_num(contracts.get('dead_cap_max_seasons'))} "
+            f"annual_market_inflation={_num(contracts.get('annual_market_inflation'))} "
+            f"additional_year_premium={_num(contracts.get('additional_year_premium'))} "
+            f"incumbent_extension_discount={_num(contracts.get('incumbent_extension_discount'))} "
+            f"extension_eligibility_years_remaining="
+            f"{_num(contracts.get('extension_eligibility_years_remaining'))} "
+            f"extension_minimum_contract_age_seasons="
+            f"{_num(contracts.get('extension_minimum_contract_age_seasons'))} "
+            f"expiry_scramble_candidates={_num(contracts.get('expiry_scramble_candidates'))}. "
+            f"{contracts.get('expiry_risk', '')} {contracts.get('release_resign_block', '')}"
+        ),
+        "trades": (
+            f"trade_value_threshold={_num(rules.get('trade_value_threshold'))} "
+            f"trade_limit_per_partner={_num(rules.get('trade_limit_per_partner'))} "
+            f"pick_trading.max_seasons_ahead={_num(picks.get('max_seasons_ahead'))} "
+            "pick_trading.pick_value_estimate="
+            + ",".join(
+                f"S{season}:{_num(value)}" for season, value in sorted((picks.get("pick_value_estimate") or {}).items())
+            )
+        ),
+        "scouting": (
+            f"points_per_season={_num(scouting.get('points_per_season'))} "
+            f"points_remaining={_num(scouting.get('points_remaining'))} "
+            f"report_noise={_num(scouting.get('report_noise'))}"
+        ),
+    }
+
+
+def _owned_pick_counts(draft_picks: Any, season: Any) -> Any:
+    """The user's per-season pick counts, from the current season onward."""
+    if not isinstance(draft_picks, dict):
+        return draft_picks
+    current = _season_number(season)
+    if current is None:
+        return draft_picks
+    return {pick_season: count for pick_season, count in draft_picks.items() if int(pick_season) >= current}
+
+
+def _team_block(observation: dict[str, Any], selection: dict[str, Any]) -> dict[str, Any]:
+    team = selection["team"]
+    limits = selection["limits"]
+    roster_total = selection["roster_total"]
+    block: dict[str, Any] = {
+        "id": team.get("id"),
+        "name": team.get("name"),
+        "record": f"{_num(team.get('wins'))}-{_num(team.get('losses'))}",
+        "championships": team.get("championships"),
+        "payroll": team.get("payroll"),
+        "cap_room": team.get("cap_room"),
+        "dead_cap": {str(season): _num(charge) for season, charge in sorted((team.get("dead_cap") or {}).items())},
+        # Same cut as `team.picks` and as the standings column: a season the
+        # user has already drafted in reads as "0 picks owned", which the prompt
+        # ("owned picks per season are in team.draft_picks") would otherwise
+        # present as a pick the user no longer has.
+        "draft_picks": _owned_pick_counts(team.get("draft_picks"), observation.get("season")),
+        "picks": _pick_rows(team.get("picks")),
+        "current_lineup": team.get("lineup") or [],
+        "roster_columns": _ROSTER_COLUMNS,
+        "roster": _roster_rows(selection["roster"]),
+    }
+    summary = selection["roster_summary"]
+    if not block["roster"] and summary:
+        # Summary-tier observations carry no player cards at all. Publishing the
+        # empty table and nothing else silently deleted the roster; the counts
+        # and the best players' ids are what that tier does have.
+        del block["roster_columns"]
+        block["roster_summary"] = summary
+        block["roster_note"] = (
+            f"summary tier: no player cards this observation. {_num(summary.get('count'))} players, "
+            f"average overall {_num(summary.get('avg_overall'))}, best by overall: "
+            + ",".join(_num(player_id) for player_id in summary.get("top_player_ids") or [])
+        )
+    elif roster_total > len(selection["roster"]):
+        block["roster_note"] = (
+            f"roster truncated to the top {limits['roster']} of {roster_total} players by overall; "
+            "the rest are not shown"
+        )
+    return block
+
+
+def _carded(players: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The selected players who came with a full card.
+
+    Summary-tier observations publish ids without ratings; rendering those as
+    rows of dashes would cost tokens and say nothing, so they are listed as bare
+    ids for the model to inspect instead.
+    """
+    return [player for player in players if "overall" in player]
+
+
+def _id_only(players: list[dict[str, Any]]) -> list[int]:
+    return [player["id"] for player in players if "overall" not in player and "id" in player]
+
+
+def _truncation_note(kind: str, shown: int, total: int, rule: str) -> str:
+    """State the cut truthfully for the path that produced it.
+
+    Never promises that an information action reaches the rest: under the v6
+    one-call rule the answer to such a query is never returned to the model, so
+    whatever this note leaves out is simply absent from the decision.
+    """
+    if total <= shown:
+        return f"showing all {total} {kind}"
+    if shown == 0:
+        return f"none of the {total} {kind} are published at this observation tier"
+    return f"showing the top {shown} of {total} {kind} by {rule}; the rest are not shown"
+
+
+def _candidate_rule(players: list[dict[str, Any]]) -> str:
+    """How the published candidates were chosen, per tier.
+
+    The full tier ranks cards by public asset value. The summary tier never
+    gets cards: the simulator picks its ids by overall rating, so a note
+    claiming asset-value ordering there would describe a rule nothing ran.
+    """
+    return "public asset value" if _carded(players) else "overall rating (ids only, summary tier)"
+
+
+def compact_observation(observation: dict[str, Any], profile: str | None = None) -> dict[str, Any]:
+    """Compact an observation to the view a model adapter receives.
+
+    Rows are pipe-delimited and their columns are named after the underlying
+    observation fields, so prompt text that refers to ``contract_quotes``,
+    ``extension_quotes``, ``release_dead_cap``, ``signing_appeal`` or
+    ``resign_blocked`` still points at something the model can find.
+    """
+    selection = _select(observation, profile)
+    scout_reports = observation.get("scout_reports") or {}
+    team = selection["team"]
     payload: dict[str, Any] = {
         "season": observation.get("season"),
         "phase": observation.get("phase"),
         "observation_tier": observation.get("observation_tier", "full"),
         "interaction_round": observation.get("interaction_round", 0),
-        "rules": observation.get("rules"),
-        "team": {
-            "id": team.get("id"),
-            "name": team.get("name"),
-            "wins": team.get("wins"),
-            "losses": team.get("losses"),
-            "payroll": team.get("payroll"),
-            "cap_room": team.get("cap_room"),
-            "dead_cap": team.get("dead_cap", {}),
-            "championships": team.get("championships"),
-            "draft_picks": team.get("draft_picks"),
-            "top_roster": roster_sorted[:roster_limit] if roster_sorted else team.get("roster_summary"),
-        },
-        "free_agents": free_agents_sorted[:free_agent_limit],
-        "draft_class": draft_sorted[:draft_limit],
-        "draft_order": observation.get("draft_order", []),
-        "trade_market": trade_market[:trade_limit],
-        "incoming_offers": observation.get("incoming_offers", [])[:3],
-        "scout_reports": observation.get("scout_reports", {}),
-        "waiver_wire_summary": observation.get("waiver_wire_summary"),
+        "format": (
+            "Tables are lists of pipe-delimited rows; the matching *_columns field names the columns, "
+            "and each name is the observation field it came from. Salaries and cap figures are in the "
+            "same units as the salary cap. injury_risk% is a percentage. Every candidate list is "
+            "truncated by a fixed public rule, identical for every agent, and states its cutoff."
+        ),
+        "rules": _rules_text(observation.get("rules")),
+        "team": _team_block(observation, selection),
+        "standings_columns": _STANDINGS_COLUMNS,
+        "standings": _standings_rows(observation.get("standings"), observation.get("season")),
+        "free_agents_columns": _FREE_AGENT_COLUMNS,
+        "free_agents": _free_agent_rows(_carded(selection["free_agents"])),
+        "free_agents_ids_only": _id_only(selection["free_agents"]),
+        "free_agents_note": _truncation_note(
+            "free agents",
+            len(selection["free_agents"]),
+            selection["free_agents_total"],
+            _candidate_rule(selection["free_agents"]),
+        ),
+        "draft_class_columns": _DRAFT_COLUMNS,
+        "draft_class": _draft_rows(_carded(selection["draft_class"]), scout_reports),
+        "draft_class_ids_only": _id_only(selection["draft_class"]),
+        "draft_class_note": _truncation_note(
+            "prospects",
+            len(selection["draft_class"]),
+            selection["draft_class_total"],
+            _candidate_rule(selection["draft_class"]),
+        ),
+        "trade_market_columns": _TRADE_COLUMNS,
+        "trade_market": _trade_rows(selection["trade_market"]),
+        "trade_market_note": _truncation_note(
+            "listed players", len(selection["trade_market"]), selection["trade_market_total"], "public asset value"
+        ),
+        "incoming_offers": _offer_rows(selection["incoming_offers"]),
+        "draft_order_inverse_standings": observation.get("draft_order", []),
+        "draft_lottery": _lottery_text(observation.get("draft_lottery")),
+        "scout_reports": {str(key): _num(value) for key, value in sorted(scout_reports.items())},
+        "history_columns": _HISTORY_COLUMNS,
+        "history": _history_rows(observation.get("history")),
+        "recent_transactions_columns": _LEDGER_COLUMNS,
+        "recent_transactions": _ledger_rows(observation.get("recent_transactions"), team.get("id")),
         "available_actions": observation.get("available_actions", []),
-        "action_results": observation.get("action_results"),
-        "history": observation.get("history"),
+        "action_results_columns": "outcome|action|message, followed by indented result rows",
+        "action_results": _action_result_rows(
+            observation.get("action_results"), scout_reports, observation.get("season")
+        ),
         "memo": observation.get("memo", ""),
-        "hint": observation.get("hint"),
     }
-    if observation.get("free_agents_summary"):
-        payload["free_agents_summary"] = observation["free_agents_summary"]
-    if observation.get("draft_class_summary"):
-        payload["draft_class_summary"] = observation["draft_class_summary"]
-    if observation.get("trade_market_summary"):
-        payload["trade_market_summary"] = observation["trade_market_summary"]
+    for key in ("free_agents_ids_only", "draft_class_ids_only"):
+        if not payload[key]:
+            del payload[key]
+    if selection["waiver_wire"]:
+        payload["waiver_wire_columns"] = _WAIVER_COLUMNS
+        payload["waiver_wire"] = _waiver_rows(selection["waiver_wire"])
+    if observation.get("waiver_wire_summary"):
+        payload["waiver_wire_summary"] = observation["waiver_wire_summary"]
+    if observation.get("hint"):
+        payload["hint"] = observation["hint"]
     return payload
 
 
@@ -122,23 +809,75 @@ def scaffold_fallback_lineup(observation: dict[str, Any]) -> list[int]:
     return position_aware_lineup(roster) if roster else []
 
 
-def scaffold_view_observation(observation: dict[str, Any], profile: str | None = None) -> dict[str, Any]:
-    """Re-shape the model payload so a scripted policy can read it.
+def _visible_standings(standings: Any, season: Any) -> list[Any]:
+    """Standings with each team's pick origins cut to the seasons the render shows.
 
-    Only naming is undone: ``team.top_roster`` goes back to ``team.roster``,
-    and the candidate lists the compactor always emits are guaranteed present.
-    Every truncation stays in place. The payload is deliberately *not* round
-    tripped through JSON first -- that would turn ``team.draft_picks`` season
-    keys into strings and make scripted ``.get(season)`` lookups miss, which is
-    a Python typing artifact rather than information a model is denied.
+    The rendered ``pick_holdings`` column stops at the current season, because
+    earlier picks are spent history. Handing the reference policy every past
+    season's origins would give it the one thing the model's standings row does
+    not have.
     """
-    payload = compact_observation(observation, profile)
-    team = dict(payload["team"])
-    roster = team.pop("top_roster", None)
-    team["roster"] = list(roster) if isinstance(roster, list) else []
-    payload["team"] = team
-    for key in ("free_agents", "draft_class", "trade_market", "incoming_offers"):
-        if not isinstance(payload.get(key), list):
-            payload[key] = []
-    payload["scaffold_fallback_lineup"] = scaffold_fallback_lineup(observation)
+    visible = []
+    for team in standings or []:
+        if not isinstance(team, dict) or "pick_origins" not in team:
+            visible.append(team)
+            continue
+        origins = team.get("pick_origins") or {}
+        current = _season_number(season)
+        visible.append(
+            {
+                **team,
+                "pick_origins": {
+                    pick_season: value
+                    for pick_season, value in origins.items()
+                    if current is None or int(pick_season) >= current
+                },
+            }
+        )
+    return visible
+
+
+def scaffold_view_observation(observation: dict[str, Any], profile: str | None = None) -> dict[str, Any]:
+    """The same selection as ``compact_observation``, shaped for a scripted policy.
+
+    Only the rendering is undone: the rows a model reads become the dicts they
+    were built from, and the flattened rules text becomes the rules dict. Every
+    truncation stays in place. The two exceptions -- the fields this shape
+    carries in fuller form than the render does -- are ``_UNBUDGETED_REFERENCE_
+    FIELDS``, and neither is read by the scripted policy; see the module
+    docstring. The payload is deliberately *not* round tripped through JSON --
+    that would turn ``team.draft_picks`` season keys into strings and make
+    scripted ``.get(season)`` lookups miss, which is a Python typing artifact
+    rather than information a model is denied.
+    """
+    selection = _select(observation, profile)
+    team = dict(selection["team"])
+    team["roster"] = list(selection["roster"])
+    # Cut to the same seasons the rendered `team.draft_picks` publishes, so the
+    # reference policy is not handed pick counts for seasons a model cannot see.
+    team["draft_picks"] = _owned_pick_counts(team.get("draft_picks"), observation.get("season"))
+    payload: dict[str, Any] = {
+        "season": observation.get("season"),
+        "phase": observation.get("phase"),
+        "observation_tier": observation.get("observation_tier", "full"),
+        "interaction_round": observation.get("interaction_round", 0),
+        "rules": observation.get("rules") or {},
+        "team": team,
+        "standings": _visible_standings(observation.get("standings"), observation.get("season")),
+        "free_agents": list(selection["free_agents"]),
+        "draft_class": list(selection["draft_class"]),
+        "trade_market": list(selection["trade_market"]),
+        "waiver_wire": list(selection["waiver_wire"]),
+        "incoming_offers": list(selection["incoming_offers"]),
+        "draft_order": observation.get("draft_order", []),
+        "draft_lottery": observation.get("draft_lottery"),
+        "scout_reports": observation.get("scout_reports") or {},
+        "history": observation.get("history") or [],
+        "recent_transactions": observation.get("recent_transactions") or [],
+        "available_actions": observation.get("available_actions", []),
+        "action_results": observation.get("action_results"),
+        "memo": observation.get("memo", ""),
+        "hint": observation.get("hint"),
+        "scaffold_fallback_lineup": scaffold_fallback_lineup(observation),
+    }
     return payload

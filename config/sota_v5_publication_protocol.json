@@ -1,39 +1,74 @@
 {
   "schema_version": 1,
   "contract": "sota-v5",
-  "contract_fingerprint": "247e12fe5a7d4f5b",
+  "contract_fingerprint": "a600b7da0c302231",
   "status": "frozen",
   "evidence_state": "pre-data-no-completion-calls",
-  "research_question": "Whether each preregistered sota-v5 model-plus-compact-scaffold system trails the named pick-trader reference under the frozen actions-v3, sim-v3, observation-v2, and score-v1 mechanics.",
+  "amendment_revision": "2026-09-01-v6-route-and-cohort-amendment",
+  "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
+  "research_question": "Whether each preregistered sota-v5 model-plus-compact-scaffold system trails the named pick-trader reference under the frozen actions-v3, sim-v4, observation-v3, and score-v1 mechanics.",
   "panel_design": {
     "status": "frozen",
-    "holm_family_size": 8,
-    "selected_allocation": "16 seeds x 1 repeat",
-    "selected_sensitivity_power": 0.8727,
-    "selected_sensitivity_power_wilson_ci95": [0.866024, 0.87909],
-    "selected_base_power": 0.9629,
-    "selected_base_power_wilson_ci95": [0.959014, 0.96643],
-    "seed_panel_lineage": "sota-v3 -> sota-v4 -> sota-v5; exact commitment unchanged and owner attestation required before seed access",
+    "holm_family_size": 16,
+    "selected_allocation": "29 seeds x 1 repeat",
+    "allocation_basis": "Design sensitivity target of a 30-point minimum detectable difference from the calibration panel (docs/bench_v6_spec.md); docs/scoring_calibration.md measures 26 points at 29 paired seeds. This sized the seed allocation only; the sole supported inference remains each model's predeclared contrast versus pick-trader (see statistical_analysis_plan.ranking_rule).",
+    "minimum_exact_two_sided_sign_flip_p_value": 3.725290298461914e-09,
+    "holm_first_step_threshold_at_alpha_0_05": 0.003125,
+    "seed_panel_lineage": "The sota-v3 -> v4 -> v5 16-seed commitment is retired unused; a new 29-seed commitment must be generated, frozen, and owner-attested before seed access.",
     "seed_values_read_for_preregistration": false
   },
   "output_policy": {
-    "status": "frozen-native-reasoning-cap",
+    "status": "frozen-v6-output-ceiling-including-reasoning",
     "output_token_cap": 4096,
     "cap_pressure_threshold_tokens": 3072,
     "fallback_output_token_cap": 8192,
-    "reasoning_policy": "disabled",
-    "cap_pressure_action": "abort-sota-v5-and-repreregister",
+    "reasoning_policy": "per-model-disabled-or-mandatory-minimum",
+    "reasoning_policy_rule": "Reasoning is disabled wherever the public catalog advertises a disabled path. Where the catalog marks reasoning mandatory, the row runs at the lowest advertised effort and its reasoning tokens are recorded beside the score. The 4,096-token ceiling includes reasoning tokens.",
+    "cap_pressure_action": "exclude-the-pressured-row-and-record-the-evidence",
     "max_cap_amendments": 0,
-    "mandatory_reasoning_action": "abort-sota-v5-and-repreregister"
+    "mandatory_reasoning_action": "run-at-minimum-advertised-effort-and-record-reasoning-tokens",
+    "supersedes": "The 2026-08-16 policy, whose lane-wide 'disabled' reasoning setting and abort-on-mandatory-reasoning rule would have excluded four of the sixteen frozen v6 panel models, including the frontier slot."
   },
   "rerun_policy": {
     "maximum_infrastructure_attempts_per_cell": 2,
     "resume_exact_checkpoint": true,
     "model_behavior_never_authorizes_a_rerun": true,
+    "paid_model_retry_authorized": false,
     "sota_v3_and_sota_v4_attempts_and_artifacts_do_not_carry_forward": true,
     "unknown_cost_action": "stop-and-reconcile-before-any-retry",
     "provider_calls_serialized": true,
-    "provider_workers": 1
+    "provider_workers": 1,
+    "transient_status_backoff": {
+      "added_at_utc": "2026-09-03T03:20:00Z",
+      "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
+      "statuses": [
+        "HTTP 429",
+        "HTTP 502",
+        "HTTP 503",
+        "HTTP 504",
+        "HTTP 529"
+      ],
+      "max_retries_per_decision": 4,
+      "backoff_seconds": "20 * 2**n with up to 25% jitter (20, 40, 80, 160)",
+      "counts_as_paid_call": false,
+      "counts_toward_fail_fast": "only after the retries are exhausted",
+      "spend_reconciliation": "the unresolved call reservation is charged in full as spent before each retry (charge-full-conservative-call-reservation) and the retry is recorded in the run directory's guard state",
+      "scope": "gm_bench/model_runs.py TransientRetryAgent, outside every contract and scaffold fingerprint source; model behavior is untouched and still never authorizes a rerun",
+      "why": "On 2026-09-03 four of the first four panel cells lost an infrastructure attempt to a pair of consecutive transient statuses (Together 429, Alibaba 429 twice, OpenAI flex 503) with no completion produced and nothing billed. The two-attempt limit was written for dead routes, not for a 600-call cell meeting two transient statuses in a row."
+    }
+  },
+  "exclusion_policy": {
+    "status": "frozen",
+    "rule": "every-registered-row-accounted-for",
+    "definition": "A registered row is accounted for when it is either eligible (a passing artifact under the publication gate) or excluded under a rule that was frozen before the panel ran, with its evidence retained and listed in the committed exclusion register. Publication requires every one of the sixteen registered rows to be accounted for. The Holm family stays at the registered sixteen, so no p-value gets easier because a row is missing. The headline floor drops from sixteen to eight. A registered row that is missing with no register entry still blocks publication.",
+    "minimum_headline_models": 8,
+    "minimum_basis": "Eight is the cohort size the sota-v3 amendment 3 of 2026-08-06 (docs/run_logs/sota-v3-design-amendment-2026-08-06.md) already accepted as publishable, a decision taken before any v5 or v6 model data existed and not derived from this panel's outcome.",
+    "holm_family_size": 16,
+    "holm_family_unchanged": true,
+    "exclusion_register": "config/sota_v5_panel_exclusions.json",
+    "decided_after_data": true,
+    "amended_at_utc": "2026-09-03T20:45:00+00:00",
+    "amendment_record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md"
   },
   "statistical_analysis_plan": {
     "status": "frozen",
@@ -45,32 +80,103 @@
     "reference_agent": "pick-trader",
     "multiplicity_method": "holm-bonferroni",
     "alpha": 0.05,
-    "holm_family_size": 8,
+    "holm_family_size": 16,
     "target_effect_score_points": -100,
     "target_familywise_all_reject_power": 0.8,
     "ranking_rule": "No model tiers or ordinal ranking; only each registered model's predeclared contrast versus pick-trader is supported.",
-    "required_outputs": ["paired_lift", "bootstrap_ci95", "exact_two_sided_sign_flip_p", "holm_adjusted_p", "holm_reject", "seed_win_rate", "overlap_tier", "score", "tokens_per_decision", "latency", "failure_rate", "repair_rate", "cost_usd"]
+    "within_seed_noise_caveat": {
+      "statistic": "within_seed_score_stddev",
+      "threshold": 25.0,
+      "rule": "Report the caveat on any published row whose within-seed score standard deviation exceeds 25, and refuse a separation claim for a pair whose noisier member exceeds it. This is a reported caveat, not a row rejection: the row still publishes with its score. This lane pins one episode per seed, so no v6 panel row can measure the statistic at all; such a row publishes it as unmeasured rather than as zero, and its separation claim stays supported only under the calibration panel's assumed repeat noise, which every row must state. A row that reports no value for another reason is unknown, not quiet, and blocks its pairs.",
+      "measurable_under_this_lane": false,
+      "unmeasured_status": "unmeasured-one-repeat",
+      "unmeasured_basis": "within-seed noise unmeasured under the one-repeat lane; the MDD projection relies on the calibration panel's assumed repeat noise (~15, docs/scoring_calibration.md)",
+      "unmeasured_claimability": "claimable-with-explicit-assumption-caveat",
+      "basis": "docs/scoring_calibration.md: the 30-point MDD target holds only for rows whose within-seed SD is at or below about 25, and the 26-point figure at 29 seeds was computed assuming a within-seed repeat SD near 15."
+    },
+    "required_outputs": [
+      "paired_lift",
+      "bootstrap_ci95",
+      "exact_two_sided_sign_flip_p",
+      "holm_adjusted_p",
+      "holm_reject",
+      "seed_win_rate",
+      "overlap_tier",
+      "score",
+      "within_seed_score_stddev",
+      "tokens_per_decision",
+      "latency",
+      "failure_rate",
+      "repair_rate",
+      "cost_usd"
+    ]
   },
   "budget_policy": {
     "provider": "openrouter",
-    "cost_estimate_artifact": "results/analysis/sota-v5-pre-smoke-cost-estimate.json",
+    "cost_estimate_artifact": "results/analysis/sota-v6-panel-cost-estimate.json",
     "operator_must_pass_max_spend_usd": true,
-    "operator_ceiling_usd": 10.0,
-    "spend_authorized": false,
+    "operator_ceiling_usd": 100.0,
+    "expected_base_spend_usd": 75.0,
+    "spend_authorized": true,
     "spend_enforcement": "dynamic-pre-provider-call",
-    "operator_ceiling_basis": "The $10 owner ceiling covers the regenerated protocol-maximum smoke estimate including the one configured repair and a 1.2x planning contingency; it does not authorize spend and does not cover the private panel.",
+    "operator_ceiling_basis": "The $100 hard ceiling is the v6 spec's. It is enforced by the runner's dynamic pre-call spend guard, not by the planning maximum: the cap-priced protocol maximum -- every one of the 9,280 panel calls returning the full 4,096-token ceiling -- is $129.71 for the panel, $130.60 with the smoke gate, and $156.72 with the 1.2x contingency. That deliberately exceeds the ceiling. Input alone is $42.32 and each 1,000 completion tokens across the panel costs $21.34, so at the roughly 1,000-token replies the reasoning-disabled v2/v3 smoke record shows the panel plans at about $64, and doubling every completion still lands near $85. Both stay under $100. A run that approaches the ceiling stops for an explicit owner decision rather than silently spending more, and the ascending-cost run order means the cheapest rows finish before the ceiling is anywhere near in play. Figures regenerated 2026-09-01 for the route-and-cohort amendment and its addenda, and again 2026-09-02 for the glm-5.3-flash return to Fireworks.",
+    "cost_components_usd": {
+      "input_only_at_8000_tokens": 42.32,
+      "per_1000_completion_tokens_across_the_panel": 21.34,
+      "cap_priced_panel": 129.7062,
+      "cap_priced_smoke_gate": 0.894525,
+      "cap_priced_total": 130.6007,
+      "cap_priced_total_with_contingency": 156.7209
+    },
+    "run_order": "ascending planning cost; see config/sota_v5_models.json ascending_cost_run_order",
     "panel_spend_requires_separate_authorization": true
   },
   "route_preflight_authorized": true,
-  "spend_authorized": false,
-  "smoke_execution_authorized": false,
-  "panel_execution_authorized": false,
-  "publication_authorized": false,
+  "spend_authorized": true,
+  "smoke_execution_authorized": true,
+  "panel_execution_authorized": true,
+  "paid_smoke_authorization": {
+    "scope": "single-model-single-infrastructure-attempt",
+    "model_id": "openrouter-glm-5.3-flash-fireworks",
+    "attempt_number": 1,
+    "remaining_attempts": 0,
+    "granted_at_utc": "2026-09-03T01:04:47Z",
+    "granted_because": "Owner-authorized 2026-09-02 smoke under the fixed one-paid-call rule; fresh cell after z-ai/glm-5.3-flash moved from DeepInfra fp8 (24-hour uptime fell to 97.6%, under the 99.0% floor, and its 30-minute telemetry went missing) back to the unquantized Fireworks route, the frozen rule's mechanical winner. Cell openrouter-glm-5.3-flash-fireworks carries a fresh two-attempt budget in data/publication/sota-v5-smokes-v2.",
+    "consumed_at_utc": "2026-09-03T01:08:30Z",
+    "outcome": "accepted-smoke-recorded-in-manifest"
+  },
+  "publication_authorized": true,
   "selection_and_lineage": {
-    "replacement_model_id": "openrouter-gemini-3.7-flash-google-ai-studio",
-    "replaced_terminal_model_id": "openrouter-qwen3.8-max-alibaba",
-    "selection_basis": "public-catalog-metadata-before-v5-data",
+    "panel_source": "docs/bench_v6_spec.md",
+    "panel_model_count": 16,
+    "frontier_slot_model_id": "openrouter-grok-4.6-xai",
+    "withdrawn_cohort_revision": "2026-08-16-sota-v5-successor-preregistration",
+    "withdrawn_cohort_model_count": 8,
+    "selection_basis": "frozen-v6-spec-panel-before-any-v5-or-v6-model-data",
     "owner_attestation_required": true,
-    "v4_terminal": true
+    "v4_terminal": true,
+    "cohort_amendment_2026_09_01": {
+      "revision": "2026-09-01-v6-route-and-cohort-amendment",
+      "record": "docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md",
+      "rows_kept_unchanged": 12,
+      "rows_rerouted_same_identity": 2,
+      "rows_replaced": 2,
+      "withdrawn_model_ids": [
+        "openrouter-glm-5.3-flash-cloudflare",
+        "openrouter-minimax-m3-parasail",
+        "openrouter-qwen3.5-397b-a17b-parasail",
+        "openrouter-nemotron-3-nano-30b-a3b-crusoe",
+        "openrouter-glm-5.3-flash-fireworks",
+        "openrouter-nemotron-3-super-120b-a12b-digitalocean",
+        "openrouter-nemotron-3.5-lightning-coreweave",
+        "openrouter-glm-5.3-flash-deepinfra"
+      ],
+      "registered_model_ids": [
+        "openrouter-glm-5.3-flash-fireworks",
+        "openrouter-minimax-m3-modelrun",
+        "openrouter-qwen3.8-flash-alibaba",
+        "openrouter-gpt-5.6-sol-openai"
+      ]
+    }
   }
 }

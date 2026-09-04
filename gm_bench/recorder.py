@@ -355,6 +355,7 @@ class _DecisionCaptureAgent(Agent):
     def __init__(self, wrapped: Agent, *, profile: str) -> None:
         self.wrapped = wrapped
         self.name = wrapped.name
+        self.pays_for_calls = getattr(wrapped, "pays_for_calls", False)
         self.profile = profile
         self.rounds: list[dict[str, Any]] = []
         self.metadata = getattr(wrapped, "metadata", {})
@@ -423,6 +424,7 @@ class _ScaffoldGhostAgent(Agent):
     def __init__(self, wrapped: Agent, profile: str) -> None:
         self.wrapped = wrapped
         self.name = wrapped.name
+        self.pays_for_calls = getattr(wrapped, "pays_for_calls", False)
         self.profile = profile
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
@@ -474,6 +476,10 @@ def canonicalize_state(value: Any) -> Any:
         return {str(key): canonicalize_state(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
         return [canonicalize_state(item) for item in value]
+    if isinstance(value, (set, frozenset)):
+        # Sets carry no order of their own (League.released_by is one), so the
+        # replay digest sorts them into a stable sequence before hashing.
+        return sorted((canonicalize_state(item) for item in value), key=repr)
     return value
 
 

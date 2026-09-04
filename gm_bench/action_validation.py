@@ -27,16 +27,16 @@ ACTION_TYPES = frozenset(
     }
 )
 
-_INTEGER_FIELDS = {"player_id", "prospect_id", "partner_team_id", "team_id", "limit", "years"}
-_INTEGER_LIST_FIELDS = {
+INTEGER_FIELDS = {"player_id", "prospect_id", "partner_team_id", "team_id", "limit", "years"}
+INTEGER_LIST_FIELDS = {
     "player_ids",
     "give_player_ids",
     "receive_player_ids",
     "give_pick_seasons",
     "receive_pick_seasons",
 }
-_NUMBER_FIELDS = {"min_overall", "salary"}
-_STRING_FIELDS = {"type", "offer_id", "position", "text", "error", "model_error"}
+NUMBER_FIELDS = {"min_overall", "salary"}
+STRING_FIELDS = {"type", "offer_id", "position", "text", "error", "model_error"}
 
 
 def validate_action_list(actions: Any) -> list[dict[str, Any]]:
@@ -62,17 +62,17 @@ def validate_action_list(actions: Any) -> list[dict[str, Any]]:
         for key, value in action.items():
             if value is None:
                 continue
-            if key in _INTEGER_FIELDS and (not isinstance(value, int) or isinstance(value, bool)):
+            if key in INTEGER_FIELDS and (not isinstance(value, int) or isinstance(value, bool)):
                 raise ValueError(f"action field {key!r} must be an integer")
-            if key in _INTEGER_LIST_FIELDS and (
+            if key in INTEGER_LIST_FIELDS and (
                 not isinstance(value, list)
                 or any(not isinstance(item, int) or isinstance(item, bool) for item in value)
             ):
                 raise ValueError(f"action field {key!r} must be an array of integers")
-            if key in _NUMBER_FIELDS and (
+            if key in NUMBER_FIELDS and (
                 not isinstance(value, int | float) or isinstance(value, bool) or not math.isfinite(float(value))
             ):
                 raise ValueError(f"action field {key!r} must be a finite number")
-            if key in _STRING_FIELDS and not isinstance(value, str):
+            if key in STRING_FIELDS and not isinstance(value, str):
                 raise ValueError(f"action field {key!r} must be a string")
     return actions

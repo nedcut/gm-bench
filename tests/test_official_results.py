@@ -22,6 +22,7 @@ from gm_bench.official import (
     redact_leaderboard_payload,
     validate_leaderboard_payload,
 )
+from gm_bench.protocol import V6_OUTPUT_TOKEN_CEILING
 from gm_bench.publication import compact_result
 from gm_bench.scoring import ACTIVE_SCORE_SCALE, SCORE_COMPONENT_KEYS
 from scripts.analyze_output_budget import analyze
@@ -31,6 +32,9 @@ from web.scripts.build_leaderboard import model_row
 def test_frozen_sota_v3_policy_does_not_follow_the_current_contract() -> None:
     payload = _official_payload(repeats=1)
     payload["run_info"]["benchmark_contract"] = dict(SOTA_V3_CONTRACT)
+    # A frozen v3 row carries the scaffold it was produced with, not the live
+    # one (the live scaffold moved with the v6 mechanic work).
+    payload["run_info"]["scaffold_fingerprint"] = SOTA_V3_POLICY.expected_scaffold_fingerprints["openai"]
 
     historical = validate_leaderboard_payload(payload, policy=SOTA_V3_POLICY)
     current = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
@@ -153,9 +157,15 @@ def _official_payload(*, repeats: int = 1, failure_rate: float = 0.0, seeds: lis
             "benchmark_contract": benchmark_contract(),
             "scaffold_fingerprint": scaffold_fingerprint("openai"),
             "seed_panel": seed_panel_metadata(seeds, "leaderboard"),
-            "protocol_repair_attempts": 1,
+            # v6 conditions: no paid retry, strict failure handling, and the
+            # pinned output ceiling the provider records.
+            "protocol_repair_attempts": 0,
             "strict_fallback": True,
-            "provider_options": {"GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1", "GM_AGENT_STRICT": "1"},
+            "provider_options": {
+                "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
+                "GM_AGENT_STRICT": "1",
+                "OPENAI_MAX_TOKENS": str(V6_OUTPUT_TOKEN_CEILING),
+            },
         },
     }
 
@@ -424,9 +434,12 @@ def test_sota_v5_policy_requires_full_usage() -> None:
 
 @pytest.mark.parametrize(
     ("run_value", "option_value"),
-    [(None, "1"), (1, None), (-1, "-1"), (2, "2"), (0, "1"), ("bad", "1")],
+    # v6 buys no paid retry, so one attempt is as ineligible as two: a row
+    # measured on the pre-v6 replay lane is still a real artifact, just not a
+    # publishable v6 one.
+    [(None, "0"), (0, None), (-1, "-1"), (1, "1"), (2, "2"), (0, "1"), ("bad", "0")],
 )
-def test_sota_v5_requires_matching_bounded_repair_provenance(run_value: object, option_value: object) -> None:
+def test_sota_v5_requires_matching_zero_repair_provenance(run_value: object, option_value: object) -> None:
     payload = _official_payload(repeats=3)
     payload["run_info"]["protocol_repair_attempts"] = run_value
     payload["run_info"]["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] = option_value
@@ -443,7 +456,9 @@ def test_output_budget_analysis_rejects_duplicate_cells() -> None:
     payload["run_info"]["provider_options"] = {
         "OPENAI_MAX_TOKENS": "256",
         "GM_BENCH_OUTPUT_BUDGET_CELL": "256",
-        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+        # Matches run_info.protocol_repair_attempts in the shared fixture; the
+        # two halves of the provenance have to agree.
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
     }
     usage = payload["candidate"]["summary"]["usage"]
     usage.update({"input_tokens": 1000, "output_tokens": 500, "cost_decisions": usage["decisions_with_usage"]})
@@ -514,7 +529,8 @@ def test_sota_v5_accepts_pinned_single_upstream_openrouter_route() -> None:
                 "OPENROUTER_PROVIDER_ONLY": "openai",
                 "OPENROUTER_EXPECTED_ENDPOINT_NAME": "OpenAI | openai/gpt-test-20260714",
                 "OPENROUTER_ALLOW_FALLBACKS": "false",
-                "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+                "OPENROUTER_MAX_TOKENS": str(V6_OUTPUT_TOKEN_CEILING),
+                "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
                 "GM_AGENT_STRICT": "1",
             },
         }
@@ -523,6 +539,24 @@ def test_sota_v5_accepts_pinned_single_upstream_openrouter_route() -> None:
 
     report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert report.ok
+
+
+def test_sota_v5_rejects_a_row_measured_at_a_larger_output_ceiling() -> None:
+    """The output budget is a measurement condition, not a default.
+
+    A row that bought a bigger output budget than the panel allows is not
+    comparable with one that did not, even if every other condition matches.
+    """
+    payload = _official_payload(repeats=3)
+    payload["run_info"]["provider_options"]["OPENAI_MAX_TOKENS"] = "32000"
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
+    assert not report.ok
+    assert any("4096-token output ceiling" in error for error in report.errors)
+
+    del payload["run_info"]["provider_options"]["OPENAI_MAX_TOKENS"]
+    report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
+    assert not report.ok
+    assert any("OPENAI_MAX_TOKENS is required" in error for error in report.errors)
 
 
 def test_sota_v5_rejects_openrouter_upstream_that_differs_from_pin() -> None:
@@ -671,9 +705,92 @@ def test_v2_leaderboard_builder_excludes_redacted_v3_artifact(monkeypatch: pytes
     row = model_row(redacted)
 
     assert row["seeds"] is None
+    # The seed values are private; the panel width is not, and the site needs it
+    # so it never labels the public preset's panel as this row's.
+    assert row["seed_count"] == len(private_seeds)
     assert row["seed_panel"] == "private-env"
     assert row["sota_v2_eligible"] is False
     assert any("benchmark_version" in issue for issue in row["sota_v2_issues"])
+
+
+def test_leaderboard_builder_publishes_v6_reliability_and_route() -> None:
+    # Three repeats, because `within_seed_score_stddev` is only a measurement
+    # when a seed ran more than once; see the one-repeat test below.
+    payload = _official_payload(repeats=3)
+    payload["candidate"]["summary"].update(
+        {
+            "malformed_decisions": 4,
+            "unrecoverable_decisions": 1,
+            "malformed_rate": 0.025,
+            "unrecoverable_rate": 0.006,
+            "within_seed_score_stddev": 12.5,
+        }
+    )
+    payload["paired"]["per_seed"] = [
+        {"seed": seed, "candidate_score": 300.0 + seed, "baseline_panel_score": 125.0, "lift": 175.0 + seed}
+        for seed in payload["seeds"]
+    ]
+    payload["run_info"]["provider"] = "openrouter"
+    payload["run_info"]["provider_options"].update(
+        {
+            "OPENROUTER_EXPECTED_UPSTREAM_PROVIDER": "Amazon Bedrock",
+            "OPENROUTER_EXPECTED_ENDPOINT_NAME": "Amazon Bedrock | openai/gpt-test",
+            "OPENROUTER_PROVIDER_ONLY": "amazon-bedrock/global",
+        }
+    )
+
+    row = model_row(payload)
+
+    assert row["malformed_decisions"] == 4
+    assert row["unrecoverable_rate"] == 0.006
+    assert row["failed_decisions"] == 0
+    assert row["decision_failure_rate"] == 0.0
+    assert row["within_seed_score_stddev"] == 12.5
+    assert row["per_seed_scores"] == {str(seed): 300.0 + seed for seed in payload["seeds"]}
+    assert row["route"] == "openrouter → Amazon Bedrock | openai/gpt-test (amazon-bedrock/global)"
+
+
+def test_leaderboard_builder_omits_the_within_seed_spread_on_a_one_repeat_row() -> None:
+    """The v6 lane pins one episode per seed, so the runner's 0.0 is an absence."""
+    payload = _official_payload(repeats=1)
+    # Exactly what gm_bench.runner.summarize_episodes writes when no seed repeated.
+    payload["candidate"]["summary"]["within_seed_score_stddev"] = 0.0
+    payload["candidate"]["summary"]["malformed_rate"] = 0.025
+
+    row = model_row(payload)
+
+    assert "within_seed_score_stddev" not in row
+    # Only the unmeasurable statistic drops out; the rest of the block publishes.
+    assert row["malformed_rate"] == 0.025
+
+
+def test_leaderboard_builder_omits_the_within_seed_spread_on_a_redacted_one_repeat_row() -> None:
+    """A redacted row carries no episodes, so `repeats` is the only repeat evidence."""
+    payload = _official_payload(repeats=1)
+    payload["candidate"]["episodes"] = []
+    payload["candidate"]["summary"]["within_seed_score_stddev"] = 0.0
+
+    row = model_row(payload)
+
+    assert "within_seed_score_stddev" not in row
+
+
+def test_leaderboard_builder_omits_reliability_fields_a_row_never_measured() -> None:
+    """Absence must stay absent: a pre-v6 row reports nothing, not zero."""
+    payload = _official_payload(repeats=1)
+    for field in ("malformed_decisions", "unrecoverable_decisions", "malformed_rate", "unrecoverable_rate"):
+        payload["candidate"]["summary"].pop(field, None)
+
+    row = model_row(payload)
+
+    assert "malformed_rate" not in row
+    assert "unrecoverable_decisions" not in row
+    assert "within_seed_score_stddev" not in row
+    # No paired per-seed rows and no pinned route: publish neither rather than
+    # inventing a distribution or a provider label.
+    assert "per_seed_scores" not in row
+    assert "route" not in row
+    assert "fallback_rate" not in row
 
 
 def test_leaderboard_builder_revalidates_forged_sota_report() -> None:

@@ -21,14 +21,13 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, parse_actions, resolve_call_timeout
+    from gm_agent_common import build_prompt, emit, fallback_actions, make_usage, resolve_call_timeout
 except ModuleNotFoundError:
     from examples.gm_agent_common import (
         build_prompt,
         emit,
         fallback_actions,
         make_usage,
-        parse_actions,
         resolve_call_timeout,
     )
 
@@ -73,7 +72,7 @@ def main() -> None:
             )
             return
         text, usage = extract_cursor_result(completed.stdout, model, latency_ms)
-        emit(parse_actions(text), usage)
+        emit(text, usage)
     except (subprocess.TimeoutExpired, OSError, ValueError, json.JSONDecodeError) as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         emit(

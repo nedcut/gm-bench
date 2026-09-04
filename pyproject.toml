@@ -12,7 +12,10 @@ authors = [{ name = "GM-Bench Contributors" }]
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "jsonschema>=4.0", "ruff>=0.8"]
+# tiktoken is a test-only dependency: the v6 observation budget is written in
+# tokens, and without a tokenizer the exact-count tests silently skip and leave
+# only the conservative character proxy enforcing the ceiling.
+dev = ["pytest>=8", "jsonschema>=4.0", "ruff>=0.8", "tiktoken>=0.7"]
 
 [project.scripts]
 gm-bench = "gm_bench.cli:main"

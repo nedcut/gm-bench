@@ -1,8 +1,11 @@
 import { loadPyodide, type PyodideAPI } from "pyodide";
+import { fixtureUrl } from "../replayData";
 
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v314.0.6/full/";
 const BUNDLE_URL = new URL(`${import.meta.env.BASE_URL}replay/gm_bench.zip`, self.location.origin).toString();
-const FIXTURE_URL = new URL(`${import.meta.env.BASE_URL}replay/replay_fixture.json`, self.location.origin).toString();
+// The browsable episode and the verified episode must be the same file, so the
+// path is stated once, in replayData.
+const FIXTURE_URL = new URL(fixtureUrl(), self.location.origin).toString();
 
 type RequestMessage = { type: "verify" };
 type WorkerMessage =

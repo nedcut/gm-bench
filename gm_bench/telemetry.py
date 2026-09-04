@@ -258,6 +258,12 @@ def summarize_usage(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_output_tokens_per_decision": round(totals["output_tokens"] / decisions_with_usage, 1)
         if decisions_with_usage
         else 0.0,
+        # v6 runs at the lowest reasoning setting the route supports, so the
+        # reasoning share of the 4,096-token output ceiling is a condition of
+        # the measurement and is reported per run as well as per call.
+        "mean_reasoning_tokens_per_decision": round(totals["reasoning_tokens"] / decisions_with_usage, 1)
+        if decisions_with_usage
+        else 0.0,
         "model": models.most_common(1)[0][0] if models else None,
         "provider": providers.most_common(1)[0][0] if providers else None,
         "upstream_provider": upstream_providers.most_common(1)[0][0] if upstream_providers else None,

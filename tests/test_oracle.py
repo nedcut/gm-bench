@@ -20,26 +20,91 @@ def test_oracle_preserves_frozen_contract_fingerprint() -> None:
     # action discriminators were made fail-closed at the simulator boundary.
     # Private seeds remain internal to the trusted harness; model prompts,
     # adapter transports, and child environments no longer expose them.
-    assert contract_fingerprint() == "247e12fe5a7d4f5b"
+    # Moved again for the v6 draft lottery: draft order is drawn from the
+    # seeded RNG over the non-playoff teams, and traded picks carry their
+    # original team's identity through the observation and the draft.
+    # Moved again for v6 free-agent willingness: quotes and reservations now
+    # carry the published signing_appeal multiplier (team record, lineup role,
+    # veteran win sensitivity), and opponent signings price the same way.
+    # Moved again for v6 lineup construction: forwards now carry a published
+    # center-or-wing sub_position, and a dressed lineup earns a bonus for
+    # having enough natural centers.
+    # Moved again for v6 expiring contracts: an unresigned expiring incumbent
+    # now enters an immediate rival scramble for the best expiring players
+    # leaguewide before the user's next decision window.
+    # Moved again for v6 dead-field removal: the inert morale, market, and
+    # patience fields (never read by any mechanic) are gone from the model,
+    # generator, and observation.
+    # Moved again for the release-then-re-sign fix: a team may not sign back a
+    # player it released until the next season, so releasing an expiring
+    # incumbent can no longer undercut his extension quote.
+    # Moved again when that block was made per (team, player) rather than one
+    # team per player, so a rival's later drop cannot erase it, and when waiver
+    # claims started enforcing it alongside free-agent signings.
+    # Moved again for the v6 compact observation render: the model view is now
+    # pipe-delimited tables inside the ~6,500-token budget, the candidate lists
+    # it carries are shorter, and the transaction ledger publishes two seasons
+    # of roster-changing moves instead of the last twelve transactions.
+    # Moved again for the v6 execution rules: one paid model call per decision
+    # phase, no paid retry, and deterministic local repair of malformed output
+    # (gm_bench/repair.py) with a structured no-op when intent is ambiguous.
+    # Moved again from 3167d95f860770c5 when the rendered pick_holdings column
+    # and team.draft_picks stopped publishing seasons already drafted in, and
+    # again from bcfe0ce8c23ddc85 when the roster column header stopped
+    # labelling the four extension quotes as a five-term 1y..5y table.
+    # Moved again from 5db845650f34d4db for the observation fixes that follow
+    # from the one-call rule: the render no longer advertises query answers it
+    # cannot deliver, the summary tier publishes the roster again, an exercised
+    # current-season pick no longer reads as a traded one, and the ledger
+    # carries the agent's own refused roster moves with their reasons.
+    # Moved again from 245ff803ecb349db when gm_bench/repair.py became the only
+    # rule set that decides what a model's reply means (adapters forward raw
+    # text now), the one-call rule started keying on whether an agent pays
+    # rather than on its registered name, and an unrepairable reply began
+    # carrying the usage it cost instead of discarding it.
+    assert contract_fingerprint() == "a600b7da0c302231"
     assert "oracle" not in AGENTS
 
 
-def test_oracle_beats_pick_trader_without_illegal_actions() -> None:
-    """Hidden draft information must still be worth something.
+def test_oracle_hidden_information_shows_without_illegal_actions() -> None:
+    """Hidden information must still be visible in behavior, deterministically.
 
-    This assertion was temporarily weakened to `!=` during the miscalibrated
-    intermediate commit (f65a2b0, constants 1%/0.75%/10%) and the weakening
-    outlived the revert in c9771ef. `!=` between two independently computed
-    floats fails only on an exact tie, so it asserted essentially nothing --
-    the same unfalsifiable-assertion defect this branch exists to remove.
+    History: this test once asserted `oracle mean_score > pick-trader
+    mean_score` on the 8-seed public panel (it had earlier been weakened to
+    `!=`, a tautology, and was restored). The v6 draft-lottery reroll exposed
+    that ordering as seed luck: on the 24-seed canary panel the paired
+    oracle-minus-pick-trader difference was +4.9 (SD 56.8) before the lottery
+    and -10.0 (SD 56.2) after -- unresolved noise both times, far inside the
+    benchmark's own ~30-point minimum detectable difference. Re-pinning the
+    8-seed ordering would launder a coin flip as a guarantee.
 
-    Restored on the public leaderboard panel, because it holds on the final
-    constants: oracle 274.789 vs pick-trader 267.875. If a future mechanic
-    genuinely erodes the value of perfect draft information, this should fail
-    and be discussed, not be relaxed into a tautology.
+    What perfect hidden-threshold knowledge does guarantee, on every seed:
+
+    - the oracle never has a negotiation rejected (it computes the exact
+      reservation and valuation thresholds the public policy must probe), and
+    - regenerated latent potential changes at least one draft-day decision
+      relative to the public policy it inherits.
+
+    If a future mechanic breaks either invariant, hidden information has
+    genuinely stopped mattering and that should be discussed, not relaxed.
     """
     seeds = list(PRESETS["leaderboard"]["seeds"])
     oracle = run_many(OracleAgent(), seeds=seeds, seasons=5, workers=1)
     pick_trader = run_many(PickTraderAgent(), seeds=seeds, seasons=5, workers=1)
     assert oracle["summary"]["illegal_actions"] == 0
-    assert oracle["summary"]["mean_score"] > pick_trader["summary"]["mean_score"]
+    assert oracle["summary"]["rejected_offers"] == 0
+    assert pick_trader["summary"]["rejected_offers"] > 0
+
+    def drafted(result: dict) -> dict[int, list[int]]:
+        picks: dict[int, list[int]] = {}
+        for episode in result["episodes"]:
+            picks[episode["seed"]] = [
+                transaction["action"]["prospect_id"]
+                for transaction in episode["transactions"]
+                if transaction["team_id"] == 0
+                and transaction["accepted"]
+                and transaction["action"].get("type") == "draft"
+            ]
+        return picks
+
+    assert drafted(oracle) != drafted(pick_trader)

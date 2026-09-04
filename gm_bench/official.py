@@ -26,6 +26,7 @@ from gm_bench.contract import (
     expected_contract,
     scaffold_fingerprint,
 )
+from gm_bench.protocol import V6_OUTPUT_TOKEN_CEILING
 from gm_bench.scoring import SCORE_COMPONENT_KEYS, SCORE_COMPONENT_METRICS, contribution_from_metric
 
 PUBLIC_LEADERBOARD_POLICY_NAME = "public-leaderboard"
@@ -86,6 +87,13 @@ class ResultPolicy:
     # a row whose lookups fail more often than it makes decisions.
     warn_failed_query_rate: float = 0.25
     max_failed_query_rate: float | None = None
+    # v6 buys no paid retry, so a v6 row must have been measured at zero repair
+    # attempts. Pre-v6 policies keep the historical bound of at most one, and an
+    # operator may still replay that lane -- it is just not publishable as v6.
+    max_protocol_repair_attempts: int = 1
+    # The v6 output ceiling, in tokens, that a row's provider must record.
+    # None for policies frozen before the ceiling was a measurement condition.
+    required_output_token_ceiling: int | None = None
 
 
 PUBLIC_LEADERBOARD_POLICY = ResultPolicy(
@@ -175,18 +183,45 @@ SOTA_V5_POLICY = ResultPolicy(
     require_strict_fallback=True,
     expected_contract=SOTA_V5_CONTRACT,
     validate_current_scaffold=False,
+    # Live-lane pins: moved with the shared observation compaction when the
+    # v6 draft lottery added pick identity to the model view, moved again
+    # (from anthropic fb283b36e136087d and its eight siblings) when the v6
+    # compact render replaced the JSON observation with pipe-delimited tables
+    # inside the ~6,500-token budget, and moved again (from anthropic
+    # 1e5a550831d03984 and its eight siblings) when providers.py adopted the v6
+    # execution rules: a 4,096-token output ceiling, reasoning disabled where
+    # the route allows it, and no paid retry. Moved once more (from anthropic
+    # cb8cca527bcd62ac and its eight siblings) when the rendered pick_holdings
+    # column and team.draft_picks dropped seasons already drafted in, and again
+    # (from anthropic 8836cdb8343a6627 and its eight siblings) when the roster
+    # column header stopped labelling the four extension quotes as a five-term
+    # 1y..5y table. Moved again (from anthropic 114bfcf2b845a1ff and its eight
+    # siblings) when the prompt was rewritten for the one-call lane: it no
+    # longer advertises inspect_team, inspect_player, list_free_agents or
+    # end_turn, no longer promises that query answers come back in
+    # action_results, and states the draft-order, extension-quote and
+    # release_dead_cap facts in the compact render's own terms. Moved again
+    # (from anthropic 84f91d6addcecfb3 and its eight siblings) when the adapters
+    # stopped parsing and repairing model text -- they now forward the reply
+    # verbatim, so gm_bench/repair.py is the only rule set that decides what it
+    # means, strict failure handling became the default, and the provider pins
+    # (output ceiling, reasoning, routing) stopped yielding to ambient shell
+    # values. Prompt text and call conditions changed, so no earlier row is
+    # comparable to a later one.
     expected_scaffold_fingerprints={
-        "anthropic": "0afbbdcaecfcb1d0",
-        "claude": "4a92675327e27a4d",
-        "codex": "f6b1c953c198f6bc",
-        "cursor": "3bb877c241996ed7",
-        "gemini": "5e700d3151254ed3",
-        "ollama": "5a3778bf70bd341e",
-        "openai": "8275269195e00191",
-        "opencode": "815df462b40d1274",
-        "openrouter": "f04724717cc09caf",
+        "anthropic": "dc12d4346b928fc4",
+        "claude": "b17d4e5e1fdd407d",
+        "codex": "4d41f43cf7b7af42",
+        "cursor": "12478140e3347be7",
+        "gemini": "9ddc18df3d883c1d",
+        "ollama": "b5c5f12670a18c81",
+        "openai": "01ec5ac3e3bbd175",
+        "opencode": "dfeb141bdeb957e1",
+        "openrouter": "c582e126bbb6af10",
     },
     max_failed_query_rate=1.0,
+    max_protocol_repair_attempts=0,
+    required_output_token_ceiling=V6_OUTPUT_TOKEN_CEILING,
 )
 OUTPUT_BUDGET_SWEEP_POLICY = ResultPolicy(
     name=OUTPUT_BUDGET_SWEEP_POLICY_NAME,
@@ -347,6 +382,8 @@ def validate_leaderboard_payload(
         if strict_sota_lane:
             repair_attempts = run_info.get("protocol_repair_attempts")
             option_repair = (run_info.get("provider_options") or {}).get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS")
+            maximum = policy.max_protocol_repair_attempts
+            allowed = "zero" if maximum == 0 else f"between zero and {maximum}"
             parsed_repairs: dict[str, int] = {}
             for label, raw in (("protocol_repair_attempts", repair_attempts), ("provider_options", option_repair)):
                 if raw in (None, ""):
@@ -357,14 +394,20 @@ def validate_leaderboard_payload(
                 except (TypeError, ValueError):
                     errors.append(f"run_info.{label} repair attempts must be an integer")
                     continue
-                if not 0 <= parsed <= 1:
-                    errors.append(
-                        f"{policy.name} repair attempts must be between zero and one; got {parsed} via {label}"
-                    )
+                if not 0 <= parsed <= maximum:
+                    errors.append(f"{policy.name} repair attempts must be {allowed}; got {parsed} via {label}")
                     continue
                 parsed_repairs[label] = parsed
             if len(parsed_repairs) == 2 and len(set(parsed_repairs.values())) != 1:
                 errors.append("run_info protocol-repair provenance values must match")
+        if policy.required_output_token_ceiling is not None:
+            _validate_output_token_ceiling(
+                errors,
+                warnings,
+                run_info,
+                policy_name=policy.name,
+                ceiling=policy.required_output_token_ceiling,
+            )
         if policy.require_strict_fallback:
             _validate_strict_fallback(errors, run_info, policy_name=policy.name)
         expected_seeds, expected_seed_count = _resolve_expected_seeds(
@@ -778,6 +821,48 @@ def _validate_scaffold_provenance(
         errors.append(
             f"run_info.scaffold_fingerprint {recorded!r} does not match current scaffold {expected!r} "
             f"for provider {provider!r}"
+        )
+
+
+def _validate_output_token_ceiling(
+    errors: list[str],
+    warnings: list[str],
+    run_info: dict[str, Any],
+    *,
+    policy_name: str,
+    ceiling: int,
+) -> None:
+    """Require the row to record the v6 output ceiling its provider pins.
+
+    The ceiling is a measurement condition: a row produced with a larger output
+    budget bought more thinking than the panel allows, so it is not comparable
+    even if every other condition matches. Only providers that accept an output
+    limit can be checked; a CLI harness that exposes none is warned about
+    rather than failed, because there is nothing to attest.
+    """
+    from gm_bench.providers import PROVIDERS
+
+    provider = str(run_info.get("provider") or "")
+    spec = PROVIDERS.get(provider.lower())
+    if spec is None or spec.output_ceiling_env is None:
+        warnings.append(
+            f"provider {provider!r} pins no output-token ceiling, so the {policy_name} "
+            f"{ceiling}-token output condition is unverified for this row"
+        )
+        return
+    recorded = (run_info.get("provider_options") or {}).get(spec.output_ceiling_env)
+    if recorded in (None, ""):
+        errors.append(f"run_info.provider_options.{spec.output_ceiling_env} is required for {policy_name} rows")
+        return
+    try:
+        value = int(recorded)
+    except (TypeError, ValueError):
+        errors.append(f"run_info.provider_options.{spec.output_ceiling_env} must be an integer; got {recorded!r}")
+        return
+    if value != ceiling:
+        errors.append(
+            f"{policy_name} rows must run at the {ceiling}-token output ceiling; "
+            f"got {value} via provider_options.{spec.output_ceiling_env}"
         )
 
 

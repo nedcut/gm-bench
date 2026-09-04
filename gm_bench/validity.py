@@ -13,6 +13,19 @@ from gm_bench.runner import run_many
 
 CANARY_MIN_FINAL_MARGIN = 25.0
 CANARY_MIN_STRATEGY_MARGIN = 25.0
+# Moved from 15.0 back to 25.0 because the compression that forced it down is
+# gone. The 15.0 floor was set when the draft lottery landed and the
+# shrewd-over-value gap on the 24-seed canary panel read 24.5 mean points. The
+# recovery was cumulative across the v6 mechanic work, not any one commit:
+# 24.50 at `f382489`, 36.80 at `43fcae0` (free-agent willingness), 41.83 at
+# `3f17c96` (center lineup), 56.15 at `e2bbf08` (expiring contracts), 84.51 at
+# `bd86cf8` (inert-field removal), 76.36 with the release-then-re-sign block on
+# top. That last step LOWERED the gap by about 8 points -- it costs `shrewd`
+# (269.94 -> 264.05) more than it costs `value` (185.43 -> 187.69) -- so it is
+# not the reason the floor could go back up. Even after it the panel clears 25
+# by a wide margin (paired t=6.46), which the temporary 15.0 floor no longer
+# describes.
+CAP_HYGIENE_MIN_FINAL_MARGIN = 25.0
 CANARY_MIN_PAIRED_T = 2.0
 MECHANIC_MIN_SEED_RATES = {
     "memo": 0.75,
@@ -303,7 +316,12 @@ def _margin_check(
     check_name: str,
 ) -> dict[str, Any]:
     margin = winner["summary"]["mean_score"] - loser["summary"]["mean_score"]
-    minimum = CANARY_MIN_FINAL_MARGIN if check_name != "honest_bar" else 0.0
+    if check_name == "honest_bar":
+        minimum = 0.0
+    elif check_name == "cap_hygiene_bar":
+        minimum = CAP_HYGIENE_MIN_FINAL_MARGIN
+    else:
+        minimum = CANARY_MIN_FINAL_MARGIN
     return {
         "name": check_name,
         "winner": winner_name,

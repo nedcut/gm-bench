@@ -104,6 +104,7 @@ from gm_bench.providers import (  # noqa: E402
     SPEND_GUARD_ENV_PREFIX,
 )
 from gm_bench.publication import (  # noqa: E402
+    FROZEN_OUTPUT_BUDGET_STATUSES,
     SMOKE_MANIFEST_FORMAT,
     is_pending_strict_smoke_cap,
     publication_execution_issues,
@@ -415,11 +416,7 @@ def build_cells(
         models = list(config.get("models") or [])
         _validate_models(models, expected_provider=str(config.get("provider") or ""))
         frozen_cap = lane.get("output_token_cap")
-        if lane.get("output_budget_status") not in {
-            "frozen-saturation",
-            "frozen-fixed-budget",
-            "frozen-native-reasoning-cap",
-        }:
+        if lane.get("output_budget_status") not in FROZEN_OUTPUT_BUDGET_STATUSES:
             raise ValueError("full panel is locked until the selected lane freezes the output-budget policy")
         if config.get("selection_status") != "frozen":
             raise ValueError("full panel is locked until the selected model registry is frozen")
@@ -455,11 +452,35 @@ def build_cells(
             )
             for model in models
         ]
+        cells = _in_frozen_run_order(config, cells)
     if model_id:
         cells = [cell for cell in cells if cell.experiment_id == model_id]
         if not cells:
             raise ValueError(f"unknown model id: {model_id}")
     return cells
+
+
+def _in_frozen_run_order(config: dict[str, Any], cells: list[Cell]) -> list[Cell]:
+    """Order panel cells by the registry's frozen ascending-cost run order.
+
+    The publication protocol commits to running the cheapest rows first so a
+    route or render problem surfaces on cheap cells and the spend guard bites
+    late. The registry records that order; a registry without one runs in
+    registry order. A frozen order that does not cover exactly the registered
+    ids is a preregistration defect, not something to guess around.
+    """
+    run_order = config.get("ascending_cost_run_order")
+    if not isinstance(run_order, dict):
+        return cells
+    if not str(run_order.get("status") or "").startswith("frozen"):
+        raise ValueError("ascending_cost_run_order must be frozen before panel execution")
+    ordered_ids = [
+        str(entry.get("experiment_id") or "") for entry in run_order.get("order") or [] if isinstance(entry, dict)
+    ]
+    by_id = {cell.experiment_id: cell for cell in cells}
+    if sorted(ordered_ids) != sorted(by_id):
+        raise ValueError("ascending_cost_run_order does not cover exactly the registered model ids")
+    return [by_id[experiment_id] for experiment_id in ordered_ids]
 
 
 def cell_environment(cell: Cell) -> dict[str, str]:
@@ -504,6 +525,19 @@ def cell_command(cell: Cell, run_dir: Path, *, preflight: bool = False) -> list[
     if preflight:
         return [*command, "--preflight-only"]
     stem = f"{cell.experiment_id}--{cell.cap_label}"
+    # The adapter launch layer deliberately ranks provider pins above the
+    # inherited process environment, so a cell pin passed only as ambient env
+    # (e.g. OPENROUTER_REASONING_ENABLED=true on a mandatory-reasoning row)
+    # would be silently stomped by the provider default. The config env block
+    # is the one channel that outranks provider pins and is recorded in
+    # provider_options, so the cell's measurement conditions travel there.
+    config_env = dict(cell.fixed_options)
+    if cell.provider == "openrouter" and cell.cap is not None:
+        config_env["OPENROUTER_MAX_TOKENS"] = str(cell.cap)
+    config_path = run_dir / "configs" / f"{stem}.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(json.dumps({"env": config_env}, indent=2, sort_keys=True) + "\n")
+    command.extend(["--config", str(config_path)])
     command.extend(
         [
             "--checkpoint",
@@ -542,7 +576,25 @@ def _prepare_smoke_retry_checkpoint(cell: Cell, run_dir: Path) -> Path | None:
     stored_contract = (
         benchmark_contract.get("contract_fingerprint") if isinstance(benchmark_contract, dict) else benchmark_contract
     )
-    if stored_contract == expected_contract and provenance.get("scaffold_fingerprint") == expected_scaffold:
+    metadata = payload.get("metadata")
+    stored_options = metadata.get("provider_options") if isinstance(metadata, dict) else None
+    stored_options = stored_options if isinstance(stored_options, dict) else {}
+    expected_pins = dict(cell.fixed_options)
+    if cell.provider == "openrouter" and cell.cap is not None:
+        expected_pins["OPENROUTER_MAX_TOKENS"] = str(cell.cap)
+    # The model runner refuses to resume when recorded provider_options drift
+    # from the cell's pins, so a checkpoint that disagrees on any pin (or
+    # carries a registered-absent option) is stale provenance exactly like a
+    # fingerprint mismatch: left in place it would burn a paid attempt on a
+    # guaranteed local pre-call abort.
+    pins_match = all(str(stored_options.get(key)) == str(value) for key, value in expected_pins.items())
+    absent_clean = not any(key in stored_options for key in cell.absent_options)
+    if (
+        stored_contract == expected_contract
+        and provenance.get("scaffold_fingerprint") == expected_scaffold
+        and pins_match
+        and absent_clean
+    ):
         return None
     episodes = payload.get("episodes")
     completed = payload.get("completed")
@@ -910,7 +962,13 @@ def _call_spend_guard_environment(
     reasoning_enabled = cell.fixed_options.get("OPENROUTER_REASONING_ENABLED") == "true"
     reasoning_tokens = int(assumptions.get("expected_internal_reasoning_tokens_per_decision") or 0)
     reasoning_rate = rates.get("internal_reasoning")
-    if reasoning_enabled and reasoning_tokens <= 0:
+    # A lane whose output ceiling includes reasoning (the v6 rule: reasoning
+    # spends part of the same capped completion budget, billed at the
+    # completion rate) may commit zero extra reasoning tokens, because the
+    # full-cap completion reservation above already prices them. Lanes billing
+    # reasoning on top of the cap must still commit a positive allowance.
+    reasoning_within_cap = assumptions.get("reasoning_tokens_billed_within_output_cap") is True
+    if reasoning_enabled and reasoning_tokens <= 0 and not reasoning_within_cap:
         raise ValueError(
             "reasoning-enabled paid publication cells require a positive committed "
             "expected_internal_reasoning_tokens_per_decision"
@@ -1420,7 +1478,17 @@ def _record_smoke_issues(
         issues.append("artifact successful protocol repairs must match repair attempts")
     api_calls = usage.get("api_calls")
     minimum_api_calls = expected_decisions + repair_attempts
-    if not isinstance(api_calls, int) or isinstance(api_calls, bool) or api_calls < minimum_api_calls:
+    paid_calls_per_decision = lane.get("paid_calls_per_decision")
+    if not isinstance(api_calls, int) or isinstance(api_calls, bool):
+        issues.append(f"artifact must record at least {minimum_api_calls} API calls for its decisions and repairs")
+    elif isinstance(paid_calls_per_decision, int) and not isinstance(paid_calls_per_decision, bool):
+        exact_api_calls = expected_decisions * paid_calls_per_decision + repair_attempts
+        if api_calls != exact_api_calls:
+            issues.append(
+                f"artifact must record exactly {exact_api_calls} API calls "
+                f"({paid_calls_per_decision} paid call per decision plus repairs); it records {api_calls}"
+            )
+    elif api_calls < minimum_api_calls:
         issues.append(f"artifact must record at least {minimum_api_calls} API calls for its decisions and repairs")
     calls_with_finish_reason = usage.get("calls_with_finish_reason")
     if calls_with_finish_reason != api_calls:

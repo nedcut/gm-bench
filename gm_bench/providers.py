@@ -15,6 +15,7 @@ from typing import Any
 
 from gm_bench.agents import Agent, ExternalProcessAgent, model_adapter_observation
 from gm_bench.contract import _repository_checkout_root
+from gm_bench.protocol import V6_OUTPUT_TOKEN_CEILING
 from gm_bench.session import PersistentProcessAgent
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -54,6 +55,11 @@ class ProviderSpec:
     credential_env: tuple[str, ...] = ()
     extra_env: dict[str, str] = field(default_factory=dict)
     provenance_env: tuple[str, ...] = ()
+    # The env var this provider's output-token ceiling is pinned through, when
+    # the backend accepts one. Publication validation reads it to check a row
+    # was measured at the v6 ceiling rather than at whatever the backend
+    # defaulted to. CLI harnesses that expose no output limit leave it None.
+    output_ceiling_env: str | None = None
 
 
 class ProtocolRepairAgent(Agent):
@@ -63,6 +69,9 @@ class ProtocolRepairAgent(Agent):
         self.wrapped = wrapped
         self.attempts = attempts
         self.name = wrapped.name
+        # The wrapped agent decides whether a decision is paid for, and the
+        # runner reads that from the outermost wrapper.
+        self.pays_for_calls = getattr(wrapped, "pays_for_calls", False)
         self.env = getattr(wrapped, "env", None)
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
@@ -127,6 +136,9 @@ class ProviderSpendGuardAgent(Agent):
     ) -> None:
         self.wrapped = wrapped
         self.name = wrapped.name
+        # The wrapped agent decides whether a decision is paid for, and the
+        # runner reads that from the outermost wrapper.
+        self.pays_for_calls = getattr(wrapped, "pays_for_calls", False)
         self.env = getattr(wrapped, "env", None)
         self.state_path = state_path
         self.ceiling_usd = ceiling_usd
@@ -413,7 +425,9 @@ PROVIDERS: dict[str, ProviderSpec] = {
         default_profile="compact",
         transport="direct-api",
         credential_env=("OPENAI_API_KEY",),
+        extra_env={"OPENAI_MAX_TOKENS": str(V6_OUTPUT_TOKEN_CEILING)},
         provenance_env=("OPENAI_MAX_TOKENS", "OPENAI_TEMPERATURE", "OPENAI_JSON_MODE"),
+        output_ceiling_env="OPENAI_MAX_TOKENS",
     ),
     "anthropic": ProviderSpec(
         name="anthropic",
@@ -424,7 +438,9 @@ PROVIDERS: dict[str, ProviderSpec] = {
         default_profile="compact",
         transport="direct-api",
         credential_env=("ANTHROPIC_API_KEY",),
+        extra_env={"ANTHROPIC_MAX_TOKENS": str(V6_OUTPUT_TOKEN_CEILING)},
         provenance_env=("ANTHROPIC_MAX_TOKENS", "ANTHROPIC_TEMPERATURE"),
+        output_ceiling_env="ANTHROPIC_MAX_TOKENS",
     ),
     "gemini": ProviderSpec(
         name="gemini",
@@ -435,7 +451,9 @@ PROVIDERS: dict[str, ProviderSpec] = {
         default_profile="compact",
         transport="direct-api",
         credential_env=("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+        extra_env={"GEMINI_MAX_OUTPUT_TOKENS": str(V6_OUTPUT_TOKEN_CEILING)},
         provenance_env=("GEMINI_MAX_OUTPUT_TOKENS", "GEMINI_TEMPERATURE"),
+        output_ceiling_env="GEMINI_MAX_OUTPUT_TOKENS",
     ),
     "openrouter": ProviderSpec(
         name="openrouter",
@@ -452,6 +470,11 @@ PROVIDERS: dict[str, ProviderSpec] = {
             "OPENROUTER_REQUIRE_PARAMETERS": "false",
             "OPENROUTER_DATA_COLLECTION": "deny",
             "OPENROUTER_JSON_MODE": "false",
+            "OPENROUTER_MAX_TOKENS": str(V6_OUTPUT_TOKEN_CEILING),
+            # v6 disables reasoning where the route allows it. Models that
+            # cannot turn it off run at their minimum effort, set per model in
+            # the panel config, and their reasoning tokens are recorded.
+            "OPENROUTER_REASONING_ENABLED": "false",
         },
         provenance_env=(
             "OPENROUTER_API_BASE",
@@ -470,6 +493,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
             "OPENROUTER_REASONING_EFFORT",
             "OPENROUTER_REASONING_MAX_TOKENS",
         ),
+        output_ceiling_env="OPENROUTER_MAX_TOKENS",
     ),
     "ollama": ProviderSpec(
         name="ollama",
@@ -616,26 +640,32 @@ def build_provider_agent(
         # Adapters derive their per-call backend timeout from the harness
         # decision budget unless an explicit adapter timeout env is set.
         "GM_BENCH_AGENT_TIMEOUT": str(resolved_timeout),
-        # One bounded retry is enough to separate JSON-format competence from
-        # strategy without creating an open-ended compute advantage.
-        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1",
+        # v6 buys no retries: a malformed reply is repaired locally under the
+        # published rules in gm_bench/repair.py or recorded as a structured
+        # no-op. Operators can set 1 to replay the pre-v6 paid-retry lane.
+        "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
         # Failure handling is a measurement condition, so it is always pinned
         # and always recorded. A harness-resolved policy wins over an ambient
-        # value; without one the inherited environment still decides.
+        # value; without one the strict policy applies and the operator must
+        # opt out of it deliberately (--no-strict-fallback), because the soft
+        # fallback credits host-chosen roster moves to the model.
         "GM_AGENT_STRICT": (
             _strict_env_value(strict_fallback)
             if strict_fallback is not None
-            else os.environ.get("GM_AGENT_STRICT", "0")
+            else os.environ.get("GM_AGENT_STRICT", "1")
         ),
     }
     if profile is not None:
         env["GM_AGENT_PROFILE"] = profile
     elif spec.default_profile and "GM_AGENT_PROFILE" not in os.environ:
         env["GM_AGENT_PROFILE"] = spec.default_profile
-    # Precedence is config env > inherited shell env > provider defaults.
-    # Material controls must never silently replace an operator override.
-    for key, value in spec.extra_env.items():
-        env[key] = os.environ.get(key, value)
+    # Precedence is config env > provider pins > inherited shell env. These
+    # pins are the v6 call conditions -- the output ceiling, reasoning, and
+    # routing -- not conveniences, so an ambient shell value cannot quietly
+    # change what a publishable row measured. Overriding one takes an explicit
+    # config `env` block, which is recorded in provider_options and therefore
+    # visible in the artifact.
+    env.update(spec.extra_env)
     # Config-file env is the most explicit provider configuration.
     if extra_env:
         env.update(extra_env)
@@ -651,12 +681,12 @@ def build_provider_agent(
         env["OPENROUTER_API_BASE"] = OPENROUTER_CANONICAL_API_BASE
         if session:
             raise ValueError("publication OpenRouter spend guard does not support persistent session mode")
-    # Cap repair attempts at the frozen headline lane (1). Operators may set 0
-    # to disable, but cannot open an unbounded second-chance compute advantage.
+    # v6 defaults to no paid retry. Operators replaying the older lane may set
+    # 1, but cannot open an unbounded second-chance compute advantage.
     try:
-        repair_attempts = int(env.get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", "1"))
+        repair_attempts = int(env.get("GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS", "0"))
     except (TypeError, ValueError):
-        repair_attempts = 1
+        repair_attempts = 0
     env["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] = str(max(0, min(1, repair_attempts)))
     # A harness-resolved policy is reapplied after config env: failure handling
     # decides whether a row is publishable, so a stale config `env` entry must

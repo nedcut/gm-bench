@@ -43,10 +43,12 @@ def test_lowball_offer_is_rejected_without_protocol_penalty() -> None:
     assert player_id in league.free_agents
 
 
-def test_full_ask_offer_always_accepted() -> None:
+def test_full_published_ask_offer_always_accepted() -> None:
+    # The published ask is the willingness-adjusted quote (v6): even a player
+    # demanding a premium from this team must accept his own published price.
     league = League.new(seed=7)
     player_id = league.free_agents[0]
-    ask = league.players[player_id].asking_salary
+    ask = league._free_agent_public(player_id)["asking_salary"]
     league.apply_actions([{"type": "sign_free_agent", "player_id": player_id, "years": 1, "salary": ask}], "preseason")
     assert league.transactions[-1].accepted is True
     assert league.rejected_offers == 0
@@ -58,7 +60,9 @@ def test_fa_reservation_is_hidden_deterministic_and_bounded() -> None:
     for player_id in league_a.free_agents[:20]:
         reservation_a = league_a._fa_reservation(player_id)
         reservation_b = league_b._fa_reservation(player_id)
-        ask = league_a.players[player_id].asking_salary
+        # The reservation scales off the willingness-adjusted published ask,
+        # not the raw market rate (v6).
+        ask = league_a._free_agent_public(player_id)["asking_salary"]
         assert reservation_a == reservation_b
         assert ask * FA_RESERVATION_RANGE[0] <= reservation_a <= ask * FA_RESERVATION_RANGE[1]
 
@@ -74,7 +78,7 @@ def test_fa_reservation_rerolls_each_season() -> None:
 def test_free_agent_walks_away_after_repeated_lowballs() -> None:
     league = League.new(seed=7)
     player_id = league.free_agents[0]
-    ask = league.players[player_id].asking_salary
+    ask = league._free_agent_public(player_id)["asking_salary"]
     offers = [_lowball(league, player_id) for _ in range(REJECTED_OFFER_LIMIT_PER_WINDOW)]
     # Even a full-ask offer is refused once the player has broken off talks.
     offers.append({"type": "sign_free_agent", "player_id": player_id, "years": 1, "salary": ask})
@@ -141,7 +145,7 @@ def test_illegal_offers_stay_illegal_after_walkaway() -> None:
     when the counterparty has already broken off negotiations."""
     league = League.new(seed=7)
     player_id = league.free_agents[0]
-    ask = league.players[player_id].asking_salary
+    ask = league._free_agent_public(player_id)["asking_salary"]
     offers = [_lowball(league, player_id) for _ in range(REJECTED_OFFER_LIMIT_PER_WINDOW)]
     offers.append({"type": "sign_free_agent", "player_id": player_id, "years": 1, "salary": ask})
     league.apply_actions(offers, "preseason")

@@ -34,11 +34,17 @@ def test_official_validity_canaries_underperform_value() -> None:
     assert {row["agent"] for row in result["baselines"]} == {"pick-trader", "strategic", "shrewd", "value"}
     assert all(row["seed_count"] >= row["minimum_seed_count"] for row in result["mechanic_coverage"])
     release_coverage = next(row for row in result["mechanic_coverage"] if row["mechanic"] == "release")
+    # Re-pinned for v6 free-agent willingness: repriced signings shift which
+    # roster spots the baselines clear via release. Re-pinned again for v6
+    # lineup construction: the center-count bonus changes which teams'
+    # rosters carry a releasable surplus. Re-pinned again for v6 dead-field
+    # removal: Team no longer draws market/patience RNG values at generation,
+    # so every generated league re-rolled again.
     assert release_coverage == {
         "mechanic": "release",
-        "accepted_actions": 7,
-        "seed_count": 6,
-        "seed_rate": 0.25,
+        "accepted_actions": 11,
+        "seed_count": 8,
+        "seed_rate": 0.333,
         "minimum_seed_count": 3,
     }
     significance = [check for check in result["checks"] if check["name"].endswith("_paired_significance")]

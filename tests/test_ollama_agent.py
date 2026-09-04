@@ -201,10 +201,13 @@ def test_generate_does_not_fall_back_for_opaque_400_when_no_schema_sent(monkeypa
     assert cli_calls == []
 
 
-def test_repair_retry_drops_schema_constraint(monkeypatch) -> None:
-    # When the first schema-constrained answer fails to parse, the repair retry
-    # must drop the format pin so it is genuinely looser than the first attempt,
-    # not an identical constrained decode that fails the same way.
+def test_one_generation_per_decision_forwarded_verbatim(monkeypatch) -> None:
+    """No second local generation, and no adapter-side parsing of the first.
+
+    A retry would be a second attempt at the same decision, and parsing here
+    would put an unpublished rule set in front of gm_bench.repair. The reply
+    goes out exactly as the model wrote it, unusable or not.
+    """
     monkeypatch.delenv("OLLAMA_TRANSPORT", raising=False)
     monkeypatch.setenv("OLLAMA_MODEL", "gemma4:e4b")
     ollama_agent.CALLS.clear()
@@ -228,21 +231,16 @@ def test_repair_retry_drops_schema_constraint(monkeypatch) -> None:
         del kwargs
         payload = json.loads(request.data.decode("utf-8"))
         formats.append(payload.get("format"))
-        if len(formats) == 1:
-            # First (schema-pinned) attempt returns unparseable content.
-            return _Resp(b'{"response":"not json at all"}')
-        # Repair attempt returns a valid actions object.
-        return _Resp(b'{"response":"{\\"actions\\":[{\\"type\\":\\"noop\\"}]}"}')
+        return _Resp(b'{"response":"not json at all"}')
 
-    emitted: list[dict[str, object]] = []
+    emitted: list[object] = []
     monkeypatch.setattr(ollama_agent.urllib.request, "urlopen", fake_urlopen)
-    monkeypatch.setattr(ollama_agent, "emit", lambda actions, usage: emitted.append({"actions": actions}))
+    monkeypatch.setattr(ollama_agent, "emit", lambda response, usage: emitted.append(response))
     monkeypatch.setattr(ollama_agent, "build_prompt", lambda _observation: "prompt")
     monkeypatch.setattr(ollama_agent.json, "load", lambda _stream: {})
 
     ollama_agent.main()
 
-    assert len(formats) == 2
-    assert formats[0] == ollama_agent.load_action_schema()  # first attempt is schema-pinned
-    assert formats[1] is None  # repair retry drops the schema constraint
-    assert emitted and emitted[-1]["actions"] == [{"type": "noop"}]
+    assert len(formats) == 1
+    assert formats[0] == ollama_agent.load_action_schema()  # the one attempt is schema-pinned
+    assert emitted == ["not json at all"]

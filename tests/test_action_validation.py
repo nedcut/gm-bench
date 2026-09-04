@@ -7,8 +7,31 @@ import random
 
 import pytest
 
-from examples.gm_agent_common import parse_actions
+from gm_bench.repair import RAW_TEXT_FIELD, repair_adapter_output
 from gm_bench.simulator import League
+
+
+def _model_reply(text: str):
+    """Judge a model reply exactly as the harness does.
+
+    Adapters forward the model's raw text and never parse it, so these cases
+    are checked through ``gm_bench.repair`` -- the published rule set that
+    actually decides what reaches the simulator. An unusable reply is not an
+    exception any more: it is an unrecoverable, malformed decision recorded as
+    a structured no-op, with the reason kept for the artifact.
+    """
+    envelope = json.dumps({RAW_TEXT_FIELD: text, "usage": {"api_calls": 1}})
+    return repair_adapter_output(envelope, source="external agent")
+
+
+def _rejected(text: str, expected: str) -> None:
+    outcome = _model_reply(text)
+    assert outcome.malformed and outcome.unrecoverable
+    assert expected in (outcome.reason or "")
+    assert outcome.actions[0]["type"] == "noop"
+    assert len(outcome.actions) == 1
+    # The paid call is still reported, so cost telemetry is not lost with it.
+    assert outcome.usage == {"api_calls": 1}
 
 
 def test_simulator_survives_random_garbage_actions() -> None:
@@ -58,9 +81,8 @@ def test_trade_rejected_when_give_value_too_low() -> None:
 
 
 @pytest.mark.parametrize("value", ["NaN", "Infinity", "-Infinity"])
-def test_non_finite_action_numbers_are_rejected_at_parser_and_simulator_boundaries(value: str) -> None:
-    with pytest.raises(ValueError, match="non-finite"):
-        parse_actions(f'{{"actions":[{{"type":"sign_free_agent","salary":{value}}}]}}')
+def test_non_finite_action_numbers_are_rejected_at_repair_and_simulator_boundaries(value: str) -> None:
+    _rejected(f'{{"actions":[{{"type":"sign_free_agent","salary":{value}}}]}}', "non-finite")
 
     league = League.new(seed=7)
     player_id = league.free_agents[0]
@@ -81,8 +103,7 @@ def test_non_finite_action_numbers_are_rejected_at_parser_and_simulator_boundari
     ],
 )
 def test_numeric_overflow_is_rejected_recursively(payload: str) -> None:
-    with pytest.raises(ValueError, match="non-finite"):
-        parse_actions(payload)
+    _rejected(payload, "non-finite")
 
 
 @pytest.mark.parametrize(
@@ -94,15 +115,12 @@ def test_numeric_overflow_is_rejected_recursively(payload: str) -> None:
         ("player_ids", "[1,2,true]"),
     ],
 )
-def test_action_parser_rejects_booleans_in_numeric_fields(field: str, value: str) -> None:
-    with pytest.raises(ValueError, match="must be"):
-        parse_actions(f'{{"actions":[{{"type":"sign_free_agent","{field}":{value}}}]}}')
+def test_repair_rejects_booleans_in_numeric_fields(field: str, value: str) -> None:
+    _rejected(f'{{"actions":[{{"type":"sign_free_agent","{field}":{value}}}]}}', "must be")
 
 
-def test_action_parser_rejects_more_than_protocol_maximum() -> None:
-    payload = json.dumps({"actions": [{"type": "noop"}] * 25})
-    with pytest.raises(ValueError, match="at most 24"):
-        parse_actions(payload)
+def test_repair_rejects_more_than_protocol_maximum() -> None:
+    _rejected(json.dumps({"actions": [{"type": "noop"}] * 25}), "at most 24")
 
 
 def test_simulator_defensively_rejects_overflowing_integer_coercion() -> None:

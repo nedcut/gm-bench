@@ -521,6 +521,29 @@ def test_publication_cells_keep_strict_after_registry_fixed_options(monkeypatch:
     assert cell_environment(loosened)["GM_AGENT_STRICT"] == "1"
 
 
+def test_paid_cell_pins_travel_in_the_config_env_block(tmp_path: Path) -> None:
+    """Provider pins outrank ambient env at adapter launch, so a cell pin
+    passed only as ambient env (a mandatory-reasoning row's
+    OPENROUTER_REASONING_ENABLED=true) would be stomped back to the provider
+    default. The paid command must carry the pins in the --config env block,
+    the channel that outranks provider pins and is recorded in
+    provider_options."""
+    cell = build_cells("smoke")[0]
+    command = cell_command(cell, tmp_path)
+    config_path = Path(command[command.index("--config") + 1])
+    payload = json.loads(config_path.read_text())
+    env = payload["env"]
+    assert env["OPENROUTER_REASONING_ENABLED"] == cell.fixed_options["OPENROUTER_REASONING_ENABLED"]
+    assert env["OPENROUTER_MAX_TOKENS"] == str(cell.cap)
+    for key, value in cell.fixed_options.items():
+        assert env[key] == value
+    # Absent options must not sneak in through the config block either.
+    for key in cell.absent_options:
+        assert key not in env
+    # Preflight commands make no completion call and stay config-free.
+    assert "--config" not in cell_command(cell, tmp_path, preflight=True)
+
+
 def test_runner_rejects_cap_outside_pre_registered_sweep() -> None:
     with pytest.raises(ValueError, match="not in the pre-registered sweep"):
         build_cells("sweep", cap=999)
@@ -570,6 +593,13 @@ def test_smoke_retry_archives_empty_aborted_stale_checkpoint(tmp_path: Path) -> 
     assert "--resume" not in cell_command(cell, tmp_path)
 
 
+def _current_checkpoint_pins(cell) -> dict[str, str]:
+    pins = dict(cell.fixed_options)
+    if cell.provider == "openrouter" and cell.cap is not None:
+        pins["OPENROUTER_MAX_TOKENS"] = str(cell.cap)
+    return pins
+
+
 def test_smoke_retry_preserves_current_checkpoint_for_resume(tmp_path: Path) -> None:
     cell = build_cells("smoke")[0]
     stem = f"{cell.experiment_id}--{cell.cap_label}"
@@ -584,6 +614,7 @@ def test_smoke_retry_preserves_current_checkpoint_for_resume(tmp_path: Path) -> 
                     "benchmark_contract": {"contract_fingerprint": contract_fingerprint()},
                     "scaffold_fingerprint": scaffold_fingerprint(cell.provider),
                 },
+                "metadata": {"provider_options": _current_checkpoint_pins(cell)},
                 "episodes": [],
                 "completed": [],
             }
@@ -593,6 +624,73 @@ def test_smoke_retry_preserves_current_checkpoint_for_resume(tmp_path: Path) -> 
     assert publication_runner._prepare_smoke_retry_checkpoint(cell, tmp_path) is None
     assert checkpoint.is_file()
     assert "--resume" in cell_command(cell, tmp_path)
+
+
+def test_smoke_retry_archives_empty_aborted_checkpoint_with_drifted_pins(tmp_path: Path) -> None:
+    """The model runner refuses to resume when recorded provider_options drift
+    from the cell's pins, so leaving such a checkpoint in place would burn a
+    paid infrastructure attempt on a guaranteed local pre-call abort. Matching
+    fingerprints alone must not preserve it."""
+    cell = build_cells("smoke")[0]
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    checkpoint = tmp_path / "checkpoints" / f"{stem}.json"
+    checkpoint.parent.mkdir(parents=True)
+    drifted = _current_checkpoint_pins(cell)
+    pin_key = next(iter(cell.fixed_options))
+    drifted[pin_key] = "drifted-" + drifted[pin_key]
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "format": "gm-bench-model-checkpoint-v1",
+                "status": "aborted",
+                "provenance": {
+                    "benchmark_contract": {"contract_fingerprint": contract_fingerprint()},
+                    "scaffold_fingerprint": scaffold_fingerprint(cell.provider),
+                },
+                "metadata": {"provider_options": drifted},
+                "episodes": [],
+                "completed": [],
+            }
+        )
+    )
+    (tmp_path / "openrouter-reservations.json").write_text(json.dumps({"cells": {stem: {"attempts": 1}}}))
+
+    archived = publication_runner._prepare_smoke_retry_checkpoint(cell, tmp_path)
+
+    assert archived == tmp_path / "checkpoints" / "failed-attempts" / f"{stem}--attempt-1.json"
+    assert not checkpoint.exists()
+
+
+def test_smoke_retry_archives_empty_aborted_checkpoint_carrying_absent_option(tmp_path: Path) -> None:
+    cell = build_cells("smoke")[0]
+    if not cell.absent_options:
+        pytest.skip("cell registers no absent options")
+    stem = f"{cell.experiment_id}--{cell.cap_label}"
+    checkpoint = tmp_path / "checkpoints" / f"{stem}.json"
+    checkpoint.parent.mkdir(parents=True)
+    polluted = _current_checkpoint_pins(cell)
+    polluted[cell.absent_options[0]] = "true"
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "format": "gm-bench-model-checkpoint-v1",
+                "status": "aborted",
+                "provenance": {
+                    "benchmark_contract": {"contract_fingerprint": contract_fingerprint()},
+                    "scaffold_fingerprint": scaffold_fingerprint(cell.provider),
+                },
+                "metadata": {"provider_options": polluted},
+                "episodes": [],
+                "completed": [],
+            }
+        )
+    )
+    (tmp_path / "openrouter-reservations.json").write_text(json.dumps({"cells": {stem: {"attempts": 1}}}))
+
+    archived = publication_runner._prepare_smoke_retry_checkpoint(cell, tmp_path)
+
+    assert archived is not None
+    assert not checkpoint.exists()
 
 
 def test_smoke_retry_rejects_nonempty_stale_checkpoint_before_reservation(tmp_path: Path) -> None:
@@ -1239,6 +1337,37 @@ def test_call_guard_rejects_reasoning_without_a_committed_token_allowance(
     pricing["planning_assumptions"].pop("expected_internal_reasoning_tokens_per_decision", None)
     monkeypatch.setattr(publication_runner, "_read_json", lambda _path: pricing)
 
+    with pytest.raises(ValueError, match="positive committed"):
+        _call_spend_guard_environment(
+            cell,
+            tmp_path,
+            ceiling_usd=100.0,
+            measured_spend_floor_usd=0.0,
+        )
+
+
+def test_call_guard_accepts_zero_reasoning_allowance_when_cap_includes_reasoning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The v6 lane bills reasoning inside the output cap, so the full-cap
+    completion reservation already prices it and zero extra tokens is honest."""
+    cell = build_cells("smoke", model_id="openrouter-gpt-5.6-luna-openai", cap=4096)[0]
+    cell = replace(cell, fixed_options={"OPENROUTER_REASONING_ENABLED": "true"})
+    pricing = json.loads(Path("config/sota_v3_pricing_snapshot.json").read_text())
+    pricing["planning_assumptions"]["expected_internal_reasoning_tokens_per_decision"] = 0
+    pricing["planning_assumptions"]["reasoning_tokens_billed_within_output_cap"] = True
+    monkeypatch.setattr(publication_runner, "_read_json", lambda _path: pricing)
+
+    guard = _call_spend_guard_environment(
+        cell,
+        tmp_path,
+        ceiling_usd=100.0,
+        measured_spend_floor_usd=0.0,
+    )
+    prefix = "GM_BENCH_OPENROUTER_SPEND_GUARD_"
+    assert guard[f"{prefix}OUTPUT_TOKEN_CAP"] == "4096"
+    # Anything other than the exact boolean true keeps the strict refusal.
+    pricing["planning_assumptions"]["reasoning_tokens_billed_within_output_cap"] = "true"
     with pytest.raises(ValueError, match="positive committed"):
         _call_spend_guard_environment(
             cell,

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import os
 import shlex
@@ -13,9 +15,11 @@ import pytest
 import gm_bench.cli as cli_module
 import gm_bench.gui as gui_module
 import gm_bench.runner as runner_module
+from examples import gm_agent_common
 from examples.claude_agent import build_command as build_claude_command
 from examples.codex_agent import build_command as build_codex_command
-from examples.gm_agent_common import build_prompt, parse_actions
+from examples.gm_agent_common import build_prompt
+from gm_bench.agent_utils import position_aware_lineup
 from gm_bench.agents import ExternalProcessAgent, RandomAgent, ValueAgent
 from gm_bench.gui import (
     _is_loopback_host,
@@ -25,6 +29,12 @@ from gm_bench.gui import (
     run_from_request,
     score_history,
     serve,
+)
+from gm_bench.repair import (
+    RAW_TEXT_FIELD,
+    RULE_STRIP_CODE_FENCE,
+    RepairOutcome,
+    repair_adapter_output,
 )
 from gm_bench.runner import evaluate_against_baselines, run_episode, run_many
 from gm_bench.session import PersistentProcessAgent
@@ -48,12 +58,95 @@ def test_observation_hides_true_potential() -> None:
     assert "trade_market" in encoded
 
 
+def test_observation_drops_inert_morale_market_patience_fields() -> None:
+    """morale, market, and patience were written and serialized but read by no
+    mechanic (see docs/bench_v6_spec.md's survival test); they must be gone
+    from both the model and the observation, not merely unused."""
+    from dataclasses import fields
+
+    from gm_bench.models import Player, Team
+
+    assert "morale" not in {field.name for field in fields(Player)}
+    assert "market" not in {field.name for field in fields(Team)}
+    assert "patience" not in {field.name for field in fields(Team)}
+
+    league = League.new(seed=11)
+    observation = league.observation("preseason")
+    encoded = json.dumps(observation)
+    assert "morale" not in encoded
+    assert '"market"' not in encoded
+    assert "patience" not in encoded
+    for player in observation["team"]["roster"]:
+        assert "morale" not in player
+    assert "market" not in observation["team"]
+    assert "patience" not in observation["team"]
+
+    # drafted_round was set on every drafted prospect but read by nothing and
+    # never published; a dead write in the same spirit as the fields above.
+    assert "drafted_round" not in {field.name for field in fields(Player)}
+
+
 def test_observation_lineup_rules_match_validation() -> None:
     league = League.new(seed=11)
     rules = league.observation("preseason")["rules"]
     assert rules["lineup_size"] == 18
     assert rules["lineup_min_positions"] == {"F": 10, "D": 4, "G": 1}
     assert "positions" not in rules
+
+
+def test_observation_publishes_the_center_lineup_bonus_and_forward_sub_position() -> None:
+    """The center-count bonus must be legible: a target, a rate, and every forward's role."""
+    league = League.new(seed=11)
+    observation = league.observation("preseason")
+    bonus_rules = observation["rules"]["lineup_center_bonus"]
+    assert bonus_rules["target"] > 0
+    assert bonus_rules["bonus_per_center"] > 0
+    roster = observation["team"]["roster"]
+    forwards = [player for player in roster if player["position"] == "F"]
+    assert forwards
+    assert all(player["sub_position"] in ("C", "W") for player in forwards)
+    assert all(player["sub_position"] is None for player in roster if player["position"] != "F")
+
+
+def test_center_aware_lineup_beats_pure_overall_sort_despite_lower_total_overall() -> None:
+    """Sorting a lineup by overall alone should not be the strongest legal lineup.
+
+    Swapping a slightly weaker winger for a natural center to reach the
+    lineup's center target must win on team strength even though it loses on
+    total overall -- the tradeoff the mechanic exists to create.
+    """
+    league = League.new(seed=41)
+    team = league.user_team
+    roster = [league.players[player_id].public_dict() for player_id in team.roster]
+
+    naive_lineup = position_aware_lineup(roster)
+    center_aware_lineup = position_aware_lineup(
+        roster, lambda player: player["overall"] + (100.0 if player["sub_position"] == "C" else 0.0)
+    )
+    assert naive_lineup != center_aware_lineup
+
+    def centers_dressed(lineup: list[int]) -> int:
+        return sum(
+            1
+            for player_id in lineup
+            if league.players[player_id].position == "F" and league.players[player_id].sub_position == "C"
+        )
+
+    naive_centers = centers_dressed(naive_lineup)
+    center_aware_centers = centers_dressed(center_aware_lineup)
+    assert center_aware_centers > naive_centers
+
+    naive_overall_total = sum(league.players[player_id].overall for player_id in naive_lineup)
+    center_aware_overall_total = sum(league.players[player_id].overall for player_id in center_aware_lineup)
+    # The naive sort really is picking higher-rated players overall...
+    assert naive_overall_total > center_aware_overall_total
+
+    team.lineup = naive_lineup
+    naive_strength = league._team_strength(team, apply_injury_noise=False)
+    team.lineup = center_aware_lineup
+    center_aware_strength = league._team_strength(team, apply_injury_noise=False)
+    # ...but still fields the weaker team.
+    assert center_aware_strength > naive_strength
 
 
 def test_trade_market_uses_public_estimates_not_hidden_asset_value() -> None:
@@ -391,101 +484,130 @@ def test_gui_direct_entrypoint_honors_database_environment(tmp_path: Path, monke
     assert seen["db"] == str(database)
 
 
-def test_model_action_parser_accepts_actions_object() -> None:
-    actions = parse_actions('{"actions":[{"type":"noop"}]}')
-    assert actions == [{"type": "noop"}]
+def _adapter_reply(text: object) -> RepairOutcome:
+    """What the harness makes of a model reply the adapter forwarded verbatim.
+
+    Adapters no longer parse or repair model output: they print it in the
+    envelope's raw_text field beside their usage, and gm_bench.repair -- the
+    published rule set -- is the only thing that decides what it means. These
+    tests therefore go through emit() and repair together, so the rules that
+    are published are the rules that are measured.
+    """
+    stream = io.StringIO()
+    with contextlib.redirect_stdout(stream):
+        gm_agent_common.emit(text, {"api_calls": 1})
+    return repair_adapter_output(stream.getvalue(), source="external agent")
 
 
-def test_model_action_parser_rejects_untyped_objects() -> None:
-    try:
-        parse_actions('{"F":12,"D":4,"G":2}')
-    except ValueError:
-        return
-    raise AssertionError("parser should reject JSON objects without typed actions")
+def test_adapter_forwards_the_model_reply_verbatim_for_the_harness_to_judge() -> None:
+    stream = io.StringIO()
+    with contextlib.redirect_stdout(stream):
+        gm_agent_common.emit('{"actions":[{"type":"noop"}]}', {"api_calls": 1})
+    envelope = json.loads(stream.getvalue())
+
+    assert envelope[RAW_TEXT_FIELD] == '{"actions":[{"type":"noop"}]}'
+    assert envelope["usage"] == {"api_calls": 1}
+    outcome = repair_adapter_output(stream.getvalue(), source="external agent")
+    assert outcome.actions == [{"type": "noop"}]
+    assert not outcome.malformed
+    assert outcome.usage == {"api_calls": 1}
 
 
-def test_model_action_parser_rejects_null_content_as_protocol_failure() -> None:
-    with pytest.raises(ValueError, match="must be a string, got NoneType"):
-        parse_actions(None)
+def test_prose_wrapped_output_is_repaired_by_the_published_rule_and_counted() -> None:
+    """The case the adapters used to hide: a fenced answer is now measured.
+
+    The adapters' own JSON scan resolved this silently, so a model that wrapped
+    every answer in prose scored as if it had formatted perfectly.
+    """
+    outcome = _adapter_reply('Sure!\n```json\n{"actions":[{"type":"noop"}]}\n```')
+
+    assert outcome.actions[0]["type"] == "noop"
+    assert outcome.malformed and not outcome.unrecoverable
+    assert outcome.rules_applied == (RULE_STRIP_CODE_FENCE,)
 
 
-def test_model_action_parser_aliases_action_type_key() -> None:
-    # Some models emit {"action_type": ...} instead of {"type": ...}; the
-    # mechanical rename preserves the decision and drops the stale key.
-    actions = parse_actions('{"actions":[{"action_type":"draft","prospect_id":5}]}')
-    assert actions == [{"type": "draft", "prospect_id": 5}]
+def test_two_candidate_answers_stay_ambiguous_instead_of_being_chosen_between() -> None:
+    """The adapters' first-valid-JSON scan silently picked one; repair refuses."""
+    outcome = _adapter_reply('Either [{"type": "noop"}] or [{"type": "end_turn"}].')
+
+    assert outcome.unrecoverable
+    assert outcome.actions[0]["type"] == "noop"
 
 
-def test_model_action_parser_aliases_natural_trade_field_names() -> None:
-    # Models phrase trade fields naturally; the mechanical rename maps each to
-    # the canonical schema key and drops the stale one, without inventing ids.
-    actions = parse_actions(
+def test_untyped_object_is_an_unrecoverable_decision() -> None:
+    outcome = _adapter_reply('{"F":12,"D":4,"G":2}')
+
+    assert outcome.unrecoverable
+    assert "must return an action list or envelope" in (outcome.reason or "")
+
+
+def test_null_content_is_the_models_malformed_decision_with_its_cost_kept() -> None:
+    outcome = _adapter_reply(None)
+
+    assert outcome.unrecoverable
+    # The call was billed even though the backend returned no text.
+    assert outcome.usage == {"api_calls": 1}
+
+
+def test_key_aliases_are_no_longer_repaired_because_no_published_rule_covers_them() -> None:
+    """A behavior change, stated as one: the operative rules are the published ones.
+
+    The adapters used to rename {"action_type": ...} and natural trade field
+    names into the canonical schema keys. That repair was never in the
+    published table, so a model was scored under rules no reader could see.
+    Such a reply is now a malformed, unrecoverable decision.
+    """
+    aliased_type = _adapter_reply('{"actions":[{"action_type":"draft","prospect_id":5}]}')
+    assert aliased_type.unrecoverable
+
+    # A mis-keyed trade is well-formed JSON, so it is not a formatting failure:
+    # it reaches the simulator exactly as written and is refused there, counted
+    # against the model as its own illegal action instead of being rewritten
+    # into the legal trade nobody can see it did not ask for.
+    mis_keyed = {"type": "trade", "target_team_id": 3, "players_to_send": [1], "players_to_acquire": [88]}
+    aliased_trade = _adapter_reply(json.dumps({"actions": [mis_keyed]}))
+    assert aliased_trade.actions == [mis_keyed]
+    league = League.new(seed=21)
+    results = league.apply_actions(aliased_trade.actions, "trade_deadline")
+    assert not results[0].accepted
+    assert league.illegal_actions == 1
+
+    # The canonical spelling the prompt actually asks for is untouched.
+    canonical = _adapter_reply(
         json.dumps(
             {
                 "actions": [
                     {
                         "type": "trade",
-                        "target_team_id": 3,
-                        "players_to_send": [1],
-                        "players_to_acquire": [88],
+                        "partner_team_id": 3,
+                        "give_player_ids": [1],
+                        "receive_player_ids": [88],
                     }
                 ]
             }
         )
     )
-    assert actions == [{"type": "trade", "partner_team_id": 3, "give_player_ids": [1], "receive_player_ids": [88]}]
+    assert not canonical.malformed
 
 
-def test_model_action_parser_trade_alias_only_fills_absent_canonical_key() -> None:
-    # When the canonical key is already present, the alias is left untouched so
-    # the model's explicit choice wins (and the payload stays illegal if wrong).
-    actions = parse_actions(
-        json.dumps({"actions": [{"type": "trade", "partner_team_id": 5, "team_id": 9, "offered_players": [2]}]})
-    )
-    assert actions == [{"type": "trade", "partner_team_id": 5, "team_id": 9, "give_player_ids": [2]}]
+def test_an_empty_action_list_is_a_clean_do_nothing_decision() -> None:
+    # A well-formed empty list is an explicit "do nothing" turn, not a
+    # formatting failure, and must not be counted as malformed.
+    for text in ('{"actions": []}', "[]"):
+        outcome = _adapter_reply(text)
+        assert outcome.actions == []
+        assert not outcome.malformed
 
 
-def test_model_action_parser_trade_alias_fills_null_or_empty_canonical_key() -> None:
-    actions = parse_actions(
-        json.dumps(
-            {
-                "actions": [
-                    {
-                        "type": "trade",
-                        "partner_team_id": None,
-                        "team_id": 9,
-                        "give_player_ids": [],
-                        "players_to_send": [2],
-                        "receive_player_ids": None,
-                        "players_to_acquire": [88],
-                    }
-                ]
-            }
-        )
-    )
-    assert actions == [{"type": "trade", "partner_team_id": 9, "give_player_ids": [2], "receive_player_ids": [88]}]
+def test_a_list_with_no_typed_items_is_unrecoverable() -> None:
+    assert _adapter_reply('{"actions":[{"foo":"bar"}]}').unrecoverable
 
 
-def test_model_action_parser_treats_empty_action_list_as_noop() -> None:
-    # A well-formed empty action list is an explicit "do nothing" turn, not a
-    # parse failure — it must not be attributed to the fallback policy.
-    assert parse_actions('{"actions": []}') == [{"type": "noop"}]
-    assert parse_actions("[]") == [{"type": "noop"}]
+def test_malformed_items_are_not_silently_dropped() -> None:
+    outcome = _adapter_reply('{"actions":[{"type":"noop"},{"salary":2.5}]}')
 
-
-def test_model_action_parser_still_rejects_all_untyped_items() -> None:
-    # Items that are present but none normalize to a typed action are a real
-    # formatting failure and must still raise (so they count as a fallback).
-    try:
-        parse_actions('{"actions":[{"foo":"bar"}]}')
-    except ValueError:
-        return
-    raise AssertionError("parser should reject action lists with no typed items")
-
-
-def test_model_action_parser_does_not_silently_drop_malformed_items() -> None:
-    with pytest.raises(ValueError, match="string type"):
-        parse_actions('{"actions":[{"type":"noop"},{"salary":2.5}]}')
+    assert outcome.unrecoverable
+    assert "string type" in (outcome.reason or "")
 
 
 def test_standalone_common_prefers_checkout_package_over_older_install(tmp_path: Path) -> None:

@@ -10,10 +10,10 @@ import subprocess
 from abc import ABC, abstractmethod
 from typing import Any
 
-from gm_bench.action_validation import validate_action_list
 from gm_bench.agent_utils import position_aware_lineup, public_asset_value
+from gm_bench.repair import repair_adapter_output
 from gm_bench.scaffold_view import model_adapter_observation, scaffold_view_observation
-from gm_bench.telemetry import normalize_usage, require_finite_json_numbers
+from gm_bench.telemetry import normalize_usage
 
 
 def _release_surplus(player: dict[str, Any]) -> float:
@@ -61,6 +61,10 @@ def _contract_quote(player: dict[str, Any], years: int) -> float:
 
 class Agent(ABC):
     name = "agent"
+    # Whether a decision costs money. The v6 one-call-per-phase rule applies to
+    # agents that pay; in-process scripted policies buy nothing and keep the
+    # multi-round query loop. Wrappers copy this from the agent they wrap.
+    pays_for_calls = False
 
     @abstractmethod
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
@@ -690,6 +694,10 @@ class ExploitAgent(Agent):
 
 class ExternalProcessAgent(Agent):
     name = "external"
+    # Every adapter lane the harness spawns is treated as paid: the harness
+    # cannot see whether the subprocess calls an API, and charging a free
+    # adapter one call is safe where handing a paid one five calls is not.
+    pays_for_calls = True
 
     def __init__(
         self,
@@ -734,32 +742,11 @@ class ExternalProcessAgent(Agent):
             return [{"type": "noop", "error": f"external agent could not be launched: {exc}"}], None
         if completed.returncode != 0:
             return [{"type": "noop", "error": completed.stderr[-500:]}], None
-        try:
-            payload = json.loads(completed.stdout)
-        except json.JSONDecodeError:
-            return [{"type": "noop", "error": "external agent returned invalid JSON"}], None
-        if isinstance(payload, list):
-            try:
-                require_finite_json_numbers(payload)
-            except ValueError:
-                return [{"type": "noop", "error": "external agent returned non-finite action values"}], None
-            try:
-                actions = validate_action_list(payload)
-            except ValueError as exc:
-                return [{"type": "noop", "error": f"external agent returned invalid actions: {exc}"}], None
-            return actions, None
-        if isinstance(payload, dict) and isinstance(payload.get("actions"), list):
-            actions = payload["actions"]
-            try:
-                require_finite_json_numbers(actions)
-            except ValueError:
-                return [{"type": "noop", "error": "external agent returned non-finite action values"}], None
-            try:
-                actions = validate_action_list(actions)
-            except ValueError as exc:
-                return [{"type": "noop", "error": f"external agent returned invalid actions: {exc}"}], None
-            return actions, normalize_usage(payload.get("usage"))
-        return [{"type": "noop", "error": "external agent must return an action list or envelope"}], None
+        # v6 buys exactly one model call per phase, so malformed output is
+        # repaired locally under the published rules or recorded as a
+        # structured no-op; there is no second, paid attempt.
+        outcome = repair_adapter_output(completed.stdout, source="external agent")
+        return outcome.actions, normalize_usage(outcome.usage)
 
 
 _PRIVATE_SEED_ENV_PREFIX = "GM_BENCH_PRIVATE_SEED"

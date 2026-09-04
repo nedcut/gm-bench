@@ -31,9 +31,13 @@ def test_provider_agent_carries_resolved_metadata(monkeypatch: pytest.MonkeyPatc
         "agent_timeout": 120.0,
         "session": False,
         "transport": "direct-api",
-        "protocol_repair_attempts": 1,
-        "strict_fallback": False,
-        "provider_options": {"GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "1", "GM_AGENT_STRICT": "0"},
+        "protocol_repair_attempts": 0,
+        "strict_fallback": True,
+        "provider_options": {
+            "OPENAI_MAX_TOKENS": "4096",
+            "GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS": "0",
+            "GM_AGENT_STRICT": "1",
+        },
     }
 
 
@@ -119,8 +123,8 @@ def test_cli_model_run_info_records_resolved_provider_metadata(monkeypatch: pyte
     assert run_info["profile"] == "compact"
     assert run_info["preset"] == "smoke"
     assert run_info["transport"] == "direct-api"
-    assert run_info["protocol_repair_attempts"] == 1
-    assert run_info["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "1"
+    assert run_info["protocol_repair_attempts"] == 0
+    assert run_info["provider_options"]["GM_BENCH_PROTOCOL_REPAIR_ATTEMPTS"] == "0"
     assert run_info["benchmark_contract"] == benchmark_contract()
     assert run_info["seed_panel"]["name"] == "custom"
 
@@ -171,9 +175,32 @@ def test_strict_fallback_opt_out_is_recorded_rather_than_omitted(monkeypatch: py
     assert run_info["provider_options"]["GM_AGENT_STRICT"] == "0"
 
 
-def test_ad_hoc_runs_keep_the_soft_fallback_and_still_record_it(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ad_hoc_runs_are_strict_too_and_still_record_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Smokes and local comparisons run under the published failure policy.
+
+    The docs say unrepairable output becomes a structured no-op and repair
+    cannot lift a score. That was only true on publication lanes while the soft
+    fallback was the default everywhere else, so an ad-hoc smoke silently
+    scored host-chosen draft and lineup moves.
+    """
     monkeypatch.delenv("GM_AGENT_STRICT", raising=False)
     run_info = _captured_model_run(monkeypatch, ["model", "--provider", "openai", "--preset", "smoke", "--no-log"])
+    assert run_info["strict_fallback"] is True
+    assert run_info["provider_options"]["GM_AGENT_STRICT"] == "1"
+
+    # And a stale ambient value cannot take the ad-hoc lane back to the soft
+    # fallback: the harness decides on every lane, not just the publication one.
+    monkeypatch.setenv("GM_AGENT_STRICT", "0")
+    ambient = _captured_model_run(monkeypatch, ["model", "--provider", "openai", "--preset", "smoke", "--no-log"])
+    assert ambient["strict_fallback"] is True
+    assert ambient["provider_options"]["GM_AGENT_STRICT"] == "1"
+
+
+def test_the_soft_fallback_lane_is_still_reachable_by_asking_for_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GM_AGENT_STRICT", raising=False)
+    run_info = _captured_model_run(
+        monkeypatch, ["model", "--provider", "openai", "--preset", "smoke", "--no-strict-fallback", "--no-log"]
+    )
     assert run_info["strict_fallback"] is False
     assert run_info["provider_options"]["GM_AGENT_STRICT"] == "0"
 

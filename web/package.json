@@ -7,7 +7,6 @@
     "dev": "vite",
     "prepare:replay": "python3 ../scripts/build_web_replay_bundle.py",
     "validate:data": "bun scripts/validate_results_data.ts",
-    "validate:replay:shape": "python3 ../scripts/build_web_replay_bundle.py --bundle /tmp/gm-bench-replay.zip",
     "validate:replay:node": "bun scripts/validate_replay_node.mjs",
     "validate:replay": "bun run prepare:replay && bun run validate:replay:node",
     "generate:replay": "python3 ../scripts/build_web_replay_bundle.py --write-fixture",

@@ -323,10 +323,7 @@ def _add_strict_fallback_args(parser: argparse.ArgumentParser) -> None:
         dest="strict_fallback",
         action="store_true",
         default=None,
-        help=(
-            "on a failed decision emit a bare noop instead of a host-supplied draft and lineup "
-            "(default for --preset leaderboard)"
-        ),
+        help=("on a failed decision emit a bare noop instead of a host-supplied draft and lineup (the default)"),
     )
     parser.add_argument(
         "--no-strict-fallback",
@@ -447,18 +444,20 @@ def _evaluate_command(args: argparse.Namespace) -> None:
     _print_log_line(run_id, args)
 
 
-def _resolve_strict_fallback(args: argparse.Namespace, config: BenchmarkConfig) -> bool | None:
-    """Failure-handling policy for this run, or None to leave it to the environment.
+def _resolve_strict_fallback(args: argparse.Namespace, config: BenchmarkConfig) -> bool:
+    """Failure-handling policy for this run, always decided here.
 
-    Publication lanes are strict by default: a row that ranks on the public
-    panel must not be carrying decisions the model never produced. Ad-hoc runs
-    keep the historical soft fallback unless asked otherwise, and an explicit
-    flag always wins over the lane default.
+    Strict is the default on every lane: a decision the model never produced
+    must not move roster state, on a publication row or on a local smoke.
+    Leaving it unresolved handed the choice to an ambient `GM_AGENT_STRICT` in
+    the operator's shell, so a stale `0` silently put an ad-hoc run back on the
+    soft fallback whose host-chosen draft and lineup moves land in the score.
+    Only `--no-strict-fallback` opts out, and that choice is recorded.
     """
     explicit = getattr(args, "strict_fallback", None)
     if explicit is not None:
         return bool(explicit)
-    return True if config.preset == "leaderboard" else None
+    return True
 
 
 def _model_command(args: argparse.Namespace) -> None:
@@ -984,9 +983,16 @@ def _reliability_line(result: dict[str, Any]) -> str:
     latencies = [
         episode["mean_decision_seconds"] for episode in result["episodes"] if "mean_decision_seconds" in episode
     ]
+    # Malformed and unrecoverable output sit on the reliability line, beside the
+    # score and never inside it: a model that formats badly should be visibly
+    # unreliable rather than quietly cheaper or quietly worse.
     line = (
         f"decisions={summary.get('decisions', 0)} failed_decisions={summary.get('failed_decisions', 0)} "
-        f"(rate {summary.get('decision_failure_rate', 0.0)}) memo_writes={summary.get('memo_writes', 0)}"
+        f"(rate {summary.get('decision_failure_rate', 0.0)}) "
+        f"malformed={summary.get('malformed_decisions', 0)} (rate {summary.get('malformed_rate', 0.0)}) "
+        f"unrecoverable={summary.get('unrecoverable_decisions', 0)} "
+        f"(rate {summary.get('unrecoverable_rate', 0.0)}) "
+        f"memo_writes={summary.get('memo_writes', 0)}"
     )
     if latencies:
         line += f" mean_decision_seconds={round(sum(latencies) / len(latencies), 3)}"

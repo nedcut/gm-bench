@@ -15,7 +15,8 @@ from typing import Any, Callable
 from gm_bench.agents import AGENTS, Agent
 from gm_bench.baseline_cache import cache_key, default_cache_path, load_cache, put_cached_episode, save_cache
 from gm_bench.benchmark_config import validate_baseline_names
-from gm_bench.protocol import PHASES, EpisodeConfig
+from gm_bench.protocol import PHASES, V6_PAID_CALLS_PER_DECISION, EpisodeConfig
+from gm_bench.repair import is_malformed, is_unrecoverable
 from gm_bench.scoring import breakdown_from_components, persisted_score_components, score_components
 from gm_bench.session import PersistentProcessAgent, should_continue_interaction
 from gm_bench.simulator import League
@@ -40,6 +41,10 @@ class BenchmarkResult:
     illegal_actions: int
     decisions: int
     failed_decisions: int
+    # Reported beside the score, never inside it: how often the model's output
+    # was unusable as delivered, and how often local repair could not save it.
+    malformed_decisions: int
+    unrecoverable_decisions: int
     memo_writes: int
     mean_decision_seconds: float
     max_decision_seconds: float
@@ -79,6 +84,8 @@ def run_episode(
     total_decisions = seasons * len(phases)
     decision = 0
     failed_decisions = 0
+    malformed_decisions = 0
+    unrecoverable_decisions = 0
     decision_seconds: list[float] = []
     harness_latency_ms = 0.0
     usage_records: list[dict[str, Any]] = []
@@ -113,6 +120,10 @@ def run_episode(
                     usage_records.append({**usage, "season": season_index, "phase": phase})
                 if point["failed"]:
                     failed_decisions += 1
+                if point["malformed"]:
+                    malformed_decisions += 1
+                if point["unrecoverable"]:
+                    unrecoverable_decisions += 1
                 if phase == "draft":
                     league.run_opponent_draft(before_user=False)
                 league.run_autopilot_opponents(phase)
@@ -148,6 +159,8 @@ def run_episode(
         illegal_actions=league.illegal_actions,
         decisions=total_decisions,
         failed_decisions=failed_decisions,
+        malformed_decisions=malformed_decisions,
+        unrecoverable_decisions=unrecoverable_decisions,
         memo_writes=memo_writes,
         mean_decision_seconds=round(mean(decision_seconds), 4) if decision_seconds else 0.0,
         max_decision_seconds=round(max(decision_seconds), 4) if decision_seconds else 0.0,
@@ -177,13 +190,16 @@ def run_decision_point(
     # survive query follow-ups and reopen only at the next decision point.
     league.begin_decision_window()
     tier = _observation_tier_for_agent(agent, config)
+    rounds = _interaction_rounds_for_agent(agent, config)
     action_results: list[dict[str, Any]] | None = None
     last_results: list[dict[str, Any]] = []
     usage_records: list[dict[str, Any]] = []
     harness_latency_ms = 0.0
     decision_seconds = 0.0
     failed = False
-    for round_index in range(config.max_interaction_rounds):
+    malformed = False
+    unrecoverable = False
+    for round_index in range(rounds):
         observation = league.observation(
             phase,
             tier=tier,
@@ -205,9 +221,12 @@ def run_decision_point(
             usage_records.append({**usage, "interaction_round": round_index})
         if _decision_failed(actions):
             failed = True
+        if is_malformed(actions):
+            malformed = True
+            unrecoverable = unrecoverable or is_unrecoverable(actions)
         results = [item.to_dict() for item in league.apply_actions(actions, phase)]
         last_results = results
-        if not should_continue_interaction(results, max_rounds=config.max_interaction_rounds, round_index=round_index):
+        if not should_continue_interaction(results, max_rounds=rounds, round_index=round_index):
             break
         action_results = results
     return {
@@ -216,6 +235,8 @@ def run_decision_point(
         "harness_latency_ms": harness_latency_ms,
         "decision_seconds": decision_seconds,
         "failed": failed,
+        "malformed": malformed,
+        "unrecoverable": unrecoverable,
     }
 
 
@@ -223,6 +244,25 @@ def _observation_tier_for_agent(agent: Agent, config: EpisodeConfig) -> str:
     if config.builtin_full_observation and agent.name in AGENTS:
         return "full"
     return config.observation_tier
+
+
+def _interaction_rounds_for_agent(agent: Agent, config: EpisodeConfig) -> int:
+    """How many times this agent may be asked inside one decision window.
+
+    Under the v6 execution rules an agent that pays for its calls gets exactly
+    one per phase — twenty per five-season seed — so a model cannot buy extra
+    thinking by spending query rounds. In-process scripted policies make no API
+    calls, so the multi-round query loop stays open for them and their episodes
+    (and every cached baseline score) are unchanged.
+
+    The test is whether the agent pays, not whether its name is registered: a
+    scripted diagnostic that renames itself (``scaffold-view:tiny``) still buys
+    nothing and must keep the same rounds as the row it is compared against.
+    Transport wrappers copy ``pays_for_calls`` from the agent they wrap.
+    """
+    if config.single_paid_call_per_phase and getattr(agent, "pays_for_calls", False):
+        return V6_PAID_CALLS_PER_DECISION
+    return config.max_interaction_rounds
 
 
 def run_many(
@@ -272,6 +312,8 @@ def summarize_episodes(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     # deterministic for a given agent behavior.
     decisions = sum(episode.get("decisions", 0) for episode in episodes)
     failed_decisions = sum(episode.get("failed_decisions", 0) for episode in episodes)
+    malformed_decisions = sum(episode.get("malformed_decisions", 0) for episode in episodes)
+    unrecoverable_decisions = sum(episode.get("unrecoverable_decisions", 0) for episode in episodes)
     return {
         "mean_score": round(mean(seed_means), 3) if seed_means else 0.0,
         "mean_strategy_score": round(mean(episode["strategy_score"] for episode in episodes), 3) if episodes else 0.0,
@@ -284,6 +326,14 @@ def summarize_episodes(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "decisions": decisions,
         "failed_decisions": failed_decisions,
         "decision_failure_rate": round(failed_decisions / decisions, 3) if decisions else 0.0,
+        # Output-quality reliability, reported next to the score and never
+        # folded into it: `malformed` counts decisions whose raw output was
+        # unusable as delivered, `unrecoverable` the subset local repair could
+        # not save, which became structured no-ops.
+        "malformed_decisions": malformed_decisions,
+        "unrecoverable_decisions": unrecoverable_decisions,
+        "malformed_rate": round(malformed_decisions / decisions, 3) if decisions else 0.0,
+        "unrecoverable_rate": round(unrecoverable_decisions / decisions, 3) if decisions else 0.0,
         "memo_writes": sum(episode.get("memo_writes", 0) for episode in episodes),
         # Older cached episodes may predate this field, so read it defensively.
         "rejected_offers": sum(episode.get("rejected_offers", 0) for episode in episodes),
@@ -447,6 +497,10 @@ def evaluate_against_baselines(
             "candidate_decisions": candidate["summary"].get("decisions", 0),
             "candidate_failed_decisions": candidate["summary"].get("failed_decisions", 0),
             "candidate_decision_failure_rate": candidate["summary"].get("decision_failure_rate", 0.0),
+            "candidate_malformed_decisions": candidate["summary"].get("malformed_decisions", 0),
+            "candidate_unrecoverable_decisions": candidate["summary"].get("unrecoverable_decisions", 0),
+            "candidate_malformed_rate": candidate["summary"].get("malformed_rate", 0.0),
+            "candidate_unrecoverable_rate": candidate["summary"].get("unrecoverable_rate", 0.0),
             "candidate_memo_writes": candidate["summary"].get("memo_writes", 0),
             "candidate_rejected_offers": candidate["summary"].get("rejected_offers", 0),
             "candidate_failed_queries": candidate["summary"].get("failed_queries", 0),

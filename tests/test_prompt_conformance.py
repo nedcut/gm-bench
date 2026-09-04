@@ -54,10 +54,21 @@ def _build_examples(phase: str = "preseason") -> tuple[dict[str, Any], list[dict
     prompt = build_prompt(observation)
     examples = _extract_action_examples(prompt)
     # Guard the guard: if extraction silently found nothing, the schema assertion
-    # below would vacuously pass. Every phase has a substantial action catalog.
-    assert len(examples) >= 10, f"expected many extracted examples, got {len(examples)}"
+    # below would vacuously pass. Named types rather than a count, because the
+    # count moved when the v6 one-call rule dropped inspect_team, inspect_player,
+    # list_free_agents and end_turn from the advertised catalog -- their answers
+    # are never returned to a model that gets a single call per phase. Every
+    # action a model can usefully spend that call on is still asserted present.
     types = {example["type"] for example in examples}
-    assert "scout" in types
+    assert {
+        "sign_free_agent",
+        "trade",
+        "release",
+        "set_lineup",
+        "memo",
+        "scout",
+        "noop",
+    } <= types, f"prompt catalog lost a core action: {sorted(types)}"
     return observation, examples
 
 
@@ -86,13 +97,36 @@ def test_phase_specific_examples_do_not_prime_unavailable_actions() -> None:
     assert "draft" in {example["type"] for example in draft}
 
 
+def test_prompt_does_not_advertise_queries_whose_answers_never_arrive() -> None:
+    """One paid call per phase means a query is a thrown-away decision.
+
+    The prompt used to promise "Information-action results appear in
+    action_results on the next interaction round" and to tell the model to
+    inspect before committing. There is no next round: a model that followed
+    those instructions spent its whole phase on questions it would never see
+    answered, which penalized instruction-following models specifically.
+    """
+    for phase in ("preseason", "midseason", "draft"):
+        header = build_prompt(League.new(seed=42).observation(phase)).split("Observation JSON:")[0]
+        assert "This is your only call this phase" in header
+        for action_type in ("inspect_team", "inspect_player", "list_free_agents", "end_turn"):
+            assert f'"type":"{action_type}"' not in header, f"{phase} prompt still advertises {action_type}"
+        # No promise that results come back, in any form.
+        assert "action_results" not in header
+        assert "next interaction round" not in header
+        # scout is the exception and must stay advertised: its report persists
+        # in scout_reports and is readable at every later decision.
+        assert '"type":"scout"' in header
+        assert "scout_reports" in header
+
+
 def test_prompt_states_current_draft_action_limit() -> None:
     league = League.new(seed=42)
     prompt = build_prompt(league.observation("draft"))
     assert "Emit only action types listed in available_actions" in prompt
     assert "emit at most 1 draft action" in prompt
 
-    league.user_team.draft_picks[league.season] = 0
+    league.user_team.draft_picks[league.season] = []
     prompt = build_prompt(league.observation("draft"))
     assert "emit at most 0 draft actions" in prompt
 

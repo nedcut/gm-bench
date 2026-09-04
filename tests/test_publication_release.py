@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import zipfile
 from pathlib import Path
 
@@ -10,7 +11,7 @@ import pytest
 from gm_bench.contract import contract_fingerprint, scaffold_fingerprint
 from gm_bench.official import REDACTED_SEEDS_SENTINEL
 from gm_bench.publication import canonical_sha256, v3_route_identity_sha256
-from scripts.package_publication_release import build_release, verify_archive
+from scripts.package_publication_release import _v3_analysis_rows, build_release, verify_archive
 
 
 def _write_json(path: Path, payload: dict) -> None:
@@ -341,6 +342,17 @@ def _replace_archived_json(archive_path: Path, member: str, payload: dict) -> No
     file_row = next(row for row in manifest["files"] if row["path"] == member)
     file_row["bytes"] = len(data)
     file_row["sha256"] = hashlib.sha256(data).hexdigest()
+    entries["manifest.json"] = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode()
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        for name, entry in entries.items():
+            archive.writestr(name, entry)
+
+
+def _replace_archived_manifest(archive_path: Path, mutate) -> None:
+    with zipfile.ZipFile(archive_path) as archive:
+        entries = {name: archive.read(name) for name in archive.namelist()}
+    manifest = json.loads(entries["manifest.json"])
+    mutate(manifest)
     entries["manifest.json"] = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode()
     with zipfile.ZipFile(archive_path, "w") as archive:
         for name, entry in entries.items():
@@ -761,3 +773,329 @@ def test_v3_release_requires_explicit_release_date(tmp_path: Path) -> None:
         assert "release_date" in str(exc)
     else:
         raise AssertionError("expected v3 packaging without a release date to fail")
+
+
+# --- sota-v5 accounted-for rule ------------------------------------------------
+
+
+def _v5_analysis_fixture() -> tuple[dict, set[str], dict]:
+    registered = {f"m{index:02d}" for index in range(16)}
+    eligible_ids = sorted(registered)[:11]
+    excluded_ids = sorted(registered)[11:]
+    rows = [
+        {
+            "model_id": model_id,
+            "seed_count": 29,
+            "raw_artifact_sha256": "a" * 64,
+            "within_seed_score_stddev": None,
+            "within_seed_score_stddev_status": "unmeasured-one-repeat",
+        }
+        for model_id in eligible_ids
+    ]
+    register_entries = []
+    excluded_rows = []
+    for index, model_id in enumerate(excluded_ids):
+        infrastructure = index >= 3
+        digest = str(index) * 64
+        register_entries.append(
+            {
+                "id": model_id,
+                "status": "excluded-infrastructure-limit" if infrastructure else "ineligible-model-behavior",
+                "rule": "frozen rule",
+                "reason": "plain sentence",
+                "attempts": 2 if infrastructure else 1,
+                "decisions_completed": 0 if infrastructure else 100,
+                "cost_usd": 0.0,
+                "evidence": {"checkpoint": f"checkpoints/{model_id}--4096.json", "checkpoint_sha256": digest},
+            }
+        )
+        excluded_rows.append(
+            {
+                "model_id": model_id,
+                "status": register_entries[-1]["status"],
+                "rule": "frozen rule",
+                "reason": "plain sentence",
+                "attempts": register_entries[-1]["attempts"],
+                "decisions_completed": register_entries[-1]["decisions_completed"],
+                "cost_usd": 0.0,
+                "checkpoint_sha256": digest,
+            }
+        )
+    analysis = {
+        "benchmark_version": "sota-v5",
+        "status": "complete",
+        "analysis_mode": "reference-only",
+        "redaction": {
+            "private_seed_panel": True,
+            "seed_identifiers_included": False,
+            "per_seed_rows_included": False,
+            "public_view": "aggregate-only",
+        },
+        "publication_ready": True,
+        "model_tiering": {"status": "not-supported"},
+        "registered_model_count": 16,
+        "eligible_model_count": 11,
+        "holm_family_size": 16,
+        "minimum_headline_models": 8,
+        "accounted_for_model_count": 16,
+        "config_errors": [],
+        "missing_models": [],
+        "rejected_artifacts": [],
+        "within_seed_noise": {"statistic": "within_seed_score_stddev", "models_missing_the_statistic": []},
+        "models": rows,
+        "excluded_models": excluded_rows,
+    }
+    register = {
+        "format": "gm-bench-panel-exclusion-register-v1",
+        "schema_version": 1,
+        "contract": "sota-v5",
+        "status": "frozen",
+        "entries": register_entries,
+    }
+    return analysis, registered, register
+
+
+def test_v5_analysis_rows_accept_the_accounted_for_family() -> None:
+    analysis, registered, register = _v5_analysis_fixture()
+    rows = _v3_analysis_rows(analysis, registered, 29, contract="sota-v5", register=register, minimum_headline_models=8)
+    assert sorted(rows) == sorted(registered)[:11]
+
+
+def _mutate(payload: dict, path: tuple, value: object) -> None:
+    target = payload
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = value
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (lambda a, r: _mutate(a, ("holm_family_size",), 11), "holm_family_size must equal the registered model count"),
+        (lambda a, r: _mutate(a, ("eligible_model_count",), 16), "eligible_model_count must equal the number"),
+        (lambda a, r: _mutate(a, ("accounted_for_model_count",), 15), "accounted_for_model_count must equal"),
+        (lambda a, r: a["excluded_models"].pop(), "every registered model must appear exactly once"),
+        (lambda a, r: a["excluded_models"].append(dict(a["excluded_models"][0], model_id="m00")), "both eligible"),
+        (lambda a, r: r["entries"].pop(), "exactly the committed exclusion register entries"),
+        (
+            lambda a, r: _mutate(r, ("entries", 0, "evidence", "checkpoint_sha256"), "f" * 64),
+            "does not match the committed exclusion register entry",
+        ),
+        (
+            lambda a, r: _mutate(r, ("entries", 0, "status"), "excluded-infrastructure-limit"),
+            "does not match the committed exclusion register entry",
+        ),
+        (lambda a, r: _mutate(r, ("status",), "draft"), "exclusion register status must be frozen"),
+        (lambda a, r: _mutate(a, ("within_seed_noise", "per_seed"), []), "within_seed_noise must be an aggregate"),
+        (lambda a, r: _mutate(a, ("excluded_models", 0, "seeds"), [1]), "exactly the public register fields"),
+        (lambda a, r: _mutate(a, ("models", 0, "per_seed"), []), "must not contain private per_seed evidence"),
+        (lambda a, r: _mutate(a, ("unexpected",), 1), "unexpected public fields"),
+        (lambda a, r: _mutate(a, ("minimum_headline_models",), 9), "must equal the protocol exclusion_policy floor"),
+    ],
+)
+def test_v5_analysis_rows_reject_unaccounted_or_leaking_analysis(mutation, message: str) -> None:
+    analysis, registered, register = _v5_analysis_fixture()
+    mutation(analysis, register)
+    with pytest.raises(ValueError, match=message):
+        _v3_analysis_rows(analysis, registered, 29, contract="sota-v5", register=register, minimum_headline_models=8)
+
+
+def test_v5_analysis_rows_enforce_the_protocol_headline_floor() -> None:
+    analysis, registered, register = _v5_analysis_fixture()
+    with pytest.raises(ValueError, match="below the headline floor of 12"):
+        _v3_analysis_rows(analysis, registered, 29, contract="sota-v5", register=register, minimum_headline_models=12)
+    with pytest.raises(ValueError, match="requires the committed exclusion register"):
+        _v3_analysis_rows(analysis, registered, 29, contract="sota-v5", register=None, minimum_headline_models=8)
+
+
+def test_v3_analysis_rows_still_reject_the_v5_public_fields() -> None:
+    analysis, registered, register = _v5_analysis_fixture()
+    analysis["benchmark_version"] = "sota-v3"
+    with pytest.raises(ValueError, match="unexpected public fields"):
+        _v3_analysis_rows(analysis, registered, 29, contract="sota-v3")
+
+
+@pytest.fixture(scope="module")
+def staged_v5_release(tmp_path_factory: pytest.TempPathFactory) -> dict:
+    from scripts.sota_v5_rehearsal import stage_accounted_for_inputs
+
+    return stage_accounted_for_inputs(tmp_path_factory.mktemp("staged-v5"))
+
+
+def _copy_staged(staged: dict, tmp_path: Path) -> tuple[Path, Path]:
+    staging = tmp_path / "repo-v5"
+    results_root = tmp_path / "results-v5"
+    shutil.copytree(staged["staging"], staging)
+    shutil.copytree(staged["results_root"], results_root)
+    return staging, results_root
+
+
+def _build_v5(tmp_path: Path, staging: Path, results_root: Path) -> tuple[dict, Path]:
+    archive = tmp_path / "release-v5.zip"
+    manifest = build_release(
+        repo_root=staging,
+        run_dir=staging,
+        archive_path=archive,
+        manifest_path=tmp_path / "manifest-v5.json",
+        checksums_path=tmp_path / "SHA256SUMS-v5.txt",
+        contract="sota-v5",
+        release_id="sota-v5-test-release",
+        release_date="2026-09-03",
+        results_root=results_root,
+    )
+    return manifest, archive
+
+
+def test_v5_release_packages_the_accounted_for_family(staged_v5_release: dict, tmp_path: Path) -> None:
+    staging, results_root = _copy_staged(staged_v5_release, tmp_path)
+    manifest, archive = _build_v5(tmp_path, staging, results_root)
+    register_entries = staged_v5_release["register_entries"]
+
+    assert manifest["eligible_headline_models"] == 11
+    assert manifest["diagnostic_models"] == 3
+    assert manifest["excluded_models"] == 5
+    assert manifest["exclusion_register"] == "config/sota_v5_panel_exclusions.json"
+    statuses = {row["model_id"]: row["status"] for row in manifest["artifacts"]}
+    assert sorted(k for k, v in statuses.items() if v == "excluded") == sorted(register_entries)
+    assert sum(status == "headline" for status in statuses.values()) == 11
+    paths = {row["path"]: row["role"] for row in manifest["files"]}
+    assert paths["config/sota_v5_panel_exclusions.json"] == "exclusion-register"
+    for model_id, entry in register_entries.items():
+        artifact = next(row for row in manifest["artifacts"] if row["model_id"] == model_id)
+        assert artifact["exclusion_status"] == entry["status"]
+        assert artifact["checkpoint_sha256"] == entry["evidence"]["checkpoint_sha256"]
+        assert artifact["rejection_reasons"] == [entry["reason"]]
+        assert artifact["decisions"] == entry["decisions_completed"]
+        assert artifact["cost_usd"] == entry["cost_usd"]
+        assert artifact["raw_path"] is None
+        if entry["status"] == "ineligible-model-behavior":
+            assert artifact["compact_artifact"] == f"results/diagnostics/{model_id}.json"
+            assert paths[artifact["compact_artifact"]] == "redacted-diagnostic-artifact"
+        else:
+            assert artifact["compact_artifact"] is None
+    headline = next(row for row in manifest["artifacts"] if row["status"] == "headline")
+    assert headline["compact_artifact"] == f"results/leaderboard/{headline['model_id']}.json"
+    with zipfile.ZipFile(archive) as packaged:
+        names = packaged.namelist()
+        assert not any(name.startswith("raw/") for name in names)
+        assert not any("/sota-v5/" in name for name in names)
+        public_bytes = b"\n".join(packaged.read(name) for name in names)
+    assert not any(str(seed).encode() in public_bytes for seed in staged_v5_release["seeds"])
+    assert verify_archive(archive)["excluded_models"] == 5
+
+
+def test_v5_release_reads_contract_scoped_artifact_directories(staged_v5_release: dict, tmp_path: Path) -> None:
+    staging, results_root = _copy_staged(staged_v5_release, tmp_path)
+    model_id = staged_v5_release["analysis"]["models"][0]["model_id"]
+    scoped = results_root / "results/leaderboard/sota-v5" / f"{model_id}.json"
+    top_level = results_root / "results/leaderboard" / f"{model_id}.json"
+    top_level.write_bytes(scoped.read_bytes())
+    scoped.unlink()
+
+    with pytest.raises(FileNotFoundError):
+        _build_v5(tmp_path, staging, results_root)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (lambda c: c["publication"].__setitem__("source_checkpoint_sha256", "f" * 64), "source_checkpoint_sha256"),
+        (lambda c: c["publication"].pop("source_checkpoint_sha256"), "source_checkpoint_sha256"),
+        (lambda c: c["candidate"].__setitem__("episodes", [{"seed": 1}]), "episode traces must be removed"),
+        (lambda c: c.__setitem__("seeds", [1, 2]), "top-level seeds must be redacted"),
+    ],
+)
+def test_v5_release_rejects_unlinked_or_unredacted_diagnostics(
+    staged_v5_release: dict, tmp_path: Path, mutate, message: str
+) -> None:
+    staging, results_root = _copy_staged(staged_v5_release, tmp_path)
+    model_id = next(
+        model_id
+        for model_id, entry in staged_v5_release["register_entries"].items()
+        if entry["status"] == "ineligible-model-behavior"
+    )
+    diagnostic_path = results_root / "results/diagnostics/sota-v5" / f"{model_id}.json"
+    diagnostic = json.loads(diagnostic_path.read_text())
+    mutate(diagnostic)
+    diagnostic_path.write_text(json.dumps(diagnostic))
+
+    with pytest.raises(ValueError, match=message):
+        _build_v5(tmp_path, staging, results_root)
+    assert not (tmp_path / "release-v5.zip").exists()
+
+
+def test_v5_release_rejects_a_register_that_disagrees_with_the_analysis(
+    staged_v5_release: dict, tmp_path: Path
+) -> None:
+    staging, results_root = _copy_staged(staged_v5_release, tmp_path)
+    register_path = staging / "config/sota_v5_panel_exclusions.json"
+    register = json.loads(register_path.read_text())
+    register["entries"][0]["evidence"]["checkpoint_sha256"] = "f" * 64
+    register_path.write_text(json.dumps(register))
+
+    with pytest.raises(ValueError, match="does not match the committed exclusion register entry"):
+        _build_v5(tmp_path, staging, results_root)
+
+
+def test_v5_verifier_rejects_an_incomplete_manifest(staged_v5_release: dict, tmp_path: Path) -> None:
+    staging, results_root = _copy_staged(staged_v5_release, tmp_path)
+    _, archive = _build_v5(tmp_path, staging, results_root)
+
+    def remove_headline(manifest: dict) -> None:
+        manifest["artifacts"].remove(next(row for row in manifest["artifacts"] if row["status"] == "headline"))
+
+    _replace_archived_manifest(archive, remove_headline)
+
+    with pytest.raises(ValueError, match="every registered model exactly once"):
+        verify_archive(archive)
+
+
+def test_v5_verifier_binds_each_headline_manifest_row_to_the_analysis(staged_v5_release: dict, tmp_path: Path) -> None:
+    staging, results_root = _copy_staged(staged_v5_release, tmp_path)
+    _, archive = _build_v5(tmp_path, staging, results_root)
+
+    def replace_hash(manifest: dict) -> None:
+        headline = next(row for row in manifest["artifacts"] if row["status"] == "headline")
+        headline["raw_canonical_sha256"] = "f" * 64
+        headline["compact_raw_artifact_sha256"] = "f" * 64
+
+    _replace_archived_manifest(archive, replace_hash)
+
+    with pytest.raises(ValueError, match="does not match the archived analysis"):
+        verify_archive(archive)
+
+
+def test_v5_verifier_revalidates_the_archived_register_and_diagnostics(staged_v5_release: dict, tmp_path: Path) -> None:
+    staging, results_root = _copy_staged(staged_v5_release, tmp_path)
+    _, archive = _build_v5(tmp_path, staging, results_root)
+    register_member = "config/sota_v5_panel_exclusions.json"
+    with zipfile.ZipFile(archive) as packaged:
+        register = json.loads(packaged.read(register_member))
+    ineligible = next(entry for entry in register["entries"] if entry["status"] == "ineligible-model-behavior")
+    diagnostic_member = f"results/diagnostics/{ineligible['id']}.json"
+
+    drifted = json.loads(json.dumps(register))
+    drifted["entries"][0]["status"] = "excluded-infrastructure-limit"
+    drifted_archive = tmp_path / "drifted.zip"
+    shutil.copy(archive, drifted_archive)
+    _replace_archived_json(drifted_archive, register_member, drifted)
+    with pytest.raises(ValueError, match="does not match the committed exclusion register entry"):
+        verify_archive(drifted_archive)
+
+    with zipfile.ZipFile(archive) as packaged:
+        diagnostic = json.loads(packaged.read(diagnostic_member))
+    diagnostic["publication"]["source_checkpoint_sha256"] = "f" * 64
+    unlinked_archive = tmp_path / "unlinked.zip"
+    shutil.copy(archive, unlinked_archive)
+    _replace_archived_json(unlinked_archive, diagnostic_member, diagnostic)
+    with pytest.raises(ValueError, match="source_checkpoint_sha256"):
+        verify_archive(unlinked_archive)
+
+    with zipfile.ZipFile(archive) as packaged:
+        analysis = json.loads(packaged.read("results/analysis/publication-panel-analysis-v5.json"))
+    analysis["excluded_models"][0]["seeds"] = [1]
+    leaking_archive = tmp_path / "leaking.zip"
+    shutil.copy(archive, leaking_archive)
+    _replace_archived_json(leaking_archive, "results/analysis/publication-panel-analysis-v5.json", analysis)
+    with pytest.raises(ValueError, match="exactly the public register fields"):
+        verify_archive(leaking_archive)

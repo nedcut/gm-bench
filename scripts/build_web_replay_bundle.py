@@ -50,11 +50,15 @@ def write_fixture(destination: Path) -> None:
             # provenance belongs in decision records, not its reproducibility
             # surface.
             recorder.provenance["git_head"] = None
+            # A full five-season episode, because the site's replay browser
+            # shows a season-by-season transaction history and a one-season
+            # fixture cannot demonstrate one. Twenty decision windows keep the
+            # fixture under 400 KB, which the browser fetches lazily.
             league = record_episode(
                 AGENTS["conservative"](),
                 seed=1,
                 recorder=recorder,
-                seasons=1,
+                seasons=5,
                 config=EpisodeConfig(),
             )
             recorder.export_replay_fixture(destination, league, config=EpisodeConfig())

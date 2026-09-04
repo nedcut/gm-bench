@@ -9,6 +9,7 @@ from typing import Any
 
 from gm_bench.generator import generate_draft_class, generate_league_data
 from gm_bench.models import (
+    CENTER_SHARE,
     LINEUP_MIN_POSITIONS,
     LINEUP_SIZE,
     PICK_TRADE_MAX_SEASONS_AHEAD,
@@ -35,6 +36,39 @@ TRADE_LIMIT_PER_PARTNER = 2
 MEMO_MAX_CHARS = 2000
 HARD_CAP_BUFFER = 8.0
 FA_RESERVATION_RANGE = (0.85, 1.0)
+# Free agents price their signing team, not just themselves. One composite
+# multiplier on the market quote, published per free agent as
+# `signing_appeal.quote_multiplier`:
+#
+#     multiplier = 1 - WIN_WEIGHT * win_sensitivity * team_win_signal
+#                    - ROLE_WEIGHT * (+1 if the player cracks the lineup else -1)
+#
+# so a contender with a lineup spot gets up to a 12% discount and a rebuilder
+# offering a bench seat pays up to a 12% premium. Veterans (age >=
+# FA_VETERAN_AGE) weigh winning fully; younger players at half weight, so a
+# rebuilding team can still sign youth near market but must overpay veterans.
+# Offering the published (adjusted) quote always succeeds; the hidden
+# reservation scales off the adjusted quote. Extensions are exempt: the
+# incumbent-discount inequality above is balanced against the pure market
+# quote and must stay that way.
+FA_WIN_APPEAL_WEIGHT = 0.08
+FA_ROLE_APPEAL_WEIGHT = 0.04
+FA_VETERAN_AGE = 28
+FA_YOUNG_WIN_SENSITIVITY = 0.5
+# A pending free agent not extended during his walk-year preseason expires at
+# season end and enters an immediate rival scramble (`_expiry_market_scramble`)
+# before the user's next decision window. Bounded to the best expiring players
+# leaguewide per season so ordinary short-deal churn (dozens of players a
+# season) does not dwarf the actual extend-or-lose decision with noise.
+EXPIRY_SCRAMBLE_CANDIDATES = 6
+# Lineup construction rewards more than the highest overalls: each forward is
+# a natural center or wing (`sub_position`, published on every player), and a
+# dressed lineup needs enough centers to staff its scoring lines. Sorting a
+# roster by overall alone ignores this and regularly falls short, since
+# centers are only ~1/3 of forwards league-wide. Bonus, not a hard
+# requirement, so it trades off cleanly against overall rating.
+CENTER_LINEUP_TARGET = 3
+CENTER_LINEUP_BONUS_PER = 0.4
 # Releasing a guaranteed deal costs a quarter of the salary for at most two
 # remaining seasons. Bounded on purpose: an unbounded charge is a tax that
 # active policies pay more of by acting more, which adds variance without
@@ -59,13 +93,61 @@ TERM_PREMIUM = 0.02
 # and contract length stops being a decision at all. At 4%/2%/3% the ratio is
 # 1.0895. `tests/test_contract_mechanics.py` locks the direction.
 INCUMBENT_EXTENSION_DISCOUNT = 0.03
+# A team cannot re-sign a player it released, for the rest of that season.
+#
+# Without this rule the extension mechanic has a hole: a contender holding a
+# final-year player releases him and signs him straight back out of free
+# agency in the same window. The free-agent quote carries the contender's
+# willingness discount (down to 0.88) and one fewer year of inflation than the
+# extension quote, so the round trip buys the same player for roughly 10-15%
+# less than his loyalty-discounted extension price, with only a single bounded
+# dead-cap charge against it. Pricing the round trip instead of forbidding it
+# would need a second, hidden price table; one flat rule is legible, is
+# published in the observation (`contracts.release_resign_block`) and on the
+# blocked free agent's own card, and leaves both legitimate flows intact:
+# releasing a bad contract still works, and every other team may sign the
+# released player immediately.
+RELEASE_RESIGN_BLOCK = (
+    "A player you release will not re-sign with you for the rest of this season. "
+    "Any other team may sign him immediately, and you may sign him again from next "
+    "season onward. Releasing a player is therefore a decision to lose him now, not "
+    "a way to re-price his contract."
+)
 REJECTED_OFFER_LIMIT_PER_WINDOW = 2
+# The published transaction ledger. A flat "last N transactions" window is
+# mostly opponent extension paperwork by the time it reaches an agent, and it
+# forgets the agent's own moves within a single busy phase. The ledger instead
+# keeps roster-changing moves only, over the current season and the one before
+# it, with the agent's own history kept deep enough to survive a full offseason
+# and a shallower rival tail as market signal.
+LEDGER_ACTION_TYPES = frozenset(
+    {
+        "sign_free_agent",
+        "extend_contract",
+        "draft",
+        "trade",
+        "release",
+        "claim_waiver",
+        "accept_trade_offer",
+        "accept_offer",
+        "counter_trade_offer",
+    }
+)
+LEDGER_SEASONS_BACK = 1
+LEDGER_OWN_LIMIT = 24
+LEDGER_RIVAL_LIMIT = 10
+# The agent's own refused roster moves, with the simulator's reason. Small on
+# purpose: it is a memory aid against repeating one mistake for five seasons,
+# not a transcript, and every row spends prompt budget.
+LEDGER_OWN_REJECTED_LIMIT = 6
 SCOUT_POINTS_PER_SEASON = 3
 SCOUT_REPORT_NOISE = 1.5
 # A full season is this many games per team pairing. When a midseason break
 # splits the season, the pre- and post-break legs must sum to exactly this so a
 # midseason episode plays the same total schedule as a non-midseason one.
 REGULAR_SEASON_GAMES_PER_PAIR = 3
+# Playoff bracket size; teams outside it at draft time form the lottery group.
+PLAYOFF_SPOTS = 8
 
 
 @dataclass
@@ -93,9 +175,28 @@ class League:
     scout_points_used: int = 0
     scout_reports: dict[int, float] = field(default_factory=dict)
     waiver_wire: list[int] = field(default_factory=list)
+    # (team_id, player_id) pairs for every drop to free agency this season.
+    # That team may not sign that player back until the next season (see
+    # RELEASE_RESIGN_BLOCK); cleared at the season rollover. A set of pairs
+    # rather than a player->team map because one player can be dropped by
+    # several teams in a season, and each of those blocks has to survive: a
+    # later drop by a rival must not lift the block on the team that dropped
+    # him first.
+    released_by: set[tuple[int, int]] = field(default_factory=set)
+    # Season the current lottery_order was drawn for (0 = not drawn yet) and
+    # the drawn slot order of original-team ids. Drawn once per season at the
+    # start of the draft phase from the seeded RNG stream.
+    lottery_season: int = 0
+    lottery_order: list[int] = field(default_factory=list)
     partial_season_played: bool = False
     partial_games_per_pair: int = 0
     _action_results: list[ActionResult] = field(default_factory=list)
+    # Willingness quotes freeze for the length of a decision window: the
+    # appeal a player published at observation time is the appeal every offer
+    # in that window is judged against, even if earlier actions in the batch
+    # reshuffled the roster. Keyed by (player_id, team_id); cleared whenever a
+    # new decision window opens or the league state rolls forward.
+    _window_signing_appeal: dict[tuple[int, int], dict[str, Any]] = field(default_factory=dict)
 
     @classmethod
     def new(cls, seed: int, user_team_id: int = 0, num_teams: int = 12) -> "League":
@@ -137,9 +238,33 @@ class League:
                 "roster_min": ROSTER_MIN,
                 "lineup_size": LINEUP_SIZE,
                 "lineup_min_positions": LINEUP_MIN_POSITIONS,
+                "lineup_center_bonus": {
+                    "target": CENTER_LINEUP_TARGET,
+                    "bonus_per_center": CENTER_LINEUP_BONUS_PER,
+                    "description": (
+                        "Each forward's sub_position is 'C' (center) or 'W' (wing), roughly "
+                        f"{CENTER_SHARE:.0%} of forwards are centers league-wide. A dressed lineup "
+                        f"earns +{CENTER_LINEUP_BONUS_PER} team strength per dressed center up to "
+                        f"{CENTER_LINEUP_TARGET} (max +{round(CENTER_LINEUP_TARGET * CENTER_LINEUP_BONUS_PER, 2)}). "
+                        "Filling forward slots by overall alone often misses this."
+                    ),
+                },
                 "trade_value_threshold": TRADE_VALUE_THRESHOLD,
                 "trade_limit_per_partner": TRADE_LIMIT_PER_PARTNER,
                 "fa_reservation_range": list(FA_RESERVATION_RANGE),
+                "free_agency_willingness": {
+                    "win_appeal_weight": FA_WIN_APPEAL_WEIGHT,
+                    "role_appeal_weight": FA_ROLE_APPEAL_WEIGHT,
+                    "veteran_age": FA_VETERAN_AGE,
+                    "young_win_sensitivity": FA_YOUNG_WIN_SENSITIVITY,
+                    "description": (
+                        "Each free agent's quotes are the market rate times their published "
+                        "signing_appeal.quote_multiplier: winning teams and a lineup role earn "
+                        "discounts, losing teams and a depth role cost premiums, and veterans "
+                        f"(age >= {FA_VETERAN_AGE}) weigh winning twice as heavily as younger players. "
+                        "Offering the published quote always succeeds."
+                    ),
+                },
                 "rejected_offer_limit_per_window": REJECTED_OFFER_LIMIT_PER_WINDOW,
                 "contracts": {
                     "dead_cap_fraction": DEAD_CAP_FRACTION,
@@ -147,8 +272,18 @@ class League:
                     "annual_market_inflation": MARKET_INFLATION,
                     "additional_year_premium": TERM_PREMIUM,
                     "incumbent_extension_discount": INCUMBENT_EXTENSION_DISCOUNT,
+                    "release_resign_block": RELEASE_RESIGN_BLOCK,
                     "extension_eligibility_years_remaining": 1,
                     "extension_minimum_contract_age_seasons": 1,
+                    "expiry_scramble_candidates": EXPIRY_SCRAMBLE_CANDIDATES,
+                    "expiry_risk": (
+                        "A roster player publishing extension_quotes is in his final contract year: "
+                        "extend_contract this preseason at the loyalty-discounted incumbent quote, or he "
+                        "expires to free agency at season end. Right after he expires, rival teams get one "
+                        f"signing look at the {EXPIRY_SCRAMBLE_CANDIDATES} best expiring players leaguewide, "
+                        "before your next decision window opens, so waiting is a real risk of losing a top "
+                        "expiring player, not a free option to re-sign him later at the same price."
+                    ),
                 },
                 "pick_trading": {
                     "max_seasons_ahead": PICK_TRADE_MAX_SEASONS_AHEAD,
@@ -166,13 +301,15 @@ class League:
             "team": self.user_team.public_dict(self.players, self.cap, self.season, full_roster=full),
             "standings": self._standings_public(),
             "draft_order": self._draft_order(),
+            "draft_lottery": self._draft_lottery_public(),
             "incoming_offers": self._incoming_offers_public(),
             "scout_reports": {str(player_id): report for player_id, report in sorted(self.scout_reports.items())},
             "history": [summary.__dict__ for summary in self.summaries[-5:]],
-            "recent_transactions": [transaction.__dict__ for transaction in self.transactions[-12:]],
+            "recent_transactions": self._recent_transactions_public(),
             "memo": self.agent_memo,
             "available_actions": self._available_actions(phase),
         }
+        payload["team"]["picks"] = self._user_picks_public()
         if action_results:
             payload["action_results"] = action_results
         if full:
@@ -203,6 +340,50 @@ class League:
                 "Send end_turn when finished gathering information."
             )
         return payload
+
+    def _recent_transactions_public(self) -> list[dict[str, Any]]:
+        """The roster-changing ledger for the current and previous season.
+
+        Chronological. The user's own accepted moves are kept to
+        ``LEDGER_OWN_LIMIT`` so a multi-season plan can be audited against what
+        actually happened; rival moves are kept to a much shorter tail because
+        they are market signal, not accountability, and opponent extension
+        paperwork alone would otherwise fill the whole window.
+
+        The user's own *rejected* roster moves are kept too, to
+        ``LEDGER_OWN_REJECTED_LIMIT``. Under the v6 one-call rule the
+        ``action_results`` that carried the refusal are never shown to the
+        agent, so without this row a lowball offer or an illegal trade left no
+        trace anywhere and could be repeated every season for five seasons.
+        Rival rejections stay out: they are neither the agent's own record nor
+        market signal, and each one costs tokens.
+        """
+        oldest_season = self.season - LEDGER_SEASONS_BACK
+        own: list[int] = []
+        # Keyed by (action type, reason) and holding the latest index, so an
+        # agent that repeats one illegal move eight times in a batch spends one
+        # ledger row on it instead of flushing every other lesson out of the cap.
+        own_rejected: dict[tuple[str, str], int] = {}
+        rival: list[int] = []
+        for index, transaction in enumerate(self.transactions):
+            if transaction.season < oldest_season:
+                continue
+            action_type = transaction.action.get("type") if isinstance(transaction.action, dict) else None
+            if action_type not in LEDGER_ACTION_TYPES:
+                continue
+            if transaction.team_id != self.user_team_id:
+                if transaction.accepted:
+                    rival.append(index)
+            elif transaction.accepted:
+                own.append(index)
+            else:
+                own_rejected[(str(action_type), transaction.message)] = index
+        kept = sorted(
+            set(own[-LEDGER_OWN_LIMIT:])
+            | set(sorted(own_rejected.values())[-LEDGER_OWN_REJECTED_LIMIT:])
+            | set(rival[-LEDGER_RIVAL_LIMIT:])
+        )
+        return [self.transactions[index].__dict__ for index in kept]
 
     def _list_summary(self, ids: list[int], *, key: Any, limit: int) -> dict[str, Any]:
         ordered = sorted(ids, key=key, reverse=True)
@@ -258,8 +439,9 @@ class League:
         return self._action_results
 
     def begin_decision_window(self) -> None:
-        """Reset negotiation walk-aways once before an agent decision."""
+        """Reset negotiation walk-aways and quote freezes before an agent decision."""
         self.window_walkaways = {}
+        self._window_signing_appeal = {}
 
     def _dispatch_action(self, action_type: str, action: dict[str, Any], phase: str) -> ActionResult:
         if action_type == "noop":
@@ -307,6 +489,9 @@ class League:
         opponents also make one-for-one trades among themselves.
         """
         rng = self._rng(f"opponents:{phase}")
+        # Opponent windows price against post-user-window state, not the
+        # snapshot frozen for the user's quotes.
+        self._window_signing_appeal = {}
         for team in self.teams.values():
             if team.id == self.user_team_id:
                 continue
@@ -318,22 +503,27 @@ class League:
             self._opponent_trades()
 
     def run_opponent_draft(self, before_user: bool) -> None:
-        """Let opponents draft in inverse-standings order around the user's slot.
+        """Let opponents draft in lottery-slot order around the user's window.
 
-        Called twice per draft phase: once before the user's decision (teams
-        picking ahead of the user) and once after (teams picking behind). The
-        order is worst record first, team id as tiebreak.
+        Called twice per draft phase: once before the user's decision (slots
+        ahead of the user's earliest owned slot) and once after (slots behind
+        it). Each slot belongs to an ORIGINAL team; the pick is exercised by
+        whoever owns that team's pick now. The user exercises every owned pick
+        in the single decision window at its earliest owned slot.
         """
-        order = self._draft_order()
-        if self.user_team_id in order:
-            user_index = order.index(self.user_team_id)
-            picking = order[:user_index] if before_user else order[user_index + 1 :]
+        self.run_draft_lottery()
+        slots = self._draft_slots()
+        user_slots = [index for index, (_, owner_id) in enumerate(slots) if owner_id == self.user_team_id]
+        first_user_slot = user_slots[0] if user_slots else None
+        if first_user_slot is None:
+            picking = [] if before_user else slots
         else:
-            picking = [] if before_user else order
-        for team_id in picking:
-            # A team that traded for extra picks exercises all of them at its slot.
-            for _ in range(self.teams[team_id].draft_picks.get(self.season, 0)):
-                self._opponent_draft_pick(self.teams[team_id])
+            picking = slots[:first_user_slot] if before_user else slots[first_user_slot + 1 :]
+        for origin_id, owner_id in picking:
+            # Skip the user's own slots and slots already exercised (owner None).
+            if owner_id is None or owner_id == self.user_team_id:
+                continue
+            self._opponent_draft_pick(self.teams[owner_id], origin_id)
 
     def prepare_midseason(self) -> None:
         if self.partial_season_played:
@@ -356,7 +546,6 @@ class League:
                     continue
                 for _ in range(games_per_pair):
                     self._play_game(home, away, ratings, rng)
-        self._update_morale_from_standings()
 
     def simulate_season(self) -> SeasonSummary:
         rng = self._rng("season")
@@ -380,11 +569,16 @@ class League:
                 for _ in range(games_per_pair):
                     self._play_game(home, away, ratings, rng)
 
-        playoff_teams = sorted(self.teams.values(), key=lambda team: team.wins, reverse=True)[:8]
+        playoff_teams = sorted(self.teams.values(), key=lambda team: team.wins, reverse=True)[:PLAYOFF_SPOTS]
         champion = self._simulate_playoffs(playoff_teams, ratings, rng)
         champion.championships += 1
 
-        self._age_and_contracts(rng)
+        expired_player_ids = self._age_and_contracts(rng)
+        # Opponents already priced the (old) roster this window; a freshly
+        # expired player is new information, so quote caches must not leak
+        # across the scramble.
+        self._window_signing_appeal = {}
+        self._expiry_market_scramble(expired_player_ids, rng)
         payroll = self._payroll(self.user_team)
         summary = SeasonSummary(
             season=self.season,
@@ -405,11 +599,15 @@ class League:
         # observation(); clear them at the season boundary so a stale offer_id
         # can never be accepted across seasons regardless of call order.
         self.current_offers = {}
+        self._window_signing_appeal = {}
         self.waiver_wire = []
+        # The re-signing block is a one-season penalty: a new season reopens
+        # every released player to the team that released him.
+        self.released_by = set()
         self.partial_season_played = False
         self.partial_games_per_pair = 0
         for team in self.teams.values():
-            team.draft_picks.setdefault(self.season, 1)
+            team.draft_picks.setdefault(self.season, [team.id])
         self.prospects = generate_draft_class(self.seed, self.season, self.num_teams * 5)
         return summary
 
@@ -436,14 +634,6 @@ class League:
                 # returning below-average player on a still-short lineup could
                 # otherwise nudge the rating down. Recovery must never weaken a team.
                 ratings[team.id] += max(0.0, available_strength - unavailable_strength)
-
-    def _update_morale_from_standings(self) -> None:
-        ordered = sorted(self.teams.values(), key=lambda team: team.wins, reverse=True)
-        for rank, team in enumerate(ordered):
-            delta = 4.0 - rank * 0.6
-            for player_id in team.roster:
-                player = self.players[player_id]
-                player.morale = min(100.0, max(20.0, player.morale + delta))
 
     def _generate_midseason_injuries(self) -> None:
         rng = self._rng("injuries")
@@ -580,6 +770,14 @@ class League:
         if player_id not in self.free_agents or player_id not in self.players:
             self._record(action, phase, False, "player is not an available free agent")
             return
+        if self._resign_blocked(self.user_team_id, player_id):
+            self._record(
+                action,
+                phase,
+                False,
+                "you released this player this season; he will not re-sign with you until next season",
+            )
+            return
         if years < 1 or years > 5:
             self._record(action, phase, False, "contract years must be 1-5")
             return
@@ -604,7 +802,7 @@ class League:
                 action,
                 phase,
                 False,
-                f"player declines the offer; the {years}-year quote is {self._contract_quote(player, years):.2f}",
+                f"player declines the offer; the {years}-year quote is {self._signing_quote(player, years):.2f}",
                 rejected_offer=True,
             )
             return
@@ -687,6 +885,7 @@ class League:
         player.contract_signed_season = 0
         player.salary = 0.0
         self.free_agents.append(player_id)
+        self.released_by.add((self.user_team_id, player_id))
         self._record(action, phase, True, f"released {player.name}")
 
     def _trade(self, action: dict[str, Any], phase: str) -> None:
@@ -940,7 +1139,17 @@ class League:
         player_id = int(action.get("player_id", -1))
         if player_id not in self.waiver_wire:
             return self._record(action, phase, False, "player is not on the waiver wire")
-        quote = self._contract_quote(self.players[player_id], 1)
+        # The release block is unconditional: a waiver claim is another way of
+        # signing a free agent, so a player the user dropped this season cannot
+        # come back through the wire either.
+        if self._resign_blocked(self.user_team_id, player_id):
+            return self._record(
+                action,
+                phase,
+                False,
+                "you released this player this season; he will not re-sign with you until next season",
+            )
+        quote = self._signing_quote(self.players[player_id], 1)
         if self._payroll(self.user_team) + quote > self.cap + HARD_CAP_BUFFER:
             return self._record(action, phase, False, "claim would exceed hard cap buffer")
         self.waiver_wire.remove(player_id)
@@ -955,12 +1164,16 @@ class League:
     def _tradeable_pick_seasons(self) -> list[int]:
         return list(range(self.season + 1, self.season + PICK_TRADE_MAX_SEASONS_AHEAD + 1))
 
-    def _picks_owned(self, team: Team, season: int) -> int:
-        # The generator pre-grants one pick per team for early seasons; a season
-        # beyond that horizon that no trade has touched is an implicit single pick.
+    def _pick_origins_owned(self, team: Team, season: int) -> list[int]:
+        # The generator pre-grants each team its own pick for early seasons; a
+        # season beyond that horizon that no trade has touched is an implicit
+        # single pick originally belonging to the team itself.
         if season in team.draft_picks:
             return team.draft_picks[season]
-        return 1 if season > self.season else 0
+        return [team.id] if season > self.season else []
+
+    def _picks_owned(self, team: Team, season: int) -> int:
+        return len(self._pick_origins_owned(team, season))
 
     def _validate_pick_seasons(self, owner: Team, seasons: list[int]) -> str | None:
         window = self._tradeable_pick_seasons()
@@ -973,8 +1186,18 @@ class League:
         return None
 
     def _transfer_pick(self, giver: Team, receiver: Team, season: int) -> None:
-        giver.draft_picks[season] = self._picks_owned(giver, season) - 1
-        receiver.draft_picks[season] = self._picks_owned(receiver, season) + 1
+        """Move one of the giver's season picks, original identity attached.
+
+        Trades name a season, not a specific pick. When the giver holds more
+        than one pick for that season it keeps the best-projected one: the
+        pick transferred is the one whose ORIGINAL team currently has the most
+        wins (highest team id as tiebreak).
+        """
+        giver_origins = list(self._pick_origins_owned(giver, season))
+        origin_id = max(giver_origins, key=lambda team_id: (self.teams[team_id].wins, team_id))
+        giver_origins.remove(origin_id)
+        giver.draft_picks[season] = giver_origins
+        receiver.draft_picks[season] = [*self._pick_origins_owned(receiver, season), origin_id]
 
     def _draft(self, action: dict[str, Any], phase: str) -> None:
         if phase != "draft":
@@ -984,7 +1207,7 @@ class League:
         if prospect_id not in self.prospects:
             self._record(action, phase, False, "prospect not in current draft class")
             return
-        if self.user_team.draft_picks.get(self.season, 0) <= 0:
+        if not self.user_team.draft_picks.get(self.season, []):
             self._record(action, phase, False, "no current-season draft pick available")
             return
         prospect = self._assign_prospect(self.user_team, prospect_id)
@@ -1080,6 +1303,69 @@ class League:
         start_year = 2 if incumbent else 1
         return {str(years): self._contract_quote(player, years, incumbent=incumbent) for years in range(start_year, 6)}
 
+    def _team_win_signal(self, team: Team) -> float:
+        """Recent competitiveness in [-1, 1] from the visible standings.
+
+        Uses the team's current wins/losses record, which persists through the
+        offseason phases until the next season is simulated, so preseason and
+        draft windows price against last season's results and midseason prices
+        against the partial-season standings. A 0-0 record (season one) is
+        neutral.
+        """
+        games = team.wins + team.losses
+        if games == 0:
+            return 0.0
+        return max(-1.0, min(1.0, (team.wins / games - 0.5) * 2.0))
+
+    def _has_lineup_role(self, player: Player, team: Team) -> bool:
+        """Whether the player would crack the team's dressed lineup at his position."""
+        incumbents = [item.overall for item in self._effective_lineup(team) if item.position == player.position]
+        if len(incumbents) < LINEUP_MIN_POSITIONS[player.position]:
+            return True
+        return player.overall > min(incumbents)
+
+    def _signing_appeal(self, player: Player, team: Team) -> dict[str, Any]:
+        """The composite willingness terms a free agent applies to this team.
+
+        Deterministic and computed only from observation-visible state
+        (standings record, roster, player age/overall), so an agent can
+        reproduce every published quote_multiplier exactly. Uses no RNG.
+        Frozen per decision window: the first computation for a
+        (player, team) pair holds until the next window opens, so a quote
+        published in the observation is honored even after earlier actions in
+        the same batch reshuffle the roster.
+        """
+        key = (player.id, team.id)
+        cached = self._window_signing_appeal.get(key)
+        if cached is not None:
+            return cached
+        win_signal = self._team_win_signal(team)
+        win_sensitivity = 1.0 if player.age >= FA_VETERAN_AGE else FA_YOUNG_WIN_SENSITIVITY
+        has_role = self._has_lineup_role(player, team)
+        role_appeal = 1.0 if has_role else -1.0
+        multiplier = 1.0 - FA_WIN_APPEAL_WEIGHT * win_sensitivity * win_signal - FA_ROLE_APPEAL_WEIGHT * role_appeal
+        appeal = {
+            "team_win_signal": round(win_signal, 3),
+            "win_sensitivity": win_sensitivity,
+            "projected_role": "lineup" if has_role else "depth",
+            "quote_multiplier": round(multiplier, 3),
+        }
+        self._window_signing_appeal[key] = appeal
+        return appeal
+
+    def _signing_quote(self, player: Player, years: int, team: Team | None = None) -> float:
+        """A free agent's willingness-adjusted quote for signing with a team."""
+        team = self.user_team if team is None else team
+        multiplier = self._signing_appeal(player, team)["quote_multiplier"]
+        return round(self._contract_quote(player, years) * multiplier, 2)
+
+    def _signing_quotes(self, player: Player, team: Team | None = None) -> dict[str, float]:
+        return {str(years): self._signing_quote(player, years, team) for years in range(1, 6)}
+
+    def _resign_blocked(self, team_id: int, player_id: int) -> bool:
+        """Whether this team released this player earlier in the current season."""
+        return (team_id, player_id) in self.released_by
+
     def _extension_eligible(self, player: Player) -> bool:
         """Return whether a final-year incumbent deal predates this season."""
         return player.contract_years == 1 and player.contract_signed_season < self.season
@@ -1091,15 +1377,69 @@ class League:
         re-rolled each season, so the optimal bid can be estimated but not
         solved from the observation. Offering the full ask always succeeds.
         Seeded directly (not via `_rng`) so evaluating an offer never perturbs
-        the league's RNG stream.
+        the league's RNG stream. Free-agent reservations scale off the
+        willingness-adjusted quote; incumbent extensions stay on the pure
+        market quote.
         """
         rng = random.Random(f"{self.seed}:{self.season}:reservation:{player_id}")
         low, high = FA_RESERVATION_RANGE
-        return self._contract_quote(self.players[player_id], years, incumbent=incumbent) * rng.uniform(low, high)
+        player = self.players[player_id]
+        if incumbent:
+            quote = self._contract_quote(player, years, incumbent=True)
+        else:
+            quote = self._signing_quote(player, years)
+        return quote * rng.uniform(low, high)
 
     def _fa_reservation(self, player_id: int) -> float:
         """Backward-compatible one-year free-agent reservation helper."""
         return self._contract_reservation(player_id)
+
+    def _draft_lottery_public(self) -> dict[str, Any]:
+        """Publish the lottery rule and this season's (drawn or projected) slots."""
+        group_size = max(1, self.num_teams - PLAYOFF_SPOTS)
+        drawn = self.lottery_season == self.season
+        return {
+            "drawn": drawn,
+            "lottery_slots": group_size,
+            "weights_worst_first": [float(group_size - rank) for rank in range(group_size)],
+            "description": (
+                f"The {group_size} non-playoff teams are drawn into the top slots, worst record "
+                "weighted heaviest but never guaranteed; playoff teams follow worst record first. "
+                "Every pick is exercised at its ORIGINAL team's slot, wherever it was traded to."
+            ),
+            "slots": [
+                {
+                    "slot": index + 1,
+                    "pick_from_team_id": origin_id,
+                    "owner_team_id": owner_id,
+                }
+                for index, (origin_id, owner_id) in enumerate(self._draft_slots())
+            ],
+        }
+
+    def _user_picks_public(self) -> list[dict[str, Any]]:
+        """Every pick the user owns: whose it originally was and its rough slot."""
+        slot_origins = self._slot_origins()
+        projection = self._inverse_standings()
+        picks: list[dict[str, Any]] = []
+        for season in sorted(self.user_team.draft_picks):
+            if season < self.season:
+                continue
+            for origin_id in sorted(self.user_team.draft_picks[season]):
+                if season == self.season:
+                    slot = slot_origins.index(origin_id) + 1 if origin_id in slot_origins else None
+                else:
+                    # Future picks can only be projected from today's standings.
+                    slot = projection.index(origin_id) + 1
+                picks.append(
+                    {
+                        "season": season,
+                        "from_team_id": origin_id,
+                        "from_team_name": self.teams[origin_id].name,
+                        "projected_slot": slot,
+                    }
+                )
+        return picks
 
     def _standings_public(self) -> list[dict[str, Any]]:
         return [
@@ -1110,24 +1450,36 @@ class League:
                 "losses": team.losses,
                 "championships": team.championships,
                 "public_strength": round(self._team_strength(team, apply_injury_noise=False), 1),
-                "draft_picks": dict(sorted(team.draft_picks.items())),
+                "draft_picks": {season: len(origins) for season, origins in sorted(team.draft_picks.items())},
+                "pick_origins": {season: sorted(origins) for season, origins in sorted(team.draft_picks.items())},
             }
             for team in sorted(self.teams.values(), key=lambda item: item.wins, reverse=True)
         ]
 
     def _free_agent_public(self, player_id: int) -> dict[str, Any]:
+        """Public free-agent card with willingness-adjusted quotes for the user.
+
+        `asking_salary` and `contract_quotes` are the prices this player will
+        actually accept from the user's team; `market_asking_salary` is the
+        situation-free base rate and `signing_appeal` shows exactly how the
+        multiplier between them was built. A player the user released this
+        season carries `resign_blocked` so the quotes are never read as an
+        offer he would actually take (see `RELEASE_RESIGN_BLOCK`).
+        """
         player = self.players[player_id].public_dict()
         source = self.players[player_id]
-        player["asking_salary"] = self._contract_quote(source, 1)
-        player["contract_quotes"] = self._contract_quotes(source)
+        player["market_asking_salary"] = self._contract_quote(source, 1)
+        player["asking_salary"] = self._signing_quote(source, 1)
+        player["contract_quotes"] = self._signing_quotes(source)
+        player["signing_appeal"] = self._signing_appeal(source, self.user_team)
+        # Present only when true: the common case is unblocked, and the
+        # observation has a token budget to keep.
+        if self._resign_blocked(self.user_team_id, player_id):
+            player["resign_blocked"] = True
         return player
 
     def _waiver_player_public(self, player_id: int) -> dict[str, Any]:
-        player = self.players[player_id].public_dict()
-        source = self.players[player_id]
-        player["asking_salary"] = self._contract_quote(source, 1)
-        player["contract_quotes"] = self._contract_quotes(source)
-        return player
+        return self._free_agent_public(player_id)
 
     def _trade_market_public(self) -> list[dict[str, Any]]:
         market: list[dict[str, Any]] = []
@@ -1167,13 +1519,71 @@ class League:
         rng = random.Random(f"{self.seed}:{self.season}:valuation:{partner_id}:{player_id}")
         return rng.uniform(0.9, 1.1)
 
-    def _draft_order(self) -> list[int]:
-        """Current-season pick order: worst record first, team id as tiebreak."""
-        ordered = sorted(self.teams.values(), key=lambda team: (team.wins, team.id))
-        return [team.id for team in ordered if team.draft_picks.get(self.season, 0) > 0]
+    def _inverse_standings(self) -> list[int]:
+        """Team ids worst record first, team id as tiebreak."""
+        return [team.id for team in sorted(self.teams.values(), key=lambda team: (team.wins, team.id))]
 
-    def _opponent_draft_pick(self, team: Team) -> None:
-        if not self.prospects or team.draft_picks.get(self.season, 0) <= 0:
+    def run_draft_lottery(self) -> None:
+        """Draw this season's draft-slot order once, from the seeded RNG.
+
+        The non-playoff teams (worst ``num_teams - PLAYOFF_SPOTS`` records at
+        draft time) are drawn without replacement into the top slots. The
+        lottery team ranked ``i`` from the bottom (i = 0 is the worst record)
+        carries weight ``group_size - i``: with four lottery teams the
+        first-slot odds are 40/30/20/10, so bad teams are favored but nothing
+        is guaranteed. Playoff teams follow in inverse-standings order.
+        Idempotent per season; a second call never redraws.
+        """
+        if self.lottery_season == self.season:
+            return
+        rng = self._rng("draft_lottery")
+        standings = self._inverse_standings()
+        group_size = max(1, self.num_teams - PLAYOFF_SPOTS)
+        pool = standings[:group_size]
+        weights = {team_id: float(group_size - rank) for rank, team_id in enumerate(pool)}
+        order: list[int] = []
+        while pool:
+            total = sum(weights[team_id] for team_id in pool)
+            roll = rng.random() * total
+            for team_id in pool:
+                roll -= weights[team_id]
+                if roll <= 0:
+                    order.append(team_id)
+                    pool = [other for other in pool if other != team_id]
+                    break
+            else:  # pragma: no cover - float edge, roll landed past the last weight
+                order.append(pool.pop())
+        self.lottery_order = order + standings[group_size:]
+        self.lottery_season = self.season
+
+    def _slot_origins(self) -> list[int]:
+        """Original-team ids in this season's slot order.
+
+        After the lottery is drawn this is the drawn order; before it, the
+        projection (inverse standings), which is what pre-draft observations
+        show as the likely order.
+        """
+        if self.lottery_season == self.season:
+            return list(self.lottery_order)
+        return self._inverse_standings()
+
+    def _pick_owner(self, season: int, origin_id: int) -> int | None:
+        """Who currently owns the pick that originally belonged to origin_id."""
+        for team in self.teams.values():
+            if origin_id in team.draft_picks.get(season, []):
+                return team.id
+        return None
+
+    def _draft_slots(self) -> list[tuple[int, int | None]]:
+        """(original_team_id, current_owner_id) per slot; None once exercised."""
+        return [(origin_id, self._pick_owner(self.season, origin_id)) for origin_id in self._slot_origins()]
+
+    def _draft_order(self) -> list[int]:
+        """Current owner of each remaining current-season slot, in slot order."""
+        return [owner_id for _, owner_id in self._draft_slots() if owner_id is not None]
+
+    def _opponent_draft_pick(self, team: Team, origin_id: int) -> None:
+        if not self.prospects or origin_id not in team.draft_picks.get(self.season, []):
             return
         prospect_id = max(
             self.prospects,
@@ -1182,7 +1592,7 @@ class League:
                 -pid,
             ),
         )
-        prospect = self._assign_prospect(team, prospect_id)
+        prospect = self._assign_prospect(team, prospect_id, origin_id)
         self._record(
             {"type": "draft", "prospect_id": prospect.id},
             "draft",
@@ -1191,16 +1601,21 @@ class League:
             team_id=team.id,
         )
 
-    def _assign_prospect(self, team: Team, prospect_id: int) -> Player:
+    def _assign_prospect(self, team: Team, prospect_id: int, origin_id: int | None = None) -> Player:
         prospect = self.prospects.pop(prospect_id)
         prospect.team_id = team.id
         prospect.salary = 0.95
         prospect.contract_years = 3
         prospect.contract_signed_season = self.season
-        prospect.drafted_round = 1
         self.players[prospect.id] = prospect
         team.roster.append(prospect.id)
-        team.draft_picks[self.season] -= 1
+        owned = team.draft_picks.get(self.season, [])
+        if origin_id is None:
+            # The user drafts without naming a slot: spend the earliest-slot
+            # (most valuable) pick first, deterministically.
+            slot_order = self._slot_origins()
+            origin_id = min(owned, key=slot_order.index)
+        owned.remove(origin_id)
         return prospect
 
     def _remove_from_team(self, team: Team, player_id: int) -> None:
@@ -1260,6 +1675,8 @@ class League:
         if not lineup:
             return 20.0
         position_bonus = min(sum(1 for player in lineup if player.position == "G"), 2) * 2.5
+        centers = sum(1 for player in lineup if player.position == "F" and player.sub_position == "C")
+        position_bonus += min(centers, CENTER_LINEUP_TARGET) * CENTER_LINEUP_BONUS_PER
         weighted = 0.0
         total_weight = 0.0
         for index, player in enumerate(lineup):
@@ -1288,7 +1705,7 @@ class League:
             bracket = next_round
         return bracket[0]
 
-    def _age_and_contracts(self, rng: random.Random) -> None:
+    def _age_and_contracts(self, rng: random.Random) -> list[int]:
         # The current season's retained charge has now been served. Future
         # entries remain and bind the team after the rollover.
         for team in self.teams.values():
@@ -1296,6 +1713,7 @@ class League:
         dressed: set[int] = set()
         for team in self.teams.values():
             dressed.update(player.id for player in self._effective_lineup(team))
+        expired: list[int] = []
         for player in list(self.players.values()):
             player.age += 1
             if player.team_id is None:
@@ -1329,6 +1747,8 @@ class League:
                 player.contract_years = 0
                 player.contract_signed_season = 0
                 self.free_agents.append(player.id)
+                expired.append(player.id)
+        return expired
 
     def _trim_expiring_contracts(self, team: Team, rng: random.Random) -> None:
         if len(team.roster) <= 23:
@@ -1342,16 +1762,19 @@ class League:
             player.contract_years = 0
             player.contract_signed_season = 0
             self.free_agents.append(player.id)
+            self.released_by.add((team.id, player.id))
 
     def _opponent_signings(self, team: Team, rng: random.Random) -> None:
         needed = max(0, 21 - len(team.roster))
         candidates = sorted(
-            (self.players[player_id] for player_id in self.free_agents), key=lambda player: player.overall, reverse=True
+            (self.players[player_id] for player_id in self.free_agents if not self._resign_blocked(team.id, player_id)),
+            key=lambda player: player.overall,
+            reverse=True,
         )
         for player in candidates[: needed * 2]:
             if needed <= 0:
                 break
-            ask = self._contract_quote(player, 1)
+            ask = self._signing_quote(player, 1, team)
             if self._payroll(team) + ask <= self.cap + 4.0:
                 self._sign_to_team(team, player, rng)
                 needed -= 1
@@ -1386,7 +1809,9 @@ class League:
                 team_id=team.id,
             )
 
-    def _opponent_opportunistic_signing(self, team: Team, rng: random.Random) -> None:
+    def _opponent_opportunistic_signing(
+        self, team: Team, rng: random.Random, candidate_ids: list[int] | None = None
+    ) -> None:
         """Sign one clear upgrade over the team's weakest dressed player.
 
         This is what makes free agency competitive: opponents grab standout
@@ -1394,16 +1819,21 @@ class League:
         the user, so waiting on a signing carries real risk. A team with a
         full roster waives its least valuable player to make room, but only
         when the incoming player is clearly better than the one waived.
+        `candidate_ids` narrows the search (used by the season-boundary expiry
+        scramble); it defaults to the whole free-agent pool.
         """
         lineup = self._effective_lineup(team)
         if not lineup:
             return
         floor_overall = min(player.overall for player in lineup)
+        pool = self.free_agents if candidate_ids is None else candidate_ids
         upgrades = sorted(
             (
                 self.players[player_id]
-                for player_id in self.free_agents
-                if self.players[player_id].overall >= floor_overall + 2.0
+                for player_id in pool
+                if player_id in self.free_agents
+                and not self._resign_blocked(team.id, player_id)
+                and self.players[player_id].overall >= floor_overall + 2.0
             ),
             key=lambda player: player.overall,
             reverse=True,
@@ -1417,7 +1847,7 @@ class League:
             payroll_after = (
                 self._payroll(team)
                 - (waived.salary if waived else 0.0)
-                + self._contract_quote(player, 1)
+                + self._signing_quote(player, 1, team)
                 + (self._dead_cap_schedule(waived).get(self.season, 0.0) if waived else 0.0)
             )
             if payroll_after > self.cap + 4.0:
@@ -1430,6 +1860,7 @@ class League:
                 waived.contract_years = 0
                 waived.contract_signed_season = 0
                 self.free_agents.append(waived.id)
+                self.released_by.add((team.id, waived.id))
             self._sign_to_team(team, player, rng)
             return
 
@@ -1438,9 +1869,39 @@ class League:
         team.roster.append(player.id)
         player.team_id = team.id
         years = rng.randint(1, 3)
-        player.salary = self._contract_quote(player, years)
+        player.salary = self._signing_quote(player, years, team)
         player.contract_years = years
         player.contract_signed_season = self.season
+
+    def _expiry_market_scramble(self, expired_player_ids: list[int], rng: random.Random) -> None:
+        """Rival teams get one shot at this season's best freshly expired contracts.
+
+        This is the teeth behind the preseason extension window: without it, a
+        player who lapses into free agency at season end just sits in the pool
+        until the user's next preseason, where the user always acts before any
+        opponent gets to sign him (`run_autopilot_opponents` only runs after
+        the user's decision each phase). That made walking away from an
+        extension free. Running the same clear-upgrade check opponents already
+        use between phases (see `_opponent_opportunistic_signing`) once here,
+        immediately after `_age_and_contracts` frees these players and before
+        the next season's phases begin, means a good player who is not
+        extended in his walk-year preseason can really be gone: signed by a
+        rival before the user gets another look.
+
+        A full season's worth of expiries (short deals cycling through as
+        normal churn) can number in the dozens leaguewide; scrambling for all
+        of them would let ordinary roster turnover, not the extend-or-lose
+        decision, dominate the season. Restricted to the
+        `EXPIRY_SCRAMBLE_CANDIDATES` best expiring players leaguewide so the
+        risk tracks the players an extension decision was actually about.
+        """
+        candidates = sorted(expired_player_ids, key=lambda player_id: self.players[player_id].overall, reverse=True)[
+            :EXPIRY_SCRAMBLE_CANDIDATES
+        ]
+        for team in self.teams.values():
+            if team.id == self.user_team_id:
+                continue
+            self._opponent_opportunistic_signing(team, rng, candidate_ids=candidates)
 
     def _opponent_trades(self) -> None:
         """One deadline round of one-for-one swaps between opponent teams.
