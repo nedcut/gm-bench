@@ -176,8 +176,6 @@ def build_robustness(repeats: int) -> dict[str, Any]:
                 "published_holm_adjusted_p_value": published[model_id]["holm_adjusted_p_value"],
                 "leave_one_seed_out": {
                     "folds": seed_count,
-                    "mean_lift_min": round(min(fold_means), 6),
-                    "mean_lift_max": round(max(fold_means), 6),
                     "mean_lift_range": round(max(fold_means) - min(fold_means), 6),
                     "holm_adjusted_p_min": round(min(fold_p), 6),
                     "holm_adjusted_p_max": round(max(fold_p), 6),
@@ -364,14 +362,14 @@ def render_markdown(robustness: dict[str, Any]) -> str:
             f"{loo['holm_rejection_flips']} fold(s) cross 0.05. A single seed sustains the non-rejection."
         )
     lines.append("")
-    lines.append("| model | mean lift | lift sd | Holm reject | LOO mean lift min | max | range | flips | MDD |")
+    lines.append("| model | mean lift | lift sd | Holm reject | LOO mean lift range | flips | MDD |")
     lines.append("| --- | ---: | ---: | :---: | ---: | ---: | ---: | ---: | ---: |")
     for row in sorted(robustness["models"], key=lambda item: -item["full_panel_mean_lift"]):
         loo = row["leave_one_seed_out"]
         lines.append(
             f"| {row['model']} | {row['full_panel_mean_lift']:.2f} | {row['full_panel_lift_stddev']:.2f} | "
-            f"{'yes' if row['full_panel_holm_reject_at_0_05'] else 'no'} | {loo['mean_lift_min']:.2f} | "
-            f"{loo['mean_lift_max']:.2f} | {loo['mean_lift_range']:.2f} | {loo['holm_rejection_flips']} | "
+            f"{'yes' if row['full_panel_holm_reject_at_0_05'] else 'no'} | "
+            f"{loo['mean_lift_range']:.2f} | {loo['holm_rejection_flips']} | "
             f"{row['minimum_detectable_difference']['observed']:.1f} |"
         )
     lines.append("")

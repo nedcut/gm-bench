@@ -14,19 +14,19 @@ Each of the 29 folds drops one panel position from every model at once and recom
 
 google/gemini-3.7-flash is the fragile row: its Holm-adjusted p is 0.221066 on the full panel, but across the 29 folds it ranges 0.028274 to 0.424192, and 1 fold(s) cross 0.05. A single seed sustains the non-rejection.
 
-| model | mean lift | lift sd | Holm reject | LOO mean lift min | max | range | flips | MDD |
+| model | mean lift | lift sd | Holm reject | LOO mean lift range | flips | MDD |
 | --- | ---: | ---: | :---: | ---: | ---: | ---: | ---: | ---: |
-| google/gemini-3.7-flash | -23.40 | 57.54 | no | -28.90 | -18.98 | 9.93 | 1 | 29.9 |
-| x-ai/grok-4.6 | -43.58 | 49.34 | yes | -48.08 | -39.77 | 8.32 | 0 | 25.7 |
-| openai/gpt-5.6-luna | -75.81 | 60.53 | yes | -79.99 | -71.18 | 8.81 | 0 | 31.5 |
-| z-ai/glm-5.3-flash | -83.87 | 46.85 | yes | -87.15 | -80.84 | 6.31 | 0 | 24.4 |
-| moonshotai/kimi-k2.5 | -97.88 | 45.93 | yes | -101.68 | -94.36 | 7.32 | 0 | 23.9 |
-| google/gemini-3.1-flash-lite | -101.52 | 43.38 | yes | -104.71 | -98.40 | 6.31 | 0 | 22.6 |
-| x-ai/grok-4.3 | -112.09 | 42.97 | yes | -115.60 | -108.77 | 6.83 | 0 | 22.4 |
-| deepseek/deepseek-v4-flash-0731 | -122.21 | 44.12 | yes | -125.14 | -118.26 | 6.89 | 0 | 23.0 |
-| openai/gpt-5.4-mini | -123.12 | 48.12 | yes | -126.56 | -119.33 | 7.22 | 0 | 25.0 |
-| minimax/minimax-m3 | -130.11 | 43.17 | yes | -133.74 | -126.54 | 7.20 | 0 | 22.5 |
-| qwen/qwen3.5-27b | -133.41 | 47.11 | yes | -136.27 | -129.89 | 6.38 | 0 | 24.5 |
+| google/gemini-3.7-flash | -23.40 | 57.54 | no | 9.93 | 1 | 29.9 |
+| x-ai/grok-4.6 | -43.58 | 49.34 | yes | 8.32 | 0 | 25.7 |
+| openai/gpt-5.6-luna | -75.81 | 60.53 | yes | 8.81 | 0 | 31.5 |
+| z-ai/glm-5.3-flash | -83.87 | 46.85 | yes | 6.31 | 0 | 24.4 |
+| moonshotai/kimi-k2.5 | -97.88 | 45.93 | yes | 7.32 | 0 | 23.9 |
+| google/gemini-3.1-flash-lite | -101.52 | 43.38 | yes | 6.31 | 0 | 22.6 |
+| x-ai/grok-4.3 | -112.09 | 42.97 | yes | 6.83 | 0 | 22.4 |
+| deepseek/deepseek-v4-flash-0731 | -122.21 | 44.12 | yes | 6.89 | 0 | 23.0 |
+| openai/gpt-5.4-mini | -123.12 | 48.12 | yes | 7.22 | 0 | 25.0 |
+| minimax/minimax-m3 | -130.11 | 43.17 | yes | 7.20 | 0 | 22.5 |
+| qwen/qwen3.5-27b | -133.41 | 47.11 | yes | 6.38 | 0 | 24.5 |
 
 ## Efficiency
 

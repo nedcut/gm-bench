@@ -423,10 +423,13 @@ strongest contamination-resistant claim.
   `results/analysis/sota-v5-robustness.json` and
   `results/analysis/sota-v5-robustness.md`; every row also records that
   within-seed noise is unmeasured under the one-repeat lane.
-- [ ] Run score-weight sensitivity and report whether important rankings change
-  under plausible perturbations. The scripted-panel sensitivity is reported in
-  `docs/scoring_calibration.md`; model rows become reweightable only from
-  `sota-v3` artifacts, which carry `score_components`.
+- [x] Run score-weight sensitivity and report whether important rankings change
+  under plausible perturbations. The v5 result is in
+  `results/analysis/sota-v5-weight-sensitivity.json` and summarized in
+  `docs/blog/sota-v5-findings.md`: the two rows nearest `pick-trader` never
+  change position against the scripted references under plus or minus 30
+  percent weight perturbation. The scripted-panel sensitivity remains in
+  `docs/scoring_calibration.md`.
 - [x] Check whether conclusions depend on a single seed, season, mechanic, or
   extreme episode. The leave-one-seed-out check is in
   `results/analysis/sota-v5-robustness.json`.

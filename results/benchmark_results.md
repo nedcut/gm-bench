@@ -31,16 +31,16 @@ checks, observed minimum detectable difference, and the efficiency table are in
 | Model | Provider route | Mean score | Lift vs pick-trader (95% CI) | Holm p | Rejects at 0.05 | Decisions | Cost (USD) |
 | --- | --- | ---: | --- | ---: | --- | ---: | ---: |
 | `google/gemini-3.7-flash` | Google AI Studio | 223.707 | -23.4 (-43.5 to -2.8) | 0.221 | no | 580 | 1.8819 |
-| `x-ai/grok-4.6` | xAI | 203.531 | -43.6 (-61.6 to -25.9) | 0.000 | yes | 580 | 9.1753 |
-| `openai/gpt-5.6-luna` | OpenAI | 171.295 | -75.8 (-97.6 to -54.2) | 0.000 | yes | 580 | 0.4255 |
-| `z-ai/glm-5.3-flash` | Fireworks | 163.242 | -83.9 (-100.7 to -67.2) | 0.000 | yes | 580 | 0.6029 |
-| `moonshotai/kimi-k2.5` | SiliconFlow | 149.231 | -97.9 (-114.5 to -81.2) | 0.000 | yes | 580 | 1.5753 |
-| `google/gemini-3.1-flash-lite` | Google AI Studio | 145.590 | -101.5 (-117.4 to -86.6) | 0.000 | yes | 580 | 0.4588 |
-| `x-ai/grok-4.3` | xAI | 135.021 | -112.1 (-127.9 to -97.0) | 0.000 | yes | 580 | 3.5213 |
-| `deepseek/deepseek-v4-flash-0731` | Together | 124.902 | -122.2 (-138.4 to -106.7) | 0.000 | yes | 580 | 0.4361 |
-| `openai/gpt-5.4-mini` | OpenAI | 123.993 | -123.1 (-140.8 to -106.2) | 0.000 | yes | 580 | 2.4499 |
-| `minimax/minimax-m3` | ModelRun | 116.999 | -130.1 (-146.2 to -115.2) | 0.000 | yes | 580 | 2.1024 |
-| `qwen/qwen3.5-27b` | SiliconFlow | 113.700 | -133.4 (-150.6 to -117.0) | 0.000 | yes | 580 | 0.9857 |
+| `x-ai/grok-4.6` | xAI | 203.531 | -43.6 (-61.6 to -25.9) | <0.001 | yes | 580 | 9.1753 |
+| `openai/gpt-5.6-luna` | OpenAI | 171.295 | -75.8 (-97.6 to -54.2) | <0.001 | yes | 580 | 0.4255 |
+| `z-ai/glm-5.3-flash` | Fireworks | 163.242 | -83.9 (-100.7 to -67.2) | <0.001 | yes | 580 | 0.6029 |
+| `moonshotai/kimi-k2.5` | SiliconFlow | 149.231 | -97.9 (-114.5 to -81.2) | <0.001 | yes | 580 | 1.5753 |
+| `google/gemini-3.1-flash-lite` | Google AI Studio | 145.590 | -101.5 (-117.4 to -86.6) | <0.001 | yes | 580 | 0.4588 |
+| `x-ai/grok-4.3` | xAI | 135.021 | -112.1 (-127.9 to -97.0) | <0.001 | yes | 580 | 3.5213 |
+| `deepseek/deepseek-v4-flash-0731` | Together | 124.902 | -122.2 (-138.4 to -106.7) | <0.001 | yes | 580 | 0.4361 |
+| `openai/gpt-5.4-mini` | OpenAI | 123.993 | -123.1 (-140.8 to -106.2) | <0.001 | yes | 580 | 2.4499 |
+| `minimax/minimax-m3` | ModelRun | 116.999 | -130.1 (-146.2 to -115.2) | <0.001 | yes | 580 | 2.1024 |
+| `qwen/qwen3.5-27b` | SiliconFlow | 113.700 | -133.4 (-150.6 to -117.0) | <0.001 | yes | 580 | 0.9857 |
 
 ### Diagnostic and excluded cells
 

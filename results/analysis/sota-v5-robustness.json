@@ -288,8 +288,6 @@
         "holm_adjusted_p_min": 0.0,
         "holm_rejection_flips": 0,
         "holm_rejection_stable": true,
-        "mean_lift_max": -118.257536,
-        "mean_lift_min": -125.142786,
         "mean_lift_range": 6.88525
       },
       "minimum_detectable_difference": {
@@ -313,8 +311,6 @@
         "holm_adjusted_p_min": 0.0,
         "holm_rejection_flips": 0,
         "holm_rejection_stable": true,
-        "mean_lift_max": -98.403893,
-        "mean_lift_min": -104.713,
         "mean_lift_range": 6.309107
       },
       "minimum_detectable_difference": {
@@ -338,8 +334,6 @@
         "holm_adjusted_p_min": 0.028274,
         "holm_rejection_flips": 1,
         "holm_rejection_stable": false,
-        "mean_lift_max": -18.976679,
-        "mean_lift_min": -28.901929,
         "mean_lift_range": 9.92525
       },
       "minimum_detectable_difference": {
@@ -363,8 +357,6 @@
         "holm_adjusted_p_min": 0.0,
         "holm_rejection_flips": 0,
         "holm_rejection_stable": true,
-        "mean_lift_max": -80.835964,
-        "mean_lift_min": -87.149214,
         "mean_lift_range": 6.31325
       },
       "minimum_detectable_difference": {
@@ -388,8 +380,6 @@
         "holm_adjusted_p_min": 0.0,
         "holm_rejection_flips": 0,
         "holm_rejection_stable": true,
-        "mean_lift_max": -119.332,
-        "mean_lift_min": -126.555643,
         "mean_lift_range": 7.223643
       },
       "minimum_detectable_difference": {
@@ -413,8 +403,6 @@
         "holm_adjusted_p_min": 1e-06,
         "holm_rejection_flips": 0,
         "holm_rejection_stable": true,
-        "mean_lift_max": -71.182643,
-        "mean_lift_min": -79.990143,
         "mean_lift_range": 8.8075
       },
       "minimum_detectable_difference": {
@@ -438,8 +426,6 @@
         "holm_adjusted_p_min": 0.0,
         "holm_rejection_flips": 0,
         "holm_rejection_stable": true,
-        "mean_lift_max": -108.771321,
-        "mean_lift_min": -115.604571,
         "mean_lift_range": 6.83325
       },
       "minimum_detectable_difference": {
@@ -463,8 +449,6 @@
         "holm_adjusted_p_min": 4e-06,
         "holm_rejection_flips": 0,
         "holm_rejection_stable": true,
-        "mean_lift_max": -39.768071,
-        "mean_lift_min": -48.084036,
         "mean_lift_range": 8.315964
       },
       "minimum_detectable_difference": {
@@ -488,8 +472,6 @@
         "holm_adjusted_p_min": 0.0,
         "holm_rejection_flips": 0,
         "holm_rejection_stable": true,
-        "mean_lift_max": -94.363821,
-        "mean_lift_min": -101.682393,
         "mean_lift_range": 7.318571
       },
       "minimum_detectable_difference": {
@@ -513,8 +495,6 @@
         "holm_adjusted_p_min": 0.0,
         "holm_rejection_flips": 0,
         "holm_rejection_stable": true,
-        "mean_lift_max": -126.538571,
-        "mean_lift_min": -133.7405,
         "mean_lift_range": 7.201929
       },
       "minimum_detectable_difference": {
@@ -538,8 +518,6 @@
         "holm_adjusted_p_min": 0.0,
         "holm_rejection_flips": 0,
         "holm_rejection_stable": true,
-        "mean_lift_max": -129.889607,
-        "mean_lift_min": -136.269214,
         "mean_lift_range": 6.379607
       },
       "minimum_detectable_difference": {

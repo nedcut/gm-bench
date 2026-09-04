@@ -14,9 +14,9 @@ unless it is called out as a convention. Read
 > publication matrix. That separate, pre-registered lane is a private 29-seed ×
 > 1-repeat panel (`config/sota_v5_lane.json`, panel width frozen in
 > `docs/bench_v6_spec.md`) whose seed values are held out of the repository, so
-> it is not open to third-party submission. A generic v5 row can be validated
-> and will be checked in CI, but the public site still serves the frozen
-> `sota-v2` phase-one study and will not publish it.
+> it is not open to third-party submission. The public site serves that
+> frozen, authorized v5 panel. A generic third-party v5 row can be validated
+> and will be checked in CI, but the site will not publish it.
 
 ## Produce the row
 
