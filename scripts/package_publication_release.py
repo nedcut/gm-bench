@@ -852,6 +852,8 @@ def verify_archive(archive_path: Path, *, repo_root: Path | None = None) -> dict
             if len(data) != row.get("bytes") or _sha256(data) != row.get("sha256"):
                 raise ValueError(f"file checksum mismatch: {row.get('path')}")
         archived_excluded: dict[str, dict[str, Any]] = {}
+        archived_eligible: dict[str, dict[str, Any]] = {}
+        registered_by_id: dict[str, dict[str, Any]] = {}
         if private_release:
             release_contract = str(manifest.get("contract"))
             spec = RELEASE_SPECS[release_contract]
@@ -870,9 +872,11 @@ def verify_archive(archive_path: Path, *, repo_root: Path | None = None) -> dict
             archived_analysis = json.loads(archive.read(analysis_name))
             archived_lane = json.loads(archive.read(lane_name))
             archived_registry = json.loads(archive.read(registry_name))
-            registered_ids = {
-                str(row.get("id")) for row in archived_registry.get("models") or [] if isinstance(row, dict)
-            }
+            registered_rows = [row for row in archived_registry.get("models") or [] if isinstance(row, dict)]
+            registered_by_id = {str(row.get("id") or ""): row for row in registered_rows}
+            if "" in registered_by_id or len(registered_by_id) != len(registered_rows):
+                raise ValueError(f"{release_contract} registry model ids must be unique and non-empty")
+            registered_ids = set(registered_by_id)
             archived_register = None
             minimum_headline_models = None
             if register_name is not None:
@@ -881,7 +885,7 @@ def verify_archive(archive_path: Path, *, repo_root: Path | None = None) -> dict
                 exclusion_policy = archived_protocol.get("exclusion_policy")
                 if isinstance(exclusion_policy, dict):
                     minimum_headline_models = exclusion_policy.get("minimum_headline_models")
-            _v3_analysis_rows(
+            archived_eligible = _v3_analysis_rows(
                 archived_analysis,
                 registered_ids,
                 (archived_lane.get("seed_panel") or {}).get("count"),
@@ -900,7 +904,44 @@ def verify_archive(archive_path: Path, *, repo_root: Path | None = None) -> dict
                     raise ValueError(
                         f"{release_contract} release manifest must record exactly the archived exclusion register"
                     )
-        for artifact in manifest.get("artifacts") or []:
+        artifact_rows = manifest.get("artifacts")
+        if not isinstance(artifact_rows, list) or any(not isinstance(row, dict) for row in artifact_rows):
+            raise ValueError("release manifest artifacts must be a list of objects")
+        manifest_artifacts: dict[str, dict[str, Any]] = {}
+        for artifact in artifact_rows:
+            model_id = str(artifact.get("model_id") or "")
+            if not model_id or model_id in manifest_artifacts:
+                raise ValueError("release manifest artifact model ids must be unique and non-empty")
+            manifest_artifacts[model_id] = artifact
+        if private_release:
+            if set(manifest_artifacts) != set(registered_by_id):
+                raise ValueError(
+                    f"{manifest.get('contract')} release manifest must record every registered model exactly once"
+                )
+            if manifest.get("registered_models") != len(registered_by_id):
+                raise ValueError("release manifest registered_models count does not match the archived registry")
+            if manifest.get("eligible_headline_models") != len(archived_eligible):
+                raise ValueError("release manifest eligible_headline_models count does not match the archived analysis")
+            expected_diagnostics = sum(
+                entry.get("status") == V5_INELIGIBLE_MODEL_BEHAVIOR for entry in archived_excluded.values()
+            )
+            if manifest.get("diagnostic_models") != expected_diagnostics:
+                raise ValueError("release manifest diagnostic_models count does not match the archived exclusions")
+            if archived_excluded and manifest.get("excluded_models") != len(archived_excluded):
+                raise ValueError(
+                    "release manifest excluded_models count does not match the archived exclusion register"
+                )
+            for model_id, artifact in manifest_artifacts.items():
+                expected_status = "excluded" if model_id in archived_excluded else "headline"
+                if artifact.get("status") != expected_status:
+                    raise ValueError(f"release manifest status for {model_id!r} must be {expected_status!r}")
+                registered = registered_by_id[model_id]
+                for field in ("provider", "model", "upstream_provider"):
+                    if artifact.get(field) != registered.get(field):
+                        raise ValueError(
+                            f"release manifest {field} for {model_id!r} does not match the archived registry"
+                        )
+        for artifact in artifact_rows:
             model_id = str(artifact.get("model_id") or "")
             raw_path = artifact.get("raw_path")
             if private_release and raw_path:
@@ -935,6 +976,14 @@ def verify_archive(archive_path: Path, *, repo_root: Path | None = None) -> dict
                 elif compact_path:
                     raise ValueError(f"infrastructure-limit exclusion {model_id!r} must not carry an artifact")
                 continue
+            if private_release:
+                expected_raw_hash = archived_eligible[model_id].get("raw_artifact_sha256")
+                if artifact.get("raw_canonical_sha256") != expected_raw_hash:
+                    raise ValueError(f"release manifest raw hash for {model_id!r} does not match the archived analysis")
+                if artifact.get("compact_raw_artifact_sha256") != expected_raw_hash:
+                    raise ValueError(
+                        f"release manifest compact hash for {model_id!r} does not match the archived analysis"
+                    )
             if private_release and (not compact_path or str(compact_path) not in names):
                 raise ValueError(f"{manifest.get('contract')} release must archive every redacted headline artifact")
             if compact_path:

@@ -38,7 +38,7 @@ class ScriptedAgent(Agent):
 
 
 def _rate_limited() -> tuple[list[dict[str, Any]], None]:
-    return [{"type": "noop", "error": "api_error: HTTP 429 Too Many Requests; provider=Together"}], None
+    return [{"type": "noop", "model_error": "api_error: HTTP 429 Too Many Requests; provider=Together"}], None
 
 
 def _ok() -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -68,7 +68,7 @@ def test_gives_up_after_the_bounded_attempts_so_fail_fast_still_counts_it() -> N
     )
 
     actions, _usage = agent.act_with_usage({"unused": True})
-    assert "HTTP 429" in actions[0]["error"]
+    assert "HTTP 429" in actions[0]["model_error"]
     assert inner.calls == 3  # first try plus two retries
     with pytest.raises(ModelRunAborted, match="2 consecutive model failures"):
         agent.act_with_usage({"unused": True})
@@ -91,6 +91,24 @@ def test_non_transient_errors_are_not_retried(error: str) -> None:
 
     assert actions[0]["error"] == error
     assert usage is None
+    assert inner.calls == 1
+
+
+def test_model_authored_error_field_cannot_trigger_an_infrastructure_retry() -> None:
+    inner = ScriptedAgent(
+        [
+            (
+                [{"type": "noop", "error": "HTTP 429, try again"}],
+                {"api_calls": 1, "cost_usd": 0.001, "output_tokens": 10},
+            )
+        ]
+    )
+    agent = TransientRetryAgent(inner, attempts=3, base_seconds=0, sleep=lambda _s: None, log=lambda _m: None)
+
+    actions, usage = agent.act_with_usage({"unused": True})
+
+    assert actions == [{"type": "noop", "error": "HTTP 429, try again"}]
+    assert usage == {"api_calls": 1, "cost_usd": 0.001, "output_tokens": 10}
     assert inner.calls == 1
 
 

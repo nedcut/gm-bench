@@ -348,6 +348,17 @@ def _replace_archived_json(archive_path: Path, member: str, payload: dict) -> No
             archive.writestr(name, entry)
 
 
+def _replace_archived_manifest(archive_path: Path, mutate) -> None:
+    with zipfile.ZipFile(archive_path) as archive:
+        entries = {name: archive.read(name) for name in archive.namelist()}
+    manifest = json.loads(entries["manifest.json"])
+    mutate(manifest)
+    entries["manifest.json"] = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode()
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        for name, entry in entries.items():
+            archive.writestr(name, entry)
+
+
 def test_release_archive_is_deterministic_and_verifiable(tmp_path: Path) -> None:
     repo, run_dir = _release_fixture(tmp_path)
     archive = tmp_path / "release.zip"
@@ -1024,6 +1035,34 @@ def test_v5_release_rejects_a_register_that_disagrees_with_the_analysis(
 
     with pytest.raises(ValueError, match="does not match the committed exclusion register entry"):
         _build_v5(tmp_path, staging, results_root)
+
+
+def test_v5_verifier_rejects_an_incomplete_manifest(staged_v5_release: dict, tmp_path: Path) -> None:
+    staging, results_root = _copy_staged(staged_v5_release, tmp_path)
+    _, archive = _build_v5(tmp_path, staging, results_root)
+
+    def remove_headline(manifest: dict) -> None:
+        manifest["artifacts"].remove(next(row for row in manifest["artifacts"] if row["status"] == "headline"))
+
+    _replace_archived_manifest(archive, remove_headline)
+
+    with pytest.raises(ValueError, match="every registered model exactly once"):
+        verify_archive(archive)
+
+
+def test_v5_verifier_binds_each_headline_manifest_row_to_the_analysis(staged_v5_release: dict, tmp_path: Path) -> None:
+    staging, results_root = _copy_staged(staged_v5_release, tmp_path)
+    _, archive = _build_v5(tmp_path, staging, results_root)
+
+    def replace_hash(manifest: dict) -> None:
+        headline = next(row for row in manifest["artifacts"] if row["status"] == "headline")
+        headline["raw_canonical_sha256"] = "f" * 64
+        headline["compact_raw_artifact_sha256"] = "f" * 64
+
+    _replace_archived_manifest(archive, replace_hash)
+
+    with pytest.raises(ValueError, match="does not match the archived analysis"):
+        verify_archive(archive)
 
 
 def test_v5_verifier_revalidates_the_archived_register_and_diagnostics(staged_v5_release: dict, tmp_path: Path) -> None:

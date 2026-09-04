@@ -980,9 +980,7 @@ def test_v5_rejected_artifact_for_a_registered_exclusion_is_accounted_for(monkey
         ),
     )
 
-    result = analyze(
-        registry, [*payloads, gated], lane=lane, protocol=protocol, pricing=pricing, exclusions=register
-    )
+    result = analyze(registry, [*payloads, gated], lane=lane, protocol=protocol, pricing=pricing, exclusions=register)
 
     assert result["config_errors"] == []
     assert result["rejected_artifacts"] == []

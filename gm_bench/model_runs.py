@@ -221,7 +221,12 @@ def _transient_provider_error(actions: Any, guard_state: dict[str, Any] | None) 
     if isinstance(actions, list):
         for action in actions:
             if isinstance(action, dict):
-                marker = action.get("model_error") or action.get("error")
+                # Provider adapters put transport failures in ``model_error``.
+                # ``error`` is also a valid field in model-authored actions, so
+                # treating it as infrastructure would let a paid completion
+                # request its own retry merely by returning text such as
+                # "HTTP 429" in that field.
+                marker = action.get("model_error")
                 if marker:
                     candidates.append(str(marker))
     if guard_state is not None:
