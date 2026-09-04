@@ -28,7 +28,7 @@ from web.scripts.build_leaderboard import (  # noqa: E402
 )
 
 V5_OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard-sota-v5.json"
-V5_ARTIFACTS_DIR = ROOT / "results" / "leaderboard"
+V5_ARTIFACTS_DIR = ROOT / "results" / "leaderboard" / "sota-v5"
 
 
 def _read(path: Path) -> dict[str, Any]:
