@@ -583,7 +583,7 @@ export default function ResultsExplorer({
             </p>
             <small>
               Every model is compared with <code>pick-trader</code> and nothing else. All
-              of them finish below it, and the predeclared Holm-adjusted test rejects for{" "}
+              of them finish below it, and the predeclared Holm-adjusted family test rejects for{" "}
               {benchmark.holmRejectedCount} of {benchmark.modelCount} at 0.05 across the
               family of {registeredCount}. We do not rank models against each other. Each
               seed ran once, so within-seed noise is unmeasured.
@@ -717,7 +717,7 @@ export default function ResultsExplorer({
               </h2>
               <p>
                 {view === "lift"
-                  ? `Paired lift against pick-trader, the one contrast the publication protocol froze. Whiskers are 95% bootstrap intervals and are descriptive only. The predeclared Holm-adjusted test rejects for ${benchmark.holmRejectedCount} of ${benchmark.modelCount} rows.`
+                  ? `Paired lift against pick-trader, the one contrast the publication protocol froze. Whiskers are 95% bootstrap intervals and are descriptive only. The predeclared Holm-adjusted family test rejects for ${benchmark.holmRejectedCount} of ${benchmark.modelCount} rows.`
                   : benchmark.modelsAboveBar === 0
                     ? "Price varies widely, but no observed mean reaches the pick-trader bar."
                     : `Price varies widely; ${benchmark.modelsAboveBar} of ${benchmark.modelCount} observed means reach the pick-trader bar.`}
