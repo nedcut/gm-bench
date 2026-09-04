@@ -21,6 +21,7 @@ Use Python 3.11 or newer.
 ## 2. Download and verify the archive
 
 ```bash
+set -euo pipefail
 mkdir -p /tmp/gm-bench-sota-v5-release
 gh release download sota-v5-publication-2026-09-03 \
   --dir /tmp/gm-bench-sota-v5-release
@@ -46,6 +47,7 @@ raw-artifact SHA-256 as the analysis file and the release manifest.
 ## 3. Validate the committed redacted rows
 
 ```bash
+set -euo pipefail
 for artifact in results/leaderboard/sota-v5/*.json; do
   python3 -m gm_bench validate-result "$artifact" --policy sota-v5
 done
@@ -57,19 +59,25 @@ the candidate does not beat the strongest scripted baseline. Some rows also
 warn about illegal actions or adapter fallback. Those warnings do not fail
 the policy.
 
-The three diagnostic rows fail on purpose. Check them if you want to see the
-recorded reasons:
+The three diagnostic rows fail on purpose. Each command below is expected to
+exit 1:
 
 ```bash
-for artifact in results/diagnostics/sota-v5/*.json; do
-  python3 -m gm_bench validate-result "$artifact" --policy sota-v5 || true
-done
+python3 -m gm_bench validate-result \
+  results/diagnostics/sota-v5/openrouter-claude-haiku-4.5-anthropic.json \
+  --policy sota-v5
+python3 -m gm_bench validate-result \
+  results/diagnostics/sota-v5/openrouter-glm-5-streamlake.json \
+  --policy sota-v5
+python3 -m gm_bench validate-result \
+  results/diagnostics/sota-v5/openrouter-gpt-oss-20b-deepinfra.json \
+  --policy sota-v5
 ```
 
 - `openrouter-claude-haiku-4.5-anthropic` and `openrouter-glm-5-streamlake`
   fail with `paired.num_seeds must be 29` (fail-fast, incomplete panel).
 - `openrouter-gpt-oss-20b-deepinfra` fails with
-  `candidate decision_failure_rate 0.021 exceeds 0.020`.
+  `candidate decision_failure_rate 0.021 exceeds 0.020 for sota-v5`.
 
 `validate-result` means the compact JSON is well-formed and self-consistent
 under `sota-v5`. It does not mean the numbers came from a real run. Binding a
@@ -98,8 +106,8 @@ rebuild as part of this check.
 
 ```bash
 python3 -m pytest -q
-python3 -m ruff format --check gm_bench examples tests scripts
-python3 -m ruff check gm_bench examples tests scripts
+python3 -m ruff format --check gm_bench examples tests scripts web/scripts
+python3 -m ruff check gm_bench examples tests scripts web/scripts
 ```
 
 A successful clean-clone run is external validation of packaging and of the
