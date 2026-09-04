@@ -318,13 +318,15 @@ def test_v5_authorizations_match_the_owner_instructions() -> None:
     assert superseded[0]["evidence_artifact"].endswith("-superseded.json")
     # Spend and smoke execution were authorized on the owner's explicit
     # 2026-09-01 instruction, and panel execution on the owner's 2026-09-02
-    # instruction once all sixteen one-call smokes were accepted; publication
-    # stays locked until the panel artifacts pass the publication gate.
+    # instruction once all sixteen one-call smokes were accepted. Publication
+    # was authorized by the owner on 2026-09-03 after the completed panel
+    # passed the amended accounted-for rule (eleven eligible rows, five
+    # register-excluded rows, Holm family still sixteen).
     for record in records:
         assert record["spend_authorized"] is True
         assert record["smoke_execution_authorized"] is True
         assert record["panel_execution_authorized"] is True
-        assert record["publication_authorized"] is False
+        assert record["publication_authorized"] is True
     assert protocol["budget_policy"]["spend_authorized"] is True
     assert lane["final_preflight_evidence"]["status"] == "accepted"
     assert lane["final_preflight_evidence"]["completion_calls"] == 0

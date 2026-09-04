@@ -164,5 +164,5 @@
     "consumed_at_utc": "2026-09-03T01:08:30Z",
     "outcome": "accepted-smoke-recorded-in-manifest"
   },
-  "publication_authorized": false
+  "publication_authorized": true
 }

@@ -145,7 +145,7 @@
     "consumed_at_utc": "2026-09-03T01:08:30Z",
     "outcome": "accepted-smoke-recorded-in-manifest"
   },
-  "publication_authorized": false,
+  "publication_authorized": true,
   "selection_and_lineage": {
     "panel_source": "docs/bench_v6_spec.md",
     "panel_model_count": 16,

@@ -140,7 +140,7 @@
     "consumed_at_utc": "2026-09-03T01:08:30Z",
     "outcome": "accepted-smoke-recorded-in-manifest"
   },
-  "publication_authorized": false,
+  "publication_authorized": true,
   "blockers": [
     "Every required strict smoke must be accepted before a separate panel decision.",
     "SOTA-v2, v3 and v4 remain terminal historical contracts and cannot be reopened or used to select anything here."

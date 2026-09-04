@@ -10,8 +10,9 @@ It also proves the accounted-for rule end to end: with the four frozen records
 authorized only in memory (and materialized only inside a temporary staging
 tree), a synthetic sixteen-row family with eleven eligible rows and the five
 committed register exclusions analyzes as publication_ready, packages into a
-release archive, and verifies. The repository's own records are never written
-and their publication_authorized flags stay false.
+release archive, and verifies. The repository's own records are never written;
+the proof holds whether their publication_authorized flags are false (before
+the release decision) or true (after it), because it authorizes only copies.
 """
 
 from __future__ import annotations
@@ -276,9 +277,12 @@ def stage_accounted_for_inputs(workdir: Path) -> dict[str, Any]:
     """
     records = {label: json.loads((ROOT / relative).read_text()) for label, relative in V5_RECORD_FILES.items()}
     register = json.loads((ROOT / V5_REGISTER_FILE).read_text())
+    # The proof authorizes its own in-memory copies, so it must not depend on
+    # whether the checked-in records are locked (before the 2026-09-03 release
+    # decision) or authorized (after it); it only requires the flag to exist.
     for label, record in records.items():
-        if record.get("publication_authorized") is not False:
-            raise AssertionError(f"checked-in sota-v5 {label} publication_authorized is not false")
+        if not isinstance(record.get("publication_authorized"), bool):
+            raise AssertionError(f"checked-in sota-v5 {label} publication_authorized is not a boolean")
 
     specs, spec_errors = _registry_specs(records["registry"])
     if spec_errors:
