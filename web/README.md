@@ -60,13 +60,20 @@ cd web && bun run build   # replays it in Pyodide and checks the state digest
 The public leaderboard dataset is a separate evidence build:
 
 ```bash
-python web/scripts/build_leaderboard.py
+python -m web.scripts.build_study            # sota-v5, the published dataset
 git diff --exit-code -- web/src/data/leaderboard.json
+
+python web/scripts/build_leaderboard.py      # sota-v2, the archived dataset
+git diff --exit-code -- web/src/data/leaderboard-sota-v2.json
 ```
 
-The builder currently preserves and emits only the frozen `sota-v2` release
-instead of recomputing its references on the live engine. Its reusable
-publication-gate helpers understand the frozen `sota-v3` reference-only analysis
-shape—each model compared with `pick-trader`, with no model-to-model tiers—but
-the command-line builder excludes v3, v4, and v5 until a future site/release
-decision is made explicitly.
+The site publishes `sota-v5`: `src/data/leaderboard.json` is written by
+`build_study.py`, which refuses to build until every frozen publication input
+carries an explicit authorization decision. The analysis is reference-only—each
+model compared with `pick-trader`, no model-to-model tiers—so v5 rows carry no
+`tier` and the ranking plot claims no ordering.
+
+`build_leaderboard.py` still emits the frozen `sota-v2` release, now at
+`src/data/leaderboard-sota-v2.json`, so the archived study stays reproducible.
+That builder preserves the release instead of recomputing its references on the
+live engine, and still excludes v3 and v4.

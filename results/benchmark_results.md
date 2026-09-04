@@ -2,6 +2,70 @@
 
 This snapshot records the benchmark results generated during the MVP build.
 
+## `sota-v5` publication panel (2026-09-03)
+
+Contract fingerprint `a600b7da0c302231`, OpenRouter scaffold
+`c582e126bbb6af10`, 29-seed private panel, one episode per seed, zero repair
+attempts, 4,096-token output ceiling. Sixteen model cells were pre-registered
+and all sixteen are accounted for: eleven strict headline rows, three
+ineligible on model behavior, and two excluded at the two-attempt
+infrastructure limit.
+
+The analysis is reference-only. Each model is contrasted against the
+deterministic `pick-trader` baseline (mean 247.109 on this panel) with an exact
+paired sign-flip test and Holm adjustment over the registered family of
+sixteen. No model-to-model tiers or ordinal ranking are assigned. Every
+eligible model trails `pick-trader`. Ten of the eleven headline rows reject at
+Holm-adjusted alpha 0.05; `google/gemini-3.7-flash` does not. Within-seed noise
+is unmeasured under the one-repeat lane, so the minimum detectable difference
+rests on the calibration panel's assumed repeat noise.
+
+Generated from `results/leaderboard/sota-v5/*.json` and
+`results/analysis/publication-panel-analysis-v5.json`. Leave-one-seed-out
+checks, observed minimum detectable difference, and the efficiency table are in
+`results/analysis/sota-v5-robustness.json` and
+`results/analysis/sota-v5-robustness.md`.
+
+### Headline rows
+
+| Model | Provider route | Mean score | Lift vs pick-trader (95% CI) | Holm p | Rejects at 0.05 | Decisions | Cost (USD) |
+| --- | --- | ---: | --- | ---: | --- | ---: | ---: |
+| `google/gemini-3.7-flash` | Google AI Studio | 223.707 | -23.4 (-43.5 to -2.8) | 0.221 | no | 580 | 1.8819 |
+| `x-ai/grok-4.6` | xAI | 203.531 | -43.6 (-61.6 to -25.9) | <0.001 | yes | 580 | 9.1753 |
+| `openai/gpt-5.6-luna` | OpenAI | 171.295 | -75.8 (-97.6 to -54.2) | <0.001 | yes | 580 | 0.4255 |
+| `z-ai/glm-5.3-flash` | Fireworks | 163.242 | -83.9 (-100.7 to -67.2) | <0.001 | yes | 580 | 0.6029 |
+| `moonshotai/kimi-k2.5` | SiliconFlow | 149.231 | -97.9 (-114.5 to -81.2) | <0.001 | yes | 580 | 1.5753 |
+| `google/gemini-3.1-flash-lite` | Google AI Studio | 145.590 | -101.5 (-117.4 to -86.6) | <0.001 | yes | 580 | 0.4588 |
+| `x-ai/grok-4.3` | xAI | 135.021 | -112.1 (-127.9 to -97.0) | <0.001 | yes | 580 | 3.5213 |
+| `deepseek/deepseek-v4-flash-0731` | Together | 124.902 | -122.2 (-138.4 to -106.7) | <0.001 | yes | 580 | 0.4361 |
+| `openai/gpt-5.4-mini` | OpenAI | 123.993 | -123.1 (-140.8 to -106.2) | <0.001 | yes | 580 | 2.4499 |
+| `minimax/minimax-m3` | ModelRun | 116.999 | -130.1 (-146.2 to -115.2) | <0.001 | yes | 580 | 2.1024 |
+| `qwen/qwen3.5-27b` | SiliconFlow | 113.700 | -133.4 (-150.6 to -117.0) | <0.001 | yes | 580 | 0.9857 |
+
+### Diagnostic and excluded cells
+
+The three ineligible cells ship as redacted diagnostic artifacts bound to their
+retained checkpoints. The two infrastructure-limit cells produced no artifact.
+Both groups stayed in the Holm family of sixteen; no p-value was eased by a
+missing row.
+
+| Model | Status | Frozen rule | Attempts | Decisions completed | Cost (USD) |
+| --- | --- | --- | ---: | ---: | ---: |
+| `openrouter-gpt-5.6-sol-openai` | excluded-infrastructure-limit | Both attempts aborted within seconds on two consecutive billed responses that carried no choices array, which is not a transient status the backoff covers. | 2 | 0 | 0.0000 |
+| `openrouter-qwen3.8-flash-alibaba` | excluded-infrastructure-limit | Both attempts aborted within the first seed on pairs of Alibaba HTTP 429 responses; Alibaba was the only eligible route, so the identity could not be re-routed. | 2 | 0 | 0.0000 |
+| `openrouter-claude-haiku-4.5-anthropic` | ineligible-model-behavior | Aborted at seed 14 of 29 on two consecutive invalid-JSON replies with zero truncation; 260 decisions from 13 completed seeds are retained. | 1 | 260 | 1.7801 |
+| `openrouter-glm-5-streamlake` | ineligible-model-behavior | Aborted at seed 25 of 29 on two consecutive malformed replies (every action must be an object); 480 decisions from 24 completed seeds are retained. | 1 | 480 | 1.4243 |
+| `openrouter-gpt-oss-20b-deepinfra` | ineligible-model-behavior | Completed 580 of 580 decisions on attempt 1, but 12 unrecoverable decisions put the decision failure rate at 0.0207, over the 0.020 gate. | 1 | 580 | 0.0989 |
+
+The five exclusions are listed with their frozen rule, attempts, decisions,
+cost, and checkpoint SHA-256 in the archived
+`config/sota_v5_panel_exclusions.json`.
+
+Recorded and not fixed: the `openai/gpt-5.6-luna` row billed about $0.125 per
+million prompt tokens against the $0.10 pricing snapshot; transient-retry
+counts live only in the spend guard's ledger and not in the artifacts; the
+`x-ai/grok-4.6` attempt-1 reservation entry is still marked active.
+
 > **Phase-one public panel (2026-07-19, `sota-v2`):** Eight of ten
 > pre-registered OpenRouter cells passed the frozen 4,096-token lane, exact-route,
 > and complete-telemetry gates. Scores are shown with compute because output use

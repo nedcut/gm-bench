@@ -13,7 +13,7 @@ else is skipped with a note on stderr. The reusable gate helpers understand
 the reference-only ``sota-v3`` analysis shape, but switching the public site
 to that contract remains an explicit release decision.
 
-It writes ``web/src/data/leaderboard.json`` with one row per model plus the
+It writes ``web/src/data/leaderboard-sota-v2.json`` with one row per model plus the
 scripted-baseline reference panel. Baselines and the oracle headroom figure are
 taken from the frozen sota-v2 evidence (matched-seed panels already embedded in
 those artifacts, plus ``SOTA_V2_ORACLE_MEAN``). Recomputing them on the live
@@ -51,7 +51,7 @@ from gm_bench.publication import (  # noqa: E402
 from gm_bench.runner import run_many  # noqa: E402
 
 RESULTS_DIR = ROOT / "results" / "leaderboard"
-OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard.json"
+OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard-sota-v2.json"
 MODEL_CONFIG_PATH = ROOT / "config" / "sota_v2_models.json"
 PROTOCOL_CONFIG_PATH = ROOT / "config" / "publication_protocol.json"
 PANEL_ANALYSIS_PATH = ROOT / "results" / "analysis" / "publication-panel-analysis.json"
@@ -786,7 +786,7 @@ def main() -> None:
         "random": baseline_by_name.get("random"),
     }
     # Derived from the artifacts, never from the wall clock: the committed
-    # leaderboard.json must be a pure function of the committed inputs, or the
+    # The archived v2 dataset must be a pure function of the committed inputs, or the
     # CI reproducibility gate would go red every time the date rolls over. It is
     # also the more honest field -- the data was last updated when a run landed,
     # not when someone happened to rebuild the site.

@@ -1,0 +1,548 @@
+{
+  "benchmark_version": "sota-v5",
+  "canonical_weights": {
+    "cap_room": 0.35,
+    "championship": 35.0,
+    "current_strength": 0.28,
+    "future_pick_asset": 0.16,
+    "illegal_action_penalty": 2.5,
+    "playoff_round": 9.0,
+    "recent_win": 0.42,
+    "roster_depth": 8.0,
+    "total_asset": 0.16,
+    "young_asset": 0.18
+  },
+  "generated_by": "scripts/sota_v5_robustness.py",
+  "method": {
+    "draws": 200,
+    "panel": "candidate plus the eight scripted baselines, one artifact per model",
+    "perturbation": "independent uniform multipliers in [0.70, 1.30]",
+    "source": "score_components persisted on raw episode rows (never published)"
+  },
+  "models": [
+    {
+      "adjacent_rank_flip_probability": {
+        "conservative > rebuild": 0.0,
+        "openrouter:deepseek/deepseek-v4-flash-0731 > conservative": 0.225,
+        "pick-trader > strategic": 0.0,
+        "rebuild > random": 0.0,
+        "shrewd > win-now": 0.0,
+        "strategic > shrewd": 0.0,
+        "value > openrouter:deepseek/deepseek-v4-flash-0731": 0.0,
+        "win-now > value": 0.0
+      },
+      "candidate_adjacent_flip_probability_max": 0.225,
+      "candidate_canonical_rank": 6,
+      "canonical_mean_scores": {
+        "conservative": 122.730677,
+        "openrouter:deepseek/deepseek-v4-flash-0731": 124.901938,
+        "pick-trader": 247.108932,
+        "random": 88.795624,
+        "rebuild": 121.890611,
+        "shrewd": 228.472276,
+        "strategic": 242.333454,
+        "value": 173.068429,
+        "win-now": 178.025056
+      },
+      "canonical_ranking": [
+        "pick-trader",
+        "strategic",
+        "shrewd",
+        "win-now",
+        "value",
+        "openrouter:deepseek/deepseek-v4-flash-0731",
+        "conservative",
+        "rebuild",
+        "random"
+      ],
+      "kendall_tau": {
+        "max": 1.0,
+        "mean": 0.978333,
+        "median": 1.0,
+        "min": 0.888889,
+        "p05": 0.888889,
+        "p95": 1.0
+      },
+      "max_recombination_error": 0.00050128,
+      "model": "openrouter:deepseek/deepseek-v4-flash-0731",
+      "model_id": "openrouter-deepseek-v4-flash-0731-together"
+    },
+    {
+      "adjacent_rank_flip_probability": {
+        "conservative > rebuild": 0.0,
+        "openrouter:google/gemini-3.1-flash-lite > conservative": 0.0,
+        "pick-trader > strategic": 0.0,
+        "rebuild > random": 0.0,
+        "shrewd > win-now": 0.0,
+        "strategic > shrewd": 0.0,
+        "value > openrouter:google/gemini-3.1-flash-lite": 0.0,
+        "win-now > value": 0.0
+      },
+      "candidate_adjacent_flip_probability_max": 0.0,
+      "candidate_canonical_rank": 6,
+      "canonical_mean_scores": {
+        "conservative": 122.730677,
+        "openrouter:google/gemini-3.1-flash-lite": 145.590427,
+        "pick-trader": 247.108932,
+        "random": 88.795624,
+        "rebuild": 121.890611,
+        "shrewd": 228.472276,
+        "strategic": 242.333454,
+        "value": 173.068429,
+        "win-now": 178.025056
+      },
+      "canonical_ranking": [
+        "pick-trader",
+        "strategic",
+        "shrewd",
+        "win-now",
+        "value",
+        "openrouter:google/gemini-3.1-flash-lite",
+        "conservative",
+        "rebuild",
+        "random"
+      ],
+      "kendall_tau": {
+        "max": 1.0,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "p05": 1.0,
+        "p95": 1.0
+      },
+      "max_recombination_error": 0.00049108,
+      "model": "openrouter:google/gemini-3.1-flash-lite",
+      "model_id": "openrouter-gemini-3.1-flash-lite-google-ai-studio"
+    },
+    {
+      "adjacent_rank_flip_probability": {
+        "conservative > rebuild": 0.0,
+        "openrouter:google/gemini-3.7-flash > win-now": 0.0,
+        "pick-trader > strategic": 0.0,
+        "rebuild > random": 0.0,
+        "shrewd > openrouter:google/gemini-3.7-flash": 0.0,
+        "strategic > shrewd": 0.0,
+        "value > conservative": 0.0,
+        "win-now > value": 0.0
+      },
+      "candidate_adjacent_flip_probability_max": 0.0,
+      "candidate_canonical_rank": 4,
+      "canonical_mean_scores": {
+        "conservative": 122.730677,
+        "openrouter:google/gemini-3.7-flash": 223.707433,
+        "pick-trader": 247.108932,
+        "random": 88.795624,
+        "rebuild": 121.890611,
+        "shrewd": 228.472276,
+        "strategic": 242.333454,
+        "value": 173.068429,
+        "win-now": 178.025056
+      },
+      "canonical_ranking": [
+        "pick-trader",
+        "strategic",
+        "shrewd",
+        "openrouter:google/gemini-3.7-flash",
+        "win-now",
+        "value",
+        "conservative",
+        "rebuild",
+        "random"
+      ],
+      "kendall_tau": {
+        "max": 1.0,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "p05": 1.0,
+        "p95": 1.0
+      },
+      "max_recombination_error": 0.00049108,
+      "model": "openrouter:google/gemini-3.7-flash",
+      "model_id": "openrouter-gemini-3.7-flash-google-ai-studio"
+    },
+    {
+      "adjacent_rank_flip_probability": {
+        "conservative > rebuild": 0.0,
+        "openrouter:z-ai/glm-5.3-flash > conservative": 0.0,
+        "pick-trader > strategic": 0.0,
+        "rebuild > random": 0.0,
+        "shrewd > win-now": 0.0,
+        "strategic > shrewd": 0.0,
+        "value > openrouter:z-ai/glm-5.3-flash": 0.0,
+        "win-now > value": 0.0
+      },
+      "candidate_adjacent_flip_probability_max": 0.0,
+      "candidate_canonical_rank": 6,
+      "canonical_mean_scores": {
+        "conservative": 122.730677,
+        "openrouter:z-ai/glm-5.3-flash": 163.242543,
+        "pick-trader": 247.108932,
+        "random": 88.795624,
+        "rebuild": 121.890611,
+        "shrewd": 228.472276,
+        "strategic": 242.333454,
+        "value": 173.068429,
+        "win-now": 178.025056
+      },
+      "canonical_ranking": [
+        "pick-trader",
+        "strategic",
+        "shrewd",
+        "win-now",
+        "value",
+        "openrouter:z-ai/glm-5.3-flash",
+        "conservative",
+        "rebuild",
+        "random"
+      ],
+      "kendall_tau": {
+        "max": 1.0,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "p05": 1.0,
+        "p95": 1.0
+      },
+      "max_recombination_error": 0.00049108,
+      "model": "openrouter:z-ai/glm-5.3-flash",
+      "model_id": "openrouter-glm-5.3-flash-fireworks"
+    },
+    {
+      "adjacent_rank_flip_probability": {
+        "conservative > rebuild": 0.0,
+        "openrouter:openai/gpt-5.4-mini > conservative": 0.42,
+        "pick-trader > strategic": 0.0,
+        "rebuild > random": 0.0,
+        "shrewd > win-now": 0.0,
+        "strategic > shrewd": 0.0,
+        "value > openrouter:openai/gpt-5.4-mini": 0.0,
+        "win-now > value": 0.0
+      },
+      "candidate_adjacent_flip_probability_max": 0.42,
+      "candidate_canonical_rank": 6,
+      "canonical_mean_scores": {
+        "conservative": 122.730677,
+        "openrouter:openai/gpt-5.4-mini": 123.99346,
+        "pick-trader": 247.108932,
+        "random": 88.795624,
+        "rebuild": 121.890611,
+        "shrewd": 228.472276,
+        "strategic": 242.333454,
+        "value": 173.068429,
+        "win-now": 178.025056
+      },
+      "canonical_ranking": [
+        "pick-trader",
+        "strategic",
+        "shrewd",
+        "win-now",
+        "value",
+        "openrouter:openai/gpt-5.4-mini",
+        "conservative",
+        "rebuild",
+        "random"
+      ],
+      "kendall_tau": {
+        "max": 1.0,
+        "mean": 0.955556,
+        "median": 1.0,
+        "min": 0.888889,
+        "p05": 0.888889,
+        "p95": 1.0
+      },
+      "max_recombination_error": 0.00049108,
+      "model": "openrouter:openai/gpt-5.4-mini",
+      "model_id": "openrouter-gpt-5.4-mini-openai"
+    },
+    {
+      "adjacent_rank_flip_probability": {
+        "conservative > rebuild": 0.0,
+        "openrouter:openai/gpt-5.6-luna > conservative": 0.0,
+        "pick-trader > strategic": 0.0,
+        "rebuild > random": 0.0,
+        "shrewd > win-now": 0.0,
+        "strategic > shrewd": 0.0,
+        "value > openrouter:openai/gpt-5.6-luna": 0.365,
+        "win-now > value": 0.0
+      },
+      "candidate_adjacent_flip_probability_max": 0.365,
+      "candidate_canonical_rank": 6,
+      "canonical_mean_scores": {
+        "conservative": 122.730677,
+        "openrouter:openai/gpt-5.6-luna": 171.294889,
+        "pick-trader": 247.108932,
+        "random": 88.795624,
+        "rebuild": 121.890611,
+        "shrewd": 228.472276,
+        "strategic": 242.333454,
+        "value": 173.068429,
+        "win-now": 178.025056
+      },
+      "canonical_ranking": [
+        "pick-trader",
+        "strategic",
+        "shrewd",
+        "win-now",
+        "value",
+        "openrouter:openai/gpt-5.6-luna",
+        "conservative",
+        "rebuild",
+        "random"
+      ],
+      "kendall_tau": {
+        "max": 1.0,
+        "mean": 0.973889,
+        "median": 1.0,
+        "min": 0.888889,
+        "p05": 0.888889,
+        "p95": 1.0
+      },
+      "max_recombination_error": 0.00049108,
+      "model": "openrouter:openai/gpt-5.6-luna",
+      "model_id": "openrouter-gpt-5.6-luna-openai"
+    },
+    {
+      "adjacent_rank_flip_probability": {
+        "conservative > rebuild": 0.0,
+        "openrouter:x-ai/grok-4.3 > conservative": 0.0,
+        "pick-trader > strategic": 0.0,
+        "rebuild > random": 0.0,
+        "shrewd > win-now": 0.0,
+        "strategic > shrewd": 0.0,
+        "value > openrouter:x-ai/grok-4.3": 0.0,
+        "win-now > value": 0.0
+      },
+      "candidate_adjacent_flip_probability_max": 0.0,
+      "candidate_canonical_rank": 6,
+      "canonical_mean_scores": {
+        "conservative": 122.730677,
+        "openrouter:x-ai/grok-4.3": 135.020735,
+        "pick-trader": 247.108932,
+        "random": 88.795624,
+        "rebuild": 121.890611,
+        "shrewd": 228.472276,
+        "strategic": 242.333454,
+        "value": 173.068429,
+        "win-now": 178.025056
+      },
+      "canonical_ranking": [
+        "pick-trader",
+        "strategic",
+        "shrewd",
+        "win-now",
+        "value",
+        "openrouter:x-ai/grok-4.3",
+        "conservative",
+        "rebuild",
+        "random"
+      ],
+      "kendall_tau": {
+        "max": 1.0,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "p05": 1.0,
+        "p95": 1.0
+      },
+      "max_recombination_error": 0.00049108,
+      "model": "openrouter:x-ai/grok-4.3",
+      "model_id": "openrouter-grok-4.3-xai"
+    },
+    {
+      "adjacent_rank_flip_probability": {
+        "conservative > rebuild": 0.0,
+        "openrouter:x-ai/grok-4.6 > win-now": 0.0,
+        "pick-trader > strategic": 0.0,
+        "rebuild > random": 0.0,
+        "shrewd > openrouter:x-ai/grok-4.6": 0.0,
+        "strategic > shrewd": 0.0,
+        "value > conservative": 0.0,
+        "win-now > value": 0.0
+      },
+      "candidate_adjacent_flip_probability_max": 0.0,
+      "candidate_canonical_rank": 4,
+      "canonical_mean_scores": {
+        "conservative": 122.730677,
+        "openrouter:x-ai/grok-4.6": 203.530669,
+        "pick-trader": 247.108932,
+        "random": 88.795624,
+        "rebuild": 121.890611,
+        "shrewd": 228.472276,
+        "strategic": 242.333454,
+        "value": 173.068429,
+        "win-now": 178.025056
+      },
+      "canonical_ranking": [
+        "pick-trader",
+        "strategic",
+        "shrewd",
+        "openrouter:x-ai/grok-4.6",
+        "win-now",
+        "value",
+        "conservative",
+        "rebuild",
+        "random"
+      ],
+      "kendall_tau": {
+        "max": 1.0,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "p05": 1.0,
+        "p95": 1.0
+      },
+      "max_recombination_error": 0.00049108,
+      "model": "openrouter:x-ai/grok-4.6",
+      "model_id": "openrouter-grok-4.6-xai"
+    },
+    {
+      "adjacent_rank_flip_probability": {
+        "conservative > rebuild": 0.0,
+        "openrouter:moonshotai/kimi-k2.5 > conservative": 0.0,
+        "pick-trader > strategic": 0.0,
+        "rebuild > random": 0.0,
+        "shrewd > win-now": 0.0,
+        "strategic > shrewd": 0.0,
+        "value > openrouter:moonshotai/kimi-k2.5": 0.0,
+        "win-now > value": 0.0
+      },
+      "candidate_adjacent_flip_probability_max": 0.0,
+      "candidate_canonical_rank": 6,
+      "canonical_mean_scores": {
+        "conservative": 122.730677,
+        "openrouter:moonshotai/kimi-k2.5": 149.231078,
+        "pick-trader": 247.108932,
+        "random": 88.795624,
+        "rebuild": 121.890611,
+        "shrewd": 228.472276,
+        "strategic": 242.333454,
+        "value": 173.068429,
+        "win-now": 178.025056
+      },
+      "canonical_ranking": [
+        "pick-trader",
+        "strategic",
+        "shrewd",
+        "win-now",
+        "value",
+        "openrouter:moonshotai/kimi-k2.5",
+        "conservative",
+        "rebuild",
+        "random"
+      ],
+      "kendall_tau": {
+        "max": 1.0,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "p05": 1.0,
+        "p95": 1.0
+      },
+      "max_recombination_error": 0.00049108,
+      "model": "openrouter:moonshotai/kimi-k2.5",
+      "model_id": "openrouter-kimi-k2.5-siliconflow"
+    },
+    {
+      "adjacent_rank_flip_probability": {
+        "conservative > rebuild": 0.0,
+        "openrouter:minimax/minimax-m3 > random": 0.0,
+        "pick-trader > strategic": 0.0,
+        "rebuild > openrouter:minimax/minimax-m3": 0.0,
+        "shrewd > win-now": 0.0,
+        "strategic > shrewd": 0.0,
+        "value > conservative": 0.0,
+        "win-now > value": 0.0
+      },
+      "candidate_adjacent_flip_probability_max": 0.0,
+      "candidate_canonical_rank": 8,
+      "canonical_mean_scores": {
+        "conservative": 122.730677,
+        "openrouter:minimax/minimax-m3": 116.9994,
+        "pick-trader": 247.108932,
+        "random": 88.795624,
+        "rebuild": 121.890611,
+        "shrewd": 228.472276,
+        "strategic": 242.333454,
+        "value": 173.068429,
+        "win-now": 178.025056
+      },
+      "canonical_ranking": [
+        "pick-trader",
+        "strategic",
+        "shrewd",
+        "win-now",
+        "value",
+        "conservative",
+        "rebuild",
+        "openrouter:minimax/minimax-m3",
+        "random"
+      ],
+      "kendall_tau": {
+        "max": 1.0,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "p05": 1.0,
+        "p95": 1.0
+      },
+      "max_recombination_error": 0.00050014,
+      "model": "openrouter:minimax/minimax-m3",
+      "model_id": "openrouter-minimax-m3-modelrun"
+    },
+    {
+      "adjacent_rank_flip_probability": {
+        "conservative > rebuild": 0.0,
+        "openrouter:qwen/qwen3.5-27b > random": 0.0,
+        "pick-trader > strategic": 0.0,
+        "rebuild > openrouter:qwen/qwen3.5-27b": 0.025,
+        "shrewd > win-now": 0.0,
+        "strategic > shrewd": 0.0,
+        "value > conservative": 0.0,
+        "win-now > value": 0.0
+      },
+      "candidate_adjacent_flip_probability_max": 0.025,
+      "candidate_canonical_rank": 8,
+      "canonical_mean_scores": {
+        "conservative": 122.730677,
+        "openrouter:qwen/qwen3.5-27b": 113.7004,
+        "pick-trader": 247.108932,
+        "random": 88.795624,
+        "rebuild": 121.890611,
+        "shrewd": 228.472276,
+        "strategic": 242.333454,
+        "value": 173.068429,
+        "win-now": 178.025056
+      },
+      "canonical_ranking": [
+        "pick-trader",
+        "strategic",
+        "shrewd",
+        "win-now",
+        "value",
+        "conservative",
+        "rebuild",
+        "openrouter:qwen/qwen3.5-27b",
+        "random"
+      ],
+      "kendall_tau": {
+        "max": 1.0,
+        "mean": 0.998611,
+        "median": 1.0,
+        "min": 0.944444,
+        "p05": 1.0,
+        "p95": 1.0
+      },
+      "max_recombination_error": 0.00050174,
+      "model": "openrouter:qwen/qwen3.5-27b",
+      "model_id": "openrouter-qwen3.5-27b-siliconflow"
+    }
+  ],
+  "redaction": {
+    "per_seed_rows_included": false,
+    "private_seed_panel": true,
+    "public_view": "aggregate-only",
+    "seed_identifiers_included": false
+  },
+  "schema_version": 1
+}

@@ -28,12 +28,17 @@ function RankingPlot({
   const top = 44;
   const bottom = 48;
   const rowHeight = 37;
+  // Tiers exist only where a study predeclared model-to-model contrasts.
+  // sota-v5 did not, so its rows sort by observed mean with no tier grouping
+  // and no tier labels -- the plot must not imply an ordering the design never
+  // tested.
+  const tiered = benchmark.models.every((model) => typeof model.tier === "number");
   const rows = useMemo(
     () =>
-      [...benchmark.models].sort(
-        (a, b) => a.tier - b.tier || b.mean_score - a.mean_score,
+      [...benchmark.models].sort((a, b) =>
+        tiered ? (a.tier ?? 0) - (b.tier ?? 0) || b.mean_score - a.mean_score : b.mean_score - a.mean_score,
       ),
-    [benchmark.models],
+    [benchmark.models, tiered],
   );
   const ciExtents = rows.flatMap((model) => scoreCi95(model) ?? []);
   const x = scaleLinear()
@@ -41,7 +46,7 @@ function RankingPlot({
       0,
       Math.max(
         450,
-        benchmark.oracle * 1.05,
+        (benchmark.oracle ?? benchmark.scriptedBar) * 1.05,
         ...rows.map((model) => model.mean_score),
         ...ciExtents,
       ),
@@ -60,8 +65,10 @@ function RankingPlot({
       >
         <title id="ranking-title">Mean GM-Bench scores with across-seed intervals</title>
         <desc id="ranking-desc">
-          Each model shows a mean score and 95 percent across-seed interval. Rows are grouped by
-          Holm tier, not ranked ordinally.
+          Each model shows a mean score and 95 percent across-seed interval.
+          {tiered
+            ? " Rows are grouped by Holm tier, not ranked ordinally."
+            : " Rows are ordered by observed mean; no model-to-model comparison was tested."}
         </desc>
         {ticks.map((tick) => (
           <g key={tick}>
@@ -92,27 +99,31 @@ function RankingPlot({
         >
           scripted bar · pick-trader {fmt(benchmark.scriptedBar, 1)}
         </text>
-        <line
-          x1={x(benchmark.oracle)}
-          x2={x(benchmark.oracle)}
-          y1={top - 20}
-          y2={height - bottom}
-          className="chart-oracle"
-        />
-        <text
-          x={x(benchmark.oracle)}
-          y={top - 8}
-          textAnchor="end"
-          className="chart-oracle-label"
-        >
-          partial oracle reference {fmt(benchmark.oracle, 1)}
-        </text>
+        {benchmark.oracle !== null && (
+          <>
+            <line
+              x1={x(benchmark.oracle)}
+              x2={x(benchmark.oracle)}
+              y1={top - 20}
+              y2={height - bottom}
+              className="chart-oracle"
+            />
+            <text
+              x={x(benchmark.oracle)}
+              y={top - 8}
+              textAnchor="end"
+              className="chart-oracle-label"
+            >
+              partial oracle reference {fmt(benchmark.oracle, 1)}
+            </text>
+          </>
+        )}
 
         {rows.map((model, index) => {
           const y = top + index * rowHeight + rowHeight / 2;
           const active = model.id === selected;
           const ci = scoreCi95(model);
-          const tierBreak = index === 0 || model.tier !== rows[index - 1].tier;
+          const tierBreak = tiered && (index === 0 || model.tier !== rows[index - 1].tier);
           return (
             <g
               key={model.id}
@@ -136,7 +147,7 @@ function RankingPlot({
                 {ci
                   ? `, 95% across-seed CI [${fmt(ci[0], 1)}, ${fmt(ci[1], 1)}]`
                   : ""}
-                , tier {model.tier}
+                {tiered ? `, tier ${model.tier}` : ""}
               </title>
               {tierBreak && index === 0 && (
                 <text x="4" y={top + 14} className="chart-tier-label">
@@ -386,18 +397,15 @@ export default function Analysis({
             actions through the same published record.
           </p>
           <p className="gap-decomposition-note">
-            Three cheap explanations for the gap have been measured and ruled out.
-            Invalid-action penalties account for 0.5–9.0% of it, so a perfectly legal run
-            still trails <code>pick-trader</code> by 174–280 points. The scripted
-            references carry no state between decisions — rebuilding them every turn
-            reproduces their scores exactly. Memo volume is only an observational
-            comparison: 3 memos scored 215.6 and 568 scored 217.5; that two-row contrast
-            does not estimate what memo access or better memo use would cause. Two further
-            limits: the 4,096-token output cap binds model rows only and is not controlled
-            for, and the continuity result is one-sided — it rules out a reference
-            advantage, not a cost to models denied persistent state. So this is not a claim
-            that the residual is decision quality alone, nor a claim about reasoning in
-            general.
+            This is a reference-only analysis: every contrast is a model against{" "}
+            <code>pick-trader</code>, and no model-to-model comparison was
+            predeclared or tested. Every eligible model trails the scripted bar,
+            and the predeclared Holm-adjusted test rejects for{" "}
+            {benchmark.holmRejectedCount} of {benchmark.modelCount} rows at 0.05
+            over a family of 16. Each row ran once per seed, so within-seed noise
+            is unmeasured and the scores carry no repeat-to-repeat error term.
+            The 4,096-token output cap binds model rows only and is not
+            controlled for.
           </p>
         </div>
 
@@ -408,8 +416,10 @@ export default function Analysis({
               <span>Higher is better · across-seed 95% intervals</span>
             </div>
             <p className="ranking-callout">
-              Order is descriptive within each Holm tier, not an ordinal ranking claim; the
-              predeclared family test does not reject at 0.05.
+              Order is descriptive, not an ordinal ranking claim: the study
+              predeclared only model-versus-<code>pick-trader</code> contrasts.
+              The predeclared family test rejects for {benchmark.holmRejectedCount}{" "}
+              of {benchmark.modelCount} rows at 0.05.
             </p>
             <RankingPlot
               benchmark={benchmark}

@@ -5,9 +5,18 @@ front-office dynasty games. Agents manage a fictional hockey-style league over
 multiple seasons by making roster, trade, free-agency, draft, and lineup
 decisions through a JSON-compatible API.
 
-Explore the [live leaderboard](https://nedcut.github.io/gm-bench/), read the
-[phase-one findings](docs/blog/sota-v2-findings.md), or download the
-[tagged evidence release](https://github.com/nedcut/gm-bench/releases/tag/sota-v2-phase-one-2026-07-19).
+The current result is the `sota-v5` publication panel (2026-09-03). Sixteen
+model cells were pre-registered and all sixteen are accounted for: eleven
+strict headline rows, three ineligible on model behavior, and two excluded at
+the two-attempt infrastructure limit. Every eligible model trails the
+deterministic `pick-trader` baseline (mean 247.109), and ten of the eleven
+headline rows reject at Holm-adjusted alpha 0.05 against the registered family
+of sixteen. No model-to-model ranking is published.
+
+Read the [v5 findings](docs/blog/sota-v5-findings.md), follow the
+[reproduction guide](docs/REPRODUCING_SOTA_V5_RELEASE.md), download the
+[tagged release](https://github.com/nedcut/gm-bench/releases/tag/sota-v5-publication-2026-09-03),
+or explore the [live leaderboard](https://nedcut.github.io/gm-bench/).
 
 ## Play along
 
@@ -72,7 +81,39 @@ The puzzle deck is illustrative and is not evidence about any policy. Recorder
 provenance and replay digests establish integrity; they do not turn these cards
 into benchmark or publication evidence.
 
-## Phase-one result
+## Results
+
+### Headline result (`sota-v5`, 2026-09-03)
+
+Contract fingerprint `a600b7da0c302231`, OpenRouter scaffold
+`c582e126bbb6af10`, a private 29-seed panel with one episode per seed, zero
+repair attempts, and a 4,096-token output ceiling. Eleven cells produced
+strict, route-matched, cost-complete rows at 580 of 580 decisions each. Three
+cells are ineligible on model behavior under rules frozen before the panel ran
+(gpt-oss-20b at a 0.0207 decision failure rate over the 0.020 gate,
+claude-haiku-4.5 fail-fast at seed 14, glm-5 fail-fast at seed 25). Two cells
+are excluded at the two-attempt infrastructure limit with no artifact
+(qwen3.8-flash on HTTP 429, gpt-5.6-sol on billed responses with no choices).
+
+The predeclared analysis is reference-only: each model is contrasted against
+`pick-trader` (mean 247.109) with an exact paired sign-flip test, Holm-adjusted
+across the registered family of sixteen. Every eligible model trails
+`pick-trader`. Ten of eleven headline rows reject at alpha 0.05;
+gemini-3.7-flash (mean lift -23.4, Holm-adjusted p 0.221) does not. Within-seed
+noise is unmeasured under the one-repeat lane, so the minimum detectable
+difference rests on the calibration panel's assumed repeat noise. The
+accounted-for rule and the headline floor of eight were amended after the panel
+completed, and that is disclosed as a post-data owner decision.
+
+Full tables are in [results/benchmark_results.md](results/benchmark_results.md);
+the generated analysis is
+[`results/analysis/publication-panel-analysis-v5.json`](results/analysis/publication-panel-analysis-v5.json)
+with robustness checks in
+[`results/analysis/sota-v5-robustness.md`](results/analysis/sota-v5-robustness.md).
+Verify the release without provider credentials by following
+[docs/REPRODUCING_SOTA_V5_RELEASE.md](docs/REPRODUCING_SOTA_V5_RELEASE.md).
+
+### Earlier study: phase-one `sota-v2` panel
 
 Eight pre-registered model systems produced strict `sota-v2` rows under one
 frozen 4,096-token API lane. Every eligible model trailed the transparent
@@ -117,14 +158,17 @@ Read the [phase-one findings](docs/blog/sota-v2-findings.md), inspect the
 [generated analysis](results/analysis/publication-panel-analysis.json), or
 follow the [clean-clone reproduction guide](docs/REPRODUCING_SOTA_V2_RELEASE.md).
 
-The tagged study remains frozen under its literal `sota-v2` contract. The
-terminal `sota-v3` and `sota-v4` smoke campaigns preserve the post-release
-simulator fixes and route outcomes; current development is `sota-v5`, a fresh
-prospective publication contract created after v4's Qwen route proved
-incompatible with the frozen reasoning-disabled lane. Historical evidence is
-not retroactively rewritten or rerun. See the
+The phase-one study remains frozen under its literal `sota-v2` contract, and
+the public site still serves it. The terminal `sota-v3` and `sota-v4` smoke
+campaigns preserve the post-release simulator fixes and route outcomes; neither
+ever ran a panel. `sota-v5` is the current published contract and superseded
+them after v4's Qwen route proved incompatible with the frozen
+reasoning-disabled lane. Historical evidence is not retroactively rewritten or
+rerun. See the [changelog](CHANGELOG.md) for what each release freezes, and the
 [living publication-readiness log](docs/PUBLISH_READINESS.md) for the decision
 boundary and remaining work.
+
+## What GM-Bench includes
 
 GM-Bench includes:
 

@@ -1,0 +1,558 @@
+{
+  "benchmark_version": "sota-v5",
+  "efficiency": {
+    "extremes": {
+      "cost_usd": {
+        "highest": {
+          "model_id": "openrouter-grok-4.6-xai",
+          "value": 9.17532
+        },
+        "lowest": {
+          "model_id": "openrouter-gpt-5.6-luna-openai",
+          "value": 0.42551
+        }
+      },
+      "cost_usd_per_decision": {
+        "highest": {
+          "model_id": "openrouter-grok-4.6-xai",
+          "value": 0.01582
+        },
+        "lowest": {
+          "model_id": "openrouter-gpt-5.6-luna-openai",
+          "value": 0.000734
+        }
+      },
+      "cost_usd_per_score_point": {
+        "highest": {
+          "model_id": "openrouter-grok-4.6-xai",
+          "value": 0.045081
+        },
+        "lowest": {
+          "model_id": "openrouter-gpt-5.6-luna-openai",
+          "value": 0.002484
+        }
+      },
+      "mean_output_tokens_per_decision": {
+        "highest": {
+          "model_id": "openrouter-grok-4.6-xai",
+          "value": 742.1
+        },
+        "lowest": {
+          "model_id": "openrouter-grok-4.3-xai",
+          "value": 38.9
+        }
+      },
+      "mean_score": {
+        "highest": {
+          "model_id": "openrouter-gemini-3.7-flash-google-ai-studio",
+          "value": 223.707
+        },
+        "lowest": {
+          "model_id": "openrouter-qwen3.5-27b-siliconflow",
+          "value": 113.7
+        }
+      },
+      "mean_tokens_per_decision": {
+        "highest": {
+          "model_id": "openrouter-gemini-3.7-flash-google-ai-studio",
+          "value": 6729.0
+        },
+        "lowest": {
+          "model_id": "openrouter-grok-4.3-xai",
+          "value": 5073.4
+        }
+      },
+      "seconds_per_decision": {
+        "highest": {
+          "model_id": "openrouter-glm-5.3-flash-fireworks",
+          "value": 15.043
+        },
+        "lowest": {
+          "model_id": "openrouter-grok-4.3-xai",
+          "value": 0.908
+        }
+      }
+    },
+    "rows": [
+      {
+        "cost_usd": 0.43612,
+        "cost_usd_per_decision": 0.000752,
+        "cost_usd_per_score_point": 0.003492,
+        "decision_failure_rate": 0.0,
+        "decisions": 580,
+        "illegal_actions": 156,
+        "mean_input_tokens_per_decision": 5244.8,
+        "mean_output_tokens_per_decision": 87.1,
+        "mean_reasoning_tokens_per_decision": 0.0,
+        "mean_score": 124.902,
+        "mean_tokens_per_decision": 5331.9,
+        "model": "deepseek/deepseek-v4-flash-0731",
+        "model_id": "openrouter-deepseek-v4-flash-0731-together",
+        "seconds_per_decision": 1.698,
+        "wall_clock_seconds": 985.1
+      },
+      {
+        "cost_usd": 0.45877,
+        "cost_usd_per_decision": 0.000791,
+        "cost_usd_per_score_point": 0.003151,
+        "decision_failure_rate": 0.0,
+        "decisions": 580,
+        "illegal_actions": 26,
+        "mean_input_tokens_per_decision": 5789.4,
+        "mean_output_tokens_per_decision": 89.7,
+        "mean_reasoning_tokens_per_decision": 0.0,
+        "mean_score": 145.59,
+        "mean_tokens_per_decision": 5879.1,
+        "model": "google/gemini-3.1-flash-lite",
+        "model_id": "openrouter-gemini-3.1-flash-lite-google-ai-studio",
+        "seconds_per_decision": 1.09,
+        "wall_clock_seconds": 632.1
+      },
+      {
+        "cost_usd": 1.88186,
+        "cost_usd_per_decision": 0.003245,
+        "cost_usd_per_score_point": 0.008412,
+        "decision_failure_rate": 0.002,
+        "decisions": 580,
+        "illegal_actions": 12,
+        "mean_input_tokens_per_decision": 6248.2,
+        "mean_output_tokens_per_decision": 480.8,
+        "mean_reasoning_tokens_per_decision": 387.1,
+        "mean_score": 223.707,
+        "mean_tokens_per_decision": 6729.0,
+        "model": "google/gemini-3.7-flash",
+        "model_id": "openrouter-gemini-3.7-flash-google-ai-studio",
+        "seconds_per_decision": 2.339,
+        "wall_clock_seconds": 1356.6
+      },
+      {
+        "cost_usd": 0.60289,
+        "cost_usd_per_decision": 0.001039,
+        "cost_usd_per_score_point": 0.003693,
+        "decision_failure_rate": 0.003,
+        "decisions": 580,
+        "illegal_actions": 69,
+        "mean_input_tokens_per_decision": 5427.5,
+        "mean_output_tokens_per_decision": 450.7,
+        "mean_reasoning_tokens_per_decision": 245.5,
+        "mean_score": 163.242,
+        "mean_tokens_per_decision": 5878.2,
+        "model": "z-ai/glm-5.3-flash",
+        "model_id": "openrouter-glm-5.3-flash-fireworks",
+        "seconds_per_decision": 15.043,
+        "wall_clock_seconds": 8724.8
+      },
+      {
+        "cost_usd": 2.44988,
+        "cost_usd_per_decision": 0.004224,
+        "cost_usd_per_score_point": 0.019758,
+        "decision_failure_rate": 0.002,
+        "decisions": 580,
+        "illegal_actions": 333,
+        "mean_input_tokens_per_decision": 5022.9,
+        "mean_output_tokens_per_decision": 101.5,
+        "mean_reasoning_tokens_per_decision": 0.0,
+        "mean_score": 123.993,
+        "mean_tokens_per_decision": 5124.4,
+        "model": "openai/gpt-5.4-mini",
+        "model_id": "openrouter-gpt-5.4-mini-openai",
+        "seconds_per_decision": 1.562,
+        "wall_clock_seconds": 906.2
+      },
+      {
+        "cost_usd": 0.42551,
+        "cost_usd_per_decision": 0.000734,
+        "cost_usd_per_score_point": 0.002484,
+        "decision_failure_rate": 0.0,
+        "decisions": 580,
+        "illegal_actions": 151,
+        "mean_input_tokens_per_decision": 5299.0,
+        "mean_output_tokens_per_decision": 118.9,
+        "mean_reasoning_tokens_per_decision": 0.0,
+        "mean_score": 171.295,
+        "mean_tokens_per_decision": 5417.9,
+        "model": "openai/gpt-5.6-luna",
+        "model_id": "openrouter-gpt-5.6-luna-openai",
+        "seconds_per_decision": 3.131,
+        "wall_clock_seconds": 1815.9
+      },
+      {
+        "cost_usd": 3.52134,
+        "cost_usd_per_decision": 0.006071,
+        "cost_usd_per_score_point": 0.02608,
+        "decision_failure_rate": 0.0,
+        "decisions": 580,
+        "illegal_actions": 4,
+        "mean_input_tokens_per_decision": 5034.6,
+        "mean_output_tokens_per_decision": 38.9,
+        "mean_reasoning_tokens_per_decision": 0.0,
+        "mean_score": 135.021,
+        "mean_tokens_per_decision": 5073.4,
+        "model": "x-ai/grok-4.3",
+        "model_id": "openrouter-grok-4.3-xai",
+        "seconds_per_decision": 0.908,
+        "wall_clock_seconds": 526.9
+      },
+      {
+        "cost_usd": 9.17532,
+        "cost_usd_per_decision": 0.01582,
+        "cost_usd_per_score_point": 0.045081,
+        "decision_failure_rate": 0.0,
+        "decisions": 580,
+        "illegal_actions": 20,
+        "mean_input_tokens_per_decision": 5799.0,
+        "mean_output_tokens_per_decision": 742.1,
+        "mean_reasoning_tokens_per_decision": 611.9,
+        "mean_score": 203.531,
+        "mean_tokens_per_decision": 6541.1,
+        "model": "x-ai/grok-4.6",
+        "model_id": "openrouter-grok-4.6-xai",
+        "seconds_per_decision": 12.762,
+        "wall_clock_seconds": 7402.1
+      },
+      {
+        "cost_usd": 1.5753,
+        "cost_usd_per_decision": 0.002716,
+        "cost_usd_per_score_point": 0.010556,
+        "decision_failure_rate": 0.0,
+        "decisions": 580,
+        "illegal_actions": 211,
+        "mean_input_tokens_per_decision": 5349.2,
+        "mean_output_tokens_per_decision": 157.5,
+        "mean_reasoning_tokens_per_decision": 0.0,
+        "mean_score": 149.231,
+        "mean_tokens_per_decision": 5506.7,
+        "model": "moonshotai/kimi-k2.5",
+        "model_id": "openrouter-kimi-k2.5-siliconflow",
+        "seconds_per_decision": 5.121,
+        "wall_clock_seconds": 2970.1
+      },
+      {
+        "cost_usd": 2.10243,
+        "cost_usd_per_decision": 0.003625,
+        "cost_usd_per_score_point": 0.01797,
+        "decision_failure_rate": 0.016,
+        "decisions": 580,
+        "illegal_actions": 35,
+        "mean_input_tokens_per_decision": 5199.6,
+        "mean_output_tokens_per_decision": 114.6,
+        "mean_reasoning_tokens_per_decision": 0.0,
+        "mean_score": 116.999,
+        "mean_tokens_per_decision": 5314.2,
+        "model": "minimax/minimax-m3",
+        "model_id": "openrouter-minimax-m3-modelrun",
+        "seconds_per_decision": 2.013,
+        "wall_clock_seconds": 1167.3
+      },
+      {
+        "cost_usd": 0.98565,
+        "cost_usd_per_decision": 0.001699,
+        "cost_usd_per_score_point": 0.008669,
+        "decision_failure_rate": 0.0,
+        "decisions": 580,
+        "illegal_actions": 277,
+        "mean_input_tokens_per_decision": 5758.3,
+        "mean_output_tokens_per_decision": 129.9,
+        "mean_reasoning_tokens_per_decision": 0.0,
+        "mean_score": 113.7,
+        "mean_tokens_per_decision": 5888.2,
+        "model": "qwen/qwen3.5-27b",
+        "model_id": "openrouter-qwen3.5-27b-siliconflow",
+        "seconds_per_decision": 6.703,
+        "wall_clock_seconds": 3887.6
+      }
+    ]
+  },
+  "generated_by": "scripts/sota_v5_robustness.py",
+  "holm_family_size": 16,
+  "leave_one_out_by_season_or_mechanic": {
+    "reason": "publication.mechanic_breakdown carries accepted/rejected counts only, and no per-seed score decomposition by season or mechanic is persisted, so a mechanic-held-out lift cannot be formed.",
+    "status": "not-possible"
+  },
+  "leave_one_seed_out_summary": {
+    "folds": 29,
+    "max_mean_lift_range": 9.92525,
+    "models_with_any_rejection_flip": [
+      "openrouter-gemini-3.7-flash-google-ai-studio"
+    ]
+  },
+  "models": [
+    {
+      "full_panel_holm_adjusted_p_value": 0.0,
+      "full_panel_holm_reject_at_0_05": true,
+      "full_panel_lift_stddev": 44.122569,
+      "full_panel_mean_lift": -122.206931,
+      "leave_one_seed_out": {
+        "folds": 29,
+        "holm_adjusted_p_max": 0.0,
+        "holm_adjusted_p_min": 0.0,
+        "holm_rejection_flips": 0,
+        "holm_rejection_stable": true,
+        "mean_lift_range": 6.88525
+      },
+      "minimum_detectable_difference": {
+        "assumed": 30.0,
+        "observed": 22.954,
+        "within_assumed": true
+      },
+      "model": "deepseek/deepseek-v4-flash-0731",
+      "model_id": "openrouter-deepseek-v4-flash-0731-together",
+      "published_holm_adjusted_p_value": 0.0,
+      "published_holm_reject_at_0_05": true
+    },
+    {
+      "full_panel_holm_adjusted_p_value": 0.0,
+      "full_panel_holm_reject_at_0_05": true,
+      "full_panel_lift_stddev": 43.380641,
+      "full_panel_mean_lift": -101.518517,
+      "leave_one_seed_out": {
+        "folds": 29,
+        "holm_adjusted_p_max": 0.0,
+        "holm_adjusted_p_min": 0.0,
+        "holm_rejection_flips": 0,
+        "holm_rejection_stable": true,
+        "mean_lift_range": 6.309107
+      },
+      "minimum_detectable_difference": {
+        "assumed": 30.0,
+        "observed": 22.568,
+        "within_assumed": true
+      },
+      "model": "google/gemini-3.1-flash-lite",
+      "model_id": "openrouter-gemini-3.1-flash-lite-google-ai-studio",
+      "published_holm_adjusted_p_value": 0.0,
+      "published_holm_reject_at_0_05": true
+    },
+    {
+      "full_panel_holm_adjusted_p_value": 0.221066,
+      "full_panel_holm_reject_at_0_05": false,
+      "full_panel_lift_stddev": 57.543909,
+      "full_panel_mean_lift": -23.401483,
+      "leave_one_seed_out": {
+        "folds": 29,
+        "holm_adjusted_p_max": 0.424192,
+        "holm_adjusted_p_min": 0.028274,
+        "holm_rejection_flips": 1,
+        "holm_rejection_stable": false,
+        "mean_lift_range": 9.92525
+      },
+      "minimum_detectable_difference": {
+        "assumed": 30.0,
+        "observed": 29.937,
+        "within_assumed": true
+      },
+      "model": "google/gemini-3.7-flash",
+      "model_id": "openrouter-gemini-3.7-flash-google-ai-studio",
+      "published_holm_adjusted_p_value": 0.221066,
+      "published_holm_reject_at_0_05": false
+    },
+    {
+      "full_panel_holm_adjusted_p_value": 0.0,
+      "full_panel_holm_reject_at_0_05": true,
+      "full_panel_lift_stddev": 46.852079,
+      "full_panel_mean_lift": -83.866448,
+      "leave_one_seed_out": {
+        "folds": 29,
+        "holm_adjusted_p_max": 0.0,
+        "holm_adjusted_p_min": 0.0,
+        "holm_rejection_flips": 0,
+        "holm_rejection_stable": true,
+        "mean_lift_range": 6.31325
+      },
+      "minimum_detectable_difference": {
+        "assumed": 30.0,
+        "observed": 24.374,
+        "within_assumed": true
+      },
+      "model": "z-ai/glm-5.3-flash",
+      "model_id": "openrouter-glm-5.3-flash-fireworks",
+      "published_holm_adjusted_p_value": 0.0,
+      "published_holm_reject_at_0_05": true
+    },
+    {
+      "full_panel_holm_adjusted_p_value": 0.0,
+      "full_panel_holm_reject_at_0_05": true,
+      "full_panel_lift_stddev": 48.118086,
+      "full_panel_mean_lift": -123.115483,
+      "leave_one_seed_out": {
+        "folds": 29,
+        "holm_adjusted_p_max": 0.0,
+        "holm_adjusted_p_min": 0.0,
+        "holm_rejection_flips": 0,
+        "holm_rejection_stable": true,
+        "mean_lift_range": 7.223643
+      },
+      "minimum_detectable_difference": {
+        "assumed": 30.0,
+        "observed": 25.033,
+        "within_assumed": true
+      },
+      "model": "openai/gpt-5.4-mini",
+      "model_id": "openrouter-gpt-5.4-mini-openai",
+      "published_holm_adjusted_p_value": 0.0,
+      "published_holm_reject_at_0_05": true
+    },
+    {
+      "full_panel_holm_adjusted_p_value": 3e-06,
+      "full_panel_holm_reject_at_0_05": true,
+      "full_panel_lift_stddev": 60.526321,
+      "full_panel_mean_lift": -75.814034,
+      "leave_one_seed_out": {
+        "folds": 29,
+        "holm_adjusted_p_max": 6e-06,
+        "holm_adjusted_p_min": 1e-06,
+        "holm_rejection_flips": 0,
+        "holm_rejection_stable": true,
+        "mean_lift_range": 8.8075
+      },
+      "minimum_detectable_difference": {
+        "assumed": 30.0,
+        "observed": 31.488,
+        "within_assumed": false
+      },
+      "model": "openai/gpt-5.6-luna",
+      "model_id": "openrouter-gpt-5.6-luna-openai",
+      "published_holm_adjusted_p_value": 3e-06,
+      "published_holm_reject_at_0_05": true
+    },
+    {
+      "full_panel_holm_adjusted_p_value": 0.0,
+      "full_panel_holm_reject_at_0_05": true,
+      "full_panel_lift_stddev": 42.972354,
+      "full_panel_mean_lift": -112.088138,
+      "leave_one_seed_out": {
+        "folds": 29,
+        "holm_adjusted_p_max": 0.0,
+        "holm_adjusted_p_min": 0.0,
+        "holm_rejection_flips": 0,
+        "holm_rejection_stable": true,
+        "mean_lift_range": 6.83325
+      },
+      "minimum_detectable_difference": {
+        "assumed": 30.0,
+        "observed": 22.356,
+        "within_assumed": true
+      },
+      "model": "x-ai/grok-4.3",
+      "model_id": "openrouter-grok-4.3-xai",
+      "published_holm_adjusted_p_value": 0.0,
+      "published_holm_reject_at_0_05": true
+    },
+    {
+      "full_panel_holm_adjusted_p_value": 0.000251,
+      "full_panel_holm_reject_at_0_05": true,
+      "full_panel_lift_stddev": 49.337645,
+      "full_panel_mean_lift": -43.578276,
+      "leave_one_seed_out": {
+        "folds": 29,
+        "holm_adjusted_p_max": 0.000501,
+        "holm_adjusted_p_min": 4e-06,
+        "holm_rejection_flips": 0,
+        "holm_rejection_stable": true,
+        "mean_lift_range": 8.315964
+      },
+      "minimum_detectable_difference": {
+        "assumed": 30.0,
+        "observed": 25.667,
+        "within_assumed": true
+      },
+      "model": "x-ai/grok-4.6",
+      "model_id": "openrouter-grok-4.6-xai",
+      "published_holm_adjusted_p_value": 0.000251,
+      "published_holm_reject_at_0_05": true
+    },
+    {
+      "full_panel_holm_adjusted_p_value": 0.0,
+      "full_panel_holm_reject_at_0_05": true,
+      "full_panel_lift_stddev": 45.92613,
+      "full_panel_mean_lift": -97.877759,
+      "leave_one_seed_out": {
+        "folds": 29,
+        "holm_adjusted_p_max": 0.0,
+        "holm_adjusted_p_min": 0.0,
+        "holm_rejection_flips": 0,
+        "holm_rejection_stable": true,
+        "mean_lift_range": 7.318571
+      },
+      "minimum_detectable_difference": {
+        "assumed": 30.0,
+        "observed": 23.893,
+        "within_assumed": true
+      },
+      "model": "moonshotai/kimi-k2.5",
+      "model_id": "openrouter-kimi-k2.5-siliconflow",
+      "published_holm_adjusted_p_value": 0.0,
+      "published_holm_reject_at_0_05": true
+    },
+    {
+      "full_panel_holm_adjusted_p_value": 0.0,
+      "full_panel_holm_reject_at_0_05": true,
+      "full_panel_lift_stddev": 43.173882,
+      "full_panel_mean_lift": -130.109483,
+      "leave_one_seed_out": {
+        "folds": 29,
+        "holm_adjusted_p_max": 0.0,
+        "holm_adjusted_p_min": 0.0,
+        "holm_rejection_flips": 0,
+        "holm_rejection_stable": true,
+        "mean_lift_range": 7.201929
+      },
+      "minimum_detectable_difference": {
+        "assumed": 30.0,
+        "observed": 22.461,
+        "within_assumed": true
+      },
+      "model": "minimax/minimax-m3",
+      "model_id": "openrouter-minimax-m3-modelrun",
+      "published_holm_adjusted_p_value": 0.0,
+      "published_holm_reject_at_0_05": true
+    },
+    {
+      "full_panel_holm_adjusted_p_value": 0.0,
+      "full_panel_holm_reject_at_0_05": true,
+      "full_panel_lift_stddev": 47.106101,
+      "full_panel_mean_lift": -133.408483,
+      "leave_one_seed_out": {
+        "folds": 29,
+        "holm_adjusted_p_max": 0.0,
+        "holm_adjusted_p_min": 0.0,
+        "holm_rejection_flips": 0,
+        "holm_rejection_stable": true,
+        "mean_lift_range": 6.379607
+      },
+      "minimum_detectable_difference": {
+        "assumed": 30.0,
+        "observed": 24.507,
+        "within_assumed": true
+      },
+      "model": "qwen/qwen3.5-27b",
+      "model_id": "openrouter-qwen3.5-27b-siliconflow",
+      "published_holm_adjusted_p_value": 0.0,
+      "published_holm_reject_at_0_05": true
+    }
+  ],
+  "power": {
+    "alpha": 0.05,
+    "assumed_basis": "docs/scoring_calibration.md: the 30-point minimum detectable difference at 29 paired seeds holds for rows whose within-seed score standard deviation is at or below about 25.",
+    "assumed_mdd": 30.0,
+    "formula": "(z_{1-alpha/2} + z_power) * sd / sqrt(n)",
+    "models_exceeding_assumed_mdd": [
+      "openrouter-gpt-5.6-luna-openai"
+    ],
+    "observed_mdd_max": 31.488,
+    "observed_mdd_median": 24.374,
+    "observed_mdd_min": 22.356,
+    "power": 0.8,
+    "test": "two-sided paired sign-flip, normal approximation for the sample-size formula"
+  },
+  "primary_contrast": "paired lift versus pick-trader",
+  "redaction": {
+    "note": "Leave-one-out is summarised by extremes and flip counts only. A full per-fold vector would invert back to the per-seed lifts that redaction removes.",
+    "per_seed_rows_included": false,
+    "private_seed_panel": true,
+    "public_view": "aggregate-only",
+    "seed_identifiers_included": false
+  },
+  "schema_version": 1,
+  "seed_count": 29
+}

@@ -400,7 +400,8 @@ def _exercise_site_builder(
         build_leaderboard.main()
     generated_path = staging / "web" / "src" / "data" / "leaderboard.json"
     generated = json.loads(generated_path.read_text())
-    frozen = json.loads((ROOT / "web" / "src" / "data" / "leaderboard.json").read_text())
+    # The site now publishes sota-v5; the v2 builder's frozen output lives here.
+    frozen = json.loads((ROOT / "web" / "src" / "data" / "leaderboard-sota-v2.json").read_text())
     if generated != frozen:
         raise AssertionError("isolated site-data build changed the frozen sota-v2 dataset")
     if generated["contract"]["benchmark_version"] != "sota-v2":

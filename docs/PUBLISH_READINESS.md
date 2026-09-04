@@ -7,115 +7,78 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-08-16
-**Current target:** Preserve the published `sota-v2` study and terminal
-`sota-v3`/`sota-v4` execution records while preparing the prospective
-`sota-v5` successor through authenticated zero-completion route, privacy,
-pricing, and final-preflight evidence. V5 spend, smoke, panel, and publication
-remain false until separate owner decisions.
-**Current state:** The frozen phase-one public panel, blog, GitHub release, and
-results-first site are published. Eight of ten
-`sota-v2`-registered models produced route-matched, cost-complete `sota-v2`
-rows at the shared 4,096-token native-minimum-reasoning cap, clearing the
-predeclared minimum. Grok 4.5 and Mistral Medium 3.5 completed but remain diagnostic because
-their artifacts lacked complete usage or cost coverage. The generated site now
-exposes the eight eligible rows. All models overlap in one uncertainty tier,
-and every eligible model trails `pick-trader`. The three P0 correctness and
-artifact-integrity fixes landed in #85 as an explicit `sota-v3` contract. The
-current v3 candidate also closes the contract-economics, same-view,
-gap-diagnostic, site-framing, statistical-tiering, and version-dispatched CI
-items. Pre-data
-design amendment 3 (2026-08-06,
+**Last reviewed:** 2026-09-04
+**Current target:** Finish publishing the `sota-v5` panel: cut the tag and
+GitHub release, land the reproduction guide, and move the public site off the
+frozen `sota-v2` study.
+**Current state:** Publication of `sota-v5` was authorized on 2026-09-03 and
+the release archive is built and verified (SHA-256
+`7fa7ae546132e96c87546683bbe4de4d88c2715c40b439ee48332d166829eef2`). The panel
+ran under contract fingerprint `a600b7da0c302231` and OpenRouter scaffold
+`c582e126bbb6af10` on a private 29-seed panel, one episode per seed, zero
+repair attempts, and a 4,096-token output ceiling. Sixteen pre-registered cells
+are all accounted for: 11 strict, route-matched, cost-complete headline rows at
+580 of 580 decisions each; 3 ineligible on model behavior under rules frozen
+before the panel ran (gpt-oss-20b at a 0.0207 decision failure rate over the
+0.020 gate, claude-haiku-4.5 fail-fast at seed 14, glm-5 fail-fast at seed 25);
+and 2 excluded at the two-attempt infrastructure limit with no artifact
+(qwen3.8-flash on HTTP 429, gpt-5.6-sol on billed responses with no choices).
+The Holm family stays at the registered sixteen. The analysis is
+reference-only: every eligible model trails `pick-trader` (mean 247.109), and
+10 of the 11 headline rows reject at Holm-adjusted alpha 0.05;
+gemini-3.7-flash (mean lift -23.4, Holm-adjusted p 0.221) does not. No
+model-to-model tiers or ordinal ranking are assigned. Within-seed noise is
+unmeasured under the one-repeat lane, so the minimum detectable difference
+rests on the calibration panel's assumed repeat noise. The accounted-for rule
+and the headline floor of eight were amended after the panel completed and are
+disclosed as a post-data owner decision in
+`docs/run_logs/sota-v5-v6-route-and-cohort-amendment-2026-09-01.md`; nothing
+about how a row was run, scored, or gated changed. Recorded and not fixed: the
+luna row billed about $0.125 per million prompt tokens against the $0.10
+snapshot; transient-retry counts live only in the spend guard's ledger; the
+grok-4.6 attempt-1 reservation is still marked active.
+
+**Remaining owner actions to publish:**
+
+- [ ] Cut the git tag `sota-v5-publication-2026-09-03` and the GitHub release,
+  attaching the verified archive and `SHA256SUMS.txt`.
+- [ ] Merge PR #131 (`docs/REPRODUCING_SOTA_V5_RELEASE.md`, the no-credential
+  verification path).
+- [ ] Merge the site PR and deploy, so the public site stops serving `sota-v2`
+  as the current result.
+- [ ] Publish the v5 findings post once its draft is finished.
+
+**Historical record (v2 through v4), condensed.** The frozen phase-one public
+panel, blog, GitHub release, and results-first site were published on
+2026-07-19 under `sota-v2`: eight of ten registered models produced
+route-matched, cost-complete rows at the shared 4,096-token
+native-minimum-reasoning cap, all in one overlapping uncertainty tier, all
+trailing `pick-trader` (411.619); Grok 4.5 and Mistral Medium 3.5 completed but
+stayed diagnostic for incomplete usage or cost coverage. The three P0
+correctness and artifact-integrity fixes landed in #85 as an explicit `sota-v3`
+contract, which also closed the contract-economics, same-view, gap-diagnostic,
+site-framing, statistical-tiering, and version-dispatched CI items. Pre-data
+amendment 3 (2026-08-06,
 `docs/run_logs/sota-v3-design-amendment-2026-08-06.md`) withdrew Gemini 3.6
-Flash and Grok 4.5 — the only two mandatory-reasoning routes — leaving an
-eight-model, uniformly reasoning-disabled cohort (2 frontier-proprietary / 6
-open-weight) at Holm family size 8. The current candidate contains that
-cohort, a frozen 16-seed x 1-repeat statistical design (sensitivity power
-0.8727, Wilson lower 0.8660), a frozen 4,096-token smoke ceiling, an in-progress
-smoke manifest with five accepted entries, explicit runner dispatch, and a zero-spend synthetic
-rehearsal. Exact-route and synthetic-data privacy acceptance are recorded for
-all eight routes, and the private 16-seed commitment is frozen with its secret
-in macOS Keychain. Final-fingerprint Keychain-backed dry-run and authenticated
-route-plus-price preflight evidence passed for all eight routes with zero
-completion calls. Route health and pricing remain ephemeral, so rerun the
-zero-completion preflight immediately before paid smoke execution. Private
-seeds are now stripped from every model-facing payload and child environment
-while remaining runner-internal for pairing and replay. Spend and strict-smoke
-execution are authorized under a committed $100 ceiling. The generated cost
-artifact is authoritative for both the one-response-per-window planning
-forecast and the protocol-maximum estimate; the runner separately enforces the
-ceiling before every provider call. The strict-smoke run is now terminal under
-the frozen retry policy: Luna, Claude, Mistral, DeepSeek, and HY3 passed; GLM
-completed with one model-behavior protocol failure and cannot be rerun; MiniMax
-exhausted two HTTP 429 attempts; Qwen exhausted two HTTP 400 attempts. Panel
-authorization therefore remains blocked.
-
-The v4 record is terminal and remains locked against further paid execution. It retains the exact
-unused 16-seed v3 commitment with explicit lineage, replaces the terminal GLM
-slot with `upstage/solar-pro4`, returns MiniMax M3 to the recovered
-policy-selected `minimax/fp8` route, and records Qwen/Alibaba as terminally
-incompatible with the uniform reasoning-disabled lane. Fresh
-authenticated route/privacy evidence, Keychain-backed command construction,
-and route-plus-live-price preflight passed for all eight routes with zero
-completion calls; no v3 execution artifact is accepted as v4 evidence. The generated cost
-artifact records a `$6.67548672` protocol-maximum smoke estimate under a `$10`
-operator ceiling. The owner authorized the eight serial strict smokes on
-2026-08-14, but the first Qwen attempt stopped the sequence. The adapter now
-preserves only bounded, allowlisted provider error detail and reconciliation
-records a contemporaneous aggregate account delta without treating it as
-per-call settlement. The unresolved call bound was conservatively charged as
-spent after a live `$0.00` aggregate account delta, and fresh Keychain-backed
-command construction plus authenticated route-and-price preflight passed at
-OpenRouter scaffold fingerprint `f04724717cc09caf` with zero completion calls.
-On 2026-08-16 the owner authorized only Qwen's second and final infrastructure
-attempt. Qwen's exact route and live price preflight passed immediately before
-launch, then its one provider request returned HTTP 400: `Reasoning is mandatory
-for this endpoint and cannot be disabled.` No generation, episode, decision, or
-raw artifact was produced, and no other model launched. The attempt ledger is
-terminal at 2/2. A live credits read still showed `$0.00` aggregate run delta;
-the guard nevertheless charged the full second `$0.1832184` unknown-call bound,
-bringing conservative reported spend to `$0.3664368`. The separate all-route
-zero-call probe also found DeepSeek live prices above the frozen snapshot; no
-DeepSeek completion call was made. SOTA-v4 cannot complete its registered
-eight-model smoke family without an outcome-driven cohort or reasoning-policy
-change, so spend and smoke are re-locked. Panel and publication remain
-unauthorized.
-
-The next contract is the outcome-independent `sota-v5` successor, frozen in
-the five `config/sota_v5_*.json` files and recorded in
-`docs/run_logs/sota-v5-preregistration-2026-08-16.md`. It retains the seven
-non-Qwen v4 identities and replaces the terminal Qwen slot with
-`google/gemini-3.7-flash` on the provisional `google-ai-studio` route,
-selected from public OpenRouter metadata before any v5 data. V5 carries the
-unused hidden 16-seed commitment through the explicit lineage
-`sota-v3 -> sota-v4 -> sota-v5`, but requires an owner attestation before seed
-access. It freezes a uniform reasoning-disabled policy, a 4,096-token ceiling,
-one repair, serial execution, two infrastructure attempts per cell, and the
-same exact paired sign-flip/Holm plan over eight contrasts. Route preflight is
-the only enabled phase and remains zero-completion metadata collection; all v5
-spend, smoke, panel, and publication authorizations are false. The regenerated
-protocol-maximum smoke estimate is `$6.17324032` (`$7.407888384` with
-contingency), below the `$10` owner ceiling; the panel remains separately
-unauthorized.
-
-V5 smoke readiness is intentionally seed-free: its smoke-command dry run does
-not read Keychain or set `GM_BENCH_PRIVATE_SEEDS`, because strict smokes use the
-public smoke seed. The hidden commitment is verified only after the owner
-attestation and immediately before the separately authorized private panel.
-
-Pre-data amendment 4 (2026-08-09) makes the cap-pressure rule terminal on its
-first trigger: any truncation or call
-reaching 3,072 output tokens invalidates all v3 smokes, aborts this contract,
-and requires a new preregistration before another run. No in-place cap
-amendment is allowed. The registered 8,192-token value is only a planning
-comparison, not an authorized fallback branch. The reasoning-policy ambiguity
-is resolved by construction, since all eight retained routes are registered
-with reasoning disabled. Panel execution and publication remain false until
-every required strict smoke is accepted. Real v3 smoke artifacts now exist,
-but there is no v3 panel or leaderboard artifact.
-**Current weekly focus:** Land the fail-closed v5 preregistration and tooling,
-then record fresh authenticated zero-completion route/privacy/live-price and
-final-preflight evidence. Stop before paid smokes for explicit owner approval.
+Flash and Grok 4.5, the only two mandatory-reasoning routes, leaving an
+eight-model uniformly reasoning-disabled cohort; pre-data amendment 4
+(2026-08-09) made the cap-pressure rule terminal on first trigger. V3's
+strict-smoke run went terminal under the frozen retry policy (GLM on a
+model-behavior protocol failure, MiniMax on two HTTP 429 attempts, Qwen on two
+HTTP 400 attempts), so its panel was never authorized. V4 kept the unused
+16-seed v3 commitment, swapped in `upstage/solar-pro4` and the recovered
+MiniMax route, and reached the same dead end: Qwen's second and final attempt
+returned HTTP 400 (`Reasoning is mandatory for this endpoint and cannot be
+disabled`), no artifact was produced, and the guard conservatively charged
+$0.3664368 against a $0.00 observed account delta. Neither v3 nor v4 ever ran a
+panel or produced a leaderboard artifact; both records are terminal, locked
+against further paid execution, and retained as route and exclusion evidence.
+`sota-v5` was created as the outcome-independent successor, retired the unused
+16-seed commitment in favor of a fresh 29-seed panel per `docs/bench_v6_spec.md`,
+and is now published.
+**Current weekly focus:** Cut the v5 tag and release, merge the reproduction
+guide and the site update, deploy, then return to external reproduction and
+presentation items.
 **Broader roadmap:** [#60 — Roadmap to a publishable leaderboard + blog
 post](https://github.com/nedcut/gm-bench/issues/60)
 
@@ -124,13 +87,15 @@ post](https://github.com/nedcut/gm-bench/issues/60)
 GM-Bench is viable as a focused benchmark for comparing models and agent
 scaffolds on synthetic, long-horizon resource allocation in a frozen sports
 management environment. It is already strong enough to be a flagship AI/ML
-portfolio project. The public `sota-v2` evidence gate is now satisfied with
-eight eligible rows under the frozen 4,096-token native-minimum-reasoning lane.
-The evidence does not support an ordinal model ranking: all eight rows occupy
-one overlapping uncertainty tier, and none beats the transparent `pick-trader`
-baseline. A future `sota-v5` release still needs accepted smoke and panel
-evidence, raw trace assets, claim review, presentation polish, and independent
-reproduction.
+portfolio project. The `sota-v5` evidence gate is satisfied: sixteen
+pre-registered cells are accounted for, eleven are strict, route-matched,
+cost-complete headline rows on a committed 29-seed private panel, and the
+release archive is built and verified. The evidence does not support an
+ordinal model ranking: the pre-registered analysis is reference-only, every
+eligible row trails the transparent `pick-trader` baseline, and ten of the
+eleven reject at Holm-adjusted alpha 0.05 over the family of sixteen.
+Remaining work is publication mechanics (tag, release, site deploy, blog) and
+independent reproduction, not evidence.
 
 The strongest story is not merely that GM-Bench runs LLMs through a simulator.
 It is that the project:
@@ -174,12 +139,12 @@ The project is publish-ready only when all four gates pass.
 | Core engineering | Strong | Deterministic simulator, adapters, CLI, GUI, site, tests, and CI are substantial. |
 | Reproducibility | Strong | Contract fingerprints, seed provenance, compact artifacts, and validators are in place. |
 | Benchmark validity | Strong but scoped | Scripted references, exploit canaries, a partial hidden-information diagnostic, calibration, and mechanic coverage exist. |
-| Compute comparability | Frozen for phase one | The API lane has a common 4,096-token total-output ceiling, native-minimum reasoning, exact provider slugs and endpoint tags, a pre-full-panel 75% cap-pressure rule, and actual reasoning/token-efficiency reporting. All ten phase-one routes passed and were accepted; Kimi K3 and the unavailable Nemotron and DeepSeek routes are retained as exclusion evidence. |
-| Current model evidence | Public panel complete | Eight registered, route-matched, cost-complete `sota-v2` rows clear the publication floor; Grok and Mistral are retained as diagnostics. |
-| Statistical evidence | Ready but low-resolution | Seed-paired intervals, exact sign-flip tests, full-family Holm adjustment, and overlap tiers are generated. All eight rows share one tier and trail `pick-trader`. |
+| Compute comparability | Frozen for sota-v5 | The API lane has a common 4,096-token total-output ceiling including reasoning, reasoning disabled where optional and lowest effort where mandatory, exact provider slugs and endpoint tags, zero repair attempts, and per-row token, cost, and latency reporting. Reasoning policy varies by route and is disclosed as a confound. |
+| Current model evidence | Private panel complete | Eleven registered, route-matched, cost-complete `sota-v5` rows on the 29-seed private panel clear the headline floor; three ineligible rows ship as redacted diagnostics and two infrastructure exclusions are registered. |
+| Statistical evidence | Ready, reference-only | Seed-paired bootstrap intervals, exact sign-flip tests, and full-family Holm adjustment are generated; leave-one-seed-out, observed MDD, and weight sensitivity are in `results/analysis/sota-v5-robustness.*`. Within-seed noise is unmeasured under one repeat. |
 | External validation | Missing | No independent reproduction or third-party result has been recorded. |
-| GitHub presentation | Strong | The results-first site, README, tagged evidence release, and clean-clone guide are public; the remaining work is consistency and disclosure polish. |
-| Blog | Published, living | The evidence-backed phase-one findings are public and must retain post-release integrity notes as the implementation evolves. |
+| GitHub presentation | Pending v5 publish | README, site, and clean-clone guide are updated for v5 on the publication branch; the v5 tag, GitHub release, and Pages deploy are owner actions still to run. |
+| Blog | v5 draft ready | `docs/blog/sota-v5-findings.md` is drafted from the frozen artifacts and needs owner review; the phase-one post remains published as historical evidence. |
 
 ## Critical path
 
@@ -437,29 +402,46 @@ of strictly eligible and compute-comparable v2 model rows.
 The public panel is for reproducibility. The private panel is needed for the
 strongest contamination-resistant claim.
 
-- [ ] Select a private seed panel with at least the official minimum count.
-- [ ] Create and publish a salted pre-commitment before running models.
-- [ ] Keep private seeds, raw traces, and salt outside the repository.
-- [ ] Run at least the headline models under the same frozen lane and contract.
-- [ ] Validate locally with `GM_BENCH_PRIVATE_SEEDS` set.
-- [ ] Publish only validated, redacted private-panel artifacts.
+- [x] Select a private seed panel with at least the official minimum count.
+  The v5 panel is 29 seeds, the frozen v6-spec width.
+- [x] Create and publish a salted pre-commitment before running models.
+  Execution hash and salted hiding commitment are in `config/sota_v5_lane.json`.
+- [x] Keep private seeds, raw traces, and salt outside the repository. Seed
+  values are escrowed to the keychain and appear as a token in no tracked file.
+- [x] Run at least the headline models under the same frozen lane and
+  contract. All 16 registered cells ran on the frozen v5 lane.
+- [x] Validate locally with `GM_BENCH_PRIVATE_SEEDS` set.
+- [x] Publish only validated, redacted private-panel artifacts. The 11
+  headline and 3 diagnostic artifacts carry no seed value or per-seed row.
 - [ ] Compare public and private conclusions and disclose meaningful divergence.
 - [ ] Document the panel-rotation schedule and future reveal procedure.
-- [ ] Run the power analysis using final model residuals.
-- [ ] Report the minimum detectable difference and the limited p-value resolution
-  of an eight-seed panel.
-- [ ] Run score-weight sensitivity and report whether important rankings change
-  under plausible perturbations. The scripted-panel sensitivity is reported in
-  `docs/scoring_calibration.md`; model rows become reweightable only from
-  `sota-v3` artifacts, which carry `score_components`.
-- [ ] Check whether conclusions depend on a single seed, season, mechanic, or
-  extreme episode.
+- [x] Run the power analysis using final model residuals. The observed
+  minimum detectable difference is in `results/analysis/sota-v5-robustness.md`.
+- [x] Report the minimum detectable difference and the limited p-value
+  resolution of the 29-seed panel. The projected MDD and the observed
+  leave-one-seed-out and efficiency checks are in
+  `results/analysis/sota-v5-robustness.json` and
+  `results/analysis/sota-v5-robustness.md`; every row also records that
+  within-seed noise is unmeasured under the one-repeat lane.
+- [x] Run score-weight sensitivity and report whether important rankings change
+  under plausible perturbations. The v5 result is in
+  `results/analysis/sota-v5-weight-sensitivity.json` and summarized in
+  `docs/blog/sota-v5-findings.md`: the two rows nearest `pick-trader` never
+  change position against the scripted references under plus or minus 30
+  percent weight perturbation. The scripted-panel sensitivity remains in
+  `docs/scoring_calibration.md`.
+- [x] Check whether conclusions depend on a single seed, season, mechanic, or
+  extreme episode. The leave-one-seed-out check is in
+  `results/analysis/sota-v5-robustness.json`.
 - [ ] Confirm the oracle-to-`pick-trader` gap still leaves meaningful headroom.
 
 **Exit condition:** the main conclusion survives an appropriately held-out panel
 or is narrowed to reflect any discrepancy.
 
 ### Phase 4 — claims and interpretation
+
+The `sota-v5` findings post is being drafted now. Items below that the draft
+covers stay unchecked until it is published and reviewed.
 
 - [ ] Write the primary research question in one sentence before drafting the
   conclusion.
@@ -511,6 +493,10 @@ Claims to avoid:
 
 ### Phase 5 — blog, site, and durable artifacts
 
+Blog items are pending `docs/blog/sota-v5-findings.md`, which is in draft.
+Site items are pending the site update that moves the public page off
+`sota-v2`. Neither is ticked until it ships.
+
 - [x] Generate all tables and headline numbers from validated artifacts.
 - [x] Keep a visible “last updated” date and contract version on the site.
 - [ ] Lead the blog with the research question and the measurement problem, not
@@ -559,12 +545,13 @@ to raw evidence without relying on trust in the author.
 - [ ] Make sure a clean clone contains no credentials, private seeds, raw private
   traces, or machine-specific paths.
 - [x] Create a tagged GitHub release for the frozen v2 study.
-- [ ] Add concise release notes and a changelog entry explaining what is frozen,
+- [x] Add concise release notes and a changelog entry explaining what is frozen,
   what was withdrawn, and what remains diagnostic.
 - [ ] Attach raw public traces, generated analysis, checksums, and a compact
   reproducibility manifest to the release.
-- [ ] Add citation metadata (`CITATION.cff`) even though this is not a paper.
-- [ ] Add contribution and result-submission instructions.
+- [x] Add citation metadata (`CITATION.cff`) even though this is not a paper.
+- [x] Add contribution and result-submission instructions
+  (`docs/submitting_results.md`).
 - [ ] Add an issue template for third-party result submissions or reproductions.
 - [ ] Ask for one independent clean-clone reproduction.
 - [ ] Record successful external reproduction in the README or release notes.

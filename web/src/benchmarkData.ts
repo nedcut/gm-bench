@@ -24,11 +24,11 @@ const PRIMARY_LIFT_AGREEMENT_TOLERANCE = 0.001;
 /**
  * Two-sided 95% Student-t multipliers by degrees of freedom (index df-1).
  *
- * The runner publishes `score_stddev` as a *population* SD over per-seed means,
- * and a published panel is eight seeds. Treating that as a known population SD
- * with z = 1.96 understates the interval by about a fifth at n = 8; the honest
- * interval applies the sample-SD correction and the t multiplier for n-1. Beyond
- * this table the two agree closely enough to fall back to z.
+ * The runner publishes `score_stddev` as a *population* SD over per-seed means.
+ * Treating that as a known population SD with z = 1.96 understates the interval
+ * on a small panel; the honest interval applies the sample-SD correction and the
+ * t multiplier for n-1. Beyond this table the two agree closely enough to fall
+ * back to z.
  */
 const T95_BY_DF = [
   12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262, 2.228, 2.201, 2.179, 2.16,
@@ -57,7 +57,8 @@ export interface BenchmarkView {
   holmRejectedCount: number;
   repeats: number;
   scriptedBar: number;
-  oracle: number;
+  /** Partial-oracle reference, or null for a study that ran no oracle. */
+  oracle: number | null;
 }
 
 export type PrimaryClaim = "rejects" | "descriptive-only" | "inconclusive";
@@ -68,11 +69,13 @@ export type PrimaryClaim = "rejects" | "descriptive-only" | "inconclusive";
  * The two available signals disagree, by design and by disclosure:
  *   - `primary_ci95` is a percentile bootstrap on the primary contrast. For
  *     every v2 row it excludes zero, which naively reads as "significant".
- *   - `holm_reject_at_0_05` is the preregistered family test. It rejects for
- *     no v2 row, because at eight seeds the sign-flip floor (2/2**8) against a
- *     family of ten puts the smallest achievable adjusted p at 0.078.
+ *   - `holm_reject_at_0_05` is the preregistered family test. At 29 paired
+ *     seeds the sign-flip floor is far below 0.05, so this test can and does
+ *     reject; on the eight-seed v2 panel it could not reject for any row,
+ *     because the floor (2/2**8) against a family of ten put the smallest
+ *     achievable adjusted p at 0.078.
  *
- * config/publication_protocol.json is explicit that the interval is descriptive
+ * The publication protocol is explicit that the interval is descriptive
  * and "must not be used as a headline claim". The preregistered Holm result
  * therefore controls the inferential claim; the interval only distinguishes a
  * descriptive directional gap from an interval that crosses zero.
@@ -91,6 +94,18 @@ function finite(value: unknown): value is number {
 /** Number of seeds this row's across-seed SD was computed over. */
 export function seedCount(model: LeaderboardModel): number {
   return model.seeds?.length ?? model.seed_count ?? Object.keys(model.per_seed_scores ?? {}).length;
+}
+
+/**
+ * Panel width for the study as a whole.
+ *
+ * `preset.seeds` is a list only for a public panel; a private panel publishes
+ * the redaction sentinel string and its width in `seed_count`. Reading a length
+ * off the sentinel would silently show the wrong number of seeds.
+ */
+export function presetSeedCount(data: Leaderboard): number | null {
+  if (Array.isArray(data.preset.seeds)) return data.preset.seeds.length;
+  return data.preset.seed_count ?? null;
 }
 
 /** Across-seed 95% interval on the mean score, or null when a row cannot support one. */
@@ -179,8 +194,14 @@ export function buildBenchmarkView(data: Leaderboard): BenchmarkView {
   const scriptedBar =
     data.baselines.find((baseline) => baseline.agent === "pick-trader")?.mean_score ??
     data.headroom.pick_trader;
-  if (!finite(scriptedBar) || !finite(data.headroom.oracle)) {
-    throw new Error("Leaderboard is missing a finite scripted bar or partial oracle reference");
+  if (!finite(scriptedBar)) {
+    throw new Error("Leaderboard is missing a finite scripted bar");
+  }
+  // The partial oracle is optional evidence, not a required field: sota-v5 ran
+  // no oracle baseline, and every surface that draws it must hide it rather
+  // than plot a zero. A present-but-malformed value is still a defect.
+  if (data.headroom.oracle !== null && !finite(data.headroom.oracle)) {
+    throw new Error("Leaderboard has a non-finite partial oracle reference");
   }
 
   // Repeats are derived per row from that row's own seed count, not from the
@@ -210,7 +231,7 @@ export function buildBenchmarkView(data: Leaderboard): BenchmarkView {
     holmRejectedCount: models.filter((model) => primaryClaim(model) === "rejects").length,
     repeats,
     scriptedBar,
-    oracle: data.headroom.oracle,
+    oracle: finite(data.headroom.oracle) ? data.headroom.oracle : null,
   };
 }
 

@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use GM-Bench or its published results, please cite it as below."
+title: "GM-Bench: a deterministic sports general-manager benchmark for LLM agents"
+abstract: >-
+  GM-Bench runs language-model agents as the general manager of a fictional
+  hockey-style league over multiple simulated seasons, scoring roster, trade,
+  free-agency, draft, and lineup decisions against deterministic scripted
+  baselines under a frozen, fingerprinted benchmark contract.
+type: software
+authors:
+  - family-names: Cutler
+    given-names: Ned
+repository-code: "https://github.com/nedcut/gm-bench"
+url: "https://github.com/nedcut/gm-bench"
+license: MIT
+version: sota-v5-publication-2026-09-03
+date-released: "2026-09-03"
+keywords:
+  - llm-evaluation
+  - agents
+  - benchmark
+  - simulation
+  - reproducibility

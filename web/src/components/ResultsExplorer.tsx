@@ -4,6 +4,7 @@ import { scaleLinear } from "d3-scale";
 import type { BenchmarkView, ResultModel } from "../benchmarkData";
 import {
   issueLabels,
+  presetSeedCount,
   reliability,
   scoreCi95,
   shortModelName,
@@ -247,7 +248,7 @@ function CostScatter({
 }: {
   models: ResultModel[];
   scriptedBar: number;
-  oracle: number;
+  oracle: number | null;
   selected: string;
   onSelect: (id: string) => void;
 }) {
@@ -263,7 +264,7 @@ function CostScatter({
     .nice()
     .range([left, width - right]);
   const y = scaleLinear()
-    .domain([0, Math.max(450, oracle * 1.04)])
+    .domain([0, Math.max(450, (oracle ?? scriptedBar) * 1.04)])
     .nice()
     .range([height - bottom, top]);
   const xTicks = x.ticks(6);
@@ -345,21 +346,27 @@ function CostScatter({
         >
           scripted bar · pick-trader {fmt(scriptedBar, 1)}
         </text>
-        <line
-          x1={left}
-          x2={width - right}
-          y1={y(oracle)}
-          y2={y(oracle)}
-          className="chart-oracle"
-        />
-        <text
-          x={width - right}
-          y={y(oracle) - 9}
-          textAnchor="end"
-          className="chart-oracle-label"
-        >
-          partial oracle reference {fmt(oracle, 1)}
-        </text>
+        {/* A study with no oracle baseline draws no oracle line: pick-trader is
+            then the only reference the data supports. */}
+        {oracle !== null && (
+          <>
+            <line
+              x1={left}
+              x2={width - right}
+              y1={y(oracle)}
+              y2={y(oracle)}
+              className="chart-oracle"
+            />
+            <text
+              x={width - right}
+              y={y(oracle) - 9}
+              textAnchor="end"
+              className="chart-oracle-label"
+            >
+              partial oracle reference {fmt(oracle, 1)}
+            </text>
+          </>
+        )}
         {models.map((model, index) => {
           const label = labelById.get(model.id);
           const active = model.id === selected;
@@ -542,6 +549,9 @@ export default function ResultsExplorer({
     benchmark.models.find((model) => model.id === selectedModelId) ??
     benchmark.models[0];
   const bestModel = benchmark.models[0];
+  // The Holm family is the pre-registered model set, not the published rows:
+  // stating the published count here would understate the correction.
+  const registeredCount = data.publication.models?.length ?? benchmark.modelCount;
   const panelMean = bestModel?.baseline_panel_mean_score;
 
   const toggleModel = (id: string) => {
@@ -562,15 +572,23 @@ export default function ResultsExplorer({
       <div className="results-shell">
         <div className="result-overview">
           <div className="result-overview-copy">
-            <p className="kicker">Phase one results</p>
+            <p className="kicker">Panel results</p>
             <h2>Performance against the pick-trader bar.</h2>
             <p>
               Paired seed-level differences for {benchmark.modelCount} published
-              model-plus-scaffold system{benchmark.modelCount === 1 ? "" : "s"}.
+              model-plus-scaffold system{benchmark.modelCount === 1 ? "" : "s"}, on a{" "}
+              {presetSeedCount(data) ?? "private"}-seed private panel held under a
+              salted commitment. {registeredCount} models were pre-registered; 3 are
+              ineligible on model behavior and 2 were excluded on infrastructure
+              failures.
             </p>
             <small>
-              Descriptive intervals; the predeclared Holm-adjusted family test rejects
-              for {benchmark.holmRejectedCount} of {benchmark.modelCount} rows at 0.05.
+              Reference-only analysis against <code>pick-trader</code>: every eligible
+              model trails the bar, and the predeclared Holm-adjusted family test rejects
+              for{" "}
+              {benchmark.holmRejectedCount} of {benchmark.modelCount} rows at 0.05 over
+              a family of {registeredCount}. No model-to-model ranking is claimed. One
+              repeat per seed, so within-seed noise is unmeasured.
             </small>
           </div>
           <dl className="result-readouts">
@@ -598,7 +616,7 @@ export default function ResultsExplorer({
           <dl>
             <div>
               <dt>Seeds</dt>
-              <dd>{data.preset.seeds.length}</dd>
+              <dd>{presetSeedCount(data) ?? "—"}</dd>
             </div>
             <div>
               <dt>Seasons</dt>
@@ -607,6 +625,14 @@ export default function ResultsExplorer({
             <div>
               <dt>Repeats</dt>
               <dd>{benchmark.repeats}</dd>
+            </div>
+            <div>
+              <dt>Output cap</dt>
+              <dd>
+                {data.publication.frozen_output_token_cap === null
+                  ? "—"
+                  : data.publication.frozen_output_token_cap.toLocaleString("en-US")}
+              </dd>
             </div>
             <div>
               <dt>Updated</dt>

@@ -17,7 +17,9 @@ DISPLAY_NAMES = {
 
 
 def test_blog_result_table_matches_generated_leaderboard() -> None:
-    site = json.loads(Path("web/src/data/leaderboard.json").read_text())
+    # The site now publishes sota-v5; the v2 blog table is checked against the
+    # archived v2 dataset, which build_leaderboard.py still reproduces.
+    site = json.loads(Path("web/src/data/leaderboard-sota-v2.json").read_text())
     blog = Path("docs/blog/sota-v2-findings.md").read_text()
     assert site["contract"]["benchmark_version"] == "sota-v2"
     assert site["contract"]["contract_fingerprint"] == "558e8f35ea1d66b9"
@@ -60,9 +62,9 @@ def test_employer_facing_site_links_current_evidence_and_metadata() -> None:
     assert "Above scripted bar" in results
     assert "modelsAboveBar" in results
     assert "Holm-adjusted family test" in results
-    assert "sota-v2-phase-one-2026-07-19" in footer
+    assert "sota-v5-publication-2026-09-03" in footer
     assert "Ned Cutler" in footer
-    assert "REPRODUCING_SOTA_V2_RELEASE.md" in footer
+    assert "REPRODUCING_SOTA_V5_RELEASE.md" in footer
     assert 'href="%BASE_URL%favicon.svg"' in index
     assert 'rel="canonical" href="https://nedcut.github.io/gm-bench/"' in index
     assert 'property="og:title"' in index

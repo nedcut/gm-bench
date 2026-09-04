@@ -124,7 +124,7 @@ jobs:
             echo "validating $result against policy $version"
             python -m gm_bench validate-result "$result" --policy "$version"
             count=$((count + 1))
-          done < <(find results/leaderboard -maxdepth 1 -type f -name '*.json' -print0)
+          done < <(find results/leaderboard -type f -name '*.json' -not -path 'results/leaderboard/archive-v1/*' -print0)
           echo "validated $count current leaderboard result(s)"
       - name: Enforce compact publication artifacts
         run: |
@@ -147,7 +147,7 @@ jobs:
                   if isinstance(usage, dict):
                       assert "per_decision" not in usage, f"{path}: per_decision usage must not be committed"
           PY
-          done < <(find results/leaderboard -maxdepth 1 -type f -name '*.json' -print0)
+          done < <(find results/leaderboard -type f -name '*.json' -not -path 'results/leaderboard/archive-v1/*' -print0)
       - name: Output-budget analysis is reproducible
         # Publishing keys off analysis.status; regenerate from the committed
         # sweep config (+ optional cell artifacts) and refuse hand-edited status.

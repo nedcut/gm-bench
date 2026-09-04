@@ -402,7 +402,9 @@ def test_published_site_dataset_plots_the_frozen_primary_contrast() -> None:
     pick-trader, and the panel contrast must remain a separately named field.
     """
     root = Path(__file__).resolve().parents[1]
-    dataset = json.loads((root / "web" / "src" / "data" / "leaderboard.json").read_text())
+    # The site publishes sota-v5; this check is the frozen v2 cross-surface
+    # pin, so it reads the archived v2 dataset beside the v2 analysis.
+    dataset = json.loads((root / "web" / "src" / "data" / "leaderboard-sota-v2.json").read_text())
     analysis = json.loads((root / "results" / "analysis" / "publication-panel-analysis.json").read_text())
     protocol = json.loads((root / "config" / "publication_protocol.json").read_text())
 
@@ -433,7 +435,7 @@ def test_published_rows_never_claim_significance_the_primary_test_refuses() -> N
     contrast's flag.
     """
     root = Path(__file__).resolve().parents[1]
-    dataset = json.loads((root / "web" / "src" / "data" / "leaderboard.json").read_text())
+    dataset = json.loads((root / "web" / "src" / "data" / "leaderboard-sota-v2.json").read_text())
     for row in dataset["models"]:
         if row.get("holm_reject_at_0_05") is False:
             assert row.get("full_panel_significant_at_95") is not None
