@@ -470,3 +470,68 @@ the lane, registry, protocol, and pricing snapshot. The analyzer and packager
 do not yet read the register or the accounted-for rule; those changes land
 separately, and the flags flip only after they do and the analysis artifacts
 are produced under the amended rule.
+
+## Addendum 2026-09-04T00:15Z — publication authorized; release built and verified
+
+This closes the sota-v5 / v6-spec panel. The owner authorized publication on
+2026-09-03 after the completed panel passed the amended accounted-for rule
+(addendum 2026-09-03T20:45Z above). Everything below happened after the
+analyzer and packager were taught the rule and after their verification
+passed; the flags flipped last.
+
+**Verification before the flip.** Contract fingerprint `a600b7da0c302231` and
+OpenRouter scaffold `c582e126bbb6af10` reproduce from the working tree; no
+file under `gm_bench/` or `schemas/` changed since the panel commit. The full
+suite (1,116 tests) and `ruff` passed. The 29 escrowed seeds reproduce both
+committed digests (execution hash and salted hiding commitment) and none of
+them appears as a token in any tracked file. The tracked v2 row
+`results/leaderboard/openrouter-gpt-5.6-luna-openai.json` and the v2 site
+dataset are byte-identical to the panel commit. The exclusion register agrees
+with `run-state.json` on every row's status, reason, attempts, decisions, and
+cost.
+
+**One more analyzer fix.** The dry run against authorized copies of the four
+records found that the analyzer rejected the gpt-oss-20b raw artifact on the
+frozen 0.02 decision-failure gate (as it should) and then, because any
+rejection kept the status `partial`, refused to publish the accounted-for
+family. A rejected artifact whose row the frozen register already excludes is
+now that register's evidence rather than an unexplained rejection; a rejection
+the register does not cover still keeps the analysis partial. Landed with a
+regression test before the flip. With that fix the dry run returned
+`status: complete`, `publication_ready: true`, eleven eligible, sixteen
+accounted for, no missing rows, no config errors.
+
+**The flip.** `publication_authorized` is `true` in the lane, registry,
+protocol, and pricing snapshot in one commit that says so. The
+preregistration test now pins the flags true with the decision recorded
+beside it. The zero-spend rehearsal no longer requires the checked-in records
+to be locked; it authorizes only its own in-memory copies.
+
+**The analysis.** `results/analysis/publication-panel-analysis-v5.json` was
+produced from the operator's raw artifacts with the verified escrow supplied
+through the environment, exactly as the panel runner supplies it. It is
+byte-identical to the pre-flip dry run and contains no seed value. Every
+eligible model trails `pick-trader` (247.109). Ten of eleven headline rows
+reject at Holm-adjusted alpha 0.05 against the family of sixteen;
+gemini-3.7-flash (mean lift -23.4, Holm-adjusted p 0.221) does not. Within-seed
+noise is unmeasured under the one-repeat lane and every row says so.
+
+**The release.** `releases/sota-v5-publication-2026-09-03/` holds the manifest,
+`SHA256SUMS.txt`, and a README. The archive
+`gm-bench-sota-v5-publication-2026-09-03.zip` (24 entries: frozen configs and
+smoke manifest, exclusion register, analysis, eleven redacted headline and
+three redacted diagnostic artifacts, run-state and reservation metadata) was
+built and then verified by the packager's verify mode, and its checksum
+matches the committed sums. No raw artifact and no seed value is in it. The
+archive is attached beside the checksums, not committed.
+
+**Adjacent fix.** The v5 site study builder still read the top-level
+`results/leaderboard/` directory after the packager moved the headline rows
+under `results/leaderboard/sota-v5/`; it now reads the contract-scoped
+directory. It writes only where asked. The public site stays on sota-v2;
+putting this panel on the site is a separate decision.
+
+**Still recorded, not fixed.** The luna row billed about $0.125 per million
+prompt tokens against the $0.10 snapshot; the transient-retry counts live only
+in the spend guard's ledger and not in the artifacts; the grok-4.6 attempt-1
+reservation entry is still marked active in `openrouter-reservations.json`.
