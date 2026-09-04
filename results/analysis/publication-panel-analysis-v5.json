@@ -1,0 +1,320 @@
+{
+  "accounted_for_model_count": 16,
+  "analysis_mode": "reference-only",
+  "benchmark_version": "sota-v5",
+  "bootstrap": {
+    "iterations": 10000,
+    "label": "descriptive percentile 95% CI",
+    "seed": 20260716
+  },
+  "config_errors": [],
+  "eligible_model_count": 11,
+  "excluded_models": [
+    {
+      "attempts": 1,
+      "checkpoint_sha256": "9da2be5a81e040edd0cff30bb6b0e05bdd758e9f25da476c1ba7c2d4d55f959a",
+      "cost_usd": 1.7801,
+      "decisions_completed": 260,
+      "model_id": "openrouter-claude-haiku-4.5-anthropic",
+      "reason": "Aborted at seed 14 of 29 on two consecutive invalid-JSON replies with zero truncation; 260 decisions from 13 completed seeds are retained.",
+      "rule": "fail-fast on two consecutive malformed replies; model_behavior_never_authorizes_a_rerun (config/sota_v5_publication_protocol.json rerun_policy)",
+      "status": "ineligible-model-behavior"
+    },
+    {
+      "attempts": 1,
+      "checkpoint_sha256": "f15724efb0920fc709409557ba2eeadd5880dcb4a888d8bb7aca9ff46fd28937",
+      "cost_usd": 1.4243,
+      "decisions_completed": 480,
+      "model_id": "openrouter-glm-5-streamlake",
+      "reason": "Aborted at seed 25 of 29 on two consecutive malformed replies (every action must be an object); 480 decisions from 24 completed seeds are retained.",
+      "rule": "fail-fast on two consecutive malformed replies; model_behavior_never_authorizes_a_rerun (config/sota_v5_publication_protocol.json rerun_policy)",
+      "status": "ineligible-model-behavior"
+    },
+    {
+      "attempts": 2,
+      "checkpoint_sha256": "e0add324f79973624550b23035e51a1ec2d27bfe8e3b9046b15895ea4ed1ff12",
+      "cost_usd": 0.0,
+      "decisions_completed": 0,
+      "model_id": "openrouter-gpt-5.6-sol-openai",
+      "reason": "Both attempts aborted within seconds on two consecutive billed responses that carried no choices array, which is not a transient status the backoff covers.",
+      "rule": "rerun_policy two-attempt infrastructure limit (config/sota_v5_publication_protocol.json)",
+      "status": "excluded-infrastructure-limit"
+    },
+    {
+      "attempts": 1,
+      "checkpoint_sha256": "cfa4d4d4d0f052f2368c1ce7cb703a54fe4800be32fad4d164c96f963183b065",
+      "cost_usd": 0.0989,
+      "decisions_completed": 580,
+      "model_id": "openrouter-gpt-oss-20b-deepinfra",
+      "reason": "Completed 580 of 580 decisions on attempt 1, but 12 unrecoverable decisions put the decision failure rate at 0.0207, over the 0.020 gate.",
+      "rule": "publication gate max_decision_failure_rate 0.02 (gm_bench/official.py SOTA_V5_POLICY)",
+      "status": "ineligible-model-behavior"
+    },
+    {
+      "attempts": 2,
+      "checkpoint_sha256": "bdf9f77ab5afc82e477a2fc79ccae7d78c4b34e3baa98492d32a6b0cf5afa982",
+      "cost_usd": 0.0,
+      "decisions_completed": 0,
+      "model_id": "openrouter-qwen3.8-flash-alibaba",
+      "reason": "Both attempts aborted within the first seed on pairs of Alibaba HTTP 429 responses; Alibaba was the only eligible route, so the identity could not be re-routed.",
+      "rule": "rerun_policy two-attempt infrastructure limit (config/sota_v5_publication_protocol.json)",
+      "status": "excluded-infrastructure-limit"
+    }
+  ],
+  "holm_family_size": 16,
+  "minimum_headline_models": 8,
+  "missing_models": [],
+  "model_tiering": {
+    "reason": "sota-v5 predeclares only model-versus-pick-trader contrasts",
+    "status": "not-supported"
+  },
+  "models": [
+    {
+      "artifact_sha256": "b5daef3a328b003e81118a08f8b2783496491696c72b057d38eaf13f251fa7dd",
+      "bootstrap_ci95": [
+        -138.375586,
+        -106.702931
+      ],
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "mean_lift": -122.206931,
+      "model": "deepseek/deepseek-v4-flash-0731",
+      "model_id": "openrouter-deepseek-v4-flash-0731-together",
+      "provider": "openrouter",
+      "raw_artifact_sha256": "b5daef3a328b003e81118a08f8b2783496491696c72b057d38eaf13f251fa7dd",
+      "seed_count": 29,
+      "seed_win_rate": 0.0,
+      "sign_flip_p_value": 3.725290298461914e-09,
+      "within_seed_score_stddev": null,
+      "within_seed_score_stddev_status": "unmeasured-one-repeat"
+    },
+    {
+      "artifact_sha256": "1ba26a9237b5b6d6ab9881208f1a5fedca099ef36da60a069557dbae0f3e801a",
+      "bootstrap_ci95": [
+        -117.367724,
+        -86.558069
+      ],
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "mean_lift": -101.518517,
+      "model": "google/gemini-3.1-flash-lite",
+      "model_id": "openrouter-gemini-3.1-flash-lite-google-ai-studio",
+      "provider": "openrouter",
+      "raw_artifact_sha256": "1ba26a9237b5b6d6ab9881208f1a5fedca099ef36da60a069557dbae0f3e801a",
+      "seed_count": 29,
+      "seed_win_rate": 0.0,
+      "sign_flip_p_value": 3.725290298461914e-09,
+      "within_seed_score_stddev": null,
+      "within_seed_score_stddev_status": "unmeasured-one-repeat"
+    },
+    {
+      "artifact_sha256": "5ee0576189ef2462aee361db4aacc3411a736f3a9db444fa604acec3787f86ac",
+      "bootstrap_ci95": [
+        -43.481586,
+        -2.754345
+      ],
+      "holm_adjusted_p_value": 0.221066,
+      "holm_reject_at_0_05": false,
+      "mean_lift": -23.401483,
+      "model": "google/gemini-3.7-flash",
+      "model_id": "openrouter-gemini-3.7-flash-google-ai-studio",
+      "provider": "openrouter",
+      "raw_artifact_sha256": "5ee0576189ef2462aee361db4aacc3411a736f3a9db444fa604acec3787f86ac",
+      "seed_count": 29,
+      "seed_win_rate": 0.241379,
+      "sign_flip_p_value": 0.03684436157345772,
+      "within_seed_score_stddev": null,
+      "within_seed_score_stddev_status": "unmeasured-one-repeat"
+    },
+    {
+      "artifact_sha256": "bf598bbdeac35fe77b629a93af694e6f387bd726a0c03646756fb5f7012960f9",
+      "bootstrap_ci95": [
+        -100.697655,
+        -67.237103
+      ],
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "mean_lift": -83.866448,
+      "model": "z-ai/glm-5.3-flash",
+      "model_id": "openrouter-glm-5.3-flash-fireworks",
+      "provider": "openrouter",
+      "raw_artifact_sha256": "bf598bbdeac35fe77b629a93af694e6f387bd726a0c03646756fb5f7012960f9",
+      "seed_count": 29,
+      "seed_win_rate": 0.034483,
+      "sign_flip_p_value": 7.450580596923828e-09,
+      "within_seed_score_stddev": null,
+      "within_seed_score_stddev_status": "unmeasured-one-repeat"
+    },
+    {
+      "artifact_sha256": "66842c84a86f23e7bed126d48ef8918f40270f3d6b01c9cf80b9defe34f97a6f",
+      "bootstrap_ci95": [
+        -140.835138,
+        -106.194069
+      ],
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "mean_lift": -123.115483,
+      "model": "openai/gpt-5.4-mini",
+      "model_id": "openrouter-gpt-5.4-mini-openai",
+      "provider": "openrouter",
+      "raw_artifact_sha256": "66842c84a86f23e7bed126d48ef8918f40270f3d6b01c9cf80b9defe34f97a6f",
+      "seed_count": 29,
+      "seed_win_rate": 0.0,
+      "sign_flip_p_value": 3.725290298461914e-09,
+      "within_seed_score_stddev": null,
+      "within_seed_score_stddev_status": "unmeasured-one-repeat"
+    },
+    {
+      "artifact_sha256": "995f4f6e4b280a06be3e7f1c2c76cf3e7de629955e0dec51732bfb0d81aed369",
+      "bootstrap_ci95": [
+        -97.604621,
+        -54.170379
+      ],
+      "holm_adjusted_p_value": 3e-06,
+      "holm_reject_at_0_05": true,
+      "mean_lift": -75.814034,
+      "model": "openai/gpt-5.6-luna",
+      "model_id": "openrouter-gpt-5.6-luna-openai",
+      "provider": "openrouter",
+      "raw_artifact_sha256": "995f4f6e4b280a06be3e7f1c2c76cf3e7de629955e0dec51732bfb0d81aed369",
+      "seed_count": 29,
+      "seed_win_rate": 0.068966,
+      "sign_flip_p_value": 3.46451997756958e-07,
+      "within_seed_score_stddev": null,
+      "within_seed_score_stddev_status": "unmeasured-one-repeat"
+    },
+    {
+      "artifact_sha256": "99e8b1ea0589374db1648e4363b5dca5d05be436901984e301d56d6b5fc5ec27",
+      "bootstrap_ci95": [
+        -127.920069,
+        -97.015552
+      ],
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "mean_lift": -112.088138,
+      "model": "x-ai/grok-4.3",
+      "model_id": "openrouter-grok-4.3-xai",
+      "provider": "openrouter",
+      "raw_artifact_sha256": "99e8b1ea0589374db1648e4363b5dca5d05be436901984e301d56d6b5fc5ec27",
+      "seed_count": 29,
+      "seed_win_rate": 0.0,
+      "sign_flip_p_value": 3.725290298461914e-09,
+      "within_seed_score_stddev": null,
+      "within_seed_score_stddev_status": "unmeasured-one-repeat"
+    },
+    {
+      "artifact_sha256": "0e3a1117bd9c2a7547e049c542abed915b1432eb9f6ad83d9c7022f83112c134",
+      "bootstrap_ci95": [
+        -61.605759,
+        -25.899724
+      ],
+      "holm_adjusted_p_value": 0.000251,
+      "holm_reject_at_0_05": true,
+      "mean_lift": -43.578276,
+      "model": "x-ai/grok-4.6",
+      "model_id": "openrouter-grok-4.6-xai",
+      "provider": "openrouter",
+      "raw_artifact_sha256": "0e3a1117bd9c2a7547e049c542abed915b1432eb9f6ad83d9c7022f83112c134",
+      "seed_count": 29,
+      "seed_win_rate": 0.103448,
+      "sign_flip_p_value": 3.581494092941284e-05,
+      "within_seed_score_stddev": null,
+      "within_seed_score_stddev_status": "unmeasured-one-repeat"
+    },
+    {
+      "artifact_sha256": "43507ec32a37ebed4b16efe2f48912c24b60e7f3916393a8e834ea442f2c4803",
+      "bootstrap_ci95": [
+        -114.525828,
+        -81.244862
+      ],
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "mean_lift": -97.877759,
+      "model": "moonshotai/kimi-k2.5",
+      "model_id": "openrouter-kimi-k2.5-siliconflow",
+      "provider": "openrouter",
+      "raw_artifact_sha256": "43507ec32a37ebed4b16efe2f48912c24b60e7f3916393a8e834ea442f2c4803",
+      "seed_count": 29,
+      "seed_win_rate": 0.034483,
+      "sign_flip_p_value": 7.450580596923828e-09,
+      "within_seed_score_stddev": null,
+      "within_seed_score_stddev_status": "unmeasured-one-repeat"
+    },
+    {
+      "artifact_sha256": "dae7da9d2bc6e938b89c0e876e881833c09bb3e7776547bf471226ff1b999ae7",
+      "bootstrap_ci95": [
+        -146.246621,
+        -115.178931
+      ],
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "mean_lift": -130.109483,
+      "model": "minimax/minimax-m3",
+      "model_id": "openrouter-minimax-m3-modelrun",
+      "provider": "openrouter",
+      "raw_artifact_sha256": "dae7da9d2bc6e938b89c0e876e881833c09bb3e7776547bf471226ff1b999ae7",
+      "seed_count": 29,
+      "seed_win_rate": 0.0,
+      "sign_flip_p_value": 3.725290298461914e-09,
+      "within_seed_score_stddev": null,
+      "within_seed_score_stddev_status": "unmeasured-one-repeat"
+    },
+    {
+      "artifact_sha256": "03fc39a7b8b79fd3fbab0d583141d23d5f633614147160016f5c97b8e099227c",
+      "bootstrap_ci95": [
+        -150.638793,
+        -116.971103
+      ],
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "mean_lift": -133.408483,
+      "model": "qwen/qwen3.5-27b",
+      "model_id": "openrouter-qwen3.5-27b-siliconflow",
+      "provider": "openrouter",
+      "raw_artifact_sha256": "03fc39a7b8b79fd3fbab0d583141d23d5f633614147160016f5c97b8e099227c",
+      "seed_count": 29,
+      "seed_win_rate": 0.0,
+      "sign_flip_p_value": 3.725290298461914e-09,
+      "within_seed_score_stddev": null,
+      "within_seed_score_stddev_status": "unmeasured-one-repeat"
+    }
+  ],
+  "primary_contrast": "paired lift versus pick-trader",
+  "publication_ready": true,
+  "redaction": {
+    "per_seed_rows_included": false,
+    "private_seed_panel": true,
+    "public_view": "aggregate-only",
+    "seed_identifiers_included": false
+  },
+  "registered_model_count": 16,
+  "rejected_artifacts": [],
+  "schema_version": 1,
+  "sign_flip_inference": "primary; exact under the symmetry assumption",
+  "status": "complete",
+  "within_seed_noise": {
+    "basis": "docs/scoring_calibration.md: the 30-point minimum detectable difference at 29 paired seeds holds for rows whose within-seed score standard deviation is at or below about 25.",
+    "models_exceeding_threshold": [],
+    "models_missing_the_statistic": [],
+    "models_with_unmeasured_within_seed_noise": [
+      "openrouter-deepseek-v4-flash-0731-together",
+      "openrouter-gemini-3.1-flash-lite-google-ai-studio",
+      "openrouter-gemini-3.7-flash-google-ai-studio",
+      "openrouter-glm-5.3-flash-fireworks",
+      "openrouter-gpt-5.4-mini-openai",
+      "openrouter-gpt-5.6-luna-openai",
+      "openrouter-grok-4.3-xai",
+      "openrouter-grok-4.6-xai",
+      "openrouter-kimi-k2.5-siliconflow",
+      "openrouter-minimax-m3-modelrun",
+      "openrouter-qwen3.5-27b-siliconflow"
+    ],
+    "rule": "Reported caveat, not a row rejection. A row above the threshold publishes its score and its reference contrast; no separation claim is supported for any pair that includes it. A row that cannot measure the statistic because its lane ran one episode per seed stays claimable under the calibration panel's assumed repeat noise, and says so.",
+    "separation_claims_rest_on_assumed_repeat_noise": true,
+    "separation_claims_supported": true,
+    "statistic": "within_seed_score_stddev",
+    "threshold": 25.0,
+    "unclaimable_separation_pairs": [],
+    "unmeasured_basis": "within-seed noise unmeasured under the one-repeat lane; the MDD projection relies on the calibration panel's assumed repeat noise (~15, docs/scoring_calibration.md)"
+  }
+}
