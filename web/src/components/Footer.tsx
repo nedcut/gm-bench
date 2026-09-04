@@ -8,7 +8,7 @@ export default function Footer({ data }: { data: LeaderboardData }) {
         <div className="footer-brand">
           <div>
             <Logo size={20} />
-            <span>GM-Bench · front-office benchmark for LLM agents</span>
+            <span>GM-Bench, a front-office benchmark for LLM agents</span>
           </div>
           <a className="byline" href="https://github.com/nedcut">
             Ned Cutler
@@ -31,9 +31,9 @@ export default function Footer({ data }: { data: LeaderboardData }) {
         </div>
         <span className="mono">
           {data.contract
-            ? `${data.contract.benchmark_version} · ${data.contract.contract_fingerprint}`
+            ? `${data.contract.benchmark_version} ${data.contract.contract_fingerprint}`
             : "unversioned"}
-          {data.updated ? ` · updated ${data.updated}` : ""}
+          {data.updated ? `, updated ${data.updated}` : ""}
         </span>
       </div>
     </footer>

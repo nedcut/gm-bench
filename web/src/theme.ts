@@ -22,7 +22,7 @@ export function useTheme(): [Theme, () => void] {
     root.setAttribute("data-theme", theme);
     window.localStorage.setItem(STORAGE_KEY, theme);
     const meta = document.querySelector('meta[name="theme-color"]');
-    meta?.setAttribute("content", theme === "dark" ? "#0d141b" : "#eef2f5");
+    meta?.setAttribute("content", theme === "dark" ? "#0c1522" : "#f4f7fa");
   }, [theme]);
 
   const toggle = () => setTheme((current) => (current === "dark" ? "light" : "dark"));

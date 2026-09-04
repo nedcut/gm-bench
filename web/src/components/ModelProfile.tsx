@@ -109,8 +109,8 @@ export default function ModelProfile({
           <p className="kicker">Model profile</p>
           <h2>{shortModelName(model.model)}</h2>
           <p>
-            <code>{model.model}</code> via {model.provider} · {model.lane ?? "api"} lane ·{" "}
-            {model.benchmark_version ?? "unversioned"} run over {seedCountLabel} seeds ×{" "}
+            <code>{model.model}</code> on {model.provider}, {model.lane ?? "api"} lane. Run
+            under {model.benchmark_version ?? "unversioned"} over {seedCountLabel} seeds and{" "}
             {model.seasons ?? data.preset.seasons} seasons.
           </p>
         </div>
@@ -156,7 +156,7 @@ export default function ModelProfile({
           <div className="panel-title">
             <h3>Per-seed scores</h3>
             <span>
-              {model.seed_panel === PRIVATE_SEED_PANEL ? "private panel · " : ""}
+              {model.seed_panel === PRIVATE_SEED_PANEL ? "private panel, " : ""}
               {seedCount === null ? "—" : `${seedCount} seeds`}
             </span>
           </div>
@@ -170,10 +170,10 @@ export default function ModelProfile({
           ) : (
             <p>
               This row ran a private seed panel, so neither its seed values nor its per-seed
-              scores are published —{" "}
+              scores are published.{" "}
               {seedCount === null
-                ? "and it does not report how wide the panel was."
-                : `only that the panel was ${seedCount} seeds wide, and the commitment hash below.`}
+                ? "It does not report how wide the panel was."
+                : `Only the panel width, ${seedCount} seeds, and the commitment hash below are public.`}
             </p>
           )}
         </div>
@@ -259,7 +259,7 @@ export default function ModelProfile({
         <div className="panel">
           <div className="panel-title">
             <h3>Provenance</h3>
-            <span>what this row can be re-derived from</span>
+            <span>enough to rebuild this row</span>
           </div>
           <dl className="profile-provenance">
             <div>
@@ -292,9 +292,9 @@ export default function ModelProfile({
             </ul>
           )}
           <p className="profile-replay-link">
-            <a href="#replay">Open the replay browser ↓</a> — it plays the committed
-            episode for this benchmark's decision loop. Per-model episode artifacts are
-            referenced by the hashes above and are not published inline.
+            <a href="#replay">Open the replay browser</a>. It plays the one committed
+            episode for this benchmark. The per-model episode files are named by the hashes
+            above and are not published here.
           </p>
         </div>
       </div>

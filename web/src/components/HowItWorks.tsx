@@ -2,22 +2,26 @@ import type { Snapshot } from "../types";
 
 const PHASES = [
   {
-    num: "01 · preseason",
+    num: 1,
+    when: "Preseason",
     title: "Roster",
     body: "Sign free agents under a hard salary cap, dress an 18-player lineup, balance veterans and prospects. Rivals share the same pool.",
   },
   {
-    num: "02 · midseason",
+    num: 2,
+    when: "Midseason",
     title: "Waivers",
     body: "About 35% of the schedule plays out: standings move, injuries land, and opponents waive players. Claim from the wire or hold the cap room.",
   },
   {
-    num: "03 · trade deadline",
+    num: 3,
+    when: "Trade deadline",
     title: "Trades",
     body: "Swap with eleven scripted opponent offices mid-season. Partners apply hidden valuation noise each season. Illegal proposals are rejected and penalized.",
   },
   {
-    num: "04 · draft",
+    num: 4,
+    when: "Draft",
     title: "Draft",
     body: "Spend capital on a seeded prospect class; opponents pick in inverse-standings order. Aging, development, and injuries play out through the season.",
   },
@@ -26,11 +30,11 @@ const PHASES = [
 const PROTO_POINTS = [
   {
     title: "Observation on stdin",
-    body: "One JSON object per decision: team (roster, lineup, cap room), standings, free agents, draft class, trade market, recent transactions, memo scratchpad.",
+    body: "One JSON object per decision: your roster, lineup, and cap room, the standings, free agents, the draft class, the trade market, recent transactions, and your own memo.",
   },
   {
     title: "Actions on stdout",
-    body: "A production envelope with actions and optional usage telemetry. Core verbs: sign_free_agent, trade, draft, set_lineup, memo — plus release and noop.",
+    body: "An envelope holding a list of actions and optional token usage. Verbs: sign_free_agent, trade, draft, set_lineup, memo, release, and noop.",
   },
   {
     title: "Deterministic replay",
@@ -38,7 +42,7 @@ const PROTO_POINTS = [
   },
   {
     title: "Scored beyond wins",
-    body: "Objective rewards wins, titles, future assets, prospect value, and cap health — and penalizes illegal actions. Wins count over a trailing three-season window while assets are scored at the end, so it favours sustainable accumulation over win-now mortgaging.",
+    body: "The objective rewards wins, titles, future assets, prospect value, and cap health, and it penalizes illegal actions. Wins count over a trailing three-season window. Assets are scored at the end. That favours building slowly over mortgaging the future for one season.",
   },
 ];
 
@@ -98,18 +102,21 @@ export default function HowItWorks({ snapshot }: { snapshot: Snapshot }) {
           <p className="kicker">Protocol</p>
           <h2>Four decision points per season. Five seasons per episode.</h2>
           <p>
-            No browser automation, no memorized rosters — every player is fictional. Agents speak a
-            minimal JSON protocol any process can run. Under the published scaffold, reading that JSON/API contract is
-            part of what the benchmark measures. The public seed panel is published and deterministic, so
-            benchmark-specific adaptation is possible; treat these results as reproducible evidence, not
-            contamination-resistant proof.
+            No browser automation and no memorized rosters. Every player is fictional. The
+            agent reads JSON on stdin and writes JSON on stdout, so any process can play, and
+            reading that contract is part of what the benchmark measures. The public seed
+            panel is deterministic and published, so an agent could be tuned to it. Treat
+            these results as reproducible evidence, not as proof against contamination.
           </p>
         </div>
 
         <div className="phase-wire">
           {PHASES.map((phase) => (
             <article key={phase.num} className="phase-row">
-              <p className="phase-num">{phase.num}</p>
+              <p className="phase-num">
+                <b>{phase.num}</b>
+                {phase.when}
+              </p>
               <h3>{phase.title}</h3>
               <p>{phase.body}</p>
             </article>
@@ -126,8 +133,8 @@ export default function HowItWorks({ snapshot }: { snapshot: Snapshot }) {
             ))}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <CodeCard title="observation → stdin" code={OBSERVATION_SNIPPET} />
-            <CodeCard title="actions ← stdout" code={ACTIONS_SNIPPET} />
+            <CodeCard title="Observation, read from stdin" code={OBSERVATION_SNIPPET} />
+            <CodeCard title="Actions, written to stdout" code={ACTIONS_SNIPPET} />
           </div>
         </div>
 
@@ -135,7 +142,7 @@ export default function HowItWorks({ snapshot }: { snapshot: Snapshot }) {
           <div className="panel-title">
             <h3>Transaction wire</h3>
             <span>
-              {snapshot.season_trace.agent} · seed {snapshot.season_trace.seed}
+              {snapshot.season_trace.agent}, seed {snapshot.season_trace.seed}
             </span>
           </div>
           <div className="txn-list">

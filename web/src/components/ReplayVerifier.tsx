@@ -47,9 +47,9 @@ export default function ReplayVerifier() {
     status.kind === "idle"
       ? "Runs one committed scripted episode in Python compiled to WebAssembly."
       : status.kind === "loading"
-        ? "Loading the Python runtime (the first run can take a moment)…"
+        ? "Loading the Python runtime. The first run takes a while."
         : status.kind === "running"
-          ? "Replaying the fixture and checking its final-state digest…"
+          ? "Replaying the fixture and checking its final-state digest."
           : status.kind === "success"
             ? `Verified ${status.decisions} decision windows. Digest ${status.digest.slice(0, 12)}…`
             : status.message;
@@ -63,7 +63,7 @@ export default function ReplayVerifier() {
         </button>
       </div>
       <p aria-live="polite">{description}</p>
-      {status.kind === "error" && <p className="replay-check-note">The rest of the site still works; this check needs the Pyodide files and fixture.</p>}
+      {status.kind === "error" && <p className="replay-check-note">This check needs the Pyodide files and the fixture. The rest of the site does not.</p>}
     </div>
   );
 }

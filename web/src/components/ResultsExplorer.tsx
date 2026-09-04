@@ -344,7 +344,7 @@ function CostScatter({
           textAnchor="end"
           className="chart-reference-label"
         >
-          scripted bar · pick-trader {fmt(scriptedBar, 1)}
+          pick-trader {fmt(scriptedBar, 1)}, the scripted bar
         </text>
         {/* A study with no oracle baseline draws no oracle line: pick-trader is
             then the only reference the data supports. */}
@@ -575,20 +575,18 @@ export default function ResultsExplorer({
             <p className="kicker">Panel results</p>
             <h2>Performance against the pick-trader bar.</h2>
             <p>
-              Paired seed-level differences for {benchmark.modelCount} published
-              model-plus-scaffold system{benchmark.modelCount === 1 ? "" : "s"}, on a{" "}
-              {presetSeedCount(data) ?? "private"}-seed private panel held under a
-              salted commitment. {registeredCount} models were pre-registered; 3 are
-              ineligible on model behavior and 2 were excluded on infrastructure
-              failures.
+              {benchmark.modelCount} published model{benchmark.modelCount === 1 ? "" : "s"},
+              each with its own scaffold, ran the same {presetSeedCount(data) ?? "private"}{" "}
+              private seeds. The seed list was committed under a salted hash before any run.{" "}
+              {registeredCount} models were registered up front. 3 were ruled ineligible for
+              how they behaved, and 2 were dropped after infrastructure failures.
             </p>
             <small>
-              Reference-only analysis against <code>pick-trader</code>: every eligible
-              model trails the bar, and the predeclared Holm-adjusted family test rejects
-              for{" "}
-              {benchmark.holmRejectedCount} of {benchmark.modelCount} rows at 0.05 over
-              a family of {registeredCount}. No model-to-model ranking is claimed. One
-              repeat per seed, so within-seed noise is unmeasured.
+              Every model is compared with <code>pick-trader</code> and nothing else. All
+              of them finish below it, and the predeclared Holm-adjusted test rejects for{" "}
+              {benchmark.holmRejectedCount} of {benchmark.modelCount} at 0.05 across the
+              family of {registeredCount}. We do not rank models against each other. Each
+              seed ran once, so within-seed noise is unmeasured.
             </small>
           </div>
           <dl className="result-readouts">
@@ -607,7 +605,7 @@ export default function ResultsExplorer({
               <dd>
                 {benchmark.modelsAboveBar}/{benchmark.modelCount}
               </dd>
-              <span>pick-trader · {fmt(benchmark.scriptedBar, 1)}</span>
+              <span>pick-trader scores {fmt(benchmark.scriptedBar, 1)}</span>
             </div>
           </dl>
         </div>
@@ -661,7 +659,7 @@ export default function ResultsExplorer({
               Score vs cost
             </button>
           </div>
-          <span className="toolbar-context">API lane · {filtered.length} visible</span>
+          <span className="toolbar-context">API lane, {filtered.length} visible</span>
           <div className="model-picker">
             <button
               type="button"
@@ -719,7 +717,7 @@ export default function ResultsExplorer({
               </h2>
               <p>
                 {view === "lift"
-                  ? `Paired lift versus pick-trader — the contrast frozen in the publication protocol. Whiskers are descriptive 95% bootstrap intervals; the predeclared Holm-adjusted test rejects for ${benchmark.holmRejectedCount} of ${benchmark.modelCount} rows.`
+                  ? `Paired lift against pick-trader, the one contrast the publication protocol froze. Whiskers are 95% bootstrap intervals and are descriptive only. The predeclared Holm-adjusted test rejects for ${benchmark.holmRejectedCount} of ${benchmark.modelCount} rows.`
                   : benchmark.modelsAboveBar === 0
                     ? "Price varies widely, but no observed mean reaches the pick-trader bar."
                     : `Price varies widely; ${benchmark.modelsAboveBar} of ${benchmark.modelCount} observed means reach the pick-trader bar.`}

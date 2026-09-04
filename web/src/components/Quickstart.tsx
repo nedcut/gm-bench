@@ -68,15 +68,15 @@ export default function Quickstart() {
       <div className="shell">
         <div className="section-head">
           <p className="kicker">Run</p>
-          <h2>Calibrate on baselines, then plug in an agent.</h2>
+          <h2>Run the scripted baselines first, then your agent.</h2>
           <p>
-            Use <code>--agent-cmd</code> for any subprocess. Observation and action schemas ship in{" "}
-            <code>schemas/</code>.
+            Any subprocess works with <code>--agent-cmd</code>. The observation and action
+            schemas are in <code>schemas/</code>.
           </p>
         </div>
         <div className="quickstart-grid">
-          <CommandCard title="1 · baselines" code={BASELINE_CMDS} />
-          <CommandCard title="2 · your agent" code={CANDIDATE_CMDS} />
+          <CommandCard title="1. Run the scripted baselines" code={BASELINE_CMDS} />
+          <CommandCard title="2. Evaluate your agent" code={CANDIDATE_CMDS} />
         </div>
         <div className="adapter-line">
           <strong>Compatible with</strong> Codex CLI, Claude Code, Ollama, OpenAI-compatible

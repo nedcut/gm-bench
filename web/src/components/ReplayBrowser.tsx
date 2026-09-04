@@ -119,9 +119,9 @@ export default function ReplayBrowser({ puzzles }: { puzzles: PuzzleSet }) {
           <p className="kicker">Replays</p>
           <h2>Follow one episode, decision by decision.</h2>
           <p>
-            The committed replay fixture is the benchmark's own reproducibility artifact:
-            the observation each decision saw, the actions it returned, and the moves the
-            league actually recorded. The verifier below replays the same file in the
+            The replay fixture is the file the benchmark commits so anyone can check a run.
+            It holds the observation each decision saw, the actions the agent returned, and
+            the moves the league recorded. The verifier below replays that file in your
             browser and checks its final-state digest.
           </p>
         </div>
@@ -308,9 +308,9 @@ export default function ReplayBrowser({ puzzles }: { puzzles: PuzzleSet }) {
                   </span>
                 </div>
                 <p>
-                  Every option below is a move some scripted policy actually made from the
-                  same observation, graded by the immediate change in score components.
-                  Illustrative content, not a benchmark artifact.
+                  Each option is a move a scripted policy actually made from this
+                  observation, graded by the immediate change in score. It is an
+                  illustration, not a benchmark artifact.
                 </p>
                 {context.cards.map((puzzle) => (
                   <PuzzleCard key={puzzle.id} puzzle={puzzle} />
@@ -323,8 +323,8 @@ export default function ReplayBrowser({ puzzles }: { puzzles: PuzzleSet }) {
               <div className="panel-title">
                 <h3>Transaction history</h3>
                 <span>
-                  {teams.get(fixture.user_team_id) ?? `team ${fixture.user_team_id}`} only ·
-                  rejected attempts marked
+                  {teams.get(fixture.user_team_id) ?? `team ${fixture.user_team_id}`} only, rejected
+                  attempts marked
                 </span>
               </div>
               {history.length === 0 ? (
