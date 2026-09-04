@@ -27,7 +27,10 @@ from web.scripts.build_leaderboard import (  # noqa: E402
     select_model_payloads,
 )
 
-V5_OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard-sota-v5.json"
+# The site imports ``leaderboard.json``; sota-v5 is what it now publishes.
+# The archived v2 dataset stays reproducible at ``leaderboard-sota-v2.json``,
+# which ``build_leaderboard.py`` still writes.
+V5_OUTPUT_PATH = ROOT / "web" / "src" / "data" / "leaderboard.json"
 V5_ARTIFACTS_DIR = ROOT / "results" / "leaderboard" / "sota-v5"
 
 

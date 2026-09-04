@@ -497,7 +497,7 @@ def run_rehearsal(workdir: Path, *, run_web_build: bool = True) -> dict[str, Any
     else:
         raise AssertionError("v5 release packaging was not authorization-locked")
 
-    site_path = ROOT / "web" / "src" / "data" / "leaderboard.json"
+    site_path = ROOT / "web" / "src" / "data" / "leaderboard-sota-v2.json"
     before = hashlib.sha256(site_path.read_bytes()).hexdigest()
     accounted_for = run_accounted_for_proof(workdir)
     site_result = {"status": "passed", "contract": "sota-v2", "v5_selected": False}

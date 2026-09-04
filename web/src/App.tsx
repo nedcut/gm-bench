@@ -28,7 +28,7 @@ export default function App() {
       <a className="skip-link" href="#results">
         Skip to results
       </a>
-      <Nav />
+      <Nav contract={leaderboard.contract?.benchmark_version} />
       <main>
         <section className="homepage-lead" aria-labelledby="page-title">
           <div className="shell">

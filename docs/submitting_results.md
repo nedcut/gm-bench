@@ -7,14 +7,16 @@ unless it is called out as a convention. Read
 [production_benchmark.md](production_benchmark.md) first for the two result tiers
 (`public-leaderboard`, strict versioned policies) and the contract freeze.
 
-> **Current status:** the public site is the frozen `sota-v2` phase-one study.
-> Development HEAD emits `sota-v5`, and the 3-repeat configuration below is the
-> generic strict submission flow for that current contract. It is not the
-> official v5 publication matrix. That separate, pre-registered lane is a
-> private 16-seed × 1-repeat panel (`config/sota_v5_lane.json`) that is not
-> authorized to publish and is not open to third-party submission. A generic v5
-> row can be validated, but do not add one to `results/leaderboard/` expecting
-> the frozen v2 site to publish it.
+> **Current status:** the `sota-v5` publication panel was authorized and
+> released on 2026-09-03 (`sota-v5-publication-2026-09-03`); its rows live in
+> `results/leaderboard/sota-v5/`. The 3-repeat configuration below is the
+> generic strict submission flow for `sota-v5`. It is not the official v5
+> publication matrix. That separate, pre-registered lane is a private 29-seed ×
+> 1-repeat panel (`config/sota_v5_lane.json`, panel width frozen in
+> `docs/bench_v6_spec.md`) whose seed values are held out of the repository, so
+> it is not open to third-party submission. A generic v5 row can be validated
+> and will be checked in CI, but the public site still serves the frozen
+> `sota-v2` phase-one study and will not publish it.
 
 ## Produce the row
 
@@ -92,8 +94,8 @@ Both policies require these; the values are read straight from the payload:
 
 | Check | `public-leaderboard` | `sota-v5` |
 |---|---|---|
-| Candidate repeats | ≥ 1 | ≥ 1 (the official private v5 estimand); generic public submissions should use 3 |
-| Seed count | ≥ 1 | ≥ 8 (full leaderboard panel) |
+| Candidate repeats | ≥ 1 | ≥ 1 (the official private v5 panel ran 1 repeat per seed); generic public submissions should use 3 |
+| Seed count | ≥ 1 | ≥ 8 (the full public `leaderboard` preset panel, seeds 11-18); the official v5 publication panel instead ran 29 private seeds |
 | Decision failure rate | ≤ 20% | ≤ 2% |
 | `benchmark_contract` block | warning if missing | **required**, must match current source exactly |
 | Seed-panel provenance | warning if missing | **required** |

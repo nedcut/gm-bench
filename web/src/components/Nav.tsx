@@ -38,7 +38,7 @@ function ThemeToggle() {
   );
 }
 
-export default function Nav() {
+export default function Nav({ contract }: { contract?: string }) {
   const [active, setActive] = useState(() =>
     typeof window === "undefined" ? "#results" : window.location.hash || "#results",
   );
@@ -55,7 +55,9 @@ export default function Nav() {
         <a href="#results" className="brand">
           <Logo />
           GM-Bench
-          <span className="brand-tag">sota-v2</span>
+          {/* The release label is data, not decoration: it must move with the
+              published dataset rather than be edited by hand. */}
+          <span className="brand-tag">{contract ?? "unversioned"}</span>
         </a>
         <nav className="nav-links" aria-label="Primary navigation">
           {LINKS.map((link) => (

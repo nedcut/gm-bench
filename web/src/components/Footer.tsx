@@ -16,13 +16,13 @@ export default function Footer({ data }: { data: LeaderboardData }) {
         </div>
         <div className="footer-links">
           <a href="https://github.com/nedcut/gm-bench">GitHub</a>
-          <a href="https://github.com/nedcut/gm-bench/blob/main/docs/blog/sota-v2-findings.md">
+          <a href="https://github.com/nedcut/gm-bench/blob/main/docs/blog/sota-v5-findings.md">
             Findings
           </a>
-          <a href="https://github.com/nedcut/gm-bench/releases/tag/sota-v2-phase-one-2026-07-19">
+          <a href="https://github.com/nedcut/gm-bench/releases/tag/sota-v5-publication-2026-09-03">
             Evidence
           </a>
-          <a href="https://github.com/nedcut/gm-bench/blob/main/docs/REPRODUCING_SOTA_V2_RELEASE.md">
+          <a href="https://github.com/nedcut/gm-bench/blob/main/docs/REPRODUCING_SOTA_V5_RELEASE.md">
             Reproduce
           </a>
           <a href="https://github.com/nedcut/gm-bench/blob/main/docs/PUBLISH_READINESS.md">
@@ -32,7 +32,7 @@ export default function Footer({ data }: { data: LeaderboardData }) {
         <span className="mono">
           {data.contract
             ? `${data.contract.benchmark_version} · ${data.contract.contract_fingerprint}`
-            : "sota-v2"}
+            : "unversioned"}
           {data.updated ? ` · updated ${data.updated}` : ""}
         </span>
       </div>

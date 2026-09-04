@@ -2,1004 +2,1131 @@
   "baselines": [
     {
       "agent": "pick-trader",
-      "mean_score": 411.619,
-      "score_stddev": 50.64
+      "mean_score": 247.109,
+      "score_stddev": 40.133
     },
     {
       "agent": "strategic",
-      "mean_score": 402.025,
-      "score_stddev": 49.4
+      "mean_score": 242.333,
+      "score_stddev": 37.107
     },
     {
       "agent": "shrewd",
-      "mean_score": 371.769,
-      "score_stddev": 47.86
-    },
-    {
-      "agent": "value",
-      "mean_score": 354.619,
-      "score_stddev": 31.492
+      "mean_score": 228.472,
+      "score_stddev": 25.934
     },
     {
       "agent": "win-now",
-      "mean_score": 275.834,
-      "score_stddev": 45.055
+      "mean_score": 178.025,
+      "score_stddev": 29.636
+    },
+    {
+      "agent": "value",
+      "mean_score": 173.068,
+      "score_stddev": 33.524
     },
     {
       "agent": "conservative",
-      "mean_score": 139.03,
-      "score_stddev": 18.297
+      "mean_score": 122.731,
+      "score_stddev": 14.011
     },
     {
       "agent": "rebuild",
-      "mean_score": 138.745,
-      "score_stddev": 15.887
+      "mean_score": 121.891,
+      "score_stddev": 15.819
     },
     {
       "agent": "random",
-      "mean_score": 96.715,
-      "score_stddev": 18.063
+      "mean_score": 88.796,
+      "score_stddev": 14.931
     }
   ],
   "cli_harness_models": [],
   "contract": {
-    "action_protocol_version": "actions-v2",
-    "benchmark_version": "sota-v2",
-    "contract_fingerprint": "558e8f35ea1d66b9",
-    "observation_version": "observation-v1",
+    "action_protocol_version": "actions-v3",
+    "benchmark_version": "sota-v5",
+    "contract_fingerprint": "a600b7da0c302231",
+    "observation_version": "observation-v3",
     "scoring_scale_fingerprint": "05a60ff4f691e734",
     "scoring_version": "score-v1",
-    "simulator_version": "sim-v2"
+    "simulator_version": "sim-v4"
   },
   "excluded_models": [],
   "headroom": {
-    "best_model": 231.851,
-    "oracle": 431.153,
-    "pick_trader": 411.619,
-    "random": 96.715
+    "best_model": 223.707,
+    "oracle": null,
+    "pick_trader": 247.109,
+    "random": 88.796
   },
   "models": [
     {
-      "api_latency_s_per_decision": 13.5,
-      "artifact_sha256": "aa8f4bdf5228664b7d95e2bb749b82e2954920551b7cca47a5e9a0c5f85aa4c6",
-      "baseline_panel_mean_score": 273.794,
-      "benchmark_version": "sota-v2",
-      "contract_fingerprint": "558e8f35ea1d66b9",
-      "cost_per_episode_usd": 0.3161,
-      "cost_usd": 7.586279,
+      "api_latency_s_per_decision": 1.62,
+      "artifact_sha256": "d50b03048f0633a13ec865e7918d5463492c4b62d9fcce3ab5c0899815944c7f",
+      "baseline_panel_mean_score": 175.303,
+      "benchmark_version": "sota-v5",
+      "contract_fingerprint": "a600b7da0c302231",
+      "cost_per_episode_usd": 0.015,
+      "cost_usd": 0.436121,
       "decision_failure_rate": 0.0,
-      "decision_points": 480,
-      "decisions_with_usage": 480,
+      "decision_points": 580,
+      "decisions_with_usage": 580,
       "failed_decisions": 0,
-      "failed_queries": 453,
+      "failed_queries": 0,
       "full_panel_ci95": [
-        -66.061,
-        -16.342
+        -59.882,
+        -40.482
       ],
-      "full_panel_lift": -41.944,
+      "full_panel_lift": -50.401,
       "full_panel_significant_at_95": true,
-      "harness_latency_s_per_decision": 13.61,
-      "holm_adjusted_p_value": 0.078125,
-      "holm_reject_at_0_05": false,
-      "id": "openrouter:meta/muse-spark-1.1",
-      "illegal_actions": 51,
-      "input_tokens_per_decision": 8935.6,
+      "harness_latency_s_per_decision": 1.7,
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "id": "openrouter:deepseek/deepseek-v4-flash-0731",
+      "illegal_actions": 156,
+      "input_tokens_per_decision": 5244.8,
       "lane": "api",
-      "lift_vs_best_baseline": -179.768,
-      "mean_score": 231.851,
-      "mean_strategy_score": 237.163,
+      "lift_vs_best_baseline": -122.207,
+      "malformed_decisions": 0,
+      "malformed_rate": 0.0,
+      "mean_score": 124.902,
+      "mean_strategy_score": 138.35,
       "mechanic_breakdown": {
         "cap_free_agency": {
-          "accepted": 279,
-          "rejected": 30
+          "accepted": 147,
+          "rejected": 0
         },
         "draft": {
-          "accepted": 1795,
-          "rejected": 12
+          "accepted": 1980,
+          "rejected": 60
         },
         "information_memory": {
-          "accepted": 543,
-          "rejected": 453
+          "accepted": 376,
+          "rejected": 0
         },
         "lineup": {
-          "accepted": 219,
-          "rejected": 12
+          "accepted": 233,
+          "rejected": 151
         },
         "trades": {
-          "accepted": 653,
-          "rejected": 42
+          "accepted": 717,
+          "rejected": 2
         }
       },
-      "model": "meta/muse-spark-1.1",
+      "model": "deepseek/deepseek-v4-flash-0731",
       "output_token_cap": 4096,
-      "output_tokens_per_decision": 1148.7,
-      "per_seed_scores": {
-        "11": 248.494,
-        "12": 305.737,
-        "13": 274.607,
-        "14": 222.254,
-        "15": 188.62,
-        "16": 181.749,
-        "17": 207.93,
-        "18": 225.417
-      },
+      "output_tokens_per_decision": 87.1,
       "primary_ci95": [
-        -209.560916,
-        -147.19875
+        -138.375586,
+        -106.702931
       ],
-      "primary_lift": -179.768,
-      "protocol_penalty": 127.5,
+      "primary_lift": -122.206931,
+      "protocol_penalty": 390.0,
       "protocol_repair_attempts": 0,
       "protocol_repairs_succeeded": 0,
       "provider": "openrouter",
       "publication_eligible": true,
       "publication_issues": [],
-      "raw_artifact_sha256": "7b664cbd57aab8975905a08ff057cf528211fd67efc52aac0ffde5b6d829e030",
-      "route": "openrouter \u2192 Meta | meta/muse-spark-1.1-20260709",
-      "score_stddev": 39.764,
+      "raw_artifact_sha256": "b5daef3a328b003e81118a08f8b2783496491696c72b057d38eaf13f251fa7dd",
+      "route": "openrouter \u2192 Together | deepseek/deepseek-v4-flash-20260731 (together)",
+      "score_stddev": 29.754,
       "seasons": 5,
-      "seed_count": 8,
-      "seed_panel": "public-leaderboard",
-      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
-      "seed_win_rate": 0.125,
-      "seeds": [
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ],
+      "seed_count": 29,
+      "seed_panel": "private-env",
+      "seed_panel_hash": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11",
+      "seed_win_rate": 0.0,
+      "seeds": null,
       "session": false,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
-        "historical scaffold fingerprint retained but cannot be re-derived from current source",
         "candidate has illegal actions; score includes protocol penalties",
-        "candidate has 453 failed queries across 480 decisions (0.94 per decision); misfired scout/inspect lookups may indicate the model is not reading query errors",
         "candidate does not beat the strongest scripted baseline"
       ],
-      "tier": 1,
-      "tokens_per_decision": 10084.2,
-      "total_tokens": 4840432,
-      "within_seed_score_stddev": 56.741
+      "tokens_per_decision": 5331.9,
+      "total_tokens": 3092507,
+      "unrecoverable_decisions": 0,
+      "unrecoverable_rate": 0.0
     },
     {
-      "api_latency_s_per_decision": 13.03,
-      "artifact_sha256": "cf7912a55ec91468a339bfa660ef3b55edf4d11c286202bab6574d4f642fd00f",
-      "baseline_panel_mean_score": 273.794,
-      "benchmark_version": "sota-v2",
-      "contract_fingerprint": "558e8f35ea1d66b9",
-      "cost_per_episode_usd": 0.0534,
-      "cost_usd": 1.281193,
-      "decision_failure_rate": 0.017,
-      "decision_points": 480,
-      "decisions_with_usage": 480,
-      "failed_decisions": 8,
-      "failed_queries": 209,
+      "api_latency_s_per_decision": 1.02,
+      "artifact_sha256": "f967120eb77f9b732ad9d60b287f59c3c5952876ed902330bff864c7378b8cec",
+      "baseline_panel_mean_score": 175.303,
+      "benchmark_version": "sota-v5",
+      "contract_fingerprint": "a600b7da0c302231",
+      "cost_per_episode_usd": 0.0158,
+      "cost_usd": 0.458766,
+      "decision_failure_rate": 0.0,
+      "decision_points": 580,
+      "decisions_with_usage": 580,
+      "failed_decisions": 0,
+      "failed_queries": 0,
       "full_panel_ci95": [
-        -81.974,
-        -30.464
+        -37.564,
+        -22.084
       ],
-      "full_panel_lift": -56.255,
+      "full_panel_lift": -29.713,
       "full_panel_significant_at_95": true,
-      "harness_latency_s_per_decision": 13.2,
-      "holm_adjusted_p_value": 0.078125,
-      "holm_reject_at_0_05": false,
-      "id": "openrouter:z-ai/glm-5.2",
-      "illegal_actions": 168,
-      "input_tokens_per_decision": 10354.4,
+      "harness_latency_s_per_decision": 1.09,
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "id": "openrouter:google/gemini-3.1-flash-lite",
+      "illegal_actions": 26,
+      "input_tokens_per_decision": 5789.4,
       "lane": "api",
-      "lift_vs_best_baseline": -194.08,
-      "mean_score": 217.539,
-      "mean_strategy_score": 235.039,
+      "lift_vs_best_baseline": -101.519,
+      "malformed_decisions": 2,
+      "malformed_rate": 0.003,
+      "mean_score": 145.59,
+      "mean_strategy_score": 147.832,
       "mechanic_breakdown": {
         "cap_free_agency": {
-          "accepted": 229,
-          "rejected": 76
-        },
-        "draft": {
-          "accepted": 1741,
-          "rejected": 92
-        },
-        "information_memory": {
-          "accepted": 1042,
-          "rejected": 199
-        },
-        "lineup": {
-          "accepted": 195,
-          "rejected": 76
-        },
-        "trades": {
-          "accepted": 595,
-          "rejected": 55
-        }
-      },
-      "model": "z-ai/glm-5.2",
-      "output_token_cap": 4096,
-      "output_tokens_per_decision": 410.0,
-      "per_seed_scores": {
-        "11": 198.909,
-        "12": 210.673,
-        "13": 216.247,
-        "14": 235.725,
-        "15": 200.563,
-        "16": 147.347,
-        "17": 244.64,
-        "18": 286.21
-      },
-      "primary_ci95": [
-        -239.071375,
-        -144.18575
-      ],
-      "primary_lift": -194.079625,
-      "protocol_penalty": 420.0,
-      "protocol_repair_attempts": 29,
-      "protocol_repairs_succeeded": 21,
-      "provider": "openrouter",
-      "publication_eligible": true,
-      "publication_issues": [],
-      "raw_artifact_sha256": "36d1ed42d44f97041253f162d8173d82d58b1ba12c58131ffd510bd180df0727",
-      "route": "openrouter \u2192 Novita | z-ai/glm-5.2-20260616 (novita/fp8)",
-      "score_stddev": 37.736,
-      "seasons": 5,
-      "seed_count": 8,
-      "seed_panel": "public-leaderboard",
-      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
-      "seed_win_rate": 0.25,
-      "seeds": [
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ],
-      "session": false,
-      "sota_v2_eligible": true,
-      "sota_v2_issues": [
-        "historical scaffold fingerprint retained but cannot be re-derived from current source",
-        "candidate has illegal actions; score includes protocol penalties",
-        "candidate used adapter fallback/error output on at least one decision",
-        "candidate has 209 failed queries across 480 decisions (0.44 per decision); misfired scout/inspect lookups may indicate the model is not reading query errors",
-        "candidate does not beat the strongest scripted baseline"
-      ],
-      "tier": 1,
-      "tokens_per_decision": 10764.4,
-      "total_tokens": 5166907,
-      "within_seed_score_stddev": 38.667
-    },
-    {
-      "api_latency_s_per_decision": 1.49,
-      "artifact_sha256": "082b1964fcccecf7e5ba37ff31ca76a3cf7256052dc1237fe198004fa9eeebfb",
-      "baseline_panel_mean_score": 273.794,
-      "benchmark_version": "sota-v2",
-      "contract_fingerprint": "558e8f35ea1d66b9",
-      "cost_per_episode_usd": 0.2634,
-      "cost_usd": 6.320513,
-      "decision_failure_rate": 0.013,
-      "decision_points": 480,
-      "decisions_with_usage": 480,
-      "failed_decisions": 6,
-      "failed_queries": 5,
-      "full_panel_ci95": [
-        -89.586,
-        -27.162
-      ],
-      "full_panel_lift": -58.17,
-      "full_panel_significant_at_95": true,
-      "harness_latency_s_per_decision": 1.59,
-      "holm_adjusted_p_value": 0.078125,
-      "holm_reject_at_0_05": false,
-      "id": "openrouter:google/gemini-3.5-flash",
-      "illegal_actions": 18,
-      "input_tokens_per_decision": 8708.5,
-      "lane": "api",
-      "lift_vs_best_baseline": -195.995,
-      "mean_score": 215.624,
-      "mean_strategy_score": 217.499,
-      "mechanic_breakdown": {
-        "cap_free_agency": {
-          "accepted": 195,
-          "rejected": 3
-        },
-        "draft": {
-          "accepted": 1507,
-          "rejected": 2
-        },
-        "information_memory": {
-          "accepted": 7,
-          "rejected": 5
-        },
-        "lineup": {
           "accepted": 183,
-          "rejected": 16
+          "rejected": 0
+        },
+        "draft": {
+          "accepted": 1952,
+          "rejected": 29
+        },
+        "information_memory": {
+          "accepted": 428,
+          "rejected": 0
+        },
+        "lineup": {
+          "accepted": 108,
+          "rejected": 26
         },
         "trades": {
-          "accepted": 571,
+          "accepted": 707,
           "rejected": 0
         }
       },
-      "model": "google/gemini-3.5-flash",
+      "model": "google/gemini-3.1-flash-lite",
       "output_token_cap": 4096,
-      "output_tokens_per_decision": 62.2,
-      "per_seed_scores": {
-        "11": 179.596,
-        "12": 228.073,
-        "13": 218.597,
-        "14": 187.538,
-        "15": 161.742,
-        "16": 249.007,
-        "17": 259.947,
-        "18": 240.491
-      },
+      "output_tokens_per_decision": 89.7,
       "primary_ci95": [
-        -241.056333,
-        -143.75275
+        -117.367724,
+        -86.558069
       ],
-      "primary_lift": -195.994875,
-      "protocol_penalty": 45.0,
-      "protocol_repair_attempts": 52,
-      "protocol_repairs_succeeded": 46,
+      "primary_lift": -101.518517,
+      "protocol_penalty": 65.0,
+      "protocol_repair_attempts": 0,
+      "protocol_repairs_succeeded": 0,
       "provider": "openrouter",
       "publication_eligible": true,
       "publication_issues": [],
-      "raw_artifact_sha256": "2fd28b3ab507e76dc512ead32564b0328635b5b66f0a330d71a470f3b1b8a786",
-      "route": "openrouter \u2192 Google AI Studio | google/gemini-3.5-flash-20260519 (google-ai-studio)",
-      "score_stddev": 33.263,
+      "raw_artifact_sha256": "1ba26a9237b5b6d6ab9881208f1a5fedca099ef36da60a069557dbae0f3e801a",
+      "route": "openrouter \u2192 Google AI Studio | google/gemini-3.1-flash-lite-20260507 (google-ai-studio/flex)",
+      "score_stddev": 22.145,
       "seasons": 5,
-      "seed_count": 8,
-      "seed_panel": "public-leaderboard",
-      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
-      "seed_win_rate": 0.125,
-      "seeds": [
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ],
+      "seed_count": 29,
+      "seed_panel": "private-env",
+      "seed_panel_hash": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11",
+      "seed_win_rate": 0.069,
+      "seeds": null,
       "session": false,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
-        "historical scaffold fingerprint retained but cannot be re-derived from current source",
         "candidate has illegal actions; score includes protocol penalties",
-        "candidate used adapter fallback/error output on at least one decision",
         "candidate does not beat the strongest scripted baseline"
       ],
-      "tier": 1,
-      "tokens_per_decision": 8770.7,
-      "total_tokens": 4209929,
-      "within_seed_score_stddev": 41.754
+      "tokens_per_decision": 5879.1,
+      "total_tokens": 3409886,
+      "unrecoverable_decisions": 0,
+      "unrecoverable_rate": 0.0
     },
     {
-      "api_latency_s_per_decision": 4.2,
-      "artifact_sha256": "cd0d7d7cd0a3cdf9e59a739ce097cbbde90d249e39c5e7d8b11e7a69c171cf3b",
-      "baseline_panel_mean_score": 273.794,
-      "benchmark_version": "sota-v2",
-      "contract_fingerprint": "558e8f35ea1d66b9",
-      "cost_per_episode_usd": 0.0,
-      "cost_usd": 0.0,
-      "decision_failure_rate": 0.0,
-      "decision_points": 480,
-      "decisions_with_usage": 480,
-      "failed_decisions": 0,
-      "failed_queries": 36,
+      "api_latency_s_per_decision": 2.27,
+      "artifact_sha256": "aaac5a46260b18bac94a6957a6387871f44bda13b1c81211d1d984c462b52132",
+      "baseline_panel_mean_score": 175.303,
+      "benchmark_version": "sota-v5",
+      "contract_fingerprint": "a600b7da0c302231",
+      "cost_per_episode_usd": 0.0649,
+      "cost_usd": 1.88186,
+      "decision_failure_rate": 0.002,
+      "decision_points": 580,
+      "decisions_with_usage": 580,
+      "failed_decisions": 1,
+      "failed_queries": 0,
       "full_panel_ci95": [
-        -91.535,
-        -63.891
+        36.251,
+        62.577
       ],
-      "full_panel_lift": -77.954,
+      "full_panel_lift": 48.404,
       "full_panel_significant_at_95": true,
-      "harness_latency_s_per_decision": 4.29,
-      "holm_adjusted_p_value": 0.078125,
+      "harness_latency_s_per_decision": 2.34,
+      "holm_adjusted_p_value": 0.221066,
       "holm_reject_at_0_05": false,
-      "id": "openrouter:tencent/hy3:free",
-      "illegal_actions": 10,
-      "input_tokens_per_decision": 7638.7,
+      "id": "openrouter:google/gemini-3.7-flash",
+      "illegal_actions": 12,
+      "input_tokens_per_decision": 6248.2,
       "lane": "api",
-      "lift_vs_best_baseline": -215.778,
-      "mean_score": 195.841,
-      "mean_strategy_score": 196.883,
+      "lift_vs_best_baseline": -23.401,
+      "malformed_decisions": 1,
+      "malformed_rate": 0.002,
+      "mean_score": 223.707,
+      "mean_strategy_score": 224.742,
       "mechanic_breakdown": {
         "cap_free_agency": {
-          "accepted": 203,
+          "accepted": 364,
           "rejected": 1
         },
         "draft": {
-          "accepted": 1684,
-          "rejected": 18
+          "accepted": 2175,
+          "rejected": 0
         },
         "information_memory": {
-          "accepted": 411,
-          "rejected": 35
+          "accepted": 545,
+          "rejected": 0
         },
         "lineup": {
-          "accepted": 165,
-          "rejected": 9
+          "accepted": 436,
+          "rejected": 11
         },
         "trades": {
-          "accepted": 594,
+          "accepted": 688,
           "rejected": 0
         }
       },
-      "model": "tencent/hy3:free",
+      "model": "google/gemini-3.7-flash",
       "output_token_cap": 4096,
-      "output_tokens_per_decision": 104.6,
-      "per_seed_scores": {
-        "11": 175.823,
-        "12": 206.05,
-        "13": 169.769,
-        "14": 213.247,
-        "15": 188.015,
-        "16": 218.39,
-        "17": 184.724,
-        "18": 210.71
-      },
+      "output_tokens_per_decision": 480.8,
       "primary_ci95": [
-        -252.634708,
-        -179.442375
+        -43.481586,
+        -2.754345
       ],
-      "primary_lift": -215.777958,
-      "protocol_penalty": 25.0,
-      "protocol_repair_attempts": 3,
-      "protocol_repairs_succeeded": 3,
-      "provider": "openrouter",
-      "publication_eligible": true,
-      "publication_issues": [],
-      "raw_artifact_sha256": "e4fdd8876e631be94466352fe23e795d122b3a85e70dbb30b0c2c84951935eec",
-      "route": "openrouter \u2192 Novita | tencent/hy3-20260706:free (novita)",
-      "score_stddev": 17.328,
-      "seasons": 5,
-      "seed_count": 8,
-      "seed_panel": "public-leaderboard",
-      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
-      "seed_win_rate": 0.0,
-      "seeds": [
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ],
-      "session": false,
-      "sota_v2_eligible": true,
-      "sota_v2_issues": [
-        "historical scaffold fingerprint retained but cannot be re-derived from current source",
-        "candidate has illegal actions; score includes protocol penalties",
-        "candidate does not beat the strongest scripted baseline"
-      ],
-      "tier": 1,
-      "tokens_per_decision": 7743.3,
-      "total_tokens": 3716793,
-      "within_seed_score_stddev": 32.707
-    },
-    {
-      "api_latency_s_per_decision": 3.96,
-      "artifact_sha256": "de34dcb82a8d5c7823d5ca4670cb01d2f4ed5f0e32c718545c89bbfd785f1da5",
-      "baseline_panel_mean_score": 273.794,
-      "benchmark_version": "sota-v2",
-      "contract_fingerprint": "558e8f35ea1d66b9",
-      "cost_per_episode_usd": 0.0539,
-      "cost_usd": 1.293793,
-      "decision_failure_rate": 0.0,
-      "decision_points": 480,
-      "decisions_with_usage": 480,
-      "failed_decisions": 0,
-      "failed_queries": 44,
-      "full_panel_ci95": [
-        -116.78,
-        -73.081
-      ],
-      "full_panel_lift": -98.275,
-      "full_panel_significant_at_95": true,
-      "harness_latency_s_per_decision": 4.05,
-      "holm_adjusted_p_value": 0.078125,
-      "holm_reject_at_0_05": false,
-      "id": "openrouter:qwen/qwen3.7-plus",
-      "illegal_actions": 136,
-      "input_tokens_per_decision": 7845.6,
-      "lane": "api",
-      "lift_vs_best_baseline": -236.099,
-      "mean_score": 175.52,
-      "mean_strategy_score": 189.686,
-      "mechanic_breakdown": {
-        "cap_free_agency": {
-          "accepted": 141,
-          "rejected": 82
-        },
-        "draft": {
-          "accepted": 1539,
-          "rejected": 3
-        },
-        "information_memory": {
-          "accepted": 321,
-          "rejected": 44
-        },
-        "lineup": {
-          "accepted": 184,
-          "rejected": 69
-        },
-        "trades": {
-          "accepted": 610,
-          "rejected": 4
-        }
-      },
-      "model": "qwen/qwen3.7-plus",
-      "output_token_cap": 4096,
-      "output_tokens_per_decision": 194.1,
-      "per_seed_scores": {
-        "11": 147.156,
-        "12": 162.474,
-        "13": 165.137,
-        "14": 213.92,
-        "15": 175.608,
-        "16": 140.678,
-        "17": 217.295,
-        "18": 181.889
-      },
-      "primary_ci95": [
-        -277.546,
-        -187.278
-      ],
-      "primary_lift": -236.099167,
-      "protocol_penalty": 340.0,
+      "primary_lift": -23.401483,
+      "protocol_penalty": 30.0,
       "protocol_repair_attempts": 0,
       "protocol_repairs_succeeded": 0,
       "provider": "openrouter",
       "publication_eligible": true,
       "publication_issues": [],
-      "raw_artifact_sha256": "e544be5ae70d7bbb5b228fab3742d07e89504a286a3ca244a01eb68924acf6c3",
-      "route": "openrouter \u2192 Alibaba | qwen/qwen3.7-plus-20260602 (alibaba)",
-      "score_stddev": 26.355,
+      "raw_artifact_sha256": "5ee0576189ef2462aee361db4aacc3411a736f3a9db444fa604acec3787f86ac",
+      "route": "openrouter \u2192 Google AI Studio | google/gemini-3.7-flash-20260813 (google-ai-studio/flex)",
+      "score_stddev": 40.515,
       "seasons": 5,
-      "seed_count": 8,
-      "seed_panel": "public-leaderboard",
-      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
-      "seed_win_rate": 0.0,
-      "seeds": [
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ],
+      "seed_count": 29,
+      "seed_panel": "private-env",
+      "seed_panel_hash": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11",
+      "seed_win_rate": 0.966,
+      "seeds": null,
       "session": false,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
-        "historical scaffold fingerprint retained but cannot be re-derived from current source",
         "candidate has illegal actions; score includes protocol penalties",
+        "candidate used adapter fallback/error output on at least one decision",
         "candidate does not beat the strongest scripted baseline"
       ],
-      "tier": 1,
-      "tokens_per_decision": 8039.6,
-      "total_tokens": 3859013,
-      "within_seed_score_stddev": 29.607
+      "tokens_per_decision": 6729.0,
+      "total_tokens": 3902805,
+      "unrecoverable_decisions": 1,
+      "unrecoverable_rate": 0.002
     },
     {
-      "api_latency_s_per_decision": 1.45,
-      "artifact_sha256": "16da22113c2447cf21fc3f6fc3ec94eb21531380534df3599e43e7fb5cae89e1",
-      "baseline_panel_mean_score": 273.794,
-      "benchmark_version": "sota-v2",
-      "contract_fingerprint": "558e8f35ea1d66b9",
-      "cost_per_episode_usd": 0.195,
-      "cost_usd": 4.680175,
-      "decision_failure_rate": 0.0,
-      "decision_points": 480,
-      "decisions_with_usage": 480,
-      "failed_decisions": 0,
-      "failed_queries": 5,
+      "api_latency_s_per_decision": 6.59,
+      "artifact_sha256": "a9e7c39ddca293ec0d71ccbfa4214105b8121676a8c632d5557ed2eb5b18e7a3",
+      "baseline_panel_mean_score": 175.303,
+      "benchmark_version": "sota-v5",
+      "contract_fingerprint": "a600b7da0c302231",
+      "cost_per_episode_usd": 0.0208,
+      "cost_usd": 0.602894,
+      "decision_failure_rate": 0.003,
+      "decision_points": 580,
+      "decisions_with_usage": 580,
+      "failed_decisions": 2,
+      "failed_queries": 1,
       "full_panel_ci95": [
-        -114.217,
-        -83.091
+        -22.611,
+        -1.9
       ],
-      "full_panel_lift": -99.869,
+      "full_panel_lift": -12.061,
       "full_panel_significant_at_95": true,
-      "harness_latency_s_per_decision": 1.54,
-      "holm_adjusted_p_value": 0.078125,
-      "holm_reject_at_0_05": false,
-      "id": "openrouter:openai/gpt-5.6-luna",
-      "illegal_actions": 126,
-      "input_tokens_per_decision": 7511.5,
+      "harness_latency_s_per_decision": 15.04,
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "id": "openrouter:z-ai/glm-5.3-flash",
+      "illegal_actions": 69,
+      "input_tokens_per_decision": 5427.5,
       "lane": "api",
-      "lift_vs_best_baseline": -237.693,
-      "mean_score": 173.926,
-      "mean_strategy_score": 187.051,
+      "lift_vs_best_baseline": -83.866,
+      "malformed_decisions": 3,
+      "malformed_rate": 0.005,
+      "mean_score": 163.242,
+      "mean_strategy_score": 169.191,
       "mechanic_breakdown": {
         "cap_free_agency": {
-          "accepted": 94,
-          "rejected": 12
+          "accepted": 453,
+          "rejected": 4
         },
         "draft": {
-          "accepted": 1764,
-          "rejected": 133
+          "accepted": 2147,
+          "rejected": 34
         },
         "information_memory": {
-          "accepted": 339,
-          "rejected": 5
+          "accepted": 575,
+          "rejected": 0
         },
         "lineup": {
-          "accepted": 197,
-          "rejected": 123
+          "accepted": 466,
+          "rejected": 44
         },
         "trades": {
-          "accepted": 583,
+          "accepted": 854,
+          "rejected": 25
+        }
+      },
+      "model": "z-ai/glm-5.3-flash",
+      "output_token_cap": 4096,
+      "output_tokens_per_decision": 450.7,
+      "primary_ci95": [
+        -100.697655,
+        -67.237103
+      ],
+      "primary_lift": -83.866448,
+      "protocol_penalty": 172.5,
+      "protocol_repair_attempts": 0,
+      "protocol_repairs_succeeded": 0,
+      "provider": "openrouter",
+      "publication_eligible": true,
+      "publication_issues": [],
+      "raw_artifact_sha256": "bf598bbdeac35fe77b629a93af694e6f387bd726a0c03646756fb5f7012960f9",
+      "route": "openrouter \u2192 Fireworks | z-ai/glm-5.3-flash-20260826 (fireworks)",
+      "score_stddev": 26.746,
+      "seasons": 5,
+      "seed_count": 29,
+      "seed_panel": "private-env",
+      "seed_panel_hash": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11",
+      "seed_win_rate": 0.31,
+      "seeds": null,
+      "session": false,
+      "sota_v2_eligible": true,
+      "sota_v2_issues": [
+        "candidate has illegal actions; score includes protocol penalties",
+        "candidate used adapter fallback/error output on at least one decision",
+        "candidate does not beat the strongest scripted baseline"
+      ],
+      "tokens_per_decision": 5878.2,
+      "total_tokens": 3409363,
+      "unrecoverable_decisions": 2,
+      "unrecoverable_rate": 0.003
+    },
+    {
+      "api_latency_s_per_decision": 1.49,
+      "artifact_sha256": "1a5ef72e86ce431a694b1d712b1e4ba59a57bdf276407556937809de56514464",
+      "baseline_panel_mean_score": 175.303,
+      "benchmark_version": "sota-v5",
+      "contract_fingerprint": "a600b7da0c302231",
+      "cost_per_episode_usd": 0.0845,
+      "cost_usd": 2.44988,
+      "decision_failure_rate": 0.002,
+      "decision_points": 580,
+      "decisions_with_usage": 580,
+      "failed_decisions": 1,
+      "failed_queries": 0,
+      "full_panel_ci95": [
+        -60.686,
+        -41.783
+      ],
+      "full_panel_lift": -51.31,
+      "full_panel_significant_at_95": true,
+      "harness_latency_s_per_decision": 1.56,
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "id": "openrouter:openai/gpt-5.4-mini",
+      "illegal_actions": 333,
+      "input_tokens_per_decision": 5022.9,
+      "lane": "api",
+      "lift_vs_best_baseline": -123.115,
+      "malformed_decisions": 1,
+      "malformed_rate": 0.002,
+      "mean_score": 123.993,
+      "mean_strategy_score": 152.7,
+      "mechanic_breakdown": {
+        "cap_free_agency": {
+          "accepted": 52,
+          "rejected": 1
+        },
+        "draft": {
+          "accepted": 1762,
+          "rejected": 30
+        },
+        "information_memory": {
+          "accepted": 352,
           "rejected": 0
+        },
+        "lineup": {
+          "accepted": 171,
+          "rejected": 306
+        },
+        "trades": {
+          "accepted": 674,
+          "rejected": 5
+        }
+      },
+      "model": "openai/gpt-5.4-mini",
+      "output_token_cap": 4096,
+      "output_tokens_per_decision": 101.5,
+      "primary_ci95": [
+        -140.835138,
+        -106.194069
+      ],
+      "primary_lift": -123.115483,
+      "protocol_penalty": 832.5,
+      "protocol_repair_attempts": 0,
+      "protocol_repairs_succeeded": 0,
+      "provider": "openrouter",
+      "publication_eligible": true,
+      "publication_issues": [],
+      "raw_artifact_sha256": "66842c84a86f23e7bed126d48ef8918f40270f3d6b01c9cf80b9defe34f97a6f",
+      "route": "openrouter \u2192 OpenAI | openai/gpt-5.4-mini-20260317",
+      "score_stddev": 25.974,
+      "seasons": 5,
+      "seed_count": 29,
+      "seed_panel": "private-env",
+      "seed_panel_hash": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11",
+      "seed_win_rate": 0.069,
+      "seeds": null,
+      "session": false,
+      "sota_v2_eligible": true,
+      "sota_v2_issues": [
+        "candidate has illegal actions; score includes protocol penalties",
+        "candidate used adapter fallback/error output on at least one decision",
+        "candidate does not beat the strongest scripted baseline"
+      ],
+      "tokens_per_decision": 5124.4,
+      "total_tokens": 2972145,
+      "unrecoverable_decisions": 1,
+      "unrecoverable_rate": 0.002
+    },
+    {
+      "api_latency_s_per_decision": 3.06,
+      "artifact_sha256": "22e73f62c5c4a80b9b3d919072c174265c8d7ff7fb25b22feed075d407fae055",
+      "baseline_panel_mean_score": 175.303,
+      "benchmark_version": "sota-v5",
+      "contract_fingerprint": "a600b7da0c302231",
+      "cost_per_episode_usd": 0.0147,
+      "cost_usd": 0.425505,
+      "decision_failure_rate": 0.0,
+      "decision_points": 580,
+      "decisions_with_usage": 580,
+      "failed_decisions": 0,
+      "failed_queries": 0,
+      "full_panel_ci95": [
+        -18.043,
+        11.557
+      ],
+      "full_panel_lift": -4.008,
+      "full_panel_significant_at_95": false,
+      "harness_latency_s_per_decision": 3.13,
+      "holm_adjusted_p_value": 3e-06,
+      "holm_reject_at_0_05": true,
+      "id": "openrouter:openai/gpt-5.6-luna",
+      "illegal_actions": 151,
+      "input_tokens_per_decision": 5299.0,
+      "lane": "api",
+      "lift_vs_best_baseline": -75.814,
+      "malformed_decisions": 0,
+      "malformed_rate": 0.0,
+      "mean_score": 171.295,
+      "mean_strategy_score": 184.312,
+      "mechanic_breakdown": {
+        "cap_free_agency": {
+          "accepted": 68,
+          "rejected": 3
+        },
+        "draft": {
+          "accepted": 2099,
+          "rejected": 37
+        },
+        "information_memory": {
+          "accepted": 473,
+          "rejected": 0
+        },
+        "lineup": {
+          "accepted": 361,
+          "rejected": 137
+        },
+        "trades": {
+          "accepted": 792,
+          "rejected": 1
         }
       },
       "model": "openai/gpt-5.6-luna",
       "output_token_cap": 4096,
-      "output_tokens_per_decision": 99.8,
-      "per_seed_scores": {
-        "11": 137.16,
-        "12": 226.22,
-        "13": 168.027,
-        "14": 194.436,
-        "15": 155.724,
-        "16": 167.975,
-        "17": 168.773,
-        "18": 173.091
-      },
+      "output_tokens_per_decision": 118.9,
       "primary_ci95": [
-        -273.144667,
-        -200.7945
+        -97.604621,
+        -54.170379
       ],
-      "primary_lift": -237.693083,
-      "protocol_penalty": 315.0,
+      "primary_lift": -75.814034,
+      "protocol_penalty": 377.5,
       "protocol_repair_attempts": 0,
       "protocol_repairs_succeeded": 0,
       "provider": "openrouter",
       "publication_eligible": true,
       "publication_issues": [],
-      "raw_artifact_sha256": "1af66b6e0e0f6f492e10d29b5e27635e0a0187781a512262cbfdc1e6b847ac81",
-      "route": "openrouter \u2192 OpenAI | openai/gpt-5.6-luna-20260709",
-      "score_stddev": 24.839,
+      "raw_artifact_sha256": "995f4f6e4b280a06be3e7f1c2c76cf3e7de629955e0dec51732bfb0d81aed369",
+      "route": "openrouter \u2192 OpenAI | openai/gpt-5.6-luna-20260709 (openai/flex)",
+      "score_stddev": 42.437,
       "seasons": 5,
-      "seed_count": 8,
-      "seed_panel": "public-leaderboard",
-      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
-      "seed_win_rate": 0.0,
-      "seeds": [
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ],
+      "seed_count": 29,
+      "seed_panel": "private-env",
+      "seed_panel_hash": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11",
+      "seed_win_rate": 0.379,
+      "seeds": null,
       "session": false,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
-        "historical scaffold fingerprint retained but cannot be re-derived from current source",
         "candidate has illegal actions; score includes protocol penalties",
+        "candidate lift is not significant at 95% against the baseline panel",
         "candidate does not beat the strongest scripted baseline"
       ],
-      "tier": 1,
-      "tokens_per_decision": 7611.2,
-      "total_tokens": 3653397,
-      "within_seed_score_stddev": 35.771
+      "tokens_per_decision": 5417.9,
+      "total_tokens": 3142385,
+      "unrecoverable_decisions": 0,
+      "unrecoverable_rate": 0.0
     },
     {
-      "api_latency_s_per_decision": 6.4,
-      "artifact_sha256": "9e2a74fbc55eb51ed1bcbd25064f178fcf73d962d650cbe04cec1ff5ffa75455",
-      "baseline_panel_mean_score": 273.794,
-      "benchmark_version": "sota-v2",
-      "contract_fingerprint": "558e8f35ea1d66b9",
-      "cost_per_episode_usd": 0.4606,
-      "cost_usd": 11.05436,
+      "api_latency_s_per_decision": 0.84,
+      "artifact_sha256": "cb8127799491fbcc372bd54f7ac2cc4b6ccc6dc19881bc958a5f4189ceb99967",
+      "baseline_panel_mean_score": 175.303,
+      "benchmark_version": "sota-v5",
+      "contract_fingerprint": "a600b7da0c302231",
+      "cost_per_episode_usd": 0.1214,
+      "cost_usd": 3.521337,
       "decision_failure_rate": 0.0,
-      "decision_points": 480,
-      "decisions_with_usage": 480,
+      "decision_points": 580,
+      "decisions_with_usage": 580,
       "failed_decisions": 0,
-      "failed_queries": 137,
+      "failed_queries": 0,
       "full_panel_ci95": [
-        -154.031,
-        -104.212
+        -46.65,
+        -33.643
       ],
-      "full_panel_lift": -131.651,
+      "full_panel_lift": -40.282,
       "full_panel_significant_at_95": true,
-      "harness_latency_s_per_decision": 6.49,
-      "holm_adjusted_p_value": 0.078125,
-      "holm_reject_at_0_05": false,
-      "id": "openrouter:anthropic/claude-sonnet-5",
-      "illegal_actions": 44,
-      "input_tokens_per_decision": 9551.8,
+      "harness_latency_s_per_decision": 0.91,
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "id": "openrouter:x-ai/grok-4.3",
+      "illegal_actions": 4,
+      "input_tokens_per_decision": 5034.6,
       "lane": "api",
-      "lift_vs_best_baseline": -269.475,
-      "mean_score": 142.143,
-      "mean_strategy_score": 146.727,
+      "lift_vs_best_baseline": -112.088,
+      "malformed_decisions": 0,
+      "malformed_rate": 0.0,
+      "mean_score": 135.021,
+      "mean_strategy_score": 135.366,
       "mechanic_breakdown": {
         "cap_free_agency": {
-          "accepted": 85,
-          "rejected": 9
+          "accepted": 5,
+          "rejected": 1
         },
         "draft": {
-          "accepted": 1699,
-          "rejected": 27
+          "accepted": 1866,
+          "rejected": 257
         },
         "information_memory": {
-          "accepted": 743,
-          "rejected": 137
+          "accepted": 28,
+          "rejected": 0
         },
         "lineup": {
-          "accepted": 138,
-          "rejected": 39
+          "accepted": 175,
+          "rejected": 2
         },
         "trades": {
-          "accepted": 588,
+          "accepted": 676,
           "rejected": 0
         }
       },
-      "model": "anthropic/claude-sonnet-5",
+      "model": "x-ai/grok-4.3",
       "output_token_cap": 4096,
-      "output_tokens_per_decision": 392.6,
-      "per_seed_scores": {
-        "11": 116.985,
-        "12": 172.292,
-        "13": 112.787,
-        "14": 124.9,
-        "15": 166.97,
-        "16": 118.29,
-        "17": 178.447,
-        "18": 146.476
-      },
+      "output_tokens_per_decision": 38.9,
       "primary_ci95": [
-        -316.991292,
-        -217.256625
+        -127.920069,
+        -97.015552
       ],
-      "primary_lift": -269.475375,
-      "protocol_penalty": 110.0,
+      "primary_lift": -112.088138,
+      "protocol_penalty": 10.0,
       "protocol_repair_attempts": 0,
       "protocol_repairs_succeeded": 0,
       "provider": "openrouter",
       "publication_eligible": true,
       "publication_issues": [],
-      "raw_artifact_sha256": "f2e1057f7e72a99bb556b30c058ccc827eb7316bff287d075f2061cee244d799",
-      "route": "openrouter \u2192 Amazon Bedrock | anthropic/claude-sonnet-5-20260630 (amazon-bedrock/global)",
-      "score_stddev": 25.552,
+      "raw_artifact_sha256": "99e8b1ea0589374db1648e4363b5dca5d05be436901984e301d56d6b5fc5ec27",
+      "route": "openrouter \u2192 xAI | x-ai/grok-4.3-20260430 (xai/zdr)",
+      "score_stddev": 17.644,
       "seasons": 5,
-      "seed_count": 8,
-      "seed_panel": "public-leaderboard",
-      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
-      "seed_win_rate": 0.0,
-      "seeds": [
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ],
+      "seed_count": 29,
+      "seed_panel": "private-env",
+      "seed_panel_hash": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11",
+      "seed_win_rate": 0.034,
+      "seeds": null,
       "session": false,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
-        "historical scaffold fingerprint retained but cannot be re-derived from current source",
         "candidate has illegal actions; score includes protocol penalties",
-        "candidate has 137 failed queries across 480 decisions (0.29 per decision); misfired scout/inspect lookups may indicate the model is not reading query errors",
         "candidate does not beat the strongest scripted baseline"
       ],
-      "tier": 1,
-      "tokens_per_decision": 9944.4,
-      "total_tokens": 4773328,
-      "within_seed_score_stddev": 25.59
+      "tokens_per_decision": 5073.4,
+      "total_tokens": 2942593,
+      "unrecoverable_decisions": 0,
+      "unrecoverable_rate": 0.0
     },
     {
-      "api_latency_s_per_decision": 3.08,
-      "artifact_sha256": "53e93b066a1ade0c72f99ec0bbb4fc56b4c07ee48f18e4f53eca5150cf8b6ddf",
-      "baseline_panel_mean_score": 273.794,
-      "benchmark_version": "sota-v2",
-      "contract_fingerprint": "558e8f35ea1d66b9",
-      "cost_per_episode_usd": 0.0515,
-      "cost_usd": 1.237149,
-      "decision_failure_rate": 0.002,
-      "decision_points": 480,
-      "decisions_with_usage": 480,
-      "failed_decisions": 1,
-      "failed_queries": 65,
+      "api_latency_s_per_decision": 12.69,
+      "artifact_sha256": "b5732296050beae3df93a7ea1a1dad02ca0ca71caf44ab81e0265161ce84b455",
+      "baseline_panel_mean_score": 175.303,
+      "benchmark_version": "sota-v5",
+      "contract_fingerprint": "a600b7da0c302231",
+      "cost_per_episode_usd": 0.3164,
+      "cost_usd": 9.17532,
+      "decision_failure_rate": 0.0,
+      "decision_points": 580,
+      "decisions_with_usage": 580,
+      "failed_decisions": 0,
+      "failed_queries": 0,
       "full_panel_ci95": [
-        -167.324,
-        -116.177
+        17.393,
+        39.929
       ],
-      "full_panel_lift": -143.914,
+      "full_panel_lift": 28.228,
       "full_panel_significant_at_95": true,
-      "harness_latency_s_per_decision": 3.18,
-      "holm_adjusted_p_value": 0.078125,
-      "holm_reject_at_0_05": false,
-      "id": "openrouter:minimax/minimax-m3",
-      "illegal_actions": 14,
-      "input_tokens_per_decision": 8613.1,
+      "harness_latency_s_per_decision": 12.76,
+      "holm_adjusted_p_value": 0.000251,
+      "holm_reject_at_0_05": true,
+      "id": "openrouter:x-ai/grok-4.6",
+      "illegal_actions": 20,
+      "input_tokens_per_decision": 5799.0,
       "lane": "api",
-      "lift_vs_best_baseline": -281.739,
-      "mean_score": 129.88,
-      "mean_strategy_score": 131.338,
+      "lift_vs_best_baseline": -43.578,
+      "malformed_decisions": 0,
+      "malformed_rate": 0.0,
+      "mean_score": 203.531,
+      "mean_strategy_score": 205.255,
       "mechanic_breakdown": {
         "cap_free_agency": {
-          "accepted": 54,
-          "rejected": 9
+          "accepted": 270,
+          "rejected": 0
         },
         "draft": {
-          "accepted": 1718,
-          "rejected": 107
+          "accepted": 2150,
+          "rejected": 12
         },
         "information_memory": {
-          "accepted": 224,
-          "rejected": 65
+          "accepted": 448,
+          "rejected": 0
         },
         "lineup": {
-          "accepted": 86,
-          "rejected": 6
+          "accepted": 449,
+          "rejected": 8
         },
         "trades": {
-          "accepted": 551,
+          "accepted": 808,
+          "rejected": 6
+        }
+      },
+      "model": "x-ai/grok-4.6",
+      "output_token_cap": 4096,
+      "output_tokens_per_decision": 742.1,
+      "primary_ci95": [
+        -61.605759,
+        -25.899724
+      ],
+      "primary_lift": -43.578276,
+      "protocol_penalty": 50.0,
+      "protocol_repair_attempts": 0,
+      "protocol_repairs_succeeded": 0,
+      "provider": "openrouter",
+      "publication_eligible": true,
+      "publication_issues": [],
+      "raw_artifact_sha256": "0e3a1117bd9c2a7547e049c542abed915b1432eb9f6ad83d9c7022f83112c134",
+      "route": "openrouter \u2192 xAI | x-ai/grok-4.6-20260810 (xai/zdr)",
+      "score_stddev": 37.373,
+      "seasons": 5,
+      "seed_count": 29,
+      "seed_panel": "private-env",
+      "seed_panel_hash": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11",
+      "seed_win_rate": 0.828,
+      "seeds": null,
+      "session": false,
+      "sota_v2_eligible": true,
+      "sota_v2_issues": [
+        "candidate has illegal actions; score includes protocol penalties",
+        "candidate does not beat the strongest scripted baseline"
+      ],
+      "tokens_per_decision": 6541.1,
+      "total_tokens": 3793820,
+      "unrecoverable_decisions": 0,
+      "unrecoverable_rate": 0.0
+    },
+    {
+      "api_latency_s_per_decision": 5.05,
+      "artifact_sha256": "8e94fc34c52ee467faf1b9687fd61ae73fa398c024ae81c586b4a38c43eb798b",
+      "baseline_panel_mean_score": 175.303,
+      "benchmark_version": "sota-v5",
+      "contract_fingerprint": "a600b7da0c302231",
+      "cost_per_episode_usd": 0.0543,
+      "cost_usd": 1.575298,
+      "decision_failure_rate": 0.0,
+      "decision_points": 580,
+      "decisions_with_usage": 580,
+      "failed_decisions": 0,
+      "failed_queries": 0,
+      "full_panel_ci95": [
+        -36.956,
+        -14.138
+      ],
+      "full_panel_lift": -26.072,
+      "full_panel_significant_at_95": true,
+      "harness_latency_s_per_decision": 5.12,
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "id": "openrouter:moonshotai/kimi-k2.5",
+      "illegal_actions": 211,
+      "input_tokens_per_decision": 5349.2,
+      "lane": "api",
+      "lift_vs_best_baseline": -97.878,
+      "malformed_decisions": 0,
+      "malformed_rate": 0.0,
+      "mean_score": 149.231,
+      "mean_strategy_score": 167.421,
+      "mechanic_breakdown": {
+        "cap_free_agency": {
+          "accepted": 101,
+          "rejected": 4
+        },
+        "draft": {
+          "accepted": 2069,
+          "rejected": 35
+        },
+        "information_memory": {
+          "accepted": 412,
           "rejected": 0
+        },
+        "lineup": {
+          "accepted": 217,
+          "rejected": 155
+        },
+        "trades": {
+          "accepted": 777,
+          "rejected": 55
+        }
+      },
+      "model": "moonshotai/kimi-k2.5",
+      "output_token_cap": 4096,
+      "output_tokens_per_decision": 157.5,
+      "primary_ci95": [
+        -114.525828,
+        -81.244862
+      ],
+      "primary_lift": -97.877759,
+      "protocol_penalty": 527.5,
+      "protocol_repair_attempts": 0,
+      "protocol_repairs_succeeded": 0,
+      "provider": "openrouter",
+      "publication_eligible": true,
+      "publication_issues": [],
+      "raw_artifact_sha256": "43507ec32a37ebed4b16efe2f48912c24b60e7f3916393a8e834ea442f2c4803",
+      "route": "openrouter \u2192 SiliconFlow | moonshotai/kimi-k2.5-0127 (siliconflow/int4)",
+      "score_stddev": 30.405,
+      "seasons": 5,
+      "seed_count": 29,
+      "seed_panel": "private-env",
+      "seed_panel_hash": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11",
+      "seed_win_rate": 0.138,
+      "seeds": null,
+      "session": false,
+      "sota_v2_eligible": true,
+      "sota_v2_issues": [
+        "candidate has illegal actions; score includes protocol penalties",
+        "candidate does not beat the strongest scripted baseline"
+      ],
+      "tokens_per_decision": 5506.7,
+      "total_tokens": 3193890,
+      "unrecoverable_decisions": 0,
+      "unrecoverable_rate": 0.0
+    },
+    {
+      "api_latency_s_per_decision": 1.94,
+      "artifact_sha256": "dd8feda0d67a59cfcbdf46c4a43bbbec0b3ee73e8ffd90d43d2f27d3ee0b3e74",
+      "baseline_panel_mean_score": 175.303,
+      "benchmark_version": "sota-v5",
+      "contract_fingerprint": "a600b7da0c302231",
+      "cost_per_episode_usd": 0.0725,
+      "cost_usd": 2.102428,
+      "decision_failure_rate": 0.016,
+      "decision_points": 580,
+      "decisions_with_usage": 580,
+      "failed_decisions": 9,
+      "failed_queries": 2,
+      "full_panel_ci95": [
+        -67.725,
+        -48.314
+      ],
+      "full_panel_lift": -58.304,
+      "full_panel_significant_at_95": true,
+      "harness_latency_s_per_decision": 2.01,
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "id": "openrouter:minimax/minimax-m3",
+      "illegal_actions": 35,
+      "input_tokens_per_decision": 5199.6,
+      "lane": "api",
+      "lift_vs_best_baseline": -130.109,
+      "malformed_decisions": 16,
+      "malformed_rate": 0.028,
+      "mean_score": 116.999,
+      "mean_strategy_score": 120.017,
+      "mechanic_breakdown": {
+        "cap_free_agency": {
+          "accepted": 21,
+          "rejected": 0
+        },
+        "draft": {
+          "accepted": 2057,
+          "rejected": 72
+        },
+        "information_memory": {
+          "accepted": 251,
+          "rejected": 2
+        },
+        "lineup": {
+          "accepted": 74,
+          "rejected": 29
+        },
+        "trades": {
+          "accepted": 646,
+          "rejected": 4
         }
       },
       "model": "minimax/minimax-m3",
       "output_token_cap": 4096,
-      "output_tokens_per_decision": 115.1,
-      "per_seed_scores": {
-        "11": 98.365,
-        "12": 144.612,
-        "13": 107.611,
-        "14": 120.417,
-        "15": 177.757,
-        "16": 99.804,
-        "17": 159.197,
-        "18": 131.276
-      },
+      "output_tokens_per_decision": 114.6,
       "primary_ci95": [
-        -329.425375,
-        -229.092667
+        -146.246621,
+        -115.178931
       ],
-      "primary_lift": -281.738875,
-      "protocol_penalty": 35.0,
-      "protocol_repair_attempts": 7,
-      "protocol_repairs_succeeded": 6,
+      "primary_lift": -130.109483,
+      "protocol_penalty": 87.5,
+      "protocol_repair_attempts": 0,
+      "protocol_repairs_succeeded": 0,
       "provider": "openrouter",
       "publication_eligible": true,
       "publication_issues": [],
-      "raw_artifact_sha256": "29a94c23afe74508bdf3e82e4d79697d508de4a715b865c99a6317805f75c32f",
-      "route": "openrouter \u2192 Minimax | minimax/minimax-m3-20260531 (minimax/fp8)",
-      "score_stddev": 27.051,
+      "raw_artifact_sha256": "dae7da9d2bc6e938b89c0e876e881833c09bb3e7776547bf471226ff1b999ae7",
+      "route": "openrouter \u2192 ModelRun | minimax/minimax-m3-20260531 (modelrun/fp4)",
+      "score_stddev": 29.777,
       "seasons": 5,
-      "seed_count": 8,
-      "seed_panel": "public-leaderboard",
-      "seed_panel_hash": "c68416e4d00b7198765b5b20d89c04c030dbc8c2516fe98c280ae8ae0afb0143",
-      "seed_win_rate": 0.0,
-      "seeds": [
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ],
+      "seed_count": 29,
+      "seed_panel": "private-env",
+      "seed_panel_hash": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11",
+      "seed_win_rate": 0.069,
+      "seeds": null,
       "session": false,
       "sota_v2_eligible": true,
       "sota_v2_issues": [
-        "historical scaffold fingerprint retained but cannot be re-derived from current source",
         "candidate has illegal actions; score includes protocol penalties",
         "candidate used adapter fallback/error output on at least one decision",
         "candidate does not beat the strongest scripted baseline"
       ],
-      "tier": 1,
-      "tokens_per_decision": 8728.2,
-      "total_tokens": 4189533,
-      "within_seed_score_stddev": 19.889
+      "tokens_per_decision": 5314.2,
+      "total_tokens": 3082259,
+      "unrecoverable_decisions": 9,
+      "unrecoverable_rate": 0.016
+    },
+    {
+      "api_latency_s_per_decision": 6.63,
+      "artifact_sha256": "b983265fcdd147a038ba1a6d44147f264202ea051560e72ee15c88246f0f012a",
+      "baseline_panel_mean_score": 175.303,
+      "benchmark_version": "sota-v5",
+      "contract_fingerprint": "a600b7da0c302231",
+      "cost_per_episode_usd": 0.034,
+      "cost_usd": 0.985655,
+      "decision_failure_rate": 0.0,
+      "decision_points": 580,
+      "decisions_with_usage": 580,
+      "failed_decisions": 0,
+      "failed_queries": 3,
+      "full_panel_ci95": [
+        -71.528,
+        -53.01
+      ],
+      "full_panel_lift": -61.603,
+      "full_panel_significant_at_95": true,
+      "harness_latency_s_per_decision": 6.7,
+      "holm_adjusted_p_value": 0.0,
+      "holm_reject_at_0_05": true,
+      "id": "openrouter:qwen/qwen3.5-27b",
+      "illegal_actions": 277,
+      "input_tokens_per_decision": 5758.3,
+      "lane": "api",
+      "lift_vs_best_baseline": -133.408,
+      "malformed_decisions": 4,
+      "malformed_rate": 0.007,
+      "mean_score": 113.7,
+      "mean_strategy_score": 137.58,
+      "mechanic_breakdown": {
+        "cap_free_agency": {
+          "accepted": 589,
+          "rejected": 80
+        },
+        "draft": {
+          "accepted": 2022,
+          "rejected": 68
+        },
+        "information_memory": {
+          "accepted": 203,
+          "rejected": 0
+        },
+        "lineup": {
+          "accepted": 134,
+          "rejected": 127
+        },
+        "trades": {
+          "accepted": 734,
+          "rejected": 14
+        }
+      },
+      "model": "qwen/qwen3.5-27b",
+      "output_token_cap": 4096,
+      "output_tokens_per_decision": 129.9,
+      "primary_ci95": [
+        -150.638793,
+        -116.971103
+      ],
+      "primary_lift": -133.408483,
+      "protocol_penalty": 692.5,
+      "protocol_repair_attempts": 0,
+      "protocol_repairs_succeeded": 0,
+      "provider": "openrouter",
+      "publication_eligible": true,
+      "publication_issues": [],
+      "raw_artifact_sha256": "03fc39a7b8b79fd3fbab0d583141d23d5f633614147160016f5c97b8e099227c",
+      "route": "openrouter \u2192 SiliconFlow | qwen/qwen3.5-27b-20260224 (siliconflow/fp8)",
+      "score_stddev": 23.5,
+      "seasons": 5,
+      "seed_count": 29,
+      "seed_panel": "private-env",
+      "seed_panel_hash": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11",
+      "seed_win_rate": 0.0,
+      "seeds": null,
+      "session": false,
+      "sota_v2_eligible": true,
+      "sota_v2_issues": [
+        "candidate has illegal actions; score includes protocol penalties",
+        "candidate does not beat the strongest scripted baseline"
+      ],
+      "tokens_per_decision": 5888.2,
+      "total_tokens": 3415180,
+      "unrecoverable_decisions": 0,
+      "unrecoverable_rate": 0.0
     }
   ],
   "preset": {
     "decision_points_per_episode": 20,
-    "name": "leaderboard",
+    "hiding_commitment_sha256": "3ece2f67ac3cb6bc5c77e71feb6a9ecf56d09eec544c206db260d083c345e1e7",
+    "name": "private-env",
     "seasons": 5,
-    "seeds": [
-      11,
-      12,
-      13,
-      14,
-      15,
-      16,
-      17,
-      18
-    ]
+    "seed_count": 29,
+    "seeds": "<redacted>",
+    "sha256": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11"
   },
   "publication": {
-    "config_errors": [],
-    "decision_recommendation": null,
-    "duplicate_cells": [],
+    "analysis_mode": "reference-only",
     "duplicate_headline_rows": 0,
-    "eligible_headline_models": 8,
+    "eligible_headline_models": 11,
     "frozen_output_token_cap": 4096,
     "minimum_headline_models": 8,
-    "missing": [],
     "model_registry_frozen": true,
     "models": [
+      {
+        "id": "openrouter-grok-4.6-xai",
+        "model": "x-ai/grok-4.6",
+        "provider": "openrouter"
+      },
+      {
+        "id": "openrouter-claude-haiku-4.5-anthropic",
+        "model": "anthropic/claude-haiku-4.5",
+        "provider": "openrouter"
+      },
+      {
+        "id": "openrouter-gemini-3.7-flash-google-ai-studio",
+        "model": "google/gemini-3.7-flash",
+        "provider": "openrouter"
+      },
+      {
+        "id": "openrouter-grok-4.3-xai",
+        "model": "x-ai/grok-4.3",
+        "provider": "openrouter"
+      },
+      {
+        "id": "openrouter-gpt-5.4-mini-openai",
+        "model": "openai/gpt-5.4-mini",
+        "provider": "openrouter"
+      },
+      {
+        "id": "openrouter-glm-5-streamlake",
+        "model": "z-ai/glm-5",
+        "provider": "openrouter"
+      },
+      {
+        "id": "openrouter-kimi-k2.5-siliconflow",
+        "model": "moonshotai/kimi-k2.5",
+        "provider": "openrouter"
+      },
+      {
+        "id": "openrouter-qwen3.8-flash-alibaba",
+        "model": "qwen/qwen3.8-flash",
+        "provider": "openrouter"
+      },
+      {
+        "id": "openrouter-minimax-m3-modelrun",
+        "model": "minimax/minimax-m3",
+        "provider": "openrouter"
+      },
+      {
+        "id": "openrouter-gemini-3.1-flash-lite-google-ai-studio",
+        "model": "google/gemini-3.1-flash-lite",
+        "provider": "openrouter"
+      },
       {
         "id": "openrouter-gpt-5.6-luna-openai",
         "model": "openai/gpt-5.6-luna",
         "provider": "openrouter"
       },
       {
-        "id": "openrouter-claude-sonnet-5-bedrock",
-        "model": "anthropic/claude-sonnet-5",
+        "id": "openrouter-glm-5.3-flash-fireworks",
+        "model": "z-ai/glm-5.3-flash",
         "provider": "openrouter"
       },
       {
-        "id": "openrouter-gemini-3.5-flash-google-ai-studio",
-        "model": "google/gemini-3.5-flash",
+        "id": "openrouter-deepseek-v4-flash-0731-together",
+        "model": "deepseek/deepseek-v4-flash-0731",
         "provider": "openrouter"
       },
       {
-        "id": "openrouter-grok-4.5-xai",
-        "model": "x-ai/grok-4.5",
+        "id": "openrouter-qwen3.5-27b-siliconflow",
+        "model": "qwen/qwen3.5-27b",
         "provider": "openrouter"
       },
       {
-        "id": "openrouter-muse-spark-1.1-meta",
-        "model": "meta/muse-spark-1.1",
+        "id": "openrouter-gpt-5.6-sol-openai",
+        "model": "openai/gpt-5.6-sol",
         "provider": "openrouter"
       },
       {
-        "id": "openrouter-glm-5.2-novita",
-        "model": "z-ai/glm-5.2",
-        "provider": "openrouter"
-      },
-      {
-        "id": "openrouter-minimax-m3-minimax",
-        "model": "minimax/minimax-m3",
-        "provider": "openrouter"
-      },
-      {
-        "id": "openrouter-qwen3.7-plus-alibaba",
-        "model": "qwen/qwen3.7-plus",
-        "provider": "openrouter"
-      },
-      {
-        "id": "openrouter-mistral-medium-3.5-mistral",
-        "model": "mistralai/mistral-medium-3-5",
-        "provider": "openrouter"
-      },
-      {
-        "id": "openrouter-tencent-hy3-free-novita",
-        "model": "tencent/hy3:free",
+        "id": "openrouter-gpt-oss-20b-deepinfra",
+        "model": "openai/gpt-oss-20b",
         "provider": "openrouter"
       }
     ],
-    "output_policy_basis": "common-safety-ceiling-with-native-minimum-reasoning",
+    "output_policy_basis": "fixed-safety-ceiling",
     "panel_analysis_issues": [],
     "panel_analysis_ready": true,
-    "planned_caps": [
-      256,
-      1024,
-      4096,
-      16384
-    ],
-    "points": [],
-    "publishable_ranking": true,
+    "publishable_ranking": false,
     "publishable_results": true,
-    "reason": "four-cap sweep retired before replacement official cells; fixed safety ceiling governs publication",
-    "rejected_artifacts": [],
-    "schema_version": 1,
     "smoke_gate_issues": [],
-    "status": "retired"
+    "status": "complete"
   },
-  "updated": "2026-07-19"
+  "updated": "2026-09-03"
 }

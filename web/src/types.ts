@@ -162,7 +162,12 @@ export interface LeaderboardModel {
 }
 
 export interface TieredLeaderboardModel extends LeaderboardModel {
-  tier: number;
+  /**
+   * Holm tier, present only when a study predeclares model-to-model contrasts.
+   * sota-v5 predeclares only model-versus-pick-trader, so its rows carry no
+   * tier and the site must not invent an ordering for them.
+   */
+  tier?: number;
   holm_adjusted_p_value: number;
   holm_reject_at_0_05: boolean | null;
 }
@@ -186,7 +191,15 @@ export interface Leaderboard {
   };
   preset: {
     name: string;
-    seeds: number[];
+    /**
+     * Seed values for a public panel, or a redaction sentinel string for a
+     * private panel. Counts must come from `seed_count`, never from this.
+     */
+    seeds: number[] | string;
+    /** Panel width, published even when the seed values are withheld. */
+    seed_count?: number | null;
+    sha256?: string;
+    hiding_commitment_sha256?: string;
     seasons: number;
     decision_points_per_episode: number;
   };
@@ -198,8 +211,10 @@ export interface Leaderboard {
     status: string;
     publishable_ranking: boolean;
     publishable_results: boolean;
-    reason: string;
-    planned_caps: Array<number | null>;
+    /* Gate prose and the per-cell cap plan are v2-era fields; a v5 dataset
+       states its cap once, in frozen_output_token_cap. */
+    reason?: string;
+    planned_caps?: Array<number | null>;
     frozen_output_token_cap: number | null;
     output_policy_basis?: string;
     model_registry_frozen?: boolean;
@@ -208,9 +223,16 @@ export interface Leaderboard {
     panel_analysis_issues?: string[];
     eligible_headline_models: number;
     minimum_headline_models: number;
+    analysis_mode?: string;
+    /** Every pre-registered model, published or not: the Holm family. */
+    models?: Array<{ id: string; model: string; provider: string }>;
   };
   headroom: {
-    oracle: number;
+    /**
+     * Partial-oracle reference score, or null for a study that ran no oracle
+     * baseline. sota-v5 has none: pick-trader is the sole contrast.
+     */
+    oracle: number | null;
     pick_trader: number;
     best_model: number | null;
     random: number;
