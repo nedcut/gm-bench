@@ -97,7 +97,7 @@ function RankingPlot({
           textAnchor="end"
           className="chart-reference-label"
         >
-          scripted bar · pick-trader {fmt(benchmark.scriptedBar, 1)}
+          pick-trader {fmt(benchmark.scriptedBar, 1)}, the scripted bar
         </text>
         {benchmark.oracle !== null && (
           <>
@@ -346,7 +346,7 @@ function MechanicsHeatmap({
           ))}
         </span>
         <span>
-          Higher rejection (worse) ·{" "}
+          Higher rejection,{" "}
           {metric === "rate"
             ? `${fmt(maxValue * 100, 1)}% max`
             : `${Math.round(maxValue).toLocaleString("en-US")} max`}
@@ -383,6 +383,8 @@ export default function Analysis({
   }, [selected]);
 
   if (!selected) return null;
+  const bestGap =
+    benchmark.scriptedBar - Math.max(...benchmark.models.map((model) => model.mean_score));
 
   return (
     <section className="analysis-section" id="analysis">
@@ -390,22 +392,22 @@ export default function Analysis({
         <div className="analysis-heading">
           <div>
             <p className="kicker">Absolute score</p>
-            <h2>The gap persists against the strongest scripted policy.</h2>
+            <h2>
+              Pick-trader still beats the best model by {fmt(bestGap, 0)} points.
+            </h2>
           </div>
           <p>
-            Select a model anywhere on the page to trace its score, cost, and rejected
-            actions through the same published record.
+            Pick a model anywhere on the page. Its score, cost, and rejected actions all
+            come from the same published file.
           </p>
           <p className="gap-decomposition-note">
-            This is a reference-only analysis: every contrast is a model against{" "}
-            <code>pick-trader</code>, and no model-to-model comparison was
-            predeclared or tested. Every eligible model trails the scripted bar,
-            and the predeclared Holm-adjusted test rejects for{" "}
-            {benchmark.holmRejectedCount} of {benchmark.modelCount} rows at 0.05
-            over a family of 16. Each row ran once per seed, so within-seed noise
-            is unmeasured and the scores carry no repeat-to-repeat error term.
-            The 4,096-token output cap binds model rows only and is not
-            controlled for.
+            Every contrast here is one model against <code>pick-trader</code>. No
+            model-versus-model comparison was predeclared, so none is tested. All eligible
+            models trail the bar, and the Holm-adjusted test rejects for{" "}
+            {benchmark.holmRejectedCount} of {benchmark.modelCount} rows at 0.05 across a
+            family of 16. Each row ran once per seed, so the scores carry no
+            repeat-to-repeat error term. The 4,096-token output cap applies to model rows
+            only and is not controlled for.
           </p>
         </div>
 
@@ -413,13 +415,12 @@ export default function Analysis({
           <div className="analysis-ranking-panel">
             <div className="analysis-panel-title">
               <h3>Observed scores with reference lines</h3>
-              <span>Higher is better · across-seed 95% intervals</span>
+              <span>Higher is better. Across-seed 95% intervals.</span>
             </div>
             <p className="ranking-callout">
-              Order is descriptive, not an ordinal ranking claim: the study
-              predeclared only model-versus-<code>pick-trader</code> contrasts.
-              The predeclared family test rejects for {benchmark.holmRejectedCount}{" "}
-              of {benchmark.modelCount} rows at 0.05.
+              The order is for reading, not a ranking. The study predeclared only
+              model-versus-<code>pick-trader</code> contrasts, and that test rejects for{" "}
+              {benchmark.holmRejectedCount} of {benchmark.modelCount} rows at 0.05.
             </p>
             <RankingPlot
               benchmark={benchmark}
@@ -473,8 +474,7 @@ export default function Analysis({
               <span className="chart-story-label">Mechanics</span>
               <h3>Rejection patterns by mechanic</h3>
               <p>
-                Amber means more actions were rejected. Exact values remain visible in
-                every cell.
+                Darker cells mean more rejected actions. Every cell keeps its exact value.
               </p>
             </div>
             <div className="segmented" aria-label="Heatmap metric">
@@ -498,9 +498,9 @@ export default function Analysis({
           </div>
           {highestRejection && (
             <div className="heatmap-insight" aria-live="polite">
-              <span>Selected system’s largest rejection rate</span>
+              <span>Selected model's highest rejection rate</span>
               <strong>
-                {highestRejection.label} · {fmt(highestRejection.rate * 100, 1)}%
+                {highestRejection.label}, {fmt(highestRejection.rate * 100, 1)}%
               </strong>
               <span>
                 {highestRejection.rejected.toLocaleString("en-US")} rejected actions
