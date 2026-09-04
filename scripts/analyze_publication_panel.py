@@ -9,7 +9,8 @@ using the full registered family size even when rows are missing. Under the
 accounted-for rule, a registered row without an eligible artifact must appear
 in the lane's frozen exclusion register with its evidence retained, the family
 stays at the registered size, and a row absent from both still blocks
-publication.
+publication. An artifact rejected for a row the register already excludes is
+that register's evidence, not an unexplained rejection.
 """
 
 from __future__ import annotations
@@ -819,6 +820,11 @@ def analyze(
     excluded_ids = {str(entry["model_id"]) for entry in excluded_entries}
     for model_id in sorted(present & excluded_ids):
         config_errors.append(f"model {model_id} is both eligible and listed in the exclusion register")
+    # A rejected artifact for a row the frozen register already excludes is the
+    # register's own evidence (the register carries the reason and checkpoint
+    # hash), so it is accounted for rather than an unexplained rejection. Only
+    # rejections the register does not cover keep the analysis partial.
+    rejected = [entry for entry in rejected if str(entry["model_id"]) not in excluded_ids]
     missing = [spec["id"] for spec in specs if spec["id"] not in present and spec["id"] not in excluded_ids]
     eligible_count = len(rows)
     registered_ids = {spec["id"] for spec in specs}

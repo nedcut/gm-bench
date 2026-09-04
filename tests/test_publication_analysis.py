@@ -964,6 +964,44 @@ def test_v5_registered_exclusions_account_for_the_family_without_easing_holm(
         assert f'"seed": {private_seed}' not in rendered
 
 
+def test_v5_rejected_artifact_for_a_registered_exclusion_is_accounted_for(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The raw directory keeps the gate-failing row's artifact; the register, not the rejection, explains it."""
+    registry, payloads, register = _v5_panel(monkeypatch)
+    lane, protocol, pricing = _v5_inputs()
+    gated = _v5_payload(11)
+    monkeypatch.setattr(
+        publication_analysis,
+        "validate_leaderboard_payload",
+        lambda payload, policy: SimpleNamespace(
+            ok=payload["run_info"]["model"] != "demo/model-11",
+            errors=["candidate decision_failure_rate 0.021 exceeds 0.020 for sota-v5"]
+            if payload["run_info"]["model"] == "demo/model-11"
+            else [],
+        ),
+    )
+
+    result = analyze(
+        registry, [*payloads, gated], lane=lane, protocol=protocol, pricing=pricing, exclusions=register
+    )
+
+    assert result["config_errors"] == []
+    assert result["rejected_artifacts"] == []
+    assert result["status"] == "complete"
+    assert result["publication_ready"] is True
+    assert result["eligible_model_count"] == 11
+    assert result["accounted_for_model_count"] == 16
+    assert "row-11" in {entry["model_id"] for entry in result["excluded_models"]}
+
+    # A rejection the register does not cover still keeps the analysis partial.
+    register["entries"] = [entry for entry in register["entries"] if entry["id"] != "row-11"]
+    uncovered = analyze(
+        registry, [*payloads, gated], lane=lane, protocol=protocol, pricing=pricing, exclusions=register
+    )
+    assert [row["model_id"] for row in uncovered["rejected_artifacts"]] == ["row-11"]
+    assert uncovered["status"] == "partial"
+    assert uncovered["publication_ready"] is False
+
+
 def test_v5_row_absent_from_both_artifacts_and_register_still_blocks(monkeypatch: pytest.MonkeyPatch) -> None:
     registry, payloads, register = _v5_panel(monkeypatch)
     lane, protocol, pricing = _v5_inputs()
