@@ -63,5 +63,8 @@ python3 scripts/package_publication_release.py --contract sota-v5 \
   --verify gm-bench-sota-v5-publication-2026-09-03.zip
 ```
 
+See [`docs/REPRODUCING_SOTA_V5_RELEASE.md`](../../docs/REPRODUCING_SOTA_V5_RELEASE.md)
+for the no-provider-cost verification path.
+
 The public website still serves the `sota-v2` release; publishing this panel
 on the site is a separate decision.
