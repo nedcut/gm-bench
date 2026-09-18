@@ -269,6 +269,35 @@ def test_no_term_answer_means_no_contract() -> None:
     ]
 
 
+def test_a_player_leaving_in_the_batch_is_not_extended() -> None:
+    """Independent answers can release a player and extend him; batch order
+    keeps the first claim and drops the later one, so the extension never
+    reaches the simulator as a structural illegal action."""
+    observation = _observation("preseason")
+    _, index = jev.build_questions(observation)
+    key, player = index["extensions"][0]
+    answers = {
+        "release": {"type": "choice", "choice": str(player["id"])},
+        key: {"type": "noul", "noul": 1.0},
+        "extend_years": {"type": "choice", "choice": "3"},
+    }
+    actions = jev.compose_actions(observation, answers, index)
+    assert actions == [{"type": "release", "player_id": player["id"]}]
+    # The same player given away in a trade is not extended either.
+    listing = next(iter(index["trade_market"].values()))
+    answers = {
+        "trade_target": {"type": "choice", "choice": str(listing["player"]["id"])},
+        "trade_give": {"type": "choice", "choice": str(player["id"])},
+        key: {"type": "noul", "noul": 1.0},
+        "extend_years": {"type": "choice", "choice": "3"},
+    }
+    actions = jev.compose_actions(observation, answers, index)
+    assert [action["type"] for action in actions] == ["trade"]
+    league = League.new(seed=3, user_team_id=0)
+    for result in league.apply_actions(actions, "preseason"):
+        assert "not on your roster" not in result.message
+
+
 def test_noul_threshold_gates_extensions() -> None:
     observation = _observation("preseason")
     _, index = jev.build_questions(observation)
@@ -552,6 +581,41 @@ def test_lane_registers_without_moving_the_frozen_fingerprints() -> None:
     assert scaffold_fingerprint("openrouter") == SOTA_V5_POLICY.expected_scaffold_fingerprints["openrouter"]
     own = scaffold_fingerprint("typesafe")
     assert own is not None and len(own) == 16 and own != scaffold_fingerprint("openai")
+
+
+def test_model_command_preflight_follows_the_config_route(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    """`gm-bench model --preflight-only` resolves JEV_ROUTE from the config env
+    block, the same way the child will, so a bad route fails closed up front."""
+    import subprocess
+    import sys
+
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps({"provider": "typesafe", "preset": "smoke", "env": {"JEV_ROUTE": "sideways"}}))
+    completed = subprocess.run(
+        [sys.executable, "-m", "gm_bench", "model", "--config", str(bad), "--preflight-only"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode != 0
+    assert "JEV_ROUTE" in completed.stderr
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "gm_bench",
+            "model",
+            "--config",
+            "examples/typesafe.jev.openrouter.smoke.json",
+            "--preflight-only",
+        ],
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    assert "provider preflight ok: typesafe" in completed.stdout
 
 
 def test_provider_registry_and_preflight(monkeypatch: pytest.MonkeyPatch) -> None:

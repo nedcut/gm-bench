@@ -595,6 +595,10 @@ def compose_actions(
     else:
         index_extensions = index["extensions"]
     for key, player in index_extensions:
+        if int(player["id"]) in departing:
+            # Already released or traded away earlier in this batch; the first
+            # claim on a player keeps him, per the batch-order rule.
+            continue
         probability = _noul(answers, key)
         if probability is None or probability < noul_threshold:
             continue
