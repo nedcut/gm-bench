@@ -61,6 +61,32 @@ The five exclusions are listed with their frozen rule, attempts, decisions,
 cost, and checkpoint SHA-256 in the archived
 `config/sota_v5_panel_exclusions.json`.
 
+### Decision-model lane (`decision-api`, 2026-09-18)
+
+A separate lane, not a twelfth headline row. TypeSafe's Jev answers a fixed
+set of typed questions each decision and `examples/typesafe_jev_agent.py`
+composes the action batch from the answers, so the score measures Jev plus
+that scaffold (scaffold fingerprint `e1fc1e298283f465`). Same contract
+fingerprint, same 29-seed private panel, same eight scripted baselines, one
+episode per seed, one paid call per decision. The row was not pre-registered
+and is outside the Holm family of sixteen; its pick-trader p-value is the
+unadjusted exact sign-flip test for this one row. Generated from
+`results/leaderboard/decision-lane/*.json`; robustness, power, weight
+sensitivity, and efficiency are in
+`results/analysis/decision-lane-typesafe-jev-1.13-openrouter.md`.
+
+| Model | Route | Mean score | Lift vs panel mean (95% CI) | Seed win rate | Lift vs pick-trader | Seeds won vs pick-trader | Sign-flip p (unadjusted) | Illegal | Decisions | Cost (USD) |
+| --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `typesafe/jev-1.13` (served `jev-1.13-20260917`) | OpenRouter decisions endpoint (TypeSafe) | 229.000 | +53.7 (37.5 to 69.5) | 0.862 | -18.1 | 9/29 | 0.081 | 8 | 580 | 0.3331 |
+
+Jev beat random, conservative, and rebuild on every seed, win-now and value on
+25 of 29, split with shrewd (16 of 29), and trailed strategic (11 of 29) and
+pick-trader. Leave-one-seed-out on the pick-trader contrast moves the unadjusted
+verdict in 2 of 29 folds, so the non-rejection against pick-trader is not
+stable. The gateway reports answer tokens for a model that generates no text;
+they are billed at zero and the recorded cost reproduces from input tokens
+alone.
+
 Recorded and not fixed: the `openai/gpt-5.6-luna` row billed about $0.125 per
 million prompt tokens against the $0.10 pricing snapshot; transient-retry
 counts live only in the spend guard's ledger and not in the artifacts; the

@@ -1,9 +1,11 @@
 # TypeSafe Jev lane (decision-api)
 
-Status: exploratory one-off lane, added 2026-09-18. Not part of any
-publication panel, not `sota-v5` eligible, and not comparable with the chat
-lanes on the leaderboard. Read the "What a Jev row measures" section before
-quoting a number from it.
+Status: decision-model lane, added 2026-09-18 and run on the full sota-v5
+private panel the same day (see "Published run" at the end). Its row validates
+under the `sota-v5` result policy and is published beside, never inside, the
+chat-lane headline: it is not in the pre-registered family and is not
+comparable with the chat lanes on the leaderboard. Read the "What a Jev row
+measures" section before quoting a number from it.
 
 ## What Jev is
 
@@ -178,8 +180,13 @@ decision phase:
    A missing or malformed answer means no action for that question; the host
    never substitutes a choice.
 4. **Telemetry.** One `api_calls`, the returned `model`, `input_tokens`,
-   `output_tokens` (always 0), latency, and the response's request id as
-   `generation_id`. Unanswered questions are noted in `telemetry_error` and
+   `output_tokens`, latency, and the response's request id as
+   `generation_id`. The direct API documents no token generation phase, but
+   OpenRouter's decisions endpoint reports around 1,300 output tokens per call
+   for the answer payload and bills them at zero: the gateway-reported cost of
+   the published run reproduces from input tokens alone at $0.042 per million.
+   The adapter records what the gateway reports rather than zeroing it, so an
+   output-token figure on a Jev row is an answer-size count, not spend. Unanswered questions are noted in `telemetry_error` and
    the decision still counts. Transport failures fall back to a strict noop
    with `model_error`, like every other lane.
 
@@ -216,3 +223,51 @@ whose answers a one-call lane never sees.
 Score it against the same scripted baselines as any other run and read the
 paired lift; the comparison that is meaningful is Jev-plus-scaffold against the
 scripted policies, not against the published model rows.
+
+## Published run (2026-09-18)
+
+The full private panel ran once over the OpenRouter route with
+`examples/typesafe.jev.openrouter.smoke.json`'s knobs at `--preset leaderboard`
+(`JEV_ROUTE=openrouter`, `JEV_NOUL_THRESHOLD=0.5`, `JEV_ENABLE_TRADES=1`),
+serially, one paid call per decision, `require_clean` on.
+
+| | |
+| --- | --- |
+| Model | `typesafe/jev-1.13`, served as `jev-1.13-20260917` |
+| Route | OpenRouter `/api/alpha/decisions`, upstream TypeSafe |
+| Contract / scaffold | `a600b7da0c302231` / `e1fc1e298283f465` |
+| Panel | sota-v5 private panel, 29 seeds, 5 seasons, one episode per seed |
+| Decisions | 580 of 580, 0 failed, every question answered |
+| Illegal actions | 8 (54 refused trade proposals are counted separately) |
+| Mean score | 229.0 (sd 41.1) |
+| vs baseline-panel mean (175.3) | +53.7, 95% CI 37.5 to 69.5, seed win rate 0.862 |
+| vs pick-trader (247.1) | -18.1, 9 of 29 seeds, unadjusted sign-flip p 0.081 |
+| Cost | $0.33 gateway-billed; 0.42 s per call |
+
+Artifact: `results/leaderboard/decision-lane/typesafe-jev-1.13-openrouter.json`
+(redacted like every private-panel row; raw artifact and the
+`JEV_DECISION_LOG` audit log stay with the operator). Analysis, including
+leave-one-seed-out, observed minimum detectable difference, per-baseline seed
+wins, weight sensitivity, and efficiency:
+`results/analysis/decision-lane-typesafe-jev-1.13-openrouter.md`, regenerated
+by `scripts/decision_lane_analysis.py --check`.
+
+How it is published, and why this shape:
+
+- The artifact lives in `results/leaderboard/decision-lane/`, not
+  `results/leaderboard/sota-v5/`. The sota-v5 directory is what the
+  robustness script, the reproduction guide, and the site's headline builder
+  read as "the registered eleven", and this row must not change their count.
+- The `sota-v5` result policy carries the lane's scaffold fingerprint so the
+  row validates in CI like every other committed artifact. That entry attests
+  the adapter and question set; it does not make the row a member of the
+  pre-registered family.
+- The site serves the row in its own "Decision-model lane" section built from
+  `decision_lane_models` in `web/src/data/leaderboard.json`. The headline
+  `models` array, the eligible-headline count, the shot chart, and the Holm
+  counts do not see it, and `web/scripts/validate_results_data.ts` fails the
+  build if they ever do.
+- The comparison the row supports is against the scripted baselines. It is
+  not a pre-registered cell, it has no Holm-adjusted p-value, and a
+  side-by-side with a chat-lane row would compare two different systems.
+

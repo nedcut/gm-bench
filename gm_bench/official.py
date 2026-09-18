@@ -218,6 +218,11 @@ SOTA_V5_POLICY = ResultPolicy(
         "openai": "01ec5ac3e3bbd175",
         "opencode": "dfeb141bdeb957e1",
         "openrouter": "c582e126bbb6af10",
+        # The TypeSafe Jev decision lane (transport decision-api) was added
+        # after the freeze in gm_bench/decision_providers.py, so its
+        # fingerprint hashes that file beside the frozen registry. It is a
+        # separate lane, not a chat-lane row; see docs/typesafe_jev_lane.md.
+        "typesafe": "e1fc1e298283f465",
     },
     max_failed_query_rate=1.0,
     max_protocol_repair_attempts=0,

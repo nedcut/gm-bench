@@ -10,6 +10,7 @@ import ResultsExplorer from "./components/ResultsExplorer";
 import ModelProfile from "./components/ModelProfile";
 import ReplayBrowser from "./components/ReplayBrowser";
 import Analysis from "./components/Analysis";
+import DecisionLane from "./components/DecisionLane";
 import HowItWorks from "./components/HowItWorks";
 import Quickstart from "./components/Quickstart";
 import Footer from "./components/Footer";
@@ -77,6 +78,7 @@ export default function App() {
           selectedModelId={selectedModelId}
           onSelectModel={setSelectedModelId}
         />
+        <DecisionLane data={leaderboard} />
         <ReplayBrowser puzzles={puzzles} />
         <HowItWorks snapshot={snapshot} />
         <Quickstart />

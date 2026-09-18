@@ -12,6 +12,25 @@ if (benchmark.modelCount !== leaderboard.publication.eligible_headline_models) {
   );
 }
 
+// The decision-model lane is published beside the headline, never inside it:
+// no shared ids, every row on the same private panel, and none of them counted
+// toward the eligible-headline figure the check above just tied down.
+const headlineIds = new Set(leaderboard.models.map((model) => model.id));
+for (const row of leaderboard.decision_lane_models ?? []) {
+  if (row.lane !== "decision-api") {
+    throw new Error(`Decision-lane row ${row.id} is not labelled decision-api`);
+  }
+  if (headlineIds.has(row.id)) {
+    throw new Error(`Decision-lane row ${row.id} also appears among the headline rows`);
+  }
+  if (row.seed_count !== leaderboard.preset.seed_count || row.seeds !== null) {
+    throw new Error(`Decision-lane row ${row.id} is not a redacted run of the published private panel`);
+  }
+  if (!row.artifact_path || !row.route) {
+    throw new Error(`Decision-lane row ${row.id} is missing its artifact path or route`);
+  }
+}
+
 const redactedPrivateRow = {
   mean_score: 100,
   score_stddev: 10,
@@ -38,5 +57,6 @@ if (buildBenchmarkView(privatePanel).repeats !== 1) {
 
 console.log(
   `Validated ${benchmark.modelCount} result rows from one leaderboard source ` +
-    `(${benchmark.repeats} repeats; ${benchmark.modelsAboveBar} above scripted bar).`,
+    `(${benchmark.repeats} repeats; ${benchmark.modelsAboveBar} above scripted bar; ` +
+    `${(leaderboard.decision_lane_models ?? []).length} decision-lane row(s) kept apart).`,
 );

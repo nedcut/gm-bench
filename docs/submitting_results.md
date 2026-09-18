@@ -16,7 +16,12 @@ unless it is called out as a convention. Read
 > `docs/bench_v6_spec.md`) whose seed values are held out of the repository, so
 > it is not open to third-party submission. The public site serves that
 > frozen, authorized v5 panel. A generic third-party v5 row can be validated
-> and will be checked in CI, but the site will not publish it.
+> and will be checked in CI, but the site will not publish it. The one
+> exception is the decision-model lane: rows with `transport: decision-api`
+> (TypeSafe's Jev, `docs/typesafe_jev_lane.md`) that ran the same contract on
+> the same private panel are committed under
+> `results/leaderboard/decision-lane/` and rendered in their own site section,
+> outside the headline count.
 
 ## Produce the row
 

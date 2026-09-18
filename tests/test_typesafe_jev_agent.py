@@ -718,3 +718,12 @@ def test_provider_registry_and_preflight(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setenv("TYPESAFE_API_KEY", "present")
     with pytest.raises(ModelRunAborted, match="set TYPESAFE_API_KEY"):
         preflight_provider("typesafe", require_credentials=True, extra_env={"TYPESAFE_API_KEY": ""})
+
+
+def test_sota_v5_policy_attests_the_jev_scaffold() -> None:
+    """The decision lane validates under sota-v5 on its own fingerprint, which
+    hashes decision_providers.py and the adapter beside the frozen registry."""
+    from gm_bench.contract import scaffold_fingerprint
+    from gm_bench.official import SOTA_V5_POLICY
+
+    assert SOTA_V5_POLICY.expected_scaffold_fingerprints["typesafe"] == scaffold_fingerprint("typesafe")

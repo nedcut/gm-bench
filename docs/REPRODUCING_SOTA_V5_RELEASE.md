@@ -59,6 +59,12 @@ the candidate does not beat the strongest scripted baseline. Some rows also
 warn about illegal actions or adapter fallback. Those warnings do not fail
 the policy.
 
+`results/leaderboard/decision-lane/` holds the separate decision-model lane
+(TypeSafe Jev, added 2026-09-18 after this release). It validates under the
+same policy with its own scaffold fingerprint, but it is not one of the eleven,
+not in the release archive, and not in the Holm family; the loop above does not
+read it.
+
 The three diagnostic rows fail on purpose. Each command below is expected to
 exit 1:
 

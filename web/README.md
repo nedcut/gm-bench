@@ -73,6 +73,13 @@ carries an explicit authorization decision. The analysis is reference-only—eac
 model compared with `pick-trader`, no model-to-model tiers—so v5 rows carry no
 `tier` and the ranking plot claims no ordering.
 
+`build_study.py` also reads `results/leaderboard/decision-lane/` into
+`decision_lane_models`: rows run on the same contract and private panel by a
+decision model (`transport: decision-api`, see `docs/typesafe_jev_lane.md`).
+They render in their own section and never join `models`, the
+eligible-headline count, or the shot chart; `scripts/validate_results_data.ts`
+fails the build if they do.
+
 `build_leaderboard.py` still emits the frozen `sota-v2` release, now at
 `src/data/leaderboard-sota-v2.json`, so the archived study stays reproducible.
 That builder preserves the release instead of recomputing its references on the

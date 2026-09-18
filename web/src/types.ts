@@ -71,7 +71,12 @@ export interface LeaderboardModel {
   id: string;
   model: string;
   provider: string;
-  lane?: "api" | "cli-harness";
+  /**
+   * `api` is the chat-lane headline; `cli-harness` a coding-agent product;
+   * `decision-api` a decision model answering a host-written question set
+   * (docs/typesafe_jev_lane.md), published beside the headline, never in it.
+   */
+  lane?: "api" | "cli-harness" | "decision-api";
   output_token_cap: number | null;
   mean_score: number;
   score_stddev: number;
@@ -172,6 +177,27 @@ export interface TieredLeaderboardModel extends LeaderboardModel {
   holm_reject_at_0_05: boolean | null;
 }
 
+/**
+ * A row from the decision-model lane. Same contract, same private panel, same
+ * scripted baselines as the headline, but the model answers typed questions
+ * and the adapter composes the action batch, so the score measures the model
+ * plus that scaffold. It is not in the Holm family and carries no
+ * `primary_lift`; the comparison it supports is against the scripted
+ * baselines, never against a headline row.
+ */
+export interface DecisionLaneModel extends LeaderboardModel {
+  lane: "decision-api";
+  /** Which endpoint served the run, e.g. the OpenRouter decisions endpoint. */
+  route: string;
+  /** Hash of the adapter, question set, and compaction rules the row was measured with. */
+  scaffold_fingerprint: string | null;
+  /** The lane's pinned knobs (route, yes-threshold, trades on/off), recorded on the run. */
+  provider_options: Record<string, string>;
+  /** Repo-relative path of the redacted artifact behind this row. */
+  artifact_path: string;
+  timestamp_utc: string | null;
+}
+
 export interface LeaderboardBaseline {
   agent: string;
   mean_score: number;
@@ -206,6 +232,8 @@ export interface Leaderboard {
   baselines: LeaderboardBaseline[];
   models: TieredLeaderboardModel[];
   cli_harness_models: LeaderboardModel[];
+  /** Optional so the archived sota-v2 dataset, which predates the lane, still types. */
+  decision_lane_models?: DecisionLaneModel[];
   excluded_models: Array<{ id: string | null; issues: string[] }>;
   publication: {
     status: string;
