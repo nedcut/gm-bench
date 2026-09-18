@@ -100,7 +100,8 @@ The route is a provider pin like the other v6 call conditions: the spec pins
 `JEV_ROUTE=openrouter` in a terminal does nothing for a `--provider typesafe`
 run. Switching routes takes a config `env` entry, as the OpenRouter smoke
 config above does, and the credential preflight checks the key for that same
-resolved route. The route is stamped into
+resolved route in the environment the child will get (the shell overlaid with
+the config `env` block). The route is stamped into
 `run_info.provider_options.JEV_ROUTE`. The path has
 `alpha` in its name, so pin `typesafe/jev-1.13` rather than an alias, and keep
 OpenRouter rows and direct-API rows apart: they are different transports of
@@ -123,7 +124,7 @@ in `usage.model`.
 | `TYPESAFE_API_KEY` | unset | Credential for the direct route |
 | `OPENROUTER_API_KEY` | unset | Credential for the OpenRouter route |
 | `TYPESAFE_MODEL` | `jev-latest` (`typesafe/jev-1.13` on OpenRouter) | Model id or slug |
-| `TYPESAFE_API_BASE` | per route | Endpoint base override for the selected route (recorded); must be `https://`, with plain `http://` allowed only on loopback for a local stand-in |
+| `TYPESAFE_API_BASE` | per route | Endpoint base override for the selected route (recorded); must be `https://`, with plain `http://` allowed only on loopback for a local stand-in. Redirects are never followed: a 3xx ends the call as an HTTP error, so the bearer key stays on the configured origin |
 | `TYPESAFE_TIMEOUT` | derived from the decision budget | Per-call HTTP timeout |
 | `JEV_NOUL_THRESHOLD` | `0.5` | Probability at which a yes/no answer counts as yes (recorded) |
 | `JEV_ENABLE_TRADES` | `1` | Ask the trade questions and emit trade proposals (recorded) |

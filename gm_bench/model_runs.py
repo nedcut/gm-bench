@@ -413,7 +413,10 @@ def preflight_provider(
             required = (route_credential(effective_jev_route(extra_env)),)
         except ValueError as exc:
             raise ModelRunAborted(f"typesafe preflight failed: {exc}") from exc
-    if require_credentials and required and not any(os.environ.get(name) for name in required):
+    # The child runs under the shell overlaid with the config env block, so a
+    # key supplied (or blanked) there counts exactly as it will for the child.
+    effective_env = {**os.environ, **(extra_env or {})}
+    if require_credentials and required and not any(effective_env.get(name) for name in required):
         names = " or ".join(required)
         raise ModelRunAborted(f"{provider} preflight failed: set {names}")
     if provider == "claude":

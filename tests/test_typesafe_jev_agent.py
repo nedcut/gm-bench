@@ -336,7 +336,7 @@ def test_choose_actions_posts_one_system_one_call_and_reports_usage(monkeypatch:
     monkeypatch.setenv("TYPESAFE_MODEL", "jev-latest")
     monkeypatch.setenv("GM_BENCH_AGENT_TIMEOUT", "120")
     monkeypatch.delenv("TYPESAFE_TIMEOUT", raising=False)
-    monkeypatch.setattr(jev.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(jev, "_urlopen", fake_urlopen)
 
     actions, usage = jev.choose_actions(_observation("preseason"))
 
@@ -395,7 +395,7 @@ def test_openrouter_route_posts_to_the_decisions_endpoint(monkeypatch: pytest.Mo
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     # The harness pins the bare TypeSafe id; the route translates it to the slug.
     monkeypatch.setenv("TYPESAFE_MODEL", "jev-latest")
-    monkeypatch.setattr(jev.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(jev, "_urlopen", fake_urlopen)
 
     actions, usage = jev.choose_actions(_observation("preseason"))
 
@@ -431,7 +431,7 @@ def test_openrouter_route_translates_pinned_ids_to_vendor_slugs(monkeypatch: pyt
 
 def test_api_base_override_must_not_leak_the_key_over_plain_http(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TYPESAFE_API_KEY", "secret-key")
-    monkeypatch.setattr(jev.urllib.request, "urlopen", lambda *a, **k: pytest.fail("no call expected"))
+    monkeypatch.setattr(jev, "_urlopen", lambda *a, **k: pytest.fail("no call expected"))
     for insecure in ("http://api.typesafe.ai", "http://evil.example/v1", "ftp://127.0.0.1", "api.typesafe.ai"):
         monkeypatch.setenv("TYPESAFE_API_BASE", insecure)
         actions, usage = jev.choose_actions(_observation("preseason"))
@@ -472,7 +472,7 @@ def test_choose_actions_logs_the_decision_when_asked(monkeypatch: pytest.MonkeyP
     log_path = tmp_path / "jev.jsonl"
     monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
     monkeypatch.setenv("JEV_DECISION_LOG", str(log_path))
-    monkeypatch.setattr(jev.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(jev, "_urlopen", fake_urlopen)
 
     actions, usage = jev.choose_actions(_observation("draft"))
 
@@ -507,7 +507,7 @@ def test_choose_actions_reports_provider_errors_as_measured_fallbacks(monkeypatc
         del args, kwargs
         raise urllib.error.HTTPError("https://api.typesafe.ai/v1/systemone", 429, "Too Many Requests", {}, _Body())
 
-    monkeypatch.setattr(jev.urllib.request, "urlopen", raise_http)
+    monkeypatch.setattr(jev, "_urlopen", raise_http)
     actions, usage = jev.choose_actions(_observation("preseason"))
     assert actions[0]["type"] == "noop"
     assert "HTTP 429" in actions[0]["model_error"]
@@ -516,9 +516,7 @@ def test_choose_actions_reports_provider_errors_as_measured_fallbacks(monkeypatc
     assert usage["api_calls"] == 1
 
     monkeypatch.setattr(
-        jev.urllib.request,
-        "urlopen",
-        lambda *args, **kwargs: (_ for _ in ()).throw(urllib.error.URLError("offline")),
+        jev, "_urlopen", lambda *args, **kwargs: (_ for _ in ()).throw(urllib.error.URLError("offline"))
     )
     actions, usage = jev.choose_actions(_observation("preseason"))
     assert "api_error" in actions[0]["model_error"]
@@ -528,10 +526,57 @@ def test_choose_actions_reports_provider_errors_as_measured_fallbacks(monkeypatc
         del request, kwargs
         return _Response({"model": "jev-1.13.0", "answers": {}, "usage": {"input_tokens": 5, "output_tokens": 0}})
 
-    monkeypatch.setattr(jev.urllib.request, "urlopen", no_answers)
+    monkeypatch.setattr(jev, "_urlopen", no_answers)
     actions, usage = jev.choose_actions(_observation("preseason"))
     assert "no answers" in actions[0]["model_error"]
     assert usage["input_tokens"] == 5
+
+
+def test_a_redirect_is_refused_before_the_key_can_follow_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    """urllib's default redirect handler copies Authorization onto the new URL,
+    so a 3xx from the endpoint must end the call rather than be followed."""
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    leaked: list[str | None] = []
+
+    class Target(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            leaked.append(self.headers.get("Authorization"))
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, *args: Any) -> None:
+            del args
+
+    target = HTTPServer(("127.0.0.1", 0), Target)
+
+    class Redirector(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            self.send_response(302)
+            self.send_header("Location", f"http://127.0.0.1:{target.server_port}/elsewhere")
+            self.end_headers()
+
+        def log_message(self, *args: Any) -> None:
+            del args
+
+    redirector = HTTPServer(("127.0.0.1", 0), Redirector)
+    threads = [threading.Thread(target=server.serve_forever, daemon=True) for server in (target, redirector)]
+    for thread in threads:
+        thread.start()
+    try:
+        monkeypatch.setenv("TYPESAFE_API_KEY", "secret-key")
+        monkeypatch.setenv("TYPESAFE_API_BASE", f"http://127.0.0.1:{redirector.server_port}")
+        actions, usage = jev.choose_actions(_observation("preseason"))
+    finally:
+        for server in (target, redirector):
+            server.shutdown()
+            server.server_close()
+    assert leaked == [], "the bearer key followed the redirect"
+    assert actions[0]["type"] == "noop"
+    assert "HTTP 302" in actions[0]["model_error"]
+    assert "secret-key" not in actions[0]["model_error"]
+    assert usage["api_calls"] == 1
 
 
 def test_malformed_usage_field_still_yields_a_decision(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -541,7 +586,7 @@ def test_malformed_usage_field_still_yields_a_decision(monkeypatch: pytest.Monke
         return _Response({"model": "jev-1.13.0", "answers": _answer_everything(payload["questions"]), "usage": "n/a"})
 
     monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
-    monkeypatch.setattr(jev.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(jev, "_urlopen", fake_urlopen)
     actions, usage = jev.choose_actions(_observation("preseason"))
     validate_action_list(actions)
     assert actions[0]["type"] == "set_lineup"
@@ -552,7 +597,7 @@ def test_malformed_usage_field_still_yields_a_decision(monkeypatch: pytest.Monke
 def test_failure_before_the_request_counts_no_call(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
     monkeypatch.setenv("JEV_NOUL_THRESHOLD", "1.5")
-    monkeypatch.setattr(jev.urllib.request, "urlopen", lambda *a, **k: pytest.fail("no call expected"))
+    monkeypatch.setattr(jev, "_urlopen", lambda *a, **k: pytest.fail("no call expected"))
     actions, usage = jev.choose_actions(_observation("preseason"))
     assert "JEV_NOUL_THRESHOLD" in actions[0]["model_error"]
     assert usage["api_calls"] == 0
@@ -560,7 +605,7 @@ def test_failure_before_the_request_counts_no_call(monkeypatch: pytest.MonkeyPat
 
 def test_follow_up_rounds_close_the_window_without_a_call(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
-    monkeypatch.setattr(jev.urllib.request, "urlopen", lambda *a, **k: pytest.fail("no call expected"))
+    monkeypatch.setattr(jev, "_urlopen", lambda *a, **k: pytest.fail("no call expected"))
     assert jev.choose_actions({"phase": "action_results", "action_results": []}) == ([{"type": "end_turn"}], None)
 
 
@@ -661,3 +706,15 @@ def test_provider_registry_and_preflight(monkeypatch: pytest.MonkeyPatch) -> Non
     preflight_provider("typesafe")  # the shell value never reaches the child
     with pytest.raises(ModelRunAborted, match="JEV_ROUTE"):
         preflight_provider("typesafe", extra_env={"JEV_ROUTE": "sideways"})
+
+    # The key is checked where the child will read it: a config env entry can
+    # supply it without the shell, and a blank entry there removes it.
+    monkeypatch.delenv("TYPESAFE_API_KEY")
+    monkeypatch.delenv("JEV_ROUTE")
+    preflight_provider("typesafe", require_credentials=True, extra_env={"TYPESAFE_API_KEY": "from-config"})
+    preflight_provider(
+        "typesafe", require_credentials=True, extra_env={**switched, "OPENROUTER_API_KEY": "from-config"}
+    )
+    monkeypatch.setenv("TYPESAFE_API_KEY", "present")
+    with pytest.raises(ModelRunAborted, match="set TYPESAFE_API_KEY"):
+        preflight_provider("typesafe", require_credentials=True, extra_env={"TYPESAFE_API_KEY": ""})

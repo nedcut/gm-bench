@@ -728,6 +728,26 @@ def _http_error_detail(exc: urllib.error.HTTPError, api_key: str) -> str:
     return "; ".join(parts)
 
 
+class _RefuseRedirects(urllib.request.HTTPRedirectHandler):
+    """Never follow a redirect: urllib's default handler copies the
+    Authorization header onto the new URL, so a 3xx from the configured
+    endpoint could hand the bearer key to another origin or to plain HTTP.
+    Returning None makes urllib raise the 3xx as an HTTPError instead."""
+
+    def redirect_request(self, req: Any, fp: Any, code: int, msg: str, headers: Any, newurl: str) -> None:
+        del req, fp, code, msg, headers, newurl
+        return None
+
+
+_OPENER = urllib.request.build_opener(_RefuseRedirects)
+
+
+def _urlopen(request: urllib.request.Request, *, timeout: float) -> Any:
+    """POST through an opener that refuses redirects (see ``_RefuseRedirects``)."""
+    # Fixed provider HTTPS endpoint from operator config, not attacker-controlled input.  # nosemgrep
+    return _OPENER.open(request, timeout=timeout)
+
+
 def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
     if observation.get("phase") == "action_results":
         # Jev is stateless per call and the v6 lane buys one call per phase, so
@@ -771,8 +791,7 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
             method="POST",
         )
         attempted = True
-        # Fixed provider HTTPS endpoint from operator config, not attacker-controlled input.  # nosemgrep
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with _urlopen(request, timeout=timeout) as response:
             response_headers = response.headers if hasattr(response, "headers") else {}
             request_id = response_headers.get("X-Generation-Id") or response_headers.get("X-Request-Id")
             data = json.loads(response.read().decode("utf-8"))
