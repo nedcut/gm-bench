@@ -391,6 +391,7 @@ def preflight_provider(provider: str, *, require_credentials: bool = False) -> N
         "anthropic": ("ANTHROPIC_API_KEY",),
         "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
         "openrouter": ("OPENROUTER_API_KEY",),
+        "typesafe": ("TYPESAFE_API_KEY",),
     }
     required = direct_credentials.get(provider)
     if require_credentials and required and not any(os.environ.get(name) for name in required):

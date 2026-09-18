@@ -196,6 +196,7 @@ def scaffold_fingerprint(provider: str) -> str | None:
     invalidate other providers' rows. Returns None for unknown providers
     (external --agent-cmd runs have no built-in scaffold to attest).
     """
+    from gm_bench.decision_providers import DECISION_PROVIDERS
     from gm_bench.providers import PROVIDERS
 
     spec = PROVIDERS.get(str(provider).lower())
@@ -205,13 +206,15 @@ def scaffold_fingerprint(provider: str) -> str | None:
     digest.update(f"{spec.name}\0{spec.model_env}\0{spec.default_profile}\0".encode())
     # scaffold_view.py holds the compaction half of the prompt builder; without
     # it a truncation-limit change would move every model's prompt text while
-    # leaving every scaffold fingerprint identical.
-    for relative_path in (
-        "gm_bench/providers.py",
-        "gm_bench/scaffold_view.py",
-        "examples/gm_agent_common.py",
-        f"examples/{spec.script}",
-    ):
+    # leaving every scaffold fingerprint identical. A lane declared in
+    # decision_providers.py is fingerprinted with that file as well, so a
+    # change to its spec moves its own fingerprint without touching the frozen
+    # registry every other lane hashes.
+    sources = ["gm_bench/providers.py"]
+    if spec.name in DECISION_PROVIDERS:
+        sources.append("gm_bench/decision_providers.py")
+    sources += ["gm_bench/scaffold_view.py", "examples/gm_agent_common.py", f"examples/{spec.script}"]
+    for relative_path in sources:
         digest.update(relative_path.encode())
         digest.update(b"\0")
         digest.update(_source_path(relative_path).read_bytes())

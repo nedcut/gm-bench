@@ -363,7 +363,10 @@ python -m gm_bench providers
 Direct OpenAI, Anthropic, Gemini, and OpenRouter setup—including reproducible
 OpenRouter routing controls—is documented in
 [`docs/api_provider_lanes.md`](docs/api_provider_lanes.md). API lanes are
-recorded separately from coding-harness and local-inference results.
+recorded separately from coding-harness and local-inference results. TypeSafe's
+Jev, a decision model that answers typed questions instead of writing JSON, runs
+in its own exploratory `decision-api` lane; see
+[`docs/typesafe_jev_lane.md`](docs/typesafe_jev_lane.md).
 
 Canonical GPT-5.6 Luna smoke (serial, upstream-pinned, JSON-constrained, and
 atomically persisted):
@@ -879,6 +882,25 @@ without making a model request.
 Note: Codex cloud/API mode, Claude Code, and opencode-backed runs may send
 benchmark observations/prompts to external model providers. Local Codex OSS mode
 with Ollama stays local.
+
+### TypeSafe Jev (decision model, exploratory lane)
+
+Jev returns typed answers (a yes/no probability, one option from a list, or a
+scale position) rather than text, so the adapter asks it a fixed batch of
+questions per decision phase and composes the action batch from the answers
+under published rules. Access is by waitlist at https://typesafe.ai with API
+keys and billing at https://console.typesafe.ai; launch pricing is $0.042 per
+million input tokens and nothing for output, so a smoke costs well under a cent.
+
+```bash
+TYPESAFE_API_KEY=... GM_BENCH_WORKERS=1 python -m gm_bench model \
+  --config examples/typesafe.jev.smoke.json
+```
+
+A Jev score measures Jev plus this question scaffold, its malformed rate is
+zero by construction, and its rows carry `transport: decision-api`. Keep them
+out of the chat-lane tables. Details, the wire format, and the composition
+rules are in [`docs/typesafe_jev_lane.md`](docs/typesafe_jev_lane.md).
 
 ### Gemini API
 
