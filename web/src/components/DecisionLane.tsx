@@ -22,6 +22,16 @@ function ci(model: DecisionLaneModel): string {
   return `[${fmt(interval[0], 1)}, ${fmt(interval[1], 1)}]`;
 }
 
+/* The paired lift against pick-trader carries its sign: a negative lift
+ * trails, zero ties, and a positive one leads. Never print an absolute value
+ * under a fixed verb, which would read a lead as a deficit. */
+function pickTraderSentence(lift: number, pickTraderScore: number): string {
+  const bar = fmt(pickTraderScore, 1);
+  if (lift < 0) return `It trails pick-trader (${bar}) by ${fmt(-lift, 1)} points on the paired contrast.`;
+  if (lift > 0) return `It leads pick-trader (${bar}) by ${fmt(lift, 1)} points on the paired contrast.`;
+  return `It ties pick-trader (${bar}) on the paired contrast.`;
+}
+
 function knobs(model: DecisionLaneModel): string {
   return Object.entries(model.provider_options)
     .map(([key, value]) => `${key}=${value}`)
@@ -117,10 +127,7 @@ export default function DecisionLane({ data }: { data: LeaderboardData }) {
               <code>{model.scaffold_fingerprint ?? "unrecorded"}</code>, {model.decision_points}{" "}
               decisions, total cost ${fmt(model.cost_usd ?? 0, 2)}.
               {pickTrader && model.lift_vs_best_baseline !== null
-                ? ` It trails pick-trader (${fmt(pickTrader.mean_score, 1)}) by ${fmt(
-                    Math.abs(model.lift_vs_best_baseline),
-                    1,
-                  )} points on the paired contrast.`
+                ? ` ${pickTraderSentence(model.lift_vs_best_baseline, pickTrader.mean_score)}`
                 : ""}
             </li>
           ))}

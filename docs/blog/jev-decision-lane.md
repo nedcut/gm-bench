@@ -34,7 +34,7 @@ OpenRouter's decisions endpoint, upstream TypeSafe, served model
 | Cost | $0.33, 0.42 s per call |
 
 Jev beat random, conservative, and rebuild on every seed, win-now and value on
-25 of 29, split evenly with shrewd, and trailed strategic and pick-trader.
+25 of 29, won 16 of 29 against shrewd, and trailed strategic and pick-trader.
 Leave-one-seed-out on the pick-trader contrast changes the unadjusted verdict
 in 2 of 29 folds, so "does not reject against pick-trader" is not a stable
 finding either way. The full aggregate-only analysis is in

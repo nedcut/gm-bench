@@ -3,7 +3,6 @@
   "baseline_cache": {
     "enabled": true,
     "hits": 232,
-    "path": "/Users/nedcutler/Documents/Code/gm_bench/data/baseline_cache.json",
     "total": 232
   },
   "baselines": [
@@ -586,6 +585,7 @@
     "applied": true,
     "removed": [
       "seeds",
+      "baseline_cache.path",
       "typesafe:typesafe/jev-1.13.seeds",
       "typesafe:typesafe/jev-1.13.episodes",
       "random.seeds",

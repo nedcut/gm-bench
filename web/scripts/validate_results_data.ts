@@ -16,6 +16,7 @@ if (benchmark.modelCount !== leaderboard.publication.eligible_headline_models) {
 // no shared ids, every row on the same private panel, and none of them counted
 // toward the eligible-headline figure the check above just tied down.
 const headlineIds = new Set(leaderboard.models.map((model) => model.id));
+const decisionLaneIds = new Set<string>();
 for (const row of leaderboard.decision_lane_models ?? []) {
   if (row.lane !== "decision-api") {
     throw new Error(`Decision-lane row ${row.id} is not labelled decision-api`);
@@ -23,6 +24,10 @@ for (const row of leaderboard.decision_lane_models ?? []) {
   if (headlineIds.has(row.id)) {
     throw new Error(`Decision-lane row ${row.id} also appears among the headline rows`);
   }
+  if (decisionLaneIds.has(row.id)) {
+    throw new Error(`Duplicate decision-lane row ${row.id}`);
+  }
+  decisionLaneIds.add(row.id);
   if (row.seed_count !== leaderboard.preset.seed_count || row.seeds !== null) {
     throw new Error(`Decision-lane row ${row.id} is not a redacted run of the published private panel`);
   }

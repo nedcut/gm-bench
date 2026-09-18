@@ -35,6 +35,7 @@ from analyze_publication_panel import per_seed_pick_trader_lifts, sign_flip_p_va
 from weight_sensitivity import analyse as weight_sensitivity_analyse  # noqa: E402
 
 from gm_bench.official import REDACTED_SEEDS_SENTINEL  # noqa: E402
+from gm_bench.publication import canonical_sha256  # noqa: E402
 
 ANALYSIS_DIR = ROOT / "results" / "analysis"
 DEFAULT_ARTIFACT = ROOT / "results" / "leaderboard" / "decision-lane" / "typesafe-jev-1.13-openrouter.json"
@@ -124,6 +125,32 @@ def _efficiency(artifact: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _require_same_run(artifact: dict[str, Any], raw: dict[str, Any], publication: dict[str, Any]) -> None:
+    """Bind the analysis to the raw artifact the published row was redacted from.
+
+    ``redact-result`` stamps ``publication.raw_artifact_sha256`` with the
+    canonical hash of the payload it redacted, so the raw file offered here
+    must hash to exactly that; a different run of the same panel width must
+    not be able to borrow the published row's identity.
+    """
+    expected = str(publication.get("raw_artifact_sha256") or "")
+    observed = canonical_sha256(raw)
+    if not expected or observed != expected:
+        raise SystemExit(
+            f"raw artifact hash {observed[:16]} does not match the published row's {expected[:16] or 'missing'}"
+        )
+    a_info, r_info = artifact["run_info"], raw.get("run_info") or {}
+    for key in ("provider", "model", "transport", "scaffold_fingerprint"):
+        if a_info.get(key) != r_info.get(key):
+            raise SystemExit(f"raw artifact run_info.{key} differs from the published row")
+    if (a_info.get("benchmark_contract") or {}) != (r_info.get("benchmark_contract") or {}):
+        raise SystemExit("raw artifact was not run under the published contract")
+    if (a_info.get("seed_panel") or {}) != (r_info.get("seed_panel") or {}):
+        raise SystemExit("raw artifact was not run on the published seed panel")
+    if artifact.get("agent") != raw.get("agent"):
+        raise SystemExit("raw artifact agent differs from the published row")
+
+
 def build_analysis(*, artifact_path: Path, raw_path: Path, draws: int, perturbation: float) -> dict[str, Any]:
     artifact = _load(artifact_path)
     raw = _load(raw_path)
@@ -133,6 +160,7 @@ def build_analysis(*, artifact_path: Path, raw_path: Path, draws: int, perturbat
     if artifact.get("seeds") != REDACTED_SEEDS_SENTINEL:
         raise SystemExit("artifact must be the redacted publication row")
     publication = artifact.get("publication") or {}
+    _require_same_run(artifact, raw, publication)
 
     lifts = [float(row["lift"]) for row in per_seed_pick_trader_lifts(raw, expected_repeats=1)]
     seed_count = len(lifts)

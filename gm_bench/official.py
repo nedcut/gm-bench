@@ -634,6 +634,12 @@ def redact_leaderboard_payload(
         return redacted, report
 
     _redact_seed_fields(redacted, redacted["redaction"]["removed"])
+    baseline_cache = _dict(redacted.get("baseline_cache"))
+    if "path" in baseline_cache:
+        # An absolute local cache path names the operator's machine and adds
+        # no evidence; compact_result already drops it for the same reason.
+        baseline_cache.pop("path")
+        redacted["redaction"]["removed"].append("baseline_cache.path")
     for result_key in ("candidate",):
         _redact_run_block(_dict(redacted.get(result_key)), redacted["redaction"]["removed"])
     for baseline in _list(redacted.get("baselines")):

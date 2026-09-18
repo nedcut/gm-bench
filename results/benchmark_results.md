@@ -80,7 +80,7 @@ sensitivity, and efficiency are in
 | `typesafe/jev-1.13` (served `jev-1.13-20260917`) | OpenRouter decisions endpoint (TypeSafe) | 229.000 | +53.7 (37.5 to 69.5) | 0.862 | -18.1 | 9/29 | 0.081 | 8 | 580 | 0.3331 |
 
 Jev beat random, conservative, and rebuild on every seed, win-now and value on
-25 of 29, split with shrewd (16 of 29), and trailed strategic (11 of 29) and
+25 of 29, won 16 of 29 against shrewd, and trailed strategic (11 of 29) and
 pick-trader. Leave-one-seed-out on the pick-trader contrast moves the unadjusted
 verdict in 2 of 29 folds, so the non-rejection against pick-trader is not
 stable. The gateway reports answer tokens for a model that generates no text;

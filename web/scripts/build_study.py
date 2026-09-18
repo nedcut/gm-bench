@@ -90,9 +90,14 @@ def _decision_lane_rows(source: Path, *, contract: dict[str, Any], seed_panel: d
     if not source.is_dir():
         return []
     rows: list[dict[str, Any]] = []
+    seen: dict[str, str] = {}
     for path in sorted(source.glob("*.json")):
         payload = _read(path)
         run_info = payload.get("run_info") or {}
+        agent = str(payload.get("agent") or "")
+        if agent in seen:
+            raise ValueError(f"{path.name} repeats decision-lane id {agent!r} already published from {seen[agent]}")
+        seen[agent] = path.name
         if run_info.get("transport") != DECISION_LANE:
             raise ValueError(f"{path.name} is not a {DECISION_LANE} row; it does not belong in the decision lane")
         row_contract = run_info.get("benchmark_contract") or {}

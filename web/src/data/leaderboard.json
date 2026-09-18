@@ -55,7 +55,7 @@
     {
       "api_latency_s_per_decision": 0.42,
       "artifact_path": "results/leaderboard/decision-lane/typesafe-jev-1.13-openrouter.json",
-      "artifact_sha256": "84145ecaec195862ebe25616ba48b39808f92fc105e998bb6a272926a8616cd0",
+      "artifact_sha256": "66cfba3dabfe5c76061c89cba79d41d303052e5a120d0fcee9a741dc21270cd7",
       "baseline_panel_mean_score": 175.303,
       "benchmark_version": "sota-v5",
       "contract_fingerprint": "a600b7da0c302231",

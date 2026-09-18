@@ -102,3 +102,21 @@ def test_decision_lane_artifact_is_redacted_and_validates() -> None:
     assert payload["run_info"]["scaffold_fingerprint"] == SOTA_V5_POLICY.expected_scaffold_fingerprints["typesafe"]
     report = validate_leaderboard_payload(payload, policy=SOTA_V5_POLICY)
     assert report.ok, report.errors
+
+
+def test_decision_lane_refuses_a_duplicate_id(tmp_path: Path) -> None:
+    """Two artifacts claiming the same decision-lane id would render as two
+    rows with one identity; the builder must refuse the second."""
+    lane_dir = tmp_path / "decision-lane"
+    lane_dir.mkdir()
+    (lane_dir / "a.json").write_text(DECISION_LANE_ARTIFACT.read_text())
+    (lane_dir / "b.json").write_text(DECISION_LANE_ARTIFACT.read_text())
+
+    with pytest.raises(ValueError, match="repeats decision-lane id"):
+        build_study(output_path=tmp_path / "leaderboard.json", decision_lane_dir=lane_dir)
+
+
+def test_decision_lane_artifact_carries_no_local_path() -> None:
+    payload = json.loads(DECISION_LANE_ARTIFACT.read_text())
+    assert "path" not in payload["baseline_cache"]
+    assert "baseline_cache.path" in payload["redaction"]["removed"]
