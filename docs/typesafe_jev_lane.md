@@ -83,8 +83,8 @@ GM_BENCH_WORKERS=1 python3 -m gm_bench model --provider typesafe --model jev-lat
 OpenRouter resells Jev as `typesafe/jev-1.13` at the same launch price, but
 not on chat completions: that endpoint rejects the slug with HTTP 400. It
 answers on `POST https://openrouter.ai/api/alpha/decisions`, which takes the
-same `{model, state, questions}` body and returns the same `answers` map. Set
-`JEV_ROUTE=openrouter` and the adapter posts there under `OPENROUTER_API_KEY`,
+same `{model, state, questions}` body and returns the same `answers` map. With
+`JEV_ROUTE=openrouter` the adapter posts there under `OPENROUTER_API_KEY`,
 adds the usual OpenRouter referer headers, records the upstream provider,
 generation id and any reported cost, and translates a bare pinned id such as
 `jev-1.13` into the `typesafe/jev-1.13` slug (`jev-latest` becomes OpenRouter's
@@ -95,7 +95,13 @@ OPENROUTER_API_KEY=... GM_BENCH_WORKERS=1 python3 -m gm_bench model \
   --config examples/typesafe.jev.openrouter.smoke.json
 ```
 
-The route is stamped into `run_info.provider_options.JEV_ROUTE`. The path has
+The route is a provider pin like the other v6 call conditions: the spec pins
+`JEV_ROUTE=typesafe`, and a pin beats an inherited shell value, so exporting
+`JEV_ROUTE=openrouter` in a terminal does nothing for a `--provider typesafe`
+run. Switching routes takes a config `env` entry, as the OpenRouter smoke
+config above does, and the credential preflight checks the key for that same
+resolved route. The route is stamped into
+`run_info.provider_options.JEV_ROUTE`. The path has
 `alpha` in its name, so pin `typesafe/jev-1.13` rather than an alias, and keep
 OpenRouter rows and direct-API rows apart: they are different transports of
 the same model. OpenRouter also validates that every `instructions` and
@@ -113,7 +119,7 @@ in `usage.model`.
 
 | Environment variable | Default | Meaning |
 | --- | --- | --- |
-| `JEV_ROUTE` | `typesafe` | `typesafe` (direct API) or `openrouter` (decisions endpoint); recorded |
+| `JEV_ROUTE` | `typesafe` | `typesafe` (direct API) or `openrouter` (decisions endpoint); a provider pin, switched through a config `env` block; recorded |
 | `TYPESAFE_API_KEY` | unset | Credential for the direct route |
 | `OPENROUTER_API_KEY` | unset | Credential for the OpenRouter route |
 | `TYPESAFE_MODEL` | `jev-latest` (`typesafe/jev-1.13` on OpenRouter) | Model id or slug |
@@ -152,9 +158,10 @@ decision phase:
    available sources disagreed on.
 3. **Composition.** `compose_actions` turns the answers into an action batch by
    fixed rules. Every choice is Jev's. The host contributes only legality:
-   - a signing or extension is priced at the published quote for the chosen
-     term (offering the quote always succeeds, so the contract is exactly what
-     Jev asked for);
+   - a signing or extension needs Jev's term answer as well as its pick, and
+     is priced at the published quote for that term (offering the quote always
+     succeeds, so the contract is exactly what Jev asked for); no answered
+     term, or a term with no quote, means no contract;
    - the lineup is `position_aware_lineup` run over Jev's own dress
      probabilities, which fills the 10F/4D/1G minimums and the 18 slots in
      Jev's order; if Jev answered no dress question there is no lineup action;

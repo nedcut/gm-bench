@@ -15,6 +15,8 @@ to ``providers.py``: see ``gm_bench.contract.scaffold_fingerprint``.
 
 from __future__ import annotations
 
+import os
+
 from gm_bench import providers
 from gm_bench.providers import ProviderSpec
 
@@ -46,6 +48,19 @@ DECISION_PROVIDERS: dict[str, ProviderSpec] = {TYPESAFE.name: TYPESAFE}
 # rather than after two failed decisions.
 ROUTE_CREDENTIALS: dict[str, str] = {"typesafe": "TYPESAFE_API_KEY", "openrouter": "OPENROUTER_API_KEY"}
 DEFAULT_JEV_ROUTE = "typesafe"
+
+
+def effective_jev_route(extra_env: dict[str, str] | None = None) -> str:
+    """The JEV_ROUTE the adapter subprocess will actually run under.
+
+    Mirrors ``build_provider_agent``: a config ``env`` entry beats the spec pin,
+    and the pin beats whatever the shell says. The spec pins the route, so a
+    shell-only ``JEV_ROUTE`` never reaches the child; switching routes takes a
+    config ``env`` block, which is then recorded in ``provider_options``.
+    """
+    if extra_env and extra_env.get("JEV_ROUTE"):
+        return extra_env["JEV_ROUTE"]
+    return TYPESAFE.extra_env.get("JEV_ROUTE") or os.environ.get("JEV_ROUTE") or DEFAULT_JEV_ROUTE
 
 
 def route_credential(route: str | None) -> str:

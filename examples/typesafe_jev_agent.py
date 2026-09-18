@@ -551,11 +551,11 @@ def compose_actions(
     signing = _choice(answers, "sign_free_agent")
     if signing and signing != NONE_LABEL and signing in index["free_agents"]:
         player = index["free_agents"][signing]
+        # The term is Jev's answer too: no term, or one without a published
+        # quote, means no signing rather than a host-picked contract.
         term = _choice(answers, "sign_years")
-        if term not in CONTRACT_TERMS:
-            term = "1"
         quotes = player.get("contract_quotes") or {}
-        salary = quotes.get(term, player.get("asking_salary"))
+        salary = quotes.get(term) if term in CONTRACT_TERMS else None
         if isinstance(salary, int | float) and not isinstance(salary, bool):
             actions.append(
                 {"type": "sign_free_agent", "player_id": int(signing), "years": int(term), "salary": float(salary)}
@@ -589,8 +589,12 @@ def compose_actions(
     # ever cut surplus extensions, never the lineup, a signing, or a draft pick.
     extension_term = _choice(answers, "extend_years")
     if extension_term not in EXTENSION_TERMS:
-        extension_term = EXTENSION_TERMS[0]
-    for key, player in index["extensions"]:
+        # Without an answered term there is no extension to write, however
+        # many expiring players Jev said yes to.
+        index_extensions: list[Any] = []
+    else:
+        index_extensions = index["extensions"]
+    for key, player in index_extensions:
         probability = _noul(answers, key)
         if probability is None or probability < noul_threshold:
             continue

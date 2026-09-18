@@ -243,6 +243,32 @@ def test_batch_never_exceeds_the_validator_ceiling() -> None:
     assert sum(action["type"] == "extend_contract" for action in actions) < len(index["extensions"])
 
 
+def test_no_term_answer_means_no_contract() -> None:
+    """A signing or extension needs Jev's term as well as its pick; the host
+    never fills in a default year count or prices a term with no quote."""
+    observation = _observation("preseason")
+    _, index = jev.build_questions(observation)
+    free_agent = next(iter(index["free_agents"]))
+    key, player = index["extensions"][0]
+    yes = {"type": "noul", "noul": 1.0}
+    pick = {"type": "choice", "choice": free_agent}
+
+    assert jev.compose_actions(observation, {"sign_free_agent": pick, key: yes}, index) == [{"type": "noop"}]
+    invalid = {"type": "choice", "choice": "not-a-term"}
+    answers = {"sign_free_agent": pick, "sign_years": invalid, key: yes, "extend_years": invalid}
+    assert jev.compose_actions(observation, answers, index) == [{"type": "noop"}]
+    # A term the quote table does not carry is not priced from the 1-year ask.
+    player_quotes = index["free_agents"][free_agent]["contract_quotes"]
+    del player_quotes["4"]
+    answers = {"sign_free_agent": pick, "sign_years": {"type": "choice", "choice": "4"}}
+    assert jev.compose_actions(observation, answers, index) == [{"type": "noop"}]
+    answers["sign_years"]["choice"] = "5"
+    actions = jev.compose_actions(observation, answers, index)
+    assert actions == [
+        {"type": "sign_free_agent", "player_id": int(free_agent), "years": 5, "salary": player_quotes["5"]}
+    ]
+
+
 def test_noul_threshold_gates_extensions() -> None:
     observation = _observation("preseason")
     _, index = jev.build_questions(observation)
@@ -544,22 +570,30 @@ def test_provider_registry_and_preflight(monkeypatch: pytest.MonkeyPatch) -> Non
     assert routed.metadata["provider_options"]["JEV_ROUTE"] == "openrouter"
     assert agent.metadata["provider_options"]["JEV_ENABLE_TRADES"] == "1"
 
-    # The strict preflight demands the key for the route the run will use, so
-    # a recorder is refused up front instead of after two failed decisions.
+    # The strict preflight demands the key for the route the child will run
+    # under, resolved exactly as build_provider_agent resolves it: a config
+    # env entry beats the spec pin, and the pin beats the shell. A shell-only
+    # JEV_ROUTE therefore changes nothing, on either side.
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     preflight_provider("typesafe")
     with pytest.raises(ModelRunAborted, match="set TYPESAFE_API_KEY"):
         preflight_provider("typesafe", require_credentials=True)
     monkeypatch.setenv("OPENROUTER_API_KEY", "present")
+    monkeypatch.setenv("JEV_ROUTE", "openrouter")
     with pytest.raises(ModelRunAborted, match="set TYPESAFE_API_KEY"):
         preflight_provider("typesafe", require_credentials=True)
-    monkeypatch.setenv("JEV_ROUTE", "openrouter")
-    preflight_provider("typesafe", require_credentials=True)
+    assert build_provider_agent("typesafe").metadata["provider_options"]["JEV_ROUTE"] == "typesafe"
+    switched = {"JEV_ROUTE": "openrouter"}
+    preflight_provider("typesafe", require_credentials=True, extra_env=switched)
+    assert (
+        build_provider_agent("typesafe", extra_env=switched).metadata["provider_options"]["JEV_ROUTE"] == "openrouter"
+    )
     monkeypatch.delenv("OPENROUTER_API_KEY")
     monkeypatch.setenv("TYPESAFE_API_KEY", "present")
     with pytest.raises(ModelRunAborted, match="set OPENROUTER_API_KEY"):
-        preflight_provider("typesafe", require_credentials=True)
+        preflight_provider("typesafe", require_credentials=True, extra_env=switched)
     monkeypatch.setenv("JEV_ROUTE", "sideways")
+    preflight_provider("typesafe")  # the shell value never reaches the child
     with pytest.raises(ModelRunAborted, match="JEV_ROUTE"):
-        preflight_provider("typesafe")
+        preflight_provider("typesafe", extra_env={"JEV_ROUTE": "sideways"})
