@@ -32,9 +32,11 @@ TYPESAFE = ProviderSpec(
     default_timeout=120.0,
     default_profile="compact",
     transport="decision-api",
-    credential_env=("TYPESAFE_API_KEY",),
-    extra_env={"JEV_NOUL_THRESHOLD": "0.5", "JEV_ENABLE_TRADES": "1"},
-    provenance_env=("TYPESAFE_API_BASE", "JEV_NOUL_THRESHOLD", "JEV_ENABLE_TRADES"),
+    # Either key works, depending on JEV_ROUTE: the direct TypeSafe API or
+    # OpenRouter's decisions endpoint, which resells the same model.
+    credential_env=("TYPESAFE_API_KEY", "OPENROUTER_API_KEY"),
+    extra_env={"JEV_ROUTE": "typesafe", "JEV_NOUL_THRESHOLD": "0.5", "JEV_ENABLE_TRADES": "1"},
+    provenance_env=("JEV_ROUTE", "TYPESAFE_API_BASE", "JEV_NOUL_THRESHOLD", "JEV_ENABLE_TRADES"),
 )
 
 DECISION_PROVIDERS: dict[str, ProviderSpec] = {TYPESAFE.name: TYPESAFE}

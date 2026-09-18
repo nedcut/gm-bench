@@ -78,6 +78,29 @@ GM_BENCH_WORKERS=1 python3 -m gm_bench model --provider typesafe --model jev-lat
   --preset smoke --verbose --json --no-log
 ```
 
+### Through OpenRouter, while the direct API is waitlisted
+
+OpenRouter resells Jev as `typesafe/jev-1.13` at the same launch price, but
+not on chat completions: that endpoint rejects the slug with HTTP 400. It
+answers on `POST https://openrouter.ai/api/alpha/decisions`, which takes the
+same `{model, state, questions}` body and returns the same `answers` map. Set
+`JEV_ROUTE=openrouter` and the adapter posts there under `OPENROUTER_API_KEY`,
+adds the usual OpenRouter referer headers, records the upstream provider,
+generation id and any reported cost, and translates a bare model id such as
+`jev-latest` into the `typesafe/` slug:
+
+```bash
+OPENROUTER_API_KEY=... GM_BENCH_WORKERS=1 python3 -m gm_bench model \
+  --config examples/typesafe.jev.openrouter.smoke.json
+```
+
+The route is stamped into `run_info.provider_options.JEV_ROUTE`. The path has
+`alpha` in its name, so pin `typesafe/jev-1.13` rather than an alias, and keep
+OpenRouter rows and direct-API rows apart: they are different transports of
+the same model. OpenRouter also validates that every `instructions` and
+`criteria` value is a string, which the adapter's question builder already
+guarantees.
+
 Keep the first run at `--preset smoke` (four decisions) and set
 `JEV_DECISION_LOG=/tmp/jev.jsonl` so every request, answer set, and composed
 action batch is written out for inspection. For a longer look use
@@ -89,9 +112,11 @@ in `usage.model`.
 
 | Environment variable | Default | Meaning |
 | --- | --- | --- |
-| `TYPESAFE_API_KEY` | unset | Required credential |
-| `TYPESAFE_MODEL` | `jev-latest` | Model route |
-| `TYPESAFE_API_BASE` | `https://api.typesafe.ai` | Endpoint base (recorded in provenance) |
+| `JEV_ROUTE` | `typesafe` | `typesafe` (direct API) or `openrouter` (decisions endpoint); recorded |
+| `TYPESAFE_API_KEY` | unset | Credential for the direct route |
+| `OPENROUTER_API_KEY` | unset | Credential for the OpenRouter route |
+| `TYPESAFE_MODEL` | `jev-latest` (`typesafe/jev-1.13` on OpenRouter) | Model id or slug |
+| `TYPESAFE_API_BASE` | per route | Endpoint base override for the selected route (recorded) |
 | `TYPESAFE_TIMEOUT` | derived from the decision budget | Per-call HTTP timeout |
 | `JEV_NOUL_THRESHOLD` | `0.5` | Probability at which a yes/no answer counts as yes (recorded) |
 | `JEV_ENABLE_TRADES` | `1` | Ask the trade questions and emit trade proposals (recorded) |

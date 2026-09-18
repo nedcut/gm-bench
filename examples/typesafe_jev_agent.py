@@ -31,7 +31,10 @@ Set:
     TYPESAFE_MODEL          default jev-latest
 
 Optional:
-    TYPESAFE_API_BASE       default https://api.typesafe.ai
+    JEV_ROUTE               typesafe (default) or openrouter; the latter posts the same body
+                            to https://openrouter.ai/api/alpha/decisions under OPENROUTER_API_KEY
+                            with model typesafe/jev-1.13
+    TYPESAFE_API_BASE       endpoint base override for whichever route is selected
     TYPESAFE_TIMEOUT        per-call timeout (else derived from the harness budget)
     JEV_NOUL_THRESHOLD      probability at which a noul counts as "yes" (default 0.5)
     JEV_ENABLE_TRADES       ask the trade questions and emit trades (default 1)
@@ -70,9 +73,30 @@ from gm_bench.scaffold_view import (  # noqa: E402
     scaffold_view_observation,
 )
 
-DEFAULT_API_BASE = "https://api.typesafe.ai"
-DEFAULT_MODEL = "jev-latest"
-SYSTEM_ONE_PATH = "/v1/systemone"
+# Two ways to reach Jev with the same {model, state, questions} body. The
+# direct TypeSafe API is waitlisted; OpenRouter resells the model on its own
+# decisions endpoint (chat/completions rejects the slug with HTTP 400) under
+# the OpenRouter key and pricing every other gateway row already uses. The
+# route is pinned through JEV_ROUTE and recorded in provider_options, so a
+# row always says which path it was measured over.
+ROUTES: dict[str, dict[str, str]] = {
+    "typesafe": {
+        "base": "https://api.typesafe.ai",
+        "path": "/v1/systemone",
+        "key_env": "TYPESAFE_API_KEY",
+        "default_model": "jev-latest",
+    },
+    "openrouter": {
+        "base": "https://openrouter.ai",
+        "path": "/api/alpha/decisions",
+        "key_env": "OPENROUTER_API_KEY",
+        "default_model": "typesafe/jev-1.13",
+    },
+}
+DEFAULT_ROUTE = "typesafe"
+DEFAULT_API_BASE = ROUTES[DEFAULT_ROUTE]["base"]
+DEFAULT_MODEL = ROUTES[DEFAULT_ROUTE]["default_model"]
+SYSTEM_ONE_PATH = ROUTES[DEFAULT_ROUTE]["path"]
 NONE_LABEL = "none"
 # Jev's documented limit is roughly 32k tokens for state plus the longest
 # question (about 150k characters of English). The compact observation is
@@ -630,6 +654,36 @@ def _append_decision_log(record: dict[str, Any]) -> None:
         pass
 
 
+def resolve_route() -> dict[str, str]:
+    """The endpoint, credential, and model slug for the selected JEV_ROUTE."""
+    name = (os.environ.get("JEV_ROUTE") or DEFAULT_ROUTE).strip().lower()
+    if name not in ROUTES:
+        raise ValueError(f"JEV_ROUTE must be one of {', '.join(sorted(ROUTES))}; got {name!r}")
+    route = dict(ROUTES[name])
+    route["name"] = name
+    route["base"] = os.environ.get("TYPESAFE_API_BASE", route["base"]).rstrip("/")
+    model = os.environ.get("TYPESAFE_MODEL") or route["default_model"]
+    if name == "openrouter" and "/" not in model:
+        # OpenRouter slugs are vendor-prefixed; the harness pins the bare
+        # TypeSafe id by default, so translate it rather than fail the call.
+        model = f"typesafe/{model}"
+    route["model"] = model
+    return route
+
+
+def _finite_cost(value: Any) -> float | None:
+    """An authoritative non-negative finite cost, or None when not reported."""
+    if isinstance(value, bool):
+        return None
+    try:
+        cost = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(cost) or cost < 0:
+        return None
+    return cost
+
+
 def _http_error_detail(exc: urllib.error.HTTPError, api_key: str) -> str:
     parts = [f"HTTP {exc.code} {exc.reason}"]
     try:
@@ -649,12 +703,23 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
         # a follow-up round is never asked for; the window is simply closed.
         return [{"type": "end_turn"}], None
 
-    api_key = os.environ.get("TYPESAFE_API_KEY")
-    model = os.environ.get("TYPESAFE_MODEL", DEFAULT_MODEL)
-    base_url = os.environ.get("TYPESAFE_API_BASE", DEFAULT_API_BASE).rstrip("/")
+    try:
+        route = resolve_route()
+    except ValueError as exc:
+        return fallback_actions(observation, str(exc)), None
+    api_key = os.environ.get(route["key_env"])
+    model = route["model"]
     timeout = resolve_call_timeout("TYPESAFE_TIMEOUT", 120.0)
     if not api_key:
-        return fallback_actions(observation, "missing TYPESAFE_API_KEY"), None
+        return fallback_actions(observation, f"missing {route['key_env']}"), None
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+        "User-Agent": "gm-bench-typesafe-jev-agent/1",
+    }
+    if route["name"] == "openrouter":
+        headers["HTTP-Referer"] = "https://github.com/nedcut/gm-bench"
+        headers["X-OpenRouter-Title"] = "GM-Bench"
 
     started = time.perf_counter()
     attempted = False
@@ -669,19 +734,16 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
             raise ValueError(f"observation state is {len(state_text)} characters, over the {STATE_CHAR_LIMIT} tripwire")
         payload = {"model": model, "state": state, "questions": questions}
         request = urllib.request.Request(
-            f"{base_url}{SYSTEM_ONE_PATH}",
+            f"{route['base']}{route['path']}",
             data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}",
-                "User-Agent": "gm-bench-typesafe-jev-agent/1",
-            },
+            headers=headers,
             method="POST",
         )
         attempted = True
         # Fixed provider HTTPS endpoint from operator config, not attacker-controlled input.  # nosemgrep
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            request_id = response.headers.get("X-Request-Id") if hasattr(response, "headers") else None
+            response_headers = response.headers if hasattr(response, "headers") else {}
+            request_id = response_headers.get("X-Generation-Id") or response_headers.get("X-Request-Id")
             data = json.loads(response.read().decode("utf-8"))
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         if not isinstance(data, dict):
@@ -698,8 +760,17 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
             api_latency_ms=latency_ms,
         )
         assert usage is not None
-        if isinstance(request_id, str) and request_id:
-            usage["generation_id"] = request_id
+        generation_id = request_id or data.get("id")
+        if isinstance(generation_id, str) and generation_id:
+            usage["generation_id"] = generation_id
+        # A gateway reports which upstream served the call and, when it does,
+        # an authoritative cost; the direct API reports neither and the
+        # harness prices its token counts from pricing.json instead.
+        if isinstance(data.get("provider"), str) and data["provider"]:
+            usage["upstream_provider"] = data["provider"]
+        cost = _finite_cost(raw_usage.get("cost"))
+        if cost is not None:
+            usage["cost_usd"] = cost
         answers = data.get("answers")
         if not isinstance(answers, dict) or not answers:
             usage["telemetry_error"] = "TypeSafe response carried no answers"

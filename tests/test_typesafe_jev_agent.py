@@ -21,7 +21,14 @@ def pinned_adapter_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     """The question set follows the compact view; an inherited profile or knob
     from another test must not change what the composer is allowed to do."""
     monkeypatch.setenv("GM_AGENT_PROFILE", "compact")
-    for name in ("JEV_NOUL_THRESHOLD", "JEV_ENABLE_TRADES", "JEV_DECISION_LOG", "TYPESAFE_API_BASE", "TYPESAFE_MODEL"):
+    for name in (
+        "JEV_ROUTE",
+        "JEV_NOUL_THRESHOLD",
+        "JEV_ENABLE_TRADES",
+        "JEV_DECISION_LOG",
+        "TYPESAFE_API_BASE",
+        "TYPESAFE_MODEL",
+    ):
         monkeypatch.delenv(name, raising=False)
 
 
@@ -307,6 +314,67 @@ def test_choose_actions_posts_one_system_one_call_and_reports_usage(monkeypatch:
     assert estimate_cost_usd(normalized) == pytest.approx(4321 * 0.042 / 1_000_000, abs=1e-6)
 
 
+def test_openrouter_route_posts_to_the_decisions_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_urlopen(request: Any, **kwargs: Any) -> _Response:
+        del kwargs
+        captured["url"] = request.full_url
+        captured["headers"] = dict(request.header_items())
+        payload = json.loads(request.data.decode())
+        captured["payload"] = payload
+        response = _Response(
+            {
+                "id": "gen-or-1",
+                "model": "typesafe/jev-1.13",
+                "provider": "TypeSafe",
+                "answers": _answer_everything(payload["questions"]),
+                "usage": {"input_tokens": 5000, "output_tokens": 0, "cost": 0.00021},
+            }
+        )
+        response.headers = {}
+        return response
+
+    monkeypatch.setenv("JEV_ROUTE", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    # The harness pins the bare TypeSafe id; the route translates it to the slug.
+    monkeypatch.setenv("TYPESAFE_MODEL", "jev-latest")
+    monkeypatch.setattr(jev.urllib.request, "urlopen", fake_urlopen)
+
+    actions, usage = jev.choose_actions(_observation("preseason"))
+
+    validate_action_list(actions)
+    assert captured["url"] == "https://openrouter.ai/api/alpha/decisions"
+    assert captured["headers"]["Authorization"] == "Bearer or-key"
+    assert captured["headers"]["Http-referer"] == "https://github.com/nedcut/gm-bench"
+    assert captured["payload"]["model"] == "typesafe/jev-latest"
+    assert set(captured["payload"]) == {"model", "state", "questions"}
+    assert usage["provider"] == "typesafe"
+    assert usage["model"] == "typesafe/jev-1.13"
+    assert usage["upstream_provider"] == "TypeSafe"
+    assert usage["generation_id"] == "gen-or-1"
+    assert usage["cost_usd"] == 0.00021
+    # Without a gateway cost the slug is still priced from pricing.json.
+    normalized = normalize_usage({"model": "typesafe/jev-1.13", "provider": "typesafe", "input_tokens": 5000})
+    assert normalized is not None
+    assert estimate_cost_usd(normalized) == pytest.approx(5000 * 0.042 / 1_000_000, abs=1e-6)
+
+
+def test_openrouter_route_needs_the_openrouter_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("JEV_ROUTE", "openrouter")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "direct-key-is-not-enough")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    actions, usage = jev.choose_actions(_observation("preseason"))
+    assert "missing OPENROUTER_API_KEY" in actions[0]["model_error"]
+    assert usage is None
+
+    monkeypatch.setenv("JEV_ROUTE", "sideways")
+    actions, usage = jev.choose_actions(_observation("preseason"))
+    assert "JEV_ROUTE" in actions[0]["model_error"]
+    assert usage is None
+
+
 def test_choose_actions_logs_the_decision_when_asked(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
     def fake_urlopen(request: Any, **kwargs: Any) -> _Response:
         del kwargs
@@ -432,18 +500,23 @@ def test_lane_registers_without_moving_the_frozen_fingerprints() -> None:
 def test_provider_registry_and_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
     spec = resolve_provider("typesafe")
     assert spec.script == "typesafe_jev_agent.py"
-    assert spec.credential_env == ("TYPESAFE_API_KEY",)
+    assert spec.credential_env == ("TYPESAFE_API_KEY", "OPENROUTER_API_KEY")
     assert spec.output_ceiling_env is None, "Jev generates no tokens, so there is no output ceiling to pin"
     agent = build_provider_agent("typesafe")
     assert agent.name == "typesafe:jev-latest"
     assert agent.metadata["transport"] == "decision-api"
     assert agent.metadata["profile"] == "compact"
+    assert agent.metadata["provider_options"]["JEV_ROUTE"] == "typesafe"
     assert agent.metadata["provider_options"]["JEV_NOUL_THRESHOLD"] == "0.5"
+    routed = build_provider_agent("typesafe", model="typesafe/jev-1.13", extra_env={"JEV_ROUTE": "openrouter"})
+    assert routed.name == "typesafe:typesafe/jev-1.13"
+    assert routed.metadata["provider_options"]["JEV_ROUTE"] == "openrouter"
     assert agent.metadata["provider_options"]["JEV_ENABLE_TRADES"] == "1"
 
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     preflight_provider("typesafe")
-    with pytest.raises(ModelRunAborted, match="TYPESAFE_API_KEY"):
+    with pytest.raises(ModelRunAborted, match="TYPESAFE_API_KEY or OPENROUTER_API_KEY"):
         preflight_provider("typesafe", require_credentials=True)
-    monkeypatch.setenv("TYPESAFE_API_KEY", "present")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "present")
     preflight_provider("typesafe", require_credentials=True)

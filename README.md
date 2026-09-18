@@ -895,6 +895,9 @@ million input tokens and nothing for output, so a smoke costs well under a cent.
 ```bash
 TYPESAFE_API_KEY=... GM_BENCH_WORKERS=1 python -m gm_bench model \
   --config examples/typesafe.jev.smoke.json
+# or through OpenRouter's decisions endpoint while the direct API is waitlisted
+OPENROUTER_API_KEY=... GM_BENCH_WORKERS=1 python -m gm_bench model \
+  --config examples/typesafe.jev.openrouter.smoke.json
 ```
 
 A Jev score measures Jev plus this question scaffold, its malformed rate is

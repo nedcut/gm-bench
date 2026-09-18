@@ -15,7 +15,8 @@
     "gpt-5.5": {"input_per_mtok": 5.0, "output_per_mtok": 30.0},
     "gpt-5.4-mini": {"input_per_mtok": 0.75, "output_per_mtok": 4.5},
     "gpt-5.4": {"input_per_mtok": 2.5, "output_per_mtok": 15.0},
-    "jev": {"input_per_mtok": 0.042, "output_per_mtok": 0.0}
+    "jev": {"input_per_mtok": 0.042, "output_per_mtok": 0.0},
+    "typesafe/jev": {"input_per_mtok": 0.042, "output_per_mtok": 0.0}
   },
   "providers": {
     "ollama": {"input_per_mtok": 0.0, "output_per_mtok": 0.0}
