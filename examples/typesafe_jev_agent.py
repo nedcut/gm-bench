@@ -78,6 +78,9 @@ NONE_LABEL = "none"
 # question (about 150k characters of English). The compact observation is
 # ~10k characters, so this is a tripwire for a runaway view, not a budget.
 STATE_CHAR_LIMIT = 120_000
+# gm_bench.action_validation refuses a batch longer than this outright, which
+# would turn a whole decision into an unrecoverable no-op.
+MAX_ACTIONS_PER_DECISION = 24
 CONTRACT_TERMS = ("1", "2", "3", "4", "5")
 EXTENSION_TERMS = ("2", "3", "4", "5")
 
@@ -532,25 +535,6 @@ def compose_actions(
     if claim and claim != NONE_LABEL and claim in index["waiver_wire"]:
         actions.append({"type": "claim_waiver", "player_id": int(claim)})
 
-    extension_term = _choice(answers, "extend_years")
-    if extension_term not in EXTENSION_TERMS:
-        extension_term = EXTENSION_TERMS[0]
-    for key, player in index["extensions"]:
-        probability = _noul(answers, key)
-        if probability is None or probability < noul_threshold:
-            continue
-        quotes = player.get("extension_quotes") or {}
-        salary = quotes.get(extension_term)
-        if isinstance(salary, int | float) and not isinstance(salary, bool):
-            actions.append(
-                {
-                    "type": "extend_contract",
-                    "player_id": int(player["id"]),
-                    "years": int(extension_term),
-                    "salary": float(salary),
-                }
-            )
-
     release = _choice(answers, "release")
     if release and release != NONE_LABEL and release in index["roster"] and int(release) not in departing:
         actions.append({"type": "release", "player_id": int(release)})
@@ -570,11 +554,33 @@ def compose_actions(
             if taken >= index["pick_count"]:
                 break
 
+    # Extensions go last: they are the one unbounded category (one per
+    # expiring contract), so the validator's 24-action ceiling below can only
+    # ever cut surplus extensions, never the lineup, a signing, or a draft pick.
+    extension_term = _choice(answers, "extend_years")
+    if extension_term not in EXTENSION_TERMS:
+        extension_term = EXTENSION_TERMS[0]
+    for key, player in index["extensions"]:
+        probability = _noul(answers, key)
+        if probability is None or probability < noul_threshold:
+            continue
+        quotes = player.get("extension_quotes") or {}
+        salary = quotes.get(extension_term)
+        if isinstance(salary, int | float) and not isinstance(salary, bool):
+            actions.append(
+                {
+                    "type": "extend_contract",
+                    "player_id": int(player["id"]),
+                    "years": int(extension_term),
+                    "salary": float(salary),
+                }
+            )
+
     lineup = _compose_lineup(observation, answers, index, departing)
     if lineup:
         actions.insert(0, {"type": "set_lineup", "player_ids": lineup})
 
-    return actions or [{"type": "noop"}]
+    return actions[:MAX_ACTIONS_PER_DECISION] or [{"type": "noop"}]
 
 
 def _compose_lineup(
@@ -651,6 +657,7 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
         return fallback_actions(observation, "missing TYPESAFE_API_KEY"), None
 
     started = time.perf_counter()
+    attempted = False
     try:
         threshold = _noul_threshold()
         questions, index = build_questions(observation)
@@ -671,6 +678,7 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
             },
             method="POST",
         )
+        attempted = True
         # Fixed provider HTTPS endpoint from operator config, not attacker-controlled input.  # nosemgrep
         with urllib.request.urlopen(request, timeout=timeout) as response:
             request_id = response.headers.get("X-Request-Id") if hasattr(response, "headers") else None
@@ -678,7 +686,9 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
         if not isinstance(data, dict):
             raise ValueError("response is not a JSON object")
-        raw_usage = data.get("usage") or {}
+        raw_usage = data.get("usage")
+        if not isinstance(raw_usage, dict):
+            raw_usage = {}
         usage = make_usage(
             provider="typesafe",
             model=data.get("model") if isinstance(data.get("model"), str) else model,
@@ -720,7 +730,9 @@ def choose_actions(observation: dict[str, Any]) -> tuple[list[dict[str, Any]], d
         return fallback_actions(observation, f"api_error: {detail}"), usage
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
-        usage = make_usage(provider="typesafe", model=model, api_calls=1, api_latency_ms=latency_ms)
+        # A failure before the request was sent (bad knob, oversized state)
+        # is not a paid call and must not be counted as one.
+        usage = make_usage(provider="typesafe", model=model, api_calls=1 if attempted else 0, api_latency_ms=latency_ms)
         return fallback_actions(observation, f"api_error: {exc}"), usage
 
 

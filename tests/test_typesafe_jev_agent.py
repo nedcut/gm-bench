@@ -96,8 +96,12 @@ def test_question_batch_follows_the_phase() -> None:
     assert draft_index["pick_count"] >= 1
     assert "extend_years" not in draft_questions
 
-    midseason_questions, _ = jev.build_questions(_observation("midseason"))
-    assert "claim_waiver" in midseason_questions or not midseason_questions.get("claim_waiver")
+    midseason_questions, midseason_index = jev.build_questions(_observation("midseason"))
+    assert "extend_years" not in midseason_questions
+    if midseason_index["waiver_wire"]:
+        assert set(midseason_questions["claim_waiver"]["criteria"]) == {jev.NONE_LABEL, *midseason_index["waiver_wire"]}
+    else:
+        assert "claim_waiver" not in midseason_questions
 
     deadline_questions, deadline_index = jev.build_questions(_observation("trade_deadline"))
     assert deadline_index["offers"], "seed 3 trade deadline generates incoming offers"
@@ -210,6 +214,26 @@ def test_unanswered_questions_produce_no_host_choices() -> None:
         answers["release"]["choice"] = goalies[0]
         actions = jev.compose_actions(observation, answers, index)
         assert int(goalies[0]) in actions[0]["player_ids"]
+
+
+def test_batch_never_exceeds_the_validator_ceiling() -> None:
+    """Every roster row expiring at once must not turn the decision into a no-op."""
+    observation = _observation("preseason")
+    for player in observation["team"]["roster"]:
+        player["extension_quotes"] = {"2": 1.0, "3": 1.1, "4": 1.2, "5": 1.3}
+    questions, index = jev.build_questions(observation)
+    assert len(index["extensions"]) >= 20
+    answers = _answer_everything(questions)
+    answers["release"]["choice"] = jev.NONE_LABEL
+    answers["trade_target"]["choice"] = jev.NONE_LABEL
+    actions = jev.compose_actions(observation, answers, index)
+    validate_action_list(actions)
+    assert len(actions) == jev.MAX_ACTIONS_PER_DECISION
+    assert actions[0]["type"] == "set_lineup"
+    assert any(action["type"] == "sign_free_agent" for action in actions)
+    assert any(action["type"] == "scout" for action in actions)
+    # Only surplus extensions were cut: everything else Jev asked for is kept.
+    assert sum(action["type"] == "extend_contract" for action in actions) < len(index["extensions"])
 
 
 def test_noul_threshold_gates_extensions() -> None:
@@ -354,6 +378,30 @@ def test_choose_actions_reports_provider_errors_as_measured_fallbacks(monkeypatc
     actions, usage = jev.choose_actions(_observation("preseason"))
     assert "no answers" in actions[0]["model_error"]
     assert usage["input_tokens"] == 5
+
+
+def test_malformed_usage_field_still_yields_a_decision(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_urlopen(request: Any, **kwargs: Any) -> _Response:
+        del kwargs
+        payload = json.loads(request.data.decode())
+        return _Response({"model": "jev-1.13.0", "answers": _answer_everything(payload["questions"]), "usage": "n/a"})
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    monkeypatch.setattr(jev.urllib.request, "urlopen", fake_urlopen)
+    actions, usage = jev.choose_actions(_observation("preseason"))
+    validate_action_list(actions)
+    assert actions[0]["type"] == "set_lineup"
+    assert usage["api_calls"] == 1
+    assert "input_tokens" not in usage
+
+
+def test_failure_before_the_request_counts_no_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    monkeypatch.setenv("JEV_NOUL_THRESHOLD", "1.5")
+    monkeypatch.setattr(jev.urllib.request, "urlopen", lambda *a, **k: pytest.fail("no call expected"))
+    actions, usage = jev.choose_actions(_observation("preseason"))
+    assert "JEV_NOUL_THRESHOLD" in actions[0]["model_error"]
+    assert usage["api_calls"] == 0
 
 
 def test_follow_up_rounds_close_the_window_without_a_call(monkeypatch: pytest.MonkeyPatch) -> None:
