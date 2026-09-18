@@ -86,8 +86,9 @@ answers on `POST https://openrouter.ai/api/alpha/decisions`, which takes the
 same `{model, state, questions}` body and returns the same `answers` map. Set
 `JEV_ROUTE=openrouter` and the adapter posts there under `OPENROUTER_API_KEY`,
 adds the usual OpenRouter referer headers, records the upstream provider,
-generation id and any reported cost, and translates a bare model id such as
-`jev-latest` into the `typesafe/` slug:
+generation id and any reported cost, and translates a bare pinned id such as
+`jev-1.13` into the `typesafe/jev-1.13` slug (`jev-latest` becomes OpenRouter's
+moving alias `~typesafe/jev-latest`):
 
 ```bash
 OPENROUTER_API_KEY=... GM_BENCH_WORKERS=1 python3 -m gm_bench model \
@@ -116,7 +117,7 @@ in `usage.model`.
 | `TYPESAFE_API_KEY` | unset | Credential for the direct route |
 | `OPENROUTER_API_KEY` | unset | Credential for the OpenRouter route |
 | `TYPESAFE_MODEL` | `jev-latest` (`typesafe/jev-1.13` on OpenRouter) | Model id or slug |
-| `TYPESAFE_API_BASE` | per route | Endpoint base override for the selected route (recorded) |
+| `TYPESAFE_API_BASE` | per route | Endpoint base override for the selected route (recorded); must be `https://`, with plain `http://` allowed only on loopback for a local stand-in |
 | `TYPESAFE_TIMEOUT` | derived from the decision budget | Per-call HTTP timeout |
 | `JEV_NOUL_THRESHOLD` | `0.5` | Probability at which a yes/no answer counts as yes (recorded) |
 | `JEV_ENABLE_TRADES` | `1` | Ask the trade questions and emit trade proposals (recorded) |

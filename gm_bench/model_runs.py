@@ -391,9 +391,17 @@ def preflight_provider(provider: str, *, require_credentials: bool = False) -> N
         "anthropic": ("ANTHROPIC_API_KEY",),
         "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
         "openrouter": ("OPENROUTER_API_KEY",),
-        "typesafe": ("TYPESAFE_API_KEY", "OPENROUTER_API_KEY"),
     }
     required = direct_credentials.get(provider)
+    if provider == "typesafe":
+        # The decision lane has two routes with different keys; the one the
+        # run will actually use is the one that has to be present.
+        from gm_bench.decision_providers import route_credential
+
+        try:
+            required = (route_credential(os.environ.get("JEV_ROUTE")),)
+        except ValueError as exc:
+            raise ModelRunAborted(f"typesafe preflight failed: {exc}") from exc
     if require_credentials and required and not any(os.environ.get(name) for name in required):
         names = " or ".join(required)
         raise ModelRunAborted(f"{provider} preflight failed: set {names}")

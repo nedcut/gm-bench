@@ -348,7 +348,7 @@ def test_openrouter_route_posts_to_the_decisions_endpoint(monkeypatch: pytest.Mo
     assert captured["url"] == "https://openrouter.ai/api/alpha/decisions"
     assert captured["headers"]["Authorization"] == "Bearer or-key"
     assert captured["headers"]["Http-referer"] == "https://github.com/nedcut/gm-bench"
-    assert captured["payload"]["model"] == "typesafe/jev-latest"
+    assert captured["payload"]["model"] == jev.OPENROUTER_LATEST_ALIAS == "~typesafe/jev-latest"
     assert set(captured["payload"]) == {"model", "state", "questions"}
     assert usage["provider"] == "typesafe"
     assert usage["model"] == "typesafe/jev-1.13"
@@ -359,6 +359,37 @@ def test_openrouter_route_posts_to_the_decisions_endpoint(monkeypatch: pytest.Mo
     normalized = normalize_usage({"model": "typesafe/jev-1.13", "provider": "typesafe", "input_tokens": 5000})
     assert normalized is not None
     assert estimate_cost_usd(normalized) == pytest.approx(5000 * 0.042 / 1_000_000, abs=1e-6)
+
+
+def test_openrouter_route_translates_pinned_ids_to_vendor_slugs(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("JEV_ROUTE", "openrouter")
+    monkeypatch.setenv("TYPESAFE_MODEL", "jev-1.13")
+    assert jev.resolve_route()["model"] == "typesafe/jev-1.13"
+    monkeypatch.setenv("TYPESAFE_MODEL", "typesafe/jev-1.12")
+    assert jev.resolve_route()["model"] == "typesafe/jev-1.12"
+    monkeypatch.delenv("TYPESAFE_MODEL")
+    assert jev.resolve_route()["model"] == "typesafe/jev-1.13"
+    normalized = normalize_usage({"model": "~typesafe/jev-latest", "provider": "typesafe", "input_tokens": 1000})
+    assert normalized is not None
+    assert estimate_cost_usd(normalized) == pytest.approx(1000 * 0.042 / 1_000_000, abs=1e-6)
+
+
+def test_api_base_override_must_not_leak_the_key_over_plain_http(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TYPESAFE_API_KEY", "secret-key")
+    monkeypatch.setattr(jev.urllib.request, "urlopen", lambda *a, **k: pytest.fail("no call expected"))
+    for insecure in ("http://api.typesafe.ai", "http://evil.example/v1", "ftp://127.0.0.1", "api.typesafe.ai"):
+        monkeypatch.setenv("TYPESAFE_API_BASE", insecure)
+        actions, usage = jev.choose_actions(_observation("preseason"))
+        assert "TYPESAFE_API_BASE" in actions[0]["model_error"], insecure
+        assert usage is None
+    for allowed in (
+        "https://proxy.example/typesafe/",
+        "http://127.0.0.1:18777",
+        "http://localhost:9",
+        "http://[::1]:9",
+    ):
+        monkeypatch.setenv("TYPESAFE_API_BASE", allowed)
+        assert jev.resolve_route()["base"] == allowed.rstrip("/")
 
 
 def test_openrouter_route_needs_the_openrouter_key(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -513,10 +544,22 @@ def test_provider_registry_and_preflight(monkeypatch: pytest.MonkeyPatch) -> Non
     assert routed.metadata["provider_options"]["JEV_ROUTE"] == "openrouter"
     assert agent.metadata["provider_options"]["JEV_ENABLE_TRADES"] == "1"
 
+    # The strict preflight demands the key for the route the run will use, so
+    # a recorder is refused up front instead of after two failed decisions.
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     preflight_provider("typesafe")
-    with pytest.raises(ModelRunAborted, match="TYPESAFE_API_KEY or OPENROUTER_API_KEY"):
+    with pytest.raises(ModelRunAborted, match="set TYPESAFE_API_KEY"):
         preflight_provider("typesafe", require_credentials=True)
     monkeypatch.setenv("OPENROUTER_API_KEY", "present")
+    with pytest.raises(ModelRunAborted, match="set TYPESAFE_API_KEY"):
+        preflight_provider("typesafe", require_credentials=True)
+    monkeypatch.setenv("JEV_ROUTE", "openrouter")
     preflight_provider("typesafe", require_credentials=True)
+    monkeypatch.delenv("OPENROUTER_API_KEY")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "present")
+    with pytest.raises(ModelRunAborted, match="set OPENROUTER_API_KEY"):
+        preflight_provider("typesafe", require_credentials=True)
+    monkeypatch.setenv("JEV_ROUTE", "sideways")
+    with pytest.raises(ModelRunAborted, match="JEV_ROUTE"):
+        preflight_provider("typesafe")

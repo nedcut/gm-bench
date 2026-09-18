@@ -41,6 +41,20 @@ TYPESAFE = ProviderSpec(
 
 DECISION_PROVIDERS: dict[str, ProviderSpec] = {TYPESAFE.name: TYPESAFE}
 
+# The credential each JEV_ROUTE needs. The adapter reads it to pick a key and
+# the strict credential preflight reads it so a recorder is refused up front
+# rather than after two failed decisions.
+ROUTE_CREDENTIALS: dict[str, str] = {"typesafe": "TYPESAFE_API_KEY", "openrouter": "OPENROUTER_API_KEY"}
+DEFAULT_JEV_ROUTE = "typesafe"
+
+
+def route_credential(route: str | None) -> str:
+    """The credential env var for a JEV_ROUTE value, or ValueError if unknown."""
+    name = (route or DEFAULT_JEV_ROUTE).strip().lower()
+    if name not in ROUTE_CREDENTIALS:
+        raise ValueError(f"JEV_ROUTE must be one of {', '.join(sorted(ROUTE_CREDENTIALS))}; got {name!r}")
+    return ROUTE_CREDENTIALS[name]
+
 
 def register() -> None:
     """Add the decision lanes to the live provider registry, idempotently.

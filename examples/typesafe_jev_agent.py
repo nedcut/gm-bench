@@ -48,6 +48,7 @@ import math
 import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -67,6 +68,7 @@ except ModuleNotFoundError:
     )
 
 from gm_bench.agent_utils import position_aware_lineup  # noqa: E402
+from gm_bench.decision_providers import DEFAULT_JEV_ROUTE, ROUTE_CREDENTIALS  # noqa: E402
 from gm_bench.scaffold_view import (  # noqa: E402
     compact_observation,
     scaffold_fallback_lineup,
@@ -83,17 +85,21 @@ ROUTES: dict[str, dict[str, str]] = {
     "typesafe": {
         "base": "https://api.typesafe.ai",
         "path": "/v1/systemone",
-        "key_env": "TYPESAFE_API_KEY",
+        "key_env": ROUTE_CREDENTIALS["typesafe"],
         "default_model": "jev-latest",
     },
     "openrouter": {
         "base": "https://openrouter.ai",
         "path": "/api/alpha/decisions",
-        "key_env": "OPENROUTER_API_KEY",
+        "key_env": ROUTE_CREDENTIALS["openrouter"],
         "default_model": "typesafe/jev-1.13",
     },
 }
-DEFAULT_ROUTE = "typesafe"
+DEFAULT_ROUTE = DEFAULT_JEV_ROUTE
+# OpenRouter's moving alias for the newest Jev lives under a tilde namespace,
+# unlike the pinned version slugs.
+OPENROUTER_LATEST_ALIAS = "~typesafe/jev-latest"
+_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 DEFAULT_API_BASE = ROUTES[DEFAULT_ROUTE]["base"]
 DEFAULT_MODEL = ROUTES[DEFAULT_ROUTE]["default_model"]
 SYSTEM_ONE_PATH = ROUTES[DEFAULT_ROUTE]["path"]
@@ -661,14 +667,31 @@ def resolve_route() -> dict[str, str]:
         raise ValueError(f"JEV_ROUTE must be one of {', '.join(sorted(ROUTES))}; got {name!r}")
     route = dict(ROUTES[name])
     route["name"] = name
-    route["base"] = os.environ.get("TYPESAFE_API_BASE", route["base"]).rstrip("/")
+    route["base"] = _secure_api_base(os.environ.get("TYPESAFE_API_BASE", route["base"]))
     model = os.environ.get("TYPESAFE_MODEL") or route["default_model"]
     if name == "openrouter" and "/" not in model:
         # OpenRouter slugs are vendor-prefixed; the harness pins the bare
         # TypeSafe id by default, so translate it rather than fail the call.
-        model = f"typesafe/{model}"
+        model = OPENROUTER_LATEST_ALIAS if model == "jev-latest" else f"typesafe/{model}"
     route["model"] = model
     return route
+
+
+def _secure_api_base(value: str) -> str:
+    """Refuse an endpoint override that would send the bearer key in the clear.
+
+    Only a loopback stand-in (the local test server) may use plain HTTP; any
+    other host must be HTTPS. Checked before the request is built, so a bad
+    override fails the decision without a call rather than leaking the key.
+    """
+    base = value.strip().rstrip("/")
+    parts = urllib.parse.urlsplit(base)
+    host = (parts.hostname or "").lower()
+    if parts.scheme == "https" and host:
+        return base
+    if parts.scheme == "http" and host in _LOOPBACK_HOSTS:
+        return base
+    raise ValueError(f"TYPESAFE_API_BASE must be an https:// URL (or http:// on loopback); got {value!r}")
 
 
 def _finite_cost(value: Any) -> float | None:
