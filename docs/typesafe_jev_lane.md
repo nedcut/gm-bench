@@ -65,11 +65,11 @@ trusting a full run.
 TYPESAFE_API_KEY=apikey_...
 ```
 
-Expected spend is small. A compact observation plus the question batch is
-roughly 6-8k input tokens per decision, so at launch pricing a decision costs
-about $0.0003, a five-season seed (20 decisions) about $0.006, and a 29-seed
-panel under $0.20. The harness prices Jev usage from `gm_bench/pricing.json`
-(`jev` prefix); the API returns token counts, not cost.
+Expected spend is small. Budget from the published OpenRouter panel: about
+13,700 input tokens per decision and $0.33 for 580 calls (output billed at
+zero). Launch coverage's 6-8k figure was low. The harness prices Jev usage
+from `gm_bench/pricing.json` (`jev` prefix); the API returns token counts,
+not cost.
 
 ## Running it
 
@@ -215,10 +215,10 @@ whose answers a one-call lane never sees.
   each way, is the scaffold's. Read `illegal_actions` beside the decision log.
 - **No continuity.** Jev is stateless per call and writes no memo. It sees the
   observation's history rows and the ledger, nothing else, every decision.
-- **Own lane.** `run_info.transport` is `decision-api`. Keep it out of the
-  `direct-api` and `gateway-api` tables, and do not put it on the site without
-  a lane label; the leaderboard build currently groups anything that is not
-  `coding-harness` as `api`.
+- **Own lane.** `run_info.transport` is `decision-api`. The site builder maps
+  that to its own lane and publishes the row in `decision_lane_models`, never
+  in the headline `models` array. Do not fold it into the chat-lane `api`
+  table.
 
 Score it against the same scripted baselines as any other run and read the
 paired lift; the comparison that is meaningful is Jev-plus-scaffold against the
