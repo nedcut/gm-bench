@@ -65,7 +65,7 @@ def test_cli_overrides_config_and_honors_config_persistence(tmp_path: Path, monk
         built.update(provider=provider, **kwargs)
         return _DummyAgent()
 
-    monkeypatch.setattr(cli, "preflight_provider", lambda provider: None)
+    monkeypatch.setattr(cli, "preflight_provider", lambda provider, **kwargs: None)
     monkeypatch.setattr(cli, "build_provider_agent", fake_build)
     monkeypatch.setattr(cli, "run_resumable_candidate", lambda *args, **kwargs: {})
     monkeypatch.setattr(cli, "evaluate_resumable_candidate", lambda *args, **kwargs: _evaluation())
@@ -80,7 +80,7 @@ def test_cli_overrides_config_and_honors_config_persistence(tmp_path: Path, monk
 
 def test_failed_smoke_exits_nonzero_after_atomic_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     output = tmp_path / "failed.json"
-    monkeypatch.setattr(cli, "preflight_provider", lambda provider: None)
+    monkeypatch.setattr(cli, "preflight_provider", lambda provider, **kwargs: None)
     monkeypatch.setattr(cli, "build_provider_agent", lambda *args, **kwargs: _DummyAgent())
     monkeypatch.setattr(cli, "run_resumable_candidate", lambda *args, **kwargs: {})
     monkeypatch.setattr(cli, "evaluate_resumable_candidate", lambda *args, **kwargs: _evaluation(failed=1))
@@ -132,7 +132,7 @@ def test_atomic_output_replaces_existing_file(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("provider", ["claude", "codex", "cursor", "opencode"])
 def test_subscription_cli_providers_reject_parallel_workers(provider: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(cli, "preflight_provider", lambda selected: None)
+    monkeypatch.setattr(cli, "preflight_provider", lambda selected, **kwargs: None)
     monkeypatch.setattr(cli, "build_provider_agent", lambda *args, **kwargs: _DummyAgent())
 
     with pytest.raises(SystemExit, match="must run serially"):
@@ -140,7 +140,7 @@ def test_subscription_cli_providers_reject_parallel_workers(provider: str, monke
 
 
 def test_session_lane_honors_fail_fast(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(cli, "preflight_provider", lambda selected: None)
+    monkeypatch.setattr(cli, "preflight_provider", lambda selected, **kwargs: None)
     monkeypatch.setattr(cli, "build_provider_agent", lambda *args, **kwargs: _FailingAgent())
 
     def exercise(agent: object, *args: object, **kwargs: object) -> None:

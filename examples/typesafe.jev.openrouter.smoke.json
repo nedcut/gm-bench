@@ -1,0 +1,12 @@
+{
+  "provider": "typesafe",
+  "model": "typesafe/jev-1.13",
+  "preset": "smoke",
+  "no_log": true,
+  "json": true,
+  "env": {
+    "JEV_ROUTE": "openrouter",
+    "JEV_NOUL_THRESHOLD": "0.5",
+    "JEV_ENABLE_TRADES": "1"
+  }
+}

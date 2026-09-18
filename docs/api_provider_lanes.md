@@ -15,6 +15,7 @@ export OPENAI_API_KEY=...
 export ANTHROPIC_API_KEY=...
 export GEMINI_API_KEY=...        # GOOGLE_API_KEY is also accepted
 export OPENROUTER_API_KEY=...
+export TYPESAFE_API_KEY=...      # Jev decision lane, see docs/typesafe_jev_lane.md
 ```
 
 The CLI automatically loads `.env.local` and then `.env` from the current
@@ -146,7 +147,10 @@ Keep transport conditions separate:
 - `direct-api`: OpenAI, Anthropic, and Gemini;
 - `gateway-api`: OpenRouter, with routing policy recorded;
 - `coding-harness`: Claude Code, Codex, Cursor, and opencode;
-- `local-api`: Ollama.
+- `local-api`: Ollama;
+- `decision-api`: TypeSafe Jev, a typed-decision model whose action batch is
+  composed by the adapter from its answers ([docs/typesafe_jev_lane.md](typesafe_jev_lane.md)).
+  Exploratory only, never comparable with the chat lanes.
 
 `run_info.transport` records this classification. Do not overwrite historical
 harness artifacts when adding direct-API results; they answer different product

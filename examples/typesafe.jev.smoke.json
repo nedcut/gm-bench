@@ -1,0 +1,11 @@
+{
+  "provider": "typesafe",
+  "model": "jev-latest",
+  "preset": "smoke",
+  "no_log": true,
+  "json": true,
+  "env": {
+    "JEV_NOUL_THRESHOLD": "0.5",
+    "JEV_ENABLE_TRADES": "1"
+  }
+}

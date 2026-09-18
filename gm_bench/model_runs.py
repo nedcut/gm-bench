@@ -381,8 +381,18 @@ def _failure_detail(actions: Any) -> str:
     return "model returned no usable actions"
 
 
-def preflight_provider(provider: str, *, require_credentials: bool = False) -> None:
-    """Perform zero-completion tool checks, optionally requiring API credentials."""
+def preflight_provider(
+    provider: str,
+    *,
+    require_credentials: bool = False,
+    extra_env: dict[str, str] | None = None,
+) -> None:
+    """Perform zero-completion tool checks, optionally requiring API credentials.
+
+    ``extra_env`` is the config ``env`` block the run will hand
+    ``build_provider_agent``, so a provider whose credential depends on a
+    pinned setting is checked against the route the child will really use.
+    """
     provider = provider.lower()
     # Direct API adapters fail only when their first subprocess is launched;
     # check credentials here so a recorder cannot leave a partial JSONL set.
@@ -393,7 +403,20 @@ def preflight_provider(provider: str, *, require_credentials: bool = False) -> N
         "openrouter": ("OPENROUTER_API_KEY",),
     }
     required = direct_credentials.get(provider)
-    if require_credentials and required and not any(os.environ.get(name) for name in required):
+    if provider == "typesafe":
+        # The decision lane has two routes with different keys; the one the
+        # child will actually run under (config env > spec pin > shell) is
+        # the one whose key has to be present.
+        from gm_bench.decision_providers import effective_jev_route, route_credential
+
+        try:
+            required = (route_credential(effective_jev_route(extra_env)),)
+        except ValueError as exc:
+            raise ModelRunAborted(f"typesafe preflight failed: {exc}") from exc
+    # The child runs under the shell overlaid with the config env block, so a
+    # key supplied (or blanked) there counts exactly as it will for the child.
+    effective_env = {**os.environ, **(extra_env or {})}
+    if require_credentials and required and not any(effective_env.get(name) for name in required):
         names = " or ".join(required)
         raise ModelRunAborted(f"{provider} preflight failed: set {names}")
     if provider == "claude":

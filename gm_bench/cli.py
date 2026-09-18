@@ -535,7 +535,7 @@ def _model_command(args: argparse.Namespace) -> None:
     if not config.provider:
         sys.exit('gm-bench model: no provider specified; pass --provider or set "provider" in the config file')
     try:
-        preflight_provider(config.provider)
+        preflight_provider(config.provider, extra_env=config.extra_env)
     except ModelRunAborted as exc:
         sys.exit(f"gm-bench model: {exc}")
     if args.preflight_only:
