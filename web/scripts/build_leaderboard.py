@@ -71,7 +71,15 @@ FROZEN_OUTPUT_POLICY_BASES = {"fixed-safety-ceiling", "common-safety-ceiling-wit
 
 def _lane(provider: str, transport: str | None) -> str:
     if transport:
-        return "cli-harness" if transport == "coding-harness" else "api"
+        if transport == "coding-harness":
+            return "cli-harness"
+        # A decision model answers a host-written question set instead of
+        # writing an action batch, so its row measures the model plus that
+        # scaffold and is published in its own lane (docs/typesafe_jev_lane.md),
+        # never folded into the chat-lane "api" headline.
+        if transport == "decision-api":
+            return "decision-api"
+        return "api"
     return "cli-harness" if provider in CLI_HARNESS_PROVIDERS else "api"
 
 

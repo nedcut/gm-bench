@@ -218,6 +218,11 @@ SOTA_V5_POLICY = ResultPolicy(
         "openai": "01ec5ac3e3bbd175",
         "opencode": "dfeb141bdeb957e1",
         "openrouter": "c582e126bbb6af10",
+        # The TypeSafe Jev decision lane (transport decision-api) was added
+        # after the freeze in gm_bench/decision_providers.py, so its
+        # fingerprint hashes that file beside the frozen registry. It is a
+        # separate lane, not a chat-lane row; see docs/typesafe_jev_lane.md.
+        "typesafe": "e1fc1e298283f465",
     },
     max_failed_query_rate=1.0,
     max_protocol_repair_attempts=0,
@@ -629,6 +634,12 @@ def redact_leaderboard_payload(
         return redacted, report
 
     _redact_seed_fields(redacted, redacted["redaction"]["removed"])
+    baseline_cache = _dict(redacted.get("baseline_cache"))
+    if "path" in baseline_cache:
+        # An absolute local cache path names the operator's machine and adds
+        # no evidence; compact_result already drops it for the same reason.
+        baseline_cache.pop("path")
+        redacted["redaction"]["removed"].append("baseline_cache.path")
     for result_key in ("candidate",):
         _redact_run_block(_dict(redacted.get(result_key)), redacted["redaction"]["removed"])
     for baseline in _list(redacted.get("baselines")):

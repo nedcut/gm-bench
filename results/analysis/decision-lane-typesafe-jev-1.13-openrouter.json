@@ -1,0 +1,255 @@
+{
+  "baseline_contrasts": [
+    {
+      "baseline": "pick-trader",
+      "baseline_mean_score": 247.109,
+      "mean_paired_lift": -18.109,
+      "paired_lift_stddev": 53.903,
+      "seeds_total": 29,
+      "seeds_won": 9,
+      "sign_flip_p_value": 0.081158
+    },
+    {
+      "baseline": "strategic",
+      "baseline_mean_score": 242.333,
+      "mean_paired_lift": -13.334,
+      "paired_lift_stddev": 53.422,
+      "seeds_total": 29,
+      "seeds_won": 11,
+      "sign_flip_p_value": 0.191052
+    },
+    {
+      "baseline": "shrewd",
+      "baseline_mean_score": 228.472,
+      "mean_paired_lift": 0.527,
+      "paired_lift_stddev": 55.95,
+      "seeds_total": 29,
+      "seeds_won": 16,
+      "sign_flip_p_value": 0.960472
+    },
+    {
+      "baseline": "win-now",
+      "baseline_mean_score": 178.025,
+      "mean_paired_lift": 50.975,
+      "paired_lift_stddev": 54.181,
+      "seeds_total": 29,
+      "seeds_won": 25,
+      "sign_flip_p_value": 7e-06
+    },
+    {
+      "baseline": "value",
+      "baseline_mean_score": 173.068,
+      "mean_paired_lift": 55.931,
+      "paired_lift_stddev": 56.102,
+      "seeds_total": 29,
+      "seeds_won": 25,
+      "sign_flip_p_value": 9e-06
+    },
+    {
+      "baseline": "conservative",
+      "baseline_mean_score": 122.731,
+      "mean_paired_lift": 106.269,
+      "paired_lift_stddev": 43.187,
+      "seeds_total": 29,
+      "seeds_won": 29,
+      "sign_flip_p_value": 0.0
+    },
+    {
+      "baseline": "rebuild",
+      "baseline_mean_score": 121.891,
+      "mean_paired_lift": 107.109,
+      "paired_lift_stddev": 43.838,
+      "seeds_total": 29,
+      "seeds_won": 29,
+      "sign_flip_p_value": 0.0
+    },
+    {
+      "baseline": "random",
+      "baseline_mean_score": 88.796,
+      "mean_paired_lift": 140.204,
+      "paired_lift_stddev": 47.024,
+      "seeds_total": 29,
+      "seeds_won": 29,
+      "sign_flip_p_value": 0.0
+    }
+  ],
+  "benchmark_version": "sota-v5",
+  "efficiency": {
+    "api_calls": 580,
+    "api_seconds_per_call": 0.422,
+    "cost_usd": 0.33309,
+    "cost_usd_per_decision": 0.000574,
+    "cost_usd_per_score_point": 0.001455,
+    "decision_failure_rate": 0.0,
+    "decisions": 580,
+    "illegal_actions": 8,
+    "mean_input_tokens_per_decision": 13673.8,
+    "mean_output_tokens_per_decision": 1325.8,
+    "mean_score": 229.0,
+    "model": "typesafe/jev-1.13-20260917",
+    "output_tokens_billed": false,
+    "rejected_offers": 53,
+    "seconds_per_decision": 0.491,
+    "wall_clock_seconds": 284.8
+  },
+  "family": {
+    "holm_family": null,
+    "note": "This row was not pre-registered and is not a member of the sota-v5 Holm family of sixteen. The pick-trader p-value below is the unadjusted exact sign-flip test for this one row and must not be read beside the headline rows' Holm-adjusted values."
+  },
+  "generated_by": "scripts/decision_lane_analysis.py",
+  "lane": "decision-api",
+  "panel_mean_contrast": {
+    "baseline_panel_mean_score": 175.303,
+    "candidate_seed_win_rate": 0.862,
+    "paired_lift_ci95": [
+      37.522,
+      69.486
+    ],
+    "paired_lift_mean": 53.696
+  },
+  "pick_trader_contrast": {
+    "full_panel_lift_stddev": 53.902535,
+    "full_panel_mean_lift": -18.10931,
+    "leave_one_seed_out": {
+      "folds": 29,
+      "mean_lift_range": 9.034393,
+      "p_max": 0.141885,
+      "p_min": 0.008642,
+      "rejection_flips": 2,
+      "rejection_stable": false
+    },
+    "minimum_detectable_difference": {
+      "alpha": 0.05,
+      "assumed": 30.0,
+      "formula": "(z_{1-alpha/2} + z_power) * sd / sqrt(n)",
+      "observed": 28.042,
+      "power": 0.8,
+      "within_assumed": true
+    },
+    "pick_trader_mean_score": 247.109,
+    "reject_at_0_05_unadjusted": false,
+    "seeds_total": 29,
+    "seeds_won": 9,
+    "sign_flip_p_value_unadjusted": 0.081158
+  },
+  "redaction": {
+    "note": "Leave-one-out is summarised by a fold-mean range and flip counts only; a per-fold vector would invert back to the per-seed lifts that redaction removes.",
+    "per_seed_rows_included": false,
+    "private_seed_panel": true,
+    "public_view": "aggregate-only",
+    "seed_identifiers_included": false
+  },
+  "row": {
+    "artifact": "results/leaderboard/decision-lane/typesafe-jev-1.13-openrouter.json",
+    "contract_fingerprint": "a600b7da0c302231",
+    "decisions": 580,
+    "failed_decisions": 0,
+    "id": "typesafe:typesafe/jev-1.13",
+    "illegal_actions": 8,
+    "mean_score": 229.0,
+    "mechanic_breakdown": {
+      "cap_free_agency": {
+        "accepted": 357,
+        "rejected": 7
+      },
+      "draft": {
+        "accepted": 2171,
+        "rejected": 0
+      },
+      "information_memory": {
+        "accepted": 0,
+        "rejected": 0
+      },
+      "lineup": {
+        "accepted": 539,
+        "rejected": 0
+      },
+      "trades": {
+        "accepted": 968,
+        "rejected": 54
+      }
+    },
+    "model": "typesafe/jev-1.13-20260917",
+    "provider": "typesafe",
+    "provider_options": {
+      "JEV_ENABLE_TRADES": "1",
+      "JEV_NOUL_THRESHOLD": "0.5",
+      "JEV_ROUTE": "openrouter"
+    },
+    "raw_artifact_sha256": "564cc3a253e783fbc3ffd9cc63a372378e538b448a20b8236f2453bed45c9b55",
+    "route": "openrouter",
+    "scaffold_fingerprint": "e1fc1e298283f465",
+    "score_stddev": 41.145,
+    "seed_panel": {
+      "count": 29,
+      "name": "private-env",
+      "sha256": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11"
+    },
+    "transport": "decision-api"
+  },
+  "schema_version": 1,
+  "weight_sensitivity": {
+    "adjacent_rank_flip_probability": {
+      "conservative > rebuild": 0.0,
+      "pick-trader > strategic": 0.0,
+      "rebuild > random": 0.0,
+      "shrewd > win-now": 0.0,
+      "strategic > typesafe:typesafe/jev-1.13": 0.0,
+      "typesafe:typesafe/jev-1.13 > shrewd": 0.425,
+      "value > conservative": 0.0,
+      "win-now > value": 0.0
+    },
+    "candidate": "typesafe:typesafe/jev-1.13",
+    "candidate_adjacent_flip_probability_max": 0.425,
+    "candidate_canonical_rank": 3,
+    "canonical_mean_scores": {
+      "conservative": 122.730677,
+      "pick-trader": 247.108932,
+      "random": 88.795624,
+      "rebuild": 121.890611,
+      "shrewd": 228.472276,
+      "strategic": 242.333454,
+      "typesafe:typesafe/jev-1.13": 228.99962,
+      "value": 173.068429,
+      "win-now": 178.025056
+    },
+    "canonical_ranking": [
+      "pick-trader",
+      "strategic",
+      "typesafe:typesafe/jev-1.13",
+      "shrewd",
+      "win-now",
+      "value",
+      "conservative",
+      "rebuild",
+      "random"
+    ],
+    "canonical_weights": {
+      "cap_room": 0.35,
+      "championship": 35.0,
+      "current_strength": 0.28,
+      "future_pick_asset": 0.16,
+      "illegal_action_penalty": 2.5,
+      "playoff_round": 9.0,
+      "recent_win": 0.42,
+      "roster_depth": 8.0,
+      "total_asset": 0.16,
+      "young_asset": 0.18
+    },
+    "kendall_tau": {
+      "max": 1.0,
+      "mean": 0.976389,
+      "median": 1.0,
+      "min": 0.944444,
+      "p05": 0.944444,
+      "p95": 1.0
+    },
+    "max_recombination_error": 0.00049108,
+    "method": {
+      "draws": 200,
+      "panel": "candidate plus the eight scripted baselines",
+      "perturbation": "independent uniform multipliers in [0.70, 1.30]",
+      "source": "score_components persisted on raw episode rows (never published)"
+    }
+  }
+}

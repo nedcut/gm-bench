@@ -3781,3 +3781,35 @@ tbody tr.tier-start td {
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
+
+/* Decision-model lane: same table idiom as the headline, its own section, and
+   prose that says what the number measures before the number is shown. */
+.decision-lane-intro {
+  max-width: 78ch;
+  margin: 0 0 18px;
+  color: var(--steel);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.decision-lane .results-table .muted {
+  color: var(--steel);
+  font-weight: 400;
+}
+
+.decision-lane-notes {
+  margin: 18px 0 0;
+  padding-left: 18px;
+  color: var(--steel);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.decision-lane-notes li + li {
+  margin-top: 8px;
+}
+
+.decision-lane-notes code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
