@@ -17,6 +17,7 @@ const LINKS = [
   { href: "#results", label: "Results" },
   { href: "#profile", label: "Model" },
   { href: "#analysis", label: "Analysis" },
+  { href: "#decision-lane", label: "Decision lane" },
   { href: "#replay", label: "Replays" },
   { href: "#protocol", label: "Protocol" },
   { href: "#quickstart", label: "Run" },

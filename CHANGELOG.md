@@ -19,6 +19,31 @@ Added 2026-09-20. Nothing published changes.
   audit) and the `gm-bench agentic` subcommand. Operator guide in
   `docs/agentic_lane.md`. No 2.0 result is published or claimed yet.
 
+## Unreleased — decision-model lane beside the `sota-v5` headline
+
+Added 2026-09-18. Nothing in the frozen `sota-v5` release changes; the eleven
+headline rows, the Holm family of sixteen, and the release archive are as
+published on 2026-09-03.
+
+- New lane: `decision-api`, for a model that answers typed questions instead
+  of writing the action batch. The adapter (`examples/typesafe_jev_agent.py`)
+  asks TypeSafe's Jev a fixed question set per decision and composes the
+  batch under published rules, so a row measures the model plus that scaffold.
+- One row: `typesafe/jev-1.13` (served `jev-1.13-20260917`) over OpenRouter's
+  decisions endpoint on the `sota-v5` contract and the same 29-seed private
+  panel. Mean 229.0, +53.7 against the baseline-panel mean, -18.1 against
+  `pick-trader` (unadjusted sign-flip p 0.081), 8 illegal actions, $0.33.
+  Artifact in `results/leaderboard/decision-lane/`, analysis in
+  `results/analysis/decision-lane-typesafe-jev-1.13-openrouter.md`.
+- Publication shape: the row is redacted like the headline rows, validates
+  under the `sota-v5` policy with its own scaffold fingerprint
+  (`e1fc1e298283f465`, added to the policy's fingerprint map), and is served
+  on the site in a separate "Decision-model lane" section. It never enters
+  the headline `models` array, the eligible-headline count, the shot chart, or
+  the Holm family, and CI checks that separation.
+- Not claimed: no pre-registration, no Holm-adjusted p-value, no comparison
+  with any headline chat-lane row.
+
 ## sota-v5-publication-2026-09-03 — first public panel under `sota-v5`
 
 Released 2026-09-03. Contract fingerprint `a600b7da0c302231`, OpenRouter

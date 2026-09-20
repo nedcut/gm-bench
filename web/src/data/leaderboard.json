@@ -51,6 +51,97 @@
     "scoring_version": "score-v1",
     "simulator_version": "sim-v4"
   },
+  "decision_lane_models": [
+    {
+      "api_latency_s_per_decision": 0.42,
+      "artifact_path": "results/leaderboard/decision-lane/typesafe-jev-1.13-openrouter.json",
+      "artifact_sha256": "66cfba3dabfe5c76061c89cba79d41d303052e5a120d0fcee9a741dc21270cd7",
+      "baseline_panel_mean_score": 175.303,
+      "benchmark_version": "sota-v5",
+      "contract_fingerprint": "a600b7da0c302231",
+      "cost_per_episode_usd": 0.0115,
+      "cost_usd": 0.333093,
+      "decision_failure_rate": 0.0,
+      "decision_points": 580,
+      "decisions_with_usage": 580,
+      "failed_decisions": 0,
+      "failed_queries": 0,
+      "full_panel_ci95": [
+        37.522,
+        69.486
+      ],
+      "full_panel_lift": 53.696,
+      "full_panel_significant_at_95": true,
+      "harness_latency_s_per_decision": 0.49,
+      "id": "typesafe:typesafe/jev-1.13",
+      "illegal_actions": 8,
+      "input_tokens_per_decision": 13673.8,
+      "lane": "decision-api",
+      "lift_vs_best_baseline": -18.109,
+      "malformed_decisions": 0,
+      "malformed_rate": 0.0,
+      "mean_score": 229.0,
+      "mean_strategy_score": 229.689,
+      "mechanic_breakdown": {
+        "cap_free_agency": {
+          "accepted": 357,
+          "rejected": 7
+        },
+        "draft": {
+          "accepted": 2171,
+          "rejected": 0
+        },
+        "information_memory": {
+          "accepted": 0,
+          "rejected": 0
+        },
+        "lineup": {
+          "accepted": 539,
+          "rejected": 0
+        },
+        "trades": {
+          "accepted": 968,
+          "rejected": 54
+        }
+      },
+      "model": "typesafe/jev-1.13",
+      "output_token_cap": null,
+      "output_tokens_per_decision": 1325.8,
+      "protocol_penalty": 20.0,
+      "protocol_repair_attempts": 0,
+      "protocol_repairs_succeeded": 0,
+      "provider": "typesafe",
+      "provider_options": {
+        "JEV_ENABLE_TRADES": "1",
+        "JEV_NOUL_THRESHOLD": "0.5",
+        "JEV_ROUTE": "openrouter"
+      },
+      "publication_eligible": true,
+      "publication_issues": [],
+      "raw_artifact_sha256": "564cc3a253e783fbc3ffd9cc63a372378e538b448a20b8236f2453bed45c9b55",
+      "route": "typesafe \u2192 OpenRouter decisions endpoint (TypeSafe)",
+      "scaffold_fingerprint": "e1fc1e298283f465",
+      "score_stddev": 41.145,
+      "seasons": 5,
+      "seed_count": 29,
+      "seed_panel": "private-env",
+      "seed_panel_hash": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11",
+      "seed_win_rate": 0.862,
+      "seeds": null,
+      "session": false,
+      "sota_v2_eligible": true,
+      "sota_v2_issues": [
+        "provider 'typesafe' pins no output-token ceiling, so the sota-v5 4096-token output condition is unverified for this row",
+        "candidate has illegal actions; score includes protocol penalties",
+        "candidate does not beat the strongest scripted baseline"
+      ],
+      "timestamp_utc": "2026-09-18T21:44:39+00:00",
+      "tokens_per_decision": 14999.6,
+      "total_tokens": 8699762,
+      "unrecoverable_decisions": 0,
+      "unrecoverable_rate": 0.0
+    }
+  ],
   "excluded_models": [],
   "headroom": {
     "best_model": 223.707,
@@ -1128,5 +1219,5 @@
     "smoke_gate_issues": [],
     "status": "complete"
   },
-  "updated": "2026-09-03"
+  "updated": "2026-09-18"
 }

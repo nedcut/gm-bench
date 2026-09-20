@@ -216,8 +216,9 @@ jobs:
         # leaderboard.json must be exactly what the builder emits from this tree.
         run: |
           python web/scripts/build_leaderboard.py
-          if ! git diff --exit-code -- web/src/data/leaderboard.json; then
-            echo "::error::web/src/data/leaderboard.json is stale or was built from artifacts that are not committed; re-run python web/scripts/build_leaderboard.py and commit the result"
+          python web/scripts/build_study.py
+          if ! git diff --exit-code -- web/src/data/leaderboard.json web/src/data/leaderboard-sota-v2.json; then
+            echo "::error::web/src/data/leaderboard.json or leaderboard-sota-v2.json is stale or was built from artifacts that are not committed; re-run python web/scripts/build_study.py and python web/scripts/build_leaderboard.py and commit the result"
             exit 1
           fi
       - name: SOTA-v5 zero-spend publication rehearsal

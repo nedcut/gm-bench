@@ -13,6 +13,14 @@ deterministic `pick-trader` baseline (mean 247.109), and ten of the eleven
 headline rows reject at Holm-adjusted alpha 0.05 against the registered family
 of sixteen. No model-to-model ranking is published.
 
+Beside that headline, a separate decision-model lane (2026-09-18) publishes
+TypeSafe's Jev, a model that answers typed questions instead of writing the
+action batch, on the same contract and private panel. It scores 229.0 against
+a baseline-panel mean of 175.3 and trails `pick-trader` by 18.1 points. That
+row measures Jev plus its question scaffold, sits outside the pre-registered
+family, and is never counted with the chat-lane rows; see
+[docs/typesafe_jev_lane.md](docs/typesafe_jev_lane.md).
+
 Read the [v5 findings](docs/blog/sota-v5-findings.md), follow the
 [reproduction guide](docs/REPRODUCING_SOTA_V5_RELEASE.md), download the
 [tagged release](https://github.com/nedcut/gm-bench/releases/tag/sota-v5-publication-2026-09-03),
@@ -112,6 +120,25 @@ with robustness checks in
 [`results/analysis/sota-v5-robustness.md`](results/analysis/sota-v5-robustness.md).
 Verify the release without provider credentials by following
 [docs/REPRODUCING_SOTA_V5_RELEASE.md](docs/REPRODUCING_SOTA_V5_RELEASE.md).
+
+### Decision-model lane (`decision-api`, 2026-09-18)
+
+One row, kept apart from the headline: `typesafe/jev-1.13` (served version
+`jev-1.13-20260917`) over OpenRouter's decisions endpoint, same contract
+fingerprint, same 29-seed private panel, same eight scripted baselines, 580 of
+580 decisions, zero failed decisions, 8 illegal actions, $0.33 total. Mean
+score 229.0; paired lift +53.7 (95% CI 37.5 to 69.5) against the baseline-panel
+mean with a 0.862 seed win rate; -18.1 against `pick-trader` (9 of 29 seeds,
+unadjusted sign-flip p 0.081, and leave-one-seed-out flips that verdict in 2 of
+29 folds). Jev never writes an action: the adapter asks it a fixed set of
+typed questions each decision and composes the batch from the answers, so the
+number is "Jev plus that scaffold" (scaffold fingerprint `e1fc1e298283f465`).
+The row was not pre-registered, is not in the Holm family of sixteen, and does
+not enter any headline count. Artifact:
+[`results/leaderboard/decision-lane/typesafe-jev-1.13-openrouter.json`](results/leaderboard/decision-lane/typesafe-jev-1.13-openrouter.json);
+analysis:
+[`results/analysis/decision-lane-typesafe-jev-1.13-openrouter.md`](results/analysis/decision-lane-typesafe-jev-1.13-openrouter.md);
+lane notes: [docs/typesafe_jev_lane.md](docs/typesafe_jev_lane.md).
 
 ### Earlier study: phase-one `sota-v2` panel
 
@@ -902,8 +929,12 @@ OPENROUTER_API_KEY=... GM_BENCH_WORKERS=1 python -m gm_bench model \
 
 A Jev score measures Jev plus this question scaffold, its malformed rate is
 zero by construction, and its rows carry `transport: decision-api`. Keep them
-out of the chat-lane tables. Details, the wire format, and the composition
-rules are in [`docs/typesafe_jev_lane.md`](docs/typesafe_jev_lane.md).
+out of the chat-lane tables: published decision-lane rows live in
+`results/leaderboard/decision-lane/` and the site renders them in their own
+section. The full private-panel run (2026-09-18) is summarised under
+[Results](#decision-model-lane-decision-api-2026-09-18). Details, the wire
+format, and the composition rules are in
+[`docs/typesafe_jev_lane.md`](docs/typesafe_jev_lane.md).
 
 ### Gemini API
 
