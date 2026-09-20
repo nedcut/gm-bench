@@ -115,11 +115,16 @@ def test_ledger_replay_rebuilds_identical_state(tmp_path: Path) -> None:
     result = rebuilt.result()
     assert result["failed_decisions"] == 2
     assert result["agentic"]["phases_ended_by"] == {ENDED_BY_AGENT: 6, ENDED_BY_HARNESS_EXIT: 2}
+    # A second replay of the now-complete ledger lands on the same score, and
+    # counts the refused post-completion call the harness also saw.
+    with pytest.raises(EpisodeComplete):
+        rebuilt.call_tool("get_status", {})
     rebuilt.close()
-    # A second replay of the now-complete ledger lands on the same score.
     again = AgenticEpisode.from_ledger(ledger, reopen=False)
     assert again.done
     assert again.result()["final_score"] == result["final_score"]
+    assert again.tool_counts == rebuilt.tool_counts
+    assert again.tool_counts["get_status"] == rebuilt.tool_counts["get_status"]
 
 
 def test_phase_guard_closes_phase_and_refuses_the_call(monkeypatch: pytest.MonkeyPatch) -> None:

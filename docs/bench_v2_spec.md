@@ -278,6 +278,31 @@ Observed shapes on one season: 31 to 47 tool calls, 13 to 47 model calls,
 episode used 143 tool calls and 104 model calls with no compaction, context
 peaking near 84k tokens. Every ledger audited clean.
 
+### Repeat-noise probe (2026-09-20, `opencode/big-pickle`, seeds 11-13, five seasons, 2 to 3 runs each)
+
+| seed | scores | within-seed SD |
+|---|---|---|
+| 11 | 272, 192, 166 | 45 |
+| 12 | 270, 87 (harness exit after two seasons) | 91 |
+| 13 | 209, 267 | 29 |
+
+Mean within-seed SD 55 with the abandoned episode, about 37 without it. Both
+are far above the 15 the 1.0 tables assume and above the 25 caveat threshold.
+Re-running the power script at these levels, one episode per seed:
+
+| within-seed SD | MDD at 16 seeds | MDD at 32 seeds |
+|---|---|---|
+| 37 | 51 | 35 |
+| 55 | 67 | 46 |
+
+So for a model this noisy the 32-seed panel resolves roughly 35 to 46
+points, not the 24 to 33 projected above. This is one free model on three
+seeds; the number is a warning, not a measurement. Stronger models are
+expected to be steadier, and the per-harness probe in the panel design
+stays the rule: measure it before quoting a resolution. Every probe ledger
+audited clean and agreed with the harness tool-event count once refused
+post-completion calls were counted on replay.
+
 One behaviour to decide on before the freeze: OpenCode ends a run the moment
 the model answers with text and no tool call, so a model that "thinks out
 loud" once loses the rest of the episode. The current rule (failed decisions

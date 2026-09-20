@@ -417,10 +417,12 @@ class AgenticEpisode:
             for record in records[1:]:
                 event = record.get("event")
                 if event == "tool_call":
-                    if not record.get("executed", True):
-                        continue
+                    # Refused calls (guard, post-completion) were logged but
+                    # never executed: count them, do not replay them.
                     episode.seq += 1
                     episode.tool_counts[record["tool"]] += 1
+                    if not record.get("executed", True):
+                        continue
                     episode._execute(record["tool"], record.get("arguments") or {})
                 elif event == "phase_end" and record.get("ended_by") != ENDED_BY_AGENT:
                     episode._close_phase(record["ended_by"])
