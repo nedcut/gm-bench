@@ -35,10 +35,10 @@ from pathlib import Path
 from typing import Any, Callable
 
 import gm_bench
-from gm_bench.agentic.brief import BRIEF_VERSION, task_brief
+from gm_bench.agentic.brief import task_brief
+from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import DEFAULT_PHASE_GUARD_SECONDS, AgenticEpisode
 from gm_bench.agentic.mcp_server import EPISODE_ENV
-from gm_bench.agentic.tools import TOOL_SURFACE_VERSION
 from gm_bench.agents import external_agent_environment
 from gm_bench.protocol import PHASES
 from gm_bench.runner import summarize_episodes
@@ -330,6 +330,9 @@ def run_episode(
         "events_path": str(events_path),
         "ledger_path": str(ledger_path),
         "event_types": telemetry["event_types"],
+        # Gate 2 of the spec: the server ledger and the harness's own event
+        # stream must agree on how many GM-Bench tools were called.
+        "tool_call_agreement": tool_call_agreement(result["agentic"], telemetry),
     }
     (episode_dir / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True), encoding="utf-8")
     episode.close()
@@ -338,6 +341,15 @@ def run_episode(
             {"seed": seed, "stage": "done", "final_score": result["final_score"], "failed": result["failed_decisions"]}
         )
     return result
+
+
+def tool_call_agreement(agentic: dict[str, Any], telemetry: dict[str, Any]) -> dict[str, Any]:
+    """Compare the ledger's tool-call count with the harness's GM-Bench tool events."""
+    harness = sum(
+        count for name, count in telemetry.get("harness_tool_events", {}).items() if name.startswith("gm-bench_")
+    )
+    ledger = int(agentic.get("tool_calls", 0))
+    return {"ledger": ledger, "harness": harness, "agree": ledger == harness}
 
 
 def finalize_episode(ledger_path: Path, *, seed: int, seasons: int, user_team_id: int) -> AgenticEpisode:
@@ -386,7 +398,7 @@ def run_panel(
         "agent": f"{HARNESS_NAME}:{model}",
         "lane": "agentic",
         "harness": {"name": HARNESS_NAME, "version": version, "model": model, "variant": variant},
-        "contract": {"tool_surface": TOOL_SURFACE_VERSION, "brief": BRIEF_VERSION},
+        "contract": agentic_contract(),
         "seeds": list(seeds),
         "seasons": seasons,
         "phase_guard_seconds": phase_guard_seconds,

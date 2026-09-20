@@ -198,3 +198,22 @@ def test_opencode_config_and_event_parsing(tmp_path: Path) -> None:
     assert usage["harness"]["telemetry_reported"] is True
     silent = usage_block(parse_opencode_events([]), model="opencode/test", wall_seconds=1.0)
     assert silent["cost_usd"] is None and silent["harness"]["telemetry_reported"] is False
+
+
+def test_agentic_contract_layers_on_the_unchanged_base_contract() -> None:
+    from gm_bench.agentic.contract import agentic_contract, agentic_fingerprint
+    from gm_bench.agentic.opencode import tool_call_agreement
+    from gm_bench.contract import _CONTRACT_SOURCES, benchmark_contract
+
+    contract = agentic_contract()
+    base = benchmark_contract()
+    assert contract["base_contract_fingerprint"] == base["contract_fingerprint"]
+    assert contract["agentic_fingerprint"] == agentic_fingerprint()
+    assert len(contract["agentic_fingerprint"]) == 16
+    assert contract["agentic_fingerprint"] != base["contract_fingerprint"]
+    # The 1.0 source list must never grow to include 2.0 files.
+    assert not any("agentic" in path for path in _CONTRACT_SOURCES)
+
+    telemetry = {"harness_tool_events": {"gm-bench_get_status": 3, "gm-bench_end_phase": 4, "bash": 2}}
+    assert tool_call_agreement({"tool_calls": 7}, telemetry) == {"ledger": 7, "harness": 7, "agree": True}
+    assert tool_call_agreement({"tool_calls": 8}, telemetry)["agree"] is False
