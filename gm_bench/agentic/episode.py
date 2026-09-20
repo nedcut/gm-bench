@@ -402,11 +402,13 @@ class AgenticEpisode:
         if not records or records[0].get("event") != "episode":
             raise ValueError(f"{path} is not an agentic ledger")
         header = records[0]
+        # Build without a ledger so construction and replay write nothing;
+        # the file is attached afterwards if the caller wants to carry on.
         episode = cls(
             int(header["seed"]),
             int(header["seasons"]),
             int(header.get("user_team_id", 0)),
-            ledger_path=path if reopen else None,
+            ledger_path=None,
             phase_guard_seconds=float(header.get("phase_guard_seconds", DEFAULT_PHASE_GUARD_SECONDS)),
             write_header=False,
         )
@@ -424,6 +426,9 @@ class AgenticEpisode:
                     episode._close_phase(record["ended_by"])
         finally:
             episode._replaying = False
+        if reopen:
+            episode.ledger_path = path
+            episode._ledger_file = path.open("a", encoding="utf-8")
         # Replayed phase durations are meaningless; restore the recorded ones.
         recorded = [r for r in records if r.get("event") == "phase_end"]
         for entry, source in zip(episode.phase_log, recorded, strict=False):

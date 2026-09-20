@@ -101,7 +101,9 @@ def test_ledger_replay_rebuilds_identical_state(tmp_path: Path) -> None:
     live.call_tool("write_memo", {"text": "replay me"})
     live.close()
 
+    before = ledger.read_text()
     rebuilt = AgenticEpisode.from_ledger(ledger)
+    assert ledger.read_text() == before, "replay must not write to the ledger"
     assert (rebuilt.season, rebuilt.phase) == (live.season, live.phase)
     assert rebuilt.seq == live.seq
     assert rebuilt.tool_counts == live.tool_counts
