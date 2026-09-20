@@ -122,9 +122,11 @@ def test_server_restart_resumes_from_ledger(tmp_path: Path) -> None:
     second.close()
     ledger = [json.loads(line) for line in (tmp_path / "ledger.jsonl").read_text().splitlines()]
     assert ledger[0]["event"] == "episode"
-    # The closing tool call is logged after the phase/episode events it triggers.
-    assert [r["event"] for r in ledger[-3:]] == ["phase_end", "episode_end", "tool_call"]
-    assert ledger[-1]["tool"] == "end_phase"
+    # The closing tool call is logged after the phase/episode events it triggers,
+    # and the refused post-completion call is logged too, unexecuted.
+    assert [r["event"] for r in ledger[-4:]] == ["phase_end", "episode_end", "tool_call", "tool_call"]
+    assert ledger[-2]["tool"] == "end_phase"
+    assert ledger[-1]["tool"] == "get_status" and ledger[-1]["executed"] is False
     assert sum(1 for r in ledger if r["event"] == "episode") == 1
     assert not any(r["event"] == "tool_call" and r["tool"] == "get_status" and r["season"] > 1 for r in ledger)
 

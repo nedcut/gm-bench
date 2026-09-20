@@ -220,7 +220,11 @@ class AgenticEpisode:
     def call_tool(self, name: str, arguments: Any) -> dict[str, Any]:
         """Execute one tool call, log it, and return the agent-facing result."""
         if self.done:
-            raise EpisodeComplete("the episode is complete; no further tool calls are accepted")
+            # Logged so the ledger matches the harness's own tool-event count;
+            # never executed, so replay skips it.
+            message = "the episode is complete; no further tool calls are accepted"
+            self._log_call(name, arguments, {"ok": False, "message": message}, elapsed_ms=0.0, executed=False)
+            raise EpisodeComplete(message)
         notice = None
         if self.phase_expired():
             expired = {"season": self.season_index, "phase": self.phase, "seconds": self.phase_guard_seconds}
