@@ -219,3 +219,46 @@ def test_agentic_contract_layers_on_the_unchanged_base_contract() -> None:
     telemetry = {"harness_tool_events": {"gm-bench_get_status": 3, "gm-bench_end_phase": 4, "bash": 2}}
     assert tool_call_agreement({"tool_calls": 7}, telemetry) == {"ledger": 7, "harness": 7, "agree": True}
     assert tool_call_agreement({"tool_calls": 8}, telemetry)["agree"] is False
+
+
+def test_validate_run_replays_audits_and_checks_contract(tmp_path: Path) -> None:
+    from gm_bench.agentic.contract import agentic_contract
+    from gm_bench.agentic.episode import AgenticEpisode
+    from gm_bench.agentic.validate import validate_run
+
+    run_dir = tmp_path / "run"
+    ledger = run_dir / "seed-11" / "ledger.jsonl"
+    episode = AgenticEpisode(11, seasons=1, ledger_path=ledger)
+    roster = episode.call_tool("get_team", {})["data"]["roster"]
+    episode.call_tool("set_lineup", {"player_ids": [p["id"] for p in roster][:18]})
+    while not episode.done:
+        episode.call_tool("end_phase", {})
+    result = episode.result("opencode:test")
+    episode.close()
+    result["harness_run"] = {
+        "ledger_path": str(ledger),
+        "tool_call_agreement": {
+            "ledger": result["agentic"]["tool_calls"],
+            "harness": result["agentic"]["tool_calls"],
+            "agree": True,
+        },
+        "exit_code": 0,
+        "timed_out": False,
+    }
+    result["usage"]["harness"] = {"telemetry_reported": True}
+    run = {"agent": "opencode:test", "contract": agentic_contract(), "seeds": [11], "episodes": [result]}
+    (run_dir / "run.json").write_text(json.dumps(run))
+
+    report = validate_run(run_dir)
+    assert report["ok"], report
+    assert report["per_episode"][0]["replayed_score"] == result["final_score"]
+    assert report["warnings"] == []
+
+    # Tamper with the score and the contract: both must be caught.
+    run["episodes"][0]["final_score"] += 1.0
+    run["contract"]["agentic_fingerprint"] = "0" * 16
+    (run_dir / "run.json").write_text(json.dumps(run))
+    report = validate_run(run_dir)
+    assert report["ok"] is False
+    assert any("replayed score" in p for p in report["problems"])
+    assert any("contract.agentic_fingerprint" in p for p in report["problems"])

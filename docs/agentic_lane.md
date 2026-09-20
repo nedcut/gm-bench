@@ -68,6 +68,26 @@ named a player, prospect, team, or offer no earlier reply exposed. Accepted
 moves on unseen ids are `violations`; rejected ones are `suspicious`. The
 audit reports, it does not decide; publication does.
 
+## Validating a run
+
+```bash
+python -m gm_bench agentic-validate /tmp/agentic-big-pickle
+```
+
+Exit code 0 means every episode's ledger replays to the recorded score, audits
+clean, agrees with the harness's tool-event count, and the run's contract block
+matches this checkout's `agentic_contract()`. Failed phases, timeouts, and
+missing telemetry are warnings: reported, never hidden, never fatal.
+
+## Comparing runs
+
+```bash
+python scripts/agentic_sweep_summary.py /tmp/agentic-sweep
+```
+
+One row per run directory: score, illegal actions, failed phases, tool calls,
+tokens, cost, wall time, agreement, and audit verdict. Diagnostic only.
+
 ## Development harness and models
 
 OpenCode is the development harness. `opencode models` lists the free
