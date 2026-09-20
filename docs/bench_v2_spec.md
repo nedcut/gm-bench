@@ -263,6 +263,28 @@ for subscription-metered harnesses applies to all of them.
    under 10%.
 5. Contract fingerprint frozen: tool schemas, task brief, server, scoring.
 
+### Gate status (2026-09-20, all on OpenCode 1.18.30, free models, seed 11, one season)
+
+| gate | status |
+|---|---|
+| 1. sandbox check | passes on every run; a red-team episode is still to be written |
+| 2. ledger round-trip | server ledger equals harness tool events on all 7 models |
+| 3. SDK conformance | passes against the official `mcp` client |
+| 4. free-model smoke | 6 of 7 models closed 4/4 phases with 0 failed decisions; one (`nemotron-3.5-lightning-free`) stopped mid-phase and scored 4/4 failed, which is the intended harness-exit path. 8-seed smoke not yet run |
+| 5. fingerprint frozen | `agentic_fingerprint` exists and is recorded in every run; still `gm-bench-2.0-dev`, and it moves whenever `episode.py` moves |
+
+Observed shapes on one season: 31 to 47 tool calls, 13 to 47 model calls,
+64k to 352k input tokens, 1.5 to 17 minutes wall. A five-season `big-pickle`
+episode used 143 tool calls and 104 model calls with no compaction, context
+peaking near 84k tokens. Every ledger audited clean.
+
+One behaviour to decide on before the freeze: OpenCode ends a run the moment
+the model answers with text and no tool call, so a model that "thinks out
+loud" once loses the rest of the episode. The current rule (failed decisions
+from that point, moves so far kept) is the 1.0 timeout rule and is what these
+numbers reflect. A single "continue" nudge from the driver would be more
+forgiving and would need to be part of the contract and counted.
+
 ## Not in 2.0
 
 - Simulator mechanics (2.1).
