@@ -4,6 +4,21 @@ This changelog records public GM-Bench releases: what evidence each one freezes
 and what it does not claim. Frozen releases are never rerun or rewritten; a
 correction becomes a new contract version rather than an edit to an old one.
 
+## Unreleased — GM-Bench 2.0 spec and agentic lane scaffolding
+
+Added 2026-09-20. Nothing published changes.
+
+- Naming: the frozen `sota-v5` contract, with its decision-model lane, is
+  **GM-Bench 1.0**. **GM-Bench 2.0** is a new contract, specified in
+  `docs/bench_v2_spec.md`: the same simulator and seeds, driven by a model's
+  own harness through an MCP tool server instead of one prompt per phase.
+  Rows are model + harness + harness version, budgets are reported rather
+  than capped, and the panel is 32 private seeds (the 29 from 1.0 plus 3).
+- Code: `gm_bench/agentic/` (tool surface, task brief, episode engine with a
+  replayable ledger, standard-library MCP server, OpenCode driver, ledger
+  audit) and the `gm-bench agentic` subcommand. Operator guide in
+  `docs/agentic_lane.md`. No 2.0 result is published or claimed yet.
+
 ## sota-v5-publication-2026-09-03 — first public panel under `sota-v5`
 
 Released 2026-09-03. Contract fingerprint `a600b7da0c302231`, OpenRouter

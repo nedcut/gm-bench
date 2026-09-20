@@ -269,6 +269,21 @@ def main(argv: list[str] | None = None) -> None:
     describe_parser = subparsers.add_parser("describe", help="describe a generated league seed")
     describe_parser.add_argument("--seed", type=int, default=1)
 
+    agentic_parser = subparsers.add_parser(
+        "agentic",
+        help="GM-Bench 2.0: run a model inside its own harness against the MCP tool server",
+    )
+    agentic_parser.add_argument("--harness", choices=["opencode"], default="opencode")
+    agentic_parser.add_argument("--model", required=True, help="model id as the harness names it")
+    agentic_parser.add_argument("--seeds", nargs="+", type=int, default=[11])
+    agentic_parser.add_argument("--seasons", type=int, default=5)
+    agentic_parser.add_argument("--output", required=True, help="run directory for ledgers, events and results")
+    agentic_parser.add_argument("--variant", help="harness reasoning variant, e.g. minimal/low/high")
+    agentic_parser.add_argument("--phase-guard-seconds", type=float, default=20 * 60.0)
+    agentic_parser.add_argument("--binary", default="opencode", help="harness executable")
+    agentic_parser.add_argument("--keep-scratch", action="store_true", help="leave the agent workspace on disk")
+    agentic_parser.add_argument("--json", action="store_true")
+
     gui_parser = subparsers.add_parser("gui", help="start the local GM-Bench web GUI")
     gui_parser.add_argument("--host", default="127.0.0.1")
     gui_parser.add_argument(
@@ -282,6 +297,8 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     if args.command == "run":
         _run_command(args)
+    elif args.command == "agentic":
+        _agentic_command(args)
     elif args.command == "compare":
         _compare_command(args)
     elif args.command == "evaluate":
@@ -1086,3 +1103,41 @@ def _print_evaluation(result: dict[str, Any]) -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def _agentic_command(args: argparse.Namespace) -> None:
+    from pathlib import Path as _Path
+
+    from gm_bench.agentic import opencode as opencode_driver
+
+    def _progress(event: dict[str, Any]) -> None:
+        print(json.dumps(event, sort_keys=True), file=sys.stderr)
+
+    payload = opencode_driver.run_panel(
+        args.seeds,
+        model=args.model,
+        run_dir=_Path(args.output),
+        seasons=args.seasons,
+        binary=args.binary,
+        variant=args.variant,
+        phase_guard_seconds=args.phase_guard_seconds,
+        progress=_progress,
+        keep_scratch=args.keep_scratch,
+    )
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        summary = payload["summary"]
+        agentic = payload["agentic_summary"]
+        print(f"{payload['agent']} ({payload['harness']['name']} {payload['harness']['version']})")
+        print(
+            f"  seeds={len(payload['seeds'])} mean_score={summary['mean_score']} illegal={summary['illegal_actions']}"
+        )
+        print(
+            f"  failed_decisions={summary['failed_decisions']}/{summary['decisions']} tool_calls/episode={agentic.get('mean_tool_calls_per_episode')}"
+        )
+        usage = summary.get("usage", {})
+        print(
+            f"  tokens in/out={usage.get('input_tokens')}/{usage.get('output_tokens')} cost_usd={usage.get('cost_usd')}"
+        )
+        print(f"  run.json: {_Path(args.output) / 'run.json'}")

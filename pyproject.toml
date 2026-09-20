@@ -15,7 +15,10 @@ dependencies = []
 # tiktoken is a test-only dependency: the v6 observation budget is written in
 # tokens, and without a tokenizer the exact-count tests silently skip and leave
 # only the conservative character proxy enforcing the ceiling.
-dev = ["pytest>=8", "jsonschema>=4.0", "ruff>=0.8", "tiktoken>=0.7"]
+# mcp is dev-only as well: the 2.0 tool server is hand-written on the standard
+# library so its wire output stays under this repo's contract fingerprint, and
+# the official SDK is used purely as a client in tests/test_agentic_conformance.py.
+dev = ["pytest>=8", "jsonschema>=4.0", "ruff>=0.8", "tiktoken>=0.7", "mcp>=1.12"]
 
 [project.scripts]
 gm-bench = "gm_bench.cli:main"
