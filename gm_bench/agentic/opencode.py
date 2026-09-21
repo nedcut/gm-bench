@@ -332,6 +332,15 @@ def run_episode(
     )
     server = SocketMcpServer(episode, socket_path)
     server.start()
+
+    def guard_expired() -> bool:
+        # Under the dispatch lock, so a poll cannot land between the engine's
+        # phase-transition writes and pair the new phase with the old start
+        # time. (The lock is reached directly: mcp_server.py is a contract
+        # source and an accessor would move the fingerprint.)
+        with server._lock:
+            return episode.phase_expired()
+
     try:
         problems = sandbox_problems(scratch, env)
         if problems:
@@ -352,7 +361,8 @@ def run_episode(
         # The phase guard fires inside the engine on the next tool call, so a
         # harness that stops calling tools would otherwise sit until the
         # episode timeout. The driver polls the guard while the harness runs
-        # and stops the harness once the phase has expired; the nudge below
+        # and stops the harness once the current phase has run past it (the
+        # guard is elapsed phase time, not idle time); the nudge below
         # resumes the session and its first call closes the phase as
         # ``guard`` with the notice.
         guard_kills = 0
@@ -363,7 +373,7 @@ def run_episode(
             events_path=events_path,
             stderr_path=stderr_path,
             timeout=timeout,
-            stalled=episode.phase_expired,
+            stalled=guard_expired,
         )
         guard_kills += int(stalled)
         # The nudge loop. OpenCode ends a run whenever the model answers with
@@ -397,7 +407,7 @@ def run_episode(
                 events_path=events_path,
                 stderr_path=stderr_path,
                 timeout=max(timeout - wall_seconds, 60.0),
-                stalled=episode.phase_expired,
+                stalled=guard_expired,
             )
             wall_seconds += nudge_wall
             guard_kills += int(nudge_stalled)
@@ -427,9 +437,7 @@ def run_episode(
     telemetry = parse_opencode_events(events_path.read_text(encoding="utf-8").splitlines())
     # A proxy that outlived the harness can still have a call in flight on a
     # connection thread; the server's dispatch lock is the only thing that
-    # serializes the engine, so finalize under it. (Reached directly because
-    # mcp_server.py is a contract source and an accessor would move the
-    # fingerprint.)
+    # serializes the engine, so finalize under it.
     with server._lock:
         if not episode.done:
             episode.abandon()

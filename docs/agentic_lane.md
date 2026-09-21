@@ -117,7 +117,14 @@ python -m gm_bench agentic-redact /tmp/agentic-big-pickle \
     --output results/agentic/opencode-1.18.30-big-pickle-smoke.json \
     --isolation same-user --public-seeds
 python -m gm_bench agentic-validate results/agentic/opencode-1.18.30-big-pickle-smoke.json
+python -m gm_bench agentic-validate results/agentic/opencode-1.18.30-big-pickle-smoke.json \
+    --raw /tmp/agentic-big-pickle
 ```
+
+The second validation, with `--raw`, checks the artifact's SHA-256 binding
+against the raw `run.json` and that the artifact equals a fresh redaction of
+that run. CI cannot run it (raw runs stay with the operator), so run it
+yourself before committing any panel-grade row.
 
 The artifact is the only thing committed. It keeps scores, telemetry, the
 contract block, the harness identity, and a hash of the seeds; it drops
@@ -158,11 +165,12 @@ OpenCode is the development harness. `opencode models` lists the free
 rows flagged as unpinned. Never parallelize seeds against a
 subscription-metered harness; the driver is serial on purpose.
 
-`--phase-guard-seconds` (default 1200) is a hang stop, not a budget. The
-driver polls it while the harness runs: a session that goes the whole guard
-period without a tool call is stopped and nudged, and its next call closes
-the expired phase as `guard`. There are no budgets in 2.0; tool calls,
-tokens, and dollars are reported beside the score.
+`--phase-guard-seconds` (default 1200) is a hang stop, not a budget. It is
+elapsed phase time, not idle time. The driver polls it while the harness
+runs: a session whose current phase has run past the guard is stopped and
+nudged, and its next call closes the expired phase as `guard`. There are no
+budgets in 2.0; tool calls, tokens, and dollars are reported beside the
+score.
 
 ## Tests
 

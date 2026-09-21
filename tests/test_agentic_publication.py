@@ -181,6 +181,28 @@ def test_repeated_seed_run_is_checked_against_the_per_seed_mean(tmp_path: Path) 
     assert any("repeated seeds" in warning for warning in artifact["validation"]["warnings"])
 
 
+def test_artifact_is_checked_against_its_raw_run_when_given(tmp_path: Path) -> None:
+    """Offline checks see only the artifact; with the raw run, a forged grade or seed group cannot pass."""
+    run_dir = _write_run(tmp_path, [11, 11, 12])
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    assert validate_agentic_artifact(artifact, raw_run=run_dir)["ok"]
+    assert validate_agentic_artifact(artifact, raw_run=run_dir / "run.json")["ok"]
+
+    forged = json.loads(json.dumps(artifact))
+    forged["episodes"][1]["seed_group"] = 2  # a copied episode claiming its own seed
+    forged["panel"]["distinct_seeds"] = 3
+    forged["summary"]["mean_score"] = sum(e["final_score"] for e in forged["episodes"]) / 3
+    assert validate_agentic_artifact(forged)["ok"], "internally consistent, so the offline check passes"
+    report = validate_agentic_artifact(forged, raw_run=run_dir)
+    assert any("fresh redaction" in error and "episodes" in error and "panel" in error for error in report["errors"])
+
+    raw = json.loads((run_dir / "run.json").read_text())
+    raw["max_nudges"] = 21
+    (run_dir / "run.json").write_text(json.dumps(raw, sort_keys=True))
+    report = validate_agentic_artifact(artifact, raw_run=run_dir)
+    assert report["errors"] == ["publication.raw_artifact_sha256 does not match the raw run.json"]
+
+
 def test_validation_catches_contract_drift_paths_and_tampering(tmp_path: Path) -> None:
     run_dir = _write_run(tmp_path, [11])
     artifact = compact_agentic_run(run_dir, isolation="same-user")
@@ -225,5 +247,9 @@ def test_cli_redact_then_validate_round_trip(tmp_path: Path, capsys) -> None:
     assert "smoke grade, 1 seeds" in capsys.readouterr().out
     main(["agentic-validate", str(out)])
     assert "OK" in capsys.readouterr().out
+    main(["agentic-validate", str(out), "--raw", str(run_dir)])
+    assert "OK" in capsys.readouterr().out
     main(["agentic-validate", str(run_dir)])
     assert "OK" in capsys.readouterr().out
+    with pytest.raises(SystemExit):
+        main(["agentic-validate", str(out), "--raw", str(tmp_path / "run" / "nowhere.json")])

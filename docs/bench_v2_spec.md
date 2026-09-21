@@ -108,11 +108,12 @@ The agent ends a phase by calling `end_phase`. Precautions, in order:
 3. A per-phase **wall-clock guard** (default 20 minutes, recorded in the run
    manifest) ends the phase the same way. It is a safety stop against a hung
    harness, not a budget, and is set high enough that no honest agent hits it.
-   The engine closes the expired phase on the agent's next tool call and
-   tells it so; the driver polls the guard while the harness runs and stops a
-   harness that has gone the whole guard period without a tool call, then
-   nudges it, so a hung session costs one phase rather than the episode
-   timeout. Guard stops are counted per episode (`guard_kills`).
+   The guard is elapsed phase time, not idle time: a tool call does not
+   reset it. The engine closes the expired phase on the agent's next tool
+   call and tells it so; the driver polls the guard while the harness runs
+   and stops a harness whose current phase has run past it, then nudges it,
+   so a hung session costs one phase rather than the episode timeout. Guard
+   stops are counted per episode (`guard_kills`).
 4. The server refuses moves that belong to a different phase with a
    protocol-violation result, exactly as 1.0 does.
 
@@ -394,7 +395,11 @@ harness invocations of one session.
   episode, audits the ledger, and counts GM-Bench tool calls in the retained
   harness event stream against the replayed ledger; the run's own recorded
   agreement is then checked against both. A missing event stream is a
-  problem, not a pass.
+  problem, not a pass. Given the raw run as well (`agentic-validate <row>
+  --raw <run dir>`), it checks the SHA-256 binding and that the artifact
+  equals a fresh redaction of that run, so a hand-edited grade, seed group
+  or score cannot pass; that is the check an operator runs on a panel row
+  before committing it, since CI never sees private raw runs.
 - **CI validates every committed row** with `gm-bench agentic-validate`,
   which recomputes the contract from the checkout. A byte change to the tool
   surface, brief, engine, or server therefore fails every committed row

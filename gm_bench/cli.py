@@ -296,6 +296,10 @@ def main(argv: list[str] | None = None) -> None:
     agentic_validate_parser.add_argument(
         "run", help="run directory or run.json written by `gm-bench agentic`, or a compact artifact from agentic-redact"
     )
+    agentic_validate_parser.add_argument(
+        "--raw",
+        help="the artifact's raw run directory or run.json: also check the SHA-256 binding and a fresh redaction",
+    )
     agentic_validate_parser.add_argument("--json", action="store_true")
 
     agentic_redact_parser = subparsers.add_parser(
@@ -1184,7 +1188,7 @@ def _agentic_validate_command(args: argparse.Namespace) -> None:
     target = Path(args.run)
     payload = json.loads(target.read_text(encoding="utf-8")) if target.is_file() else {}
     if is_agentic_artifact(payload):
-        report = validate_agentic_artifact(payload)
+        report = validate_agentic_artifact(payload, raw_run=args.raw)
         problems, label = report["errors"], f"{report['agent']} ({report['grade']} artifact)"
     else:
         report = validate_run(target)

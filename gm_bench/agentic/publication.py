@@ -198,9 +198,20 @@ def _compact_episode(index: int, episode: dict[str, Any], group: int, public_see
 
 
 def validate_agentic_artifact(
-    artifact: dict[str, Any], *, checkout_contract: dict[str, Any] | None = None
+    artifact: dict[str, Any],
+    *,
+    checkout_contract: dict[str, Any] | None = None,
+    raw_run: str | Path | None = None,
 ) -> dict[str, Any]:
-    """Check a committed row: format, contract, grade rules, redaction, internal consistency."""
+    """Check a committed row: format, contract, grade rules, redaction, internal consistency.
+
+    With ``raw_run`` (the operator-held run directory or ``run.json``) the
+    artifact is also checked against its evidence: the SHA-256 binding must
+    hold and the artifact must equal a fresh redaction of that run. That is
+    the only check that can tell an honest panel row from a hand-edited one,
+    so it is what an operator runs before committing a panel-grade row; CI
+    cannot, because raw runs are never committed.
+    """
     errors: list[str] = []
     warnings: list[str] = []
     publication = artifact.get("publication") or {}
@@ -304,7 +315,35 @@ def validate_agentic_artifact(
         errors.append("artifact contains a local filesystem path")
     if len(text.encode()) >= 1_000_000:
         errors.append("artifact is 1 MB or larger")
+    if raw_run is not None and not errors:
+        errors.extend(_check_against_raw_run(artifact, raw_run))
     return {"ok": not errors, "errors": errors, "warnings": warnings, "grade": grade, "agent": artifact.get("agent")}
+
+
+def _check_against_raw_run(artifact: dict[str, Any], raw_run: str | Path) -> list[str]:
+    raw_path = Path(raw_run)
+    if raw_path.is_dir():
+        raw_path = raw_path / "run.json"
+    if not raw_path.is_file():
+        return [f"raw run not found at {raw_path}"]
+    raw = json.loads(raw_path.read_text(encoding="utf-8"))
+    publication = artifact.get("publication") or {}
+    if canonical_sha256(raw) != publication.get("raw_artifact_sha256"):
+        return ["publication.raw_artifact_sha256 does not match the raw run.json"]
+    try:
+        stamp = _dt.datetime.fromisoformat(str(publication.get("compacted_at_utc")))
+    except ValueError:
+        return ["publication.compacted_at_utc is not a timestamp"]
+    fresh = compact_agentic_run(
+        raw_path,
+        isolation=str(artifact.get("isolation")),
+        public_seeds=(artifact.get("panel") or {}).get("seeds") != REDACTED_SEEDS,
+        now=stamp,
+    )
+    if canonical_sha256(fresh) == canonical_sha256(artifact):
+        return []
+    differing = sorted(key for key in set(fresh) | set(artifact) if fresh.get(key) != artifact.get(key))
+    return [f"artifact does not equal a fresh redaction of the raw run (differs in: {', '.join(differing)})"]
 
 
 def is_agentic_artifact(payload: dict[str, Any]) -> bool:
