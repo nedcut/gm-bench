@@ -195,9 +195,9 @@ def test_harness_environment_and_sandbox_check(tmp_path: Path) -> None:
 
 
 def test_opencode_config_and_event_parsing(tmp_path: Path) -> None:
-    config = opencode_config(tmp_path / "s", python="/usr/bin/python3")
+    config = opencode_config(tmp_path / "s", python="/harness/python3")
     server = config["mcp"]["servers"]["gm-bench"]
-    assert server["command"] == ["/usr/bin/python3", "gm_bench_proxy.py", str(tmp_path / "s")]
+    assert server["command"] == ["/harness/python3", "gm_bench_proxy.py", str(tmp_path / "s")]
     assert server["codemode"] is False
     # Nothing the agent can read names the seed, our interpreter, or the checkout.
     rendered = json.dumps(config)
