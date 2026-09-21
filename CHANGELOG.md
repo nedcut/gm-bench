@@ -4,6 +4,32 @@ This changelog records public GM-Bench releases: what evidence each one freezes
 and what it does not claim. Frozen releases are never rerun or rewritten; a
 correction becomes a new contract version rather than an edit to an old one.
 
+## Unreleased — GM-Bench 2.0 spec and agentic lane scaffolding
+
+Added 2026-09-20. Nothing published changes.
+
+- Naming: the frozen `sota-v5` contract, with its decision-model lane, is
+  **GM-Bench 1.0**. **GM-Bench 2.0** is a new contract, specified in
+  `docs/bench_v2_spec.md`: the same simulator and seeds, driven by a model's
+  own harness through an MCP tool server instead of one prompt per phase.
+  Rows are model + harness + harness version, budgets are reported rather
+  than capped, and the panel is 32 private seeds (the 29 from 1.0 plus 3).
+- Code: `gm_bench/agentic/` (tool surface, task brief, episode engine with a
+  replayable ledger, standard-library MCP server, OpenCode driver, ledger
+  audit) and the `gm-bench agentic` subcommand. Operator guide in
+  `docs/agentic_lane.md`. No 2.0 result is published or claimed yet.
+- Publication: `gm-bench agentic-redact` writes one compact artifact per row
+  under `results/agentic/` (format `gm-bench-agentic-summary-v1`), bound to
+  the operator-held raw run by SHA-256, seeds redacted, graded `panel` or
+  `smoke` by the spec's rules (32 seeds, redaction, harness isolated from
+  the driver). CI validates every committed row against the checkout's 2.0
+  contract. Rows committed so far are `smoke` grade on public seeds.
+- Sandbox: the engine and seed stay in the driver process and serve MCP over
+  a private socket through a standard-library proxy the harness launches.
+  A red-team probe (`scripts/agentic_red_team.py`) confirmed the agent
+  learns nothing from its workspace and everything from `ps` on a same-user
+  machine, so isolation is recorded per row and required for panel grade.
+
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 
 Added 2026-09-18. Nothing in the frozen `sota-v5` release changes; the eleven

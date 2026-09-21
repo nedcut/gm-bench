@@ -148,6 +148,18 @@ jobs:
                       assert "per_decision" not in usage, f"{path}: per_decision usage must not be committed"
           PY
           done < <(find results/leaderboard -type f -name '*.json' -not -path 'results/leaderboard/archive-v1/*' -print0)
+      - name: Validate committed GM-Bench 2.0 (agentic) rows
+        # Each artifact carries the 2.0 contract it was run under; the check
+        # compares it with the contract this checkout computes, so a tool,
+        # brief, engine or server edit invalidates every committed row loudly.
+        run: |
+          count=0
+          while IFS= read -r -d '' artifact; do
+            echo "validating $artifact"
+            python -m gm_bench agentic-validate "$artifact"
+            count=$((count + 1))
+          done < <(find results/agentic -type f -name '*.json' -print0 2>/dev/null || true)
+          echo "validated $count agentic row(s)"
       - name: Output-budget analysis is reproducible
         # Publishing keys off analysis.status; regenerate from the committed
         # sweep config (+ optional cell artifacts) and refuse hand-edited status.
