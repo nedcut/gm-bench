@@ -150,7 +150,17 @@ state, cannot damage the host, and cannot carry information between episodes.
   would the driver's memory on systems that allow same-user tracing. A
   process-level sandbox cannot close that. Private-panel rows must run the
   driver under a different user or in a container from the harness; the
-  free-model smokes here did not, and are labelled accordingly.
+  free-model smokes here did not, and are labelled accordingly. The
+  red-team probe (`scripts/agentic_red_team.py`, 2026-09-21) measured
+  exactly this boundary: the agent read the scratch directory, the config,
+  the proxy, the environment, and the socket directory and learned nothing;
+  its second command was `ps`, which showed the driver, and from there it
+  read the run directory's ledger header, found the checkout, and rebuilt
+  the league with the checkout's own interpreter. Everything the driver can
+  hide is hidden; everything the operating system shows a same-user process
+  is open. Isolation is therefore an operator statement recorded on every
+  published row (`isolation`: `same-user`, `separate-user`, `container`)
+  and a hard requirement for panel grade.
 - **Filesystem and network.** The harness is run with its own permission
   system set to auto-approve inside the scratch directory only. Model
   provider traffic is the harness's own. Anything stronger (container, seccomp)
@@ -286,7 +296,7 @@ for subscription-metered harnesses applies to all of them.
 
 | gate | status |
 |---|---|
-| 1. sandbox check | passes on every run. The first design put the episode file, interpreter, and repository path into the harness config, all readable by the agent's shell; replaced 2026-09-20 by the socket-and-proxy design above. A live red-team probe (agent told to hunt for the seed during an episode) is still owed; OpenCode on this machine stalled at init for every run from 21:49 on 2026-09-20, including plain prompts with no MCP server, so the socket design is verified by its tests and by `opencode mcp list` connecting through the proxy, not yet by a scored episode |
+| 1. sandbox check | passes on every run. The first design put the episode file, interpreter, and repository path into the harness config, all readable by the agent's shell; replaced 2026-09-20 by the socket-and-proxy design above. Scored live episode on the socket design 2026-09-21 (`big-pickle`, seed 11, one season): 4/4 phases closed by the agent, 40 tool calls, ledger equals harness events, audit clean, validates. Red-team probe the same day: the agent found nothing in the scratch directory, config, proxy, environment, or socket directory, then found the seed through `ps` on the driver (documented same-user gap above; `container`/`separate-user` isolation is required for panel grade and recorded per row) |
 | 2. ledger round-trip | server ledger equals harness tool events on all 7 models |
 | 3. SDK conformance | passes against the official `mcp` client |
 | 4. free-model smoke | 6 of 7 models closed 4/4 phases with 0 failed decisions; one (`nemotron-3.5-lightning-free`) stopped mid-phase and scored 4/4 failed, which is the intended harness-exit path. 8-seed smoke not yet run |
@@ -333,6 +343,30 @@ bought 22 tool calls and three phases, the second finished the season. The
 episode completed with 36 tool calls and one phase closed by the 600 s guard
 used for the check. Ledger and harness agreed on 36 calls across all three
 harness invocations of one session.
+
+## Publication
+
+- **Raw evidence stays with the operator.** A run directory holds seeds,
+  ledgers, harness event streams, and local paths. It is never committed.
+- **One compact artifact per row** under `results/agentic/`, written by
+  `gm-bench agentic-redact` (`gm_bench/agentic/publication.py`, format
+  `gm-bench-agentic-summary-v1`). It carries the 2.0 contract block, the
+  harness identity, the panel size and a hash of the sorted seeds, per-episode
+  scores and agentic telemetry (tool calls by tool, phases and how they
+  ended, nudges, tokens, cost, wall time), the ledger-versus-harness
+  agreement, and the validation report computed at redaction time. It is
+  bound to the raw run by the canonical SHA-256 of `run.json`, the same
+  binding the 1.0 lanes use. Ledgers, commands, and paths are dropped.
+- **Grade is mechanical.** `panel` requires at least 32 seeds, redacted
+  seeds, and `isolation` of `separate-user` or `container`. Anything else is
+  `smoke`, and the artifact says so. A smoke row on public seeds may keep its
+  seeds (`--public-seeds`).
+- **CI validates every committed row** with `gm-bench agentic-validate`,
+  which recomputes the contract from the checkout. A byte change to the tool
+  surface, brief, engine, or server therefore fails every committed row
+  until it is rerun, as with 1.0.
+- **Site section** lands with the first panel-grade row; smoke rows are
+  committed for reproducibility, not shown.
 
 ## Not in 2.0
 

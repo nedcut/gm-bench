@@ -403,6 +403,7 @@ def run_episode(
         "events_path": str(events_path),
         "ledger_path": str(ledger_path),
         "proxy_connections": server.connections,
+        "scratch_dir": str(scratch) if keep_scratch else None,
         "event_types": telemetry["event_types"],
         # Gate 2 of the spec: the server ledger and the harness's own event
         # stream must agree on how many GM-Bench tools were called.

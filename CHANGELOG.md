@@ -18,6 +18,17 @@ Added 2026-09-20. Nothing published changes.
   replayable ledger, standard-library MCP server, OpenCode driver, ledger
   audit) and the `gm-bench agentic` subcommand. Operator guide in
   `docs/agentic_lane.md`. No 2.0 result is published or claimed yet.
+- Publication: `gm-bench agentic-redact` writes one compact artifact per row
+  under `results/agentic/` (format `gm-bench-agentic-summary-v1`), bound to
+  the operator-held raw run by SHA-256, seeds redacted, graded `panel` or
+  `smoke` by the spec's rules (32 seeds, redaction, harness isolated from
+  the driver). CI validates every committed row against the checkout's 2.0
+  contract. Rows committed so far are `smoke` grade on public seeds.
+- Sandbox: the engine and seed stay in the driver process and serve MCP over
+  a private socket through a standard-library proxy the harness launches.
+  A red-team probe (`scripts/agentic_red_team.py`) confirmed the agent
+  learns nothing from its workspace and everything from `ps` on a same-user
+  machine, so isolation is recorded per row and required for panel grade.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

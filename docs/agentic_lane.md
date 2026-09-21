@@ -91,6 +91,38 @@ clean, agrees with the harness's tool-event count, and the run's contract block
 matches this checkout's `agentic_contract()`. Failed phases, timeouts, and
 missing telemetry are warnings: reported, never hidden, never fatal.
 
+## Publishing a row
+
+```bash
+python -m gm_bench agentic-redact /tmp/agentic-big-pickle \
+    --output results/agentic/opencode-1.18.30-big-pickle-smoke.json \
+    --isolation same-user --public-seeds
+python -m gm_bench agentic-validate results/agentic/opencode-1.18.30-big-pickle-smoke.json
+```
+
+The artifact is the only thing committed. It keeps scores, telemetry, the
+contract block, the harness identity, and a hash of the seeds; it drops
+ledgers, event streams, commands, and paths, and it is bound to the raw
+`run.json` by SHA-256. `--isolation` is your statement of how the harness was
+separated from the driver (see the sandbox section of the spec): `same-user`
+runs are `smoke` grade whatever their size, and `panel` grade needs 32 or
+more seeds, redacted seeds, and `separate-user` or `container`. The redact
+command refuses to write anything that would not validate. CI re-validates
+every file under `results/agentic/` against the checkout's contract.
+
+## Red-teaming the sandbox
+
+```bash
+echo 11 | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team
+```
+
+Launches the harness exactly as a run does, but with a brief that tells the
+agent to find the seed by any means. The report lists every shell command
+the agent ran and whether the seed appeared in its output. Expect
+`SEED FOUND` on a same-user machine: `ps` shows the driver's command line.
+Expect `SEED NOT FOUND` only when the harness runs as another user or in a
+container.
+
 ## Comparing runs
 
 ```bash
@@ -119,3 +151,6 @@ the score.
   client, server restart, sandbox checks, event parsing
 - `tests/test_agentic_conformance.py`: the server driven by the official
   `mcp` SDK client (dev extra; skipped when not installed)
+- `tests/test_agentic_publication.py`: the compact artifact is bound to its
+  raw run, redacted, graded by the spec's rules, and rejects drift or
+  tampering

@@ -293,8 +293,25 @@ def main(argv: list[str] | None = None) -> None:
     agentic_validate_parser = subparsers.add_parser(
         "agentic-validate", help="replay, audit and contract-check an agentic run directory"
     )
-    agentic_validate_parser.add_argument("run", help="run directory or run.json written by `gm-bench agentic`")
+    agentic_validate_parser.add_argument(
+        "run", help="run directory or run.json written by `gm-bench agentic`, or a compact artifact from agentic-redact"
+    )
     agentic_validate_parser.add_argument("--json", action="store_true")
+
+    agentic_redact_parser = subparsers.add_parser(
+        "agentic-redact", help="write the compact, committable artifact for an agentic run"
+    )
+    agentic_redact_parser.add_argument("run", help="run directory or run.json written by `gm-bench agentic`")
+    agentic_redact_parser.add_argument("--output", required=True, help="artifact path, normally under results/agentic/")
+    agentic_redact_parser.add_argument(
+        "--isolation",
+        required=True,
+        choices=["same-user", "separate-user", "container"],
+        help="how the harness was separated from the driver; panel grade needs separate-user or container",
+    )
+    agentic_redact_parser.add_argument(
+        "--public-seeds", action="store_true", help="keep the seeds in the artifact (smoke rows on public seeds only)"
+    )
 
     gui_parser = subparsers.add_parser("gui", help="start the local GM-Bench web GUI")
     gui_parser.add_argument("--host", default="127.0.0.1")
@@ -313,6 +330,8 @@ def main(argv: list[str] | None = None) -> None:
         _agentic_command(args)
     elif args.command == "agentic-validate":
         _agentic_validate_command(args)
+    elif args.command == "agentic-redact":
+        _agentic_redact_command(args)
     elif args.command == "compare":
         _compare_command(args)
     elif args.command == "evaluate":
@@ -1159,16 +1178,42 @@ def _agentic_command(args: argparse.Namespace) -> None:
 
 
 def _agentic_validate_command(args: argparse.Namespace) -> None:
+    from gm_bench.agentic.publication import is_agentic_artifact, validate_agentic_artifact
     from gm_bench.agentic.validate import validate_run
 
-    report = validate_run(args.run)
+    target = Path(args.run)
+    payload = json.loads(target.read_text(encoding="utf-8")) if target.is_file() else {}
+    if is_agentic_artifact(payload):
+        report = validate_agentic_artifact(payload)
+        problems, label = report["errors"], f"{report['agent']} ({report['grade']} artifact)"
+    else:
+        report = validate_run(target)
+        problems, label = report["problems"], f"{report['agent']}: {report['episodes']} episode(s)"
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
-        print(f"{report['agent']}: {report['episodes']} episode(s), {'OK' if report['ok'] else 'PROBLEMS'}")
-        for line in report["problems"]:
+        print(f"{label}, {'OK' if report['ok'] else 'PROBLEMS'}")
+        for line in problems:
             print(f"  problem: {line}")
         for line in report["warnings"]:
             print(f"  warning: {line}")
     if not report["ok"]:
         sys.exit(1)
+
+
+def _agentic_redact_command(args: argparse.Namespace) -> None:
+    from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
+
+    artifact = compact_agentic_run(args.run, isolation=args.isolation, public_seeds=args.public_seeds)
+    report = validate_agentic_artifact(artifact)
+    if not report["ok"]:
+        print("refusing to write an artifact that would not validate:")
+        for line in report["errors"]:
+            print(f"  problem: {line}")
+        sys.exit(1)
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(artifact, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"wrote {output} ({report['grade']} grade, {artifact['panel']['seed_count']} seeds)")
+    for line in report["warnings"]:
+        print(f"  warning: {line}")
