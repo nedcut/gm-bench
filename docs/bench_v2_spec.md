@@ -145,6 +145,12 @@ state, cannot damage the host, and cannot carry information between episodes.
   its ancestors contain no `gm_bench` checkout, and that `gm_bench` is not
   importable from the scratch directory's default Python path. A run that
   fails the check does not start.
+- **What a same-user process can still see.** The driver's own command line
+  carries `--seeds`, and `ps` shows it to any process of the same user, as it
+  would the driver's memory on systems that allow same-user tracing. A
+  process-level sandbox cannot close that. Private-panel rows must run the
+  driver under a different user or in a container from the harness; the
+  free-model smokes here did not, and are labelled accordingly.
 - **Filesystem and network.** The harness is run with its own permission
   system set to auto-approve inside the scratch directory only. Model
   provider traffic is the harness's own. Anything stronger (container, seccomp)
@@ -280,7 +286,7 @@ for subscription-metered harnesses applies to all of them.
 
 | gate | status |
 |---|---|
-| 1. sandbox check | passes on every run. The first design put the episode file, interpreter, and repository path into the harness config, all readable by the agent's shell; replaced 2026-09-20 by the socket-and-proxy design above. Red-team probe result recorded below |
+| 1. sandbox check | passes on every run. The first design put the episode file, interpreter, and repository path into the harness config, all readable by the agent's shell; replaced 2026-09-20 by the socket-and-proxy design above. A live red-team probe (agent told to hunt for the seed during an episode) is still owed; OpenCode on this machine stalled at init for every run from 21:49 on 2026-09-20, including plain prompts with no MCP server, so the socket design is verified by its tests and by `opencode mcp list` connecting through the proxy, not yet by a scored episode |
 | 2. ledger round-trip | server ledger equals harness tool events on all 7 models |
 | 3. SDK conformance | passes against the official `mcp` client |
 | 4. free-model smoke | 6 of 7 models closed 4/4 phases with 0 failed decisions; one (`nemotron-3.5-lightning-free`) stopped mid-phase and scored 4/4 failed, which is the intended harness-exit path. 8-seed smoke not yet run |
