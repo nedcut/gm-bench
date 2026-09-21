@@ -86,13 +86,21 @@ The 1.0 `full` observation tier is not offered in 2.0.
 
 The agent ends a phase by calling `end_phase`. Precautions, in order:
 
-1. A harness that exits without `end_phase` in a phase records that phase as
-   a **failed decision** (the 1.0 timeout rule) and the episode advances with
+1. A harness that exits with the episode unfinished is **nudged**: the driver
+   resumes the same session (context intact) with a fixed reminder of the
+   season and phase and the instruction to continue. Nudges are capped per
+   episode (default 20, recorded in the manifest), stop early when a nudge
+   produces no new tool call, and are reported per episode beside the score.
+   The reminder text is a contract source. Decided 2026-09-20: harnesses end a
+   run the moment the model answers with text and no tool call, and losing a
+   whole episode to one stray sentence measured chattiness, not management.
+2. When nudges are exhausted, or cannot be sent, every remaining phase is a
+   **failed decision** (the 1.0 timeout rule) and the episode is scored with
    whatever moves were already applied.
-2. A per-phase **wall-clock guard** (default 20 minutes, recorded in the run
+3. A per-phase **wall-clock guard** (default 20 minutes, recorded in the run
    manifest) ends the phase the same way. It is a safety stop against a hung
    harness, not a budget, and is set high enough that no honest agent hits it.
-3. The server refuses moves that belong to a different phase with a
+4. The server refuses moves that belong to a different phase with a
    protocol-violation result, exactly as 1.0 does.
 
 ## Budget policy
@@ -303,12 +311,10 @@ stays the rule: measure it before quoting a resolution. Every probe ledger
 audited clean and agreed with the harness tool-event count once refused
 post-completion calls were counted on replay.
 
-One behaviour to decide on before the freeze: OpenCode ends a run the moment
-the model answers with text and no tool call, so a model that "thinks out
-loud" once loses the rest of the episode. The current rule (failed decisions
-from that point, moves so far kept) is the 1.0 timeout rule and is what these
-numbers reflect. A single "continue" nudge from the driver would be more
-forgiving and would need to be part of the contract and counted.
+The harness-stop behaviour seen above (a model answering with text, or a
+malformed tool call rendered as text, ends the OpenCode run) is now handled
+by the nudge rule in "Phase control". The sweep and probe numbers above were
+measured before nudges existed and are kept as the no-nudge baseline.
 
 ## Not in 2.0
 

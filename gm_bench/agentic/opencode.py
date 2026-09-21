@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import gm_bench
-from gm_bench.agentic.brief import task_brief
+from gm_bench.agentic.brief import nudge_message, task_brief
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import DEFAULT_PHASE_GUARD_SECONDS, AgenticEpisode
 from gm_bench.agentic.mcp_server import EPISODE_ENV
@@ -46,6 +46,7 @@ from gm_bench.simulator import League
 from gm_bench.telemetry import aggregate_usage
 
 HARNESS_NAME = "opencode"
+DEFAULT_MAX_NUDGES = 20
 REPO_ROOT = Path(gm_bench.__file__).resolve().parent.parent
 _SCRUBBED_ENV_VARS = ("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV", "PYTHONSAFEPATH", EPISODE_ENV)
 
@@ -259,6 +260,7 @@ def run_episode(
     variant: str | None = None,
     phase_guard_seconds: float = DEFAULT_PHASE_GUARD_SECONDS,
     episode_timeout_seconds: float | None = None,
+    max_nudges: int = DEFAULT_MAX_NUDGES,
     progress: ProgressCallback | None = None,
     keep_scratch: bool = False,
 ) -> dict[str, Any]:
@@ -294,25 +296,67 @@ def run_episode(
 
         team_name = League.new(seed=seed, user_team_id=user_team_id).user_team.name
         brief = task_brief(seasons, team_name, user_team_id)
-        command = [binary, "run", "--format", "json", "--pure", "--auto", "--dir", str(scratch), "--model", model]
+        base = [binary, "run", "--format", "json", "--pure", "--auto", "--dir", str(scratch), "--model", model]
         if variant:
-            command += ["--variant", variant]
-        command.append(brief)
+            base += ["--variant", variant]
+        command = base + [brief]
         timeout = episode_timeout_seconds or (seasons * len(PHASES) * phase_guard_seconds + 300.0)
         if progress is not None:
             progress({"seed": seed, "stage": "launch", "model": model, "scratch": str(scratch)})
-        started = time.perf_counter()
-        exit_code: int | None
-        timed_out = False
-        with events_path.open("w", encoding="utf-8") as events, stderr_path.open("w", encoding="utf-8") as errors:
-            process = subprocess.Popen(command, cwd=scratch, env=env, stdout=events, stderr=errors, text=True)
-            try:
-                exit_code = process.wait(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                timed_out = True
-                process.kill()
-                exit_code = process.wait()
-        wall_seconds = time.perf_counter() - started
+        events_path.write_text("", encoding="utf-8")
+        stderr_path.write_text("", encoding="utf-8")
+        exit_code, timed_out, wall_seconds = _run_harness(
+            command, cwd=scratch, env=env, events_path=events_path, stderr_path=stderr_path, timeout=timeout
+        )
+        # The nudge loop. OpenCode ends a run whenever the model answers with
+        # text and no tool call; weak models do that mid-phase. Resume the same
+        # session with a reminder, count it, and stop when the episode is done,
+        # a nudge yields no new tool call, the cap is hit, or we cannot resume.
+        nudges: list[dict[str, Any]] = []
+        while not timed_out and len(nudges) < max_nudges:
+            state = _ledger_state(ledger_path)
+            if state["done"]:
+                break
+            session_id = parse_opencode_events(events_path.read_text(encoding="utf-8").splitlines())["session_id"]
+            if not session_id:
+                break
+            number = len(nudges) + 1
+            text = nudge_message(state["season"], state["phase"], seasons, number, max_nudges)
+            if progress is not None:
+                progress(
+                    {
+                        "seed": seed,
+                        "stage": "nudge",
+                        "number": number,
+                        "season": state["season"],
+                        "phase": state["phase"],
+                    }
+                )
+            nudge_exit, nudge_timed_out, nudge_wall = _run_harness(
+                base + ["--session", session_id, text],
+                cwd=scratch,
+                env=env,
+                events_path=events_path,
+                stderr_path=stderr_path,
+                timeout=max(timeout - wall_seconds, 60.0),
+            )
+            wall_seconds += nudge_wall
+            after = _ledger_state(ledger_path)
+            progress_calls = after["tool_calls"] - state["tool_calls"]
+            nudges.append(
+                {
+                    "number": number,
+                    "season": state["season"],
+                    "phase": state["phase"],
+                    "new_tool_calls": progress_calls,
+                    "phases_closed": after["phases_closed"] - state["phases_closed"],
+                    "exit_code": nudge_exit,
+                    "wall_seconds": round(nudge_wall, 3),
+                }
+            )
+            timed_out = timed_out or nudge_timed_out
+            if progress_calls == 0:
+                break
     finally:
         if not keep_scratch:
             shutil.rmtree(scratch, ignore_errors=True)
@@ -327,6 +371,10 @@ def run_episode(
         "exit_code": exit_code,
         "timed_out": timed_out,
         "wall_seconds": round(wall_seconds, 3),
+        "max_nudges": max_nudges,
+        "nudges": nudges,
+        "nudges_used": len(nudges),
+        "nudges_without_progress": sum(1 for nudge in nudges if nudge["new_tool_calls"] == 0),
         "events_path": str(events_path),
         "ledger_path": str(ledger_path),
         "event_types": telemetry["event_types"],
@@ -341,6 +389,50 @@ def run_episode(
             {"seed": seed, "stage": "done", "final_score": result["final_score"], "failed": result["failed_decisions"]}
         )
     return result
+
+
+def _run_harness(
+    command: list[str],
+    *,
+    cwd: Path,
+    env: dict[str, str],
+    events_path: Path,
+    stderr_path: Path,
+    timeout: float,
+) -> tuple[int | None, bool, float]:
+    """Run one harness invocation, appending its streams to the episode's files."""
+    started = time.perf_counter()
+    timed_out = False
+    with events_path.open("a", encoding="utf-8") as events, stderr_path.open("a", encoding="utf-8") as errors:
+        process = subprocess.Popen(command, cwd=cwd, env=env, stdout=events, stderr=errors, text=True)
+        try:
+            exit_code: int | None = process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            process.kill()
+            exit_code = process.wait()
+    return exit_code, timed_out, time.perf_counter() - started
+
+
+def _ledger_state(ledger_path: Path) -> dict[str, Any]:
+    """Where the episode stands, read from the ledger without executing anything."""
+    state = {"done": False, "season": 1, "phase": PHASES[0], "tool_calls": 0, "phases_closed": 0}
+    if not ledger_path.is_file():
+        return state
+    for line in ledger_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        record = json.loads(line)
+        event = record.get("event")
+        if event == "tool_call":
+            state["tool_calls"] += 1
+        elif event == "phase_open":
+            state["season"], state["phase"] = record["season"], record["phase"]
+        elif event == "phase_end":
+            state["phases_closed"] += 1
+        elif event == "episode_end":
+            state["done"] = True
+    return state
 
 
 def tool_call_agreement(agentic: dict[str, Any], telemetry: dict[str, Any]) -> dict[str, Any]:
@@ -373,6 +465,7 @@ def run_panel(
     binary: str = "opencode",
     variant: str | None = None,
     phase_guard_seconds: float = DEFAULT_PHASE_GUARD_SECONDS,
+    max_nudges: int = DEFAULT_MAX_NUDGES,
     progress: ProgressCallback | None = None,
     keep_scratch: bool = False,
 ) -> dict[str, Any]:
@@ -390,6 +483,7 @@ def run_panel(
                 binary=binary,
                 variant=variant,
                 phase_guard_seconds=phase_guard_seconds,
+                max_nudges=max_nudges,
                 progress=progress,
                 keep_scratch=keep_scratch,
             )
@@ -402,6 +496,7 @@ def run_panel(
         "seeds": list(seeds),
         "seasons": seasons,
         "phase_guard_seconds": phase_guard_seconds,
+        "max_nudges": max_nudges,
         "episodes": episodes,
         "summary": summarize_episodes(episodes),
         "agentic_summary": _agentic_summary(episodes),
@@ -426,6 +521,7 @@ def _agentic_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_tool_calls_per_episode": round(sum(calls) / len(calls), 2),
         "tool_calls_by_tool": dict(sorted(by_tool.items())),
         "phases_ended_by": ended,
+        "nudges_used": sum(int(episode["harness_run"].get("nudges_used", 0)) for episode in episodes),
         "compactions": sum(int(episode["usage"].get("harness", {}).get("compactions", 0)) for episode in episodes),
         "mean_wall_seconds": round(
             sum(float(episode["harness_run"]["wall_seconds"]) for episode in episodes) / len(episodes), 1

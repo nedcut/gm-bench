@@ -62,6 +62,22 @@ information is what the tools return.
 Begin now with `get_status`."""
 
 
+def nudge_message(season: int, phase: str, seasons: int, nudge_number: int, max_nudges: int) -> str:
+    """What the driver sends when the harness stopped before the episode ended.
+
+    Sent into the same session, so the agent keeps its context. Counted and
+    reported per episode; after ``max_nudges`` the rest of the episode is
+    scored as failed decisions.
+    """
+    return (
+        f"You stopped before the episode was complete. You are in season {season} of {seasons}, "
+        f"phase {phase}, and this phase is still open. Continue from here: call `get_status`, "
+        f"finish this phase, and keep calling `end_phase` until it reports that the episode is "
+        f"complete. Only tool calls advance the game; a text reply ends your turn. "
+        f"(Reminder {nudge_number} of {max_nudges}.)"
+    )
+
+
 def server_instructions() -> str:
     """The short hint the MCP server returns at initialize time."""
     return (

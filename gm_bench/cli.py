@@ -280,6 +280,12 @@ def main(argv: list[str] | None = None) -> None:
     agentic_parser.add_argument("--output", required=True, help="run directory for ledgers, events and results")
     agentic_parser.add_argument("--variant", help="harness reasoning variant, e.g. minimal/low/high")
     agentic_parser.add_argument("--phase-guard-seconds", type=float, default=20 * 60.0)
+    agentic_parser.add_argument(
+        "--max-nudges",
+        type=int,
+        default=20,
+        help="times the driver may resume a session that stopped before the episode ended",
+    )
     agentic_parser.add_argument("--binary", default="opencode", help="harness executable")
     agentic_parser.add_argument("--keep-scratch", action="store_true", help="leave the agent workspace on disk")
     agentic_parser.add_argument("--json", action="store_true")
@@ -1129,6 +1135,7 @@ def _agentic_command(args: argparse.Namespace) -> None:
         binary=args.binary,
         variant=args.variant,
         phase_guard_seconds=args.phase_guard_seconds,
+        max_nudges=args.max_nudges,
         progress=_progress,
         keep_scratch=args.keep_scratch,
     )

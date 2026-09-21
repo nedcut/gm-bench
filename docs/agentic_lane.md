@@ -33,6 +33,15 @@ For each seed, serially:
    `seed-<n>/result.json`. The run-level `run.json` carries every episode,
    the usual `summary` block, and an `agentic_summary`.
 
+If the harness exits before the episode is complete, the driver **nudges**:
+it resumes the same OpenCode session (`--session <id>`, context intact) with
+a fixed reminder of the season and phase, up to `--max-nudges` times (default
+20). A nudge that produces no new tool call ends the loop. Nudges are listed
+per episode in `harness_run.nudges` with the tool calls and phases each one
+bought; only after they are exhausted are the remaining phases closed as
+failed decisions. The reminder text lives in `gm_bench/agentic/brief.py` and
+is a contract source.
+
 The MCP server is a plain stdio JSON-RPC process. If the harness restarts it
 mid-episode, it replays the ledger and carries on; it never scores on its own.
 
@@ -50,7 +59,7 @@ season summaries, transactions) plus:
   harness reports it (`null` when it does not), and a `harness` block with
   compactions and the harness's own tool-event counts
 - `harness_run`: the command (brief elided), exit code, timeout flag, wall
-  time, and where the raw event stream lives
+  time, nudges used and what each bought, and where the raw event stream lives
 
 `failed_decisions` counts phases the agent did not close itself. A harness
 that finishes without ever calling `end_phase` scores a no-op episode with

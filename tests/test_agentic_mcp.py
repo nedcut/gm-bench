@@ -262,3 +262,57 @@ def test_validate_run_replays_audits_and_checks_contract(tmp_path: Path) -> None
     assert report["ok"] is False
     assert any("replayed score" in p for p in report["problems"])
     assert any("contract.agentic_fingerprint" in p for p in report["problems"])
+
+
+def test_nudge_loop_resumes_until_done_and_stops_without_progress(tmp_path: Path, monkeypatch) -> None:
+    """Drive run_episode with a fake harness: it plays a little per invocation, then stalls."""
+    import gm_bench.agentic.opencode as driver
+    from gm_bench.agentic.episode import AgenticEpisode
+
+    calls: list[list[str]] = []
+
+    def fake_harness(command, *, cwd, env, events_path, stderr_path, timeout):
+        calls.append(command)
+        config = json.loads((cwd / "opencode.json").read_text())
+        episode_file = Path(config["mcp"]["servers"]["gm-bench"]["environment"][EPISODE_ENV])
+        ledger = Path(json.loads(episode_file.read_text())["ledger_path"])
+        engine = AgenticEpisode.from_ledger(ledger) if ledger.exists() else AgenticEpisode(11, 1, ledger_path=ledger)
+        with events_path.open("a") as events:
+            events.write(json.dumps({"type": "step_start", "sessionID": "ses_fake", "part": {}}) + "\n")
+            invocation = len(calls)
+            # First run: one phase. First nudge: one more. Second nudge: nothing (model gives up).
+            if invocation <= 2 and not engine.done:
+                engine.call_tool("get_status", {})
+                engine.call_tool("end_phase", {})
+                for name in ("gm-bench_get_status", "gm-bench_end_phase"):
+                    events.write(
+                        json.dumps({"type": "tool", "sessionID": "ses_fake", "part": {"type": "tool", "tool": name}})
+                        + "\n"
+                    )
+            events.write(
+                json.dumps(
+                    {
+                        "type": "step_finish",
+                        "sessionID": "ses_fake",
+                        "part": {"type": "step-finish", "tokens": {"input": 10, "output": 1}},
+                    }
+                )
+                + "\n"
+            )
+        engine.close()
+        return 0, False, 1.0
+
+    monkeypatch.setattr(driver, "_run_harness", fake_harness)
+    monkeypatch.setattr(driver, "sandbox_problems", lambda scratch, env: [])
+    result = driver.run_episode(11, model="fake/model", run_dir=tmp_path / "run", seasons=1, max_nudges=5)
+    harness_run = result["harness_run"]
+    # Initial run + nudge with progress + nudge without progress, then stop.
+    assert len(calls) == 3
+    assert "--session" in calls[1] and calls[1][calls[1].index("--session") + 1] == "ses_fake"
+    assert "Reminder 1 of 5" in calls[1][-1] and "season 1" in calls[1][-1]
+    assert harness_run["nudges_used"] == 2
+    assert [n["new_tool_calls"] for n in harness_run["nudges"]] == [2, 0]
+    assert harness_run["nudges_without_progress"] == 1
+    assert result["failed_decisions"] == 2  # two phases closed by the agent, two abandoned
+    assert result["agentic"]["phases_ended_by"] == {"agent": 2, "harness_exit": 2}
+    assert harness_run["tool_call_agreement"]["agree"] is True
