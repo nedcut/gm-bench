@@ -13,9 +13,12 @@ artifact per row, produced by :func:`compact_agentic_run`, which
   the validation report computed at redaction time;
 - drops ledgers, event streams, commands, and every local path;
 - names its own grade. ``panel`` rows need at least :data:`PANEL_MIN_SEEDS`
-  seeds, redacted seeds, and the harness isolated from the driver by user or
-  container (``docs/bench_v2_spec.md``, sandbox section). Anything else is a
-  ``smoke`` row and says so.
+  distinct seeds, redacted seeds, and the harness isolated from the driver by
+  user or container (``docs/bench_v2_spec.md``, sandbox section). Anything
+  else is a ``smoke`` row and says so. Each episode carries a ``seed_group``
+  (episodes of one seed share a group, numbered in first-appearance order)
+  so the distinct-seed count and the per-seed mean can be checked without
+  the seeds themselves.
 
 :func:`validate_agentic_artifact` checks a committed artifact against the
 contract this checkout computes and against those grade rules. CI runs it on
@@ -26,6 +29,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -72,6 +76,7 @@ _HARNESS_RUN_KEYS = (
     "nudges_used",
     "nudges_without_progress",
     "proxy_connections",
+    "guard_kills",
     "tool_call_agreement",
 )
 _USAGE_KEYS = (
@@ -110,12 +115,13 @@ def compact_agentic_run(
     raw = json.loads(run_path.read_text(encoding="utf-8"))
     validation = validate_run(run_path)
     seeds = [int(seed) for seed in raw.get("seeds") or []]
-    grade = (
-        "panel" if (len(seeds) >= PANEL_MIN_SEEDS and isolation in _PANEL_ISOLATION and not public_seeds) else "smoke"
-    )
+    raw_episodes = raw.get("episodes") or []
+    groups = seed_groups([episode.get("seed") for episode in raw_episodes])
+    distinct = len(set(groups))
+    grade = "panel" if (distinct >= PANEL_MIN_SEEDS and isolation in _PANEL_ISOLATION and not public_seeds) else "smoke"
     stamp = (now or _dt.datetime.now(_dt.timezone.utc)).replace(microsecond=0).isoformat()
     episodes = [
-        _compact_episode(index, episode, public_seeds) for index, episode in enumerate(raw.get("episodes") or [])
+        _compact_episode(index, episode, groups[index], public_seeds) for index, episode in enumerate(raw_episodes)
     ]
     return {
         "publication": {
@@ -132,6 +138,7 @@ def compact_agentic_run(
         "contract": raw.get("contract"),
         "panel": {
             "seed_count": len(seeds),
+            "distinct_seeds": distinct,
             "seeds": seeds if public_seeds else REDACTED_SEEDS,
             "sha256": seed_panel_sha256(seeds),
         },
@@ -141,19 +148,34 @@ def compact_agentic_run(
         "summary": raw.get("summary"),
         "agentic_summary": raw.get("agentic_summary"),
         "episodes": episodes,
+        # Rebuilt by episode index: the raw report labels entries with the
+        # seed, which must not reach a redacted artifact.
         "validation": {
             "ok": validation["ok"],
-            "problems": validation["problems"],
-            "warnings": validation["warnings"],
+            "problems": _by_index(validation, "problems"),
+            "warnings": _by_index(validation, "warnings"),
             "audits": [report.get("audit") for report in validation["per_episode"]],
         },
     }
 
 
-def _compact_episode(index: int, episode: dict[str, Any], public_seeds: bool) -> dict[str, Any]:
+def seed_groups(seeds: list[Any]) -> list[int]:
+    """Number each seed by first appearance: ``[11, 12, 11]`` -> ``[0, 1, 0]``."""
+    order: dict[Any, int] = {}
+    return [order.setdefault(seed, len(order)) for seed in seeds]
+
+
+def _by_index(validation: dict[str, Any], key: str) -> list[str]:
+    entries = list(validation[f"run_{key}"])
+    for index, report in enumerate(validation["per_episode"]):
+        entries.extend(f"episode {index}: {item}" for item in report[key])
+    return entries
+
+
+def _compact_episode(index: int, episode: dict[str, Any], group: int, public_seeds: bool) -> dict[str, Any]:
     usage = episode.get("usage") or {}
     harness_run = episode.get("harness_run") or {}
-    compact: dict[str, Any] = {"index": index}
+    compact: dict[str, Any] = {"index": index, "seed_group": group}
     if public_seeds:
         compact["seed"] = episode.get("seed")
     for key in _EPISODE_SCALARS:
@@ -209,6 +231,10 @@ def validate_agentic_artifact(
         errors.append(f"isolation must be one of {ISOLATION_LEVELS}")
     panel = artifact.get("panel") or {}
     seed_count = int(panel.get("seed_count") or 0)
+    distinct = panel.get("distinct_seeds")
+    if not _is_int(distinct) or not 0 < distinct <= seed_count:
+        errors.append("panel.distinct_seeds must be an integer between 1 and panel.seed_count")
+        distinct = 0
     seeds = panel.get("seeds")
     redacted = seeds == REDACTED_SEEDS
     if not redacted and not (isinstance(seeds, list) and len(seeds) == seed_count):
@@ -219,8 +245,8 @@ def validate_agentic_artifact(
         errors.append("panel.sha256 does not match panel.seeds")
     grade = artifact.get("grade")
     if grade == "panel":
-        if seed_count < PANEL_MIN_SEEDS:
-            errors.append(f"panel grade needs at least {PANEL_MIN_SEEDS} seeds, has {seed_count}")
+        if distinct < PANEL_MIN_SEEDS:
+            errors.append(f"panel grade needs at least {PANEL_MIN_SEEDS} distinct seeds, has {distinct}")
         if isolation not in _PANEL_ISOLATION:
             errors.append("panel grade needs the harness isolated from the driver by user or container")
         if not redacted:
@@ -240,11 +266,32 @@ def validate_agentic_artifact(
         agreement = (episode.get("harness_run") or {}).get("tool_call_agreement") or {}
         if not agreement.get("agree", False):
             errors.append(f"episode {episode.get('index')}: ledger and harness disagree on tool calls")
-    if episodes:
-        mean = sum(float(episode.get("final_score", 0.0)) for episode in episodes) / len(episodes)
-        recorded_mean = float((artifact.get("summary") or {}).get("mean_score", float("nan")))
-        if abs(mean - recorded_mean) > 1e-3:
-            errors.append(f"summary.mean_score {recorded_mean} does not match episode mean {mean:.3f}")
+    # Seed groups tie the episodes to the distinct-seed count and let the
+    # mean be recomputed the way the runner computes it (mean of per-seed
+    # means), which is the only way a repeated-seed run can be checked.
+    groups = [episode.get("seed_group") for episode in episodes]
+    scores = [episode.get("final_score") for episode in episodes]
+    groups_ok = bool(episodes) and all(_is_int(group) and group >= 0 for group in groups)
+    if episodes and not groups_ok:
+        errors.append("every episode needs a non-negative integer seed_group")
+    if groups_ok:
+        if len(set(groups)) != distinct:
+            errors.append(f"panel.distinct_seeds is {distinct} but the episodes form {len(set(groups))} seed groups")
+        if not redacted and isinstance(seeds, list) and len(seeds) == len(episodes) and groups != seed_groups(seeds):
+            errors.append("episode seed_group values do not follow panel.seeds")
+    if episodes and not all(_is_finite_number(score) for score in scores):
+        errors.append("every episode needs a finite final_score")
+    elif groups_ok:
+        by_group: dict[int, list[float]] = {}
+        for group, score in zip(groups, scores, strict=True):
+            by_group.setdefault(group, []).append(float(score))
+        seed_means = [sum(values) / len(values) for values in by_group.values()]
+        mean = sum(seed_means) / len(seed_means)
+        recorded_mean = (artifact.get("summary") or {}).get("mean_score")
+        if not _is_finite_number(recorded_mean):
+            errors.append("summary.mean_score must be a finite number")
+        elif abs(mean - float(recorded_mean)) > 1e-3:
+            errors.append(f"summary.mean_score {recorded_mean} does not match the per-seed episode mean {mean:.3f}")
 
     validation = artifact.get("validation") or {}
     if validation.get("ok") is not True:
@@ -262,3 +309,11 @@ def validate_agentic_artifact(
 
 def is_agentic_artifact(payload: dict[str, Any]) -> bool:
     return (payload.get("publication") or {}).get("format") == AGENTIC_PUBLICATION_FORMAT
+
+
+def _is_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _is_finite_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)

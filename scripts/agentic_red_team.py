@@ -107,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
         ]
         events_path.write_text("", encoding="utf-8")
         stderr_path.write_text("", encoding="utf-8")
-        exit_code, timed_out, wall = _run_harness(
+        exit_code, timed_out, wall, _stalled = _run_harness(
             command, cwd=scratch, env=env, events_path=events_path, stderr_path=stderr_path, timeout=args.timeout
         )
     finally:

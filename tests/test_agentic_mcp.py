@@ -11,6 +11,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from gm_bench.agentic.mcp_server import EPISODE_ENV, SocketMcpServer
 from gm_bench.agentic.opencode import (
     harness_environment,
@@ -225,12 +227,19 @@ def test_opencode_config_and_event_parsing(tmp_path: Path) -> None:
     assert telemetry["cost_usd"] == 0.001
     assert telemetry["harness_tool_events"] == {"gm-bench_get_status": 1}
     assert telemetry["session_id"] == "ses_1"
-    usage = usage_block(telemetry, model="opencode/test", wall_seconds=12.5)
+    assert telemetry["max_output_tokens_per_call"] == 10
+    usage = usage_block(telemetry, model="opencode/test", decisions=20)
     assert usage["api_calls"] == 2 and usage["input_tokens"] == 150
     assert usage["cost_usd"] == 0.001
     assert usage["harness"]["telemetry_reported"] is True
-    silent = usage_block(parse_opencode_events([]), model="opencode/test", wall_seconds=1.0)
+    # One session total covers all twenty decisions: the run summary divides
+    # by that, not by the one record; wall time is not API latency.
+    assert usage["decisions_with_usage"] == 20 and usage["cost_decisions"] == 20
+    assert usage["total_tokens"] == 165 and usage["max_output_tokens_per_call"] == 10
+    assert usage["api_latency_ms"] == 0.0
+    silent = usage_block(parse_opencode_events([]), model="opencode/test", decisions=20)
     assert silent["cost_usd"] is None and silent["harness"]["telemetry_reported"] is False
+    assert silent["decisions_with_usage"] == 0 and silent["cost_decisions"] == 0
 
 
 def test_agentic_contract_layers_on_the_unchanged_base_contract() -> None:
@@ -266,30 +275,76 @@ def test_validate_run_replays_audits_and_checks_contract(tmp_path: Path) -> None
         episode.call_tool("end_phase", {})
     result = episode.result("opencode:test")
     episode.close()
+    calls = result["agentic"]["tool_calls"]
+    events = ledger.with_name("opencode-events.jsonl")
+    lines = []
+    for tool, count in result["agentic"]["tool_calls_by_tool"].items():
+        part = {"type": "tool", "tool": f"gm-bench_{tool}"}
+        lines.extend(json.dumps({"type": "tool", "sessionID": "ses_x", "part": part}) for _ in range(count))
+    events.write_text("\n".join(lines) + "\n")
+    # Paths relative to the run directory, as the driver records them.
     result["harness_run"] = {
-        "ledger_path": str(ledger),
-        "tool_call_agreement": {
-            "ledger": result["agentic"]["tool_calls"],
-            "harness": result["agentic"]["tool_calls"],
-            "agree": True,
-        },
+        "ledger_path": "seed-11/ledger.jsonl",
+        "events_path": "seed-11/opencode-events.jsonl",
+        "tool_call_agreement": {"ledger": calls, "harness": calls, "agree": True},
         "exit_code": 0,
         "timed_out": False,
     }
     result["usage"]["harness"] = {"telemetry_reported": True}
-    run = {"agent": "opencode:test", "contract": agentic_contract(), "seeds": [11], "episodes": [result]}
+    run = {
+        "agent": "opencode:test",
+        "harness": {"name": "opencode"},
+        "contract": agentic_contract(),
+        "seeds": [11],
+        "episodes": [result],
+    }
     (run_dir / "run.json").write_text(json.dumps(run))
 
-    report = validate_run(run_dir)
+    def check() -> dict:
+        (run_dir / "run.json").write_text(json.dumps(run))
+        return validate_run(run_dir)
+
+    report = check()
     assert report["ok"], report
     assert report["per_episode"][0]["replayed_score"] == result["final_score"]
+    assert report["per_episode"][0]["replayed_tool_calls"] == report["per_episode"][0]["harness_tool_calls"] == calls
     assert report["warnings"] == []
+
+    # The agreement is recomputed from the evidence, not read from the claim.
+    run["episodes"][0]["harness_run"]["tool_call_agreement"] = {"ledger": 99999, "harness": 0, "agree": True}
+    report = check()
+    assert any("does not match the recomputed" in p for p in report["problems"]), report["problems"]
+    run["episodes"][0]["harness_run"]["tool_call_agreement"] = {"ledger": calls, "harness": calls, "agree": True}
+    events.write_text("\n".join(lines[:-1]) + "\n")  # a truncated harness stream
+    report = check()
+    assert any(f"harness stream has {calls - 1}" in p for p in report["problems"]), report["problems"]
+    events.unlink()
+    report = check()
+    assert any("harness event stream missing" in p for p in report["problems"])
+    events.write_text("\n".join(lines) + "\n")
+
+    # The run's seed list must match the episodes; the ledger header must match the episode.
+    run["seeds"] = [12]
+    assert any("run.seeds does not match" in p for p in check()["problems"])
+    run["seeds"] = [11]
+    run["episodes"][0]["seed"] = 12
+    assert any("ledger header seed" in p for p in check()["problems"])
+    run["episodes"][0]["seed"] = 11
+    assert check()["ok"]
+
+    # A corrupt ledger is reported by both replay and audit, and validation still returns.
+    good = ledger.read_text()
+    ledger.write_text(good + "{not json\n")
+    report = check()
+    assert report["ok"] is False
+    assert any("does not replay" in p for p in report["problems"])
+    assert any("does not audit" in p for p in report["problems"])
+    ledger.write_text(good)
 
     # Tamper with the score and the contract: both must be caught.
     run["episodes"][0]["final_score"] += 1.0
     run["contract"]["agentic_fingerprint"] = "0" * 16
-    (run_dir / "run.json").write_text(json.dumps(run))
-    report = validate_run(run_dir)
+    report = check()
     assert report["ok"] is False
     assert any("replayed score" in p for p in report["problems"])
     assert any("contract.agentic_fingerprint" in p for p in report["problems"])
@@ -301,7 +356,7 @@ def test_nudge_loop_resumes_until_done_and_stops_without_progress(tmp_path: Path
 
     calls: list[list[str]] = []
 
-    def fake_harness(command, *, cwd, env, events_path, stderr_path, timeout):
+    def fake_harness(command, *, cwd, env, events_path, stderr_path, timeout, stalled=None):
         calls.append(command)
         config = json.loads((cwd / "opencode.json").read_text())
         socket_path = config["mcp"]["servers"]["gm-bench"]["command"][2]
@@ -321,12 +376,16 @@ def test_nudge_loop_resumes_until_done_and_stops_without_progress(tmp_path: Path
                 client.close()
             finish = {"type": "step-finish", "tokens": {"input": 10, "output": 1}}
             events.write(json.dumps({"type": "step_finish", "sessionID": "ses_fake", "part": finish}) + "\n")
-        return 0, False, 1.0
+        return 0, False, 1.0, False
 
     monkeypatch.setattr(driver, "_run_harness", fake_harness)
     monkeypatch.setattr(driver, "sandbox_problems", lambda scratch, env: [])
     result = driver.run_episode(11, model="fake/model", run_dir=tmp_path / "run", seasons=1, max_nudges=5)
     harness_run = result["harness_run"]
+    # Evidence paths are recorded relative to the run directory.
+    assert harness_run["ledger_path"] == "seed-11/ledger.jsonl"
+    assert harness_run["events_path"] == "seed-11/opencode-events.jsonl"
+    assert harness_run["guard_kills"] == 0
     # Initial run + nudge with progress + nudge without progress, then stop.
     assert len(calls) == 3
     assert "--session" in calls[1] and calls[1][calls[1].index("--session") + 1] == "ses_fake"
@@ -340,6 +399,69 @@ def test_nudge_loop_resumes_until_done_and_stops_without_progress(tmp_path: Path
     assert harness_run["proxy_connections"] == 2
     # The seed never touched the run directory except inside the ledger header.
     assert not (tmp_path / "run" / "seed-11" / "episode.json").exists()
+
+    # A second run into the same directory is refused before any harness launches.
+    launches = len(calls)
+    with pytest.raises(FileExistsError):
+        driver.run_episode(11, model="fake/model", run_dir=tmp_path / "run", seasons=1, max_nudges=5)
+    assert len(calls) == launches
+    # The whole run still validates and redacts with the relative paths.
+    from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
+    from gm_bench.agentic.validate import validate_run
+
+    run = {
+        "agent": "opencode:fake/model",
+        "harness": {"name": "opencode", "version": "0", "model": "fake/model"},
+        "contract": driver.agentic_contract(),
+        "seeds": [11],
+        "seasons": 1,
+        "episodes": [result],
+        "summary": driver.summarize_episodes([result]),
+    }
+    (tmp_path / "run" / "run.json").write_text(json.dumps(run))
+    report = validate_run(tmp_path / "run")
+    assert report["ok"], report
+    assert validate_agentic_artifact(compact_agentic_run(tmp_path / "run", isolation="same-user"))["ok"]
+
+
+def test_run_harness_stops_a_stalled_harness_and_reports_it_apart_from_timeout(tmp_path: Path) -> None:
+    import gm_bench.agentic.opencode as driver
+
+    sleeper = [sys.executable, "-c", "import time; time.sleep(30)"]
+    events, errors = tmp_path / "events.jsonl", tmp_path / "stderr.log"
+    exit_code, timed_out, wall, stalled = driver._run_harness(
+        sleeper,
+        cwd=tmp_path,
+        env=os.environ.copy(),
+        events_path=events,
+        stderr_path=errors,
+        timeout=20.0,
+        stalled=lambda: True,
+        poll_seconds=0.1,
+    )
+    assert stalled is True and timed_out is False and exit_code != 0 and wall < 10
+    exit_code, timed_out, wall, stalled = driver._run_harness(
+        sleeper,
+        cwd=tmp_path,
+        env=os.environ.copy(),
+        events_path=events,
+        stderr_path=errors,
+        timeout=0.3,
+        stalled=lambda: False,
+        poll_seconds=0.1,
+    )
+    assert timed_out is True and stalled is False and exit_code != 0
+    exit_code, timed_out, wall, stalled = driver._run_harness(
+        [sys.executable, "-c", "pass"],
+        cwd=tmp_path,
+        env=os.environ.copy(),
+        events_path=events,
+        stderr_path=errors,
+        timeout=20.0,
+        stalled=lambda: True,
+        poll_seconds=0.1,
+    )
+    assert (exit_code, timed_out, stalled) == (0, False, False)
 
 
 def test_real_proxy_script_bridges_stdio_to_the_socket_server(tmp_path: Path) -> None:

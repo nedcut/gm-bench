@@ -185,6 +185,7 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
     cost = 0.0
     saw_cost = False
     steps = 0
+    max_output = 0
     tool_events: dict[str, int] = {}
     compactions = 0
     errors = 0
@@ -209,6 +210,7 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
             tokens = part.get("tokens") if isinstance(part.get("tokens"), dict) else {}
             totals["input"] += _int(tokens.get("input"))
             totals["output"] += _int(tokens.get("output"))
+            max_output = max(max_output, _int(tokens.get("output")))
             totals["reasoning"] += _int(tokens.get("reasoning"))
             cache = tokens.get("cache") if isinstance(tokens.get("cache"), dict) else {}
             totals["cache_read"] += _int(cache.get("read"))
@@ -230,6 +232,7 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
         "reasoning_tokens": totals["reasoning"],
         "cached_input_tokens": totals["cache_read"],
         "cache_write_tokens": totals["cache_write"],
+        "max_output_tokens_per_call": max_output,
         "cost_usd": round(cost, 6) if saw_cost else None,
         "harness_tool_events": dict(sorted(tool_events.items())),
         "compactions": compactions,
@@ -245,7 +248,18 @@ def _int(value: Any) -> int:
     return int(value)
 
 
-def usage_block(telemetry: dict[str, Any], *, model: str, wall_seconds: float) -> dict[str, Any]:
+def usage_block(telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
+    """The episode's ``usage`` block from the harness's session totals.
+
+    OpenCode reports one total for the whole session, not one record per
+    decision phase, so the block is one record with no season or phase. That
+    total covers every one of the episode's ``decisions``, which is what the
+    run summary divides by for its per-decision means; when the harness
+    reported nothing, no decision has usage and the means read as unmeasured.
+    Wall time is recorded on ``harness_run``, not as API latency, because the
+    stream carries no per-call latency.
+    """
+    reported = telemetry["model_calls"] > 0
     record: dict[str, Any] = {
         "provider": HARNESS_NAME,
         "model": model,
@@ -254,13 +268,16 @@ def usage_block(telemetry: dict[str, Any], *, model: str, wall_seconds: float) -
         "output_tokens": telemetry["output_tokens"],
         "reasoning_tokens": telemetry["reasoning_tokens"],
         "cached_input_tokens": telemetry["cached_input_tokens"],
-        "api_latency_ms": round(wall_seconds * 1000.0, 1),
+        "total_tokens": telemetry["input_tokens"] + telemetry["output_tokens"],
+        "max_output_tokens_per_call": telemetry["max_output_tokens_per_call"],
         "season": None,
         "phase": None,
     }
     if telemetry["cost_usd"] is not None:
         record["cost_usd"] = telemetry["cost_usd"]
     usage = aggregate_usage([record])
+    usage["decisions_with_usage"] = decisions if reported else 0
+    usage["cost_decisions"] = decisions if reported and telemetry["cost_usd"] is not None else 0
     usage["harness"] = {
         "name": HARNESS_NAME,
         "compactions": telemetry["compactions"],
@@ -290,8 +307,13 @@ def run_episode(
     max_nudges: int = DEFAULT_MAX_NUDGES,
     progress: ProgressCallback | None = None,
     keep_scratch: bool = False,
+    episode_dir: Path | None = None,
 ) -> dict[str, Any]:
-    episode_dir = run_dir / f"seed-{seed}"
+    episode_dir = episode_dir if episode_dir is not None else run_dir / f"seed-{seed}"
+    if episode_dir.exists() and any(episode_dir.iterdir()):
+        # The ledger is append-only, so a second episode in the same directory
+        # would be written onto the first and neither would replay.
+        raise FileExistsError(f"{episode_dir} already holds an episode; use an empty run directory")
     episode_dir.mkdir(parents=True, exist_ok=True)
     ledger_path = episode_dir / "ledger.jsonl"
     events_path = episode_dir / "opencode-events.jsonl"
@@ -327,9 +349,23 @@ def run_episode(
             progress({"seed": seed, "stage": "launch", "model": model, "scratch": str(scratch)})
         events_path.write_text("", encoding="utf-8")
         stderr_path.write_text("", encoding="utf-8")
-        exit_code, timed_out, wall_seconds = _run_harness(
-            command, cwd=scratch, env=env, events_path=events_path, stderr_path=stderr_path, timeout=timeout
+        # The phase guard fires inside the engine on the next tool call, so a
+        # harness that stops calling tools would otherwise sit until the
+        # episode timeout. The driver polls the guard while the harness runs
+        # and stops the harness once the phase has expired; the nudge below
+        # resumes the session and its first call closes the phase as
+        # ``guard`` with the notice.
+        guard_kills = 0
+        exit_code, timed_out, wall_seconds, stalled = _run_harness(
+            command,
+            cwd=scratch,
+            env=env,
+            events_path=events_path,
+            stderr_path=stderr_path,
+            timeout=timeout,
+            stalled=episode.phase_expired,
         )
+        guard_kills += int(stalled)
         # The nudge loop. OpenCode ends a run whenever the model answers with
         # text and no tool call; weak models do that mid-phase. Resume the same
         # session with a reminder, count it, and stop when the episode is done,
@@ -354,15 +390,17 @@ def run_episode(
                         "phase": state["phase"],
                     }
                 )
-            nudge_exit, nudge_timed_out, nudge_wall = _run_harness(
+            nudge_exit, nudge_timed_out, nudge_wall, nudge_stalled = _run_harness(
                 base + ["--session", session_id, text],
                 cwd=scratch,
                 env=env,
                 events_path=events_path,
                 stderr_path=stderr_path,
                 timeout=max(timeout - wall_seconds, 60.0),
+                stalled=episode.phase_expired,
             )
             wall_seconds += nudge_wall
+            guard_kills += int(nudge_stalled)
             after = _engine_state(episode)
             progress_calls = after["tool_calls"] - state["tool_calls"]
             nudges.append(
@@ -374,6 +412,7 @@ def run_episode(
                     "phases_closed": after["phases_closed"] - state["phases_closed"],
                     "exit_code": nudge_exit,
                     "wall_seconds": round(nudge_wall, 3),
+                    "stalled": nudge_stalled,
                 }
             )
             timed_out = timed_out or nudge_timed_out
@@ -386,10 +425,16 @@ def run_episode(
             shutil.rmtree(scratch, ignore_errors=True)
 
     telemetry = parse_opencode_events(events_path.read_text(encoding="utf-8").splitlines())
-    if not episode.done:
-        episode.abandon()
-    episode.harness_usage = usage_block(telemetry, model=model, wall_seconds=wall_seconds)
-    result = episode.result(agent_name=f"{HARNESS_NAME}:{model}")
+    # A proxy that outlived the harness can still have a call in flight on a
+    # connection thread; the server's dispatch lock is the only thing that
+    # serializes the engine, so finalize under it. (Reached directly because
+    # mcp_server.py is a contract source and an accessor would move the
+    # fingerprint.)
+    with server._lock:
+        if not episode.done:
+            episode.abandon()
+        episode.harness_usage = usage_block(telemetry, model=model, decisions=seasons * len(PHASES))
+        result = episode.result(agent_name=f"{HARNESS_NAME}:{model}")
     result["harness_run"] = {
         "harness": HARNESS_NAME,
         "command": command[:-1] + ["<task brief>"],
@@ -400,8 +445,11 @@ def run_episode(
         "nudges": nudges,
         "nudges_used": len(nudges),
         "nudges_without_progress": sum(1 for nudge in nudges if nudge["new_tool_calls"] == 0),
-        "events_path": str(events_path),
-        "ledger_path": str(ledger_path),
+        "guard_kills": guard_kills,
+        # Evidence paths are recorded relative to the run directory, so the
+        # directory can be moved or handed over and still validate.
+        "events_path": _recorded_path(events_path, run_dir),
+        "ledger_path": _recorded_path(ledger_path, run_dir),
         "proxy_connections": server.connections,
         "scratch_dir": str(scratch) if keep_scratch else None,
         "event_types": telemetry["event_types"],
@@ -418,6 +466,13 @@ def run_episode(
     return result
 
 
+def _recorded_path(path: Path, run_dir: Path) -> str:
+    try:
+        return str(path.relative_to(run_dir))
+    except ValueError:
+        return str(path)
+
+
 def _run_harness(
     command: list[str],
     *,
@@ -426,19 +481,39 @@ def _run_harness(
     events_path: Path,
     stderr_path: Path,
     timeout: float,
-) -> tuple[int | None, bool, float]:
-    """Run one harness invocation, appending its streams to the episode's files."""
+    stalled: Callable[[], bool] | None = None,
+    poll_seconds: float = 5.0,
+) -> tuple[int | None, bool, float, bool]:
+    """Run one harness invocation, appending its streams to the episode's files.
+
+    Returns ``(exit_code, timed_out, wall_seconds, stalled)``. ``stalled`` is
+    polled every ``poll_seconds`` while the process runs; when it reports
+    true the harness is killed and the flag is returned, distinct from the
+    episode timeout so the caller can still nudge.
+    """
     started = time.perf_counter()
+    deadline = started + timeout
     timed_out = False
+    was_stalled = False
     with events_path.open("a", encoding="utf-8") as events, stderr_path.open("a", encoding="utf-8") as errors:
         process = subprocess.Popen(command, cwd=cwd, env=env, stdout=events, stderr=errors, text=True)
-        try:
-            exit_code: int | None = process.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            timed_out = True
-            process.kill()
-            exit_code = process.wait()
-    return exit_code, timed_out, time.perf_counter() - started
+        while True:
+            remaining = deadline - time.perf_counter()
+            if remaining <= 0:
+                timed_out = True
+                process.kill()
+                exit_code: int | None = process.wait()
+                break
+            try:
+                exit_code = process.wait(timeout=min(poll_seconds, remaining))
+                break
+            except subprocess.TimeoutExpired:
+                if stalled is not None and stalled():
+                    was_stalled = True
+                    process.kill()
+                    exit_code = process.wait()
+                    break
+    return exit_code, timed_out, time.perf_counter() - started, was_stalled
 
 
 def _engine_state(episode: AgenticEpisode) -> dict[str, Any]:
@@ -452,11 +527,16 @@ def _engine_state(episode: AgenticEpisode) -> dict[str, Any]:
     }
 
 
-def tool_call_agreement(agentic: dict[str, Any], telemetry: dict[str, Any]) -> dict[str, Any]:
-    """Compare the ledger's tool-call count with the harness's GM-Bench tool events."""
-    harness = sum(
+def harness_tool_calls(telemetry: dict[str, Any]) -> int:
+    """How many GM-Bench tool calls the harness's own event stream recorded."""
+    return sum(
         count for name, count in telemetry.get("harness_tool_events", {}).items() if name.startswith("gm-bench_")
     )
+
+
+def tool_call_agreement(agentic: dict[str, Any], telemetry: dict[str, Any]) -> dict[str, Any]:
+    """Compare the ledger's tool-call count with the harness's GM-Bench tool events."""
+    harness = harness_tool_calls(telemetry)
     ledger = int(agentic.get("tool_calls", 0))
     return {"ledger": ledger, "harness": harness, "agree": ledger == harness}
 
@@ -486,16 +566,24 @@ def run_panel(
     progress: ProgressCallback | None = None,
     keep_scratch: bool = False,
 ) -> dict[str, Any]:
-    """Run seeds serially (harness quotas are never parallelized) and summarize."""
+    """Run seeds serially (harness quotas are never parallelized) and summarize.
+
+    A seed listed more than once (a within-seed noise probe) gets one
+    directory per attempt: ``seed-11``, then ``seed-11-r2`` and so on.
+    """
     run_dir.mkdir(parents=True, exist_ok=True)
     version = opencode_version(binary)
     episodes = []
+    attempts: dict[int, int] = {}
     for seed in seeds:
+        attempts[seed] = attempts.get(seed, 0) + 1
+        suffix = "" if attempts[seed] == 1 else f"-r{attempts[seed]}"
         episodes.append(
             run_episode(
                 seed,
                 model=model,
                 run_dir=run_dir,
+                episode_dir=run_dir / f"seed-{seed}{suffix}",
                 seasons=seasons,
                 binary=binary,
                 variant=variant,

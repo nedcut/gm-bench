@@ -52,6 +52,8 @@ def summarize(run_dir: Path) -> dict[str, str] | None:
     moves_ok = moves_rej = 0
     for episode in episodes:
         ledger = Path(episode.get("harness_run", {}).get("ledger_path", ""))
+        if not ledger.is_absolute():
+            ledger = run_dir / ledger
         if ledger.is_file():
             report = audit_ledger(ledger)
             audits.append(
@@ -95,10 +97,13 @@ def main(argv: list[str] | None = None) -> int:
             row = summarize(candidate)
             if row:
                 rows.append(row)
+    if not rows:
+        print("no runs found (no run.json under " + ", ".join(str(p) for p in args.run_dirs) + ")", file=sys.stderr)
+        return 1
     if args.json:
         print(json.dumps(rows, indent=2))
         return 0
-    widths = {column: max(len(column), *(len(row[column]) for row in rows)) for column in COLUMNS} if rows else {}
+    widths = {column: max(len(column), *(len(row[column]) for row in rows)) for column in COLUMNS}
     print("  ".join(column.ljust(widths[column]) for column in COLUMNS))
     for row in rows:
         print("  ".join(row[column].ljust(widths[column]) for column in COLUMNS))

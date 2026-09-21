@@ -50,21 +50,29 @@ one code path and produce identical ledgers.
 The tool set mirrors the 1.0 action protocol. Names are frozen at the
 contract freeze; descriptions and input schemas are contract sources.
 
+The table is the surface `gm_bench/agentic/tools.py` declares. `read` tools
+are answered from public state by the engine and never touch the simulator's
+ledger; `query` tools are the 1.0 query actions routed through the simulator
+(`scout` is budgeted); `move` tools change the league and are judged by the
+simulator; `end_phase` is the one control.
+
 | Tool | Kind | 1.0 equivalent |
 |---|---|---|
-| `get_status` | read | the compact header of the observation: season, phase, standings, cap, budget used so far |
-| `get_team` | read | `inspect_team` on the agent's own team |
+| `get_status` | read | the compact header of the observation: season, phase, standings, cap, budget used so far, memo, legal tools |
+| `get_rules` | read | the `rules` block of the observation |
+| `get_team` | read | `inspect_team` on the agent's own team, with release costs and extension quotes |
+| `list_draft_class` | read | `draft_class` (draft phase only) |
+| `list_waiver_wire` | read | `waiver_wire` (midseason only) |
+| `list_offers` | read | `incoming_offers` (usually only at the trade deadline) |
+| `list_trade_market` | read | `trade_market` |
+| `list_transactions` | read | `recent_transactions` |
 | `inspect_team` | query | `inspect_team` |
 | `inspect_player` | query | `inspect_player` |
 | `list_free_agents` | query | `list_free_agents` |
-| `list_draft_class` | query | `draft_class` (draft phase only) |
-| `list_waiver_wire` | query | `waiver_wire` (midseason only) |
-| `list_offers` | query | `incoming_offers` (trade deadline only) |
-| `list_transactions` | query | `recent_transactions` |
 | `scout` | query, budgeted | `scout` |
-| `sign_free_agent`, `trade`, `draft`, `set_lineup`, `claim_waiver`, `extend_contract` | move | the core moves, one tool each |
+| `sign_free_agent`, `extend_contract`, `release_player`, `trade`, `draft`, `set_lineup`, `claim_waiver` | move | the core moves, one tool each |
 | `accept_trade_offer`, `reject_trade_offer`, `counter_trade_offer` | move | trade negotiation |
-| `write_memo` | memory | `memo` (kept for parity; the agent may also use its own context and files) |
+| `write_memo` | move | `memo` (kept for parity; the agent may also use its own context and files) |
 | `end_phase` | control | `end_turn` |
 
 Every move returns the same result object the 1.0 runner echoed as
@@ -100,6 +108,11 @@ The agent ends a phase by calling `end_phase`. Precautions, in order:
 3. A per-phase **wall-clock guard** (default 20 minutes, recorded in the run
    manifest) ends the phase the same way. It is a safety stop against a hung
    harness, not a budget, and is set high enough that no honest agent hits it.
+   The engine closes the expired phase on the agent's next tool call and
+   tells it so; the driver polls the guard while the harness runs and stops a
+   harness that has gone the whole guard period without a tool call, then
+   nudges it, so a hung session costs one phase rather than the episode
+   timeout. Guard stops are counted per episode (`guard_kills`).
 4. The server refuses moves that belong to a different phase with a
    protocol-violation result, exactly as 1.0 does.
 
@@ -161,10 +174,16 @@ state, cannot damage the host, and cannot carry information between episodes.
   is open. Isolation is therefore an operator statement recorded on every
   published row (`isolation`: `same-user`, `separate-user`, `container`)
   and a hard requirement for panel grade.
-- **Filesystem and network.** The harness is run with its own permission
-  system set to auto-approve inside the scratch directory only. Model
-  provider traffic is the harness's own. Anything stronger (container, seccomp)
-  is a per-harness option recorded in the manifest, not a contract requirement.
+- **Filesystem and network.** The harness runs with its own permission
+  prompts turned off (`opencode run --auto` approves every tool call) and the
+  scratch directory as its working directory. That is not a filesystem jail:
+  `--dir` sets where the agent starts, and nothing stops a shell command from
+  reading elsewhere, which is exactly what the `ps` probe above went on to
+  do. The driver enforces what it can, that the scratch directory holds
+  nothing worth reading, and records the rest as the row's `isolation`. Model
+  provider traffic is the harness's own. Anything stronger (container,
+  seccomp) is a per-harness option recorded in the manifest, not a contract
+  requirement.
 - **Cheating is detected after the fact, not only prevented.** The server
   logs every tool call with its arguments. The publication check rejects an
   episode whose ledger contains an accepted move on an entity id that no tool
@@ -364,10 +383,18 @@ harness invocations of one session.
   agreement, and the validation report computed at redaction time. It is
   bound to the raw run by the canonical SHA-256 of `run.json`, the same
   binding the 1.0 lanes use. Ledgers, commands, and paths are dropped.
-- **Grade is mechanical.** `panel` requires at least 32 seeds, redacted
-  seeds, and `isolation` of `separate-user` or `container`. Anything else is
-  `smoke`, and the artifact says so. A smoke row on public seeds may keep its
-  seeds (`--public-seeds`).
+- **Grade is mechanical.** `panel` requires at least 32 distinct seeds,
+  redacted seeds, and `isolation` of `separate-user` or `container`. Anything
+  else is `smoke`, and the artifact says so. Each episode carries a
+  `seed_group` (episodes of one seed share a group) so the distinct count
+  and the per-seed mean can be checked without the seeds. A smoke row on
+  public seeds may keep its seeds (`--public-seeds`).
+- **Validation recomputes, it does not trust.** `agentic-validate` replays
+  every ledger to its score, checks the ledger header's seed against the
+  episode, audits the ledger, and counts GM-Bench tool calls in the retained
+  harness event stream against the replayed ledger; the run's own recorded
+  agreement is then checked against both. A missing event stream is a
+  problem, not a pass.
 - **CI validates every committed row** with `gm-bench agentic-validate`,
   which recomputes the contract from the checkout. A byte change to the tool
   surface, brief, engine, or server therefore fails every committed row

@@ -225,6 +225,7 @@
       "final_score": 152.287,
       "harness_run": {
         "exit_code": 0,
+        "guard_kills": 0,
         "nudges": [],
         "nudges_used": 0,
         "nudges_without_progress": 0,
@@ -243,6 +244,7 @@
       "memo_writes": 8,
       "protocol_penalty": 0.0,
       "seed": 1,
+      "seed_group": 0,
       "strategy_score": 152.287,
       "usage": {
         "api_calls": 100,
@@ -458,6 +460,7 @@
       "final_score": 222.196,
       "harness_run": {
         "exit_code": 0,
+        "guard_kills": 0,
         "nudges": [],
         "nudges_used": 0,
         "nudges_without_progress": 0,
@@ -476,6 +479,7 @@
       "memo_writes": 8,
       "protocol_penalty": 0.0,
       "seed": 2,
+      "seed_group": 1,
       "strategy_score": 222.196,
       "usage": {
         "api_calls": 105,
@@ -691,6 +695,7 @@
       "final_score": 232.677,
       "harness_run": {
         "exit_code": 0,
+        "guard_kills": 0,
         "nudges": [],
         "nudges_used": 0,
         "nudges_without_progress": 0,
@@ -709,6 +714,7 @@
       "memo_writes": 5,
       "protocol_penalty": 2.5,
       "seed": 3,
+      "seed_group": 2,
       "strategy_score": 235.177,
       "usage": {
         "api_calls": 99,
@@ -924,6 +930,7 @@
       "final_score": 108.649,
       "harness_run": {
         "exit_code": 0,
+        "guard_kills": 0,
         "nudges": [
           {
             "exit_code": 0,
@@ -959,6 +966,7 @@
       "memo_writes": 7,
       "protocol_penalty": 25.0,
       "seed": 4,
+      "seed_group": 3,
       "strategy_score": 133.649,
       "usage": {
         "api_calls": 138,
@@ -1175,6 +1183,7 @@
       "final_score": 168.885,
       "harness_run": {
         "exit_code": 0,
+        "guard_kills": 0,
         "nudges": [],
         "nudges_used": 0,
         "nudges_without_progress": 0,
@@ -1193,6 +1202,7 @@
       "memo_writes": 9,
       "protocol_penalty": 0.0,
       "seed": 5,
+      "seed_group": 4,
       "strategy_score": 168.885,
       "usage": {
         "api_calls": 121,
@@ -1411,6 +1421,7 @@
       "final_score": 266.994,
       "harness_run": {
         "exit_code": 0,
+        "guard_kills": 0,
         "nudges": [],
         "nudges_used": 0,
         "nudges_without_progress": 0,
@@ -1429,6 +1440,7 @@
       "memo_writes": 8,
       "protocol_penalty": 2.5,
       "seed": 6,
+      "seed_group": 5,
       "strategy_score": 269.494,
       "usage": {
         "api_calls": 130,
@@ -1646,6 +1658,7 @@
       "final_score": 216.257,
       "harness_run": {
         "exit_code": 0,
+        "guard_kills": 0,
         "nudges": [],
         "nudges_used": 0,
         "nudges_without_progress": 0,
@@ -1664,6 +1677,7 @@
       "memo_writes": 14,
       "protocol_penalty": 0.0,
       "seed": 7,
+      "seed_group": 6,
       "strategy_score": 216.257,
       "usage": {
         "api_calls": 90,
@@ -1879,6 +1893,7 @@
       "final_score": 241.0,
       "harness_run": {
         "exit_code": 0,
+        "guard_kills": 0,
         "nudges": [],
         "nudges_used": 0,
         "nudges_without_progress": 0,
@@ -1897,6 +1912,7 @@
       "memo_writes": 6,
       "protocol_penalty": 2.5,
       "seed": 8,
+      "seed_group": 7,
       "strategy_score": 243.5,
       "usage": {
         "api_calls": 105,
@@ -1946,6 +1962,7 @@
   "lane": "agentic",
   "max_nudges": 20,
   "panel": {
+    "distinct_seeds": 8,
     "seed_count": 8,
     "seeds": [
       1,
@@ -1961,9 +1978,9 @@
   },
   "phase_guard_seconds": 1200.0,
   "publication": {
-    "compacted_at_utc": "2026-09-21T19:57:33+00:00",
+    "compacted_at_utc": "2026-09-21T22:00:06+00:00",
     "format": "gm-bench-agentic-summary-v1",
-    "raw_artifact_sha256": "ca6c33ebcb12ca729bf5cd157d25919dadc3709a31602f1a53c1758fa9df590c",
+    "raw_artifact_sha256": "dfe5db1ef264fa9bbb826815111f8159891b7b3597504551692747c49031e034",
     "traces_included": false
   },
   "seasons": 5,
@@ -1988,26 +2005,26 @@
     "unrecoverable_rate": 0.0,
     "usage": {
       "api_calls": 888,
-      "api_latency_ms": 10815618.3,
+      "api_latency_ms": 0.0,
       "cached_input_tokens": 71405312,
       "calls_with_finish_reason": 0,
-      "cost_decisions": 8,
+      "cost_decisions": 160,
       "cost_usd": 0.0,
-      "decisions_with_usage": 8,
+      "decisions_with_usage": 160,
       "harness_latency_ms": 0.0,
       "input_tokens": 2826878,
-      "max_output_tokens_per_call": 81209,
-      "mean_input_tokens_per_decision": 353359.8,
-      "mean_output_tokens_per_decision": 60861.6,
-      "mean_reasoning_tokens_per_decision": 10624.1,
-      "mean_tokens_per_decision": 0.0,
+      "max_output_tokens_per_call": 8325,
+      "mean_input_tokens_per_decision": 17668.0,
+      "mean_output_tokens_per_decision": 3043.1,
+      "mean_reasoning_tokens_per_decision": 531.2,
+      "mean_tokens_per_decision": 20711.1,
       "model": "opencode/big-pickle",
       "output_tokens": 486893,
       "protocol_repair_attempts": 0,
       "protocol_repairs_succeeded": 0,
       "provider": "opencode",
       "reasoning_tokens": 84993,
-      "total_tokens": 0,
+      "total_tokens": 3313771,
       "truncated_calls": 0,
       "upstream_provider": null,
       "upstream_providers": []
@@ -2068,8 +2085,8 @@
     "ok": true,
     "problems": [],
     "warnings": [
-      "seed 4: audit: 1 rejected move(s) on unseen ids",
-      "seed 4: audit: 3 successful read(s) on guessed ids"
+      "episode 3: audit: 1 rejected move(s) on unseen ids",
+      "episode 3: audit: 3 successful read(s) on guessed ids"
     ]
   }
 }

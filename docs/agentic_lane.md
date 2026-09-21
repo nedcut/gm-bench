@@ -32,7 +32,15 @@ For each seed, serially:
    `seed-<n>/ledger.jsonl`, closes any phase the agent left open as a failed
    decision, joins the harness's token and cost telemetry, scores, and writes
    `seed-<n>/result.json`. The run-level `run.json` carries every episode,
-   the usual `summary` block, and an `agentic_summary`.
+   the usual `summary` block, and an `agentic_summary`. Evidence paths in
+   `harness_run` are relative to the run directory, so the directory can be
+   moved and still validate.
+
+The run directory must be fresh: an episode directory that already holds
+evidence is refused before any harness launches, because the ledger is
+append-only and a rerun would write a second episode onto the first. A seed
+listed twice (a within-seed noise probe) gets one directory per attempt,
+`seed-11` then `seed-11-r2`.
 
 If the harness exits before the episode is complete, the driver **nudges**:
 it resumes the same OpenCode session (`--session <id>`, context intact) with
@@ -60,9 +68,14 @@ season summaries, transactions) plus:
   `harness_exit`), tool calls, and wall-clock seconds
 - `usage`: model calls, input/output/reasoning/cached tokens, cost when the
   harness reports it (`null` when it does not), and a `harness` block with
-  compactions and the harness's own tool-event counts
+  compactions and the harness's own tool-event counts. OpenCode reports one
+  total per session, so the block is one record covering every decision of
+  the episode; the run summary's per-decision means divide that total by
+  the decision count, and wall time lives on `harness_run`, not in the usage
+  block
 - `harness_run`: the command (brief elided), exit code, timeout flag, wall
-  time, nudges used and what each bought, and where the raw event stream lives
+  time, nudges used and what each bought, phase-guard stops (`guard_kills`),
+  and where the raw event stream lives
 
 `failed_decisions` counts phases the agent did not close itself. A harness
 that finishes without ever calling `end_phase` scores a no-op episode with
@@ -89,10 +102,13 @@ not decide; publication does.
 python -m gm_bench agentic-validate /tmp/agentic-big-pickle
 ```
 
-Exit code 0 means every episode's ledger replays to the recorded score, audits
-clean, agrees with the harness's tool-event count, and the run's contract block
-matches this checkout's `agentic_contract()`. Failed phases, timeouts, and
-missing telemetry are warnings: reported, never hidden, never fatal.
+Exit code 0 means every episode's ledger replays to the recorded score, its
+header seed matches the episode, it audits clean, the GM-Bench tool calls in
+the retained `opencode-events.jsonl` equal the replayed ledger's (the
+recorded agreement is checked against that recount, not trusted), and the
+run's contract block matches this checkout's `agentic_contract()`. Failed
+phases, timeouts, guard stops, and missing telemetry are warnings: reported,
+never hidden, never fatal. A missing event stream is a problem.
 
 ## Publishing a row
 
@@ -142,9 +158,11 @@ OpenCode is the development harness. `opencode models` lists the free
 rows flagged as unpinned. Never parallelize seeds against a
 subscription-metered harness; the driver is serial on purpose.
 
-`--phase-guard-seconds` (default 1200) is a hang stop, not a budget. There
-are no budgets in 2.0; tool calls, tokens, and dollars are reported beside
-the score.
+`--phase-guard-seconds` (default 1200) is a hang stop, not a budget. The
+driver polls it while the harness runs: a session that goes the whole guard
+period without a tool call is stopped and nudged, and its next call closes
+the expired phase as `guard`. There are no budgets in 2.0; tool calls,
+tokens, and dollars are reported beside the score.
 
 ## Tests
 
