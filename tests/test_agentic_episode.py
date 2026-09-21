@@ -184,6 +184,35 @@ def test_ledger_audit_flags_moves_on_ids_the_agent_never_saw(tmp_path: Path) -> 
     assert report["moves"] == 3
 
 
+def test_ledger_audit_accepts_a_guessed_id_once_a_read_confirms_it(tmp_path: Path) -> None:
+    """Ids are sequential; a scouted-then-drafted guess is reported, not a violation."""
+    from gm_bench.agentic.audit import audit_ledger
+
+    ledger = tmp_path / "ledger.jsonl"
+    episode = AgenticEpisode(11, seasons=1, ledger_path=ledger)
+    while episode.phase != "draft":
+        episode.call_tool("end_phase", {})
+    prospects = sorted(episode.league.prospects)
+    guessed, blind = prospects[0], prospects[1]
+    # Never listed the class; scouted a guessed id, then drafted it.
+    assert episode.call_tool("scout", {"player_id": guessed})["ok"]
+    assert episode.call_tool("draft", {"prospect_id": guessed})["ok"]
+    episode.close()
+    report = audit_ledger(ledger)
+    assert report["clean"] is True
+    assert [finding["tool"] for finding in report["guessed_reads"]] == ["scout"]
+    assert report["guessed_reads"][0]["unseen_ids"] == [guessed]
+
+    # Drafting a guessed id with no read at all is still a violation.
+    ledger2 = tmp_path / "ledger2.jsonl"
+    episode = AgenticEpisode(11, seasons=1, ledger_path=ledger2)
+    while episode.phase != "draft":
+        episode.call_tool("end_phase", {})
+    assert episode.call_tool("draft", {"prospect_id": blind})["ok"]
+    episode.close()
+    assert audit_ledger(ledger2)["clean"] is False
+
+
 def test_ledger_audit_declines_ledgers_without_exposure_records() -> None:
     from gm_bench.agentic.audit import audit_ledger
 

@@ -167,10 +167,17 @@ state, cannot damage the host, and cannot carry information between episodes.
   is a per-harness option recorded in the manifest, not a contract requirement.
 - **Cheating is detected after the fact, not only prevented.** The server
   logs every tool call with its arguments. The publication check rejects an
-  episode whose ledger contains a move referencing an entity the agent never
-  fetched through a tool, since the only other way to know that ID is a leak.
-  Scout usage above the budget, and moves in the wrong phase, are already
-  protocol violations.
+  episode whose ledger contains an accepted move on an entity id that no tool
+  reply exposed and no successful read (`scout`, `inspect_player`,
+  `inspect_team`) confirmed. Simulator ids are sequential (a season-5
+  prospect is `105xxxx`), so a model can guess one; the 8-seed smoke saw
+  `big-pickle` scout three guessed prospect ids and draft the best without
+  listing the class. A confirmed read is the server telling the agent about
+  that entity, so the id counts as exposed from then on and the read is
+  reported as a guessed read. The audit is a screen for leaked ids, not
+  proof; an accepted move on an id with no reply and no read behind it is
+  still a violation. Scout usage above the budget, and moves in the wrong
+  phase, are already protocol violations.
 
 ## Row identity and eligibility
 
@@ -299,7 +306,7 @@ for subscription-metered harnesses applies to all of them.
 | 1. sandbox check | passes on every run. The first design put the episode file, interpreter, and repository path into the harness config, all readable by the agent's shell; replaced 2026-09-20 by the socket-and-proxy design above. Scored live episode on the socket design 2026-09-21 (`big-pickle`, seed 11, one season): 4/4 phases closed by the agent, 40 tool calls, ledger equals harness events, audit clean, validates. Red-team probe the same day: the agent found nothing in the scratch directory, config, proxy, environment, or socket directory, then found the seed through `ps` on the driver (documented same-user gap above; `container`/`separate-user` isolation is required for panel grade and recorded per row) |
 | 2. ledger round-trip | server ledger equals harness tool events on all 7 models |
 | 3. SDK conformance | passes against the official `mcp` client |
-| 4. free-model smoke | 6 of 7 models closed 4/4 phases with 0 failed decisions; one (`nemotron-3.5-lightning-free`) stopped mid-phase and scored 4/4 failed, which is the intended harness-exit path. 8-seed smoke not yet run |
+| 4. free-model smoke | 6 of 7 models closed 4/4 phases with 0 failed decisions on seed 11; one (`nemotron-3.5-lightning-free`) stopped mid-phase and was rescued by nudges. 8-seed, five-season smoke row on `big-pickle` (2026-09-21): 160/160 phases closed by the agent, 0 failed decisions, mean 201.1 (SD 52.9, range 109 to 267), 171 tool calls and 111 model calls per episode, 2.8M input and 0.49M output tokens total, no compaction, 2 nudges on one seed, every ledger replays, agrees with the harness, and audits clean. Committed as `results/agentic/opencode-1.18.30-big-pickle-smoke-8x5.json`, smoke grade, public seeds 1 to 8 |
 | 5. fingerprint frozen | `agentic_fingerprint` exists and is recorded in every run; still `gm-bench-2.0-dev`, and it moves whenever `episode.py` moves |
 
 Observed shapes on one season: 31 to 47 tool calls, 13 to 47 model calls,

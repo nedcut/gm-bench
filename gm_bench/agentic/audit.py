@@ -1,15 +1,24 @@
 """Post-hoc audit of an agentic ledger.
 
 The sandbox keeps hidden state out of the agent's reach; this audit is the
-detection layer behind it (docs/bench_v2_spec.md, "Sandbox"). The only
-legitimate way for an agent to learn a player, prospect, team or offer id is
-a tool reply, and every reply's ids are recorded in the ledger. A move that
-names an id no earlier reply exposed is therefore either a guess or a leak.
+detection layer behind it (docs/bench_v2_spec.md, "Sandbox"). An agent learns
+a player, prospect, team or offer id from a tool reply, and every reply's ids
+are recorded in the ledger. A move that names an id no earlier reply exposed
+is therefore either a guess or a leak.
 
-Both are reported, never silently dropped: an *accepted* move on an unseen id
-is a ``violation`` (it changed the league on information the tools did not
-provide), a *rejected* one is ``suspicious`` (a guess that missed). Publication
-decides what to do with each; the audit only states the facts.
+Guesses happen: simulator ids are sequential (a season-5 prospect is
+``105xxxx``), and a model that has seen four draft classes can name the fifth
+without listing it. The audit is a screen for leaked ids, not proof of one.
+A successful *read* on an id (``scout``, ``inspect_player``, ``inspect_team``)
+is the server confirming that entity to the agent, so from that reply on the
+id counts as exposed; the read itself is reported as a ``guessed_read``.
+
+Everything is reported, never silently dropped: an *accepted* move on an id
+no reply exposed and no read confirmed is a ``violation`` (it changed the
+league on information the tools did not provide); a *rejected* move on such
+an id is ``suspicious``; a successful read on an unseen id is a
+``guessed_read``. Publication decides what to do with each; the audit only
+states the facts.
 """
 
 from __future__ import annotations
@@ -59,6 +68,7 @@ def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
     seen: set[int | str] = set()
     violations: list[dict[str, Any]] = []
     suspicious: list[dict[str, Any]] = []
+    guessed_reads: list[dict[str, Any]] = []
     moves = 0
     for record in records:
         if record.get("event") != "tool_call" or not record.get("executed", True):
@@ -87,6 +97,11 @@ def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
                     violations.append(finding)
                 elif spec["kind"] == "move":
                     suspicious.append(finding)
+                elif record.get("ok"):
+                    # The server answered about this entity, so the agent now
+                    # legitimately holds the id. Recorded, because it guessed it.
+                    guessed_reads.append(finding)
+                    seen.update(unseen)
         seen.update(record.get("ids_exposed") or [])
     return {
         "auditable": True,
@@ -94,6 +109,7 @@ def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
         "ids_exposed": len(seen),
         "violations": violations,
         "suspicious": suspicious,
+        "guessed_reads": guessed_reads,
         "clean": not violations,
     }
 

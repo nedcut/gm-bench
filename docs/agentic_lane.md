@@ -77,8 +77,11 @@ audit_ledger("/tmp/agentic-big-pickle/seed-11/ledger.jsonl")
 
 Every tool reply's entity ids are recorded, so the audit can list moves that
 named a player, prospect, team, or offer no earlier reply exposed. Accepted
-moves on unseen ids are `violations`; rejected ones are `suspicious`. The
-audit reports, it does not decide; publication does.
+moves on unseen ids are `violations`; rejected ones are `suspicious`. Ids are
+sequential, so models do guess them: a successful read on a guessed id
+(`scout`, `inspect_player`, `inspect_team`) is reported as a `guessed_read`
+and the id counts as exposed from that reply on. The audit reports, it does
+not decide; publication does.
 
 ## Validating a run
 

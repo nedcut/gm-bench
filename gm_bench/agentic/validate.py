@@ -95,6 +95,8 @@ def _validate_episode(episode: dict[str, Any], run_dir: Path) -> dict[str, Any]:
             problems.append(f"audit: {len(audit['violations'])} accepted move(s) on ids no tool reply exposed")
         elif audit["suspicious"]:
             warnings.append(f"audit: {len(audit['suspicious'])} rejected move(s) on unseen ids")
+        if audit.get("guessed_reads"):
+            warnings.append(f"audit: {len(audit['guessed_reads'])} successful read(s) on guessed ids")
 
     agreement = harness_run.get("tool_call_agreement")
     if agreement is None:
@@ -117,7 +119,9 @@ def _validate_episode(episode: dict[str, Any], run_dir: Path) -> dict[str, Any]:
         "seed": episode.get("seed"),
         "final_score": episode.get("final_score"),
         "replayed_score": replayed_score,
-        "audit": None if audit is None else {k: v for k, v in audit.items() if k not in ("violations", "suspicious")},
+        "audit": None
+        if audit is None
+        else {k: v for k, v in audit.items() if k not in ("violations", "suspicious", "guessed_reads")},
         "problems": problems,
         "warnings": warnings,
     }
