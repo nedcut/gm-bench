@@ -316,6 +316,13 @@ malformed tool call rendered as text, ends the OpenCode run) is now handled
 by the nudge rule in "Phase control". The sweep and probe numbers above were
 measured before nudges existed and are kept as the no-nudge baseline.
 
+Nudge check (2026-09-20, `nemotron-3.5-lightning-free`, seed 11, one season,
+the model that scored 4/4 failed without nudges): two nudges, the first
+bought 22 tool calls and three phases, the second finished the season. The
+episode completed with 36 tool calls and one phase closed by the 600 s guard
+used for the check. Ledger and harness agreed on 36 calls across all three
+harness invocations of one session.
+
 ## Not in 2.0
 
 - Simulator mechanics (2.1).
