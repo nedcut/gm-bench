@@ -12,14 +12,15 @@ python -m gm_bench agentic --harness opencode --model opencode/big-pickle \
 
 For each seed, serially:
 
-1. The driver writes `seed-<n>/episode.json` (seed, seasons, ledger path)
-   under `--output`, readable by the owner only. The agent never sees this
-   directory.
-2. It creates an empty scratch directory and drops an `opencode.json` there
-   that declares the `gm-bench` MCP server: this repository's Python running
-   `gm_bench.agentic.mcp_server`, with the episode file passed through the
-   server's own environment block and code mode off so each model tool call
-   is one ledger entry.
+1. The driver builds the episode engine in its own process and serves it as
+   an MCP server over a private Unix socket. The seed is never written where
+   the agent could find it; the only copy on disk is the ledger header under
+   `--output`, a directory the agent is never told about.
+2. It creates an empty scratch directory holding a standard-library proxy
+   script (`gm_bench_proxy.py`, copied from `gm_bench/agentic/_proxy.py`) and
+   an `opencode.json` that launches the proxy on the harness's own `python3`
+   with the socket path as its only argument, with code mode off so each
+   model tool call is one ledger entry.
 3. It checks the sandbox and refuses to start if the scratch directory sits
    under a GM-Bench checkout or if `python3` on the harness's `PATH` can
    `import gm_bench`. The harness environment is the operator's minus every
@@ -42,8 +43,10 @@ bought; only after they are exhausted are the remaining phases closed as
 failed decisions. The reminder text lives in `gm_bench/agentic/brief.py` and
 is a contract source.
 
-The MCP server is a plain stdio JSON-RPC process. If the harness restarts it
-mid-episode, it replays the ledger and carries on; it never scores on its own.
+The engine outlives every harness invocation, so restarts and nudges
+reconnect to the same live episode. The stdio entry point
+(`python -m gm_bench.agentic.mcp_server`, configured by an episode file)
+remains for tests and hand-driven harnesses; it replays the ledger on start.
 
 ## Reading the result
 

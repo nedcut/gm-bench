@@ -16,14 +16,25 @@ If the ledger already exists the episode is rebuilt from it, so a harness
 that restarts its MCP servers mid-episode resumes instead of starting over.
 On stdin EOF the server exits without scoring: finalization is the driver's
 job, because only the driver knows whether the harness is coming back.
+
+The OpenCode driver does not use this stdio entry point directly. It keeps
+the engine in its own process and serves the same ``McpServer`` over a
+private Unix socket (``SocketMcpServer``); the harness launches a tiny
+standard-library proxy (``_proxy.py``) that forwards stdio to that socket.
+That way no file the agent can read names the seed, the interpreter, or the
+repository, and the engine survives harness restarts and nudges without any
+replay. The stdio mode stays for tests and for harnesses driven by hand.
 """
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import signal
+import socket
 import sys
+import threading
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -149,6 +160,93 @@ class McpServer:
             "structuredContent": outcome,
             "isError": not bool(outcome.get("ok", False)),
         }
+
+
+class SocketMcpServer:
+    """Serve one episode to any number of sequential (or overlapping) stdio proxies.
+
+    Each accepted connection is one newline-delimited JSON-RPC stream, handled
+    by an ``McpServer`` over that socket. Tool calls are serialized with a lock
+    so two connections can never interleave inside the engine.
+    """
+
+    def __init__(self, episode: AgenticEpisode, path: str | Path, *, stderr: TextIO | None = None) -> None:
+        self.episode = episode
+        self.path = str(path)
+        self.stderr = stderr or sys.stderr
+        self._lock = threading.Lock()
+        self._listener: socket.socket | None = None
+        self._thread: threading.Thread | None = None
+        self._stop = threading.Event()
+        self.connections = 0
+
+    def start(self) -> None:
+        if os.path.exists(self.path):
+            os.unlink(self.path)
+        listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        listener.bind(self.path)
+        os.chmod(self.path, 0o600)
+        listener.listen(8)
+        listener.settimeout(0.5)
+        self._listener = listener
+        self._thread = threading.Thread(target=self._accept_loop, name="gm-bench-mcp-socket", daemon=True)
+        self._thread.start()
+
+    def _accept_loop(self) -> None:
+        assert self._listener is not None
+        while not self._stop.is_set():
+            try:
+                conn, _ = self._listener.accept()
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            self.connections += 1
+            threading.Thread(target=self._serve_connection, args=(conn,), daemon=True).start()
+
+    def _serve_connection(self, conn: socket.socket) -> None:
+        reader = conn.makefile("r", encoding="utf-8", newline="\n")
+        writer = io.TextIOWrapper(conn.makefile("wb"), encoding="utf-8", write_through=True)
+        server = _LockedMcpServer(self.episode, self._lock, stdin=reader, stdout=writer, stderr=self.stderr)
+        try:
+            server.serve()
+        except (OSError, ValueError):
+            pass
+        finally:
+            for stream in (reader, writer):
+                try:
+                    stream.close()
+                except OSError:
+                    pass
+            try:
+                conn.close()
+            except OSError:
+                pass
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._listener is not None:
+            try:
+                self._listener.close()
+            except OSError:
+                pass
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)
+        if os.path.exists(self.path):
+            try:
+                os.unlink(self.path)
+            except OSError:
+                pass
+
+
+class _LockedMcpServer(McpServer):
+    def __init__(self, episode: AgenticEpisode, lock: threading.Lock, **streams: Any) -> None:
+        super().__init__(episode, **streams)
+        self._lock = lock
+
+    def _dispatch(self, method: str, params: Any) -> dict[str, Any]:
+        with self._lock:
+            return super()._dispatch(method, params)
 
 
 class _RpcError(Exception):

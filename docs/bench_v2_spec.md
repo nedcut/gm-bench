@@ -131,11 +131,16 @@ state, cannot damage the host, and cannot carry information between episodes.
 - **Scratch directory per episode.** The harness is launched with an empty
   temporary directory as its working directory. The GM-Bench checkout, the
   results tree, and the run database are not under it.
-- **Hidden state stays in the server process.** True potential, reservation
-  prices, partner valuation noise, and the seed live only in the MCP server's
-  memory. No tool returns them, and the server is launched from a path
-  outside the scratch directory with the seed passed through its environment,
-  not its arguments.
+- **Hidden state stays in the driver process.** True potential, reservation
+  prices, partner valuation noise, and the seed live only in the memory of the
+  driver, which serves the MCP protocol over a private Unix socket (mode
+  0600, in its own temporary directory). What the harness launches as the
+  "MCP server" is a standard-library proxy script copied into the scratch
+  directory and run on the harness's own `python3`; it forwards stdio to the
+  socket and knows nothing else. Nothing the agent can read names the seed,
+  the benchmark's interpreter, or the repository. Because the engine outlives
+  every harness invocation, restarts and nudges reconnect to the same live
+  episode with no replay.
 - **No repo on the path.** The driver verifies that the scratch directory and
   its ancestors contain no `gm_bench` checkout, and that `gm_bench` is not
   importable from the scratch directory's default Python path. A run that
@@ -275,7 +280,7 @@ for subscription-metered harnesses applies to all of them.
 
 | gate | status |
 |---|---|
-| 1. sandbox check | passes on every run; a red-team episode is still to be written |
+| 1. sandbox check | passes on every run. The first design put the episode file, interpreter, and repository path into the harness config, all readable by the agent's shell; replaced 2026-09-20 by the socket-and-proxy design above. Red-team probe result recorded below |
 | 2. ledger round-trip | server ledger equals harness tool events on all 7 models |
 | 3. SDK conformance | passes against the official `mcp` client |
 | 4. free-model smoke | 6 of 7 models closed 4/4 phases with 0 failed decisions; one (`nemotron-3.5-lightning-free`) stopped mid-phase and scored 4/4 failed, which is the intended harness-exit path. 8-seed smoke not yet run |

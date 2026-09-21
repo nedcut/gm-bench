@@ -2,24 +2,23 @@
 
 Per episode the driver:
 
-1. writes an episode file (seed, seasons, ledger path) in the run directory,
-   which is outside the agent's workspace;
-2. creates an empty scratch directory with an ``opencode.json`` that declares
-   the GM-Bench MCP server, with code mode off so one model tool call is one
-   ledger entry;
+1. builds the episode engine in this process (the seed never touches a file
+   the agent can find) and serves it as an MCP server over a private Unix
+   socket;
+2. creates an empty scratch directory holding only a standard-library proxy
+   script and an ``opencode.json`` that launches it on the harness's own
+   python3, with code mode off so one model tool call is one ledger entry;
 3. proves the sandbox: no GM-Bench checkout above the scratch directory and
    ``gm_bench`` not importable from the harness's own environment;
 4. runs ``opencode run --format json`` with the task brief, capturing its
-   event stream;
-5. rebuilds the episode from the ledger, closes any phase the harness walked
-   away from as a failed decision, joins the harness's token telemetry, and
-   scores.
+   event stream, and nudges the session if it stops early;
+5. closes any phase the harness walked away from as a failed decision, joins
+   the harness's token telemetry, and scores.
 
 The harness environment is the operator's environment minus private-seed
 material, Python path overrides and the interpreter's virtualenv, so the
-agent's shell cannot import the simulator. The MCP server gets those back
-through its own ``environment`` block, which the harness does not pass to
-its shell tool.
+agent's shell cannot import the simulator. Nothing readable from the scratch
+directory names the seed, the interpreter, or the repository.
 """
 
 from __future__ import annotations
@@ -35,10 +34,11 @@ from pathlib import Path
 from typing import Any, Callable
 
 import gm_bench
+from gm_bench.agentic import _proxy
 from gm_bench.agentic.brief import nudge_message, task_brief
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import DEFAULT_PHASE_GUARD_SECONDS, AgenticEpisode
-from gm_bench.agentic.mcp_server import EPISODE_ENV
+from gm_bench.agentic.mcp_server import EPISODE_ENV, SocketMcpServer
 from gm_bench.agents import external_agent_environment
 from gm_bench.protocol import PHASES
 from gm_bench.runner import summarize_episodes
@@ -117,21 +117,48 @@ def sandbox_problems(scratch: Path, env: dict[str, str]) -> list[str]:
 # -- configuration ------------------------------------------------------------
 
 
-def opencode_config(episode_file: Path, *, python: str | None = None) -> dict[str, Any]:
-    """The ``opencode.json`` written into the scratch directory."""
+PROXY_FILENAME = "gm_bench_proxy.py"
+
+
+def harness_python(env: dict[str, str]) -> str:
+    """The interpreter the proxy runs on: the harness's own python3, never ours.
+
+    Our interpreter's path would name the checkout or its virtualenv. The
+    proxy is standard-library only, so any python3 on the harness PATH will
+    do; the sandbox check has already proven that one cannot import gm_bench.
+    """
+    return (
+        shutil.which("python3", path=env.get("PATH", ""))
+        or shutil.which("python", path=env.get("PATH", ""))
+        or "python3"
+    )
+
+
+def opencode_config(socket_path: Path, *, python: str = "python3") -> dict[str, Any]:
+    """The ``opencode.json`` written into the scratch directory.
+
+    Everything in it is readable by the agent, so it names only the proxy
+    script beside it and the socket the proxy connects to.
+    """
     return {
         "$schema": "https://opencode.ai/config.json",
         "mcp": {
             "servers": {
                 "gm-bench": {
                     "type": "local",
-                    "command": [python or sys.executable, "-m", "gm_bench.agentic.mcp_server"],
-                    "environment": {EPISODE_ENV: str(episode_file), "PYTHONPATH": str(REPO_ROOT)},
+                    "command": [python, PROXY_FILENAME, str(socket_path)],
                     "codemode": False,
                 }
             }
         },
     }
+
+
+def stage_scratch(scratch: Path, socket_path: Path, env: dict[str, str]) -> None:
+    """Write the proxy and the config into an otherwise empty scratch directory."""
+    (scratch / PROXY_FILENAME).write_text(Path(_proxy.__file__).read_text(encoding="utf-8"), encoding="utf-8")
+    config = opencode_config(socket_path, python=harness_python(env))
+    (scratch / "opencode.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
 
 
 def opencode_version(binary: str = "opencode") -> str | None:
@@ -269,30 +296,25 @@ def run_episode(
     ledger_path = episode_dir / "ledger.jsonl"
     events_path = episode_dir / "opencode-events.jsonl"
     stderr_path = episode_dir / "opencode-stderr.log"
-    episode_file = episode_dir / "episode.json"
-    episode_file.write_text(
-        json.dumps(
-            {
-                "seed": seed,
-                "seasons": seasons,
-                "user_team_id": user_team_id,
-                "ledger_path": str(ledger_path),
-                "phase_guard_seconds": phase_guard_seconds,
-            },
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
-    os.chmod(episode_file, 0o600)
 
     env = harness_environment()
     scratch = Path(tempfile.mkdtemp(prefix="gm-bench-agentic-"))
+    # The socket lives in its own private directory with a short path (macOS
+    # caps Unix socket paths at 104 bytes) and mode 0600, outside the scratch.
+    socket_dir = Path(tempfile.mkdtemp(prefix="gmb-"))
+    socket_path = socket_dir / "s"
+    # The engine and the seed live here, in this process, for the whole
+    # episode. Harness restarts and nudges reconnect to the same engine.
+    episode = AgenticEpisode(
+        seed, seasons, user_team_id, ledger_path=ledger_path, phase_guard_seconds=phase_guard_seconds
+    )
+    server = SocketMcpServer(episode, socket_path)
+    server.start()
     try:
         problems = sandbox_problems(scratch, env)
         if problems:
             raise SandboxError("; ".join(problems))
-        config = opencode_config(episode_file)
-        (scratch / "opencode.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
+        stage_scratch(scratch, socket_path, env)
 
         team_name = League.new(seed=seed, user_team_id=user_team_id).user_team.name
         brief = task_brief(seasons, team_name, user_team_id)
@@ -314,7 +336,7 @@ def run_episode(
         # a nudge yields no new tool call, the cap is hit, or we cannot resume.
         nudges: list[dict[str, Any]] = []
         while not timed_out and len(nudges) < max_nudges:
-            state = _ledger_state(ledger_path)
+            state = _engine_state(episode)
             if state["done"]:
                 break
             session_id = parse_opencode_events(events_path.read_text(encoding="utf-8").splitlines())["session_id"]
@@ -341,7 +363,7 @@ def run_episode(
                 timeout=max(timeout - wall_seconds, 60.0),
             )
             wall_seconds += nudge_wall
-            after = _ledger_state(ledger_path)
+            after = _engine_state(episode)
             progress_calls = after["tool_calls"] - state["tool_calls"]
             nudges.append(
                 {
@@ -358,11 +380,14 @@ def run_episode(
             if progress_calls == 0:
                 break
     finally:
+        server.stop()
+        shutil.rmtree(socket_dir, ignore_errors=True)
         if not keep_scratch:
             shutil.rmtree(scratch, ignore_errors=True)
 
     telemetry = parse_opencode_events(events_path.read_text(encoding="utf-8").splitlines())
-    episode = finalize_episode(ledger_path, seed=seed, seasons=seasons, user_team_id=user_team_id)
+    if not episode.done:
+        episode.abandon()
     episode.harness_usage = usage_block(telemetry, model=model, wall_seconds=wall_seconds)
     result = episode.result(agent_name=f"{HARNESS_NAME}:{model}")
     result["harness_run"] = {
@@ -377,6 +402,7 @@ def run_episode(
         "nudges_without_progress": sum(1 for nudge in nudges if nudge["new_tool_calls"] == 0),
         "events_path": str(events_path),
         "ledger_path": str(ledger_path),
+        "proxy_connections": server.connections,
         "event_types": telemetry["event_types"],
         # Gate 2 of the spec: the server ledger and the harness's own event
         # stream must agree on how many GM-Bench tools were called.
@@ -414,25 +440,15 @@ def _run_harness(
     return exit_code, timed_out, time.perf_counter() - started
 
 
-def _ledger_state(ledger_path: Path) -> dict[str, Any]:
-    """Where the episode stands, read from the ledger without executing anything."""
-    state = {"done": False, "season": 1, "phase": PHASES[0], "tool_calls": 0, "phases_closed": 0}
-    if not ledger_path.is_file():
-        return state
-    for line in ledger_path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        record = json.loads(line)
-        event = record.get("event")
-        if event == "tool_call":
-            state["tool_calls"] += 1
-        elif event == "phase_open":
-            state["season"], state["phase"] = record["season"], record["phase"]
-        elif event == "phase_end":
-            state["phases_closed"] += 1
-        elif event == "episode_end":
-            state["done"] = True
-    return state
+def _engine_state(episode: AgenticEpisode) -> dict[str, Any]:
+    """Where the live episode stands, for the nudge loop's progress accounting."""
+    return {
+        "done": episode.done,
+        "season": episode.season,
+        "phase": episode.phase,
+        "tool_calls": sum(episode.tool_counts.values()),
+        "phases_closed": len(episode.phase_log),
+    }
 
 
 def tool_call_agreement(agentic: dict[str, Any], telemetry: dict[str, Any]) -> dict[str, Any]:

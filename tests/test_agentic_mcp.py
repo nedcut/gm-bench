@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import socket
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
-from gm_bench.agentic.mcp_server import EPISODE_ENV
+from gm_bench.agentic.mcp_server import EPISODE_ENV, SocketMcpServer
 from gm_bench.agentic.opencode import (
     harness_environment,
     opencode_config,
@@ -62,6 +65,32 @@ class _Client:
         assert self.process.stdin
         self.process.stdin.close()
         self.process.wait(timeout=20)
+
+
+class _SocketClient:
+    """A JSON-RPC client over the driver's Unix socket, standing in for the proxy."""
+
+    def __init__(self, path: str) -> None:
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock.connect(path)
+        self.reader = self.sock.makefile("r", encoding="utf-8")
+        self.next_id = 0
+
+    def request(self, method: str, params: dict | None = None) -> dict:
+        self.next_id += 1
+        payload = {"jsonrpc": "2.0", "id": self.next_id, "method": method}
+        if params is not None:
+            payload["params"] = params
+        self.sock.sendall((json.dumps(payload) + "\n").encode("utf-8"))
+        line = self.reader.readline()
+        assert line, "socket server closed without answering"
+        reply = json.loads(line)
+        assert reply["id"] == self.next_id
+        return reply
+
+    def close(self) -> None:
+        self.reader.close()
+        self.sock.close()
 
 
 def _episode_file(tmp_path: Path, seasons: int = 1) -> Path:
@@ -164,11 +193,13 @@ def test_harness_environment_and_sandbox_check(tmp_path: Path) -> None:
 
 
 def test_opencode_config_and_event_parsing(tmp_path: Path) -> None:
-    config = opencode_config(tmp_path / "episode.json", python="/usr/bin/python3")
+    config = opencode_config(tmp_path / "s", python="/usr/bin/python3")
     server = config["mcp"]["servers"]["gm-bench"]
-    assert server["command"][:2] == ["/usr/bin/python3", "-m"]
+    assert server["command"] == ["/usr/bin/python3", "gm_bench_proxy.py", str(tmp_path / "s")]
     assert server["codemode"] is False
-    assert server["environment"][EPISODE_ENV].endswith("episode.json")
+    # Nothing the agent can read names the seed, our interpreter, or the checkout.
+    rendered = json.dumps(config)
+    assert "seed" not in rendered and str(REPO_ROOT) not in rendered and sys.executable not in rendered
 
     lines = [
         json.dumps({"type": "step_start", "sessionID": "ses_1", "part": {"type": "step-start"}}),
@@ -267,39 +298,29 @@ def test_validate_run_replays_audits_and_checks_contract(tmp_path: Path) -> None
 def test_nudge_loop_resumes_until_done_and_stops_without_progress(tmp_path: Path, monkeypatch) -> None:
     """Drive run_episode with a fake harness: it plays a little per invocation, then stalls."""
     import gm_bench.agentic.opencode as driver
-    from gm_bench.agentic.episode import AgenticEpisode
 
     calls: list[list[str]] = []
 
     def fake_harness(command, *, cwd, env, events_path, stderr_path, timeout):
         calls.append(command)
         config = json.loads((cwd / "opencode.json").read_text())
-        episode_file = Path(config["mcp"]["servers"]["gm-bench"]["environment"][EPISODE_ENV])
-        ledger = Path(json.loads(episode_file.read_text())["ledger_path"])
-        engine = AgenticEpisode.from_ledger(ledger) if ledger.exists() else AgenticEpisode(11, 1, ledger_path=ledger)
+        socket_path = config["mcp"]["servers"]["gm-bench"]["command"][2]
+        assert (cwd / "gm_bench_proxy.py").is_file()
         with events_path.open("a") as events:
             events.write(json.dumps({"type": "step_start", "sessionID": "ses_fake", "part": {}}) + "\n")
             invocation = len(calls)
             # First run: one phase. First nudge: one more. Second nudge: nothing (model gives up).
-            if invocation <= 2 and not engine.done:
-                engine.call_tool("get_status", {})
-                engine.call_tool("end_phase", {})
-                for name in ("gm-bench_get_status", "gm-bench_end_phase"):
-                    events.write(
-                        json.dumps({"type": "tool", "sessionID": "ses_fake", "part": {"type": "tool", "tool": name}})
-                        + "\n"
-                    )
-            events.write(
-                json.dumps(
-                    {
-                        "type": "step_finish",
-                        "sessionID": "ses_fake",
-                        "part": {"type": "step-finish", "tokens": {"input": 10, "output": 1}},
-                    }
-                )
-                + "\n"
-            )
-        engine.close()
+            if invocation <= 2:
+                client = _SocketClient(socket_path)
+                client.request("initialize", {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {}})
+                for name in ("get_status", "end_phase"):
+                    reply = client.request("tools/call", {"name": name, "arguments": {}})
+                    assert "result" in reply, reply
+                    part = {"type": "tool", "tool": f"gm-bench_{name}"}
+                    events.write(json.dumps({"type": "tool", "sessionID": "ses_fake", "part": part}) + "\n")
+                client.close()
+            finish = {"type": "step-finish", "tokens": {"input": 10, "output": 1}}
+            events.write(json.dumps({"type": "step_finish", "sessionID": "ses_fake", "part": finish}) + "\n")
         return 0, False, 1.0
 
     monkeypatch.setattr(driver, "_run_harness", fake_harness)
@@ -316,3 +337,55 @@ def test_nudge_loop_resumes_until_done_and_stops_without_progress(tmp_path: Path
     assert result["failed_decisions"] == 2  # two phases closed by the agent, two abandoned
     assert result["agentic"]["phases_ended_by"] == {"agent": 2, "harness_exit": 2}
     assert harness_run["tool_call_agreement"]["agree"] is True
+    assert harness_run["proxy_connections"] == 2
+    # The seed never touched the run directory except inside the ledger header.
+    assert not (tmp_path / "run" / "seed-11" / "episode.json").exists()
+
+
+def test_real_proxy_script_bridges_stdio_to_the_socket_server(tmp_path: Path) -> None:
+    """Run the actual proxy file against a socket server, then reconnect as a restart would."""
+    from gm_bench.agentic import _proxy
+    from gm_bench.agentic.episode import AgenticEpisode
+
+    proxy = tmp_path / "gm_bench_proxy.py"
+    proxy.write_text(Path(_proxy.__file__).read_text())
+    socket_dir = Path(tempfile.mkdtemp(prefix="gmb-"))
+    socket_path = socket_dir / "s"
+    episode = AgenticEpisode(11, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
+    server = SocketMcpServer(episode, socket_path)
+    server.start()
+    try:
+        process = subprocess.Popen(
+            [sys.executable, str(proxy), str(socket_path)],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            text=True,
+            cwd=tmp_path,
+            env={"PATH": os.environ.get("PATH", "")},
+        )
+        assert process.stdin and process.stdout
+
+        def ask(payload: dict) -> dict:
+            process.stdin.write(json.dumps(payload) + "\n")
+            process.stdin.flush()
+            return json.loads(process.stdout.readline())
+
+        init = ask({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18"}})
+        assert init["result"]["serverInfo"]["name"] == "gm-bench"
+        call = {"name": "get_status", "arguments": {}}
+        status = ask({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": call})
+        assert status["result"]["isError"] is False
+        process.stdin.close()
+        assert process.wait(timeout=10) == 0
+        # A second proxy (a harness restart) reaches the same live engine.
+        second = _SocketClient(str(socket_path))
+        second.request("initialize", {"protocolVersion": "2025-06-18"})
+        done = second.request("tools/call", {"name": "end_phase", "arguments": {}})
+        assert done["result"]["structuredContent"]["now"]["phase"] == "midseason"
+        second.close()
+        assert episode.phase == "midseason"
+        assert server.connections == 2
+    finally:
+        server.stop()
+        episode.close()
+        shutil.rmtree(socket_dir, ignore_errors=True)
