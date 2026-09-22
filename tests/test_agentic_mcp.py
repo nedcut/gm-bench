@@ -388,6 +388,7 @@ def test_nudge_loop_resumes_until_done_and_stops_without_progress(tmp_path: Path
     assert harness_run["ledger_path"] == "seed-11/ledger.jsonl"
     assert harness_run["events_path"] == "seed-11/opencode-events.jsonl"
     assert harness_run["guard_kills"] == 0
+    assert harness_run["server_drained"] is True
     # Initial run + nudge with progress + nudge without progress, then stop.
     assert len(calls) == 3
     assert "--session" in calls[1] and calls[1][calls[1].index("--session") + 1] == "ses_fake"
@@ -543,3 +544,32 @@ def test_guard_watch_fires_once_per_expired_phase(tmp_path: Path, monkeypatch: p
     assert watch() is False
     clock[0] += 61.0
     assert watch() is True  # a new phase can expire on its own
+    # A resumed harness that makes no call for a whole further guard period is stopped again.
+    clock[0] += 60.0
+    assert watch() is False
+    clock[0] += 1.0
+    assert watch() is True
+
+
+def test_guard_watch_arm_remembers_a_phase_that_expired_without_a_stop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from gm_bench.agentic.episode import AgenticEpisode
+    from gm_bench.agentic.opencode import _GuardWatch
+
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    episode = AgenticEpisode(11, seasons=1, ledger_path=tmp_path / "ledger.jsonl", phase_guard_seconds=60.0)
+    watch = _GuardWatch(episode, threading.Lock())
+    watch.arm()  # nothing open yet: a no-op
+    episode.call_tool("get_status", {})
+    # The harness exits on its own after the guard elapses but before the next poll,
+    # so the watch never fired for this phase. The nudge must still get to make its call.
+    clock[0] += 61.0
+    watch.arm()
+    assert watch() is False
+    clock[0] += 59.0
+    assert watch() is False
+    reply = episode.call_tool("get_status", {})
+    assert reply["ok"] is False and "phase guard" in reply["message"]
+    assert episode.phase_log[-1]["ended_by"] == "guard"

@@ -75,7 +75,8 @@ season summaries, transactions) plus:
   block
 - `harness_run`: the command (brief elided), exit code, timeout flag, wall
   time, nudges used and what each bought, phase-guard stops (`guard_kills`),
-  and where the raw event stream lives
+  whether every proxy connection had closed when the server stopped
+  (`server_drained`), and where the raw event stream lives
 
 `failed_decisions` counts phases the agent did not close itself. A harness
 that finishes without ever calling `end_phase` scores a no-op episode with

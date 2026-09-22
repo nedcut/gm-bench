@@ -170,6 +170,8 @@ def _validate_episode(episode: dict[str, Any], run_dir: Path, harness_name: str 
         warnings.append(f"harness stopped {harness_run.get('guard_kills')} time(s) by the phase guard")
     if int(harness_run.get("exit_code", 0) or 0) != 0:
         warnings.append(f"harness exit code {harness_run.get('exit_code')}")
+    if harness_run.get("server_drained") is False:
+        warnings.append("a proxy connection was still open when the socket server stopped")
     usage = episode.get("usage") or {}
     if not (usage.get("harness") or {}).get("telemetry_reported", False):
         warnings.append("harness reported no token telemetry; usage is unmeasured")

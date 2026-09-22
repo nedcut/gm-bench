@@ -361,6 +361,7 @@ def run_episode(
         # resumes the session and its first call closes the phase as
         # ``guard`` with the notice.
         guard_kills = 0
+        guard_expired.arm()
         exit_code, timed_out, wall_seconds, stalled = _run_harness(
             command,
             cwd=scratch,
@@ -395,6 +396,7 @@ def run_episode(
                         "phase": state["phase"],
                     }
                 )
+            guard_expired.arm()
             nudge_exit, nudge_timed_out, nudge_wall, nudge_stalled = _run_harness(
                 base + ["--session", session_id, text],
                 cwd=scratch,
@@ -424,7 +426,7 @@ def run_episode(
             if progress_calls == 0:
                 break
     finally:
-        server.stop()
+        server_drained = server.stop()
         shutil.rmtree(socket_dir, ignore_errors=True)
         if not keep_scratch:
             shutil.rmtree(scratch, ignore_errors=True)
@@ -448,6 +450,9 @@ def run_episode(
         "nudges_used": len(nudges),
         "nudges_without_progress": sum(1 for nudge in nudges if nudge["new_tool_calls"] == 0),
         "guard_kills": guard_kills,
+        # False when a proxy thread was still inside the engine after the
+        # stop timeout; the dispatch lock above still ordered the finalize.
+        "server_drained": server_drained,
         # Evidence paths are recorded relative to the run directory, so the
         # directory can be moved or handed over and still validate.
         "events_path": _recorded_path(events_path, run_dir),
@@ -524,13 +529,29 @@ class _GuardWatch:
     Fires once per expired phase. The engine only closes an expired phase on
     the next tool call, so after a stop the phase is still expired when the
     nudge resumes the session; without this memory the poll would kill the
-    resumed harness before its first call could close the phase.
+    resumed harness before its first call could close the phase. ``arm`` is
+    called before each launch so a phase that expired without a stop (the
+    harness exited on its own past the guard) is remembered the same way.
+    A resumed harness that then makes no call for a whole further guard
+    period is stopped again, so a hung nudge costs one guard period rather
+    than the episode timeout.
     """
 
     def __init__(self, episode: AgenticEpisode, lock: threading.Lock) -> None:
         self.episode = episode
         self.lock = lock
         self.fired_for: tuple[int, int] | None = None
+        self.fired_at = 0.0
+
+    def arm(self) -> None:
+        """Remember an already-expired phase before a launch, so the launch gets a full guard period."""
+        with self.lock:
+            if self.episode.phase_expired():
+                self._remember((self.episode.season_index, self.episode.phase_index))
+
+    def _remember(self, current: tuple[int, int]) -> None:
+        self.fired_for = current
+        self.fired_at = time.monotonic()
 
     def __call__(self) -> bool:
         # Under the dispatch lock, so a poll cannot land between the engine's
@@ -540,9 +561,9 @@ class _GuardWatch:
             if not self.episode.phase_expired():
                 return False
             current = (self.episode.season_index, self.episode.phase_index)
-            if current == self.fired_for:
+            if current == self.fired_for and time.monotonic() - self.fired_at <= self.episode.phase_guard_seconds:
                 return False
-            self.fired_for = current
+            self._remember(current)
             return True
 
 
