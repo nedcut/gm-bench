@@ -319,7 +319,7 @@ for subscription-metered harnesses applies to all of them.
    under 10%.
 5. Contract fingerprint frozen: tool schemas, task brief, server, scoring.
 
-### Gate status (2026-09-20, all on OpenCode 1.18.30, free models, seed 11, one season)
+### Gate status (updated 2026-09-22, free models on OpenCode 1.18.30 and 1.18.31)
 
 | gate | status |
 |---|---|

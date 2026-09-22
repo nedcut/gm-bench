@@ -521,15 +521,19 @@ def test_real_proxy_script_bridges_stdio_to_the_socket_server(tmp_path: Path) ->
         shutil.rmtree(socket_dir, ignore_errors=True)
 
 
-def test_guard_watch_fires_once_per_expired_phase(tmp_path: Path) -> None:
+def test_guard_watch_fires_once_per_expired_phase(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from gm_bench.agentic.episode import AgenticEpisode
     from gm_bench.agentic.opencode import _GuardWatch
 
-    episode = AgenticEpisode(11, seasons=1, ledger_path=tmp_path / "ledger.jsonl", phase_guard_seconds=0.05)
+    # A controlled clock, so a slow worker cannot expire the guard on its own.
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    episode = AgenticEpisode(11, seasons=1, ledger_path=tmp_path / "ledger.jsonl", phase_guard_seconds=60.0)
     watch = _GuardWatch(episode, threading.Lock())
     episode.call_tool("get_status", {})  # opens season 1 preseason
+    clock[0] += 59.0
     assert watch() is False
-    time.sleep(0.08)
+    clock[0] += 2.0
     assert watch() is True  # stop the harness once
     assert watch() is False  # ...but not the nudge that resumes it
     # The nudge's first call closes the expired phase as ``guard`` and opens the next one.
@@ -537,5 +541,5 @@ def test_guard_watch_fires_once_per_expired_phase(tmp_path: Path) -> None:
     assert reply["ok"] is False and "phase guard" in reply["message"]
     assert episode.phase_log[-1]["ended_by"] == "guard"
     assert watch() is False
-    time.sleep(0.08)
+    clock[0] += 61.0
     assert watch() is True  # a new phase can expire on its own
