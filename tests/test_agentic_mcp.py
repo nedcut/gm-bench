@@ -9,6 +9,8 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -504,10 +506,36 @@ def test_real_proxy_script_bridges_stdio_to_the_socket_server(tmp_path: Path) ->
         second.request("initialize", {"protocolVersion": "2025-06-18"})
         done = second.request("tools/call", {"name": "end_phase", "arguments": {}})
         assert done["result"]["structuredContent"]["now"]["phase"] == "midseason"
-        second.close()
         assert episode.phase == "midseason"
         assert server.connections == 2
+        # The second proxy is still attached when the driver stops the server:
+        # stop() hangs up on it and does not return until its thread is gone.
+        assert server.open_connections == 1
+        assert server.stop() is True
+        assert server.open_connections == 0
+        assert second.sock.recv(1) == b""
+        second.close()
     finally:
         server.stop()
         episode.close()
         shutil.rmtree(socket_dir, ignore_errors=True)
+
+
+def test_guard_watch_fires_once_per_expired_phase(tmp_path: Path) -> None:
+    from gm_bench.agentic.episode import AgenticEpisode
+    from gm_bench.agentic.opencode import _GuardWatch
+
+    episode = AgenticEpisode(11, seasons=1, ledger_path=tmp_path / "ledger.jsonl", phase_guard_seconds=0.05)
+    watch = _GuardWatch(episode, threading.Lock())
+    episode.call_tool("get_status", {})  # opens season 1 preseason
+    assert watch() is False
+    time.sleep(0.08)
+    assert watch() is True  # stop the harness once
+    assert watch() is False  # ...but not the nudge that resumes it
+    # The nudge's first call closes the expired phase as ``guard`` and opens the next one.
+    reply = episode.call_tool("get_status", {})
+    assert reply["ok"] is False and "phase guard" in reply["message"]
+    assert episode.phase_log[-1]["ended_by"] == "guard"
+    assert watch() is False
+    time.sleep(0.08)
+    assert watch() is True  # a new phase can expire on its own

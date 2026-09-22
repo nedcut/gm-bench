@@ -114,10 +114,10 @@ never hidden, never fatal. A missing event stream is a problem.
 
 ```bash
 python -m gm_bench agentic-redact /tmp/agentic-big-pickle \
-    --output results/agentic/opencode-1.18.30-big-pickle-smoke.json \
+    --output results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json \
     --isolation same-user --public-seeds
-python -m gm_bench agentic-validate results/agentic/opencode-1.18.30-big-pickle-smoke.json
-python -m gm_bench agentic-validate results/agentic/opencode-1.18.30-big-pickle-smoke.json \
+python -m gm_bench agentic-validate results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json
+python -m gm_bench agentic-validate results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json \
     --raw /tmp/agentic-big-pickle
 ```
 

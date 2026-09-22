@@ -26,7 +26,13 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
-from gm_bench.agentic.tools import ACTION_TYPE_FOR_TOOL, TOOL_SURFACE_VERSION, TOOLS_BY_NAME, validate_arguments
+from gm_bench.agentic.tools import (
+    ACTION_TYPE_FOR_TOOL,
+    TOOL_SURFACE_VERSION,
+    TOOLS,
+    TOOLS_BY_NAME,
+    validate_arguments,
+)
 from gm_bench.protocol import PHASES
 from gm_bench.scoring import breakdown_from_components, persisted_score_components, score_components
 from gm_bench.simulator import SCOUT_POINTS_PER_SEASON, League
@@ -367,11 +373,20 @@ class AgenticEpisode:
             }
         return self._reply(False, f"unhandled read tool {name!r}")
 
-    @staticmethod
-    def _legal_tools(available_actions: list[str]) -> list[str]:
+    # Reads that only answer in one phase; every other read answers in all of them.
+    _READ_PHASE = {"list_draft_class": "draft", "list_waiver_wire": "midseason"}
+
+    def _legal_tools(self, available_actions: list[str]) -> list[str]:
+        """Every tool that executes right now: reads, then the simulator's
+        queries and moves for this phase, then ``end_phase``."""
+        reads = [
+            spec["name"]
+            for spec in TOOLS
+            if spec["kind"] == "read" and self._READ_PHASE.get(spec["name"], self.phase) == self.phase
+        ]
         reverse = {action: tool for tool, action in ACTION_TYPE_FOR_TOOL.items()}
         tools = [reverse[action] for action in available_actions if action in reverse]
-        return tools + ["end_phase"]
+        return reads + tools + ["end_phase"]
 
     def _reply(self, ok: bool, message: str) -> dict[str, Any]:
         return {"ok": ok, "message": message, "season": self.season_index, "phase": self.phase}

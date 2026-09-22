@@ -29,6 +29,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -333,13 +334,7 @@ def run_episode(
     server = SocketMcpServer(episode, socket_path)
     server.start()
 
-    def guard_expired() -> bool:
-        # Under the dispatch lock, so a poll cannot land between the engine's
-        # phase-transition writes and pair the new phase with the old start
-        # time. (The lock is reached directly: mcp_server.py is a contract
-        # source and an accessor would move the fingerprint.)
-        with server._lock:
-            return episode.phase_expired()
+    guard_expired = _GuardWatch(episode, server.dispatch_lock)
 
     try:
         problems = sandbox_problems(scratch, env)
@@ -435,10 +430,9 @@ def run_episode(
             shutil.rmtree(scratch, ignore_errors=True)
 
     telemetry = parse_opencode_events(events_path.read_text(encoding="utf-8").splitlines())
-    # A proxy that outlived the harness can still have a call in flight on a
-    # connection thread; the server's dispatch lock is the only thing that
-    # serializes the engine, so finalize under it.
-    with server._lock:
+    # server.stop() hung up on every proxy and joined its thread, so nothing
+    # should be inside the engine now; the lock covers a join that timed out.
+    with server.dispatch_lock:
         if not episode.done:
             episode.abandon()
         episode.harness_usage = usage_block(telemetry, model=model, decisions=seasons * len(PHASES))
@@ -522,6 +516,34 @@ def _run_harness(
                     exit_code = process.wait()
                     break
     return exit_code, timed_out, time.perf_counter() - started, was_stalled
+
+
+class _GuardWatch:
+    """The poll that tells ``_run_harness`` to stop a harness whose phase ran past the guard.
+
+    Fires once per expired phase. The engine only closes an expired phase on
+    the next tool call, so after a stop the phase is still expired when the
+    nudge resumes the session; without this memory the poll would kill the
+    resumed harness before its first call could close the phase.
+    """
+
+    def __init__(self, episode: AgenticEpisode, lock: threading.Lock) -> None:
+        self.episode = episode
+        self.lock = lock
+        self.fired_for: tuple[int, int] | None = None
+
+    def __call__(self) -> bool:
+        # Under the dispatch lock, so a poll cannot land between the engine's
+        # phase-transition writes and pair the new phase with the old start
+        # time.
+        with self.lock:
+            if not self.episode.phase_expired():
+                return False
+            current = (self.episode.season_index, self.episode.phase_index)
+            if current == self.fired_for:
+                return False
+            self.fired_for = current
+            return True
 
 
 def _engine_state(episode: AgenticEpisode) -> dict[str, Any]:
