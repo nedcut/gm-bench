@@ -1,5 +1,14 @@
 # AGENTS.md
 
+## Environment scope
+
+For local development, use the repository environment and current project
+configuration (`pyproject.toml`, `uv.lock`, and `.venv`). The commands below describe
+the Cursor Cloud image; its PATH and installed-tool assumptions do not apply to
+other machines. Inspect the current environment before reporting a missing tool.
+Keep provider usage serial as described below wherever the adapter runs. These
+instructions do not authorize paid model runs or publication.
+
 ## Cursor Cloud specific instructions
 
 This repo has two products:
