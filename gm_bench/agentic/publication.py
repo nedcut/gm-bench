@@ -77,6 +77,7 @@ _HARNESS_RUN_KEYS = (
     "nudges_without_progress",
     "proxy_connections",
     "guard_kills",
+    "server_drained",
     "tool_call_agreement",
 )
 _USAGE_KEYS = (

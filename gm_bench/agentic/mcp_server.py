@@ -35,6 +35,7 @@ import signal
 import socket
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -178,7 +179,19 @@ class SocketMcpServer:
         self._listener: socket.socket | None = None
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
+        self._live: dict[threading.Thread, socket.socket] = {}
+        self._live_lock = threading.Lock()
         self.connections = 0
+
+    @property
+    def dispatch_lock(self) -> threading.Lock:
+        """The lock every tool call runs under; hold it to inspect or finalize the engine."""
+        return self._lock
+
+    @property
+    def open_connections(self) -> int:
+        with self._live_lock:
+            return sum(1 for thread in self._live if thread.is_alive())
 
     def start(self) -> None:
         if os.path.exists(self.path):
@@ -202,7 +215,10 @@ class SocketMcpServer:
             except OSError:
                 break
             self.connections += 1
-            threading.Thread(target=self._serve_connection, args=(conn,), daemon=True).start()
+            thread = threading.Thread(target=self._serve_connection, args=(conn,), daemon=True)
+            with self._live_lock:
+                self._live[thread] = conn
+            thread.start()
 
     def _serve_connection(self, conn: socket.socket) -> None:
         reader = conn.makefile("r", encoding="utf-8", newline="\n")
@@ -222,8 +238,17 @@ class SocketMcpServer:
                 conn.close()
             except OSError:
                 pass
+            with self._live_lock:
+                self._live.pop(threading.current_thread(), None)
 
-    def stop(self) -> None:
+    def stop(self, *, timeout: float = 5.0) -> bool:
+        """Stop accepting, hang up on every proxy, and wait for their threads.
+
+        A call already inside the engine finishes first (the connection thread
+        holds the dispatch lock for it); the hang-up only ends the stream's
+        read loop. Returns True once every connection thread has exited, False
+        if one was still alive after ``timeout`` seconds.
+        """
         self._stop.set()
         if self._listener is not None:
             try:
@@ -232,11 +257,23 @@ class SocketMcpServer:
                 pass
         if self._thread is not None:
             self._thread.join(timeout=2.0)
+        with self._live_lock:
+            live = list(self._live.items())
+        for _thread, conn in live:
+            try:
+                conn.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+        deadline = time.monotonic() + timeout
+        for thread, _conn in live:
+            thread.join(timeout=max(0.0, deadline - time.monotonic()))
+        drained = not any(thread.is_alive() for thread, _conn in live)
         if os.path.exists(self.path):
             try:
                 os.unlink(self.path)
             except OSError:
                 pass
+        return drained
 
 
 class _LockedMcpServer(McpServer):

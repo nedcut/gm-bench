@@ -112,8 +112,9 @@ The agent ends a phase by calling `end_phase`. Precautions, in order:
    reset it. The engine closes the expired phase on the agent's next tool
    call and tells it so; the driver polls the guard while the harness runs
    and stops a harness whose current phase has run past it, then nudges it,
-   so a hung session costs one phase rather than the episode timeout. Guard
-   stops are counted per episode (`guard_kills`).
+   so a hung session costs one phase rather than the episode timeout. The
+   resumed session gets a full guard period to make that call before it is
+   stopped again. Guard stops are counted per episode (`guard_kills`).
 4. The server refuses moves that belong to a different phase with a
    protocol-violation result, exactly as 1.0 does.
 
@@ -319,14 +320,14 @@ for subscription-metered harnesses applies to all of them.
    under 10%.
 5. Contract fingerprint frozen: tool schemas, task brief, server, scoring.
 
-### Gate status (2026-09-20, all on OpenCode 1.18.30, free models, seed 11, one season)
+### Gate status (updated 2026-09-22, free models on OpenCode 1.18.30 and 1.18.31)
 
 | gate | status |
 |---|---|
 | 1. sandbox check | passes on every run. The first design put the episode file, interpreter, and repository path into the harness config, all readable by the agent's shell; replaced 2026-09-20 by the socket-and-proxy design above. Scored live episode on the socket design 2026-09-21 (`big-pickle`, seed 11, one season): 4/4 phases closed by the agent, 40 tool calls, ledger equals harness events, audit clean, validates. Red-team probe the same day: the agent found nothing in the scratch directory, config, proxy, environment, or socket directory, then found the seed through `ps` on the driver (documented same-user gap above; `container`/`separate-user` isolation is required for panel grade and recorded per row) |
 | 2. ledger round-trip | server ledger equals harness tool events on all 7 models |
 | 3. SDK conformance | passes against the official `mcp` client |
-| 4. free-model smoke | 6 of 7 models closed 4/4 phases with 0 failed decisions on seed 11; one (`nemotron-3.5-lightning-free`) stopped mid-phase and was rescued by nudges. 8-seed, five-season smoke row on `big-pickle` (2026-09-21): 160/160 phases closed by the agent, 0 failed decisions, mean 201.1 (SD 52.9, range 109 to 267), 171 tool calls and 111 model calls per episode, 2.8M input and 0.49M output tokens total, no compaction, 2 nudges on one seed, every ledger replays, agrees with the harness, and audits clean. Committed as `results/agentic/opencode-1.18.30-big-pickle-smoke-8x5.json`, smoke grade, public seeds 1 to 8 |
+| 4. free-model smoke | 6 of 7 models closed 4/4 phases with 0 failed decisions on seed 11; one (`nemotron-3.5-lightning-free`) stopped mid-phase and was rescued by nudges. 8-seed, five-season smoke row on `big-pickle` (2026-09-22, OpenCode 1.18.31, contract `c0619fc756769e61`): 159/160 phases closed by the agent and 1 by the phase guard, 1 failed decision, mean 245.3 (SD 79.0, range 140 to 363), 171 tool calls and 103 model calls per episode, 3.3M input and 0.41M output tokens total, no compaction, 1 guard stop and 1 nudge on one seed (the nudge resumed the session; its first call closed the expired phase as `guard` and it closed the remaining 15 itself), every ledger replays, agrees with the harness, and audits clean. Committed as `results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json`, smoke grade, public seeds 1 to 8. The earlier row on the previous contract (2026-09-21, mean 201.1, 0 guard stops) was replaced when `get_status` started listing the read tools and the socket server learned to drain its connections on stop |
 | 5. fingerprint frozen | `agentic_fingerprint` exists and is recorded in every run; still `gm-bench-2.0-dev`, and it moves whenever `episode.py` moves |
 
 Observed shapes on one season: 31 to 47 tool calls, 13 to 47 model calls,

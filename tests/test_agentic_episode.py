@@ -48,6 +48,29 @@ def test_tool_listing_is_valid_mcp_shape() -> None:
     assert "unknown tool" in validate_arguments("hack", {})
 
 
+def test_legal_tools_lists_every_tool_that_executes_now(tmp_path: Path) -> None:
+    episode = AgenticEpisode(11, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
+    reads = [tool["name"] for tool in TOOLS if tool["kind"] == "read"]
+    seen: dict[str, list[str]] = {}
+    while not episode.done:
+        legal = episode.call_tool("get_status", {})["data"]["legal_tools"]
+        seen[episode.phase] = legal
+        assert legal[-1] == "end_phase"
+        assert len(legal) == len(set(legal))
+        # Every listed read answers; every unlisted read refuses.
+        for name in reads:
+            assert episode.call_tool(name, {})["ok"] is (name in legal), (episode.phase, name)
+        episode.call_tool("end_phase", {})
+    for phase, legal in seen.items():
+        assert {"get_status", "get_rules", "get_team", "list_offers", "list_trade_market", "list_transactions"} <= set(
+            legal
+        ), phase
+        assert ("list_draft_class" in legal) is (phase == "draft")
+        assert ("list_waiver_wire" in legal) is (phase == "midseason")
+    assert "draft" in seen["draft"] and "draft" not in seen["midseason"]
+    assert "claim_waiver" in seen["midseason"]
+
+
 def test_full_episode_walks_all_phases_and_scores(tmp_path: Path) -> None:
     ledger = tmp_path / "ledger.jsonl"
     episode = AgenticEpisode(11, seasons=2, ledger_path=ledger)
