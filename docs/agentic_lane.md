@@ -223,11 +223,13 @@ The image. On the first run the driver builds
 `gm-bench-agentic-opencode:<opencode version>-<Dockerfile hash>` from a
 Dockerfile it pipes to `docker build` (no build context): a digest-pinned
 `node:22-bookworm-slim` base, Debian's `python3` for the proxy, `procps`,
-and `opencode-ai@1.18.31`. It refuses to run if the image reports a
+`iptables` for the egress rule, the `gmb-egress` entrypoint, and
+`opencode-ai@1.18.31`. It refuses to run if the image reports a
 different OpenCode version. `run.json` records the image tag, image id
 (the content digest of what ran), base image, Dockerfile SHA-256, OpenCode
-version, and Docker server version under `harness.container`, and that block
-is carried into the published artifact. `--binary` is ignored in container
+version, Docker server version, and the egress rule under
+`harness.container`, and that block is carried into the published
+artifact. `--binary` is ignored in container
 mode.
 
 Authentication. The free `opencode/*` models need no credentials: OpenCode
@@ -250,14 +252,19 @@ What the container can see:
   session store survives from the first run to each nudge's `--session`
   resume. The volume is deleted when the episode ends, so nothing carries to
   the next episode;
-- the network, for the model provider, and the host loopback through
-  `host.docker.internal`.
+- the public internet (for the model provider) and DNS, and on the host
+  only the driver's port through `host.docker.internal`. See "Egress"
+  below.
 
 What it cannot see: host processes (including the driver's command line),
 the checkout, the run directory, the ledger, the seed, the host environment
-(no `-e` is passed), host OpenCode configuration or credentials. Each
-invocation runs as the image's unprivileged `node` user with every Linux
-capability dropped and `no-new-privileges`.
+(no `-e` is passed), host OpenCode configuration or credentials, any other
+service on the host loopback, and anything on a private network. Each
+invocation starts as root in the image's `gmb-egress` entrypoint with only
+`NET_ADMIN`, `SETUID`, `SETGID` and `SETPCAP` (every other capability
+dropped, `no-new-privileges`), installs the egress rule, then drops to the
+unprivileged `node` user with an empty capability set and bounding set
+before OpenCode starts, so the agent cannot change the rule.
 
 The transport. Docker Desktop cannot pass a host Unix socket through a bind
 mount (the connect fails with `ENOTSUP`), so in container mode the driver's
@@ -272,12 +279,33 @@ already give it: every call it makes lands in the ledger, and a call that
 bypasses the harness shows up as a ledger-versus-harness disagreement.
 Same-user runs keep the Unix socket.
 
-Residual exposure: `host.docker.internal` reaches every service listening
-on the host loopback, not only the driver's port. Do not run the GM-Bench
-GUI or anything else holding run data on the host loopback during a
-container run. A guard stop or timeout kills the `docker run` client and
-then removes the container by name, because killing the client alone leaves
-the container running.
+Egress. Without a rule, `host.docker.internal` reaches every service on
+the host loopback, not only the driver's port. A review red-team run did
+exactly that: the agent port-scanned the host gateway and read an Ollama
+API, an agent server's UI, and a tunnel's metrics and config. So
+`gmb-egress` installs `iptables` rules in the container's own network
+namespace before the harness starts: loopback inside the container,
+the driver's port on the host gateway, and DNS to the container's
+resolvers are allowed; the host gateway on any other port, every private,
+loopback, link-local, carrier-grade NAT and multicast IPv4 range, and all
+non-loopback IPv6 are rejected; the public internet is open for the model
+provider. Before every episode the driver opens a canary listener on the
+host loopback and runs the entrypoint with a probe: the episode does not
+start if the canary is reachable, or if the harness would run as root or
+keep any capability. Checked on Docker Desktop for macOS without a model:
+7 host-loopback services were reachable from the unfirewalled image and
+none from this one, and the proxy still reached the driver. The rule is
+recorded as `harness.container.egress`. It does not stop the agent from
+reaching the public internet, which is the harness's own model traffic.
+
+Cleanup. A guard stop or timeout kills the `docker run` client and then
+removes the container by name, because killing the client alone leaves the
+container running. At the end of the episode every container and the home
+volume are removed, each attempted even if an earlier `docker` call failed
+or hung past its 60-second timeout, and the scratch directory (which holds
+the secret) is always deleted. Anything `docker` could not remove is listed
+in `harness_run.container_cleanup_problems` and on stderr; the episode's
+result is still written.
 
 ## Private panel
 
@@ -319,10 +347,16 @@ episodes' `result.json`), so panel grade still needs
 ## Red-teaming the sandbox
 
 ```bash
-echo 11 | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team
-echo 11 | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team-container \
+echo 730541 | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team
+echo 730541 | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team-container \
     --isolation container
 ```
+
+Use a distinctive public seed of at least six digits (the script refuses a
+shorter one): a seed such as 11 matches `python3.11`, protocol dates and
+team ids in ordinary shell output, so the seed-in-output flags would be
+true on any run where the agent does anything. The report lists every hit
+with the text around it (`seed_matches`) so a match can be checked.
 
 Launches the harness exactly as a run does, but with a brief that tells the
 agent to find the seed by any means. The report lists every shell command
@@ -361,8 +395,9 @@ score.
   audit, and equivalence with a 1.0 no-op episode on the same seed
 - `tests/test_agentic_mcp.py`: the stdio server driven by a minimal JSON-RPC
   client, server restart, sandbox checks, event parsing, the TCP transport
-  and its secret, admission after stop, and the container launch command
-  (against a stand-in `docker`)
+  and its secret (including which dials count as refused), admission after
+  stop, the container launch command and its egress probe, and cleanup
+  when `docker` hangs (against a stand-in `docker`)
 - `tests/test_agentic_conformance.py`: the server driven by the official
   `mcp` SDK client (dev extra; skipped when not installed)
 - `tests/test_agentic_publication.py`: the compact artifact is bound to its

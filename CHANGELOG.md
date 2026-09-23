@@ -77,11 +77,18 @@ Added 2026-09-20. Nothing published changes.
   OpenCode harness in Docker (pinned image, only the scratch directory
   mounted, no host processes, config, or credentials visible) while the
   engine and seed stay in the driver, which now records the isolation it
-  launched; `agentic-redact` refuses a stronger claim. The contract moves to
-  `02a9f887e79c0497`: the socket server gains a loopback TCP transport with
-  a per-run secret (Docker Desktop cannot pass a Unix socket through a bind
-  mount) and no longer serves a connection accepted after `stop()` begins,
-  so the committed smoke row must be rerun on the new contract.
+  launched; `agentic-redact` refuses a stronger claim. The container's
+  egress is firewalled: it reaches the public internet and DNS, and on the
+  host only the driver's port, so host-loopback services (model servers,
+  agent servers, tunnels) are out of reach; a canary check proves this
+  before every episode and `harness.container.egress` records the rule.
+  The contract moves to `735bbacc6c9564ee`: the socket server gains a
+  loopback TCP transport with a per-run secret (Docker Desktop cannot pass
+  a Unix socket through a bind mount), no longer serves a connection
+  accepted after `stop()` begins, and counts only served connections in
+  `proxy_connections` and every failed secret presentation (including
+  non-UTF-8 bytes) in `proxy_connections_refused`, so the committed smoke
+  row must be rerun on the new contract.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 
