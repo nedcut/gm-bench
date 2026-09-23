@@ -182,6 +182,7 @@ def _agentic_lane_rows(
             raise ValueError(f"{path.name} repeats agentic row {row['id']!r} already published from {seen[row['id']]}")
         seen[row["id"]] = path.name
         rows.append(row)
+    _require_one_reference_per_season_count(rows)
     rows.sort(
         key=lambda item: (
             item["unpinned"],
@@ -192,6 +193,25 @@ def _agentic_lane_rows(
         )
     )
     return rows
+
+
+def _require_one_reference_per_season_count(rows: list[dict[str, Any]]) -> None:
+    """pick-trader and random are deterministic on the one frozen panel, so rows at a season count share their means.
+
+    ``validate_agentic_artifact`` pins them to ``reference_scores`` in the lane
+    config once recorded; this also catches a hand-shifted reference while
+    they are not.
+    """
+    by_seasons: dict[Any, tuple[Any, Any, str]] = {}
+    for row in rows:
+        reference = row["reference"]
+        means = (reference["mean_score"], reference["floor"]["mean_score"])
+        first = by_seasons.setdefault(row["seasons"], (*means, row["id"]))
+        if means != first[:2]:
+            raise ValueError(
+                f"agentic row {row['id']!r} has pick-trader/random means {means} but {first[2]!r} has {first[:2]} "
+                f"at {row['seasons']} seasons; on one frozen panel every row's reference must agree"
+            )
 
 
 def _agentic_pinned_models(lane: dict[str, Any]) -> dict[str, str]:

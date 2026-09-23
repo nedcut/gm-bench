@@ -481,24 +481,116 @@ def test_reference_matches_1_0_on_the_same_public_seeds(tmp_path: Path, public_p
     assert reference["floor"]["mean_score"] == v1_random["baselines"][0]["summary"]["mean_score"]
 
 
-def test_re_redaction_reads_the_baseline_cache(tmp_path: Path, public_panel: dict, monkeypatch) -> None:
-    """``--raw`` re-runs the reference; a second pass is all cache hits and bit-identical."""
+def test_reference_never_touches_the_baseline_cache(tmp_path: Path, public_panel: dict, monkeypatch) -> None:
+    """``--raw`` recomputes the reference from the simulator, so a tampered local cache cannot vouch for a forgery.
+
+    The cache has no integrity check and its keys name the seeds, so the
+    reference neither reads nor writes it; a second pass is bit-identical
+    because the baselines are deterministic.
+    """
     from gm_bench import runner
+    from gm_bench.baseline_cache import default_cache_path, put_cached_episode
+    from gm_bench.protocol import EpisodeConfig
+
+    def no_cache(*args, **kwargs):
+        raise AssertionError("the reference must not read or write the baseline cache")
 
     run_dir = _write_run(tmp_path, PUBLIC_SEEDS)
-    artifact = compact_agentic_run(run_dir, isolation="container")
+    with monkeypatch.context() as patch:
+        patch.setattr(runner, "load_cache", no_cache)
+        patch.setattr(runner, "save_cache", no_cache)
+        artifact = compact_agentic_run(run_dir, isolation="container")
+        assert validate_agentic_artifact(artifact, raw_run=run_dir)["ok"]
+    assert not default_cache_path().exists(), "no private seed may be written into a cache key"
 
-    def no_live_episodes(*args, **kwargs):
-        raise AssertionError("the reference baselines should come from the cache on re-redaction")
-
-    monkeypatch.setattr(runner, "run_episode", no_live_episodes)
-    assert validate_agentic_artifact(artifact, raw_run=run_dir)["ok"]
+    # A cache poisoned with pick-trader 300 points lower, which a cached run
+    # would read, changes nothing.
+    fresh = json.loads(json.dumps(artifact))
+    cache: dict = {}
+    fingerprint = EpisodeConfig().baseline_cache_fingerprint()
+    for seed in PUBLIC_SEEDS:
+        episode = runner.run_episode(runner.AGENTS[REFERENCE_AGENT](), seed=seed, seasons=1).__dict__
+        poisoned = dict(episode, final_score=episode["final_score"] - 300)
+        put_cached_episode(REFERENCE_AGENT, seed, 1, poisoned, config_fingerprint=fingerprint, cache=cache)
+    runner.save_cache(cache, default_cache_path())
+    cached, hits = runner.run_many_cached_baselines(REFERENCE_AGENT, PUBLIC_SEEDS, 1)
+    cached_mean = sum(episode["final_score"] for episode in cached["episodes"]) / len(PUBLIC_SEEDS)
+    assert hits == len(PUBLIC_SEEDS) and abs(cached_mean - (fresh["reference"]["mean_score"] - 300)) < 1e-2
+    assert compact_agentic_run(run_dir, isolation="container")["reference"] == fresh["reference"]
+    assert validate_agentic_artifact(fresh, raw_run=run_dir)["ok"]
 
     forged = json.loads(json.dumps(artifact))
     forged["reference"]["floor"]["mean_score"] += 1.0  # internally coherent, so only --raw can catch it
     assert validate_agentic_artifact(forged)["ok"]
     report = validate_agentic_artifact(forged, raw_run=run_dir)
     assert any("fresh redaction" in error and "reference" in error for error in report["errors"])
+
+
+def test_validation_rejects_an_impossible_reference(tmp_path: Path, public_panel: dict) -> None:
+    panel = compact_agentic_run(_write_run(tmp_path, PUBLIC_SEEDS), isolation="container")
+    assert validate_agentic_artifact(panel)["ok"]
+    lift = panel["reference"]["paired_lift_mean"]
+
+    def errors_after(**changes) -> list[str]:
+        edited = json.loads(json.dumps(panel))
+        edited["reference"].update(changes)
+        return validate_agentic_artifact(edited)["errors"]
+
+    assert any("does not contain" in e for e in errors_after(paired_lift_ci95=[lift + 5.0, lift + 6.0]))
+    assert any("wider than" in e for e in errors_after(paired_lift_stddev=0.0, paired_lift_ci95=[lift - 9, lift + 9]))
+    assert any("must not be negative" in e for e in errors_after(paired_lift_stddev=-1.0))
+    win_all = 1.0 if lift < 0 else 0.0
+    assert any("candidate_seed_win_rate is" in e for e in errors_after(candidate_seed_win_rate=win_all))
+    # The reviewer's forgery: an interval excluding its own mean, zero spread,
+    # a win rate that contradicts the sign, p near 1 and "significant".
+    forged = errors_after(
+        paired_lift_ci95=[5.0, 6.0],
+        paired_lift_stddev=0.0,
+        candidate_seed_win_rate=win_all,
+        sign_flip_p_value=0.99,
+        significant_at_95=True,
+    )
+    assert forged and any("does not contain" in e for e in forged)
+    # p and the interval may honestly disagree, so p alone is never an error.
+    assert validate_agentic_artifact(dict(panel, reference=dict(panel["reference"], sign_flip_p_value=0.99)))["ok"]
+
+
+def test_recorded_reference_scores_pin_every_panel_row(tmp_path: Path, public_panel: dict) -> None:
+    """A pick-trader mean shifted together with its lift is coherent; only the recorded constants catch it without --raw."""
+    panel = compact_agentic_run(_write_run(tmp_path, PUBLIC_SEEDS), isolation="container")
+    reference = panel["reference"]
+    shifted = json.loads(json.dumps(panel))
+    shifted["reference"]["mean_score"] = round(reference["mean_score"] - 200, 3)
+    shifted["reference"]["paired_lift_mean"] = round(reference["paired_lift_mean"] + 200, 3)
+    shifted["reference"]["paired_lift_ci95"] = [round(bound + 200, 3) for bound in reference["paired_lift_ci95"]]
+    shifted["reference"]["significant_at_95"] = shifted["reference"]["paired_lift_ci95"][0] > 0
+    shifted["reference"]["candidate_seed_win_rate"] = 1.0
+
+    unpinned = validate_agentic_artifact(shifted)
+    assert unpinned["ok"] and any("reference_scores" in w for w in unpinned["warnings"])
+
+    means = {REFERENCE_AGENT: reference["mean_score"], REFERENCE_FLOOR_AGENT: reference["floor"]["mean_score"]}
+    pinned_lane = dict(public_panel, reference_scores={"seasons": 1, "mean_scores": means})
+    honest = validate_agentic_artifact(panel, lane=pinned_lane)
+    assert honest["ok"] and not any("reference_scores" in w for w in honest["warnings"])
+    errors = validate_agentic_artifact(shifted, lane=pinned_lane)["errors"]
+    assert any("pick-trader mean" in e and "frozen panel" in e for e in errors)
+
+    floor_shift = json.loads(json.dumps(panel))
+    floor_shift["reference"]["floor"]["mean_score"] += 1.0
+    assert any("random mean" in e for e in validate_agentic_artifact(floor_shift, lane=pinned_lane)["errors"])
+
+    other_seasons = dict(pinned_lane, reference_scores={"seasons": 5, "mean_scores": means})
+    report = validate_agentic_artifact(shifted, lane=other_seasons)
+    assert report["ok"] and any("not pinned" in w for w in report["warnings"])
+
+
+def test_committed_lane_has_unrecorded_reference_scores_for_the_full_row() -> None:
+    lane = load_lane_config()
+    assert lane is not None
+    pins = lane["reference_scores"]
+    assert pins["seasons"] == lane["panel_design"]["full_row"]["seasons"]
+    assert set(pins["mean_scores"]) == {REFERENCE_AGENT, REFERENCE_FLOOR_AGENT}
 
 
 def test_validation_rejects_a_misplaced_or_malformed_reference(tmp_path: Path, public_panel: dict) -> None:

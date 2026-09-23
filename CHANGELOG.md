@@ -55,13 +55,21 @@ Added 2026-09-20. Nothing published changes.
   supported inference, a `reference` block comparing the row with
   `pick-trader` on the same seeds and seasons. `agentic-redact` computes it
   from the raw run's seeds in-process, playing `pick-trader` and `random`
-  through the 1.0 runner's cached baseline path, so the numbers match a 1.0
-  run on those seeds. It holds the pick-trader and random means, the paired
+  through the 1.0 runner's baseline path with the baseline cache off, so the
+  numbers match a 1.0 run on those seeds, `--raw` recomputes them from the
+  simulator rather than a local file, and no private seed lands in a cache
+  key. It holds the pick-trader and random means, the paired
   lift with its 95% interval, standard deviation, sign-flip p-value, and seed
   win rate, with `per_seed` empty and no seeds or paths. Smoke rows get none.
   Validation rejects a panel row without the block, a block off the row's
-  seed count, per-seed values, or another agent, and a smoke row with one;
-  `agentic-validate --raw` recomputes it. The site's 2.0 section shows it as
+  seed count, per-seed values, or another agent, and a smoke row with one,
+  plus numbers the paired statistics cannot produce (a lift that is not the
+  row mean minus pick-trader's, an interval that excludes its lift or is
+  wider than its spread allows, a 0 or 1 win rate against the lift's sign);
+  `agentic-validate --raw` recomputes it. `config/bench_v2_lane.json` gains
+  `reference_scores`, the frozen panel's pick-trader and random means, to be
+  recorded from the first `--raw`-validated panel row; once recorded every
+  panel row must carry them, and until then all panel rows must agree. The site's 2.0 section shows it as
   "vs pick-trader (same seeds)", and the results-data validator now requires
   that on-panel reference and rejects any other p-value on a 2.0 row.
 

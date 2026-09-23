@@ -152,9 +152,12 @@ same seeds and seasons (`docs/bench_v2_spec.md`, Panel design). You do not
 run it separately. `agentic-redact` computes it from the seeds in the raw
 `run.json`, in-process, so nothing new goes on a command line: it plays
 `pick-trader` and `random` (shown as a floor) through the 1.0 runner's
-cached scripted-baseline path, with the default episode config `gm-bench
-evaluate` uses, so the scores are the ones a 1.0 run on those seeds reports
-and a repeat is a cache hit. A 2.0 episode is scored by the same functions on
+scripted-baseline path, with the default episode config `gm-bench evaluate`
+uses, so the scores are the ones a 1.0 run on those seeds reports. It plays
+them live with the baseline cache off (about 12 seconds for 32 seeds at 5
+seasons): the cache has no integrity check, so reading it would let `--raw`
+vouch for whatever a local file says, and writing it would put the private
+seeds in its keys. A 2.0 episode is scored by the same functions on
 the same simulator as a 1.0 episode, so the per-seed difference is like for
 like. The block mirrors a redacted 1.0 `paired` block with `pick-trader` as
 the only baseline: `mean_score` (pick-trader), `floor.mean_score` (random),
@@ -166,11 +169,26 @@ lift on a private seed gives the row's score on that seed. It keeps no seed,
 no cache path, and no cache hit count. Validation rejects a panel row
 without the block, a block whose `num_seeds` is not the row's distinct seed
 groups, a non-empty `per_seed`, any agent but `pick-trader`, and a `smoke`
-row that carries one; `smoke` rows never get a reference. `agentic-validate
---raw` recomputes the block from the raw run as part of the fresh redaction
-and requires it to be identical. The baseline cache is local
-(`data/baseline_cache.json`, gitignored, or `GM_BENCH_BASELINE_CACHE`) and,
-as for 1.0 private runs, its keys name the seeds it was run on.
+row that carries one; `smoke` rows never get a reference. It also rejects
+numbers the paired statistics cannot produce: a lift that is not the row
+mean minus the pick-trader mean, an interval that does not contain its lift
+or is wider than its standard deviation allows, and a seed win rate of 0 or
+1 against the sign of the lift. The p-value is not tied to the interval,
+because the exact sign-flip test and the bootstrap interval can disagree.
+`agentic-validate --raw` recomputes the block from the simulator as part of
+the fresh redaction and requires it to be identical.
+
+A hand edit that shifts the pick-trader mean and the lift together stays
+internally consistent, and CI never has the raw run. But `pick-trader` and
+`random` are deterministic, so on the one frozen panel their 5-season means
+are constants every panel row shares. After the first panel row passes
+`agentic-validate --raw`, record its `reference.mean_score` and
+`reference.floor.mean_score` under `reference_scores.mean_scores` in
+`config/bench_v2_lane.json`; they are aggregates the row already publishes.
+From then on `agentic-validate`, the site build, and the site data check
+reject a panel row whose reference or floor mean differs. Until they are
+recorded, validation warns that the reference is unpinned, and the site
+build and data check require every panel row at a season count to agree.
 
 ## Private panel
 

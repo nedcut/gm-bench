@@ -54,12 +54,17 @@ def _panel_fixture(*, isolation: str = "separate-user", model: str | None = None
     return row
 
 
-def _build(tmp_path: Path, *rows: tuple[str, dict], pinned_models: dict | None = None) -> dict:
+def _build(
+    tmp_path: Path,
+    *rows: tuple[str, dict],
+    pinned_models: dict | None = None,
+    reference_scores: dict | None = None,
+) -> dict:
     agentic_dir = tmp_path / "agentic"
     agentic_dir.mkdir()
     for name, payload in rows:
         (agentic_dir / name).write_text(json.dumps(payload))
-    if pinned_models is None:
+    if pinned_models is None and reference_scores is None:
         return build_study(output_path=tmp_path / "leaderboard.json", agentic_dir=agentic_dir)
     root = tmp_path / "root"
     shutil.copytree(Path("config"), root / "config")
@@ -68,7 +73,10 @@ def _build(tmp_path: Path, *rows: tuple[str, dict], pinned_models: dict | None =
         (root / "results" / name).symlink_to(Path("results", name).resolve(), target_is_directory=True)
     lane_path = root / "config" / "bench_v2_lane.json"
     lane = json.loads(lane_path.read_text())
-    lane["model_pinning"]["pinned_models"] = pinned_models
+    if pinned_models is not None:
+        lane["model_pinning"]["pinned_models"] = pinned_models
+    if reference_scores is not None:
+        lane["reference_scores"]["mean_scores"] = reference_scores
     lane_path.write_text(json.dumps(lane))
     return build_study(root=root, output_path=tmp_path / "leaderboard.json", agentic_dir=agentic_dir)
 
@@ -242,3 +250,21 @@ def test_committed_lane_pins_no_model_yet() -> None:
 def test_a_malformed_pin_fails_the_build(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="pinned_models"):
         _build(tmp_path, ("panel.json", _panel_fixture()), pinned_models={"opencode/big-pickle": ""})
+
+
+def test_rows_on_one_panel_must_share_the_reference_means(tmp_path: Path) -> None:
+    """pick-trader and random are deterministic, so a shifted reference on one row fails the build even unpinned."""
+    shifted = _panel_fixture(model="aa/shifted")
+    shifted["reference"] = fixture_reference(shifted, reference_mean=150.0)  # internally coherent
+    with pytest.raises(ValueError, match="every row's reference must agree"):
+        _build(tmp_path, ("a.json", _panel_fixture()), ("b.json", shifted))
+
+
+def test_recorded_reference_scores_fail_a_row_off_them(tmp_path: Path) -> None:
+    honest = {"pick-trader": 200.0, "random": 90.0}
+    (tmp_path / "ok").mkdir()
+    (tmp_path / "off").mkdir()
+    (row,) = _build(tmp_path / "ok", ("panel.json", _panel_fixture()), reference_scores=honest)["agentic_lane"]
+    assert row["reference"]["mean_score"] == 200.0
+    with pytest.raises(ValueError, match="frozen panel"):
+        _build(tmp_path / "off", ("panel.json", _panel_fixture()), reference_scores=dict(honest, random=91.0))

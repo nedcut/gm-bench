@@ -52,6 +52,7 @@ if (benchV2Lane.panel_design.reference_agent !== AGENTIC_REFERENCE_AGENT) {
 const lanePanel: AgenticLanePanel = {
   artifact_panel_sha256: benchV2Lane.seed_panel.artifact_panel_sha256,
   count: benchV2Lane.seed_panel.count,
+  reference_scores: benchV2Lane.reference_scores as AgenticLanePanel["reference_scores"],
 };
 const agenticIssues = agenticLaneIssues(leaderboard, lanePanel);
 if (agenticIssues.length > 0) {
@@ -76,6 +77,7 @@ const agenticFixture = {
     sha256: lanePanel.artifact_panel_sha256,
   },
   seasons: 5,
+  mean_score: 200,
   reference: {
     agent: "pick-trader",
     mean_score: 240,
@@ -91,12 +93,29 @@ const agenticFixture = {
   },
   artifact_path: "results/agentic/fixture.json",
 } as unknown as AgenticLaneRow;
-function withAgentic(edit: (data: Leaderboard, row: AgenticLaneRow) => void): string[] {
+function withAgentic(
+  edit: (data: Leaderboard, row: AgenticLaneRow) => void,
+  panel: AgenticLanePanel = lanePanel,
+): string[] {
   const data = structuredClone(leaderboard) as Leaderboard;
   const row = structuredClone(agenticFixture);
   data.agentic_lane = [row];
   edit(data, row);
-  return agenticLaneIssues(data, lanePanel);
+  return agenticLaneIssues(data, panel);
+}
+const pinnedPanel = (pickTrader: number, random: number): AgenticLanePanel => ({
+  ...lanePanel,
+  reference_scores: { seasons: 5, mean_scores: { "pick-trader": pickTrader, random } },
+});
+const pinnedMatchIssues = withAgentic(() => {}, pinnedPanel(240, 90));
+if (pinnedMatchIssues.length !== 0) {
+  throw new Error(`A row matching the pinned reference means was rejected: ${pinnedMatchIssues.join("; ")}`);
+}
+if (withAgentic(() => {}, pinnedPanel(40, 90)).length === 0) {
+  throw new Error("The agentic-lane check accepted a pick-trader mean off the pinned value");
+}
+if (withAgentic(() => {}, pinnedPanel(240, 91)).length === 0) {
+  throw new Error("The agentic-lane check accepted a random mean off the pinned value");
 }
 const emptyPerSeedIssues = withAgentic((_, row) => Object.assign(row.reference, { per_seed: [] }));
 if (emptyPerSeedIssues.length !== 0) {
@@ -140,6 +159,51 @@ const agenticMustReject: Array<[string, (data: Leaderboard, row: AgenticLaneRow)
   ["per-seed lifts outside the reference", (_, row) => Object.assign(row, { per_seed: [] })],
   ["a reference with a cache path", (_, row) => Object.assign(row.reference, { baseline_cache: { hits: 1 } })],
   ["a reference with no random floor", (_, row) => ((row.reference.floor as { agent: string }).agent = "value")],
+  ["a p-value inside the floor", (_, row) => Object.assign(row.reference.floor, { p_value: 0.01 })],
+  ["a comparison inside the floor", (_, row) => Object.assign(row.reference.floor, { vs_model: "x" })],
+  ["a lift that is not the row mean minus pick-trader's", (_, row) => (row.mean_score = 300)],
+  [
+    "an internally impossible reference",
+    (_, row) => {
+      row.reference.paired_lift_mean = 500;
+      row.reference.paired_lift_ci95 = [-900, -800];
+      row.reference.paired_lift_stddev = 0;
+      row.reference.sign_flip_p_value = 1;
+      row.reference.significant_at_95 = true;
+      row.reference.candidate_seed_win_rate = 0;
+    },
+  ],
+  ["an interval that excludes its own lift", (_, row) => (row.reference.paired_lift_ci95 = [-60, -45])],
+  ["an interval far wider than its spread", (_, row) => (row.reference.paired_lift_stddev = 0)],
+  ["a win rate of 1 with a negative lift", (_, row) => (row.reference.candidate_seed_win_rate = 1)],
+  [
+    "a win rate of 0 with a positive lift",
+    (_, row) => {
+      row.mean_score = 280;
+      row.reference.paired_lift_mean = 40;
+      row.reference.paired_lift_ci95 = [30, 50];
+      row.reference.candidate_seed_win_rate = 0;
+    },
+  ],
+  [
+    "two rows disagreeing on the pick-trader mean",
+    (data, row) => {
+      const other = structuredClone(row);
+      other.id = `${row.id}:other`;
+      other.mean_score = 210;
+      other.reference.mean_score = 250;
+      data.agentic_lane?.push(other);
+    },
+  ],
+  [
+    "two rows disagreeing on the random floor",
+    (data, row) => {
+      const other = structuredClone(row);
+      other.id = `${row.id}:other`;
+      other.reference.floor.mean_score = 91;
+      data.agentic_lane?.push(other);
+    },
+  ],
   ["a reference with a reversed interval", (_, row) => (row.reference.paired_lift_ci95 = [-30, -50])],
   ["a reference whose p is not a probability", (_, row) => (row.reference.sign_flip_p_value = 1.5)],
   ["a reference flag that contradicts its interval", (_, row) => (row.reference.significant_at_95 = false)],
