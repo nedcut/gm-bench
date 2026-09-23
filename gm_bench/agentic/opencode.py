@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import shutil
 import subprocess
@@ -63,6 +64,18 @@ from gm_bench.telemetry import aggregate_usage
 
 HARNESS_NAME = "opencode"
 DEFAULT_MAX_NUDGES = 20
+# A provider that throttles or fails transiently ends OpenCode's run the same
+# way a model that stops does. When a run's last event is such an error (a
+# "provider stall") the driver waits and resumes the session instead of
+# counting the relaunch as a nudge: exponential backoff from 60 s, doubling,
+# capped at 600 s, at most 8 retries and 45 minutes of waiting per episode.
+# Past either budget a stall is treated like any other harness exit.
+PROVIDER_STALL_BACKOFF_START_SECONDS = 60.0
+PROVIDER_STALL_BACKOFF_CAP_SECONDS = 600.0
+DEFAULT_MAX_PROVIDER_STALLS = 8
+DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS = 45 * 60.0
+RETRYABLE_STATUS_CODES = frozenset({408, 425, 429, 500, 502, 503, 504})
+_RETRYABLE_MESSAGE_RE = re.compile(r"rate[ _-]?limit|overloaded|try again later", re.IGNORECASE)
 # What the driver itself can do. ``separate-user`` is a valid statement in a
 # published row (publication.ISOLATION_LEVELS) but no driver launches it yet.
 DRIVER_ISOLATION = ("same-user", "container")
@@ -384,6 +397,54 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
     }
 
 
+def provider_stall_backoff(consecutive: int) -> float:
+    """Seconds to wait before retrying the ``consecutive``-th stall in a row (1-based): 60, 120, 240, 480, 600, 600..."""
+    return min(PROVIDER_STALL_BACKOFF_START_SECONDS * 2 ** max(consecutive - 1, 0), PROVIDER_STALL_BACKOFF_CAP_SECONDS)
+
+
+def ended_in_provider_stall(lines: list[str]) -> bool:
+    """Whether one invocation's event stream ends in a retryable provider error.
+
+    The last event must be an ``error`` whose data says ``isRetryable``, or
+    carries a transient HTTP status (``RETRYABLE_STATUS_CODES``), or whose
+    message reads as a rate limit, an overload, or "try again later". Any
+    other ending, including a non-retryable error such as a 401, is the
+    agent (or the harness) stopping.
+    """
+    last: dict[str, Any] | None = None
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict):
+            last = event
+    if last is None or last.get("type") != "error":
+        return False
+    error = last.get("error") if isinstance(last.get("error"), dict) else {}
+    data = error.get("data") if isinstance(error.get("data"), dict) else {}
+    for source in (data, error):
+        if source.get("isRetryable") is True:
+            return True
+        status = source.get("statusCode")
+        if isinstance(status, int) and not isinstance(status, bool) and status in RETRYABLE_STATUS_CODES:
+            return True
+        message = source.get("message")
+        if isinstance(message, str) and _RETRYABLE_MESSAGE_RE.search(message):
+            return True
+    return False
+
+
+def _invocation_lines(events_path: Path, offset: int) -> list[str]:
+    """The events one invocation appended, from the byte offset the file had before it."""
+    with events_path.open("rb") as handle:
+        handle.seek(offset)
+        return handle.read().decode("utf-8", errors="replace").splitlines()
+
+
 def _int(value: Any) -> int:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return 0
@@ -453,6 +514,10 @@ def run_episode(
     isolation: str = "same-user",
     image: dict[str, Any] | None = None,
     docker: str = "docker",
+    max_provider_stalls: int = DEFAULT_MAX_PROVIDER_STALLS,
+    max_provider_stall_wait_seconds: float = DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
+    stall_backoff: Callable[[int], float] = provider_stall_backoff,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> dict[str, Any]:
     episode_dir = episode_dir if episode_dir is not None else run_dir / f"seed-{seed}"
     if episode_dir.exists() and any(episode_dir.iterdir()):
@@ -498,6 +563,7 @@ def run_episode(
         # ``guard`` with the notice.
         guard_kills = 0
         guard_expired.arm()
+        offset = events_path.stat().st_size
         exit_code, timed_out, wall_seconds, stalled = _run_harness(
             command,
             cwd=scratch,
@@ -509,20 +575,67 @@ def run_episode(
             on_kill=on_kill,
         )
         guard_kills += int(stalled)
+        # Provider stalls: a run that ended on a retryable provider error (a
+        # 429, an overload) is retried after a backoff and is not a nudge.
+        last_stalled = not timed_out and not stalled and ended_in_provider_stall(_invocation_lines(events_path, offset))
+        provider_stalls = int(last_stalled)
+        consecutive_stalls = int(last_stalled)
+        stall_retries = 0
+        stall_wait = 0.0
+
+        def can_retry_stall() -> bool:
+            return (
+                last_stalled
+                and stall_retries < max_provider_stalls
+                and stall_wait + stall_backoff(consecutive_stalls) <= max_provider_stall_wait_seconds
+            )
+
         # The nudge loop. OpenCode ends a run whenever the model answers with
         # text and no tool call; weak models do that mid-phase. Resume the same
         # session with a reminder, count it, and stop when the episode is done,
         # a nudge yields no new tool call, the cap is hit, or we cannot resume.
+        # A stall retry resumes the same way but counts against the stall
+        # budget instead of ``max_nudges``, and its lack of progress does not
+        # stop the loop while the stall budget lasts.
         nudges: list[dict[str, Any]] = []
-        while not timed_out and len(nudges) < max_nudges:
+        productive_nudges = 0
+        while not timed_out:
             state = _engine_state(episode)
             if state["done"]:
                 break
             session_id = parse_opencode_events(events_path.read_text(encoding="utf-8").splitlines())["session_id"]
             if not session_id:
                 break
+            retry = can_retry_stall()
+            if not retry and productive_nudges >= max_nudges:
+                break
             number = len(nudges) + 1
-            text = nudge_message(state["season"], state["phase"], seasons, number, max_nudges)
+            backoff = 0.0
+            if retry:
+                backoff = float(stall_backoff(consecutive_stalls))
+                if progress is not None:
+                    progress(
+                        {
+                            "seed": seed,
+                            "stage": "provider_stall",
+                            "retry": stall_retries + 1,
+                            "backoff_seconds": backoff,
+                            "season": state["season"],
+                            "phase": state["phase"],
+                        }
+                    )
+                # Nothing polls the guard while no harness runs; ``arm`` below
+                # then gives the resumed harness a full guard period even if
+                # the phase ran past the guard during the wait.
+                sleep(backoff)
+                stall_retries += 1
+                stall_wait += backoff
+            else:
+                productive_nudges += 1
+            # A stall retry shows the next reminder's number without using it up.
+            text = nudge_message(
+                state["season"], state["phase"], seasons, min(productive_nudges + int(retry), max_nudges), max_nudges
+            )
             if progress is not None:
                 progress(
                     {
@@ -535,6 +648,7 @@ def run_episode(
                 )
             guard_expired.arm()
             nudge_command, nudge_kill = launch.command(base + ["--session", session_id, text])
+            offset = events_path.stat().st_size
             nudge_exit, nudge_timed_out, nudge_wall, nudge_stalled = _run_harness(
                 nudge_command,
                 cwd=scratch,
@@ -549,6 +663,13 @@ def run_episode(
             guard_kills += int(nudge_stalled)
             after = _engine_state(episode)
             progress_calls = after["tool_calls"] - state["tool_calls"]
+            last_stalled = (
+                not nudge_timed_out
+                and not nudge_stalled
+                and ended_in_provider_stall(_invocation_lines(events_path, offset))
+            )
+            provider_stalls += int(last_stalled)
+            consecutive_stalls = consecutive_stalls + 1 if last_stalled else 0
             nudges.append(
                 {
                     "number": number,
@@ -559,10 +680,15 @@ def run_episode(
                     "exit_code": nudge_exit,
                     "wall_seconds": round(nudge_wall, 3),
                     "stalled": nudge_stalled,
+                    # This relaunch was a retry after a provider stall, and how long it waited first.
+                    "stall_retry": retry,
+                    "backoff_seconds": backoff,
+                    # This relaunch itself ended on a retryable provider error.
+                    "provider_stall": last_stalled,
                 }
             )
             timed_out = timed_out or nudge_timed_out
-            if progress_calls == 0:
+            if progress_calls == 0 and not can_retry_stall():
                 break
     finally:
         server_drained = launch.close(keep_scratch=keep_scratch)
@@ -586,8 +712,14 @@ def run_episode(
         "wall_seconds": round(wall_seconds, 3),
         "max_nudges": max_nudges,
         "nudges": nudges,
-        "nudges_used": len(nudges),
-        "nudges_without_progress": sum(1 for nudge in nudges if nudge["new_tool_calls"] == 0),
+        # Nudges counted against ``max_nudges``; stall retries are counted apart.
+        "nudges_used": productive_nudges,
+        "nudges_without_progress": sum(
+            1 for nudge in nudges if nudge["new_tool_calls"] == 0 and not nudge["provider_stall"]
+        ),
+        # Invocations that ended on a retryable provider error, and the total backoff waited.
+        "provider_stalls": provider_stalls,
+        "provider_stall_wait_seconds": round(stall_wait, 3),
         "guard_kills": guard_kills,
         # False when a proxy thread was still inside the engine after the
         # stop timeout; the dispatch lock above still ordered the finalize.
@@ -866,6 +998,10 @@ def _agentic_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "tool_calls_by_tool": dict(sorted(by_tool.items())),
         "phases_ended_by": ended,
         "nudges_used": sum(int(episode["harness_run"].get("nudges_used", 0)) for episode in episodes),
+        "provider_stalls": sum(int(episode["harness_run"].get("provider_stalls", 0)) for episode in episodes),
+        "provider_stall_wait_seconds": round(
+            sum(float(episode["harness_run"].get("provider_stall_wait_seconds", 0.0)) for episode in episodes), 1
+        ),
         "compactions": sum(int(episode["usage"].get("harness", {}).get("compactions", 0)) for episode in episodes),
         "mean_wall_seconds": round(
             sum(float(episode["harness_run"]["wall_seconds"]) for episode in episodes) / len(episodes), 1

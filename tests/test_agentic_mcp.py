@@ -898,3 +898,251 @@ def test_run_harness_runs_the_kill_hook_after_killing_the_client(tmp_path: Path)
         on_kill=lambda: killed.append("clean exit"),
     )
     assert killed == ["stalled"]
+
+
+# -- provider stalls ------------------------------------------------------------
+
+_RATE_LIMIT_ERROR = {
+    "type": "error",
+    "sessionID": "ses_fake",
+    "error": {
+        "name": "APIError",
+        "data": {
+            "message": "Error from provider (Console): Rate limit exceeded. Please try again later.",
+            "statusCode": 429,
+            "isRetryable": True,
+        },
+    },
+}
+_AUTH_ERROR = {
+    "type": "error",
+    "sessionID": "ses_fake",
+    "error": {"name": "APIError", "data": {"message": "Unauthorized", "statusCode": 401, "isRetryable": False}},
+}
+
+
+def _scripted_harness(script: list[dict], calls: list[list[str]], *, before_call=None):
+    """A fake ``_run_harness`` that plays ``script[i]`` on invocation ``i``.
+
+    Each step may make ``calls`` GM-Bench tool calls (``get_status`` then
+    ``end_phase`` pairs, so each pair closes a phase), then end with an
+    optional ``error`` event and ``exit`` code.
+    """
+
+    def fake_harness(command, *, cwd, env, events_path, stderr_path, timeout, stalled=None, on_kill=None):
+        calls.append(command)
+        step = script[min(len(calls), len(script)) - 1]
+        config = json.loads((cwd / "opencode.json").read_text())
+        socket_path = config["mcp"]["servers"]["gm-bench"]["command"][2]
+        was_stalled = False
+        with events_path.open("a") as events:
+            events.write(json.dumps({"type": "step_start", "sessionID": "ses_fake", "part": {}}) + "\n")
+            if before_call is not None:
+                was_stalled = before_call(len(calls), stalled)
+            if step.get("phases", 0):
+                client = _SocketClient(socket_path)
+                client.request("initialize", {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {}})
+                for _ in range(step["phases"]):
+                    for name in ("get_status", "end_phase"):
+                        reply = client.request("tools/call", {"name": name, "arguments": {}})
+                        assert "result" in reply, reply
+                        part = {"type": "tool", "tool": f"gm-bench_{name}"}
+                        events.write(json.dumps({"type": "tool", "sessionID": "ses_fake", "part": part}) + "\n")
+                client.close()
+            finish = {"type": "step-finish", "tokens": {"input": 10, "output": 1}}
+            events.write(json.dumps({"type": "step_finish", "sessionID": "ses_fake", "part": finish}) + "\n")
+            if step.get("error") is not None:
+                events.write(json.dumps(step["error"]) + "\n")
+        return step.get("exit", 0), False, 1.0, was_stalled
+
+    return fake_harness
+
+
+def _stall_episode(tmp_path, monkeypatch, script, *, before_call=None, **kwargs):
+    import gm_bench.agentic.opencode as driver
+
+    calls: list[list[str]] = []
+    sleeps: list[float] = []
+    monkeypatch.setattr(driver, "_run_harness", _scripted_harness(script, calls, before_call=before_call))
+    monkeypatch.setattr(driver, "sandbox_problems", lambda scratch, env: [])
+    kwargs.setdefault("sleep", sleeps.append)
+    result = driver.run_episode(11, model="fake/model", run_dir=tmp_path / "run", seasons=1, max_nudges=5, **kwargs)
+    return result, calls, sleeps
+
+
+def test_ended_in_provider_stall_reads_only_a_terminal_retryable_error() -> None:
+    from gm_bench.agentic.opencode import ended_in_provider_stall
+
+    step = json.dumps({"type": "step_finish", "part": {}})
+    assert ended_in_provider_stall([step, json.dumps(_RATE_LIMIT_ERROR)])
+    assert not ended_in_provider_stall([json.dumps(_RATE_LIMIT_ERROR), step])  # recovered: not terminal
+    assert not ended_in_provider_stall([step, json.dumps(_AUTH_ERROR)])
+    assert not ended_in_provider_stall([step])
+    assert not ended_in_provider_stall([])
+    for data in ({"statusCode": 503}, {"message": "Model is overloaded"}, {"isRetryable": True}):
+        event = {"type": "error", "error": {"name": "APIError", "data": data}}
+        assert ended_in_provider_stall([json.dumps(event), ""]), data
+
+
+def test_provider_stall_is_retried_after_backoff_and_not_counted_as_a_nudge(tmp_path: Path, monkeypatch) -> None:
+    """The gate6 seed-6 shape: the run ends on a 429, the resume succeeds."""
+    script = [{"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1}, {"phases": 3}]
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script, stall_backoff=lambda n: 0.0)
+    harness_run = result["harness_run"]
+    assert len(calls) == 2 and "--session" in calls[1]
+    assert sleeps == [0.0]
+    assert harness_run["provider_stalls"] == 1
+    assert harness_run["provider_stall_wait_seconds"] == 0.0
+    assert harness_run["nudges_used"] == 0  # the retry did not use up a nudge
+    assert harness_run["nudges_without_progress"] == 0
+    [retry] = harness_run["nudges"]
+    assert retry["stall_retry"] is True and retry["provider_stall"] is False and retry["backoff_seconds"] == 0.0
+    assert retry["new_tool_calls"] == 6
+    assert result["agentic"]["phases_ended_by"] == {"agent": 4}
+    assert result["failed_decisions"] == 0
+
+
+def test_consecutive_provider_stalls_back_off_exponentially(tmp_path: Path, monkeypatch) -> None:
+    from gm_bench.agentic.opencode import provider_stall_backoff
+
+    assert [provider_stall_backoff(n) for n in range(1, 8)] == [60.0, 120.0, 240.0, 480.0, 600.0, 600.0, 600.0]
+    # Like seed 6: the first resume also hits the 429 and makes no tool call.
+    # That zero-call relaunch is not a no-progress nudge; the next one plays on.
+    script = [
+        {"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 0, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 3},
+    ]
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script)
+    harness_run = result["harness_run"]
+    assert sleeps == [60.0, 120.0]
+    assert len(calls) == 3
+    assert harness_run["provider_stalls"] == 2
+    assert harness_run["provider_stall_wait_seconds"] == 180.0
+    assert [(n["stall_retry"], n["backoff_seconds"], n["provider_stall"]) for n in harness_run["nudges"]] == [
+        (True, 60.0, True),
+        (True, 120.0, False),
+    ]
+    assert harness_run["nudges_used"] == 0 and harness_run["nudges_without_progress"] == 0
+    assert result["failed_decisions"] == 0
+
+
+def test_exhausted_stall_budget_falls_through_to_the_stop(tmp_path: Path, monkeypatch) -> None:
+    script = [
+        {"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 0, "error": _RATE_LIMIT_ERROR, "exit": 1},
+    ]
+    # Retry count exhausted: two retries, then the zero-call stall stops the loop like any zero-call nudge.
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script, max_provider_stalls=2)
+    harness_run = result["harness_run"]
+    assert sleeps == [60.0, 120.0]
+    assert len(calls) == 3
+    assert harness_run["provider_stalls"] == 3
+    assert harness_run["nudges_used"] == 0
+    assert result["agentic"]["phases_ended_by"] == {"agent": 1, "harness_exit": 3}
+
+
+def test_exhausted_stall_wait_falls_through_to_the_stop(tmp_path: Path, monkeypatch) -> None:
+    script = [
+        {"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 0, "error": _RATE_LIMIT_ERROR, "exit": 1},
+    ]
+    # 60 + 120 would pass a 100 s wait budget, so only the first stall is retried.
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script, max_provider_stall_wait_seconds=100.0)
+    assert sleeps == [60.0]
+    assert len(calls) == 2
+    assert result["harness_run"]["provider_stalls"] == 2
+    assert result["harness_run"]["provider_stall_wait_seconds"] == 60.0
+    assert result["agentic"]["phases_ended_by"] == {"agent": 1, "harness_exit": 3}
+
+
+def test_initial_stall_with_no_budget_is_nudged_as_before(tmp_path: Path, monkeypatch) -> None:
+    script = [{"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1}, {"phases": 3}]
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script, max_provider_stalls=0)
+    assert sleeps == [] and len(calls) == 2
+    assert "Reminder 1 of 5" in calls[1][-1]
+    assert result["harness_run"]["nudges_used"] == 1
+    assert result["harness_run"]["nudges"][0]["stall_retry"] is False
+
+
+@pytest.mark.parametrize("error", [None, _AUTH_ERROR], ids=["exit-1-no-error", "401"])
+def test_non_retryable_exit_keeps_the_nudge_behaviour(tmp_path: Path, monkeypatch, error) -> None:
+    script = [{"phases": 1, "error": error, "exit": 1}, {"phases": 0, "error": error, "exit": 1}]
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script)
+    harness_run = result["harness_run"]
+    assert sleeps == []
+    assert len(calls) == 2  # initial run, one nudge without progress, stop
+    assert "Reminder 1 of 5" in calls[1][-1]
+    assert harness_run["provider_stalls"] == 0 and harness_run["provider_stall_wait_seconds"] == 0.0
+    assert harness_run["nudges_used"] == 1 and harness_run["nudges_without_progress"] == 1
+    assert harness_run["nudges"][0]["stall_retry"] is False and harness_run["nudges"][0]["provider_stall"] is False
+    assert result["agentic"]["phases_ended_by"] == {"agent": 1, "harness_exit": 3}
+
+
+def test_guard_does_not_fire_for_a_backoff_but_still_catches_a_hung_retry(tmp_path: Path, monkeypatch) -> None:
+    """A backoff longer than the phase guard must not be mistaken for a hung harness."""
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    polls: list[tuple[int, bool]] = []
+
+    def before_call(invocation: int, stalled) -> bool:
+        # Poll the guard the way _run_harness does, right after launch.
+        fired = stalled()
+        polls.append((invocation, fired))
+        if invocation == 3:
+            # The retried harness hangs: no call for a whole further guard period.
+            clock[0] += 51.0
+            fired = stalled()
+            polls.append((invocation, fired))
+        return fired
+
+    script = [
+        {"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 0, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 0},
+    ]
+    result, calls, sleeps = _stall_episode(
+        tmp_path,
+        monkeypatch,
+        script,
+        before_call=before_call,
+        phase_guard_seconds=50.0,
+        sleep=lambda seconds: clock.__setitem__(0, clock[0] + seconds),  # a 60 s then 120 s backoff
+    )
+    harness_run = result["harness_run"]
+    # Invocation 2 starts after a 60 s backoff that took the phase past its guard: no stop.
+    # Invocation 3 starts after 120 s more: still no stop at launch, but a hung harness is stopped.
+    assert polls == [(1, False), (2, False), (3, False), (3, True)]
+    assert harness_run["provider_stall_wait_seconds"] == 180.0
+    assert harness_run["guard_kills"] == 1
+    assert [n["stalled"] for n in harness_run["nudges"]] == [False, True]
+
+
+def test_provider_stall_counts_reach_run_json_and_the_redacted_artifact(tmp_path: Path, monkeypatch) -> None:
+    import gm_bench.agentic.opencode as driver
+    from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
+    from gm_bench.agentic.validate import validate_run
+
+    script = [{"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1}, {"phases": 3}]
+    result, _calls, _sleeps = _stall_episode(tmp_path, monkeypatch, script)
+    run = {
+        "agent": "opencode:fake/model",
+        "harness": {"name": "opencode", "version": "0", "model": "fake/model"},
+        "contract": driver.agentic_contract(),
+        "seeds": [11],
+        "seasons": 1,
+        "episodes": [result],
+        "summary": driver.summarize_episodes([result]),
+        "agentic_summary": driver._agentic_summary([result]),
+    }
+    (tmp_path / "run" / "run.json").write_text(json.dumps(run))
+    saved = json.loads((tmp_path / "run" / "run.json").read_text())
+    assert saved["episodes"][0]["harness_run"]["provider_stalls"] == 1
+    assert saved["episodes"][0]["harness_run"]["provider_stall_wait_seconds"] == 60.0
+    assert saved["agentic_summary"]["provider_stalls"] == 1
+    assert validate_run(tmp_path / "run")["ok"]
+    artifact = compact_agentic_run(tmp_path / "run", isolation="same-user")
+    compact = artifact["episodes"][0]["harness_run"]
+    assert (compact["provider_stalls"], compact["provider_stall_wait_seconds"]) == (1, 60.0)
+    assert compact["nudges"][0]["stall_retry"] is True and compact["nudges"][0]["backoff_seconds"] == 60.0
+    assert validate_agentic_artifact(artifact)["ok"]

@@ -119,8 +119,23 @@ _HARNESS_RUN_KEYS = (
     "nudges_without_progress",
     "proxy_connections",
     "guard_kills",
+    "provider_stalls",
+    "provider_stall_wait_seconds",
     "server_drained",
     "tool_call_agreement",
+)
+# Present on every nudge a driver records; the provider-stall keys only on runs
+# recorded since the driver learned to retry provider stalls.
+_NUDGE_KEYS = (
+    "number",
+    "season",
+    "phase",
+    "new_tool_calls",
+    "phases_closed",
+    "exit_code",
+    "stall_retry",
+    "backoff_seconds",
+    "provider_stall",
 )
 _USAGE_KEYS = (
     "input_tokens",
@@ -312,8 +327,7 @@ def _compact_episode(index: int, episode: dict[str, Any], group: int, public_see
     }
     compact["harness_run"] = {key: harness_run.get(key) for key in _HARNESS_RUN_KEYS if key in harness_run}
     compact["harness_run"]["nudges"] = [
-        {key: nudge.get(key) for key in ("number", "season", "phase", "new_tool_calls", "phases_closed", "exit_code")}
-        for nudge in harness_run.get("nudges") or []
+        {key: nudge.get(key) for key in _NUDGE_KEYS if key in nudge} for nudge in harness_run.get("nudges") or []
     ]
     return compact
 
