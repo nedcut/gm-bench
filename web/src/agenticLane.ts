@@ -157,6 +157,29 @@ function referenceIssues(row: AgenticLaneRow, lanePanel: AgenticLanePanel, label
   return issues;
 }
 
+/* The API-equivalent estimate is a list-price figure for a harness that
+ * reports no cost; it is never a billed cost. A row that carries both with
+ * the same value has almost certainly copied one into the other. */
+function estimateIssues(row: AgenticLaneRow, label: string): string[] {
+  const t = row.telemetry as AgenticLaneRow["telemetry"] | undefined;
+  if (!t) return [];
+  const issues: string[] = [];
+  for (const key of ["api_equivalent_cost_usd", "api_equivalent_cost_per_episode_usd"] as const) {
+    const value = t[key];
+    if (value !== undefined && value !== null && !(isFiniteNumber(value) && value >= 0)) {
+      issues.push(`${label} telemetry.${key} is not a non-negative number or null`);
+    }
+  }
+  const estimate = t.api_equivalent_cost_usd;
+  if (isFiniteNumber(estimate) && isFiniteNumber(t.cost_usd) && Math.abs(estimate - t.cost_usd) < 1e-9) {
+    issues.push(
+      `${label} reports the same value as billed cost_usd and as an API-equivalent estimate; ` +
+        "an estimate is for a harness that reports no cost",
+    );
+  }
+  return issues;
+}
+
 /** The lane's frozen private panel, by digest and size only (config/bench_v2_lane.json). */
 export interface AgenticLanePanel {
   artifact_panel_sha256: string;
@@ -218,6 +241,7 @@ export function agenticLaneIssues(data: Leaderboard, lanePanel: AgenticLanePanel
       issues.push(`${label} does not point at a committed results/agentic/ artifact`);
     }
     issues.push(...referenceIssues(row, lanePanel, label));
+    issues.push(...estimateIssues(row, label));
     const means = JSON.stringify([row.reference?.mean_score, row.reference?.floor?.mean_score]);
     const first = referenceBySeasons.get(row.seasons);
     if (first === undefined) {

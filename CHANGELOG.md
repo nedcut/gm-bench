@@ -124,6 +124,22 @@ Added 2026-09-20. Nothing published changes.
   counted apart, not as harness calls. `agentic-validate` recounts tool
   calls from a Codex event stream as it does for OpenCode. Tested only against a stand-in `codex` and `docker`;
   no Codex episode has been run and no Codex result is claimed.
+- Codex API-equivalent cost: `cost_usd` stays unmeasured, and beside it a
+  Codex episode now records `usage.harness.api_equivalent_cost_usd`, what
+  its tokens would cost at OpenAI API list price with cached input and
+  cache writes at their own rates, labelled `cost_basis:
+  "api-list-price-estimate"` and `billed_by_harness: false`, with the
+  pricing entry used and a flag when a turn grew past the 272K
+  long-context threshold (short-context rates are always used, so the
+  estimate may then be low). It reaches the compact artifact, the run's
+  `agentic_summary`, and the site, which marks it `est.` and never shows
+  it as a billed cost. `gm_bench/pricing.json` entries may now carry
+  `cached_input_per_mtok`, `cache_write_per_mtok`,
+  `long_context_input_tokens`, and `verified`; existing entries are
+  unchanged. Added `gpt-6-luna` ($0.10 input, $0.01 cached, $0.125 cache
+  write, $0.50 output per million tokens) and `gpt-6-sol` ($2.00, $0.20,
+  $2.50, $10.00), checked 2026-09-23 against OpenAI's developer pricing
+  page and model pages.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

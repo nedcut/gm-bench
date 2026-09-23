@@ -145,6 +145,21 @@ _USAGE_KEYS = (
     "api_calls",
     "cost_usd",
 )
+_HARNESS_USAGE_KEYS = (
+    "telemetry_reported",
+    "compactions",
+    "cache_write_tokens",
+    "tool_events",
+    "errors",
+    # A harness that reports tokens but no cost (Codex): what those tokens would
+    # cost at API list price, labelled as an estimate nobody was billed. Absent
+    # from runs recorded before the estimate existed, and from OpenCode runs.
+    "api_equivalent_cost_usd",
+    "cost_basis",
+    "billed_by_harness",
+    "pricing_source",
+    "long_context_requests_possible",
+)
 
 
 def seed_panel_sha256(seeds: list[int]) -> str:
@@ -322,11 +337,7 @@ def _compact_episode(index: int, episode: dict[str, Any], group: int, public_see
     compact["agentic"] = episode.get("agentic")
     compact["usage"] = {key: usage.get(key) for key in _USAGE_KEYS if key in usage}
     harness_usage = usage.get("harness") or {}
-    compact["usage"]["harness"] = {
-        key: harness_usage.get(key)
-        for key in ("telemetry_reported", "compactions", "cache_write_tokens", "tool_events", "errors")
-        if key in harness_usage
-    }
+    compact["usage"]["harness"] = {key: harness_usage.get(key) for key in _HARNESS_USAGE_KEYS if key in harness_usage}
     compact["harness_run"] = {key: harness_run.get(key) for key in _HARNESS_RUN_KEYS if key in harness_run}
     compact["harness_run"]["nudges"] = [
         {key: nudge.get(key) for key in _NUDGE_KEYS if key in nudge} for nudge in harness_run.get("nudges") or []

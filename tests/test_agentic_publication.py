@@ -162,6 +162,38 @@ def test_compact_artifact_is_bound_redacted_and_validates(tmp_path: Path) -> Non
     assert validate_agentic_artifact(public)["ok"]
 
 
+def test_api_equivalent_estimate_reaches_the_artifact_and_round_trips(tmp_path: Path) -> None:
+    run_dir = _write_run(tmp_path, [11, 12])
+    raw = json.loads((run_dir / "run.json").read_text())
+    estimate = {
+        "api_equivalent_cost_usd": 0.0495,
+        "cost_basis": "api-list-price-estimate",
+        "billed_by_harness": False,
+        "pricing_source": {
+            "key": "gpt-6-luna",
+            "verified": "2026-09-23",
+            "cached_input_rate": "cached",
+            "cache_write_rate": "cache-write",
+        },
+        "long_context_requests_possible": False,
+    }
+    for episode in raw["episodes"]:
+        episode["usage"]["harness"].update(estimate)
+        episode["usage"].pop("cost_usd", None)
+    raw["agentic_summary"]["api_equivalent_cost_usd"] = 0.099
+    (run_dir / "run.json").write_text(json.dumps(raw, sort_keys=True), encoding="utf-8")
+
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    for episode in artifact["episodes"]:
+        assert {key: episode["usage"]["harness"][key] for key in estimate} == estimate
+        assert "cost_usd" not in episode["usage"]
+    assert artifact["agentic_summary"]["api_equivalent_cost_usd"] == 0.099
+    report = validate_agentic_artifact(artifact, raw_run=run_dir)
+    assert report["ok"], report
+    reread = json.loads(json.dumps(artifact))
+    assert reread == artifact
+
+
 def test_redacted_artifact_never_carries_a_seed_in_its_validation_report(tmp_path: Path) -> None:
     """Ordinary warnings (here: no telemetry) used to be copied with a `seed N:` prefix."""
     seed = 8675309

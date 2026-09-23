@@ -317,7 +317,9 @@ def _agentic_reference(reference: dict[str, Any]) -> dict[str, Any]:
 def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     """Budgets are reported, not capped. Tokens and cost are the harness's own
     accounting and count only episodes whose harness reported telemetry; with
-    none, they are unmeasured (``None``), never zero."""
+    none, they are unmeasured (``None``), never zero. ``api_equivalent_*`` is
+    the separate list-price estimate a harness with no billed cost carries
+    (Codex), summed over the episodes that have one; it never feeds ``cost_usd``."""
     by_tool: dict[str, int] = {}
     ended_by: dict[str, int] = {}
     tool_calls = nudges = guard_kills = provider_stalls = scout_points = 0
@@ -357,6 +359,16 @@ def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     count = len(episodes) or 1
     cost_values = _reported_values("cost_usd")
     cost = sum(cost_values) if cost_values else None
+    # A list-price estimate for a harness that reports tokens but no cost
+    # (Codex): kept apart from ``cost_usd``, which is only ever a billed or
+    # harness-reported cost.
+    estimates = [((e.get("usage") or {}).get("harness") or {}) for e in reported]
+    estimate_values = [
+        float(block["api_equivalent_cost_usd"])
+        for block in estimates
+        if block.get("api_equivalent_cost_usd") is not None and block.get("billed_by_harness") is False
+    ]
+    estimate = sum(estimate_values) if estimate_values else None
     return {
         "episodes": len(episodes),
         "tool_calls": tool_calls,
@@ -379,6 +391,10 @@ def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "cached_input_tokens": _int_or_none(_reported_sum("cached_input_tokens")),
         "cost_usd": None if cost is None else round(cost, 4),
         "cost_per_episode_usd": None if cost is None else round(cost / len(cost_values), 4),
+        "api_equivalent_cost_usd": None if estimate is None else round(estimate, 4),
+        "api_equivalent_cost_per_episode_usd": None if estimate is None else round(estimate / len(estimate_values), 4),
+        "api_equivalent_cost_episodes": len(estimate_values),
+        "api_equivalent_long_context_possible": any(block.get("long_context_requests_possible") for block in estimates),
     }
 
 

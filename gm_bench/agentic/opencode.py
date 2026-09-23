@@ -1074,6 +1074,23 @@ def _compactions(episodes: list[dict[str, Any]]) -> int | None:
     return sum(int(value) for value in values)
 
 
+def _api_equivalent_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
+    """The run's API-equivalent estimate, only for a harness that publishes one (Codex).
+
+    Summed over the episodes that carry an estimate, with their count; it is a
+    list-price estimate of the tokens used, never a billed cost (``cost_usd``).
+    """
+    harness = [(episode.get("usage") or {}).get("harness") or {} for episode in episodes]
+    if not any("api_equivalent_cost_usd" in block for block in harness):
+        return {}
+    values = [block["api_equivalent_cost_usd"] for block in harness if block.get("api_equivalent_cost_usd") is not None]
+    return {
+        "api_equivalent_cost_usd": round(sum(values), 6) if values else None,
+        "api_equivalent_cost_episodes": len(values),
+        "api_equivalent_long_context_possible": any(block.get("long_context_requests_possible") for block in harness),
+    }
+
+
 def _agentic_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     if not episodes:
         return {}
@@ -1096,6 +1113,7 @@ def _agentic_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
             sum(float(episode["harness_run"].get("provider_stall_wait_seconds", 0.0)) for episode in episodes), 1
         ),
         "compactions": _compactions(episodes),
+        **_api_equivalent_summary(episodes),
         "mean_wall_seconds": round(
             sum(float(episode["harness_run"]["wall_seconds"]) for episode in episodes) / len(episodes), 1
         ),

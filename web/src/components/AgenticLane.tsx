@@ -50,9 +50,41 @@ function tokensPerEpisode(row: AgenticLaneRow): string | null {
   return `${compactCount(perEpisode(t.input_tokens))} in / ${compactCount(perEpisode(t.output_tokens))} out`;
 }
 
+const ESTIMATE_TITLE =
+  "API-equivalent estimate: the tokens this harness reported, priced at the model's API list price " +
+  "(cached input at the cached rate, short-context rates). Not billed: the harness reports no cost, " +
+  "and a subscription is not charged per token.";
+
 function costPerEpisode(row: AgenticLaneRow): string | null {
   const cost = row.telemetry.cost_per_episode_usd;
   return cost === null ? null : `$${fmt(cost, 3)}`;
+}
+
+/* A billed or harness-reported cost wins; without one, the list-price
+ * estimate shows, marked "est.", with its basis in the title; with neither,
+ * the cost is unmeasured. */
+function CostCell({ row }: { row: AgenticLaneRow }) {
+  const billed = costPerEpisode(row);
+  if (billed !== null) return <Measured row={row} text={billed} />;
+  const t = row.telemetry;
+  const estimate = t.api_equivalent_cost_per_episode_usd ?? null;
+  if (estimate === null) return <>unmeasured</>;
+  const covered = t.api_equivalent_cost_episodes ?? t.telemetry_episodes;
+  const longContext = t.api_equivalent_long_context_possible
+    ? " Some turns exceeded the long-context threshold, so the estimate may be low."
+    : "";
+  return (
+    <>
+      <span className="agentic-estimate" title={ESTIMATE_TITLE + longContext}>
+        ${fmt(estimate, 3)} est.
+      </span>
+      {covered < t.episodes && (
+        <span className="agentic-coverage muted">
+          {covered} of {t.episodes} episodes
+        </span>
+      )}
+    </>
+  );
 }
 
 function Measured({ row, text }: { row: AgenticLaneRow; text: string | null }) {
@@ -163,7 +195,9 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                 <th title="Harness-reported tokens, averaged over the episodes that reported them">
                   Tokens / episode
                 </th>
-                <th title="Harness-reported cost, averaged over the episodes that reported it">Cost / episode</th>
+                <th title="Harness-reported cost, averaged over the episodes that reported it. Marked est.: an API-equivalent list-price estimate for a harness that reports no cost; not billed.">
+                  Cost / episode
+                </th>
                 <th>Wall / episode</th>
                 <th title="Episodes where the harness's own tool-call count equals the server ledger, which is authoritative">
                   Ledger = harness
@@ -206,7 +240,7 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                     <Measured row={row} text={tokensPerEpisode(row)} />
                   </td>
                   <td className="numeric">
-                    <Measured row={row} text={costPerEpisode(row)} />
+                    <CostCell row={row} />
                   </td>
                   <td className="numeric">{wallMinutes(row)}</td>
                   <td className="numeric">

@@ -612,6 +612,107 @@ def test_codex_publishes_no_cost_even_for_a_priced_model_and_no_measured_zeroes(
     assert opencode._compactions([{"usage": block}, {"usage": counted["usage"]}]) is None
 
 
+def test_codex_usage_block_carries_an_api_equivalent_estimate_beside_an_unmeasured_cost() -> None:
+    """The estimate prices cached input at the cached rate and is labelled as never billed."""
+    from web.scripts.build_study import _agentic_telemetry
+
+    first = {
+        "input_tokens": 200_000,
+        "cached_input_tokens": 0,
+        "output_tokens": 4_000,
+        "reasoning_output_tokens": 1_000,
+    }
+    # Running totals: this turn's input grew by 1,000,000 - 200,000 = 800,000 (> 272K).
+    second = {
+        "input_tokens": 1_000_000,
+        "cached_input_tokens": 700_000,
+        "cache_write_input_tokens": 100_000,
+        "output_tokens": 20_000,
+        "reasoning_output_tokens": 8_000,
+    }
+    lines = [
+        json.dumps({"type": "thread.started", "thread_id": "t"}),
+        json.dumps({"type": "turn.completed", "usage": first}),
+        json.dumps({"type": "thread.started", "thread_id": "t"}),
+        json.dumps({"type": "turn.completed", "usage": second}),
+    ]
+    telemetry = parse_codex_events(lines)
+    assert telemetry["max_turn_input_tokens"] == 800_000
+    block = codex.usage_block(telemetry, model="gpt-6-luna", decisions=20)
+    assert block["cost_usd"] is None and block["cost_decisions"] == 0
+    harness = block["harness"]
+    # 200k uncached at 0.10 + 700k cached at 0.01 + 100k written at 0.125 + 20k out at 0.50.
+    assert harness["api_equivalent_cost_usd"] == pytest.approx(0.02 + 0.007 + 0.0125 + 0.01)
+    assert harness["cost_basis"] == "api-list-price-estimate"
+    assert harness["billed_by_harness"] is False and harness["cost_reported_by_harness"] is False
+    assert harness["pricing_source"] == {
+        "key": "gpt-6-luna",
+        "verified": "2026-09-23",
+        "cached_input_rate": "cached",
+        "cache_write_rate": "cache-write",
+    }
+    assert harness["long_context_requests_possible"] is True
+    short = parse_codex_events(lines[:2])
+    assert (
+        codex.usage_block(short, model="gpt-6-luna", decisions=20)["harness"]["long_context_requests_possible"] is False
+    )
+
+    # No usage, or an unpriced model: no estimate, and still no cost.
+    for silent in (
+        codex.usage_block(parse_codex_events([]), model="gpt-6-luna", decisions=20),
+        codex.usage_block(telemetry, model="mystery-model-9000", decisions=20),
+    ):
+        assert silent["cost_usd"] is None
+        assert silent["harness"]["api_equivalent_cost_usd"] is None and silent["harness"]["pricing_source"] is None
+        assert silent["harness"]["billed_by_harness"] is False
+
+    # OpenCode's block is unchanged: no estimate fields.
+    assert (
+        "api_equivalent_cost_usd"
+        not in opencode.usage_block(telemetry | {"max_output_tokens_per_call": 0}, model="gpt-6-luna", decisions=20)[
+            "harness"
+        ]
+    )
+
+    # The site shows the estimate and never folds it into cost_usd.
+    episode = {"agentic": {"tool_calls": 8}, "harness_run": {"wall_seconds": 1.0}, "usage": block}
+    site = _agentic_telemetry([episode, copy.deepcopy(episode)])
+    assert site["cost_usd"] is None and site["cost_per_episode_usd"] is None
+    assert site["api_equivalent_cost_usd"] == pytest.approx(2 * 0.0495)
+    assert site["api_equivalent_cost_per_episode_usd"] == pytest.approx(0.0495)
+    assert site["api_equivalent_cost_episodes"] == 2 and site["api_equivalent_long_context_possible"] is True
+    # A billed cost stays the only cost_usd; an OpenCode row has no estimate.
+    billed = opencode.usage_block(
+        parse_codex_events(lines) | {"max_output_tokens_per_call": 0, "cost_usd": 0.5}, model="x", decisions=20
+    )
+    other = _agentic_telemetry([{"agentic": {}, "harness_run": {}, "usage": billed}])
+    assert other["cost_usd"] == 0.5 and other["api_equivalent_cost_usd"] is None
+    assert other["api_equivalent_cost_episodes"] == 0
+
+    summary = opencode._agentic_summary(
+        [
+            {
+                "agentic": {"tool_calls": 1, "tool_calls_by_tool": {}, "phases_ended_by": {}},
+                "harness_run": {"wall_seconds": 1.0},
+                "usage": block,
+            }
+        ]
+        * 2
+    )
+    assert summary["api_equivalent_cost_usd"] == pytest.approx(0.099)
+    assert summary["api_equivalent_cost_episodes"] == 2 and summary["api_equivalent_long_context_possible"] is True
+    opencode_summary = opencode._agentic_summary(
+        [
+            {
+                "agentic": {"tool_calls": 1, "tool_calls_by_tool": {}, "phases_ended_by": {}},
+                "harness_run": {"wall_seconds": 1.0},
+                "usage": billed,
+            }
+        ]
+    )
+    assert "api_equivalent_cost_usd" not in opencode_summary
+
+
 @pytest.mark.parametrize(
     "message",
     [

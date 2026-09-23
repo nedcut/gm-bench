@@ -41,13 +41,19 @@ source at tag ``rust-v0.156.1``: ``codex-rs/exec/src/exec_events.rs``,
   (``last_token_info_from_rollout``), so the episode total is the last
   ``turn.completed`` per thread, not a sum over invocations. A final
   invocation that fails before completing its turn is not in that total.
-  ``input_tokens`` includes ``cached_input_tokens``. The stream reports no
-  cost, no per-model-call records and no compaction events, so the usage
-  block's ``cost_usd`` is ``None`` even for a model ``gm_bench/pricing.json``
-  prices (a list-price estimate would charge cached input at the full rate,
-  and a ChatGPT plan is not billed per token), ``api_calls`` counts
-  completed turns, ``max_output_tokens_per_call`` is left out, and
-  ``compactions`` is ``None`` (unmeasured, not zero).
+  ``input_tokens`` includes ``cached_input_tokens`` and
+  ``cache_write_input_tokens``, and ``output_tokens`` includes
+  ``reasoning_output_tokens`` (``codex-api/src/sse/responses.rs`` copies the
+  Responses API's ``input_tokens``, ``output_tokens`` and their ``*_details``).
+  The stream reports no cost, no per-model-call records and no compaction
+  events, so the usage block's ``cost_usd`` is ``None`` (a ChatGPT plan is
+  not billed per token; nothing was charged that the harness could report),
+  ``api_calls`` counts completed turns, ``max_output_tokens_per_call`` is
+  left out, and ``compactions`` is ``None`` (unmeasured, not zero). What the
+  same tokens would cost at API list price, with cached input at the cached
+  rate, is published beside it as ``harness.api_equivalent_cost_usd``
+  (``cost_basis = "api-list-price-estimate"``, ``billed_by_harness =
+  false``), never as ``cost_usd``.
 - **Resume.** ``codex exec resume [OPTIONS] <session id> <prompt>`` continues
   the same session with its context, so a nudge or stall retry resumes the
   thread named by ``thread.started``. ``resume`` has no ``--sandbox`` or
@@ -140,6 +146,7 @@ from gm_bench.agentic import opencode
 from gm_bench.agentic.container import CODEX_IMAGE, HOME, ensure_image
 from gm_bench.agentic.harness import HarnessDriver
 from gm_bench.agentic.opencode import PROXY_FILENAME, HarnessLaunch, stage_proxy
+from gm_bench.telemetry import api_equivalent_cost_usd
 
 HARNESS_NAME = "codex"
 CODEX_HOME_DIRNAME = ".codex"
@@ -153,6 +160,8 @@ CONTAINER_CODEX_HOME = f"{HOME}/{CODEX_HOME_DIRNAME}"
 # Without it, ``codex exec`` (approval policy never) refuses every GM-Bench call in workspace-write.
 TOOLS_APPROVAL_MODE = "approve"
 REDACTED = "[REDACTED]"
+# ``harness.cost_basis`` of the API-equivalent estimate: list price, not a bill.
+COST_BASIS = "api-list-price-estimate"
 
 # A terminal ``turn.failed``/``error`` message that reads as a transient provider failure.
 _RETRYABLE_MESSAGE_RE = re.compile(
@@ -314,9 +323,11 @@ def parse_codex_events(lines: list[str]) -> dict[str, Any]:
     blocked, cancelled) never reached the server; it is counted in
     ``harness_tool_calls_skipped``, not as a tool event. Tokens are the last
     ``turn.completed`` usage per thread, because that usage is the thread's
-    running total. ``model_calls`` counts completed turns (the stream has no
-    per-call records); cost, the largest single-call output, and compactions
-    are not reported (``None``).
+    running total; ``max_turn_input_tokens`` is the largest growth of one
+    thread's input total between consecutive ``turn.completed`` events, an
+    upper bound on any one request's input. ``model_calls`` counts completed
+    turns (the stream has no per-call records); cost, the largest single-call
+    output, and compactions are not reported (``None``).
     """
     session_id: str | None = None
     thread: str | None = None
@@ -325,7 +336,7 @@ def parse_codex_events(lines: list[str]) -> dict[str, Any]:
     skipped: dict[str, int] = {}
     invocation_items: dict[str, str] = {}
     invocation_skipped: dict[str, str] = {}
-    turns_started = turns_completed = turns_failed = errors = 0
+    turns_started = turns_completed = turns_failed = errors = max_turn_input = 0
     event_types: dict[str, int] = {}
 
     def close_invocation() -> None:
@@ -348,6 +359,9 @@ def parse_codex_events(lines: list[str]) -> dict[str, Any]:
         elif kind == "turn.completed":
             turns_completed += 1
             if isinstance(event.get("usage"), dict):
+                previous = opencode._int((totals.get(thread) or {}).get("input_tokens"))
+                delta = opencode._int(event["usage"].get("input_tokens")) - previous
+                max_turn_input = max(max_turn_input, delta)
                 totals[thread] = event["usage"]
         elif kind == "turn.failed":
             turns_failed += 1
@@ -377,6 +391,9 @@ def parse_codex_events(lines: list[str]) -> dict[str, Any]:
         "reasoning_tokens": total("reasoning_output_tokens"),
         "cached_input_tokens": total("cached_input_tokens"),
         "cache_write_tokens": total("cache_write_input_tokens"),
+        # The largest one-turn growth of a thread's input total: an upper bound on
+        # any single request's input (a turn may make several model requests).
+        "max_turn_input_tokens": max_turn_input,
         # Not observable: the stream has no per-call records.
         "max_output_tokens_per_call": None,
         "cost_usd": None,
@@ -428,9 +445,16 @@ def usage_block(telemetry: dict[str, Any], *, model: str, decisions: int) -> dic
     """The shared usage block, labelled for what the Codex stream can and cannot report.
 
     Codex reports no cost, so ``cost_usd`` is ``None`` (unmeasured) and
-    ``cost_decisions`` 0: no ``pricing.json`` estimate stands in for it,
-    because one would charge cached input at the full input rate and bill a
-    ChatGPT plan per token.
+    ``cost_decisions`` 0. Beside it, under ``harness``, sits the
+    API-equivalent estimate (:func:`gm_bench.telemetry.api_equivalent_cost_usd`):
+    the episode's tokens at ``pricing.json`` list prices, cached input at the
+    cached rate, short-context rates throughout. It is what the tokens would
+    have cost on the API, not what anyone was billed: ``billed_by_harness`` is
+    false and ``cost_basis`` says so. ``long_context_requests_possible`` is
+    true when some turn's input grew past the model's long-context threshold
+    (then a request may have been billed at the higher tier and the estimate
+    may be low); Codex reports turns, not requests, so it cannot be exact.
+    An unpriced model, or a session with no usage, gets ``None``.
     """
     usage = opencode.usage_block(telemetry, model=model, decisions=decisions, harness=HARNESS_NAME)
     usage["cost_usd"] = None
@@ -443,9 +467,47 @@ def usage_block(telemetry: dict[str, Any], *, model: str, decisions: int) -> dic
             "cost_reported_by_harness": False,
             # mcp_tool_call items Codex refused before dispatch; never in the ledger.
             "tool_calls_skipped": telemetry.get("harness_tool_calls_skipped") or {},
+            **api_equivalent_fields(telemetry, model),
         }
     )
     return usage
+
+
+def api_equivalent_fields(telemetry: dict[str, Any], model: str) -> dict[str, Any]:
+    """The ``harness`` fields that carry the API-equivalent estimate (``None`` values when there is none)."""
+    estimate = None
+    if telemetry.get("model_calls"):
+        estimate = api_equivalent_cost_usd(
+            {
+                "input_tokens": telemetry.get("input_tokens", 0),
+                "cached_input_tokens": telemetry.get("cached_input_tokens", 0),
+                "cache_write_tokens": telemetry.get("cache_write_tokens", 0),
+                "output_tokens": telemetry.get("output_tokens", 0),
+                "max_request_input_tokens": telemetry.get("max_turn_input_tokens"),
+            },
+            model,
+        )
+    if estimate is None:
+        return {
+            "api_equivalent_cost_usd": None,
+            "cost_basis": None,
+            "billed_by_harness": False,
+            "pricing_source": None,
+            "long_context_requests_possible": None,
+        }
+    return {
+        "api_equivalent_cost_usd": estimate["usd"],
+        "cost_basis": COST_BASIS,
+        "billed_by_harness": False,
+        # The pricing.json models key matched (GM_BENCH_PRICING may override it) and when it was checked.
+        "pricing_source": {
+            "key": estimate["pricing_key"],
+            "verified": estimate["verified"],
+            "cached_input_rate": estimate["cached_input_rate"],
+            "cache_write_rate": estimate["cache_write_rate"],
+        },
+        "long_context_requests_possible": estimate["long_context_requests_possible"],
+    }
 
 
 # -- the driver ---------------------------------------------------------------

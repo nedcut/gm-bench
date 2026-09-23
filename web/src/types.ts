@@ -288,6 +288,15 @@ export interface AgenticLaneRow {
     cached_input_tokens: number | null;
     cost_usd: number | null;
     cost_per_episode_usd: number | null;
+    /** What the reported tokens would cost at API list price (cached input at the cached
+     * rate), for a harness that reports no billed cost (Codex). An estimate, never billed;
+     * null when no episode carries one. Never folded into cost_usd. */
+    api_equivalent_cost_usd?: number | null;
+    api_equivalent_cost_per_episode_usd?: number | null;
+    api_equivalent_cost_episodes?: number;
+    /** Some turn's input grew past the model's long-context threshold, so a request may
+     * have been billed at the higher tier and the short-context estimate may be low. */
+    api_equivalent_long_context_possible?: boolean;
   };
   /** Server ledger (authoritative) versus the harness's own tool-event count. */
   agreement: {

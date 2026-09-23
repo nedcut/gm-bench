@@ -128,6 +128,14 @@ const pinnedFixtureIssues = withAgentic((_, row) => Object.assign(row, { unpinne
 if (pinnedFixtureIssues.length !== 0) {
   throw new Error(`A valid pinned agentic fixture row was rejected: ${pinnedFixtureIssues.join("; ")}`);
 }
+const estimatedFixtureIssues = withAgentic((_, row) =>
+  Object.assign(row, {
+    telemetry: { cost_usd: null, api_equivalent_cost_usd: 1.23, api_equivalent_cost_per_episode_usd: 0.04 },
+  }),
+);
+if (estimatedFixtureIssues.length !== 0) {
+  throw new Error(`An agentic row with an API-equivalent estimate was rejected: ${estimatedFixtureIssues.join("; ")}`);
+}
 const agenticMustReject: Array<[string, (data: Leaderboard, row: AgenticLaneRow) => void]> = [
   ["a smoke row", (_, row) => ((row as { grade: string }).grade = "smoke")],
   ["31 seed groups", (_, row) => (row.panel.distinct_seeds = 31)],
@@ -210,6 +218,14 @@ const agenticMustReject: Array<[string, (data: Leaderboard, row: AgenticLaneRow)
   ["a row with no unpinned flag", (_, row) => delete (row as { unpinned?: boolean }).unpinned],
   ["a pinned row with no pin", (_, row) => (row.unpinned = false)],
   ["a duplicate row", (data, row) => data.agentic_lane?.push(structuredClone(row))],
+  [
+    "an API-equivalent estimate equal to a billed cost",
+    (_, row) => Object.assign(row, { telemetry: { cost_usd: 1.23, api_equivalent_cost_usd: 1.23 } }),
+  ],
+  [
+    "a negative API-equivalent estimate",
+    (_, row) => Object.assign(row, { telemetry: { cost_usd: null, api_equivalent_cost_usd: -1 } }),
+  ],
 ];
 for (const [label, edit] of agenticMustReject) {
   if (withAgentic(edit).length === 0) {

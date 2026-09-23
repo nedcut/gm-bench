@@ -445,9 +445,8 @@ reasoning), restored on resume, so the episode's tokens are the last total
 of its session. A final invocation that fails before its turn completes is
 not in that total. The stream reports no cost, no per-model-call records,
 and no compaction events: `usage.cost_usd` is `null` and `cost_decisions`
-0 even for a model `gm_bench/pricing.json` prices (a list-price estimate
-would charge cached input at the full rate, and a ChatGPT plan is not
-billed per token), so a Codex row publishes no cost; `api_calls` counts
+0 (a ChatGPT plan is not billed per token, and Codex reports no charge),
+so a Codex row publishes no cost; `api_calls` counts
 completed turns (`usage.harness.api_calls_are`);
 `max_output_tokens_per_call` is left out of the episode's usage; and
 `compactions` is `null`, unmeasured, in the episode, the run's
@@ -462,6 +461,45 @@ proxy from a shell are in the ledger but not in the harness count, and the
 check fails. `agentic-validate` recounts them from the retained
 `codex-events.jsonl` against the replayed ledger. The staged config
 is kept as `harness_run.harness_config`.
+
+API-equivalent cost estimate. Beside the unmeasured cost, a Codex episode
+records what its tokens would have cost on the OpenAI API at list price,
+the figure other tools show for a subscription run:
+
+- `usage.harness.api_equivalent_cost_usd`: uncached input (`input_tokens`
+  minus cached minus cache-write tokens, since Codex reports both inside
+  `input_tokens`) at `input_per_mtok`, cached input at
+  `cached_input_per_mtok`, cache writes at `cache_write_per_mtok`, and
+  output at `output_per_mtok`. Reasoning is not added again: Codex copies
+  the Responses API's `output_tokens`, which already includes reasoning.
+  Prices come from `gm_bench/pricing.json` (or a `GM_BENCH_PRICING`
+  override) by exact id, then longest prefix; a provider default never
+  applies. An unpriced model, or an episode with no usage, gets `null`.
+- `cost_basis: "api-list-price-estimate"`, `billed_by_harness: false`, and
+  `pricing_source` (`key` matched, the entry's `verified` date, and whether
+  cached input and cache writes were priced at their own rates or, when the
+  entry has none, at the input rate).
+- `long_context_requests_possible`: OpenAI prices a request with more than
+  272K input tokens (`long_context_input_tokens` in the entry) at 2x input
+  and cache rates and 1.5x output. Codex reports running totals per turn,
+  and a turn can make several model requests, so per-request size is not
+  observable. The estimate always uses short-context rates, and this flag
+  is `true` when some turn's input grew by more than the threshold (some
+  request may then have been billed at the long-context tier, so the
+  estimate may be low), `false` when no turn did (so no request can have),
+  and `null` when the entry names no threshold.
+
+What it is not: a bill, a measured cost, or a number comparable to an
+OpenCode row's `cost_usd`. It ignores Batch, Flex, Fast mode, and regional
+processing prices, and it is only as current as the entry's `verified`
+date. It never feeds `cost_usd` or `cost_decisions`. The run's
+`agentic_summary` sums it over the episodes that have one
+(`api_equivalent_cost_usd`, `api_equivalent_cost_episodes`,
+`api_equivalent_long_context_possible`); the compact artifact keeps the
+episode fields; and the site shows the cost cell as `$0.123 est.` with the
+basis in its tooltip when a row has an estimate but no billed cost, or
+`unmeasured` when it has neither. The site data check rejects a row whose
+estimate equals its billed `cost_usd`.
 
 The Keychain panel launcher passes `--harness codex` and
 `--codex-auth-file` through unchanged.
@@ -563,8 +601,8 @@ score.
   resume`), no host Codex state in the harness, the tool-approval key (the
   stand-in refuses every call without it, as Codex does, and the
   agreement check then fails on shell-driven proxy calls), credential
-  redaction from the run directory, no cost or compaction count published
-  for Codex, the event parser and stall rule, the Codex image, the container
+  redaction from the run directory, no billed cost or compaction count
+  published for Codex and the API-equivalent estimate kept apart from it, the event parser and stall rule, the Codex image, the container
   auth hand-off (only in the volume, never on a command line) against a
   stand-in `docker`, and CLI dispatch
 - `tests/test_agentic_conformance.py`: the server driven by the official
