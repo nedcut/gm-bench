@@ -656,15 +656,17 @@ def test_tcp_transport_needs_the_run_secret_and_bridges_through_the_real_proxy(t
         host, port = server.address
         assert host == "127.0.0.1" and port > 0
 
-        # No secret, then a wrong one: both closed unserved and counted.
-        for opener in (b'{"jsonrpc":"2.0","id":1,"method":"ping"}\n', b"wrong\n"):
+        # No secret, a wrong one, and bytes that are not UTF-8: all closed unserved and counted.
+        for opener in (b'{"jsonrpc":"2.0","id":1,"method":"ping"}\n', b"wrong\n", b"\xff\xfe\n"):
             with socket.create_connection((host, port), timeout=5) as raw:
                 raw.sendall(opener + b'{"jsonrpc":"2.0","id":2,"method":"ping"}\n')
                 assert raw.recv(4096) == b""
         deadline = time.monotonic() + 5
-        while server.rejected < 2 and time.monotonic() < deadline:
+        while server.rejected < 3 and time.monotonic() < deadline:
             time.sleep(0.05)
-        assert server.rejected == 2
+        assert server.rejected == 3
+        # Refused dials are not proxy connections.
+        assert server.connections == 0
 
         proxy = tmp_path / "gm_bench_proxy.py"
         proxy.write_text(Path(_proxy.__file__).read_text())
@@ -688,9 +690,19 @@ def test_tcp_transport_needs_the_run_secret_and_bridges_through_the_real_proxy(t
         process.stdin.close()
         assert process.wait(timeout=10) == 0
         assert episode.tool_counts == {"get_status": 1}
-        assert server.rejected == 2
-    finally:
+        assert (server.connections, server.rejected) == (1, 3)
+
+        # A dial still silent when the driver stops is hung up on, not counted as refused.
+        idle = socket.create_connection((host, port), timeout=5)
+        deadline = time.monotonic() + 5
+        while server.open_connections < 1 and time.monotonic() < deadline:
+            time.sleep(0.05)
         assert server.stop() is True
+        assert idle.recv(1) == b""
+        idle.close()
+        assert (server.connections, server.rejected) == (1, 3)
+    finally:
+        server.stop()
         episode.close()
 
 

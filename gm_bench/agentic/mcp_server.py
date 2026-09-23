@@ -182,7 +182,10 @@ class SocketMcpServer:
     ``start``). TCP requires ``secret``: any local process can dial a loopback
     port, so a connection that does not send the secret as its first line
     within ``AUTH_TIMEOUT_SECONDS`` is closed unserved and counted in
-    ``rejected``.
+    ``rejected`` (a connection that ``stop()`` cuts off before it presented
+    anything is not). ``connections`` counts the connections that were
+    served: every one on a Unix socket, and on TCP those that presented the
+    secret.
     """
 
     def __init__(
@@ -252,7 +255,6 @@ class SocketMcpServer:
                 if self._stop.is_set():
                     _close_quietly(conn)
                     break
-                self.connections += 1
                 thread = threading.Thread(target=self._serve_connection, args=(conn,), daemon=True)
                 self._live[thread] = conn
                 thread.start()
@@ -263,6 +265,8 @@ class SocketMcpServer:
         server = _LockedMcpServer(self.episode, self._lock, stdin=reader, stdout=writer, stderr=self.stderr)
         try:
             if self.secret is None or self._authenticated(conn, reader):
+                with self._live_lock:
+                    self.connections += 1
                 server.serve()
         except (OSError, ValueError):
             pass
@@ -279,15 +283,24 @@ class SocketMcpServer:
     def _authenticated(self, conn: socket.socket, reader: TextIO) -> bool:
         assert self.secret is not None
         conn.settimeout(AUTH_TIMEOUT_SECONDS)
+        cut_off = False
         try:
-            presented = reader.readline(4096).rstrip("\n")
+            line = reader.readline(4096)
+            cut_off = line == ""
+            presented = line.rstrip("\n")
+        except ValueError:
+            presented = ""  # an opener that is not UTF-8: a failed presentation
         except OSError:
-            presented = ""
+            presented = ""  # the timeout, or a reset
+            cut_off = True
         finally:
             conn.settimeout(None)
         if hmac.compare_digest(presented.encode("utf-8"), self.secret.encode("utf-8")):
             return True
         with self._live_lock:
+            if cut_off and self._stop.is_set():
+                # stop() hung up on it before it presented anything; not a stray dial.
+                return False
             self.rejected += 1
         self.stderr.write("gm-bench mcp: closed a connection that did not present the run secret\n")
         return False
