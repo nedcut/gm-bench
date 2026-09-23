@@ -181,14 +181,15 @@ the fresh redaction and requires it to be identical.
 A hand edit that shifts the pick-trader mean and the lift together stays
 internally consistent, and CI never has the raw run. But `pick-trader` and
 `random` are deterministic, so on the one frozen panel their 5-season means
-are constants every panel row shares. After the first panel row passes
-`agentic-validate --raw`, record its `reference.mean_score` and
-`reference.floor.mean_score` under `reference_scores.mean_scores` in
-`config/bench_v2_lane.json`; they are aggregates the row already publishes.
-From then on `agentic-validate`, the site build, and the site data check
-reject a panel row whose reference or floor mean differs. Until they are
-recorded, validation warns that the reference is unpinned, and the site
-build and data check require every panel row at a season count to agree.
+are constants every panel row shares. Those means are pinned under
+`reference_scores.mean_scores` in `config/bench_v2_lane.json`: pick-trader
+249.18 and random 90.367, computed on 2026-09-23 directly on the escrowed
+32-seed panel at 5 seasons, uncached and in-process, with only the two
+aggregates printed. `agentic-validate`, the site build, and the site data
+check reject a 5-season panel row whose reference or floor mean differs.
+For any other season count nothing is pinned: validation warns that the
+reference is unpinned, and the site build and data check require every
+panel row at that season count to agree.
 
 ## Private panel
 

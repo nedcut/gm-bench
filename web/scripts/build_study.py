@@ -337,13 +337,19 @@ def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         wall_seconds += float(harness_run.get("wall_seconds") or 0.0)
         compactions += int(((episode.get("usage") or {}).get("harness") or {}).get("compactions") or 0)
 
+    def _reported_values(key: str) -> list[float]:
+        # Only episodes whose harness reported this key count; a missing value
+        # stays unmeasured (None), never zero.
+        values = [(e.get("usage") or {}).get(key) for e in reported]
+        return [float(v) for v in values if v is not None]
+
     def _reported_sum(key: str) -> float | None:
-        if not reported:
-            return None
-        return sum(float((e.get("usage") or {}).get(key) or 0) for e in reported)
+        values = _reported_values(key)
+        return sum(values) if values else None
 
     count = len(episodes) or 1
-    cost = _reported_sum("cost_usd")
+    cost_values = _reported_values("cost_usd")
+    cost = sum(cost_values) if cost_values else None
     return {
         "episodes": len(episodes),
         "tool_calls": tool_calls,
@@ -363,7 +369,7 @@ def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "reasoning_tokens": _int_or_none(_reported_sum("reasoning_tokens")),
         "cached_input_tokens": _int_or_none(_reported_sum("cached_input_tokens")),
         "cost_usd": None if cost is None else round(cost, 4),
-        "cost_per_episode_usd": None if cost is None else round(cost / len(reported), 4),
+        "cost_per_episode_usd": None if cost is None else round(cost / len(cost_values), 4),
     }
 
 

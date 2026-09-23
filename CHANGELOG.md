@@ -67,9 +67,10 @@ Added 2026-09-20. Nothing published changes.
   row mean minus pick-trader's, an interval that excludes its lift or is
   wider than its spread allows, a 0 or 1 win rate against the lift's sign);
   `agentic-validate --raw` recomputes it. `config/bench_v2_lane.json` gains
-  `reference_scores`, the frozen panel's pick-trader and random means, to be
-  recorded from the first `--raw`-validated panel row; once recorded every
-  panel row must carry them, and until then all panel rows must agree. The site's 2.0 section shows it as
+  `reference_scores`, the frozen panel's 5-season pick-trader (249.18) and
+  random (90.367) means, computed directly on the escrowed panel; every
+  5-season panel row must carry them, and rows at any other season count
+  must agree with each other. The site's 2.0 section shows it as
   "vs pick-trader (same seeds)", and the results-data validator now requires
   that on-panel reference and rejects any other p-value on a 2.0 row.
 

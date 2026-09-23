@@ -216,6 +216,22 @@ def test_unreported_telemetry_is_unmeasured_not_zero(tmp_path: Path) -> None:
     assert telemetry["tool_calls"] > 0
 
 
+def test_tokens_reported_without_cost_leave_cost_unmeasured(tmp_path: Path) -> None:
+    """A harness that reports tokens but not cost publishes no cost, not $0."""
+    partial = _panel_fixture()
+    for episode in partial["episodes"]:
+        episode["usage"]["cost_usd"] = None
+    partial["episodes"][0]["usage"]["cost_usd"] = 0.5
+    (row,) = _build(tmp_path, ("partial.json", partial))["agentic_lane"]
+    telemetry = row["telemetry"]
+    assert telemetry["input_tokens"] is not None
+    assert telemetry["cost_usd"] == 0.5 and telemetry["cost_per_episode_usd"] == 0.5
+    for episode in partial["episodes"]:
+        episode["usage"]["cost_usd"] = None
+    (row,) = _build(tmp_path / "none", ("partial.json", partial))["agentic_lane"]
+    assert row["telemetry"]["cost_usd"] is None and row["telemetry"]["cost_per_episode_usd"] is None
+
+
 def test_rows_are_ordered_by_pinning_and_identity_never_by_score(tmp_path: Path) -> None:
     low = _panel_fixture(model="zz/low-scorer")
     high = _panel_fixture(model="aa/high-scorer")
