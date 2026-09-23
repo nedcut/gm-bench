@@ -603,3 +603,89 @@ def test_guard_watch_arm_remembers_a_phase_that_expired_without_a_stop(
     reply = episode.call_tool("get_status", {})
     assert reply["ok"] is False and "phase guard" in reply["message"]
     assert episode.phase_log[-1]["ended_by"] == "guard"
+
+
+def test_socket_server_refuses_a_connection_accepted_after_stop_began(tmp_path: Path) -> None:
+    """A connection accepted while stop() is starting is closed, never served (CodeRabbit on #139)."""
+    from gm_bench.agentic.episode import AgenticEpisode
+
+    episode = AgenticEpisode(11, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
+    server = SocketMcpServer(episode, tmp_path / "unused")
+    ours, theirs = socket.socketpair()
+
+    class _Listener:
+        def accept(self):
+            server._stop.set()  # stop() begins between accept() returning and admission
+            return theirs, None
+
+    server._listener = _Listener()
+    server._accept_loop()
+    assert server.connections == 0 and server.open_connections == 0
+    ours.settimeout(5)
+    assert ours.recv(1) == b""  # hung up on, not served
+    ours.close()
+
+    # stop() sets the flag under the admission lock, so admission and the
+    # stop snapshot cannot interleave: while the lock is held, stop() waits.
+    other = SocketMcpServer(episode, tmp_path / "unused-2")
+    other._live_lock.acquire()
+    stopper = threading.Thread(target=other.stop)
+    stopper.start()
+    time.sleep(0.2)
+    assert not other._stop.is_set()
+    other._live_lock.release()
+    stopper.join(timeout=5)
+    assert other._stop.is_set()
+    episode.close()
+
+
+def test_tcp_transport_needs_the_run_secret_and_bridges_through_the_real_proxy(tmp_path: Path) -> None:
+    """The container transport: loopback TCP, the proxy presents the secret from the file beside it."""
+    from gm_bench.agentic import _proxy
+    from gm_bench.agentic.episode import AgenticEpisode
+
+    episode = AgenticEpisode(11, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
+    with pytest.raises(ValueError):
+        SocketMcpServer(episode, ("127.0.0.1", 0))
+    server = SocketMcpServer(episode, ("127.0.0.1", 0), secret="s3cret-run-token")
+    server.start()
+    try:
+        host, port = server.address
+        assert host == "127.0.0.1" and port > 0
+
+        # No secret, then a wrong one: both closed unserved and counted.
+        for opener in (b'{"jsonrpc":"2.0","id":1,"method":"ping"}\n', b"wrong\n"):
+            with socket.create_connection((host, port), timeout=5) as raw:
+                raw.sendall(opener + b'{"jsonrpc":"2.0","id":2,"method":"ping"}\n')
+                assert raw.recv(4096) == b""
+        deadline = time.monotonic() + 5
+        while server.rejected < 2 and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert server.rejected == 2
+
+        proxy = tmp_path / "gm_bench_proxy.py"
+        proxy.write_text(Path(_proxy.__file__).read_text())
+        (tmp_path / _proxy.SECRET_FILENAME).write_text("s3cret-run-token\n")
+        process = subprocess.Popen(
+            [sys.executable, str(proxy), f"{host}:{port}"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            text=True,
+            cwd=tmp_path,
+            env={"PATH": os.environ.get("PATH", "")},
+        )
+        assert process.stdin and process.stdout
+        process.stdin.write(json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}) + "\n")
+        process.stdin.flush()
+        assert json.loads(process.stdout.readline())["result"]["serverInfo"]["name"] == "gm-bench"
+        call = {"name": "get_status", "arguments": {}}
+        process.stdin.write(json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": call}) + "\n")
+        process.stdin.flush()
+        assert json.loads(process.stdout.readline())["result"]["isError"] is False
+        process.stdin.close()
+        assert process.wait(timeout=10) == 0
+        assert episode.tool_counts == {"get_status": 1}
+        assert server.rejected == 2
+    finally:
+        assert server.stop() is True
+        episode.close()
