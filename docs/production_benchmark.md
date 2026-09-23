@@ -335,10 +335,15 @@ contract, and it changes only when a new contract needs it to:
   against the committed digests before it runs anything
   (`scripts/run_sota_v5_panel_from_keychain.py`,
   `scripts/run_bench_v2_panel_from_keychain.py`). The older
-  `GM_BENCH_PRIVATE_SEEDS` environment path still works for the 1.0 runner,
-  but the Keychain launcher is the committed procedure. Nothing prints a seed;
-  the launchers keep seeds out of command lines, the environment, and open
-  file names.
+  1.0 runner still takes the seeds through the `GM_BENCH_PRIVATE_SEEDS`
+  environment variable, which the v5 Keychain launcher sets in its own
+  process after verifying the record; a same-user process can read another
+  process's environment, so that path is not a sandbox, only a way to keep
+  seeds out of files and shell history. The 2.0 launcher goes further and
+  hands seeds to the driver over standard input, keeping them out of command
+  lines, the environment, and open file names, and the 2.0 panel runs the
+  harness in a container so the driver process is out of the agent's reach
+  either way (`docs/agentic_lane.md`). Nothing prints a seed.
 - **Shared across contracts on purpose.** GM-Bench 2.0 reuses the 29 `sota-v5`
   seeds as its first 29 execution positions and adds three, so a model's 1.0
   and 2.0 scores pair per seed (`docs/bench_v2_spec.md`, Panel design). A
