@@ -227,22 +227,30 @@ class HarnessLaunch:
         self.container: ContainerHarness | None = None
         self._socket_dir: Path | None = None
         self._secret: str | None = None
-        if isolation == "container":
-            assert image is not None
-            self.container = ContainerHarness(image, self.scratch, docker=docker, env=self.env)
-            self._secret = secrets.token_urlsafe(32)
-            self.server = SocketMcpServer(episode, ("127.0.0.1", 0), secret=self._secret)
-            self.workdir = WORKDIR
-            self.transport = "tcp"
-        else:
-            # The socket lives in its own private directory with a short path
-            # (macOS caps Unix socket paths at 104 bytes) and mode 0600,
-            # outside the scratch.
-            self._socket_dir = Path(tempfile.mkdtemp(prefix="gmb-"))
-            self.server = SocketMcpServer(episode, self._socket_dir / "s")
-            self.workdir = str(self.scratch)
-            self.transport = "unix"
-        self.server.start()
+        try:
+            if isolation == "container":
+                assert image is not None
+                self.container = ContainerHarness(image, self.scratch, docker=docker, env=self.env)
+                self._secret = secrets.token_urlsafe(32)
+                self.server = SocketMcpServer(episode, ("127.0.0.1", 0), secret=self._secret)
+                self.workdir = WORKDIR
+                self.transport = "tcp"
+            else:
+                # The socket lives in its own private directory with a short
+                # path (macOS caps Unix socket paths at 104 bytes) and mode
+                # 0600, outside the scratch.
+                self._socket_dir = Path(tempfile.mkdtemp(prefix="gmb-"))
+                self.server = SocketMcpServer(episode, self._socket_dir / "s")
+                self.workdir = str(self.scratch)
+                self.transport = "unix"
+            self.server.start()
+        except BaseException:
+            if self.container is not None:
+                self.container.close()
+            for directory in (self._socket_dir, self.scratch):
+                if directory is not None:
+                    shutil.rmtree(directory, ignore_errors=True)
+            raise
 
     def prepare(self) -> None:
         """Prove the sandbox, then stage the proxy and config. Raises ``SandboxError``."""
