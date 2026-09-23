@@ -208,6 +208,8 @@ def compact_agentic_run(
         "seasons": raw.get("seasons"),
         "phase_guard_seconds": raw.get("phase_guard_seconds"),
         "max_nudges": raw.get("max_nudges"),
+        # Absent from runs recorded before the driver retried provider stalls.
+        **{key: raw[key] for key in ("max_provider_stalls", "max_provider_stall_wait_seconds") if key in raw},
         "summary": raw.get("summary"),
         "agentic_summary": raw.get("agentic_summary"),
         "episodes": episodes,

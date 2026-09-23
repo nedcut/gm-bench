@@ -68,12 +68,13 @@ DEFAULT_MAX_NUDGES = 20
 # way a model that stops does. When a run's last event is such an error (a
 # "provider stall") the driver waits and resumes the session instead of
 # counting the relaunch as a nudge: exponential backoff from 60 s, doubling,
-# capped at 600 s, at most 8 retries and 45 minutes of waiting per episode.
-# Past either budget a stall is treated like any other harness exit.
+# capped at 600 s, at most 48 retries and 6 hours of waiting per episode, so a
+# run can wait out a provider's quota window (the wait is off the phase guard
+# clock). Past either budget a stall is treated like any other harness exit.
 PROVIDER_STALL_BACKOFF_START_SECONDS = 60.0
 PROVIDER_STALL_BACKOFF_CAP_SECONDS = 600.0
-DEFAULT_MAX_PROVIDER_STALLS = 8
-DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS = 45 * 60.0
+DEFAULT_MAX_PROVIDER_STALLS = 48
+DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS = 6 * 3600.0
 RETRYABLE_STATUS_CODES = frozenset({408, 425, 429, 500, 502, 503, 504})
 _RETRYABLE_MESSAGE_RE = re.compile(r"rate[ _-]?limit|overloaded|try again later", re.IGNORECASE)
 # What the driver itself can do. ``separate-user`` is a valid statement in a
@@ -909,6 +910,8 @@ def run_panel(
     variant: str | None = None,
     phase_guard_seconds: float = DEFAULT_PHASE_GUARD_SECONDS,
     max_nudges: int = DEFAULT_MAX_NUDGES,
+    max_provider_stalls: int = DEFAULT_MAX_PROVIDER_STALLS,
+    max_provider_stall_wait_seconds: float = DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
     progress: ProgressCallback | None = None,
     keep_scratch: bool = False,
     name_episodes_by_position: bool = False,
@@ -956,6 +959,8 @@ def run_panel(
                 variant=variant,
                 phase_guard_seconds=phase_guard_seconds,
                 max_nudges=max_nudges,
+                max_provider_stalls=max_provider_stalls,
+                max_provider_stall_wait_seconds=max_provider_stall_wait_seconds,
                 progress=progress,
                 keep_scratch=keep_scratch,
                 isolation=isolation,
@@ -978,6 +983,8 @@ def run_panel(
         "seasons": seasons,
         "phase_guard_seconds": phase_guard_seconds,
         "max_nudges": max_nudges,
+        "max_provider_stalls": max_provider_stalls,
+        "max_provider_stall_wait_seconds": max_provider_stall_wait_seconds,
         "episodes": episodes,
         "summary": summarize_episodes(episodes),
         "agentic_summary": _agentic_summary(episodes),

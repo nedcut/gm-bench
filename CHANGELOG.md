@@ -92,8 +92,11 @@ Added 2026-09-20. Nothing published changes.
   committed smoke row must be rerun on the new contract.
 - Provider stalls: a harness run that ends on a retryable provider error
   (a 429 rate limit, an overload, a 5xx) is no longer treated as the agent
-  stopping. The driver waits (60 s, doubling, capped at 600 s; at most 8
-  retries and 45 minutes per episode) and resumes the session without
+  stopping. The driver waits (60 s, doubling, capped at 600 s; by default
+  at most 48 retries and 6 hours per episode, set with
+  `--max-provider-stalls` and `--max-provider-stall-wait-seconds` and
+  recorded in `run.json` and the published row, so a panel can wait out a
+  provider's quota window) and resumes the session without
   spending a nudge, and records `provider_stalls` and
   `provider_stall_wait_seconds` per episode, carried into published rows.
   The wait is taken off the open phase's guard clock and logged in the

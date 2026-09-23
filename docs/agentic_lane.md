@@ -59,8 +59,11 @@ overload or try-again-later message) is a **provider stall**, not the agent
 stopping: the driver waits 60 s, doubling per consecutive stall up to 600 s,
 then resumes the session with the same reminder. A stall retry does not
 spend a nudge, and a retry that stalls again without a tool call does not end
-the loop; after 8 retries or 45 minutes of waiting in an episode a stall is
-handled like any other exit. The wait is not phase-guard time: the driver
+the loop. The per-episode limits default to 48 retries and 6 hours of
+waiting (`--max-provider-stalls`, `--max-provider-stall-wait-seconds`,
+recorded in `run.json` and the published row), long enough to wait out a
+free-tier quota window; with the 600 s cap the 6-hour budget binds first, at
+38 retries. Past either limit a stall is handled like any other exit. The wait is not phase-guard time: the driver
 takes it off the open phase's clock (`AgenticEpisode.exclude_from_phase_clock`,
 logged in the ledger as a `clock_pause` event that replay and the audit
 ignore, and left out of the phase's recorded `seconds`), so only time a

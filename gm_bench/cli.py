@@ -294,6 +294,20 @@ def main(argv: list[str] | None = None) -> None:
         default=20,
         help="times the driver may resume a session that stopped before the episode ended",
     )
+    from gm_bench.agentic.opencode import DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS, DEFAULT_MAX_PROVIDER_STALLS
+
+    agentic_parser.add_argument(
+        "--max-provider-stalls",
+        type=int,
+        default=DEFAULT_MAX_PROVIDER_STALLS,
+        help="retries per episode after a retryable provider error (e.g. a 429); these are not nudges",
+    )
+    agentic_parser.add_argument(
+        "--max-provider-stall-wait-seconds",
+        type=float,
+        default=DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
+        help="total backoff per episode spent waiting out provider errors (60 s doubling, capped at 600 s)",
+    )
     agentic_parser.add_argument(
         "--isolation",
         choices=["same-user", "container"],
@@ -1186,6 +1200,8 @@ def _agentic_command(args: argparse.Namespace) -> None:
         variant=args.variant,
         phase_guard_seconds=args.phase_guard_seconds,
         max_nudges=args.max_nudges,
+        max_provider_stalls=args.max_provider_stalls,
+        max_provider_stall_wait_seconds=args.max_provider_stall_wait_seconds,
         progress=_progress,
         keep_scratch=args.keep_scratch,
         name_episodes_by_position=private,

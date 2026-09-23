@@ -966,6 +966,9 @@ def _stall_episode(tmp_path, monkeypatch, script, *, before_call=None, **kwargs)
     monkeypatch.setattr(driver, "_run_harness", _scripted_harness(script, calls, before_call=before_call))
     monkeypatch.setattr(driver, "sandbox_problems", lambda scratch, env: [])
     kwargs.setdefault("sleep", sleeps.append)
+    # Limits are injected, so these tests do not move when the defaults do.
+    kwargs.setdefault("max_provider_stalls", 8)
+    kwargs.setdefault("max_provider_stall_wait_seconds", 45 * 60.0)
     result = driver.run_episode(11, model="fake/model", run_dir=tmp_path / "run", seasons=1, max_nudges=5, **kwargs)
     return result, calls, sleeps
 
@@ -1136,6 +1139,9 @@ def test_provider_stall_counts_reach_run_json_and_the_redacted_artifact(tmp_path
         "contract": driver.agentic_contract(),
         "seeds": [11],
         "seasons": 1,
+        "max_nudges": 5,
+        "max_provider_stalls": 8,
+        "max_provider_stall_wait_seconds": 2700.0,
         "episodes": [result],
         "summary": driver.summarize_episodes([result]),
         "agentic_summary": driver._agentic_summary([result]),
@@ -1147,6 +1153,7 @@ def test_provider_stall_counts_reach_run_json_and_the_redacted_artifact(tmp_path
     assert saved["agentic_summary"]["provider_stalls"] == 1
     assert validate_run(tmp_path / "run")["ok"]
     artifact = compact_agentic_run(tmp_path / "run", isolation="same-user")
+    assert (artifact["max_provider_stalls"], artifact["max_provider_stall_wait_seconds"]) == (8, 2700.0)
     compact = artifact["episodes"][0]["harness_run"]
     assert (compact["provider_stalls"], compact["provider_stall_wait_seconds"]) == (1, 60.0)
     assert compact["nudges"][0]["stall_retry"] is True and compact["nudges"][0]["backoff_seconds"] == 60.0

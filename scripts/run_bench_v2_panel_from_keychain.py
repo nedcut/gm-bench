@@ -20,6 +20,7 @@ Episodes run serially: the driver has no parallel mode, on purpose.
 
 Arguments this launcher does not know are passed to ``gm-bench agentic``
 unchanged, so driver options (``--variant``, ``--phase-guard-seconds``,
+``--max-provider-stalls``, ``--max-provider-stall-wait-seconds``,
 ``--binary``, and any isolation flags the driver gains) work here without a
 change to this file. ``--seeds`` and ``--json`` are refused: the first would
 put seeds on a command line, the second would print them.

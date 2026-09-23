@@ -186,6 +186,19 @@ def test_launcher_runs_the_agentic_cli_with_seeds_on_stdin_only(
     assert sys.stdin is stdin_before
 
 
+def test_launcher_passes_provider_stall_limits_through_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _install_fixture(tmp_path, monkeypatch)
+    calls = _capture_cli(monkeypatch)
+    limits = ["--max-provider-stalls", "60", "--max-provider-stall-wait-seconds=28800"]
+
+    assert launcher.main(["--model", "opencode/big-pickle", "--output", str(tmp_path / "run"), *limits]) == 0
+
+    (call,) = calls
+    assert call["argv"][-3:] == limits
+
+
 @pytest.mark.parametrize(
     ("extra", "message"),
     [
@@ -311,6 +324,27 @@ def test_agentic_cli_keeps_seed_named_episode_directories_for_public_seeds(
     with pytest.raises(SystemExit):
         cli.main(["agentic", "--seeds", "11", "--model", "m", "--output", str(tmp_path / "run")])
     assert seen["name_episodes_by_position"] is False
+    assert seen["max_provider_stalls"] == opencode_driver.DEFAULT_MAX_PROVIDER_STALLS
+    assert seen["max_provider_stall_wait_seconds"] == opencode_driver.DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS
+
+    seen.clear()
+    with pytest.raises(SystemExit):
+        cli.main(
+            [
+                "agentic",
+                "--seeds",
+                "11",
+                "--model",
+                "m",
+                "--output",
+                str(tmp_path / "run"),
+                "--max-provider-stalls",
+                "3",
+                "--max-provider-stall-wait-seconds",
+                "900",
+            ]
+        )
+    assert (seen["max_provider_stalls"], seen["max_provider_stall_wait_seconds"]) == (3, 900.0)
 
 
 def test_run_panel_names_episode_directories_by_position_only_when_asked(
@@ -318,8 +352,11 @@ def test_run_panel_names_episode_directories_by_position_only_when_asked(
 ) -> None:
     dirs: list[str] = []
 
+    limits: list[tuple] = []
+
     def fake_run_episode(seed, *, run_dir, episode_dir, **kwargs):
         dirs.append(str(episode_dir.relative_to(run_dir)))
+        limits.append((kwargs["max_provider_stalls"], kwargs["max_provider_stall_wait_seconds"]))
         return {"seed": seed}
 
     monkeypatch.setattr(opencode_driver, "run_episode", fake_run_episode)
@@ -332,5 +369,13 @@ def test_run_panel_names_episode_directories_by_position_only_when_asked(
     assert dirs == ["episode-00", "episode-01", "episode-02"]
 
     dirs.clear()
-    opencode_driver.run_panel([11, 12, 11], model="m", run_dir=tmp_path / "b")
+    limits.clear()
+    payload = opencode_driver.run_panel(
+        [11, 12, 11], model="m", run_dir=tmp_path / "b", max_provider_stalls=5, max_provider_stall_wait_seconds=1200.0
+    )
     assert dirs == ["seed-11", "seed-12", "seed-11-r2"]
+    # The stall limits reach every episode and are recorded beside max_nudges.
+    assert limits == [(5, 1200.0)] * 3
+    recorded = json.loads((tmp_path / "b" / "run.json").read_text())
+    assert (recorded["max_provider_stalls"], recorded["max_provider_stall_wait_seconds"]) == (5, 1200.0)
+    assert payload["max_nudges"] == opencode_driver.DEFAULT_MAX_NUDGES
