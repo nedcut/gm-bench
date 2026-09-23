@@ -428,10 +428,18 @@ strongest contamination-resistant claim.
 - [x] Publish only validated, redacted private-panel artifacts. The 11
   headline and 3 diagnostic artifacts carry no seed value or per-seed row.
 - [ ] Compare public and private conclusions and disclose meaningful divergence.
-- [x] Document the panel-rotation schedule and future reveal procedure.
-  "Seed-panel rotation and contamination" in `docs/production_benchmark.md`
-  sets a quarterly rotation, a salted commitment before each quarter's runs,
-  and a salt-and-seed reveal when a panel rotates out.
+- [ ] Document the panel-rotation schedule and future reveal procedure.
+  **Status 2026-09-22:** a quarterly-rotation policy exists ("Seed-panel
+  rotation and contamination" in `docs/production_benchmark.md`, added
+  2026-07-09), but it predates this item and current practice has moved past
+  it. It still describes supplying seeds through `GM_BENCH_PRIVATE_SEEDS` and
+  the `sota-v2` 8-seed minimum, not the 29-seed Keychain escrow. It says to
+  reveal salt and seeds when a panel rotates out, but
+  `config/sota_v5_lane.json` retired the unused 16-seed commitment rather than
+  revealing it. And
+  `docs/bench_v2_spec.md` ("Panel design") reuses the 29 v5 seeds for the 2.0
+  panel instead of rotating them out. Whether the quarterly cadence still
+  applies is the owner's decision; the policy needs updating either way.
 - [x] Run the power analysis using final model residuals. The observed
   minimum detectable difference is in `results/analysis/sota-v5-robustness.md`.
 - [x] Report the minimum detectable difference and the limited p-value
@@ -573,8 +581,12 @@ expectations; an architecture or evaluation-flow diagram; a "What this
 measures / What this does not measure" README section; a README link to the
 result submission guide (`docs/submitting_results.md`; the spec, production
 standard, blog, site, and release are linked); removing machine-specific paths
-from committed diagnostic artifacts (`results/diagnostics/` and
-`results/leaderboard/archive-v1/` contain `/Users/...` paths); an issue
+from committed artifacts (`results/diagnostics/`,
+`results/leaderboard/archive-v1/`, and all 11 published v5 headline rows in
+`results/leaderboard/sota-v5/`, whose `baseline_cache.path` field is a
+machine-local `/Users/...` path; the same paths ship in the v5 release
+archive, contradicting its manifest note that compact publication artifacts
+carry no machine-local cache paths); an issue
 template; a recorded external reproduction; an independent final review; and
 a PyPI or install-path decision.
 
@@ -649,8 +661,14 @@ link check (CI has none).
   accepts all 16 smokes at the 4,096-token cap with zero truncated calls, the
   last recorded 2026-09-03T01:09Z, before the panel launched at 01:22Z.
 - [x] Is every headline model row strictly eligible and compute-comparable?
-  Eleven rows at 580 of 580 decisions, validated by CI against the `sota-v5`
-  policy.
+  Eligible: eleven rows at 580 of 580 decisions, validated by CI against the
+  `sota-v5` policy. Compute: every row ran under the same 4,096-token output
+  ceiling with the frozen native-minimum reasoning policy, and
+  `config/sota_v5_smoke_manifest.json` and the post ("Cost and time") record
+  zero truncated replies. "Comparable" here means an operational common
+  ceiling, not identical compute: the post ("What the panel cannot say") calls
+  the reasoning policy a confound, with 39 to 742 output tokens per decision
+  across rows.
 - [x] Are raw public traces and compact artifacts available and hash-linked?
   The v2 release archive carries its raw public traces; the v5 manifest binds
   each compact row to its withheld private raw artifact by SHA-256.
