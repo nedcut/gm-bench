@@ -3813,3 +3813,40 @@ tbody tr.tier-start td {
   font-family: var(--font-mono);
   font-size: 12px;
 }
+
+/* GM-Bench 2.0 agentic lane: the decision lane's idiom, its own section. The
+   section only exists once a panel-grade row does. */
+.agentic-lane-intro {
+  max-width: 78ch;
+  margin: 0 0 18px;
+  color: var(--steel);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.agentic-lane .results-table .muted {
+  color: var(--steel);
+  font-weight: 400;
+}
+
+.agentic-lane .results-table td {
+  white-space: nowrap;
+}
+
+.agentic-lane-notes {
+  margin: 18px 0 0;
+  padding-left: 18px;
+  color: var(--steel);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.agentic-lane-notes li + li {
+  margin-top: 8px;
+}
+
+.agentic-lane-notes code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}

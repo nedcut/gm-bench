@@ -11,6 +11,7 @@ import ModelProfile from "./components/ModelProfile";
 import ReplayBrowser from "./components/ReplayBrowser";
 import Analysis from "./components/Analysis";
 import DecisionLane from "./components/DecisionLane";
+import AgenticLane from "./components/AgenticLane";
 import HowItWorks from "./components/HowItWorks";
 import Quickstart from "./components/Quickstart";
 import Footer from "./components/Footer";
@@ -30,7 +31,10 @@ export default function App() {
       <a className="skip-link" href="#results">
         Skip to results
       </a>
-      <Nav contract={leaderboard.contract?.benchmark_version} />
+      <Nav
+        contract={leaderboard.contract?.benchmark_version}
+        showAgenticLane={(leaderboard.agentic_lane ?? []).length > 0}
+      />
       <main>
         <section className="homepage-lead" aria-labelledby="page-title">
           <div className="shell rink">
@@ -79,6 +83,7 @@ export default function App() {
           onSelectModel={setSelectedModelId}
         />
         <DecisionLane data={leaderboard} />
+        <AgenticLane data={leaderboard} />
         <ReplayBrowser puzzles={puzzles} />
         <HowItWorks snapshot={snapshot} />
         <Quickstart />
