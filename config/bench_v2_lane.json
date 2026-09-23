@@ -24,6 +24,22 @@
     "execution": "serial",
     "launcher": "scripts/run_bench_v2_panel_from_keychain.py"
   },
+  "model_pinning": {
+    "source": "docs/bench_v2_spec.md, Row identity and eligibility",
+    "rule": "A published row is unpinned unless its harness model id is listed in pinned_models with the served model version or provider pin that makes it reproducible. An unpinned row is shown with the unpinned flag and a sentence saying it may not be reproducible; it is an extra data point, not a headline.",
+    "pinned_models": {}
+  },
+  "reference_scores": {
+    "source": "docs/agentic_lane.md, Publication",
+    "rule": "pick-trader and random are deterministic, so on the frozen 32-seed panel at these seasons their means are constants every panel row's reference block shares. agentic-validate, the site build, and the site data check reject a panel row whose reference or floor mean differs from these values.",
+    "seasons": 5,
+    "mean_scores": {
+      "pick-trader": 249.18,
+      "random": 90.367
+    },
+    "recorded_at_utc": "2026-09-23T05:05:00Z",
+    "recorded_from": "Computed directly on the frozen 32-seed panel at 5 seasons with gm_bench.runner.run_many_cached_baselines(use_cache=False), seeds read from the Keychain escrow in-process by scripts/run_bench_v2_panel_from_keychain.verified_seed_text; only the two means were printed."
+  },
   "seed_panel": {
     "status": "frozen",
     "name": "private-env",

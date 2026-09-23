@@ -80,6 +80,26 @@ They render in their own section and never join `models`, the
 eligible-headline count, or the shot chart; `scripts/validate_results_data.ts`
 fails the build if they do.
 
+It also reads `results/agentic/` into `agentic_lane`: GM-Bench 2.0 rows
+(`docs/bench_v2_spec.md`), panel grade only, each validated against the
+checkout's 2.0 contract and the frozen panel in `config/bench_v2_lane.json`.
+Smoke rows are skipped. A row is flagged `unpinned` unless its model is listed
+in that file's `model_pinning.pinned_models`. Rows are ordered by pinning,
+model, and harness, never by score, and carry no 1.0 row's score. Each row
+carries its artifact's `reference` block, the spec's one supported inference:
+pick-trader on the row's own seeds and seasons (pick-trader and random means,
+paired lift with its 95% interval, sign-flip p, seed win rate). The 2.0
+section and its nav link render nothing while the list is empty, and
+`scripts/validate_results_data.ts` fails the build if a 2.0 row is not panel
+grade, is off the frozen panel, is same-user, lacks the pinning flag, lacks a
+reference or carries one that is not pick-trader on exactly the row's (and the
+lane's) seed count with no per-seed values, carries a reference whose numbers
+contradict each other or the row mean, or pick-trader and random means that
+differ from `reference_scores` in the lane config (once recorded) or from
+another row's at the same seasons, carries any other p-value or paired
+field (nothing compares two rows, harnesses, or models), or appears in a 1.0
+table.
+
 `build_leaderboard.py` still emits the frozen `sota-v2` release, now at
 `src/data/leaderboard-sota-v2.json`, so the archived study stays reproducible.
 That builder preserves the release instead of recomputing its references on the

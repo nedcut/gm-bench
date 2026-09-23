@@ -135,7 +135,61 @@ separated from the driver (see the sandbox section of the spec): `same-user`
 runs are `smoke` grade whatever their size, and `panel` grade needs 32 or
 more seeds, redacted seeds, and `separate-user` or `container`. The redact
 command refuses to write anything that would not validate. CI re-validates
-every file under `results/agentic/` against the checkout's contract.
+every file under `results/agentic/` against the checkout's contract. A
+`panel`-grade row must also be a run of the lane's frozen private panel: both
+`agentic-redact` and `agentic-validate` (and so CI) reject it unless its
+`panel.sha256` equals `seed_panel.artifact_panel_sha256` in
+`config/bench_v2_lane.json` and its distinct-seed count equals that panel's
+`count`; `smoke` rows are exempt. On the site, a row is flagged `unpinned`
+(may not be reproducible) unless its harness model id is listed with its pin
+under `model_pinning.pinned_models` in the same file; add the pin there, in
+the same change that commits the row, only when the served model version or
+provider is actually fixed.
+
+A `panel`-grade artifact also carries a `reference` block: the spec's one
+supported inference, the predeclared contrast against `pick-trader` on the
+same seeds and seasons (`docs/bench_v2_spec.md`, Panel design). You do not
+run it separately. `agentic-redact` computes it from the seeds in the raw
+`run.json`, in-process, so nothing new goes on a command line: it plays
+`pick-trader` and `random` (shown as a floor) through the 1.0 runner's
+scripted-baseline path, with the default episode config `gm-bench evaluate`
+uses, so the scores are the ones a 1.0 run on those seeds reports. It plays
+them live with the baseline cache off (about 12 seconds for 32 seeds at 5
+seasons): the cache has no integrity check, so reading it would let `--raw`
+vouch for whatever a local file says, and writing it would put the private
+seeds in its keys. A 2.0 episode is scored by the same functions on
+the same simulator as a 1.0 episode, so the per-seed difference is like for
+like. The block mirrors a redacted 1.0 `paired` block with `pick-trader` as
+the only baseline: `mean_score` (pick-trader), `floor.mean_score` (random),
+`seasons`, `num_seeds`, `paired_lift_mean` (row per-seed score minus
+pick-trader's, averaged), `paired_lift_stddev`, `paired_lift_ci95`
+(deterministic bootstrap), `sign_flip_p_value`, `significant_at_95`,
+`candidate_seed_win_rate`, and `per_seed`, which is always empty: a per-seed
+lift on a private seed gives the row's score on that seed. It keeps no seed,
+no cache path, and no cache hit count. Validation rejects a panel row
+without the block, a block whose `num_seeds` is not the row's distinct seed
+groups, a non-empty `per_seed`, any agent but `pick-trader`, and a `smoke`
+row that carries one; `smoke` rows never get a reference. It also rejects
+numbers the paired statistics cannot produce: a lift that is not the row
+mean minus the pick-trader mean, an interval that does not contain its lift
+or is wider than its standard deviation allows, and a seed win rate of 0 or
+1 against the sign of the lift. The p-value is not tied to the interval,
+because the exact sign-flip test and the bootstrap interval can disagree.
+`agentic-validate --raw` recomputes the block from the simulator as part of
+the fresh redaction and requires it to be identical.
+
+A hand edit that shifts the pick-trader mean and the lift together stays
+internally consistent, and CI never has the raw run. But `pick-trader` and
+`random` are deterministic, so on the one frozen panel their 5-season means
+are constants every panel row shares. Those means are pinned under
+`reference_scores.mean_scores` in `config/bench_v2_lane.json`: pick-trader
+249.18 and random 90.367, computed on 2026-09-23 directly on the escrowed
+32-seed panel at 5 seasons, uncached and in-process, with only the two
+aggregates printed. `agentic-validate`, the site build, and the site data
+check reject a 5-season panel row whose reference or floor mean differs.
+For any other season count nothing is pinned: validation warns that the
+reference is unpinned, and the site build and data check require every
+panel row at that season count to agree.
 
 ## Private panel
 

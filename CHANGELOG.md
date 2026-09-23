@@ -40,6 +40,39 @@ Added 2026-09-20. Nothing published changes.
   named by position (`episode-00`, ...) so the harness's open files do not
   name a seed, and every harness now gets `/dev/null` as stdin. Panel
   execution waits for the owner attestation.
+- Site and panel-row checks: `agentic-validate` and `agentic-redact` reject a
+  `panel`-grade row whose `panel.sha256` or distinct-seed count differs from
+  the frozen panel in `config/bench_v2_lane.json` (smoke rows are exempt).
+  `web/scripts/build_study.py` emits an `agentic_lane` block with panel-grade
+  rows only, and the site gains a GM-Bench 2.0 section that renders nothing
+  until such a row exists. A row whose model is not listed under
+  `model_pinning` in the lane config shows the spec's `unpinned` flag and
+  may-not-be-reproducible sentence; rows are ordered by model and harness,
+  not score, and show no 1.0 row's score. The results-data validator
+  keeps 2.0 rows out of every 1.0 table. No panel-grade row exists yet, so
+  the site is unchanged.
+- Reference contrast: a `panel`-grade artifact now carries the spec's one
+  supported inference, a `reference` block comparing the row with
+  `pick-trader` on the same seeds and seasons. `agentic-redact` computes it
+  from the raw run's seeds in-process, playing `pick-trader` and `random`
+  through the 1.0 runner's baseline path with the baseline cache off, so the
+  numbers match a 1.0 run on those seeds, `--raw` recomputes them from the
+  simulator rather than a local file, and no private seed lands in a cache
+  key. It holds the pick-trader and random means, the paired
+  lift with its 95% interval, standard deviation, sign-flip p-value, and seed
+  win rate, with `per_seed` empty and no seeds or paths. Smoke rows get none.
+  Validation rejects a panel row without the block, a block off the row's
+  seed count, per-seed values, or another agent, and a smoke row with one,
+  plus numbers the paired statistics cannot produce (a lift that is not the
+  row mean minus pick-trader's, an interval that excludes its lift or is
+  wider than its spread allows, a 0 or 1 win rate against the lift's sign);
+  `agentic-validate --raw` recomputes it. `config/bench_v2_lane.json` gains
+  `reference_scores`, the frozen panel's 5-season pick-trader (249.18) and
+  random (90.367) means, computed directly on the escrowed panel; every
+  5-season panel row must carry them, and rows at any other season count
+  must agree with each other. The site's 2.0 section shows it as
+  "vs pick-trader (same seeds)", and the results-data validator now requires
+  that on-panel reference and rejects any other p-value on a 2.0 row.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

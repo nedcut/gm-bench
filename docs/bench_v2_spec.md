@@ -382,7 +382,9 @@ harness invocations of one session.
   harness identity, the panel size and a hash of the sorted seeds, per-episode
   scores and agentic telemetry (tool calls by tool, phases and how they
   ended, nudges, tokens, cost, wall time), the ledger-versus-harness
-  agreement, and the validation report computed at redaction time. It is
+  agreement, the validation report computed at redaction time, and, for a
+  panel row only, the reference contrast against `pick-trader` on the same
+  seeds (aggregates only, no per-seed values). It is
   bound to the raw run by the canonical SHA-256 of `run.json`, the same
   binding the 1.0 lanes use. Ledgers, commands, and paths are dropped.
 - **Grade is mechanical.** `panel` requires at least 32 distinct seeds,

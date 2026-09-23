@@ -3813,3 +3813,69 @@ tbody tr.tier-start td {
   font-family: var(--font-mono);
   font-size: 12px;
 }
+
+/* GM-Bench 2.0 agentic lane: the decision lane's idiom, its own section. The
+   section only exists once a panel-grade row does. */
+.agentic-lane-intro {
+  max-width: 78ch;
+  margin: 0 0 18px;
+  color: var(--steel);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.agentic-lane .results-table .muted {
+  color: var(--steel);
+  font-weight: 400;
+}
+
+/* Twelve columns: let headers and text cells wrap so the table fits a
+   desktop width; only numbers stay on one line. */
+.agentic-lane .results-table th {
+  white-space: normal;
+  vertical-align: bottom;
+}
+
+.agentic-lane .results-table td {
+  white-space: normal;
+}
+
+.agentic-lane .results-table td.numeric {
+  white-space: nowrap;
+}
+
+.agentic-coverage {
+  display: block;
+  font-size: 12px;
+}
+
+.agentic-unpinned {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-chip);
+  color: var(--steel);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.agentic-lane-notes {
+  margin: 18px 0 0;
+  padding-left: 18px;
+  color: var(--steel);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.agentic-lane-notes li + li {
+  margin-top: 8px;
+}
+
+.agentic-lane-notes code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}

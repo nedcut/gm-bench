@@ -198,6 +198,107 @@ export interface DecisionLaneModel extends LeaderboardModel {
   timestamp_utc: string | null;
 }
 
+/**
+ * One GM-Bench 2.0 row (docs/bench_v2_spec.md): a model inside its own harness
+ * driving the simulator through MCP tools, one session per episode. Row
+ * identity is model + harness + harness version (+ variant). Only
+ * panel-grade rows reach the site: the lane's frozen 32-seed private panel,
+ * seeds redacted, harness isolated from the driver by user or container. It
+ * is never a 1.0 row and carries nothing paired against one; its only paired
+ * statistic is the pick-trader reference on its own seeds.
+ */
+export interface AgenticLaneRow {
+  id: string;
+  lane: "agentic";
+  grade: "panel";
+  agent: string;
+  model: string;
+  harness: { name: string; version: string; model: string; variant: string | null };
+  /**
+   * True unless config/bench_v2_lane.json pins this model's served version or
+   * provider. An unpinned row may not be reproducible and is never a headline.
+   */
+  unpinned: boolean;
+  /** The pin that makes the row reproducible; null when unpinned. */
+  pin: string | null;
+  isolation: "separate-user" | "container";
+  panel: { distinct_seeds: number; episodes: number; sha256: string };
+  seasons: number;
+  phase_guard_seconds: number | null;
+  max_nudges: number | null;
+  /** Mean of per-seed means, and the population SD, min, and max of those means. */
+  mean_score: number;
+  score_stddev: number;
+  seed_mean_min: number;
+  seed_mean_max: number;
+  illegal_actions: number | null;
+  failed_decisions: number | null;
+  /**
+   * The spec's only supported inference: the predeclared pick-trader contrast
+   * on this row's own seeds and seasons, computed at redaction from the raw
+   * run. Lift is the row's per-seed score minus pick-trader's. Aggregates
+   * only; per-seed values never reach the site.
+   */
+  reference: {
+    agent: "pick-trader";
+    mean_score: number;
+    floor: { agent: "random"; mean_score: number };
+    seasons: number;
+    num_seeds: number;
+    paired_lift_mean: number;
+    paired_lift_stddev: number;
+    paired_lift_ci95: [number, number];
+    sign_flip_p_value: number;
+    significant_at_95: boolean;
+    candidate_seed_win_rate: number;
+  };
+  contract: {
+    benchmark_version: string;
+    agentic_fingerprint: string;
+    base_benchmark_version: string;
+    base_contract_fingerprint: string;
+    tool_surface: string;
+    brief: string;
+    scoring_version: string;
+    simulator_version: string;
+  };
+  /** Budgets are reported, not capped. Token and cost fields are null when unmeasured. */
+  telemetry: {
+    episodes: number;
+    tool_calls: number;
+    tool_calls_per_episode: number;
+    tool_calls_by_tool: Record<string, number>;
+    scout_points_used: number;
+    phases_ended_by: Record<string, number>;
+    nudges_used: number;
+    nudges_per_episode: number;
+    guard_kills: number;
+    compactions: number;
+    wall_seconds: number;
+    wall_seconds_per_episode: number;
+    /** Episodes whose harness reported token telemetry; token and cost totals cover only these. */
+    telemetry_episodes: number;
+    input_tokens: number | null;
+    output_tokens: number | null;
+    reasoning_tokens: number | null;
+    cached_input_tokens: number | null;
+    cost_usd: number | null;
+    cost_per_episode_usd: number | null;
+  };
+  /** Server ledger (authoritative) versus the harness's own tool-event count. */
+  agreement: {
+    episodes: number;
+    episodes_agreeing: number;
+    ledger_tool_calls: number;
+    harness_tool_calls: number;
+  };
+  /** A 1.0 row on the same model, linked by id; the two are not paired here. */
+  v1_row_id: string | null;
+  artifact_path: string;
+  raw_artifact_sha256: string;
+  compacted_at_utc: string | null;
+}
+
 export interface LeaderboardBaseline {
   agent: string;
   mean_score: number;
@@ -234,6 +335,11 @@ export interface Leaderboard {
   cli_harness_models: LeaderboardModel[];
   /** Optional so the archived sota-v2 dataset, which predates the lane, still types. */
   decision_lane_models?: DecisionLaneModel[];
+  /**
+   * GM-Bench 2.0 rows, panel grade only. A different contract from every
+   * array above; optional so the archived sota-v2 dataset still types.
+   */
+  agentic_lane?: AgenticLaneRow[];
   excluded_models: Array<{ id: string | null; issues: string[] }>;
   publication: {
     status: string;

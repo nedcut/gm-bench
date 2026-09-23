@@ -18,6 +18,7 @@ const LINKS = [
   { href: "#profile", label: "Model" },
   { href: "#analysis", label: "Analysis" },
   { href: "#decision-lane", label: "Decision lane" },
+  { href: "#agentic-lane", label: "2.0 agentic" },
   { href: "#replay", label: "Replays" },
   { href: "#protocol", label: "Protocol" },
   { href: "#quickstart", label: "Run" },
@@ -39,7 +40,15 @@ function ThemeToggle() {
   );
 }
 
-export default function Nav({ contract }: { contract?: string }) {
+export default function Nav({
+  contract,
+  showAgenticLane = false,
+}: {
+  contract?: string;
+  /** The 2.0 section renders only once a panel-grade row exists; so does its link. */
+  showAgenticLane?: boolean;
+}) {
+  const links = LINKS.filter((link) => showAgenticLane || link.href !== "#agentic-lane");
   const [active, setActive] = useState(() =>
     typeof window === "undefined" ? "#results" : window.location.hash || "#results",
   );
@@ -61,7 +70,7 @@ export default function Nav({ contract }: { contract?: string }) {
           <span className="brand-tag">{contract ?? "unversioned"}</span>
         </a>
         <nav className="nav-links" aria-label="Primary navigation">
-          {LINKS.map((link) => (
+          {links.map((link) => (
             <a
               key={link.href}
               href={link.href}
