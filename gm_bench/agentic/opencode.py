@@ -48,6 +48,7 @@ from gm_bench.agentic.container import (
     HOST_ALIAS,
     WORKDIR,
     ContainerHarness,
+    container_egress_problems,
     container_sandbox_problems,
     ensure_image,
 )
@@ -227,12 +228,17 @@ class HarnessLaunch:
         self.container: ContainerHarness | None = None
         self._socket_dir: Path | None = None
         self._secret: str | None = None
+        # Containers or volumes ``close`` could not remove (container mode only).
+        self.cleanup_problems: list[str] = []
         try:
             if isolation == "container":
                 assert image is not None
-                self.container = ContainerHarness(image, self.scratch, docker=docker, env=self.env)
                 self._secret = secrets.token_urlsafe(32)
                 self.server = SocketMcpServer(episode, ("127.0.0.1", 0), secret=self._secret)
+                self.server.start()
+                self.container = ContainerHarness(
+                    image, self.scratch, driver_port=self.server.address[1], docker=docker, env=self.env
+                )
                 self.workdir = WORKDIR
                 self.transport = "tcp"
             else:
@@ -241,12 +247,13 @@ class HarnessLaunch:
                 # 0600, outside the scratch.
                 self._socket_dir = Path(tempfile.mkdtemp(prefix="gmb-"))
                 self.server = SocketMcpServer(episode, self._socket_dir / "s")
+                self.server.start()
                 self.workdir = str(self.scratch)
                 self.transport = "unix"
-            self.server.start()
         except BaseException:
-            if self.container is not None:
-                self.container.close()
+            server = getattr(self, "server", None)
+            if server is not None:
+                server.stop()
             for directory in (self._socket_dir, self.scratch):
                 if directory is not None:
                     shutil.rmtree(directory, ignore_errors=True)
@@ -259,6 +266,9 @@ class HarnessLaunch:
             # of the check is only about the scratch directory itself.
             problems = sandbox_problems(self.scratch, {"PATH": ""})
             problems += container_sandbox_problems(self.container.image, docker=self.docker, env=self.env)
+            problems += container_egress_problems(
+                self.container.image, self.container.driver_port, docker=self.docker, env=self.env
+            )
         else:
             problems = sandbox_problems(self.scratch, self.env)
         if problems:
@@ -279,13 +289,17 @@ class HarnessLaunch:
 
     def close(self, *, keep_scratch: bool = False) -> bool:
         """Stop the server (returns whether it drained), the containers, and remove temporary state."""
-        drained = self.server.stop()
-        if self.container is not None:
-            self.container.close()
-        if self._socket_dir is not None:
-            shutil.rmtree(self._socket_dir, ignore_errors=True)
-        if not keep_scratch:
-            shutil.rmtree(self.scratch, ignore_errors=True)
+        try:
+            drained = self.server.stop()
+            if self.container is not None:
+                self.cleanup_problems = self.container.close()
+                for problem in self.cleanup_problems:
+                    sys.stderr.write(f"gm-bench agentic: cleanup: {problem}\n")
+        finally:
+            if self._socket_dir is not None:
+                shutil.rmtree(self._socket_dir, ignore_errors=True)
+            if not keep_scratch:
+                shutil.rmtree(self.scratch, ignore_errors=True)
         return drained
 
 
@@ -590,6 +604,9 @@ def run_episode(
         # stream must agree on how many GM-Bench tools were called.
         "tool_call_agreement": tool_call_agreement(result["agentic"], telemetry),
     }
+    if launch.container is not None:
+        # A container or home volume docker could not remove; empty when cleanup was complete.
+        result["harness_run"]["container_cleanup_problems"] = launch.cleanup_problems
     (episode_dir / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True), encoding="utf-8")
     episode.close()
     if progress is not None:

@@ -706,17 +706,26 @@ def test_tcp_transport_needs_the_run_secret_and_bridges_through_the_real_proxy(t
         episode.close()
 
 
-def _fake_docker(tmp_path: Path) -> tuple[Path, Path]:
-    """A stand-in docker CLI that logs its argv and answers the sandbox probe like a clean image."""
+def _fake_docker(
+    tmp_path: Path, *, canary_reachable: bool = False, rm_sleep: float = 0.0, cap_eff: str = "0000000000000000"
+) -> tuple[Path, Path]:
+    """A stand-in docker CLI that logs its argv and answers the sandbox and egress probes like a clean image."""
+    from gm_bench.agentic.container import EGRESS_ENTRYPOINT
+
     log = tmp_path / "docker-calls.jsonl"
     script = tmp_path / "fake-docker"
+    report = {"uid": 1000, "cap_eff": cap_eff, "cap_bnd": "0000000000000000", "canary_reachable": canary_reachable}
     script.write_text(
         f"#!{sys.executable}\n"
-        "import json, sys\n"
+        "import json, sys, time\n"
         f"open({str(log)!r}, 'a').write(json.dumps(sys.argv[1:]) + '\\n')\n"
         "if 'import gm_bench' in sys.argv:\n"
         "    sys.stderr.write(\"ModuleNotFoundError: No module named 'gm_bench'\\n\")\n"
         "    sys.exit(1)\n"
+        f"if {EGRESS_ENTRYPOINT!r} in sys.argv and '-c' in sys.argv:\n"
+        f"    print(json.dumps({report!r}))\n"
+        f"if sys.argv[1:2] == ['rm']:\n"
+        f"    time.sleep({rm_sleep!r})\n"
     )
     script.chmod(0o755)
     return script, log
@@ -724,7 +733,7 @@ def _fake_docker(tmp_path: Path) -> tuple[Path, Path]:
 
 def test_container_launch_mounts_only_the_scratch_and_keeps_the_secret_off_the_command_line(tmp_path: Path) -> None:
     from gm_bench.agentic import _proxy
-    from gm_bench.agentic.container import HOST_ALIAS, WORKDIR
+    from gm_bench.agentic.container import EGRESS_ENTRYPOINT, HOST_ALIAS, WORKDIR
     from gm_bench.agentic.episode import AgenticEpisode
     from gm_bench.agentic.opencode import HarnessLaunch
 
@@ -761,7 +770,16 @@ def test_container_launch_mounts_only_the_scratch_and_keeps_the_secret_off_the_c
         assert binds == [f"type=bind,source={launch.scratch},target={WORKDIR}"]
         assert all(m.startswith("type=volume,source=gmb-home-") for m in mounts if m not in binds)
         assert "-e" not in argv and "--env" not in argv and "--env-file" not in argv
+        # Root only for the egress entrypoint, with exactly the capabilities it needs to
+        # install the firewall and drop to ``node``; never privileged, never host networking.
+        added = sorted(argv[i + 1] for i, arg in enumerate(argv) if arg == "--cap-add")
+        assert added == ["NET_ADMIN", "SETGID", "SETPCAP", "SETUID"]
+        assert argv[argv.index("--cap-drop") + 1] == "ALL"
+        assert argv[argv.index("--security-opt") + 1] == "no-new-privileges"
+        assert "--privileged" not in argv and "--network" not in argv
         assert argv[argv.index(image["image_id"]) + 1 :] == [
+            EGRESS_ENTRYPOINT,
+            str(port),
             "opencode",
             "run",
             "--dir",
@@ -776,9 +794,80 @@ def test_container_launch_mounts_only_the_scratch_and_keeps_the_secret_off_the_c
         assert launch.close() is True
     assert not scratch.exists()
     calls = [json.loads(line) for line in log.read_text().splitlines()]
+    # The egress probe ran before launch, with the same entrypoint and the driver's port.
+    probes = [call for call in calls if EGRESS_ENTRYPOINT in call and "-c" in call]
+    assert len(probes) == 1 and probes[0][probes[0].index(EGRESS_ENTRYPOINT) + 1] == str(port)
     name = argv[argv.index("--name") + 1]
     assert ["rm", "--force", name] in calls
     assert calls[-1][:3] == ["volume", "rm", "--force"]
+    assert launch.cleanup_problems == []
+    episode.close()
+
+
+@pytest.mark.parametrize(
+    ("fake", "problem"),
+    [
+        ({"canary_reachable": True}, "host loopback listener"),
+        ({"cap_eff": "00000000a80425fb"}, "capabilities"),
+    ],
+)
+def test_container_launch_refuses_to_start_when_the_egress_probe_fails(
+    tmp_path: Path, fake: dict, problem: str
+) -> None:
+    from gm_bench.agentic.episode import AgenticEpisode
+    from gm_bench.agentic.opencode import HarnessLaunch, SandboxError
+
+    docker, _log = _fake_docker(tmp_path, **fake)
+    image = {"image": "gm-bench-agentic-opencode:test", "image_id": "sha256:" + "a" * 64}
+    episode = AgenticEpisode(11, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
+    launch = HarnessLaunch(episode, isolation="container", image=image, docker=str(docker))
+    try:
+        with pytest.raises(SandboxError, match=problem):
+            launch.prepare()
+    finally:
+        launch.close()
+        episode.close()
+
+
+def test_egress_script_is_valid_sh_and_baked_into_the_image() -> None:
+    from gm_bench.agentic.container import EGRESS_ENTRYPOINT, EGRESS_SCRIPT, dockerfile
+
+    checked = subprocess.run(["sh", "-n"], input=EGRESS_SCRIPT, capture_output=True, text=True, check=False)
+    assert checked.returncode == 0, checked.stderr
+    text = dockerfile()
+    assert EGRESS_SCRIPT in text and EGRESS_ENTRYPOINT in text
+    assert text.index(EGRESS_ENTRYPOINT) < text.index("USER node")
+
+
+def test_docker_timeouts_become_container_errors_and_cleanup_still_finishes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import gm_bench.agentic.container as container
+    from gm_bench.agentic.episode import AgenticEpisode
+    from gm_bench.agentic.opencode import HarnessLaunch
+
+    with pytest.raises(container.ContainerError, match="did not finish"):
+        container._docker("/bin/sleep", "3", timeout=0.3)
+
+    # A daemon that hangs on ``docker rm`` past the cleanup timeout.
+    docker, log = _fake_docker(tmp_path, rm_sleep=3.0)
+    monkeypatch.setattr(container, "CLEANUP_TIMEOUT_SECONDS", 0.5)
+    image = {"image": "gm-bench-agentic-opencode:test", "image_id": "sha256:" + "a" * 64}
+    episode = AgenticEpisode(11, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
+    launch = HarnessLaunch(episode, isolation="container", image=image, docker=str(docker))
+    launch.prepare()
+    _argv, on_kill = launch.command(["run", "brief"])
+    launch.command(["run", "--session", "s", "nudge"])
+    assert on_kill is not None
+    on_kill()  # the guard's kill hook must not raise either
+    assert launch.close() is True  # does not raise
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    # Every container was attempted, then the volume, and the scratch (with the secret) is gone.
+    assert [call[0] for call in calls if call[0] == "rm"] == ["rm", "rm", "rm"]
+    assert calls[-1][:3] == ["volume", "rm", "--force"]
+    assert not launch.scratch.exists()
+    # The kill hook's timeout and both close-time timeouts are kept, not raised.
+    assert len(launch.cleanup_problems) == 3 and all("did not finish" in p for p in launch.cleanup_problems)
     episode.close()
 
 
