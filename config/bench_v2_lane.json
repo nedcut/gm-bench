@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "contract": "bench-v2",
+  "benchmark": "GM-Bench 2.0",
+  "lane": "agentic",
+  "spec": "docs/bench_v2_spec.md",
+  "operator_guide": "docs/agentic_lane.md",
+  "panel_design": {
+    "status": "frozen",
+    "source": "docs/bench_v2_spec.md, Panel design",
+    "full_row": {
+      "seeds": 32,
+      "episodes_per_seed": 1,
+      "seasons": 5
+    },
+    "smoke_row": {
+      "seeds": 8,
+      "episodes_per_seed": 1,
+      "seasons": 5,
+      "flag": "smoke"
+    },
+    "panel_grade_min_seeds": 32,
+    "reference_agent": "pick-trader",
+    "execution": "serial",
+    "launcher": "scripts/run_bench_v2_panel_from_keychain.py"
+  },
+  "seed_panel": {
+    "status": "frozen",
+    "name": "private-env",
+    "count": 32,
+    "sha256": "80d1ec0105c9391d5e5553b9cc98444fc926ca19f6cb8d00afb899f4ea86752e",
+    "sha256_basis": "gm_bench.benchmark_config.seed_panel_hash over the 32 seeds in execution order (comma-joined decimal); the same execution hash sota-v5 commits to.",
+    "artifact_panel_sha256": "96d4a15dba85e8389dcc12fb7012d6a388ba2c0b7bb710798e88947b964412f7",
+    "artifact_panel_sha256_basis": "gm_bench.agentic.publication.seed_panel_sha256 (canonical SHA-256 of the sorted seeds). A full panel row under results/agentic/ must carry exactly this panel.sha256.",
+    "hiding_commitment_sha256": "f8c1e7de56c39e8e01fd51aaf08a436124f46edda09e87cc645775766806e090",
+    "hiding_commitment_basis": "scripts/seed_panel_commitment.py commitment(): SHA-256 of '<salt>:<sorted comma-joined seeds>' with a fresh 32-byte salt held only in the escrow.",
+    "generated_at_utc": "2026-09-23T03:13:37Z",
+    "generation_method": "uniform-rejection-sampling-secrets-randbelow-63bit-v1",
+    "secret_escrow": "macos-keychain:gm-bench-bench-v2-private-panel",
+    "lineage": {
+      "shared_with": "sota-v5",
+      "shared_prefix_count": 29,
+      "shared_prefix_sha256": "a21edc686a579b908998065fe17cb0a27cd5d541cbf074f4f5a8e52b86c2bf11",
+      "shared_prefix_escrow": "macos-keychain:gm-bench-sota-v5-v6-private-panel",
+      "shared_prefix_purpose": "Execution positions 1 to 29 are the frozen sota-v5 private panel in its committed order (config/sota_v5_lane.json seed_panel.sha256), so a model's 1.0 and 2.0 scores pair per seed.",
+      "new_seed_count": 3,
+      "new_seed_positions": "execution positions 30 to 32",
+      "new_seeds_drawn": "2026-09-22 local (2026-09-23T03:13:37Z) by scripts/draw_bench_v2_private_panel.py with generate_private_seeds from scripts/seed_panel_commitment.py, the generator that drew the sota-v5 panel: secrets.randbelow rejection sampling over [2**32, 2**63 - 1], excluding preset seeds, the 29 sota-v5 seeds, and public seeds 1 to 58 (dev, leaderboard, smoke, and the 48-seed calibration panel 11 to 58).",
+      "retired_commitment_not_checked": "The retired 16-seed sota-v3 commitment (macos-keychain:gm-bench-sota-v3-private-panel) was not read, so its never-read status holds. A collision with it has probability below 1e-17 at this range."
+    },
+    "owner_attestation_required": true,
+    "owner_attestation_status": "pending-owner-attestation",
+    "owner_attestation_scope": "Owner must attest that the three new seeds were drawn as recorded above and escrowed without being read or printed, that the 32-seed escrow reproduces every digest here, and that panel execution will use the exact committed values without post-data substitution. The launcher refuses to run a panel until this reads attested-before-seed-access.",
+    "seed_values_included": false,
+    "frozen_record": "Drawn and escrowed in one process: the v5 escrow was read and verified against config/sota_v5_lane.json, the three new seeds and a fresh salt were drawn in memory, the record (same shape as the v5 escrow record plus a lineage block) was added to the Keychain through security -i on standard input so no seed or salt reached a command line or a file, and the item was read back and compared before these digests were printed."
+  }
+}

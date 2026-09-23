@@ -105,13 +105,17 @@ def commitment(salt: str, seeds: list[int]) -> str:
     return hashlib.sha256(preimage).hexdigest()
 
 
-def generate_private_seeds(count: int) -> list[int]:
-    """Return ordered unique seeds sampled uniformly from the private range."""
+def generate_private_seeds(count: int, *, exclude: frozenset[int] | set[int] = frozenset()) -> list[int]:
+    """Return ordered unique seeds sampled uniformly from the private range.
+
+    ``exclude`` adds seeds the draw must not return (for example an earlier
+    private panel a new one extends); preset seeds are always excluded.
+    """
 
     if not isinstance(count, int) or isinstance(count, bool) or count < 2:
         raise ValueError("private seed count must be an integer >= 2")
     span = _PRIVATE_SEED_MAX - _PRIVATE_SEED_MIN + 1
-    committed = {seed for preset in PRESETS.values() for seed in preset["seeds"]}
+    committed = {seed for preset in PRESETS.values() for seed in preset["seeds"]} | set(exclude)
     seeds: list[int] = []
     seen: set[int] = set()
     while len(seeds) < count:

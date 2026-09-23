@@ -29,6 +29,14 @@ Added 2026-09-20. Nothing published changes.
   A red-team probe (`scripts/agentic_red_team.py`) confirmed the agent
   learns nothing from its workspace and everything from `ps` on a same-user
   machine, so isolation is recorded per row and required for panel grade.
+- Private panel: the 32-seed panel is drawn and frozen in
+  `config/bench_v2_lane.json` by digest only (execution hash, the hash a
+  panel row must carry, and a salted hiding commitment). Seeds 1 to 29 are
+  the `sota-v5` private panel in its committed order; three new seeds were
+  drawn 2026-09-22 with the same generator and escrowed in the Keychain.
+  `scripts/run_bench_v2_panel_from_keychain.py` verifies the escrow and runs
+  the panel with seeds on standard input (`gm-bench agentic --seeds-stdin`),
+  never on a command line. Panel execution waits for the owner attestation.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 
