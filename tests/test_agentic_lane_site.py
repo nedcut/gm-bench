@@ -228,6 +228,7 @@ def test_tokens_reported_without_cost_leave_cost_unmeasured(tmp_path: Path) -> N
     assert telemetry["cost_usd"] == 0.5 and telemetry["cost_per_episode_usd"] == 0.5
     for episode in partial["episodes"]:
         episode["usage"]["cost_usd"] = None
+    (tmp_path / "none").mkdir()
     (row,) = _build(tmp_path / "none", ("partial.json", partial))["agentic_lane"]
     assert row["telemetry"]["cost_usd"] is None and row["telemetry"]["cost_per_episode_usd"] is None
 
