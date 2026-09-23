@@ -8,10 +8,13 @@ hash, salted hiding commitment, the hash a published row carries, and that the
 first 29 are the sota-v5 panel in its committed order), and then runs
 ``gm-bench agentic`` in this process with the seeds on its standard input
 (``--seeds-stdin``). The seeds never reach a command line or an environment
-variable, so ``ps`` on the host shows neither. Progress lines name episodes by
-position, not seed. The run directory still holds the seeds (every ledger
-header does), which is why a panel-grade row also needs the harness isolated
-from the driver by user or container; this launcher does not provide that.
+variable, so ``ps`` on the host shows neither. Episode directories
+(``episode-00`` ...) and progress lines name episodes by position, not seed,
+and the harness gets ``/dev/null`` as stdin, so its open-file table (``lsof``)
+names no seed either. The run directory still holds the seeds (every ledger
+header does, as does each finished episode's ``result.json``), which is why a
+panel-grade row also needs the harness isolated from the driver by user or
+container; this launcher does not provide that.
 
 Episodes run serially: the driver has no parallel mode, on purpose.
 

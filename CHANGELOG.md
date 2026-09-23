@@ -36,7 +36,10 @@ Added 2026-09-20. Nothing published changes.
   drawn 2026-09-22 with the same generator and escrowed in the Keychain.
   `scripts/run_bench_v2_panel_from_keychain.py` verifies the escrow and runs
   the panel with seeds on standard input (`gm-bench agentic --seeds-stdin`),
-  never on a command line. Panel execution waits for the owner attestation.
+  never on a command line. With `--seeds-stdin`, episode directories are
+  named by position (`episode-00`, ...) so the harness's open files do not
+  name a seed, and every harness now gets `/dev/null` as stdin. Panel
+  execution waits for the owner attestation.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

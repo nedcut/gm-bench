@@ -259,6 +259,7 @@ def test_agentic_cli_reads_seeds_from_stdin_and_keeps_them_out_of_progress(
 
     def fake_run_panel(seeds, *, progress, run_dir, **kwargs):
         seen["seeds"] = list(seeds)
+        seen["by_position"] = kwargs["name_episodes_by_position"]
         for seed in seeds:
             progress({"seed": seed, "stage": "done", "final_score": 1.0})
         return {
@@ -275,6 +276,7 @@ def test_agentic_cli_reads_seeds_from_stdin_and_keeps_them_out_of_progress(
     cli.main(["agentic", "--seeds-stdin", "--model", "m", "--output", str(tmp_path / "run")])
 
     assert seen["seeds"] == private
+    assert seen["by_position"] is True
     captured = capsys.readouterr()
     assert not any(str(seed) in captured.out + captured.err for seed in private)
     assert [json.loads(line)["seed_group"] for line in captured.err.splitlines()] == [0, 1]
@@ -294,3 +296,41 @@ def test_agentic_cli_refuses_json_or_both_seed_sources_with_stdin_seeds(
     monkeypatch.setattr(sys, "stdin", io.StringIO("  \n"))
     with pytest.raises(SystemExit, match="no seeds"):
         cli.main([*base, "--seeds-stdin"])
+
+
+def test_agentic_cli_keeps_seed_named_episode_directories_for_public_seeds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: dict = {}
+
+    def fake_run_panel(seeds, **kwargs):
+        seen.update(kwargs)
+        raise SystemExit(0)
+
+    monkeypatch.setattr(opencode_driver, "run_panel", fake_run_panel)
+    with pytest.raises(SystemExit):
+        cli.main(["agentic", "--seeds", "11", "--model", "m", "--output", str(tmp_path / "run")])
+    assert seen["name_episodes_by_position"] is False
+
+
+def test_run_panel_names_episode_directories_by_position_only_when_asked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dirs: list[str] = []
+
+    def fake_run_episode(seed, *, run_dir, episode_dir, **kwargs):
+        dirs.append(str(episode_dir.relative_to(run_dir)))
+        return {"seed": seed}
+
+    monkeypatch.setattr(opencode_driver, "run_episode", fake_run_episode)
+    monkeypatch.setattr(opencode_driver, "opencode_version", lambda binary: "x")
+    monkeypatch.setattr(opencode_driver, "summarize_episodes", lambda episodes: {})
+    monkeypatch.setattr(opencode_driver, "_agentic_summary", lambda episodes: {})
+    private = [(1 << 40) + 7, (1 << 40) + 11, (1 << 40) + 7]
+
+    opencode_driver.run_panel(private, model="m", run_dir=tmp_path / "a", name_episodes_by_position=True)
+    assert dirs == ["episode-00", "episode-01", "episode-02"]
+
+    dirs.clear()
+    opencode_driver.run_panel([11, 12, 11], model="m", run_dir=tmp_path / "b")
+    assert dirs == ["seed-11", "seed-12", "seed-11-r2"]

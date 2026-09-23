@@ -160,13 +160,18 @@ python scripts/run_bench_v2_panel_from_keychain.py \
 only the result. A run checks the same digests, refuses to start until the
 lane's `owner_attestation_status` is `attested-before-seed-access`, and then
 runs `gm-bench agentic --seeds-stdin` in its own process with the seeds on
-standard input. No command line or environment variable carries them, and
-progress lines name episodes by `seed_group` rather than seed. The output
+standard input. No command line or environment variable carries them.
+Episode directories are named by position (`episode-00`, `episode-01`, ...)
+rather than `seed-<seed>`, because the harness's stdout and stderr are files
+there and would otherwise show the seed in its open-file table; the harness's
+stdin is `/dev/null`. Progress lines name episodes by `seed_group` rather than
+seed. The output
 directory must be empty and outside the checkout. Other arguments pass
 through to `gm-bench agentic` unchanged, so driver options (and any
 isolation flags the driver adds) need no launcher change; `--seeds` and
-`--json` are refused. Keeping seeds out of `ps` does not isolate the
-harness: the run directory still holds them, so panel grade still needs
+`--json` are refused. Keeping seeds out of `ps` and `lsof` does not isolate
+the harness: the run directory still holds them (ledger headers and finished
+episodes' `result.json`), so panel grade still needs
 `separate-user` or `container` isolation.
 
 ## Red-teaming the sandbox

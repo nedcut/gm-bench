@@ -281,7 +281,8 @@ def main(argv: list[str] | None = None) -> None:
         "--seeds-stdin",
         action="store_true",
         help="read seeds from standard input (commas or whitespace) so no command line or environment "
-        "carries them; progress lines then name episodes by position and --json is refused",
+        "carries them; episode directories and progress lines then name episodes by position and --json "
+        "is refused",
     )
     agentic_parser.add_argument("--seasons", type=int, default=5)
     agentic_parser.add_argument("--output", required=True, help="run directory for ledgers, events and results")
@@ -1179,6 +1180,7 @@ def _agentic_command(args: argparse.Namespace) -> None:
         max_nudges=args.max_nudges,
         progress=_progress,
         keep_scratch=args.keep_scratch,
+        name_episodes_by_position=private,
     )
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
