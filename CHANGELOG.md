@@ -101,6 +101,23 @@ Added 2026-09-20. Nothing published changes.
   `provider_stall_wait_seconds` per episode, carried into published rows.
   The wait is taken off the open phase's guard clock and logged in the
   ledger as a `clock_pause` event, which replay and the audit ignore.
+- Second harness: `gm-bench agentic --harness codex` drives the Codex CLI
+  (`codex exec --json`, written against Codex CLI 0.156.1) through the same
+  episode loop as OpenCode, which now sits behind a small driver interface
+  (`gm_bench/agentic/harness.py`; OpenCode's names and behaviour are
+  unchanged). Each episode gets its own `CODEX_HOME` holding one staged MCP
+  server entry, so the host `~/.codex` (login, `AGENTS.md`, skills, rules)
+  and `~/.agents/skills` never reach the harness. Nudges and provider-stall
+  retries resume the same session with `codex exec resume`. Credentials come
+  from `--codex-auth-file` (or `CODEX_API_KEY` for same-user runs); in
+  container mode the file is written into the episode's home volume over
+  stdin, never onto a command line or into the mounted scratch directory,
+  and the harness runs from its own pinned image
+  (`@openai/codex@0.156.1`). Codex reports tokens but not cost,
+  per-call counts, or compactions, and those are recorded as unmeasured.
+  `agentic-validate` recounts tool calls from a Codex event stream as it
+  does for OpenCode. Tested only against a stand-in `codex` and `docker`;
+  no Codex episode has been run and no Codex result is claimed.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 
