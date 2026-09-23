@@ -624,10 +624,15 @@ def run_episode(
                             "phase": state["phase"],
                         }
                     )
-                # Nothing polls the guard while no harness runs; ``arm`` below
-                # then gives the resumed harness a full guard period even if
-                # the phase ran past the guard during the wait.
+                # Nothing polls the guard while no harness runs, and the wait
+                # is taken off the engine's phase clock below; ``arm`` still
+                # gives the resumed harness a full guard period if the phase
+                # had already run past the guard before the stall.
                 sleep(backoff)
+                # The engine's own guard clock would count the wait against the
+                # open phase and close it as ``guard`` on the next call.
+                with server.dispatch_lock:
+                    episode.exclude_from_phase_clock(backoff)
                 stall_retries += 1
                 stall_wait += backoff
             else:

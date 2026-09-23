@@ -1114,6 +1114,11 @@ def test_guard_does_not_fire_for_a_backoff_but_still_catches_a_hung_retry(tmp_pa
     # Invocation 3 starts after 120 s more: still no stop at launch, but a hung harness is stopped.
     assert polls == [(1, False), (2, False), (3, False), (3, True)]
     assert harness_run["provider_stall_wait_seconds"] == 180.0
+    # Both waits were taken off the engine's phase clock, so the hung retry,
+    # not the backoff, is what ran the phase out.
+    ledger = (tmp_path / "run" / "seed-11" / "ledger.jsonl").read_text().splitlines()
+    pauses = [json.loads(line) for line in ledger if '"clock_pause"' in line]
+    assert [pause["seconds"] for pause in pauses] == [60.0, 120.0]
     assert harness_run["guard_kills"] == 1
     assert [n["stalled"] for n in harness_run["nudges"]] == [False, True]
 
@@ -1146,3 +1151,25 @@ def test_provider_stall_counts_reach_run_json_and_the_redacted_artifact(tmp_path
     assert (compact["provider_stalls"], compact["provider_stall_wait_seconds"]) == (1, 60.0)
     assert compact["nudges"][0]["stall_retry"] is True and compact["nudges"][0]["backoff_seconds"] == 60.0
     assert validate_agentic_artifact(artifact)["ok"]
+
+
+def test_stall_backoff_is_not_phase_guard_time(tmp_path: Path, monkeypatch) -> None:
+    """A backoff longer than the guard does not cost the agent the open phase."""
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    script = [
+        {"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 0, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 3},
+    ]
+    result, calls, _sleeps = _stall_episode(
+        tmp_path,
+        monkeypatch,
+        script,
+        phase_guard_seconds=50.0,
+        sleep=lambda seconds: clock.__setitem__(0, clock[0] + seconds),
+    )
+    assert len(calls) == 3
+    assert result["harness_run"]["provider_stall_wait_seconds"] == 180.0
+    assert result["agentic"]["phases_ended_by"] == {"agent": 4}
+    assert result["failed_decisions"] == 0

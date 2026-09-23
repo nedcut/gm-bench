@@ -82,20 +82,22 @@ Added 2026-09-20. Nothing published changes.
   host only the driver's port, so host-loopback services (model servers,
   agent servers, tunnels) are out of reach; a canary check proves this
   before every episode and `harness.container.egress` records the rule.
-  The contract moves to `735bbacc6c9564ee`: the socket server gains a
+  The contract moves to `07de948a4f4afbae`: the socket server gains a
   loopback TCP transport with a per-run secret (Docker Desktop cannot pass
   a Unix socket through a bind mount), no longer serves a connection
   accepted after `stop()` begins, and counts only served connections in
   `proxy_connections` and every failed secret presentation (including
-  non-UTF-8 bytes) in `proxy_connections_refused`, so the committed smoke
-  row must be rerun on the new contract.
+  non-UTF-8 bytes) in `proxy_connections_refused`, and the engine can take
+  a provider-stall backoff off the phase guard clock (below), so the
+  committed smoke row must be rerun on the new contract.
 - Provider stalls: a harness run that ends on a retryable provider error
   (a 429 rate limit, an overload, a 5xx) is no longer treated as the agent
   stopping. The driver waits (60 s, doubling, capped at 600 s; at most 8
   retries and 45 minutes per episode) and resumes the session without
   spending a nudge, and records `provider_stalls` and
   `provider_stall_wait_seconds` per episode, carried into published rows.
-  Driver-only; the contract fingerprint is unchanged.
+  The wait is taken off the open phase's guard clock and logged in the
+  ledger as a `clock_pause` event, which replay and the audit ignore.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

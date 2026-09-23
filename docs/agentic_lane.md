@@ -60,10 +60,11 @@ stopping: the driver waits 60 s, doubling per consecutive stall up to 600 s,
 then resumes the session with the same reminder. A stall retry does not
 spend a nudge, and a retry that stalls again without a tool call does not end
 the loop; after 8 retries or 45 minutes of waiting in an episode a stall is
-handled like any other exit. The wait is not phase-guard time for the
-driver's stop (the resumed harness gets a full guard period), but the engine
-still measures the phase from when it opened, so a long wait can close the
-open phase as `guard` on the next call. Each nudge entry records
+handled like any other exit. The wait is not phase-guard time: the driver
+takes it off the open phase's clock (`AgenticEpisode.exclude_from_phase_clock`,
+logged in the ledger as a `clock_pause` event that replay and the audit
+ignore, and left out of the phase's recorded `seconds`), so only time a
+harness was running counts toward the guard. Each nudge entry records
 `stall_retry`, `backoff_seconds` and `provider_stall`, and `harness_run`
 records `provider_stalls` and `provider_stall_wait_seconds`.
 
