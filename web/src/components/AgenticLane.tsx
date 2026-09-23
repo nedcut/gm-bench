@@ -27,20 +27,40 @@ function compactCount(value: number | null): string {
   return fmt(value, 0);
 }
 
-/* Tokens are the harness's own accounting. Absent telemetry is unmeasured,
- * never zero; partial telemetry says how many episodes it covers. */
-function tokensPerEpisode(row: AgenticLaneRow): string {
+/* Tokens and cost are the harness's own accounting, averaged over the
+ * episodes whose harness reported it. Absent telemetry is unmeasured, never
+ * zero; partial telemetry says how many episodes it covers, on its own line. */
+function Coverage({ row }: { row: AgenticLaneRow }) {
   const t = row.telemetry;
-  if (t.telemetry_episodes === 0 || t.input_tokens === null) return "unmeasured";
-  const perEpisode = (value: number | null) =>
-    value === null ? null : value / t.telemetry_episodes;
-  const text = `${compactCount(perEpisode(t.input_tokens))} in / ${compactCount(perEpisode(t.output_tokens))} out`;
-  return t.telemetry_episodes < t.episodes ? `${text} (${t.telemetry_episodes} of ${t.episodes})` : text;
+  if (t.telemetry_episodes >= t.episodes) return null;
+  return (
+    <span className="agentic-coverage muted">
+      {t.telemetry_episodes} of {t.episodes} episodes
+    </span>
+  );
 }
 
-function costPerEpisode(row: AgenticLaneRow): string {
+function tokensPerEpisode(row: AgenticLaneRow): string | null {
+  const t = row.telemetry;
+  if (t.telemetry_episodes === 0 || t.input_tokens === null) return null;
+  const perEpisode = (value: number | null) =>
+    value === null ? null : value / t.telemetry_episodes;
+  return `${compactCount(perEpisode(t.input_tokens))} in / ${compactCount(perEpisode(t.output_tokens))} out`;
+}
+
+function costPerEpisode(row: AgenticLaneRow): string | null {
   const cost = row.telemetry.cost_per_episode_usd;
-  return cost === null ? "unmeasured" : `$${fmt(cost, 3)}`;
+  return cost === null ? null : `$${fmt(cost, 3)}`;
+}
+
+function Measured({ row, text }: { row: AgenticLaneRow; text: string | null }) {
+  if (text === null) return <>unmeasured</>;
+  return (
+    <>
+      {text}
+      <Coverage row={row} />
+    </>
+  );
 }
 
 function phasesByAgent(row: AgenticLaneRow): string {
@@ -53,25 +73,14 @@ function wallMinutes(row: AgenticLaneRow): string {
   return `${fmt(row.telemetry.wall_seconds_per_episode / 60, 1)} min`;
 }
 
-function referenceSentence(rows: AgenticLaneRow[]): string | null {
-  const ref = rows[0].reference;
-  const parts = [
-    ref.pick_trader !== null ? `pick-trader ${fmt(ref.pick_trader, 1)}` : null,
-    ref.random !== null ? `random ${fmt(ref.random, 1)}` : null,
-    ref.oracle !== null ? `the partial oracle ${fmt(ref.oracle, 1)}` : null,
-  ].filter((part): part is string => part !== null);
-  if (parts.length === 0) return null;
-  return (
-    `For placement only, the 1.0 scripted references on the ${ref.seed_count ?? ""}-seed ` +
-    `${ref.benchmark_version} private panel score ${parts.join(", ")}. The 2.0 panel is those ` +
-    `seeds plus three more, and the references are not re-run under 2.0.`
-  );
-}
+/* Spec, Row identity and eligibility: an unpinned row carries the flag and a
+ * plain sentence that it may not be reproducible. */
+const UNPINNED_SENTENCE =
+  "The model version or provider behind this row is not pinned, so the row may not be reproducible. It is an extra data point, not a headline.";
 
 export default function AgenticLane({ data }: { data: LeaderboardData }) {
   const rows = data.agentic_lane ?? [];
   if (rows.length === 0) return null;
-  const reference = referenceSentence(rows);
 
   return (
     <section className="analysis-section agentic-lane" id="agentic-lane">
@@ -94,7 +103,13 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
           seeds through the operating system. See the <a href={SPEC_DOC}>2.0 specification</a> and the{" "}
           <a href={LANE_DOC}>operator guide</a>.
         </p>
-        {reference ? <p className="agentic-lane-intro">{reference}</p> : null}
+        <p className="agentic-lane-intro">
+          Rows are listed by model and harness, not by score; 2.0 ranks nothing. No 1.0 score sits
+          beside them: the 1.0 scripted references ran on a different panel, and the one comparison
+          the specification supports is a pick-trader reference on the same 32 seeds, which is not
+          yet published. A row marked <span className="agentic-unpinned">unpinned</span> runs a
+          model whose version or provider is not pinned, so it may not be reproducible.
+        </p>
         <div
           className="results-table-wrap"
           role="region"
@@ -115,9 +130,13 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                 <th title="Phases the agent closed itself, out of all phases; the rest were closed by the phase guard">
                   Closed by agent
                 </th>
-                <th title="Prompts sent when the harness stopped before the season was over">Nudges</th>
-                <th title="Harness-reported tokens per episode">Tokens / episode</th>
-                <th>Cost / episode</th>
+                <th title="Prompts sent when the harness stopped before the season was over, averaged over all episodes">
+                  Nudges / episode
+                </th>
+                <th title="Harness-reported tokens, averaged over the episodes that reported them">
+                  Tokens / episode
+                </th>
+                <th title="Harness-reported cost, averaged over the episodes that reported it">Cost / episode</th>
                 <th>Wall / episode</th>
                 <th title="Episodes where the harness's own tool-call count equals the server ledger, which is authoritative">
                   Ledger = harness
@@ -129,12 +148,17 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                 <tr key={row.id}>
                   <td className="model-name">
                     <span>{row.model}</span>
+                    {row.unpinned ? (
+                      <span className="agentic-unpinned" title={UNPINNED_SENTENCE}>
+                        unpinned
+                      </span>
+                    ) : null}
                     <a className="row-profile-link" href={REPO_BLOB + row.artifact_path}>
                       artifact ↗
                     </a>
                   </td>
                   <td>{harnessLabel(row)}</td>
-                  <td className="numeric strong">
+                  <td className="numeric">
                     {fmt(row.mean_score, 1)}
                     <span className="muted"> ± {fmt(row.score_stddev, 1)}</span>
                   </td>
@@ -146,9 +170,13 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                   </td>
                   <td className="numeric">{numOrDash(row.telemetry.tool_calls_per_episode, 1)}</td>
                   <td className="numeric">{phasesByAgent(row)}</td>
-                  <td className="numeric">{fmt(row.telemetry.nudges_used, 0)}</td>
-                  <td className="numeric">{tokensPerEpisode(row)}</td>
-                  <td className="numeric">{costPerEpisode(row)}</td>
+                  <td className="numeric">{fmt(row.telemetry.nudges_per_episode, 2)}</td>
+                  <td className="numeric">
+                    <Measured row={row} text={tokensPerEpisode(row)} />
+                  </td>
+                  <td className="numeric">
+                    <Measured row={row} text={costPerEpisode(row)} />
+                  </td>
                   <td className="numeric">{wallMinutes(row)}</td>
                   <td className="numeric">
                     {row.agreement.episodes_agreeing} / {row.agreement.episodes}
@@ -161,7 +189,8 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
         <ul className="agentic-lane-notes">
           {rows.map((row) => (
             <li key={row.id}>
-              <strong>{row.model}</strong> in {harnessLabel(row)}: agentic fingerprint{" "}
+              <strong>{row.model}</strong> in {harnessLabel(row)}:{" "}
+              {row.unpinned ? `${UNPINNED_SENTENCE} ` : `Pinned to ${row.pin}. `}Agentic fingerprint{" "}
               <code>{row.contract.agentic_fingerprint}</code> on 1.0 contract{" "}
               <code>{row.contract.base_contract_fingerprint}</code>, tool surface{" "}
               <code>{row.contract.tool_surface}</code>, brief <code>{row.contract.brief}</code>. Panel{" "}

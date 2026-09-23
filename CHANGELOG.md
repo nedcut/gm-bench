@@ -45,8 +45,12 @@ Added 2026-09-20. Nothing published changes.
   the frozen panel in `config/bench_v2_lane.json` (smoke rows are exempt).
   `web/scripts/build_study.py` emits an `agentic_lane` block with panel-grade
   rows only, and the site gains a GM-Bench 2.0 section that renders nothing
-  until such a row exists. The results-data validator keeps 2.0 rows out of
-  every 1.0 table. No panel-grade row exists yet, so the site is unchanged.
+  until such a row exists. A row whose model is not listed under
+  `model_pinning` in the lane config shows the spec's `unpinned` flag and
+  may-not-be-reproducible sentence; rows are ordered by model and harness,
+  not score, and show no 1.0 reference score. The results-data validator
+  keeps 2.0 rows out of every 1.0 table. No panel-grade row exists yet, so
+  the site is unchanged.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

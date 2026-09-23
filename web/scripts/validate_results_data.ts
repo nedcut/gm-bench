@@ -59,6 +59,8 @@ const agenticFixture = {
   agent: "opencode:fixture/model",
   model: "fixture/model",
   harness: { name: "opencode", version: "0.0.0", model: "fixture/model", variant: null },
+  unpinned: true,
+  pin: null,
   isolation: "container",
   panel: {
     distinct_seeds: lanePanel.count,
@@ -76,6 +78,10 @@ function withAgentic(edit: (data: Leaderboard, row: AgenticLaneRow) => void): st
 }
 if (withAgentic(() => {}).length !== 0) {
   throw new Error(`A valid agentic fixture row was rejected: ${withAgentic(() => {}).join("; ")}`);
+}
+const pinnedFixtureIssues = withAgentic((_, row) => Object.assign(row, { unpinned: false, pin: "fixture/model@2026-01-01" }));
+if (pinnedFixtureIssues.length !== 0) {
+  throw new Error(`A valid pinned agentic fixture row was rejected: ${pinnedFixtureIssues.join("; ")}`);
 }
 const agenticMustReject: Array<[string, (data: Leaderboard, row: AgenticLaneRow) => void]> = [
   ["a smoke row", (_, row) => ((row as { grade: string }).grade = "smoke")],
@@ -97,6 +103,9 @@ const agenticMustReject: Array<[string, (data: Leaderboard, row: AgenticLaneRow)
       }),
   ],
   ["a paired p-value", (_, row) => Object.assign(row, { paired_p_value: 0.01 })],
+  ["an off-panel reference score", (_, row) => Object.assign(row, { reference: { pick_trader: 247.1 } })],
+  ["a row with no unpinned flag", (_, row) => delete (row as { unpinned?: boolean }).unpinned],
+  ["a pinned row with no pin", (_, row) => (row.unpinned = false)],
   ["a duplicate row", (data, row) => data.agentic_lane?.push(structuredClone(row))],
 ];
 for (const [label, edit] of agenticMustReject) {

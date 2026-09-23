@@ -213,6 +213,13 @@ export interface AgenticLaneRow {
   agent: string;
   model: string;
   harness: { name: string; version: string; model: string; variant: string | null };
+  /**
+   * True unless config/bench_v2_lane.json pins this model's served version or
+   * provider. An unpinned row may not be reproducible and is never a headline.
+   */
+  unpinned: boolean;
+  /** The pin that makes the row reproducible; null when unpinned. */
+  pin: string | null;
   isolation: "separate-user" | "container";
   panel: { distinct_seeds: number; episodes: number; sha256: string };
   seasons: number;
@@ -244,6 +251,7 @@ export interface AgenticLaneRow {
     scout_points_used: number;
     phases_ended_by: Record<string, number>;
     nudges_used: number;
+    nudges_per_episode: number;
     guard_kills: number;
     compactions: number;
     wall_seconds: number;
@@ -263,15 +271,6 @@ export interface AgenticLaneRow {
     episodes_agreeing: number;
     ledger_tool_calls: number;
     harness_tool_calls: number;
-  };
-  /** 1.0 scripted reference scores, on the 1.0 private panel, for placement only. */
-  reference: {
-    benchmark_version: string;
-    seed_panel: string | null;
-    seed_count: number | null;
-    pick_trader: number | null;
-    random: number | null;
-    oracle: number | null;
   };
   /** A 1.0 row on the same model, linked by id; the two are not paired here. */
   v1_row_id: string | null;

@@ -83,10 +83,13 @@ fails the build if they do.
 It also reads `results/agentic/` into `agentic_lane`: GM-Bench 2.0 rows
 (`docs/bench_v2_spec.md`), panel grade only, each validated against the
 checkout's 2.0 contract and the frozen panel in `config/bench_v2_lane.json`.
-Smoke rows are skipped. The 2.0 section and its nav link render nothing while
-the list is empty, and `scripts/validate_results_data.ts` fails the build if a
-2.0 row is not panel grade, is off the frozen panel, is same-user, or appears
-in a 1.0 table.
+Smoke rows are skipped. A row is flagged `unpinned` unless its model is listed
+in that file's `model_pinning.pinned_models`. Rows are ordered by pinning,
+model, and harness, never by score, and carry no 1.0 reference score. The 2.0
+section and its nav link render nothing while the list is empty, and
+`scripts/validate_results_data.ts` fails the build if a 2.0 row is not panel
+grade, is off the frozen panel, is same-user, lacks the pinning flag, carries a
+reference or paired field, or appears in a 1.0 table.
 
 `build_leaderboard.py` still emits the frozen `sota-v2` release, now at
 `src/data/leaderboard-sota-v2.json`, so the archived study stays reproducible.

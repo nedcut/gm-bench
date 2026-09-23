@@ -140,7 +140,11 @@ every file under `results/agentic/` against the checkout's contract. A
 `agentic-redact` and `agentic-validate` (and so CI) reject it unless its
 `panel.sha256` equals `seed_panel.artifact_panel_sha256` in
 `config/bench_v2_lane.json` and its distinct-seed count equals that panel's
-`count`; `smoke` rows are exempt.
+`count`; `smoke` rows are exempt. On the site, a row is flagged `unpinned`
+(may not be reproducible) unless its harness model id is listed with its pin
+under `model_pinning.pinned_models` in the same file; add the pin there, in
+the same change that commits the row, only when the served model version or
+provider is actually fixed.
 
 ## Private panel
 

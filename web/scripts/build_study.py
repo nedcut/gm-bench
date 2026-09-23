@@ -141,7 +141,6 @@ def _agentic_lane_rows(
     source: Path,
     *,
     lane: dict[str, Any],
-    reference: dict[str, Any],
     v1_rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Panel-grade GM-Bench 2.0 rows, one per committed artifact.
@@ -151,12 +150,19 @@ def _agentic_lane_rows(
     panel row must pass :func:`validate_agentic_artifact` against this
     checkout's contract and ``lane``, which pins it to the frozen 32-seed
     private panel. The artifacts carry no seeds, so a row publishes its own
-    mean and spread over per-seed means and nothing paired: the 1.0 reference
-    scores are shown for placement, and a 1.0 row on the same model is linked
-    by id only.
+    mean and spread over per-seed means and nothing paired. No 1.0 score is
+    attached: the spec's only supported inference is a pick-trader reference
+    on the same seeds, and the 1.0 references ran on a different panel. A 1.0
+    row on the same model is linked by id only.
+
+    A row is ``unpinned`` unless ``lane["model_pinning"]["pinned_models"]``
+    names its model with the pin that makes it reproducible (spec, Row
+    identity and eligibility). Rows are ordered by pinning, then model and
+    harness, never by score: 2.0 ranks nothing.
     """
     if not source.is_dir():
         return []
+    pinned_models = _agentic_pinned_models(lane)
     rows: list[dict[str, Any]] = []
     seen: dict[str, str] = {}
     for path in sorted(source.glob("*.json")):
@@ -168,20 +174,39 @@ def _agentic_lane_rows(
         report = validate_agentic_artifact(payload, lane=lane)
         if not report["ok"]:
             raise ValueError(f"{path.name} does not validate as a panel-grade 2.0 row: {report['errors']}")
-        row = _agentic_row(payload, path, reference=reference, v1_rows=v1_rows)
+        row = _agentic_row(payload, path, pinned_models=pinned_models, v1_rows=v1_rows)
         if row["id"] in seen:
             raise ValueError(f"{path.name} repeats agentic row {row['id']!r} already published from {seen[row['id']]}")
         seen[row["id"]] = path.name
         rows.append(row)
-    rows.sort(key=lambda item: -float(item["mean_score"]))
+    rows.sort(
+        key=lambda item: (
+            item["unpinned"],
+            item["model"],
+            item["harness"]["name"],
+            item["harness"]["version"],
+            item["harness"]["variant"] or "",
+        )
+    )
     return rows
+
+
+def _agentic_pinned_models(lane: dict[str, Any]) -> dict[str, str]:
+    """Model id -> the served version or provider pin that makes a row on it reproducible."""
+    pinning = lane.get("model_pinning") or {}
+    pinned = pinning.get("pinned_models") or {}
+    if not isinstance(pinned, dict) or not all(
+        isinstance(model, str) and isinstance(pin, str) and pin.strip() for model, pin in pinned.items()
+    ):
+        raise ValueError(f"{AGENTIC_LANE_CONFIG} model_pinning.pinned_models must map model ids to non-empty pins")
+    return dict(pinned)
 
 
 def _agentic_row(
     payload: dict[str, Any],
     path: Path,
     *,
-    reference: dict[str, Any],
+    pinned_models: dict[str, str],
     v1_rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
     harness = payload.get("harness") or {}
@@ -206,6 +231,10 @@ def _agentic_row(
         "agent": payload.get("agent"),
         "model": model,
         "harness": {"name": name, "version": version, "model": model, "variant": variant},
+        # Spec: a row whose model version or provider is not pinnable is
+        # published with an ``unpinned`` flag and may not be reproducible.
+        "unpinned": model not in pinned_models,
+        "pin": pinned_models.get(model),
         "isolation": payload.get("isolation"),
         "panel": {
             "distinct_seeds": len(by_group),
@@ -236,7 +265,6 @@ def _agentic_row(
         },
         "telemetry": _agentic_telemetry(episodes),
         "agreement": _agentic_agreement(episodes),
-        "reference": reference,
         "v1_row_id": _v1_row_for(model, v1_rows),
         "artifact_path": str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else path.name,
         "raw_artifact_sha256": publication.get("raw_artifact_sha256"),
@@ -282,6 +310,7 @@ def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "scout_points_used": scout_points,
         "phases_ended_by": dict(sorted(ended_by.items())),
         "nudges_used": nudges,
+        "nudges_per_episode": round(nudges / count, 2),
         "guard_kills": guard_kills,
         "compactions": compactions,
         "wall_seconds": round(wall_seconds, 1),
@@ -416,14 +445,6 @@ def build_study(
     agentic_lane = _agentic_lane_rows(
         agentic_source,
         lane=_read(root / AGENTIC_LANE_CONFIG),
-        reference={
-            "benchmark_version": "sota-v5",
-            "seed_panel": seed_panel.get("name"),
-            "seed_count": seed_panel.get("count"),
-            "pick_trader": headroom["pick_trader"],
-            "random": headroom["random"],
-            "oracle": headroom["oracle"],
-        },
         v1_rows=[*models, *(row for row in current_rows if row.get("lane") == "cli-harness"), *decision_lane_models],
     )
     v1_ids = headline_ids | {row["id"] for row in decision_lane_models}

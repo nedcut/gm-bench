@@ -50,6 +50,11 @@ export function agenticLaneIssues(data: Leaderboard, lanePanel: AgenticLanePanel
     if (row.panel?.sha256 !== lanePanel.artifact_panel_sha256) {
       issues.push(`${label} is not on the lane's frozen private panel (panel.sha256)`);
     }
+    if (typeof row.unpinned !== "boolean") {
+      issues.push(`${label} does not say whether its model is pinned (unpinned flag)`);
+    } else if (!row.unpinned && !(typeof row.pin === "string" && row.pin.trim())) {
+      issues.push(`${label} is marked pinned but names no pin`);
+    }
     if (!AGENTIC_PANEL_ISOLATION.has(row.isolation)) {
       issues.push(`${label} has isolation ${String(row.isolation)}; panel grade needs separate-user or container`);
     }
@@ -59,8 +64,8 @@ export function agenticLaneIssues(data: Leaderboard, lanePanel: AgenticLanePanel
     if (!row.artifact_path?.startsWith("results/agentic/")) {
       issues.push(`${label} does not point at a committed results/agentic/ artifact`);
     }
-    if (Object.keys(row).some((key) => /p_value|holm|paired|lift/i.test(key))) {
-      issues.push(`${label} carries a significance or paired field; 2.0 rows attach none`);
+    if (Object.keys(row).some((key) => /p_value|holm|paired|lift|reference/i.test(key))) {
+      issues.push(`${label} carries a significance, paired, or reference field; 2.0 rows attach none`);
     }
   }
   return issues;

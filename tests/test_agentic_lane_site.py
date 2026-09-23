@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -50,12 +51,23 @@ def _panel_fixture(*, isolation: str = "separate-user", model: str | None = None
     return row
 
 
-def _build(tmp_path: Path, *rows: tuple[str, dict]) -> dict:
+def _build(tmp_path: Path, *rows: tuple[str, dict], pinned_models: dict | None = None) -> dict:
     agentic_dir = tmp_path / "agentic"
     agentic_dir.mkdir()
     for name, payload in rows:
         (agentic_dir / name).write_text(json.dumps(payload))
-    return build_study(output_path=tmp_path / "leaderboard.json", agentic_dir=agentic_dir)
+    if pinned_models is None:
+        return build_study(output_path=tmp_path / "leaderboard.json", agentic_dir=agentic_dir)
+    root = tmp_path / "root"
+    shutil.copytree(Path("config"), root / "config")
+    (root / "results").mkdir()
+    for name in ("analysis", "leaderboard"):
+        (root / "results" / name).symlink_to(Path("results", name).resolve(), target_is_directory=True)
+    lane_path = root / "config" / "bench_v2_lane.json"
+    lane = json.loads(lane_path.read_text())
+    lane["model_pinning"]["pinned_models"] = pinned_models
+    lane_path.write_text(json.dumps(lane))
+    return build_study(root=root, output_path=tmp_path / "leaderboard.json", agentic_dir=agentic_dir)
 
 
 def test_current_results_publish_an_empty_agentic_lane(tmp_path: Path) -> None:
@@ -79,6 +91,7 @@ def test_panel_row_is_published_beside_every_1_0_table(tmp_path: Path) -> None:
     assert row["id"] == "agentic:opencode-1.18.31:opencode/big-pickle"
     assert row["lane"] == "agentic" and row["grade"] == "panel"
     assert row["harness"] == {"name": "opencode", "version": "1.18.31", "model": "opencode/big-pickle", "variant": None}
+    assert row["unpinned"] is True and row["pin"] is None
     assert row["isolation"] == "separate-user"
     assert row["panel"] == {
         "distinct_seeds": PANEL_MIN_SEEDS,
@@ -100,6 +113,7 @@ def test_panel_row_is_published_beside_every_1_0_table(tmp_path: Path) -> None:
     assert sum(telemetry["tool_calls_by_tool"].values()) == telemetry["tool_calls"]
     assert telemetry["phases_ended_by"] == {"agent": repeats * 159, "guard": repeats * 1}
     assert telemetry["nudges_used"] == repeats * _smoke()["agentic_summary"]["nudges_used"]
+    assert telemetry["nudges_per_episode"] == pytest.approx(telemetry["nudges_used"] / PANEL_MIN_SEEDS, abs=0.01)
     assert telemetry["telemetry_episodes"] == PANEL_MIN_SEEDS
     assert telemetry["input_tokens"] == repeats * sum(e["usage"]["input_tokens"] for e in _smoke()["episodes"])
     assert telemetry["cost_usd"] == 0.0
@@ -109,14 +123,7 @@ def test_panel_row_is_published_beside_every_1_0_table(tmp_path: Path) -> None:
         "ledger_tool_calls": repeats * smoke_calls,
         "harness_tool_calls": repeats * smoke_calls,
     }
-    assert row["reference"] == {
-        "benchmark_version": "sota-v5",
-        "seed_panel": "private-env",
-        "seed_count": 29,
-        "pick_trader": 247.109,
-        "random": 88.796,
-        "oracle": None,
-    }
+    assert "reference" not in row, "no 1.0 reference score is placed beside a 2.0 row"
     assert row["v1_row_id"] is None
     assert row["artifact_path"] == "panel.json"
     text = json.dumps(row)
@@ -185,3 +192,38 @@ def test_unreported_telemetry_is_unmeasured_not_zero(tmp_path: Path) -> None:
     assert telemetry["telemetry_episodes"] == 0
     assert telemetry["input_tokens"] is None and telemetry["cost_usd"] is None
     assert telemetry["tool_calls"] > 0
+
+
+def test_rows_are_ordered_by_pinning_and_identity_never_by_score(tmp_path: Path) -> None:
+    low = _panel_fixture(model="zz/low-scorer")
+    high = _panel_fixture(model="aa/high-scorer")
+    for row, shift in ((high, 100.0), (low, -100.0)):
+        for episode in row["episodes"]:
+            episode["final_score"] += shift
+        row["summary"]["mean_score"] = round(row["summary"]["mean_score"] + shift, 3)
+    pinned = _panel_fixture(model="mm/pinned")
+    dataset = _build(
+        tmp_path,
+        ("high.json", high),
+        ("low.json", low),
+        ("pinned.json", pinned),
+        pinned_models={"mm/pinned": "mm/pinned@2026-09-01 via mm"},
+    )
+    rows = dataset["agentic_lane"]
+    assert [row["model"] for row in rows] == ["mm/pinned", "aa/high-scorer", "zz/low-scorer"]
+    assert [(row["unpinned"], row["pin"]) for row in rows] == [
+        (False, "mm/pinned@2026-09-01 via mm"),
+        (True, None),
+        (True, None),
+    ]
+
+
+def test_committed_lane_pins_no_model_yet() -> None:
+    """A pin is a claim that the row is reproducible; none has been made."""
+    lane = json.loads(Path("config/bench_v2_lane.json").read_text())
+    assert lane["model_pinning"]["pinned_models"] == {}
+
+
+def test_a_malformed_pin_fails_the_build(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="pinned_models"):
+        _build(tmp_path, ("panel.json", _panel_fixture()), pinned_models={"opencode/big-pickle": ""})
