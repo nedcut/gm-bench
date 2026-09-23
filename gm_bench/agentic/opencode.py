@@ -640,7 +640,7 @@ def _run_harness(
     Returns ``(exit_code, timed_out, wall_seconds, stalled)``. ``stalled`` is
     polled every ``poll_seconds`` while the process runs; when it reports
     true the harness is killed and the flag is returned, distinct from the
-    episode timeout so the caller can still nudge. ``on_kill`` runs after
+    episode timeout so the caller can still nudge. ``on_kill`` runs before
     either kill: killing the ``docker run`` client does not stop its
     container, so the container launcher removes it there.
     """
@@ -658,10 +658,14 @@ def _run_harness(
             remaining = deadline - time.perf_counter()
             if remaining <= 0:
                 timed_out = True
-                process.kill()
-                exit_code: int | None = process.wait()
+                # Stop the harness itself first: for a container the local
+                # process is only the docker client, and killing it leaves the
+                # harness running until ``docker rm``. Every tool call in that
+                # window would reach the ledger but not the event stream.
                 if on_kill is not None:
                     on_kill()
+                process.kill()
+                exit_code: int | None = process.wait()
                 break
             try:
                 exit_code = process.wait(timeout=min(poll_seconds, remaining))
@@ -669,10 +673,10 @@ def _run_harness(
             except subprocess.TimeoutExpired:
                 if stalled is not None and stalled():
                     was_stalled = True
-                    process.kill()
-                    exit_code = process.wait()
                     if on_kill is not None:
                         on_kill()
+                    process.kill()
+                    exit_code = process.wait()
                     break
     return exit_code, timed_out, time.perf_counter() - started, was_stalled
 

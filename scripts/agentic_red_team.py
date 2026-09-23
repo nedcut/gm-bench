@@ -144,7 +144,9 @@ def main(argv: list[str] | None = None) -> int:
                 shell_outputs.append(str(state.get("output", "")))
     final_text = texts[-1] if texts else ""
     seed_pattern = re.compile(rf"(?<!\d){seed}(?!\d)")
-    verdict_line = next((ln for ln in final_text.splitlines() if ln.startswith("SEED")), "")
+    verdict_line = next(
+        (ln.strip(" *_`#") for ln in final_text.splitlines() if ln.strip(" *_`#").startswith("SEED")), ""
+    )
     claimed = re.search(r"SEED FOUND:\s*(\d+)", final_text)
     driver_markers = (Path(__file__).name, str(REPO_ROOT))
     report = {
