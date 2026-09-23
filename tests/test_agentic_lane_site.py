@@ -1,8 +1,9 @@
 """The site's GM-Bench 2.0 section: panel-grade rows only, kept apart from every 1.0 table.
 
 No panel-grade row exists yet, so the panel rows here are fixtures built in
-memory from the committed smoke row (grade, isolation, and seed groups edited)
-and written to a temporary directory, never under ``results/agentic/``.
+memory from the committed smoke row (grade, isolation, and seed groups edited,
+plus a synthetic reference block coherent with the row) and written to a
+temporary directory, never under ``results/agentic/``.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from gm_bench.agentic.publication import PANEL_MIN_SEEDS, REDACTED_SEEDS
+from tests.test_agentic_publication import fixture_reference
 from web.scripts.build_study import build_study
 
 SITE_DATASET = Path("web/src/data/leaderboard.json")
@@ -46,6 +48,7 @@ def _panel_fixture(*, isolation: str = "separate-user", model: str | None = None
         "sha256": LANE_PANEL["artifact_panel_sha256"],
     }
     row["summary"]["mean_score"] = round(sum(e["final_score"] for e in episodes) / len(episodes), 3)
+    row["reference"] = fixture_reference(row)
     if model is not None:
         row["harness"]["model"] = model
     return row
@@ -123,11 +126,17 @@ def test_panel_row_is_published_beside_every_1_0_table(tmp_path: Path) -> None:
         "ledger_tool_calls": repeats * smoke_calls,
         "harness_tool_calls": repeats * smoke_calls,
     }
-    assert "reference" not in row, "no 1.0 reference score is placed beside a 2.0 row"
+    # The one inference the spec supports: pick-trader on this row's own seeds.
+    reference = panel["reference"]
+    assert row["reference"] == {key: value for key, value in reference.items() if key != "per_seed"}
+    assert row["reference"]["agent"] == "pick-trader"
+    assert row["reference"]["num_seeds"] == row["panel"]["distinct_seeds"] == LANE_PANEL["count"]
     assert row["v1_row_id"] is None
     assert row["artifact_path"] == "panel.json"
     text = json.dumps(row)
-    assert "seeds" not in row and '"seed"' not in text and "p_value" not in text
+    assert "seeds" not in row and '"seed"' not in text and "per_seed" not in text
+    outside_reference = json.dumps({key: value for key, value in row.items() if key != "reference"})
+    assert "p_value" not in outside_reference, "no p-value between rows, harnesses, or models"
     one_zero_ids = {m["id"] for m in dataset["models"] + dataset["decision_lane_models"]}
     assert row["id"] not in one_zero_ids
 
@@ -145,6 +154,10 @@ def test_smoke_rows_are_never_published(tmp_path: Path) -> None:
         (lambda row: row["panel"].update(sha256="0" * 64), "not the lane's frozen private panel"),
         (lambda row: row.update(isolation="same-user"), "isolated from the driver"),
         (lambda row: row["panel"].update(distinct_seeds=31), "distinct"),
+        (lambda row: row.pop("reference"), "needs the reference block"),
+        (lambda row: row["reference"].update(num_seeds=29), "reference.num_seeds is 29"),
+        (lambda row: row["reference"].update(per_seed=[{"lift": 1.0}]), "per_seed must be empty"),
+        (lambda row: row["reference"].update(agent="value"), "reference.agent must be 'pick-trader'"),
     ],
 )
 def test_a_panel_row_that_does_not_validate_fails_the_build(tmp_path: Path, edit, message: str) -> None:
@@ -181,6 +194,7 @@ def test_a_1_0_row_on_the_same_model_is_linked_by_id_only(tmp_path: Path, model:
     (row,) = dataset["agentic_lane"]
     assert row["v1_row_id"] == "openrouter:x-ai/grok-4.3"
     assert not any(key.startswith(("paired", "lift", "primary")) for key in row)
+    assert row["reference"]["agent"] == "pick-trader", "the only contrast is pick-trader, never the 1.0 row"
 
 
 def test_unreported_telemetry_is_unmeasured_not_zero(tmp_path: Path) -> None:
@@ -201,6 +215,7 @@ def test_rows_are_ordered_by_pinning_and_identity_never_by_score(tmp_path: Path)
         for episode in row["episodes"]:
             episode["final_score"] += shift
         row["summary"]["mean_score"] = round(row["summary"]["mean_score"] + shift, 3)
+        row["reference"] = fixture_reference(row)
     pinned = _panel_fixture(model="mm/pinned")
     dataset = _build(
         tmp_path,

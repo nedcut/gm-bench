@@ -48,9 +48,22 @@ Added 2026-09-20. Nothing published changes.
   until such a row exists. A row whose model is not listed under
   `model_pinning` in the lane config shows the spec's `unpinned` flag and
   may-not-be-reproducible sentence; rows are ordered by model and harness,
-  not score, and show no 1.0 reference score. The results-data validator
+  not score, and show no 1.0 row's score. The results-data validator
   keeps 2.0 rows out of every 1.0 table. No panel-grade row exists yet, so
   the site is unchanged.
+- Reference contrast: a `panel`-grade artifact now carries the spec's one
+  supported inference, a `reference` block comparing the row with
+  `pick-trader` on the same seeds and seasons. `agentic-redact` computes it
+  from the raw run's seeds in-process, playing `pick-trader` and `random`
+  through the 1.0 runner's cached baseline path, so the numbers match a 1.0
+  run on those seeds. It holds the pick-trader and random means, the paired
+  lift with its 95% interval, standard deviation, sign-flip p-value, and seed
+  win rate, with `per_seed` empty and no seeds or paths. Smoke rows get none.
+  Validation rejects a panel row without the block, a block off the row's
+  seed count, per-seed values, or another agent, and a smoke row with one;
+  `agentic-validate --raw` recomputes it. The site's 2.0 section shows it as
+  "vs pick-trader (same seeds)", and the results-data validator now requires
+  that on-panel reference and rejects any other p-value on a 2.0 row.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

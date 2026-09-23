@@ -204,7 +204,8 @@ export interface DecisionLaneModel extends LeaderboardModel {
  * identity is model + harness + harness version (+ variant). Only
  * panel-grade rows reach the site: the lane's frozen 32-seed private panel,
  * seeds redacted, harness isolated from the driver by user or container. It
- * is never a 1.0 row and carries nothing paired against one.
+ * is never a 1.0 row and carries nothing paired against one; its only paired
+ * statistic is the pick-trader reference on its own seeds.
  */
 export interface AgenticLaneRow {
   id: string;
@@ -232,6 +233,25 @@ export interface AgenticLaneRow {
   seed_mean_max: number;
   illegal_actions: number | null;
   failed_decisions: number | null;
+  /**
+   * The spec's only supported inference: the predeclared pick-trader contrast
+   * on this row's own seeds and seasons, computed at redaction from the raw
+   * run. Lift is the row's per-seed score minus pick-trader's. Aggregates
+   * only; per-seed values never reach the site.
+   */
+  reference: {
+    agent: "pick-trader";
+    mean_score: number;
+    floor: { agent: "random"; mean_score: number };
+    seasons: number;
+    num_seeds: number;
+    paired_lift_mean: number;
+    paired_lift_stddev: number;
+    paired_lift_ci95: [number, number];
+    sign_flip_p_value: number;
+    significant_at_95: boolean;
+    candidate_seed_win_rate: number;
+  };
   contract: {
     benchmark_version: string;
     agentic_fingerprint: string;

@@ -150,10 +150,13 @@ def _agentic_lane_rows(
     panel row must pass :func:`validate_agentic_artifact` against this
     checkout's contract and ``lane``, which pins it to the frozen 32-seed
     private panel. The artifacts carry no seeds, so a row publishes its own
-    mean and spread over per-seed means and nothing paired. No 1.0 score is
-    attached: the spec's only supported inference is a pick-trader reference
-    on the same seeds, and the 1.0 references ran on a different panel. A 1.0
-    row on the same model is linked by id only.
+    mean and spread over per-seed means, plus the one inference the spec
+    supports: the artifact's ``reference`` block, the predeclared pick-trader
+    contrast computed at redaction on the row's own seeds and seasons
+    (pick-trader and random means, paired lift with its CI, sign-flip p,
+    seed win rate; never per-seed values). Nothing is paired across rows,
+    harnesses, or models, and no 1.0 row's score is attached; a 1.0 row on
+    the same model is linked by id only.
 
     A row is ``unpinned`` unless ``lane["model_pinning"]["pinned_models"]``
     names its model with the pin that makes it reproducible (spec, Row
@@ -250,6 +253,7 @@ def _agentic_row(
         "seed_mean_max": round(max(seed_means), 3),
         "illegal_actions": summary.get("illegal_actions"),
         "failed_decisions": summary.get("failed_decisions"),
+        "reference": _agentic_reference(payload.get("reference") or {}),
         "contract": {
             key: contract.get(key)
             for key in (
@@ -269,6 +273,24 @@ def _agentic_row(
         "artifact_path": str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else path.name,
         "raw_artifact_sha256": publication.get("raw_artifact_sha256"),
         "compacted_at_utc": publication.get("compacted_at_utc"),
+    }
+
+
+def _agentic_reference(reference: dict[str, Any]) -> dict[str, Any]:
+    """The pick-trader contrast on the row's own panel, aggregates only (per_seed is never carried)."""
+    floor = reference.get("floor") or {}
+    return {
+        "agent": reference.get("agent"),
+        "mean_score": reference.get("mean_score"),
+        "floor": {"agent": floor.get("agent"), "mean_score": floor.get("mean_score")},
+        "seasons": reference.get("seasons"),
+        "num_seeds": reference.get("num_seeds"),
+        "paired_lift_mean": reference.get("paired_lift_mean"),
+        "paired_lift_stddev": reference.get("paired_lift_stddev"),
+        "paired_lift_ci95": list(reference.get("paired_lift_ci95") or []),
+        "sign_flip_p_value": reference.get("sign_flip_p_value"),
+        "significant_at_95": reference.get("significant_at_95"),
+        "candidate_seed_win_rate": reference.get("candidate_seed_win_rate"),
     }
 
 

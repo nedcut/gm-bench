@@ -146,6 +146,32 @@ under `model_pinning.pinned_models` in the same file; add the pin there, in
 the same change that commits the row, only when the served model version or
 provider is actually fixed.
 
+A `panel`-grade artifact also carries a `reference` block: the spec's one
+supported inference, the predeclared contrast against `pick-trader` on the
+same seeds and seasons (`docs/bench_v2_spec.md`, Panel design). You do not
+run it separately. `agentic-redact` computes it from the seeds in the raw
+`run.json`, in-process, so nothing new goes on a command line: it plays
+`pick-trader` and `random` (shown as a floor) through the 1.0 runner's
+cached scripted-baseline path, with the default episode config `gm-bench
+evaluate` uses, so the scores are the ones a 1.0 run on those seeds reports
+and a repeat is a cache hit. A 2.0 episode is scored by the same functions on
+the same simulator as a 1.0 episode, so the per-seed difference is like for
+like. The block mirrors a redacted 1.0 `paired` block with `pick-trader` as
+the only baseline: `mean_score` (pick-trader), `floor.mean_score` (random),
+`seasons`, `num_seeds`, `paired_lift_mean` (row per-seed score minus
+pick-trader's, averaged), `paired_lift_stddev`, `paired_lift_ci95`
+(deterministic bootstrap), `sign_flip_p_value`, `significant_at_95`,
+`candidate_seed_win_rate`, and `per_seed`, which is always empty: a per-seed
+lift on a private seed gives the row's score on that seed. It keeps no seed,
+no cache path, and no cache hit count. Validation rejects a panel row
+without the block, a block whose `num_seeds` is not the row's distinct seed
+groups, a non-empty `per_seed`, any agent but `pick-trader`, and a `smoke`
+row that carries one; `smoke` rows never get a reference. `agentic-validate
+--raw` recomputes the block from the raw run as part of the fresh redaction
+and requires it to be identical. The baseline cache is local
+(`data/baseline_cache.json`, gitignored, or `GM_BENCH_BASELINE_CACHE`) and,
+as for 1.0 private runs, its keys name the seeds it was run on.
+
 ## Private panel
 
 A full row is the 32-seed private panel (`docs/bench_v2_spec.md`, Panel

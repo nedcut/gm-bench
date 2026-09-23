@@ -18,7 +18,16 @@ artifact per row, produced by :func:`compact_agentic_run`, which
   else is a ``smoke`` row and says so. Each episode carries a ``seed_group``
   (episodes of one seed share a group, numbered in first-appearance order)
   so the distinct-seed count and the per-seed mean can be checked without
-  the seeds themselves.
+  the seeds themselves;
+- for a ``panel`` row only, embeds the spec's one supported inference: the
+  predeclared ``reference`` contrast against ``pick-trader`` on the same
+  seeds and seasons (``docs/bench_v2_spec.md``, Panel design). It is computed
+  here, from the seeds in the raw ``run.json``, by the 1.0 runner's cached
+  scripted-baseline machinery and its paired statistics, so the numbers are
+  the ones a 1.0 run on those seeds would report. Like a redacted 1.0 row it
+  keeps the aggregates and empties ``per_seed``: a per-seed lift plus the
+  deterministic pick-trader score on that seed is the row's per-seed score. A
+  ``smoke`` row gets no reference block.
 
 :func:`validate_agentic_artifact` checks a committed artifact against the
 contract this checkout computes and against those grade rules. A panel-grade
@@ -40,6 +49,7 @@ from typing import Any
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.validate import validate_run
 from gm_bench.publication import canonical_sha256
+from gm_bench.runner import _paired_analysis, _precise_mean_score, run_many_cached_baselines
 
 AGENTIC_PUBLICATION_FORMAT = "gm-bench-agentic-summary-v1"
 RESULTS_DIR = Path("results") / "agentic"
@@ -51,6 +61,25 @@ PANEL_MIN_SEEDS = 32
 REDACTED_SEEDS = "<redacted>"
 ISOLATION_LEVELS = ("same-user", "separate-user", "container")
 _PANEL_ISOLATION = {"separate-user", "container"}
+# The spec's predeclared contrast (config/bench_v2_lane.json
+# panel_design.reference_agent) and a floor shown beside it. Both are
+# deterministic scripted 1.0 baselines.
+REFERENCE_AGENT = "pick-trader"
+REFERENCE_FLOOR_AGENT = "random"
+_REFERENCE_KEYS = (
+    "agent",
+    "mean_score",
+    "floor",
+    "seasons",
+    "num_seeds",
+    "paired_lift_mean",
+    "paired_lift_stddev",
+    "paired_lift_ci95",
+    "sign_flip_p_value",
+    "significant_at_95",
+    "candidate_seed_win_rate",
+    "per_seed",
+)
 _CONTRACT_KEYS = (
     "benchmark_version",
     "base_benchmark_version",
@@ -131,7 +160,7 @@ def compact_agentic_run(
     episodes = [
         _compact_episode(index, episode, groups[index], public_seeds) for index, episode in enumerate(raw_episodes)
     ]
-    return {
+    artifact: dict[str, Any] = {
         "publication": {
             "format": AGENTIC_PUBLICATION_FORMAT,
             "raw_artifact_sha256": canonical_sha256(raw),
@@ -164,6 +193,61 @@ def compact_agentic_run(
             "warnings": _by_index(validation, "warnings"),
             "audits": [report.get("audit") for report in validation["per_episode"]],
         },
+    }
+    if grade == "panel":
+        artifact["reference"] = reference_contrast(raw)
+    return artifact
+
+
+def reference_contrast(raw: dict[str, Any]) -> dict[str, Any]:
+    """The predeclared ``pick-trader`` contrast on the raw run's own seeds and seasons.
+
+    ``pick-trader`` and ``random`` are played by
+    :func:`gm_bench.runner.run_many_cached_baselines` with the default episode
+    config, exactly as ``gm-bench evaluate`` plays 1.0 baselines, so they hit
+    the same baseline-cache entries and give the same scores a 1.0 run on these
+    seeds reports. A 2.0 episode is scored by the same functions on the same
+    simulator (``score_components`` and ``breakdown_from_components`` on
+    ``League.new(seed)``), so the per-seed difference is like for like. The
+    paired statistics are 1.0's :func:`gm_bench.runner._paired_analysis` with
+    ``pick-trader`` as the only baseline: lifts are the row's per-seed score
+    (mean over repeats) minus pick-trader's, over distinct seeds in first
+    appearance order, so the seeded bootstrap and sign-flip draws repeat
+    exactly on re-redaction. Nothing seed-level leaves this function:
+    ``per_seed`` is emptied and no cache path or hit count is kept.
+    """
+    raw_episodes = raw.get("episodes") or []
+    seasons = raw.get("seasons")
+    if not _is_int(seasons) or seasons < 1:
+        raise ValueError("the raw run has no positive integer seasons; cannot run the reference")
+    if any(episode.get("seasons", seasons) != seasons for episode in raw_episodes):
+        raise ValueError("raw run episodes disagree on seasons; cannot pair them with one reference run")
+    candidate = {
+        "episodes": [
+            {"seed": int(episode["seed"]), "final_score": float(episode["final_score"])} for episode in raw_episodes
+        ]
+    }
+    seeds = list(dict.fromkeys(episode["seed"] for episode in candidate["episodes"]))
+    if not seeds:
+        raise ValueError("the raw run has no episodes to pair with the reference")
+    reference, _ = run_many_cached_baselines(REFERENCE_AGENT, seeds, seasons)
+    floor, _ = run_many_cached_baselines(REFERENCE_FLOOR_AGENT, seeds, seasons)
+    paired = _paired_analysis(seeds, candidate, [reference])
+    return {
+        "agent": REFERENCE_AGENT,
+        "mean_score": paired["best_baseline"]["mean_score"],
+        "floor": {"agent": REFERENCE_FLOOR_AGENT, "mean_score": round(_precise_mean_score(floor), 3)},
+        "seasons": seasons,
+        "num_seeds": paired["num_seeds"],
+        "paired_lift_mean": paired["paired_lift_mean"],
+        "paired_lift_stddev": paired["paired_lift_stddev"],
+        "paired_lift_ci95": paired["paired_lift_ci95"],
+        "sign_flip_p_value": paired["sign_flip_p_value"],
+        "significant_at_95": paired["significant_at_95"],
+        "candidate_seed_win_rate": paired["candidate_seed_win_rate"],
+        # Withheld, as in a redacted 1.0 row: per-seed lifts on private seeds
+        # invert to per-seed scores.
+        "per_seed": [],
     }
 
 
@@ -228,6 +312,10 @@ def validate_agentic_artifact(
     ``lane`` (default: this checkout's ``config/bench_v2_lane.json``) and its
     distinct-seed count must equal ``seed_panel.count``. Without a lane config
     a panel row fails closed. ``smoke`` rows are exempt.
+
+    A ``panel`` row must carry the ``reference`` block (the predeclared
+    ``pick-trader`` contrast) with ``num_seeds`` equal to its distinct seed
+    groups and ``per_seed`` empty; a ``smoke`` row must not carry one.
 
     With ``raw_run`` (the operator-held run directory or ``run.json``) the
     artifact is also checked against its evidence: the SHA-256 binding must
@@ -315,6 +403,7 @@ def validate_agentic_artifact(
             errors.append(f"panel.distinct_seeds is {distinct} but the episodes form {len(set(groups))} seed groups")
         if not redacted and isinstance(seeds, list) and len(seeds) == len(episodes) and groups != seed_groups(seeds):
             errors.append("episode seed_group values do not follow panel.seeds")
+    candidate_mean: float | None = None
     if episodes and not all(_is_finite_number(score) for score in scores):
         errors.append("every episode needs a finite final_score")
     elif groups_ok:
@@ -322,12 +411,17 @@ def validate_agentic_artifact(
         for group, score in zip(groups, scores, strict=True):
             by_group.setdefault(group, []).append(float(score))
         seed_means = [sum(values) / len(values) for values in by_group.values()]
-        mean = sum(seed_means) / len(seed_means)
+        mean = candidate_mean = sum(seed_means) / len(seed_means)
         recorded_mean = (artifact.get("summary") or {}).get("mean_score")
         if not _is_finite_number(recorded_mean):
             errors.append("summary.mean_score must be a finite number")
         elif abs(mean - float(recorded_mean)) > 1e-3:
             errors.append(f"summary.mean_score {recorded_mean} does not match the per-seed episode mean {mean:.3f}")
+
+    if grade == "smoke" and "reference" in artifact:
+        errors.append("a smoke row carries no reference contrast (spec, Panel design); drop the reference block")
+    elif grade == "panel":
+        errors.extend(_reference_errors(artifact.get("reference"), distinct, artifact.get("seasons"), candidate_mean))
 
     validation = artifact.get("validation") or {}
     if validation.get("ok") is not True:
@@ -343,6 +437,70 @@ def validate_agentic_artifact(
     if raw_run is not None and not errors:
         errors.extend(_check_against_raw_run(artifact, raw_run))
     return {"ok": not errors, "errors": errors, "warnings": warnings, "grade": grade, "agent": artifact.get("agent")}
+
+
+def _reference_errors(reference: Any, distinct: int, seasons: Any, candidate_mean: float | None) -> list[str]:
+    """Shape and internal consistency of a panel row's ``pick-trader`` contrast.
+
+    The numbers can only be recomputed from the raw run (``raw_run``); here
+    they are checked for being on this row's panel, seed-free, and coherent.
+    """
+    if not isinstance(reference, dict):
+        return [f"panel grade needs the reference block: the predeclared {REFERENCE_AGENT} contrast on the same seeds"]
+    errors: list[str] = []
+    keys = set(reference)
+    if keys != set(_REFERENCE_KEYS):
+        missing = sorted(set(_REFERENCE_KEYS) - keys)
+        extra = sorted(keys - set(_REFERENCE_KEYS))
+        errors.append(f"reference has missing keys {missing} and unexpected keys {extra}")
+    if reference.get("agent") != REFERENCE_AGENT:
+        errors.append(f"reference.agent must be {REFERENCE_AGENT!r}, the spec's predeclared contrast")
+    floor = reference.get("floor")
+    if not (
+        isinstance(floor, dict)
+        and set(floor) == {"agent", "mean_score"}
+        and floor.get("agent") == REFERENCE_FLOOR_AGENT
+        and _is_finite_number(floor.get("mean_score"))
+    ):
+        errors.append(f"reference.floor must be {{agent: {REFERENCE_FLOOR_AGENT!r}, mean_score: <number>}}")
+    if reference.get("num_seeds") != distinct:
+        errors.append(
+            f"reference.num_seeds is {reference.get('num_seeds')!r} but the row has {distinct} distinct seeds; "
+            "the reference must run on exactly the row's seeds"
+        )
+    if reference.get("seasons") != seasons:
+        errors.append(f"reference.seasons is {reference.get('seasons')!r} but the row played {seasons!r} seasons")
+    if reference.get("per_seed") != []:
+        errors.append("reference.per_seed must be empty: per-seed lifts on private seeds invert to per-seed scores")
+    for key in ("mean_score", "paired_lift_mean", "paired_lift_stddev", "candidate_seed_win_rate"):
+        if not _is_finite_number(reference.get(key)):
+            errors.append(f"reference.{key} must be a finite number")
+    ci = reference.get("paired_lift_ci95")
+    ci_ok = isinstance(ci, list) and len(ci) == 2 and all(_is_finite_number(bound) for bound in ci) and ci[0] <= ci[1]
+    if not ci_ok:
+        errors.append("reference.paired_lift_ci95 must be [low, high] with low <= high")
+    p_value = reference.get("sign_flip_p_value")
+    if not (_is_finite_number(p_value) and 0.0 <= p_value <= 1.0):
+        errors.append("reference.sign_flip_p_value must be a number between 0 and 1")
+    significant = reference.get("significant_at_95")
+    if not isinstance(significant, bool):
+        errors.append("reference.significant_at_95 must be a boolean")
+    elif ci_ok and significant != (distinct >= 2 and (ci[0] > 0.0 or ci[1] < 0.0)):
+        errors.append("reference.significant_at_95 contradicts reference.paired_lift_ci95")
+    win_rate = reference.get("candidate_seed_win_rate")
+    if _is_finite_number(win_rate) and not 0.0 <= win_rate <= 1.0:
+        errors.append("reference.candidate_seed_win_rate must be between 0 and 1")
+    lift = reference.get("paired_lift_mean")
+    ref_mean = reference.get("mean_score")
+    # With one baseline and every seed in both, the mean lift is the row's
+    # per-seed mean minus the reference mean (each rounded to 3 places).
+    if candidate_mean is not None and _is_finite_number(lift) and _is_finite_number(ref_mean):
+        if abs(candidate_mean - ref_mean - lift) > 2e-3:
+            errors.append(
+                f"reference.paired_lift_mean {lift} is not the row mean {candidate_mean:.3f} "
+                f"minus the {REFERENCE_AGENT} mean {ref_mean}"
+            )
+    return errors
 
 
 def _lane_panel_errors(panel: dict[str, Any], distinct: int, lane: dict[str, Any] | None) -> list[str]:
@@ -362,6 +520,11 @@ def _lane_panel_errors(panel: dict[str, Any], distinct: int, lane: dict[str, Any
     if distinct != expected_count:
         errors.append(
             f"panel grade has {distinct} distinct seeds; the lane's frozen private panel has {expected_count}"
+        )
+    reference_agent = (lane.get("panel_design") or {}).get("reference_agent", REFERENCE_AGENT)
+    if reference_agent != REFERENCE_AGENT:
+        errors.append(
+            f"{LANE_CONFIG} panel_design.reference_agent is {reference_agent!r}; this checkout computes {REFERENCE_AGENT!r}"
         )
     return errors
 

@@ -1,4 +1,4 @@
-import { fmt, numOrDash } from "../lib";
+import { fmt, numOrDash, pctOrDash } from "../lib";
 import type { AgenticLaneRow, Leaderboard as LeaderboardData } from "../types";
 
 /* GM-Bench 2.0, the agentic lane, kept apart from every 1.0 table.
@@ -7,9 +7,11 @@ import type { AgenticLaneRow, Leaderboard as LeaderboardData } from "../types";
  * Code, ...) and driving the simulator through MCP tools for one continuous
  * session per episode. It is a different contract from 1.0, so nothing here
  * feeds the shot chart, the headline count, the model profile, or the
- * decision lane, and nothing is paired against a 1.0 row. Only panel-grade
- * rows reach this component (the builder and the data validator both enforce
- * it); with none, it renders nothing at all. */
+ * decision lane, and nothing is paired against a 1.0 row. The one inference
+ * shown is the spec's predeclared contrast: each row against pick-trader on
+ * the row's own seeds. Rows are never compared with each other. Only
+ * panel-grade rows reach this component (the builder and the data validator
+ * both enforce it); with none, it renders nothing at all. */
 
 const REPO_BLOB = "https://github.com/nedcut/gm-bench/blob/main/";
 const SPEC_DOC = `${REPO_BLOB}docs/bench_v2_spec.md`;
@@ -63,6 +65,24 @@ function Measured({ row, text }: { row: AgenticLaneRow; text: string | null }) {
   );
 }
 
+function signed(value: number, digits = 1): string {
+  const text = fmt(Math.abs(value), digits);
+  if (text === fmt(0, digits)) return text;
+  return value > 0 ? `+${text}` : `−${text}`;
+}
+
+function pValue(p: number): string {
+  return p < 0.001 ? "p < 0.001" : `p = ${fmt(p, 3)}`;
+}
+
+/* The row's per-seed score minus pick-trader's on the same seeds, with the
+ * bootstrap 95% interval and the sign-flip p-value. */
+function referenceLift(row: AgenticLaneRow): string {
+  const r = row.reference;
+  const [low, high] = r.paired_lift_ci95;
+  return `${signed(r.paired_lift_mean)} [${signed(low)}, ${signed(high)}]`;
+}
+
 function phasesByAgent(row: AgenticLaneRow): string {
   const ended = row.telemetry.phases_ended_by;
   const total = Object.values(ended).reduce((sum, count) => sum + count, 0);
@@ -104,11 +124,15 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
           <a href={LANE_DOC}>operator guide</a>.
         </p>
         <p className="agentic-lane-intro">
-          Rows are listed by model and harness, not by score; 2.0 ranks nothing. No 1.0 score sits
-          beside them: the 1.0 scripted references ran on a different panel, and the one comparison
-          the specification supports is a pick-trader reference on the same 32 seeds, which is not
-          yet published. A row marked <span className="agentic-unpinned">unpinned</span> runs a
-          model whose version or provider is not pinned, so it may not be reproducible.
+          Rows are listed by model and harness, not by score; 2.0 ranks nothing. The one comparison
+          the specification supports is each row against the scripted pick-trader policy on the same
+          seeds and seasons: the <em>vs pick-trader</em> column is the row's per-seed score minus
+          pick-trader's, averaged over the panel, with its 95% interval and sign-flip p-value.
+          Pick-trader is played by the 1.0 simulator's own baseline runner at redaction time, so its
+          score is the one a 1.0 run on these seeds gets. There is no p-value between two rows, two
+          harnesses, or two models, and no 1.0 row's score is placed beside a 2.0 row. A row
+          marked <span className="agentic-unpinned">unpinned</span> runs a model whose version or
+          provider is not pinned, so it may not be reproducible.
         </p>
         <div
           className="results-table-wrap"
@@ -123,6 +147,9 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                 <th>Harness</th>
                 <th title="Mean of per-seed scores, ± their standard deviation across seeds">Score</th>
                 <th title="Lowest and highest per-seed score">Seed range</th>
+                <th title="Row score minus pick-trader's on the same seeds and seasons: mean of per-seed differences, bootstrap 95% interval, and two-sided sign-flip p-value. The only inference the 2.0 specification supports.">
+                  vs pick-trader (same seeds)
+                </th>
                 <th title="Distinct private seeds, and how the harness was isolated from the driver">
                   Panel
                 </th>
@@ -165,6 +192,10 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                   <td className="numeric">
                     {fmt(row.seed_mean_min, 1)} – {fmt(row.seed_mean_max, 1)}
                   </td>
+                  <td className="numeric">
+                    {referenceLift(row)}
+                    <span className="muted"> · {pValue(row.reference.sign_flip_p_value)}</span>
+                  </td>
                   <td>
                     {row.panel.distinct_seeds} seeds · {row.isolation}
                   </td>
@@ -196,6 +227,9 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
               <code>{row.contract.tool_surface}</code>, brief <code>{row.contract.brief}</code>. Panel{" "}
               <code title={row.panel.sha256}>{row.panel.sha256.slice(0, 16)}…</code>,{" "}
               {row.panel.episodes} episodes of {row.seasons} seasons,{" "}
+              pick-trader {fmt(row.reference.mean_score, 1)} and random{" "}
+              {fmt(row.reference.floor.mean_score, 1)} on the same {row.reference.num_seeds} seeds,
+              ahead of pick-trader on {pctOrDash(row.reference.candidate_seed_win_rate, 0)} of them,{" "}
               {fmt(row.telemetry.tool_calls, 0)} tool calls, {row.telemetry.guard_kills} guard stop
               {row.telemetry.guard_kills === 1 ? "" : "s"}, {row.illegal_actions ?? 0} illegal action
               {row.illegal_actions === 1 ? "" : "s"}.
