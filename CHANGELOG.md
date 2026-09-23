@@ -89,6 +89,13 @@ Added 2026-09-20. Nothing published changes.
   `proxy_connections` and every failed secret presentation (including
   non-UTF-8 bytes) in `proxy_connections_refused`, so the committed smoke
   row must be rerun on the new contract.
+- Provider stalls: a harness run that ends on a retryable provider error
+  (a 429 rate limit, an overload, a 5xx) is no longer treated as the agent
+  stopping. The driver waits (60 s, doubling, capped at 600 s; at most 8
+  retries and 45 minutes per episode) and resumes the session without
+  spending a nudge, and records `provider_stalls` and
+  `provider_stall_wait_seconds` per episode, carried into published rows.
+  Driver-only; the contract fingerprint is unchanged.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

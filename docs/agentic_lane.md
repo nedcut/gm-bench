@@ -53,6 +53,20 @@ bought; only after they are exhausted are the remaining phases closed as
 failed decisions. The reminder text lives in `gm_bench/agentic/brief.py` and
 is a contract source.
 
+A run that ends on a retryable provider error (the last event is an `error`
+with `isRetryable`, a 408/425/429/500/502/503/504 status, or a rate-limit,
+overload or try-again-later message) is a **provider stall**, not the agent
+stopping: the driver waits 60 s, doubling per consecutive stall up to 600 s,
+then resumes the session with the same reminder. A stall retry does not
+spend a nudge, and a retry that stalls again without a tool call does not end
+the loop; after 8 retries or 45 minutes of waiting in an episode a stall is
+handled like any other exit. The wait is not phase-guard time for the
+driver's stop (the resumed harness gets a full guard period), but the engine
+still measures the phase from when it opened, so a long wait can close the
+open phase as `guard` on the next call. Each nudge entry records
+`stall_retry`, `backoff_seconds` and `provider_stall`, and `harness_run`
+records `provider_stalls` and `provider_stall_wait_seconds`.
+
 The engine outlives every harness invocation, so restarts and nudges
 reconnect to the same live episode. The stdio entry point
 (`python -m gm_bench.agentic.mcp_server`, configured by an episode file)
@@ -77,6 +91,7 @@ season summaries, transactions) plus:
   block
 - `harness_run`: the command (brief elided), exit code, timeout flag, wall
   time, nudges used and what each bought, phase-guard stops (`guard_kills`),
+  provider stalls and the backoff waited for them,
   whether every proxy connection had closed when the server stopped
   (`server_drained`), and where the raw event stream lives
 
