@@ -49,7 +49,12 @@
       "retired_commitment_not_checked": "The retired 16-seed sota-v3 commitment (macos-keychain:gm-bench-sota-v3-private-panel) was not read, so its never-read status holds. A collision with it has probability below 1e-17 at this range."
     },
     "owner_attestation_required": true,
-    "owner_attestation_status": "pending-owner-attestation",
+    "owner_attestation_status": "attested-before-seed-access",
+    "owner_attestation": {
+      "attested_by": "nedcut@gmail.com",
+      "attested_at_utc": "2026-09-23T04:20:00Z",
+      "statement": "The three new seeds at execution positions 30 to 32 were drawn on 2026-09-22 (2026-09-23T03:13:37Z) by scripts/draw_bench_v2_private_panel.py with the repo's own generator, escrowed to the named keychain service in the same process without ever being read or printed, and the 32-seed escrow was independently re-verified to reproduce every digest above. No earlier panel read the three new seeds; positions 1 to 29 are the frozen sota-v5 private panel, reused by the 2.0 spec for per-seed pairing. Panel execution will use the exact committed values without post-data substitution. Attested on the owner's explicit 2026-09-22 instruction to run and publish the GM-Bench 2.0 panel."
+    },
     "owner_attestation_scope": "Owner must attest that the three new seeds were drawn as recorded above and escrowed without being read or printed, that the 32-seed escrow reproduces every digest here, and that panel execution will use the exact committed values without post-data substitution. The launcher refuses to run a panel until this reads attested-before-seed-access.",
     "seed_values_included": false,
     "frozen_record": "Drawn and escrowed in one process: the v5 escrow was read and verified against config/sota_v5_lane.json, the three new seeds and a fresh salt were drawn in memory, the record (same shape as the v5 escrow record plus a lineage block) was added to the Keychain through security -i on standard input so no seed or salt reached a command line or a file, and the item was read back and compared before these digests were printed."
