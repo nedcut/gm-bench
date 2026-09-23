@@ -275,7 +275,15 @@ def main(argv: list[str] | None = None) -> None:
     )
     agentic_parser.add_argument("--harness", choices=["opencode"], default="opencode")
     agentic_parser.add_argument("--model", required=True, help="model id as the harness names it")
-    agentic_parser.add_argument("--seeds", nargs="+", type=int, default=[11])
+    agentic_seed_source = agentic_parser.add_mutually_exclusive_group()
+    agentic_seed_source.add_argument("--seeds", nargs="+", type=int, default=[11])
+    agentic_seed_source.add_argument(
+        "--seeds-stdin",
+        action="store_true",
+        help="read seeds from standard input (commas or whitespace) so no command line or environment "
+        "carries them; episode directories and progress lines then name episodes by position and --json "
+        "is refused",
+    )
     agentic_parser.add_argument("--seasons", type=int, default=5)
     agentic_parser.add_argument("--output", required=True, help="run directory for ledgers, events and results")
     agentic_parser.add_argument("--variant", help="harness reasoning variant, e.g. minimal/low/high")
@@ -1146,12 +1154,23 @@ def _agentic_command(args: argparse.Namespace) -> None:
     from pathlib import Path as _Path
 
     from gm_bench.agentic import opencode as opencode_driver
+    from gm_bench.agentic.publication import seed_groups
+
+    seeds = list(args.seeds)
+    private = args.seeds_stdin
+    if private:
+        if args.json:
+            raise SystemExit("--json prints every seed; it cannot be combined with --seeds-stdin")
+        seeds = _read_stdin_seeds(sys.stdin.read())
+    episode_of = dict(zip(seeds, seed_groups(seeds), strict=True))
 
     def _progress(event: dict[str, Any]) -> None:
+        if private and "seed" in event:
+            event = {"seed_group": episode_of.get(event["seed"]), **{k: v for k, v in event.items() if k != "seed"}}
         print(json.dumps(event, sort_keys=True), file=sys.stderr)
 
     payload = opencode_driver.run_panel(
-        args.seeds,
+        seeds,
         model=args.model,
         run_dir=_Path(args.output),
         seasons=args.seasons,
@@ -1161,6 +1180,7 @@ def _agentic_command(args: argparse.Namespace) -> None:
         max_nudges=args.max_nudges,
         progress=_progress,
         keep_scratch=args.keep_scratch,
+        name_episodes_by_position=private,
     )
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
@@ -1179,6 +1199,16 @@ def _agentic_command(args: argparse.Namespace) -> None:
             f"  tokens in/out={usage.get('input_tokens')}/{usage.get('output_tokens')} cost_usd={usage.get('cost_usd')}"
         )
         print(f"  run.json: {_Path(args.output) / 'run.json'}")
+
+
+def _read_stdin_seeds(text: str) -> list[int]:
+    try:
+        seeds = [int(token) for token in text.replace(",", " ").split()]
+    except ValueError:
+        raise SystemExit("--seeds-stdin expects integer seeds separated by commas or whitespace") from None
+    if not seeds:
+        raise SystemExit("--seeds-stdin read no seeds from standard input")
+    return seeds
 
 
 def _agentic_validate_command(args: argparse.Namespace) -> None:

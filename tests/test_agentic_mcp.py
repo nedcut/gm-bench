@@ -467,6 +467,36 @@ def test_run_harness_stops_a_stalled_harness_and_reports_it_apart_from_timeout(t
     assert (exit_code, timed_out, stalled) == (0, False, False)
 
 
+def test_run_harness_gives_the_harness_dev_null_as_stdin(tmp_path: Path) -> None:
+    import gm_bench.agentic.opencode as driver
+
+    # A driver that read private seeds from its stdin must not pass that
+    # descriptor on to the harness.
+    # pytest already points fd 0 at /dev/null, so put a seed file there first.
+    probe = "import os; print(os.path.samestat(os.fstat(0), os.stat(os.devnull)))"
+    events, errors = tmp_path / "events.jsonl", tmp_path / "stderr.log"
+    seed_file = tmp_path / "seeds.txt"
+    seed_file.write_text("11\n", encoding="utf-8")
+    saved = os.dup(0)
+    try:
+        with seed_file.open("rb") as handle:
+            os.dup2(handle.fileno(), 0)
+        exit_code, timed_out, _, _ = driver._run_harness(
+            [sys.executable, "-c", probe],
+            cwd=tmp_path,
+            env=os.environ.copy(),
+            events_path=events,
+            stderr_path=errors,
+            timeout=20.0,
+            poll_seconds=0.1,
+        )
+    finally:
+        os.dup2(saved, 0)
+        os.close(saved)
+    assert (exit_code, timed_out) == (0, False)
+    assert events.read_text(encoding="utf-8").strip() == "True"
+
+
 def test_real_proxy_script_bridges_stdio_to_the_socket_server(tmp_path: Path) -> None:
     """Run the actual proxy file against a socket server, then reconnect as a restart would."""
     from gm_bench.agentic import _proxy

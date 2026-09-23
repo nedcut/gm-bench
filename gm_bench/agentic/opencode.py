@@ -503,7 +503,11 @@ def _run_harness(
     timed_out = False
     was_stalled = False
     with events_path.open("a", encoding="utf-8") as events, stderr_path.open("a", encoding="utf-8") as errors:
-        process = subprocess.Popen(command, cwd=cwd, env=env, stdout=events, stderr=errors, text=True)
+        # stdin is /dev/null, not the driver's own: a driver that read its
+        # seeds from stdin must not hand the harness a descriptor on them.
+        process = subprocess.Popen(
+            command, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=events, stderr=errors, text=True
+        )
         while True:
             remaining = deadline - time.perf_counter()
             if remaining <= 0:
@@ -616,25 +620,33 @@ def run_panel(
     max_nudges: int = DEFAULT_MAX_NUDGES,
     progress: ProgressCallback | None = None,
     keep_scratch: bool = False,
+    name_episodes_by_position: bool = False,
 ) -> dict[str, Any]:
     """Run seeds serially (harness quotas are never parallelized) and summarize.
 
     A seed listed more than once (a within-seed noise probe) gets one
     directory per attempt: ``seed-11``, then ``seed-11-r2`` and so on.
+
+    ``name_episodes_by_position`` names the directories ``episode-00``,
+    ``episode-01``, ... instead, for private seeds: the harness's stdout and
+    stderr are files in that directory, so a ``seed-<seed>`` name would show
+    the seed in the harness's open-file table (``lsof``).
     """
     run_dir.mkdir(parents=True, exist_ok=True)
     version = opencode_version(binary)
     episodes = []
     attempts: dict[int, int] = {}
-    for seed in seeds:
+    width = max(2, len(str(len(seeds) - 1)))
+    for position, seed in enumerate(seeds):
         attempts[seed] = attempts.get(seed, 0) + 1
         suffix = "" if attempts[seed] == 1 else f"-r{attempts[seed]}"
+        name = f"episode-{position:0{width}d}" if name_episodes_by_position else f"seed-{seed}{suffix}"
         episodes.append(
             run_episode(
                 seed,
                 model=model,
                 run_dir=run_dir,
-                episode_dir=run_dir / f"seed-{seed}{suffix}",
+                episode_dir=run_dir / name,
                 seasons=seasons,
                 binary=binary,
                 variant=variant,

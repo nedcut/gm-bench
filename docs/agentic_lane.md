@@ -137,6 +137,43 @@ more seeds, redacted seeds, and `separate-user` or `container`. The redact
 command refuses to write anything that would not validate. CI re-validates
 every file under `results/agentic/` against the checkout's contract.
 
+## Private panel
+
+A full row is the 32-seed private panel (`docs/bench_v2_spec.md`, Panel
+design). `config/bench_v2_lane.json` commits to it by digest only: the
+execution hash of the ordered seeds, `artifact_panel_sha256` (the
+`panel.sha256` a published panel row must carry), and a salted hiding
+commitment. Positions 1 to 29 are the `sota-v5` private panel in its
+committed order, which is what pairs a model's 1.0 and 2.0 scores per seed;
+positions 30 to 32 were drawn 2026-09-22 by
+`scripts/draw_bench_v2_private_panel.py` with the generator that drew v5.
+The seeds and salt live only in the macOS Keychain
+(`gm-bench-bench-v2-private-panel`).
+
+```bash
+python scripts/run_bench_v2_panel_from_keychain.py --verify-only
+python scripts/run_bench_v2_panel_from_keychain.py \
+    --model opencode/big-pickle --output /path/outside/the/checkout/run
+```
+
+`--verify-only` checks the escrow against every committed digest and prints
+only the result. A run checks the same digests, refuses to start until the
+lane's `owner_attestation_status` is `attested-before-seed-access`, and then
+runs `gm-bench agentic --seeds-stdin` in its own process with the seeds on
+standard input. No command line or environment variable carries them.
+Episode directories are named by position (`episode-00`, `episode-01`, ...)
+rather than `seed-<seed>`, because the harness's stdout and stderr are files
+there and would otherwise show the seed in its open-file table; the harness's
+stdin is `/dev/null`. Progress lines name episodes by `seed_group` rather than
+seed. The output
+directory must be empty and outside the checkout. Other arguments pass
+through to `gm-bench agentic` unchanged, so driver options (and any
+isolation flags the driver adds) need no launcher change; `--seeds` and
+`--json` are refused. Keeping seeds out of `ps` and `lsof` does not isolate
+the harness: the run directory still holds them (ledger headers and finished
+episodes' `result.json`), so panel grade still needs
+`separate-user` or `container` isolation.
+
 ## Red-teaming the sandbox
 
 ```bash
@@ -184,3 +221,7 @@ score.
 - `tests/test_agentic_publication.py`: the compact artifact is bound to its
   raw run, redacted, graded by the spec's rules, and rejects drift or
   tampering
+- `tests/test_bench_v2_panel.py`: the committed 32-seed lane is internally
+  consistent and extends the `sota-v5` panel, the Keychain launcher refuses
+  an escrow that misses any digest, and seeds stay off command lines,
+  environment variables, and progress output
