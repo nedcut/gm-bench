@@ -1,4 +1,5 @@
 {
+  "agentic_lane": [],
   "baselines": [
     {
       "agent": "pick-trader",

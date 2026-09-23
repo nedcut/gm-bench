@@ -12,12 +12,18 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from statistics import pstdev
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from gm_bench.agentic.publication import (  # noqa: E402
+    AGENTIC_PUBLICATION_FORMAT,
+    is_agentic_artifact,
+    validate_agentic_artifact,
+)
 from gm_bench.benchmark_config import PRESETS  # noqa: E402
 from gm_bench.official import POLICIES, REDACTED_SEEDS_SENTINEL  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
@@ -40,6 +46,14 @@ V5_ARTIFACTS_DIR = ROOT / "results" / "leaderboard" / "sota-v5"
 # guide, and the Holm family size.
 DECISION_LANE_ARTIFACTS_DIR = ROOT / "results" / "leaderboard" / "decision-lane"
 DECISION_LANE = "decision-api"
+# GM-Bench 2.0 rows (docs/bench_v2_spec.md): the model's own harness driving
+# the simulator through MCP tools. A different contract from everything above,
+# so its rows go to their own ``agentic_lane`` block and never into ``models``
+# or ``decision_lane_models``. Only panel-grade rows are published; smoke rows
+# are committed for reproducibility and skipped here.
+AGENTIC_ARTIFACTS_DIR = ROOT / "results" / "agentic"
+AGENTIC_LANE = "agentic"
+AGENTIC_LANE_CONFIG = Path("config") / "bench_v2_lane.json"
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -123,6 +137,188 @@ def _decision_lane_rows(source: Path, *, contract: dict[str, Any], seed_panel: d
     return rows
 
 
+def _agentic_lane_rows(
+    source: Path,
+    *,
+    lane: dict[str, Any],
+    reference: dict[str, Any],
+    v1_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Panel-grade GM-Bench 2.0 rows, one per committed artifact.
+
+    Every file under ``results/agentic/`` must be a 2.0 artifact. Smoke rows
+    are skipped (the spec commits them for reproducibility, not display). A
+    panel row must pass :func:`validate_agentic_artifact` against this
+    checkout's contract and ``lane``, which pins it to the frozen 32-seed
+    private panel. The artifacts carry no seeds, so a row publishes its own
+    mean and spread over per-seed means and nothing paired: the 1.0 reference
+    scores are shown for placement, and a 1.0 row on the same model is linked
+    by id only.
+    """
+    if not source.is_dir():
+        return []
+    rows: list[dict[str, Any]] = []
+    seen: dict[str, str] = {}
+    for path in sorted(source.glob("*.json")):
+        payload = _read(path)
+        if not is_agentic_artifact(payload):
+            raise ValueError(f"{path.name} is not a {AGENTIC_PUBLICATION_FORMAT} artifact")
+        if payload.get("grade") != "panel":
+            continue
+        report = validate_agentic_artifact(payload, lane=lane)
+        if not report["ok"]:
+            raise ValueError(f"{path.name} does not validate as a panel-grade 2.0 row: {report['errors']}")
+        row = _agentic_row(payload, path, reference=reference, v1_rows=v1_rows)
+        if row["id"] in seen:
+            raise ValueError(f"{path.name} repeats agentic row {row['id']!r} already published from {seen[row['id']]}")
+        seen[row["id"]] = path.name
+        rows.append(row)
+    rows.sort(key=lambda item: -float(item["mean_score"]))
+    return rows
+
+
+def _agentic_row(
+    payload: dict[str, Any],
+    path: Path,
+    *,
+    reference: dict[str, Any],
+    v1_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    harness = payload.get("harness") or {}
+    contract = payload.get("contract") or {}
+    panel = payload.get("panel") or {}
+    publication = payload.get("publication") or {}
+    episodes = payload.get("episodes") or []
+    by_group: dict[int, list[float]] = {}
+    for episode in episodes:
+        by_group.setdefault(int(episode["seed_group"]), []).append(float(episode["final_score"]))
+    seed_means = [sum(scores) / len(scores) for scores in by_group.values()]
+    name, version, model = str(harness["name"]), str(harness["version"]), str(harness["model"])
+    variant = harness.get("variant")
+    # Row identity is model + harness + harness version (+ variant): two
+    # harnesses on one model are two rows, never one row with two scores.
+    row_id = f"{AGENTIC_LANE}:{name}-{version}:{model}" + (f":{variant}" if variant else "")
+    summary = payload.get("summary") or {}
+    return {
+        "id": row_id,
+        "lane": AGENTIC_LANE,
+        "grade": payload.get("grade"),
+        "agent": payload.get("agent"),
+        "model": model,
+        "harness": {"name": name, "version": version, "model": model, "variant": variant},
+        "isolation": payload.get("isolation"),
+        "panel": {
+            "distinct_seeds": len(by_group),
+            "episodes": len(episodes),
+            "sha256": panel.get("sha256"),
+        },
+        "seasons": payload.get("seasons"),
+        "phase_guard_seconds": payload.get("phase_guard_seconds"),
+        "max_nudges": payload.get("max_nudges"),
+        "mean_score": round(sum(seed_means) / len(seed_means), 3),
+        "score_stddev": round(pstdev(seed_means), 3) if len(seed_means) > 1 else 0.0,
+        "seed_mean_min": round(min(seed_means), 3),
+        "seed_mean_max": round(max(seed_means), 3),
+        "illegal_actions": summary.get("illegal_actions"),
+        "failed_decisions": summary.get("failed_decisions"),
+        "contract": {
+            key: contract.get(key)
+            for key in (
+                "benchmark_version",
+                "agentic_fingerprint",
+                "base_benchmark_version",
+                "base_contract_fingerprint",
+                "tool_surface",
+                "brief",
+                "scoring_version",
+                "simulator_version",
+            )
+        },
+        "telemetry": _agentic_telemetry(episodes),
+        "agreement": _agentic_agreement(episodes),
+        "reference": reference,
+        "v1_row_id": _v1_row_for(model, v1_rows),
+        "artifact_path": str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else path.name,
+        "raw_artifact_sha256": publication.get("raw_artifact_sha256"),
+        "compacted_at_utc": publication.get("compacted_at_utc"),
+    }
+
+
+def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
+    """Budgets are reported, not capped. Tokens and cost are the harness's own
+    accounting and count only episodes whose harness reported telemetry; with
+    none, they are unmeasured (``None``), never zero."""
+    by_tool: dict[str, int] = {}
+    ended_by: dict[str, int] = {}
+    tool_calls = nudges = guard_kills = scout_points = compactions = 0
+    wall_seconds = 0.0
+    reported = [e for e in episodes if ((e.get("usage") or {}).get("harness") or {}).get("telemetry_reported")]
+    for episode in episodes:
+        agentic = episode.get("agentic") or {}
+        tool_calls += int(agentic.get("tool_calls") or 0)
+        scout_points += int(agentic.get("scout_points_used") or 0)
+        for tool, count in (agentic.get("tool_calls_by_tool") or {}).items():
+            by_tool[tool] = by_tool.get(tool, 0) + int(count)
+        for who, count in (agentic.get("phases_ended_by") or {}).items():
+            ended_by[who] = ended_by.get(who, 0) + int(count)
+        harness_run = episode.get("harness_run") or {}
+        nudges += int(harness_run.get("nudges_used") or 0)
+        guard_kills += int(harness_run.get("guard_kills") or 0)
+        wall_seconds += float(harness_run.get("wall_seconds") or 0.0)
+        compactions += int(((episode.get("usage") or {}).get("harness") or {}).get("compactions") or 0)
+
+    def _reported_sum(key: str) -> float | None:
+        if not reported:
+            return None
+        return sum(float((e.get("usage") or {}).get(key) or 0) for e in reported)
+
+    count = len(episodes) or 1
+    cost = _reported_sum("cost_usd")
+    return {
+        "episodes": len(episodes),
+        "tool_calls": tool_calls,
+        "tool_calls_per_episode": round(tool_calls / count, 2),
+        "tool_calls_by_tool": dict(sorted(by_tool.items())),
+        "scout_points_used": scout_points,
+        "phases_ended_by": dict(sorted(ended_by.items())),
+        "nudges_used": nudges,
+        "guard_kills": guard_kills,
+        "compactions": compactions,
+        "wall_seconds": round(wall_seconds, 1),
+        "wall_seconds_per_episode": round(wall_seconds / count, 1),
+        "telemetry_episodes": len(reported),
+        "input_tokens": _int_or_none(_reported_sum("input_tokens")),
+        "output_tokens": _int_or_none(_reported_sum("output_tokens")),
+        "reasoning_tokens": _int_or_none(_reported_sum("reasoning_tokens")),
+        "cached_input_tokens": _int_or_none(_reported_sum("cached_input_tokens")),
+        "cost_usd": None if cost is None else round(cost, 4),
+        "cost_per_episode_usd": None if cost is None else round(cost / len(reported), 4),
+    }
+
+
+def _agentic_agreement(episodes: list[dict[str, Any]]) -> dict[str, int]:
+    """The server ledger is authoritative; this is how often the harness's own tool-event count matched it."""
+    agreements = [(e.get("harness_run") or {}).get("tool_call_agreement") or {} for e in episodes]
+    return {
+        "episodes": len(episodes),
+        "episodes_agreeing": sum(1 for a in agreements if a.get("agree") is True),
+        "ledger_tool_calls": sum(int(a.get("ledger") or 0) for a in agreements),
+        "harness_tool_calls": sum(int(a.get("harness") or 0) for a in agreements),
+    }
+
+
+def _v1_row_for(model: str, v1_rows: list[dict[str, Any]]) -> str | None:
+    """The 1.0 row for the same model, matched by model id exactly or as ``provider/model``."""
+    for row in v1_rows:
+        if model in {str(row.get("model")), f"{row.get('provider')}/{row.get('model')}"}:
+            return str(row["id"])
+    return None
+
+
+def _int_or_none(value: float | None) -> int | None:
+    return None if value is None else int(round(value))
+
+
 def _decision_route(run_info: dict[str, Any], options: dict[str, Any], usage: dict[str, Any]) -> str:
     provider = str(run_info.get("provider") or "")
     route = str(options.get("JEV_ROUTE") or "")
@@ -140,6 +336,7 @@ def build_study(
     output_path: Path | None = None,
     artifacts_dir: Path | None = None,
     decision_lane_dir: Path | None = None,
+    agentic_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Build v5 only after publication authorization and complete analysis."""
 
@@ -207,8 +404,34 @@ def build_study(
     headline_ids = {row["id"] for row in models}
     if any(row["id"] in headline_ids for row in decision_lane_models):
         raise ValueError("a decision-lane row shares an id with a headline row")
+    headroom = {
+        "oracle": None,
+        "pick_trader": next((row["mean_score"] for row in baselines if row["agent"] == "pick-trader"), None),
+        "best_model": max((row["mean_score"] for row in models), default=None),
+        "random": next((row["mean_score"] for row in baselines if row["agent"] == "random"), None),
+    }
+    agentic_source = agentic_dir or root / AGENTIC_ARTIFACTS_DIR.relative_to(ROOT)
+    if not agentic_source.is_absolute():
+        agentic_source = root / agentic_source
+    agentic_lane = _agentic_lane_rows(
+        agentic_source,
+        lane=_read(root / AGENTIC_LANE_CONFIG),
+        reference={
+            "benchmark_version": "sota-v5",
+            "seed_panel": seed_panel.get("name"),
+            "seed_count": seed_panel.get("count"),
+            "pick_trader": headroom["pick_trader"],
+            "random": headroom["random"],
+            "oracle": headroom["oracle"],
+        },
+        v1_rows=[*models, *(row for row in current_rows if row.get("lane") == "cli-harness"), *decision_lane_models],
+    )
+    v1_ids = headline_ids | {row["id"] for row in decision_lane_models}
+    if any(row["id"] in v1_ids for row in agentic_lane):
+        raise ValueError("an agentic-lane row shares an id with a 1.0 row")
     timestamps = [str((p.get("run_info") or {}).get("timestamp_utc") or "") for p in payloads]
     timestamps += [str(row.get("timestamp_utc") or "") for row in decision_lane_models]
+    timestamps += [str(row.get("compacted_at_utc") or "") for row in agentic_lane]
     dataset = {
         "updated": max(timestamps, default="")[:10],
         "contract": dict(POLICIES["sota-v5"].expected_contract or {}),
@@ -225,14 +448,10 @@ def build_study(
         "models": models,
         "cli_harness_models": [row for row in current_rows if row.get("lane") == "cli-harness"],
         "decision_lane_models": decision_lane_models,
+        "agentic_lane": agentic_lane,
         "excluded_models": [],
         "publication": publication,
-        "headroom": {
-            "oracle": None,
-            "pick_trader": next((row["mean_score"] for row in baselines if row["agent"] == "pick-trader"), None),
-            "best_model": max((row["mean_score"] for row in models), default=None),
-            "random": next((row["mean_score"] for row in baselines if row["agent"] == "random"), None),
-        },
+        "headroom": headroom,
     }
     destination = output_path or root / V5_OUTPUT_PATH.relative_to(ROOT)
     if not destination.is_absolute():
@@ -247,11 +466,16 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path)
     parser.add_argument("--artifacts-dir", type=Path)
     parser.add_argument("--decision-lane-dir", type=Path)
+    parser.add_argument("--agentic-dir", type=Path)
     args = parser.parse_args()
     result = build_study(
-        output_path=args.output, artifacts_dir=args.artifacts_dir, decision_lane_dir=args.decision_lane_dir
+        output_path=args.output,
+        artifacts_dir=args.artifacts_dir,
+        decision_lane_dir=args.decision_lane_dir,
+        agentic_dir=args.agentic_dir,
     )
     print(
         f"wrote {args.output or V5_OUTPUT_PATH} "
-        f"({len(result['models'])} model(s), {len(result['decision_lane_models'])} decision-lane row(s))"
+        f"({len(result['models'])} model(s), {len(result['decision_lane_models'])} decision-lane row(s), "
+        f"{len(result['agentic_lane'])} agentic panel row(s))"
     )
