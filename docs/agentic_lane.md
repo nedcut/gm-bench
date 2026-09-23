@@ -135,7 +135,12 @@ separated from the driver (see the sandbox section of the spec): `same-user`
 runs are `smoke` grade whatever their size, and `panel` grade needs 32 or
 more seeds, redacted seeds, and `separate-user` or `container`. The redact
 command refuses to write anything that would not validate. CI re-validates
-every file under `results/agentic/` against the checkout's contract.
+every file under `results/agentic/` against the checkout's contract. A
+`panel`-grade row must also be a run of the lane's frozen private panel: both
+`agentic-redact` and `agentic-validate` (and so CI) reject it unless its
+`panel.sha256` equals `seed_panel.artifact_panel_sha256` in
+`config/bench_v2_lane.json` and its distinct-seed count equals that panel's
+`count`; `smoke` rows are exempt.
 
 ## Private panel
 

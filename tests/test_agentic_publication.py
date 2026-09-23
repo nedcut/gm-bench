@@ -14,12 +14,24 @@ from gm_bench.agentic.publication import (
     REDACTED_SEEDS,
     compact_agentic_run,
     is_agentic_artifact,
+    load_lane_config,
     seed_groups,
     seed_panel_sha256,
     validate_agentic_artifact,
 )
 from gm_bench.publication import canonical_sha256
 from gm_bench.runner import summarize_episodes
+
+LANE_PANEL_SHA256 = json.loads(Path("config/bench_v2_lane.json").read_text())["seed_panel"]["artifact_panel_sha256"]
+
+
+def _panel_row(tmp_path: Path) -> dict:
+    """A panel-grade row on the lane's frozen panel, built from a one-seed run without any private seed."""
+    artifact = compact_agentic_run(_write_run(tmp_path, [11]), isolation="separate-user")
+    artifact["grade"] = "panel"
+    artifact["panel"].update(seed_count=PANEL_MIN_SEEDS, distinct_seeds=PANEL_MIN_SEEDS, sha256=LANE_PANEL_SHA256)
+    artifact["episodes"] = [dict(artifact["episodes"][0], index=i, seed_group=i) for i in range(PANEL_MIN_SEEDS)]
+    return artifact
 
 
 def _write_run(tmp_path: Path, seeds: list[int], *, telemetry: bool = True) -> Path:
@@ -162,6 +174,7 @@ def test_panel_grade_needs_distinct_seeds_isolation_and_redaction(tmp_path: Path
     report = validate_agentic_artifact(panel)
     assert any("redacted seeds" in error for error in report["errors"])
     panel["panel"]["seeds"] = REDACTED_SEEDS
+    panel["panel"]["sha256"] = LANE_PANEL_SHA256  # and only on the lane's frozen panel
     assert validate_agentic_artifact(panel)["ok"], validate_agentic_artifact(panel)
 
 
@@ -253,3 +266,70 @@ def test_cli_redact_then_validate_round_trip(tmp_path: Path, capsys) -> None:
     assert "OK" in capsys.readouterr().out
     with pytest.raises(SystemExit):
         main(["agentic-validate", str(out), "--raw", str(tmp_path / "run" / "nowhere.json")])
+
+
+def test_panel_row_must_carry_the_lanes_frozen_panel(tmp_path: Path) -> None:
+    lane = load_lane_config()
+    assert lane is not None, "the checkout's config/bench_v2_lane.json must load"
+    assert lane["seed_panel"]["count"] == PANEL_MIN_SEEDS
+    panel = _panel_row(tmp_path)
+    assert validate_agentic_artifact(panel)["ok"], validate_agentic_artifact(panel)
+
+    other_panel = json.loads(json.dumps(panel))
+    other_panel["panel"]["sha256"] = seed_panel_sha256(list(range(1, PANEL_MIN_SEEDS + 1)))
+    report = validate_agentic_artifact(other_panel)
+    assert report["errors"] == [
+        "panel.sha256 is not the lane's frozen private panel (config/bench_v2_lane.json seed_panel.artifact_panel_sha256)"
+    ]
+
+    # A larger panel clears the 32-seed floor but is not the lane's panel.
+    wider = json.loads(json.dumps(panel))
+    wider["panel"]["seed_count"] = wider["panel"]["distinct_seeds"] = PANEL_MIN_SEEDS + 1
+    wider["episodes"].append(dict(wider["episodes"][0], index=PANEL_MIN_SEEDS, seed_group=PANEL_MIN_SEEDS))
+    wider["summary"]["mean_score"] = wider["episodes"][0]["final_score"]
+    report = validate_agentic_artifact(wider)
+    assert report["errors"] == [
+        f"panel grade has {PANEL_MIN_SEEDS + 1} distinct seeds; the lane's frozen private panel has {PANEL_MIN_SEEDS}"
+    ]
+
+    # An explicit lane overrides the checkout's, and a lane without the panel digest fails closed.
+    moved = {"seed_panel": {"artifact_panel_sha256": "0" * 64, "count": PANEL_MIN_SEEDS}}
+    assert any("not the lane's frozen" in e for e in validate_agentic_artifact(panel, lane=moved)["errors"])
+    assert any("has no seed_panel" in e for e in validate_agentic_artifact(panel, lane={})["errors"])
+
+
+def test_panel_row_without_a_lane_config_fails_closed(tmp_path: Path, monkeypatch) -> None:
+    from gm_bench.agentic import publication
+
+    monkeypatch.setattr(publication, "_CHECKOUT_ROOT", tmp_path / "not-a-checkout")
+    assert load_lane_config() is None
+    report = validate_agentic_artifact(_panel_row(tmp_path))
+    assert any("bench_v2_lane.json not found" in error for error in report["errors"])
+
+
+def test_smoke_rows_are_exempt_from_the_lane_panel_check(tmp_path: Path) -> None:
+    artifact = compact_agentic_run(_write_run(tmp_path, [11, 12]), isolation="same-user")
+    assert artifact["grade"] == "smoke"
+    assert artifact["panel"]["sha256"] != LANE_PANEL_SHA256
+    assert validate_agentic_artifact(artifact)["ok"]
+    moved = {"seed_panel": {"artifact_panel_sha256": "0" * 64, "count": PANEL_MIN_SEEDS}}
+    assert validate_agentic_artifact(artifact, lane=moved)["ok"]
+    committed = Path("results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json")
+    assert validate_agentic_artifact(json.loads(committed.read_text()))["ok"]
+
+
+def test_cli_validate_and_redact_apply_the_lane_panel_check(tmp_path: Path, capsys) -> None:
+    from gm_bench.cli import main
+
+    good = tmp_path / "good.json"
+    good.write_text(json.dumps(_panel_row(tmp_path)))
+    main(["agentic-validate", str(good)])
+    assert "(panel artifact), OK" in capsys.readouterr().out
+
+    off_panel = _panel_row(tmp_path)
+    off_panel["panel"]["sha256"] = "f" * 64
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps(off_panel))
+    with pytest.raises(SystemExit):
+        main(["agentic-validate", str(bad)])
+    assert "not the lane's frozen private panel" in capsys.readouterr().out

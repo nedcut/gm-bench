@@ -21,8 +21,11 @@ artifact per row, produced by :func:`compact_agentic_run`, which
   the seeds themselves.
 
 :func:`validate_agentic_artifact` checks a committed artifact against the
-contract this checkout computes and against those grade rules. CI runs it on
-every file under ``results/agentic/``.
+contract this checkout computes and against those grade rules. A panel-grade
+row must also be a run of the lane's frozen private panel: its
+``panel.sha256`` and distinct-seed count must equal ``seed_panel`` in
+``config/bench_v2_lane.json``. CI runs it on every file under
+``results/agentic/``.
 """
 
 from __future__ import annotations
@@ -40,6 +43,10 @@ from gm_bench.publication import canonical_sha256
 
 AGENTIC_PUBLICATION_FORMAT = "gm-bench-agentic-summary-v1"
 RESULTS_DIR = Path("results") / "agentic"
+LANE_CONFIG = Path("config") / "bench_v2_lane.json"
+# The lane config is a checkout file, not package data: panel rows are only
+# ever validated from a checkout (CI, the operator before committing).
+_CHECKOUT_ROOT = Path(__file__).resolve().parents[2]
 PANEL_MIN_SEEDS = 32
 REDACTED_SEEDS = "<redacted>"
 ISOLATION_LEVELS = ("same-user", "separate-user", "container")
@@ -198,13 +205,29 @@ def _compact_episode(index: int, episode: dict[str, Any], group: int, public_see
     return compact
 
 
+def load_lane_config(path: str | Path | None = None) -> dict[str, Any] | None:
+    """The committed 2.0 lane config, or ``None`` when this is not a checkout."""
+    lane_path = Path(path) if path is not None else _CHECKOUT_ROOT / LANE_CONFIG
+    if not lane_path.is_file():
+        return None
+    payload = json.loads(lane_path.read_text(encoding="utf-8"))
+    return payload if isinstance(payload, dict) else None
+
+
 def validate_agentic_artifact(
     artifact: dict[str, Any],
     *,
     checkout_contract: dict[str, Any] | None = None,
     raw_run: str | Path | None = None,
+    lane: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Check a committed row: format, contract, grade rules, redaction, internal consistency.
+
+    A ``panel`` row must also carry the lane's frozen private panel: its
+    ``panel.sha256`` must equal ``seed_panel.artifact_panel_sha256`` in
+    ``lane`` (default: this checkout's ``config/bench_v2_lane.json``) and its
+    distinct-seed count must equal ``seed_panel.count``. Without a lane config
+    a panel row fails closed. ``smoke`` rows are exempt.
 
     With ``raw_run`` (the operator-held run directory or ``run.json``) the
     artifact is also checked against its evidence: the SHA-256 binding must
@@ -263,6 +286,7 @@ def validate_agentic_artifact(
             errors.append("panel grade needs the harness isolated from the driver by user or container")
         if not redacted:
             errors.append("panel grade needs redacted seeds")
+        errors.extend(_lane_panel_errors(panel, distinct, lane if lane is not None else load_lane_config()))
     elif grade != "smoke":
         errors.append("grade must be 'panel' or 'smoke'")
 
@@ -319,6 +343,27 @@ def validate_agentic_artifact(
     if raw_run is not None and not errors:
         errors.extend(_check_against_raw_run(artifact, raw_run))
     return {"ok": not errors, "errors": errors, "warnings": warnings, "grade": grade, "agent": artifact.get("agent")}
+
+
+def _lane_panel_errors(panel: dict[str, Any], distinct: int, lane: dict[str, Any] | None) -> list[str]:
+    """A panel row is a run of the lane's frozen private panel, checked by digest and size only."""
+    if lane is None:
+        return [f"{LANE_CONFIG} not found; a panel-grade row can only be validated against the lane's frozen panel"]
+    seed_panel = lane.get("seed_panel") or {}
+    expected_sha = seed_panel.get("artifact_panel_sha256")
+    expected_count = seed_panel.get("count")
+    errors: list[str] = []
+    if not _SHA256_RE.match(str(expected_sha or "")) or not _is_int(expected_count):
+        return [f"{LANE_CONFIG} has no seed_panel.artifact_panel_sha256 and count to check a panel row against"]
+    if panel.get("sha256") != expected_sha:
+        errors.append(
+            f"panel.sha256 is not the lane's frozen private panel ({LANE_CONFIG} seed_panel.artifact_panel_sha256)"
+        )
+    if distinct != expected_count:
+        errors.append(
+            f"panel grade has {distinct} distinct seeds; the lane's frozen private panel has {expected_count}"
+        )
+    return errors
 
 
 def _check_against_raw_run(artifact: dict[str, Any], raw_run: str | Path) -> list[str]:
