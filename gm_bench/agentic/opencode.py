@@ -25,6 +25,12 @@ directory names the seed, the interpreter, or the repository.
 records what was actually done: ``same-user`` (a child process of the driver,
 whose ``ps`` can show the driver's command line) or ``container`` (Docker,
 see ``container.py``). Publication refuses to claim more than that record.
+
+This module also holds the episode loop every harness shares (the server,
+sandbox check, nudges, provider-stall retries, phase-guard watch, and
+finalization). What differs per harness is a ``harness.HarnessDriver``:
+:data:`OPENCODE_DRIVER` here, ``codex.CodexDriver`` for the Codex CLI.
+``run_episode`` and ``run_panel`` take a ``driver`` and default to OpenCode.
 """
 
 from __future__ import annotations
@@ -55,6 +61,7 @@ from gm_bench.agentic.container import (
 )
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import DEFAULT_PHASE_GUARD_SECONDS, AgenticEpisode
+from gm_bench.agentic.harness import HarnessDriver
 from gm_bench.agentic.mcp_server import EPISODE_ENV, SocketMcpServer
 from gm_bench.agents import external_agent_environment
 from gm_bench.protocol import PHASES
@@ -201,13 +208,18 @@ def stage_scratch(
     ``secret`` (TCP transport only) is written beside the proxy, where the
     proxy reads it; it is never on any command line.
     """
+    stage_proxy(scratch, secret=secret)
+    config = opencode_config(target, python=python or harness_python(env))
+    (scratch / "opencode.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
+
+
+def stage_proxy(scratch: Path, *, secret: str | None = None) -> None:
+    """Copy the standard-library proxy into the scratch directory, and its secret beside it (TCP only)."""
     (scratch / PROXY_FILENAME).write_text(Path(_proxy.__file__).read_text(encoding="utf-8"), encoding="utf-8")
     if secret is not None:
         secret_path = scratch / _proxy.SECRET_FILENAME
         secret_path.write_text(secret + "\n", encoding="utf-8")
         secret_path.chmod(0o600)
-    config = opencode_config(target, python=python or harness_python(env))
-    (scratch / "opencode.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
 
 
 class HarnessLaunch:
@@ -217,7 +229,9 @@ class HarnessLaunch:
     scratch directory, and the proxy dials a Unix socket (mode 0600) in a
     private directory of its own. ``container``: the harness runs in Docker
     with only the scratch directory mounted, and the proxy dials a loopback
-    TCP port on the host with a per-run secret (``container.py``).
+    TCP port on the host with a per-run secret (``container.py``). What the
+    harness itself needs staged, and how it is invoked, comes from ``driver``
+    (OpenCode by default).
     """
 
     def __init__(
@@ -229,16 +243,18 @@ class HarnessLaunch:
         image: dict[str, Any] | None = None,
         docker: str = "docker",
         scratch_prefix: str = "gm-bench-agentic-",
+        driver: HarnessDriver | None = None,
     ) -> None:
         if isolation not in DRIVER_ISOLATION:
             raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
         if isolation == "container" and image is None:
             raise ValueError("container isolation needs the image description from container.ensure_image")
+        self.driver = driver if driver is not None else OPENCODE_DRIVER
         self.isolation = isolation
         self.binary = binary
         self.docker = docker
-        self.env = harness_environment()
         self.scratch = Path(tempfile.mkdtemp(prefix=scratch_prefix))
+        self.env = self.driver.environment(harness_environment(), self.scratch, isolation)
         self.container: ContainerHarness | None = None
         self._socket_dir: Path | None = None
         self._secret: str | None = None
@@ -287,18 +303,31 @@ class HarnessLaunch:
             problems = sandbox_problems(self.scratch, self.env)
         if problems:
             raise SandboxError("; ".join(problems))
+        self.driver.stage(self)
+
+    @property
+    def proxy_target(self) -> str:
+        """What the staged proxy dials: the socket path, or ``host:port`` from inside the container."""
         if self.container is not None:
-            port = self.server.address[1]
-            stage_scratch(self.scratch, f"{HOST_ALIAS}:{port}", self.env, python="python3", secret=self._secret)
-        else:
-            stage_scratch(self.scratch, self.server.address, self.env)
+            return f"{HOST_ALIAS}:{self.server.address[1]}"
+        return str(self.server.address)
+
+    @property
+    def proxy_python(self) -> str:
+        """The interpreter the harness launches the proxy on: the container's, or the harness PATH's."""
+        return "python3" if self.container is not None else harness_python(self.env)
+
+    @property
+    def secret(self) -> str | None:
+        """The TCP transport's per-run secret; ``None`` on the Unix socket."""
+        return self._secret
 
     def command(self, harness_args: list[str]) -> tuple[list[str], Callable[[], None] | None]:
         """The full host command for one harness invocation, and how to stop it if it is killed."""
         if self.container is None:
             return [self.binary, *harness_args], None
         container = self.container
-        argv, name = container.command(["opencode", *harness_args])
+        argv, name = container.command([self.driver.container_executable, *harness_args])
         return argv, lambda: container.kill(name)
 
     def close(self, *, keep_scratch: bool = False) -> bool:
@@ -310,8 +339,11 @@ class HarnessLaunch:
                 for problem in self.cleanup_problems:
                     sys.stderr.write(f"gm-bench agentic: cleanup: {problem}\n")
         finally:
-            if self._socket_dir is not None:
-                shutil.rmtree(self._socket_dir, ignore_errors=True)
+            try:
+                self.driver.cleanup(self)
+            finally:
+                if self._socket_dir is not None:
+                    shutil.rmtree(self._socket_dir, ignore_errors=True)
             if not keep_scratch:
                 shutil.rmtree(self.scratch, ignore_errors=True)
         return drained
@@ -452,7 +484,9 @@ def _int(value: Any) -> int:
     return int(value)
 
 
-def usage_block(telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
+def usage_block(
+    telemetry: dict[str, Any], *, model: str, decisions: int, harness: str = HARNESS_NAME
+) -> dict[str, Any]:
     """The episode's ``usage`` block from the harness's session totals.
 
     OpenCode reports one total for the whole session, not one record per
@@ -465,7 +499,7 @@ def usage_block(telemetry: dict[str, Any], *, model: str, decisions: int) -> dic
     """
     reported = telemetry["model_calls"] > 0
     record: dict[str, Any] = {
-        "provider": HARNESS_NAME,
+        "provider": harness,
         "model": model,
         "api_calls": telemetry["model_calls"],
         "input_tokens": telemetry["input_tokens"],
@@ -483,7 +517,7 @@ def usage_block(telemetry: dict[str, Any], *, model: str, decisions: int) -> dic
     usage["decisions_with_usage"] = decisions if reported else 0
     usage["cost_decisions"] = decisions if reported and telemetry["cost_usd"] is not None else 0
     usage["harness"] = {
-        "name": HARNESS_NAME,
+        "name": harness,
         "compactions": telemetry["compactions"],
         "errors": telemetry["errors"],
         "session_id": telemetry["session_id"],
@@ -519,7 +553,9 @@ def run_episode(
     max_provider_stall_wait_seconds: float = DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
     stall_backoff: Callable[[int], float] = provider_stall_backoff,
     sleep: Callable[[float], None] = time.sleep,
+    driver: HarnessDriver | None = None,
 ) -> dict[str, Any]:
+    driver = driver if driver is not None else OPENCODE_DRIVER
     episode_dir = episode_dir if episode_dir is not None else run_dir / f"seed-{seed}"
     if episode_dir.exists() and any(episode_dir.iterdir()):
         # The ledger is append-only, so a second episode in the same directory
@@ -527,15 +563,15 @@ def run_episode(
         raise FileExistsError(f"{episode_dir} already holds an episode; use an empty run directory")
     episode_dir.mkdir(parents=True, exist_ok=True)
     ledger_path = episode_dir / "ledger.jsonl"
-    events_path = episode_dir / "opencode-events.jsonl"
-    stderr_path = episode_dir / "opencode-stderr.log"
+    events_path = episode_dir / driver.events_filename
+    stderr_path = episode_dir / driver.stderr_filename
 
     # The engine and the seed live here, in this process, for the whole
     # episode. Harness restarts and nudges reconnect to the same engine.
     episode = AgenticEpisode(
         seed, seasons, user_team_id, ledger_path=ledger_path, phase_guard_seconds=phase_guard_seconds
     )
-    launch = HarnessLaunch(episode, binary=binary, isolation=isolation, image=image, docker=docker)
+    launch = HarnessLaunch(episode, binary=binary, isolation=isolation, image=image, docker=docker, driver=driver)
     server = launch.server
     scratch = launch.scratch
 
@@ -546,10 +582,9 @@ def run_episode(
 
         team_name = League.new(seed=seed, user_team_id=user_team_id).user_team.name
         brief = task_brief(seasons, team_name, user_team_id)
-        base = ["run", "--format", "json", "--pure", "--auto", "--dir", launch.workdir, "--model", model]
-        if variant:
-            base += ["--variant", variant]
-        command, on_kill = launch.command(base + [brief])
+        command, on_kill = launch.command(
+            driver.run_args(model=model, variant=variant, workdir=launch.workdir, brief=brief, isolation=isolation)
+        )
         timeout = episode_timeout_seconds or (seasons * len(PHASES) * phase_guard_seconds + 300.0)
         if progress is not None:
             progress({"seed": seed, "stage": "launch", "model": model, "scratch": str(scratch), "isolation": isolation})
@@ -578,7 +613,9 @@ def run_episode(
         guard_kills += int(stalled)
         # Provider stalls: a run that ended on a retryable provider error (a
         # 429, an overload) is retried after a backoff and is not a nudge.
-        last_stalled = not timed_out and not stalled and ended_in_provider_stall(_invocation_lines(events_path, offset))
+        last_stalled = (
+            not timed_out and not stalled and driver.ended_in_provider_stall(_invocation_lines(events_path, offset))
+        )
         provider_stalls = int(last_stalled)
         consecutive_stalls = int(last_stalled)
         stall_retries = 0
@@ -591,7 +628,7 @@ def run_episode(
                 and stall_wait + stall_backoff(consecutive_stalls) <= max_provider_stall_wait_seconds
             )
 
-        # The nudge loop. OpenCode ends a run whenever the model answers with
+        # The nudge loop. A harness ends a run whenever the model answers with
         # text and no tool call; weak models do that mid-phase. Resume the same
         # session with a reminder, count it, and stop when the episode is done,
         # a nudge yields no new tool call, the cap is hit, or we cannot resume.
@@ -604,7 +641,7 @@ def run_episode(
             state = _engine_state(episode)
             if state["done"]:
                 break
-            session_id = parse_opencode_events(events_path.read_text(encoding="utf-8").splitlines())["session_id"]
+            session_id = driver.parse_events(events_path.read_text(encoding="utf-8").splitlines())["session_id"]
             if not session_id:
                 break
             retry = can_retry_stall()
@@ -653,7 +690,16 @@ def run_episode(
                     }
                 )
             guard_expired.arm()
-            nudge_command, nudge_kill = launch.command(base + ["--session", session_id, text])
+            nudge_command, nudge_kill = launch.command(
+                driver.resume_args(
+                    model=model,
+                    variant=variant,
+                    workdir=launch.workdir,
+                    session_id=session_id,
+                    text=text,
+                    isolation=isolation,
+                )
+            )
             offset = events_path.stat().st_size
             nudge_exit, nudge_timed_out, nudge_wall, nudge_stalled = _run_harness(
                 nudge_command,
@@ -672,7 +718,7 @@ def run_episode(
             last_stalled = (
                 not nudge_timed_out
                 and not nudge_stalled
-                and ended_in_provider_stall(_invocation_lines(events_path, offset))
+                and driver.ended_in_provider_stall(_invocation_lines(events_path, offset))
             )
             provider_stalls += int(last_stalled)
             consecutive_stalls = consecutive_stalls + 1 if last_stalled else 0
@@ -699,16 +745,16 @@ def run_episode(
     finally:
         server_drained = launch.close(keep_scratch=keep_scratch)
 
-    telemetry = parse_opencode_events(events_path.read_text(encoding="utf-8").splitlines())
+    telemetry = driver.parse_events(events_path.read_text(encoding="utf-8").splitlines())
     # server.stop() hung up on every proxy and joined its thread, so nothing
     # should be inside the engine now; the lock covers a join that timed out.
     with server.dispatch_lock:
         if not episode.done:
             episode.abandon()
-        episode.harness_usage = usage_block(telemetry, model=model, decisions=seasons * len(PHASES))
-        result = episode.result(agent_name=f"{HARNESS_NAME}:{model}")
+        episode.harness_usage = driver.usage_block(telemetry, model=model, decisions=seasons * len(PHASES))
+        result = episode.result(agent_name=f"{driver.name}:{model}")
     result["harness_run"] = {
-        "harness": HARNESS_NAME,
+        "harness": driver.name,
         # What the driver actually did, not what anyone claims later.
         "isolation": launch.isolation,
         "transport": launch.transport,
@@ -742,6 +788,7 @@ def run_episode(
         # stream must agree on how many GM-Bench tools were called.
         "tool_call_agreement": tool_call_agreement(result["agentic"], telemetry),
     }
+    result["harness_run"].update(driver.run_record(launch))
     if launch.container is not None:
         # A container or home volume docker could not remove; empty when cleanup was complete.
         result["harness_run"]["container_cleanup_problems"] = launch.cleanup_problems
@@ -917,6 +964,7 @@ def run_panel(
     name_episodes_by_position: bool = False,
     isolation: str = "same-user",
     docker: str = "docker",
+    driver: HarnessDriver | None = None,
 ) -> dict[str, Any]:
     """Run seeds serially (harness quotas are never parallelized) and summarize.
 
@@ -929,18 +977,22 @@ def run_panel(
     the seed in the harness's open-file table (``lsof``).
 
     With ``isolation="container"`` the harness image is built (or found) once
-    and its id, base image, and the OpenCode version it reports are recorded
+    and its id, base image, and the harness version it reports are recorded
     under ``harness.container``; ``binary`` is not used.
+
+    ``driver`` selects the harness (OpenCode by default).
     """
+    driver = driver if driver is not None else OPENCODE_DRIVER
     if isolation not in DRIVER_ISOLATION:
         raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
+    driver.preflight(isolation)
     run_dir.mkdir(parents=True, exist_ok=True)
     image = None
     if isolation == "container":
-        image = ensure_image(docker=docker, env=harness_environment())
-        version = image["opencode_version"]
+        image = driver.ensure_image(docker=docker, env=harness_environment())
+        version = image[driver.image_version_key]
     else:
-        version = opencode_version(binary)
+        version = driver.version(binary)
     episodes = []
     attempts: dict[int, int] = {}
     width = max(2, len(str(len(seeds) - 1)))
@@ -966,13 +1018,14 @@ def run_panel(
                 isolation=isolation,
                 image=image,
                 docker=docker,
+                driver=driver,
             )
         )
-    harness: dict[str, Any] = {"name": HARNESS_NAME, "version": version, "model": model, "variant": variant}
+    harness: dict[str, Any] = {"name": driver.name, "version": version, "model": model, "variant": variant}
     if image is not None:
         harness["container"] = image
     payload = {
-        "agent": f"{HARNESS_NAME}:{model}",
+        "agent": f"{driver.name}:{model}",
         "lane": "agentic",
         "harness": harness,
         # Recorded by the driver from what it launched; agentic-redact will
@@ -1014,8 +1067,57 @@ def _agentic_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "provider_stall_wait_seconds": round(
             sum(float(episode["harness_run"].get("provider_stall_wait_seconds", 0.0)) for episode in episodes), 1
         ),
-        "compactions": sum(int(episode["usage"].get("harness", {}).get("compactions", 0)) for episode in episodes),
+        # ``None`` where the harness does not report compactions (Codex); summed as 0 here.
+        "compactions": sum(int(episode["usage"].get("harness", {}).get("compactions") or 0) for episode in episodes),
         "mean_wall_seconds": round(
             sum(float(episode["harness_run"]["wall_seconds"]) for episode in episodes) / len(episodes), 1
         ),
     }
+
+
+# -- the OpenCode driver ------------------------------------------------------
+
+
+class OpenCodeDriver(HarnessDriver):
+    """OpenCode behind the shared loop. Methods look up this module's functions at call time."""
+
+    name = HARNESS_NAME
+    default_binary = "opencode"
+    container_executable = "opencode"
+    image_version_key = "opencode_version"
+
+    def version(self, binary: str) -> str | None:
+        return opencode_version(binary)
+
+    def ensure_image(self, *, docker: str, env: dict[str, str]) -> dict[str, Any]:
+        return ensure_image(docker=docker, env=env)
+
+    def stage(self, launch: HarnessLaunch) -> None:
+        stage_scratch(launch.scratch, launch.proxy_target, launch.env, python=launch.proxy_python, secret=launch.secret)
+
+    def run_args(self, *, model: str, variant: str | None, workdir: str, brief: str, isolation: str) -> list[str]:
+        return [*self._base(model, variant, workdir), brief]
+
+    def resume_args(
+        self, *, model: str, variant: str | None, workdir: str, session_id: str, text: str, isolation: str
+    ) -> list[str]:
+        return [*self._base(model, variant, workdir), "--session", session_id, text]
+
+    @staticmethod
+    def _base(model: str, variant: str | None, workdir: str) -> list[str]:
+        base = ["run", "--format", "json", "--pure", "--auto", "--dir", workdir, "--model", model]
+        if variant:
+            base += ["--variant", variant]
+        return base
+
+    def parse_events(self, lines: list[str]) -> dict[str, Any]:
+        return parse_opencode_events(lines)
+
+    def ended_in_provider_stall(self, lines: list[str]) -> bool:
+        return ended_in_provider_stall(lines)
+
+    def usage_block(self, telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
+        return usage_block(telemetry, model=model, decisions=decisions)
+
+
+OPENCODE_DRIVER = OpenCodeDriver()
