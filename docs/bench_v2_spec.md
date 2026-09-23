@@ -152,7 +152,13 @@ state, cannot damage the host, and cannot carry information between episodes.
   0600, in its own temporary directory). What the harness launches as the
   "MCP server" is a standard-library proxy script copied into the scratch
   directory and run on the harness's own `python3`; it forwards stdio to the
-  socket and knows nothing else. Nothing the agent can read names the seed,
+  socket and knows nothing else. A harness in a container cannot reach a
+  host Unix socket through a bind mount (Docker Desktop refuses the
+  connect), so there the driver listens on the host loopback on an
+  ephemeral TCP port instead, the proxy dials it through
+  `host.docker.internal`, and every connection must first present a per-run
+  random secret that the driver writes beside the proxy, never onto a
+  command line. Nothing the agent can read names the seed,
   the benchmark's interpreter, or the repository. Because the engine outlives
   every harness invocation, restarts and nudges reconnect to the same live
   episode with no replay.
@@ -173,9 +179,12 @@ state, cannot damage the host, and cannot carry information between episodes.
   read the run directory's ledger header, found the checkout, and rebuilt
   the league with the checkout's own interpreter. Everything the driver can
   hide is hidden; everything the operating system shows a same-user process
-  is open. Isolation is therefore an operator statement recorded on every
-  published row (`isolation`: `same-user`, `separate-user`, `container`)
-  and a hard requirement for panel grade.
+  is open. Isolation is therefore recorded on every published row
+  (`isolation`: `same-user`, `separate-user`, `container`) and a hard
+  requirement for panel grade. The driver records the level it actually
+  launched (`same-user`, or `container` with `--isolation container`), and
+  publication refuses a claim stronger than that record; the operator may
+  only understate it. No driver launches `separate-user` yet.
 - **Filesystem and network.** The harness runs with its own permission
   prompts turned off (`opencode run --auto` approves every tool call) and the
   scratch directory as its working directory. That is not a filesystem jail:
@@ -324,7 +333,7 @@ for subscription-metered harnesses applies to all of them.
 
 | gate | status |
 |---|---|
-| 1. sandbox check | passes on every run. The first design put the episode file, interpreter, and repository path into the harness config, all readable by the agent's shell; replaced 2026-09-20 by the socket-and-proxy design above. Scored live episode on the socket design 2026-09-21 (`big-pickle`, seed 11, one season): 4/4 phases closed by the agent, 40 tool calls, ledger equals harness events, audit clean, validates. Red-team probe the same day: the agent found nothing in the scratch directory, config, proxy, environment, or socket directory, then found the seed through `ps` on the driver (documented same-user gap above; `container`/`separate-user` isolation is required for panel grade and recorded per row) |
+| 1. sandbox check | passes on every run. The first design put the episode file, interpreter, and repository path into the harness config, all readable by the agent's shell; replaced 2026-09-20 by the socket-and-proxy design above. Scored live episode on the socket design 2026-09-21 (`big-pickle`, seed 11, one season): 4/4 phases closed by the agent, 40 tool calls, ledger equals harness events, audit clean, validates. Red-team probe the same day: the agent found nothing in the scratch directory, config, proxy, environment, or socket directory, then found the seed through `ps` on the driver (documented same-user gap above; `container`/`separate-user` isolation is required for panel grade and recorded per row). Container launcher 2026-09-22 (contract `02a9f887e79c0497`, OpenCode 1.18.31 in the pinned image): a one-season `big-pickle` episode on seed 11 with `--isolation container` closed 4/4 phases itself with 38 tool calls over the TCP transport, ledger equals harness events, audit clean, validates, score 106.2; while it ran, `ps` and every `/proc/*/cmdline` inside the harness container showed only the container's own processes, and the host `ps` showed the driver with `--seeds 11`. The container red-team probe the same day measured nothing: `big-pickle` refused the brief and ran no command, so a red-team verdict under container isolation is still owed |
 | 2. ledger round-trip | server ledger equals harness tool events on all 7 models |
 | 3. SDK conformance | passes against the official `mcp` client |
 | 4. free-model smoke | 6 of 7 models closed 4/4 phases with 0 failed decisions on seed 11; one (`nemotron-3.5-lightning-free`) stopped mid-phase and was rescued by nudges. 8-seed, five-season smoke row on `big-pickle` (2026-09-22, OpenCode 1.18.31, contract `c0619fc756769e61`): 159/160 phases closed by the agent and 1 by the phase guard, 1 failed decision, mean 245.3 (SD 79.0, range 140 to 363), 171 tool calls and 103 model calls per episode, 3.3M input and 0.41M output tokens total, no compaction, 1 guard stop and 1 nudge on one seed (the nudge resumed the session; its first call closed the expired phase as `guard` and it closed the remaining 15 itself), every ledger replays, agrees with the harness, and audits clean. Committed as `results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json`, smoke grade, public seeds 1 to 8. The earlier row on the previous contract (2026-09-21, mean 201.1, 0 guard stops) was replaced when `get_status` started listing the read tools and the socket server learned to drain its connections on stop |

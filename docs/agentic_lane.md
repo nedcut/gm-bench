@@ -13,9 +13,11 @@ python -m gm_bench agentic --harness opencode --model opencode/big-pickle \
 For each seed, serially:
 
 1. The driver builds the episode engine in its own process and serves it as
-   an MCP server over a private Unix socket. The seed is never written where
-   the agent could find it; the only copy on disk is the ledger header under
-   `--output`, a directory the agent is never told about.
+   an MCP server over a private Unix socket (or, with `--isolation
+   container`, a loopback TCP port; see "Running the harness in a container"
+   below). The seed is never written where the agent could find it; the only
+   copy on disk is the ledger header under `--output`, a directory the agent
+   is never told about.
 2. It creates an empty scratch directory holding a standard-library proxy
    script (`gm_bench_proxy.py`, copied from `gm_bench/agentic/_proxy.py`) and
    an `opencode.json` that launches the proxy on the harness's own `python3`
@@ -133,9 +135,15 @@ ledgers, event streams, commands, and paths, and it is bound to the raw
 `run.json` by SHA-256. `--isolation` is your statement of how the harness was
 separated from the driver (see the sandbox section of the spec): `same-user`
 runs are `smoke` grade whatever their size, and `panel` grade needs 32 or
-more seeds, redacted seeds, and `separate-user` or `container`. The redact
-command refuses to write anything that would not validate. CI re-validates
-every file under `results/agentic/` against the checkout's contract. A
+more seeds, redacted seeds, and `separate-user` or `container`. The driver
+records what it actually launched (`isolation` in `run.json` and in every
+episode's `harness_run`), and redact refuses a claim stronger than that
+record: a `container` run may be published as `container` or understated as
+`same-user`, a same-user run (or one written before the driver recorded
+isolation) only as `same-user`. No driver launches `separate-user` yet, so
+that level cannot currently be claimed. The redact command refuses to write
+anything that would not validate. CI re-validates every file under
+`results/agentic/` against the checkout's contract. A
 `panel`-grade row must also be a run of the lane's frozen private panel: both
 `agentic-redact` and `agentic-validate` (and so CI) reject it unless its
 `panel.sha256` equals `seed_panel.artifact_panel_sha256` in
@@ -191,6 +199,86 @@ For any other season count nothing is pinned: validation warns that the
 reference is unpinned, and the site build and data check require every
 panel row at that season count to agree.
 
+## Running the harness in a container
+
+```bash
+python -m gm_bench agentic --isolation container --model opencode/big-pickle \
+  --seeds 11 --seasons 1 --output /tmp/agentic-container
+```
+
+Panel grade needs the harness separated from the driver, because on a
+same-user machine the agent's shell can run `ps`, read the driver's
+`--seeds`, and follow it to the run directory and the checkout.
+`--isolation container` runs the OpenCode harness in Docker while the engine,
+the seed, and the ledger stay in the driver process on the host
+(`gm_bench/agentic/container.py`).
+
+Requirements: Docker Desktop (tested on macOS with Docker 29.3.1) with the
+daemon running, and network access for the first image build and for the
+model provider. No Docker Desktop setting needs changing: `/var/folders`
+temp directories are shared by default, and `host.docker.internal` reaches
+the host loopback out of the box.
+
+The image. On the first run the driver builds
+`gm-bench-agentic-opencode:<opencode version>-<Dockerfile hash>` from a
+Dockerfile it pipes to `docker build` (no build context): a digest-pinned
+`node:22-bookworm-slim` base, Debian's `python3` for the proxy, `procps`,
+and `opencode-ai@1.18.31`. It refuses to run if the image reports a
+different OpenCode version. `run.json` records the image tag, image id
+(the content digest of what ran), base image, Dockerfile SHA-256, OpenCode
+version, and Docker server version under `harness.container`, and that block
+is carried into the published artifact. `--binary` is ignored in container
+mode.
+
+Authentication. The free `opencode/*` models need no credentials: OpenCode
+1.18.31 on the host stores none for them (`opencode auth list` shows 0
+credentials) and the container lists and runs them anonymously. Nothing is
+provisioned. A model that needs a provider key is not supported in container
+mode yet; do not mount `~/.config/opencode` or the home directory to get
+one, because that directory's `AGENTS.md`, skills and commands would change
+what the harness plays with. The harness's only configuration is the staged
+`opencode.json`.
+
+What the container can see:
+
+- its own processes only (separate process namespace; `ps` shows the harness,
+  the proxy, and whatever the agent started);
+- `/work`, the episode's scratch directory bind-mounted from the host,
+  holding only `gm_bench_proxy.py`, `gm_bench_proxy.secret`, and
+  `opencode.json`;
+- its home, a per-episode Docker volume (`gmb-home-<random>`), so OpenCode's
+  session store survives from the first run to each nudge's `--session`
+  resume. The volume is deleted when the episode ends, so nothing carries to
+  the next episode;
+- the network, for the model provider, and the host loopback through
+  `host.docker.internal`.
+
+What it cannot see: host processes (including the driver's command line),
+the checkout, the run directory, the ledger, the seed, the host environment
+(no `-e` is passed), host OpenCode configuration or credentials. Each
+invocation runs as the image's unprivileged `node` user with every Linux
+capability dropped and `no-new-privileges`.
+
+The transport. Docker Desktop cannot pass a host Unix socket through a bind
+mount (the connect fails with `ENOTSUP`), so in container mode the driver's
+server listens on `127.0.0.1` on an ephemeral port and the proxy dials
+`host.docker.internal:<port>`. Any local process can dial a loopback port,
+so every connection must first send a per-run random secret, which the
+driver writes to `gm_bench_proxy.secret` in the scratch directory (mode
+0600) and never onto a command line; a connection without it is closed
+unserved and counted as `proxy_connections_refused` in `harness_run`. The
+agent can read the secret, which gives it nothing the proxy does not
+already give it: every call it makes lands in the ledger, and a call that
+bypasses the harness shows up as a ledger-versus-harness disagreement.
+Same-user runs keep the Unix socket.
+
+Residual exposure: `host.docker.internal` reaches every service listening
+on the host loopback, not only the driver's port. Do not run the GM-Bench
+GUI or anything else holding run data on the host loopback during a
+container run. A guard stop or timeout kills the `docker run` client and
+then removes the container by name, because killing the client alone leaves
+the container running.
+
 ## Private panel
 
 A full row is the 32-seed private panel (`docs/bench_v2_spec.md`, Panel
@@ -232,14 +320,17 @@ episodes' `result.json`), so panel grade still needs
 
 ```bash
 echo 11 | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team
+echo 11 | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team-container \
+    --isolation container
 ```
 
 Launches the harness exactly as a run does, but with a brief that tells the
 agent to find the seed by any means. The report lists every shell command
-the agent ran and whether the seed appeared in its output. Expect
-`SEED FOUND` on a same-user machine: `ps` shows the driver's command line.
-Expect `SEED NOT FOUND` only when the harness runs as another user or in a
-container.
+the agent ran, whether the seed appeared in its output, and whether any
+output showed the driver (the red-team script's name or the checkout path).
+Expect `SEED FOUND` on a same-user machine: `ps` shows the driver's command
+line. Expect `SEED NOT FOUND` only when the harness runs as another user or
+in a container.
 
 ## Comparing runs
 
@@ -269,7 +360,9 @@ score.
 - `tests/test_agentic_episode.py`: calendar, moves, ledger replay, guard,
   audit, and equivalence with a 1.0 no-op episode on the same seed
 - `tests/test_agentic_mcp.py`: the stdio server driven by a minimal JSON-RPC
-  client, server restart, sandbox checks, event parsing
+  client, server restart, sandbox checks, event parsing, the TCP transport
+  and its secret, admission after stop, and the container launch command
+  (against a stand-in `docker`)
 - `tests/test_agentic_conformance.py`: the server driven by the official
   `mcp` SDK client (dev extra; skipped when not installed)
 - `tests/test_agentic_publication.py`: the compact artifact is bound to its

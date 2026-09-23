@@ -73,6 +73,15 @@ Added 2026-09-20. Nothing published changes.
   must agree with each other. The site's 2.0 section shows it as
   "vs pick-trader (same seeds)", and the results-data validator now requires
   that on-panel reference and rejects any other p-value on a 2.0 row.
+- Container isolation: `gm-bench agentic --isolation container` runs the
+  OpenCode harness in Docker (pinned image, only the scratch directory
+  mounted, no host processes, config, or credentials visible) while the
+  engine and seed stay in the driver, which now records the isolation it
+  launched; `agentic-redact` refuses a stronger claim. The contract moves to
+  `02a9f887e79c0497`: the socket server gains a loopback TCP transport with
+  a per-run secret (Docker Desktop cannot pass a Unix socket through a bind
+  mount) and no longer serves a connection accepted after `stop()` begins,
+  so the committed smoke row must be rerun on the new contract.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 
