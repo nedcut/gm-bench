@@ -74,6 +74,16 @@ class HarnessDriver:
         """Whether one invocation's events end in a retryable provider error."""
         raise NotImplementedError
 
+    def quota_exhausted(self, lines: list[str], *, isolation: str, now: float) -> dict[str, Any] | None:
+        """Whether one invocation ended because the subscription's usage window is spent.
+
+        ``{"message_class": ..., "reset_at_utc": ISO string or None}``, or
+        ``None`` for any other ending. A quota exhaustion is never a provider
+        stall: the shared loop pauses until the reset when the wait fits the
+        budget, and otherwise stops the episode and the panel.
+        """
+        return None
+
     def usage_block(self, telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
         raise NotImplementedError
 

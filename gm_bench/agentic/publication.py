@@ -128,6 +128,10 @@ _HARNESS_RUN_KEYS = (
     # and the plan; absent for OpenCode and for runs recorded before them.
     "quota_windows",
     "plan_type",
+    # Pauses for a spent subscription window inside the episode, and the
+    # reset time when the episode stopped because it was beyond the budget.
+    "quota_pauses",
+    "ended_by_quota",
 )
 # Present on every nudge a driver records; the provider-stall keys only on runs
 # recorded since the driver learned to retry provider stalls.
@@ -141,6 +145,7 @@ _NUDGE_KEYS = (
     "stall_retry",
     "backoff_seconds",
     "provider_stall",
+    "quota_resume",
 )
 _USAGE_KEYS = (
     "input_tokens",
@@ -236,7 +241,7 @@ def compact_agentic_run(
         # Absent from runs recorded before the driver retried provider stalls.
         **{key: raw[key] for key in ("max_provider_stalls", "max_provider_stall_wait_seconds") if key in raw},
         # Panel pauses for an exhausted subscription window (positions, never seeds).
-        **{key: raw[key] for key in ("quota_pause_percent", "quota_pauses") if key in raw},
+        **{key: raw[key] for key in ("quota_pause_percent", "quota_pauses", "stopped_for_quota") if key in raw},
         "summary": raw.get("summary"),
         "agentic_summary": raw.get("agentic_summary"),
         "episodes": episodes,

@@ -312,6 +312,7 @@ export interface AgenticLaneRow {
       max_used_percent: number | null;
       pauses: number;
       pause_seconds: number;
+      episodes_ended_by_quota?: number;
     } | null;
   };
   /** Server ledger (authoritative) versus the harness's own tool-event count. */

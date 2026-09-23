@@ -124,7 +124,10 @@ function quotaNote(row: AgenticLaneRow): string {
     quota.pauses > 0
       ? `, ${quota.pauses} quota pause${quota.pauses === 1 ? "" : "s"} (${fmt(quota.pause_seconds / 60, 0)} min)`
       : "";
-  return ` Quota: ${plan}${peak}${pauses}.`;
+  const ended = quota.episodes_ended_by_quota
+    ? `, ${quota.episodes_ended_by_quota} episode${quota.episodes_ended_by_quota === 1 ? "" : "s"} stopped by a spent window`
+    : "";
+  return ` Quota: ${plan}${peak}${pauses}${ended}.`;
 }
 
 function signed(value: number, digits = 1): string {

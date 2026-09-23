@@ -619,6 +619,7 @@ def run_episode(
     max_provider_stall_wait_seconds: float = DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
     stall_backoff: Callable[[int], float] = provider_stall_backoff,
     sleep: Callable[[float], None] = time.sleep,
+    clock: Callable[[], float] = time.time,
     driver: HarnessDriver | None = None,
 ) -> dict[str, Any]:
     driver = driver if driver is not None else OPENCODE_DRIVER
@@ -694,6 +695,18 @@ def run_episode(
         consecutive_stalls = int(last_stalled)
         stall_retries = 0
         stall_wait = 0.0
+        # Quota exhaustion (a spent subscription window, e.g. Codex's "usage
+        # limit ... try again at"): never a stall and never a nudge. If the
+        # reset is within the wait budget the loop pauses until it and resumes
+        # the session; otherwise the episode stops here, and run_panel stops.
+        pending_quota = (
+            None
+            if timed_out or stalled
+            else driver.quota_exhausted(_invocation_lines(events_path, offset), isolation=isolation, now=clock())
+        )
+        quota_pauses: list[dict[str, Any]] = []
+        quota_wait = 0.0
+        ended_by_quota: dict[str, Any] | None = None
 
         def can_retry_stall() -> bool:
             return (
@@ -715,11 +728,34 @@ def run_episode(
             state = _engine_state(episode)
             if state["done"]:
                 break
+            quota_resume = False
+            if pending_quota is not None:
+                pause = _quota_exhaustion_pause(
+                    pending_quota, clock(), max_provider_stall_wait_seconds - quota_wait, state
+                )
+                if pause is None:
+                    ended_by_quota = {
+                        "reset_at_utc": pending_quota.get("reset_at_utc"),
+                        "message_class": pending_quota.get("message_class"),
+                    }
+                    if progress is not None:
+                        progress({"seed": seed, "stage": "quota_exhausted", "action": "stop", **ended_by_quota})
+                    break
+                if progress is not None:
+                    progress({"seed": seed, "stage": "quota_exhausted", "action": "pause", **pause})
+                sleep(pause["wait_seconds"])
+                # As for a stall: the wait does not count against the open phase.
+                with server.dispatch_lock:
+                    episode.exclude_from_phase_clock(pause["wait_seconds"])
+                quota_wait += pause["wait_seconds"]
+                quota_pauses.append(pause)
+                pending_quota = None
+                quota_resume = True
             session_id = driver.parse_events(events_path.read_text(encoding="utf-8").splitlines())["session_id"]
             if not session_id:
                 break
-            retry = can_retry_stall()
-            if not retry and productive_nudges >= max_nudges:
+            retry = not quota_resume and can_retry_stall()
+            if not retry and not quota_resume and productive_nudges >= max_nudges:
                 break
             number = len(nudges) + 1
             backoff = 0.0
@@ -747,11 +783,15 @@ def run_episode(
                     episode.exclude_from_phase_clock(backoff)
                 stall_retries += 1
                 stall_wait += backoff
-            else:
+            elif not quota_resume:
                 productive_nudges += 1
-            # A stall retry shows the next reminder's number without using it up.
+            # A stall retry or a quota resume shows the next reminder's number without using it up.
             text = nudge_message(
-                state["season"], state["phase"], seasons, min(productive_nudges + int(retry), max_nudges), max_nudges
+                state["season"],
+                state["phase"],
+                seasons,
+                min(productive_nudges + int(retry or quota_resume), max_nudges),
+                max_nudges,
             )
             if progress is not None:
                 progress(
@@ -794,6 +834,11 @@ def run_episode(
                 and not nudge_stalled
                 and driver.ended_in_provider_stall(_invocation_lines(events_path, offset))
             )
+            pending_quota = (
+                None
+                if nudge_timed_out or nudge_stalled
+                else driver.quota_exhausted(_invocation_lines(events_path, offset), isolation=isolation, now=clock())
+            )
             provider_stalls += int(last_stalled)
             consecutive_stalls = consecutive_stalls + 1 if last_stalled else 0
             nudges.append(
@@ -811,10 +856,12 @@ def run_episode(
                     "backoff_seconds": backoff,
                     # This relaunch itself ended on a retryable provider error.
                     "provider_stall": last_stalled,
+                    # This relaunch resumed after a quota pause: neither a nudge nor a stall retry.
+                    "quota_resume": quota_resume,
                 }
             )
             timed_out = timed_out or nudge_timed_out
-            if progress_calls == 0 and not can_retry_stall():
+            if progress_calls == 0 and not can_retry_stall() and pending_quota is None:
                 break
     finally:
         server_drained = launch.close(keep_scratch=keep_scratch)
@@ -841,12 +888,18 @@ def run_episode(
         # Nudges counted against ``max_nudges``; stall retries are counted apart.
         "nudges_used": productive_nudges,
         "nudges_without_progress": sum(
-            1 for nudge in nudges if nudge["new_tool_calls"] == 0 and not nudge["provider_stall"]
+            1
+            for nudge in nudges
+            if nudge["new_tool_calls"] == 0 and not nudge["provider_stall"] and not nudge["quota_resume"]
         ),
         # Invocations that ended on a retryable provider error, and the total backoff waited.
         "provider_stalls": provider_stalls,
         "provider_stall_wait_seconds": round(stall_wait, 3),
         "guard_kills": guard_kills,
+        # Pauses for a spent subscription window inside this episode, and why it
+        # stopped early if the window's reset was beyond the wait budget.
+        "quota_pauses": quota_pauses,
+        "ended_by_quota": ended_by_quota,
         # False when a proxy thread was still inside the engine after the
         # stop timeout; the dispatch lock above still ordered the finalize.
         "server_drained": server_drained,
@@ -1066,7 +1119,12 @@ def run_panel(
     plus a minute (the latest such reset), never longer than
     ``max_provider_stall_wait_seconds``, reports a ``quota_pause`` progress
     event, and records the pause in ``run.json`` ``quota_pauses``. The pause
-    names the episode by position, never by seed.
+    names the episode by position, never by seed. Pauses a harness took inside
+    an episode for a spent window (``harness_run.quota_pauses``) are listed
+    there too, with their ``episode`` position. An episode that stopped because
+    its window's reset was beyond the wait budget (``harness_run.ended_by_quota``)
+    stops the panel: no later seed starts, and ``run.json`` records
+    ``stopped_for_quota`` with the reset time.
     """
     driver = driver if driver is not None else OPENCODE_DRIVER
     if isolation not in DRIVER_ISOLATION:
@@ -1083,6 +1141,7 @@ def run_panel(
     attempts: dict[int, int] = {}
     width = max(2, len(str(len(seeds) - 1)))
     quota_pauses: list[dict[str, Any]] = []
+    stopped_for_quota: dict[str, Any] | None = None
     for position, seed in enumerate(seeds):
         if episodes:
             pause = _quota_pause(
@@ -1115,9 +1174,22 @@ def run_panel(
                 image=image,
                 docker=docker,
                 sleep=sleep,
+                clock=clock,
                 driver=driver,
             )
         )
+        run = episodes[-1].get("harness_run") or {}
+        quota_pauses.extend({"episode": position, **pause} for pause in run.get("quota_pauses") or [])
+        if run.get("ended_by_quota"):
+            # Every later seed would hit the same spent window.
+            stopped_for_quota = {
+                "after_episode": position,
+                "episodes_not_run": len(seeds) - position - 1,
+                **run["ended_by_quota"],
+            }
+            if progress is not None:
+                progress({"stage": "panel_stopped_for_quota", **stopped_for_quota})
+            break
     harness: dict[str, Any] = {"name": driver.name, "version": version, "model": model, "variant": variant}
     if image is not None:
         harness["container"] = image
@@ -1139,11 +1211,43 @@ def run_panel(
         "summary": summarize_episodes(episodes),
         "agentic_summary": _agentic_summary(episodes),
     }
-    if any("quota_windows" in episode.get("harness_run", {}) for episode in episodes):
+    if quota_pauses or stopped_for_quota or any("quota_windows" in e.get("harness_run", {}) for e in episodes):
         payload["quota_pause_percent"] = quota_pause_percent
         payload["quota_pauses"] = quota_pauses
+    if stopped_for_quota is not None:
+        # The panel is incomplete: ``seeds`` lists every seed, ``episodes`` only those played.
+        payload["stopped_for_quota"] = stopped_for_quota
     (run_dir / "run.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return payload
+
+
+def _quota_exhaustion_pause(
+    quota: dict[str, Any], now: float, budget: float, state: dict[str, Any]
+) -> dict[str, Any] | None:
+    """The in-episode pause for a quota exhaustion, or ``None`` when the episode must stop.
+
+    Pauses until the stated reset plus QUOTA_RESET_MARGIN_SECONDS (Codex states
+    it to the minute). Stops when the reset is unknown, already past (the
+    window was still spent after it), or further off than ``budget``.
+    """
+    reset = quota.get("reset_at_utc")
+    if not isinstance(reset, str):
+        return None
+    try:
+        wait = _dt.datetime.fromisoformat(reset).timestamp() + QUOTA_RESET_MARGIN_SECONDS - now
+    except ValueError:
+        return None
+    if wait <= 0 or wait > budget:
+        return None
+    return {
+        "during_episode": True,
+        "season": state["season"],
+        "phase": state["phase"],
+        "message_class": quota.get("message_class"),
+        "resets_at_utc": reset,
+        "wait_seconds": round(wait, 3),
+        "capped": False,
+    }
 
 
 def _quota_pause(

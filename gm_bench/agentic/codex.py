@@ -67,9 +67,19 @@ source at tag ``rust-v0.156.1``: ``codex-rs/exec/src/exec_events.rs``,
   exceeded: ...``, ``stream disconnected before completion: ...``,
   ``Connection failed: ...``, ``Error while reading the server response``,
   ``request timed out``, ``We're currently experiencing high demand``,
-  ``Selected model is at capacity``, or ``You've hit your usage limit ...
-  try again at ...``. Those map into the shared provider-stall retry;
-  ``Quota exceeded``, a 401, or a context-window error do not.
+  or ``Selected model is at capacity``. Those map into the shared
+  provider-stall retry; ``Quota exceeded``, a 401, or a context-window error
+  do not.
+- **Usage limit (quota exhaustion).** ``You’ve hit your usage limit. ...
+  try again at Sep 24th, 2026 4:19 PM.`` (``UsageLimitReachedError`` in
+  ``protocol/src/error.rs``) is not a transient stall: the subscription's
+  window is spent until the stated time. Codex formats that time in the
+  Codex process's local time zone as ``%b %-d<st|nd|rd|th>, %Y %-I:%M %p``,
+  or ``%-I:%M %p`` alone when the reset is later the same local day, or
+  says ``try again later`` when it does not know. :func:`quota_exhaustion`
+  parses it (the host's zone in same-user isolation; UTC in a container,
+  which sets no ``TZ``), and the shared loop pauses until the reset or
+  stops the episode and the panel.
 - **Configuration and what is not inherited.** ``CODEX_HOME`` (default
   ``~/.codex``) holds ``config.toml``, ``auth.json``, the session store,
   ``AGENTS.md``, skills, rules and plugins. The driver never uses the host's:
@@ -169,9 +179,25 @@ COST_BASIS = "api-list-price-estimate"
 _RETRYABLE_MESSAGE_RE = re.compile(
     r"rate limit|too many requests|status:?\s+(?:408|425|429|5\d\d)\b|stream disconnected|high demand"
     r"|at capacity|overloaded|connection failed|error while reading the server response|request timed out"
-    r"|usage limit|try again",
+    r"|try again",
     re.IGNORECASE,
 )
+
+# A spent subscription window (``UsageLimitReachedError``): never a stall.
+USAGE_LIMIT_RE = re.compile(r"\busage limit\b", re.IGNORECASE)
+# Its reset time, as ``format_retry_timestamp`` writes it: ``Sep 24th, 2026 4:19 PM``, or ``4:19 PM`` on the same day.
+TRY_AGAIN_AT_RE = re.compile(
+    r"try again at\s+"
+    r"(?:(?P<month>[A-Za-z]{3,9})\.?\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?,?\s+(?P<year>\d{4}),?\s+)?"
+    r"(?P<hour>\d{1,2}):(?P<minute>\d{2})\s*(?P<meridiem>[AaPp])\.?\s*[Mm]\.?",
+    re.IGNORECASE,
+)
+_MONTHS = {
+    name: number
+    for number, name in enumerate(
+        ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1
+    )
+}
 
 # ``error.message`` of an ``mcp_tool_call`` Codex refused before dispatching it
 # (``notify_mcp_tool_call_skip`` in ``core/src/mcp_tool_call.rs``): it never reached the server.
@@ -430,18 +456,11 @@ def _skipped_before_dispatch(item: dict[str, Any]) -> bool:
     return isinstance(message, str) and bool(_SKIPPED_CALL_RE.search(message))
 
 
-def ended_in_provider_stall(lines: list[str]) -> bool:
-    """Whether one invocation ended on a retryable provider error.
-
-    The last event must be ``turn.failed`` (``error.message``) or ``error``
-    (``message``) whose message reads as a transient failure (a 408, 425, 429
-    or 5xx status, a rate or usage limit, an overload or capacity notice, a
-    dropped stream or connection, or a timeout). Any other ending is the
-    agent or the harness stopping.
-    """
+def _terminal_message(lines: list[str]) -> str | None:
+    """The message of an invocation's last event when it is ``turn.failed`` or ``error``."""
     events = _events(lines)
     if not events:
-        return False
+        return None
     last = events[-1]
     if last.get("type") == "turn.failed":
         error = last.get("error") if isinstance(last.get("error"), dict) else {}
@@ -449,8 +468,62 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
     elif last.get("type") == "error":
         message = last.get("message")
     else:
+        return None
+    return message if isinstance(message, str) else None
+
+
+def ended_in_provider_stall(lines: list[str]) -> bool:
+    """Whether one invocation ended on a retryable provider error.
+
+    The last event must be ``turn.failed`` (``error.message``) or ``error``
+    (``message``) whose message reads as a transient failure (a 408, 425, 429
+    or 5xx status, a rate limit, an overload or capacity notice, a dropped
+    stream or connection, or a timeout). A usage limit is quota exhaustion
+    (:func:`quota_exhaustion`), never a stall. Any other ending is the agent
+    or the harness stopping.
+    """
+    message = _terminal_message(lines)
+    if message is None or USAGE_LIMIT_RE.search(message):
         return False
-    return isinstance(message, str) and bool(_RETRYABLE_MESSAGE_RE.search(message))
+    return bool(_RETRYABLE_MESSAGE_RE.search(message))
+
+
+def parse_reset_time(message: str, *, tz: _dt.tzinfo | None = None, now: float | None = None) -> str | None:
+    """The ``try again at`` time of a usage-limit message as an ISO UTC timestamp, or ``None`` if unparsable.
+
+    ``tz`` is the zone Codex formatted the time in (default: this machine's
+    local zone). A time without a date is on ``now``'s date in that zone.
+    """
+    match = TRY_AGAIN_AT_RE.search(message)
+    if match is None:
+        return None
+    hour, minute = int(match["hour"]), int(match["minute"])
+    if not (1 <= hour <= 12 and 0 <= minute <= 59):
+        return None
+    hour = hour % 12 + (12 if match["meridiem"].lower() == "p" else 0)
+    zone = tz if tz is not None else _dt.datetime.now().astimezone().tzinfo
+    try:
+        if match["month"] is None:
+            today = _dt.datetime.fromtimestamp(now if now is not None else _dt.datetime.now().timestamp(), zone)
+            local = today.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        else:
+            month = _MONTHS.get(match["month"][:3].lower())
+            if month is None:
+                return None
+            local = _dt.datetime(int(match["year"]), month, int(match["day"]), hour, minute, tzinfo=zone)
+    except (ValueError, OverflowError, OSError):
+        return None
+    return local.astimezone(_dt.timezone.utc).isoformat()
+
+
+def quota_exhaustion(
+    lines: list[str], *, tz: _dt.tzinfo | None = None, now: float | None = None
+) -> dict[str, Any] | None:
+    """``{"message_class": "usage_limit", "reset_at_utc": ...}`` when the invocation ended on a usage limit."""
+    message = _terminal_message(lines)
+    if message is None or not USAGE_LIMIT_RE.search(message):
+        return None
+    return {"message_class": "usage_limit", "reset_at_utc": parse_reset_time(message, tz=tz, now=now)}
 
 
 def usage_block(telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
@@ -741,6 +814,11 @@ class CodexDriver(HarnessDriver):
 
     def ended_in_provider_stall(self, lines: list[str]) -> bool:
         return ended_in_provider_stall(lines)
+
+    def quota_exhausted(self, lines: list[str], *, isolation: str, now: float) -> dict[str, Any] | None:
+        # The container sets no TZ, so Codex there formats the reset in UTC.
+        tz = _dt.timezone.utc if isolation == "container" else None
+        return quota_exhaustion(lines, tz=tz, now=now)
 
     def usage_block(self, telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
         return usage_block(telemetry, model=model, decisions=decisions)

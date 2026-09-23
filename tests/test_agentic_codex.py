@@ -847,6 +847,7 @@ def test_codex_quota_windows_are_recorded_per_episode_and_pause_the_panel(
         "max_used_percent": 97.5,
         "pauses": 1,
         "pause_seconds": 160.0,
+        "episodes_ended_by_quota": 0,
     }
 
 
@@ -902,7 +903,6 @@ def test_container_quota_read_returns_only_matching_lines_and_never_raises(tmp_p
         "Connection failed: error sending request for url",
         "We’re currently experiencing high demand, which may cause temporary errors.",
         "Selected model is at capacity. Please try a different model.",
-        "You’ve hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Sep 24th, 2026 3:00 PM.",
         "request timed out",
     ],
 )
@@ -910,6 +910,162 @@ def test_retryable_codex_failures_are_provider_stalls(message: str) -> None:
     started = json.dumps({"type": "thread.started", "thread_id": "t"})
     assert ended_in_provider_stall([started, json.dumps({"type": "turn.failed", "error": {"message": message}})])
     assert ended_in_provider_stall([started, json.dumps({"type": "error", "message": message}), ""])
+
+
+# -- quota exhaustion: "You've hit your usage limit ... try again at" ------------------
+
+# Exactly what the first real Codex launch printed (Codex CLI 0.156.1, Plus plan).
+USAGE_LIMIT = (
+    "You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit "
+    "https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Sep 24th, 2026 4:19 PM."
+)
+
+
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        (USAGE_LIMIT, "2026-09-24T16:19:00+00:00"),
+        ("You’ve hit your usage limit. Try again at Sep 1st, 2026 12:05 AM.", "2026-09-01T00:05:00+00:00"),
+        ("You’ve hit your usage limit. Try again at Oct 2nd, 2026 12:30 PM.", "2026-10-02T12:30:00+00:00"),
+        ("You’ve hit your usage limit. Try again at Nov 23rd 2026 9:07 pm.", "2026-11-23T21:07:00+00:00"),
+        ("You’ve hit your usage limit. Try again at December 11th, 2026 1:00 p.m.", "2026-12-11T13:00:00+00:00"),
+        # Later the same local day, Codex prints only the time.
+        ("You’ve hit your usage limit. Try again at 4:19 PM.", "2026-09-21T16:19:00+00:00"),
+        ("You’ve hit your usage limit. Try again later.", None),
+        ("You’ve hit your usage limit. Try again at Smarch 3rd, 2026 4:19 PM.", None),
+        ("You’ve hit your usage limit. Try again at Sep 24th, 2026 13:19 PM.", None),
+    ],
+)
+def test_usage_limit_reset_time_is_parsed_into_utc(message: str, expected: str | None) -> None:
+    from datetime import timezone
+
+    assert codex.parse_reset_time(message, tz=timezone.utc, now=RESET) == expected
+
+
+def test_usage_limit_reset_is_read_in_the_zone_codex_printed_it_in() -> None:
+    from datetime import timedelta, timezone
+
+    eastern = timezone(timedelta(hours=-4))
+    assert codex.parse_reset_time(USAGE_LIMIT, tz=eastern) == "2026-09-24T20:19:00+00:00"
+    lines = [
+        json.dumps({"type": "thread.started", "thread_id": "t"}),
+        json.dumps({"type": "error", "message": USAGE_LIMIT}),
+        json.dumps({"type": "turn.failed", "error": {"message": USAGE_LIMIT}}),
+    ]
+    # A usage limit is quota exhaustion, never a provider stall.
+    assert not ended_in_provider_stall(lines)
+    driver = CodexDriver()
+    assert driver.quota_exhausted(lines, isolation="container", now=RESET) == {
+        "message_class": "usage_limit",
+        "reset_at_utc": "2026-09-24T16:19:00+00:00",
+    }
+    assert codex.quota_exhaustion(lines[:1]) is None
+    assert codex.quota_exhaustion([lines[0], json.dumps({"type": "error", "message": "rate limit exceeded"})]) is None
+
+
+def _utc_epoch(iso: str) -> float:
+    from datetime import datetime
+
+    return datetime.fromisoformat(iso).timestamp()
+
+
+def test_usage_limit_within_the_wait_budget_pauses_then_resumes_the_session(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
+
+    # The fake prints the reset in the machine's local zone, as Codex does in same-user isolation.
+    reset = _utc_epoch(codex.parse_reset_time(USAGE_LIMIT))
+    steps = [{"phases": 1, "error": USAGE_LIMIT, "exit": 1}, {"phases": 3}]
+    binary, log = _fake_codex(tmp_path, steps, monkeypatch)
+    sleeps: list[float] = []
+    events: list[dict] = []
+    run_dir = tmp_path / "run"
+    payload = codex.run_panel(
+        [11],
+        model="gpt-fake",
+        run_dir=run_dir,
+        seasons=1,
+        binary=str(binary),
+        auth_file=_auth_file(tmp_path),
+        max_provider_stall_wait_seconds=3600.0,
+        sleep=sleeps.append,
+        clock=lambda: reset - 1000.0,
+        progress=events.append,
+    )
+    [episode] = payload["episodes"]
+    run = episode["harness_run"]
+    # Until the reset plus a minute; no 60 s stall ladder.
+    assert sleeps == [1060.0]
+    assert run["provider_stalls"] == 0 and run["nudges_used"] == 0 and run["ended_by_quota"] is None
+    [resume] = run["nudges"]
+    assert resume["quota_resume"] is True and resume["stall_retry"] is False and resume["new_tool_calls"] == 6
+    assert [call["argv"][:2] for call in _calls(log)] == [["exec", "--json"], ["exec", "resume"]]
+    assert episode["failed_decisions"] == 0 and episode["agentic"]["phases_ended_by"] == {"agent": 4}
+    [pause] = run["quota_pauses"]
+    assert pause["resets_at_utc"] == codex.parse_reset_time(USAGE_LIMIT) and pause["wait_seconds"] == 1060.0
+    assert pause["message_class"] == "usage_limit" and pause["during_episode"] is True
+    assert payload["quota_pauses"] == [{"episode": 0, **pause}] and "stopped_for_quota" not in payload
+    assert any(e["stage"] == "quota_exhausted" and e["action"] == "pause" for e in events)
+    assert not any(e["stage"] == "provider_stall" for e in events)
+
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    assert artifact["episodes"][0]["harness_run"]["quota_pauses"] == [pause]
+    assert artifact["episodes"][0]["harness_run"]["nudges"][0]["quota_resume"] is True
+    assert artifact["quota_pauses"] == payload["quota_pauses"]
+    assert validate_agentic_artifact(artifact, raw_run=run_dir)["ok"]
+
+
+def test_usage_limit_beyond_the_wait_budget_stops_the_episode_and_the_panel(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
+    from web.scripts.build_study import _agentic_telemetry
+
+    reset_iso = codex.parse_reset_time(USAGE_LIMIT)
+    steps = [{"phases": 1, "error": USAGE_LIMIT, "exit": 1}, {"phases": 3}]
+    binary, log = _fake_codex(tmp_path, steps, monkeypatch)
+    sleeps: list[float] = []
+    events: list[dict] = []
+    run_dir = tmp_path / "run"
+    payload = codex.run_panel(
+        [11, 12, 13],
+        model="gpt-fake",
+        run_dir=run_dir,
+        seasons=1,
+        binary=str(binary),
+        auth_file=_auth_file(tmp_path),
+        max_provider_stall_wait_seconds=3600.0,
+        sleep=sleeps.append,
+        # 20 hours before the reset: far beyond the 1 h budget.
+        clock=lambda: _utc_epoch(reset_iso) - 72_000.0,
+        progress=events.append,
+    )
+    # No sleep, no resume, no later seed.
+    assert sleeps == [] and len(_calls(log)) == 1 and len(payload["episodes"]) == 1
+    [episode] = payload["episodes"]
+    run = episode["harness_run"]
+    assert run["ended_by_quota"] == {"reset_at_utc": reset_iso, "message_class": "usage_limit"}
+    assert run["nudges"] == [] and run["provider_stalls"] == 0 and run["nudges_used"] == 0
+    # The phases the harness walked away from are closed as today's harness_exit path closes them.
+    assert episode["agentic"]["phases_ended_by"] == {"agent": 1, "harness_exit": 3}
+    assert payload["stopped_for_quota"] == {
+        "after_episode": 0,
+        "episodes_not_run": 2,
+        "reset_at_utc": reset_iso,
+        "message_class": "usage_limit",
+    }
+    assert any(e["stage"] == "quota_exhausted" and e["action"] == "stop" for e in events)
+    assert any(e["stage"] == "panel_stopped_for_quota" for e in events)
+    assert json.loads((run_dir / "run.json").read_text())["stopped_for_quota"] == payload["stopped_for_quota"]
+
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    assert artifact["stopped_for_quota"] == payload["stopped_for_quota"]
+    assert artifact["episodes"][0]["harness_run"]["ended_by_quota"] == run["ended_by_quota"]
+    report = validate_agentic_artifact(artifact, raw_run=run_dir)
+    # The run is incomplete: three seeds, one episode.
+    assert not report["ok"] and "1 episodes for 3 seeds" in report["errors"]
+    assert _agentic_telemetry(artifact["episodes"])["quota"]["episodes_ended_by_quota"] == 1
 
 
 @pytest.mark.parametrize(

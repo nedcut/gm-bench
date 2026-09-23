@@ -317,7 +317,8 @@ def _agentic_reference(reference: dict[str, Any]) -> dict[str, Any]:
 def _agentic_quota(episodes: list[dict[str, Any]], pauses: list[dict[str, Any]] | None) -> dict[str, Any] | None:
     """A subscription harness's usage windows (Codex), summarized; ``None`` when no episode reported any."""
     reporting = [(e.get("harness_run") or {}) for e in episodes if (e.get("harness_run") or {}).get("quota_windows")]
-    if not reporting and not pauses:
+    ended = sum(1 for e in episodes if (e.get("harness_run") or {}).get("ended_by_quota"))
+    if not reporting and not pauses and not ended:
         return None
     windows = [window for run in reporting for window in run["quota_windows"]]
     used = [float(w["used_percent"]) for w in windows if isinstance(w.get("used_percent"), (int, float))]
@@ -331,6 +332,8 @@ def _agentic_quota(episodes: list[dict[str, Any]], pauses: list[dict[str, Any]] 
         "max_used_percent": round(max(used), 2) if used else None,
         "pauses": len(pauses),
         "pause_seconds": round(sum(float(p.get("wait_seconds") or 0.0) for p in pauses), 1),
+        # Episodes the harness stopped because the window's reset was beyond the wait budget.
+        "episodes_ended_by_quota": ended,
     }
 
 

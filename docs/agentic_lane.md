@@ -385,10 +385,11 @@ What a run does per episode:
    `thread.started` event), so Codex keeps its context. `resume` accepts no
    `--sandbox` flag, so the sandbox is set with `-c` on every invocation.
 4. A run whose last event is `turn.failed` or `error` with a retryable
-   message (a 408, 425, 429 or 5xx status, "rate limit", "usage limit ...
-   try again at", "high demand", "at capacity", a dropped stream or
-   connection, a timeout) is a provider stall; "Quota exceeded", a 401, or a
-   full context window are not.
+   message (a 408, 425, 429 or 5xx status, "rate limit", "high demand",
+   "at capacity", a dropped stream or connection, a timeout) is a provider
+   stall; "Quota exceeded", a 401, or a full context window are not.
+5. A run that ends on "You’ve hit your usage limit ... try again at <time>"
+   is quota exhaustion, never a stall or a nudge (see Quota windows below).
 
 What the harness does not inherit. Codex keeps its login, `AGENTS.md`,
 skills, rules, plugins, and sessions under `CODEX_HOME` (default
@@ -527,6 +528,44 @@ everything else in the rollout are never recorded. An API-key login
 reports no windows, so the list is empty. Compressed (`.jsonl.zst`)
 rollouts are skipped; Codex compresses only cold sessions, and each
 episode's home is new.
+
+Quota exhaustion. The subscription window can also run out mid-panel, and
+then the first signal is the message itself: `You’ve hit your usage limit.
+... try again at Sep 24th, 2026 4:19 PM.` (on the first real launch this
+was the very first turn). Codex writes that time in the Codex process's
+local zone (`%b %-d<suffix>, %Y %-I:%M %p`, or only `%-I:%M %p` when the
+reset is later the same day, or "try again later" when it does not know).
+The driver matches `\busage limit\b` (case-insensitive) in the last
+`turn.failed` or `error` message and reads the time with
+
+```
+try again at\s+(?:(?P<month>[A-Za-z]{3,9})\.?\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?,?\s+(?P<year>\d{4}),?\s+)?(?P<hour>\d{1,2}):(?P<minute>\d{2})\s*(?P<meridiem>[AaPp])\.?\s*[Mm]\.?
+```
+
+(case-insensitive), in the host's zone for same-user runs and UTC in a
+container, which sets no `TZ`; anything it cannot read is an unknown reset.
+Then:
+
+- if the reset plus 60 seconds is in the future and within
+  `--max-provider-stall-wait-seconds` (less any quota pause already taken
+  in the episode), the driver prints a `quota_exhausted` progress event
+  (`action: pause`), sleeps until then with the open phase's clock
+  paused as for a stall, records the pause in `harness_run.quota_pauses`
+  (season, phase, reset, wait) and resumes the same session. That
+  relaunch is marked `quota_resume` in `harness_run.nudges` and counts
+  neither as a nudge nor as a stall retry;
+- otherwise (reset unknown, already past, or too far off) the episode stops
+  at once: the phases left open are closed as when the harness exits, and
+  `harness_run.ended_by_quota` records `{"reset_at_utc", "message_class":
+  "usage_limit"}`. `run_panel` then starts no further seed, since each
+  would fail the same way, and `run.json` records `stopped_for_quota`
+  (`after_episode`, `episodes_not_run`, the reset). Such a run lists more
+  seeds than episodes and does not validate for publication; rerun it
+  after the reset.
+
+In-episode pauses are also listed in the run's `quota_pauses` with their
+`episode` position. The windows read from the rollout still apply
+separately, before an episode starts.
 
 Before the next episode, if a window of the last one is at or above
 `QUOTA_PAUSE_PERCENT` (95) used, `run_panel` sleeps until that window

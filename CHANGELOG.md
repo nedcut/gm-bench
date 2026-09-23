@@ -167,6 +167,17 @@ Added 2026-09-20. Nothing published changes.
   `--max-provider-stall-wait-seconds`), recorded in `run.json`
   `quota_pauses`. Both reach the compact artifact and a short quota note on
   the site row.
+- Codex usage limits are quota exhaustion, not provider stalls. The first
+  real Codex launch ended its first turn on "You’ve hit your usage limit
+  ... try again at Sep 24th, 2026 4:19 PM", which the driver had treated as
+  a stall and started a 60-second backoff ladder that could have spent the
+  whole 6-hour wait budget. The driver now reads the reset time (Codex's
+  local-time format, ordinal suffixes, 12-hour clock, same-day time only),
+  pauses until it plus a minute when that fits the wait budget and resumes
+  the session (neither a nudge nor a stall retry), and otherwise stops the
+  episode (`harness_run.ended_by_quota`) and the panel (`run.json`
+  `stopped_for_quota`) instead of starting seeds that would fail the same
+  way.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 
