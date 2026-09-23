@@ -287,7 +287,7 @@ def _agentic_row(
                 "simulator_version",
             )
         },
-        "telemetry": _agentic_telemetry(episodes),
+        "telemetry": _agentic_telemetry(episodes, quota_pauses=payload.get("quota_pauses")),
         "agreement": _agentic_agreement(episodes),
         "v1_row_id": _v1_row_for(model, v1_rows),
         "artifact_path": str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else path.name,
@@ -314,7 +314,29 @@ def _agentic_reference(reference: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
+def _agentic_quota(episodes: list[dict[str, Any]], pauses: list[dict[str, Any]] | None) -> dict[str, Any] | None:
+    """A subscription harness's usage windows (Codex), summarized; ``None`` when no episode reported any."""
+    reporting = [(e.get("harness_run") or {}) for e in episodes if (e.get("harness_run") or {}).get("quota_windows")]
+    if not reporting and not pauses:
+        return None
+    windows = [window for run in reporting for window in run["quota_windows"]]
+    used = [float(w["used_percent"]) for w in windows if isinstance(w.get("used_percent"), (int, float))]
+    pauses = pauses or []
+    return {
+        "episodes_reporting": len(reporting),
+        "plan_types": sorted({str(run["plan_type"]) for run in reporting if run.get("plan_type")}),
+        "window_minutes": sorted(
+            {int(w["window_minutes"]) for w in windows if isinstance(w.get("window_minutes"), int)}
+        ),
+        "max_used_percent": round(max(used), 2) if used else None,
+        "pauses": len(pauses),
+        "pause_seconds": round(sum(float(p.get("wait_seconds") or 0.0) for p in pauses), 1),
+    }
+
+
+def _agentic_telemetry(
+    episodes: list[dict[str, Any]], *, quota_pauses: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
     """Budgets are reported, not capped. Tokens and cost are the harness's own
     accounting and count only episodes whose harness reported telemetry; with
     none, they are unmeasured (``None``), never zero. ``api_equivalent_*`` is
@@ -362,6 +384,23 @@ def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     # A list-price estimate for a harness that reports tokens but no cost
     # (Codex): kept apart from ``cost_usd``, which is only ever a billed or
     # harness-reported cost.
+    shaped = [e for e in reported if (e.get("usage") or {}).get("token_shape")]
+    shapes = {(e.get("usage") or {}).get("token_shape") for e in shaped}
+    if not reported:
+        token_shape = None
+    elif len(shaped) == len(reported) and len(shapes) == 1:
+        token_shape = shapes.pop()
+    elif not shaped:
+        # Recorded before the shared shape: each harness's own convention.
+        token_shape = "legacy"
+    else:
+        token_shape = "mixed"
+
+    def _shaped_sum(key: str) -> int | None:
+        if token_shape in (None, "legacy", "mixed"):
+            return None
+        return int(sum(float((e.get("usage") or {}).get(key) or 0) for e in shaped))
+
     estimates = [((e.get("usage") or {}).get("harness") or {}) for e in reported]
     estimate_values = [
         float(block["api_equivalent_cost_usd"])
@@ -389,12 +428,19 @@ def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "output_tokens": _int_or_none(_reported_sum("output_tokens")),
         "reasoning_tokens": _int_or_none(_reported_sum("reasoning_tokens")),
         "cached_input_tokens": _int_or_none(_reported_sum("cached_input_tokens")),
+        # "inclusive-v1": input_tokens = uncached + cached + cache-write, output
+        # includes reasoning. "legacy": recorded before that shape (OpenCode
+        # input then excluded cached tokens, output excluded reasoning).
+        "token_shape": token_shape,
+        "uncached_input_tokens": _shaped_sum("uncached_input_tokens"),
+        "cache_write_input_tokens": _shaped_sum("cache_write_input_tokens"),
         "cost_usd": None if cost is None else round(cost, 4),
         "cost_per_episode_usd": None if cost is None else round(cost / len(cost_values), 4),
         "api_equivalent_cost_usd": None if estimate is None else round(estimate, 4),
         "api_equivalent_cost_per_episode_usd": None if estimate is None else round(estimate / len(estimate_values), 4),
         "api_equivalent_cost_episodes": len(estimate_values),
         "api_equivalent_long_context_possible": any(block.get("long_context_requests_possible") for block in estimates),
+        "quota": _agentic_quota(episodes, quota_pauses),
     }
 
 

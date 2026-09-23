@@ -140,6 +140,33 @@ Added 2026-09-20. Nothing published changes.
   write, $0.50 output per million tokens) and `gpt-6-sol` ($2.00, $0.20,
   $2.50, $10.00), checked 2026-09-23 against OpenAI's developer pricing
   page and model pages.
+- One token shape for every harness: `input_tokens` is now the inclusive
+  total (uncached + cached + cache-write, each also published as
+  `uncached_input_tokens`, `cached_input_tokens`,
+  `cache_write_input_tokens`) and `output_tokens` includes reasoning, with
+  `reasoning_tokens` a subset, marked `token_shape: "inclusive-v1"`. Codex
+  already reported that way; the OpenCode parser now adds cache reads and
+  writes into input and reasoning into output (as T3 Code's OpenCode
+  adapter does), so OpenCode token totals and `max_output_tokens_per_call`
+  are larger than in earlier runs. The committed OpenCode smoke row predates
+  the shape and still validates; the site labels such rows' tokens as the
+  harness's own convention.
+- Corrected stale list prices in `gm_bench/pricing.json` from the official
+  pages, checked 2026-09-23: `gpt-5.6-terra` $2/$12 (was $2.50/$15),
+  `gpt-5.6-luna` $0.20/$1.20 (was $1/$6), and `claude-sonnet-5` $2/$10
+  (was $3/$15), with their cached-input and cache-write rates. `gpt-5.6-sol`
+  stays at $5/$30: OpenAI lists its $4/$20 as promotional pricing available
+  at least through 2026-11-21, and this table pins undiscounted rates.
+  Published results do not change: their costs are what the provider
+  reported when they ran.
+- Codex quota windows: after each episode the driver reads the
+  subscription's usage windows from the Codex session rollout (percent used,
+  window length, reset time, and plan; never credits or tokens) into
+  `harness_run.quota_windows` and `plan_type`, and a panel pauses before
+  the next episode until a window at or above 95% resets (bounded by
+  `--max-provider-stall-wait-seconds`), recorded in `run.json`
+  `quota_pauses`. Both reach the compact artifact and a short quota note on
+  the site row.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

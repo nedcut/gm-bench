@@ -136,6 +136,16 @@ for key, value in (("input_tokens", 1000), ("cached_input_tokens", 400), ("outpu
     usage[key] += value
 state["usage"][thread] = usage
 state_path.write_text(json.dumps(state))
+if step.get("rate_limits") is not None:
+    # What Codex persists to the session rollout: token_count events with the account's rate limits.
+    day = sessions / "2026" / "09" / "23"
+    day.mkdir(parents=True, exist_ok=True)
+    stamp = f"2026-09-23T00:00:{state['invocations']:02d}.000Z"
+    with (day / f"rollout-2026-09-23T00-00-00-{thread}.jsonl").open("a") as rollout:
+        rollout.write(json.dumps({"timestamp": stamp, "type": "session_meta", "payload": {"id": thread}}) + "\n")
+        for limits in step["rate_limits"]:
+            record = {"type": "token_count", "info": {"total_token_usage": usage}, "rate_limits": limits}
+            rollout.write(json.dumps({"timestamp": stamp, "type": "event_msg", "payload": record}) + "\n")
 if step.get("error"):
     emit({"type": "error", "message": "Reconnecting... 1/5"})
     emit({"type": "turn.failed", "error": {"message": step["error"]}})
@@ -640,6 +650,11 @@ def test_codex_usage_block_carries_an_api_equivalent_estimate_beside_an_unmeasur
     assert telemetry["max_turn_input_tokens"] == 800_000
     block = codex.usage_block(telemetry, model="gpt-6-luna", decisions=20)
     assert block["cost_usd"] is None and block["cost_decisions"] == 0
+    # The shared token shape: inclusive input, output with reasoning inside it.
+    assert block["token_shape"] == "inclusive-v1"
+    assert (block["input_tokens"], block["uncached_input_tokens"]) == (1_000_000, 200_000)
+    assert (block["cached_input_tokens"], block["cache_write_input_tokens"]) == (700_000, 100_000)
+    assert (block["output_tokens"], block["reasoning_tokens"]) == (20_000, 8_000)
     harness = block["harness"]
     # 200k uncached at 0.10 + 700k cached at 0.01 + 100k written at 0.125 + 20k out at 0.50.
     assert harness["api_equivalent_cost_usd"] == pytest.approx(0.02 + 0.007 + 0.0125 + 0.01)
@@ -711,6 +726,170 @@ def test_codex_usage_block_carries_an_api_equivalent_estimate_beside_an_unmeasur
         ]
     )
     assert "api_equivalent_cost_usd" not in opencode_summary
+
+
+# -- subscription quota windows --------------------------------------------------
+
+RESET = 1_790_000_000  # 2026-09-21T14:13:20Z, epoch seconds as Codex reports resets_at
+
+
+def _limits(primary: float, *, limit_id: str | None = "codex", **extra) -> dict:
+    snapshot = {
+        "limit_id": limit_id,
+        "limit_name": None,
+        "primary": {"used_percent": primary, "window_minutes": 300, "resets_at": RESET},
+        "secondary": {"used_percent": 41.0, "window_minutes": 10080, "resets_at": RESET + 86_400},
+        "credits": {"has_credits": True, "unlimited": False, "balance": "917.25"},
+        "plan_type": "plus",
+        "rate_limit_reached_type": None,
+    }
+    return snapshot | extra
+
+
+def test_rollout_quota_keeps_the_main_allowance_merges_partial_updates_and_drops_credits() -> None:
+    def line(stamp: str, limits: dict | None, kind: str = "token_count") -> str:
+        payload = {"type": kind, "info": {"total_token_usage": {"input_tokens": 5}}, "rate_limits": limits}
+        return json.dumps({"timestamp": stamp, "type": "event_msg", "payload": payload})
+
+    lines = [
+        line(
+            "2026-09-23T00:00:02.000Z",
+            {"limit_id": "codex", "primary": {"used_percent": 88.0, "window_minutes": 300, "resets_at": RESET}},
+        ),
+        line("2026-09-23T00:00:01.000Z", _limits(10.0)),
+        # A model-specific allowance never replaces the main one.
+        line("2026-09-23T00:00:03.000Z", _limits(100.0, limit_id="codex_spark")),
+        line("2026-09-23T00:00:04.000Z", None),
+        line("2026-09-23T00:00:05.000Z", _limits(99.0), kind="agent_message"),
+        "not json",
+    ]
+    quota = codex.rollout_quota(lines)
+    # Timestamp order: the 00:02 update replaces primary and keeps the earlier secondary and plan.
+    assert quota == {
+        "quota_windows": [
+            {"window_minutes": 300, "used_percent": 88.0, "resets_at_utc": "2026-09-21T14:13:20+00:00"},
+            {"window_minutes": 10080, "used_percent": 41.0, "resets_at_utc": "2026-09-22T14:13:20+00:00"},
+        ],
+        "plan_type": "plus",
+    }
+    assert "917.25" not in json.dumps(quota)
+    # No token_count with rate limits (an API key): nothing recorded.
+    assert codex.rollout_quota([line("2026-09-23T00:00:01.000Z", None)]) == {}
+    # Durations default by position; a free plan's primary window is monthly.
+    bare = {"primary": {"used_percent": 150}, "secondary": {"used_percent": -3}, "plan_type": "free"}
+    windows = codex.quota_windows(bare)
+    assert [(w["window_minutes"], w["used_percent"], w["resets_at_utc"]) for w in windows] == [
+        (30 * 24 * 60, 100.0, None),
+        (7 * 24 * 60, 0.0, None),
+    ]
+
+
+def test_codex_quota_windows_are_recorded_per_episode_and_pause_the_panel(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
+    from web.scripts.build_study import _agentic_telemetry
+
+    steps = [
+        # Episode 0 ends with its 5-hour window 97.5% used, plus a model-specific snapshot that must not count.
+        {"phases": 4, "rate_limits": [_limits(97.5), _limits(100.0, limit_id="codex_spark")]},
+        # Episode 1 is well under the threshold: no pause after it (and none after the last episode anyway).
+        {"phases": 4, "rate_limits": [_limits(12.0)]},
+    ]
+    binary, _log = _fake_codex(tmp_path, steps, monkeypatch)
+    sleeps: list[float] = []
+    events: list[dict] = []
+    run_dir = tmp_path / "run"
+    payload = codex.run_panel(
+        [11, 12],
+        model="gpt-fake",
+        run_dir=run_dir,
+        seasons=1,
+        binary=str(binary),
+        auth_file=_auth_file(tmp_path),
+        max_provider_stall_wait_seconds=3600.0,
+        sleep=sleeps.append,
+        clock=lambda: RESET - 100.0,
+        progress=events.append,
+    )
+    first, second = (episode["harness_run"] for episode in payload["episodes"])
+    assert first["quota_windows"][0] == {
+        "window_minutes": 300,
+        "used_percent": 97.5,
+        "resets_at_utc": "2026-09-21T14:13:20+00:00",
+    }
+    assert first["plan_type"] == "plus" and second["quota_windows"][0]["used_percent"] == 12.0
+    # Until the reset plus a minute, through the injected sleep.
+    assert sleeps == [160.0]
+    pause = {
+        "after_episode": 0,
+        "window_minutes": 300,
+        "used_percent": 97.5,
+        "resets_at_utc": "2026-09-21T14:13:20+00:00",
+        "wait_seconds": 160.0,
+        "capped": False,
+    }
+    assert payload["quota_pauses"] == [pause] and payload["quota_pause_percent"] == 95.0
+    assert {"stage": "quota_pause", **pause} in events
+    text = (run_dir / "run.json").read_text()
+    assert "917.25" not in text and "has_credits" not in text and "seed" not in json.dumps(payload["quota_pauses"])
+
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    assert artifact["quota_pauses"] == [pause]
+    assert artifact["episodes"][0]["harness_run"]["quota_windows"] == first["quota_windows"]
+    assert artifact["episodes"][0]["harness_run"]["plan_type"] == "plus"
+    assert validate_agentic_artifact(artifact, raw_run=run_dir)["ok"]
+    quota = _agentic_telemetry(artifact["episodes"], quota_pauses=artifact["quota_pauses"])["quota"]
+    assert quota == {
+        "episodes_reporting": 2,
+        "plan_types": ["plus"],
+        "window_minutes": [300, 10080],
+        "max_used_percent": 97.5,
+        "pauses": 1,
+        "pause_seconds": 160.0,
+    }
+
+
+def test_quota_pause_is_bounded_and_skipped_when_the_window_already_reset() -> None:
+    episode = {
+        "harness_run": {
+            "quota_windows": [
+                {"window_minutes": 300, "used_percent": 96.0, "resets_at_utc": "2026-09-21T14:13:20+00:00"},
+                {"window_minutes": 10080, "used_percent": 100.0, "resets_at_utc": "2026-09-22T14:13:20+00:00"},
+            ]
+        }
+    }
+    # Both windows are exhausted: wait for the later reset, capped by the stall-wait bound.
+    capped = opencode._quota_pause(episode, 3, 95.0, 600.0, RESET)
+    assert capped["resets_at_utc"] == "2026-09-22T14:13:20+00:00"
+    assert capped["wait_seconds"] == 600.0 and capped["capped"] is True and capped["after_episode"] == 3
+    assert opencode._quota_pause(episode, 3, 95.0, 600.0, RESET + 90_000) is None
+    assert opencode._quota_pause(episode, 3, 100.5, 600.0, RESET) is None
+    assert opencode._quota_pause({"harness_run": {}}, 0, 95.0, 600.0, RESET) is None
+
+
+def test_container_quota_read_returns_only_matching_lines_and_never_raises(tmp_path: Path) -> None:
+    from gm_bench.agentic.container import ContainerHarness
+
+    docker = tmp_path / "docker"
+    docker.write_text(
+        f"#!{sys.executable}\n"
+        "import json, sys\n"
+        "args = sys.argv[1:]\n"
+        "open(sys.argv[0] + '.log', 'a').write(json.dumps(args) + '\\n')\n"
+        "if args[:1] == ['run']:\n"
+        '    print(\'{"type": "token_count"}\')\n'
+    )
+    docker.chmod(0o755)
+    harness = ContainerHarness({"image_id": "sha256:x"}, tmp_path, driver_port=1, docker=str(docker), env={})
+    lines = harness.home_lines(".codex/sessions", "rollout-*.jsonl", '"token_count"')
+    assert lines == ['{"type": "token_count"}']
+    run = [json.loads(line) for line in Path(str(docker) + ".log").read_text().splitlines()][-1]
+    assert run[:2] == ["run", "--rm"] and "none" in run and "ALL" in run
+    assert run[-3:] == ["/home/node/.codex/sessions", "rollout-*.jsonl", '"token_count"']
+    broken = ContainerHarness({"image_id": "sha256:x"}, tmp_path, driver_port=1, docker=str(docker), env={})
+    broken.docker = str(tmp_path / "missing-docker")
+    assert broken.home_lines(".codex/sessions", "rollout-*.jsonl", '"token_count"') is None
 
 
 @pytest.mark.parametrize(

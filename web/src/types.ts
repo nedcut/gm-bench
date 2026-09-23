@@ -286,6 +286,12 @@ export interface AgenticLaneRow {
     output_tokens: number | null;
     reasoning_tokens: number | null;
     cached_input_tokens: number | null;
+    /** "inclusive-v1": input_tokens = uncached + cached + cache-write, output_tokens includes
+     * reasoning (reasoning_tokens is a subset). "legacy": recorded before that shape, in the
+     * harness's own convention. Null when no episode reported tokens. */
+    token_shape?: "inclusive-v1" | "legacy" | "mixed" | null;
+    uncached_input_tokens?: number | null;
+    cache_write_input_tokens?: number | null;
     cost_usd: number | null;
     cost_per_episode_usd: number | null;
     /** What the reported tokens would cost at API list price (cached input at the cached
@@ -297,6 +303,16 @@ export interface AgenticLaneRow {
     /** Some turn's input grew past the model's long-context threshold, so a request may
      * have been billed at the higher tier and the short-context estimate may be low. */
     api_equivalent_long_context_possible?: boolean;
+    /** A subscription harness's usage windows as it reported them (Codex), and the panel's
+     * pauses for an exhausted window. Null or absent when no episode reported any. */
+    quota?: {
+      episodes_reporting: number;
+      plan_types: string[];
+      window_minutes: number[];
+      max_used_percent: number | null;
+      pauses: number;
+      pause_seconds: number;
+    } | null;
   };
   /** Server ledger (authoritative) versus the harness's own tool-event count. */
   agreement: {

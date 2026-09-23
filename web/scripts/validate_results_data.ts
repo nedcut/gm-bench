@@ -223,6 +223,24 @@ const agenticMustReject: Array<[string, (data: Leaderboard, row: AgenticLaneRow)
     (_, row) => Object.assign(row, { telemetry: { cost_usd: 1.23, api_equivalent_cost_usd: 1.23 } }),
   ],
   [
+    "mixed token shapes",
+    (_, row) => Object.assign(row, { telemetry: { cost_usd: null, token_shape: "mixed" } }),
+  ],
+  [
+    "an inclusive input total that does not add up",
+    (_, row) =>
+      Object.assign(row, {
+        telemetry: {
+          cost_usd: null,
+          token_shape: "inclusive-v1",
+          input_tokens: 100,
+          uncached_input_tokens: 10,
+          cached_input_tokens: 80,
+          cache_write_input_tokens: 0,
+        },
+      }),
+  ],
+  [
     "a negative API-equivalent estimate",
     (_, row) => Object.assign(row, { telemetry: { cost_usd: null, api_equivalent_cost_usd: -1 } }),
   ],

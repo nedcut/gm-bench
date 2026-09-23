@@ -133,7 +133,9 @@ runs episodes serially: never run it in parallel.
 
 from __future__ import annotations
 
+import datetime as _dt
 import json
+import math
 import os
 import re
 import shutil
@@ -386,7 +388,17 @@ def parse_codex_events(lines: list[str]) -> dict[str, Any]:
 
     return {
         "model_calls": turns_completed,
+        # Already the shared shape: input includes cached and cache-write tokens.
         "input_tokens": total("input_tokens"),
+        "uncached_input_tokens": sum(
+            max(
+                opencode._int(usage.get("input_tokens"))
+                - opencode._int(usage.get("cached_input_tokens"))
+                - opencode._int(usage.get("cache_write_input_tokens")),
+                0,
+            )
+            for usage in totals.values()
+        ),
         "output_tokens": total("output_tokens"),
         "reasoning_tokens": total("reasoning_output_tokens"),
         "cached_input_tokens": total("cached_input_tokens"),
@@ -478,13 +490,8 @@ def api_equivalent_fields(telemetry: dict[str, Any], model: str) -> dict[str, An
     estimate = None
     if telemetry.get("model_calls"):
         estimate = api_equivalent_cost_usd(
-            {
-                "input_tokens": telemetry.get("input_tokens", 0),
-                "cached_input_tokens": telemetry.get("cached_input_tokens", 0),
-                "cache_write_tokens": telemetry.get("cache_write_tokens", 0),
-                "output_tokens": telemetry.get("output_tokens", 0),
-                "max_request_input_tokens": telemetry.get("max_turn_input_tokens"),
-            },
+            opencode.normalized_tokens(telemetry)
+            | {"max_request_input_tokens": telemetry.get("max_turn_input_tokens")},
             model,
         )
     if estimate is None:
@@ -510,6 +517,124 @@ def api_equivalent_fields(telemetry: dict[str, Any], model: str) -> dict[str, An
     }
 
 
+# -- subscription quota windows -----------------------------------------------
+#
+# ``codex exec --json`` reports no rate limits, but Codex writes every
+# ``token_count`` event, with the account's ``rate_limits`` snapshot, to the
+# session rollout under ``CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl``
+# (``RolloutItem::EventMsg``, persisted by ``should_persist_event_msg``; one
+# JSON object per line: ``{"timestamp", "type": "event_msg", "payload":
+# {"type": "token_count", "info", "rate_limits"}}``). A snapshot
+# (``RateLimitSnapshot`` in ``codex-rs/protocol/src/protocol.rs``) has
+# ``limit_id``, ``primary``/``secondary`` windows (``used_percent``,
+# ``window_minutes``, ``resets_at`` in epoch seconds), ``plan_type`` and
+# ``credits``. The reading below is a port of T3 Code's
+# ``codexRateLimitsToWindows`` and ``mergeCodexRateLimits``
+# (apps/server/src/provider/Layers/codexUsageLimits.ts in
+# github.com/pingdotgg/t3code, MIT License, Copyright (c) 2026 T3 Tools Inc.):
+# only the main allowance counts (``limit_id`` ``codex`` or absent; a
+# model-specific snapshot never replaces it), a later snapshot's missing
+# fields keep the earlier values, and ``primary``/``secondary`` are positions
+# whose duration defaults to 5 hours and a week (a month for the free and go
+# plans). Only windows and the plan type are kept: never credits, tokens, or
+# anything else from the rollout.
+
+ROLLOUT_GLOB = "rollout-*.jsonl"
+SESSIONS_DIRNAME = "sessions"
+_SESSION_MINUTES = 5 * 60
+_WEEK_MINUTES = 7 * 24 * 60
+_MONTH_MINUTES = 30 * 24 * 60
+
+
+def merge_rate_limits(previous: dict[str, Any] | None, update: dict[str, Any]) -> dict[str, Any] | None:
+    """Fold one ``rate_limits`` snapshot into the running one (``mergeCodexRateLimits``)."""
+    if update.get("limit_id") and update.get("limit_id") != "codex":
+        return previous
+    if previous is None:
+        return dict(update)
+    merged = dict(previous)
+    for key in ("limit_id", "plan_type", "rate_limit_reached_type", "primary", "secondary"):
+        if key in update:
+            merged[key] = update[key]
+    return merged
+
+
+def _utc(epoch: Any) -> str | None:
+    if isinstance(epoch, bool) or not isinstance(epoch, (int, float)) or epoch <= 0:
+        return None
+    try:
+        return _dt.datetime.fromtimestamp(epoch, _dt.timezone.utc).replace(microsecond=0).isoformat()
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
+def quota_windows(snapshot: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """The main allowance's windows (``codexRateLimitsToWindows``): minutes, percent used (0-100), reset time."""
+    if not snapshot or (snapshot.get("limit_id") and snapshot.get("limit_id") != "codex"):
+        return []
+    monthly = snapshot.get("plan_type") in ("free", "go")
+    windows = []
+    for position, fallback in (
+        ("primary", _MONTH_MINUTES if monthly else _SESSION_MINUTES),
+        ("secondary", _WEEK_MINUTES),
+    ):
+        window = snapshot.get(position)
+        if not isinstance(window, dict):
+            continue
+        used = window.get("used_percent")
+        if isinstance(used, bool) or not isinstance(used, (int, float)) or not math.isfinite(used):
+            continue
+        minutes = window.get("window_minutes")
+        windows.append(
+            {
+                "window_minutes": int(minutes)
+                if isinstance(minutes, int) and not isinstance(minutes, bool)
+                else fallback,
+                "used_percent": round(min(max(float(used), 0.0), 100.0), 2),
+                "resets_at_utc": _utc(window.get("resets_at")),
+            }
+        )
+    return windows
+
+
+def rollout_quota(lines: list[str]) -> dict[str, Any]:
+    """``quota_windows`` and ``plan_type`` from rollout lines, merged in timestamp order; empty when none."""
+    snapshots = []
+    for order, line in enumerate(lines):
+        if '"token_count"' not in line:
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        payload = record.get("payload") if isinstance(record, dict) else None
+        if not isinstance(payload, dict) or payload.get("type") != "token_count":
+            continue
+        limits = payload.get("rate_limits")
+        if isinstance(limits, dict):
+            snapshots.append((str(record.get("timestamp") or ""), order, limits))
+    merged: dict[str, Any] | None = None
+    for _stamp, _order, limits in sorted(snapshots, key=lambda item: (item[0], item[1])):
+        merged = merge_rate_limits(merged, limits)
+    windows = quota_windows(merged)
+    if not windows:
+        return {}
+    plan = merged.get("plan_type") if merged else None
+    return {"quota_windows": windows, "plan_type": plan if isinstance(plan, str) else None}
+
+
+def read_rollout_quota(codex_home: Path) -> dict[str, Any]:
+    """:func:`rollout_quota` over every plain rollout under ``codex_home/sessions`` (compressed ones are skipped)."""
+    lines: list[str] = []
+    for path in sorted((codex_home / SESSIONS_DIRNAME).rglob(ROLLOUT_GLOB)):
+        try:
+            with path.open(encoding="utf-8", errors="replace") as handle:
+                lines.extend(line for line in handle if '"token_count"' in line)
+        except OSError:
+            continue
+    return rollout_quota(lines)
+
+
 # -- the driver ---------------------------------------------------------------
 
 
@@ -527,6 +652,8 @@ class CodexDriver(HarnessDriver):
         # and the credential values to redact from the evidence when the episode ends.
         self._homes: dict[Path, Path] = {}
         self._secrets: dict[Path, set[str]] = {}
+        # Per launch: the subscription quota read from the session rollouts by ``collect``.
+        self._quota: dict[Path, dict[str, Any]] = {}
 
     def auth_source(self, isolation: str) -> str:
         if self.auth_file is not None:
@@ -618,9 +745,26 @@ class CodexDriver(HarnessDriver):
     def usage_block(self, telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
         return usage_block(telemetry, model=model, decisions=decisions)
 
+    def collect(self, launch: HarnessLaunch) -> None:
+        # The rollouts are append-only, so reading once after the last
+        # invocation sees every token_count the episode's invocations wrote.
+        if launch.container is not None:
+            lines = launch.container.home_lines(
+                f"{CODEX_HOME_DIRNAME}/{SESSIONS_DIRNAME}", ROLLOUT_GLOB, '"token_count"'
+            )
+            self._quota[launch.scratch] = rollout_quota(lines) if lines is not None else {}
+            return
+        home = self._homes.get(launch.scratch)
+        self._quota[launch.scratch] = read_rollout_quota(home) if home is not None else {}
+
     def run_record(self, launch: HarnessLaunch) -> dict[str, Any]:
         container = launch.container is not None
+        quota = self._quota.pop(launch.scratch, {})
         return {
+            # The subscription's usage windows as Codex last reported them (empty
+            # for an API key, which has none), and the plan; never credits or tokens.
+            "quota_windows": quota.get("quota_windows", []),
+            "plan_type": quota.get("plan_type"),
             # The whole staged config; it names only the proxy and where it connects.
             "harness_config": self._config_text(launch),
             "codex_home": f"{CONTAINER_CODEX_HOME} (episode volume)"

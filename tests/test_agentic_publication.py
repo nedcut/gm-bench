@@ -194,6 +194,77 @@ def test_api_equivalent_estimate_reaches_the_artifact_and_round_trips(tmp_path: 
     assert reread == artifact
 
 
+def test_one_token_shape_for_both_harnesses_and_old_rows_still_validate(tmp_path: Path) -> None:
+    from gm_bench.agentic import codex, opencode
+    from gm_bench.agentic.publication import token_shape_problems
+    from web.scripts.build_study import _agentic_telemetry
+
+    # The same model calls as each harness reports them: OpenCode splits cache and reasoning out, Codex folds them in.
+    step = {"input": 100, "output": 10, "reasoning": 5, "cache": {"read": 40, "write": 2}}
+    opencode_block = opencode.usage_block(
+        opencode.parse_opencode_events(
+            [json.dumps({"type": "step_finish", "part": {"type": "step-finish", "tokens": step, "cost": 0.0}})]
+        ),
+        model="m",
+        decisions=4,
+    )
+    codex_usage = {
+        "input_tokens": 142,
+        "cached_input_tokens": 40,
+        "cache_write_input_tokens": 2,
+        "output_tokens": 15,
+        "reasoning_output_tokens": 5,
+    }
+    codex_block = codex.usage_block(
+        codex.parse_codex_events(
+            [
+                json.dumps({"type": "thread.started", "thread_id": "t"}),
+                json.dumps({"type": "turn.completed", "usage": codex_usage}),
+            ]
+        ),
+        model="m",
+        decisions=4,
+    )
+    keys = (
+        "input_tokens",
+        "uncached_input_tokens",
+        "cached_input_tokens",
+        "cache_write_input_tokens",
+        "output_tokens",
+        "reasoning_tokens",
+        "token_shape",
+    )
+    assert {key: opencode_block[key] for key in keys} == {key: codex_block[key] for key in keys}
+    # OpenCode's billed cost stays its cost (0 for a free model is genuine, not unmeasured).
+    assert opencode_block["cost_usd"] == 0.0 and codex_block["cost_usd"] is None
+    assert token_shape_problems({"usage": opencode_block}) == []
+
+    broken = dict(opencode_block, input_tokens=100)
+    assert token_shape_problems({"usage": broken}) == [
+        "usage.input_tokens is not uncached + cached + cache-write input tokens"
+    ]
+    assert token_shape_problems({"usage": dict(opencode_block, reasoning_tokens=99)})
+    # A row recorded before the shape is accepted as it is.
+    legacy = {"input_tokens": 100, "output_tokens": 10, "reasoning_tokens": 5, "cached_input_tokens": 40}
+    assert token_shape_problems({"usage": legacy}) == []
+
+    run_dir = _write_run(tmp_path, [11])
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    assert "token_shape" not in artifact["episodes"][0]["usage"]
+    assert validate_agentic_artifact(artifact)["ok"]
+    artifact["episodes"][0]["usage"].update(broken)
+    report = validate_agentic_artifact(artifact)
+    assert any("uncached + cached + cache-write" in error for error in report["errors"])
+
+    def site(block: dict) -> dict:
+        episode = {"agentic": {}, "harness_run": {}, "usage": block | {"harness": {"telemetry_reported": True}}}
+        return _agentic_telemetry([episode])
+
+    assert site(opencode_block)["token_shape"] == "inclusive-v1"
+    assert site(opencode_block)["uncached_input_tokens"] == 100
+    assert site(legacy)["token_shape"] == "legacy" and site(legacy)["uncached_input_tokens"] is None
+
+
 def test_redacted_artifact_never_carries_a_seed_in_its_validation_report(tmp_path: Path) -> None:
     """Ordinary warnings (here: no telemetry) used to be copied with a `seed N:` prefix."""
     seed = 8675309

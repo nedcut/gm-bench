@@ -157,10 +157,13 @@ function referenceIssues(row: AgenticLaneRow, lanePanel: AgenticLanePanel, label
   return issues;
 }
 
-/* The API-equivalent estimate is a list-price figure for a harness that
- * reports no cost; it is never a billed cost. A row that carries both with
- * the same value has almost certainly copied one into the other. */
-function estimateIssues(row: AgenticLaneRow, label: string): string[] {
+/* Token totals must add up under the shared shape (input inclusive of cached
+ * and cache-write tokens, reasoning a subset of output); a row recorded
+ * before that shape ("legacy") is left as it is. The API-equivalent estimate
+ * is a list-price figure for a harness that reports no cost; it is never a
+ * billed cost. A row that carries both with the same value has almost
+ * certainly copied one into the other. */
+function telemetryIssues(row: AgenticLaneRow, label: string): string[] {
   const t = row.telemetry as AgenticLaneRow["telemetry"] | undefined;
   if (!t) return [];
   const issues: string[] = [];
@@ -168,6 +171,19 @@ function estimateIssues(row: AgenticLaneRow, label: string): string[] {
     const value = t[key];
     if (value !== undefined && value !== null && !(isFiniteNumber(value) && value >= 0)) {
       issues.push(`${label} telemetry.${key} is not a non-negative number or null`);
+    }
+  }
+  if (t.token_shape === "mixed") {
+    issues.push(`${label} mixes token shapes across episodes; its token totals do not add up`);
+  }
+  if (t.token_shape === "inclusive-v1") {
+    const parts = [t.uncached_input_tokens, t.cached_input_tokens, t.cache_write_input_tokens];
+    if (isFiniteNumber(t.input_tokens) && parts.every(isFiniteNumber)) {
+      const sum = (parts as number[]).reduce((a, b) => a + b, 0);
+      if (sum !== t.input_tokens) issues.push(`${label} input_tokens is not uncached + cached + cache-write input`);
+    }
+    if (isFiniteNumber(t.reasoning_tokens) && isFiniteNumber(t.output_tokens) && t.reasoning_tokens > t.output_tokens) {
+      issues.push(`${label} reasoning_tokens exceeds output_tokens, which includes reasoning`);
     }
   }
   const estimate = t.api_equivalent_cost_usd;
@@ -241,7 +257,7 @@ export function agenticLaneIssues(data: Leaderboard, lanePanel: AgenticLanePanel
       issues.push(`${label} does not point at a committed results/agentic/ artifact`);
     }
     issues.push(...referenceIssues(row, lanePanel, label));
-    issues.push(...estimateIssues(row, label));
+    issues.push(...telemetryIssues(row, label));
     const means = JSON.stringify([row.reference?.mean_score, row.reference?.floor?.mean_score]);
     const first = referenceBySeasons.get(row.seasons);
     if (first === undefined) {

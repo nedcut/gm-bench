@@ -437,6 +437,45 @@ class ContainerHarness:
             detail = (done.stderr or b"").decode("utf-8", errors="replace").strip()[-400:]
             raise ContainerError(f"cannot write the harness home volume: {detail}")
 
+    def home_lines(self, directory: str, pattern: str, needle: str, *, timeout: float = 120.0) -> list[str] | None:
+        """Lines containing ``needle`` in files named ``pattern`` under ``directory`` of the home volume.
+
+        Read by a throwaway container that mounts only the volume, with no
+        network and no capabilities, before :meth:`close` removes it; only the
+        matching lines leave the volume. Never raises: ``None`` when the
+        volume could not be read (the caller records the value as unmeasured).
+        """
+        script = 'find "$1" -type f -name "$2" -exec grep -h -F -- "$3" {} + 2>/dev/null; exit 0'
+        try:
+            done = _docker(
+                self.docker,
+                "run",
+                "--rm",
+                "--network",
+                "none",
+                "--cap-drop",
+                "ALL",
+                "--security-opt",
+                "no-new-privileges",
+                "--mount",
+                f"type=volume,source={self.volume},target={HOME}",
+                self.image["image_id"],
+                "sh",
+                "-c",
+                script,
+                "sh",
+                f"{HOME}/{directory}",
+                pattern,
+                needle,
+                env=self.env,
+                timeout=timeout,
+            )
+        except (ContainerError, OSError):
+            return None
+        if done.returncode != 0:
+            return None
+        return (done.stdout or "").splitlines()
+
     def kill(self, name: str) -> None:
         """Stop a container whose ``docker run`` client was killed; the client going away does not stop it."""
         self._quietly("rm", "--force", name)

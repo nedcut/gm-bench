@@ -53,6 +53,7 @@ from pathlib import Path
 from typing import Any
 
 from gm_bench.agentic.contract import agentic_contract
+from gm_bench.agentic.opencode import TOKEN_SHAPE
 from gm_bench.agentic.validate import validate_run
 from gm_bench.publication import canonical_sha256
 from gm_bench.runner import _paired_analysis, _precise_mean_score, run_many_cached_baselines
@@ -123,6 +124,10 @@ _HARNESS_RUN_KEYS = (
     "provider_stall_wait_seconds",
     "server_drained",
     "tool_call_agreement",
+    # A subscription harness's usage windows as it last reported them (Codex),
+    # and the plan; absent for OpenCode and for runs recorded before them.
+    "quota_windows",
+    "plan_type",
 )
 # Present on every nudge a driver records; the provider-stall keys only on runs
 # recorded since the driver learned to retry provider stalls.
@@ -144,6 +149,11 @@ _USAGE_KEYS = (
     "cached_input_tokens",
     "api_calls",
     "cost_usd",
+    # The shared token shape (``opencode.TOKEN_SHAPE``). Rows recorded before it
+    # carry none of these three and used each harness's own convention.
+    "uncached_input_tokens",
+    "cache_write_input_tokens",
+    "token_shape",
 )
 _HARNESS_USAGE_KEYS = (
     "telemetry_reported",
@@ -225,6 +235,8 @@ def compact_agentic_run(
         "max_nudges": raw.get("max_nudges"),
         # Absent from runs recorded before the driver retried provider stalls.
         **{key: raw[key] for key in ("max_provider_stalls", "max_provider_stall_wait_seconds") if key in raw},
+        # Panel pauses for an exhausted subscription window (positions, never seeds).
+        **{key: raw[key] for key in ("quota_pause_percent", "quota_pauses") if key in raw},
         "summary": raw.get("summary"),
         "agentic_summary": raw.get("agentic_summary"),
         "episodes": episodes,
@@ -345,6 +357,31 @@ def _compact_episode(index: int, episode: dict[str, Any], group: int, public_see
     return compact
 
 
+def token_shape_problems(episode: dict[str, Any]) -> list[str]:
+    """Inconsistencies in an episode's tokens under the shared shape; none for a row recorded before it.
+
+    A row without ``usage.token_shape`` predates the shape (its OpenCode input
+    excluded cached tokens and its output excluded reasoning) and is accepted
+    as it is: its numbers are the old convention, not wrong.
+    """
+    usage = episode.get("usage") or {}
+    if "token_shape" not in usage:
+        return []
+    if usage["token_shape"] != TOKEN_SHAPE:
+        return [f"usage.token_shape is {usage['token_shape']!r}, expected {TOKEN_SHAPE!r}"]
+    keys = ("input_tokens", "uncached_input_tokens", "cached_input_tokens", "cache_write_input_tokens")
+    values = [usage.get(key) for key in (*keys, "output_tokens", "reasoning_tokens")]
+    if not all(_is_int(value) and value >= 0 for value in values):
+        return ["usage token counts must be non-negative integers"]
+    problems = []
+    total, uncached, cached, write, output, reasoning = values
+    if total != uncached + cached + write:
+        problems.append("usage.input_tokens is not uncached + cached + cache-write input tokens")
+    if reasoning > output:
+        problems.append("usage.reasoning_tokens exceeds output_tokens, which includes reasoning")
+    return problems
+
+
 def load_lane_config(path: str | Path | None = None) -> dict[str, Any] | None:
     """The committed 2.0 lane config, or ``None`` when this is not a checkout."""
     lane_path = Path(path) if path is not None else _CHECKOUT_ROOT / LANE_CONFIG
@@ -448,6 +485,7 @@ def validate_agentic_artifact(
         agreement = (episode.get("harness_run") or {}).get("tool_call_agreement") or {}
         if not agreement.get("agree", False):
             errors.append(f"episode {episode.get('index')}: ledger and harness disagree on tool calls")
+        errors.extend(f"episode {episode.get('index')}: {problem}" for problem in token_shape_problems(episode))
     # Seed groups tie the episodes to the distinct-seed count and let the
     # mean be recomputed the way the runner computes it (mean of per-seed
     # means), which is the only way a repeated-seed run can be checked.

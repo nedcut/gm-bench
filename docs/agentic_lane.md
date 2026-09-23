@@ -92,7 +92,18 @@ season summaries, transactions) plus:
   total per session, so the block is one record covering every decision of
   the episode; the run summary's per-decision means divide that total by
   the decision count, and wall time lives on `harness_run`, not in the usage
-  block
+  block. Tokens are in one shape for every harness (`token_shape:
+  "inclusive-v1"`): `input_tokens` is the inclusive total,
+  `uncached_input_tokens + cached_input_tokens + cache_write_input_tokens`;
+  `output_tokens` includes reasoning, and `reasoning_tokens` is the part of
+  it that was reasoning (never added on top). Codex already reports that
+  way; OpenCode's step records put uncached input in `tokens.input` and
+  leave reasoning out of `tokens.output`, so the parser adds cache reads and
+  writes into input and reasoning into output, as T3 Code's OpenCode
+  adapter does. Runs recorded before this shape carry no `token_shape` (their
+  OpenCode input excludes cached tokens and their output excludes reasoning);
+  they still validate, the site labels their tokens as the harness's own
+  convention, and publication checks the sums only for shaped rows
 - `harness_run`: the command (brief elided), exit code, timeout flag, wall
   time, nudges used and what each bought, phase-guard stops (`guard_kills`),
   provider stalls and the backoff waited for them,
@@ -500,6 +511,33 @@ episode fields; and the site shows the cost cell as `$0.123 est.` with the
 basis in its tooltip when a row has an estimate but no billed cost, or
 `unmeasured` when it has neither. The site data check rejects a row whose
 estimate equals its billed `cost_usd`.
+
+Quota windows. `codex exec --json` carries no rate limits, but Codex writes
+each `token_count` event, with the account's rate-limit snapshot, to the
+session rollout (`CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl`). Once
+per episode, after the last invocation and before the private
+`CODEX_HOME` (or, in a container, the home volume) is removed, the driver
+reads those lines (in a container, through a throwaway `docker run` with no
+network that prints only the `token_count` lines) and records
+`harness_run.quota_windows` (`window_minutes`, `used_percent`,
+`resets_at_utc`) and `harness_run.plan_type`. Only the main allowance
+counts (`limit_id` `codex` or absent); later snapshots update earlier ones
+field by field, the rule T3 Code uses. Credits, balances, tokens and
+everything else in the rollout are never recorded. An API-key login
+reports no windows, so the list is empty. Compressed (`.jsonl.zst`)
+rollouts are skipped; Codex compresses only cold sessions, and each
+episode's home is new.
+
+Before the next episode, if a window of the last one is at or above
+`QUOTA_PAUSE_PERCENT` (95) used, `run_panel` sleeps until that window
+resets plus 60 seconds (the latest such reset when several are exhausted),
+never longer than `--max-provider-stall-wait-seconds`, prints a
+`quota_pause` progress event, and records the pause in `run.json`
+`quota_pauses` (`after_episode` by position, never seed, `window_minutes`,
+`used_percent`, `resets_at_utc`, `wait_seconds`, and `capped` when the
+bound cut the wait short). The windows and pauses reach the compact
+artifact, and the site row's notes carry a short quota line (plan, peak
+use of a window, pauses).
 
 The Keychain panel launcher passes `--harness codex` and
 `--codex-auth-file` through unchanged.

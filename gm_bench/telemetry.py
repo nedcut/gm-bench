@@ -174,10 +174,13 @@ def api_equivalent_cost_usd(usage: dict[str, Any], model: str | None) -> dict[st
     on a subscription that is not billed per token (Codex on a ChatGPT plan).
     The result is an estimate and must never be published as ``cost_usd``.
 
-    ``usage`` counts (all optional, default 0): ``input_tokens`` (every prompt
-    token, cached and cache-written ones included, as OpenAI's Responses API
-    and Codex report it), ``cached_input_tokens`` (read from the prompt cache),
-    ``cache_write_tokens`` (written to it), ``output_tokens`` (reasoning
+    ``usage`` is the agentic lane's shared token shape (``opencode.TOKEN_SHAPE``),
+    counts all optional, default 0: ``input_tokens`` (every prompt token,
+    cached and cache-written ones included, as OpenAI's Responses API and
+    Codex report it and as the OpenCode parser normalizes to),
+    ``cached_input_tokens`` (read from the prompt cache),
+    ``cache_write_input_tokens`` (written to it; ``cache_write_tokens`` is
+    accepted as an alias), ``output_tokens`` (reasoning
     included: OpenAI bills reasoning as output and reports it inside
     ``output_tokens``, so ``reasoning_tokens`` is never added again), and
     ``max_request_input_tokens`` (an upper bound on any single request's
@@ -201,10 +204,8 @@ def api_equivalent_cost_usd(usage: dict[str, Any], model: str | None) -> dict[st
     if resolved is None:
         return None
     key, price = resolved
-    counts = {
-        name: int(usage.get(name) or 0)
-        for name in ("input_tokens", "cached_input_tokens", "cache_write_tokens", "output_tokens")
-    }
+    counts = {name: int(usage.get(name) or 0) for name in ("input_tokens", "cached_input_tokens", "output_tokens")}
+    counts["cache_write_tokens"] = int(usage.get("cache_write_input_tokens", usage.get("cache_write_tokens")) or 0)
     if not any(name in usage for name in ("input_tokens", "output_tokens")):
         return None
     input_rate = float(price.get("input_per_mtok", 0.0))

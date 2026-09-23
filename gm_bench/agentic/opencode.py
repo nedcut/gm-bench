@@ -36,6 +36,7 @@ finalization). What differs per harness is a ``harness.HarnessDriver``:
 from __future__ import annotations
 
 import contextlib
+import datetime as _dt
 import json
 import os
 import re
@@ -83,6 +84,11 @@ PROVIDER_STALL_BACKOFF_START_SECONDS = 60.0
 PROVIDER_STALL_BACKOFF_CAP_SECONDS = 600.0
 DEFAULT_MAX_PROVIDER_STALLS = 48
 DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS = 6 * 3600.0
+# Before the next episode, a subscription window at or above this share used
+# (percent, as the harness reports it in ``harness_run.quota_windows``) pauses
+# the panel until the window resets, plus QUOTA_RESET_MARGIN_SECONDS.
+QUOTA_PAUSE_PERCENT = 95.0
+QUOTA_RESET_MARGIN_SECONDS = 60.0
 RETRYABLE_STATUS_CODES = frozenset({408, 425, 429, 500, 502, 503, 504})
 _RETRYABLE_MESSAGE_RE = re.compile(r"rate[ _-]?limit|overloaded|try again later", re.IGNORECASE)
 # What the driver itself can do. ``separate-user`` is a valid statement in a
@@ -342,6 +348,9 @@ class HarnessLaunch:
         """Stop the server (returns whether it drained), the containers, and remove temporary state."""
         try:
             drained = self.server.stop()
+            # Before the home (a private directory or the container's volume) goes.
+            with contextlib.suppress(Exception):
+                self.driver.collect(self)
             if self.container is not None:
                 self.cleanup_problems = self.container.close()
                 for problem in self.cleanup_problems:
@@ -376,6 +385,17 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
     cache:{read, write}}) and ``cost``; each one is one model call. Tool
     parts are counted by tool name. Anything unrecognized is ignored, and the
     raw stream is kept on disk beside the result for later inspection.
+
+    OpenCode's ``tokens.input`` is uncached input only and ``tokens.output``
+    excludes reasoning (``getUsage`` in ``packages/opencode/src/session/session.ts``
+    subtracts both). The telemetry is normalized to the shape every harness
+    publishes (:data:`TOKEN_SHAPE`): ``input_tokens`` is the inclusive total
+    (``input + cache.read + cache.write``), ``output_tokens`` includes
+    reasoning (``output + reasoning``), and ``reasoning_tokens`` is a subset of
+    it, never added on top. This is the accumulation T3 Code's OpenCode
+    adapter does (``accumulateOpenCodeStepUsage``, MIT, Copyright (c) 2026 T3
+    Tools Inc.). ``max_output_tokens_per_call`` is likewise per step, reasoning
+    included.
     """
     totals = {"input": 0, "output": 0, "reasoning": 0, "cache_read": 0, "cache_write": 0}
     cost = 0.0
@@ -404,9 +424,10 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
         if kind == "step_finish" or part.get("type") == "step-finish":
             steps += 1
             tokens = part.get("tokens") if isinstance(part.get("tokens"), dict) else {}
+            step_output = _int(tokens.get("output")) + _int(tokens.get("reasoning"))
             totals["input"] += _int(tokens.get("input"))
-            totals["output"] += _int(tokens.get("output"))
-            max_output = max(max_output, _int(tokens.get("output")))
+            totals["output"] += step_output
+            max_output = max(max_output, step_output)
             totals["reasoning"] += _int(tokens.get("reasoning"))
             cache = tokens.get("cache") if isinstance(tokens.get("cache"), dict) else {}
             totals["cache_read"] += _int(cache.get("read"))
@@ -423,7 +444,8 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
             errors += 1
     return {
         "model_calls": steps,
-        "input_tokens": totals["input"],
+        "input_tokens": totals["input"] + totals["cache_read"] + totals["cache_write"],
+        "uncached_input_tokens": totals["input"],
         "output_tokens": totals["output"],
         "reasoning_tokens": totals["reasoning"],
         "cached_input_tokens": totals["cache_read"],
@@ -492,6 +514,31 @@ def _int(value: Any) -> int:
     return int(value)
 
 
+# The token shape every harness's usage block publishes. ``input_tokens`` is
+# inclusive: ``uncached_input_tokens + cached_input_tokens +
+# cache_write_input_tokens``. ``output_tokens`` includes reasoning, and
+# ``reasoning_tokens`` is a subset of it, for display only. Blocks recorded
+# before this shape carry no ``token_shape`` and used each harness's own
+# convention (OpenCode: input uncached only, output without reasoning).
+TOKEN_SHAPE = "inclusive-v1"
+
+
+def normalized_tokens(telemetry: dict[str, Any]) -> dict[str, int]:
+    """The published token counts from a parser's telemetry (already inclusive; uncached derived if absent)."""
+    input_tokens = _int(telemetry.get("input_tokens"))
+    cached = _int(telemetry.get("cached_input_tokens"))
+    write = _int(telemetry.get("cache_write_tokens"))
+    uncached = telemetry.get("uncached_input_tokens")
+    return {
+        "input_tokens": input_tokens,
+        "uncached_input_tokens": _int(uncached) if uncached is not None else max(input_tokens - cached - write, 0),
+        "cached_input_tokens": cached,
+        "cache_write_input_tokens": write,
+        "output_tokens": _int(telemetry.get("output_tokens")),
+        "reasoning_tokens": _int(telemetry.get("reasoning_tokens")),
+    }
+
+
 def usage_block(
     telemetry: dict[str, Any], *, model: str, decisions: int, harness: str = HARNESS_NAME
 ) -> dict[str, Any]:
@@ -503,20 +550,23 @@ def usage_block(
     run summary divides by for its per-decision means; when the harness
     reported nothing, no decision has usage and the means read as unmeasured.
     Wall time is recorded on ``harness_run``, not as API latency, because the
-    stream carries no per-call latency.
+    stream carries no per-call latency. Token counts are in the shared
+    :data:`TOKEN_SHAPE` (inclusive input, output including reasoning), with
+    ``uncached_input_tokens`` and ``cache_write_input_tokens`` beside them.
     """
     reported = telemetry["model_calls"] > 0
+    tokens = normalized_tokens(telemetry)
     # ``None`` where the harness cannot observe a single call's output (Codex): left out, not 0.
     max_output = telemetry["max_output_tokens_per_call"]
     record: dict[str, Any] = {
         "provider": harness,
         "model": model,
         "api_calls": telemetry["model_calls"],
-        "input_tokens": telemetry["input_tokens"],
-        "output_tokens": telemetry["output_tokens"],
-        "reasoning_tokens": telemetry["reasoning_tokens"],
-        "cached_input_tokens": telemetry["cached_input_tokens"],
-        "total_tokens": telemetry["input_tokens"] + telemetry["output_tokens"],
+        "input_tokens": tokens["input_tokens"],
+        "output_tokens": tokens["output_tokens"],
+        "reasoning_tokens": tokens["reasoning_tokens"],
+        "cached_input_tokens": tokens["cached_input_tokens"],
+        "total_tokens": tokens["input_tokens"] + tokens["output_tokens"],
         "max_output_tokens_per_call": max_output if max_output is not None else 0,
         "season": None,
         "phase": None,
@@ -526,6 +576,10 @@ def usage_block(
     usage = aggregate_usage([record])
     if max_output is None:
         del usage["max_output_tokens_per_call"]
+    # aggregate_usage keeps only its own count keys; the normalized shape adds these.
+    usage["uncached_input_tokens"] = tokens["uncached_input_tokens"]
+    usage["cache_write_input_tokens"] = tokens["cache_write_input_tokens"]
+    usage["token_shape"] = TOKEN_SHAPE
     usage["decisions_with_usage"] = decisions if reported else 0
     usage["cost_decisions"] = decisions if reported and telemetry["cost_usd"] is not None else 0
     usage["harness"] = {
@@ -985,6 +1039,9 @@ def run_panel(
     isolation: str = "same-user",
     docker: str = "docker",
     driver: HarnessDriver | None = None,
+    quota_pause_percent: float = QUOTA_PAUSE_PERCENT,
+    sleep: Callable[[float], None] = time.sleep,
+    clock: Callable[[], float] = time.time,
 ) -> dict[str, Any]:
     """Run seeds serially (harness quotas are never parallelized) and summarize.
 
@@ -1001,6 +1058,15 @@ def run_panel(
     under ``harness.container``; ``binary`` is not used.
 
     ``driver`` selects the harness (OpenCode by default).
+
+    A harness that reports its subscription's usage windows (Codex, in
+    ``harness_run.quota_windows``) can pause the panel: before the next
+    episode, if a window of the last episode is at or above
+    ``quota_pause_percent`` used, the driver sleeps until that window resets
+    plus a minute (the latest such reset), never longer than
+    ``max_provider_stall_wait_seconds``, reports a ``quota_pause`` progress
+    event, and records the pause in ``run.json`` ``quota_pauses``. The pause
+    names the episode by position, never by seed.
     """
     driver = driver if driver is not None else OPENCODE_DRIVER
     if isolation not in DRIVER_ISOLATION:
@@ -1016,7 +1082,17 @@ def run_panel(
     episodes = []
     attempts: dict[int, int] = {}
     width = max(2, len(str(len(seeds) - 1)))
+    quota_pauses: list[dict[str, Any]] = []
     for position, seed in enumerate(seeds):
+        if episodes:
+            pause = _quota_pause(
+                episodes[-1], position - 1, quota_pause_percent, max_provider_stall_wait_seconds, clock()
+            )
+            if pause is not None:
+                if progress is not None:
+                    progress({"stage": "quota_pause", **pause})
+                sleep(pause["wait_seconds"])
+                quota_pauses.append(pause)
         attempts[seed] = attempts.get(seed, 0) + 1
         suffix = "" if attempts[seed] == 1 else f"-r{attempts[seed]}"
         name = f"episode-{position:0{width}d}" if name_episodes_by_position else f"seed-{seed}{suffix}"
@@ -1038,6 +1114,7 @@ def run_panel(
                 isolation=isolation,
                 image=image,
                 docker=docker,
+                sleep=sleep,
                 driver=driver,
             )
         )
@@ -1062,8 +1139,44 @@ def run_panel(
         "summary": summarize_episodes(episodes),
         "agentic_summary": _agentic_summary(episodes),
     }
+    if any("quota_windows" in episode.get("harness_run", {}) for episode in episodes):
+        payload["quota_pause_percent"] = quota_pause_percent
+        payload["quota_pauses"] = quota_pauses
     (run_dir / "run.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return payload
+
+
+def _quota_pause(
+    episode: dict[str, Any], position: int, threshold: float, max_wait: float, now: float
+) -> dict[str, Any] | None:
+    """The pause before the next episode, if a window of ``episode`` is at or above ``threshold`` percent used."""
+    exhausted = []
+    for window in (episode.get("harness_run") or {}).get("quota_windows") or []:
+        used = window.get("used_percent")
+        reset = window.get("resets_at_utc")
+        if not isinstance(used, (int, float)) or used < threshold or not isinstance(reset, str):
+            continue
+        try:
+            resets_at = _dt.datetime.fromisoformat(reset).timestamp()
+        except ValueError:
+            continue
+        exhausted.append((resets_at, window))
+    if not exhausted:
+        return None
+    resets_at, window = max(exhausted, key=lambda item: item[0])
+    wanted = resets_at + QUOTA_RESET_MARGIN_SECONDS - now
+    if wanted <= 0:
+        return None
+    wait = min(wanted, max_wait)
+    return {
+        "after_episode": position,
+        "window_minutes": window.get("window_minutes"),
+        "used_percent": window.get("used_percent"),
+        "resets_at_utc": window.get("resets_at_utc"),
+        "wait_seconds": round(wait, 3),
+        # The wait hit max_provider_stall_wait_seconds before the window reset.
+        "capped": wait < wanted,
+    }
 
 
 def _compactions(episodes: list[dict[str, Any]]) -> int | None:

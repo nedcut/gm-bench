@@ -77,6 +77,13 @@ class HarnessDriver:
     def usage_block(self, telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
         raise NotImplementedError
 
+    def collect(self, launch: HarnessLaunch) -> None:
+        """Read what the harness left in its home before :meth:`cleanup` and the container close remove it.
+
+        Runs once per episode, after the last invocation, while the server is
+        stopping. Must not raise; whatever it keeps is reported by :meth:`run_record`.
+        """
+
     def run_record(self, launch: HarnessLaunch) -> dict[str, Any]:
         """Extra ``harness_run`` fields describing how this harness was configured."""
         return {}

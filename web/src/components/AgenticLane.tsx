@@ -42,6 +42,21 @@ function Coverage({ row }: { row: AgenticLaneRow }) {
   );
 }
 
+function tokensTitle(row: AgenticLaneRow): string {
+  const t = row.telemetry;
+  if (t.token_shape === "legacy") {
+    return "Recorded before the shared token shape: input and output follow the harness's own convention.";
+  }
+  const parts = ["Input includes cached and cache-write tokens; output includes reasoning."];
+  if (t.input_tokens && t.cached_input_tokens !== null) {
+    parts.push(`${fmt((100 * t.cached_input_tokens) / t.input_tokens, 0)}% of input was read from cache.`);
+  }
+  if (t.output_tokens && t.reasoning_tokens) {
+    parts.push(`${fmt((100 * t.reasoning_tokens) / t.output_tokens, 0)}% of output was reasoning.`);
+  }
+  return parts.join(" ");
+}
+
 function tokensPerEpisode(row: AgenticLaneRow): string | null {
   const t = row.telemetry;
   if (t.telemetry_episodes === 0 || t.input_tokens === null) return null;
@@ -95,6 +110,21 @@ function Measured({ row, text }: { row: AgenticLaneRow; text: string | null }) {
       <Coverage row={row} />
     </>
   );
+}
+
+/* A subscription harness (Codex) reports its plan's usage windows; the
+ * panel pauses when one is nearly used up. Shown as a short note, never as
+ * a cost. */
+function quotaNote(row: AgenticLaneRow): string {
+  const quota = row.telemetry.quota;
+  if (!quota) return "";
+  const plan = quota.plan_types.length > 0 ? `${quota.plan_types.join(", ")} plan` : "subscription";
+  const peak = quota.max_used_percent === null ? "" : `, peak ${fmt(quota.max_used_percent, 0)}% of a usage window`;
+  const pauses =
+    quota.pauses > 0
+      ? `, ${quota.pauses} quota pause${quota.pauses === 1 ? "" : "s"} (${fmt(quota.pause_seconds / 60, 0)} min)`
+      : "";
+  return ` Quota: ${plan}${peak}${pauses}.`;
 }
 
 function signed(value: number, digits = 1): string {
@@ -237,7 +267,9 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                   <td className="numeric">{phasesByAgent(row)}</td>
                   <td className="numeric">{fmt(row.telemetry.nudges_per_episode, 2)}</td>
                   <td className="numeric">
-                    <Measured row={row} text={tokensPerEpisode(row)} />
+                    <span title={tokensTitle(row)}>
+                      <Measured row={row} text={tokensPerEpisode(row)} />
+                    </span>
                   </td>
                   <td className="numeric">
                     <CostCell row={row} />
@@ -271,6 +303,7 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                 : ""}
               {row.illegal_actions ?? 0} illegal action
               {row.illegal_actions === 1 ? "" : "s"}.
+              {quotaNote(row)}
               {row.v1_row_id
                 ? ` The same model has a 1.0 row (${row.v1_row_id}); the two are different benchmarks and are not paired here.`
                 : ""}
