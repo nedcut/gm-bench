@@ -273,7 +273,12 @@ def main(argv: list[str] | None = None) -> None:
         "agentic",
         help="GM-Bench 2.0: run a model inside its own harness against the MCP tool server",
     )
-    agentic_parser.add_argument("--harness", choices=["opencode"], default="opencode")
+    agentic_parser.add_argument(
+        "--harness",
+        choices=["opencode", "codex"],
+        default="opencode",
+        help="the harness the model plays through; part of the row identity",
+    )
     agentic_parser.add_argument("--model", required=True, help="model id as the harness names it")
     agentic_seed_source = agentic_parser.add_mutually_exclusive_group()
     agentic_seed_source.add_argument("--seeds", nargs="+", type=int, default=[11])
@@ -286,7 +291,10 @@ def main(argv: list[str] | None = None) -> None:
     )
     agentic_parser.add_argument("--seasons", type=int, default=5)
     agentic_parser.add_argument("--output", required=True, help="run directory for ledgers, events and results")
-    agentic_parser.add_argument("--variant", help="harness reasoning variant, e.g. minimal/low/high")
+    agentic_parser.add_argument(
+        "--variant",
+        help="harness reasoning variant, e.g. minimal/low/high (OpenCode --variant; Codex model_reasoning_effort)",
+    )
     agentic_parser.add_argument("--phase-guard-seconds", type=float, default=20 * 60.0)
     agentic_parser.add_argument(
         "--max-nudges",
@@ -315,7 +323,14 @@ def main(argv: list[str] | None = None) -> None:
         help="run the harness as a child process (same-user) or in a Docker container; recorded in run.json",
     )
     agentic_parser.add_argument("--docker", default="docker", help="docker executable for --isolation container")
-    agentic_parser.add_argument("--binary", default="opencode", help="harness executable (same-user isolation)")
+    agentic_parser.add_argument(
+        "--binary", help="harness executable (same-user isolation); default opencode or codex per --harness"
+    )
+    agentic_parser.add_argument(
+        "--codex-auth-file",
+        help="Codex auth.json handed to the harness (--harness codex only; required with --isolation container). "
+        "Copied into the episode's own CODEX_HOME, never onto a command line; the host ~/.codex is not used",
+    )
     agentic_parser.add_argument("--keep-scratch", action="store_true", help="leave the agent workspace on disk")
     agentic_parser.add_argument("--json", action="store_true")
 
@@ -1175,9 +1190,12 @@ if __name__ == "__main__":
 def _agentic_command(args: argparse.Namespace) -> None:
     from pathlib import Path as _Path
 
+    from gm_bench.agentic import codex as codex_driver
     from gm_bench.agentic import opencode as opencode_driver
     from gm_bench.agentic.publication import seed_groups
 
+    if args.codex_auth_file and args.harness != "codex":
+        raise SystemExit("--codex-auth-file is only for --harness codex")
     seeds = list(args.seeds)
     private = args.seeds_stdin
     if private:
@@ -1191,12 +1209,23 @@ def _agentic_command(args: argparse.Namespace) -> None:
             event = {"seed_group": episode_of.get(event["seed"]), **{k: v for k, v in event.items() if k != "seed"}}
         print(json.dumps(event, sort_keys=True), file=sys.stderr)
 
-    payload = opencode_driver.run_panel(
+    harness_options: dict[str, Any] = {}
+    if args.harness == "codex":
+        run_panel = codex_driver.run_panel
+        harness_options["auth_file"] = args.codex_auth_file
+        try:
+            # Refuse before anything runs: no credentials, or none the container can get.
+            codex_driver.CodexDriver(auth_file=args.codex_auth_file).preflight(args.isolation)
+        except ValueError as exc:
+            raise SystemExit(f"gm-bench agentic: {exc}") from None
+    else:
+        run_panel = opencode_driver.run_panel
+    payload = run_panel(
         seeds,
         model=args.model,
         run_dir=_Path(args.output),
         seasons=args.seasons,
-        binary=args.binary,
+        binary=args.binary or args.harness,
         variant=args.variant,
         phase_guard_seconds=args.phase_guard_seconds,
         max_nudges=args.max_nudges,
@@ -1207,6 +1236,7 @@ def _agentic_command(args: argparse.Namespace) -> None:
         name_episodes_by_position=private,
         isolation=args.isolation,
         docker=args.docker,
+        **harness_options,
     )
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
