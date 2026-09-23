@@ -7,12 +7,13 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-09-04
-**Current target:** Finish publishing the `sota-v5` panel: cut the tag and
-GitHub release, land the reproduction guide, and move the public site off the
-frozen `sota-v2` study.
+**Last reviewed:** 2026-09-22
+**Current target:** `sota-v5` is published: tag, GitHub release, reproduction
+guide, site, and findings post all shipped on 2026-09-04. What remains in this
+document is external reproduction and the open presentation items in Phases 3
+through 7. GM-Bench 2.0 is specified separately in `docs/bench_v2_spec.md`.
 **Current state:** Publication of `sota-v5` was authorized on 2026-09-03 and
-the release archive is built and verified (SHA-256
+published on 2026-09-04. The release archive is verified (SHA-256
 `7fa7ae546132e96c87546683bbe4de4d88c2715c40b439ee48332d166829eef2`). The panel
 ran under contract fingerprint `a600b7da0c302231` and OpenRouter scaffold
 `c582e126bbb6af10` on a private 29-seed panel, one episode per seed, zero
@@ -37,16 +38,6 @@ about how a row was run, scored, or gated changed. Recorded and not fixed: the
 luna row billed about $0.125 per million prompt tokens against the $0.10
 snapshot; transient-retry counts live only in the spend guard's ledger; the
 grok-4.6 attempt-1 reservation is still marked active.
-
-**Remaining owner actions to publish:**
-
-- [ ] Cut the git tag `sota-v5-publication-2026-09-03` and the GitHub release,
-  attaching the verified archive and `SHA256SUMS.txt`.
-- [ ] Merge PR #131 (`docs/REPRODUCING_SOTA_V5_RELEASE.md`, the no-credential
-  verification path).
-- [ ] Merge the site PR and deploy, so the public site stops serving `sota-v2`
-  as the current result.
-- [ ] Publish the v5 findings post once its draft is finished.
 
 **Historical record (v2 through v4), condensed.** The frozen phase-one public
 panel, blog, GitHub release, and results-first site were published on
@@ -76,9 +67,27 @@ against further paid execution, and retained as route and exclusion evidence.
 `sota-v5` was created as the outcome-independent successor, retired the unused
 16-seed commitment in favor of a fresh 29-seed panel per `docs/bench_v6_spec.md`,
 and is now published.
-**Current weekly focus:** Cut the v5 tag and release, merge the reproduction
-guide and the site update, deploy, then return to external reproduction and
-presentation items.
+
+**Historical record (`sota-v5` publication), completed 2026-09-04.** The four
+owner actions still open on 2026-09-03 are done (rechecked 2026-09-22):
+
+- [x] Cut the git tag `sota-v5-publication-2026-09-03` (at `1f3cdcc`, the #132
+  merge) and published the GitHub release on 2026-09-04 with the verified
+  archive, `manifest.json`, and `SHA256SUMS.txt` attached. On 2026-09-22 the
+  downloaded archive matched `SHA256SUMS.txt`, and
+  `scripts/package_publication_release.py --contract sota-v5 --verify`
+  reported 11 headline and 3 diagnostic model artifacts.
+- [x] Merged PR #131 (`docs/REPRODUCING_SOTA_V5_RELEASE.md`, the
+  no-credential verification path) on 2026-09-04 as `36e2d63`.
+- [x] Merged the site PR #132 on 2026-09-04 as `1f3cdcc` and deployed it.
+  GitHub Pages serves `sota-v5` as the current result at
+  <https://nedcut.github.io/gm-bench/>.
+- [x] Published the v5 findings post in place: `docs/blog/sota-v5-findings.md`
+  landed with #132 on 2026-09-04 and is linked from the top of `README.md` and
+  from the site footer.
+
+**Current weekly focus:** External reproduction and the open presentation
+items in Phases 3 through 7.
 **Broader roadmap:** [#60 — Roadmap to a publishable leaderboard + blog
 post](https://github.com/nedcut/gm-bench/issues/60)
 
@@ -94,8 +103,8 @@ release archive is built and verified. The evidence does not support an
 ordinal model ranking: the pre-registered analysis is reference-only, every
 eligible row trails the transparent `pick-trader` baseline, and ten of the
 eleven reject at Holm-adjusted alpha 0.05 over the family of sixteen.
-Remaining work is publication mechanics (tag, release, site deploy, blog) and
-independent reproduction, not evidence.
+Publication shipped on 2026-09-04 (tag, release, site, findings post).
+Remaining work is independent reproduction and presentation, not evidence.
 
 The strongest story is not merely that GM-Bench runs LLMs through a simulator.
 It is that the project:
@@ -143,8 +152,8 @@ The project is publish-ready only when all four gates pass.
 | Current model evidence | Private panel complete | Eleven registered, route-matched, cost-complete `sota-v5` rows on the 29-seed private panel clear the headline floor; three ineligible rows ship as redacted diagnostics and two infrastructure exclusions are registered. |
 | Statistical evidence | Ready, reference-only | Seed-paired bootstrap intervals, exact sign-flip tests, and full-family Holm adjustment are generated; leave-one-seed-out, observed MDD, and weight sensitivity are in `results/analysis/sota-v5-robustness.*`. Within-seed noise is unmeasured under one repeat. |
 | External validation | Missing | No independent reproduction or third-party result has been recorded. |
-| GitHub presentation | Pending v5 publish | README, site, and clean-clone guide are updated for v5 on the publication branch; the v5 tag, GitHub release, and Pages deploy are owner actions still to run. |
-| Blog | v5 draft ready | `docs/blog/sota-v5-findings.md` is drafted from the frozen artifacts and needs owner review; the phase-one post remains published as historical evidence. |
+| GitHub presentation | v5 published | README, site, and clean-clone guide serve `sota-v5`; the tag, GitHub release, and Pages deploy shipped on 2026-09-04. Repository description, homepage, and topics are set. |
+| Blog | v5 published | `docs/blog/sota-v5-findings.md` shipped with #132 on 2026-09-04 and is linked from the README and the site footer; the phase-one post remains published as historical evidence. |
 
 ## Critical path
 
@@ -364,12 +373,17 @@ must be reported beside score.
 - [x] Require complete input/output token, latency, failure, repair, route, and
   cost telemetry for every headline API decision; quarantine rows that fail.
 - [x] Reject or quarantine any row that does not pass strict `sota-v2` validation.
-- [ ] Put interesting but ineligible rows in `results/diagnostics/`, never in the
+- [x] Put interesting but ineligible rows in `results/diagnostics/`, never in the
   headline table. Mistral's compact diagnostic is committed; Grok's
-  non-compactable raw diagnostic still needs release-asset packaging.
+  non-compactable raw diagnostic ships as `raw/openrouter-grok-4.5-xai--4096.json`
+  in the `sota-v2-phase-one-2026-07-19` release archive. The three v5
+  ineligible rows are in `results/diagnostics/sota-v5/`.
 - [x] Compact only after strict validation and preserve the raw-artifact hash.
 - [x] Keep committed result artifacts under the CI size limit.
-- [ ] Publish raw public-panel traces as release assets so results are auditable.
+- [x] Publish raw public-panel traces as release assets so results are auditable.
+  All ten raw phase-one artifacts are in the `sota-v2-phase-one-2026-07-19`
+  release archive, hash-linked by its `manifest.json` (archive checksum
+  rechecked 2026-09-22).
 - [x] Preserve provider errors and incomplete attempts as diagnostic evidence.
 - [x] Regenerate the leaderboard from source artifacts; do not hand-copy scores.
 - [x] Require at least eight eligible, registered, route-matched, cost-complete
@@ -415,6 +429,17 @@ strongest contamination-resistant claim.
   headline and 3 diagnostic artifacts carry no seed value or per-seed row.
 - [ ] Compare public and private conclusions and disclose meaningful divergence.
 - [ ] Document the panel-rotation schedule and future reveal procedure.
+  **Status 2026-09-22:** a quarterly-rotation policy exists ("Seed-panel
+  rotation and contamination" in `docs/production_benchmark.md`, added
+  2026-07-09), but it predates this item and current practice has moved past
+  it. It still describes supplying seeds through `GM_BENCH_PRIVATE_SEEDS` and
+  the `sota-v2` 8-seed minimum, not the 29-seed Keychain escrow. It says to
+  reveal salt and seeds when a panel rotates out, but
+  `config/sota_v5_lane.json` retired the unused 16-seed commitment rather than
+  revealing it. And
+  `docs/bench_v2_spec.md` ("Panel design") reuses the 29 v5 seeds for the 2.0
+  panel instead of rotating them out. Whether the quarterly cadence still
+  applies is the owner's decision; the policy needs updating either way.
 - [x] Run the power analysis using final model residuals. The observed
   minimum detectable difference is in `results/analysis/sota-v5-robustness.md`.
 - [x] Report the minimum detectable difference and the limited p-value
@@ -440,33 +465,45 @@ or is narrowed to reflect any discrepancy.
 
 ### Phase 4 — claims and interpretation
 
-The `sota-v5` findings post is being drafted now. Items below that the draft
-covers stay unchecked until it is published and reviewed.
+The `sota-v5` findings post, `docs/blog/sota-v5-findings.md`, was published
+with #132 on 2026-09-04. Items it covers are ticked with the section that
+covers them; section names below refer to that post unless another file is
+named. **Status 2026-09-22:** three items remain open. The v5 post reports
+JSON failures and zero repair attempts but not failed queries; observed token
+efficiency is discussed after the result table, not before it; and neither
+published post explains why the score components were chosen. No independent
+reader has reviewed the post yet (see Phase 5 and Phase 6).
 
-- [ ] Write the primary research question in one sentence before drafting the
-  conclusion.
-- [ ] Keep the claim scoped to this synthetic environment and frozen condition.
-- [ ] Say whether the benchmark compares base models, models plus a standardized
+- [x] Write the primary research question in one sentence before drafting the
+  conclusion. The pre-registered question is quoted in the opening section.
+- [x] Keep the claim scoped to this synthetic environment and frozen condition.
+  "Scope and limitations" and the closing paragraph.
+- [x] Say whether the benchmark compares base models, models plus a standardized
   scaffold, or full agent harnesses. Do not blur these units of evaluation.
-- [ ] State that scripted policies were designed with knowledge of the simulator
+  Rows are model-plus-standardized-scaffold systems ("Scope and limitations").
+- [x] State that scripted policies were designed with knowledge of the simulator
   and are transparent environment-specific references, not general AI systems.
-- [ ] Separate protocol competence from strategic competence.
+  "Scope and limitations".
+- [x] Separate protocol competence from strategic competence. "Protocol versus
+  strategy".
 - [ ] Treat JSON failures, query failures, and repair behavior as measurements,
   not invisible noise.
 - [ ] Discuss the fixed output-safety policy and observed token efficiency before
   presenting a ranking.
-- [ ] Describe the hand-designed scoring function and its construct-validity
-  limits.
+- [x] Describe the hand-designed scoring function and its construct-validity
+  limits. "Scope and limitations".
 - [ ] Explain why score components were chosen and show calibration/sensitivity.
-- [ ] Report null, negative, or mixed findings without replacing the frozen panel
-  post hoc.
-- [ ] Clearly label archived v1 data as withdrawn historical evidence.
-- [ ] Include the scout-contract failure and unequal-budget discovery in the
-  methodology story.
-- [ ] Distinguish reproducible public-panel evidence from contamination-resistant
-  private-panel evidence.
-- [ ] Avoid claims about real-world sports management, general intelligence, or
-  model superiority outside GM-Bench.
+- [x] Report null, negative, or mixed findings without replacing the frozen panel
+  post hoc. "The result" and "One rule changed after the data was in".
+- [x] Clearly label archived v1 data as withdrawn historical evidence.
+  "Why the first ranking was withdrawn" in `docs/blog/sota-v2-findings.md`,
+  linked from the v5 post.
+- [x] Include the scout-contract failure and unequal-budget discovery in the
+  methodology story. Same section of `docs/blog/sota-v2-findings.md`.
+- [x] Distinguish reproducible public-panel evidence from contamination-resistant
+  private-panel evidence. "What changed since phase one".
+- [x] Avoid claims about real-world sports management, general intelligence, or
+  model superiority outside GM-Bench. "Scope and limitations".
 
 Recommended framing:
 
@@ -493,21 +530,32 @@ Claims to avoid:
 
 ### Phase 5 — blog, site, and durable artifacts
 
-Blog items are pending `docs/blog/sota-v5-findings.md`, which is in draft.
-Site items are pending the site update that moves the public page off
-`sota-v2`. Neither is ticked until it ships.
+The findings post and the site update both shipped with #132 on 2026-09-04.
+Items are ticked only where the published post or the live site shows them.
+**Status 2026-09-22, still open:** no simulator or decision-loop diagram; the
+cap-pressure audit result (zero truncated replies) appears after the result
+table; the v5 headroom view has no oracle (the site's v5 data has
+`oracle: null`); the post's protocol table has no cost column; headline site
+rows show an artifact hash but do not link the compact artifact, and v5 raw
+traces are withheld by design; the score fingerprint and release commit are
+not linked; and the mobile, accessibility, clean-clone link, and
+outside-reader checks have not been recorded.
 
 - [x] Generate all tables and headline numbers from validated artifacts.
 - [x] Keep a visible “last updated” date and contract version on the site.
-- [ ] Lead the blog with the research question and the measurement problem, not
-  with implementation history.
+- [x] Lead the blog with the research question and the measurement problem, not
+  with implementation history. The v5 post opens with the task, the headline,
+  and the pre-registered question.
 - [ ] Explain the simulator and decision loop with one compact diagram.
 - [ ] Explain the provisional 4,096-token native-reasoning policy and cap-pressure audit before
   the final model ranking.
 - [ ] Show Oracle → `pick-trader` → best eligible model → `random` headroom.
 - [ ] Include cost and compute beside score in every model table.
-- [ ] Include uncertainty and failure telemetry, not only means.
-- [ ] Include a concise limitations and threats-to-validity section.
+- [x] Include uncertainty and failure telemetry, not only means. Intervals and
+  Holm p-values in "The result"; illegal actions and failure rates in
+  "Protocol versus strategy".
+- [x] Include a concise limitations and threats-to-validity section. "What the
+  panel cannot say" and "Scope and limitations".
 - [ ] Link each row to its compact artifact and raw release asset.
 - [ ] Link the exact contract fingerprint, score fingerprint, commit, and model
   identifiers used for the release.
@@ -528,12 +576,31 @@ to raw evidence without relying on trust in the author.
 
 ### Phase 6 — GitHub and portfolio presentation
 
+**Status 2026-09-22, still open:** a provider-backed quickstart with cost
+expectations; an architecture or evaluation-flow diagram; a "What this
+measures / What this does not measure" README section; a README link to the
+result submission guide (`docs/submitting_results.md`; the spec, production
+standard, blog, site, and release are linked); removing machine-specific paths
+from committed artifacts (`results/diagnostics/`,
+`results/leaderboard/archive-v1/`, and all 11 published v5 headline rows in
+`results/leaderboard/sota-v5/`, whose `baseline_cache.path` field is a
+machine-local `/Users/...` path; the same paths ship in the v5 release
+archive, contradicting its manifest note that compact publication artifacts
+carry no machine-local cache paths); an issue
+template; a recorded external reproduction; an independent final review; and
+a PyPI or install-path decision.
+
 - [x] Replace “GM-Bench MVP” with a confident, accurate project name and one-line
   description.
-- [ ] Add a concise GitHub repository description.
-- [ ] Add the deployed site as the repository homepage.
-- [ ] Add relevant topics such as `llm-evaluation`, `agents`, `benchmark`,
-  `simulation`, `sports-analytics`, and `reproducible-research`.
+- [x] Add a concise GitHub repository description. Set: "A deterministic sports
+  general-manager benchmark for evaluating long-horizon LLM planning, tool use,
+  and decision quality."
+- [x] Add the deployed site as the repository homepage.
+  <https://nedcut.github.io/gm-bench/>.
+- [x] Add relevant topics such as `llm-evaluation`, `agents`, `benchmark`,
+  `simulation`, `sports-analytics`, and `reproducible-research`. Set:
+  `ai-evaluation`, `benchmark`, `llm`, `llm-evaluation`, `machine-learning`,
+  `multi-agent-systems`, `python`, `sports-simulation`.
 - [x] Put the primary result or honest “results pending” state near the top of the
   README.
 - [x] Add a five-minute release-verification path that works from a clean clone without provider
@@ -543,27 +610,36 @@ to raw evidence without relying on trust in the author.
 - [ ] Add a “What this measures / What this does not measure” section.
 - [ ] Link benchmark specification, production standard, result submission guide,
   blog, site, and release from the README.
-- [ ] Remove or ignore accidental local artifacts and document where run outputs
-  belong.
+- [x] Remove or ignore accidental local artifacts and document where run outputs
+  belong. Only `data/.gitkeep` is tracked under `data/`; `.gitignore` covers
+  run databases, checkpoints, `data/publication*/`, logs, and seed salts; the
+  README "Run Database" section documents `data/gm_bench.sqlite`.
 - [ ] Make sure a clean clone contains no credentials, private seeds, raw private
   traces, or machine-specific paths.
 - [x] Create a tagged GitHub release for the frozen v2 study.
 - [x] Add concise release notes and a changelog entry explaining what is frozen,
   what was withdrawn, and what remains diagnostic.
-- [ ] Attach raw public traces, generated analysis, checksums, and a compact
-  reproducibility manifest to the release.
+- [x] Attach raw public traces, generated analysis, checksums, and a compact
+  reproducibility manifest to the release. The `sota-v2-phase-one-2026-07-19`
+  release attaches the raw archive (ten raw artifacts, analysis, run
+  metadata), `manifest.json`, and `SHA256SUMS.txt`. The
+  `sota-v5-publication-2026-09-03` release attaches the redacted archive,
+  `manifest.json`, and `SHA256SUMS.txt`; its raw traces are private-panel and
+  withheld by design.
 - [x] Add citation metadata (`CITATION.cff`) even though this is not a paper.
 - [x] Add contribution and result-submission instructions
   (`docs/submitting_results.md`).
 - [ ] Add an issue template for third-party result submissions or reproductions.
-- [ ] Ask for one independent clean-clone reproduction.
+- [x] Ask for one independent clean-clone reproduction. Issue #81 asked for a
+  reproduction of the v2 release (opened 2026-07-20, closed 2026-07-21 with no
+  report). No request has been filed for the v5 release.
 - [ ] Record successful external reproduction in the README or release notes.
 - [ ] Obtain an independent final review of the result-generation and publication
   PR, not only automated CI/review-bot approval.
 - [ ] Decide whether to publish the package to PyPI; if not, document the
   supported install path clearly.
-- [ ] Park or close stale/superseded PRs so the public queue tells a coherent
-  story.
+- [x] Park or close stale/superseded PRs so the public queue tells a coherent
+  story. No pull requests were open on 2026-09-22.
 
 **Exit condition:** the repository looks like a maintained public benchmark,
 not a private experiment whose best context lives in its PR history.
@@ -572,19 +648,47 @@ not a private experiment whose best context lives in its PR history.
 
 Before pressing publish, answer each question with evidence:
 
-- [ ] Is the benchmark contract frozen and identified by fingerprint?
+**Status 2026-09-22:** answered after the fact against the published `sota-v5`
+release. Still open: a recorded clean-clone run of the calibration and
+validity suite, an outside reader's check of the blog and quickstart, and a
+link check (CI has none).
+
+- [x] Is the benchmark contract frozen and identified by fingerprint?
+  `a600b7da0c302231`, recorded in `config/sota_v5_lane.json`.
 - [ ] Can a clean clone reproduce the scripted calibration and validity suite?
-- [ ] Was the fixed output-safety policy validated across every registered model
-  before full-panel scores were generated?
-- [ ] Is every headline model row strictly eligible and compute-comparable?
-- [ ] Are raw public traces and compact artifacts available and hash-linked?
-- [ ] Are private-panel claims properly committed, redacted, and scoped?
-- [ ] Are statistical uncertainty and practical effect sizes both reported?
-- [ ] Are all important failures and exclusions visible?
+- [x] Was the fixed output-safety policy validated across every registered model
+  before full-panel scores were generated? `config/sota_v5_smoke_manifest.json`
+  accepts all 16 smokes at the 4,096-token cap with zero truncated calls, the
+  last recorded 2026-09-03T01:09Z, before the panel launched at 01:22Z.
+- [x] Is every headline model row strictly eligible and compute-comparable?
+  Eligible: eleven rows at 580 of 580 decisions, validated by CI against the
+  `sota-v5` policy. Compute: every row ran under the same 4,096-token output
+  ceiling with the frozen native-minimum reasoning policy, and
+  `config/sota_v5_smoke_manifest.json` and the post ("Cost and time") record
+  zero truncated replies. "Comparable" here means an operational common
+  ceiling, not identical compute: the post ("What the panel cannot say") calls
+  the reasoning policy a confound, with 39 to 742 output tokens per decision
+  across rows.
+- [x] Are raw public traces and compact artifacts available and hash-linked?
+  The v2 release archive carries its raw public traces; the v5 manifest binds
+  each compact row to its withheld private raw artifact by SHA-256.
+- [x] Are private-panel claims properly committed, redacted, and scoped? See
+  Phase 3.
+- [x] Are statistical uncertainty and practical effect sizes both reported?
+  Paired lift, bootstrap intervals, and Holm p-values in
+  `results/analysis/publication-panel-analysis-v5.json` and the post.
+- [x] Are all important failures and exclusions visible?
+  `config/sota_v5_panel_exclusions.json`, the README, and the post's "Five
+  cells that are not in the table".
 - [ ] Does the blog say exactly what the evidence supports—and no more?
 - [ ] Can an outsider follow the quickstart and understand the result?
 - [ ] Are CI, the site build, artifact validation, and link checks green?
-- [ ] Has v3 work remained separate from the frozen v2 publication lane?
+  CI (including the site build and artifact validation) and the Pages deploy
+  are green on `main`; no link check exists.
+- [x] Has v3 work remained separate from the frozen v2 publication lane? The
+  literal `sota-v2` validation contract is preserved (see Post-publication
+  contract hardening) and CI validates each artifact against its own declared
+  contract.
 
 If any answer is “no,” either finish the work or narrow the release claim until
 the answer becomes “yes.”
@@ -1054,6 +1158,9 @@ than pasting large outputs.
 | 2026-07-26 | Gap decomposition and panel power | Complete | [`docs/run_logs/gap-decomposition-and-panel-power-2026-07-26.md`](run_logs/gap-decomposition-and-panel-power-2026-07-26.md) | Protocol friction bounds at 0.5–9.0% of the model-vs-`pick-trader` gap; fresh-spawn/memo-only continuity costs the scripted references exactly zero (now enforced by `tests/test_reference_statelessness.py`); memo-write volume is not meaningfully associated with score (not a causal ablation). Variance decomposition: within-seed noise sd 53.4 vs seed difficulty sd 13.45, model×seed interaction indistinguishable from zero. For the published eight-model family, the Holm illustration (matching `model_tiers.py`) needs ~96 episodes/model for 0.95 power at Δ=40, not 48; rerun after the v3 family is selected. No contract source touched; no spend authorised. |
 | 2026-07-27 | v3 readiness reconciliation and mechanics freeze | Ready for review | [`docs/run_logs/sota-v3-preflight-2026-07-27.md`](run_logs/sota-v3-preflight-2026-07-27.md) | Confirms PR #99 CI dispatch is present; records the provisional, fail-closed v3 config/runner package and passing zero-spend rehearsal; keeps v2 as the public evidence lane; freezes mechanics; and authorizes no paid spend. A post-commit clean-checkout rerun remains required. |
 | 2026-07-24 | Results-first public site | Merged | [#87](https://github.com/nedcut/gm-bench/pull/87) | Reframes the public result around one unresolved model tier, the scripted-reference gap, compute, and auditability. |
+| 2026-09-04 | `sota-v5` no-credential reproduction guide | Merged | [#131](https://github.com/nedcut/gm-bench/pull/131) | `docs/REPRODUCING_SOTA_V5_RELEASE.md`; merged as `36e2d63`. |
+| 2026-09-04 | `sota-v5` site, docs, analysis, and findings post | Merged and deployed | [#132](https://github.com/nedcut/gm-bench/pull/132) | Merged as `1f3cdcc`; Pages serves `sota-v5`; `docs/blog/sota-v5-findings.md` linked from the README and site footer. |
+| 2026-09-04 | `sota-v5` publication release | Published | [`sota-v5-publication-2026-09-03`](https://github.com/nedcut/gm-bench/releases/tag/sota-v5-publication-2026-09-03) | Tag at `1f3cdcc`; contract `a600b7da0c302231`; archive SHA-256 `7fa7ae546132e96c87546683bbe4de4d88c2715c40b439ee48332d166829eef2`; manifest in `releases/sota-v5-publication-2026-09-03/`. Claim: all eleven eligible rows trail `pick-trader`, ten reject at Holm-adjusted alpha 0.05, no model ranking. |
 
 ## Living-document maintenance checklist
 
