@@ -313,34 +313,65 @@ exposed: once decision traces circulate, the exact league instances behind seeds
 11–18 can be memorized or solved offline. The public panel is therefore a
 **reproducibility** surface, not a contamination-resistant one. Contamination-
 resistant claims come from a **private** evaluation panel that is held back,
-rotated on a schedule, and pre-committed so operators cannot improvise a panel
+frozen per contract, and pre-committed so operators cannot improvise a panel
 after seeing scores.
 
-### Rotation cadence
+### Panel lifecycle (policy as practised since `sota-v5`)
 
-- The private evaluation panel rotates **quarterly**. Each rotation picks a new
-  held-out seed list (kept out of the repo, supplied at run time via
-  `GM_BENCH_PRIVATE_SEEDS`) with at least as many seeds as the public panel —
-  `sota-v2` requires `len(PRESETS["leaderboard"]["seeds"])` seeds (currently 8),
-  so a short panel is rejected.
-- Before the quarter's runs, publish a **salted commitment** to the new panel
-  using `scripts/seed_panel_commitment.py commit`. The helper creates a new
-  plaintext secret file with mode 0600 and refuses to overwrite it; gitignore
-  is not encryption. Move that file into recoverable encrypted escrow or a
-  secret manager, and announce only the commitment digest. This is a real
-  hiding commitment, unlike the unsalted
-  `seed_panel_hash` embedded in artifacts, which is brute-forceable from the
-  digest.
-- When the panel rotates out, reveal salt + seeds
-  (`seed_panel_commitment.py verify`) so the prior quarter's private rows become
-  independently reproducible.
+The private panel does **not** rotate on a calendar. It is frozen per
+contract, and it changes only when a new contract needs it to:
+
+- **Frozen with the contract.** Each contract's lane file commits to its
+  private panel by digest before any panel run: the execution hash, a salted
+  hiding commitment, and the escrow that holds the plaintext
+  (`config/sota_v5_lane.json`, `config/bench_v2_lane.json`). The `sota-v5`
+  panel is 29 seeds; the GM-Bench 2.0 panel is 32. A panel is drawn with
+  `generate_private_seeds` from `scripts/seed_panel_commitment.py` (rejection
+  sampling over a 63-bit range, excluding every public, preset, and
+  calibration seed and every earlier private seed).
+- **Escrowed in the macOS Keychain, never in a file.** Seeds and salt are
+  written to a Keychain item over standard input in the same process that
+  draws them, and read back only by a launcher that verifies the record
+  against the committed digests before it runs anything
+  (`scripts/run_sota_v5_panel_from_keychain.py`,
+  `scripts/run_bench_v2_panel_from_keychain.py`). The older
+  1.0 runner still takes the seeds through the `GM_BENCH_PRIVATE_SEEDS`
+  environment variable, which the v5 Keychain launcher sets in its own
+  process after verifying the record; a same-user process can read another
+  process's environment, so that path is not a sandbox, only a way to keep
+  seeds out of files and shell history. The 2.0 launcher goes further and
+  hands seeds to the driver over standard input, keeping them out of command
+  lines, the environment, and open file names, and the 2.0 panel runs the
+  harness in a container so the driver process is out of the agent's reach
+  either way (`docs/agentic_lane.md`). Nothing prints a seed.
+- **Shared across contracts on purpose.** GM-Bench 2.0 reuses the 29 `sota-v5`
+  seeds as its first 29 execution positions and adds three, so a model's 1.0
+  and 2.0 scores pair per seed (`docs/bench_v2_spec.md`, Panel design). A
+  contract that needs a fresh panel draws one; a contract that needs pairing
+  with an earlier lane shares that lane's seeds. The choice is written into
+  the lane file's `lineage` block.
+- **Retired, not revealed.** A commitment that is superseded is retired in the
+  lane file with its digests kept and its plaintext left unread (the 16-seed
+  `sota-v3`/`sota-v4` commitment was retired this way in
+  `config/sota_v5_lane.json`). A panel that is still in use by any contract is
+  never revealed: revealing `sota-v5` would reveal 29 of the 32 2.0 seeds.
+  Revealing a fully retired panel so its rows become independently
+  reproducible remains an option (`seed_panel_commitment.py verify` on the
+  escrowed record), taken only when no live contract shares its seeds.
+- **What contamination resistance rests on.** Every private-panel row is
+  published redacted (seeds stripped, commitment and hashes retained), and
+  the hiding commitment lets a reader check later that the panel was fixed
+  before the scores existed. Resistance comes from the seeds never having
+  circulated, not from replacing them on a schedule; the calibration work in
+  `docs/scoring_calibration.md` shows that a wider fixed panel buys more
+  resolution than a rotating narrow one.
 
 ### Panel identity vs contract
 
-Rotation changes the **panel**, not the **contract**. The private panel is
-supplied at run time and is *not* part of the contract fingerprint, so swapping
-it in and out does not touch the frozen `558e8f35ea1d66b9` and does not start a
-new claim lane. The validator recognizes the private panel by the `private-env`
+Changing the panel changes the **panel**, not the **contract**. The private
+panel is supplied at run time and is *not* part of the contract fingerprint, so
+drawing a new one does not touch a frozen contract fingerprint (for example
+`sota-v2`'s `558e8f35ea1d66b9`) and does not start a new claim lane. The validator recognizes the private panel by the `private-env`
 name plus a seed-count and SHA-256 that it re-derives from the local
 `GM_BENCH_PRIVATE_SEEDS` value (or, for redacted artifacts, the declared
 `count` and `sha256`).
@@ -354,9 +385,10 @@ version bump, not a free rotation. The validator also hardcodes exactly two
 official panel identities: `public-leaderboard` (must equal 11–18) and
 `private-env`. `custom` panels are rejected outright.
 
-Consequently, "the previous private panel becomes public when rotated out" is a
-**disclosure convention, not a rename inside the validator**. A retired panel is
-republished by revealing its seeds/salt/commitment; anyone reproduces it by
+Consequently, "a retired private panel becomes public" is a **disclosure
+convention, not a rename inside the validator**, and it applies only to a panel
+no live contract shares. Such a panel is republished by revealing its
+seeds/salt/commitment; anyone reproduces it by
 exporting those seeds as `GM_BENCH_PRIVATE_SEEDS`, at which point the validator
 still labels it `private-env` (its own reproduced hash), not
 `public-leaderboard`. The canonical `public-leaderboard` identity stays 11–18
@@ -380,9 +412,9 @@ which the leaderboard builder carries through. Read the labels as:
   are public they are contamination-exposed and should be read as "does this
   pipeline reproduce," not as a clean state-of-the-art claim.
 - **Private-panel rows** (`private-env`) are the contamination-resistant claims,
-  valid for the quarter their pre-committed panel was live. Published as redacted
-  artifacts (seeds stripped, commitment retained); reproducible in full only
-  after the panel is rotated out and revealed.
+  tied to the contract whose frozen panel they ran on. Published as redacted
+  artifacts (seeds stripped, commitment retained); reproducible in full only if
+  the panel is one day retired from every contract and revealed.
 
 ## Interpretation
 

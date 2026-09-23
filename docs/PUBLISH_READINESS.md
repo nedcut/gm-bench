@@ -428,18 +428,13 @@ strongest contamination-resistant claim.
 - [x] Publish only validated, redacted private-panel artifacts. The 11
   headline and 3 diagnostic artifacts carry no seed value or per-seed row.
 - [ ] Compare public and private conclusions and disclose meaningful divergence.
-- [ ] Document the panel-rotation schedule and future reveal procedure.
-  **Status 2026-09-22:** a quarterly-rotation policy exists ("Seed-panel
-  rotation and contamination" in `docs/production_benchmark.md`, added
-  2026-07-09), but it predates this item and current practice has moved past
-  it. It still describes supplying seeds through `GM_BENCH_PRIVATE_SEEDS` and
-  the `sota-v2` 8-seed minimum, not the 29-seed Keychain escrow. It says to
-  reveal salt and seeds when a panel rotates out, but
-  `config/sota_v5_lane.json` retired the unused 16-seed commitment rather than
-  revealing it. And
-  `docs/bench_v2_spec.md` ("Panel design") reuses the 29 v5 seeds for the 2.0
-  panel instead of rotating them out. Whether the quarterly cadence still
-  applies is the owner's decision; the policy needs updating either way.
+- [x] Document the panel-rotation schedule and future reveal procedure.
+  **Done 2026-09-23:** the owner retired the quarterly cadence. "Seed-panel
+  rotation and contamination" in `docs/production_benchmark.md` now records
+  the policy as practised: panels are frozen per contract, escrowed in the
+  Keychain, shared across contracts when per-seed pairing needs it (2.0
+  reuses the 29 `sota-v5` seeds), retired rather than revealed while any
+  live contract shares them, and revealable only once fully retired.
 - [x] Run the power analysis using final model residuals. The observed
   minimum detectable difference is in `results/analysis/sota-v5-robustness.md`.
 - [x] Report the minimum detectable difference and the limited p-value
