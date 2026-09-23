@@ -294,7 +294,14 @@ def main(argv: list[str] | None = None) -> None:
         default=20,
         help="times the driver may resume a session that stopped before the episode ended",
     )
-    agentic_parser.add_argument("--binary", default="opencode", help="harness executable")
+    agentic_parser.add_argument(
+        "--isolation",
+        choices=["same-user", "container"],
+        default="same-user",
+        help="run the harness as a child process (same-user) or in a Docker container; recorded in run.json",
+    )
+    agentic_parser.add_argument("--docker", default="docker", help="docker executable for --isolation container")
+    agentic_parser.add_argument("--binary", default="opencode", help="harness executable (same-user isolation)")
     agentic_parser.add_argument("--keep-scratch", action="store_true", help="leave the agent workspace on disk")
     agentic_parser.add_argument("--json", action="store_true")
 
@@ -319,7 +326,8 @@ def main(argv: list[str] | None = None) -> None:
         "--isolation",
         required=True,
         choices=["same-user", "separate-user", "container"],
-        help="how the harness was separated from the driver; panel grade needs separate-user or container",
+        help="how the harness was separated from the driver; panel grade needs separate-user or container. "
+        "May not exceed the isolation the run recorded",
     )
     agentic_redact_parser.add_argument(
         "--public-seeds", action="store_true", help="keep the seeds in the artifact (smoke rows on public seeds only)"
@@ -1181,6 +1189,8 @@ def _agentic_command(args: argparse.Namespace) -> None:
         progress=_progress,
         keep_scratch=args.keep_scratch,
         name_episodes_by_position=private,
+        isolation=args.isolation,
+        docker=args.docker,
     )
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
@@ -1238,7 +1248,11 @@ def _agentic_validate_command(args: argparse.Namespace) -> None:
 def _agentic_redact_command(args: argparse.Namespace) -> None:
     from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
 
-    artifact = compact_agentic_run(args.run, isolation=args.isolation, public_seeds=args.public_seeds)
+    try:
+        artifact = compact_agentic_run(args.run, isolation=args.isolation, public_seeds=args.public_seeds)
+    except ValueError as exc:
+        print(f"refusing to write the artifact: {exc}")
+        sys.exit(1)
     report = validate_agentic_artifact(artifact)
     if not report["ok"]:
         print("refusing to write an artifact that would not validate:")

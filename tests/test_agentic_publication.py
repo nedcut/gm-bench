@@ -29,7 +29,7 @@ LANE_PANEL_SHA256 = json.loads(Path("config/bench_v2_lane.json").read_text())["s
 
 def _panel_row(tmp_path: Path) -> dict:
     """A panel-grade row on the lane's frozen panel, built from a one-seed run without any private seed."""
-    artifact = compact_agentic_run(_write_run(tmp_path, [11]), isolation="separate-user")
+    artifact = compact_agentic_run(_write_run(tmp_path, [11], isolation="container"), isolation="container")
     artifact["grade"] = "panel"
     artifact["panel"].update(seed_count=PANEL_MIN_SEEDS, distinct_seeds=PANEL_MIN_SEEDS, sha256=LANE_PANEL_SHA256)
     artifact["episodes"] = [dict(artifact["episodes"][0], index=i, seed_group=i) for i in range(PANEL_MIN_SEEDS)]
@@ -60,7 +60,9 @@ def fixture_reference(artifact: dict, *, reference_mean: float = 249.18) -> dict
     }
 
 
-def _write_run(tmp_path: Path, seeds: list[int], *, telemetry: bool = True, idle: bool = False) -> Path:
+def _write_run(
+    tmp_path: Path, seeds: list[int], *, telemetry: bool = True, idle: bool = False, isolation: str | None = None
+) -> Path:
     """A run directory with real ledgers and event streams, as run_panel would write it, without a harness.
 
     A repeated seed gets its own attempt directory (``seed-11-r2``) and plays
@@ -108,6 +110,8 @@ def _write_run(tmp_path: Path, seeds: list[int], *, telemetry: bool = True, idle
             "nudges": [{"number": 1, "season": 1, "phase": "draft", "new_tool_calls": 2, "phases_closed": 1}],
             "proxy_connections": 2,
         }
+        if isolation is not None:
+            result["harness_run"]["isolation"] = isolation
         result["usage"]["harness"] = {"telemetry_reported": telemetry, "compactions": 0, "session_id": "ses_x"}
         episodes.append(result)
     run = {
@@ -123,6 +127,8 @@ def _write_run(tmp_path: Path, seeds: list[int], *, telemetry: bool = True, idle
         "summary": summarize_episodes(episodes),
         "agentic_summary": {"nudges_used": len(episodes)},
     }
+    if isolation is not None:
+        run["isolation"] = isolation
     (run_dir / "run.json").write_text(json.dumps(run, sort_keys=True), encoding="utf-8")
     return run_dir
 
@@ -168,7 +174,7 @@ def test_redacted_artifact_never_carries_a_seed_in_its_validation_report(tmp_pat
 
 
 def test_panel_grade_needs_distinct_seeds_isolation_and_redaction(tmp_path: Path) -> None:
-    run_dir = _write_run(tmp_path, [11])
+    run_dir = _write_run(tmp_path, [11], isolation="container")
     with pytest.raises(ValueError):
         compact_agentic_run(run_dir, isolation="laptop")
     artifact = compact_agentic_run(run_dir, isolation="container")
@@ -392,7 +398,7 @@ def public_panel(monkeypatch) -> dict:
 def test_panel_redaction_embeds_the_pick_trader_contrast_without_seeds_or_paths(
     tmp_path: Path, public_panel: dict
 ) -> None:
-    run_dir = _write_run(tmp_path, PUBLIC_SEEDS)
+    run_dir = _write_run(tmp_path, PUBLIC_SEEDS, isolation="container")
     artifact = compact_agentic_run(run_dir, isolation="container")
     assert artifact["grade"] == "panel"
     reference = artifact["reference"]
@@ -429,7 +435,7 @@ def test_smoke_redaction_never_computes_a_reference(tmp_path: Path, public_panel
         raise AssertionError("a smoke redaction must not run the reference baselines")
 
     monkeypatch.setattr(publication, "run_many_cached_baselines", refuse)
-    run_dir = _write_run(tmp_path, PUBLIC_SEEDS)
+    run_dir = _write_run(tmp_path, PUBLIC_SEEDS, isolation="container")
     for kwargs in ({"isolation": "same-user"}, {"isolation": "container", "public_seeds": True}):
         artifact = compact_agentic_run(run_dir, **kwargs)
         assert artifact["grade"] == "smoke"
@@ -455,7 +461,7 @@ def test_reference_matches_1_0_on_the_same_public_seeds(tmp_path: Path, public_p
         def act(self, observation):
             return []
 
-    run_dir = _write_run(tmp_path, PUBLIC_SEEDS, idle=True)
+    run_dir = _write_run(tmp_path, PUBLIC_SEEDS, idle=True, isolation="container")
     raw = json.loads((run_dir / "run.json").read_text())
     reference = compact_agentic_run(run_dir, isolation="container")["reference"]
 
@@ -495,7 +501,7 @@ def test_reference_never_touches_the_baseline_cache(tmp_path: Path, public_panel
     def no_cache(*args, **kwargs):
         raise AssertionError("the reference must not read or write the baseline cache")
 
-    run_dir = _write_run(tmp_path, PUBLIC_SEEDS)
+    run_dir = _write_run(tmp_path, PUBLIC_SEEDS, isolation="container")
     with monkeypatch.context() as patch:
         patch.setattr(runner, "load_cache", no_cache)
         patch.setattr(runner, "save_cache", no_cache)
@@ -527,7 +533,7 @@ def test_reference_never_touches_the_baseline_cache(tmp_path: Path, public_panel
 
 
 def test_validation_rejects_an_impossible_reference(tmp_path: Path, public_panel: dict) -> None:
-    panel = compact_agentic_run(_write_run(tmp_path, PUBLIC_SEEDS), isolation="container")
+    panel = compact_agentic_run(_write_run(tmp_path, PUBLIC_SEEDS, isolation="container"), isolation="container")
     assert validate_agentic_artifact(panel)["ok"]
     lift = panel["reference"]["paired_lift_mean"]
 
@@ -557,7 +563,7 @@ def test_validation_rejects_an_impossible_reference(tmp_path: Path, public_panel
 
 def test_recorded_reference_scores_pin_every_panel_row(tmp_path: Path, public_panel: dict) -> None:
     """A pick-trader mean shifted together with its lift is coherent; only the recorded constants catch it without --raw."""
-    panel = compact_agentic_run(_write_run(tmp_path, PUBLIC_SEEDS), isolation="container")
+    panel = compact_agentic_run(_write_run(tmp_path, PUBLIC_SEEDS, isolation="container"), isolation="container")
     reference = panel["reference"]
     shifted = json.loads(json.dumps(panel))
     shifted["reference"]["mean_score"] = round(reference["mean_score"] - 200, 3)
@@ -595,7 +601,7 @@ def test_committed_lane_records_the_reference_means_for_the_full_row() -> None:
 
 
 def test_validation_rejects_a_misplaced_or_malformed_reference(tmp_path: Path, public_panel: dict) -> None:
-    run_dir = _write_run(tmp_path, PUBLIC_SEEDS)
+    run_dir = _write_run(tmp_path, PUBLIC_SEEDS, isolation="container")
     panel = compact_agentic_run(run_dir, isolation="container")
     smoke = compact_agentic_run(run_dir, isolation="same-user")
 
@@ -638,7 +644,7 @@ def test_validation_rejects_a_misplaced_or_malformed_reference(tmp_path: Path, p
 def test_cli_redacts_and_revalidates_a_panel_reference(tmp_path: Path, public_panel: dict, capsys) -> None:
     from gm_bench.cli import main
 
-    run_dir = _write_run(tmp_path, PUBLIC_SEEDS)
+    run_dir = _write_run(tmp_path, PUBLIC_SEEDS, isolation="container")
     out = tmp_path / "results" / "agentic" / "row.json"
     main(["agentic-redact", str(run_dir), "--output", str(out), "--isolation", "container"])
     assert "panel grade, 3 seeds" in capsys.readouterr().out
@@ -646,3 +652,33 @@ def test_cli_redacts_and_revalidates_a_panel_reference(tmp_path: Path, public_pa
     assert written["reference"]["per_seed"] == [] and written["reference"]["num_seeds"] == 3
     main(["agentic-validate", str(out), "--raw", str(run_dir)])
     assert "(panel artifact), OK" in capsys.readouterr().out
+
+
+def test_isolation_claim_cannot_exceed_what_the_driver_recorded(tmp_path: Path) -> None:
+    """The driver records how it launched the harness; the operator may understate it, never overstate it."""
+    legacy = _write_run(tmp_path / "legacy", [11])  # written before the driver recorded isolation
+    same_user = _write_run(tmp_path / "same", [11], isolation="same-user")
+    container = _write_run(tmp_path / "container", [11], isolation="container")
+    for run_dir in (legacy, same_user):
+        for claim in ("separate-user", "container"):
+            with pytest.raises(ValueError, match="refusing to publish"):
+                compact_agentic_run(run_dir, isolation=claim)
+        assert compact_agentic_run(run_dir, isolation="same-user")["isolation"] == "same-user"
+    assert compact_agentic_run(container, isolation="container")["isolation"] == "container"
+    assert compact_agentic_run(container, isolation="same-user")["isolation"] == "same-user"
+    with pytest.raises(ValueError, match="refusing to publish"):
+        compact_agentic_run(container, isolation="separate-user")
+
+    # An episode that disagrees with the run-level record drops the run to same-user.
+    raw = json.loads((container / "run.json").read_text())
+    raw["episodes"][0]["harness_run"]["isolation"] = "same-user"
+    (container / "run.json").write_text(json.dumps(raw, sort_keys=True))
+    with pytest.raises(ValueError, match="records isolation 'same-user'"):
+        compact_agentic_run(container, isolation="container")
+
+    # An artifact edited to claim container is caught against its raw run.
+    artifact = compact_agentic_run(same_user, isolation="same-user")
+    forged = json.loads(json.dumps(artifact))
+    forged["isolation"] = "container"
+    report = validate_agentic_artifact(forged, raw_run=same_user)
+    assert any("refusing to publish it as 'container'" in error for error in report["errors"])

@@ -4,7 +4,8 @@ Per episode the driver:
 
 1. builds the episode engine in this process (the seed never touches a file
    the agent can find) and serves it as an MCP server over a private Unix
-   socket;
+   socket, or, with the harness in a container, over a loopback TCP port
+   that only accepts connections presenting a per-run secret;
 2. creates an empty scratch directory holding only a standard-library proxy
    script and an ``opencode.json`` that launches it on the harness's own
    python3, with code mode off so one model tool call is one ledger entry;
@@ -19,12 +20,18 @@ The harness environment is the operator's environment minus private-seed
 material, Python path overrides and the interpreter's virtualenv, so the
 agent's shell cannot import the simulator. Nothing readable from the scratch
 directory names the seed, the interpreter, or the repository.
+
+``isolation`` says how the harness is separated from the driver, and the run
+records what was actually done: ``same-user`` (a child process of the driver,
+whose ``ps`` can show the driver's command line) or ``container`` (Docker,
+see ``container.py``). Publication refuses to claim more than that record.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import secrets
 import shutil
 import subprocess
 import sys
@@ -37,6 +44,13 @@ from typing import Any, Callable
 import gm_bench
 from gm_bench.agentic import _proxy
 from gm_bench.agentic.brief import nudge_message, task_brief
+from gm_bench.agentic.container import (
+    HOST_ALIAS,
+    WORKDIR,
+    ContainerHarness,
+    container_sandbox_problems,
+    ensure_image,
+)
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import DEFAULT_PHASE_GUARD_SECONDS, AgenticEpisode
 from gm_bench.agentic.mcp_server import EPISODE_ENV, SocketMcpServer
@@ -48,6 +62,9 @@ from gm_bench.telemetry import aggregate_usage
 
 HARNESS_NAME = "opencode"
 DEFAULT_MAX_NUDGES = 20
+# What the driver itself can do. ``separate-user`` is a valid statement in a
+# published row (publication.ISOLATION_LEVELS) but no driver launches it yet.
+DRIVER_ISOLATION = ("same-user", "container")
 REPO_ROOT = Path(gm_bench.__file__).resolve().parent.parent
 _SCRUBBED_ENV_VARS = ("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV", "PYTHONSAFEPATH", EPISODE_ENV)
 
@@ -135,11 +152,12 @@ def harness_python(env: dict[str, str]) -> str:
     )
 
 
-def opencode_config(socket_path: Path, *, python: str = "python3") -> dict[str, Any]:
+def opencode_config(target: str | Path, *, python: str = "python3") -> dict[str, Any]:
     """The ``opencode.json`` written into the scratch directory.
 
     Everything in it is readable by the agent, so it names only the proxy
-    script beside it and the socket the proxy connects to.
+    script beside it and where the proxy connects: a socket path, or
+    ``host:port`` for a containerized harness.
     """
     return {
         "$schema": "https://opencode.ai/config.json",
@@ -147,7 +165,7 @@ def opencode_config(socket_path: Path, *, python: str = "python3") -> dict[str, 
             "servers": {
                 "gm-bench": {
                     "type": "local",
-                    "command": [python, PROXY_FILENAME, str(socket_path)],
+                    "command": [python, PROXY_FILENAME, str(target)],
                     "codemode": False,
                 }
             }
@@ -155,11 +173,112 @@ def opencode_config(socket_path: Path, *, python: str = "python3") -> dict[str, 
     }
 
 
-def stage_scratch(scratch: Path, socket_path: Path, env: dict[str, str]) -> None:
-    """Write the proxy and the config into an otherwise empty scratch directory."""
+def stage_scratch(
+    scratch: Path,
+    target: str | Path,
+    env: dict[str, str],
+    *,
+    python: str | None = None,
+    secret: str | None = None,
+) -> None:
+    """Write the proxy and the config into an otherwise empty scratch directory.
+
+    ``secret`` (TCP transport only) is written beside the proxy, where the
+    proxy reads it; it is never on any command line.
+    """
     (scratch / PROXY_FILENAME).write_text(Path(_proxy.__file__).read_text(encoding="utf-8"), encoding="utf-8")
-    config = opencode_config(socket_path, python=harness_python(env))
+    if secret is not None:
+        secret_path = scratch / _proxy.SECRET_FILENAME
+        secret_path.write_text(secret + "\n", encoding="utf-8")
+        secret_path.chmod(0o600)
+    config = opencode_config(target, python=python or harness_python(env))
     (scratch / "opencode.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
+
+
+class HarnessLaunch:
+    """Where the harness runs for one episode, and how the driver reaches it.
+
+    ``same-user``: the harness is a child process of the driver in an empty
+    scratch directory, and the proxy dials a Unix socket (mode 0600) in a
+    private directory of its own. ``container``: the harness runs in Docker
+    with only the scratch directory mounted, and the proxy dials a loopback
+    TCP port on the host with a per-run secret (``container.py``).
+    """
+
+    def __init__(
+        self,
+        episode: AgenticEpisode,
+        *,
+        binary: str = "opencode",
+        isolation: str = "same-user",
+        image: dict[str, Any] | None = None,
+        docker: str = "docker",
+        scratch_prefix: str = "gm-bench-agentic-",
+    ) -> None:
+        if isolation not in DRIVER_ISOLATION:
+            raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
+        if isolation == "container" and image is None:
+            raise ValueError("container isolation needs the image description from container.ensure_image")
+        self.isolation = isolation
+        self.binary = binary
+        self.docker = docker
+        self.env = harness_environment()
+        self.scratch = Path(tempfile.mkdtemp(prefix=scratch_prefix))
+        self.container: ContainerHarness | None = None
+        self._socket_dir: Path | None = None
+        self._secret: str | None = None
+        if isolation == "container":
+            assert image is not None
+            self.container = ContainerHarness(image, self.scratch, docker=docker, env=self.env)
+            self._secret = secrets.token_urlsafe(32)
+            self.server = SocketMcpServer(episode, ("127.0.0.1", 0), secret=self._secret)
+            self.workdir = WORKDIR
+            self.transport = "tcp"
+        else:
+            # The socket lives in its own private directory with a short path
+            # (macOS caps Unix socket paths at 104 bytes) and mode 0600,
+            # outside the scratch.
+            self._socket_dir = Path(tempfile.mkdtemp(prefix="gmb-"))
+            self.server = SocketMcpServer(episode, self._socket_dir / "s")
+            self.workdir = str(self.scratch)
+            self.transport = "unix"
+        self.server.start()
+
+    def prepare(self) -> None:
+        """Prove the sandbox, then stage the proxy and config. Raises ``SandboxError``."""
+        if self.container is not None:
+            # Nothing on the host PATH runs in the container, so the host half
+            # of the check is only about the scratch directory itself.
+            problems = sandbox_problems(self.scratch, {"PATH": ""})
+            problems += container_sandbox_problems(self.container.image, docker=self.docker, env=self.env)
+        else:
+            problems = sandbox_problems(self.scratch, self.env)
+        if problems:
+            raise SandboxError("; ".join(problems))
+        if self.container is not None:
+            port = self.server.address[1]
+            stage_scratch(self.scratch, f"{HOST_ALIAS}:{port}", self.env, python="python3", secret=self._secret)
+        else:
+            stage_scratch(self.scratch, self.server.address, self.env)
+
+    def command(self, harness_args: list[str]) -> tuple[list[str], Callable[[], None] | None]:
+        """The full host command for one harness invocation, and how to stop it if it is killed."""
+        if self.container is None:
+            return [self.binary, *harness_args], None
+        container = self.container
+        argv, name = container.command(["opencode", *harness_args])
+        return argv, lambda: container.kill(name)
+
+    def close(self, *, keep_scratch: bool = False) -> bool:
+        """Stop the server (returns whether it drained), the containers, and remove temporary state."""
+        drained = self.server.stop()
+        if self.container is not None:
+            self.container.close()
+        if self._socket_dir is not None:
+            shutil.rmtree(self._socket_dir, ignore_errors=True)
+        if not keep_scratch:
+            shutil.rmtree(self.scratch, ignore_errors=True)
+        return drained
 
 
 def opencode_version(binary: str = "opencode") -> str | None:
@@ -309,6 +428,9 @@ def run_episode(
     progress: ProgressCallback | None = None,
     keep_scratch: bool = False,
     episode_dir: Path | None = None,
+    isolation: str = "same-user",
+    image: dict[str, Any] | None = None,
+    docker: str = "docker",
 ) -> dict[str, Any]:
     episode_dir = episode_dir if episode_dir is not None else run_dir / f"seed-{seed}"
     if episode_dir.exists() and any(episode_dir.iterdir()):
@@ -320,37 +442,29 @@ def run_episode(
     events_path = episode_dir / "opencode-events.jsonl"
     stderr_path = episode_dir / "opencode-stderr.log"
 
-    env = harness_environment()
-    scratch = Path(tempfile.mkdtemp(prefix="gm-bench-agentic-"))
-    # The socket lives in its own private directory with a short path (macOS
-    # caps Unix socket paths at 104 bytes) and mode 0600, outside the scratch.
-    socket_dir = Path(tempfile.mkdtemp(prefix="gmb-"))
-    socket_path = socket_dir / "s"
     # The engine and the seed live here, in this process, for the whole
     # episode. Harness restarts and nudges reconnect to the same engine.
     episode = AgenticEpisode(
         seed, seasons, user_team_id, ledger_path=ledger_path, phase_guard_seconds=phase_guard_seconds
     )
-    server = SocketMcpServer(episode, socket_path)
-    server.start()
+    launch = HarnessLaunch(episode, binary=binary, isolation=isolation, image=image, docker=docker)
+    server = launch.server
+    scratch = launch.scratch
 
     guard_expired = _GuardWatch(episode, server.dispatch_lock)
 
     try:
-        problems = sandbox_problems(scratch, env)
-        if problems:
-            raise SandboxError("; ".join(problems))
-        stage_scratch(scratch, socket_path, env)
+        launch.prepare()
 
         team_name = League.new(seed=seed, user_team_id=user_team_id).user_team.name
         brief = task_brief(seasons, team_name, user_team_id)
-        base = [binary, "run", "--format", "json", "--pure", "--auto", "--dir", str(scratch), "--model", model]
+        base = ["run", "--format", "json", "--pure", "--auto", "--dir", launch.workdir, "--model", model]
         if variant:
             base += ["--variant", variant]
-        command = base + [brief]
+        command, on_kill = launch.command(base + [brief])
         timeout = episode_timeout_seconds or (seasons * len(PHASES) * phase_guard_seconds + 300.0)
         if progress is not None:
-            progress({"seed": seed, "stage": "launch", "model": model, "scratch": str(scratch)})
+            progress({"seed": seed, "stage": "launch", "model": model, "scratch": str(scratch), "isolation": isolation})
         events_path.write_text("", encoding="utf-8")
         stderr_path.write_text("", encoding="utf-8")
         # The phase guard fires inside the engine on the next tool call, so a
@@ -365,11 +479,12 @@ def run_episode(
         exit_code, timed_out, wall_seconds, stalled = _run_harness(
             command,
             cwd=scratch,
-            env=env,
+            env=launch.env,
             events_path=events_path,
             stderr_path=stderr_path,
             timeout=timeout,
             stalled=guard_expired,
+            on_kill=on_kill,
         )
         guard_kills += int(stalled)
         # The nudge loop. OpenCode ends a run whenever the model answers with
@@ -397,14 +512,16 @@ def run_episode(
                     }
                 )
             guard_expired.arm()
+            nudge_command, nudge_kill = launch.command(base + ["--session", session_id, text])
             nudge_exit, nudge_timed_out, nudge_wall, nudge_stalled = _run_harness(
-                base + ["--session", session_id, text],
+                nudge_command,
                 cwd=scratch,
-                env=env,
+                env=launch.env,
                 events_path=events_path,
                 stderr_path=stderr_path,
                 timeout=max(timeout - wall_seconds, 60.0),
                 stalled=guard_expired,
+                on_kill=nudge_kill,
             )
             wall_seconds += nudge_wall
             guard_kills += int(nudge_stalled)
@@ -426,10 +543,7 @@ def run_episode(
             if progress_calls == 0:
                 break
     finally:
-        server_drained = server.stop()
-        shutil.rmtree(socket_dir, ignore_errors=True)
-        if not keep_scratch:
-            shutil.rmtree(scratch, ignore_errors=True)
+        server_drained = launch.close(keep_scratch=keep_scratch)
 
     telemetry = parse_opencode_events(events_path.read_text(encoding="utf-8").splitlines())
     # server.stop() hung up on every proxy and joined its thread, so nothing
@@ -441,6 +555,9 @@ def run_episode(
         result = episode.result(agent_name=f"{HARNESS_NAME}:{model}")
     result["harness_run"] = {
         "harness": HARNESS_NAME,
+        # What the driver actually did, not what anyone claims later.
+        "isolation": launch.isolation,
+        "transport": launch.transport,
         "command": command[:-1] + ["<task brief>"],
         "exit_code": exit_code,
         "timed_out": timed_out,
@@ -458,6 +575,7 @@ def run_episode(
         "events_path": _recorded_path(events_path, run_dir),
         "ledger_path": _recorded_path(ledger_path, run_dir),
         "proxy_connections": server.connections,
+        "proxy_connections_refused": server.rejected,
         "scratch_dir": str(scratch) if keep_scratch else None,
         "event_types": telemetry["event_types"],
         # Gate 2 of the spec: the server ledger and the harness's own event
@@ -490,13 +608,16 @@ def _run_harness(
     timeout: float,
     stalled: Callable[[], bool] | None = None,
     poll_seconds: float = 5.0,
+    on_kill: Callable[[], None] | None = None,
 ) -> tuple[int | None, bool, float, bool]:
     """Run one harness invocation, appending its streams to the episode's files.
 
     Returns ``(exit_code, timed_out, wall_seconds, stalled)``. ``stalled`` is
     polled every ``poll_seconds`` while the process runs; when it reports
     true the harness is killed and the flag is returned, distinct from the
-    episode timeout so the caller can still nudge.
+    episode timeout so the caller can still nudge. ``on_kill`` runs after
+    either kill: killing the ``docker run`` client does not stop its
+    container, so the container launcher removes it there.
     """
     started = time.perf_counter()
     deadline = started + timeout
@@ -514,6 +635,8 @@ def _run_harness(
                 timed_out = True
                 process.kill()
                 exit_code: int | None = process.wait()
+                if on_kill is not None:
+                    on_kill()
                 break
             try:
                 exit_code = process.wait(timeout=min(poll_seconds, remaining))
@@ -523,6 +646,8 @@ def _run_harness(
                     was_stalled = True
                     process.kill()
                     exit_code = process.wait()
+                    if on_kill is not None:
+                        on_kill()
                     break
     return exit_code, timed_out, time.perf_counter() - started, was_stalled
 
@@ -621,6 +746,8 @@ def run_panel(
     progress: ProgressCallback | None = None,
     keep_scratch: bool = False,
     name_episodes_by_position: bool = False,
+    isolation: str = "same-user",
+    docker: str = "docker",
 ) -> dict[str, Any]:
     """Run seeds serially (harness quotas are never parallelized) and summarize.
 
@@ -631,9 +758,20 @@ def run_panel(
     ``episode-01``, ... instead, for private seeds: the harness's stdout and
     stderr are files in that directory, so a ``seed-<seed>`` name would show
     the seed in the harness's open-file table (``lsof``).
+
+    With ``isolation="container"`` the harness image is built (or found) once
+    and its id, base image, and the OpenCode version it reports are recorded
+    under ``harness.container``; ``binary`` is not used.
     """
+    if isolation not in DRIVER_ISOLATION:
+        raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
     run_dir.mkdir(parents=True, exist_ok=True)
-    version = opencode_version(binary)
+    image = None
+    if isolation == "container":
+        image = ensure_image(docker=docker, env=harness_environment())
+        version = image["opencode_version"]
+    else:
+        version = opencode_version(binary)
     episodes = []
     attempts: dict[int, int] = {}
     width = max(2, len(str(len(seeds) - 1)))
@@ -654,12 +792,21 @@ def run_panel(
                 max_nudges=max_nudges,
                 progress=progress,
                 keep_scratch=keep_scratch,
+                isolation=isolation,
+                image=image,
+                docker=docker,
             )
         )
+    harness: dict[str, Any] = {"name": HARNESS_NAME, "version": version, "model": model, "variant": variant}
+    if image is not None:
+        harness["container"] = image
     payload = {
         "agent": f"{HARNESS_NAME}:{model}",
         "lane": "agentic",
-        "harness": {"name": HARNESS_NAME, "version": version, "model": model, "variant": variant},
+        "harness": harness,
+        # Recorded by the driver from what it launched; agentic-redact will
+        # not publish a stronger isolation than this.
+        "isolation": isolation,
         "contract": agentic_contract(),
         "seeds": list(seeds),
         "seasons": seasons,

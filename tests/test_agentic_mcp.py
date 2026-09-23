@@ -358,7 +358,8 @@ def test_nudge_loop_resumes_until_done_and_stops_without_progress(tmp_path: Path
 
     calls: list[list[str]] = []
 
-    def fake_harness(command, *, cwd, env, events_path, stderr_path, timeout, stalled=None):
+    def fake_harness(command, *, cwd, env, events_path, stderr_path, timeout, stalled=None, on_kill=None):
+        assert on_kill is None  # only the container launcher needs a kill hook
         calls.append(command)
         config = json.loads((cwd / "opencode.json").read_text())
         socket_path = config["mcp"]["servers"]["gm-bench"]["command"][2]
@@ -389,6 +390,8 @@ def test_nudge_loop_resumes_until_done_and_stops_without_progress(tmp_path: Path
     assert harness_run["events_path"] == "seed-11/opencode-events.jsonl"
     assert harness_run["guard_kills"] == 0
     assert harness_run["server_drained"] is True
+    assert (harness_run["isolation"], harness_run["transport"]) == ("same-user", "unix")
+    assert harness_run["proxy_connections_refused"] == 0
     # Initial run + nudge with progress + nudge without progress, then stop.
     assert len(calls) == 3
     assert "--session" in calls[1] and calls[1][calls[1].index("--session") + 1] == "ses_fake"
@@ -689,3 +692,108 @@ def test_tcp_transport_needs_the_run_secret_and_bridges_through_the_real_proxy(t
     finally:
         assert server.stop() is True
         episode.close()
+
+
+def _fake_docker(tmp_path: Path) -> tuple[Path, Path]:
+    """A stand-in docker CLI that logs its argv and answers the sandbox probe like a clean image."""
+    log = tmp_path / "docker-calls.jsonl"
+    script = tmp_path / "fake-docker"
+    script.write_text(
+        f"#!{sys.executable}\n"
+        "import json, sys\n"
+        f"open({str(log)!r}, 'a').write(json.dumps(sys.argv[1:]) + '\\n')\n"
+        "if 'import gm_bench' in sys.argv:\n"
+        "    sys.stderr.write(\"ModuleNotFoundError: No module named 'gm_bench'\\n\")\n"
+        "    sys.exit(1)\n"
+    )
+    script.chmod(0o755)
+    return script, log
+
+
+def test_container_launch_mounts_only_the_scratch_and_keeps_the_secret_off_the_command_line(tmp_path: Path) -> None:
+    from gm_bench.agentic import _proxy
+    from gm_bench.agentic.container import HOST_ALIAS, WORKDIR
+    from gm_bench.agentic.episode import AgenticEpisode
+    from gm_bench.agentic.opencode import HarnessLaunch
+
+    docker, log = _fake_docker(tmp_path)
+    image = {"image": "gm-bench-agentic-opencode:test", "image_id": "sha256:" + "a" * 64}
+    ledger = tmp_path / "run" / "seed-8675309" / "ledger.jsonl"
+    episode = AgenticEpisode(8675309, seasons=1, ledger_path=ledger)
+    launch = HarnessLaunch(episode, isolation="container", image=image, docker=str(docker))
+    try:
+        assert (launch.isolation, launch.transport, launch.workdir) == ("container", "tcp", WORKDIR)
+        launch.prepare()
+        config = json.loads((launch.scratch / "opencode.json").read_text())
+        port = launch.server.address[1]
+        assert config["mcp"]["servers"]["gm-bench"]["command"] == [
+            "python3",
+            "gm_bench_proxy.py",
+            f"{HOST_ALIAS}:{port}",
+        ]
+        secret_file = launch.scratch / _proxy.SECRET_FILENAME
+        assert secret_file.read_text().strip() == launch.server.secret
+        assert secret_file.stat().st_mode & 0o077 == 0
+        assert sorted(p.name for p in launch.scratch.iterdir()) == sorted(
+            ["opencode.json", "gm_bench_proxy.py", _proxy.SECRET_FILENAME]
+        )
+
+        argv, on_kill = launch.command(["run", "--dir", WORKDIR, "--model", "m", "brief"])
+        assert on_kill is not None
+        text = " ".join(argv)
+        assert launch.server.secret not in text
+        for leak in ("8675309", str(ledger.parent), str(REPO_ROOT), "GM_BENCH"):
+            assert leak not in text
+        mounts = [argv[i + 1] for i, arg in enumerate(argv) if arg in ("--mount", "-v", "--volume")]
+        binds = [m for m in mounts if m.startswith("type=bind")]
+        assert binds == [f"type=bind,source={launch.scratch},target={WORKDIR}"]
+        assert all(m.startswith("type=volume,source=gmb-home-") for m in mounts if m not in binds)
+        assert "-e" not in argv and "--env" not in argv and "--env-file" not in argv
+        assert argv[argv.index(image["image_id"]) + 1 :] == [
+            "opencode",
+            "run",
+            "--dir",
+            WORKDIR,
+            "--model",
+            "m",
+            "brief",
+        ]
+        on_kill()
+    finally:
+        scratch = launch.scratch
+        assert launch.close() is True
+    assert not scratch.exists()
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    name = argv[argv.index("--name") + 1]
+    assert ["rm", "--force", name] in calls
+    assert calls[-1][:3] == ["volume", "rm", "--force"]
+    episode.close()
+
+
+def test_run_harness_runs_the_kill_hook_after_killing_the_client(tmp_path: Path) -> None:
+    import gm_bench.agentic.opencode as driver
+
+    killed: list[str] = []
+    sleeper = [sys.executable, "-c", "import time; time.sleep(30)"]
+    _code, timed_out, _wall, stalled = driver._run_harness(
+        sleeper,
+        cwd=tmp_path,
+        env=os.environ.copy(),
+        events_path=tmp_path / "events.jsonl",
+        stderr_path=tmp_path / "stderr.log",
+        timeout=20.0,
+        stalled=lambda: True,
+        poll_seconds=0.1,
+        on_kill=lambda: killed.append("stalled"),
+    )
+    assert stalled and not timed_out and killed == ["stalled"]
+    driver._run_harness(
+        [sys.executable, "-c", "pass"],
+        cwd=tmp_path,
+        env=os.environ.copy(),
+        events_path=tmp_path / "events.jsonl",
+        stderr_path=tmp_path / "stderr.log",
+        timeout=20.0,
+        on_kill=lambda: killed.append("clean exit"),
+    )
+    assert killed == ["stalled"]
