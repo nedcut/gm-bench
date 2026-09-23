@@ -35,6 +35,7 @@ finalization). What differs per harness is a ``harness.HarnessDriver``:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -244,6 +245,7 @@ class HarnessLaunch:
         docker: str = "docker",
         scratch_prefix: str = "gm-bench-agentic-",
         driver: HarnessDriver | None = None,
+        evidence_paths: tuple[Path, ...] = (),
     ) -> None:
         if isolation not in DRIVER_ISOLATION:
             raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
@@ -253,14 +255,17 @@ class HarnessLaunch:
         self.isolation = isolation
         self.binary = binary
         self.docker = docker
-        self.scratch = Path(tempfile.mkdtemp(prefix=scratch_prefix))
-        self.env = self.driver.environment(harness_environment(), self.scratch, isolation)
+        # Run-directory files the harness writes (its event stream and stderr),
+        # for a driver whose ``cleanup`` must redact them.
+        self.evidence_paths = evidence_paths
         self.container: ContainerHarness | None = None
+        self.scratch = Path(tempfile.mkdtemp(prefix=scratch_prefix))
         self._socket_dir: Path | None = None
         self._secret: str | None = None
         # Containers or volumes ``close`` could not remove (container mode only).
         self.cleanup_problems: list[str] = []
         try:
+            self.env = self.driver.environment(harness_environment(), self.scratch, isolation)
             if isolation == "container":
                 assert image is not None
                 self._secret = secrets.token_urlsafe(32)
@@ -284,6 +289,9 @@ class HarnessLaunch:
             server = getattr(self, "server", None)
             if server is not None:
                 server.stop()
+            # The original error is the one to raise.
+            with contextlib.suppress(Exception):
+                self.driver.cleanup(self)
             for directory in (self._socket_dir, self.scratch):
                 if directory is not None:
                     shutil.rmtree(directory, ignore_errors=True)
@@ -498,6 +506,8 @@ def usage_block(
     stream carries no per-call latency.
     """
     reported = telemetry["model_calls"] > 0
+    # ``None`` where the harness cannot observe a single call's output (Codex): left out, not 0.
+    max_output = telemetry["max_output_tokens_per_call"]
     record: dict[str, Any] = {
         "provider": harness,
         "model": model,
@@ -507,13 +517,15 @@ def usage_block(
         "reasoning_tokens": telemetry["reasoning_tokens"],
         "cached_input_tokens": telemetry["cached_input_tokens"],
         "total_tokens": telemetry["input_tokens"] + telemetry["output_tokens"],
-        "max_output_tokens_per_call": telemetry["max_output_tokens_per_call"],
+        "max_output_tokens_per_call": max_output if max_output is not None else 0,
         "season": None,
         "phase": None,
     }
     if telemetry["cost_usd"] is not None:
         record["cost_usd"] = telemetry["cost_usd"]
     usage = aggregate_usage([record])
+    if max_output is None:
+        del usage["max_output_tokens_per_call"]
     usage["decisions_with_usage"] = decisions if reported else 0
     usage["cost_decisions"] = decisions if reported and telemetry["cost_usd"] is not None else 0
     usage["harness"] = {
@@ -571,7 +583,15 @@ def run_episode(
     episode = AgenticEpisode(
         seed, seasons, user_team_id, ledger_path=ledger_path, phase_guard_seconds=phase_guard_seconds
     )
-    launch = HarnessLaunch(episode, binary=binary, isolation=isolation, image=image, docker=docker, driver=driver)
+    launch = HarnessLaunch(
+        episode,
+        binary=binary,
+        isolation=isolation,
+        image=image,
+        docker=docker,
+        driver=driver,
+        evidence_paths=(events_path, stderr_path),
+    )
     server = launch.server
     scratch = launch.scratch
 
@@ -1046,6 +1066,14 @@ def run_panel(
     return payload
 
 
+def _compactions(episodes: list[dict[str, Any]]) -> int | None:
+    """Total compactions, or ``None`` (unmeasured, not zero) if any episode's harness reports none (Codex)."""
+    values = [(episode.get("usage") or {}).get("harness", {}).get("compactions", 0) for episode in episodes]
+    if any(value is None for value in values):
+        return None
+    return sum(int(value) for value in values)
+
+
 def _agentic_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     if not episodes:
         return {}
@@ -1067,8 +1095,7 @@ def _agentic_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "provider_stall_wait_seconds": round(
             sum(float(episode["harness_run"].get("provider_stall_wait_seconds", 0.0)) for episode in episodes), 1
         ),
-        # ``None`` where the harness does not report compactions (Codex); summed as 0 here.
-        "compactions": sum(int(episode["usage"].get("harness", {}).get("compactions") or 0) for episode in episodes),
+        "compactions": _compactions(episodes),
         "mean_wall_seconds": round(
             sum(float(episode["harness_run"]["wall_seconds"]) for episode in episodes) / len(episodes), 1
         ),

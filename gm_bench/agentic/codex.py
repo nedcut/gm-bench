@@ -29,7 +29,12 @@ source at tag ``rust-v0.156.1``: ``codex-rs/exec/src/exec_events.rs``,
   ``command_execution``, ``file_change``, ``web_search``,
   ``collab_tool_call``, ``agent_message``, ``reasoning``, ``todo_list``,
   ``error``), and ``error`` (``message``). Item ids restart at ``item_0`` in
-  every process, so tool events are counted per invocation.
+  every process, so tool events are counted per invocation. Codex emits
+  ``mcp_tool_call`` items for calls it refuses before dispatch too
+  (``notify_mcp_tool_call_skip``: ``item.completed`` with ``status =
+  "failed"`` and ``error.message`` such as ``MCP tool call requires
+  approval, but approval policy is never``); those never reached the server
+  and are counted apart, not as harness tool calls.
 - **Usage is a running session total.** ``turn.completed.usage`` is the
   thread's cumulative token count (``usage_from_last_total``), and a resumed
   session restores that total from its saved rollout
@@ -37,11 +42,11 @@ source at tag ``rust-v0.156.1``: ``codex-rs/exec/src/exec_events.rs``,
   ``turn.completed`` per thread, not a sum over invocations. A final
   invocation that fails before completing its turn is not in that total.
   ``input_tokens`` includes ``cached_input_tokens``. The stream reports no
-  cost, no per-model-call records and no compaction events, so
-  ``cost_usd`` is ``None`` (the usage block then falls back to
-  ``gm_bench/pricing.json`` list prices where the model is priced, which
-  overstates cost for cached input and for a ChatGPT subscription, which is
-  not billed per token), ``api_calls`` counts completed turns, and
+  cost, no per-model-call records and no compaction events, so the usage
+  block's ``cost_usd`` is ``None`` even for a model ``gm_bench/pricing.json``
+  prices (a list-price estimate would charge cached input at the full rate,
+  and a ChatGPT plan is not billed per token), ``api_calls`` counts
+  completed turns, ``max_output_tokens_per_call`` is left out, and
   ``compactions`` is ``None`` (unmeasured, not zero).
 - **Resume.** ``codex exec resume [OPTIONS] <session id> <prompt>`` continues
   the same session with its context, so a nudge or stall retry resumes the
@@ -62,15 +67,23 @@ source at tag ``rust-v0.156.1``: ``codex-rs/exec/src/exec_events.rs``,
 - **Configuration and what is not inherited.** ``CODEX_HOME`` (default
   ``~/.codex``) holds ``config.toml``, ``auth.json``, the session store,
   ``AGENTS.md``, skills, rules and plugins. The driver never uses the host's:
-  in same-user isolation ``CODEX_HOME`` is ``<scratch>/.codex`` and ``HOME``
-  is the scratch directory itself, because Codex also loads user skills from
+  in same-user isolation ``CODEX_HOME`` is a private directory (mode 0700)
+  outside the scratch, removed when the episode ends, and ``HOME`` is the
+  scratch directory itself, because Codex also loads user skills from
   ``$HOME/.agents/skills``; in a container the harness home is the
   per-episode volume (``/home/node/.codex``). Every other ``CODEX_*``
   variable is dropped from the harness environment. The staged
   ``config.toml`` holds exactly one MCP server entry, ``[mcp_servers.gm-bench]``
   with ``command`` (the harness's python3) and ``args``
   (``gm_bench_proxy.py`` and the socket path or ``host:port``), the same
-  launch ``opencode_config`` declares. Codex reports those calls as
+  launch ``opencode_config`` declares, plus ``default_tools_approval_mode =
+  "approve"``. That last key is required: ``exec`` forces ``approval_policy
+  = never``, under which Codex auto-approves an MCP call only when the
+  server's approval mode is ``approve`` or the sandbox has full disk write
+  (``mcp_permission_prompt_is_auto_approved``); otherwise a tool without a
+  ``readOnlyHint`` annotation (every GM-Bench tool) is refused with
+  ``MCP tool call requires approval, but approval policy is never``. It
+  approves this one server's tools only. Codex reports those calls as
   ``mcp_tool_call`` items with ``server = "gm-bench"``, recorded as
   ``gm-bench_<tool>`` so the ledger-versus-harness agreement counts them.
   Codex's own built-in tools stay as the harness ships them; they are part of
@@ -88,15 +101,21 @@ source at tag ``rust-v0.156.1``: ``codex-rs/exec/src/exec_events.rs``,
   credential store) or, for ``exec``, a ``CODEX_API_KEY`` environment
   variable. Because the host ``~/.codex`` is not used, a ChatGPT login is not
   inherited. Same-user runs take either ``--codex-auth-file <path>`` (copied
-  to ``<scratch>/.codex/auth.json``, mode 0600, and deleted when the episode
-  ends even with ``--keep-scratch``) or ``CODEX_API_KEY`` in the operator's
-  environment. Container runs pass no environment, so they need
+  to ``auth.json`` in the private ``CODEX_HOME``, mode 0600, and deleted
+  with it when the episode ends, even with ``--keep-scratch``) or
+  ``CODEX_API_KEY`` in the operator's environment. Container runs pass no environment, so they need
   ``--codex-auth-file``: the file travels on the stdin of a throwaway
   ``docker run`` into the per-episode home volume (``ContainerHarness.seed_home``),
   never onto a command line, an environment variable, or the bind-mounted
   scratch directory, and is removed with the volume. The agent can read its
   own harness's credential (as it can read the proxy secret): that is the
   harness's key, not the benchmark's, and it gives no access to the seed.
+  What the agent prints lands in the retained event stream
+  (``command_execution.aggregated_output``), so when the episode ends the
+  driver replaces every credential value (the file's ``OPENAI_API_KEY`` and
+  ``tokens``, as staged and as Codex left them, and ``CODEX_API_KEY``) with
+  ``[REDACTED]`` in ``codex-events.jsonl`` and ``codex-stderr.log``. A kept
+  scratch directory is not redacted: it holds whatever the agent wrote.
   A ChatGPT ``auth.json`` carries a refresh token that Codex may rotate
   inside the episode; an API-key ``auth.json``
   (``{"auth_mode": "apikey", "OPENAI_API_KEY": "..."}``) does not have that
@@ -111,7 +130,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -129,12 +150,22 @@ AUTH_ENV = "CODEX_API_KEY"
 SAME_USER_SANDBOX = "workspace-write"
 CONTAINER_SANDBOX = "danger-full-access"
 CONTAINER_CODEX_HOME = f"{HOME}/{CODEX_HOME_DIRNAME}"
+# Without it, ``codex exec`` (approval policy never) refuses every GM-Bench call in workspace-write.
+TOOLS_APPROVAL_MODE = "approve"
+REDACTED = "[REDACTED]"
 
 # A terminal ``turn.failed``/``error`` message that reads as a transient provider failure.
 _RETRYABLE_MESSAGE_RE = re.compile(
     r"rate limit|too many requests|status:?\s+(?:408|425|429|5\d\d)\b|stream disconnected|high demand"
     r"|at capacity|overloaded|connection failed|error while reading the server response|request timed out"
     r"|usage limit|try again",
+    re.IGNORECASE,
+)
+
+# ``error.message`` of an ``mcp_tool_call`` Codex refused before dispatching it
+# (``notify_mcp_tool_call_skip`` in ``core/src/mcp_tool_call.rs``): it never reached the server.
+_SKIPPED_CALL_RE = re.compile(
+    r"requires approval|not available to the model|blocked by|user cancelled|approval (?:was )?(?:denied|rejected)",
     re.IGNORECASE,
 )
 
@@ -158,9 +189,15 @@ def codex_config(target: str | Path, *, python: str = "python3") -> dict[str, An
 
     It launches the proxy beside the agent's working directory on the
     harness's own python3, pointed at the socket path or ``host:port``,
-    exactly as ``opencode_config`` does.
+    exactly as ``opencode_config`` does, and approves that server's tools,
+    which ``codex exec`` would otherwise refuse in ``workspace-write``.
     """
-    return {"mcp_servers": {MCP_SERVER_NAME: {"command": python, "args": [PROXY_FILENAME, str(target)]}}}
+    server = {
+        "command": python,
+        "args": [PROXY_FILENAME, str(target)],
+        "default_tools_approval_mode": TOOLS_APPROVAL_MODE,
+    }
+    return {"mcp_servers": {MCP_SERVER_NAME: server}}
 
 
 def codex_config_toml(config: dict[str, Any]) -> str:
@@ -170,7 +207,51 @@ def codex_config_toml(config: dict[str, Any]) -> str:
         lines.append(f"[mcp_servers.{name}]")
         lines.append(f"command = {json.dumps(server['command'])}")
         lines.append(f"args = [{', '.join(json.dumps(arg) for arg in server['args'])}]")
+        if "default_tools_approval_mode" in server:
+            lines.append(f"default_tools_approval_mode = {json.dumps(server['default_tools_approval_mode'])}")
     return "\n".join(lines) + "\n"
+
+
+def auth_secrets(data: bytes | str) -> set[str]:
+    """The credential values in a Codex ``auth.json``: ``OPENAI_API_KEY`` and every string under ``tokens``."""
+    try:
+        payload = json.loads(data)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return set()
+    if not isinstance(payload, dict):
+        return set()
+    found: set[str] = set()
+
+    def walk(value: Any) -> None:
+        if isinstance(value, str):
+            found.add(value)
+        elif isinstance(value, dict):
+            for item in value.values():
+                walk(item)
+        elif isinstance(value, list):
+            for item in value:
+                walk(item)
+
+    walk(payload.get("OPENAI_API_KEY"))
+    walk(payload.get("tokens"))
+    # Short strings are not credentials, and replacing them would mangle unrelated text.
+    return {value for value in found if len(value) >= 8}
+
+
+def redact_file(path: Path, values: set[str]) -> bool:
+    """Replace every value (raw and JSON-escaped) with ``[REDACTED]`` in ``path``; whether anything changed."""
+    if not values or not path.is_file():
+        return False
+    text = path.read_text(encoding="utf-8", errors="surrogateescape")
+    redacted = text
+    # Longest first, so a value that contains another is replaced whole.
+    for value in sorted(values, key=len, reverse=True):
+        for form in {value, json.dumps(value)[1:-1]}:
+            redacted = redacted.replace(form, REDACTED)
+    if redacted == text:
+        return False
+    path.write_text(redacted, encoding="utf-8", errors="surrogateescape")
+    return True
 
 
 def read_auth_file(path: str | Path) -> bytes:
@@ -228,23 +309,32 @@ def parse_codex_events(lines: list[str]) -> dict[str, Any]:
     once per item id within each invocation (an invocation starts at its
     ``thread.started``), from ``item.started`` as well as ``item.completed``,
     so a call cut off by a guard stop still counts: it reached the server.
-    Tokens are the last ``turn.completed`` usage per thread, because that
-    usage is the thread's running total. ``model_calls`` counts completed
-    turns (the stream has no per-call records), cost and compactions are not
-    reported (``None``).
+    An ``mcp_tool_call`` that completed ``failed`` with one of Codex's
+    pre-dispatch refusals (approval required, not available to the model,
+    blocked, cancelled) never reached the server; it is counted in
+    ``harness_tool_calls_skipped``, not as a tool event. Tokens are the last
+    ``turn.completed`` usage per thread, because that usage is the thread's
+    running total. ``model_calls`` counts completed turns (the stream has no
+    per-call records); cost, the largest single-call output, and compactions
+    are not reported (``None``).
     """
     session_id: str | None = None
     thread: str | None = None
     totals: dict[str | None, dict[str, Any]] = {}
     tool_events: dict[str, int] = {}
+    skipped: dict[str, int] = {}
     invocation_items: dict[str, str] = {}
+    invocation_skipped: dict[str, str] = {}
     turns_started = turns_completed = turns_failed = errors = 0
     event_types: dict[str, int] = {}
 
     def close_invocation() -> None:
         for name in invocation_items.values():
             tool_events[name] = tool_events.get(name, 0) + 1
+        for name in invocation_skipped.values():
+            skipped[name] = skipped.get(name, 0) + 1
         invocation_items.clear()
+        invocation_skipped.clear()
 
     for event in _events(lines):
         kind = str(event.get("type", ""))
@@ -267,8 +357,14 @@ def parse_codex_events(lines: list[str]) -> dict[str, Any]:
         elif kind in ("item.started", "item.updated", "item.completed"):
             item = event.get("item") if isinstance(event.get("item"), dict) else {}
             name = _tool_name(item)
-            if name is not None:
-                invocation_items[str(item.get("id"))] = name
+            if name is None:
+                continue
+            item_id = str(item.get("id"))
+            if kind == "item.completed" and _skipped_before_dispatch(item):
+                invocation_items.pop(item_id, None)
+                invocation_skipped[item_id] = name
+            elif item_id not in invocation_skipped:
+                invocation_items[item_id] = name
     close_invocation()
 
     def total(key: str) -> int:
@@ -282,9 +378,10 @@ def parse_codex_events(lines: list[str]) -> dict[str, Any]:
         "cached_input_tokens": total("cached_input_tokens"),
         "cache_write_tokens": total("cache_write_input_tokens"),
         # Not observable: the stream has no per-call records.
-        "max_output_tokens_per_call": 0,
+        "max_output_tokens_per_call": None,
         "cost_usd": None,
         "harness_tool_events": dict(sorted(tool_events.items())),
+        "harness_tool_calls_skipped": dict(sorted(skipped.items())),
         # Not observable: ``codex exec --json`` emits no compaction event.
         "compactions": None,
         "errors": errors,
@@ -293,6 +390,15 @@ def parse_codex_events(lines: list[str]) -> dict[str, Any]:
         "turns_started": turns_started,
         "turns_failed": turns_failed,
     }
+
+
+def _skipped_before_dispatch(item: dict[str, Any]) -> bool:
+    """An ``mcp_tool_call`` Codex refused itself: ``failed``, no server result, a skip message."""
+    if item.get("type") != "mcp_tool_call" or item.get("status") != "failed" or item.get("result"):
+        return False
+    error = item.get("error") if isinstance(item.get("error"), dict) else {}
+    message = error.get("message")
+    return isinstance(message, str) and bool(_SKIPPED_CALL_RE.search(message))
 
 
 def ended_in_provider_stall(lines: list[str]) -> bool:
@@ -319,14 +425,24 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
 
 
 def usage_block(telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
-    """The shared usage block, labelled for what the Codex stream can and cannot report."""
+    """The shared usage block, labelled for what the Codex stream can and cannot report.
+
+    Codex reports no cost, so ``cost_usd`` is ``None`` (unmeasured) and
+    ``cost_decisions`` 0: no ``pricing.json`` estimate stands in for it,
+    because one would charge cached input at the full input rate and bill a
+    ChatGPT plan per token.
+    """
     usage = opencode.usage_block(telemetry, model=model, decisions=decisions, harness=HARNESS_NAME)
+    usage["cost_usd"] = None
+    usage["cost_decisions"] = 0
     usage["harness"].update(
         {
             "api_calls_are": "completed turns",
             "turns_started": telemetry.get("turns_started", 0),
             "turns_failed": telemetry.get("turns_failed", 0),
             "cost_reported_by_harness": False,
+            # mcp_tool_call items Codex refused before dispatch; never in the ledger.
+            "tool_calls_skipped": telemetry.get("harness_tool_calls_skipped") or {},
         }
     )
     return usage
@@ -345,6 +461,10 @@ class CodexDriver(HarnessDriver):
 
     def __init__(self, *, auth_file: str | Path | None = None) -> None:
         self.auth_file = Path(auth_file).expanduser() if auth_file is not None else None
+        # Per launch (keyed by scratch directory): the private same-user CODEX_HOME,
+        # and the credential values to redact from the evidence when the episode ends.
+        self._homes: dict[Path, Path] = {}
+        self._secrets: dict[Path, set[str]] = {}
 
     def auth_source(self, isolation: str) -> str:
         if self.auth_file is not None:
@@ -378,9 +498,13 @@ class CodexDriver(HarnessDriver):
                 env.pop(key)
         if isolation == "same-user":
             # No host ~/.codex (config, auth, AGENTS.md, rules, sessions) and no
-            # host ~/.agents/skills: the harness's home is the scratch directory.
+            # host ~/.agents/skills: HOME is the scratch directory, and CODEX_HOME
+            # a private directory outside it, so neither the credential nor
+            # Codex's session logs sit in the agent's working directory.
+            home = Path(tempfile.mkdtemp(prefix="gmb-codex-"))
+            self._homes[scratch] = home
             env["HOME"] = str(scratch)
-            env["CODEX_HOME"] = str(scratch / CODEX_HOME_DIRNAME)
+            env["CODEX_HOME"] = str(home)
         return env
 
     def _config_text(self, launch: HarnessLaunch) -> str:
@@ -388,18 +512,20 @@ class CodexDriver(HarnessDriver):
 
     def stage(self, launch: HarnessLaunch) -> None:
         stage_proxy(launch.scratch, secret=launch.secret)
-        files = {f"{CODEX_HOME_DIRNAME}/{CONFIG_FILENAME}": self._config_text(launch).encode("utf-8")}
+        files = {CONFIG_FILENAME: self._config_text(launch).encode("utf-8")}
+        secrets = self._secrets.setdefault(launch.scratch, set())
+        if launch.isolation == "same-user" and self.auth_file is None and launch.env.get(AUTH_ENV):
+            secrets.add(launch.env[AUTH_ENV])
         if self.auth_file is not None:
-            files[f"{CODEX_HOME_DIRNAME}/{AUTH_FILENAME}"] = read_auth_file(self.auth_file)
+            files[AUTH_FILENAME] = read_auth_file(self.auth_file)
+            secrets.update(auth_secrets(files[AUTH_FILENAME]))
         if launch.container is not None:
             # Into the episode's home volume over stdin; never the bind-mounted scratch.
-            launch.container.seed_home(files)
+            launch.container.seed_home({f"{CODEX_HOME_DIRNAME}/{name}": data for name, data in files.items()})
             return
-        home = launch.scratch / CODEX_HOME_DIRNAME
-        home.mkdir(mode=0o700)
+        home = self._homes[launch.scratch]
         for name, data in files.items():
-            path = launch.scratch / name
-            descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            descriptor = os.open(home / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             with os.fdopen(descriptor, "wb") as handle:
                 handle.write(data)
 
@@ -435,15 +561,27 @@ class CodexDriver(HarnessDriver):
         return {
             # The whole staged config; it names only the proxy and where it connects.
             "harness_config": self._config_text(launch),
-            "codex_home": f"{CONTAINER_CODEX_HOME} (episode volume)" if container else CODEX_HOME_DIRNAME,
+            "codex_home": f"{CONTAINER_CODEX_HOME} (episode volume)"
+            if container
+            else "private directory outside the scratch (removed at episode end)",
             "sandbox_mode": CONTAINER_SANDBOX if container else SAME_USER_SANDBOX,
             "auth": self.auth_source(launch.isolation),
             "session_resume": "codex exec resume",
         }
 
     def cleanup(self, launch: HarnessLaunch) -> None:
-        # The credential never outlives the episode, even with --keep-scratch.
-        (launch.scratch / CODEX_HOME_DIRNAME / AUTH_FILENAME).unlink(missing_ok=True)
+        # The credential never outlives the episode, even with --keep-scratch:
+        # the private home goes, and no credential value stays in the evidence.
+        secrets = self._secrets.pop(launch.scratch, set())
+        home = self._homes.pop(launch.scratch, None)
+        if home is not None:
+            auth = home / AUTH_FILENAME
+            if auth.is_file():
+                # Codex may have rotated a ChatGPT refresh token during the episode.
+                secrets.update(auth_secrets(auth.read_bytes()))
+            shutil.rmtree(home, ignore_errors=True)
+        for path in launch.evidence_paths:
+            redact_file(path, secrets)
 
 
 # -- entry points -------------------------------------------------------------

@@ -320,7 +320,8 @@ def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     none, they are unmeasured (``None``), never zero."""
     by_tool: dict[str, int] = {}
     ended_by: dict[str, int] = {}
-    tool_calls = nudges = guard_kills = provider_stalls = scout_points = compactions = 0
+    tool_calls = nudges = guard_kills = provider_stalls = scout_points = 0
+    compactions: int | None = 0
     wall_seconds = provider_stall_wait = 0.0
     reported = [e for e in episodes if ((e.get("usage") or {}).get("harness") or {}).get("telemetry_reported")]
     for episode in episodes:
@@ -337,7 +338,11 @@ def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         provider_stalls += int(harness_run.get("provider_stalls") or 0)
         provider_stall_wait += float(harness_run.get("provider_stall_wait_seconds") or 0.0)
         wall_seconds += float(harness_run.get("wall_seconds") or 0.0)
-        compactions += int(((episode.get("usage") or {}).get("harness") or {}).get("compactions") or 0)
+        episode_compactions = ((episode.get("usage") or {}).get("harness") or {}).get("compactions", 0)
+        # A harness that cannot see compactions (Codex reports None) leaves the row's count unmeasured.
+        compactions = (
+            None if compactions is None or episode_compactions is None else compactions + int(episode_compactions)
+        )
 
     def _reported_values(key: str) -> list[float]:
         # Only episodes whose harness reported this key count; a missing value

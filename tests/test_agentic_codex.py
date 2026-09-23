@@ -8,6 +8,7 @@ prints the ``codex exec --json`` event stream of Codex CLI 0.156.1.
 
 from __future__ import annotations
 
+import copy
 import io
 import json
 import os
@@ -33,8 +34,13 @@ DUMMY_KEY = "sk-dummy-not-a-real-key-0000"
 
 # The fake ``codex``. Behaviour per invocation comes from the plan file named
 # by FAKE_CODEX_PLAN: {"log": path, "state": path, "steps": [{"phases": n,
-# "error": message | null, "exit": code}, ...]}. Each phase is a get_status
-# then an end_phase call through the proxy the staged config declares.
+# "error": message | null, "exit": code, "cat_auth": bool, "shell_proxy":
+# bool}, ...]}. Each phase is a get_status then an end_phase call through the
+# proxy the staged config declares. Like Codex 0.156.1 under ``exec``
+# (approval policy never), it refuses every MCP call before dispatch when the
+# sandbox is workspace-write and the server's tools are not approved;
+# ``shell_proxy`` then drives the proxy from a shell command instead, as a
+# model could. ``cat_auth`` prints CODEX_HOME/auth.json from a shell command.
 FAKE_CODEX = r"""
 import json, os, subprocess, sys, tomllib, uuid
 from pathlib import Path
@@ -65,6 +71,8 @@ def emit(event):
 assert argv[0] == "exec", argv
 resume = argv[1] == "resume"
 assert "--json" in argv and "--skip-git-repo-check" in argv
+overrides = dict(argv[i + 1].split("=", 1) for i, arg in enumerate(argv) if arg == "-c")
+sandbox = json.loads(overrides.get("sandbox_mode", '"read-only"'))
 sessions = home / "sessions"
 if resume:
     thread = argv[-2]
@@ -78,8 +86,17 @@ else:
 emit({"type": "thread.started", "thread_id": thread})
 emit({"type": "turn.started"})
 item = 0
+if step.get("cat_auth"):
+    auth = home / "auth.json"
+    text = auth.read_text() if auth.exists() else "CODEX_API_KEY=" + os.environ.get("CODEX_API_KEY", "")
+    shell = {"id": f"item_{item}", "type": "command_execution", "command": "cat $CODEX_HOME/auth.json",
+             "aggregated_output": text, "exit_code": 0}
+    emit({"type": "item.completed", "item": {**shell, "status": "completed"}})
+    sys.stderr.write("tool output: " + text + "\n")
+    item += 1
 if step.get("phases"):
     server = tomllib.loads((home / "config.toml").read_text())["mcp_servers"]["gm-bench"]
+    approved = server.get("default_tools_approval_mode") == "approve" or sandbox == "danger-full-access"
     proxy = subprocess.Popen([server["command"], *server["args"]], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
     def rpc(payload):
         proxy.stdin.write(json.dumps(payload) + "\n")
@@ -91,7 +108,20 @@ if step.get("phases"):
         for tool in ("get_status", "end_phase"):
             base = {"id": f"item_{item}", "type": "mcp_tool_call", "server": "gm-bench", "tool": tool, "arguments": {}}
             emit({"type": "item.started", "item": {**base, "result": None, "error": None, "status": "in_progress"}})
+            if not approved:
+                error = {"message": "MCP tool call requires approval, but approval policy is never"}
+                emit({"type": "item.completed", "item": {**base, "result": None, "error": error, "status": "failed"}})
+                item += 1
+                if not step.get("shell_proxy"):
+                    continue
+                shell = {"id": f"item_{item}", "type": "command_execution", "exit_code": 0,
+                         "command": f"python3 gm_bench_proxy.py <<< {tool}", "aggregated_output": ""}
+                emit({"type": "item.started", "item": {**shell, "status": "in_progress"}})
             reply = rpc({"jsonrpc": "2.0", "id": item + 1, "method": "tools/call", "params": {"name": tool, "arguments": {}}})
+            if not approved:
+                emit({"type": "item.completed", "item": {**shell, "status": "completed"}})
+                item += 1
+                continue
             result = {"content": reply["result"]["content"], "structured_content": reply["result"].get("structuredContent")}
             emit({"type": "item.completed", "item": {**base, "result": result, "error": None, "status": "completed"}})
             item += 1
@@ -181,11 +211,15 @@ def test_codex_panel_plays_through_the_staged_proxy_nudges_by_resume_and_validat
     assert first["argv"][1:-1] == nudge["argv"][2:-2]
     assert 'sandbox_mode="workspace-write"' in first["argv"]
     assert "sandbox_workspace_write.network_access=true" in first["argv"]
-    # No host Codex state: a private CODEX_HOME in the scratch, HOME is the scratch, no other CODEX_* vars.
+    # No host Codex state: HOME is the scratch, CODEX_HOME a private directory outside it (the same one
+    # for the resume, removed at episode end), no other CODEX_* vars.
+    assert first["CODEX_HOME"] == nudge["CODEX_HOME"]
     for call in calls:
         cwd = Path(call["cwd"]).resolve()
         assert Path(call["HOME"]).resolve() == cwd
-        assert Path(call["CODEX_HOME"]).resolve() == cwd / ".codex"
+        codex_home = Path(call["CODEX_HOME"]).resolve()
+        assert not codex_home.is_relative_to(cwd) and codex_home != Path(os.environ["CODEX_HOME"]).resolve()
+        assert not codex_home.exists()
         assert call["codex_env"] == ["CODEX_HOME"]
         assert call["home_files"][:2] == ["auth.json", "config.toml"]
     # Usage is the thread's running total, not a sum of the two invocations' reports.
@@ -193,6 +227,8 @@ def test_codex_panel_plays_through_the_staged_proxy_nudges_by_resume_and_validat
     assert (usage["input_tokens"], usage["cached_input_tokens"], usage["output_tokens"]) == (2000, 800, 100)
     assert usage["reasoning_tokens"] == 40 and usage["api_calls"] == 2
     assert usage["harness"]["telemetry_reported"] is True and usage["harness"]["compactions"] is None
+    assert usage["cost_usd"] is None and usage["harness"]["tool_calls_skipped"] == {}
+    assert payload["agentic_summary"]["compactions"] is None
     assert harness_run["auth"] == "auth-file" and harness_run["session_resume"] == "codex exec resume"
     assert tomllib.loads(harness_run["harness_config"])["mcp_servers"]["gm-bench"]["args"][0] == "gm_bench_proxy.py"
     assert DUMMY_KEY not in json.dumps(payload)
@@ -242,10 +278,11 @@ def test_codex_provider_stall_is_retried_by_resume_and_is_not_a_nudge(
     assert result["failed_decisions"] == 0
     assert harness_run["tool_call_agreement"]["agree"] is True
     assert result["usage"]["harness"]["turns_failed"] == 1
-    # The credential never outlives the episode, even with --keep-scratch; the config does.
+    # The kept scratch never held the Codex home, so no credential outlives the episode.
     scratch = Path(harness_run["scratch_dir"])
-    assert not (scratch / ".codex" / "auth.json").exists()
-    assert (scratch / ".codex" / "config.toml").is_file()
+    assert not (scratch / ".codex").exists()
+    assert not any(DUMMY_KEY in path.read_text() for path in scratch.rglob("*") if path.is_file())
+    assert harness_run["codex_home"].startswith("private directory outside the scratch")
 
     run = {
         "agent": "codex:gpt-fake",
@@ -258,7 +295,8 @@ def test_codex_provider_stall_is_retried_by_resume_and_is_not_a_nudge(
         "agentic_summary": opencode._agentic_summary([result]),
     }
     (run_dir / "run.json").write_text(json.dumps(run))
-    assert run["agentic_summary"]["compactions"] == 0
+    # Codex reports no compactions: unmeasured, not a summed 0.
+    assert run["agentic_summary"]["compactions"] is None
     assert validate_run(run_dir)["ok"]
 
 
@@ -305,11 +343,13 @@ def test_codex_staging_keeps_host_codex_home_out_and_the_config_to_one_server(
     try:
         # With an auth file, the env key is dropped too, so the file is what Codex uses.
         assert not any(key.startswith("CODEX_") and key != "CODEX_HOME" for key in launch.env)
-        assert launch.env["CODEX_HOME"] == str(launch.scratch / ".codex")
+        home = Path(launch.env["CODEX_HOME"])
+        assert not home.resolve().is_relative_to(launch.scratch.resolve())
+        assert home != Path.home() / ".codex"
         assert launch.env["HOME"] == str(launch.scratch)
         launch.prepare()
-        home = launch.scratch / ".codex"
-        assert sorted(p.name for p in launch.scratch.iterdir()) == [".codex", "gm_bench_proxy.py"]
+        # The agent's working directory holds only the proxy: no config, no credential.
+        assert sorted(p.name for p in launch.scratch.iterdir()) == ["gm_bench_proxy.py"]
         assert sorted(p.name for p in home.iterdir()) == ["auth.json", "config.toml"]
         assert home.stat().st_mode & 0o077 == 0
         assert (home / "auth.json").stat().st_mode & 0o077 == 0
@@ -321,6 +361,8 @@ def test_codex_staging_keeps_host_codex_home_out_and_the_config_to_one_server(
                 "gm-bench": {
                     "command": config["mcp_servers"]["gm-bench"]["command"],
                     "args": ["gm_bench_proxy.py", str(launch.server.address)],
+                    # exec's approval policy is never: without this, workspace-write refuses every call.
+                    "default_tools_approval_mode": "approve",
                 }
             }
         }
@@ -351,8 +393,9 @@ def test_codex_staging_keeps_host_codex_home_out_and_the_config_to_one_server(
         assert resume == ["exec", "resume", *argv[2:-1], "T", "NUDGE"]
     finally:
         launch.close(keep_scratch=True)
-    assert not (launch.scratch / ".codex" / "auth.json").exists()
-    assert (launch.scratch / ".codex" / "config.toml").exists()
+    # The private home (config, credential, sessions) is gone even with --keep-scratch.
+    assert not home.exists()
+    assert sorted(p.name for p in launch.scratch.iterdir()) == ["gm_bench_proxy.py"]
     episode.close()
 
 
@@ -360,7 +403,13 @@ def test_codex_config_toml_round_trips_awkward_paths() -> None:
     config = codex_config('/tmp/a "b"\\c/s', python="/opt/py thon/python3")
     assert tomllib.loads(codex_config_toml(config)) == config
     assert codex_config("host.docker.internal:4242") == {
-        "mcp_servers": {"gm-bench": {"command": "python3", "args": ["gm_bench_proxy.py", "host.docker.internal:4242"]}}
+        "mcp_servers": {
+            "gm-bench": {
+                "command": "python3",
+                "args": ["gm_bench_proxy.py", "host.docker.internal:4242"],
+                "default_tools_approval_mode": "approve",
+            }
+        }
     }
 
 
@@ -437,6 +486,130 @@ def test_parse_codex_events_counts_tools_per_invocation_and_keeps_the_last_runni
     assert usage["harness"]["cost_reported_by_harness"] is False
     silent = codex.usage_block(parse_codex_events([]), model="gpt-x", decisions=20)
     assert silent["harness"]["telemetry_reported"] is False and silent["decisions_with_usage"] == 0
+
+
+def test_mcp_calls_codex_refused_before_dispatch_are_not_harness_tool_calls() -> None:
+    refused = {"message": "MCP tool call requires approval, but approval policy is never"}
+    lines = [
+        json.dumps({"type": "thread.started", "thread_id": "t-1"}),
+        _item("item.started", "item_0", server="gm-bench", tool="get_status", status="in_progress"),
+        _item("item.completed", "item_0", server="gm-bench", tool="get_status", status="failed", error=refused),
+        _item("item.started", "item_1", server="gm-bench", tool="end_phase", status="in_progress"),
+        _item(
+            "item.completed",
+            "item_1",
+            server="gm-bench",
+            tool="end_phase",
+            status="failed",
+            error={"message": "MCP tool `gm-bench/end_phase` is not available to the model"},
+        ),
+        # Reached the server and failed there: still a call.
+        _item("item.started", "item_2", server="gm-bench", tool="scout", status="in_progress"),
+        _item(
+            "item.completed",
+            "item_2",
+            server="gm-bench",
+            tool="scout",
+            status="failed",
+            error={"message": "tool call error: tool call failed for `gm-bench/scout`"},
+        ),
+        _item("item.completed", "item_3", "command_execution", command="python3 gm_bench_proxy.py", status="completed"),
+    ]
+    telemetry = parse_codex_events(lines)
+    assert telemetry["harness_tool_events"] == {"gm-bench_scout": 1, "shell": 1}
+    assert telemetry["harness_tool_calls_skipped"] == {"gm-bench_end_phase": 1, "gm-bench_get_status": 1}
+    assert opencode.harness_tool_calls(telemetry) == 1
+    usage = codex.usage_block(telemetry, model="gpt-x", decisions=20)
+    assert usage["harness"]["tool_calls_skipped"] == {"gm-bench_end_phase": 1, "gm-bench_get_status": 1}
+
+
+def test_calls_codex_refused_and_the_agent_made_from_a_shell_fail_the_agreement_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without the approval key, Codex refuses every MCP call; the shell-driven proxy calls must not pass as them."""
+    from gm_bench.agentic.validate import validate_run
+
+    real_config = codex.codex_config
+
+    def unapproved(target, *, python="python3"):
+        config = real_config(target, python=python)
+        del config["mcp_servers"]["gm-bench"]["default_tools_approval_mode"]
+        return config
+
+    monkeypatch.setattr(codex, "codex_config", unapproved)
+    binary, _log = _fake_codex(tmp_path, [{"phases": 4, "shell_proxy": True}], monkeypatch)
+    run_dir = tmp_path / "run"
+    payload = codex.run_panel(
+        [11], model="gpt-fake", run_dir=run_dir, seasons=1, binary=str(binary), auth_file=_auth_file(tmp_path)
+    )
+    [episode] = payload["episodes"]
+    assert episode["agentic"]["tool_calls"] == 8
+    assert episode["harness_run"]["tool_call_agreement"] == {"ledger": 8, "harness": 0, "agree": False}
+    assert episode["usage"]["harness"]["tool_calls_skipped"] == {"gm-bench_end_phase": 4, "gm-bench_get_status": 4}
+    assert not validate_run(run_dir)["ok"]
+
+
+@pytest.mark.parametrize("source", ["auth-file", "env"])
+def test_a_codex_credential_the_agent_prints_is_redacted_from_the_run_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str
+) -> None:
+    from gm_bench.agentic.validate import validate_run
+
+    binary, _log = _fake_codex(tmp_path, [{"phases": 4, "cat_auth": True}], monkeypatch)
+    auth_file = None
+    if source == "auth-file":
+        auth_file = _auth_file(tmp_path)
+    else:
+        monkeypatch.setenv("CODEX_API_KEY", DUMMY_KEY)
+    run_dir = tmp_path / "run"
+    payload = codex.run_panel(
+        [11],
+        model="gpt-fake",
+        run_dir=run_dir,
+        seasons=1,
+        binary=str(binary),
+        auth_file=auth_file,
+        keep_scratch=True,
+    )
+    events = (run_dir / "seed-11" / "codex-events.jsonl").read_text()
+    assert "[REDACTED]" in events and "[REDACTED]" in (run_dir / "seed-11" / "codex-stderr.log").read_text()
+    leaked = [path for path in run_dir.rglob("*") if path.is_file() and DUMMY_KEY in path.read_text()]
+    assert leaked == []
+    # The redacted stream still parses and still agrees with the ledger.
+    assert payload["episodes"][0]["harness_run"]["tool_call_agreement"]["agree"] is True
+    assert validate_run(run_dir)["ok"]
+
+
+def test_codex_publishes_no_cost_even_for_a_priced_model_and_no_measured_zeroes() -> None:
+    """Codex reports tokens but no cost: a list-price estimate must not stand in as the harness's cost."""
+    from web.scripts.build_study import _agentic_telemetry
+
+    usage = {"input_tokens": 2_000_000, "cached_input_tokens": 1_800_000, "output_tokens": 10_000}
+    lines = [
+        json.dumps({"type": "thread.started", "thread_id": "t"}),
+        json.dumps({"type": "turn.completed", "usage": usage}),
+    ]
+    block = codex.usage_block(parse_codex_events(lines), model="gpt-5.5", decisions=20)
+    # The shared usage block would price this at gpt-5.5 list rates; Codex keeps it unmeasured.
+    shared = opencode.usage_block(
+        parse_codex_events(lines) | {"max_output_tokens_per_call": 0}, model="gpt-5.5", decisions=20
+    )
+    assert shared["cost_usd"] is not None
+    assert block["cost_usd"] is None and block["cost_decisions"] == 0
+    assert "max_output_tokens_per_call" not in block
+    assert block["input_tokens"] == 2_000_000 and block["harness"]["compactions"] is None
+
+    episode = {"agentic": {"tool_calls": 8}, "harness_run": {"wall_seconds": 1.0}, "usage": block}
+    telemetry = _agentic_telemetry([episode, copy.deepcopy(episode)])
+    assert telemetry["cost_usd"] is None and telemetry["cost_per_episode_usd"] is None
+    assert telemetry["compactions"] is None
+    assert telemetry["input_tokens"] == 4_000_000
+    # A harness that does report compactions still sums them.
+    counted = copy.deepcopy(episode)
+    counted["usage"]["harness"]["compactions"] = 2
+    assert _agentic_telemetry([counted, counted])["compactions"] == 4
+    assert opencode._compactions([counted, counted]) == 4
+    assert opencode._compactions([{"usage": block}, {"usage": counted["usage"]}]) is None
 
 
 @pytest.mark.parametrize(
@@ -579,7 +752,13 @@ def test_codex_container_launch_puts_the_auth_file_only_in_the_home_volume(tmp_p
             assert tar.extractfile(".codex/auth.json").read() == auth.read_bytes()
             config = tomllib.loads(tar.extractfile(".codex/config.toml").read().decode())
         assert config == {
-            "mcp_servers": {"gm-bench": {"command": "python3", "args": ["gm_bench_proxy.py", f"{HOST_ALIAS}:{port}"]}}
+            "mcp_servers": {
+                "gm-bench": {
+                    "command": "python3",
+                    "args": ["gm_bench_proxy.py", f"{HOST_ALIAS}:{port}"],
+                    "default_tools_approval_mode": "approve",
+                }
+            }
         }
 
         argv, on_kill = launch.command(

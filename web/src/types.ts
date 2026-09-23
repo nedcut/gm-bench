@@ -276,7 +276,8 @@ export interface AgenticLaneRow {
     /** Harness runs that ended on a retryable provider error (e.g. a 429), and the backoff waited before resuming. */
     provider_stalls: number;
     provider_stall_wait_seconds: number;
-    compactions: number;
+    /** Null when a harness in the row does not report compactions (Codex): unmeasured, not zero. */
+    compactions: number | null;
     wall_seconds: number;
     wall_seconds_per_episode: number;
     /** Episodes whose harness reported token telemetry; token and cost totals cover only these. */

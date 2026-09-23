@@ -358,7 +358,12 @@ What a run does per episode:
    `config.toml` with a single entry, `[mcp_servers.gm-bench]`, whose
    `command` and `args` launch `gm_bench_proxy.py` on the harness's own
    `python3` with the socket path (or `host.docker.internal:<port>` in a
-   container). Nothing else is configured.
+   container), and whose `default_tools_approval_mode = "approve"` approves
+   that server's tools. Nothing else is configured. The approval key is
+   required: exec mode never asks for approval, so under `workspace-write`
+   Codex 0.156.1 would refuse every GM-Bench call (tools without a read-only
+   annotation need approval) with "MCP tool call requires approval, but
+   approval policy is never". It approves only this server.
 2. Runs `codex exec --json --skip-git-repo-check --model <m>` with the task
    brief as the prompt and the scratch directory as the working directory,
    capturing `seed-<n>/codex-events.jsonl`. `--variant` becomes
@@ -377,8 +382,11 @@ What a run does per episode:
 What the harness does not inherit. Codex keeps its login, `AGENTS.md`,
 skills, rules, plugins, and sessions under `CODEX_HOME` (default
 `~/.codex`), and also loads skills from `~/.agents/skills`. Same-user runs
-set `CODEX_HOME=<scratch>/.codex` and `HOME=<scratch>`, and drop every other
-`CODEX_*` variable, so none of the operator's Codex state reaches the agent.
+set `CODEX_HOME` to a private directory (mode 0700) outside the scratch,
+removed when the episode ends even with `--keep-scratch`, and
+`HOME=<scratch>`, and drop every other `CODEX_*` variable, so none of the
+operator's Codex state reaches the agent and neither the credential nor
+Codex's session logs sit in the agent's working directory.
 A consequence: the harness's `python3` must not depend on `HOME` (a pyenv
 shim would); use a system or Homebrew interpreter on `PATH`. In a container
 the harness home is the per-episode volume (`/home/node/.codex`).
@@ -412,12 +420,18 @@ capabilities, only the volume mounted) that reads it as a tar stream on
 standard input; it never appears on a command line, in an environment
 variable, or in the bind-mounted scratch directory, and it is deleted with
 the volume when the episode ends. In same-user runs it is copied to
-`<scratch>/.codex/auth.json` (mode 0600) and deleted when the episode ends,
-even with `--keep-scratch`. The exposure is the same as for the proxy
-secret: the agent can read its own harness's credential. That is the
-harness's key, not the benchmark's; it gives no access to the seed, the
-ledger, or the host. `harness_run.auth` records which source was used
-(`auth-file` or `CODEX_API_KEY`), never the value.
+`auth.json` (mode 0600) in the private `CODEX_HOME` and deleted with it
+when the episode ends, even with `--keep-scratch`. The exposure is the same
+as for the proxy secret: the agent can read its own harness's credential.
+That is the harness's key, not the benchmark's; it gives no access to the
+seed, the ledger, or the host. Anything the agent prints lands in the event
+stream (`command_execution.aggregated_output`), so when the episode ends the
+driver replaces every credential value (the file's `OPENAI_API_KEY` and
+`tokens`, as staged and, same-user, as Codex left them after any refresh;
+or the `CODEX_API_KEY` value) with `[REDACTED]` in `codex-events.jsonl` and
+`codex-stderr.log`. A kept scratch directory is not redacted: it holds
+whatever the agent wrote there. `harness_run.auth` records which source was
+used (`auth-file` or `CODEX_API_KEY`), never the value.
 
 The image. `gm-bench-agentic-codex:0.156.1-<Dockerfile hash>` is built on
 first use from the same digest-pinned base and egress entrypoint as the
@@ -430,14 +444,23 @@ Telemetry. `codex exec --json` reports a running token total per session on
 reasoning), restored on resume, so the episode's tokens are the last total
 of its session. A final invocation that fails before its turn completes is
 not in that total. The stream reports no cost, no per-model-call records,
-and no compaction events: `usage.cost_usd` falls back to the
-`gm_bench/pricing.json` list price where the model is priced (an upper
-bound, since cached input is charged at the full rate, and not what a
-ChatGPT plan bills), `api_calls` counts completed turns
-(`usage.harness.api_calls_are`), and `compactions` is `null`, unmeasured.
-GM-Bench tool calls are `mcp_tool_call` items with `server` `gm-bench` and
-are counted as `gm-bench_<tool>`; `agentic-validate` recounts them from the
-retained `codex-events.jsonl` against the replayed ledger. The staged config
+and no compaction events: `usage.cost_usd` is `null` and `cost_decisions`
+0 even for a model `gm_bench/pricing.json` prices (a list-price estimate
+would charge cached input at the full rate, and a ChatGPT plan is not
+billed per token), so a Codex row publishes no cost; `api_calls` counts
+completed turns (`usage.harness.api_calls_are`);
+`max_output_tokens_per_call` is left out of the episode's usage; and
+`compactions` is `null`, unmeasured, in the episode, the run's
+`agentic_summary`, and the site row. GM-Bench tool calls are
+`mcp_tool_call` items with `server` `gm-bench` and are counted as
+`gm-bench_<tool>`; an item Codex refused before dispatching it (it
+completes `failed` with an approval, "not available to the model",
+"blocked by", or "user cancelled" message) never reached the server, so it
+is counted under `usage.harness.tool_calls_skipped` instead. That keeps the
+ledger-versus-harness check honest: calls the agent made by running the
+proxy from a shell are in the ledger but not in the harness count, and the
+check fails. `agentic-validate` recounts them from the retained
+`codex-events.jsonl` against the replayed ledger. The staged config
 is kept as `harness_run.harness_config`.
 
 The Keychain panel launcher passes `--harness codex` and
@@ -537,9 +560,13 @@ score.
 - `tests/test_agentic_codex.py`: the Codex driver against a stand-in `codex`
   that launches the proxy from the staged config and makes real tool calls
   (ledger equals harness events, a nudge and a stall retry by `exec
-  resume`), no host Codex state in the harness, the event parser and stall
-  rule, the Codex image, the container auth hand-off (only in the volume,
-  never on a command line) against a stand-in `docker`, and CLI dispatch
+  resume`), no host Codex state in the harness, the tool-approval key (the
+  stand-in refuses every call without it, as Codex does, and the
+  agreement check then fails on shell-driven proxy calls), credential
+  redaction from the run directory, no cost or compaction count published
+  for Codex, the event parser and stall rule, the Codex image, the container
+  auth hand-off (only in the volume, never on a command line) against a
+  stand-in `docker`, and CLI dispatch
 - `tests/test_agentic_conformance.py`: the server driven by the official
   `mcp` SDK client (dev extra; skipped when not installed)
 - `tests/test_agentic_publication.py`: the compact artifact is bound to its

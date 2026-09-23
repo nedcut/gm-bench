@@ -82,4 +82,10 @@ class HarnessDriver:
         return {}
 
     def cleanup(self, launch: HarnessLaunch) -> None:
-        """Remove anything the stage left that must not outlive the episode, even with ``keep_scratch``."""
+        """Remove anything the stage left that must not outlive the episode, even with ``keep_scratch``.
+
+        Runs after the harness has exited, and also when ``HarnessLaunch``
+        fails to start (``environment`` ran, ``stage`` may not have).
+        ``launch.evidence_paths`` are the run-directory files the harness
+        wrote (event stream, stderr), for a driver that must redact them.
+        """
