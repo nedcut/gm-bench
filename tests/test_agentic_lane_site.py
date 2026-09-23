@@ -256,15 +256,15 @@ def test_rows_on_one_panel_must_share_the_reference_means(tmp_path: Path) -> Non
     """pick-trader and random are deterministic, so a shifted reference on one row fails the build even unpinned."""
     shifted = _panel_fixture(model="aa/shifted")
     shifted["reference"] = fixture_reference(shifted, reference_mean=150.0)  # internally coherent
-    with pytest.raises(ValueError, match="every row's reference must agree"):
+    with pytest.raises(ValueError, match="is not the frozen panel's 249.18|every row's reference must agree"):
         _build(tmp_path, ("a.json", _panel_fixture()), ("b.json", shifted))
 
 
 def test_recorded_reference_scores_fail_a_row_off_them(tmp_path: Path) -> None:
-    honest = {"pick-trader": 200.0, "random": 90.0}
+    honest = {"pick-trader": 249.18, "random": 90.367}
     (tmp_path / "ok").mkdir()
     (tmp_path / "off").mkdir()
     (row,) = _build(tmp_path / "ok", ("panel.json", _panel_fixture()), reference_scores=honest)["agentic_lane"]
-    assert row["reference"]["mean_score"] == 200.0
+    assert row["reference"]["mean_score"] == 249.18
     with pytest.raises(ValueError, match="frozen panel"):
         _build(tmp_path / "off", ("panel.json", _panel_fixture()), reference_scores=dict(honest, random=91.0))

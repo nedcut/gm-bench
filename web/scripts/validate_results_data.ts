@@ -80,13 +80,13 @@ const agenticFixture = {
   mean_score: 200,
   reference: {
     agent: "pick-trader",
-    mean_score: 240,
-    floor: { agent: "random", mean_score: 90 },
+    mean_score: 249.18,
+    floor: { agent: "random", mean_score: 90.367 },
     seasons: 5,
     num_seeds: lanePanel.count,
-    paired_lift_mean: -40,
+    paired_lift_mean: -49.18,
     paired_lift_stddev: 30,
-    paired_lift_ci95: [-50, -30],
+    paired_lift_ci95: [-59.18, -39.18],
     sign_flip_p_value: 0.0001,
     significant_at_95: true,
     candidate_seed_win_rate: 0.1,
@@ -107,14 +107,14 @@ const pinnedPanel = (pickTrader: number, random: number): AgenticLanePanel => ({
   ...lanePanel,
   reference_scores: { seasons: 5, mean_scores: { "pick-trader": pickTrader, random } },
 });
-const pinnedMatchIssues = withAgentic(() => {}, pinnedPanel(240, 90));
+const pinnedMatchIssues = withAgentic(() => {}, pinnedPanel(249.18, 90.367));
 if (pinnedMatchIssues.length !== 0) {
   throw new Error(`A row matching the pinned reference means was rejected: ${pinnedMatchIssues.join("; ")}`);
 }
-if (withAgentic(() => {}, pinnedPanel(40, 90)).length === 0) {
+if (withAgentic(() => {}, pinnedPanel(40, 90.367)).length === 0) {
   throw new Error("The agentic-lane check accepted a pick-trader mean off the pinned value");
 }
-if (withAgentic(() => {}, pinnedPanel(240, 91)).length === 0) {
+if (withAgentic(() => {}, pinnedPanel(249.18, 91)).length === 0) {
   throw new Error("The agentic-lane check accepted a random mean off the pinned value");
 }
 const emptyPerSeedIssues = withAgentic((_, row) => Object.assign(row.reference, { per_seed: [] }));
@@ -173,13 +173,13 @@ const agenticMustReject: Array<[string, (data: Leaderboard, row: AgenticLaneRow)
       row.reference.candidate_seed_win_rate = 0;
     },
   ],
-  ["an interval that excludes its own lift", (_, row) => (row.reference.paired_lift_ci95 = [-60, -45])],
+  ["an interval that excludes its own lift", (_, row) => (row.reference.paired_lift_ci95 = [-70, -55])],
   ["an interval far wider than its spread", (_, row) => (row.reference.paired_lift_stddev = 0)],
   ["a win rate of 1 with a negative lift", (_, row) => (row.reference.candidate_seed_win_rate = 1)],
   [
     "a win rate of 0 with a positive lift",
     (_, row) => {
-      row.mean_score = 280;
+      row.mean_score = 289.18;
       row.reference.paired_lift_mean = 40;
       row.reference.paired_lift_ci95 = [30, 50];
       row.reference.candidate_seed_win_rate = 0;

@@ -37,7 +37,7 @@ def _panel_row(tmp_path: Path) -> dict:
     return artifact
 
 
-def fixture_reference(artifact: dict, *, reference_mean: float = 200.0) -> dict:
+def fixture_reference(artifact: dict, *, reference_mean: float = 249.18) -> dict:
     """A reference block coherent with a hand-built panel row; real ones come from a raw run."""
     by_group: dict[int, list[float]] = {}
     for episode in artifact["episodes"]:
@@ -47,7 +47,7 @@ def fixture_reference(artifact: dict, *, reference_mean: float = 200.0) -> dict:
     return {
         "agent": REFERENCE_AGENT,
         "mean_score": reference_mean,
-        "floor": {"agent": REFERENCE_FLOOR_AGENT, "mean_score": 90.0},
+        "floor": {"agent": REFERENCE_FLOOR_AGENT, "mean_score": 90.367},
         "seasons": artifact["seasons"],
         "num_seeds": len(by_group),
         "paired_lift_mean": lift,
@@ -585,12 +585,13 @@ def test_recorded_reference_scores_pin_every_panel_row(tmp_path: Path, public_pa
     assert report["ok"] and any("not pinned" in w for w in report["warnings"])
 
 
-def test_committed_lane_has_unrecorded_reference_scores_for_the_full_row() -> None:
+def test_committed_lane_records_the_reference_means_for_the_full_row() -> None:
+    """The frozen panel's pick-trader and random means, computed uncached on the escrowed seeds on 2026-09-23."""
     lane = load_lane_config()
     assert lane is not None
     pins = lane["reference_scores"]
     assert pins["seasons"] == lane["panel_design"]["full_row"]["seasons"]
-    assert set(pins["mean_scores"]) == {REFERENCE_AGENT, REFERENCE_FLOOR_AGENT}
+    assert pins["mean_scores"] == {REFERENCE_AGENT: 249.18, REFERENCE_FLOOR_AGENT: 90.367}
 
 
 def test_validation_rejects_a_misplaced_or_malformed_reference(tmp_path: Path, public_panel: dict) -> None:
