@@ -347,6 +347,13 @@ def test_codex_staging_keeps_host_codex_home_out_and_the_config_to_one_server(
     monkeypatch.setenv("CODEX_THREAD_ID", "host-session")
     monkeypatch.setenv("CODEX_API_KEY", DUMMY_KEY)
     monkeypatch.setattr(opencode, "sandbox_problems", lambda scratch, env: [])
+    # The harness's python3 comes first on PATH, as on a machine where it is not our
+    # interpreter; on CI the only python3 on PATH is otherwise sys.executable itself.
+    harness_bin = tmp_path / "harness-bin"
+    harness_bin.mkdir()
+    (harness_bin / "python3").write_text("#!/bin/sh\n")
+    (harness_bin / "python3").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{harness_bin}{os.pathsep}{os.environ.get('PATH', '')}")
     episode = AgenticEpisode(8675309, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
     driver = CodexDriver(auth_file=_auth_file(tmp_path))
     launch = opencode.HarnessLaunch(episode, binary="codex", driver=driver)
@@ -376,6 +383,7 @@ def test_codex_staging_keeps_host_codex_home_out_and_the_config_to_one_server(
                 }
             }
         }
+        assert config["mcp_servers"]["gm-bench"]["command"] == str(harness_bin / "python3")
         rendered = (home / "config.toml").read_text()
         assert "8675309" not in rendered and str(REPO_ROOT) not in rendered and sys.executable not in rendered
         argv, on_kill = launch.command(
