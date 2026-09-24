@@ -620,7 +620,8 @@ What a run does per episode:
    row identity), telemetry and error reports.
 2. Runs `claude -p --output-format stream-json --verbose --mcp-config
    <private>/mcp.json --strict-mcp-config --setting-sources user
-   --disable-slash-commands --allowedTools
+   --disable-slash-commands --tools
+   Bash,Read,Edit,Write,Glob,Grep,NotebookEdit,ToolSearch --allowedTools
    mcp__gm-bench,Bash,Read,Edit,Write,Glob,Grep,NotebookEdit
    --permission-mode dontAsk --permission-prompts none --model <m> --
    <brief>` in the scratch directory, capturing
@@ -631,7 +632,10 @@ What a run does per episode:
    with `--resume <session id>`, the `session_id` of the latest
    `system/init` event, so Claude Code keeps its context.
 
-What that flag set keeps out. `--strict-mcp-config` loads only the staged
+What that flag set keeps out. `--tools` limits the built-in tools the model
+is shown to the code tools and ToolSearch, so it is never offered web,
+subagent, workflow or scheduling tools that `dontAsk` would then deny (the
+first live smoke showed all of them in the tool list). `--strict-mcp-config` loads only the staged
 server, never your own MCP servers. The private config directory means none
 of your `~/.claude` settings, login, `CLAUDE.md`, skills, plugins, hooks,
 auto memory or sessions reach the agent. `--setting-sources user` reads

@@ -128,6 +128,10 @@ at 0.3.276 (Claude Code 2.1.276), which types the stream-json messages:
   harness that upgrades itself mid-panel would change the row identity),
   telemetry and error reporting. Machine-wide managed settings, if an
   administrator installed any, still apply; nothing can turn them off.
+- **Visible tools.** ``--tools Bash,Read,Edit,Write,Glob,Grep,NotebookEdit,ToolSearch``
+  limits the built-in tools the model is shown, so it is never offered web, subagent,
+  workflow or scheduling tools that the permission mode would then deny. MCP tools are
+  not built-ins and stay visible.
 - **Permissions.** ``--permission-mode dontAsk`` with ``--allowedTools
   mcp__gm-bench,Bash,Read,Edit,Write,Glob,Grep,NotebookEdit`` and
   ``--permission-prompts none``: the GM-Bench tools and the code tools run
@@ -189,8 +193,14 @@ _MCP_PREFIX = "mcp__"
 TOKEN_ENV = "CLAUDE_CODE_OAUTH_TOKEN"
 API_KEY_ENV = "ANTHROPIC_API_KEY"
 PERMISSION_MODE = "dontAsk"
-# The GM-Bench server's tools and the code tools the agent may use in its scratch directory.
-ALLOWED_TOOLS = (f"{_MCP_PREFIX}{MCP_SERVER_NAME}", "Bash", "Read", "Edit", "Write", "Glob", "Grep", "NotebookEdit")
+# The code tools the agent may use in its scratch directory.
+CODE_TOOLS = ("Bash", "Read", "Edit", "Write", "Glob", "Grep", "NotebookEdit")
+# The GM-Bench server's tools and the code tools run without a prompt.
+ALLOWED_TOOLS = (f"{_MCP_PREFIX}{MCP_SERVER_NAME}", *CODE_TOOLS)
+# The only built-in tools the model is shown. Without --tools it also sees web, subagent,
+# workflow and scheduling tools that dontAsk would deny; offering a tool and then refusing it
+# is a harness quirk, not a model trait. ToolSearch stays so deferred MCP tools can load.
+VISIBLE_TOOLS = (*CODE_TOOLS, "ToolSearch")
 # Only the private CLAUDE_CONFIG_DIR's settings; never the scratch's .claude/ (project, local).
 SETTING_SOURCES = "user"
 # Set in the harness environment: no auto-update mid-panel, no telemetry or error reports.
@@ -790,6 +800,8 @@ class ClaudeDriver(HarnessDriver):
             "--setting-sources",
             SETTING_SOURCES,
             "--disable-slash-commands",
+            "--tools",
+            ",".join(VISIBLE_TOOLS),
             "--allowedTools",
             ",".join(ALLOWED_TOOLS),
             "--permission-mode",
@@ -842,6 +854,7 @@ class ClaudeDriver(HarnessDriver):
             "harness_config": json.dumps(self._config(launch), indent=2),
             "claude_config_dir": "private directory outside the scratch (removed at episode end)",
             "permission_mode": PERMISSION_MODE,
+            "visible_tools": list(VISIBLE_TOOLS),
             "allowed_tools": list(ALLOWED_TOOLS),
             "setting_sources": SETTING_SOURCES,
             "auth": self._sources.pop(launch.scratch, "none"),

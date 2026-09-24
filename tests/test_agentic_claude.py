@@ -610,6 +610,8 @@ def test_claude_staging_keeps_host_config_out_and_the_mcp_config_to_one_server(
             "--setting-sources",
             "user",
             "--disable-slash-commands",
+            "--tools",
+            "Bash,Read,Edit,Write,Glob,Grep,NotebookEdit,ToolSearch",
             "--allowedTools",
             "mcp__gm-bench,Bash,Read,Edit,Write,Glob,Grep,NotebookEdit",
             "--permission-mode",
