@@ -123,11 +123,13 @@ Added 2026-09-20. Nothing published changes.
   (`@openai/codex@0.156.1`). Credential values the agent prints are
   redacted from the retained event stream and stderr log. Codex reports
   tokens but not cost, per-call counts, or compactions, and those are
-  recorded and published as unmeasured (no list-price cost estimate, no
-  summed zero compactions). Tool calls Codex refuses before dispatch are
-  counted apart, not as harness calls. `agentic-validate` recounts tool
-  calls from a Codex event stream as it does for OpenCode. Tested only against a stand-in `codex` and `docker`;
-  no Codex episode has been run and no Codex result is claimed.
+  recorded and published as unmeasured (no summed zero compactions; the
+  API-price estimate below is kept apart from `cost_usd`). Tool calls Codex
+  refuses before dispatch are counted apart, not as harness calls.
+  `agentic-validate` recounts tool calls from a Codex event stream as it
+  does for OpenCode. Proven against a stand-in `codex` and `docker`, and by
+  two live 1-season smokes on `gpt-6-luna` (seed 11, same-user and
+  container, 2026-09-24); no Codex row is committed yet.
 - Codex API-equivalent cost: `cost_usd` stays unmeasured, and beside it a
   Codex episode now records `usage.harness.api_equivalent_cost_usd`, what
   its tokens would cost at OpenAI API list price with cached input and

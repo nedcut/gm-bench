@@ -47,6 +47,12 @@ function tokensTitle(row: AgenticLaneRow): string {
   if (t.token_shape === "legacy") {
     return "Recorded before the shared token shape: input and output follow the harness's own convention.";
   }
+  if (t.token_shape === "mixed") {
+    return "Episodes in this row were recorded under different token conventions, so the totals mix them.";
+  }
+  if (t.token_shape !== "inclusive-v1") {
+    return "The token convention was not recorded for this row.";
+  }
   const parts = ["Input includes cached and cache-write tokens; output includes reasoning."];
   if (t.input_tokens && t.cached_input_tokens !== null) {
     parts.push(`${fmt((100 * t.cached_input_tokens) / t.input_tokens, 0)}% of input was read from cache.`);
