@@ -377,9 +377,10 @@ model.
 **Cost.** Every Codex episode spends your OpenAI API budget or your ChatGPT
 plan's Codex quota; there are no free models. Run it serially (the driver
 has no parallel mode), smoke one short episode before a panel, and budget a
-full panel as hours of quota. Nothing here has been run against a live
-model yet: the driver is proven only against a stand-in `codex` and a
-stand-in `docker` (`tests/test_agentic_codex.py`).
+full panel as hours of quota. The driver is tested against a stand-in
+`codex` and a stand-in `docker` (`tests/test_agentic_codex.py`), and two live
+1-season smokes on `gpt-6-luna` (seed 11, same-user and container,
+2026-09-24) closed all four phases; no Codex row is committed yet.
 
 What a run does per episode:
 
