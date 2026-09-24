@@ -71,6 +71,24 @@ harness was running counts toward the guard. Each nudge entry records
 `stall_retry`, `backoff_seconds` and `provider_stall`, and `harness_run`
 records `provider_stalls` and `provider_stall_wait_seconds`.
 
+OpenCode retries a 429 inside the harness and prints nothing to its event
+stream while it does, so a rate-limited harness can look hung rather than
+end on an `error` event. A harness invocation that has appended no byte to
+its event stream and made no ledger tool call for 240 s since launch
+(`--silent-harness-seconds`, recorded in `run.json` and the published row;
+0 disables it) is a **silent harness**: the driver stops it through the
+same kill path as the phase guard and handles it as a provider stall, with
+the same backoff, retry budget and clock pause. The silent window itself is
+also taken off the open phase's clock (a `clock_pause` with reason
+`silent_harness`). A silent stop is not a guard stop, a nudge, or a
+no-progress relaunch. Silence is counted from launch, so a harness that has
+emitted any event (a `step_start` for a slow first model call, say) is never
+silent for the rest of that run; one that emits events and then stops
+calling tools is left to the phase guard as before. A launch stopped as
+silent before it opened a session is retried as a new session with the task
+brief. The nudge entry records `silent`, and `harness_run` records
+`silent_kills` (each is also one of `provider_stalls`).
+
 The engine outlives every harness invocation, so restarts and nudges
 reconnect to the same live episode. The stdio entry point
 (`python -m gm_bench.agentic.mcp_server`, configured by an episode file)
@@ -147,12 +165,12 @@ stream is a problem.
 ## Publishing a row
 
 ```bash
-python -m gm_bench agentic-redact /tmp/agentic-big-pickle \
-    --output results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json \
-    --isolation same-user --public-seeds
-python -m gm_bench agentic-validate results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json
-python -m gm_bench agentic-validate results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json \
-    --raw /tmp/agentic-big-pickle
+python -m gm_bench agentic-redact /tmp/agentic-space-bunny \
+    --output results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json \
+    --isolation container --public-seeds
+python -m gm_bench agentic-validate results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json
+python -m gm_bench agentic-validate results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json \
+    --raw /tmp/agentic-space-bunny
 ```
 
 The second validation, with `--raw`, checks the artifact's SHA-256 binding

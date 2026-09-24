@@ -89,6 +89,15 @@ DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS = 6 * 3600.0
 # the panel until the window resets, plus QUOTA_RESET_MARGIN_SECONDS.
 QUOTA_PAUSE_PERCENT = 95.0
 QUOTA_RESET_MARGIN_SECONDS = 60.0
+# OpenCode retries a 429 inside the harness and prints nothing to its event
+# stream while it does, so a rate-limited harness looks hung: no event, no
+# tool call. An invocation that has appended no byte to the event stream and
+# made no ledger tool call for this long since launch is a "silent harness":
+# the driver stops it and treats it as a provider stall (backoff, retry, off
+# the phase clock). Any event at all, even ``step_start`` for a slow first
+# model call, means it is not silent; the phase guard stays the backstop for
+# a harness that emits events but makes no tool call. 0 disables it.
+SILENT_HARNESS_SECONDS = 240.0
 RETRYABLE_STATUS_CODES = frozenset({408, 425, 429, 500, 502, 503, 504})
 _RETRYABLE_MESSAGE_RE = re.compile(r"rate[ _-]?limit|overloaded|try again later", re.IGNORECASE)
 # What the driver itself can do. ``separate-user`` is a valid statement in a
@@ -617,6 +626,7 @@ def run_episode(
     docker: str = "docker",
     max_provider_stalls: int = DEFAULT_MAX_PROVIDER_STALLS,
     max_provider_stall_wait_seconds: float = DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
+    silent_harness_seconds: float = SILENT_HARNESS_SECONDS,
     stall_backoff: Callable[[int], float] = provider_stall_backoff,
     sleep: Callable[[float], None] = time.sleep,
     clock: Callable[[], float] = time.time,
@@ -651,6 +661,18 @@ def run_episode(
     scratch = launch.scratch
 
     guard_expired = _GuardWatch(episode, server.dispatch_lock)
+    silence = _SilenceWatch(episode, server.dispatch_lock, events_path, silent_harness_seconds)
+
+    def poll() -> bool:
+        # Silence first: a silent harness is a provider stall, not a guard stop.
+        return silence() or guard_expired()
+
+    def take_silence_off_the_clock() -> None:
+        # The silent window is provider time, like a backoff: no tool call
+        # could have moved the phase during it, so it comes off that phase's
+        # guard clock and repeated silent stalls do not run the phase out.
+        with server.dispatch_lock:
+            episode.exclude_from_phase_clock(silence.silent_for, reason="silent_harness")
 
     try:
         launch.prepare()
@@ -675,6 +697,7 @@ def run_episode(
         guard_kills = 0
         guard_expired.arm()
         offset = events_path.stat().st_size
+        silence.start()
         exit_code, timed_out, wall_seconds, stalled = _run_harness(
             command,
             cwd=scratch,
@@ -682,13 +705,19 @@ def run_episode(
             events_path=events_path,
             stderr_path=stderr_path,
             timeout=timeout,
-            stalled=guard_expired,
+            stalled=poll,
             on_kill=on_kill,
         )
-        guard_kills += int(stalled)
+        # A silent kill went through the same kill path but is not a guard stop.
+        silent = stalled and silence.fired
+        silent_kills = int(silent)
+        if silent:
+            take_silence_off_the_clock()
+        guard_kills += int(stalled and not silent)
         # Provider stalls: a run that ended on a retryable provider error (a
-        # 429, an overload) is retried after a backoff and is not a nudge.
-        last_stalled = (
+        # 429, an overload), or was stopped as silent, is retried after a
+        # backoff and is not a nudge.
+        last_stalled = silent or (
             not timed_out and not stalled and driver.ended_in_provider_stall(_invocation_lines(events_path, offset))
         )
         provider_stalls = int(last_stalled)
@@ -752,9 +781,13 @@ def run_episode(
                 pending_quota = None
                 quota_resume = True
             session_id = driver.parse_events(events_path.read_text(encoding="utf-8").splitlines())["session_id"]
-            if not session_id:
-                break
             retry = not quota_resume and can_retry_stall()
+            # A launch stopped as silent before it printed anything has no
+            # session to resume; since it made no tool call either, the retry
+            # starts a new session with the task brief.
+            new_session = not session_id and retry and silent
+            if not session_id and not new_session:
+                break
             if not retry and not quota_resume and productive_nudges >= max_nudges:
                 break
             number = len(nudges) + 1
@@ -768,6 +801,7 @@ def run_episode(
                             "stage": "provider_stall",
                             "retry": stall_retries + 1,
                             "backoff_seconds": backoff,
+                            "silent": silent,
                             "season": state["season"],
                             "phase": state["phase"],
                         }
@@ -804,8 +838,12 @@ def run_episode(
                     }
                 )
             guard_expired.arm()
-            nudge_command, nudge_kill = launch.command(
-                driver.resume_args(
+            if new_session:
+                args = driver.run_args(
+                    model=model, variant=variant, workdir=launch.workdir, brief=brief, isolation=isolation
+                )
+            else:
+                args = driver.resume_args(
                     model=model,
                     variant=variant,
                     workdir=launch.workdir,
@@ -813,8 +851,9 @@ def run_episode(
                     text=text,
                     isolation=isolation,
                 )
-            )
+            nudge_command, nudge_kill = launch.command(args)
             offset = events_path.stat().st_size
+            silence.start()
             nudge_exit, nudge_timed_out, nudge_wall, nudge_stalled = _run_harness(
                 nudge_command,
                 cwd=scratch,
@@ -822,14 +861,19 @@ def run_episode(
                 events_path=events_path,
                 stderr_path=stderr_path,
                 timeout=max(timeout - wall_seconds, 60.0),
-                stalled=guard_expired,
+                stalled=poll,
                 on_kill=nudge_kill,
             )
             wall_seconds += nudge_wall
+            silent = nudge_stalled and silence.fired
+            silent_kills += int(silent)
+            if silent:
+                take_silence_off_the_clock()
+            nudge_stalled = nudge_stalled and not silent
             guard_kills += int(nudge_stalled)
             after = _engine_state(episode)
             progress_calls = after["tool_calls"] - state["tool_calls"]
-            last_stalled = (
+            last_stalled = silent or (
                 not nudge_timed_out
                 and not nudge_stalled
                 and driver.ended_in_provider_stall(_invocation_lines(events_path, offset))
@@ -854,10 +898,15 @@ def run_episode(
                     # This relaunch was a retry after a provider stall, and how long it waited first.
                     "stall_retry": retry,
                     "backoff_seconds": backoff,
-                    # This relaunch itself ended on a retryable provider error.
+                    # This relaunch itself ended on a retryable provider error,
+                    # or (``silent``) was stopped for printing nothing at all.
                     "provider_stall": last_stalled,
                     # This relaunch resumed after a quota pause: neither a nudge nor a stall retry.
                     "quota_resume": quota_resume,
+                    "silent": silent,
+                    # Started a new session with the brief: the stopped launch
+                    # was silent before it opened one.
+                    "new_session": new_session,
                 }
             )
             timed_out = timed_out or nudge_timed_out
@@ -895,6 +944,10 @@ def run_episode(
         # Invocations that ended on a retryable provider error, and the total backoff waited.
         "provider_stalls": provider_stalls,
         "provider_stall_wait_seconds": round(stall_wait, 3),
+        # Invocations stopped for total silence (no event, no tool call for
+        # ``silent_harness_seconds``); each is also one of ``provider_stalls``.
+        "silent_harness_seconds": silent_harness_seconds,
+        "silent_kills": silent_kills,
         "guard_kills": guard_kills,
         # Pauses for a spent subscription window inside this episode, and why it
         # stopped early if the window's reset was beyond the wait budget.
@@ -1037,6 +1090,51 @@ class _GuardWatch:
             return True
 
 
+class _SilenceWatch:
+    """The poll that tells ``_run_harness`` to stop a harness that has said nothing at all.
+
+    ``start`` is called before each launch. The watch fires once the
+    invocation has appended no byte to the event stream and made no ledger
+    tool call for ``seconds`` since that launch. Silence is measured from
+    launch, not from the last event: once the invocation has emitted anything
+    it is not silent for the rest of its run, and a harness that goes quiet
+    after emitting events is the phase guard's to stop. Only the event stream
+    counts; stderr does not.
+    """
+
+    def __init__(self, episode: AgenticEpisode, lock: threading.Lock, events_path: Path, seconds: float) -> None:
+        self.episode = episode
+        self.lock = lock
+        self.events_path = events_path
+        self.seconds = seconds
+        self.start()
+
+    def _calls(self) -> int:
+        with self.lock:
+            return sum(self.episode.tool_counts.values())
+
+    def start(self) -> None:
+        self.offset = self.events_path.stat().st_size if self.events_path.exists() else 0
+        self.calls = self._calls()
+        self.started = time.monotonic()
+        self.heard = False
+        self.fired = False
+        self.silent_for = 0.0
+
+    def __call__(self) -> bool:
+        if self.seconds <= 0 or self.heard or self.fired:
+            return False
+        if self.events_path.stat().st_size > self.offset or self._calls() > self.calls:
+            self.heard = True
+            return False
+        elapsed = time.monotonic() - self.started
+        if elapsed < self.seconds:
+            return False
+        self.fired = True
+        self.silent_for = elapsed
+        return True
+
+
 def _engine_state(episode: AgenticEpisode) -> dict[str, Any]:
     """Where the live episode stands, for the nudge loop's progress accounting."""
     return {
@@ -1086,6 +1184,7 @@ def run_panel(
     max_nudges: int = DEFAULT_MAX_NUDGES,
     max_provider_stalls: int = DEFAULT_MAX_PROVIDER_STALLS,
     max_provider_stall_wait_seconds: float = DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
+    silent_harness_seconds: float = SILENT_HARNESS_SECONDS,
     progress: ProgressCallback | None = None,
     keep_scratch: bool = False,
     name_episodes_by_position: bool = False,
@@ -1168,6 +1267,7 @@ def run_panel(
                 max_nudges=max_nudges,
                 max_provider_stalls=max_provider_stalls,
                 max_provider_stall_wait_seconds=max_provider_stall_wait_seconds,
+                silent_harness_seconds=silent_harness_seconds,
                 progress=progress,
                 keep_scratch=keep_scratch,
                 isolation=isolation,
@@ -1207,6 +1307,7 @@ def run_panel(
         "max_nudges": max_nudges,
         "max_provider_stalls": max_provider_stalls,
         "max_provider_stall_wait_seconds": max_provider_stall_wait_seconds,
+        "silent_harness_seconds": silent_harness_seconds,
         "episodes": episodes,
         "summary": summarize_episodes(episodes),
         "agentic_summary": _agentic_summary(episodes),
@@ -1329,6 +1430,7 @@ def _agentic_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "provider_stall_wait_seconds": round(
             sum(float(episode["harness_run"].get("provider_stall_wait_seconds", 0.0)) for episode in episodes), 1
         ),
+        "silent_harness_kills": sum(int(episode["harness_run"].get("silent_kills", 0)) for episode in episodes),
         "compactions": _compactions(episodes),
         **_api_equivalent_summary(episodes),
         "mean_wall_seconds": round(

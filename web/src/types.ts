@@ -276,6 +276,8 @@ export interface AgenticLaneRow {
     /** Harness runs that ended on a retryable provider error (e.g. a 429), and the backoff waited before resuming. */
     provider_stalls: number;
     provider_stall_wait_seconds: number;
+    /** Of those stalls, harness runs stopped for printing nothing at all (OpenCode retries a 429 silently). */
+    silent_harness_kills: number;
     /** Null when a harness in the row does not report compactions (Codex): unmeasured, not zero. */
     compactions: number | null;
     wall_seconds: number;

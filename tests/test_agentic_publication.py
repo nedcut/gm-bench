@@ -457,7 +457,7 @@ def test_smoke_rows_are_exempt_from_the_lane_panel_check(tmp_path: Path) -> None
     assert validate_agentic_artifact(artifact)["ok"]
     moved = {"seed_panel": {"artifact_panel_sha256": "0" * 64, "count": PANEL_MIN_SEEDS}}
     assert validate_agentic_artifact(artifact, lane=moved)["ok"]
-    committed = Path("results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json")
+    committed = Path("results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json")
     assert validate_agentic_artifact(json.loads(committed.read_text()))["ok"]
 
 

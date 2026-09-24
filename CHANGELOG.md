@@ -89,7 +89,11 @@ Added 2026-09-20. Nothing published changes.
   `proxy_connections` and every failed secret presentation (including
   non-UTF-8 bytes) in `proxy_connections_refused`, and the engine can take
   a provider-stall backoff off the phase guard clock (below), so the
-  committed smoke row must be rerun on the new contract.
+  committed smoke row must be rerun on the new contract. The rerun is
+  `results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json`
+  (container isolation, `opencode/space-bunny-free`, mean 225.8 over
+  seeds 1 to 8 at five seasons); it replaces the `big-pickle` row, whose
+  free quota was exhausted.
 - Provider stalls: a harness run that ends on a retryable provider error
   (a 429 rate limit, an overload, a 5xx) is no longer treated as the agent
   stopping. The driver waits (60 s, doubling, capped at 600 s; by default
@@ -178,6 +182,14 @@ Added 2026-09-20. Nothing published changes.
   episode (`harness_run.ended_by_quota`) and the panel (`run.json`
   `stopped_for_quota`) instead of starting seeds that would fail the same
   way.
+- Silent harness: OpenCode retries a 429 internally without printing any
+  event, so a rate-limited run looked hung until the 20-minute phase guard
+  killed it and its phases closed as `harness_exit`. The driver now stops an
+  invocation that has printed no event and made no tool call for 240 s since
+  launch (`--silent-harness-seconds`, 0 disables) and retries it as a
+  provider stall, not a guard stop or a nudge; the silent window comes off
+  the phase clock. Counted as `silent_kills` per episode (`silent` per nudge),
+  `silent_harness_kills` in the run summary and site telemetry.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 
