@@ -119,8 +119,26 @@ _HARNESS_RUN_KEYS = (
     "nudges_without_progress",
     "proxy_connections",
     "guard_kills",
+    "provider_stalls",
+    "provider_stall_wait_seconds",
+    "silent_kills",
     "server_drained",
     "tool_call_agreement",
+)
+# Present on every nudge a driver records; the provider-stall keys only on runs
+# recorded since the driver learned to retry provider stalls, and ``silent``
+# only since it learned to stop a silent harness.
+_NUDGE_KEYS = (
+    "number",
+    "season",
+    "phase",
+    "new_tool_calls",
+    "phases_closed",
+    "exit_code",
+    "stall_retry",
+    "backoff_seconds",
+    "provider_stall",
+    "silent",
 )
 _USAGE_KEYS = (
     "input_tokens",
@@ -146,9 +164,11 @@ def compact_agentic_run(
     """Build the committed artifact for one row from its run directory.
 
     ``isolation`` is the operator's statement of how the harness was separated
-    from the driver; it cannot be measured from inside the run, so it is
-    recorded verbatim and gates the grade. Seeds stay in the artifact only
-    when ``public_seeds`` is set, which is never true for a panel row.
+    from the driver, and it gates the grade. It may not be stronger than what
+    the driver recorded in the run (:func:`recorded_isolation`): an operator
+    can understate a container run as ``same-user``, never the reverse. Seeds
+    stay in the artifact only when ``public_seeds`` is set, which is never
+    true for a panel row.
     """
     if isolation not in ISOLATION_LEVELS:
         raise ValueError(f"isolation must be one of {ISOLATION_LEVELS}, not {isolation!r}")
@@ -156,6 +176,9 @@ def compact_agentic_run(
     if run_path.is_dir():
         run_path = run_path / "run.json"
     raw = json.loads(run_path.read_text(encoding="utf-8"))
+    recorded = recorded_isolation(raw)
+    if isolation not in (recorded, "same-user"):
+        raise ValueError(f"the run records isolation {recorded!r}; refusing to publish it as {isolation!r}")
     validation = validate_run(run_path)
     seeds = [int(seed) for seed in raw.get("seeds") or []]
     raw_episodes = raw.get("episodes") or []
@@ -188,6 +211,12 @@ def compact_agentic_run(
         "seasons": raw.get("seasons"),
         "phase_guard_seconds": raw.get("phase_guard_seconds"),
         "max_nudges": raw.get("max_nudges"),
+        # Absent from runs recorded before the driver retried provider stalls.
+        **{
+            key: raw[key]
+            for key in ("max_provider_stalls", "max_provider_stall_wait_seconds", "silent_harness_seconds")
+            if key in raw
+        },
         "summary": raw.get("summary"),
         "agentic_summary": raw.get("agentic_summary"),
         "episodes": episodes,
@@ -260,6 +289,21 @@ def reference_contrast(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def recorded_isolation(raw: dict[str, Any]) -> str:
+    """The isolation the driver recorded for a run: the run's, if every episode agrees, else ``same-user``.
+
+    A run written before the driver recorded isolation, or one whose episodes
+    disagree with it, counts as ``same-user``, the weakest level.
+    """
+    level = raw.get("isolation")
+    episodes = raw.get("episodes") or []
+    if level not in ISOLATION_LEVELS or not episodes:
+        return "same-user"
+    if any((episode.get("harness_run") or {}).get("isolation") != level for episode in episodes):
+        return "same-user"
+    return str(level)
+
+
 def seed_groups(seeds: list[Any]) -> list[int]:
     """Number each seed by first appearance: ``[11, 12, 11]`` -> ``[0, 1, 0]``."""
     order: dict[Any, int] = {}
@@ -292,8 +336,7 @@ def _compact_episode(index: int, episode: dict[str, Any], group: int, public_see
     }
     compact["harness_run"] = {key: harness_run.get(key) for key in _HARNESS_RUN_KEYS if key in harness_run}
     compact["harness_run"]["nudges"] = [
-        {key: nudge.get(key) for key in ("number", "season", "phase", "new_tool_calls", "phases_closed", "exit_code")}
-        for nudge in harness_run.get("nudges") or []
+        {key: nudge.get(key) for key in _NUDGE_KEYS if key in nudge} for nudge in harness_run.get("nudges") or []
     ]
     return compact
 
@@ -632,12 +675,15 @@ def _check_against_raw_run(artifact: dict[str, Any], raw_run: str | Path) -> lis
         stamp = _dt.datetime.fromisoformat(str(publication.get("compacted_at_utc")))
     except ValueError:
         return ["publication.compacted_at_utc is not a timestamp"]
-    fresh = compact_agentic_run(
-        raw_path,
-        isolation=str(artifact.get("isolation")),
-        public_seeds=(artifact.get("panel") or {}).get("seeds") != REDACTED_SEEDS,
-        now=stamp,
-    )
+    try:
+        fresh = compact_agentic_run(
+            raw_path,
+            isolation=str(artifact.get("isolation")),
+            public_seeds=(artifact.get("panel") or {}).get("seeds") != REDACTED_SEEDS,
+            now=stamp,
+        )
+    except ValueError as exc:
+        return [str(exc)]
     if canonical_sha256(fresh) == canonical_sha256(artifact):
         return []
     differing = sorted(key for key in set(fresh) | set(artifact) if fresh.get(key) != artifact.get(key))

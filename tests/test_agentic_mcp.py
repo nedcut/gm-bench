@@ -358,7 +358,8 @@ def test_nudge_loop_resumes_until_done_and_stops_without_progress(tmp_path: Path
 
     calls: list[list[str]] = []
 
-    def fake_harness(command, *, cwd, env, events_path, stderr_path, timeout, stalled=None):
+    def fake_harness(command, *, cwd, env, events_path, stderr_path, timeout, stalled=None, on_kill=None):
+        assert on_kill is None  # only the container launcher needs a kill hook
         calls.append(command)
         config = json.loads((cwd / "opencode.json").read_text())
         socket_path = config["mcp"]["servers"]["gm-bench"]["command"][2]
@@ -389,6 +390,8 @@ def test_nudge_loop_resumes_until_done_and_stops_without_progress(tmp_path: Path
     assert harness_run["events_path"] == "seed-11/opencode-events.jsonl"
     assert harness_run["guard_kills"] == 0
     assert harness_run["server_drained"] is True
+    assert (harness_run["isolation"], harness_run["transport"]) == ("same-user", "unix")
+    assert harness_run["proxy_connections_refused"] == 0
     # Initial run + nudge with progress + nudge without progress, then stop.
     assert len(calls) == 3
     assert "--session" in calls[1] and calls[1][calls[1].index("--session") + 1] == "ses_fake"
@@ -603,3 +606,778 @@ def test_guard_watch_arm_remembers_a_phase_that_expired_without_a_stop(
     reply = episode.call_tool("get_status", {})
     assert reply["ok"] is False and "phase guard" in reply["message"]
     assert episode.phase_log[-1]["ended_by"] == "guard"
+
+
+def test_socket_server_refuses_a_connection_accepted_after_stop_began(tmp_path: Path) -> None:
+    """A connection accepted while stop() is starting is closed, never served (CodeRabbit on #139)."""
+    from gm_bench.agentic.episode import AgenticEpisode
+
+    episode = AgenticEpisode(11, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
+    server = SocketMcpServer(episode, tmp_path / "unused")
+    ours, theirs = socket.socketpair()
+
+    class _Listener:
+        def accept(self):
+            server._stop.set()  # stop() begins between accept() returning and admission
+            return theirs, None
+
+    server._listener = _Listener()
+    server._accept_loop()
+    assert server.connections == 0 and server.open_connections == 0
+    ours.settimeout(5)
+    assert ours.recv(1) == b""  # hung up on, not served
+    ours.close()
+
+    # stop() sets the flag under the admission lock, so admission and the
+    # stop snapshot cannot interleave: while the lock is held, stop() waits.
+    other = SocketMcpServer(episode, tmp_path / "unused-2")
+    other._live_lock.acquire()
+    stopper = threading.Thread(target=other.stop)
+    stopper.start()
+    time.sleep(0.2)
+    assert not other._stop.is_set()
+    other._live_lock.release()
+    stopper.join(timeout=5)
+    assert other._stop.is_set()
+    episode.close()
+
+
+def test_tcp_transport_needs_the_run_secret_and_bridges_through_the_real_proxy(tmp_path: Path) -> None:
+    """The container transport: loopback TCP, the proxy presents the secret from the file beside it."""
+    from gm_bench.agentic import _proxy
+    from gm_bench.agentic.episode import AgenticEpisode
+
+    episode = AgenticEpisode(11, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
+    with pytest.raises(ValueError):
+        SocketMcpServer(episode, ("127.0.0.1", 0))
+    server = SocketMcpServer(episode, ("127.0.0.1", 0), secret="s3cret-run-token")
+    server.start()
+    try:
+        host, port = server.address
+        assert host == "127.0.0.1" and port > 0
+
+        # No secret, a wrong one, and bytes that are not UTF-8: all closed unserved and counted.
+        for opener in (b'{"jsonrpc":"2.0","id":1,"method":"ping"}\n', b"wrong\n", b"\xff\xfe\n"):
+            with socket.create_connection((host, port), timeout=5) as raw:
+                raw.sendall(opener + b'{"jsonrpc":"2.0","id":2,"method":"ping"}\n')
+                assert raw.recv(4096) == b""
+        deadline = time.monotonic() + 5
+        while server.rejected < 3 and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert server.rejected == 3
+        # Refused dials are not proxy connections.
+        assert server.connections == 0
+
+        proxy = tmp_path / "gm_bench_proxy.py"
+        proxy.write_text(Path(_proxy.__file__).read_text())
+        (tmp_path / _proxy.SECRET_FILENAME).write_text("s3cret-run-token\n")
+        process = subprocess.Popen(
+            [sys.executable, str(proxy), f"{host}:{port}"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            text=True,
+            cwd=tmp_path,
+            env={"PATH": os.environ.get("PATH", "")},
+        )
+        assert process.stdin and process.stdout
+        process.stdin.write(json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}) + "\n")
+        process.stdin.flush()
+        assert json.loads(process.stdout.readline())["result"]["serverInfo"]["name"] == "gm-bench"
+        call = {"name": "get_status", "arguments": {}}
+        process.stdin.write(json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": call}) + "\n")
+        process.stdin.flush()
+        assert json.loads(process.stdout.readline())["result"]["isError"] is False
+        process.stdin.close()
+        assert process.wait(timeout=10) == 0
+        assert episode.tool_counts == {"get_status": 1}
+        assert (server.connections, server.rejected) == (1, 3)
+
+        # A dial still silent when the driver stops is hung up on, not counted as refused.
+        idle = socket.create_connection((host, port), timeout=5)
+        deadline = time.monotonic() + 5
+        while server.open_connections < 1 and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert server.stop() is True
+        assert idle.recv(1) == b""
+        idle.close()
+        assert (server.connections, server.rejected) == (1, 3)
+    finally:
+        server.stop()
+        episode.close()
+
+
+def _fake_docker(
+    tmp_path: Path, *, canary_reachable: bool = False, rm_sleep: float = 0.0, cap_eff: str = "0000000000000000"
+) -> tuple[Path, Path]:
+    """A stand-in docker CLI that logs its argv and answers the sandbox and egress probes like a clean image."""
+    from gm_bench.agentic.container import EGRESS_ENTRYPOINT
+
+    log = tmp_path / "docker-calls.jsonl"
+    script = tmp_path / "fake-docker"
+    report = {"uid": 1000, "cap_eff": cap_eff, "cap_bnd": "0000000000000000", "canary_reachable": canary_reachable}
+    script.write_text(
+        f"#!{sys.executable}\n"
+        "import json, sys, time\n"
+        f"open({str(log)!r}, 'a').write(json.dumps(sys.argv[1:]) + '\\n')\n"
+        "if 'import gm_bench' in sys.argv:\n"
+        "    sys.stderr.write(\"ModuleNotFoundError: No module named 'gm_bench'\\n\")\n"
+        "    sys.exit(1)\n"
+        f"if {EGRESS_ENTRYPOINT!r} in sys.argv and '-c' in sys.argv:\n"
+        f"    print(json.dumps({report!r}))\n"
+        f"if sys.argv[1:2] == ['rm']:\n"
+        f"    time.sleep({rm_sleep!r})\n"
+    )
+    script.chmod(0o755)
+    return script, log
+
+
+def test_container_launch_mounts_only_the_scratch_and_keeps_the_secret_off_the_command_line(tmp_path: Path) -> None:
+    from gm_bench.agentic import _proxy
+    from gm_bench.agentic.container import EGRESS_ENTRYPOINT, HOST_ALIAS, WORKDIR
+    from gm_bench.agentic.episode import AgenticEpisode
+    from gm_bench.agentic.opencode import HarnessLaunch
+
+    docker, log = _fake_docker(tmp_path)
+    image = {"image": "gm-bench-agentic-opencode:test", "image_id": "sha256:" + "a" * 64}
+    ledger = tmp_path / "run" / "seed-8675309" / "ledger.jsonl"
+    episode = AgenticEpisode(8675309, seasons=1, ledger_path=ledger)
+    launch = HarnessLaunch(episode, isolation="container", image=image, docker=str(docker))
+    try:
+        assert (launch.isolation, launch.transport, launch.workdir) == ("container", "tcp", WORKDIR)
+        launch.prepare()
+        config = json.loads((launch.scratch / "opencode.json").read_text())
+        port = launch.server.address[1]
+        assert config["mcp"]["servers"]["gm-bench"]["command"] == [
+            "python3",
+            "gm_bench_proxy.py",
+            f"{HOST_ALIAS}:{port}",
+        ]
+        secret_file = launch.scratch / _proxy.SECRET_FILENAME
+        assert secret_file.read_text().strip() == launch.server.secret
+        assert secret_file.stat().st_mode & 0o077 == 0
+        assert sorted(p.name for p in launch.scratch.iterdir()) == sorted(
+            ["opencode.json", "gm_bench_proxy.py", _proxy.SECRET_FILENAME]
+        )
+
+        argv, on_kill = launch.command(["run", "--dir", WORKDIR, "--model", "m", "brief"])
+        assert on_kill is not None
+        text = " ".join(argv)
+        assert launch.server.secret not in text
+        for leak in ("8675309", str(ledger.parent), str(REPO_ROOT), "GM_BENCH"):
+            assert leak not in text
+        mounts = [argv[i + 1] for i, arg in enumerate(argv) if arg in ("--mount", "-v", "--volume")]
+        binds = [m for m in mounts if m.startswith("type=bind")]
+        assert binds == [f"type=bind,source={launch.scratch},target={WORKDIR}"]
+        assert all(m.startswith("type=volume,source=gmb-home-") for m in mounts if m not in binds)
+        assert "-e" not in argv and "--env" not in argv and "--env-file" not in argv
+        # Root only for the egress entrypoint, with exactly the capabilities it needs to
+        # install the firewall and drop to ``node``; never privileged, never host networking.
+        added = sorted(argv[i + 1] for i, arg in enumerate(argv) if arg == "--cap-add")
+        assert added == ["NET_ADMIN", "SETGID", "SETPCAP", "SETUID"]
+        assert argv[argv.index("--cap-drop") + 1] == "ALL"
+        assert argv[argv.index("--security-opt") + 1] == "no-new-privileges"
+        assert "--privileged" not in argv and "--network" not in argv
+        assert argv[argv.index(image["image_id"]) + 1 :] == [
+            EGRESS_ENTRYPOINT,
+            str(port),
+            "opencode",
+            "run",
+            "--dir",
+            WORKDIR,
+            "--model",
+            "m",
+            "brief",
+        ]
+        on_kill()
+    finally:
+        scratch = launch.scratch
+        assert launch.close() is True
+    assert not scratch.exists()
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    # The egress probe ran before launch, with the same entrypoint and the driver's port.
+    probes = [call for call in calls if EGRESS_ENTRYPOINT in call and "-c" in call]
+    assert len(probes) == 1 and probes[0][probes[0].index(EGRESS_ENTRYPOINT) + 1] == str(port)
+    name = argv[argv.index("--name") + 1]
+    assert ["rm", "--force", name] in calls
+    assert calls[-1][:3] == ["volume", "rm", "--force"]
+    assert launch.cleanup_problems == []
+    episode.close()
+
+
+@pytest.mark.parametrize(
+    ("fake", "problem"),
+    [
+        ({"canary_reachable": True}, "host loopback listener"),
+        ({"cap_eff": "00000000a80425fb"}, "capabilities"),
+    ],
+)
+def test_container_launch_refuses_to_start_when_the_egress_probe_fails(
+    tmp_path: Path, fake: dict, problem: str
+) -> None:
+    from gm_bench.agentic.episode import AgenticEpisode
+    from gm_bench.agentic.opencode import HarnessLaunch, SandboxError
+
+    docker, _log = _fake_docker(tmp_path, **fake)
+    image = {"image": "gm-bench-agentic-opencode:test", "image_id": "sha256:" + "a" * 64}
+    episode = AgenticEpisode(11, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
+    launch = HarnessLaunch(episode, isolation="container", image=image, docker=str(docker))
+    try:
+        with pytest.raises(SandboxError, match=problem):
+            launch.prepare()
+    finally:
+        launch.close()
+        episode.close()
+
+
+def test_egress_script_is_valid_sh_and_baked_into_the_image() -> None:
+    from gm_bench.agentic.container import EGRESS_ENTRYPOINT, EGRESS_SCRIPT, dockerfile
+
+    checked = subprocess.run(["sh", "-n"], input=EGRESS_SCRIPT, capture_output=True, text=True, check=False)
+    assert checked.returncode == 0, checked.stderr
+    text = dockerfile()
+    assert EGRESS_SCRIPT in text and EGRESS_ENTRYPOINT in text
+    assert text.index(EGRESS_ENTRYPOINT) < text.index("USER node")
+
+
+def test_docker_timeouts_become_container_errors_and_cleanup_still_finishes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import gm_bench.agentic.container as container
+    from gm_bench.agentic.episode import AgenticEpisode
+    from gm_bench.agentic.opencode import HarnessLaunch
+
+    with pytest.raises(container.ContainerError, match="did not finish"):
+        container._docker("/bin/sleep", "3", timeout=0.3)
+
+    # A daemon that hangs on ``docker rm`` past the cleanup timeout.
+    docker, log = _fake_docker(tmp_path, rm_sleep=3.0)
+    monkeypatch.setattr(container, "CLEANUP_TIMEOUT_SECONDS", 0.5)
+    image = {"image": "gm-bench-agentic-opencode:test", "image_id": "sha256:" + "a" * 64}
+    episode = AgenticEpisode(11, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
+    launch = HarnessLaunch(episode, isolation="container", image=image, docker=str(docker))
+    launch.prepare()
+    _argv, on_kill = launch.command(["run", "brief"])
+    launch.command(["run", "--session", "s", "nudge"])
+    assert on_kill is not None
+    on_kill()  # the guard's kill hook must not raise either
+    assert launch.close() is True  # does not raise
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    # Every container was attempted, then the volume, and the scratch (with the secret) is gone.
+    assert [call[0] for call in calls if call[0] == "rm"] == ["rm", "rm", "rm"]
+    assert calls[-1][:3] == ["volume", "rm", "--force"]
+    assert not launch.scratch.exists()
+    # The kill hook's timeout and both close-time timeouts are kept, not raised.
+    assert len(launch.cleanup_problems) == 3 and all("did not finish" in p for p in launch.cleanup_problems)
+    episode.close()
+
+
+def test_run_harness_runs_the_kill_hook_after_killing_the_client(tmp_path: Path) -> None:
+    import gm_bench.agentic.opencode as driver
+
+    killed: list[str] = []
+    sleeper = [sys.executable, "-c", "import time; time.sleep(30)"]
+    _code, timed_out, _wall, stalled = driver._run_harness(
+        sleeper,
+        cwd=tmp_path,
+        env=os.environ.copy(),
+        events_path=tmp_path / "events.jsonl",
+        stderr_path=tmp_path / "stderr.log",
+        timeout=20.0,
+        stalled=lambda: True,
+        poll_seconds=0.1,
+        on_kill=lambda: killed.append("stalled"),
+    )
+    assert stalled and not timed_out and killed == ["stalled"]
+    driver._run_harness(
+        [sys.executable, "-c", "pass"],
+        cwd=tmp_path,
+        env=os.environ.copy(),
+        events_path=tmp_path / "events.jsonl",
+        stderr_path=tmp_path / "stderr.log",
+        timeout=20.0,
+        on_kill=lambda: killed.append("clean exit"),
+    )
+    assert killed == ["stalled"]
+
+
+# -- provider stalls ------------------------------------------------------------
+
+_RATE_LIMIT_ERROR = {
+    "type": "error",
+    "sessionID": "ses_fake",
+    "error": {
+        "name": "APIError",
+        "data": {
+            "message": "Error from provider (Console): Rate limit exceeded. Please try again later.",
+            "statusCode": 429,
+            "isRetryable": True,
+        },
+    },
+}
+_AUTH_ERROR = {
+    "type": "error",
+    "sessionID": "ses_fake",
+    "error": {"name": "APIError", "data": {"message": "Unauthorized", "statusCode": 401, "isRetryable": False}},
+}
+
+
+def _scripted_harness(script: list[dict], calls: list[list[str]], *, before_call=None):
+    """A fake ``_run_harness`` that plays ``script[i]`` on invocation ``i``.
+
+    Each step may make ``calls`` GM-Bench tool calls (``get_status`` then
+    ``end_phase`` pairs, so each pair closes a phase), then end with an
+    optional ``error`` event and ``exit`` code. A ``silent`` step prints
+    nothing and makes no call: only ``before_call`` runs (to move the clock
+    and poll), like OpenCode retrying a 429 internally.
+    """
+
+    def fake_harness(command, *, cwd, env, events_path, stderr_path, timeout, stalled=None, on_kill=None):
+        calls.append(command)
+        step = script[min(len(calls), len(script)) - 1]
+        config = json.loads((cwd / "opencode.json").read_text())
+        socket_path = config["mcp"]["servers"]["gm-bench"]["command"][2]
+        was_stalled = False
+        if step.get("silent"):
+            if before_call is not None:
+                was_stalled = before_call(len(calls), stalled)
+            return (-9 if was_stalled else step.get("exit", 0)), False, 1.0, was_stalled
+        with events_path.open("a") as events:
+            events.write(json.dumps({"type": "step_start", "sessionID": "ses_fake", "part": {}}) + "\n")
+            events.flush()  # a real harness writes straight to the file
+            if before_call is not None:
+                was_stalled = before_call(len(calls), stalled)
+            if step.get("phases", 0):
+                client = _SocketClient(socket_path)
+                client.request("initialize", {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {}})
+                for _ in range(step["phases"]):
+                    for name in ("get_status", "end_phase"):
+                        reply = client.request("tools/call", {"name": name, "arguments": {}})
+                        assert "result" in reply, reply
+                        part = {"type": "tool", "tool": f"gm-bench_{name}"}
+                        events.write(json.dumps({"type": "tool", "sessionID": "ses_fake", "part": part}) + "\n")
+                client.close()
+            finish = {"type": "step-finish", "tokens": {"input": 10, "output": 1}}
+            events.write(json.dumps({"type": "step_finish", "sessionID": "ses_fake", "part": finish}) + "\n")
+            if step.get("error") is not None:
+                events.write(json.dumps(step["error"]) + "\n")
+        return step.get("exit", 0), False, 1.0, was_stalled
+
+    return fake_harness
+
+
+def _stall_episode(tmp_path, monkeypatch, script, *, before_call=None, **kwargs):
+    import gm_bench.agentic.opencode as driver
+
+    calls: list[list[str]] = []
+    sleeps: list[float] = []
+    monkeypatch.setattr(driver, "_run_harness", _scripted_harness(script, calls, before_call=before_call))
+    monkeypatch.setattr(driver, "sandbox_problems", lambda scratch, env: [])
+    kwargs.setdefault("sleep", sleeps.append)
+    # Limits are injected, so these tests do not move when the defaults do.
+    kwargs.setdefault("max_provider_stalls", 8)
+    kwargs.setdefault("max_provider_stall_wait_seconds", 45 * 60.0)
+    result = driver.run_episode(11, model="fake/model", run_dir=tmp_path / "run", seasons=1, max_nudges=5, **kwargs)
+    return result, calls, sleeps
+
+
+def test_ended_in_provider_stall_reads_only_a_terminal_retryable_error() -> None:
+    from gm_bench.agentic.opencode import ended_in_provider_stall
+
+    step = json.dumps({"type": "step_finish", "part": {}})
+    assert ended_in_provider_stall([step, json.dumps(_RATE_LIMIT_ERROR)])
+    assert not ended_in_provider_stall([json.dumps(_RATE_LIMIT_ERROR), step])  # recovered: not terminal
+    assert not ended_in_provider_stall([step, json.dumps(_AUTH_ERROR)])
+    assert not ended_in_provider_stall([step])
+    assert not ended_in_provider_stall([])
+    for data in ({"statusCode": 503}, {"message": "Model is overloaded"}, {"isRetryable": True}):
+        event = {"type": "error", "error": {"name": "APIError", "data": data}}
+        assert ended_in_provider_stall([json.dumps(event), ""]), data
+
+
+def test_provider_stall_is_retried_after_backoff_and_not_counted_as_a_nudge(tmp_path: Path, monkeypatch) -> None:
+    """The gate6 seed-6 shape: the run ends on a 429, the resume succeeds."""
+    script = [{"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1}, {"phases": 3}]
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script, stall_backoff=lambda n: 0.0)
+    harness_run = result["harness_run"]
+    assert len(calls) == 2 and "--session" in calls[1]
+    assert sleeps == [0.0]
+    assert harness_run["provider_stalls"] == 1
+    assert harness_run["provider_stall_wait_seconds"] == 0.0
+    assert harness_run["nudges_used"] == 0  # the retry did not use up a nudge
+    assert harness_run["nudges_without_progress"] == 0
+    [retry] = harness_run["nudges"]
+    assert retry["stall_retry"] is True and retry["provider_stall"] is False and retry["backoff_seconds"] == 0.0
+    assert retry["new_tool_calls"] == 6
+    assert result["agentic"]["phases_ended_by"] == {"agent": 4}
+    assert result["failed_decisions"] == 0
+
+
+def test_consecutive_provider_stalls_back_off_exponentially(tmp_path: Path, monkeypatch) -> None:
+    from gm_bench.agentic.opencode import provider_stall_backoff
+
+    assert [provider_stall_backoff(n) for n in range(1, 8)] == [60.0, 120.0, 240.0, 480.0, 600.0, 600.0, 600.0]
+    # Like seed 6: the first resume also hits the 429 and makes no tool call.
+    # That zero-call relaunch is not a no-progress nudge; the next one plays on.
+    script = [
+        {"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 0, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 3},
+    ]
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script)
+    harness_run = result["harness_run"]
+    assert sleeps == [60.0, 120.0]
+    assert len(calls) == 3
+    assert harness_run["provider_stalls"] == 2
+    assert harness_run["provider_stall_wait_seconds"] == 180.0
+    assert [(n["stall_retry"], n["backoff_seconds"], n["provider_stall"]) for n in harness_run["nudges"]] == [
+        (True, 60.0, True),
+        (True, 120.0, False),
+    ]
+    assert harness_run["nudges_used"] == 0 and harness_run["nudges_without_progress"] == 0
+    assert result["failed_decisions"] == 0
+
+
+def test_exhausted_stall_budget_falls_through_to_the_stop(tmp_path: Path, monkeypatch) -> None:
+    script = [
+        {"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 0, "error": _RATE_LIMIT_ERROR, "exit": 1},
+    ]
+    # Retry count exhausted: two retries, then the zero-call stall stops the loop like any zero-call nudge.
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script, max_provider_stalls=2)
+    harness_run = result["harness_run"]
+    assert sleeps == [60.0, 120.0]
+    assert len(calls) == 3
+    assert harness_run["provider_stalls"] == 3
+    assert harness_run["nudges_used"] == 0
+    assert result["agentic"]["phases_ended_by"] == {"agent": 1, "harness_exit": 3}
+
+
+def test_exhausted_stall_wait_falls_through_to_the_stop(tmp_path: Path, monkeypatch) -> None:
+    script = [
+        {"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 0, "error": _RATE_LIMIT_ERROR, "exit": 1},
+    ]
+    # 60 + 120 would pass a 100 s wait budget, so only the first stall is retried.
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script, max_provider_stall_wait_seconds=100.0)
+    assert sleeps == [60.0]
+    assert len(calls) == 2
+    assert result["harness_run"]["provider_stalls"] == 2
+    assert result["harness_run"]["provider_stall_wait_seconds"] == 60.0
+    assert result["agentic"]["phases_ended_by"] == {"agent": 1, "harness_exit": 3}
+
+
+def test_initial_stall_with_no_budget_is_nudged_as_before(tmp_path: Path, monkeypatch) -> None:
+    script = [{"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1}, {"phases": 3}]
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script, max_provider_stalls=0)
+    assert sleeps == [] and len(calls) == 2
+    assert "Reminder 1 of 5" in calls[1][-1]
+    assert result["harness_run"]["nudges_used"] == 1
+    assert result["harness_run"]["nudges"][0]["stall_retry"] is False
+
+
+@pytest.mark.parametrize("error", [None, _AUTH_ERROR], ids=["exit-1-no-error", "401"])
+def test_non_retryable_exit_keeps_the_nudge_behaviour(tmp_path: Path, monkeypatch, error) -> None:
+    script = [{"phases": 1, "error": error, "exit": 1}, {"phases": 0, "error": error, "exit": 1}]
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script)
+    harness_run = result["harness_run"]
+    assert sleeps == []
+    assert len(calls) == 2  # initial run, one nudge without progress, stop
+    assert "Reminder 1 of 5" in calls[1][-1]
+    assert harness_run["provider_stalls"] == 0 and harness_run["provider_stall_wait_seconds"] == 0.0
+    assert harness_run["nudges_used"] == 1 and harness_run["nudges_without_progress"] == 1
+    assert harness_run["nudges"][0]["stall_retry"] is False and harness_run["nudges"][0]["provider_stall"] is False
+    assert result["agentic"]["phases_ended_by"] == {"agent": 1, "harness_exit": 3}
+
+
+def test_guard_does_not_fire_for_a_backoff_but_still_catches_a_hung_retry(tmp_path: Path, monkeypatch) -> None:
+    """A backoff longer than the phase guard must not be mistaken for a hung harness."""
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    polls: list[tuple[int, bool]] = []
+
+    def before_call(invocation: int, stalled) -> bool:
+        # Poll the guard the way _run_harness does, right after launch.
+        fired = stalled()
+        polls.append((invocation, fired))
+        if invocation == 3:
+            # The retried harness hangs: no call for a whole further guard period.
+            clock[0] += 51.0
+            fired = stalled()
+            polls.append((invocation, fired))
+        return fired
+
+    script = [
+        {"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 0, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 0},
+    ]
+    result, calls, sleeps = _stall_episode(
+        tmp_path,
+        monkeypatch,
+        script,
+        before_call=before_call,
+        phase_guard_seconds=50.0,
+        sleep=lambda seconds: clock.__setitem__(0, clock[0] + seconds),  # a 60 s then 120 s backoff
+    )
+    harness_run = result["harness_run"]
+    # Invocation 2 starts after a 60 s backoff that took the phase past its guard: no stop.
+    # Invocation 3 starts after 120 s more: still no stop at launch, but a hung harness is stopped.
+    assert polls == [(1, False), (2, False), (3, False), (3, True)]
+    assert harness_run["provider_stall_wait_seconds"] == 180.0
+    # Both waits were taken off the engine's phase clock, so the hung retry,
+    # not the backoff, is what ran the phase out.
+    ledger = (tmp_path / "run" / "seed-11" / "ledger.jsonl").read_text().splitlines()
+    pauses = [json.loads(line) for line in ledger if '"clock_pause"' in line]
+    assert [pause["seconds"] for pause in pauses] == [60.0, 120.0]
+    assert harness_run["guard_kills"] == 1
+    assert [n["stalled"] for n in harness_run["nudges"]] == [False, True]
+
+
+def test_provider_stall_counts_reach_run_json_and_the_redacted_artifact(tmp_path: Path, monkeypatch) -> None:
+    import gm_bench.agentic.opencode as driver
+    from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
+    from gm_bench.agentic.validate import validate_run
+
+    script = [{"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1}, {"phases": 3}]
+    result, _calls, _sleeps = _stall_episode(tmp_path, monkeypatch, script)
+    run = {
+        "agent": "opencode:fake/model",
+        "harness": {"name": "opencode", "version": "0", "model": "fake/model"},
+        "contract": driver.agentic_contract(),
+        "seeds": [11],
+        "seasons": 1,
+        "max_nudges": 5,
+        "max_provider_stalls": 8,
+        "max_provider_stall_wait_seconds": 2700.0,
+        "episodes": [result],
+        "summary": driver.summarize_episodes([result]),
+        "agentic_summary": driver._agentic_summary([result]),
+    }
+    (tmp_path / "run" / "run.json").write_text(json.dumps(run))
+    saved = json.loads((tmp_path / "run" / "run.json").read_text())
+    assert saved["episodes"][0]["harness_run"]["provider_stalls"] == 1
+    assert saved["episodes"][0]["harness_run"]["provider_stall_wait_seconds"] == 60.0
+    assert saved["agentic_summary"]["provider_stalls"] == 1
+    assert validate_run(tmp_path / "run")["ok"]
+    artifact = compact_agentic_run(tmp_path / "run", isolation="same-user")
+    assert (artifact["max_provider_stalls"], artifact["max_provider_stall_wait_seconds"]) == (8, 2700.0)
+    compact = artifact["episodes"][0]["harness_run"]
+    assert (compact["provider_stalls"], compact["provider_stall_wait_seconds"]) == (1, 60.0)
+    assert compact["nudges"][0]["stall_retry"] is True and compact["nudges"][0]["backoff_seconds"] == 60.0
+    assert validate_agentic_artifact(artifact)["ok"]
+
+
+def test_stall_backoff_is_not_phase_guard_time(tmp_path: Path, monkeypatch) -> None:
+    """A backoff longer than the guard does not cost the agent the open phase."""
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    script = [
+        {"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 0, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 3},
+    ]
+    result, calls, _sleeps = _stall_episode(
+        tmp_path,
+        monkeypatch,
+        script,
+        phase_guard_seconds=50.0,
+        sleep=lambda seconds: clock.__setitem__(0, clock[0] + seconds),
+    )
+    assert len(calls) == 3
+    assert result["harness_run"]["provider_stall_wait_seconds"] == 180.0
+    assert result["agentic"]["phases_ended_by"] == {"agent": 4}
+    assert result["failed_decisions"] == 0
+
+
+# -- silent harness -------------------------------------------------------------
+
+
+def test_run_harness_stops_a_silent_harness_but_not_one_that_spoke(tmp_path: Path) -> None:
+    """The real kill path, with a real file: silence is no event byte and no ledger call since launch."""
+    import types
+
+    import gm_bench.agentic.opencode as driver
+
+    events_path = tmp_path / "events.jsonl"
+    events_path.write_text("")
+    engine = types.SimpleNamespace(tool_counts={})
+    killed: list[str] = []
+
+    def run(script: str, name: str) -> tuple[bool, bool, driver._SilenceWatch]:
+        watch = driver._SilenceWatch(engine, threading.Lock(), events_path, 0.5)
+        _code, timed_out, _wall, stalled = driver._run_harness(
+            [sys.executable, "-c", script],
+            cwd=tmp_path,
+            env=os.environ.copy(),
+            events_path=events_path,
+            stderr_path=tmp_path / "stderr.log",
+            timeout=2.0,
+            stalled=watch,
+            poll_seconds=0.1,
+            on_kill=lambda: killed.append(name),
+        )
+        return stalled, timed_out, watch
+
+    stalled, timed_out, watch = run("import time; time.sleep(30)", "silent")
+    assert stalled and not timed_out and watch.fired and watch.silent_for >= 0.5
+    assert killed == ["silent"]
+    # One event, then a hang: never silent, so only the timeout (here) or the guard stops it.
+    speaks = 'import sys, time; print(\'{"type": "step_start"}\', flush=True); time.sleep(30)'
+    stalled, timed_out, watch = run(speaks, "spoke")
+    assert not stalled and timed_out and watch.heard and not watch.fired
+    # A harness writing to stderr only is still silent: only the event stream counts.
+    stalled, _timed_out, watch = run(
+        "import sys, time; print('retrying', file=sys.stderr, flush=True); time.sleep(30)", "stderr"
+    )
+    assert stalled and watch.fired
+
+
+def _silent_then(clock: list[float], seconds: float, silent_invocations: set[int]):
+    """A ``before_call`` that lets ``seconds`` pass on the listed invocations and polls like ``_run_harness``."""
+    polls: list[tuple[int, bool]] = []
+
+    def before_call(invocation: int, stalled) -> bool:
+        fired = stalled()
+        polls.append((invocation, fired))
+        if invocation in silent_invocations and not fired:
+            clock[0] += seconds
+            fired = stalled()
+            polls.append((invocation, fired))
+        return fired
+
+    return before_call, polls
+
+
+def test_silent_launch_is_stopped_and_retried_as_a_provider_stall(tmp_path: Path, monkeypatch) -> None:
+    """The gate6 seed-5 shape: OpenCode prints nothing while it retries a 429."""
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    before_call, polls = _silent_then(clock, 241.0, {1})
+    script = [{"silent": True}, {"phases": 4}]
+    result, calls, _sleeps = _stall_episode(
+        tmp_path,
+        monkeypatch,
+        script,
+        before_call=before_call,
+        sleep=lambda seconds: clock.__setitem__(0, clock[0] + seconds),
+    )
+    harness_run = result["harness_run"]
+    assert polls == [(1, False), (1, True), (2, False)]
+    # No session was opened, so the retry is a new session with the brief, not a reminder.
+    assert len(calls) == 2 and "--session" not in calls[1] and calls[1][-1] == calls[0][-1]
+    assert harness_run["silent_kills"] == 1 and harness_run["silent_harness_seconds"] == 240.0
+    assert harness_run["provider_stalls"] == 1 and harness_run["provider_stall_wait_seconds"] == 60.0
+    assert harness_run["guard_kills"] == 0
+    assert harness_run["nudges_used"] == 0 and harness_run["nudges_without_progress"] == 0
+    [retry] = harness_run["nudges"]
+    assert retry["stall_retry"] is True and retry["new_session"] is True
+    assert retry["silent"] is False and retry["stalled"] is False and retry["new_tool_calls"] == 8
+    assert result["agentic"]["phases_ended_by"] == {"agent": 4}
+    assert result["failed_decisions"] == 0
+    # Both the silent window and the backoff came off the phase clock.
+    ledger = (tmp_path / "run" / "seed-11" / "ledger.jsonl").read_text().splitlines()
+    pauses = [json.loads(line) for line in ledger if '"clock_pause"' in line]
+    assert [(pause["reason"], pause["seconds"]) for pause in pauses] == [
+        ("silent_harness", 241.0),
+        ("provider_stall", 60.0),
+    ]
+
+
+def test_silent_resume_climbs_the_stall_ladder(tmp_path: Path, monkeypatch) -> None:
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    before_call, _polls = _silent_then(clock, 241.0, {2})
+    script = [{"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1}, {"silent": True}, {"phases": 3}]
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script, before_call=before_call)
+    harness_run = result["harness_run"]
+    assert sleeps == [60.0, 120.0]  # the silent stop is the second consecutive stall
+    assert len(calls) == 3 and "--session" in calls[1] and "--session" in calls[2]
+    assert harness_run["provider_stalls"] == 2 and harness_run["silent_kills"] == 1
+    assert harness_run["guard_kills"] == 0 and harness_run["nudges_used"] == 0
+    assert [(n["silent"], n["provider_stall"], n["stalled"]) for n in harness_run["nudges"]] == [
+        (True, True, False),
+        (False, False, False),
+    ]
+    assert result["agentic"]["phases_ended_by"] == {"agent": 4}
+
+
+def test_harness_that_spoke_then_hung_is_left_to_the_guard(tmp_path: Path, monkeypatch) -> None:
+    """A slow first model call prints ``step_start``: not silent, however long it then takes."""
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    # Past both the silence threshold (30 s) and the guard (50 s).
+    before_call, polls = _silent_then(clock, 51.0, {1})
+    script = [{"phases": 0}, {"phases": 3}]
+    result, calls, sleeps = _stall_episode(
+        tmp_path, monkeypatch, script, before_call=before_call, phase_guard_seconds=50.0, silent_harness_seconds=30.0
+    )
+    harness_run = result["harness_run"]
+    assert polls == [(1, False), (1, True), (2, False)]
+    assert sleeps == []
+    assert harness_run["silent_kills"] == 0 and harness_run["provider_stalls"] == 0
+    assert harness_run["guard_kills"] == 1
+    assert harness_run["nudges_used"] == 1 and harness_run["nudges"][0]["silent"] is False
+    assert "Reminder 1 of 5" in calls[1][-1]
+    assert result["agentic"]["phases_ended_by"]["guard"] == 1
+
+
+def test_silence_detection_can_be_disabled(tmp_path: Path, monkeypatch) -> None:
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    before_call, polls = _silent_then(clock, 10_000.0, {1})
+    result, calls, _sleeps = _stall_episode(
+        tmp_path, monkeypatch, [{"silent": True}], before_call=before_call, silent_harness_seconds=0.0
+    )
+    # Only the phase guard stops it; with no session there is nothing to resume.
+    assert polls == [(1, False), (1, True)]
+    assert len(calls) == 1
+    assert result["harness_run"]["silent_kills"] == 0 and result["harness_run"]["guard_kills"] == 1
+    assert result["agentic"]["phases_ended_by"] == {"harness_exit": 4}
+
+
+def test_silent_kill_counts_reach_run_json_and_the_redacted_artifact(tmp_path: Path, monkeypatch) -> None:
+    import gm_bench.agentic.opencode as driver
+    from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
+    from gm_bench.agentic.validate import validate_run
+
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    before_call, _polls = _silent_then(clock, 241.0, {1})
+    result, _calls, _sleeps = _stall_episode(
+        tmp_path,
+        monkeypatch,
+        [{"silent": True}, {"phases": 4}],
+        before_call=before_call,
+        sleep=lambda seconds: clock.__setitem__(0, clock[0] + seconds),
+    )
+    run = {
+        "agent": "opencode:fake/model",
+        "harness": {"name": "opencode", "version": "0", "model": "fake/model"},
+        "contract": driver.agentic_contract(),
+        "seeds": [11],
+        "seasons": 1,
+        "max_nudges": 5,
+        "max_provider_stalls": 8,
+        "max_provider_stall_wait_seconds": 2700.0,
+        "silent_harness_seconds": 240.0,
+        "episodes": [result],
+        "summary": driver.summarize_episodes([result]),
+        "agentic_summary": driver._agentic_summary([result]),
+    }
+    (tmp_path / "run" / "run.json").write_text(json.dumps(run))
+    saved = json.loads((tmp_path / "run" / "run.json").read_text())
+    assert saved["episodes"][0]["harness_run"]["silent_kills"] == 1
+    assert saved["agentic_summary"]["silent_harness_kills"] == 1
+    assert saved["agentic_summary"]["provider_stalls"] == 1
+    assert validate_run(tmp_path / "run")["ok"]
+    artifact = compact_agentic_run(tmp_path / "run", isolation="same-user")
+    assert artifact["silent_harness_seconds"] == 240.0
+    assert artifact["agentic_summary"]["silent_harness_kills"] == 1
+    compact = artifact["episodes"][0]["harness_run"]
+    assert compact["silent_kills"] == 1 and compact["provider_stalls"] == 1
+    assert compact["nudges"][0]["silent"] is False and compact["nudges"][0]["stall_retry"] is True
+    assert validate_agentic_artifact(artifact)["ok"]
+    from web.scripts.build_study import _agentic_telemetry
+
+    telemetry = _agentic_telemetry(artifact["episodes"])
+    assert (telemetry["silent_harness_kills"], telemetry["provider_stalls"], telemetry["guard_kills"]) == (1, 1, 0)

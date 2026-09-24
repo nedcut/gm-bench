@@ -23,11 +23,15 @@ private Unix socket (``SocketMcpServer``); the harness launches a tiny
 standard-library proxy (``_proxy.py``) that forwards stdio to that socket.
 That way no file the agent can read names the seed, the interpreter, or the
 repository, and the engine survives harness restarts and nudges without any
-replay. The stdio mode stays for tests and for harnesses driven by hand.
+replay. A harness in a container cannot reach a host Unix socket through a
+bind mount (Docker Desktop refuses the connect), so there the server listens
+on host loopback TCP instead and every connection must open with a per-run
+secret. The stdio mode stays for tests and for harnesses driven by hand.
 """
 
 from __future__ import annotations
 
+import hmac
 import io
 import json
 import os
@@ -54,6 +58,8 @@ _INVALID_REQUEST = -32600
 _METHOD_NOT_FOUND = -32601
 _INVALID_PARAMS = -32602
 _INTERNAL_ERROR = -32603
+# How long a TCP connection may take to present the run secret.
+AUTH_TIMEOUT_SECONDS = 10.0
 
 
 def load_episode(config: dict[str, Any]) -> AgenticEpisode:
@@ -169,11 +175,32 @@ class SocketMcpServer:
     Each accepted connection is one newline-delimited JSON-RPC stream, handled
     by an ``McpServer`` over that socket. Tool calls are serialized with a lock
     so two connections can never interleave inside the engine.
+
+    ``address`` is a Unix socket path (mode 0600, for a harness running as
+    this user) or a ``(host, port)`` pair for TCP (for a harness in a
+    container; port 0 picks a free one, read it back from ``address`` after
+    ``start``). TCP requires ``secret``: any local process can dial a loopback
+    port, so a connection that does not send the secret as its first line
+    within ``AUTH_TIMEOUT_SECONDS`` is closed unserved and counted in
+    ``rejected`` (a connection that ``stop()`` cuts off before it presented
+    anything is not). ``connections`` counts the connections that were
+    served: every one on a Unix socket, and on TCP those that presented the
+    secret.
     """
 
-    def __init__(self, episode: AgenticEpisode, path: str | Path, *, stderr: TextIO | None = None) -> None:
+    def __init__(
+        self,
+        episode: AgenticEpisode,
+        address: str | Path | tuple[str, int],
+        *,
+        secret: str | None = None,
+        stderr: TextIO | None = None,
+    ) -> None:
+        if isinstance(address, tuple) and not secret:
+            raise ValueError("a TCP socket server needs a secret")
         self.episode = episode
-        self.path = str(path)
+        self.address: str | tuple[str, int] = address if isinstance(address, tuple) else str(address)
+        self.secret = secret
         self.stderr = stderr or sys.stderr
         self._lock = threading.Lock()
         self._listener: socket.socket | None = None
@@ -182,6 +209,7 @@ class SocketMcpServer:
         self._live: dict[threading.Thread, socket.socket] = {}
         self._live_lock = threading.Lock()
         self.connections = 0
+        self.rejected = 0
 
     @property
     def dispatch_lock(self) -> threading.Lock:
@@ -194,11 +222,16 @@ class SocketMcpServer:
             return sum(1 for thread in self._live if thread.is_alive())
 
     def start(self) -> None:
-        if os.path.exists(self.path):
-            os.unlink(self.path)
-        listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        listener.bind(self.path)
-        os.chmod(self.path, 0o600)
+        if isinstance(self.address, tuple):
+            listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            listener.bind(self.address)
+            self.address = listener.getsockname()[:2]
+        else:
+            if os.path.exists(self.address):
+                os.unlink(self.address)
+            listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            listener.bind(self.address)
+            os.chmod(self.address, 0o600)
         listener.listen(8)
         listener.settimeout(0.5)
         self._listener = listener
@@ -214,18 +247,27 @@ class SocketMcpServer:
                 continue
             except OSError:
                 break
-            self.connections += 1
-            thread = threading.Thread(target=self._serve_connection, args=(conn,), daemon=True)
+            # Admission is atomic with stop(), which sets _stop under this lock
+            # before it snapshots the live connections: a connection is either
+            # registered and running before that snapshot, so stop() hangs up
+            # on it, or refused here. None is served after stop() begins.
             with self._live_lock:
+                if self._stop.is_set():
+                    _close_quietly(conn)
+                    break
+                thread = threading.Thread(target=self._serve_connection, args=(conn,), daemon=True)
                 self._live[thread] = conn
-            thread.start()
+                thread.start()
 
     def _serve_connection(self, conn: socket.socket) -> None:
         reader = conn.makefile("r", encoding="utf-8", newline="\n")
         writer = io.TextIOWrapper(conn.makefile("wb"), encoding="utf-8", write_through=True)
         server = _LockedMcpServer(self.episode, self._lock, stdin=reader, stdout=writer, stderr=self.stderr)
         try:
-            server.serve()
+            if self.secret is None or self._authenticated(conn, reader):
+                with self._live_lock:
+                    self.connections += 1
+                server.serve()
         except (OSError, ValueError):
             pass
         finally:
@@ -234,12 +276,34 @@ class SocketMcpServer:
                     stream.close()
                 except OSError:
                     pass
-            try:
-                conn.close()
-            except OSError:
-                pass
+            _close_quietly(conn)
             with self._live_lock:
                 self._live.pop(threading.current_thread(), None)
+
+    def _authenticated(self, conn: socket.socket, reader: TextIO) -> bool:
+        assert self.secret is not None
+        conn.settimeout(AUTH_TIMEOUT_SECONDS)
+        cut_off = False
+        try:
+            line = reader.readline(4096)
+            cut_off = line == ""
+            presented = line.rstrip("\n")
+        except ValueError:
+            presented = ""  # an opener that is not UTF-8: a failed presentation
+        except OSError:
+            presented = ""  # the timeout, or a reset
+            cut_off = True
+        finally:
+            conn.settimeout(None)
+        if hmac.compare_digest(presented.encode("utf-8"), self.secret.encode("utf-8")):
+            return True
+        with self._live_lock:
+            if cut_off and self._stop.is_set():
+                # stop() hung up on it before it presented anything; not a stray dial.
+                return False
+            self.rejected += 1
+        self.stderr.write("gm-bench mcp: closed a connection that did not present the run secret\n")
+        return False
 
     def stop(self, *, timeout: float = 5.0) -> bool:
         """Stop accepting, hang up on every proxy, and wait for their threads.
@@ -249,7 +313,8 @@ class SocketMcpServer:
         read loop. Returns True once every connection thread has exited, False
         if one was still alive after ``timeout`` seconds.
         """
-        self._stop.set()
+        with self._live_lock:
+            self._stop.set()
         if self._listener is not None:
             try:
                 self._listener.close()
@@ -268,12 +333,19 @@ class SocketMcpServer:
         for thread, _conn in live:
             thread.join(timeout=max(0.0, deadline - time.monotonic()))
         drained = not any(thread.is_alive() for thread, _conn in live)
-        if os.path.exists(self.path):
+        if isinstance(self.address, str) and os.path.exists(self.address):
             try:
-                os.unlink(self.path)
+                os.unlink(self.address)
             except OSError:
                 pass
         return drained
+
+
+def _close_quietly(conn: socket.socket) -> None:
+    try:
+        conn.close()
+    except OSError:
+        pass
 
 
 class _LockedMcpServer(McpServer):

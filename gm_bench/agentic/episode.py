@@ -216,6 +216,27 @@ class AgenticEpisode:
             and (time.monotonic() - self._phase_started_monotonic) > self.phase_guard_seconds
         )
 
+    def exclude_from_phase_clock(self, seconds: float, *, reason: str = "provider_stall") -> None:
+        """Take ``seconds`` the harness was not running off the open phase's guard clock.
+
+        The driver calls this after waiting out a provider stall, so the
+        guard measures only time a harness had to act. Recorded in the ledger
+        as a ``clock_pause`` event; replay ignores it (it changes no league
+        state), and the phase's recorded ``seconds`` exclude the pause.
+        """
+        if self.done or not self.phase_open or seconds <= 0:
+            return
+        self._phase_started_monotonic += seconds
+        self._write(
+            {
+                "event": "clock_pause",
+                "season": self.season_index,
+                "phase": self.phase,
+                "seconds": round(seconds, 3),
+                "reason": reason,
+            }
+        )
+
     def abandon(self) -> None:
         """Close every remaining phase as a harness exit. Used by the driver."""
         while not self.done:
@@ -441,6 +462,8 @@ class AgenticEpisode:
                     episode._execute(record["tool"], record.get("arguments") or {})
                 elif event == "phase_end" and record.get("ended_by") != ENDED_BY_AGENT:
                     episode._close_phase(record["ended_by"])
+                # ``phase_open``, ``clock_pause`` and ``episode_end`` change no
+                # league state; the recorded phase durations are restored below.
         finally:
             episode._replaying = False
         if reopen:
