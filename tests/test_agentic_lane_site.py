@@ -20,7 +20,7 @@ from tests.test_agentic_publication import fixture_reference
 from web.scripts.build_study import build_study
 
 SITE_DATASET = Path("web/src/data/leaderboard.json")
-SMOKE_ROW = Path("results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json")
+SMOKE_ROW = Path("results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json")
 LANE_PANEL = json.loads(Path("config/bench_v2_lane.json").read_text())["seed_panel"]
 
 
@@ -99,9 +99,14 @@ def test_panel_row_is_published_beside_every_1_0_table(tmp_path: Path) -> None:
     rows = dataset["agentic_lane"]
     assert len(rows) == 1, "the smoke row must not be published"
     row = rows[0]
-    assert row["id"] == "agentic:opencode-1.18.31:opencode/big-pickle"
+    assert row["id"] == "agentic:opencode-1.18.31:opencode/space-bunny-free"
     assert row["lane"] == "agentic" and row["grade"] == "panel"
-    assert row["harness"] == {"name": "opencode", "version": "1.18.31", "model": "opencode/big-pickle", "variant": None}
+    assert row["harness"] == {
+        "name": "opencode",
+        "version": "1.18.31",
+        "model": "opencode/space-bunny-free",
+        "variant": None,
+    }
     assert row["unpinned"] is True and row["pin"] is None
     assert row["isolation"] == "separate-user"
     assert row["panel"] == {
@@ -122,7 +127,7 @@ def test_panel_row_is_published_beside_every_1_0_table(tmp_path: Path) -> None:
     smoke_calls = sum(e["agentic"]["tool_calls"] for e in _smoke()["episodes"])
     assert telemetry["tool_calls"] == repeats * smoke_calls
     assert sum(telemetry["tool_calls_by_tool"].values()) == telemetry["tool_calls"]
-    assert telemetry["phases_ended_by"] == {"agent": repeats * 159, "guard": repeats * 1}
+    assert telemetry["phases_ended_by"] == {"agent": repeats * 160}
     assert telemetry["nudges_used"] == repeats * _smoke()["agentic_summary"]["nudges_used"]
     assert telemetry["nudges_per_episode"] == pytest.approx(telemetry["nudges_used"] / PANEL_MIN_SEEDS, abs=0.01)
     assert telemetry["telemetry_episodes"] == PANEL_MIN_SEEDS
@@ -191,8 +196,8 @@ def test_two_harness_variants_on_one_model_are_two_rows(tmp_path: Path) -> None:
     other["harness"]["variant"] = "high"
     dataset = _build(tmp_path, ("a.json", _panel_fixture()), ("b.json", other))
     assert sorted(row["id"] for row in dataset["agentic_lane"]) == [
-        "agentic:opencode-1.18.31:opencode/big-pickle",
-        "agentic:opencode-1.18.31:opencode/big-pickle:high",
+        "agentic:opencode-1.18.31:opencode/space-bunny-free",
+        "agentic:opencode-1.18.31:opencode/space-bunny-free:high",
     ]
 
 
@@ -266,7 +271,7 @@ def test_committed_lane_pins_no_model_yet() -> None:
 
 def test_a_malformed_pin_fails_the_build(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="pinned_models"):
-        _build(tmp_path, ("panel.json", _panel_fixture()), pinned_models={"opencode/big-pickle": ""})
+        _build(tmp_path, ("panel.json", _panel_fixture()), pinned_models={"opencode/space-bunny-free": ""})
 
 
 def test_rows_on_one_panel_must_share_the_reference_means(tmp_path: Path) -> None:

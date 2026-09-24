@@ -153,12 +153,12 @@ never hidden, never fatal. A missing event stream is a problem.
 ## Publishing a row
 
 ```bash
-python -m gm_bench agentic-redact /tmp/agentic-big-pickle \
-    --output results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json \
-    --isolation same-user --public-seeds
-python -m gm_bench agentic-validate results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json
-python -m gm_bench agentic-validate results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json \
-    --raw /tmp/agentic-big-pickle
+python -m gm_bench agentic-redact /tmp/agentic-space-bunny \
+    --output results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json \
+    --isolation container --public-seeds
+python -m gm_bench agentic-validate results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json
+python -m gm_bench agentic-validate results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json \
+    --raw /tmp/agentic-space-bunny
 ```
 
 The second validation, with `--raw`, checks the artifact's SHA-256 binding

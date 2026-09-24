@@ -89,7 +89,11 @@ Added 2026-09-20. Nothing published changes.
   `proxy_connections` and every failed secret presentation (including
   non-UTF-8 bytes) in `proxy_connections_refused`, and the engine can take
   a provider-stall backoff off the phase guard clock (below), so the
-  committed smoke row must be rerun on the new contract.
+  committed smoke row must be rerun on the new contract. The rerun is
+  `results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json`
+  (container isolation, `opencode/space-bunny-free`, mean 225.8 over
+  seeds 1 to 8 at five seasons); it replaces the `big-pickle` row, whose
+  free quota was exhausted.
 - Provider stalls: a harness run that ends on a retryable provider error
   (a 429 rate limit, an overload, a 5xx) is no longer treated as the agent
   stopping. The driver waits (60 s, doubling, capped at 600 s; by default
