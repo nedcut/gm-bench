@@ -303,7 +303,11 @@ def main(argv: list[str] | None = None) -> None:
         default=20,
         help="times the driver may resume a session that stopped before the episode ended",
     )
-    from gm_bench.agentic.opencode import DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS, DEFAULT_MAX_PROVIDER_STALLS
+    from gm_bench.agentic.opencode import (
+        DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
+        DEFAULT_MAX_PROVIDER_STALLS,
+        SILENT_HARNESS_SECONDS,
+    )
 
     agentic_parser.add_argument(
         "--max-provider-stalls",
@@ -316,6 +320,13 @@ def main(argv: list[str] | None = None) -> None:
         type=float,
         default=DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
         help="total backoff per episode spent waiting out provider errors (60 s doubling, capped at 600 s)",
+    )
+    agentic_parser.add_argument(
+        "--silent-harness-seconds",
+        type=float,
+        default=SILENT_HARNESS_SECONDS,
+        help="stop a harness run that has printed no event and made no tool call this long after launch and "
+        "retry it as a provider stall (OpenCode retries a 429 silently); 0 disables",
     )
     agentic_parser.add_argument(
         "--isolation",
@@ -1251,6 +1262,7 @@ def _agentic_command(args: argparse.Namespace) -> None:
             max_nudges=args.max_nudges,
             max_provider_stalls=args.max_provider_stalls,
             max_provider_stall_wait_seconds=args.max_provider_stall_wait_seconds,
+            silent_harness_seconds=args.silent_harness_seconds,
             progress=_progress,
             keep_scratch=args.keep_scratch,
             name_episodes_by_position=private,
