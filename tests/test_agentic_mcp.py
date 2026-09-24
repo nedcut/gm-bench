@@ -926,7 +926,9 @@ def _scripted_harness(script: list[dict], calls: list[list[str]], *, before_call
 
     Each step may make ``calls`` GM-Bench tool calls (``get_status`` then
     ``end_phase`` pairs, so each pair closes a phase), then end with an
-    optional ``error`` event and ``exit`` code.
+    optional ``error`` event and ``exit`` code. A ``silent`` step prints
+    nothing and makes no call: only ``before_call`` runs (to move the clock
+    and poll), like OpenCode retrying a 429 internally.
     """
 
     def fake_harness(command, *, cwd, env, events_path, stderr_path, timeout, stalled=None, on_kill=None):
@@ -935,8 +937,13 @@ def _scripted_harness(script: list[dict], calls: list[list[str]], *, before_call
         config = json.loads((cwd / "opencode.json").read_text())
         socket_path = config["mcp"]["servers"]["gm-bench"]["command"][2]
         was_stalled = False
+        if step.get("silent"):
+            if before_call is not None:
+                was_stalled = before_call(len(calls), stalled)
+            return (-9 if was_stalled else step.get("exit", 0)), False, 1.0, was_stalled
         with events_path.open("a") as events:
             events.write(json.dumps({"type": "step_start", "sessionID": "ses_fake", "part": {}}) + "\n")
+            events.flush()  # a real harness writes straight to the file
             if before_call is not None:
                 was_stalled = before_call(len(calls), stalled)
             if step.get("phases", 0):
@@ -1180,3 +1187,197 @@ def test_stall_backoff_is_not_phase_guard_time(tmp_path: Path, monkeypatch) -> N
     assert result["harness_run"]["provider_stall_wait_seconds"] == 180.0
     assert result["agentic"]["phases_ended_by"] == {"agent": 4}
     assert result["failed_decisions"] == 0
+
+
+# -- silent harness -------------------------------------------------------------
+
+
+def test_run_harness_stops_a_silent_harness_but_not_one_that_spoke(tmp_path: Path) -> None:
+    """The real kill path, with a real file: silence is no event byte and no ledger call since launch."""
+    import types
+
+    import gm_bench.agentic.opencode as driver
+
+    events_path = tmp_path / "events.jsonl"
+    events_path.write_text("")
+    engine = types.SimpleNamespace(tool_counts={})
+    killed: list[str] = []
+
+    def run(script: str, name: str) -> tuple[bool, bool, driver._SilenceWatch]:
+        watch = driver._SilenceWatch(engine, threading.Lock(), events_path, 0.5)
+        _code, timed_out, _wall, stalled = driver._run_harness(
+            [sys.executable, "-c", script],
+            cwd=tmp_path,
+            env=os.environ.copy(),
+            events_path=events_path,
+            stderr_path=tmp_path / "stderr.log",
+            timeout=2.0,
+            stalled=watch,
+            poll_seconds=0.1,
+            on_kill=lambda: killed.append(name),
+        )
+        return stalled, timed_out, watch
+
+    stalled, timed_out, watch = run("import time; time.sleep(30)", "silent")
+    assert stalled and not timed_out and watch.fired and watch.silent_for >= 0.5
+    assert killed == ["silent"]
+    # One event, then a hang: never silent, so only the timeout (here) or the guard stops it.
+    speaks = 'import sys, time; print(\'{"type": "step_start"}\', flush=True); time.sleep(30)'
+    stalled, timed_out, watch = run(speaks, "spoke")
+    assert not stalled and timed_out and watch.heard and not watch.fired
+    # A harness writing to stderr only is still silent: only the event stream counts.
+    stalled, _timed_out, watch = run(
+        "import sys, time; print('retrying', file=sys.stderr, flush=True); time.sleep(30)", "stderr"
+    )
+    assert stalled and watch.fired
+
+
+def _silent_then(clock: list[float], seconds: float, silent_invocations: set[int]):
+    """A ``before_call`` that lets ``seconds`` pass on the listed invocations and polls like ``_run_harness``."""
+    polls: list[tuple[int, bool]] = []
+
+    def before_call(invocation: int, stalled) -> bool:
+        fired = stalled()
+        polls.append((invocation, fired))
+        if invocation in silent_invocations and not fired:
+            clock[0] += seconds
+            fired = stalled()
+            polls.append((invocation, fired))
+        return fired
+
+    return before_call, polls
+
+
+def test_silent_launch_is_stopped_and_retried_as_a_provider_stall(tmp_path: Path, monkeypatch) -> None:
+    """The gate6 seed-5 shape: OpenCode prints nothing while it retries a 429."""
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    before_call, polls = _silent_then(clock, 241.0, {1})
+    script = [{"silent": True}, {"phases": 4}]
+    result, calls, _sleeps = _stall_episode(
+        tmp_path,
+        monkeypatch,
+        script,
+        before_call=before_call,
+        sleep=lambda seconds: clock.__setitem__(0, clock[0] + seconds),
+    )
+    harness_run = result["harness_run"]
+    assert polls == [(1, False), (1, True), (2, False)]
+    # No session was opened, so the retry is a new session with the brief, not a reminder.
+    assert len(calls) == 2 and "--session" not in calls[1] and calls[1][-1] == calls[0][-1]
+    assert harness_run["silent_kills"] == 1 and harness_run["silent_harness_seconds"] == 240.0
+    assert harness_run["provider_stalls"] == 1 and harness_run["provider_stall_wait_seconds"] == 60.0
+    assert harness_run["guard_kills"] == 0
+    assert harness_run["nudges_used"] == 0 and harness_run["nudges_without_progress"] == 0
+    [retry] = harness_run["nudges"]
+    assert retry["stall_retry"] is True and retry["new_session"] is True
+    assert retry["silent"] is False and retry["stalled"] is False and retry["new_tool_calls"] == 8
+    assert result["agentic"]["phases_ended_by"] == {"agent": 4}
+    assert result["failed_decisions"] == 0
+    # Both the silent window and the backoff came off the phase clock.
+    ledger = (tmp_path / "run" / "seed-11" / "ledger.jsonl").read_text().splitlines()
+    pauses = [json.loads(line) for line in ledger if '"clock_pause"' in line]
+    assert [(pause["reason"], pause["seconds"]) for pause in pauses] == [
+        ("silent_harness", 241.0),
+        ("provider_stall", 60.0),
+    ]
+
+
+def test_silent_resume_climbs_the_stall_ladder(tmp_path: Path, monkeypatch) -> None:
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    before_call, _polls = _silent_then(clock, 241.0, {2})
+    script = [{"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1}, {"silent": True}, {"phases": 3}]
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script, before_call=before_call)
+    harness_run = result["harness_run"]
+    assert sleeps == [60.0, 120.0]  # the silent stop is the second consecutive stall
+    assert len(calls) == 3 and "--session" in calls[1] and "--session" in calls[2]
+    assert harness_run["provider_stalls"] == 2 and harness_run["silent_kills"] == 1
+    assert harness_run["guard_kills"] == 0 and harness_run["nudges_used"] == 0
+    assert [(n["silent"], n["provider_stall"], n["stalled"]) for n in harness_run["nudges"]] == [
+        (True, True, False),
+        (False, False, False),
+    ]
+    assert result["agentic"]["phases_ended_by"] == {"agent": 4}
+
+
+def test_harness_that_spoke_then_hung_is_left_to_the_guard(tmp_path: Path, monkeypatch) -> None:
+    """A slow first model call prints ``step_start``: not silent, however long it then takes."""
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    # Past both the silence threshold (30 s) and the guard (50 s).
+    before_call, polls = _silent_then(clock, 51.0, {1})
+    script = [{"phases": 0}, {"phases": 3}]
+    result, calls, sleeps = _stall_episode(
+        tmp_path, monkeypatch, script, before_call=before_call, phase_guard_seconds=50.0, silent_harness_seconds=30.0
+    )
+    harness_run = result["harness_run"]
+    assert polls == [(1, False), (1, True), (2, False)]
+    assert sleeps == []
+    assert harness_run["silent_kills"] == 0 and harness_run["provider_stalls"] == 0
+    assert harness_run["guard_kills"] == 1
+    assert harness_run["nudges_used"] == 1 and harness_run["nudges"][0]["silent"] is False
+    assert "Reminder 1 of 5" in calls[1][-1]
+    assert result["agentic"]["phases_ended_by"]["guard"] == 1
+
+
+def test_silence_detection_can_be_disabled(tmp_path: Path, monkeypatch) -> None:
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    before_call, polls = _silent_then(clock, 10_000.0, {1})
+    result, calls, _sleeps = _stall_episode(
+        tmp_path, monkeypatch, [{"silent": True}], before_call=before_call, silent_harness_seconds=0.0
+    )
+    # Only the phase guard stops it; with no session there is nothing to resume.
+    assert polls == [(1, False), (1, True)]
+    assert len(calls) == 1
+    assert result["harness_run"]["silent_kills"] == 0 and result["harness_run"]["guard_kills"] == 1
+    assert result["agentic"]["phases_ended_by"] == {"harness_exit": 4}
+
+
+def test_silent_kill_counts_reach_run_json_and_the_redacted_artifact(tmp_path: Path, monkeypatch) -> None:
+    import gm_bench.agentic.opencode as driver
+    from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
+    from gm_bench.agentic.validate import validate_run
+
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    before_call, _polls = _silent_then(clock, 241.0, {1})
+    result, _calls, _sleeps = _stall_episode(
+        tmp_path,
+        monkeypatch,
+        [{"silent": True}, {"phases": 4}],
+        before_call=before_call,
+        sleep=lambda seconds: clock.__setitem__(0, clock[0] + seconds),
+    )
+    run = {
+        "agent": "opencode:fake/model",
+        "harness": {"name": "opencode", "version": "0", "model": "fake/model"},
+        "contract": driver.agentic_contract(),
+        "seeds": [11],
+        "seasons": 1,
+        "max_nudges": 5,
+        "max_provider_stalls": 8,
+        "max_provider_stall_wait_seconds": 2700.0,
+        "silent_harness_seconds": 240.0,
+        "episodes": [result],
+        "summary": driver.summarize_episodes([result]),
+        "agentic_summary": driver._agentic_summary([result]),
+    }
+    (tmp_path / "run" / "run.json").write_text(json.dumps(run))
+    saved = json.loads((tmp_path / "run" / "run.json").read_text())
+    assert saved["episodes"][0]["harness_run"]["silent_kills"] == 1
+    assert saved["agentic_summary"]["silent_harness_kills"] == 1
+    assert saved["agentic_summary"]["provider_stalls"] == 1
+    assert validate_run(tmp_path / "run")["ok"]
+    artifact = compact_agentic_run(tmp_path / "run", isolation="same-user")
+    assert artifact["silent_harness_seconds"] == 240.0
+    assert artifact["agentic_summary"]["silent_harness_kills"] == 1
+    compact = artifact["episodes"][0]["harness_run"]
+    assert compact["silent_kills"] == 1 and compact["provider_stalls"] == 1
+    assert compact["nudges"][0]["silent"] is False and compact["nudges"][0]["stall_retry"] is True
+    assert validate_agentic_artifact(artifact)["ok"]
+    from web.scripts.build_study import _agentic_telemetry
+
+    telemetry = _agentic_telemetry(artifact["episodes"])
+    assert (telemetry["silent_harness_kills"], telemetry["provider_stalls"], telemetry["guard_kills"]) == (1, 1, 0)

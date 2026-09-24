@@ -320,7 +320,7 @@ def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     none, they are unmeasured (``None``), never zero."""
     by_tool: dict[str, int] = {}
     ended_by: dict[str, int] = {}
-    tool_calls = nudges = guard_kills = provider_stalls = scout_points = compactions = 0
+    tool_calls = nudges = guard_kills = provider_stalls = silent_kills = scout_points = compactions = 0
     wall_seconds = provider_stall_wait = 0.0
     reported = [e for e in episodes if ((e.get("usage") or {}).get("harness") or {}).get("telemetry_reported")]
     for episode in episodes:
@@ -336,6 +336,7 @@ def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         guard_kills += int(harness_run.get("guard_kills") or 0)
         provider_stalls += int(harness_run.get("provider_stalls") or 0)
         provider_stall_wait += float(harness_run.get("provider_stall_wait_seconds") or 0.0)
+        silent_kills += int(harness_run.get("silent_kills") or 0)
         wall_seconds += float(harness_run.get("wall_seconds") or 0.0)
         compactions += int(((episode.get("usage") or {}).get("harness") or {}).get("compactions") or 0)
 
@@ -364,6 +365,7 @@ def _agentic_telemetry(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "guard_kills": guard_kills,
         "provider_stalls": provider_stalls,
         "provider_stall_wait_seconds": round(provider_stall_wait, 1),
+        "silent_harness_kills": silent_kills,
         "compactions": compactions,
         "wall_seconds": round(wall_seconds, 1),
         "wall_seconds_per_episode": round(wall_seconds / count, 1),

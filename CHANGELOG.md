@@ -101,6 +101,14 @@ Added 2026-09-20. Nothing published changes.
   `provider_stall_wait_seconds` per episode, carried into published rows.
   The wait is taken off the open phase's guard clock and logged in the
   ledger as a `clock_pause` event, which replay and the audit ignore.
+- Silent harness: OpenCode retries a 429 internally without printing any
+  event, so a rate-limited run looked hung until the 20-minute phase guard
+  killed it and its phases closed as `harness_exit`. The driver now stops an
+  invocation that has printed no event and made no tool call for 240 s since
+  launch (`--silent-harness-seconds`, 0 disables) and retries it as a
+  provider stall, not a guard stop or a nudge; the silent window comes off
+  the phase clock. Counted as `silent_kills` per episode (`silent` per nudge),
+  `silent_harness_kills` in the run summary and site telemetry.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

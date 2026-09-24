@@ -121,11 +121,13 @@ _HARNESS_RUN_KEYS = (
     "guard_kills",
     "provider_stalls",
     "provider_stall_wait_seconds",
+    "silent_kills",
     "server_drained",
     "tool_call_agreement",
 )
 # Present on every nudge a driver records; the provider-stall keys only on runs
-# recorded since the driver learned to retry provider stalls.
+# recorded since the driver learned to retry provider stalls, and ``silent``
+# only since it learned to stop a silent harness.
 _NUDGE_KEYS = (
     "number",
     "season",
@@ -136,6 +138,7 @@ _NUDGE_KEYS = (
     "stall_retry",
     "backoff_seconds",
     "provider_stall",
+    "silent",
 )
 _USAGE_KEYS = (
     "input_tokens",
@@ -209,7 +212,11 @@ def compact_agentic_run(
         "phase_guard_seconds": raw.get("phase_guard_seconds"),
         "max_nudges": raw.get("max_nudges"),
         # Absent from runs recorded before the driver retried provider stalls.
-        **{key: raw[key] for key in ("max_provider_stalls", "max_provider_stall_wait_seconds") if key in raw},
+        **{
+            key: raw[key]
+            for key in ("max_provider_stalls", "max_provider_stall_wait_seconds", "silent_harness_seconds")
+            if key in raw
+        },
         "summary": raw.get("summary"),
         "agentic_summary": raw.get("agentic_summary"),
         "episodes": episodes,
