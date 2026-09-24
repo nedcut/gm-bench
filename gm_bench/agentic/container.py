@@ -27,15 +27,19 @@ driver process on the host:
   listener on the host loopback must be unreachable from the container.
 
 The free ``opencode/*`` models need no credentials, so none are provisioned.
-The Codex CLI does: its driver copies an operator-provided ``auth.json`` into
-the per-episode home volume with :meth:`ContainerHarness.seed_home`, over the
-``docker run`` client's stdin, never onto a command line or into the
-bind-mounted scratch directory (``codex.py``).
+The Codex CLI and Claude Code do: their drivers copy an operator-provided
+credential (Codex's ``auth.json``, a ``claude setup-token`` token) into the
+per-episode home volume with :meth:`ContainerHarness.seed_home`, over the
+``docker run`` client's stdin, never onto a command line, into an
+environment variable, or into the bind-mounted scratch directory
+(``codex.py``, ``claude.py``).
 
 Each harness gets its own image (:class:`ImageSpec`), built locally from
 :func:`dockerfile`: a digest-pinned Node base, Debian's ``python3`` for the
 standard-library proxy, ``procps``, and the pinned harness package
-(``opencode-ai`` or ``@openai/codex``). The run records the image id (the
+(``opencode-ai``, ``@openai/codex`` or ``@anthropic-ai/claude-code``). The
+Claude image adds :data:`CLAUDE_WRAPPER` and a root-owned configuration
+layout (:data:`CLAUDE_IMAGE_EXTRA`). The run records the image id (the
 content digest of what actually ran), the Dockerfile's SHA-256, and the
 harness version the image reports.
 """
@@ -45,6 +49,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import re
 import secrets
 import socket
 import subprocess
@@ -55,6 +60,7 @@ from typing import Any
 
 CONTAINER_OPENCODE_VERSION = "1.18.31"
 CONTAINER_CODEX_VERSION = "0.156.1"
+CONTAINER_CLAUDE_VERSION = "2.1.281"
 BASE_IMAGE = "node:22-bookworm-slim@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9"
 IMAGE_REPOSITORY = "gm-bench-agentic-opencode"
 WORKDIR = "/work"
@@ -99,6 +105,66 @@ exec setpriv --reuid=node --regid=node --init-groups --inh-caps=-all --bounding-
 """
 
 
+# Claude Code in a container. The per-episode home volume is the harness's home,
+# which the agent (the same ``node`` user as Claude Code) can write between
+# invocations; ``--setting-sources user`` would then load a ``settings.json``
+# (hooks, ``env`` such as ``ANTHROPIC_BASE_URL``, permissions) or a
+# ``CLAUDE.md`` the agent dropped into ``CLAUDE_CONFIG_DIR``. So the image
+# bakes the config directory in as root's, sticky and world-writable (Claude
+# Code as ``node`` can still create its own transcripts, ``.claude.json`` and
+# caches there, but cannot remove or replace root's entries), with read-only
+# root-owned placeholders for every user-level file and directory Claude Code
+# loads as configuration or instructions. Docker copies that layout, with its
+# owners and modes, into each new volume. The agent can still rename the
+# whole directory away (renaming needs only write access to the home) and put
+# its own in its place, so :data:`CLAUDE_WRAPPER` checks the layout before
+# every launch and refuses to start Claude Code if any of it changed.
+CLAUDE_CONFIG_DIR = f"{HOME}/.claude"
+CLAUDE_TOKEN_FILENAME = ".gmb-claude-token"
+CLAUDE_WRAPPER_PATH = "/usr/local/bin/gmb-claude"
+# Exit status and stderr prefix of a launch the wrapper refused.
+CLAUDE_WRAPPER_REFUSED = 96
+CLAUDE_WRAPPER_MARKER = "gmb-claude: refused:"
+CLAUDE_PLACEHOLDER_FILES = ("settings.json", "settings.local.json", "CLAUDE.md", "CLAUDE.local.md")
+CLAUDE_PLACEHOLDER_DIRS = ("rules", "agents", "commands", "skills", "output-styles", "hooks")
+CLAUDE_WRAPPER = r"""#!/bin/sh
+# Launch Claude Code for GM-Bench: check the config layout, hand over the token, exec claude.
+set -eu
+GMB_OWNER=0
+home="${HOME:-/home/node}"
+config="$home/.claude"
+refuse() { echo "gmb-claude: refused: $*" >&2; exit 96; }
+is() { [ -n "$(find "$2" -maxdepth 0 -type "$1" -user "$GMB_OWNER" -perm "$3" 2>/dev/null)" ]; }
+is d "$config" 1777 || refuse "$config is not the image's root-owned sticky directory"
+for name in settings.json settings.local.json CLAUDE.md CLAUDE.local.md; do
+  is f "$config/$name" 0444 || refuse "$config/$name is not the image's read-only placeholder"
+  [ "$name" = settings.json ] || [ ! -s "$config/$name" ] || refuse "$config/$name is not empty"
+done
+[ "$(cat "$config/settings.json")" = "{}" ] || refuse "$config/settings.json changed"
+for name in rules agents commands skills output-styles hooks; do
+  is d "$config/$name" 0555 || refuse "$config/$name is not the image's read-only placeholder"
+  [ -z "$(ls -A "$config/$name")" ] || refuse "$config/$name is not empty"
+done
+[ -f "$home/.gmb-claude-token" ] || refuse "no token in the home volume"
+CLAUDE_CODE_OAUTH_TOKEN=$(cat "$home/.gmb-claude-token")
+[ -n "$CLAUDE_CODE_OAUTH_TOKEN" ] || refuse "the token in the home volume is empty"
+CLAUDE_CONFIG_DIR="$config"
+CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+export CLAUDE_CODE_OAUTH_TOKEN CLAUDE_CONFIG_DIR CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC
+exec claude "$@"
+"""
+# Dockerfile lines (run as root, before ``USER node``) that make the Claude image.
+CLAUDE_IMAGE_EXTRA = (
+    f"COPY --chmod=755 <<'GMB_CLAUDE' {CLAUDE_WRAPPER_PATH}\n{CLAUDE_WRAPPER}GMB_CLAUDE\n"
+    f"RUN mkdir -m 1777 {CLAUDE_CONFIG_DIR} \\\n"
+    f" && cd {CLAUDE_CONFIG_DIR} \\\n"
+    " && printf '{}\\n' > settings.json \\\n"
+    f" && touch {' '.join(CLAUDE_PLACEHOLDER_FILES[1:])} \\\n"
+    f" && chmod 0444 {' '.join(CLAUDE_PLACEHOLDER_FILES)} \\\n"
+    f" && mkdir -m 0555 {' '.join(CLAUDE_PLACEHOLDER_DIRS)}\n"
+)
+
+
 class ContainerError(RuntimeError):
     """Docker is missing, the image would not build, or it is not what was pinned."""
 
@@ -114,6 +180,8 @@ class ImageSpec:
     executable: str
     # The key the reported version is recorded under in the image description.
     version_key: str
+    # Harness-specific Dockerfile lines, run as root before ``USER node``.
+    extra: str = ""
 
 
 OPENCODE_IMAGE = ImageSpec(
@@ -122,10 +190,21 @@ OPENCODE_IMAGE = ImageSpec(
 CODEX_IMAGE = ImageSpec(
     "codex", "@openai/codex", CONTAINER_CODEX_VERSION, "gm-bench-agentic-codex", "codex", "codex_version"
 )
+CLAUDE_IMAGE = ImageSpec(
+    "claude",
+    "@anthropic-ai/claude-code",
+    CONTAINER_CLAUDE_VERSION,
+    "gm-bench-agentic-claude",
+    "claude",
+    "claude_version",
+    CLAUDE_IMAGE_EXTRA,
+)
 
 
-def dockerfile(opencode_version: str = CONTAINER_OPENCODE_VERSION, *, package: str = "opencode-ai") -> str:
-    """The harness image. The OpenCode image's text (and so its tag) is unchanged by the ``package`` option."""
+def dockerfile(
+    opencode_version: str = CONTAINER_OPENCODE_VERSION, *, package: str = "opencode-ai", extra: str = ""
+) -> str:
+    """The harness image. The OpenCode and Codex images' text (and so their tags) is unchanged by ``extra``."""
     return (
         f"FROM {BASE_IMAGE}\n"
         "RUN apt-get update \\\n"
@@ -133,6 +212,7 @@ def dockerfile(opencode_version: str = CONTAINER_OPENCODE_VERSION, *, package: s
         " && rm -rf /var/lib/apt/lists/*\n"
         f"RUN npm install -g {package}@{opencode_version} && npm cache clean --force\n"
         f"COPY --chmod=755 <<'GMB_EGRESS' {EGRESS_ENTRYPOINT}\n{EGRESS_SCRIPT}GMB_EGRESS\n"
+        f"{extra}"
         "USER node\n"
         f"WORKDIR {WORKDIR}\n"
     )
@@ -157,8 +237,9 @@ def ensure_image(
 ) -> dict[str, Any]:
     """Build the harness image if it is missing and describe exactly what will run.
 
-    ``spec`` selects the harness image (:data:`CODEX_IMAGE`); without it this
-    is the OpenCode image at ``opencode_version``, as before.
+    ``spec`` selects the harness image (:data:`CODEX_IMAGE`,
+    :data:`CLAUDE_IMAGE`); without it this is the OpenCode image at
+    ``opencode_version``, as before.
     """
     if spec is None:
         spec = ImageSpec(
@@ -170,12 +251,14 @@ def ensure_image(
             OPENCODE_IMAGE.version_key,
         )
     pinned = spec.version
-    text = dockerfile(pinned, package=spec.package)
+    text = dockerfile(pinned, package=spec.package, extra=spec.extra)
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
     tag = f"{spec.repository}:{pinned}-{digest[:12]}"
     server = _docker(docker, "version", "--format", "{{.Server.Version}}", env=env)
     if server.returncode != 0:
-        raise ContainerError(f"docker daemon unavailable: {(server.stderr or server.stdout).strip()[-400:]}")
+        raise ContainerError(
+            f"docker daemon unavailable (is Docker running?): {(server.stderr or server.stdout).strip()[-400:]}"
+        )
     inspect = _docker(docker, "image", "inspect", tag, "--format", "{{.Id}}", env=env)
     if inspect.returncode != 0:
         build = _docker(docker, "build", "--tag", tag, "-", input=text, env=env, timeout=1800)
@@ -189,9 +272,11 @@ def ensure_image(
         docker, "run", "--rm", "--network", "none", image_id, spec.executable, "--version", env=env, timeout=120
     )
     reported = (probe.stdout or "").strip().splitlines()
-    # ``opencode --version`` prints the bare version; ``codex --version`` prints ``codex-cli <version>``.
+    # ``opencode --version`` prints the bare version, ``codex --version`` ``codex-cli <version>``, and
+    # ``claude --version`` ``<version> (Claude Code)``: the first version-shaped word of the last line.
     words = reported[-1].split() if reported else []
-    version = words[-1] if words else None
+    versions = [word for word in words if re.fullmatch(r"\d+\.\d+\.\d+\S*", word)]
+    version = versions[0] if versions else (words[-1] if words else None)
     if version != pinned:
         raise ContainerError(f"image {tag} reports {spec.harness} {version!r}, pinned {pinned!r}")
     return {

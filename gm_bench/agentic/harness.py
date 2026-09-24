@@ -56,6 +56,13 @@ class HarnessDriver:
         """Write the proxy and this harness's configuration, after the sandbox check passed."""
         raise NotImplementedError
 
+    def before_invocation(self, launch: HarnessLaunch) -> None:
+        """Runs just before every harness invocation starts (the first run, each nudge, retry and resume).
+
+        For a driver whose staged configuration the agent could have changed
+        during the previous invocation, and that must restore or check it.
+        """
+
     def run_args(self, *, model: str, variant: str | None, workdir: str, brief: str, isolation: str) -> list[str]:
         """Arguments after the executable for the first invocation; the brief must be the last one."""
         raise NotImplementedError

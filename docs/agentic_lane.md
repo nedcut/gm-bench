@@ -240,7 +240,7 @@ python -m gm_bench agentic --isolation container --model opencode/big-pickle \
 Panel grade needs the harness separated from the driver, because on a
 same-user machine the agent's shell can run `ps`, read the driver's
 `--seeds`, and follow it to the run directory and the checkout.
-`--isolation container` runs the OpenCode harness in Docker while the engine,
+`--isolation container` runs the harness in Docker while the engine,
 the seed, and the ledger stay in the driver process on the host
 (`gm_bench/agentic/container.py`).
 
@@ -594,18 +594,16 @@ written against Claude Code 2.1.281). It runs through the same episode loop
 as OpenCode and Codex. A Claude row is its own row, `claude/<version> ·
 <model>`.
 
-**Status: proven only against a stand-in `claude`
-(`tests/test_agentic_claude.py`). No live episode has run, and a live smoke
-is not authorized yet.** Every Claude episode spends your Claude
-subscription's quota (or API money with `ANTHROPIC_API_KEY`). Run it
-serially (the driver has no parallel mode), smoke one short episode before
-a panel, and budget a full panel as hours of quota.
+**Status: same-user runs have been smoked live. Container runs are proven
+only against a stand-in `claude` and `docker` and, with no model call,
+against the real image (`tests/test_agentic_claude.py`); no live container
+episode has run.** Every Claude episode spends your Claude subscription's
+quota (or API money with `ANTHROPIC_API_KEY`). Run it serially (the driver
+has no parallel mode), smoke one short episode before a panel, and budget a
+full panel as hours of quota.
 
-Same-user isolation only. `--isolation container` is refused before
-anything runs: how a Claude credential should reach a container (a
-setup-token written into the episode's home volume, an API key, or
-something else) is an open decision, and there is no Claude image. Claude
-rows are therefore `smoke` grade for now.
+Same-user rows are `smoke` grade. A panel-grade Claude row needs
+`--isolation container` (below).
 
 What a run does per episode:
 
@@ -723,9 +721,89 @@ kill. The streamed windows (utilization and reset per `rateLimitType`)
 are recorded as `harness_run.quota_windows` and drive the between-episode
 pause at 95% used.
 
+The config directory between invocations. The agent's shell runs as the
+same user as Claude Code, so between two invocations it could write a
+`settings.json` (hooks, an `env` block such as `ANTHROPIC_BASE_URL`,
+permission rules), a `CLAUDE.md` or a `rules/` file into
+`CLAUDE_CONFIG_DIR`, and `--setting-sources user` would load it on the next
+resume. In same-user runs the driver removes those entries
+(`settings.json`, `settings.local.json`, `CLAUDE.md`, `CLAUDE.local.md`,
+`rules`, `agents`, `commands`, `skills`, `output-styles`, `hooks`) and
+rewrites `mcp.json` before every invocation, and lists what it removed in
+`harness_run.config_dir_findings`. An agent process left running in the
+background could still race that, one more reason same-user rows are smoke
+grade. Container runs close the gap instead (below).
+
+### Claude Code in a container
+
+```bash
+python -m gm_bench agentic --harness claude --isolation container \
+  --model claude-sonnet-5 --claude-token-file /path/to/claude-token \
+  --seeds 11 --seasons 1 --output /tmp/agentic-claude-container
+```
+
+The image. The driver builds
+`gm-bench-agentic-claude:2.1.281-<Dockerfile hash>` the same way as the
+OpenCode and Codex images (same digest-pinned base, `python3` for the
+proxy, `gmb-egress` firewall entrypoint, unprivileged `node` user), with
+`@anthropic-ai/claude-code@2.1.281`. It refuses to run if the image reports
+a different Claude Code version. On top it adds the `gmb-claude` launcher
+and a root-owned config layout (below). With the base layers cached from the
+OpenCode image the build took 14 s on the maintainer's machine. `run.json`
+records the image tag, image id, base image, Dockerfile SHA-256,
+`claude_version`, Docker server version and egress rule under
+`harness.container`, as for the other harnesses, so a container Claude row
+can be panel grade under the existing publication rules. `--binary` is
+ignored.
+
+Authentication. The container gets no environment, so
+`--claude-token-file` is required; there is no fallback to
+`CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY`. The token travels on the
+stdin of a throwaway `docker run` (no network, no capabilities, only the
+home volume mounted) into the episode's home volume as
+`/home/node/.gmb-claude-token`, mode 0600, and is removed with the volume.
+Each invocation runs `gmb-claude`, which reads that file, exports it as
+`CLAUDE_CODE_OAUTH_TOKEN` with `CLAUDE_CONFIG_DIR=/home/node/.claude` and
+`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`, and execs `claude` with the
+driver's arguments. The token is never on the `docker run` command line or
+in a `-e` variable, so neither `ps` on the host nor `docker inspect` shows
+it; the only credential-bearing thing that leaves the host process is that
+tar stream. As in same-user runs the agent's shell can print it, and it is
+redacted from `claude-events.jsonl` and `claude-stderr.log` at episode end.
+`harness_run.auth` is `token-file` and `harness_run.credential_handoff`
+says how it travelled.
+
+The MCP config is passed inline (`--mcp-config '{"mcpServers": ...}'`), not
+as a file, so no file the agent can write holds it. It names only
+`python3`, `gm_bench_proxy.py` and `host.docker.internal:<port>`; the proxy
+secret stays in the scratch file beside the proxy as for the other
+harnesses.
+
+The config directory. The home volume is writable by `node`, which is both
+Claude Code and the agent's shell, so the image makes
+`/home/node/.claude` root-owned, sticky and world-writable (mode 1777),
+with root-owned read-only placeholders: an empty `{}` `settings.json`,
+empty `settings.local.json`, `CLAUDE.md` and `CLAUDE.local.md`, and empty
+mode-0555 `rules`, `agents`, `commands`, `skills`, `output-styles` and
+`hooks` directories. Docker copies that layout, owners and modes included,
+into each new volume. Claude Code can still create its transcripts,
+`.claude.json`, backups and caches there (checked against the real image:
+`claude mcp list` starts cleanly with no network), but the agent cannot
+write, replace, remove or fill a placeholder. It can still rename the whole
+directory away, because that needs only write access to the home, so
+before every invocation `gmb-claude` checks the layout (owner, mode, type,
+empty placeholders, `settings.json` still `{}`) and refuses to start Claude
+Code on any change, exiting 96 with a `gmb-claude: refused:` line on stderr.
+That invocation then writes no events, so the episode ends without a
+further nudge, and the refusal is listed in
+`harness_run.config_dir_findings`. No agent process survives between
+invocations, because each one is its own `docker run --rm` whose processes
+end with it. Machine-wide managed settings are not installed in the image.
+
 What does not fit the shared interface, and was added to it: the park
 poll (`HarnessDriver.invocation_parked`, used only when
-`polls_for_park` is set).
+`polls_for_park` is set), and a hook that runs before every invocation
+(`HarnessDriver.before_invocation`, the same-user config re-stage).
 
 ## Private panel
 
@@ -835,7 +913,14 @@ score.
   the harness, the session's running token total, per-model API-equivalent
   estimate and no billed cost, usage-limit pause and stop, a parked
   invocation stopped and paused rather than guard-killed, a silent harness,
-  credential redaction, container refusal, and CLI dispatch
+  credential redaction, the same-user config re-stage, container runs
+  against a stand-in `docker` that runs the image's real `gmb-claude`
+  launcher (the token only in the home volume, never in argv or `-e`,
+  inline MCP config, redaction, refusal on a changed config directory, the
+  run record and a `container` artifact), CLI dispatch and a Docker that is
+  not running; with `GM_BENCH_DOCKER_TESTS=1`, the real Claude image (egress
+  canary, `docker inspect`, and the config layout under attack, running
+  only `claude --version`)
 - `tests/test_agentic_conformance.py`: the server driven by the official
   `mcp` SDK client (dev extra; skipped when not installed)
 - `tests/test_agentic_publication.py`: the compact artifact is bound to its

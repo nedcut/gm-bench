@@ -180,7 +180,7 @@ Added 2026-09-20. Nothing published changes.
   way.
 - Third harness: `gm-bench agentic --harness claude` drives Claude Code
   (`claude -p --output-format stream-json`, written against 2.1.281) through
-  the same episode loop, same-user isolation only. Each episode gets a
+  the same episode loop. Each same-user episode gets a
   private `CLAUDE_CONFIG_DIR` holding one staged MCP server, loaded with
   `--strict-mcp-config`, `--setting-sources user` and
   `--disable-slash-commands`, so the host's settings, login, `CLAUDE.md`,
@@ -193,10 +193,31 @@ Added 2026-09-20. Nothing published changes.
   API-equivalent estimate beside it; usage limits pause or stop the episode
   and panel as for Codex, including a run that waits inside the process on
   a rejected window, which the shared loop now polls for and stops
-  (`HarnessDriver.invocation_parked`). `--isolation container` is refused
-  until the container credential hand-off is decided. Tested only against
-  a stand-in `claude`; no Claude episode has run, a live smoke is not yet
-  authorized, and no Claude result is claimed. The contract fingerprint is
+  (`HarnessDriver.invocation_parked`). The contract fingerprint is
+  unchanged.
+- Claude Code in a container: `--harness claude --isolation container` runs
+  Claude Code 2.1.281 from its own pinned image
+  (`gm-bench-agentic-claude:2.1.281-<Dockerfile hash>`: the shared
+  digest-pinned Node base, egress firewall entrypoint and unprivileged
+  user, plus a `gmb-claude` launcher). It needs `--claude-token-file`: the
+  token travels on the stdin of a throwaway `docker run` into the episode's
+  home volume (mode 0600) and the launcher exports it inside the container,
+  so it is never on a `docker run` command line, in `-e`, in `docker
+  inspect`, or in the bind-mounted scratch, and it is redacted from the
+  evidence as before. The agent runs as the same user as Claude Code, so it
+  could plant a `settings.json` (hooks, an `env` block) or `CLAUDE.md` in the
+  config directory for the next resume: the image makes that directory
+  root-owned and sticky with read-only placeholders, the launcher checks the
+  layout before every launch and refuses to start on a changed one, and
+  same-user runs now remove those entries and rewrite `mcp.json` before
+  every launch (`harness_run.config_dir_guard`, `config_dir_findings`; new
+  `HarnessDriver.before_invocation`). The run records `isolation: container`
+  and the image under `harness.container`, so a container Claude row can be
+  panel grade under the existing rules. A Docker that is missing or not
+  running now ends `gm-bench agentic` with a one-line error. Tested against
+  a stand-in `claude` and `docker` and, with no model call, against the real
+  image (opt-in `GM_BENCH_DOCKER_TESTS=1`); no container Claude episode has
+  run and no Claude result is claimed. The contract fingerprint is
   unchanged.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline

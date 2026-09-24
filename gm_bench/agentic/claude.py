@@ -115,15 +115,39 @@ at 0.3.276 (Claude Code 2.1.276), which types the stream-json messages:
   scratch, removed when the episode ends, and ``HOME`` is the scratch
   directory itself; every other ``CLAUDE_*``, ``CLAUDECODE`` and
   ``ANTHROPIC_*`` variable is dropped from the harness environment (only
-  the credential the driver hands off is set). ``--setting-sources user``
-  loads only that private directory's settings (none are staged), so the
-  scratch directory's ``.claude/settings.json`` and ``settings.local.json``, which the
-  agent could write between invocations, are never loaded.
-  ``--strict-mcp-config`` with ``--mcp-config <private>/mcp.json`` loads
-  exactly one MCP server, ``gm-bench``: ``command`` is the harness's
-  python3, ``args`` are ``gm_bench_proxy.py`` and the socket path, the same
-  launch ``opencode_config`` declares. ``--disable-slash-commands`` turns
+  the credential the driver hands off is set). In a container
+  ``CLAUDE_CONFIG_DIR`` is ``/home/node/.claude`` in the episode's home
+  volume (below). ``--setting-sources user`` loads only that directory's
+  settings (none are staged), so the scratch directory's
+  ``.claude/settings.json`` and ``settings.local.json``, which the agent
+  could write between invocations, are never loaded.
+  ``--strict-mcp-config`` with ``--mcp-config`` loads exactly one MCP
+  server, ``gm-bench``: ``command`` is the harness's python3, ``args`` are
+  ``gm_bench_proxy.py`` and the socket path (``host:port`` in a container),
+  the same launch ``opencode_config`` declares. Same-user runs pass
+  ``<private>/mcp.json``; container runs pass the same JSON inline, so no
+  file the agent could edit holds it. ``--disable-slash-commands`` turns
   off every skill and custom command, bundled ones included.
+- **The config directory between invocations.** The agent's shell runs as
+  the same user as Claude Code, so between two invocations it could write a
+  ``settings.json`` (hooks, an ``env`` block such as ``ANTHROPIC_BASE_URL``,
+  permission rules), a ``CLAUDE.md`` or ``rules/`` into ``CLAUDE_CONFIG_DIR``,
+  and ``--setting-sources user`` would load it on the next resume. Same-user:
+  before every invocation (:meth:`ClaudeDriver.before_invocation`) the driver
+  removes those entries (:data:`CONFIG_ENTRIES`) and rewrites ``mcp.json``,
+  and records what it removed as ``harness_run.config_dir_findings``; an
+  agent process left running in the background could still race it, one
+  more reason same-user rows are smoke grade. Container: the image bakes
+  ``/home/node/.claude`` in as root's, sticky and world-writable, with
+  read-only root-owned placeholders for the same entries, so Claude Code
+  can create its transcripts and caches there but the agent cannot replace
+  or fill a placeholder; and the image's launcher ``gmb-claude`` checks the
+  whole layout (owners, modes, empty placeholders, ``settings.json`` still
+  ``{}``) before every invocation and refuses to start Claude Code if the
+  agent renamed the directory away or changed any of it (container.py,
+  :data:`~gm_bench.agentic.container.CLAUDE_WRAPPER`). A refusal ends that
+  invocation without a session, and its stderr line is recorded in
+  ``config_dir_findings``.
   ``CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`` stops the auto-updater (a
   harness that upgrades itself mid-panel would change the row identity),
   telemetry and error reporting. Machine-wide managed settings, if an
@@ -151,18 +175,29 @@ at 0.3.276 (Claude Code 2.1.276), which types the stream-json messages:
   requests), handed to the harness as ``CLAUDE_CODE_OAUTH_TOKEN``; or, in
   same-user runs without the file, ``CLAUDE_CODE_OAUTH_TOKEN`` or else
   ``ANTHROPIC_API_KEY`` (API billing) from the operator's environment, never
-  both. The value sits in the harness's environment, which the agent's
-  shell inherits and can print: that is the harness's key, not the
+  both. Container runs pass no environment, so they need
+  ``--claude-token-file``: the token travels on the stdin of a throwaway
+  ``docker run`` into the per-episode home volume
+  (``ContainerHarness.seed_home``, ``/home/node/.gmb-claude-token``, mode
+  0600), never onto a command line, into a ``docker run -e`` variable
+  (``docker inspect`` shows neither), or into the bind-mounted scratch
+  directory, and is removed with the volume. ``gmb-claude`` reads it and
+  exports it as ``CLAUDE_CODE_OAUTH_TOKEN`` for the ``claude`` it execs.
+  Either way the value sits in the harness's environment, which the
+  agent's shell inherits and can print: that is the harness's key, not the
   benchmark's, and gives no access to the seed. When the episode ends the
   driver replaces the value with ``[REDACTED]`` in ``claude-events.jsonl``
   and ``claude-stderr.log``. A kept scratch directory is not redacted.
   ``--bare`` is not used: it would drop the subscription token (bare mode
   reads only ``ANTHROPIC_API_KEY`` or ``apiKeyHelper``).
-- **Container isolation** is refused. How a Claude credential should reach a
-  container (a setup-token written into the home volume, an API key, or
-  something else) is an open decision for the operator, so
-  :meth:`ClaudeDriver.preflight` and :meth:`ClaudeDriver.ensure_image` stop
-  before anything runs, and there is no Claude image.
+- **Container isolation** runs Claude Code 2.1.281 from its own pinned
+  image (``container.CLAUDE_IMAGE``: ``@anthropic-ai/claude-code`` on the
+  shared digest-pinned Node base, the egress firewall entrypoint, the
+  unprivileged ``node`` user, Debian's python3 for the proxy), with the
+  same flags as same-user runs. The run records ``isolation: container``
+  and the image (tag, id, Dockerfile SHA-256, base image, the
+  ``claude_version`` the image reports) under ``harness.container``, as the
+  other harnesses do, so a container row can be panel grade.
 
 Every Claude run spends the operator's Claude subscription quota or API
 money, and the driver runs episodes serially: never run it in parallel.
@@ -182,6 +217,16 @@ from typing import Any
 
 from gm_bench.agentic import opencode
 from gm_bench.agentic.codex import COST_BASIS, redact_file
+from gm_bench.agentic.container import (
+    CLAUDE_CONFIG_DIR,
+    CLAUDE_IMAGE,
+    CLAUDE_PLACEHOLDER_DIRS,
+    CLAUDE_PLACEHOLDER_FILES,
+    CLAUDE_TOKEN_FILENAME,
+    CLAUDE_WRAPPER_MARKER,
+    CLAUDE_WRAPPER_PATH,
+    ensure_image,
+)
 from gm_bench.agentic.harness import HarnessDriver
 from gm_bench.agentic.opencode import PROXY_FILENAME, HarnessLaunch, stage_proxy
 from gm_bench.telemetry import api_equivalent_cost_usd
@@ -207,12 +252,13 @@ SETTING_SOURCES = "user"
 HARNESS_ENV = {"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"}
 # From this version a resumed session's result carries the session's whole total.
 RESUME_RESTORES_TOTALS = (2, 1, 277)
-CONTAINER_REFUSAL = (
-    "--isolation container is not available for --harness claude: how a Claude credential reaches the "
-    "container (a setup-token in the episode's home volume, an API key, or something else) is an open "
-    "decision for the operator, and no Claude image exists. Run --isolation same-user, which is smoke grade "
-    "(docs/agentic_lane.md, Claude Code harness)"
-)
+# What Claude Code loads from CLAUDE_CONFIG_DIR as configuration or instructions. Same-user: removed
+# before every invocation. Container: read-only root-owned placeholders baked into the image.
+CONFIG_ENTRIES = (*CLAUDE_PLACEHOLDER_FILES, *CLAUDE_PLACEHOLDER_DIRS)
+CONFIG_DIR_GUARD = {
+    "same-user": "config entries removed and mcp.json rewritten before every invocation",
+    "container": f"root-owned image layout checked by {CLAUDE_WRAPPER_PATH} before every invocation",
+}
 
 # The ``api_error_status`` of a failed result that is a transient provider failure (529: overloaded).
 RETRYABLE_STATUS_CODES = frozenset({408, 425, 429, 500, 502, 503, 504, 529})
@@ -704,12 +750,13 @@ def api_equivalent_fields(telemetry: dict[str, Any]) -> dict[str, Any]:
 
 
 class ClaudeDriver(HarnessDriver):
-    """The Claude Code CLI behind the shared episode loop (same-user isolation only)."""
+    """The Claude Code CLI behind the shared episode loop."""
 
     name = HARNESS_NAME
     default_binary = "claude"
-    container_executable = "claude"
-    image_version_key = "claude_version"
+    # The image's launcher: it checks the config layout, exports the token, and execs claude.
+    container_executable = CLAUDE_WRAPPER_PATH
+    image_version_key = CLAUDE_IMAGE.version_key
     polls_for_park = True
 
     def __init__(self, *, token_file: str | Path | None = None) -> None:
@@ -720,6 +767,11 @@ class ClaudeDriver(HarnessDriver):
         self._secrets: dict[Path, set[str]] = {}
         self._quota: dict[Path, list[dict[str, Any]]] = {}
         self._sources: dict[Path, str] = {}
+        # Per launch: the staged MCP config, and what the config-dir guard found.
+        self._configs: dict[Path, dict[str, Any]] = {}
+        self._findings: dict[Path, list[str]] = {}
+        # The --mcp-config value per working directory (a file path, or inline JSON in a container).
+        self._mcp_config_args: dict[str, str] = {}
 
     def auth_source(self, env: dict[str, str] | None = None) -> str:
         env = os.environ if env is None else env
@@ -730,8 +782,12 @@ class ClaudeDriver(HarnessDriver):
         return API_KEY_ENV if env.get(API_KEY_ENV) else "none"
 
     def preflight(self, isolation: str) -> None:
-        if isolation == "container":
-            raise ValueError(CONTAINER_REFUSAL)
+        if isolation == "container" and self.token_file is None:
+            raise ValueError(
+                "--isolation container with --harness claude needs --claude-token-file (a `claude setup-token` "
+                "token): the container gets no environment and no host login, so Claude Code has no credential "
+                "otherwise"
+            )
         if self.token_file is not None:
             read_token_file(self.token_file)
             return
@@ -745,11 +801,20 @@ class ClaudeDriver(HarnessDriver):
         return claude_version(binary)
 
     def ensure_image(self, *, docker: str, env: dict[str, str]) -> dict[str, Any]:
-        raise ValueError(CONTAINER_REFUSAL)
+        return ensure_image(docker=docker, env=env, spec=CLAUDE_IMAGE)
 
     def environment(self, env: dict[str, str], scratch: Path, isolation: str) -> dict[str, str]:
-        if isolation != "same-user":
-            raise ValueError(CONTAINER_REFUSAL)
+        if isolation == "container":
+            # This is only the docker client's environment; the container gets none of it.
+            # The token reaches the harness through the home volume (``stage``).
+            if self.token_file is None:
+                raise ValueError("--isolation container with --harness claude needs --claude-token-file")
+            for key in tuple(env):
+                if key.startswith(("CLAUDE_", "ANTHROPIC_")) or key == "CLAUDECODE":
+                    env.pop(key)
+            self._sources[scratch] = "token-file"
+            self._secrets.setdefault(scratch, set()).add(read_token_file(self.token_file))
+            return env
         source = self.auth_source(env)
         self._sources[scratch] = source
         # Exactly one credential reaches the harness: the file's token, else the operator's
@@ -781,13 +846,58 @@ class ClaudeDriver(HarnessDriver):
 
     def stage(self, launch: HarnessLaunch) -> None:
         stage_proxy(launch.scratch, secret=launch.secret)
+        config = self._configs[launch.scratch] = self._config(launch)
+        self._findings[launch.scratch] = []
+        if launch.container is not None:
+            assert self.token_file is not None
+            # Into the episode's home volume over the docker client's stdin: never a command line,
+            # an environment variable, or the bind-mounted scratch. gmb-claude exports it.
+            token = read_token_file(self.token_file)
+            launch.container.seed_home({CLAUDE_TOKEN_FILENAME: (token + "\n").encode("utf-8")})
+            # Inline: no file in the agent-writable home or scratch holds the MCP config.
+            self._mcp_config_args[launch.workdir] = json.dumps(config, separators=(",", ":"))
+            return
         path = self._homes[launch.scratch] / MCP_CONFIG_FILENAME
+        self._write_mcp_config(path, config)
+        self._mcp_config_args[launch.workdir] = str(path)
+
+    @staticmethod
+    def _write_mcp_config(path: Path, config: dict[str, Any]) -> None:
         descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            json.dump(self._config(launch), handle, indent=2)
+            json.dump(config, handle, indent=2)
+
+    def before_invocation(self, launch: HarnessLaunch) -> None:
+        """Same-user: undo whatever the agent put in the private config dir since the last invocation.
+
+        A container needs nothing here: the image's layout keeps the agent out of the
+        config entries, and ``gmb-claude`` checks it inside the container before
+        every launch, where no agent process can outlive the previous invocation.
+        """
+        home = self._homes.get(launch.scratch)
+        config = self._configs.get(launch.scratch)
+        if launch.container is not None or home is None or config is None:
+            return
+        findings = self._findings.setdefault(launch.scratch, [])
+        for name in CONFIG_ENTRIES:
+            path = home / name
+            if not (path.exists() or path.is_symlink()):
+                continue
+            findings.append(f"removed {name} from the config dir before a launch")
+            if path.is_dir() and not path.is_symlink():
+                shutil.rmtree(path, ignore_errors=True)
+            else:
+                path.unlink(missing_ok=True)
+        mcp = home / MCP_CONFIG_FILENAME
+        if not mcp.is_file() or mcp.is_symlink() or mcp.read_text(encoding="utf-8") != json.dumps(config, indent=2):
+            findings.append(f"restored {MCP_CONFIG_FILENAME} before a launch")
+            if mcp.is_dir() and not mcp.is_symlink():
+                shutil.rmtree(mcp, ignore_errors=True)
+            else:
+                mcp.unlink(missing_ok=True)
+            self._write_mcp_config(mcp, config)
 
     def _options(self, model: str, variant: str | None, workdir: str) -> list[str]:
-        config = self._homes[Path(workdir)] / MCP_CONFIG_FILENAME
         options = [
             "-p",
             "--output-format",
@@ -795,7 +905,7 @@ class ClaudeDriver(HarnessDriver):
             "--verbose",
             # Variadic: the next option ends its value list.
             "--mcp-config",
-            str(config),
+            self._mcp_config_args[workdir],
             "--strict-mcp-config",
             "--setting-sources",
             SETTING_SOURCES,
@@ -843,28 +953,48 @@ class ClaudeDriver(HarnessDriver):
         events = launch.evidence_paths[0] if launch.evidence_paths else None
         lines = events.read_text(encoding="utf-8").splitlines() if events is not None and events.is_file() else []
         self._quota[launch.scratch] = quota_windows(lines)
+        stderr = launch.evidence_paths[1] if len(launch.evidence_paths) > 1 else None
+        if launch.container is not None and stderr is not None and stderr.is_file():
+            # Launches gmb-claude refused because the agent changed the config layout.
+            refusals = [
+                line.strip()
+                for line in stderr.read_text(encoding="utf-8", errors="replace").splitlines()
+                if line.startswith(CLAUDE_WRAPPER_MARKER)
+            ]
+            self._findings.setdefault(launch.scratch, []).extend(refusals)
 
     def run_record(self, launch: HarnessLaunch) -> dict[str, Any]:
+        container = launch.container is not None
         return {
             # The subscription's windows as the stream last reported them (empty for an
             # API key, which reports none); the stream names no plan.
             "quota_windows": self._quota.pop(launch.scratch, []),
             "plan_type": None,
             # The whole staged MCP config; it names only the proxy and where it connects.
-            "harness_config": json.dumps(self._config(launch), indent=2),
-            "claude_config_dir": "private directory outside the scratch (removed at episode end)",
+            "harness_config": json.dumps(self._configs.pop(launch.scratch, None) or self._config(launch), indent=2),
+            "claude_config_dir": f"{CLAUDE_CONFIG_DIR} (episode volume, removed at episode end)"
+            if container
+            else "private directory outside the scratch (removed at episode end)",
+            "config_dir_guard": CONFIG_DIR_GUARD[launch.isolation],
+            # What the guard removed (same-user) or refused (container); empty when the agent left it alone.
+            "config_dir_findings": self._findings.pop(launch.scratch, []),
             "permission_mode": PERMISSION_MODE,
             "visible_tools": list(VISIBLE_TOOLS),
             "allowed_tools": list(ALLOWED_TOOLS),
             "setting_sources": SETTING_SOURCES,
             "auth": self._sources.pop(launch.scratch, "none"),
+            "credential_handoff": "home volume over docker run stdin, exported by gmb-claude"
+            if container
+            else "harness environment",
             "session_resume": "claude -p --resume",
         }
 
     def cleanup(self, launch: HarnessLaunch) -> None:
         # The config dir (transcripts, any credential Claude Code stored) never outlives
         # the episode, even with --keep-scratch, and no credential value stays in the evidence.
+        # (``run_record`` runs after this and reads, then drops, the config and the findings.)
         secrets = self._secrets.pop(launch.scratch, set())
+        self._mcp_config_args.pop(getattr(launch, "workdir", ""), None)
         home = self._homes.pop(launch.scratch, None)
         if home is not None:
             shutil.rmtree(home, ignore_errors=True)

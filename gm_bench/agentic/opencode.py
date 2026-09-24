@@ -340,7 +340,12 @@ class HarnessLaunch:
         return self._secret
 
     def command(self, harness_args: list[str]) -> tuple[list[str], Callable[[], None] | None]:
-        """The full host command for one harness invocation, and how to stop it if it is killed."""
+        """The full host command for one harness invocation, and how to stop it if it is killed.
+
+        Called once per invocation, just before it starts, so the driver's
+        :meth:`HarnessDriver.before_invocation` runs here.
+        """
+        self.driver.before_invocation(self)
         if self.container is None:
             return [self.binary, *harness_args], None
         container = self.container

@@ -334,8 +334,9 @@ def main(argv: list[str] | None = None) -> None:
     )
     agentic_parser.add_argument(
         "--claude-token-file",
-        help="file holding a `claude setup-token` token (--harness claude only), handed to the harness as "
-        "CLAUDE_CODE_OAUTH_TOKEN, never on a command line; the host Claude Code login is not used",
+        help="file holding a `claude setup-token` token (--harness claude only; required with --isolation "
+        "container), handed to the harness as CLAUDE_CODE_OAUTH_TOKEN, never on a command line; the host Claude "
+        "Code login is not used",
     )
     agentic_parser.add_argument("--keep-scratch", action="store_true", help="leave the agent workspace on disk")
     agentic_parser.add_argument("--json", action="store_true")
@@ -1199,6 +1200,7 @@ def _agentic_command(args: argparse.Namespace) -> None:
     from gm_bench.agentic import claude as claude_driver
     from gm_bench.agentic import codex as codex_driver
     from gm_bench.agentic import opencode as opencode_driver
+    from gm_bench.agentic.container import ContainerError
     from gm_bench.agentic.publication import seed_groups
 
     if args.codex_auth_file and args.harness != "codex":
@@ -1231,30 +1233,34 @@ def _agentic_command(args: argparse.Namespace) -> None:
         run_panel = claude_driver.run_panel
         harness_options["token_file"] = args.claude_token_file
         try:
-            # Refuse before anything runs: no credentials, or container isolation (not designed yet).
+            # Refuse before anything runs: no credentials, or none the container can get.
             claude_driver.ClaudeDriver(token_file=args.claude_token_file).preflight(args.isolation)
         except ValueError as exc:
             raise SystemExit(f"gm-bench agentic: {exc}") from None
     else:
         run_panel = opencode_driver.run_panel
-    payload = run_panel(
-        seeds,
-        model=args.model,
-        run_dir=_Path(args.output),
-        seasons=args.seasons,
-        binary=args.binary or args.harness,
-        variant=args.variant,
-        phase_guard_seconds=args.phase_guard_seconds,
-        max_nudges=args.max_nudges,
-        max_provider_stalls=args.max_provider_stalls,
-        max_provider_stall_wait_seconds=args.max_provider_stall_wait_seconds,
-        progress=_progress,
-        keep_scratch=args.keep_scratch,
-        name_episodes_by_position=private,
-        isolation=args.isolation,
-        docker=args.docker,
-        **harness_options,
-    )
+    try:
+        payload = run_panel(
+            seeds,
+            model=args.model,
+            run_dir=_Path(args.output),
+            seasons=args.seasons,
+            binary=args.binary or args.harness,
+            variant=args.variant,
+            phase_guard_seconds=args.phase_guard_seconds,
+            max_nudges=args.max_nudges,
+            max_provider_stalls=args.max_provider_stalls,
+            max_provider_stall_wait_seconds=args.max_provider_stall_wait_seconds,
+            progress=_progress,
+            keep_scratch=args.keep_scratch,
+            name_episodes_by_position=private,
+            isolation=args.isolation,
+            docker=args.docker,
+            **harness_options,
+        )
+    except ContainerError as exc:
+        # Docker missing or not running, or the harness image would not build.
+        raise SystemExit(f"gm-bench agentic: {exc}") from None
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
