@@ -178,6 +178,26 @@ Added 2026-09-20. Nothing published changes.
   episode (`harness_run.ended_by_quota`) and the panel (`run.json`
   `stopped_for_quota`) instead of starting seeds that would fail the same
   way.
+- Third harness: `gm-bench agentic --harness claude` drives Claude Code
+  (`claude -p --output-format stream-json`, written against 2.1.281) through
+  the same episode loop, same-user isolation only. Each episode gets a
+  private `CLAUDE_CONFIG_DIR` holding one staged MCP server, loaded with
+  `--strict-mcp-config`, `--setting-sources user` and
+  `--disable-slash-commands`, so the host's settings, login, `CLAUDE.md`,
+  skills, plugins, hooks and MCP servers never reach the agent; the
+  GM-Bench and code tools run under `--permission-mode dontAsk` with an
+  allow list. Nudges resume with `--resume`. The credential is a
+  `claude setup-token` token from `--claude-token-file` (or
+  `CLAUDE_CODE_OAUTH_TOKEN`/`ANTHROPIC_API_KEY` from the environment),
+  redacted from the evidence. Cost is unmeasured with a per-model
+  API-equivalent estimate beside it; usage limits pause or stop the episode
+  and panel as for Codex, including a run that waits inside the process on
+  a rejected window, which the shared loop now polls for and stops
+  (`HarnessDriver.invocation_parked`). `--isolation container` is refused
+  until the container credential hand-off is decided. Tested only against
+  a stand-in `claude`; no Claude episode has run, a live smoke is not yet
+  authorized, and no Claude result is claimed. The contract fingerprint is
+  unchanged.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

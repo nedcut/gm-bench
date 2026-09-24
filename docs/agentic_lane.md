@@ -581,6 +581,148 @@ use of a window, pauses).
 The Keychain panel launcher passes `--harness codex` and
 `--codex-auth-file` through unchanged.
 
+## Claude Code harness
+
+```bash
+python -m gm_bench agentic --harness claude --model claude-sonnet-5 \
+  --claude-token-file /path/to/claude-token \
+  --seeds 11 --seasons 1 --output /tmp/agentic-claude
+```
+
+The Claude Code CLI is the third harness (`gm_bench/agentic/claude.py`,
+written against Claude Code 2.1.281). It runs through the same episode loop
+as OpenCode and Codex. A Claude row is its own row, `claude/<version> ·
+<model>`.
+
+**Status: proven only against a stand-in `claude`
+(`tests/test_agentic_claude.py`). No live episode has run, and a live smoke
+is not authorized yet.** Every Claude episode spends your Claude
+subscription's quota (or API money with `ANTHROPIC_API_KEY`). Run it
+serially (the driver has no parallel mode), smoke one short episode before
+a panel, and budget a full panel as hours of quota.
+
+Same-user isolation only. `--isolation container` is refused before
+anything runs: how a Claude credential should reach a container (a
+setup-token written into the episode's home volume, an API key, or
+something else) is an open decision, and there is no Claude image. Claude
+rows are therefore `smoke` grade for now.
+
+What a run does per episode:
+
+1. Stages the proxy exactly as for OpenCode, plus a private
+   `CLAUDE_CONFIG_DIR` (mode 0700, outside the scratch, removed at episode
+   end even with `--keep-scratch`) holding one `mcp.json` with a single
+   stdio server, `gm-bench`, that launches `gm_bench_proxy.py` on the
+   harness's own `python3` with the socket path. `HOME` is the scratch
+   directory, and every other `CLAUDE_*`, `CLAUDECODE` and `ANTHROPIC_*`
+   variable is dropped. `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` stops
+   the auto-updater (a harness that upgrades itself mid-panel changes the
+   row identity), telemetry and error reports.
+2. Runs `claude -p --output-format stream-json --verbose --mcp-config
+   <private>/mcp.json --strict-mcp-config --setting-sources user
+   --disable-slash-commands --allowedTools
+   mcp__gm-bench,Bash,Read,Edit,Write,Glob,Grep,NotebookEdit
+   --permission-mode dontAsk --permission-prompts none --model <m> --
+   <brief>` in the scratch directory, capturing
+   `seed-<n>/claude-events.jsonl`. `--variant` becomes `--effort <level>`.
+   The prompt follows `--` because `--mcp-config` and `--allowedTools` take
+   variadic values.
+3. Nudges, provider-stall retries and quota resumes run the same command
+   with `--resume <session id>`, the `session_id` of the latest
+   `system/init` event, so Claude Code keeps its context.
+
+What that flag set keeps out. `--strict-mcp-config` loads only the staged
+server, never your own MCP servers. The private config directory means none
+of your `~/.claude` settings, login, `CLAUDE.md`, skills, plugins, hooks,
+auto memory or sessions reach the agent. `--setting-sources user` reads
+only that empty private directory, so a `.claude/settings.json` the agent
+writes into its scratch directory is not loaded on the next resume.
+`--disable-slash-commands` removes every skill and custom command, bundled
+ones included. Machine-wide managed settings, if an administrator installed
+any, still apply. `--bare` is not used because it ignores the subscription
+token.
+
+Permissions. `dontAsk` with that allow list runs the GM-Bench tools and the
+code tools without a prompt and denies everything else (web fetch and
+search, any other MCP server) at once, recording it in the result's
+`permission_denials`; `--permission-prompts none` tells Claude not to retry
+a denied call. `bypassPermissions` was not used: it turns off the
+permission layer for every tool, which Claude Code's documentation
+recommends only for sandboxes without internet access. Neither mode
+confines reads or shell commands to the scratch directory (a bare `Bash`
+rule allows any command), so same-user rows stay `smoke` grade exactly as
+OpenCode's and Codex's do.
+
+Authentication. The private config directory also means your `/login`
+credential (in the macOS Keychain, keyed to the config directory) is not
+found and never read. Give the harness one credential deliberately:
+
+- `--claude-token-file <path>`: a file holding one token from `claude
+  setup-token`, a one-year OAuth token that draws on your Claude
+  subscription and can only make model requests. The driver hands it to
+  the harness as `CLAUDE_CODE_OAUTH_TOKEN`. Keep the file outside the
+  checkout and the run directory, mode 0600.
+- Same-user without the file: `CLAUDE_CODE_OAUTH_TOKEN` from your
+  environment, or else `ANTHROPIC_API_KEY` (API billing). Only one is
+  passed; with both set, the subscription token wins.
+
+The trade-off: the token is a long-lived bearer credential for your
+subscription, separate from your interactive login and not rotated by the
+run, and it sits in the harness's environment, which the agent's shell can
+print. That is the harness's credential, not the benchmark's; it gives no
+access to the seed. When the episode ends the driver replaces its value
+with `[REDACTED]` in `claude-events.jsonl` and `claude-stderr.log`; a kept
+scratch directory is not redacted. `harness_run.auth` records the source
+(`token-file`, `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY`), never the
+value.
+
+Telemetry. GM-Bench calls are `tool_use` blocks named
+`mcp__gm-bench__<tool>`, counted once per tool-use id as
+`gm-bench_<tool>`; a call Claude Code denied (`permission_denied`, or
+`permission_denials` on the result) never reached the server and is
+counted under `usage.harness.tool_calls_skipped`. Tokens come from the
+result's `modelUsage` (every model call, subagents and compaction
+included); since Claude Code 2.1.277 a resumed session's result carries the
+session's whole total, so the episode uses the last result per session
+(a sum on older versions). An invocation that was killed (phase guard,
+timeout, parked quota stop) writes no result, so its input and cache
+tokens are recovered from its assistant messages, once per message id; its
+output is only a lower bound there, and `usage.harness.usage_complete` is
+false. `api_calls` counts distinct assistant message ids (API responses),
+compactions are counted from `compact_boundary`, and
+`max_output_tokens_per_call` is left out.
+
+Cost. `total_cost_usd` is Claude Code's client-side estimate, not a bill,
+and a subscription is not billed per token, so `usage.cost_usd` is `null`
+as for Codex. `usage.harness.api_equivalent_cost_usd` prices each model in
+`modelUsage` at its `pricing.json` entry (for example `claude-sonnet-5`,
+with cached input at the cached rate), labelled
+`api-list-price-estimate` and `billed_by_harness: false`; any unpriced
+model with tokens leaves it `null`. Cache writes are priced at the 5-minute
+write rate, so the estimate may be low where Claude Code wrote 1-hour cache
+entries. Claude Code's own figure is kept as
+`usage.harness.harness_cost_estimate_usd` for comparison only.
+
+Stalls and quota. A failed result with a 408, 425, 429, 5xx or 529 status,
+an `overloaded`, `rate_limit` or `server_error` assistant error, or a
+transient message ("Repeated 529 Overloaded errors", "Request timed out",
+...) is a provider stall. A spent subscription window is a
+`rate_limit_event` with `status: rejected` (not covered by overage) or a
+message such as "You've hit your session limit"; the reset comes from the
+event's `resetsAt`. The loop then pauses until the reset and resumes, or
+stops the episode and the panel, exactly as for Codex's usage limit;
+"Credit balance is too low" stops them too. Claude Code can wait inside
+the process for a rejected window to reset instead of exiting, so the
+loop also polls the running invocation and stops it when a rejection is
+open and no result has arrived; that stop is a quota pause, not a guard
+kill. The streamed windows (utilization and reset per `rateLimitType`)
+are recorded as `harness_run.quota_windows` and drive the between-episode
+pause at 95% used.
+
+What does not fit the shared interface, and was added to it: the park
+poll (`HarnessDriver.invocation_parked`, used only when
+`polls_for_park` is set).
+
 ## Private panel
 
 A full row is the 32-seed private panel (`docs/bench_v2_spec.md`, Panel
@@ -682,6 +824,14 @@ score.
   published for Codex and the API-equivalent estimate kept apart from it, the event parser and stall rule, the Codex image, the container
   auth hand-off (only in the volume, never on a command line) against a
   stand-in `docker`, and CLI dispatch
+- `tests/test_agentic_claude.py`: the Claude Code driver against a stand-in
+  `claude` that launches the proxy from the staged `--mcp-config` and makes
+  real tool calls (ledger equals harness events, a nudge and a stall retry
+  by `--resume`), the exact flag set, no host Claude state or variables in
+  the harness, the session's running token total, per-model API-equivalent
+  estimate and no billed cost, usage-limit pause and stop, a parked
+  invocation stopped and paused rather than guard-killed, a silent harness,
+  credential redaction, container refusal, and CLI dispatch
 - `tests/test_agentic_conformance.py`: the server driven by the official
   `mcp` SDK client (dev extra; skipped when not installed)
 - `tests/test_agentic_publication.py`: the compact artifact is bound to its

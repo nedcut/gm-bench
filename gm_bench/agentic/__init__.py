@@ -14,5 +14,6 @@ Modules:
 - ``harness``   the interface a harness driver implements
 - ``opencode``  the first harness driver, and the episode loop every driver shares
 - ``codex``     the Codex CLI driver
+- ``claude``    the Claude Code driver (same-user isolation only)
 - ``container`` the Docker launcher for container isolation
 """
