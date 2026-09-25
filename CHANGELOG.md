@@ -73,6 +73,46 @@ Added 2026-09-20. Nothing published changes.
   must agree with each other. The site's 2.0 section shows it as
   "vs pick-trader (same seeds)", and the results-data validator now requires
   that on-panel reference and rejects any other p-value on a 2.0 row.
+- Container isolation: `gm-bench agentic --isolation container` runs the
+  OpenCode harness in Docker (pinned image, only the scratch directory
+  mounted, no host processes, config, or credentials visible) while the
+  engine and seed stay in the driver, which now records the isolation it
+  launched; `agentic-redact` refuses a stronger claim. The container's
+  egress is firewalled: it reaches the public internet and DNS, and on the
+  host only the driver's port, so host-loopback services (model servers,
+  agent servers, tunnels) are out of reach; a canary check proves this
+  before every episode and `harness.container.egress` records the rule.
+  The contract moves to `07de948a4f4afbae`: the socket server gains a
+  loopback TCP transport with a per-run secret (Docker Desktop cannot pass
+  a Unix socket through a bind mount), no longer serves a connection
+  accepted after `stop()` begins, and counts only served connections in
+  `proxy_connections` and every failed secret presentation (including
+  non-UTF-8 bytes) in `proxy_connections_refused`, and the engine can take
+  a provider-stall backoff off the phase guard clock (below), so the
+  committed smoke row must be rerun on the new contract. The rerun is
+  `results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json`
+  (container isolation, `opencode/space-bunny-free`, mean 225.8 over
+  seeds 1 to 8 at five seasons); it replaces the `big-pickle` row, whose
+  free quota was exhausted.
+- Provider stalls: a harness run that ends on a retryable provider error
+  (a 429 rate limit, an overload, a 5xx) is no longer treated as the agent
+  stopping. The driver waits (60 s, doubling, capped at 600 s; by default
+  at most 48 retries and 6 hours per episode, set with
+  `--max-provider-stalls` and `--max-provider-stall-wait-seconds` and
+  recorded in `run.json` and the published row, so a panel can wait out a
+  provider's quota window) and resumes the session without
+  spending a nudge, and records `provider_stalls` and
+  `provider_stall_wait_seconds` per episode, carried into published rows.
+  The wait is taken off the open phase's guard clock and logged in the
+  ledger as a `clock_pause` event, which replay and the audit ignore.
+- Silent harness: OpenCode retries a 429 internally without printing any
+  event, so a rate-limited run looked hung until the 20-minute phase guard
+  killed it and its phases closed as `harness_exit`. The driver now stops an
+  invocation that has printed no event and made no tool call for 240 s since
+  launch (`--silent-harness-seconds`, 0 disables) and retries it as a
+  provider stall, not a guard stop or a nudge; the silent window comes off
+  the phase clock. Counted as `silent_kills` per episode (`silent` per nudge),
+  `silent_harness_kills` in the run summary and site telemetry.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

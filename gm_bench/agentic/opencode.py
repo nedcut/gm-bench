@@ -4,7 +4,8 @@ Per episode the driver:
 
 1. builds the episode engine in this process (the seed never touches a file
    the agent can find) and serves it as an MCP server over a private Unix
-   socket;
+   socket, or, with the harness in a container, over a loopback TCP port
+   that only accepts connections presenting a per-run secret;
 2. creates an empty scratch directory holding only a standard-library proxy
    script and an ``opencode.json`` that launches it on the harness's own
    python3, with code mode off so one model tool call is one ledger entry;
@@ -19,12 +20,19 @@ The harness environment is the operator's environment minus private-seed
 material, Python path overrides and the interpreter's virtualenv, so the
 agent's shell cannot import the simulator. Nothing readable from the scratch
 directory names the seed, the interpreter, or the repository.
+
+``isolation`` says how the harness is separated from the driver, and the run
+records what was actually done: ``same-user`` (a child process of the driver,
+whose ``ps`` can show the driver's command line) or ``container`` (Docker,
+see ``container.py``). Publication refuses to claim more than that record.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -37,6 +45,14 @@ from typing import Any, Callable
 import gm_bench
 from gm_bench.agentic import _proxy
 from gm_bench.agentic.brief import nudge_message, task_brief
+from gm_bench.agentic.container import (
+    HOST_ALIAS,
+    WORKDIR,
+    ContainerHarness,
+    container_egress_problems,
+    container_sandbox_problems,
+    ensure_image,
+)
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import DEFAULT_PHASE_GUARD_SECONDS, AgenticEpisode
 from gm_bench.agentic.mcp_server import EPISODE_ENV, SocketMcpServer
@@ -48,6 +64,31 @@ from gm_bench.telemetry import aggregate_usage
 
 HARNESS_NAME = "opencode"
 DEFAULT_MAX_NUDGES = 20
+# A provider that throttles or fails transiently ends OpenCode's run the same
+# way a model that stops does. When a run's last event is such an error (a
+# "provider stall") the driver waits and resumes the session instead of
+# counting the relaunch as a nudge: exponential backoff from 60 s, doubling,
+# capped at 600 s, at most 48 retries and 6 hours of waiting per episode, so a
+# run can wait out a provider's quota window (the wait is off the phase guard
+# clock). Past either budget a stall is treated like any other harness exit.
+PROVIDER_STALL_BACKOFF_START_SECONDS = 60.0
+PROVIDER_STALL_BACKOFF_CAP_SECONDS = 600.0
+DEFAULT_MAX_PROVIDER_STALLS = 48
+DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS = 6 * 3600.0
+# OpenCode retries a 429 inside the harness and prints nothing to its event
+# stream while it does, so a rate-limited harness looks hung: no event, no
+# tool call. An invocation that has appended no byte to the event stream and
+# made no ledger tool call for this long since launch is a "silent harness":
+# the driver stops it and treats it as a provider stall (backoff, retry, off
+# the phase clock). Any event at all, even ``step_start`` for a slow first
+# model call, means it is not silent; the phase guard stays the backstop for
+# a harness that emits events but makes no tool call. 0 disables it.
+SILENT_HARNESS_SECONDS = 240.0
+RETRYABLE_STATUS_CODES = frozenset({408, 425, 429, 500, 502, 503, 504})
+_RETRYABLE_MESSAGE_RE = re.compile(r"rate[ _-]?limit|overloaded|try again later", re.IGNORECASE)
+# What the driver itself can do. ``separate-user`` is a valid statement in a
+# published row (publication.ISOLATION_LEVELS) but no driver launches it yet.
+DRIVER_ISOLATION = ("same-user", "container")
 REPO_ROOT = Path(gm_bench.__file__).resolve().parent.parent
 _SCRUBBED_ENV_VARS = ("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV", "PYTHONSAFEPATH", EPISODE_ENV)
 
@@ -135,11 +176,12 @@ def harness_python(env: dict[str, str]) -> str:
     )
 
 
-def opencode_config(socket_path: Path, *, python: str = "python3") -> dict[str, Any]:
+def opencode_config(target: str | Path, *, python: str = "python3") -> dict[str, Any]:
     """The ``opencode.json`` written into the scratch directory.
 
     Everything in it is readable by the agent, so it names only the proxy
-    script beside it and the socket the proxy connects to.
+    script beside it and where the proxy connects: a socket path, or
+    ``host:port`` for a containerized harness.
     """
     return {
         "$schema": "https://opencode.ai/config.json",
@@ -147,7 +189,7 @@ def opencode_config(socket_path: Path, *, python: str = "python3") -> dict[str, 
             "servers": {
                 "gm-bench": {
                     "type": "local",
-                    "command": [python, PROXY_FILENAME, str(socket_path)],
+                    "command": [python, PROXY_FILENAME, str(target)],
                     "codemode": False,
                 }
             }
@@ -155,11 +197,133 @@ def opencode_config(socket_path: Path, *, python: str = "python3") -> dict[str, 
     }
 
 
-def stage_scratch(scratch: Path, socket_path: Path, env: dict[str, str]) -> None:
-    """Write the proxy and the config into an otherwise empty scratch directory."""
+def stage_scratch(
+    scratch: Path,
+    target: str | Path,
+    env: dict[str, str],
+    *,
+    python: str | None = None,
+    secret: str | None = None,
+) -> None:
+    """Write the proxy and the config into an otherwise empty scratch directory.
+
+    ``secret`` (TCP transport only) is written beside the proxy, where the
+    proxy reads it; it is never on any command line.
+    """
     (scratch / PROXY_FILENAME).write_text(Path(_proxy.__file__).read_text(encoding="utf-8"), encoding="utf-8")
-    config = opencode_config(socket_path, python=harness_python(env))
+    if secret is not None:
+        secret_path = scratch / _proxy.SECRET_FILENAME
+        secret_path.write_text(secret + "\n", encoding="utf-8")
+        secret_path.chmod(0o600)
+    config = opencode_config(target, python=python or harness_python(env))
     (scratch / "opencode.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
+
+
+class HarnessLaunch:
+    """Where the harness runs for one episode, and how the driver reaches it.
+
+    ``same-user``: the harness is a child process of the driver in an empty
+    scratch directory, and the proxy dials a Unix socket (mode 0600) in a
+    private directory of its own. ``container``: the harness runs in Docker
+    with only the scratch directory mounted, and the proxy dials a loopback
+    TCP port on the host with a per-run secret (``container.py``).
+    """
+
+    def __init__(
+        self,
+        episode: AgenticEpisode,
+        *,
+        binary: str = "opencode",
+        isolation: str = "same-user",
+        image: dict[str, Any] | None = None,
+        docker: str = "docker",
+        scratch_prefix: str = "gm-bench-agentic-",
+    ) -> None:
+        if isolation not in DRIVER_ISOLATION:
+            raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
+        if isolation == "container" and image is None:
+            raise ValueError("container isolation needs the image description from container.ensure_image")
+        self.isolation = isolation
+        self.binary = binary
+        self.docker = docker
+        self.env = harness_environment()
+        self.scratch = Path(tempfile.mkdtemp(prefix=scratch_prefix))
+        self.container: ContainerHarness | None = None
+        self._socket_dir: Path | None = None
+        self._secret: str | None = None
+        # Containers or volumes ``close`` could not remove (container mode only).
+        self.cleanup_problems: list[str] = []
+        try:
+            if isolation == "container":
+                assert image is not None
+                self._secret = secrets.token_urlsafe(32)
+                self.server = SocketMcpServer(episode, ("127.0.0.1", 0), secret=self._secret)
+                self.server.start()
+                self.container = ContainerHarness(
+                    image, self.scratch, driver_port=self.server.address[1], docker=docker, env=self.env
+                )
+                self.workdir = WORKDIR
+                self.transport = "tcp"
+            else:
+                # The socket lives in its own private directory with a short
+                # path (macOS caps Unix socket paths at 104 bytes) and mode
+                # 0600, outside the scratch.
+                self._socket_dir = Path(tempfile.mkdtemp(prefix="gmb-"))
+                self.server = SocketMcpServer(episode, self._socket_dir / "s")
+                self.server.start()
+                self.workdir = str(self.scratch)
+                self.transport = "unix"
+        except BaseException:
+            server = getattr(self, "server", None)
+            if server is not None:
+                server.stop()
+            for directory in (self._socket_dir, self.scratch):
+                if directory is not None:
+                    shutil.rmtree(directory, ignore_errors=True)
+            raise
+
+    def prepare(self) -> None:
+        """Prove the sandbox, then stage the proxy and config. Raises ``SandboxError``."""
+        if self.container is not None:
+            # Nothing on the host PATH runs in the container, so the host half
+            # of the check is only about the scratch directory itself.
+            problems = sandbox_problems(self.scratch, {"PATH": ""})
+            problems += container_sandbox_problems(self.container.image, docker=self.docker, env=self.env)
+            problems += container_egress_problems(
+                self.container.image, self.container.driver_port, docker=self.docker, env=self.env
+            )
+        else:
+            problems = sandbox_problems(self.scratch, self.env)
+        if problems:
+            raise SandboxError("; ".join(problems))
+        if self.container is not None:
+            port = self.server.address[1]
+            stage_scratch(self.scratch, f"{HOST_ALIAS}:{port}", self.env, python="python3", secret=self._secret)
+        else:
+            stage_scratch(self.scratch, self.server.address, self.env)
+
+    def command(self, harness_args: list[str]) -> tuple[list[str], Callable[[], None] | None]:
+        """The full host command for one harness invocation, and how to stop it if it is killed."""
+        if self.container is None:
+            return [self.binary, *harness_args], None
+        container = self.container
+        argv, name = container.command(["opencode", *harness_args])
+        return argv, lambda: container.kill(name)
+
+    def close(self, *, keep_scratch: bool = False) -> bool:
+        """Stop the server (returns whether it drained), the containers, and remove temporary state."""
+        try:
+            drained = self.server.stop()
+            if self.container is not None:
+                self.cleanup_problems = self.container.close()
+                for problem in self.cleanup_problems:
+                    sys.stderr.write(f"gm-bench agentic: cleanup: {problem}\n")
+        finally:
+            if self._socket_dir is not None:
+                shutil.rmtree(self._socket_dir, ignore_errors=True)
+            if not keep_scratch:
+                shutil.rmtree(self.scratch, ignore_errors=True)
+        return drained
 
 
 def opencode_version(binary: str = "opencode") -> str | None:
@@ -243,6 +407,54 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
     }
 
 
+def provider_stall_backoff(consecutive: int) -> float:
+    """Seconds to wait before retrying the ``consecutive``-th stall in a row (1-based): 60, 120, 240, 480, 600, 600..."""
+    return min(PROVIDER_STALL_BACKOFF_START_SECONDS * 2 ** max(consecutive - 1, 0), PROVIDER_STALL_BACKOFF_CAP_SECONDS)
+
+
+def ended_in_provider_stall(lines: list[str]) -> bool:
+    """Whether one invocation's event stream ends in a retryable provider error.
+
+    The last event must be an ``error`` whose data says ``isRetryable``, or
+    carries a transient HTTP status (``RETRYABLE_STATUS_CODES``), or whose
+    message reads as a rate limit, an overload, or "try again later". Any
+    other ending, including a non-retryable error such as a 401, is the
+    agent (or the harness) stopping.
+    """
+    last: dict[str, Any] | None = None
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict):
+            last = event
+    if last is None or last.get("type") != "error":
+        return False
+    error = last.get("error") if isinstance(last.get("error"), dict) else {}
+    data = error.get("data") if isinstance(error.get("data"), dict) else {}
+    for source in (data, error):
+        if source.get("isRetryable") is True:
+            return True
+        status = source.get("statusCode")
+        if isinstance(status, int) and not isinstance(status, bool) and status in RETRYABLE_STATUS_CODES:
+            return True
+        message = source.get("message")
+        if isinstance(message, str) and _RETRYABLE_MESSAGE_RE.search(message):
+            return True
+    return False
+
+
+def _invocation_lines(events_path: Path, offset: int) -> list[str]:
+    """The events one invocation appended, from the byte offset the file had before it."""
+    with events_path.open("rb") as handle:
+        handle.seek(offset)
+        return handle.read().decode("utf-8", errors="replace").splitlines()
+
+
 def _int(value: Any) -> int:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return 0
@@ -309,6 +521,14 @@ def run_episode(
     progress: ProgressCallback | None = None,
     keep_scratch: bool = False,
     episode_dir: Path | None = None,
+    isolation: str = "same-user",
+    image: dict[str, Any] | None = None,
+    docker: str = "docker",
+    max_provider_stalls: int = DEFAULT_MAX_PROVIDER_STALLS,
+    max_provider_stall_wait_seconds: float = DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
+    silent_harness_seconds: float = SILENT_HARNESS_SECONDS,
+    stall_backoff: Callable[[int], float] = provider_stall_backoff,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> dict[str, Any]:
     episode_dir = episode_dir if episode_dir is not None else run_dir / f"seed-{seed}"
     if episode_dir.exists() and any(episode_dir.iterdir()):
@@ -320,37 +540,41 @@ def run_episode(
     events_path = episode_dir / "opencode-events.jsonl"
     stderr_path = episode_dir / "opencode-stderr.log"
 
-    env = harness_environment()
-    scratch = Path(tempfile.mkdtemp(prefix="gm-bench-agentic-"))
-    # The socket lives in its own private directory with a short path (macOS
-    # caps Unix socket paths at 104 bytes) and mode 0600, outside the scratch.
-    socket_dir = Path(tempfile.mkdtemp(prefix="gmb-"))
-    socket_path = socket_dir / "s"
     # The engine and the seed live here, in this process, for the whole
     # episode. Harness restarts and nudges reconnect to the same engine.
     episode = AgenticEpisode(
         seed, seasons, user_team_id, ledger_path=ledger_path, phase_guard_seconds=phase_guard_seconds
     )
-    server = SocketMcpServer(episode, socket_path)
-    server.start()
+    launch = HarnessLaunch(episode, binary=binary, isolation=isolation, image=image, docker=docker)
+    server = launch.server
+    scratch = launch.scratch
 
     guard_expired = _GuardWatch(episode, server.dispatch_lock)
+    silence = _SilenceWatch(episode, server.dispatch_lock, events_path, silent_harness_seconds)
+
+    def poll() -> bool:
+        # Silence first: a silent harness is a provider stall, not a guard stop.
+        return silence() or guard_expired()
+
+    def take_silence_off_the_clock() -> None:
+        # The silent window is provider time, like a backoff: no tool call
+        # could have moved the phase during it, so it comes off that phase's
+        # guard clock and repeated silent stalls do not run the phase out.
+        with server.dispatch_lock:
+            episode.exclude_from_phase_clock(silence.silent_for, reason="silent_harness")
 
     try:
-        problems = sandbox_problems(scratch, env)
-        if problems:
-            raise SandboxError("; ".join(problems))
-        stage_scratch(scratch, socket_path, env)
+        launch.prepare()
 
         team_name = League.new(seed=seed, user_team_id=user_team_id).user_team.name
         brief = task_brief(seasons, team_name, user_team_id)
-        base = [binary, "run", "--format", "json", "--pure", "--auto", "--dir", str(scratch), "--model", model]
+        base = ["run", "--format", "json", "--pure", "--auto", "--dir", launch.workdir, "--model", model]
         if variant:
             base += ["--variant", variant]
-        command = base + [brief]
+        command, on_kill = launch.command(base + [brief])
         timeout = episode_timeout_seconds or (seasons * len(PHASES) * phase_guard_seconds + 300.0)
         if progress is not None:
-            progress({"seed": seed, "stage": "launch", "model": model, "scratch": str(scratch)})
+            progress({"seed": seed, "stage": "launch", "model": model, "scratch": str(scratch), "isolation": isolation})
         events_path.write_text("", encoding="utf-8")
         stderr_path.write_text("", encoding="utf-8")
         # The phase guard fires inside the engine on the next tool call, so a
@@ -362,30 +586,98 @@ def run_episode(
         # ``guard`` with the notice.
         guard_kills = 0
         guard_expired.arm()
+        offset = events_path.stat().st_size
+        silence.start()
         exit_code, timed_out, wall_seconds, stalled = _run_harness(
             command,
             cwd=scratch,
-            env=env,
+            env=launch.env,
             events_path=events_path,
             stderr_path=stderr_path,
             timeout=timeout,
-            stalled=guard_expired,
+            stalled=poll,
+            on_kill=on_kill,
         )
-        guard_kills += int(stalled)
+        # A silent kill went through the same kill path but is not a guard stop.
+        silent = stalled and silence.fired
+        silent_kills = int(silent)
+        if silent:
+            take_silence_off_the_clock()
+        guard_kills += int(stalled and not silent)
+        # Provider stalls: a run that ended on a retryable provider error (a
+        # 429, an overload), or was stopped as silent, is retried after a
+        # backoff and is not a nudge.
+        last_stalled = silent or (
+            not timed_out and not stalled and ended_in_provider_stall(_invocation_lines(events_path, offset))
+        )
+        provider_stalls = int(last_stalled)
+        consecutive_stalls = int(last_stalled)
+        stall_retries = 0
+        stall_wait = 0.0
+
+        def can_retry_stall() -> bool:
+            return (
+                last_stalled
+                and stall_retries < max_provider_stalls
+                and stall_wait + stall_backoff(consecutive_stalls) <= max_provider_stall_wait_seconds
+            )
+
         # The nudge loop. OpenCode ends a run whenever the model answers with
         # text and no tool call; weak models do that mid-phase. Resume the same
         # session with a reminder, count it, and stop when the episode is done,
         # a nudge yields no new tool call, the cap is hit, or we cannot resume.
+        # A stall retry resumes the same way but counts against the stall
+        # budget instead of ``max_nudges``, and its lack of progress does not
+        # stop the loop while the stall budget lasts.
         nudges: list[dict[str, Any]] = []
-        while not timed_out and len(nudges) < max_nudges:
+        productive_nudges = 0
+        while not timed_out:
             state = _engine_state(episode)
             if state["done"]:
                 break
             session_id = parse_opencode_events(events_path.read_text(encoding="utf-8").splitlines())["session_id"]
-            if not session_id:
+            retry = can_retry_stall()
+            # A launch stopped as silent before it printed anything has no
+            # session to resume; since it made no tool call either, the retry
+            # starts a new session with the task brief.
+            new_session = not session_id and retry and silent
+            if not session_id and not new_session:
+                break
+            if not retry and productive_nudges >= max_nudges:
                 break
             number = len(nudges) + 1
-            text = nudge_message(state["season"], state["phase"], seasons, number, max_nudges)
+            backoff = 0.0
+            if retry:
+                backoff = float(stall_backoff(consecutive_stalls))
+                if progress is not None:
+                    progress(
+                        {
+                            "seed": seed,
+                            "stage": "provider_stall",
+                            "retry": stall_retries + 1,
+                            "backoff_seconds": backoff,
+                            "silent": silent,
+                            "season": state["season"],
+                            "phase": state["phase"],
+                        }
+                    )
+                # Nothing polls the guard while no harness runs, and the wait
+                # is taken off the engine's phase clock below; ``arm`` still
+                # gives the resumed harness a full guard period if the phase
+                # had already run past the guard before the stall.
+                sleep(backoff)
+                # The engine's own guard clock would count the wait against the
+                # open phase and close it as ``guard`` on the next call.
+                with server.dispatch_lock:
+                    episode.exclude_from_phase_clock(backoff)
+                stall_retries += 1
+                stall_wait += backoff
+            else:
+                productive_nudges += 1
+            # A stall retry shows the next reminder's number without using it up.
+            text = nudge_message(
+                state["season"], state["phase"], seasons, min(productive_nudges + int(retry), max_nudges), max_nudges
+            )
             if progress is not None:
                 progress(
                     {
@@ -397,19 +689,36 @@ def run_episode(
                     }
                 )
             guard_expired.arm()
+            resume = [brief] if new_session else ["--session", session_id, text]
+            nudge_command, nudge_kill = launch.command(base + resume)
+            offset = events_path.stat().st_size
+            silence.start()
             nudge_exit, nudge_timed_out, nudge_wall, nudge_stalled = _run_harness(
-                base + ["--session", session_id, text],
+                nudge_command,
                 cwd=scratch,
-                env=env,
+                env=launch.env,
                 events_path=events_path,
                 stderr_path=stderr_path,
                 timeout=max(timeout - wall_seconds, 60.0),
-                stalled=guard_expired,
+                stalled=poll,
+                on_kill=nudge_kill,
             )
             wall_seconds += nudge_wall
+            silent = nudge_stalled and silence.fired
+            silent_kills += int(silent)
+            if silent:
+                take_silence_off_the_clock()
+            nudge_stalled = nudge_stalled and not silent
             guard_kills += int(nudge_stalled)
             after = _engine_state(episode)
             progress_calls = after["tool_calls"] - state["tool_calls"]
+            last_stalled = silent or (
+                not nudge_timed_out
+                and not nudge_stalled
+                and ended_in_provider_stall(_invocation_lines(events_path, offset))
+            )
+            provider_stalls += int(last_stalled)
+            consecutive_stalls = consecutive_stalls + 1 if last_stalled else 0
             nudges.append(
                 {
                     "number": number,
@@ -420,16 +729,23 @@ def run_episode(
                     "exit_code": nudge_exit,
                     "wall_seconds": round(nudge_wall, 3),
                     "stalled": nudge_stalled,
+                    # This relaunch was a retry after a provider stall, and how long it waited first.
+                    "stall_retry": retry,
+                    "backoff_seconds": backoff,
+                    # This relaunch itself ended on a retryable provider error,
+                    # or (``silent``) was stopped for printing nothing at all.
+                    "provider_stall": last_stalled,
+                    "silent": silent,
+                    # Started a new session with the brief: the stopped launch
+                    # was silent before it opened one.
+                    "new_session": new_session,
                 }
             )
             timed_out = timed_out or nudge_timed_out
-            if progress_calls == 0:
+            if progress_calls == 0 and not can_retry_stall():
                 break
     finally:
-        server_drained = server.stop()
-        shutil.rmtree(socket_dir, ignore_errors=True)
-        if not keep_scratch:
-            shutil.rmtree(scratch, ignore_errors=True)
+        server_drained = launch.close(keep_scratch=keep_scratch)
 
     telemetry = parse_opencode_events(events_path.read_text(encoding="utf-8").splitlines())
     # server.stop() hung up on every proxy and joined its thread, so nothing
@@ -441,14 +757,27 @@ def run_episode(
         result = episode.result(agent_name=f"{HARNESS_NAME}:{model}")
     result["harness_run"] = {
         "harness": HARNESS_NAME,
+        # What the driver actually did, not what anyone claims later.
+        "isolation": launch.isolation,
+        "transport": launch.transport,
         "command": command[:-1] + ["<task brief>"],
         "exit_code": exit_code,
         "timed_out": timed_out,
         "wall_seconds": round(wall_seconds, 3),
         "max_nudges": max_nudges,
         "nudges": nudges,
-        "nudges_used": len(nudges),
-        "nudges_without_progress": sum(1 for nudge in nudges if nudge["new_tool_calls"] == 0),
+        # Nudges counted against ``max_nudges``; stall retries are counted apart.
+        "nudges_used": productive_nudges,
+        "nudges_without_progress": sum(
+            1 for nudge in nudges if nudge["new_tool_calls"] == 0 and not nudge["provider_stall"]
+        ),
+        # Invocations that ended on a retryable provider error, and the total backoff waited.
+        "provider_stalls": provider_stalls,
+        "provider_stall_wait_seconds": round(stall_wait, 3),
+        # Invocations stopped for total silence (no event, no tool call for
+        # ``silent_harness_seconds``); each is also one of ``provider_stalls``.
+        "silent_harness_seconds": silent_harness_seconds,
+        "silent_kills": silent_kills,
         "guard_kills": guard_kills,
         # False when a proxy thread was still inside the engine after the
         # stop timeout; the dispatch lock above still ordered the finalize.
@@ -458,12 +787,16 @@ def run_episode(
         "events_path": _recorded_path(events_path, run_dir),
         "ledger_path": _recorded_path(ledger_path, run_dir),
         "proxy_connections": server.connections,
+        "proxy_connections_refused": server.rejected,
         "scratch_dir": str(scratch) if keep_scratch else None,
         "event_types": telemetry["event_types"],
         # Gate 2 of the spec: the server ledger and the harness's own event
         # stream must agree on how many GM-Bench tools were called.
         "tool_call_agreement": tool_call_agreement(result["agentic"], telemetry),
     }
+    if launch.container is not None:
+        # A container or home volume docker could not remove; empty when cleanup was complete.
+        result["harness_run"]["container_cleanup_problems"] = launch.cleanup_problems
     (episode_dir / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True), encoding="utf-8")
     episode.close()
     if progress is not None:
@@ -490,13 +823,16 @@ def _run_harness(
     timeout: float,
     stalled: Callable[[], bool] | None = None,
     poll_seconds: float = 5.0,
+    on_kill: Callable[[], None] | None = None,
 ) -> tuple[int | None, bool, float, bool]:
     """Run one harness invocation, appending its streams to the episode's files.
 
     Returns ``(exit_code, timed_out, wall_seconds, stalled)``. ``stalled`` is
     polled every ``poll_seconds`` while the process runs; when it reports
     true the harness is killed and the flag is returned, distinct from the
-    episode timeout so the caller can still nudge.
+    episode timeout so the caller can still nudge. ``on_kill`` runs before
+    either kill: killing the ``docker run`` client does not stop its
+    container, so the container launcher removes it there.
     """
     started = time.perf_counter()
     deadline = started + timeout
@@ -512,6 +848,12 @@ def _run_harness(
             remaining = deadline - time.perf_counter()
             if remaining <= 0:
                 timed_out = True
+                # Stop the harness itself first: for a container the local
+                # process is only the docker client, and killing it leaves the
+                # harness running until ``docker rm``. Every tool call in that
+                # window would reach the ledger but not the event stream.
+                if on_kill is not None:
+                    on_kill()
                 process.kill()
                 exit_code: int | None = process.wait()
                 break
@@ -521,6 +863,8 @@ def _run_harness(
             except subprocess.TimeoutExpired:
                 if stalled is not None and stalled():
                     was_stalled = True
+                    if on_kill is not None:
+                        on_kill()
                     process.kill()
                     exit_code = process.wait()
                     break
@@ -571,6 +915,51 @@ class _GuardWatch:
             return True
 
 
+class _SilenceWatch:
+    """The poll that tells ``_run_harness`` to stop a harness that has said nothing at all.
+
+    ``start`` is called before each launch. The watch fires once the
+    invocation has appended no byte to the event stream and made no ledger
+    tool call for ``seconds`` since that launch. Silence is measured from
+    launch, not from the last event: once the invocation has emitted anything
+    it is not silent for the rest of its run, and a harness that goes quiet
+    after emitting events is the phase guard's to stop. Only the event stream
+    counts; stderr does not.
+    """
+
+    def __init__(self, episode: AgenticEpisode, lock: threading.Lock, events_path: Path, seconds: float) -> None:
+        self.episode = episode
+        self.lock = lock
+        self.events_path = events_path
+        self.seconds = seconds
+        self.start()
+
+    def _calls(self) -> int:
+        with self.lock:
+            return sum(self.episode.tool_counts.values())
+
+    def start(self) -> None:
+        self.offset = self.events_path.stat().st_size if self.events_path.exists() else 0
+        self.calls = self._calls()
+        self.started = time.monotonic()
+        self.heard = False
+        self.fired = False
+        self.silent_for = 0.0
+
+    def __call__(self) -> bool:
+        if self.seconds <= 0 or self.heard or self.fired:
+            return False
+        if self.events_path.stat().st_size > self.offset or self._calls() > self.calls:
+            self.heard = True
+            return False
+        elapsed = time.monotonic() - self.started
+        if elapsed < self.seconds:
+            return False
+        self.fired = True
+        self.silent_for = elapsed
+        return True
+
+
 def _engine_state(episode: AgenticEpisode) -> dict[str, Any]:
     """Where the live episode stands, for the nudge loop's progress accounting."""
     return {
@@ -618,9 +1007,14 @@ def run_panel(
     variant: str | None = None,
     phase_guard_seconds: float = DEFAULT_PHASE_GUARD_SECONDS,
     max_nudges: int = DEFAULT_MAX_NUDGES,
+    max_provider_stalls: int = DEFAULT_MAX_PROVIDER_STALLS,
+    max_provider_stall_wait_seconds: float = DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
+    silent_harness_seconds: float = SILENT_HARNESS_SECONDS,
     progress: ProgressCallback | None = None,
     keep_scratch: bool = False,
     name_episodes_by_position: bool = False,
+    isolation: str = "same-user",
+    docker: str = "docker",
 ) -> dict[str, Any]:
     """Run seeds serially (harness quotas are never parallelized) and summarize.
 
@@ -631,9 +1025,20 @@ def run_panel(
     ``episode-01``, ... instead, for private seeds: the harness's stdout and
     stderr are files in that directory, so a ``seed-<seed>`` name would show
     the seed in the harness's open-file table (``lsof``).
+
+    With ``isolation="container"`` the harness image is built (or found) once
+    and its id, base image, and the OpenCode version it reports are recorded
+    under ``harness.container``; ``binary`` is not used.
     """
+    if isolation not in DRIVER_ISOLATION:
+        raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
     run_dir.mkdir(parents=True, exist_ok=True)
-    version = opencode_version(binary)
+    image = None
+    if isolation == "container":
+        image = ensure_image(docker=docker, env=harness_environment())
+        version = image["opencode_version"]
+    else:
+        version = opencode_version(binary)
     episodes = []
     attempts: dict[int, int] = {}
     width = max(2, len(str(len(seeds) - 1)))
@@ -652,19 +1057,34 @@ def run_panel(
                 variant=variant,
                 phase_guard_seconds=phase_guard_seconds,
                 max_nudges=max_nudges,
+                max_provider_stalls=max_provider_stalls,
+                max_provider_stall_wait_seconds=max_provider_stall_wait_seconds,
+                silent_harness_seconds=silent_harness_seconds,
                 progress=progress,
                 keep_scratch=keep_scratch,
+                isolation=isolation,
+                image=image,
+                docker=docker,
             )
         )
+    harness: dict[str, Any] = {"name": HARNESS_NAME, "version": version, "model": model, "variant": variant}
+    if image is not None:
+        harness["container"] = image
     payload = {
         "agent": f"{HARNESS_NAME}:{model}",
         "lane": "agentic",
-        "harness": {"name": HARNESS_NAME, "version": version, "model": model, "variant": variant},
+        "harness": harness,
+        # Recorded by the driver from what it launched; agentic-redact will
+        # not publish a stronger isolation than this.
+        "isolation": isolation,
         "contract": agentic_contract(),
         "seeds": list(seeds),
         "seasons": seasons,
         "phase_guard_seconds": phase_guard_seconds,
         "max_nudges": max_nudges,
+        "max_provider_stalls": max_provider_stalls,
+        "max_provider_stall_wait_seconds": max_provider_stall_wait_seconds,
+        "silent_harness_seconds": silent_harness_seconds,
         "episodes": episodes,
         "summary": summarize_episodes(episodes),
         "agentic_summary": _agentic_summary(episodes),
@@ -690,6 +1110,11 @@ def _agentic_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "tool_calls_by_tool": dict(sorted(by_tool.items())),
         "phases_ended_by": ended,
         "nudges_used": sum(int(episode["harness_run"].get("nudges_used", 0)) for episode in episodes),
+        "provider_stalls": sum(int(episode["harness_run"].get("provider_stalls", 0)) for episode in episodes),
+        "provider_stall_wait_seconds": round(
+            sum(float(episode["harness_run"].get("provider_stall_wait_seconds", 0.0)) for episode in episodes), 1
+        ),
+        "silent_harness_kills": sum(int(episode["harness_run"].get("silent_kills", 0)) for episode in episodes),
         "compactions": sum(int(episode["usage"].get("harness", {}).get("compactions", 0)) for episode in episodes),
         "mean_wall_seconds": round(
             sum(float(episode["harness_run"]["wall_seconds"]) for episode in episodes) / len(episodes), 1

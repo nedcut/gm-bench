@@ -231,7 +231,11 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
               {fmt(row.reference.floor.mean_score, 1)} on the same {row.reference.num_seeds} seeds,
               ahead of pick-trader on {pctOrDash(row.reference.candidate_seed_win_rate, 0)} of them,{" "}
               {fmt(row.telemetry.tool_calls, 0)} tool calls, {row.telemetry.guard_kills} guard stop
-              {row.telemetry.guard_kills === 1 ? "" : "s"}, {row.illegal_actions ?? 0} illegal action
+              {row.telemetry.guard_kills === 1 ? "" : "s"},{" "}
+              {row.telemetry.provider_stalls > 0
+                ? `${row.telemetry.provider_stalls} provider stall${row.telemetry.provider_stalls === 1 ? "" : "s"} (${fmt(row.telemetry.provider_stall_wait_seconds / 60, 0)} min of backoff), `
+                : ""}
+              {row.illegal_actions ?? 0} illegal action
               {row.illegal_actions === 1 ? "" : "s"}.
               {row.v1_row_id
                 ? ` The same model has a 1.0 row (${row.v1_row_id}); the two are different benchmarks and are not paired here.`

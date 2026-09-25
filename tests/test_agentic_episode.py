@@ -163,6 +163,57 @@ def test_phase_guard_closes_phase_and_refuses_the_call(monkeypatch: pytest.Monke
     assert episode.phase_log[-1]["ended_by"] == ENDED_BY_GUARD
 
 
+def test_clock_pause_keeps_a_waited_phase_open_but_not_a_slow_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    clock = {"now": 1000.0}
+    monkeypatch.setattr("gm_bench.agentic.episode.time.monotonic", lambda: clock["now"])
+    ledger = tmp_path / "ledger.jsonl"
+    episode = AgenticEpisode(5, seasons=1, ledger_path=ledger, phase_guard_seconds=60.0)
+    assert episode.call_tool("get_status", {})["ok"]
+    clock["now"] += 40.0
+    # A 100 s provider-stall backoff: 150 s of wall time, 50 s of harness time.
+    clock["now"] += 100.0
+    episode.exclude_from_phase_clock(100.0)
+    clock["now"] += 10.0
+    assert not episode.phase_expired()
+    assert episode.call_tool("get_status", {})["ok"]
+    assert (episode.season, episode.phase) == (1, PHASES[0])
+    # The phase then genuinely runs past the guard on harness time.
+    clock["now"] += 11.0
+    reply = episode.call_tool("get_status", {})
+    assert reply["ok"] is False and "phase guard" in reply["message"]
+    assert episode.phase_log[-1]["ended_by"] == ENDED_BY_GUARD
+    assert episode.phase_log[-1]["seconds"] == pytest.approx(61.0)
+    # A pause with no open phase, or of no time, records nothing.
+    episode.exclude_from_phase_clock(0.0)
+    pauses = [json.loads(line) for line in ledger.read_text().splitlines() if '"clock_pause"' in line]
+    assert [(p["season"], p["phase"], p["seconds"], p["reason"]) for p in pauses] == [
+        (1, PHASES[0], 100.0, "provider_stall")
+    ]
+    episode.close()
+
+
+def test_clock_pause_records_replay_to_the_same_score(tmp_path: Path) -> None:
+    ledger = tmp_path / "ledger.jsonl"
+    live = AgenticEpisode(17, seasons=1, ledger_path=ledger)
+    for index in range(len(PHASES)):
+        if index == 2:
+            live.exclude_from_phase_clock(90.0)
+        live.call_tool("get_status", {})
+        live.call_tool("end_phase", {})
+    result = live.result()
+    live.close()
+    assert '"event": "clock_pause"' in ledger.read_text()
+    again = AgenticEpisode.from_ledger(ledger, reopen=False)
+    assert again.done
+    assert again.result()["final_score"] == result["final_score"]
+    assert again.tool_counts == live.tool_counts
+    from gm_bench.agentic.audit import audit_ledger
+
+    assert audit_ledger(ledger)["clean"]
+
+
 def test_wrong_phase_and_bad_ids_are_rejected_not_crashed() -> None:
     episode = AgenticEpisode(3, seasons=1)
     assert episode.phase == "preseason"
