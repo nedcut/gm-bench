@@ -613,10 +613,10 @@ written against Claude Code 2.1.281). It runs through the same episode loop
 as OpenCode and Codex. A Claude row is its own row, `claude/<version> ·
 <model>`.
 
-**Status: same-user runs have been smoked live. Container runs are proven
-only against a stand-in `claude` and `docker` and, with no model call,
-against the real image (`tests/test_agentic_claude.py`); no live container
-episode has run.** Every Claude episode spends your Claude subscription's
+**Status: same-user and container runs have been smoked live** (one
+season of `claude-sonnet-5` on seed 11 each, 2026-09-24; the container
+episode scored 118.9 with no config-directory findings and no credential
+in any saved file). No Claude row is published yet. Every Claude episode spends your Claude subscription's
 quota (or API money with `ANTHROPIC_API_KEY`). Run it serially (the driver
 has no parallel mode), smoke one short episode before a panel, and budget a
 full panel as hours of quota.
