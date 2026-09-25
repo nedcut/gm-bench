@@ -117,8 +117,16 @@ def dirty_files(files: tuple[str, ...], root: Path = _ROOT) -> list[str] | None:
     output = _git(root, "status", "--porcelain", "--untracked-files=all", "-z", "--", *files)
     if output is None:
         return None
-    # ``XY path\0``; a rename adds its old path as a second entry.
-    return sorted({entry[3:] for entry in output.split("\0") if len(entry) > 3})
+    # ``XY path\0``; a rename or copy follows with its old path as a bare entry.
+    entries = iter(output.split("\0"))
+    dirty = set()
+    for entry in entries:
+        if len(entry) > 3:
+            dirty.add(entry[3:])
+            if "R" in entry[:2] or "C" in entry[:2]:
+                dirty.add(next(entries, ""))
+    dirty.discard("")
+    return sorted(dirty)
 
 
 def provenance_problems(driver: Any) -> list[str]:
