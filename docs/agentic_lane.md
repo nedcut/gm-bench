@@ -652,7 +652,18 @@ What a run does per episode:
 What that flag set keeps out. `--tools` limits the built-in tools the model
 is shown to the code tools and ToolSearch, so it is never offered web,
 subagent, workflow or scheduling tools that `dontAsk` would then deny (the
-first live smoke showed all of them in the tool list). `--strict-mcp-config` loads only the staged
+first live smoke showed all of them in the tool list).
+
+Deferred game tools are kept on purpose. Claude Code shows MCP tools by
+name only and the model calls ToolSearch to load a tool's schema before
+its first use, where OpenCode and Codex put every schema in the first
+prompt. That lookup is part of Claude Code as shipped, and this lane
+measures each harness as its users run it, so tool search is left at
+Claude Code's default rather than turned off for parity; its cost, if any,
+counts against the harness. ToolSearch calls appear in
+`harness.tool_events` and the run records `visible_tools`.
+
+`--strict-mcp-config` loads only the staged
 server, never your own MCP servers. The private config directory means none
 of your `~/.claude` settings, login, `CLAUDE.md`, skills, plugins, hooks,
 auto memory or sessions reach the agent. `--setting-sources user` reads
