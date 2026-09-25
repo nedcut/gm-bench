@@ -12,10 +12,14 @@ artifact per row, produced by :func:`compact_agentic_run`, which
   a hash of the sorted seeds, per-episode scores and agentic telemetry, and
   the validation report computed at redaction time;
 - drops ledgers, event streams, commands, and every local path;
+- carries the run's ``driver`` block (``provenance.py``): the digest of the
+  driver code that played it, the commit, and whether the driver files
+  matched that commit. Runs recorded before the block existed have none;
 - names its own grade. ``panel`` rows need at least :data:`PANEL_MIN_SEEDS`
-  distinct seeds, redacted seeds, and the harness isolated from the driver by
-  user or container (``docs/bench_v2_spec.md``, sandbox section). Anything
-  else is a ``smoke`` row and says so. Each episode carries a ``seed_group``
+  distinct seeds, redacted seeds, the harness isolated from the driver by
+  user or container (``docs/bench_v2_spec.md``, sandbox section), and a
+  driver that matched a commit for the whole run. Anything else is a
+  ``smoke`` row and says so. Each episode carries a ``seed_group``
   (episodes of one seed share a group, numbered in first-appearance order)
   so the distinct-seed count and the per-seed mean can be checked without
   the seeds themselves;
@@ -54,6 +58,7 @@ from typing import Any
 
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.opencode import TOKEN_SHAPE
+from gm_bench.agentic.provenance import driver_digest, provenance_problems, reproducible_driver
 from gm_bench.agentic.validate import validate_run
 from gm_bench.publication import canonical_sha256
 from gm_bench.runner import _paired_analysis, _precise_mean_score, run_many_cached_baselines
@@ -216,7 +221,8 @@ def compact_agentic_run(
     raw_episodes = raw.get("episodes") or []
     groups = seed_groups([episode.get("seed") for episode in raw_episodes])
     distinct = len(set(groups))
-    grade = "panel" if (distinct >= PANEL_MIN_SEEDS and isolation in _PANEL_ISOLATION and not public_seeds) else "smoke"
+    panel_ready = distinct >= PANEL_MIN_SEEDS and isolation in _PANEL_ISOLATION and not public_seeds
+    grade = "panel" if panel_ready and reproducible_driver(raw.get("driver")) else "smoke"
     stamp = (now or _dt.datetime.now(_dt.timezone.utc)).replace(microsecond=0).isoformat()
     episodes = [
         _compact_episode(index, episode, groups[index], public_seeds) for index, episode in enumerate(raw_episodes)
@@ -234,6 +240,8 @@ def compact_agentic_run(
         "agent": raw.get("agent"),
         "harness": raw.get("harness"),
         "contract": raw.get("contract"),
+        # Absent from runs recorded before the driver recorded itself.
+        **({"driver": raw["driver"]} if "driver" in raw else {}),
         "panel": {
             "seed_count": len(seeds),
             "distinct_seeds": distinct,
@@ -411,8 +419,16 @@ def validate_agentic_artifact(
     checkout_contract: dict[str, Any] | None = None,
     raw_run: str | Path | None = None,
     lane: dict[str, Any] | None = None,
+    checkout_driver_digest: str | None = None,
 ) -> dict[str, Any]:
     """Check a committed row: format, contract, grade rules, redaction, internal consistency.
+
+    A ``panel`` row must carry a ``driver`` block showing the driver files
+    matched a commit for the whole run. A ``smoke`` row may lack the block
+    (rows recorded before it existed). A row whose ``driver_digest`` differs
+    from this checkout's (``checkout_driver_digest``, default computed here)
+    gets a warning, not an error: checkouts move on with driver fixes, and
+    the row still names the commit that played it.
 
     A ``panel`` row must also carry the lane's frozen private panel: its
     ``panel.sha256`` must equal ``seed_panel.artifact_panel_sha256`` in
@@ -486,6 +502,9 @@ def validate_agentic_artifact(
         errors.extend(_lane_panel_errors(panel, distinct, lane if lane is not None else load_lane_config()))
     elif grade != "smoke":
         errors.append("grade must be 'panel' or 'smoke'")
+    driver_errors, driver_warnings = _driver_findings(artifact, grade, checkout_driver_digest)
+    errors.extend(driver_errors)
+    warnings.extend(driver_warnings)
 
     episodes = artifact.get("episodes") or []
     if len(episodes) != seed_count:
@@ -552,6 +571,37 @@ def validate_agentic_artifact(
     if raw_run is not None and not errors:
         errors.extend(_check_against_raw_run(artifact, raw_run))
     return {"ok": not errors, "errors": errors, "warnings": warnings, "grade": grade, "agent": artifact.get("agent")}
+
+
+def _driver_findings(artifact: dict[str, Any], grade: Any, checkout_digest: str | None) -> tuple[list[str], list[str]]:
+    """Errors and warnings about the row's record of the driver code that played it."""
+    if "driver" not in artifact:
+        if grade == "panel":
+            return ["panel grade needs the driver block: which driver code played the row, and its commit"], []
+        return [], [
+            "row records no driver provenance (recorded before runs did); the driver code that played it is unknown"
+        ]
+    driver = artifact["driver"]
+    errors = provenance_problems(driver)
+    if errors:
+        return errors, []
+    if grade == "panel" and not reproducible_driver(driver):
+        errors.append(
+            "panel grade needs a driver that matched a commit for the whole run "
+            "(driver.git_head set, driver.git_driver_clean true, driver.changed_during_run false)"
+        )
+    warnings: list[str] = []
+    if not reproducible_driver(driver):
+        warnings.append(
+            "the driver files did not match a commit for the whole run; this row cannot be replayed from git"
+        )
+    current = checkout_digest if checkout_digest is not None else driver_digest()
+    if driver["driver_digest"] != current:
+        warnings.append(
+            f"driver.driver_digest {driver['driver_digest']} differs from this checkout's {current}: "
+            f"the row was played by the driver at commit {driver.get('git_head')}"
+        )
+    return errors, warnings
 
 
 def _reference_errors(reference: Any, distinct: int, seasons: Any, candidate_mean: float | None) -> list[str]:

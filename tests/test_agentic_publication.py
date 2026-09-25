@@ -9,6 +9,7 @@ import pytest
 
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import AgenticEpisode
+from gm_bench.agentic.provenance import DRIVER_SOURCES, driver_digest
 from gm_bench.agentic.publication import (
     PANEL_MIN_SEEDS,
     REDACTED_SEEDS,
@@ -60,8 +61,26 @@ def fixture_reference(artifact: dict, *, reference_mean: float = 249.18) -> dict
     }
 
 
+def clean_driver(**overrides) -> dict:
+    """The driver block of a run played on this checkout's driver code, committed."""
+    return {
+        "driver_digest": driver_digest(),
+        "driver_files": list(DRIVER_SOURCES),
+        "git_head": "a" * 40,
+        "git_driver_clean": True,
+        "changed_during_run": False,
+        **overrides,
+    }
+
+
 def _write_run(
-    tmp_path: Path, seeds: list[int], *, telemetry: bool = True, idle: bool = False, isolation: str | None = None
+    tmp_path: Path,
+    seeds: list[int],
+    *,
+    telemetry: bool = True,
+    idle: bool = False,
+    isolation: str | None = None,
+    driver: dict | None | str = "clean",
 ) -> Path:
     """A run directory with real ledgers and event streams, as run_panel would write it, without a harness.
 
@@ -129,6 +148,8 @@ def _write_run(
     }
     if isolation is not None:
         run["isolation"] = isolation
+    if driver is not None:
+        run["driver"] = clean_driver() if driver == "clean" else driver
     (run_dir / "run.json").write_text(json.dumps(run, sort_keys=True), encoding="utf-8")
     return run_dir
 
@@ -785,3 +806,69 @@ def test_isolation_claim_cannot_exceed_what_the_driver_recorded(tmp_path: Path) 
     forged["isolation"] = "container"
     report = validate_agentic_artifact(forged, raw_run=same_user)
     assert any("refusing to publish it as 'container'" in error for error in report["errors"])
+
+
+def test_rows_carry_the_driver_that_played_them(tmp_path: Path) -> None:
+    run_dir = _write_run(tmp_path, [11])
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    assert artifact["driver"] == clean_driver()
+    report = validate_agentic_artifact(artifact)
+    assert report["ok"] and not any("driver" in warning for warning in report["warnings"]), report
+    assert validate_agentic_artifact(artifact, raw_run=run_dir)["ok"]
+
+    # A checkout that has moved on with a driver fix warns and still validates.
+    report = validate_agentic_artifact(artifact, checkout_driver_digest="0" * 16)
+    assert report["ok"]
+    assert any("differs from this checkout's" in w and "a" * 40 in w for w in report["warnings"])
+
+    forged = json.loads(json.dumps(artifact))
+    forged["driver"]["driver_digest"] = "0" * 16
+    report = validate_agentic_artifact(forged, raw_run=run_dir)
+    assert any("fresh redaction" in error and "driver" in error for error in report["errors"])
+
+    malformed = json.loads(json.dumps(artifact))
+    malformed["driver"]["git_head"] = "main"
+    assert any("git_head" in error for error in validate_agentic_artifact(malformed)["errors"])
+
+
+def test_smoke_rows_recorded_before_driver_provenance_still_validate(tmp_path: Path) -> None:
+    artifact = compact_agentic_run(_write_run(tmp_path, [11], driver=None), isolation="same-user")
+    assert "driver" not in artifact
+    report = validate_agentic_artifact(artifact)
+    assert report["ok"]
+    assert any("no driver provenance" in warning for warning in report["warnings"])
+    committed = json.loads(Path("results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json").read_text())
+    assert "driver" not in committed
+    assert validate_agentic_artifact(committed)["ok"]
+
+
+@pytest.mark.parametrize(
+    ("driver", "message"),
+    [
+        (None, "needs the driver block"),
+        (clean_driver(git_driver_clean=False), "matched a commit"),
+        (clean_driver(git_head=None, git_driver_clean=None), "matched a commit"),
+        (clean_driver(changed_during_run=True), "matched a commit"),
+    ],
+)
+def test_panel_grade_needs_a_committed_driver(tmp_path: Path, driver: dict | None, message: str) -> None:
+    row = _panel_row(tmp_path)
+    assert validate_agentic_artifact(row)["ok"]
+    if driver is None:
+        del row["driver"]
+    else:
+        row["driver"] = driver
+    report = validate_agentic_artifact(row)
+    assert not report["ok"]
+    assert any(message in error for error in report["errors"]), report["errors"]
+
+
+def test_a_panel_run_on_uncommitted_driver_code_redacts_as_smoke(tmp_path: Path, public_panel: dict) -> None:
+    committed = _write_run(tmp_path / "committed", PUBLIC_SEEDS, isolation="container")
+    assert compact_agentic_run(committed, isolation="container")["grade"] == "panel"
+    for driver in (clean_driver(git_driver_clean=False), None):
+        run_dir = _write_run(tmp_path / str(driver is None), PUBLIC_SEEDS, isolation="container", driver=driver)
+        artifact = compact_agentic_run(run_dir, isolation="container")
+        assert artifact["grade"] == "smoke" and "reference" not in artifact
+        report = validate_agentic_artifact(artifact, raw_run=run_dir)
+        assert report["ok"], report

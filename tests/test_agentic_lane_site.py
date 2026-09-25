@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from gm_bench.agentic.publication import PANEL_MIN_SEEDS, REDACTED_SEEDS
-from tests.test_agentic_publication import fixture_reference
+from tests.test_agentic_publication import clean_driver, fixture_reference
 from web.scripts.build_study import build_study
 
 SITE_DATASET = Path("web/src/data/leaderboard.json")
@@ -49,6 +49,7 @@ def _panel_fixture(*, isolation: str = "separate-user", model: str | None = None
     }
     row["summary"]["mean_score"] = round(sum(e["final_score"] for e in episodes) / len(episodes), 3)
     row["reference"] = fixture_reference(row)
+    row["driver"] = clean_driver()
     if model is not None:
         row["harness"]["model"] = model
     return row

@@ -452,8 +452,9 @@ Caveats:
   (#147). That change also made `input_tokens` include cached input, which is
   why run B reports 147M input tokens against run A's 1.65M. A row does not
   yet record the driver code it ran, so a behavioural difference in the
-  driver cannot be ruled out from the artifacts. A driver-provenance record
-  is in progress. The container image was rebuilt from the same Dockerfile
+  driver cannot be ruled out from the artifacts. Runs made since then
+  record their driver code (the `driver` block under "Publication"), so
+  later repeats can be matched on it. The container image was rebuilt from the same Dockerfile
   (same Dockerfile hash, different image ID).
 - Run B carries the contract label `gm-bench-2.0` where run A carries
   `gm-bench-2.0-dev`. The label is not a fingerprint source and does not
@@ -499,8 +500,20 @@ more seeds.
   seeds (aggregates only, no per-seed values). It is
   bound to the raw run by the canonical SHA-256 of `run.json`, the same
   binding the 1.0 lanes use. Ledgers, commands, and paths are dropped.
+- **The driver is recorded, not fingerprinted.** The fingerprint covers
+  what the agent is measured through. The driver that plays the episode
+  (the shared loop's nudges, retries, resumes and stall handling, the
+  harness adapters, the container launcher, the proxy) can be fixed without
+  a new contract, so each run records it instead: `run.json` and the row
+  carry a `driver` block with a digest of the driver files taken at run
+  start, the files it covers, the git commit, whether those files matched
+  it (`git_driver_clean`), and whether they changed before the run ended
+  (`gm_bench/agentic/provenance.py` lists which files are contract, driver,
+  or neither). Two rows with the same fingerprint and harness version but
+  different digests were played by different driver code.
 - **Grade is mechanical.** `panel` requires at least 32 distinct seeds,
-  redacted seeds, and `isolation` of `separate-user` or `container`. Anything
+  redacted seeds, `isolation` of `separate-user` or `container`, and a
+  driver that matched a commit for the whole run. Anything
   else is `smoke`, and the artifact says so. Each episode carries a
   `seed_group` (episodes of one seed share a group) so the distinct count
   and the per-seed mean can be checked without the seeds. A smoke row on
@@ -518,7 +531,10 @@ more seeds.
 - **CI validates every committed row** with `gm-bench agentic-validate`,
   which recomputes the contract from the checkout. A byte change to the tool
   surface, brief, engine, or server therefore fails every committed row
-  until it is rerun, as with 1.0.
+  until it is rerun, as with 1.0. A driver change does not: a row whose
+  driver digest differs from the checkout's gets a warning naming the
+  commit that played it. Rows recorded before the `driver` block stay
+  valid as `smoke`.
 - **Site section** lands with the first panel-grade row; smoke rows are
   committed for reproducibility, not shown.
 

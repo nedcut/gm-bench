@@ -66,6 +66,7 @@ from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import DEFAULT_PHASE_GUARD_SECONDS, AgenticEpisode
 from gm_bench.agentic.harness import HarnessDriver
 from gm_bench.agentic.mcp_server import EPISODE_ENV, SocketMcpServer
+from gm_bench.agentic.provenance import driver_digest, driver_provenance
 from gm_bench.agents import external_agent_environment
 from gm_bench.protocol import PHASES
 from gm_bench.runner import summarize_episodes
@@ -1314,7 +1315,11 @@ def run_panel(
     and its id, base image, and the harness version it reports are recorded
     under ``harness.container``; ``binary`` is not used.
 
-    ``driver`` selects the harness (OpenCode by default).
+    ``driver`` selects the harness (OpenCode by default). The ``driver`` block
+    of ``run.json`` is something else: the identity of the driver code that
+    played the run (``provenance.driver_provenance``), taken before the first
+    episode, with ``changed_during_run`` set when those files' bytes differ at
+    the end.
 
     A harness that reports its subscription's usage windows (Codex, in
     ``harness_run.quota_windows``) can pause the panel: before the next
@@ -1334,6 +1339,8 @@ def run_panel(
     if isolation not in DRIVER_ISOLATION:
         raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
     driver.preflight(isolation)
+    # Which driver code plays this run (``provenance.py``); rechecked when it ends.
+    driver_record = driver_provenance()
     run_dir.mkdir(parents=True, exist_ok=True)
     image = None
     if isolation == "container":
@@ -1395,6 +1402,7 @@ def run_panel(
             if progress is not None:
                 progress({"stage": "panel_stopped_for_quota", **stopped_for_quota})
             break
+    driver_record["changed_during_run"] = driver_digest() != driver_record["driver_digest"]
     harness: dict[str, Any] = {"name": driver.name, "version": version, "model": model, "variant": variant}
     if image is not None:
         harness["container"] = image
@@ -1406,6 +1414,7 @@ def run_panel(
         # not publish a stronger isolation than this.
         "isolation": isolation,
         "contract": agentic_contract(),
+        "driver": driver_record,
         "seeds": list(seeds),
         "seasons": seasons,
         "phase_guard_seconds": phase_guard_seconds,
