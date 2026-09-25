@@ -42,8 +42,9 @@ started.
   for the harness, the private 32-seed panel frozen by digest with its seeds
   held in escrow, and validation that replays every episode ledger to the
   score the row claims.
-- Committed so far: one eight-seed `smoke` row on a free model, on public
-  seeds, under `results/agentic/`.
+- Committed so far: `smoke` rows on public seeds under `results/agentic/`:
+  eight seeds on a free OpenCode model, and one five-season episode each on
+  Codex (`gpt-6-luna`) and Claude Code (`claude-sonnet-5`).
 - Panel-grade results: none yet. The site's 2.0 section shows nothing until
   one exists.
 

@@ -410,7 +410,13 @@ has no parallel mode), smoke one short episode before a panel, and budget a
 full panel as hours of quota. The driver is tested against a stand-in
 `codex` and a stand-in `docker` (`tests/test_agentic_codex.py`), and two live
 1-season smokes on `gpt-6-luna` (seed 11, same-user and container,
-2026-09-24) closed all four phases; no Codex row is committed yet.
+2026-09-24) closed all four phases. A five-season container smoke on seed
+11 (2026-09-25) is committed at
+`results/agentic/codex-0.156.1-gpt-6-luna-smoke-1x5.json`: score 232.5,
+20/20 phases closed by the agent, no nudges or provider stalls, 134 tool
+calls, 10.7 min, 13.0M input tokens, $0.18 at API prices. After it the
+Codex five-hour quota window read 78% used; the run records only that end
+reading, so check the window before a panel.
 
 What a run does per episode:
 
@@ -646,7 +652,11 @@ as OpenCode and Codex. A Claude row is its own row, `claude/<version> ·
 **Status: same-user and container runs have been smoked live** (one
 season of `claude-sonnet-5` on seed 11 each, 2026-09-24; the container
 episode scored 118.9 with no config-directory findings and no credential
-in any saved file). No Claude row is published yet. Every Claude episode spends your Claude subscription's
+in any saved file). A five-season container smoke on seed 11 (2026-09-25)
+is committed at `results/agentic/claude-2.1.281-claude-sonnet-5-smoke-1x5.json`:
+score 248.0, 20/20 phases closed by the agent, no nudges, provider stalls or
+compactions, 180 tool calls, 19.8 min, 16.8M input tokens, $5.05 at API
+prices. No panel-grade Claude row exists yet. Every Claude episode spends your Claude subscription's
 quota (or API money with `ANTHROPIC_API_KEY`). Run it serially (the driver
 has no parallel mode), smoke one short episode before a panel, and budget a
 full panel as hours of quota.
