@@ -166,6 +166,19 @@ def test_api_equivalent_cost_falls_back_to_the_input_rate_and_says_so():
     assert estimate["cache_write_rate"] == "input (no cache-write price)"
 
 
+def test_api_equivalent_cost_prices_one_hour_cache_writes_at_their_own_rate_or_says_it_could_not():
+    usage = {"input_tokens": 1_000_000, "cache_write_input_tokens": 1_000_000, "cache_write_1h_input_tokens": 600_000}
+    sonnet = api_equivalent_cost_usd(usage, "claude-sonnet-5")
+    # 400k at the 5-minute 2.50 + 600k at the 1-hour 4.00.
+    assert sonnet["usd"] == pytest.approx(1.0 + 2.4) and sonnet["cache_write_1h_rate"] == "cache-write-1h"
+    # No 1-hour price in the entry: the 5-minute write rate, labelled.
+    luna = api_equivalent_cost_usd(usage, "gpt-6-luna")
+    assert luna["usd"] == pytest.approx(0.125) and luna["cache_write_1h_rate"] == "cache-write (no 1-hour price)"
+    # A 1-hour count larger than the writes is clamped to them.
+    over = api_equivalent_cost_usd({**usage, "cache_write_1h_input_tokens": 5_000_000}, "claude-sonnet-5")
+    assert over["usd"] == pytest.approx(4.0)
+
+
 def test_api_equivalent_cost_flags_a_turn_past_the_long_context_threshold():
     usage = {"input_tokens": 500_000, "output_tokens": 1000}
     under = api_equivalent_cost_usd(usage | {"max_request_input_tokens": 272_000}, "gpt-6-sol")

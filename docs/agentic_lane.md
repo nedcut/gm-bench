@@ -719,9 +719,15 @@ as for Codex. `usage.harness.api_equivalent_cost_usd` prices each model in
 `modelUsage` at its `pricing.json` entry (for example `claude-sonnet-5`,
 with cached input at the cached rate), labelled
 `api-list-price-estimate` and `billed_by_harness: false`; any unpriced
-model with tokens leaves it `null`. Cache writes are priced at the 5-minute
-write rate, so the estimate may be low where Claude Code wrote 1-hour cache
-entries. Claude Code's own figure is kept as
+model with tokens leaves it `null`. On a subscription Claude Code writes
+1-hour cache entries, which Anthropic prices at 2x input rather than the
+5-minute 1.25x. `modelUsage` does not split the two, but each assistant
+frame's `usage.cache_creation` does, so each model's 1-hour share of its
+frame writes is priced at `cache_write_1h_per_mtok` (the entry's
+`cache_write_per_mtok` when it has none, labelled in
+`pricing_source.cache_write_1h_rate`). On three live `claude-sonnet-5`
+smokes this matched Claude Code's own figure to the microdollar. Claude
+Code's own figure is kept as
 `usage.harness.harness_cost_estimate_usd` for comparison only.
 
 Stalls and quota. A failed result with a 408, 425, 429, 5xx or 529 status,

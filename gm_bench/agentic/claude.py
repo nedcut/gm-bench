@@ -70,9 +70,12 @@ at 0.3.276 (Claude Code 2.1.276), which types the stream-json messages:
   "api-list-price-estimate"``, ``billed_by_harness = false``), priced per
   model in ``modelUsage`` (a subagent may run on another model). The
   harness's own estimate is kept as ``harness.harness_cost_estimate_usd``
-  for comparison only. Cache writes are priced at the entry's 5-minute
-  write rate; Claude Code writes 1-hour cache entries on a subscription and
-  the stream does not split them out, so the estimate may be low there.
+  for comparison only. Claude Code writes 1-hour cache entries on a
+  subscription, which Anthropic prices at 2x input rather than the
+  5-minute 1.25x. ``modelUsage`` does not split the tiers, but each
+  assistant frame's ``usage.cache_creation`` does, so each model's 1-hour
+  share of its frame writes is applied to its ``modelUsage`` writes and
+  priced at ``cache_write_1h_per_mtok``.
 - **Resume.** ``claude -p --resume <session id> ... -- <text>`` continues the
   same session with its context and the same MCP configuration. The session
   id is the ``session_id`` of the latest ``system``/``init``. Session
@@ -438,6 +441,8 @@ def parse_claude_events(lines: list[str]) -> dict[str, Any]:
     tool_uses: dict[str, str] = {}
     denied: set[str] = set()
     message_ids: set[str] = set()
+    # Per message id: model, cache-write tokens, and how many of them went to the 1-hour cache.
+    frame_writes: dict[str, tuple[str, int, int]] = {}
     max_request_input: dict[str, int] = {}
     event_types: dict[str, int] = {}
     compactions = errors = api_retries = results = without_result = 0
@@ -475,6 +480,11 @@ def parse_claude_events(lines: list[str]) -> dict[str, Any]:
                     if isinstance(message.get("usage"), dict):
                         tokens = _frame_tokens(message["usage"])
                         frames[message_id] = (model, tokens)
+                        tiers = message["usage"].get("cache_creation")
+                        write_1h = (
+                            opencode._int(tiers.get("ephemeral_1h_input_tokens")) if isinstance(tiers, dict) else 0
+                        )
+                        frame_writes[message_id] = (model, tokens["cache_write"], write_1h)
                         request = tokens["uncached"] + tokens["cache_read"] + tokens["cache_write"]
                         max_request_input[model] = max(max_request_input.get(model, 0), request)
                 for block in message.get("content") or []:
@@ -513,6 +523,11 @@ def parse_claude_events(lines: list[str]) -> dict[str, Any]:
         _add(by_model, tokens)
     _add(by_model, unreported)
     by_model = {model: tokens for model, tokens in sorted(by_model.items()) if any(tokens.values())}
+    for model, tokens in by_model.items():
+        writes = sum(write for owner, write, _ in frame_writes.values() if owner == model)
+        writes_1h = sum(write_1h for owner, _, write_1h in frame_writes.values() if owner == model)
+        # The frames' 1-hour share, applied to the reported writes (a frame missing from the stream skews nothing).
+        tokens["cache_write_1h"] = round(tokens["cache_write"] * min(writes_1h, writes) / writes) if writes else 0
 
     tool_events: dict[str, int] = {}
     skipped: dict[str, int] = {}
@@ -713,6 +728,7 @@ def api_equivalent_fields(telemetry: dict[str, Any]) -> dict[str, Any]:
                 "input_tokens": tokens["uncached"] + tokens["cache_read"] + tokens["cache_write"],
                 "cached_input_tokens": tokens["cache_read"],
                 "cache_write_input_tokens": tokens["cache_write"],
+                "cache_write_1h_input_tokens": tokens.get("cache_write_1h", 0),
                 "output_tokens": tokens["output"],
                 "max_request_input_tokens": (telemetry.get("max_request_input_tokens") or {}).get(model),
             },
@@ -728,6 +744,7 @@ def api_equivalent_fields(telemetry: dict[str, Any]) -> dict[str, Any]:
             "verified": estimate["verified"],
             "cached_input_rate": estimate["cached_input_rate"],
             "cache_write_rate": estimate["cache_write_rate"],
+            "cache_write_1h_rate": estimate["cache_write_1h_rate"],
         }
         for model, estimate in priced
     ]

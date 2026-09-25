@@ -793,9 +793,10 @@ def test_claude_usage_block_prices_each_model_and_publishes_no_cost() -> None:
     assert harness["api_equivalent_cost_usd"] == pytest.approx(0.4 + 0.14 + 0.25 + 0.2)
     assert harness["pricing_source"] == {
         "key": "claude-sonnet-5",
-        "verified": "2026-09-23",
+        "verified": "2026-09-24",
         "cached_input_rate": "cached",
         "cache_write_rate": "cache-write",
+        "cache_write_1h_rate": "cache-write-1h",
     }
     assert harness["cost_basis"] == "api-list-price-estimate" and harness["billed_by_harness"] is False
     # The entry names no long-context tier.
@@ -823,6 +824,26 @@ def test_claude_usage_block_prices_each_model_and_publishes_no_cost() -> None:
     episode = {"agentic": {"tool_calls": 8}, "harness_run": {"wall_seconds": 1.0}, "usage": block}
     site = _agentic_telemetry([episode])
     assert site["cost_usd"] is None and site["api_equivalent_cost_usd"] == pytest.approx(0.99)
+
+
+def test_claude_one_hour_cache_writes_are_priced_at_the_one_hour_rate() -> None:
+    sonnet = "claude-sonnet-5-20260901"
+
+    def written(message_id: str, five: int, hour: int) -> str:
+        tiers = {"ephemeral_5m_input_tokens": five, "ephemeral_1h_input_tokens": hour}
+        return _assistant(message_id, model=sonnet, cache_creation_input_tokens=five + hour, cache_creation=tiers)
+
+    # The frames wrote 3 parts to the 1-hour cache for every 1 part to the 5-minute one.
+    lines = [_init(), written("m1", 100, 200), written("m2", 0, 100), _result({sonnet: _mu(0, 0, 0, 1_000_000)})]
+    telemetry = parse_claude_events(lines)
+    assert telemetry["tokens_by_model"][sonnet]["cache_write_1h"] == 750_000
+    # 250k at the 5-minute 2.50 + 750k at the 1-hour 4.00; the published write count is unchanged.
+    assert claude.api_equivalent_fields(telemetry)["api_equivalent_cost_usd"] == pytest.approx(0.625 + 3.0)
+    assert telemetry["cache_write_tokens"] == 1_000_000
+
+    # No tier split on the frames (an older stream): every write at the 5-minute rate, as before.
+    flat = [_init(), _assistant("m1", model=sonnet), _result({sonnet: _mu(0, 0, 0, 1_000_000)})]
+    assert claude.api_equivalent_fields(parse_claude_events(flat))["api_equivalent_cost_usd"] == pytest.approx(2.5)
 
 
 # -- stalls and quota -------------------------------------------------------------

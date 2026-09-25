@@ -196,7 +196,11 @@ Added 2026-09-20. Nothing published changes.
   `claude setup-token` token from `--claude-token-file` (or
   `CLAUDE_CODE_OAUTH_TOKEN`/`ANTHROPIC_API_KEY` from the environment),
   redacted from the evidence. Cost is unmeasured with a per-model
-  API-equivalent estimate beside it; usage limits pause or stop the episode
+  API-equivalent estimate beside it, which prices the 1-hour cache writes
+  Claude Code makes on a subscription at their own rate (the frames'
+  `cache_creation` split; `cache_write_1h_per_mtok`, $4 for
+  `claude-sonnet-5`) and matched Claude Code's own figure exactly on three
+  live smokes (it had been about 15% low); usage limits pause or stop the episode
   and panel as for Codex, including a run that waits inside the process on
   a rejected window, which the shared loop now polls for and stops
   (`HarnessDriver.invocation_parked`). The contract fingerprint is
@@ -222,9 +226,10 @@ Added 2026-09-20. Nothing published changes.
   panel grade under the existing rules. A Docker that is missing or not
   running now ends `gm-bench agentic` with a one-line error. Tested against
   a stand-in `claude` and `docker` and, with no model call, against the real
-  image (opt-in `GM_BENCH_DOCKER_TESTS=1`); no container Claude episode has
-  run and no Claude result is claimed. The contract fingerprint is
-  unchanged.
+  image (opt-in `GM_BENCH_DOCKER_TESTS=1`), and live: a one-season
+  `claude-sonnet-5` smoke on seed 11 in the container scored 118.9 with no
+  config-directory findings and no credential in any saved file. No Claude
+  result is published. The contract fingerprint is unchanged.
 - Silent harness: OpenCode retries a 429 internally without printing any
   event, so a rate-limited run looked hung until the 20-minute phase guard
   killed it and its phases closed as `harness_exit`. The driver now stops an
