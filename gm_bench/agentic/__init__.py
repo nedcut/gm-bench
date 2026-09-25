@@ -16,4 +16,5 @@ Modules:
 - ``codex``     the Codex CLI driver
 - ``claude``    the Claude Code driver (same-user isolation only)
 - ``container`` the Docker launcher for container isolation
+- ``provenance`` which driver code played a run (recorded beside the fingerprint)
 """

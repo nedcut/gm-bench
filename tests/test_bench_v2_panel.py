@@ -15,6 +15,7 @@ import pytest
 import scripts.run_bench_v2_panel_from_keychain as launcher
 from gm_bench import cli
 from gm_bench.agentic import opencode as opencode_driver
+from gm_bench.agentic.provenance import driver_digest
 from gm_bench.agentic.publication import PANEL_MIN_SEEDS, seed_panel_sha256
 from gm_bench.benchmark_config import PRIVATE_SEEDS_ENV, seed_panel_hash
 from scripts.seed_panel_commitment import commitment
@@ -98,6 +99,7 @@ def _install_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, v5_sha:
     monkeypatch.delenv(PRIVATE_SEEDS_ENV, raising=False)
     monkeypatch.setattr(launcher, "ROOT", root)
     monkeypatch.setattr(launcher.subprocess, "run", fake_run)
+    monkeypatch.setattr(launcher, "dirty_played_files", lambda: [])
     return seeds_text, commands
 
 
@@ -276,6 +278,28 @@ def test_launcher_refuses_inherited_seed_env_bad_output_and_other_season_counts(
     assert calls == []
 
 
+@pytest.mark.parametrize(
+    ("dirty", "message"),
+    [
+        (["gm_bench/agentic/opencode.py"], "differ from HEAD: gm_bench/agentic/opencode.py"),
+        (None, "not a git checkout"),
+    ],
+)
+def test_launcher_refuses_a_panel_on_uncommitted_driver_code_before_reading_the_escrow(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dirty: list[str] | None, message: str
+) -> None:
+    _, commands = _install_fixture(tmp_path, monkeypatch)
+    calls = _capture_cli(monkeypatch)
+    monkeypatch.setattr(launcher, "dirty_played_files", lambda: dirty)
+
+    with pytest.raises(ValueError, match=message):
+        launcher.main(["--model", "m", "--output", str(tmp_path / "run")])
+    assert calls == []
+    assert commands == []  # the Keychain was never read
+    # Verifying the escrow runs nothing, so it does not need a clean driver.
+    assert launcher.main(["--verify-only"]) == 0
+
+
 def test_verify_only_prints_no_seed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -417,3 +441,6 @@ def test_run_panel_names_episode_directories_by_position_only_when_asked(
     assert (recorded["max_provider_stalls"], recorded["max_provider_stall_wait_seconds"]) == (5, 1200.0)
     assert recorded["silent_harness_seconds"] == 90.0
     assert payload["max_nudges"] == opencode_driver.DEFAULT_MAX_NUDGES
+    # The driver code that played the run is recorded beside the contract.
+    assert recorded["driver"]["driver_digest"] == driver_digest()
+    assert recorded["driver"]["changed_during_run"] is False

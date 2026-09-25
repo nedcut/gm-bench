@@ -66,6 +66,7 @@ from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import DEFAULT_PHASE_GUARD_SECONDS, AgenticEpisode
 from gm_bench.agentic.harness import HarnessDriver
 from gm_bench.agentic.mcp_server import EPISODE_ENV, SocketMcpServer
+from gm_bench.agentic.provenance import driver_digest, driver_provenance
 from gm_bench.agents import external_agent_environment
 from gm_bench.protocol import PHASES
 from gm_bench.runner import summarize_episodes
@@ -103,6 +104,14 @@ HARNESS_POLL_SECONDS = 5.0
 SILENT_HARNESS_SECONDS = 240.0
 RETRYABLE_STATUS_CODES = frozenset({408, 425, 429, 500, 502, 503, 504})
 _RETRYABLE_MESSAGE_RE = re.compile(r"rate[ _-]?limit|overloaded|try again later", re.IGNORECASE)
+# OpenCode's server answers an unhandled exception with this ``UnknownError``;
+# a stall only when it ends an invocation that did nothing else first.
+_SERVER_ERROR_MESSAGE_RE = re.compile(r"unexpected server error", re.IGNORECASE)
+# The same error is also OpenCode's answer to a persistent fault (a deprecated
+# model, a broken config), which no wait fixes. So it is retried at most this
+# many times in a row (60 + 120 + 240 s of backoff), after which the loop ends
+# as it does when the stall budget runs out, instead of backing off for hours.
+MAX_STARTUP_SERVER_ERROR_RETRIES = 3
 # What the driver itself can do. ``separate-user`` is a valid statement in a
 # published row (publication.ISOLATION_LEVELS) but no driver launches it yet.
 DRIVER_ISOLATION = ("same-user", "container")
@@ -490,22 +499,24 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
     message reads as a rate limit, an overload, or "try again later". Any
     other ending, including a non-retryable error such as a 401, is the
     agent (or the harness) stopping.
+
+    OpenCode's own server failing at startup is a stall too: an
+    ``UnknownError`` reading "Unexpected server error" that ends an
+    invocation which did nothing else first (no tool call, no model text, no
+    finished model step; ``step_start`` alone is allowed). Nine of sixteen
+    container episodes of ``opencode/space-bunny-free`` opened on exactly that
+    single event about a second after launch, and the resumed session then
+    played the whole episode. The same error after the invocation acted is
+    not retried: it may come from the episode's own state and would repeat,
+    and each retry would re-send the context. How many times in a row it is
+    retried is capped separately (``MAX_STARTUP_SERVER_ERROR_RETRIES``).
     """
-    last: dict[str, Any] | None = None
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(event, dict):
-            last = event
-    if last is None or last.get("type") != "error":
+    ending = _final_error(lines)
+    if ending is None:
         return False
-    error = last.get("error") if isinstance(last.get("error"), dict) else {}
-    data = error.get("data") if isinstance(error.get("data"), dict) else {}
+    error, data, before = ending
+    if _startup_server_error(error, data, before):
+        return True
     for source in (data, error):
         if source.get("isRetryable") is True:
             return True
@@ -516,6 +527,44 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
         if isinstance(message, str) and _RETRYABLE_MESSAGE_RE.search(message):
             return True
     return False
+
+
+def ended_in_startup_server_error(lines: list[str]) -> bool:
+    """Whether one invocation ended on OpenCode's startup ``UnknownError`` (see ``ended_in_provider_stall``)."""
+    ending = _final_error(lines)
+    return ending is not None and _startup_server_error(*ending)
+
+
+def _final_error(lines: list[str]) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]] | None:
+    """The ``error`` and its ``data`` when the last event is an error, and the events before it."""
+    events: list[dict[str, Any]] = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict):
+            events.append(event)
+    last = events[-1] if events else None
+    if last is None or last.get("type") != "error":
+        return None
+    error = last.get("error") if isinstance(last.get("error"), dict) else {}
+    data = error.get("data") if isinstance(error.get("data"), dict) else {}
+    return error, data, events[:-1]
+
+
+def _startup_server_error(error: dict[str, Any], data: dict[str, Any], before: list[dict[str, Any]]) -> bool:
+    """OpenCode's generic server error, before the invocation did anything but start a step."""
+    message = data.get("message", error.get("message"))
+    return (
+        error.get("name") == "UnknownError"
+        and isinstance(message, str)
+        and _SERVER_ERROR_MESSAGE_RE.search(message) is not None
+        and all(event.get("type") == "step_start" for event in before)
+    )
 
 
 def _invocation_lines(events_path: Path, offset: int) -> list[str]:
@@ -734,6 +783,10 @@ def run_episode(
         )
         provider_stalls = int(last_stalled)
         consecutive_stalls = int(last_stalled)
+        # Invocations in a row that ended on the startup ``UnknownError``.
+        startup_errors = int(
+            last_stalled and not silent and ended_in_startup_server_error(_invocation_lines(events_path, offset))
+        )
         stall_retries = 0
         stall_wait = 0.0
         # Quota exhaustion (a spent subscription window, e.g. Codex's "usage
@@ -754,6 +807,7 @@ def run_episode(
                 last_stalled
                 and stall_retries < max_provider_stalls
                 and stall_wait + stall_backoff(consecutive_stalls) <= max_provider_stall_wait_seconds
+                and startup_errors <= MAX_STARTUP_SERVER_ERROR_RETRIES
             )
 
         # The nudge loop. A harness ends a run whenever the model answers with
@@ -899,6 +953,10 @@ def run_episode(
             )
             provider_stalls += int(last_stalled)
             consecutive_stalls = consecutive_stalls + 1 if last_stalled else 0
+            startup_error = (
+                last_stalled and not silent and ended_in_startup_server_error(_invocation_lines(events_path, offset))
+            )
+            startup_errors = startup_errors + 1 if startup_error else 0
             nudges.append(
                 {
                     "number": number,
@@ -943,7 +1001,11 @@ def run_episode(
         "isolation": launch.isolation,
         "transport": launch.transport,
         "command": command[:-1] + ["<task brief>"],
+        # The first launch's exit code; the last invocation's (a nudge, retry
+        # or resume, or the first launch if there was none) is how the harness
+        # finished, and is what validation warns on.
         "exit_code": exit_code,
+        "final_exit_code": nudges[-1]["exit_code"] if nudges else exit_code,
         "timed_out": timed_out,
         "wall_seconds": round(wall_seconds, 3),
         "max_nudges": max_nudges,
@@ -1253,7 +1315,11 @@ def run_panel(
     and its id, base image, and the harness version it reports are recorded
     under ``harness.container``; ``binary`` is not used.
 
-    ``driver`` selects the harness (OpenCode by default).
+    ``driver`` selects the harness (OpenCode by default). The ``driver`` block
+    of ``run.json`` is something else: the identity of the driver code that
+    played the run (``provenance.driver_provenance``), taken before the first
+    episode, with ``changed_during_run`` set when those files' bytes differ at
+    the end.
 
     A harness that reports its subscription's usage windows (Codex, in
     ``harness_run.quota_windows``) can pause the panel: before the next
@@ -1273,6 +1339,8 @@ def run_panel(
     if isolation not in DRIVER_ISOLATION:
         raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
     driver.preflight(isolation)
+    # Which driver code plays this run (``provenance.py``); rechecked when it ends.
+    driver_record = driver_provenance()
     run_dir.mkdir(parents=True, exist_ok=True)
     image = None
     if isolation == "container":
@@ -1334,6 +1402,7 @@ def run_panel(
             if progress is not None:
                 progress({"stage": "panel_stopped_for_quota", **stopped_for_quota})
             break
+    driver_record["changed_during_run"] = driver_digest() != driver_record["driver_digest"]
     harness: dict[str, Any] = {"name": driver.name, "version": version, "model": model, "variant": variant}
     if image is not None:
         harness["container"] = image
@@ -1345,6 +1414,7 @@ def run_panel(
         # not publish a stronger isolation than this.
         "isolation": isolation,
         "contract": agentic_contract(),
+        "driver": driver_record,
         "seeds": list(seeds),
         "seasons": seasons,
         "phase_guard_seconds": phase_guard_seconds,

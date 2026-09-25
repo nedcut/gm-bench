@@ -253,6 +253,45 @@ Added 2026-09-20. Nothing published changes.
   provider stall, not a guard stop or a nudge; the silent window comes off
   the phase clock. Counted as `silent_kills` per episode (`silent` per nudge),
   `silent_harness_kills` in the run summary and site telemetry.
+- Docs: the README gains a short GM-Bench 2.0 status section (implemented,
+  one smoke row, no panel-grade result yet), and `docs/bench_v2_spec.md`
+  gains a current-behaviour repeat-noise measurement from the two
+  `space-bunny-free` smoke runs on seeds 1 to 8: within-seed SD 43 over all
+  eight seeds and 23 without seed 1, so a 32-seed panel resolves about 39 or
+  28 points respectively for that model.
+- OpenCode startup errors: in two 8-seed container runs of
+  `opencode/space-bunny-free`, 9 of 16 episodes' first launch ended about a
+  second in on OpenCode's `UnknownError` "Unexpected server error", with no
+  tool call. The driver spent a nudge on it, and a second such error on the
+  resume would have stopped the loop and failed every phase. That error is
+  now a provider stall when it ends an invocation that had done nothing
+  else (no tool call, model text or finished model step), retried at most 3
+  times in a row because OpenCode gives the same error for persistent faults
+  such as a deprecated model; after the invocation acted it is still nudged.
+  `harness_run.final_exit_code` records
+  the last invocation's exit code beside the first launch's `exit_code`, and
+  `agentic-validate` warns on it, so an episode that recovered no longer
+  reports `harness exit code 1`. Committed rows, which predate the field,
+  validate unchanged. The contract fingerprint is unchanged.
+- Driver provenance: the 2.0 fingerprint covers the tool surface, brief,
+  engine and server, not the driver that plays the episode (the shared
+  loop's nudges, retries, resumes and stall handling, the harness adapters,
+  the container launcher, the proxy), so two rows could share a fingerprint
+  and harness version yet have been played by different driver code. Every
+  run now records a `driver` block in `run.json`, carried into the
+  published row: a digest of those driver files taken when the run starts,
+  the files it covers, the git commit, whether the driver files matched it,
+  and whether they changed before the run ended
+  (`gm_bench/agentic/provenance.py`, which also classifies every file in
+  the package so a new one cannot be left out). A `panel` row now needs a
+  driver that matched a commit for the whole run; a run without one redacts
+  as `smoke`. A row played by an older driver than the checkout's gets a
+  warning, not an error. Rows recorded before the block, like the committed
+  smoke row, stay valid as `smoke` with a warning, so the format stays
+  `gm-bench-agentic-summary-v1`.
+  `scripts/run_bench_v2_panel_from_keychain.py` refuses to start a panel
+  when a driver or contract file differs from `HEAD`. The contract
+  fingerprint is unchanged.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

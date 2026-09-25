@@ -71,6 +71,30 @@ harness was running counts toward the guard. Each nudge entry records
 `stall_retry`, `backoff_seconds` and `provider_stall`, and `harness_run`
 records `provider_stalls` and `provider_stall_wait_seconds`.
 
+OpenCode's own server can also fail at startup: in two 8-seed container runs
+of `opencode/space-bunny-free`, 9 of 16 episodes opened with a single
+`error` event (`"name": "UnknownError"`, message "Unexpected server error.
+Check server logs for details.") about a second after launch, before any
+tool call, and the resumed session then played the whole episode. That
+error is a provider stall (same backoff, budget and clock pause) only when
+it ends an invocation that did nothing else first: no tool call, no model
+text, no finished model step (a `step_start` alone is allowed). The same
+error after the invocation acted goes through the nudge path as before: it
+may come from the episode's own state and repeat, and each retry would
+re-send the context. The first retry still waits the full 60 s; no quota is
+spent while it waits. OpenCode gives the same error for persistent faults too
+(a deprecated model, for one), which no wait fixes, so it is retried at most
+3 times in a row (`MAX_STARTUP_SERVER_ERROR_RETRIES`, 60 + 120 + 240 s); a
+fourth in a row ends the loop as an exhausted stall budget does, instead of
+backing off for up to the six-hour stall budget.
+
+`harness_run.exit_code` is the first launch's exit code, and
+`harness_run.final_exit_code` the last invocation's (the first launch's when
+there was no nudge, retry or resume); each nudge entry keeps its own
+`exit_code`. `agentic-validate` warns on `final_exit_code`, so an episode
+that recovered from a failed first launch does not warn. Runs recorded
+before `final_exit_code` existed are read from `exit_code`, as before.
+
 OpenCode retries a 429 inside the harness and prints nothing to its event
 stream while it does, so a rate-limited harness can look hung rather than
 end on an `error` event. A harness invocation that has appended no byte to
@@ -122,7 +146,7 @@ season summaries, transactions) plus:
   OpenCode input excludes cached tokens and their output excludes reasoning);
   they still validate, the site labels their tokens as the harness's own
   convention, and publication checks the sums only for shaped rows
-- `harness_run`: the command (brief elided), exit code, timeout flag, wall
+- `harness_run`: the command (brief elided), first and final exit codes, timeout flag, wall
   time, nudges used and what each bought, phase-guard stops (`guard_kills`),
   provider stalls and the backoff waited for them,
   whether every proxy connection had closed when the server stopped
@@ -197,7 +221,13 @@ anything that would not validate. CI re-validates every file under
 `agentic-redact` and `agentic-validate` (and so CI) reject it unless its
 `panel.sha256` equals `seed_panel.artifact_panel_sha256` in
 `config/bench_v2_lane.json` and its distinct-seed count equals that panel's
-`count`; `smoke` rows are exempt. On the site, a row is flagged `unpinned`
+`count`; `smoke` rows are exempt. A `panel` row also needs the run's `driver` block
+to show the driver files (`gm_bench/agentic/provenance.py`) matched a
+commit from start to end: `git_head` set, `git_driver_clean` true,
+`changed_during_run` false. A run that is panel-sized but played on
+uncommitted driver code redacts as `smoke`. Validating a row in a checkout
+whose driver has since changed prints a warning with the row's commit, not
+an error. On the site, a row is flagged `unpinned`
 (may not be reproducible) unless its harness model id is listed with its pin
 under `model_pinning.pinned_models` in the same file; add the pin there, in
 the same change that commits the row, only when the served model version or
@@ -861,7 +891,10 @@ python scripts/run_bench_v2_panel_from_keychain.py \
 ```
 
 `--verify-only` checks the escrow against every committed digest and prints
-only the result. A run checks the same digests, refuses to start until the
+only the result. A run first refuses to start while any driver or contract
+file differs from `HEAD` (or the checkout is not a git work tree), before it
+touches the Keychain: commit the change, so the row names a commit that
+replays it. It then checks the same digests, refuses to start until the
 lane's `owner_attestation_status` is `attested-before-seed-access`, and then
 runs `gm-bench agentic --seeds-stdin` in its own process with the seeds on
 standard input. No command line or environment variable carries them.
