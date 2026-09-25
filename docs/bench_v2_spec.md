@@ -386,6 +386,83 @@ episode completed with 36 tool calls and one phase closed by the 600 s guard
 used for the check. Ledger and harness agreed on 36 calls across all three
 harness invocations of one session.
 
+### Repeat noise under current behaviour (2026-09-25, `opencode/space-bunny-free`, seeds 1-8, two runs)
+
+Two complete runs of the same row, measured at no extra cost because both
+were smoke rows anyway: `opencode/space-bunny-free` on OpenCode 1.18.31,
+container isolation, public seeds 1 to 8, five seasons, agentic contract
+`07de948a4f4afbae`, nudges on (up to 20 per episode). Run A is the row first
+committed at `results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json`
+(redacted 2026-09-24, raw artifact SHA-256 `a632a5fa...`). Run B is the rerun
+made for the contract freeze, which replaces it at the same path (redacted
+2026-09-25, raw artifact SHA-256 `f548e249...`). Both closed 160/160 phases
+themselves with 0 failed decisions, 0 guard stops and 0 provider stalls; run
+A used 4 nudges and run B 5.
+
+| seed | run A | run B | A - B |
+|---|---|---|---|
+| 1 | 332.0 | 182.0 | +150.0 |
+| 2 | 189.1 | 225.1 | -35.9 |
+| 3 | 212.9 | 249.4 | -36.5 |
+| 4 | 227.4 | 201.4 | +26.0 |
+| 5 | 230.5 | 223.2 | +7.3 |
+| 6 | 190.2 | 226.6 | -36.4 |
+| 7 | 232.2 | 199.3 | +32.9 |
+| 8 | 192.3 | 235.3 | -43.0 |
+| mean | 225.8 | 217.8 | +8.0 |
+
+Within-seed SD, pooled across seeds (root mean square of the difference
+divided by the square root of 2): 43.4 over all eight seeds, 23.3 without
+seed 1. Between-seed SD (sample) is 46.7 in run A, or 19.8 without seed 1,
+and 21.9 in run B. So in run B the spread between seeds is smaller than the
+spread between two runs of the same seed, even with seed 1 left out. The run
+means differ by 8.0 points, but individual seeds moved by 7 to 150.
+
+This pooled figure is not on the same basis as the probe table above, which
+averages per-seed population SDs. On the pooled basis that probe reads about
+51, or 78 with the abandoned episode. The drop from there to 23 to 43 cannot
+be credited to nudges: the model and seeds differ as well.
+
+Minimum detectable difference at 80% power, one episode per seed, computed
+the way the probe above was: `scripts/power_analysis.py --seeds $(seq 11 58)
+--repeats 1 --within-seed-stddev <sd> --seed-counts 16 32 --trials 2000
+--gap-step 1.0`, on the 48-seed calibration panel (paired-residual SD 40.1).
+The same command reproduces the probe's rows to within one point (37: 52 and
+35; 55: 68 and 46).
+
+| within-seed SD | MDD at 16 seeds | MDD at 32 seeds |
+|---|---|---|
+| 23 (without seed 1) | 40 | 28 |
+| 43 (all eight seeds) | 57 | 39 |
+
+For this model the 32-seed panel resolves roughly 28 to 39 points, depending
+on whether seed 1's swing is typical. The 24 to 33 projected in "Panel design"
+holds only at the low end of that range.
+
+Caveats:
+
+- One free model, eight public seeds, two runs per seed. Seed 1 alone moves
+  the estimate from 23 to 43.
+- Same contract fingerprint, but not provably the same driver code. Between
+  the two runs the OpenCode driver was refactored behind the harness
+  interface in `gm_bench/agentic/harness.py` when the Codex driver landed
+  (#147). That change also made `input_tokens` include cached input, which is
+  why run B reports 147M input tokens against run A's 1.65M. A row does not
+  yet record the driver code it ran, so a behavioural difference in the
+  driver cannot be ruled out from the artifacts. A driver-provenance record
+  is in progress. The container image was rebuilt from the same Dockerfile
+  (same Dockerfile hash, different image ID).
+- Run B carries the contract label `gm-bench-2.0` where run A carries
+  `gm-bench-2.0-dev`. The label is not a fingerprint source and does not
+  reach the agent, so it does not affect play.
+
+Paid models need their own probe before a resolution is quoted for them.
+Following `scripts/panel_power.py`, that probe should repeat a small subset
+of seeds (for example 4 seeds x 2) rather than repeat the whole panel:
+repeats are the only way to measure within-seed noise, but for telling rows
+apart a second pass over the panel buys less than the same episodes spent on
+more seeds.
+
 ## Publication
 
 - **Raw evidence stays with the operator.** A run directory holds seeds,
