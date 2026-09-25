@@ -152,6 +152,11 @@ def test_provenance_records_the_commit_and_whether_the_driver_matched_it(tmp_pat
     assert dirty_files(DRIVER_SOURCES, root) == ["gm_bench/agentic/harness.py"]
     assert not reproducible_driver(driver_provenance(root))
 
+    # A staged rename between driver files names both paths whole.
+    (root / "gm_bench/agentic/harness.py").unlink()
+    _git(root, "mv", "gm_bench/agentic/codex.py", "gm_bench/agentic/harness.py")
+    assert dirty_files(DRIVER_SOURCES, root) == ["gm_bench/agentic/codex.py", "gm_bench/agentic/harness.py"]
+
 
 def test_outside_a_git_checkout_the_commit_is_unknown(tmp_path: Path) -> None:
     root = tmp_path / "install"
