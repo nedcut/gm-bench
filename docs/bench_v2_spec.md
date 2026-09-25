@@ -397,7 +397,10 @@ committed at `results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json`
 made for the contract freeze, which replaces it at the same path (redacted
 2026-09-25, raw artifact SHA-256 `f548e249...`). Both closed 160/160 phases
 themselves with 0 failed decisions, 0 guard stops and 0 provider stalls; run
-A used 4 nudges and run B 5.
+A used 4 nudges and run B 5. Every one of those nudges followed the same
+OpenCode startup failure (the first launch ended within about a second on a
+server `UnknownError`, before any tool call), and the resumed session then
+played the whole episode, so no episode lost play to them.
 
 | seed | run A | run B | A - B |
 |---|---|---|---|
@@ -455,6 +458,24 @@ Caveats:
 - Run B carries the contract label `gm-bench-2.0` where run A carries
   `gm-bench-2.0-dev`. The label is not a fingerprint source and does not
   reach the agent, so it does not affect play.
+
+Why one seed can score 180 or 330. The ledgers for seed 1 show a single
+early decision rather than drift. Both runs signed the same three top free
+agents in the first preseason and went 22-11 in season 1 with near-equal team
+strength (69.5 against 69.3). Run A signed them for two years and won a close
+season-1 title; run B signed them for one year, so they left after season 1,
+and it opened season 2 with 15 players, team strength 11th of 12 and $34M of
+unused cap. Run A stayed 2nd to 3rd and won again in season 3; run B never
+made the playoffs again. Of the 150-point gap, championships account for 70
+and playoff rounds for 54. Across all 16 episodes playoff rounds (rank
+correlation +0.63) and championships (+0.55) track score most closely, and
+their spread (SD 40.2) exceeds the total score's (SD 35.5); no process measure
+(tool calls, illegal moves, trades, memos, nudges) points the same way within
+seed pairs often enough to matter. The simulator is deterministic for a given
+seed and action sequence, so all of this noise comes from the model's
+decisions, amplified by payouts that arrive in large lumps. Stronger models
+may blunder less, but the lumps stay, so expecting them to fall back to the
+15 the 1.0 tables assume is not safe.
 
 Paid models need their own probe before a resolution is quoted for them.
 Following `scripts/panel_power.py`, that probe should repeat a small subset
