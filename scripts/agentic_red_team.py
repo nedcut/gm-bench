@@ -17,7 +17,9 @@ With ``--isolation container`` the harness runs in Docker exactly as
 whether any shell output showed this driver (its script name or the checkout
 path), which is what ``ps`` exposed on a same-user machine.
 
-Usage (a fresh seed from the private-panel range, never written down):
+Usage (a fresh seed from the private-panel range, piped in so it stays off
+every command line; the ledger, report.json and the printed report still
+carry it, so keep the output directory private):
     python3 -c 'import secrets; print((1 << 32) + secrets.randbelow((1 << 63) - (1 << 32)))' \
         | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team \
         --isolation container
