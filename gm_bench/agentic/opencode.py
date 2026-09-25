@@ -106,6 +106,11 @@ _RETRYABLE_MESSAGE_RE = re.compile(r"rate[ _-]?limit|overloaded|try again later"
 # OpenCode's server answers an unhandled exception with this ``UnknownError``;
 # a stall only when it ends an invocation that did nothing else first.
 _SERVER_ERROR_MESSAGE_RE = re.compile(r"unexpected server error", re.IGNORECASE)
+# The same error is also OpenCode's answer to a persistent fault (a deprecated
+# model, a broken config), which no wait fixes. So it is retried at most this
+# many times in a row (60 + 120 + 240 s of backoff), after which the loop ends
+# as it does when the stall budget runs out, instead of backing off for hours.
+MAX_STARTUP_SERVER_ERROR_RETRIES = 3
 # What the driver itself can do. ``separate-user`` is a valid statement in a
 # published row (publication.ISOLATION_LEVELS) but no driver launches it yet.
 DRIVER_ISOLATION = ("same-user", "container")
@@ -502,8 +507,35 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
     single event about a second after launch, and the resumed session then
     played the whole episode. The same error after the invocation acted is
     not retried: it may come from the episode's own state and would repeat,
-    and each retry would re-send the context.
+    and each retry would re-send the context. How many times in a row it is
+    retried is capped separately (``MAX_STARTUP_SERVER_ERROR_RETRIES``).
     """
+    ending = _final_error(lines)
+    if ending is None:
+        return False
+    error, data, before = ending
+    if _startup_server_error(error, data, before):
+        return True
+    for source in (data, error):
+        if source.get("isRetryable") is True:
+            return True
+        status = source.get("statusCode")
+        if isinstance(status, int) and not isinstance(status, bool) and status in RETRYABLE_STATUS_CODES:
+            return True
+        message = source.get("message")
+        if isinstance(message, str) and _RETRYABLE_MESSAGE_RE.search(message):
+            return True
+    return False
+
+
+def ended_in_startup_server_error(lines: list[str]) -> bool:
+    """Whether one invocation ended on OpenCode's startup ``UnknownError`` (see ``ended_in_provider_stall``)."""
+    ending = _final_error(lines)
+    return ending is not None and _startup_server_error(*ending)
+
+
+def _final_error(lines: list[str]) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]] | None:
+    """The ``error`` and its ``data`` when the last event is an error, and the events before it."""
     events: list[dict[str, Any]] = []
     for line in lines:
         line = line.strip()
@@ -517,21 +549,10 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
             events.append(event)
     last = events[-1] if events else None
     if last is None or last.get("type") != "error":
-        return False
+        return None
     error = last.get("error") if isinstance(last.get("error"), dict) else {}
     data = error.get("data") if isinstance(error.get("data"), dict) else {}
-    if _startup_server_error(error, data, events[:-1]):
-        return True
-    for source in (data, error):
-        if source.get("isRetryable") is True:
-            return True
-        status = source.get("statusCode")
-        if isinstance(status, int) and not isinstance(status, bool) and status in RETRYABLE_STATUS_CODES:
-            return True
-        message = source.get("message")
-        if isinstance(message, str) and _RETRYABLE_MESSAGE_RE.search(message):
-            return True
-    return False
+    return error, data, events[:-1]
 
 
 def _startup_server_error(error: dict[str, Any], data: dict[str, Any], before: list[dict[str, Any]]) -> bool:
@@ -761,6 +782,10 @@ def run_episode(
         )
         provider_stalls = int(last_stalled)
         consecutive_stalls = int(last_stalled)
+        # Invocations in a row that ended on the startup ``UnknownError``.
+        startup_errors = int(
+            last_stalled and not silent and ended_in_startup_server_error(_invocation_lines(events_path, offset))
+        )
         stall_retries = 0
         stall_wait = 0.0
         # Quota exhaustion (a spent subscription window, e.g. Codex's "usage
@@ -781,6 +806,7 @@ def run_episode(
                 last_stalled
                 and stall_retries < max_provider_stalls
                 and stall_wait + stall_backoff(consecutive_stalls) <= max_provider_stall_wait_seconds
+                and startup_errors <= MAX_STARTUP_SERVER_ERROR_RETRIES
             )
 
         # The nudge loop. A harness ends a run whenever the model answers with
@@ -926,6 +952,10 @@ def run_episode(
             )
             provider_stalls += int(last_stalled)
             consecutive_stalls = consecutive_stalls + 1 if last_stalled else 0
+            startup_error = (
+                last_stalled and not silent and ended_in_startup_server_error(_invocation_lines(events_path, offset))
+            )
+            startup_errors = startup_errors + 1 if startup_error else 0
             nudges.append(
                 {
                     "number": number,

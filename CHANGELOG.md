@@ -265,8 +265,10 @@ Added 2026-09-20. Nothing published changes.
   tool call. The driver spent a nudge on it, and a second such error on the
   resume would have stopped the loop and failed every phase. That error is
   now a provider stall when it ends an invocation that had done nothing
-  else (no tool call, model text or finished model step); after the
-  invocation acted it is still nudged. `harness_run.final_exit_code` records
+  else (no tool call, model text or finished model step), retried at most 3
+  times in a row because OpenCode gives the same error for persistent faults
+  such as a deprecated model; after the invocation acted it is still nudged.
+  `harness_run.final_exit_code` records
   the last invocation's exit code beside the first launch's `exit_code`, and
   `agentic-validate` warns on it, so an episode that recovered no longer
   reports `harness exit code 1`. Committed rows, which predate the field,

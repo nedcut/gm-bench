@@ -1180,6 +1180,20 @@ def test_repeated_startup_server_error_does_not_lose_the_episode(tmp_path: Path,
     assert result["failed_decisions"] == 0
 
 
+def test_persistent_startup_server_error_stops_after_a_few_retries(tmp_path: Path, monkeypatch) -> None:
+    """OpenCode also answers a persistent fault (a deprecated model) this way: no six-hour backoff."""
+    from gm_bench.agentic.opencode import MAX_STARTUP_SERVER_ERROR_RETRIES
+
+    bare = {"bare": True, "error": _STARTUP_SERVER_ERROR, "exit": 1}
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, [bare] * 8)
+    harness_run = result["harness_run"]
+    # Three backed-off retries; the last made no progress, so the loop ends as when the stall budget runs out.
+    assert sleeps == [60.0, 120.0, 240.0] and MAX_STARTUP_SERVER_ERROR_RETRIES == 3
+    assert len(calls) == 1 + MAX_STARTUP_SERVER_ERROR_RETRIES
+    assert harness_run["nudges_used"] == 0
+    assert result["agentic"]["phases_ended_by"].get("agent", 0) == 0
+
+
 def test_server_error_after_progress_keeps_the_nudge_behaviour(tmp_path: Path, monkeypatch) -> None:
     script = [{"phases": 1, "error": _STARTUP_SERVER_ERROR, "exit": 1}, {"phases": 3}]
     result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script)

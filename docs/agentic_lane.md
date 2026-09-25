@@ -82,7 +82,11 @@ text, no finished model step (a `step_start` alone is allowed). The same
 error after the invocation acted goes through the nudge path as before: it
 may come from the episode's own state and repeat, and each retry would
 re-send the context. The first retry still waits the full 60 s; no quota is
-spent while it waits.
+spent while it waits. OpenCode gives the same error for persistent faults too
+(a deprecated model, for one), which no wait fixes, so it is retried at most
+3 times in a row (`MAX_STARTUP_SERVER_ERROR_RETRIES`, 60 + 120 + 240 s); a
+fourth in a row ends the loop as an exhausted stall budget does, instead of
+backing off for up to the six-hour stall budget.
 
 `harness_run.exit_code` is the first launch's exit code, and
 `harness_run.final_exit_code` the last invocation's (the first launch's when
