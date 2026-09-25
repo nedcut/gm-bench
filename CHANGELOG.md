@@ -292,6 +292,13 @@ Added 2026-09-20. Nothing published changes.
   `scripts/run_bench_v2_panel_from_keychain.py` refuses to start a panel
   when a driver or contract file differs from `HEAD`. The contract
   fingerprint is unchanged.
+- First five-season smoke rows on the paid harnesses, one container episode
+  each on public seed 11 under `gm-bench-2.0`, with the driver block from a
+  clean `main`: `results/agentic/codex-0.156.1-gpt-6-luna-smoke-1x5.json`
+  (232.5, 10.7 min, $0.18 at API prices) and
+  `results/agentic/claude-2.1.281-claude-sonnet-5-smoke-1x5.json` (248.0,
+  19.8 min, $5.05 at API prices). Both closed 20/20 phases themselves with no nudges or
+  provider stalls. They are `smoke` grade and the site does not show them.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 
