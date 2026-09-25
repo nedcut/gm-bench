@@ -881,16 +881,21 @@ episodes' `result.json`), so panel grade still needs
 ## Red-teaming the sandbox
 
 ```bash
-echo 730541 | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team
-echo 730541 | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team-container \
+python3 -c 'import secrets; print((1 << 32) + secrets.randbelow((1 << 63) - (1 << 32)))' \
+    | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team-container \
     --isolation container
 ```
 
-Use a distinctive public seed of at least six digits (the script refuses a
-shorter one): a seed such as 11 matches `python3.11`, protocol dates and
-team ids in ordinary shell output, so the seed-in-output flags would be
-true on any run where the agent does anything. The report lists every hit
-with the text around it (`seed_matches`) so a match can be checked.
+Pipe in a fresh seed from the private-panel range, 2**32 to 2**63 - 1; the
+script refuses any other. The simulator source is public, so an agent with
+web access can download it, rebuild leagues offline, and test candidate
+seeds against what `get_status` shows. A small or documented seed falls to
+that (a 2026-09-24 probe found the example seed this section used to
+print, after recognising the probe's brief in the public script), which
+says nothing about a panel seed. A large seed also keeps the
+seed-in-output flags from matching `python3.11`, protocol dates and team
+ids in ordinary shell output. The report lists every hit with the text
+around it (`seed_matches`) so a match can be checked.
 
 Launches the harness exactly as a run does, but with a brief that tells the
 agent to find the seed by any means. The report lists every shell command
