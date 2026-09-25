@@ -19,6 +19,11 @@ panel-grade row also needs the harness isolated from the driver: pass
 
 Episodes run serially: the driver has no parallel mode, on purpose.
 
+A paid panel must be reproducible from a commit, so the launcher refuses to
+start when any driver or contract file (``gm_bench/agentic/provenance.py``)
+differs from ``HEAD`` or is untracked, or when the checkout is not a git
+work tree. Commit or stash the change first; there is no override.
+
 Arguments this launcher does not know are passed to ``gm-bench agentic``
 unchanged, so driver options (``--harness``, ``--codex-auth-file``, ``--claude-token-file``,
 ``--variant``, ``--phase-guard-seconds``, ``--max-provider-stalls``,
@@ -46,6 +51,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from gm_bench.agentic.provenance import dirty_played_files  # noqa: E402
 from gm_bench.agentic.publication import seed_panel_sha256  # noqa: E402
 from gm_bench.benchmark_config import PRIVATE_SEEDS_ENV, seed_panel_hash  # noqa: E402
 from scripts.seed_panel_commitment import commitment, parse_ordered_seeds  # noqa: E402
@@ -153,6 +159,18 @@ def _require_fresh_output(output: Path) -> None:
     raise ValueError(f"{output} is inside the checkout; keep private-seed run directories outside it")
 
 
+def require_committed_driver() -> None:
+    """Refuse a panel whose driver or contract files are not exactly a commit."""
+    dirty = dirty_played_files()
+    if dirty is None:
+        raise ValueError("cannot confirm the driver matches a commit (not a git checkout, or git failed)")
+    if dirty:
+        raise ValueError(
+            f"driver or contract files differ from HEAD: {', '.join(dirty)}; "
+            "commit them before a panel so the row can be replayed from git"
+        )
+
+
 def agentic_argv(args: argparse.Namespace, passthrough: list[str]) -> list[str]:
     """The in-process ``gm-bench`` argument list. Seeds are not part of it."""
     for arg in passthrough:
@@ -197,6 +215,7 @@ def main(argv: list[str] | None = None) -> int:
     args.output = output
     _require_fresh_output(output)
     cli_argv = agentic_argv(args, passthrough)
+    require_committed_driver()
     seeds_text = verified_seed_text(lane, shared_lane)
 
     from gm_bench import cli

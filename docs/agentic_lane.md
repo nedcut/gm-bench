@@ -197,7 +197,13 @@ anything that would not validate. CI re-validates every file under
 `agentic-redact` and `agentic-validate` (and so CI) reject it unless its
 `panel.sha256` equals `seed_panel.artifact_panel_sha256` in
 `config/bench_v2_lane.json` and its distinct-seed count equals that panel's
-`count`; `smoke` rows are exempt. On the site, a row is flagged `unpinned`
+`count`; `smoke` rows are exempt. A `panel` row also needs the run's `driver` block
+to show the driver files (`gm_bench/agentic/provenance.py`) matched a
+commit from start to end: `git_head` set, `git_driver_clean` true,
+`changed_during_run` false. A run that is panel-sized but played on
+uncommitted driver code redacts as `smoke`. Validating a row in a checkout
+whose driver has since changed prints a warning with the row's commit, not
+an error. On the site, a row is flagged `unpinned`
 (may not be reproducible) unless its harness model id is listed with its pin
 under `model_pinning.pinned_models` in the same file; add the pin there, in
 the same change that commits the row, only when the served model version or
@@ -861,7 +867,10 @@ python scripts/run_bench_v2_panel_from_keychain.py \
 ```
 
 `--verify-only` checks the escrow against every committed digest and prints
-only the result. A run checks the same digests, refuses to start until the
+only the result. A run first refuses to start while any driver or contract
+file differs from `HEAD` (or the checkout is not a git work tree), before it
+touches the Keychain: commit the change, so the row names a commit that
+replays it. It then checks the same digests, refuses to start until the
 lane's `owner_attestation_status` is `attested-before-seed-access`, and then
 runs `gm-bench agentic --seeds-stdin` in its own process with the seeds on
 standard input. No command line or environment variable carries them.

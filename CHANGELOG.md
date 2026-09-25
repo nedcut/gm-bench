@@ -238,6 +238,25 @@ Added 2026-09-20. Nothing published changes.
   provider stall, not a guard stop or a nudge; the silent window comes off
   the phase clock. Counted as `silent_kills` per episode (`silent` per nudge),
   `silent_harness_kills` in the run summary and site telemetry.
+- Driver provenance: the 2.0 fingerprint covers the tool surface, brief,
+  engine and server, not the driver that plays the episode (the shared
+  loop's nudges, retries, resumes and stall handling, the harness adapters,
+  the container launcher, the proxy), so two rows could share a fingerprint
+  and harness version yet have been played by different driver code. Every
+  run now records a `driver` block in `run.json`, carried into the
+  published row: a digest of those driver files taken when the run starts,
+  the files it covers, the git commit, whether the driver files matched it,
+  and whether they changed before the run ended
+  (`gm_bench/agentic/provenance.py`, which also classifies every file in
+  the package so a new one cannot be left out). A `panel` row now needs a
+  driver that matched a commit for the whole run; a run without one redacts
+  as `smoke`. A row played by an older driver than the checkout's gets a
+  warning, not an error. Rows recorded before the block, like the committed
+  smoke row, stay valid as `smoke` with a warning, so the format stays
+  `gm-bench-agentic-summary-v1`.
+  `scripts/run_bench_v2_panel_from_keychain.py` refuses to start a panel
+  when a driver or contract file differs from `HEAD`. The contract
+  fingerprint is unchanged.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 
