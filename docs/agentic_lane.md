@@ -71,6 +71,30 @@ harness was running counts toward the guard. Each nudge entry records
 `stall_retry`, `backoff_seconds` and `provider_stall`, and `harness_run`
 records `provider_stalls` and `provider_stall_wait_seconds`.
 
+OpenCode's own server can also fail at startup: in two 8-seed container runs
+of `opencode/space-bunny-free`, 9 of 16 episodes opened with a single
+`error` event (`"name": "UnknownError"`, message "Unexpected server error.
+Check server logs for details.") about a second after launch, before any
+tool call, and the resumed session then played the whole episode. That
+error is a provider stall (same backoff, budget and clock pause) only when
+it ends an invocation that did nothing else first: no tool call, no model
+text, no finished model step (a `step_start` alone is allowed). The same
+error after the invocation acted goes through the nudge path as before: it
+may come from the episode's own state and repeat, and each retry would
+re-send the context. The first retry still waits the full 60 s; no quota is
+spent while it waits. OpenCode gives the same error for persistent faults too
+(a deprecated model, for one), which no wait fixes, so it is retried at most
+3 times in a row (`MAX_STARTUP_SERVER_ERROR_RETRIES`, 60 + 120 + 240 s); a
+fourth in a row ends the loop as an exhausted stall budget does, instead of
+backing off for up to the six-hour stall budget.
+
+`harness_run.exit_code` is the first launch's exit code, and
+`harness_run.final_exit_code` the last invocation's (the first launch's when
+there was no nudge, retry or resume); each nudge entry keeps its own
+`exit_code`. `agentic-validate` warns on `final_exit_code`, so an episode
+that recovered from a failed first launch does not warn. Runs recorded
+before `final_exit_code` existed are read from `exit_code`, as before.
+
 OpenCode retries a 429 inside the harness and prints nothing to its event
 stream while it does, so a rate-limited harness can look hung rather than
 end on an `error` event. A harness invocation that has appended no byte to
@@ -122,7 +146,7 @@ season summaries, transactions) plus:
   OpenCode input excludes cached tokens and their output excludes reasoning);
   they still validate, the site labels their tokens as the harness's own
   convention, and publication checks the sums only for shaped rows
-- `harness_run`: the command (brief elided), exit code, timeout flag, wall
+- `harness_run`: the command (brief elided), first and final exit codes, timeout flag, wall
   time, nudges used and what each bought, phase-guard stops (`guard_kills`),
   provider stalls and the backoff waited for them,
   whether every proxy connection had closed when the server stopped
@@ -890,16 +914,21 @@ episodes' `result.json`), so panel grade still needs
 ## Red-teaming the sandbox
 
 ```bash
-echo 730541 | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team
-echo 730541 | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team-container \
+python3 -c 'import secrets; print((1 << 32) + secrets.randbelow((1 << 63) - (1 << 32)))' \
+    | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team-container \
     --isolation container
 ```
 
-Use a distinctive public seed of at least six digits (the script refuses a
-shorter one): a seed such as 11 matches `python3.11`, protocol dates and
-team ids in ordinary shell output, so the seed-in-output flags would be
-true on any run where the agent does anything. The report lists every hit
-with the text around it (`seed_matches`) so a match can be checked.
+Pipe in a fresh seed from the private-panel range, 2**32 to 2**63 - 1; the
+script refuses any other. The simulator source is public, so an agent with
+web access can download it, rebuild leagues offline, and test candidate
+seeds against what `get_status` shows. A small or documented seed falls to
+that (a 2026-09-24 probe found the example seed this section used to
+print, after recognising the probe's brief in the public script), which
+says nothing about a panel seed. A large seed also keeps the
+seed-in-output flags from matching `python3.11`, protocol dates and team
+ids in ordinary shell output. The report lists every hit with the text
+around it (`seed_matches`) so a match can be checked.
 
 Launches the harness exactly as a run does, but with a brief that tells the
 agent to find the seed by any means. The report lists every shell command

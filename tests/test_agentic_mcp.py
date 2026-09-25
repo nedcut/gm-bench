@@ -253,6 +253,15 @@ def test_opencode_config_and_event_parsing(tmp_path: Path) -> None:
     assert silent["decisions_with_usage"] == 0 and silent["cost_decisions"] == 0
 
 
+def test_the_frozen_2_0_contract_has_not_moved() -> None:
+    from gm_bench.agentic.contract import AGENTIC_BENCHMARK_VERSION, agentic_fingerprint
+
+    # gm-bench-2.0 is frozen: any change to tools.py, brief.py, episode.py or
+    # mcp_server.py (or the 1.0 contract underneath) is a new benchmark version.
+    # Bump AGENTIC_BENCHMARK_VERSION and this pin together, on purpose.
+    assert (AGENTIC_BENCHMARK_VERSION, agentic_fingerprint()) == ("gm-bench-2.0", "07de948a4f4afbae")
+
+
 def test_agentic_contract_layers_on_the_unchanged_base_contract() -> None:
     from gm_bench.agentic.contract import agentic_contract, agentic_fingerprint
     from gm_bench.agentic.opencode import tool_call_agreement
@@ -928,6 +937,18 @@ _AUTH_ERROR = {
     "sessionID": "ses_fake",
     "error": {"name": "APIError", "data": {"message": "Unauthorized", "statusCode": 401, "isRetryable": False}},
 }
+# The first line of nine of sixteen gate6/gate7 opencode/space-bunny-free
+# episodes (session id and ref faked): OpenCode's server failing about a
+# second after launch, before any model step.
+_STARTUP_SERVER_ERROR = {
+    "type": "error",
+    "timestamp": 1790279428885,
+    "sessionID": "ses_fake",
+    "error": {
+        "name": "UnknownError",
+        "data": {"message": "Unexpected server error. Check server logs for details.", "ref": "err_fake"},
+    },
+}
 
 
 def _scripted_harness(script: list[dict], calls: list[list[str]], *, before_call=None):
@@ -937,7 +958,9 @@ def _scripted_harness(script: list[dict], calls: list[list[str]], *, before_call
     ``end_phase`` pairs, so each pair closes a phase), then end with an
     optional ``error`` event and ``exit`` code. A ``silent`` step prints
     nothing and makes no call: only ``before_call`` runs (to move the clock
-    and poll), like OpenCode retrying a 429 internally.
+    and poll), like OpenCode retrying a 429 internally. A ``bare`` step
+    prints only its ``error`` event and makes no call, like OpenCode's
+    server failing at startup.
     """
 
     def fake_harness(command, *, cwd, env, events_path, stderr_path, timeout, stalled=None, on_kill=None):
@@ -946,6 +969,10 @@ def _scripted_harness(script: list[dict], calls: list[list[str]], *, before_call
         config = json.loads((cwd / "opencode.json").read_text())
         socket_path = config["mcp"]["servers"]["gm-bench"]["command"][2]
         was_stalled = False
+        if step.get("bare"):
+            with events_path.open("a") as events:
+                events.write(json.dumps(step["error"]) + "\n")
+            return step.get("exit", 0), False, 1.0, False
         if step.get("silent"):
             if before_call is not None:
                 was_stalled = before_call(len(calls), stalled)
@@ -1096,6 +1123,121 @@ def test_non_retryable_exit_keeps_the_nudge_behaviour(tmp_path: Path, monkeypatc
     assert harness_run["nudges_used"] == 1 and harness_run["nudges_without_progress"] == 1
     assert harness_run["nudges"][0]["stall_retry"] is False and harness_run["nudges"][0]["provider_stall"] is False
     assert result["agentic"]["phases_ended_by"] == {"agent": 1, "harness_exit": 3}
+
+
+def test_startup_server_error_is_a_stall_only_before_the_invocation_acted() -> None:
+    from gm_bench.agentic.opencode import OPENCODE_DRIVER, ended_in_provider_stall
+
+    error = json.dumps(_STARTUP_SERVER_ERROR)
+    start = json.dumps({"type": "step_start", "sessionID": "ses_fake", "part": {"type": "step-start"}})
+    tool = json.dumps({"type": "tool_use", "sessionID": "ses_fake", "part": {"type": "tool", "tool": "gm-bench_x"}})
+    finish = json.dumps({"type": "step_finish", "sessionID": "ses_fake", "part": {"type": "step-finish"}})
+    text = json.dumps({"type": "text", "sessionID": "ses_fake", "part": {"type": "text", "text": "hi"}})
+    # The recorded shape: the invocation's only event.
+    assert ended_in_provider_stall([error, ""])
+    assert OPENCODE_DRIVER.ended_in_provider_stall([error])
+    # Failing inside the first model call, before it finished, is still startup.
+    assert ended_in_provider_stall([start, error])
+    # After a tool call, a finished model step or model text, it is not.
+    for before in ([start, tool], [start, finish], [start, text], [start, tool, finish, start]):
+        assert not ended_in_provider_stall([*before, error]), before
+    # Not terminal: the invocation recovered.
+    assert not ended_in_provider_stall([error, start])
+    # Only OpenCode's generic server error, not any UnknownError.
+    other = {**_STARTUP_SERVER_ERROR, "error": {"name": "UnknownError", "data": {"message": "bad config"}}}
+    assert not ended_in_provider_stall([json.dumps(other)])
+    renamed = {**_STARTUP_SERVER_ERROR, "error": {**_STARTUP_SERVER_ERROR["error"], "name": "APIError"}}
+    assert not ended_in_provider_stall([json.dumps(renamed)])
+
+
+def test_startup_server_error_is_retried_as_a_stall_not_a_nudge(tmp_path: Path, monkeypatch) -> None:
+    """The gate6 seed-1 shape: the first launch dies on the server error, the resume plays the episode."""
+    script = [{"bare": True, "error": _STARTUP_SERVER_ERROR, "exit": 1}, {"phases": 4}]
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script)
+    harness_run = result["harness_run"]
+    # The launch opened a session, so the retry resumes it with the reminder.
+    assert len(calls) == 2 and calls[1][calls[1].index("--session") + 1] == "ses_fake"
+    assert sleeps == [60.0]
+    assert harness_run["provider_stalls"] == 1 and harness_run["provider_stall_wait_seconds"] == 60.0
+    assert harness_run["nudges_used"] == 0 and harness_run["nudges_without_progress"] == 0
+    [retry] = harness_run["nudges"]
+    assert retry["stall_retry"] is True and retry["provider_stall"] is False and retry["new_tool_calls"] == 8
+    # The first launch failed; the harness finished cleanly.
+    assert harness_run["exit_code"] == 1 and harness_run["final_exit_code"] == 0
+    assert result["agentic"]["phases_ended_by"] == {"agent": 4}
+    assert result["failed_decisions"] == 0
+
+
+def test_repeated_startup_server_error_does_not_lose_the_episode(tmp_path: Path, monkeypatch) -> None:
+    """Before, a second startup error on the resume was a no-progress nudge and abandoned every phase."""
+    bare = {"bare": True, "error": _STARTUP_SERVER_ERROR, "exit": 1}
+    script = [bare, bare, {"phases": 4}]
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script)
+    harness_run = result["harness_run"]
+    assert len(calls) == 3 and sleeps == [60.0, 120.0]
+    assert harness_run["provider_stalls"] == 2 and harness_run["nudges_used"] == 0
+    assert result["agentic"]["phases_ended_by"] == {"agent": 4}
+    assert result["failed_decisions"] == 0
+
+
+def test_persistent_startup_server_error_stops_after_a_few_retries(tmp_path: Path, monkeypatch) -> None:
+    """OpenCode also answers a persistent fault (a deprecated model) this way: no six-hour backoff."""
+    from gm_bench.agentic.opencode import MAX_STARTUP_SERVER_ERROR_RETRIES
+
+    bare = {"bare": True, "error": _STARTUP_SERVER_ERROR, "exit": 1}
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, [bare] * 8)
+    harness_run = result["harness_run"]
+    # Three backed-off retries; the last made no progress, so the loop ends as when the stall budget runs out.
+    assert sleeps == [60.0, 120.0, 240.0] and MAX_STARTUP_SERVER_ERROR_RETRIES == 3
+    assert len(calls) == 1 + MAX_STARTUP_SERVER_ERROR_RETRIES
+    assert harness_run["nudges_used"] == 0
+    assert result["agentic"]["phases_ended_by"].get("agent", 0) == 0
+
+
+def test_server_error_after_progress_keeps_the_nudge_behaviour(tmp_path: Path, monkeypatch) -> None:
+    script = [{"phases": 1, "error": _STARTUP_SERVER_ERROR, "exit": 1}, {"phases": 3}]
+    result, calls, sleeps = _stall_episode(tmp_path, monkeypatch, script)
+    harness_run = result["harness_run"]
+    assert sleeps == [] and len(calls) == 2 and "Reminder 1 of 5" in calls[1][-1]
+    assert harness_run["provider_stalls"] == 0 and harness_run["nudges_used"] == 1
+    assert result["failed_decisions"] == 0
+
+
+def test_exit_code_warning_follows_how_the_harness_finished(tmp_path: Path, monkeypatch) -> None:
+    import gm_bench.agentic.opencode as driver
+    from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
+    from gm_bench.agentic.validate import validate_run
+
+    script = [{"bare": True, "error": _STARTUP_SERVER_ERROR, "exit": 1}, {"phases": 4}]
+    result, _calls, _sleeps = _stall_episode(tmp_path, monkeypatch, script)
+    run = {
+        "agent": "opencode:fake/model",
+        "harness": {"name": "opencode", "version": "0", "model": "fake/model"},
+        "contract": driver.agentic_contract(),
+        "seeds": [11],
+        "seasons": 1,
+        "max_nudges": 5,
+        "episodes": [result],
+        "summary": driver.summarize_episodes([result]),
+        "agentic_summary": driver._agentic_summary([result]),
+    }
+    run_json = tmp_path / "run" / "run.json"
+    run_json.write_text(json.dumps(run))
+    report = validate_run(run_json)
+    assert report["ok"]
+    assert not any("exit code" in warning for warning in report["warnings"])
+    artifact = compact_agentic_run(tmp_path / "run", isolation="same-user")
+    compact = artifact["episodes"][0]["harness_run"]
+    assert (compact["exit_code"], compact["final_exit_code"]) == (1, 0)
+    assert validate_agentic_artifact(artifact)["ok"]
+    # A run recorded before final_exit_code is read from its first exit code, as before.
+    del result["harness_run"]["final_exit_code"]
+    run_json.write_text(json.dumps(run))
+    assert "episode 0 (seed 11): harness exit code 1" in validate_run(run_json)["warnings"]
+    # And a harness that finished badly still warns.
+    result["harness_run"]["final_exit_code"] = 2
+    run_json.write_text(json.dumps(run))
+    assert "episode 0 (seed 11): harness exit code 2" in validate_run(run_json)["warnings"]
 
 
 def test_guard_does_not_fire_for_a_backoff_but_still_catches_a_hung_retry(tmp_path: Path, monkeypatch) -> None:

@@ -119,6 +119,8 @@ _EPISODE_SCALARS = (
 )
 _HARNESS_RUN_KEYS = (
     "exit_code",
+    # The last invocation's exit code; absent from runs recorded before it.
+    "final_exit_code",
     "timed_out",
     "wall_seconds",
     "nudges_used",
