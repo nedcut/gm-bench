@@ -30,7 +30,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from gm_bench.agentic import codex, opencode
+from gm_bench.agentic import claude, codex, opencode
 from gm_bench.agentic.audit import audit_ledger
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import AgenticEpisode
@@ -41,6 +41,7 @@ _CONTRACT_KEYS = ("base_contract_fingerprint", "agentic_fingerprint", "tool_surf
 EVENT_PARSERS = {
     opencode.HARNESS_NAME: opencode.parse_opencode_events,
     codex.HARNESS_NAME: codex.parse_codex_events,
+    claude.HARNESS_NAME: claude.parse_claude_events,
 }
 
 

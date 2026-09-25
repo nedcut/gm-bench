@@ -29,7 +29,8 @@ see ``container.py``). Publication refuses to claim more than that record.
 This module also holds the episode loop every harness shares (the server,
 sandbox check, nudges, provider-stall retries, phase-guard watch, and
 finalization). What differs per harness is a ``harness.HarnessDriver``:
-:data:`OPENCODE_DRIVER` here, ``codex.CodexDriver`` for the Codex CLI.
+:data:`OPENCODE_DRIVER` here, ``codex.CodexDriver`` for the Codex CLI,
+``claude.ClaudeDriver`` for Claude Code.
 ``run_episode`` and ``run_panel`` take a ``driver`` and default to OpenCode.
 """
 
@@ -89,6 +90,8 @@ DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS = 6 * 3600.0
 # the panel until the window resets, plus QUOTA_RESET_MARGIN_SECONDS.
 QUOTA_PAUSE_PERCENT = 95.0
 QUOTA_RESET_MARGIN_SECONDS = 60.0
+# How often the loop polls a running harness for the phase guard (and a parked invocation).
+HARNESS_POLL_SECONDS = 5.0
 # OpenCode retries a 429 inside the harness and prints nothing to its event
 # stream while it does, so a rate-limited harness looks hung: no event, no
 # tool call. An invocation that has appended no byte to the event stream and
@@ -346,7 +349,12 @@ class HarnessLaunch:
         return self._secret
 
     def command(self, harness_args: list[str]) -> tuple[list[str], Callable[[], None] | None]:
-        """The full host command for one harness invocation, and how to stop it if it is killed."""
+        """The full host command for one harness invocation, and how to stop it if it is killed.
+
+        Called once per invocation, just before it starts, so the driver's
+        :meth:`HarnessDriver.before_invocation` runs here.
+        """
+        self.driver.before_invocation(self)
         if self.container is None:
             return [self.binary, *harness_args], None
         container = self.container
@@ -661,11 +669,12 @@ def run_episode(
     scratch = launch.scratch
 
     guard_expired = _GuardWatch(episode, server.dispatch_lock)
+    watch = _InvocationWatch(guard_expired, driver, events_path)
     silence = _SilenceWatch(episode, server.dispatch_lock, events_path, silent_harness_seconds)
 
     def poll() -> bool:
         # Silence first: a silent harness is a provider stall, not a guard stop.
-        return silence() or guard_expired()
+        return silence() or watch()
 
     def take_silence_off_the_clock() -> None:
         # The silent window is provider time, like a backoff: no tool call
@@ -697,8 +706,9 @@ def run_episode(
         guard_kills = 0
         guard_expired.arm()
         offset = events_path.stat().st_size
+        watch.start(offset)
         silence.start()
-        exit_code, timed_out, wall_seconds, stalled = _run_harness(
+        exit_code, timed_out, wall_seconds, killed = _run_harness(
             command,
             cwd=scratch,
             env=launch.env,
@@ -709,16 +719,18 @@ def run_episode(
             on_kill=on_kill,
         )
         # A silent kill went through the same kill path but is not a guard stop.
-        silent = stalled and silence.fired
+        silent = killed and silence.fired
         silent_kills = int(silent)
         if silent:
             take_silence_off_the_clock()
-        guard_kills += int(stalled and not silent)
+        # Nor is a stop for a parked invocation (a spent usage window).
+        stalled = killed and not watch.parked and not silent
+        guard_kills += int(stalled)
         # Provider stalls: a run that ended on a retryable provider error (a
         # 429, an overload), or was stopped as silent, is retried after a
         # backoff and is not a nudge.
         last_stalled = silent or (
-            not timed_out and not stalled and driver.ended_in_provider_stall(_invocation_lines(events_path, offset))
+            not timed_out and not killed and driver.ended_in_provider_stall(_invocation_lines(events_path, offset))
         )
         provider_stalls = int(last_stalled)
         consecutive_stalls = int(last_stalled)
@@ -853,8 +865,9 @@ def run_episode(
                 )
             nudge_command, nudge_kill = launch.command(args)
             offset = events_path.stat().st_size
+            watch.start(offset)
             silence.start()
-            nudge_exit, nudge_timed_out, nudge_wall, nudge_stalled = _run_harness(
+            nudge_exit, nudge_timed_out, nudge_wall, nudge_killed = _run_harness(
                 nudge_command,
                 cwd=scratch,
                 env=launch.env,
@@ -864,6 +877,7 @@ def run_episode(
                 stalled=poll,
                 on_kill=nudge_kill,
             )
+            nudge_stalled = nudge_killed and not watch.parked
             wall_seconds += nudge_wall
             silent = nudge_stalled and silence.fired
             silent_kills += int(silent)
@@ -875,7 +889,7 @@ def run_episode(
             progress_calls = after["tool_calls"] - state["tool_calls"]
             last_stalled = silent or (
                 not nudge_timed_out
-                and not nudge_stalled
+                and not nudge_killed
                 and driver.ended_in_provider_stall(_invocation_lines(events_path, offset))
             )
             pending_quota = (
@@ -997,7 +1011,7 @@ def _run_harness(
     stderr_path: Path,
     timeout: float,
     stalled: Callable[[], bool] | None = None,
-    poll_seconds: float = 5.0,
+    poll_seconds: float | None = None,
     on_kill: Callable[[], None] | None = None,
 ) -> tuple[int | None, bool, float, bool]:
     """Run one harness invocation, appending its streams to the episode's files.
@@ -1009,6 +1023,7 @@ def _run_harness(
     either kill: killing the ``docker run`` client does not stop its
     container, so the container launcher removes it there.
     """
+    poll_seconds = HARNESS_POLL_SECONDS if poll_seconds is None else poll_seconds
     started = time.perf_counter()
     deadline = started + timeout
     timed_out = False
@@ -1044,6 +1059,35 @@ def _run_harness(
                     exit_code = process.wait()
                     break
     return exit_code, timed_out, time.perf_counter() - started, was_stalled
+
+
+class _InvocationWatch:
+    """The stop poll for one invocation: the phase guard, then, for a driver that parks, a spent window.
+
+    ``parked`` says which one stopped the harness, so the loop can treat a
+    parked stop as quota exhaustion rather than a guard kill.
+    """
+
+    def __init__(self, guard: Callable[[], bool], driver: HarnessDriver, events_path: Path) -> None:
+        self.guard = guard
+        self.driver = driver
+        self.events_path = events_path
+        self.offset = 0
+        self.parked = False
+
+    def start(self, offset: int) -> None:
+        self.offset = offset
+        self.parked = False
+
+    def __call__(self) -> bool:
+        if self.guard():
+            return True
+        if self.driver.polls_for_park and self.driver.invocation_parked(
+            _invocation_lines(self.events_path, self.offset)
+        ):
+            self.parked = True
+            return True
+        return False
 
 
 class _GuardWatch:

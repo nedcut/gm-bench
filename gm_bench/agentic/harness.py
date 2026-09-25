@@ -6,8 +6,8 @@ lives in ``opencode.py``, where the first driver grew it. Everything that
 differs between harnesses is a :class:`HarnessDriver`: how to find its
 version, how to stage its configuration beside the proxy, the command lines
 for the first run and for a resume, how to read its event stream, and what
-counts as a provider stall in that stream. ``opencode.OpenCodeDriver`` and
-``codex.CodexDriver`` are the two implementations.
+counts as a provider stall in that stream. ``opencode.OpenCodeDriver``,
+``codex.CodexDriver`` and ``claude.ClaudeDriver`` are the implementations.
 """
 
 from __future__ import annotations
@@ -56,6 +56,13 @@ class HarnessDriver:
         """Write the proxy and this harness's configuration, after the sandbox check passed."""
         raise NotImplementedError
 
+    def before_invocation(self, launch: HarnessLaunch) -> None:
+        """Runs just before every harness invocation starts (the first run, each nudge, retry and resume).
+
+        For a driver whose staged configuration the agent could have changed
+        during the previous invocation, and that must restore or check it.
+        """
+
     def run_args(self, *, model: str, variant: str | None, workdir: str, brief: str, isolation: str) -> list[str]:
         """Arguments after the executable for the first invocation; the brief must be the last one."""
         raise NotImplementedError
@@ -83,6 +90,22 @@ class HarnessDriver:
         budget, and otherwise stops the episode and the panel.
         """
         return None
+
+    #: Whether the shared loop should poll :meth:`invocation_parked` while an invocation runs.
+    polls_for_park = False
+
+    def invocation_parked(self, lines: list[str]) -> bool:
+        """Whether a still-running invocation is parked waiting out a spent usage window.
+
+        Polled with the phase guard (only when :attr:`polls_for_park`) on the
+        events the running invocation has written so far. A harness that waits
+        inside the process for a subscription window to reset instead of
+        exiting (Claude Code) would otherwise hold the episode until the phase
+        guard stopped it. When this returns true the loop stops the process and
+        asks :meth:`quota_exhausted` about the same events, so the stop is a
+        quota pause or stop, never a guard kill or a nudge.
+        """
+        return False
 
     def usage_block(self, telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
         raise NotImplementedError

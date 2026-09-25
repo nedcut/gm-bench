@@ -206,6 +206,26 @@ def test_launcher_passes_provider_stall_limits_through_unchanged(
 
 
 @pytest.mark.parametrize(
+    "harness",
+    [
+        ["--harness", "codex", "--codex-auth-file", "/secure/auth.json"],
+        ["--harness", "claude", "--claude-token-file=/secure/claude-token"],
+    ],
+)
+def test_launcher_passes_codex_and_claude_container_options_through_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, harness: list[str]
+) -> None:
+    _install_fixture(tmp_path, monkeypatch)
+    calls = _capture_cli(monkeypatch)
+    extra = [*harness, "--isolation", "container"]
+
+    assert launcher.main(["--model", "some/model", "--output", str(tmp_path / "run"), *extra]) == 0
+
+    (call,) = calls
+    assert call["argv"][-len(extra) :] == extra
+
+
+@pytest.mark.parametrize(
     ("extra", "message"),
     [
         (["--seeds", "1"], "not allowed"),
