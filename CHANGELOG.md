@@ -259,6 +259,20 @@ Added 2026-09-20. Nothing published changes.
   `space-bunny-free` smoke runs on seeds 1 to 8: within-seed SD 43 over all
   eight seeds and 23 without seed 1, so a 32-seed panel resolves about 39 or
   28 points respectively for that model.
+- OpenCode startup errors: in two 8-seed container runs of
+  `opencode/space-bunny-free`, 9 of 16 episodes' first launch ended about a
+  second in on OpenCode's `UnknownError` "Unexpected server error", with no
+  tool call. The driver spent a nudge on it, and a second such error on the
+  resume would have stopped the loop and failed every phase. That error is
+  now a provider stall when it ends an invocation that had done nothing
+  else (no tool call, model text or finished model step), retried at most 3
+  times in a row because OpenCode gives the same error for persistent faults
+  such as a deprecated model; after the invocation acted it is still nudged.
+  `harness_run.final_exit_code` records
+  the last invocation's exit code beside the first launch's `exit_code`, and
+  `agentic-validate` warns on it, so an episode that recovered no longer
+  reports `harness exit code 1`. Committed rows, which predate the field,
+  validate unchanged. The contract fingerprint is unchanged.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

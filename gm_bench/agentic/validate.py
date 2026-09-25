@@ -174,8 +174,12 @@ def _validate_episode(episode: dict[str, Any], run_dir: Path, harness_name: str 
         warnings.append("harness hit the episode timeout")
     if int(harness_run.get("guard_kills", 0) or 0):
         warnings.append(f"harness stopped {harness_run.get('guard_kills')} time(s) by the phase guard")
-    if int(harness_run.get("exit_code", 0) or 0) != 0:
-        warnings.append(f"harness exit code {harness_run.get('exit_code')}")
+    # How the harness finished: the last invocation's exit code. Runs recorded
+    # before ``final_exit_code`` only have the first launch's, and are read as
+    # they always were.
+    final_exit = harness_run.get("final_exit_code", harness_run.get("exit_code"))
+    if int(final_exit or 0) != 0:
+        warnings.append(f"harness exit code {final_exit}")
     if harness_run.get("server_drained") is False:
         warnings.append("a proxy connection was still open when the socket server stopped")
     usage = episode.get("usage") or {}
