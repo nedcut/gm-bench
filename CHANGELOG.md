@@ -241,8 +241,9 @@ Added 2026-09-20. Nothing published changes.
 - Docs: the README gains a short GM-Bench 2.0 status section (implemented,
   one smoke row, no panel-grade result yet), and `docs/bench_v2_spec.md`
   gains a current-behaviour repeat-noise measurement from the two
-  `space-bunny-free` smoke runs on seeds 1 to 8 (within-seed SD 23 to 43,
-  32-seed resolution roughly 28 to 39 points for that model).
+  `space-bunny-free` smoke runs on seeds 1 to 8: within-seed SD 43 over all
+  eight seeds and 23 without seed 1, so a 32-seed panel resolves about 39 or
+  28 points respectively for that model.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 
