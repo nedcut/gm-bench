@@ -238,6 +238,18 @@ Added 2026-09-20. Nothing published changes.
   provider stall, not a guard stop or a nudge; the silent window comes off
   the phase clock. Counted as `silent_kills` per episode (`silent` per nudge),
   `silent_harness_kills` in the run summary and site telemetry.
+- OpenCode startup errors: in two 8-seed container runs of
+  `opencode/space-bunny-free`, 9 of 16 episodes' first launch ended about a
+  second in on OpenCode's `UnknownError` "Unexpected server error", with no
+  tool call. The driver spent a nudge on it, and a second such error on the
+  resume would have stopped the loop and failed every phase. That error is
+  now a provider stall when it ends an invocation that had done nothing
+  else (no tool call, model text or finished model step); after the
+  invocation acted it is still nudged. `harness_run.final_exit_code` records
+  the last invocation's exit code beside the first launch's `exit_code`, and
+  `agentic-validate` warns on it, so an episode that recovered no longer
+  reports `harness exit code 1`. Committed rows, which predate the field,
+  validate unchanged. The contract fingerprint is unchanged.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

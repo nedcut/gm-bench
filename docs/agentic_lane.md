@@ -71,6 +71,26 @@ harness was running counts toward the guard. Each nudge entry records
 `stall_retry`, `backoff_seconds` and `provider_stall`, and `harness_run`
 records `provider_stalls` and `provider_stall_wait_seconds`.
 
+OpenCode's own server can also fail at startup: in two 8-seed container runs
+of `opencode/space-bunny-free`, 9 of 16 episodes opened with a single
+`error` event (`"name": "UnknownError"`, message "Unexpected server error.
+Check server logs for details.") about a second after launch, before any
+tool call, and the resumed session then played the whole episode. That
+error is a provider stall (same backoff, budget and clock pause) only when
+it ends an invocation that did nothing else first: no tool call, no model
+text, no finished model step (a `step_start` alone is allowed). The same
+error after the invocation acted goes through the nudge path as before: it
+may come from the episode's own state and repeat, and each retry would
+re-send the context. The first retry still waits the full 60 s; no quota is
+spent while it waits.
+
+`harness_run.exit_code` is the first launch's exit code, and
+`harness_run.final_exit_code` the last invocation's (the first launch's when
+there was no nudge, retry or resume); each nudge entry keeps its own
+`exit_code`. `agentic-validate` warns on `final_exit_code`, so an episode
+that recovered from a failed first launch does not warn. Runs recorded
+before `final_exit_code` existed are read from `exit_code`, as before.
+
 OpenCode retries a 429 inside the harness and prints nothing to its event
 stream while it does, so a rate-limited harness can look hung rather than
 end on an `error` event. A harness invocation that has appended no byte to
@@ -122,7 +142,7 @@ season summaries, transactions) plus:
   OpenCode input excludes cached tokens and their output excludes reasoning);
   they still validate, the site labels their tokens as the harness's own
   convention, and publication checks the sums only for shaped rows
-- `harness_run`: the command (brief elided), exit code, timeout flag, wall
+- `harness_run`: the command (brief elided), first and final exit codes, timeout flag, wall
   time, nudges used and what each bought, phase-guard stops (`guard_kills`),
   provider stalls and the backoff waited for them,
   whether every proxy connection had closed when the server stopped

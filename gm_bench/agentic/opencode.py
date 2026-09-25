@@ -103,6 +103,9 @@ HARNESS_POLL_SECONDS = 5.0
 SILENT_HARNESS_SECONDS = 240.0
 RETRYABLE_STATUS_CODES = frozenset({408, 425, 429, 500, 502, 503, 504})
 _RETRYABLE_MESSAGE_RE = re.compile(r"rate[ _-]?limit|overloaded|try again later", re.IGNORECASE)
+# OpenCode's server answers an unhandled exception with this ``UnknownError``;
+# a stall only when it ends an invocation that did nothing else first.
+_SERVER_ERROR_MESSAGE_RE = re.compile(r"unexpected server error", re.IGNORECASE)
 # What the driver itself can do. ``separate-user`` is a valid statement in a
 # published row (publication.ISOLATION_LEVELS) but no driver launches it yet.
 DRIVER_ISOLATION = ("same-user", "container")
@@ -490,8 +493,18 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
     message reads as a rate limit, an overload, or "try again later". Any
     other ending, including a non-retryable error such as a 401, is the
     agent (or the harness) stopping.
+
+    OpenCode's own server failing at startup is a stall too: an
+    ``UnknownError`` reading "Unexpected server error" that ends an
+    invocation which did nothing else first (no tool call, no model text, no
+    finished model step; ``step_start`` alone is allowed). Nine of sixteen
+    container episodes of ``opencode/space-bunny-free`` opened on exactly that
+    single event about a second after launch, and the resumed session then
+    played the whole episode. The same error after the invocation acted is
+    not retried: it may come from the episode's own state and would repeat,
+    and each retry would re-send the context.
     """
-    last: dict[str, Any] | None = None
+    events: list[dict[str, Any]] = []
     for line in lines:
         line = line.strip()
         if not line:
@@ -501,11 +514,14 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
         except json.JSONDecodeError:
             continue
         if isinstance(event, dict):
-            last = event
+            events.append(event)
+    last = events[-1] if events else None
     if last is None or last.get("type") != "error":
         return False
     error = last.get("error") if isinstance(last.get("error"), dict) else {}
     data = error.get("data") if isinstance(error.get("data"), dict) else {}
+    if _startup_server_error(error, data, events[:-1]):
+        return True
     for source in (data, error):
         if source.get("isRetryable") is True:
             return True
@@ -516,6 +532,17 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
         if isinstance(message, str) and _RETRYABLE_MESSAGE_RE.search(message):
             return True
     return False
+
+
+def _startup_server_error(error: dict[str, Any], data: dict[str, Any], before: list[dict[str, Any]]) -> bool:
+    """OpenCode's generic server error, before the invocation did anything but start a step."""
+    message = data.get("message", error.get("message"))
+    return (
+        error.get("name") == "UnknownError"
+        and isinstance(message, str)
+        and _SERVER_ERROR_MESSAGE_RE.search(message) is not None
+        and all(event.get("type") == "step_start" for event in before)
+    )
 
 
 def _invocation_lines(events_path: Path, offset: int) -> list[str]:
@@ -943,7 +970,11 @@ def run_episode(
         "isolation": launch.isolation,
         "transport": launch.transport,
         "command": command[:-1] + ["<task brief>"],
+        # The first launch's exit code; the last invocation's (a nudge, retry
+        # or resume, or the first launch if there was none) is how the harness
+        # finished, and is what validation warns on.
         "exit_code": exit_code,
+        "final_exit_code": nudges[-1]["exit_code"] if nudges else exit_code,
         "timed_out": timed_out,
         "wall_seconds": round(wall_seconds, 3),
         "max_nudges": max_nudges,
