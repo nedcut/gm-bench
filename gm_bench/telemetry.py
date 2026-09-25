@@ -123,17 +123,27 @@ def pricing_table() -> dict[str, Any]:
     return table
 
 
+def model_price_entry(model: str | None) -> tuple[str, dict[str, Any]] | None:
+    """The ``models`` key a model id resolves to (exact, else longest prefix) and its entry."""
+    if not model:
+        return None
+    models = pricing_table()["models"]
+    key = model.lower()
+    if key in models:
+        return key, models[key]
+    prefix_matches = [candidate for candidate in models if key.startswith(candidate)]
+    if prefix_matches:
+        matched = max(prefix_matches, key=len)
+        return matched, models[matched]
+    return None
+
+
 def price_for(model: str | None, provider: str | None = None) -> dict[str, float] | None:
     """Resolve a price entry: exact model id, longest model prefix, then provider default."""
     table = pricing_table()
-    models = table["models"]
-    if model:
-        key = model.lower()
-        if key in models:
-            return models[key]
-        prefix_matches = [candidate for candidate in models if key.startswith(candidate)]
-        if prefix_matches:
-            return models[max(prefix_matches, key=len)]
+    entry = model_price_entry(model)
+    if entry is not None:
+        return entry[1]
     if provider and provider.lower() in table["providers"]:
         return table["providers"][provider.lower()]
     return None
@@ -155,6 +165,78 @@ def estimate_cost_usd(usage: dict[str, Any]) -> float | None:
     input_cost = usage.get("input_tokens", 0) / 1e6 * price.get("input_per_mtok", 0.0)
     output_cost = usage.get("output_tokens", 0) / 1e6 * price.get("output_per_mtok", 0.0)
     return round(input_cost + output_cost, 6)
+
+
+def api_equivalent_cost_usd(usage: dict[str, Any], model: str | None) -> dict[str, Any] | None:
+    """What the tokens a run used would cost at the model's API list price. Not a bill.
+
+    For harnesses that report tokens but no cost, typically because they run
+    on a subscription that is not billed per token (Codex on a ChatGPT plan).
+    The result is an estimate and must never be published as ``cost_usd``.
+
+    ``usage`` is the agentic lane's shared token shape (``opencode.TOKEN_SHAPE``),
+    counts all optional, default 0: ``input_tokens`` (every prompt token,
+    cached and cache-written ones included, as OpenAI's Responses API and
+    Codex report it and as the OpenCode parser normalizes to),
+    ``cached_input_tokens`` (read from the prompt cache),
+    ``cache_write_input_tokens`` (written to it; ``cache_write_tokens`` is
+    accepted as an alias), ``cache_write_1h_input_tokens`` (the part of
+    those writes that went to the 1-hour cache), ``output_tokens`` (reasoning
+    included: OpenAI bills reasoning as output and reports it inside
+    ``output_tokens``, so ``reasoning_tokens`` is never added again), and
+    ``max_request_input_tokens`` (an upper bound on any single request's
+    input, for the long-context check).
+
+    Pricing: ``input_tokens - cached_input_tokens - cache_write_tokens`` at
+    ``input_per_mtok``; cached tokens at ``cached_input_per_mtok``, or at the
+    input rate with ``cached_input_rate = "input (no cached price)"`` when the
+    entry has none; cache-write tokens at ``cache_write_per_mtok``, likewise
+    falling back to the input rate, except 1-hour writes, which are priced at
+    ``cache_write_1h_per_mtok`` (Anthropic's 1-hour tier) or, when the entry
+    has none, at the cache-write rate with ``cache_write_1h_rate =
+    "cache-write (no 1-hour price)"``. Always the short-context rates:
+    ``long_context_requests_possible`` is ``True`` when the entry names a
+    ``long_context_input_tokens`` threshold and ``max_request_input_tokens``
+    exceeds it (so some request may have been billed at the long-context tier
+    and the estimate may be low), ``False`` when it does not, and ``None`` when
+    the entry names no threshold or no bound was given.
+
+    Only ``models`` entries count, never a provider default. Returns ``None``
+    for an unpriced model or a usage with no token counts.
+    """
+    resolved = model_price_entry(model)
+    if resolved is None:
+        return None
+    key, price = resolved
+    counts = {name: int(usage.get(name) or 0) for name in ("input_tokens", "cached_input_tokens", "output_tokens")}
+    counts["cache_write_tokens"] = int(usage.get("cache_write_input_tokens", usage.get("cache_write_tokens")) or 0)
+    write_1h = min(int(usage.get("cache_write_1h_input_tokens") or 0), counts["cache_write_tokens"])
+    if not any(name in usage for name in ("input_tokens", "output_tokens")):
+        return None
+    input_rate = float(price.get("input_per_mtok", 0.0))
+    cached_rate = price.get("cached_input_per_mtok")
+    write_rate = price.get("cache_write_per_mtok")
+    write_5m_rate = float(input_rate if write_rate is None else write_rate)
+    write_1h_rate = price.get("cache_write_1h_per_mtok")
+    uncached = max(counts["input_tokens"] - counts["cached_input_tokens"] - counts["cache_write_tokens"], 0)
+    cost = (
+        uncached * input_rate
+        + counts["cached_input_tokens"] * float(input_rate if cached_rate is None else cached_rate)
+        + (counts["cache_write_tokens"] - write_1h) * write_5m_rate
+        + write_1h * float(write_5m_rate if write_1h_rate is None else write_1h_rate)
+        + counts["output_tokens"] * float(price.get("output_per_mtok", 0.0))
+    ) / 1e6
+    threshold = price.get("long_context_input_tokens")
+    bound = usage.get("max_request_input_tokens")
+    return {
+        "usd": round(cost, 6),
+        "pricing_key": key,
+        "verified": price.get("verified"),
+        "cached_input_rate": "cached" if cached_rate is not None else "input (no cached price)",
+        "cache_write_rate": "cache-write" if write_rate is not None else "input (no cache-write price)",
+        "cache_write_1h_rate": "cache-write-1h" if write_1h_rate is not None else "cache-write (no 1-hour price)",
+        "long_context_requests_possible": None if threshold is None or bound is None else int(bound) > int(threshold),
+    }
 
 
 def aggregate_usage(records: list[dict[str, Any]]) -> dict[str, Any]:

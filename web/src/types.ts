@@ -278,7 +278,8 @@ export interface AgenticLaneRow {
     provider_stall_wait_seconds: number;
     /** Of those stalls, harness runs stopped for printing nothing at all (OpenCode retries a 429 silently). */
     silent_harness_kills: number;
-    compactions: number;
+    /** Null when a harness in the row does not report compactions (Codex): unmeasured, not zero. */
+    compactions: number | null;
     wall_seconds: number;
     wall_seconds_per_episode: number;
     /** Episodes whose harness reported token telemetry; token and cost totals cover only these. */
@@ -287,8 +288,34 @@ export interface AgenticLaneRow {
     output_tokens: number | null;
     reasoning_tokens: number | null;
     cached_input_tokens: number | null;
+    /** "inclusive-v1": input_tokens = uncached + cached + cache-write, output_tokens includes
+     * reasoning (reasoning_tokens is a subset). "legacy": recorded before that shape, in the
+     * harness's own convention. Null when no episode reported tokens. */
+    token_shape?: "inclusive-v1" | "legacy" | "mixed" | null;
+    uncached_input_tokens?: number | null;
+    cache_write_input_tokens?: number | null;
     cost_usd: number | null;
     cost_per_episode_usd: number | null;
+    /** What the reported tokens would cost at API list price (cached input at the cached
+     * rate), for a harness that reports no billed cost (Codex). An estimate, never billed;
+     * null when no episode carries one. Never folded into cost_usd. */
+    api_equivalent_cost_usd?: number | null;
+    api_equivalent_cost_per_episode_usd?: number | null;
+    api_equivalent_cost_episodes?: number;
+    /** Some turn's input grew past the model's long-context threshold, so a request may
+     * have been billed at the higher tier and the short-context estimate may be low. */
+    api_equivalent_long_context_possible?: boolean;
+    /** A subscription harness's usage windows as it reported them (Codex), and the panel's
+     * pauses for an exhausted window. Null or absent when no episode reported any. */
+    quota?: {
+      episodes_reporting: number;
+      plan_types: string[];
+      window_minutes: number[];
+      max_used_percent: number | null;
+      pauses: number;
+      pause_seconds: number;
+      episodes_ended_by_quota?: number;
+    } | null;
   };
   /** Server ledger (authoritative) versus the harness's own tool-event count. */
   agreement: {

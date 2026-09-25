@@ -11,5 +11,9 @@ Modules:
 - ``brief``     the task brief handed to the agent at session start
 - ``episode``   the episode engine: phases, moves, ledger, replay, scoring
 - ``mcp_server`` the stdio JSON-RPC server a harness spawns
-- ``opencode``  the first harness driver
+- ``harness``   the interface a harness driver implements
+- ``opencode``  the first harness driver, and the episode loop every driver shares
+- ``codex``     the Codex CLI driver
+- ``claude``    the Claude Code driver (same-user isolation only)
+- ``container`` the Docker launcher for container isolation
 """

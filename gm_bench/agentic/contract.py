@@ -20,7 +20,9 @@ from gm_bench.agentic.brief import BRIEF_VERSION
 from gm_bench.agentic.tools import TOOL_SURFACE_VERSION
 from gm_bench.contract import benchmark_contract, contract_fingerprint
 
-AGENTIC_BENCHMARK_VERSION = "gm-bench-2.0-dev"
+# Frozen 2026-09-25 at agentic fingerprint 07de948a4f4afbae. A byte change to
+# any source below is a new benchmark version, not an edit to this one.
+AGENTIC_BENCHMARK_VERSION = "gm-bench-2.0"
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent
 _AGENTIC_CONTRACT_SOURCES = (

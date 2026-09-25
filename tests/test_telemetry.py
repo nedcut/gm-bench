@@ -13,6 +13,7 @@ from gm_bench.providers import _merge_usage
 from gm_bench.runner import run_episode, run_many, summarize_episodes
 from gm_bench.telemetry import (
     aggregate_usage,
+    api_equivalent_cost_usd,
     estimate_cost_usd,
     normalize_usage,
     price_for,
@@ -117,6 +118,75 @@ def test_pricing_override_via_env(tmp_path, monkeypatch):
         assert price_for("claude-fable-5")["output_per_mtok"] == 50.0
     finally:
         pricing_table.cache_clear()
+
+
+def test_gpt_6_entries_carry_cached_and_cache_write_rates_and_old_entries_still_price():
+    luna = price_for("gpt-6-luna")
+    assert (luna["input_per_mtok"], luna["cached_input_per_mtok"]) == (0.1, 0.01)
+    assert (luna["cache_write_per_mtok"], luna["output_per_mtok"]) == (0.125, 0.5)
+    assert luna["long_context_input_tokens"] == 272_000
+    sol = price_for("gpt-6-sol")
+    assert (sol["input_per_mtok"], sol["cached_input_per_mtok"], sol["output_per_mtok"]) == (2.0, 0.2, 10.0)
+    # estimate_cost_usd reads only the two base rates, as before.
+    assert estimate_cost_usd({"model": "gpt-6-luna", "input_tokens": 1_000_000}) == pytest.approx(0.1)
+
+
+def test_api_equivalent_cost_prices_cached_and_cache_write_input_at_their_own_rates():
+    usage = {
+        "input_tokens": 1_000_000,
+        "cached_input_tokens": 800_000,
+        "cache_write_tokens": 100_000,
+        "output_tokens": 20_000,
+        "reasoning_tokens": 15_000,
+    }
+    estimate = api_equivalent_cost_usd(usage, "gpt-6-luna")
+    # 100k uncached at 0.10 + 800k cached at 0.01 + 100k written at 0.125 + 20k out at 0.50;
+    # reasoning is already inside output_tokens and is not charged twice.
+    assert estimate["usd"] == pytest.approx(0.01 + 0.008 + 0.0125 + 0.01)
+    assert estimate["pricing_key"] == "gpt-6-luna" and estimate["verified"] == "2026-09-23"
+    assert estimate["cached_input_rate"] == "cached" and estimate["cache_write_rate"] == "cache-write"
+    assert estimate["long_context_requests_possible"] is None
+    # A dated snapshot id resolves to its family entry by longest prefix.
+    assert api_equivalent_cost_usd(usage, "gpt-6-luna-2026-09-01")["pricing_key"] == "gpt-6-luna"
+
+
+def test_api_equivalent_cost_is_none_for_an_unpriced_model_or_no_tokens():
+    assert api_equivalent_cost_usd({"input_tokens": 1000, "output_tokens": 10}, "mystery-model-9000") is None
+    assert api_equivalent_cost_usd({"input_tokens": 1000}, None) is None
+    assert api_equivalent_cost_usd({}, "gpt-6-luna") is None
+    # A provider default (ollama) never stands in for a model entry.
+    assert api_equivalent_cost_usd({"input_tokens": 1000}, "gemma4:e4b") is None
+
+
+def test_api_equivalent_cost_falls_back_to_the_input_rate_and_says_so():
+    usage = {"input_tokens": 1_000_000, "cached_input_tokens": 900_000, "output_tokens": 0}
+    estimate = api_equivalent_cost_usd(usage, "gpt-5.5")
+    assert estimate["usd"] == pytest.approx(5.0)
+    assert estimate["cached_input_rate"] == "input (no cached price)"
+    assert estimate["cache_write_rate"] == "input (no cache-write price)"
+
+
+def test_api_equivalent_cost_prices_one_hour_cache_writes_at_their_own_rate_or_says_it_could_not():
+    usage = {"input_tokens": 1_000_000, "cache_write_input_tokens": 1_000_000, "cache_write_1h_input_tokens": 600_000}
+    sonnet = api_equivalent_cost_usd(usage, "claude-sonnet-5")
+    # 400k at the 5-minute 2.50 + 600k at the 1-hour 4.00.
+    assert sonnet["usd"] == pytest.approx(1.0 + 2.4) and sonnet["cache_write_1h_rate"] == "cache-write-1h"
+    # No 1-hour price in the entry: the 5-minute write rate, labelled.
+    luna = api_equivalent_cost_usd(usage, "gpt-6-luna")
+    assert luna["usd"] == pytest.approx(0.125) and luna["cache_write_1h_rate"] == "cache-write (no 1-hour price)"
+    # A 1-hour count larger than the writes is clamped to them.
+    over = api_equivalent_cost_usd({**usage, "cache_write_1h_input_tokens": 5_000_000}, "claude-sonnet-5")
+    assert over["usd"] == pytest.approx(4.0)
+
+
+def test_api_equivalent_cost_flags_a_turn_past_the_long_context_threshold():
+    usage = {"input_tokens": 500_000, "output_tokens": 1000}
+    under = api_equivalent_cost_usd(usage | {"max_request_input_tokens": 272_000}, "gpt-6-sol")
+    over = api_equivalent_cost_usd(usage | {"max_request_input_tokens": 272_001}, "gpt-6-sol")
+    assert under["long_context_requests_possible"] is False
+    assert over["long_context_requests_possible"] is True
+    # Short-context rates either way: the flag says the estimate may be low, it does not reprice.
+    assert under["usd"] == over["usd"] == pytest.approx(0.5 * 2.0 + 0.001 * 10.0)
 
 
 def test_aggregate_usage_totals_and_cost():

@@ -13,16 +13,17 @@ variable, so ``ps`` on the host shows neither. Episode directories
 and the harness gets ``/dev/null`` as stdin, so its open-file table (``lsof``)
 names no seed either. The run directory still holds the seeds (every ledger
 header does, as does each finished episode's ``result.json``), which is why a
-panel-grade row also needs the harness isolated from the driver by user or
-container; this launcher does not provide that.
+panel-grade row also needs the harness isolated from the driver: pass
+``--isolation container`` (with ``--codex-auth-file`` or
+``--claude-token-file`` for those harnesses), which the driver provides.
 
 Episodes run serially: the driver has no parallel mode, on purpose.
 
 Arguments this launcher does not know are passed to ``gm-bench agentic``
-unchanged, so driver options (``--variant``, ``--phase-guard-seconds``,
-``--max-provider-stalls``, ``--max-provider-stall-wait-seconds``,
-``--silent-harness-seconds``, ``--binary``, and any isolation flags the driver gains) work here without a
-change to this file. ``--seeds`` and ``--json`` are refused: the first would
+unchanged, so driver options (``--harness``, ``--codex-auth-file``, ``--claude-token-file``,
+``--variant``, ``--phase-guard-seconds``, ``--max-provider-stalls``,
+``--max-provider-stall-wait-seconds``, ``--silent-harness-seconds``, ``--binary``,
+``--isolation``) work here without a change to this file. ``--seeds`` and ``--json`` are refused: the first would
 put seeds on a command line, the second would print them.
 
     python scripts/run_bench_v2_panel_from_keychain.py --verify-only
