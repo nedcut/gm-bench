@@ -334,15 +334,15 @@ for subscription-metered harnesses applies to all of them.
    under 10%.
 5. Contract fingerprint frozen: tool schemas, task brief, server, scoring.
 
-### Gate status (updated 2026-09-22, free models on OpenCode 1.18.30 and 1.18.31)
+### Gate status (updated 2026-09-25: all five gates met)
 
 | gate | status |
 |---|---|
-| 1. sandbox check | passes on every run. The first design put the episode file, interpreter, and repository path into the harness config, all readable by the agent's shell; replaced 2026-09-20 by the socket-and-proxy design above. Scored live episode on the socket design 2026-09-21 (`big-pickle`, seed 11, one season): 4/4 phases closed by the agent, 40 tool calls, ledger equals harness events, audit clean, validates. Red-team probe the same day: the agent found nothing in the scratch directory, config, proxy, environment, or socket directory, then found the seed through `ps` on the driver (documented same-user gap above; `container`/`separate-user` isolation is required for panel grade and recorded per row). Container launcher 2026-09-22 (contract `02a9f887e79c0497`, OpenCode 1.18.31 in the pinned image): a one-season `big-pickle` episode on seed 11 with `--isolation container` closed 4/4 phases itself with 38 tool calls over the TCP transport, ledger equals harness events, audit clean, validates, score 106.2; while it ran, `ps` and every `/proc/*/cmdline` inside the harness container showed only the container's own processes, and the host `ps` showed the driver with `--seeds 11`. The container red-team probe the same day measured nothing: `big-pickle` refused the brief and ran no command, so a red-team verdict under container isolation is still owed. Review the same day: a red-team probe on seed 11 with `opencode/mimo-v2.6-flash-free` port-scanned the host gateway and read host-loopback services (Ollama, an agent server, a tunnel's metrics and config) through `host.docker.internal`, though not the seed, checkout, or run directory. The launcher now firewalls the container's egress (host gateway only on the driver's port, no private or link-local ranges), and a host-loopback canary must be unreachable before any episode starts; checked without a model against real Docker: 7 host-loopback services reachable before the rule, none after, the proxy still served. The contract moved to `735bbacc6c9564ee` for the proxy-connection counting fix, then to `07de948a4f4afbae` when the engine learned to take a provider-stall backoff off the phase guard clock. The live episode above predates both, so a live container episode and a red-team verdict on the current launcher are still owed |
+| 1. sandbox check | passes on every run. The first design put the episode file, interpreter, and repository path into the harness config, all readable by the agent's shell; replaced 2026-09-20 by the socket-and-proxy design above. Scored live episode on the socket design 2026-09-21 (`big-pickle`, seed 11, one season): 4/4 phases closed by the agent, 40 tool calls, ledger equals harness events, audit clean, validates. Red-team probe the same day: the agent found nothing in the scratch directory, config, proxy, environment, or socket directory, then found the seed through `ps` on the driver (documented same-user gap above; `container`/`separate-user` isolation is required for panel grade and recorded per row). Container launcher 2026-09-22 (contract `02a9f887e79c0497`, OpenCode 1.18.31 in the pinned image): a one-season `big-pickle` episode on seed 11 with `--isolation container` closed 4/4 phases itself with 38 tool calls over the TCP transport, ledger equals harness events, audit clean, validates, score 106.2; while it ran, `ps` and every `/proc/*/cmdline` inside the harness container showed only the container's own processes, and the host `ps` showed the driver with `--seeds 11`. The container red-team probe the same day measured nothing: `big-pickle` refused the brief and ran no command, so a red-team verdict under container isolation is still owed. Review the same day: a red-team probe on seed 11 with `opencode/mimo-v2.6-flash-free` port-scanned the host gateway and read host-loopback services (Ollama, an agent server, a tunnel's metrics and config) through `host.docker.internal`, though not the seed, checkout, or run directory. The launcher now firewalls the container's egress (host gateway only on the driver's port, no private or link-local ranges), and a host-loopback canary must be unreachable before any episode starts; checked without a model against real Docker: 7 host-loopback services reachable before the rule, none after, the proxy still served. The contract moved to `735bbacc6c9564ee` for the proxy-connection counting fix, then to `07de948a4f4afbae` when the engine learned to take a provider-stall backoff off the phase guard clock. The live episode above predates both. **Met on contract `07de948a4f4afbae` (2026-09-24):** live container episodes ran on all three harnesses (the 8-seed `space-bunny-free` smoke row below, and one-season `gpt-6-luna` and `claude-sonnet-5` smokes), and two container red-team probes ran with `opencode/space-bunny-free`. The first used the example seed printed in the red-team script and found it: the agent web-searched the team names, found the public repository, recognised its own brief in `scripts/agentic_red_team.py`, downloaded the source, rebuilt that seed's league offline and matched its `get_status` byte for byte. Nothing came from the host or driver; the script now refuses any seed outside the private-panel range (2**32 to 2**63 - 1). The second used a fresh seed from that range and ran the full 20 minutes without finding it: it reimplemented the league generator and searched six-digit seeds against the public rosters, tried `sudo`, `nsenter` and `/proc/1/root`, port-scanned the host gateway (only the driver's port answered), and sent unlisted MCP methods and tool names (all refused); the seed never appeared in any output and no output showed the driver. Seeds from a 63-bit range are out of reach of an offline search, so the public source is not a route to a panel seed |
 | 2. ledger round-trip | server ledger equals harness tool events on all 7 models |
 | 3. SDK conformance | passes against the official `mcp` client |
-| 4. free-model smoke | 6 of 7 models closed 4/4 phases with 0 failed decisions on seed 11; one (`nemotron-3.5-lightning-free`) stopped mid-phase and was rescued by nudges. 8-seed, five-season smoke row on `big-pickle` (2026-09-22, OpenCode 1.18.31, contract `c0619fc756769e61`): 159/160 phases closed by the agent and 1 by the phase guard, 1 failed decision, mean 245.3 (SD 79.0, range 140 to 363), 171 tool calls and 103 model calls per episode, 3.3M input and 0.41M output tokens total, no compaction, 1 guard stop and 1 nudge on one seed (the nudge resumed the session; its first call closed the expired phase as `guard` and it closed the remaining 15 itself), every ledger replays, agrees with the harness, and audits clean. It was committed as `results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json`, smoke grade, public seeds 1 to 8. The earlier row on the previous contract (2026-09-21, mean 201.1, 0 guard stops) was replaced when `get_status` started listing the read tools and the socket server learned to drain its connections on stop. On contract `07de948a4f4afbae` it was replaced by a container-isolation rerun on `opencode/space-bunny-free` (2026-09-24, OpenCode 1.18.31; `big-pickle` had exhausted its free quota): 160/160 phases closed by the agent, 0 failed decisions, 29 penalized illegal moves, mean 225.8 (SD 43.7, range 189.1 to 332.0), 210 tool calls and 157 model calls per episode, 1.65M uncached and 176M cached input tokens and 0.09M output tokens total, no compaction, 4 nudges, 0 provider stalls, 0 guard stops. Committed as `results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json`, smoke grade, public seeds 1 to 8 |
-| 5. fingerprint frozen | `agentic_fingerprint` exists and is recorded in every run; still `gm-bench-2.0-dev`, and it moves whenever `episode.py` moves |
+| 4. free-model smoke | 6 of 7 models closed 4/4 phases with 0 failed decisions on seed 11; one (`nemotron-3.5-lightning-free`) stopped mid-phase and was rescued by nudges. 8-seed, five-season smoke row on `big-pickle` (2026-09-22, OpenCode 1.18.31, contract `c0619fc756769e61`): 159/160 phases closed by the agent and 1 by the phase guard, 1 failed decision, mean 245.3 (SD 79.0, range 140 to 363), 171 tool calls and 103 model calls per episode, 3.3M input and 0.41M output tokens total, no compaction, 1 guard stop and 1 nudge on one seed (the nudge resumed the session; its first call closed the expired phase as `guard` and it closed the remaining 15 itself), every ledger replays, agrees with the harness, and audits clean. It was committed as `results/agentic/opencode-1.18.31-big-pickle-smoke-8x5.json`, smoke grade, public seeds 1 to 8. The earlier row on the previous contract (2026-09-21, mean 201.1, 0 guard stops) was replaced when `get_status` started listing the read tools and the socket server learned to drain its connections on stop. On contract `07de948a4f4afbae` it was replaced by a container-isolation rerun on `opencode/space-bunny-free` (2026-09-24, OpenCode 1.18.31; `big-pickle` had exhausted its free quota): 160/160 phases closed by the agent, 0 failed decisions, 29 penalized illegal moves, mean 225.8 (SD 43.7, range 189.1 to 332.0), 210 tool calls and 157 model calls per episode, 1.65M uncached and 176M cached input tokens and 0.09M output tokens total, no compaction, 4 nudges, 0 provider stalls, 0 guard stops. Committed as `results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json`, smoke grade, public seeds 1 to 8. Rerun 2026-09-25 under the frozen `gm-bench-2.0` label (same fingerprint, model, OpenCode version and isolation), which replaced that row: 160/160 phases closed by the agent, 0 failed decisions, 26 penalized illegal moves, mean 217.8 (SD 20.5, range 182.0 to 249.4), 217 tool calls and 146 model calls per episode, 147.3M input tokens (145.9M cached) and 0.33M output tokens total, no compaction, 5 nudges, 0 provider stalls, 0 silent-harness kills, 0 guard stops. All 5 nudges (4 in the previous run) were the same startup failure: the first OpenCode launch ended within about a second on a server `UnknownError` with no tool call, and the resumed session then played the whole episode and exited 0. The recorded `harness exit code 1` warning is that first launch's code, not the end of the episode. The driver then treated this error as the agent stopping, so a repeat on the resume would have abandoned the episode; it is now retried as a provider stall, and `harness_run.final_exit_code` records how the harness finished |
+| 5. fingerprint frozen | **frozen 2026-09-25** as `gm-bench-2.0` at agentic fingerprint `07de948a4f4afbae` (`gm_bench/agentic/contract.py`); `tests/test_agentic_mcp.py` pins the pair, so any byte change to `tools.py`, `brief.py`, `episode.py` or `mcp_server.py` fails CI until it is released as a new benchmark version |
 
 Observed shapes on one season: 31 to 47 tool calls, 13 to 47 model calls,
 64k to 352k input tokens, 1.5 to 17 minutes wall. A five-season `big-pickle`
@@ -385,6 +385,104 @@ bought 22 tool calls and three phases, the second finished the season. The
 episode completed with 36 tool calls and one phase closed by the 600 s guard
 used for the check. Ledger and harness agreed on 36 calls across all three
 harness invocations of one session.
+
+### Repeat noise under current behaviour (2026-09-25, `opencode/space-bunny-free`, seeds 1-8, two runs)
+
+Two complete runs of the same row, measured at no extra cost because both
+were smoke rows anyway: `opencode/space-bunny-free` on OpenCode 1.18.31,
+container isolation, public seeds 1 to 8, five seasons, agentic contract
+`07de948a4f4afbae`, nudges on (up to 20 per episode). Run A is the row first
+committed at `results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json`
+(redacted 2026-09-24, raw artifact SHA-256 `a632a5fa...`). Run B is the rerun
+made for the contract freeze, which replaces it at the same path (redacted
+2026-09-25, raw artifact SHA-256 `f548e249...`). Both closed 160/160 phases
+themselves with 0 failed decisions, 0 guard stops and 0 provider stalls; run
+A used 4 nudges and run B 5. Every one of those nudges followed the same
+OpenCode startup failure (the first launch ended within about a second on a
+server `UnknownError`, before any tool call), and the resumed session then
+played the whole episode, so no episode lost play to them.
+
+| seed | run A | run B | A - B |
+|---|---|---|---|
+| 1 | 332.0 | 182.0 | +150.0 |
+| 2 | 189.1 | 225.1 | -35.9 |
+| 3 | 212.9 | 249.4 | -36.5 |
+| 4 | 227.4 | 201.4 | +26.0 |
+| 5 | 230.5 | 223.2 | +7.3 |
+| 6 | 190.2 | 226.6 | -36.4 |
+| 7 | 232.2 | 199.3 | +32.9 |
+| 8 | 192.3 | 235.3 | -43.0 |
+| mean | 225.8 | 217.8 | +8.0 |
+
+Within-seed SD, pooled across seeds (root mean square of the difference
+divided by the square root of 2): 43.4 over all eight seeds, 23.3 without
+seed 1. Between-seed SD (sample) is 46.7 in run A, or 19.8 without seed 1,
+and 21.9 in run B. So in run B the spread between seeds is smaller than the
+spread between two runs of the same seed, even with seed 1 left out. The run
+means differ by 8.0 points, but individual seeds moved by 7 to 150.
+
+This pooled figure is not on the same basis as the probe table above, which
+averages per-seed population SDs. On the pooled basis that probe reads about
+51, or 78 with the abandoned episode. The drop from there to 23 to 43 cannot
+be credited to nudges: the model and seeds differ as well.
+
+Minimum detectable difference at 80% power, one episode per seed, computed
+the way the probe above was: `scripts/power_analysis.py --seeds $(seq 11 58)
+--repeats 1 --within-seed-stddev <sd> --seed-counts 16 32 --trials 2000
+--gap-step 1.0`, on the 48-seed calibration panel (paired-residual SD 40.1).
+The same command reproduces the probe's rows to within one point (37: 52 and
+35; 55: 68 and 46).
+
+| within-seed SD | MDD at 16 seeds | MDD at 32 seeds |
+|---|---|---|
+| 23 (without seed 1) | 40 | 28 |
+| 43 (all eight seeds) | 57 | 39 |
+
+For this model the 32-seed panel resolves roughly 28 to 39 points, depending
+on whether seed 1's swing is typical. The 24 to 33 projected in "Panel design"
+holds only at the low end of that range.
+
+Caveats:
+
+- One free model, eight public seeds, two runs per seed. Seed 1 alone moves
+  the estimate from 23 to 43.
+- Same contract fingerprint, but not provably the same driver code. Between
+  the two runs the OpenCode driver was refactored behind the harness
+  interface in `gm_bench/agentic/harness.py` when the Codex driver landed
+  (#147). That change also made `input_tokens` include cached input, which is
+  why run B reports 147M input tokens against run A's 1.65M. A row does not
+  yet record the driver code it ran, so a behavioural difference in the
+  driver cannot be ruled out from the artifacts. A driver-provenance record
+  is in progress. The container image was rebuilt from the same Dockerfile
+  (same Dockerfile hash, different image ID).
+- Run B carries the contract label `gm-bench-2.0` where run A carries
+  `gm-bench-2.0-dev`. The label is not a fingerprint source and does not
+  reach the agent, so it does not affect play.
+
+Why one seed can score 180 or 330. The ledgers for seed 1 show a single
+early decision rather than drift. Both runs signed the same three top free
+agents in the first preseason and went 22-11 in season 1 with near-equal team
+strength (69.5 against 69.3). Run A signed them for two years and won a close
+season-1 title; run B signed them for one year, so they left after season 1,
+and it opened season 2 with 15 players, team strength 11th of 12 and $34M of
+unused cap. Run A stayed 2nd to 3rd and won again in season 3; run B never
+made the playoffs again. Of the 150-point gap, championships account for 70
+and playoff rounds for 54. Across all 16 episodes playoff rounds (rank
+correlation +0.63) and championships (+0.55) track score most closely, and
+their spread (SD 40.2) exceeds the total score's (SD 35.5); no process measure
+(tool calls, illegal moves, trades, memos, nudges) points the same way within
+seed pairs often enough to matter. The simulator is deterministic for a given
+seed and action sequence, so all of this noise comes from the model's
+decisions, amplified by payouts that arrive in large lumps. Stronger models
+may blunder less, but the lumps stay, so expecting them to fall back to the
+15 the 1.0 tables assume is not safe.
+
+Paid models need their own probe before a resolution is quoted for them.
+Following `scripts/panel_power.py`, that probe should repeat a small subset
+of seeds (for example 4 seeds x 2) rather than repeat the whole panel:
+repeats are the only way to measure within-seed noise, but for telling rows
+apart a second pass over the panel buys less than the same episodes spent on
+more seeds.
 
 ## Publication
 

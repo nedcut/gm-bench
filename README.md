@@ -26,6 +26,30 @@ Read the [v5 findings](docs/blog/sota-v5-findings.md), follow the
 [tagged release](https://github.com/nedcut/gm-bench/releases/tag/sota-v5-publication-2026-09-03),
 or explore the [live leaderboard](https://nedcut.github.io/gm-bench/).
 
+## GM-Bench 2.0 status
+
+The `sota-v5` contract above, with its decision-model lane, is GM-Bench 1.0.
+GM-Bench 2.0 is the agentic version. It uses the same simulator and the same
+private seeds (plus three new ones, for a 32-seed panel), but instead of
+answering one prompt per decision phase, a model plays one continuous
+five-season episode inside a tool-using harness (OpenCode, Codex CLI, or
+Claude Code), acting through an MCP (Model Context Protocol) tool server. A
+2.0 row is identified by model + harness + harness version, and 2.0 rows never
+enter a 1.0 table. The implementation is complete; evaluation has only
+started.
+
+- Implemented: drivers for all three harnesses, Docker container isolation
+  for the harness, the private 32-seed panel frozen by digest with its seeds
+  held in escrow, and validation that replays every episode ledger to the
+  score the row claims.
+- Committed so far: one eight-seed `smoke` row on a free model, on public
+  seeds, under `results/agentic/`.
+- Panel-grade results: none yet. The site's 2.0 section shows nothing until
+  one exists.
+
+The frozen design is in [docs/bench_v2_spec.md](docs/bench_v2_spec.md) and the
+operator guide is [docs/agentic_lane.md](docs/agentic_lane.md).
+
 ## Play along
 
 The site opens with 24 real decisions taken from recorded episodes. Each one

@@ -253,6 +253,15 @@ def test_opencode_config_and_event_parsing(tmp_path: Path) -> None:
     assert silent["decisions_with_usage"] == 0 and silent["cost_decisions"] == 0
 
 
+def test_the_frozen_2_0_contract_has_not_moved() -> None:
+    from gm_bench.agentic.contract import AGENTIC_BENCHMARK_VERSION, agentic_fingerprint
+
+    # gm-bench-2.0 is frozen: any change to tools.py, brief.py, episode.py or
+    # mcp_server.py (or the 1.0 contract underneath) is a new benchmark version.
+    # Bump AGENTIC_BENCHMARK_VERSION and this pin together, on purpose.
+    assert (AGENTIC_BENCHMARK_VERSION, agentic_fingerprint()) == ("gm-bench-2.0", "07de948a4f4afbae")
+
+
 def test_agentic_contract_layers_on_the_unchanged_base_contract() -> None:
     from gm_bench.agentic.contract import agentic_contract, agentic_fingerprint
     from gm_bench.agentic.opencode import tool_call_agreement
