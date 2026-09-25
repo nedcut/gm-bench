@@ -253,6 +253,12 @@ Added 2026-09-20. Nothing published changes.
   provider stall, not a guard stop or a nudge; the silent window comes off
   the phase clock. Counted as `silent_kills` per episode (`silent` per nudge),
   `silent_harness_kills` in the run summary and site telemetry.
+- Docs: the README gains a short GM-Bench 2.0 status section (implemented,
+  one smoke row, no panel-grade result yet), and `docs/bench_v2_spec.md`
+  gains a current-behaviour repeat-noise measurement from the two
+  `space-bunny-free` smoke runs on seeds 1 to 8: within-seed SD 43 over all
+  eight seeds and 23 without seed 1, so a 32-seed panel resolves about 39 or
+  28 points respectively for that model.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 
