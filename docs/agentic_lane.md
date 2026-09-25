@@ -110,7 +110,18 @@ season summaries, transactions) plus:
   total per session, so the block is one record covering every decision of
   the episode; the run summary's per-decision means divide that total by
   the decision count, and wall time lives on `harness_run`, not in the usage
-  block
+  block. Tokens are in one shape for every harness (`token_shape:
+  "inclusive-v1"`): `input_tokens` is the inclusive total,
+  `uncached_input_tokens + cached_input_tokens + cache_write_input_tokens`;
+  `output_tokens` includes reasoning, and `reasoning_tokens` is the part of
+  it that was reasoning (never added on top). Codex already reports that
+  way; OpenCode's step records put uncached input in `tokens.input` and
+  leave reasoning out of `tokens.output`, so the parser adds cache reads and
+  writes into input and reasoning into output, as T3 Code's OpenCode
+  adapter does. Runs recorded before this shape carry no `token_shape` (their
+  OpenCode input excludes cached tokens and their output excludes reasoning);
+  they still validate, the site labels their tokens as the harness's own
+  convention, and publication checks the sums only for shaped rows
 - `harness_run`: the command (brief elided), exit code, timeout flag, wall
   time, nudges used and what each bought, phase-guard stops (`guard_kills`),
   provider stalls and the backoff waited for them,
@@ -144,11 +155,12 @@ python -m gm_bench agentic-validate /tmp/agentic-big-pickle
 
 Exit code 0 means every episode's ledger replays to the recorded score, its
 header seed matches the episode, it audits clean, the GM-Bench tool calls in
-the retained `opencode-events.jsonl` equal the replayed ledger's (the
-recorded agreement is checked against that recount, not trusted), and the
-run's contract block matches this checkout's `agentic_contract()`. Failed
-phases, timeouts, guard stops, and missing telemetry are warnings: reported,
-never hidden, never fatal. A missing event stream is a problem.
+the retained `opencode-events.jsonl` (or `codex-events.jsonl`) equal the
+replayed ledger's (the recorded agreement is checked against that recount,
+not trusted), and the run's contract block matches this checkout's
+`agentic_contract()`. Failed phases, timeouts, guard stops, and missing
+telemetry are warnings: reported, never hidden, never fatal. A missing event
+stream is a problem.
 
 ## Publishing a row
 
@@ -344,6 +356,250 @@ the secret) is always deleted. Anything `docker` could not remove is listed
 in `harness_run.container_cleanup_problems` and on stderr; the episode's
 result is still written.
 
+## Codex harness
+
+```bash
+python -m gm_bench agentic --harness codex --model gpt-5.5 --variant low \
+  --codex-auth-file /path/to/codex-auth.json \
+  --seeds 11 --seasons 1 --output /tmp/agentic-codex
+python -m gm_bench agentic --harness codex --isolation container --model gpt-5.5 \
+  --codex-auth-file /path/to/codex-auth.json \
+  --seeds 11 --seasons 1 --output /tmp/agentic-codex-container
+```
+
+The Codex CLI is the second harness (`gm_bench/agentic/codex.py`, written
+and tested against Codex CLI 0.156.1). It runs through the same episode loop
+as OpenCode: same engine, proxy, sandbox check, nudges, provider-stall
+retries, phase guard, ledger, and validation. A Codex row is its own row,
+`codex/<version> · <model>`, never merged with an OpenCode row on the same
+model.
+
+**Cost.** Every Codex episode spends your OpenAI API budget or your ChatGPT
+plan's Codex quota; there are no free models. Run it serially (the driver
+has no parallel mode), smoke one short episode before a panel, and budget a
+full panel as hours of quota. The driver is tested against a stand-in
+`codex` and a stand-in `docker` (`tests/test_agentic_codex.py`), and two live
+1-season smokes on `gpt-6-luna` (seed 11, same-user and container,
+2026-09-24) closed all four phases; no Codex row is committed yet.
+
+What a run does per episode:
+
+1. Stages the proxy exactly as for OpenCode, plus a Codex home holding one
+   `config.toml` with a single entry, `[mcp_servers.gm-bench]`, whose
+   `command` and `args` launch `gm_bench_proxy.py` on the harness's own
+   `python3` with the socket path (or `host.docker.internal:<port>` in a
+   container), and whose `default_tools_approval_mode = "approve"` approves
+   that server's tools. Nothing else is configured. The approval key is
+   required: exec mode never asks for approval, so under `workspace-write`
+   Codex 0.156.1 would refuse every GM-Bench call (tools without a read-only
+   annotation need approval) with "MCP tool call requires approval, but
+   approval policy is never". It approves only this server.
+2. Runs `codex exec --json --skip-git-repo-check --model <m>` with the task
+   brief as the prompt and the scratch directory as the working directory,
+   capturing `seed-<n>/codex-events.jsonl`. `--variant` becomes
+   `-c model_reasoning_effort="<variant>"`. Exec mode never asks for
+   approval.
+3. Nudges and provider-stall retries run `codex exec resume <session id>
+   <reminder>` on the same session (the id is the `thread_id` of the first
+   `thread.started` event), so Codex keeps its context. `resume` accepts no
+   `--sandbox` flag, so the sandbox is set with `-c` on every invocation.
+4. A run whose last event is `turn.failed` or `error` with a retryable
+   message (a 408, 425, 429 or 5xx status, "rate limit", "high demand",
+   "at capacity", a dropped stream or connection, a timeout) is a provider
+   stall; "Quota exceeded", a 401, or a full context window are not.
+5. A run that ends on "You’ve hit your usage limit ... try again at <time>"
+   is quota exhaustion, never a stall or a nudge (see Quota windows below).
+
+What the harness does not inherit. Codex keeps its login, `AGENTS.md`,
+skills, rules, plugins, and sessions under `CODEX_HOME` (default
+`~/.codex`), and also loads skills from `~/.agents/skills`. Same-user runs
+set `CODEX_HOME` to a private directory (mode 0700) outside the scratch,
+removed when the episode ends even with `--keep-scratch`, and
+`HOME=<scratch>`, and drop every other `CODEX_*` variable, so none of the
+operator's Codex state reaches the agent and neither the credential nor
+Codex's session logs sit in the agent's working directory.
+A consequence: the harness's `python3` must not depend on `HOME` (a pyenv
+shim would); use a system or Homebrew interpreter on `PATH`. In a container
+the harness home is the per-episode volume (`/home/node/.codex`).
+
+Sandbox. Same-user runs use Codex's `workspace-write` sandbox (commands can
+write only the scratch directory and temp directories) with network access
+on, the least permission that still lets the agent run code there; reads
+are not confined, so same-user rows stay `smoke` grade exactly as OpenCode's
+do. In a container Codex's own Linux sandbox cannot start (it needs user
+namespaces, which Docker's default seccomp profile refuses), so it runs with
+`danger-full-access` and the container is the sandbox: unprivileged user, no
+capabilities, the egress firewall, and only the scratch directory and the
+home volume mounted. `harness_run.sandbox_mode` records which.
+
+Authentication. Because the host `~/.codex` is not used, the ChatGPT login
+there is not inherited. Give the harness a credential deliberately:
+
+- `--codex-auth-file <path>`: a Codex `auth.json`. An API-key file is
+  `{"auth_mode": "apikey", "OPENAI_API_KEY": "sk-..."}`; a copy of a ChatGPT
+  login's `~/.codex/auth.json` also works, but Codex may rotate its refresh
+  token inside the episode, which can sign the host copy out. Keep the file
+  outside the checkout and outside the run directory.
+- Same-user only: `CODEX_API_KEY` in your environment, which `codex exec`
+  reads. It is dropped when `--codex-auth-file` is given, so the file is
+  what Codex uses.
+
+Container runs pass no environment, so they need `--codex-auth-file`, and
+the driver refuses to start without it. The file is written into the
+episode's home volume by a throwaway `docker run -i` (no network, no
+capabilities, only the volume mounted) that reads it as a tar stream on
+standard input; it never appears on a command line, in an environment
+variable, or in the bind-mounted scratch directory, and it is deleted with
+the volume when the episode ends. In same-user runs it is copied to
+`auth.json` (mode 0600) in the private `CODEX_HOME` and deleted with it
+when the episode ends, even with `--keep-scratch`. The exposure is the same
+as for the proxy secret: the agent can read its own harness's credential.
+That is the harness's key, not the benchmark's; it gives no access to the
+seed, the ledger, or the host. Anything the agent prints lands in the event
+stream (`command_execution.aggregated_output`), so when the episode ends the
+driver replaces every credential value (the file's `OPENAI_API_KEY` and
+`tokens`, as staged and, same-user, as Codex left them after any refresh;
+or the `CODEX_API_KEY` value) with `[REDACTED]` in `codex-events.jsonl` and
+`codex-stderr.log`. A kept scratch directory is not redacted: it holds
+whatever the agent wrote there. `harness_run.auth` records which source was
+used (`auth-file` or `CODEX_API_KEY`), never the value.
+
+The image. `gm-bench-agentic-codex:0.156.1-<Dockerfile hash>` is built on
+first use from the same digest-pinned base and egress entrypoint as the
+OpenCode image, with `@openai/codex@0.156.1` instead of `opencode-ai`; the
+OpenCode image is unchanged. `run.json` records it under
+`harness.container`, with `codex_version` as the image reports it.
+
+Telemetry. `codex exec --json` reports a running token total per session on
+`turn.completed` (input including cached, cached, cache writes, output,
+reasoning), restored on resume, so the episode's tokens are the last total
+of its session. A final invocation that fails before its turn completes is
+not in that total. The stream reports no cost, no per-model-call records,
+and no compaction events: `usage.cost_usd` is `null` and `cost_decisions`
+0 (a ChatGPT plan is not billed per token, and Codex reports no charge),
+so a Codex row publishes no cost; `api_calls` counts
+completed turns (`usage.harness.api_calls_are`);
+`max_output_tokens_per_call` is left out of the episode's usage; and
+`compactions` is `null`, unmeasured, in the episode, the run's
+`agentic_summary`, and the site row. GM-Bench tool calls are
+`mcp_tool_call` items with `server` `gm-bench` and are counted as
+`gm-bench_<tool>`; an item Codex refused before dispatching it (it
+completes `failed` with an approval, "not available to the model",
+"blocked by", or "user cancelled" message) never reached the server, so it
+is counted under `usage.harness.tool_calls_skipped` instead. That keeps the
+ledger-versus-harness check honest: calls the agent made by running the
+proxy from a shell are in the ledger but not in the harness count, and the
+check fails. `agentic-validate` recounts them from the retained
+`codex-events.jsonl` against the replayed ledger. The staged config
+is kept as `harness_run.harness_config`.
+
+API-equivalent cost estimate. Beside the unmeasured cost, a Codex episode
+records what its tokens would have cost on the OpenAI API at list price,
+the figure other tools show for a subscription run:
+
+- `usage.harness.api_equivalent_cost_usd`: uncached input (`input_tokens`
+  minus cached minus cache-write tokens, since Codex reports both inside
+  `input_tokens`) at `input_per_mtok`, cached input at
+  `cached_input_per_mtok`, cache writes at `cache_write_per_mtok`, and
+  output at `output_per_mtok`. Reasoning is not added again: Codex copies
+  the Responses API's `output_tokens`, which already includes reasoning.
+  Prices come from `gm_bench/pricing.json` (or a `GM_BENCH_PRICING`
+  override) by exact id, then longest prefix; a provider default never
+  applies. An unpriced model, or an episode with no usage, gets `null`.
+- `cost_basis: "api-list-price-estimate"`, `billed_by_harness: false`, and
+  `pricing_source` (`key` matched, the entry's `verified` date, and whether
+  cached input and cache writes were priced at their own rates or, when the
+  entry has none, at the input rate).
+- `long_context_requests_possible`: OpenAI prices a request with more than
+  272K input tokens (`long_context_input_tokens` in the entry) at 2x input
+  and cache rates and 1.5x output. Codex reports running totals per turn,
+  and a turn can make several model requests, so per-request size is not
+  observable. The estimate always uses short-context rates, and this flag
+  is `true` when some turn's input grew by more than the threshold (some
+  request may then have been billed at the long-context tier, so the
+  estimate may be low), `false` when no turn did (so no request can have),
+  and `null` when the entry names no threshold.
+
+What it is not: a bill, a measured cost, or a number comparable to an
+OpenCode row's `cost_usd`. It ignores Batch, Flex, Fast mode, and regional
+processing prices, and it is only as current as the entry's `verified`
+date. It never feeds `cost_usd` or `cost_decisions`. The run's
+`agentic_summary` sums it over the episodes that have one
+(`api_equivalent_cost_usd`, `api_equivalent_cost_episodes`,
+`api_equivalent_long_context_possible`); the compact artifact keeps the
+episode fields; and the site shows the cost cell as `$0.123 est.` with the
+basis in its tooltip when a row has an estimate but no billed cost, or
+`unmeasured` when it has neither. The site data check rejects a row whose
+estimate equals its billed `cost_usd`.
+
+Quota windows. `codex exec --json` carries no rate limits, but Codex writes
+each `token_count` event, with the account's rate-limit snapshot, to the
+session rollout (`CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl`). Once
+per episode, after the last invocation and before the private
+`CODEX_HOME` (or, in a container, the home volume) is removed, the driver
+reads those lines (in a container, through a throwaway `docker run` with no
+network that prints only the `token_count` lines) and records
+`harness_run.quota_windows` (`window_minutes`, `used_percent`,
+`resets_at_utc`) and `harness_run.plan_type`. Only the main allowance
+counts (`limit_id` `codex` or absent); later snapshots update earlier ones
+field by field, the rule T3 Code uses. Credits, balances, tokens and
+everything else in the rollout are never recorded. An API-key login
+reports no windows, so the list is empty. Compressed (`.jsonl.zst`)
+rollouts are skipped; Codex compresses only cold sessions, and each
+episode's home is new.
+
+Quota exhaustion. The subscription window can also run out mid-panel, and
+then the first signal is the message itself: `You’ve hit your usage limit.
+... try again at Sep 24th, 2026 4:19 PM.` (on the first real launch this
+was the very first turn). Codex writes that time in the Codex process's
+local zone (`%b %-d<suffix>, %Y %-I:%M %p`, or only `%-I:%M %p` when the
+reset is later the same day, or "try again later" when it does not know).
+The driver matches `\busage limit\b` (case-insensitive) in the last
+`turn.failed` or `error` message and reads the time with
+
+```
+try again at\s+(?:(?P<month>[A-Za-z]{3,9})\.?\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?,?\s+(?P<year>\d{4}),?\s+)?(?P<hour>\d{1,2}):(?P<minute>\d{2})\s*(?P<meridiem>[AaPp])\.?\s*[Mm]\.?
+```
+
+(case-insensitive), in the host's zone for same-user runs and UTC in a
+container, which sets no `TZ`; anything it cannot read is an unknown reset.
+Then:
+
+- if the reset plus 60 seconds is in the future and within
+  `--max-provider-stall-wait-seconds` (less any quota pause already taken
+  in the episode), the driver prints a `quota_exhausted` progress event
+  (`action: pause`), sleeps until then with the open phase's clock
+  paused as for a stall, records the pause in `harness_run.quota_pauses`
+  (season, phase, reset, wait) and resumes the same session. That
+  relaunch is marked `quota_resume` in `harness_run.nudges` and counts
+  neither as a nudge nor as a stall retry;
+- otherwise (reset unknown, already past, or too far off) the episode stops
+  at once: the phases left open are closed as when the harness exits, and
+  `harness_run.ended_by_quota` records `{"reset_at_utc", "message_class":
+  "usage_limit"}`. `run_panel` then starts no further seed, since each
+  would fail the same way, and `run.json` records `stopped_for_quota`
+  (`after_episode`, `episodes_not_run`, the reset). Such a run lists more
+  seeds than episodes and does not validate for publication; rerun it
+  after the reset.
+
+In-episode pauses are also listed in the run's `quota_pauses` with their
+`episode` position. The windows read from the rollout still apply
+separately, before an episode starts.
+
+Before the next episode, if a window of the last one is at or above
+`QUOTA_PAUSE_PERCENT` (95) used, `run_panel` sleeps until that window
+resets plus 60 seconds (the latest such reset when several are exhausted),
+never longer than `--max-provider-stall-wait-seconds`, prints a
+`quota_pause` progress event, and records the pause in `run.json`
+`quota_pauses` (`after_episode` by position, never seed, `window_minutes`,
+`used_percent`, `resets_at_utc`, `wait_seconds`, and `capped` when the
+bound cut the wait short). The windows and pauses reach the compact
+artifact, and the site row's notes carry a short quota line (plan, peak
+use of a window, pauses).
+
+The Keychain panel launcher passes `--harness codex` and
+`--codex-auth-file` through unchanged.
+
 ## Private panel
 
 A full row is the 32-seed private panel (`docs/bench_v2_spec.md`, Panel
@@ -435,6 +691,16 @@ score.
   and its secret (including which dials count as refused), admission after
   stop, the container launch command and its egress probe, and cleanup
   when `docker` hangs (against a stand-in `docker`)
+- `tests/test_agentic_codex.py`: the Codex driver against a stand-in `codex`
+  that launches the proxy from the staged config and makes real tool calls
+  (ledger equals harness events, a nudge and a stall retry by `exec
+  resume`), no host Codex state in the harness, the tool-approval key (the
+  stand-in refuses every call without it, as Codex does, and the
+  agreement check then fails on shell-driven proxy calls), credential
+  redaction from the run directory, no billed cost or compaction count
+  published for Codex and the API-equivalent estimate kept apart from it, the event parser and stall rule, the Codex image, the container
+  auth hand-off (only in the volume, never on a command line) against a
+  stand-in `docker`, and CLI dispatch
 - `tests/test_agentic_conformance.py`: the server driven by the official
   `mcp` SDK client (dev extra; skipped when not installed)
 - `tests/test_agentic_publication.py`: the compact artifact is bound to its

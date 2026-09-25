@@ -42,6 +42,27 @@ function Coverage({ row }: { row: AgenticLaneRow }) {
   );
 }
 
+function tokensTitle(row: AgenticLaneRow): string {
+  const t = row.telemetry;
+  if (t.token_shape === "legacy") {
+    return "Recorded before the shared token shape: input and output follow the harness's own convention.";
+  }
+  if (t.token_shape === "mixed") {
+    return "Episodes in this row were recorded under different token conventions, so the totals mix them.";
+  }
+  if (t.token_shape !== "inclusive-v1") {
+    return "The token convention was not recorded for this row.";
+  }
+  const parts = ["Input includes cached and cache-write tokens; output includes reasoning."];
+  if (t.input_tokens && t.cached_input_tokens !== null) {
+    parts.push(`${fmt((100 * t.cached_input_tokens) / t.input_tokens, 0)}% of input was read from cache.`);
+  }
+  if (t.output_tokens && t.reasoning_tokens) {
+    parts.push(`${fmt((100 * t.reasoning_tokens) / t.output_tokens, 0)}% of output was reasoning.`);
+  }
+  return parts.join(" ");
+}
+
 function tokensPerEpisode(row: AgenticLaneRow): string | null {
   const t = row.telemetry;
   if (t.telemetry_episodes === 0 || t.input_tokens === null) return null;
@@ -50,9 +71,41 @@ function tokensPerEpisode(row: AgenticLaneRow): string | null {
   return `${compactCount(perEpisode(t.input_tokens))} in / ${compactCount(perEpisode(t.output_tokens))} out`;
 }
 
+const ESTIMATE_TITLE =
+  "API-equivalent estimate: the tokens this harness reported, priced at the model's API list price " +
+  "(cached input at the cached rate, short-context rates). Not billed: the harness reports no cost, " +
+  "and a subscription is not charged per token.";
+
 function costPerEpisode(row: AgenticLaneRow): string | null {
   const cost = row.telemetry.cost_per_episode_usd;
   return cost === null ? null : `$${fmt(cost, 3)}`;
+}
+
+/* A billed or harness-reported cost wins; without one, the list-price
+ * estimate shows, marked "est.", with its basis in the title; with neither,
+ * the cost is unmeasured. */
+function CostCell({ row }: { row: AgenticLaneRow }) {
+  const billed = costPerEpisode(row);
+  if (billed !== null) return <Measured row={row} text={billed} />;
+  const t = row.telemetry;
+  const estimate = t.api_equivalent_cost_per_episode_usd ?? null;
+  if (estimate === null) return <>unmeasured</>;
+  const covered = t.api_equivalent_cost_episodes ?? t.telemetry_episodes;
+  const longContext = t.api_equivalent_long_context_possible
+    ? " Some turns exceeded the long-context threshold, so the estimate may be low."
+    : "";
+  return (
+    <>
+      <span className="agentic-estimate" title={ESTIMATE_TITLE + longContext}>
+        ${fmt(estimate, 3)} est.
+      </span>
+      {covered < t.episodes && (
+        <span className="agentic-coverage muted">
+          {covered} of {t.episodes} episodes
+        </span>
+      )}
+    </>
+  );
 }
 
 function Measured({ row, text }: { row: AgenticLaneRow; text: string | null }) {
@@ -63,6 +116,24 @@ function Measured({ row, text }: { row: AgenticLaneRow; text: string | null }) {
       <Coverage row={row} />
     </>
   );
+}
+
+/* A subscription harness (Codex) reports its plan's usage windows; the
+ * panel pauses when one is nearly used up. Shown as a short note, never as
+ * a cost. */
+function quotaNote(row: AgenticLaneRow): string {
+  const quota = row.telemetry.quota;
+  if (!quota) return "";
+  const plan = quota.plan_types.length > 0 ? `${quota.plan_types.join(", ")} plan` : "subscription";
+  const peak = quota.max_used_percent === null ? "" : `, peak ${fmt(quota.max_used_percent, 0)}% of a usage window`;
+  const pauses =
+    quota.pauses > 0
+      ? `, ${quota.pauses} quota pause${quota.pauses === 1 ? "" : "s"} (${fmt(quota.pause_seconds / 60, 0)} min)`
+      : "";
+  const ended = quota.episodes_ended_by_quota
+    ? `, ${quota.episodes_ended_by_quota} episode${quota.episodes_ended_by_quota === 1 ? "" : "s"} stopped by a spent window`
+    : "";
+  return ` Quota: ${plan}${peak}${pauses}${ended}.`;
 }
 
 function signed(value: number, digits = 1): string {
@@ -163,7 +234,9 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                 <th title="Harness-reported tokens, averaged over the episodes that reported them">
                   Tokens / episode
                 </th>
-                <th title="Harness-reported cost, averaged over the episodes that reported it">Cost / episode</th>
+                <th title="Harness-reported cost, averaged over the episodes that reported it. Marked est.: an API-equivalent list-price estimate for a harness that reports no cost; not billed.">
+                  Cost / episode
+                </th>
                 <th>Wall / episode</th>
                 <th title="Episodes where the harness's own tool-call count equals the server ledger, which is authoritative">
                   Ledger = harness
@@ -203,10 +276,12 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                   <td className="numeric">{phasesByAgent(row)}</td>
                   <td className="numeric">{fmt(row.telemetry.nudges_per_episode, 2)}</td>
                   <td className="numeric">
-                    <Measured row={row} text={tokensPerEpisode(row)} />
+                    <span title={tokensTitle(row)}>
+                      <Measured row={row} text={tokensPerEpisode(row)} />
+                    </span>
                   </td>
                   <td className="numeric">
-                    <Measured row={row} text={costPerEpisode(row)} />
+                    <CostCell row={row} />
                   </td>
                   <td className="numeric">{wallMinutes(row)}</td>
                   <td className="numeric">
@@ -237,6 +312,7 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                 : ""}
               {row.illegal_actions ?? 0} illegal action
               {row.illegal_actions === 1 ? "" : "s"}.
+              {quotaNote(row)}
               {row.v1_row_id
                 ? ` The same model has a 1.0 row (${row.v1_row_id}); the two are different benchmarks and are not paired here.`
                 : ""}

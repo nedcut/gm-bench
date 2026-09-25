@@ -105,6 +105,85 @@ Added 2026-09-20. Nothing published changes.
   `provider_stall_wait_seconds` per episode, carried into published rows.
   The wait is taken off the open phase's guard clock and logged in the
   ledger as a `clock_pause` event, which replay and the audit ignore.
+- Second harness: `gm-bench agentic --harness codex` drives the Codex CLI
+  (`codex exec --json`, written against Codex CLI 0.156.1) through the same
+  episode loop as OpenCode, which now sits behind a small driver interface
+  (`gm_bench/agentic/harness.py`; OpenCode's names and behaviour are
+  unchanged). Each episode gets its own private `CODEX_HOME`, outside the
+  agent's working directory, holding one staged MCP server entry whose
+  tools are approved (`codex exec` would otherwise refuse every GM-Bench
+  call in its `workspace-write` sandbox), so the host `~/.codex` (login,
+  `AGENTS.md`, skills, rules) and `~/.agents/skills` never reach the
+  harness. Nudges and provider-stall
+  retries resume the same session with `codex exec resume`. Credentials come
+  from `--codex-auth-file` (or `CODEX_API_KEY` for same-user runs); in
+  container mode the file is written into the episode's home volume over
+  stdin, never onto a command line or into the mounted scratch directory,
+  and the harness runs from its own pinned image
+  (`@openai/codex@0.156.1`). Credential values the agent prints are
+  redacted from the retained event stream and stderr log. Codex reports
+  tokens but not cost, per-call counts, or compactions, and those are
+  recorded and published as unmeasured (no summed zero compactions; the
+  API-price estimate below is kept apart from `cost_usd`). Tool calls Codex
+  refuses before dispatch are counted apart, not as harness calls.
+  `agentic-validate` recounts tool calls from a Codex event stream as it
+  does for OpenCode. Proven against a stand-in `codex` and `docker`, and by
+  two live 1-season smokes on `gpt-6-luna` (seed 11, same-user and
+  container, 2026-09-24); no Codex row is committed yet.
+- Codex API-equivalent cost: `cost_usd` stays unmeasured, and beside it a
+  Codex episode now records `usage.harness.api_equivalent_cost_usd`, what
+  its tokens would cost at OpenAI API list price with cached input and
+  cache writes at their own rates, labelled `cost_basis:
+  "api-list-price-estimate"` and `billed_by_harness: false`, with the
+  pricing entry used and a flag when a turn grew past the 272K
+  long-context threshold (short-context rates are always used, so the
+  estimate may then be low). It reaches the compact artifact, the run's
+  `agentic_summary`, and the site, which marks it `est.` and never shows
+  it as a billed cost. `gm_bench/pricing.json` entries may now carry
+  `cached_input_per_mtok`, `cache_write_per_mtok`,
+  `long_context_input_tokens`, and `verified`; existing entries are
+  unchanged. Added `gpt-6-luna` ($0.10 input, $0.01 cached, $0.125 cache
+  write, $0.50 output per million tokens) and `gpt-6-sol` ($2.00, $0.20,
+  $2.50, $10.00), checked 2026-09-23 against OpenAI's developer pricing
+  page and model pages.
+- One token shape for every harness: `input_tokens` is now the inclusive
+  total (uncached + cached + cache-write, each also published as
+  `uncached_input_tokens`, `cached_input_tokens`,
+  `cache_write_input_tokens`) and `output_tokens` includes reasoning, with
+  `reasoning_tokens` a subset, marked `token_shape: "inclusive-v1"`. Codex
+  already reported that way; the OpenCode parser now adds cache reads and
+  writes into input and reasoning into output (as T3 Code's OpenCode
+  adapter does), so OpenCode token totals and `max_output_tokens_per_call`
+  are larger than in earlier runs. The committed OpenCode smoke row predates
+  the shape and still validates; the site labels such rows' tokens as the
+  harness's own convention.
+- Corrected stale list prices in `gm_bench/pricing.json` from the official
+  pages, checked 2026-09-23: `gpt-5.6-terra` $2/$12 (was $2.50/$15),
+  `gpt-5.6-luna` $0.20/$1.20 (was $1/$6), and `claude-sonnet-5` $2/$10
+  (was $3/$15), with their cached-input and cache-write rates. `gpt-5.6-sol`
+  stays at $5/$30: OpenAI lists its $4/$20 as promotional pricing available
+  at least through 2026-11-21, and this table pins undiscounted rates.
+  Published results do not change: their costs are what the provider
+  reported when they ran.
+- Codex quota windows: after each episode the driver reads the
+  subscription's usage windows from the Codex session rollout (percent used,
+  window length, reset time, and plan; never credits or tokens) into
+  `harness_run.quota_windows` and `plan_type`, and a panel pauses before
+  the next episode until a window at or above 95% resets (bounded by
+  `--max-provider-stall-wait-seconds`), recorded in `run.json`
+  `quota_pauses`. Both reach the compact artifact and a short quota note on
+  the site row.
+- Codex usage limits are quota exhaustion, not provider stalls. The first
+  real Codex launch ended its first turn on "You’ve hit your usage limit
+  ... try again at Sep 24th, 2026 4:19 PM", which the driver had treated as
+  a stall and started a 60-second backoff ladder that could have spent the
+  whole 6-hour wait budget. The driver now reads the reset time (Codex's
+  local-time format, ordinal suffixes, 12-hour clock, same-day time only),
+  pauses until it plus a minute when that fits the wait budget and resumes
+  the session (neither a nudge nor a stall retry), and otherwise stops the
+  episode (`harness_run.ended_by_quota`) and the panel (`run.json`
+  `stopped_for_quota`) instead of starting seeds that would fail the same
+  way.
 - Silent harness: OpenCode retries a 429 internally without printing any
   event, so a rate-limited run looked hung until the 20-minute phase guard
   killed it and its phases closed as `harness_exit`. The driver now stops an

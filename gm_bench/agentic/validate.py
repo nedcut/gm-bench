@@ -30,13 +30,18 @@ import json
 from pathlib import Path
 from typing import Any
 
+from gm_bench.agentic import codex, opencode
 from gm_bench.agentic.audit import audit_ledger
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import AgenticEpisode
-from gm_bench.agentic.opencode import HARNESS_NAME as OPENCODE
-from gm_bench.agentic.opencode import harness_tool_calls, parse_opencode_events
+from gm_bench.agentic.opencode import harness_tool_calls
 
 _CONTRACT_KEYS = ("base_contract_fingerprint", "agentic_fingerprint", "tool_surface", "brief", "scoring_version")
+# How to read each harness's retained event stream when recounting its GM-Bench tool calls.
+EVENT_PARSERS = {
+    opencode.HARNESS_NAME: opencode.parse_opencode_events,
+    codex.HARNESS_NAME: codex.parse_codex_events,
+}
 
 
 def validate_run(run_path: str | Path) -> dict[str, Any]:
@@ -145,10 +150,10 @@ def _validate_episode(episode: dict[str, Any], run_dir: Path, harness_name: str 
     harness_calls: int | None = None
     if events_path is None or not events_path.is_file():
         problems.append("harness event stream missing; tool-call agreement cannot be recomputed")
-    elif harness_name != OPENCODE:
+    elif harness_name not in EVENT_PARSERS:
         problems.append(f"cannot recompute tool-call agreement for harness {harness_name!r}")
     else:
-        telemetry = parse_opencode_events(events_path.read_text(encoding="utf-8").splitlines())
+        telemetry = EVENT_PARSERS[harness_name](events_path.read_text(encoding="utf-8").splitlines())
         harness_calls = harness_tool_calls(telemetry)
     if replayed_calls is not None and harness_calls is not None:
         if replayed_calls != harness_calls:

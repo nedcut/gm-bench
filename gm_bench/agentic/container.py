@@ -1,4 +1,4 @@
-"""Run the OpenCode harness in a Docker container (``gm-bench agentic --isolation container``).
+"""Run the harness in a Docker container (``gm-bench agentic --isolation container``).
 
 On a same-user machine the agent's shell can run ``ps``, see the driver's
 command line (``--seeds``), and follow it to the run directory and the
@@ -27,25 +27,34 @@ driver process on the host:
   listener on the host loopback must be unreachable from the container.
 
 The free ``opencode/*`` models need no credentials, so none are provisioned.
+The Codex CLI does: its driver copies an operator-provided ``auth.json`` into
+the per-episode home volume with :meth:`ContainerHarness.seed_home`, over the
+``docker run`` client's stdin, never onto a command line or into the
+bind-mounted scratch directory (``codex.py``).
 
-The image is built locally from :func:`dockerfile`: a digest-pinned Node base,
-Debian's ``python3`` for the standard-library proxy, ``procps``, and the
-pinned ``opencode-ai`` package. The run records the image id (the content
-digest of what actually ran), the Dockerfile's SHA-256, and the OpenCode
-version the image reports.
+Each harness gets its own image (:class:`ImageSpec`), built locally from
+:func:`dockerfile`: a digest-pinned Node base, Debian's ``python3`` for the
+standard-library proxy, ``procps``, and the pinned harness package
+(``opencode-ai`` or ``@openai/codex``). The run records the image id (the
+content digest of what actually ran), the Dockerfile's SHA-256, and the
+harness version the image reports.
 """
 
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import secrets
 import socket
 import subprocess
+import tarfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 CONTAINER_OPENCODE_VERSION = "1.18.31"
+CONTAINER_CODEX_VERSION = "0.156.1"
 BASE_IMAGE = "node:22-bookworm-slim@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9"
 IMAGE_REPOSITORY = "gm-bench-agentic-opencode"
 WORKDIR = "/work"
@@ -94,13 +103,35 @@ class ContainerError(RuntimeError):
     """Docker is missing, the image would not build, or it is not what was pinned."""
 
 
-def dockerfile(opencode_version: str = CONTAINER_OPENCODE_VERSION) -> str:
+@dataclass(frozen=True)
+class ImageSpec:
+    """One harness image: the npm package pinned into it and how it reports its version."""
+
+    harness: str
+    package: str
+    version: str
+    repository: str
+    executable: str
+    # The key the reported version is recorded under in the image description.
+    version_key: str
+
+
+OPENCODE_IMAGE = ImageSpec(
+    "opencode", "opencode-ai", CONTAINER_OPENCODE_VERSION, IMAGE_REPOSITORY, "opencode", "opencode_version"
+)
+CODEX_IMAGE = ImageSpec(
+    "codex", "@openai/codex", CONTAINER_CODEX_VERSION, "gm-bench-agentic-codex", "codex", "codex_version"
+)
+
+
+def dockerfile(opencode_version: str = CONTAINER_OPENCODE_VERSION, *, package: str = "opencode-ai") -> str:
+    """The harness image. The OpenCode image's text (and so its tag) is unchanged by the ``package`` option."""
     return (
         f"FROM {BASE_IMAGE}\n"
         "RUN apt-get update \\\n"
         " && apt-get install -y --no-install-recommends python3 procps ca-certificates iptables \\\n"
         " && rm -rf /var/lib/apt/lists/*\n"
-        f"RUN npm install -g opencode-ai@{opencode_version} && npm cache clean --force\n"
+        f"RUN npm install -g {package}@{opencode_version} && npm cache clean --force\n"
         f"COPY --chmod=755 <<'GMB_EGRESS' {EGRESS_ENTRYPOINT}\n{EGRESS_SCRIPT}GMB_EGRESS\n"
         "USER node\n"
         f"WORKDIR {WORKDIR}\n"
@@ -108,8 +139,9 @@ def dockerfile(opencode_version: str = CONTAINER_OPENCODE_VERSION) -> str:
 
 
 def _docker(docker: str, *args: str, env: dict[str, str] | None = None, **kwargs: Any) -> subprocess.CompletedProcess:
+    kwargs.setdefault("text", True)
     try:
-        return subprocess.run([docker, *args], capture_output=True, text=True, check=False, env=env, **kwargs)
+        return subprocess.run([docker, *args], capture_output=True, check=False, env=env, **kwargs)
     except OSError as exc:
         raise ContainerError(f"cannot run {docker}: {exc}") from exc
     except subprocess.TimeoutExpired as exc:
@@ -117,12 +149,30 @@ def _docker(docker: str, *args: str, env: dict[str, str] | None = None, **kwargs
 
 
 def ensure_image(
-    opencode_version: str = CONTAINER_OPENCODE_VERSION, *, docker: str = "docker", env: dict[str, str] | None = None
+    opencode_version: str = CONTAINER_OPENCODE_VERSION,
+    *,
+    docker: str = "docker",
+    env: dict[str, str] | None = None,
+    spec: ImageSpec | None = None,
 ) -> dict[str, Any]:
-    """Build the harness image if it is missing and describe exactly what will run."""
-    text = dockerfile(opencode_version)
+    """Build the harness image if it is missing and describe exactly what will run.
+
+    ``spec`` selects the harness image (:data:`CODEX_IMAGE`); without it this
+    is the OpenCode image at ``opencode_version``, as before.
+    """
+    if spec is None:
+        spec = ImageSpec(
+            OPENCODE_IMAGE.harness,
+            OPENCODE_IMAGE.package,
+            opencode_version,
+            OPENCODE_IMAGE.repository,
+            OPENCODE_IMAGE.executable,
+            OPENCODE_IMAGE.version_key,
+        )
+    pinned = spec.version
+    text = dockerfile(pinned, package=spec.package)
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
-    tag = f"{IMAGE_REPOSITORY}:{opencode_version}-{digest[:12]}"
+    tag = f"{spec.repository}:{pinned}-{digest[:12]}"
     server = _docker(docker, "version", "--format", "{{.Server.Version}}", env=env)
     if server.returncode != 0:
         raise ContainerError(f"docker daemon unavailable: {(server.stderr or server.stdout).strip()[-400:]}")
@@ -135,11 +185,15 @@ def ensure_image(
     image_id = inspect.stdout.strip()
     if inspect.returncode != 0 or not image_id.startswith("sha256:"):
         raise ContainerError(f"cannot inspect {tag}: {inspect.stderr.strip()[-400:]}")
-    probe = _docker(docker, "run", "--rm", "--network", "none", image_id, "opencode", "--version", env=env, timeout=120)
+    probe = _docker(
+        docker, "run", "--rm", "--network", "none", image_id, spec.executable, "--version", env=env, timeout=120
+    )
     reported = (probe.stdout or "").strip().splitlines()
-    version = reported[-1].strip() if reported else None
-    if version != opencode_version:
-        raise ContainerError(f"image {tag} reports opencode {version!r}, pinned {opencode_version!r}")
+    # ``opencode --version`` prints the bare version; ``codex --version`` prints ``codex-cli <version>``.
+    words = reported[-1].split() if reported else []
+    version = words[-1] if words else None
+    if version != pinned:
+        raise ContainerError(f"image {tag} reports {spec.harness} {version!r}, pinned {pinned!r}")
     return {
         "runtime": "docker",
         "docker_server_version": server.stdout.strip(),
@@ -147,7 +201,7 @@ def ensure_image(
         "image_id": image_id,
         "base_image": BASE_IMAGE,
         "dockerfile_sha256": digest,
-        "opencode_version": version,
+        spec.version_key: version,
         "workdir": WORKDIR,
         "egress": EGRESS_POLICY,
     }
@@ -331,6 +385,96 @@ class ContainerHarness:
             *harness_argv,
         ]
         return argv, name
+
+    def seed_home(self, files: dict[str, bytes], *, timeout: float = 120.0) -> None:
+        """Write ``files`` (paths relative to the harness home) into this episode's home volume.
+
+        The contents travel as a tar stream on the ``docker run`` client's
+        stdin into a throwaway container that mounts only the volume, with no
+        network and no capabilities. Nothing is written to the host, to the
+        bind-mounted scratch directory, or onto any command line, and the
+        volume (with the files) is removed by :meth:`close`. Files are written
+        with mode 0600 under directories of mode 0700.
+        """
+        archive = io.BytesIO()
+        with tarfile.open(fileobj=archive, mode="w") as tar:
+            directories = sorted({str(Path(name).parent) for name in files} - {"."})
+            for directory in directories:
+                info = tarfile.TarInfo(directory)
+                info.type = tarfile.DIRTYPE
+                info.mode = 0o700
+                tar.addfile(info)
+            for name, data in files.items():
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                info.mode = 0o600
+                tar.addfile(info, io.BytesIO(data))
+        done = _docker(
+            self.docker,
+            "run",
+            "--rm",
+            "-i",
+            "--network",
+            "none",
+            "--cap-drop",
+            "ALL",
+            "--security-opt",
+            "no-new-privileges",
+            "--mount",
+            f"type=volume,source={self.volume},target={HOME}",
+            self.image["image_id"],
+            "tar",
+            "-x",
+            "--no-same-owner",
+            "-C",
+            HOME,
+            env=self.env,
+            input=archive.getvalue(),
+            text=False,
+            timeout=timeout,
+        )
+        if done.returncode != 0:
+            detail = (done.stderr or b"").decode("utf-8", errors="replace").strip()[-400:]
+            raise ContainerError(f"cannot write the harness home volume: {detail}")
+
+    def home_lines(self, directory: str, pattern: str, needle: str, *, timeout: float = 120.0) -> list[str] | None:
+        """Lines containing ``needle`` in files named ``pattern`` under ``directory`` of the home volume.
+
+        Read by a throwaway container that mounts only the volume, with no
+        network and no capabilities, before :meth:`close` removes it; only the
+        matching lines leave the volume. Never raises: ``None`` when the
+        volume could not be read (the caller records the value as unmeasured).
+        """
+        script = 'find "$1" -type f -name "$2" -exec grep -h -F -- "$3" {} + 2>/dev/null; exit 0'
+        try:
+            done = _docker(
+                self.docker,
+                "run",
+                "--rm",
+                "--network",
+                "none",
+                "--cap-drop",
+                "ALL",
+                "--security-opt",
+                "no-new-privileges",
+                "--mount",
+                f"type=volume,source={self.volume},target={HOME}",
+                self.image["image_id"],
+                "sh",
+                "-c",
+                script,
+                "sh",
+                f"{HOME}/{directory}",
+                pattern,
+                needle,
+                env=self.env,
+                timeout=timeout,
+            )
+        except (ContainerError, OSError):
+            return None
+        if done.returncode != 0:
+            return None
+        return (done.stdout or "").splitlines()
 
     def kill(self, name: str) -> None:
         """Stop a container whose ``docker run`` client was killed; the client going away does not stop it."""

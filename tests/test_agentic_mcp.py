@@ -224,20 +224,29 @@ def test_opencode_config_and_event_parsing(tmp_path: Path) -> None:
     ]
     telemetry = parse_opencode_events(lines)
     assert telemetry["model_calls"] == 2
-    assert telemetry["input_tokens"] == 150 and telemetry["output_tokens"] == 15
+    # Normalized to the shared shape: input includes cache reads and writes, output includes reasoning.
+    assert telemetry["input_tokens"] == 150 + 40 + 2 and telemetry["uncached_input_tokens"] == 150
+    assert telemetry["output_tokens"] == 15 + 5
     assert telemetry["reasoning_tokens"] == 5 and telemetry["cached_input_tokens"] == 40
     assert telemetry["cost_usd"] == 0.001
     assert telemetry["harness_tool_events"] == {"gm-bench_get_status": 1}
     assert telemetry["session_id"] == "ses_1"
-    assert telemetry["max_output_tokens_per_call"] == 10
+    assert telemetry["max_output_tokens_per_call"] == 15
     usage = usage_block(telemetry, model="opencode/test", decisions=20)
-    assert usage["api_calls"] == 2 and usage["input_tokens"] == 150
+    assert usage["api_calls"] == 2 and usage["input_tokens"] == 192
+    assert (usage["uncached_input_tokens"], usage["cached_input_tokens"], usage["cache_write_input_tokens"]) == (
+        150,
+        40,
+        2,
+    )
+    assert usage["output_tokens"] == 20 and usage["reasoning_tokens"] == 5
+    assert usage["token_shape"] == "inclusive-v1"
     assert usage["cost_usd"] == 0.001
     assert usage["harness"]["telemetry_reported"] is True
     # One session total covers all twenty decisions: the run summary divides
     # by that, not by the one record; wall time is not API latency.
     assert usage["decisions_with_usage"] == 20 and usage["cost_decisions"] == 20
-    assert usage["total_tokens"] == 165 and usage["max_output_tokens_per_call"] == 10
+    assert usage["total_tokens"] == 212 and usage["max_output_tokens_per_call"] == 15
     assert usage["api_latency_ms"] == 0.0
     silent = usage_block(parse_opencode_events([]), model="opencode/test", decisions=20)
     assert silent["cost_usd"] is None and silent["harness"]["telemetry_reported"] is False
