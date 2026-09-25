@@ -297,7 +297,7 @@ Added 2026-09-20. Nothing published changes.
   clean `main`: `results/agentic/codex-0.156.1-gpt-6-luna-smoke-1x5.json`
   (232.5, 10.7 min, $0.18 at API prices) and
   `results/agentic/claude-2.1.281-claude-sonnet-5-smoke-1x5.json` (248.0,
-  19.8 min, $5.05). Both closed 20/20 phases themselves with no nudges or
+  19.8 min, $5.05 at API prices). Both closed 20/20 phases themselves with no nudges or
   provider stalls. They are `smoke` grade and the site does not show them.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
