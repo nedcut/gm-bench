@@ -8,6 +8,21 @@ correction becomes a new contract version rather than an edit to an old one.
 
 Added 2026-09-20. Nothing published changes.
 
+- Contract freeze (2026-09-25): the 2.0 contract is frozen as
+  `gm-bench-2.0` at agentic fingerprint `07de948a4f4afbae`, and a test pins
+  the pair, so any byte change to the tool surface, brief, episode engine or
+  server fails CI until it is released as a new version. The fingerprint
+  did not move (the version label is not a fingerprint source), but every
+  row records the label, so the `space-bunny-free` smoke row was rerun
+  under it (container, seeds 1 to 8, five seasons: mean 217.8, SD 20.5,
+  160/160 phases closed by the agent, 0 failed decisions). All five gates before a paid run in `docs/bench_v2_spec.md`
+  are met. Container red-team verdict: a probe using the example seed
+  printed in `scripts/agentic_red_team.py` found it by downloading the
+  public source and rebuilding that league offline, nothing from the host;
+  a probe with a fresh seed from the private-panel range (2**32 to
+  2**63 - 1) ran 20 minutes through generator reimplementation, privilege
+  and namespace escapes, host port scans and unlisted MCP methods without
+  finding it. The script now refuses a seed outside that range.
 - Naming: the frozen `sota-v5` contract, with its decision-model lane, is
   **GM-Bench 1.0**. **GM-Bench 2.0** is a new contract, specified in
   `docs/bench_v2_spec.md`: the same simulator and seeds, driven by a model's
