@@ -1,0 +1,1235 @@
+{
+  "agent": "claude:claude-sonnet-5",
+  "agentic_summary": {
+    "api_equivalent_cost_episodes": 4,
+    "api_equivalent_cost_usd": 18.78418,
+    "api_equivalent_long_context_possible": false,
+    "compactions": 0,
+    "mean_tool_calls_per_episode": 164.25,
+    "mean_wall_seconds": 976.2,
+    "nudges_used": 0,
+    "phases_ended_by": {
+      "agent": 80
+    },
+    "provider_stall_wait_seconds": 0.0,
+    "provider_stalls": 0,
+    "silent_harness_kills": 0,
+    "tool_calls_by_tool": {
+      "accept_trade_offer": 13,
+      "claim_waiver": 1,
+      "draft": 20,
+      "end_phase": 80,
+      "extend_contract": 126,
+      "get_rules": 5,
+      "get_status": 81,
+      "get_team": 54,
+      "list_draft_class": 20,
+      "list_free_agents": 32,
+      "list_offers": 20,
+      "list_trade_market": 16,
+      "list_waiver_wire": 20,
+      "reject_trade_offer": 47,
+      "release_player": 1,
+      "scout": 52,
+      "set_lineup": 25,
+      "sign_free_agent": 28,
+      "write_memo": 16
+    }
+  },
+  "contract": {
+    "agentic_fingerprint": "07de948a4f4afbae",
+    "base_benchmark_version": "sota-v5",
+    "base_contract_fingerprint": "a600b7da0c302231",
+    "benchmark_version": "gm-bench-2.0",
+    "brief": "gm-bench-agentic-brief-v1",
+    "scoring_scale_fingerprint": "05a60ff4f691e734",
+    "scoring_version": "score-v1",
+    "simulator_version": "sim-v4",
+    "tool_surface": "gm-bench-agentic-v1"
+  },
+  "driver": {
+    "changed_during_run": false,
+    "driver_digest": "8a29130cb6635a4b",
+    "driver_files": [
+      "gm_bench/agentic/_proxy.py",
+      "gm_bench/agentic/claude.py",
+      "gm_bench/agentic/codex.py",
+      "gm_bench/agentic/container.py",
+      "gm_bench/agentic/harness.py",
+      "gm_bench/agentic/opencode.py"
+    ],
+    "git_driver_clean": true,
+    "git_head": "6cabc38c9f1aaac688a98c7d02c65b04aaacde8e"
+  },
+  "episodes": [
+    {
+      "agentic": {
+        "moves_accepted": 80,
+        "moves_rejected": 1,
+        "phase_guard_seconds": 1200.0,
+        "phases": [
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 1,
+            "seconds": 187.994,
+            "tool_calls": 21
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 1,
+            "seconds": 14.68,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 1,
+            "seconds": 270.456,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 1,
+            "seconds": 82.411,
+            "tool_calls": 4
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 2,
+            "seconds": 149.388,
+            "tool_calls": 14
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 2,
+            "seconds": 19.945,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 2,
+            "seconds": 33.108,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 2,
+            "seconds": 52.508,
+            "tool_calls": 2
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 3,
+            "seconds": 190.749,
+            "tool_calls": 18
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 3,
+            "seconds": 13.731,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 3,
+            "seconds": 34.56,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 3,
+            "seconds": 15.796,
+            "tool_calls": 2
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 4,
+            "seconds": 146.869,
+            "tool_calls": 23
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 4,
+            "seconds": 21.267,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 4,
+            "seconds": 41.237,
+            "tool_calls": 6
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 4,
+            "seconds": 19.233,
+            "tool_calls": 2
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 5,
+            "seconds": 151.254,
+            "tool_calls": 17
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 5,
+            "seconds": 33.657,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 5,
+            "seconds": 90.812,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 5,
+            "seconds": 46.114,
+            "tool_calls": 3
+          }
+        ],
+        "phases_ended_by": {
+          "agent": 20
+        },
+        "scout_points_used": 12,
+        "tool_calls": 167,
+        "tool_calls_by_tool": {
+          "accept_trade_offer": 2,
+          "draft": 5,
+          "end_phase": 20,
+          "extend_contract": 44,
+          "get_rules": 1,
+          "get_status": 18,
+          "get_team": 11,
+          "list_draft_class": 5,
+          "list_free_agents": 5,
+          "list_offers": 5,
+          "list_trade_market": 4,
+          "list_waiver_wire": 5,
+          "reject_trade_offer": 13,
+          "scout": 12,
+          "set_lineup": 6,
+          "sign_free_agent": 4,
+          "write_memo": 7
+        },
+        "tool_surface": "gm-bench-agentic-v1"
+      },
+      "championships": 1,
+      "decisions": 20,
+      "failed_decisions": 0,
+      "final_score": 224.298,
+      "harness_run": {
+        "ended_by_quota": null,
+        "exit_code": 0,
+        "final_exit_code": 0,
+        "guard_kills": 0,
+        "nudges": [],
+        "nudges_used": 0,
+        "nudges_without_progress": 0,
+        "plan_type": null,
+        "provider_stall_wait_seconds": 0.0,
+        "provider_stalls": 0,
+        "proxy_connections": 1,
+        "quota_pauses": [],
+        "quota_windows": [],
+        "server_drained": true,
+        "silent_kills": 0,
+        "timed_out": false,
+        "tool_call_agreement": {
+          "agree": true,
+          "harness": 167,
+          "ledger": 167
+        },
+        "wall_seconds": 1674.728
+      },
+      "illegal_actions": 1,
+      "index": 0,
+      "malformed_decisions": 0,
+      "memo_writes": 7,
+      "protocol_penalty": 2.5,
+      "seed": 1,
+      "seed_group": 0,
+      "strategy_score": 226.798,
+      "usage": {
+        "api_calls": 106,
+        "cache_write_input_tokens": 256523,
+        "cached_input_tokens": 15222362,
+        "cost_usd": null,
+        "harness": {
+          "api_equivalent_cost_usd": 4.708758,
+          "billed_by_harness": false,
+          "cache_write_tokens": 256523,
+          "compactions": 0,
+          "cost_basis": "api-list-price-estimate",
+          "errors": 0,
+          "long_context_requests_possible": null,
+          "pricing_source": {
+            "cache_write_1h_rate": "cache-write-1h",
+            "cache_write_rate": "cache-write",
+            "cached_input_rate": "cached",
+            "key": "claude-sonnet-5",
+            "verified": "2026-09-24"
+          },
+          "telemetry_reported": true,
+          "tool_events": {
+            "Bash": 2,
+            "ToolSearch": 6,
+            "Write": 2,
+            "gm-bench_accept_trade_offer": 2,
+            "gm-bench_draft": 5,
+            "gm-bench_end_phase": 20,
+            "gm-bench_extend_contract": 44,
+            "gm-bench_get_rules": 1,
+            "gm-bench_get_status": 18,
+            "gm-bench_get_team": 11,
+            "gm-bench_list_draft_class": 5,
+            "gm-bench_list_free_agents": 5,
+            "gm-bench_list_offers": 5,
+            "gm-bench_list_trade_market": 4,
+            "gm-bench_list_waiver_wire": 5,
+            "gm-bench_reject_trade_offer": 13,
+            "gm-bench_scout": 12,
+            "gm-bench_set_lineup": 6,
+            "gm-bench_sign_free_agent": 4,
+            "gm-bench_write_memo": 7
+          }
+        },
+        "input_tokens": 15479097,
+        "output_tokens": 63777,
+        "reasoning_tokens": 42918,
+        "token_shape": "inclusive-v1",
+        "uncached_input_tokens": 212
+      },
+      "wins": 270
+    },
+    {
+      "agentic": {
+        "moves_accepted": 59,
+        "moves_rejected": 1,
+        "phase_guard_seconds": 1200.0,
+        "phases": [
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 1,
+            "seconds": 147.946,
+            "tool_calls": 15
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 1,
+            "seconds": 10.976,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 1,
+            "seconds": 20.608,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 1,
+            "seconds": 28.871,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 2,
+            "seconds": 148.271,
+            "tool_calls": 19
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 2,
+            "seconds": 7.467,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 2,
+            "seconds": 25.544,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 2,
+            "seconds": 14.834,
+            "tool_calls": 2
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 3,
+            "seconds": 102.46,
+            "tool_calls": 20
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 3,
+            "seconds": 7.066,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 3,
+            "seconds": 15.798,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 3,
+            "seconds": 13.427,
+            "tool_calls": 2
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 4,
+            "seconds": 69.441,
+            "tool_calls": 20
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 4,
+            "seconds": 34.81,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 4,
+            "seconds": 17.097,
+            "tool_calls": 6
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 4,
+            "seconds": 12.863,
+            "tool_calls": 2
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 5,
+            "seconds": 50.146,
+            "tool_calls": 10
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 5,
+            "seconds": 8.119,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 5,
+            "seconds": 15.153,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 5,
+            "seconds": 22.286,
+            "tool_calls": 2
+          }
+        ],
+        "phases_ended_by": {
+          "agent": 20
+        },
+        "scout_points_used": 15,
+        "tool_calls": 158,
+        "tool_calls_by_tool": {
+          "accept_trade_offer": 3,
+          "claim_waiver": 1,
+          "draft": 5,
+          "end_phase": 20,
+          "extend_contract": 22,
+          "get_rules": 1,
+          "get_status": 19,
+          "get_team": 14,
+          "list_draft_class": 5,
+          "list_free_agents": 10,
+          "list_offers": 5,
+          "list_trade_market": 4,
+          "list_waiver_wire": 5,
+          "reject_trade_offer": 12,
+          "scout": 15,
+          "set_lineup": 6,
+          "sign_free_agent": 11
+        },
+        "tool_surface": "gm-bench-agentic-v1"
+      },
+      "championships": 0,
+      "decisions": 20,
+      "failed_decisions": 0,
+      "final_score": 157.045,
+      "harness_run": {
+        "ended_by_quota": null,
+        "exit_code": 0,
+        "final_exit_code": 0,
+        "guard_kills": 0,
+        "nudges": [],
+        "nudges_used": 0,
+        "nudges_without_progress": 0,
+        "plan_type": null,
+        "provider_stall_wait_seconds": 0.0,
+        "provider_stalls": 0,
+        "proxy_connections": 1,
+        "quota_pauses": [],
+        "quota_windows": [],
+        "server_drained": true,
+        "silent_kills": 0,
+        "timed_out": false,
+        "tool_call_agreement": {
+          "agree": true,
+          "harness": 158,
+          "ledger": 158
+        },
+        "wall_seconds": 788.489
+      },
+      "illegal_actions": 1,
+      "index": 1,
+      "malformed_decisions": 0,
+      "memo_writes": 0,
+      "protocol_penalty": 2.5,
+      "seed": 2,
+      "seed_group": 1,
+      "strategy_score": 159.545,
+      "usage": {
+        "api_calls": 111,
+        "cache_write_input_tokens": 237039,
+        "cached_input_tokens": 15825798,
+        "cost_usd": null,
+        "harness": {
+          "api_equivalent_cost_usd": 4.68998,
+          "billed_by_harness": false,
+          "cache_write_tokens": 237039,
+          "compactions": 0,
+          "cost_basis": "api-list-price-estimate",
+          "errors": 0,
+          "long_context_requests_possible": null,
+          "pricing_source": {
+            "cache_write_1h_rate": "cache-write-1h",
+            "cache_write_rate": "cache-write",
+            "cached_input_rate": "cached",
+            "key": "claude-sonnet-5",
+            "verified": "2026-09-24"
+          },
+          "telemetry_reported": true,
+          "tool_events": {
+            "Bash": 1,
+            "Edit": 2,
+            "ToolSearch": 5,
+            "Write": 2,
+            "gm-bench_accept_trade_offer": 3,
+            "gm-bench_claim_waiver": 1,
+            "gm-bench_draft": 5,
+            "gm-bench_end_phase": 20,
+            "gm-bench_extend_contract": 22,
+            "gm-bench_get_rules": 1,
+            "gm-bench_get_status": 19,
+            "gm-bench_get_team": 14,
+            "gm-bench_list_draft_class": 5,
+            "gm-bench_list_free_agents": 10,
+            "gm-bench_list_offers": 5,
+            "gm-bench_list_trade_market": 4,
+            "gm-bench_list_waiver_wire": 5,
+            "gm-bench_reject_trade_offer": 12,
+            "gm-bench_scout": 15,
+            "gm-bench_set_lineup": 6,
+            "gm-bench_sign_free_agent": 11
+          }
+        },
+        "input_tokens": 16063059,
+        "output_tokens": 57622,
+        "reasoning_tokens": 40643,
+        "token_shape": "inclusive-v1",
+        "uncached_input_tokens": 222
+      },
+      "wins": 269
+    },
+    {
+      "agentic": {
+        "moves_accepted": 66,
+        "moves_rejected": 2,
+        "phase_guard_seconds": 1200.0,
+        "phases": [
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 1,
+            "seconds": 125.591,
+            "tool_calls": 15
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 1,
+            "seconds": 14.318,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 1,
+            "seconds": 17.481,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 1,
+            "seconds": 27.06,
+            "tool_calls": 7
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 2,
+            "seconds": 50.151,
+            "tool_calls": 11
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 2,
+            "seconds": 7.369,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 2,
+            "seconds": 25.635,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 2,
+            "seconds": 29.591,
+            "tool_calls": 7
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 3,
+            "seconds": 60.7,
+            "tool_calls": 15
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 3,
+            "seconds": 7.186,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 3,
+            "seconds": 29.2,
+            "tool_calls": 7
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 3,
+            "seconds": 29.942,
+            "tool_calls": 7
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 4,
+            "seconds": 79.301,
+            "tool_calls": 22
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 4,
+            "seconds": 8.956,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 4,
+            "seconds": 19.827,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 4,
+            "seconds": 36.504,
+            "tool_calls": 9
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 5,
+            "seconds": 51.354,
+            "tool_calls": 8
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 5,
+            "seconds": 7.661,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 5,
+            "seconds": 16.146,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 5,
+            "seconds": 29.314,
+            "tool_calls": 7
+          }
+        ],
+        "phases_ended_by": {
+          "agent": 20
+        },
+        "scout_points_used": 15,
+        "tool_calls": 172,
+        "tool_calls_by_tool": {
+          "accept_trade_offer": 3,
+          "draft": 5,
+          "end_phase": 20,
+          "extend_contract": 28,
+          "get_rules": 1,
+          "get_status": 24,
+          "get_team": 14,
+          "list_draft_class": 5,
+          "list_free_agents": 8,
+          "list_offers": 5,
+          "list_trade_market": 5,
+          "list_waiver_wire": 5,
+          "reject_trade_offer": 12,
+          "scout": 15,
+          "set_lineup": 7,
+          "sign_free_agent": 6,
+          "write_memo": 9
+        },
+        "tool_surface": "gm-bench-agentic-v1"
+      },
+      "championships": 1,
+      "decisions": 20,
+      "failed_decisions": 0,
+      "final_score": 232.577,
+      "harness_run": {
+        "ended_by_quota": null,
+        "exit_code": 0,
+        "final_exit_code": 0,
+        "guard_kills": 0,
+        "nudges": [],
+        "nudges_used": 0,
+        "nudges_without_progress": 0,
+        "plan_type": null,
+        "provider_stall_wait_seconds": 0.0,
+        "provider_stalls": 0,
+        "proxy_connections": 1,
+        "quota_pauses": [],
+        "quota_windows": [],
+        "server_drained": true,
+        "silent_kills": 0,
+        "timed_out": false,
+        "tool_call_agreement": {
+          "agree": true,
+          "harness": 172,
+          "ledger": 172
+        },
+        "wall_seconds": 707.548
+      },
+      "illegal_actions": 2,
+      "index": 2,
+      "malformed_decisions": 0,
+      "memo_writes": 8,
+      "protocol_penalty": 5.0,
+      "seed": 3,
+      "seed_group": 2,
+      "strategy_score": 237.577,
+      "usage": {
+        "api_calls": 123,
+        "cache_write_input_tokens": 244514,
+        "cached_input_tokens": 17582992,
+        "cost_usd": null,
+        "harness": {
+          "api_equivalent_cost_usd": 4.967986,
+          "billed_by_harness": false,
+          "cache_write_tokens": 244514,
+          "compactions": 0,
+          "cost_basis": "api-list-price-estimate",
+          "errors": 0,
+          "long_context_requests_possible": null,
+          "pricing_source": {
+            "cache_write_1h_rate": "cache-write-1h",
+            "cache_write_rate": "cache-write",
+            "cached_input_rate": "cached",
+            "key": "claude-sonnet-5",
+            "verified": "2026-09-24"
+          },
+          "telemetry_reported": true,
+          "tool_events": {
+            "Bash": 3,
+            "ToolSearch": 6,
+            "Write": 2,
+            "gm-bench_accept_trade_offer": 3,
+            "gm-bench_draft": 5,
+            "gm-bench_end_phase": 20,
+            "gm-bench_extend_contract": 28,
+            "gm-bench_get_rules": 1,
+            "gm-bench_get_status": 24,
+            "gm-bench_get_team": 14,
+            "gm-bench_list_draft_class": 5,
+            "gm-bench_list_free_agents": 8,
+            "gm-bench_list_offers": 5,
+            "gm-bench_list_trade_market": 5,
+            "gm-bench_list_waiver_wire": 5,
+            "gm-bench_reject_trade_offer": 12,
+            "gm-bench_scout": 15,
+            "gm-bench_set_lineup": 7,
+            "gm-bench_sign_free_agent": 6,
+            "gm-bench_write_memo": 9
+          }
+        },
+        "input_tokens": 17827752,
+        "output_tokens": 47284,
+        "reasoning_tokens": 28635,
+        "token_shape": "inclusive-v1",
+        "uncached_input_tokens": 246
+      },
+      "wins": 255
+    },
+    {
+      "agentic": {
+        "moves_accepted": 66,
+        "moves_rejected": 0,
+        "phase_guard_seconds": 1200.0,
+        "phases": [
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 1,
+            "seconds": 153.073,
+            "tool_calls": 14
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 1,
+            "seconds": 10.592,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 1,
+            "seconds": 17.427,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 1,
+            "seconds": 20.478,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 2,
+            "seconds": 55.063,
+            "tool_calls": 13
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 2,
+            "seconds": 7.912,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 2,
+            "seconds": 26.668,
+            "tool_calls": 6
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 2,
+            "seconds": 20.915,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 3,
+            "seconds": 99.744,
+            "tool_calls": 22
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 3,
+            "seconds": 8.075,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 3,
+            "seconds": 19.915,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 3,
+            "seconds": 13.89,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 4,
+            "seconds": 85.631,
+            "tool_calls": 23
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 4,
+            "seconds": 8.653,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 4,
+            "seconds": 17.907,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 4,
+            "seconds": 22.99,
+            "tool_calls": 4
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 5,
+            "seconds": 66.946,
+            "tool_calls": 11
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 5,
+            "seconds": 9.318,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 5,
+            "seconds": 19.498,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 5,
+            "seconds": 34.41,
+            "tool_calls": 3
+          }
+        ],
+        "phases_ended_by": {
+          "agent": 20
+        },
+        "scout_points_used": 9,
+        "tool_calls": 160,
+        "tool_calls_by_tool": {
+          "accept_trade_offer": 5,
+          "draft": 5,
+          "end_phase": 20,
+          "extend_contract": 32,
+          "get_rules": 2,
+          "get_status": 20,
+          "get_team": 15,
+          "list_draft_class": 5,
+          "list_free_agents": 9,
+          "list_offers": 5,
+          "list_trade_market": 3,
+          "list_waiver_wire": 5,
+          "reject_trade_offer": 10,
+          "release_player": 1,
+          "scout": 10,
+          "set_lineup": 6,
+          "sign_free_agent": 7
+        },
+        "tool_surface": "gm-bench-agentic-v1"
+      },
+      "championships": 1,
+      "decisions": 20,
+      "failed_decisions": 0,
+      "final_score": 250.226,
+      "harness_run": {
+        "ended_by_quota": null,
+        "exit_code": 0,
+        "final_exit_code": 0,
+        "guard_kills": 0,
+        "nudges": [],
+        "nudges_used": 0,
+        "nudges_without_progress": 0,
+        "plan_type": null,
+        "provider_stall_wait_seconds": 0.0,
+        "provider_stalls": 0,
+        "proxy_connections": 1,
+        "quota_pauses": [],
+        "quota_windows": [],
+        "server_drained": true,
+        "silent_kills": 0,
+        "timed_out": false,
+        "tool_call_agreement": {
+          "agree": true,
+          "harness": 160,
+          "ledger": 160
+        },
+        "wall_seconds": 733.952
+      },
+      "illegal_actions": 0,
+      "index": 3,
+      "malformed_decisions": 0,
+      "memo_writes": 0,
+      "protocol_penalty": 0.0,
+      "seed": 4,
+      "seed_group": 3,
+      "strategy_score": 250.226,
+      "usage": {
+        "api_calls": 109,
+        "cache_write_input_tokens": 229900,
+        "cached_input_tokens": 14799201,
+        "cost_usd": null,
+        "harness": {
+          "api_equivalent_cost_usd": 4.417456,
+          "billed_by_harness": false,
+          "cache_write_tokens": 229900,
+          "compactions": 0,
+          "cost_basis": "api-list-price-estimate",
+          "errors": 0,
+          "long_context_requests_possible": null,
+          "pricing_source": {
+            "cache_write_1h_rate": "cache-write-1h",
+            "cache_write_rate": "cache-write",
+            "cached_input_rate": "cached",
+            "key": "claude-sonnet-5",
+            "verified": "2026-09-24"
+          },
+          "telemetry_reported": true,
+          "tool_events": {
+            "Bash": 1,
+            "Edit": 4,
+            "ToolSearch": 4,
+            "Write": 2,
+            "gm-bench_accept_trade_offer": 5,
+            "gm-bench_draft": 5,
+            "gm-bench_end_phase": 20,
+            "gm-bench_extend_contract": 32,
+            "gm-bench_get_rules": 2,
+            "gm-bench_get_status": 20,
+            "gm-bench_get_team": 15,
+            "gm-bench_list_draft_class": 5,
+            "gm-bench_list_free_agents": 9,
+            "gm-bench_list_offers": 5,
+            "gm-bench_list_trade_market": 3,
+            "gm-bench_list_waiver_wire": 5,
+            "gm-bench_reject_trade_offer": 10,
+            "gm-bench_release_player": 1,
+            "gm-bench_scout": 10,
+            "gm-bench_set_lineup": 6,
+            "gm-bench_sign_free_agent": 7
+          }
+        },
+        "input_tokens": 15029319,
+        "output_tokens": 53758,
+        "reasoning_tokens": 35904,
+        "token_shape": "inclusive-v1",
+        "uncached_input_tokens": 218
+      },
+      "wins": 243
+    }
+  ],
+  "grade": "smoke",
+  "harness": {
+    "container": {
+      "base_image": "node:22-bookworm-slim@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9",
+      "claude_version": "2.1.281",
+      "docker_server_version": "29.3.1",
+      "dockerfile_sha256": "1781dcc2b7dad71fe8b4191ecb2472d145d995333423e359df5420fc7c8a2cd2",
+      "egress": "public internet only: private, loopback, link-local and host-gateway addresses rejected, except DNS to the container's resolvers and the driver's port on the host gateway; no IPv6 beyond loopback",
+      "image": "gm-bench-agentic-claude:2.1.281-1781dcc2b7da",
+      "image_id": "sha256:5e1eaae8583bbeaf7b6309296b54843c9a5dfe3c2c4c0050128868e51fab5d4c",
+      "runtime": "docker",
+      "workdir": "/work"
+    },
+    "model": "claude-sonnet-5",
+    "name": "claude",
+    "variant": null,
+    "version": "2.1.281"
+  },
+  "isolation": "container",
+  "lane": "agentic",
+  "max_nudges": 20,
+  "max_provider_stall_wait_seconds": 21600.0,
+  "max_provider_stalls": 48,
+  "panel": {
+    "distinct_seeds": 4,
+    "seed_count": 4,
+    "seeds": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "sha256": "46fc753b67c3e22532d50792303849b350f7d3de32cf48a4a8b15abb1bbcc430"
+  },
+  "phase_guard_seconds": 1200.0,
+  "publication": {
+    "compacted_at_utc": "2026-09-26T01:39:32+00:00",
+    "format": "gm-bench-agentic-summary-v1",
+    "raw_artifact_sha256": "0410997a0642131103ae4cea0751b502671fa50cdfbb4ba6db8e604b8458a545",
+    "traces_included": false
+  },
+  "quota_pause_percent": 95.0,
+  "quota_pauses": [],
+  "seasons": 5,
+  "silent_harness_seconds": 240.0,
+  "summary": {
+    "championships": 3,
+    "decision_failure_rate": 0.0,
+    "decisions": 80,
+    "failed_decisions": 0,
+    "failed_queries": 0,
+    "illegal_actions": 4,
+    "malformed_decisions": 0,
+    "malformed_rate": 0.0,
+    "mean_score": 216.036,
+    "mean_strategy_score": 218.536,
+    "mean_total_wins": 259.25,
+    "memo_writes": 15,
+    "query_declines": 1,
+    "rejected_offers": 0,
+    "score_stddev": 35.323,
+    "total_protocol_penalty": 10.0,
+    "unrecoverable_decisions": 0,
+    "unrecoverable_rate": 0.0,
+    "usage": {
+      "api_calls": 449,
+      "api_latency_ms": 0.0,
+      "cached_input_tokens": 63430353,
+      "calls_with_finish_reason": 0,
+      "cost_decisions": 0,
+      "cost_usd": null,
+      "decisions_with_usage": 80,
+      "harness_latency_ms": 0.0,
+      "input_tokens": 64399227,
+      "max_output_tokens_per_call": 0,
+      "mean_input_tokens_per_decision": 804990.3,
+      "mean_output_tokens_per_decision": 2780.5,
+      "mean_reasoning_tokens_per_decision": 1851.2,
+      "mean_tokens_per_decision": 807770.8,
+      "model": "claude-sonnet-5",
+      "output_tokens": 222441,
+      "protocol_repair_attempts": 0,
+      "protocol_repairs_succeeded": 0,
+      "provider": "claude",
+      "reasoning_tokens": 148100,
+      "total_tokens": 64621668,
+      "truncated_calls": 0,
+      "upstream_provider": null,
+      "upstream_providers": []
+    },
+    "within_seed_score_stddev": 0.0
+  },
+  "validation": {
+    "audits": [
+      {
+        "auditable": true,
+        "clean": true,
+        "ids_exposed": 406,
+        "moves": 74
+      },
+      {
+        "auditable": true,
+        "clean": true,
+        "ids_exposed": 401,
+        "moves": 60
+      },
+      {
+        "auditable": true,
+        "clean": true,
+        "ids_exposed": 415,
+        "moves": 61
+      },
+      {
+        "auditable": true,
+        "clean": true,
+        "ids_exposed": 414,
+        "moves": 66
+      }
+    ],
+    "ok": true,
+    "problems": [],
+    "warnings": []
+  }
+}

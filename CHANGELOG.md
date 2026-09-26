@@ -299,6 +299,12 @@ Added 2026-09-20. Nothing published changes.
   `results/agentic/claude-2.1.281-claude-sonnet-5-smoke-1x5.json` (248.0,
   19.8 min, $5.05 at API prices). Both closed 20/20 phases themselves with no nudges or
   provider stalls. They are `smoke` grade and the site does not show them.
+- Repeat noise measured on the paid harnesses: seeds 1 to 4 run twice on
+  Codex (`gpt-6-luna`) and Claude Code (`claude-sonnet-5`), committed as four
+  `smoke` rows (`*-smoke-4x5-run-{a,b}.json`). Within-seed SD 21.4 for Codex
+  and 11.3 for Claude, so a 32-seed panel resolves about 27 and 23 points.
+  All 16 episodes closed every phase themselves on the same committed
+  driver. Written up in the spec under "Repeat noise on the paid harnesses".
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 
