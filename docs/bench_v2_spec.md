@@ -485,6 +485,50 @@ repeats are the only way to measure within-seed noise, but for telling rows
 apart a second pass over the panel buys less than the same episodes spent on
 more seeds.
 
+### Repeat noise on the paid harnesses (2026-09-25, seeds 1-4, two runs each)
+
+That probe, run once per paid harness: Codex CLI 0.156.1 with `gpt-6-luna`
+and Claude Code 2.1.281 with `claude-sonnet-5`, container isolation, public
+seeds 1 to 4, five seasons, contract `07de948a4f4afbae`. All four runs used
+the same committed driver (digest `8a29130cb6635a4b`, `main` at `6cabc38`,
+unchanged during each run), so unlike the free-model pair above the
+driver is ruled out. All 16 episodes closed 20/20 phases themselves, with no
+nudges, provider stalls or failed decisions. Rows:
+`results/agentic/{codex-0.156.1-gpt-6-luna,claude-2.1.281-claude-sonnet-5}-smoke-4x5-run-{a,b}.json`.
+
+| seed | Codex A | Codex B | A - B | Claude A | Claude B | A - B |
+|---|---|---|---|---|---|---|
+| 1 | 194.6 | 214.0 | -19.3 | 224.3 | 223.2 | +1.1 |
+| 2 | 214.6 | 216.3 | -1.7 | 157.0 | 179.7 | -22.6 |
+| 3 | 261.9 | 282.5 | -20.6 | 232.6 | 215.2 | +17.3 |
+| 4 | 250.6 | 197.0 | +53.6 | 250.2 | 264.4 | -14.2 |
+| mean | 230.4 | 227.4 | +3.0 | 216.0 | 220.7 | -4.7 |
+
+Within-seed SD, pooled as above: 21.4 for Codex and 11.3 for Claude.
+Between-seed SD is 31 to 38 for Codex and 35 to 41 for Claude, so for these
+models the seeds differ more than repeats do, and pairing on seed pays.
+Minimum detectable difference at 80% power, same command as above:
+
+| harness · model | within-seed SD | MDD at 16 seeds | MDD at 32 seeds |
+|---|---|---|---|
+| Codex · `gpt-6-luna` | 21.4 | 40 | 27 |
+| Claude Code · `claude-sonnet-5` | 11.3 | 35 | 23 |
+
+With four seed pairs each SD is itself rough (Codex's rests largely on seed
+4's 54-point swing), but both sit at or below the free model's 23 to 43, and
+the 32-seed MDD barely moves between 11 and 21. The paired-residual SD
+of the calibration panel (40.1) dominates that figure, not repeat noise, so
+the 24 to 33 projected in "Panel design" holds for these two models.
+
+Cost, for budgeting panels. Codex averaged 8.6 min and about $0.15 per
+episode at API prices (reported with `long_context_possible`, so possibly
+low), and used about 2 to 3 points of the ChatGPT plan's five-hour window
+and about 0.3 of the weekly window per episode; the driver's quota pause
+fired live in run B (96% used, waited 39 min for the reset, then went on).
+Claude averaged 14.7 min and $5.03 per episode at API prices; Claude Code
+reports no quota windows, so the driver cannot pause ahead of a limit
+there.
+
 ## Publication
 
 - **Raw evidence stays with the operator.** A run directory holds seeds,
