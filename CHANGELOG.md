@@ -305,6 +305,16 @@ Added 2026-09-20. Nothing published changes.
   and 11.3 for Claude, so a 32-seed panel resolves about 27 and 23 points.
   All 16 episodes closed every phase themselves on the same committed
   driver. Written up in the spec under "Repeat noise on the paid harnesses".
+- First panel-grade 2.0 row: Codex 0.156.1 on `gpt-6-luna`, the frozen
+  32-seed private panel at five seasons, container isolation, played from
+  clean `main` at `4d742cc`
+  (`results/agentic/codex-0.156.1-gpt-6-luna-panel-32x5.json`). Mean 227.4
+  (SD 41.0), 640/640 phases closed by the agent, 0 failed decisions, 19
+  penalized illegal moves, no nudges, provider stalls or quota pauses,
+  10.3 min per episode, $4.54 at API prices. Against the predeclared
+  `pick-trader` reference (249.18) the paired lift is -21.8, 95% interval
+  -43.3 to +0.1, sign-flip p 0.062, winning 28% of seeds: not significant.
+  The site's 2.0 section now renders, with this row flagged `unpinned`.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 
