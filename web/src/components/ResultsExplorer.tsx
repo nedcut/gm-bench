@@ -12,6 +12,7 @@ import {
 } from "../benchmarkData";
 import type { Leaderboard as LeaderboardData } from "../types";
 import { fmt, formatTokensPerDecision, pctOrDash } from "../lib";
+import { routes } from "../site";
 
 type ChartView = "lift" | "cost";
 type SortKey = "score" | "lift" | "cost";
@@ -637,7 +638,7 @@ export default function ResultsExplorer({
               <dd>{data.updated}</dd>
             </div>
           </dl>
-          <a href="#protocol">Read the protocol</a>
+          <a href={routes.protocol}>Read the protocol</a>
         </div>
 
         <div className="result-toolbar" aria-label="Results controls">

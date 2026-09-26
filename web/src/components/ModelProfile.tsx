@@ -9,6 +9,7 @@ import {
 } from "../benchmarkData";
 import { fmt, formatTokensPerDecision, numOrDash, pctOrDash } from "../lib";
 import type { Leaderboard as LeaderboardData } from "../types";
+import { routes } from "../site";
 
 /* One published row, opened up.
  *
@@ -292,7 +293,7 @@ export default function ModelProfile({
             </ul>
           )}
           <p className="profile-replay-link">
-            <a href="#replay">Open the replay browser</a>. It plays the one committed
+            <a href={routes.replays}>Open the replay browser</a>. It plays the one committed
             episode for this benchmark. The per-model episode files are named by the hashes
             above and are not published here.
           </p>

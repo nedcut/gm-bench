@@ -51,7 +51,14 @@ function subjectOutcome(
   return margin >= -0.001 ? "subject_won" : "subject_missed";
 }
 
-export default function PuzzleCard({ puzzle }: { puzzle: Puzzle }) {
+export default function PuzzleCard({
+  puzzle,
+  onPick,
+}: {
+  puzzle: Puzzle;
+  /** Called once, with whether the pick was the best recorded move. */
+  onPick?: (best: boolean) => void;
+}) {
   const [picked, setPicked] = useState<string | null>(null);
   const { situation } = puzzle;
   const best = puzzle.options.find((option) => option.id === puzzle.answer) ?? puzzle.options[0];
@@ -111,7 +118,10 @@ export default function PuzzleCard({ puzzle }: { puzzle: Puzzle }) {
               <button
                 type="button"
                 className={classes.join(" ")}
-                onClick={() => setPicked(option.id)}
+                onClick={() => {
+                  setPicked(option.id);
+                  onPick?.(option.id === puzzle.answer);
+                }}
                 disabled={revealed}
                 aria-pressed={isPicked}
               >

@@ -554,6 +554,8 @@ export interface Puzzle {
   seed: number;
   season: number;
   phase: string;
+  /** Deck balance category: trade, draft, or free_agency. */
+  mechanic?: string;
   subject: string;
   situation: PuzzleSituation;
   options: PuzzleOption[];

@@ -4,11 +4,12 @@ export type Theme = "light" | "dark";
 
 const STORAGE_KEY = "gm-bench-theme";
 
+/* The site is dark by default (the rink under arena lights); a reader's saved
+   choice wins. The HTML entries apply the same rule before first paint. */
 function initialTheme(): Theme {
-  if (typeof window === "undefined") return "light";
+  if (typeof window === "undefined") return "dark";
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "light" || stored === "dark") return stored;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return stored === "light" ? "light" : "dark";
 }
 
 /* Single source of truth for the palette: the hook only sets data-theme on

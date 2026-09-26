@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0c1522" />
+    <script>
+      try {
+        var saved = localStorage.getItem("gm-bench-theme");
+        if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved;
+      } catch (e) {}
+    </script>
+    <meta name="description" content="Step through one committed GM-Bench episode decision by decision, and replay it in your browser to check its final-state digest." />
+    <link rel="canonical" href="https://nedcut.github.io/gm-bench/replays/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://nedcut.github.io/gm-bench/replays/" />
+    <meta property="og:title" content="Replays — GM-Bench" />
+    <meta property="og:description" content="Step through one committed GM-Bench episode decision by decision, and replay it in your browser to check its final-state digest." />
+    <meta property="og:image" content="https://nedcut.github.io/gm-bench/media/og-card.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>Replays — GM-Bench</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..900;1,62..125,400..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/pages/replays.tsx"></script>
+  </body>
+</html>
