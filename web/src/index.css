@@ -246,12 +246,6 @@ code {
   border-color: var(--ink);
 }
 
-@media (max-width: 800px) {
-  .nav-links a:not(.nav-cta) {
-    display: none;
-  }
-}
-
 @media (max-width: 480px) {
   .shell {
     padding-inline: 14px;
@@ -280,75 +274,6 @@ code {
     font-size: 13px;
     white-space: nowrap;
   }
-}
-
-/* ---------- hero: the rink ----------
-   A white sheet with rink corners on the ice. The headline sits at the left
-   boards; the shot chart on the right is the finding itself: every model
-   puck stops short of the red line. */
-
-.homepage-lead {
-  padding: 24px 0 40px;
-}
-
-.homepage-lead .shell {
-  max-width: 1480px;
-}
-
-.rink {
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: 32px 56px;
-  align-items: center;
-  padding: clamp(28px, 4vw, 52px) clamp(24px, 4vw, 56px);
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-rink);
-}
-
-.rink h1 {
-  max-width: 19ch;
-  font-weight: 700;
-  font-size: clamp(32px, 4vw, 52px);
-  line-height: 0.98;
-  letter-spacing: -0.035em;
-  text-wrap: balance;
-}
-
-.rink-copy > p {
-  max-width: 44ch;
-  margin-top: 18px;
-  color: var(--steel);
-  font-size: 17px;
-  line-height: 1.5;
-}
-
-.rink-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 18px;
-  align-items: center;
-  margin-top: 26px;
-}
-
-.rink-actions a {
-  font-weight: 600;
-  font-size: 14.5px;
-}
-
-.rink-actions .btn-primary {
-  border-radius: 999px;
-  padding: 10px 20px;
-}
-
-.rink-actions .btn-quiet {
-  color: var(--blue);
-  border-bottom: 1.5px solid var(--blue-soft);
-  padding-bottom: 1px;
-}
-
-.rink-actions .btn-quiet:hover {
-  border-color: var(--blue);
 }
 
 .shot-chart {
@@ -419,16 +344,6 @@ code {
 .shot-chart figcaption b {
   color: var(--ink);
   font-weight: 600;
-}
-
-@media (max-width: 900px) {
-  .rink {
-    grid-template-columns: 1fr;
-    border-radius: 22px;
-  }
-  .rink h1 {
-    max-width: 20ch;
-  }
 }
 
 .hero {
@@ -2605,16 +2520,6 @@ tbody tr.tier-start td {
 @media (max-width: 760px) {
   .nav-links {
     gap: 14px;
-  }
-
-  .nav-links a {
-    display: none;
-  }
-
-  .nav-links a[href="#results"],
-  .nav-links a[href="#analysis"] {
-    display: block;
-    padding-block: 18px;
   }
 
   .results-shell {

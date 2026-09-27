@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { useTheme } from "../theme";
+import { REPO, routes, type PageKey } from "../site";
 
 export function Logo({ size = 24 }: { size?: number }) {
   return (
@@ -13,15 +13,10 @@ export function Logo({ size = 24 }: { size?: number }) {
   );
 }
 
-const LINKS = [
-  { href: "#results", label: "Results" },
-  { href: "#profile", label: "Model" },
-  { href: "#analysis", label: "Analysis" },
-  { href: "#decision-lane", label: "Decision lane" },
-  { href: "#agentic-lane", label: "2.0 agentic" },
-  { href: "#replay", label: "Replays" },
-  { href: "#protocol", label: "Protocol" },
-  { href: "#quickstart", label: "Run" },
+const LINKS: { page: PageKey; href: string; label: string }[] = [
+  { page: "results", href: routes.results, label: "Results" },
+  { page: "replays", href: routes.replays, label: "Replays" },
+  { page: "protocol", href: routes.protocol, label: "Protocol" },
 ];
 
 function ThemeToggle() {
@@ -40,29 +35,11 @@ function ThemeToggle() {
   );
 }
 
-export default function Nav({
-  contract,
-  showAgenticLane = false,
-}: {
-  contract?: string;
-  /** The 2.0 section renders only once a panel-grade row exists; so does its link. */
-  showAgenticLane?: boolean;
-}) {
-  const links = LINKS.filter((link) => showAgenticLane || link.href !== "#agentic-lane");
-  const [active, setActive] = useState(() =>
-    typeof window === "undefined" ? "#results" : window.location.hash || "#results",
-  );
-
-  useEffect(() => {
-    const update = () => setActive(window.location.hash || "#results");
-    window.addEventListener("hashchange", update);
-    return () => window.removeEventListener("hashchange", update);
-  }, []);
-
+export default function Nav({ contract, page }: { contract?: string; page: PageKey }) {
   return (
     <header className="nav">
       <div className="shell nav-inner">
-        <a href="#results" className="brand">
+        <a href={routes.home} className="brand" aria-current={page === "home" ? "page" : undefined}>
           <Logo />
           GM-Bench
           {/* The release label is data, not decoration: it must move with the
@@ -70,15 +47,19 @@ export default function Nav({
           <span className="brand-tag">{contract ?? "unversioned"}</span>
         </a>
         <nav className="nav-links" aria-label="Primary navigation">
-          {links.map((link) => (
+          {LINKS.map((link) => (
             <a
-              key={link.href}
+              key={link.page}
               href={link.href}
-              className={active === link.href ? "is-active" : undefined}
+              className={page === link.page ? "is-active" : undefined}
+              aria-current={page === link.page ? "page" : undefined}
             >
               {link.label}
             </a>
           ))}
+          <a href={REPO} className="nav-github">
+            GitHub
+          </a>
           <ThemeToggle />
         </nav>
       </div>
