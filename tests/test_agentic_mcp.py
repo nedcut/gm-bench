@@ -929,6 +929,117 @@ def test_run_harness_runs_the_kill_hook_after_killing_the_client(tmp_path: Path)
     assert killed == ["stalled"]
 
 
+def _fake_docker_with_a_running_harness(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """A stand-in docker CLI for a whole ``gm-bench agentic --isolation container`` run.
+
+    It answers the image build, version and sandbox probes like a clean
+    image; a harness ``docker run --name ...`` writes its pid to ``started``
+    and then sits there, like the client of a harness that is still working.
+    """
+    from gm_bench.agentic.container import CONTAINER_OPENCODE_VERSION, EGRESS_ENTRYPOINT
+
+    log = tmp_path / "docker-calls.jsonl"
+    started = tmp_path / "harness-started"
+    script = tmp_path / "fake-docker"
+    report = {"uid": 1000, "cap_eff": "0" * 16, "cap_bnd": "0" * 16, "canary_reachable": False}
+    script.write_text(
+        f"#!{sys.executable}\n"
+        "import json, os, sys, time\n"
+        "args = sys.argv[1:]\n"
+        f"open({str(log)!r}, 'a').write(json.dumps(args) + '\\n')\n"
+        "if args[:1] == ['version']:\n"
+        "    print('27.0.0')\n"
+        "elif args[:2] == ['image', 'inspect']:\n"
+        "    print('sha256:' + 'a' * 64)\n"
+        "elif args[:1] == ['run'] and args[-1:] == ['--version']:\n"
+        f"    print({CONTAINER_OPENCODE_VERSION!r})\n"
+        "elif 'import gm_bench' in args:\n"
+        "    sys.stderr.write(\"ModuleNotFoundError: No module named 'gm_bench'\\n\")\n"
+        "    sys.exit(1)\n"
+        f"elif {EGRESS_ENTRYPOINT!r} in args and '-c' in args:\n"
+        f"    print(json.dumps({report!r}))\n"
+        "elif args[:1] == ['run'] and '--name' in args:\n"
+        f"    open({str(started)!r}, 'w').write(str(os.getpid()))\n"
+        "    time.sleep(120)\n"
+    )
+    script.chmod(0o755)
+    return script, log, started
+
+
+def _alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+@pytest.mark.parametrize(("signum", "exit_codes"), [(15, {143}), (2, {-2, 130})])
+def test_a_stopped_agentic_driver_removes_its_harness_container_and_home_volume(
+    tmp_path: Path, signum: int, exit_codes: set[int]
+) -> None:
+    """``pkill`` (SIGTERM) or Ctrl-C (SIGINT) on the driver must not leave the harness container running.
+
+    Killing the ``docker run`` client does not stop a container, and Python's
+    default SIGTERM skips every ``finally``, so the container kept spending
+    the model's quota after its driver was gone.
+    """
+    import signal
+
+    docker, log, started = _fake_docker_with_a_running_harness(tmp_path)
+    driver = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "gm_bench",
+            "agentic",
+            "--model",
+            "fake/model",
+            "--seeds",
+            "11",
+            "--seasons",
+            "1",
+            "--output",
+            str(tmp_path / "run"),
+            "--isolation",
+            "container",
+            "--docker",
+            str(docker),
+        ],
+        cwd=tmp_path,
+        env={**os.environ, "PYTHONPATH": str(REPO_ROOT)},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        deadline = time.monotonic() + 60
+        while not (started.exists() and started.read_text()) and driver.poll() is None:
+            assert time.monotonic() < deadline, "the harness never started"
+            time.sleep(0.05)
+        assert driver.poll() is None, driver.communicate()
+        client = int(started.read_text())
+        assert _alive(client)
+        driver.send_signal(signal.Signals(signum))
+        _out, err = driver.communicate(timeout=60)
+    finally:
+        if driver.poll() is None:
+            driver.kill()
+            driver.wait()
+    assert driver.returncode in exit_codes, err
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    [harness] = [call for call in calls if call[:1] == ["run"] and "--name" in call]
+    name = harness[harness.index("--name") + 1]
+    volume = next(call[2] for call in calls if call[:2] == ["volume", "create"])
+    # The named container was removed first, then the episode's home volume.
+    removals = [call for call in calls if call[:1] == ["rm"] or call[:2] == ["volume", "rm"]]
+    assert removals[0] == ["rm", "--force", name]
+    assert removals[-1] == ["volume", "rm", "--force", volume]
+    # And the ``docker run`` client the driver started is gone too.
+    assert not _alive(client)
+    assert not (tmp_path / "run" / "run.json").exists()
+
+
 # -- provider stalls ------------------------------------------------------------
 
 _RATE_LIMIT_ERROR = {
