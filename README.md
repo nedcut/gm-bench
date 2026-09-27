@@ -45,10 +45,11 @@ started.
 - Committed so far: `smoke` rows on public seeds under `results/agentic/`:
   eight seeds on a free OpenCode model, and one five-season episode each on
   Codex (`gpt-6-luna`) and Claude Code (`claude-sonnet-5`).
-- Panel-grade results: Codex (`gpt-6-luna`) on the frozen 32-seed private
-  panel, mean 227.4. It trails the `pick-trader` heuristic by 21.8 points
-  (95% interval -43.3 to +0.1), which is not significant. The site's 2.0
-  section shows it.
+- Panel-grade results on the frozen 32-seed private panel: Codex
+  (`gpt-6-luna`) mean 227.4 and Claude Code (`claude-sonnet-5`) mean 227.4.
+  Both trail the `pick-trader` heuristic by about 22 points (Codex -21.8,
+  95% interval -43.3 to +0.1; Claude -21.8, -47.2 to +3.5), and neither gap
+  is significant. The site's 2.0 section shows them.
 
 The frozen design is in [docs/bench_v2_spec.md](docs/bench_v2_spec.md) and the
 operator guide is [docs/agentic_lane.md](docs/agentic_lane.md).
