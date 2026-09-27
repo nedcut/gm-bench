@@ -664,7 +664,13 @@ in any saved file). A five-season container smoke on seed 11 (2026-09-25)
 is committed at `results/agentic/claude-2.1.281-claude-sonnet-5-smoke-1x5.json`:
 score 248.0, 20/20 phases closed by the agent, no nudges, provider stalls or
 compactions, 180 tool calls, 19.8 min, 16.8M input tokens, $5.05 at API
-prices. No panel-grade Claude row exists yet. Every Claude episode spends your Claude subscription's
+prices. The 32-seed private panel at five seasons in a container
+(2026-09-27) is committed at
+`results/agentic/claude-2.1.281-claude-sonnet-5-panel-32x5.json`: mean
+227.4, 640/640 phases closed by the agent, no nudges, provider stalls or
+compactions, 14.5 min per episode, $157 at API prices for the panel, and no
+subscription limit hit. One episode's recorded tool-call agreement (165/166)
+came from a parser bug and is published as the recount (165/165). Every Claude episode spends your Claude subscription's
 quota (or API money with `ANTHROPIC_API_KEY`). Run it serially (the driver
 has no parallel mode), smoke one short episode before a panel, and budget a
 full panel as hours of quota.
