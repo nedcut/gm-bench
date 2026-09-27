@@ -8,8 +8,12 @@ const STORAGE_KEY = "gm-bench-theme";
    choice wins. The HTML entries apply the same rule before first paint. */
 function initialTheme(): Theme {
   if (typeof window === "undefined") return "dark";
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  return stored === "light" ? "light" : "dark";
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) === "light" ? "light" : "dark";
+  } catch {
+    // Storage can be blocked (privacy settings, sandboxed frames); fall back to the default.
+    return "dark";
+  }
 }
 
 /* Single source of truth for the palette: the hook only sets data-theme on
@@ -21,7 +25,11 @@ export function useTheme(): [Theme, () => void] {
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute("data-theme", theme);
-    window.localStorage.setItem(STORAGE_KEY, theme);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, theme);
+    } catch {
+      // Blocked storage only means the choice is not remembered.
+    }
     const meta = document.querySelector('meta[name="theme-color"]');
     meta?.setAttribute("content", theme === "dark" ? "#0c1522" : "#f4f7fa");
   }, [theme]);

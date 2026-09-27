@@ -8,7 +8,8 @@ import ShotChart from "../ShotChart";
    leaderboard record the results page reads; nothing here is typed by hand. */
 export default function Scoreboard({ data, benchmark }: { data: Leaderboard; benchmark: BenchmarkView }) {
   const best = benchmark.models[0]?.mean_score ?? null;
-  const gap = best === null ? null : benchmark.scriptedBar - best;
+  // Signed: negative while every model is below pick-trader, positive once one clears it.
+  const gap = best === null ? null : best - benchmark.scriptedBar;
   const panelMean = benchmark.models[0]?.baseline_panel_mean_score ?? null;
 
   return (
@@ -17,7 +18,18 @@ export default function Scoreboard({ data, benchmark }: { data: Leaderboard; ben
         <div className="board-head">
           <p className="eyebrow">The {data.contract?.benchmark_version ?? "current"} result</p>
           <h2 id="board-title" className="display-2">
-            The scripted policy is still <span className="accent-red">undefeated.</span>
+            {benchmark.modelCount === 0 ? (
+              <>No model results are published yet.</>
+            ) : benchmark.modelsAboveBar === 0 ? (
+              <>
+                The scripted policy is still <span className="accent-red">undefeated.</span>
+              </>
+            ) : (
+              <>
+                {benchmark.modelsAboveBar} of {benchmark.modelCount} models beat the{" "}
+                <span className="accent-red">scripted policy.</span>
+              </>
+            )}
           </h2>
         </div>
         <dl className="board-stats">
@@ -30,7 +42,7 @@ export default function Scoreboard({ data, benchmark }: { data: Leaderboard; ben
           </div>
           <div className="board-stat">
             <dt>points between the closest model and pick-trader</dt>
-            <dd>{gap === null ? "—" : `−${fmt(gap, 1)}`}</dd>
+            <dd>{gap === null ? "—" : `${gap < 0 ? "−" : "+"}${fmt(Math.abs(gap), 1)}`}</dd>
           </div>
           <div className="board-stat">
             <dt>significantly below it, Holm-adjusted at 0.05</dt>
@@ -41,7 +53,11 @@ export default function Scoreboard({ data, benchmark }: { data: Leaderboard; ben
           </div>
         </dl>
         <div className="board-chart">
-          <ShotChart models={benchmark.models} scriptedBar={benchmark.scriptedBar} panelMean={panelMean} />
+          {benchmark.models.length > 0 ? (
+            <ShotChart models={benchmark.models} scriptedBar={benchmark.scriptedBar} panelMean={panelMean} />
+          ) : (
+            <p>No model rows are published yet, so there is nothing to plot.</p>
+          )}
           <div className="board-aside">
             <p>
               <code>pick-trader</code> is one of the scripted baselines that ship with the

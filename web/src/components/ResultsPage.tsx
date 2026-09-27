@@ -14,12 +14,13 @@ const benchmark = buildBenchmarkView(leaderboard);
 
 export default function ResultsPage() {
   const [selectedModelId, setSelectedModelId] = useState(benchmark.models[0]?.id ?? "");
+  const hasDecisionRows = (leaderboard.decision_lane_models ?? []).length > 0;
   const hasAgenticRows = (leaderboard.agentic_lane ?? []).length > 0;
   const jumps = [
     { href: "#results", label: "Scoreboard" },
     { href: "#profile", label: "Model profile" },
     { href: "#analysis", label: "Analysis" },
-    { href: "#decision-lane", label: "Decision lane" },
+    ...(hasDecisionRows ? [{ href: "#decision-lane", label: "Decision lane" }] : []),
     ...(hasAgenticRows ? [{ href: "#agentic-lane", label: "2.0 agentic" }] : []),
   ];
 
