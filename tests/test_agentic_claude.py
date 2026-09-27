@@ -736,6 +736,24 @@ def test_parse_claude_events_counts_tools_once_per_id_and_keeps_the_session_tota
             "msg_4", _tool("toolu_5", "mcp__gm-bench__end_phase"), input_tokens=300, cache_creation_input_tokens=7
         ),
         _assistant("msg_5", _tool("toolu_6", "mcp__other__thing")),
+        # The bare server name is no tool: Claude Code refuses it before any server sees it.
+        _assistant("msg_5", _tool("toolu_8", "mcp__gm-bench")),
+        json.dumps(
+            {
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "content": "<tool_use_error>Error: No such tool available: mcp__gm-bench</tool_use_error>",
+                            "is_error": True,
+                            "tool_use_id": "toolu_8",
+                        }
+                    ],
+                },
+            }
+        ),
         _result(
             {MODEL: _mu(250, 60, 90, 17, 9), "claude-haiku-4-5": _mu(20, 2)},
             cost=0.5,
@@ -750,7 +768,7 @@ def test_parse_claude_events_counts_tools_once_per_id_and_keeps_the_session_tota
         "gm-bench_get_status": 1,
         "gm-bench_scout": 1,
     }
-    assert telemetry["harness_tool_calls_skipped"] == {"WebFetch": 1, "other_thing": 1}
+    assert telemetry["harness_tool_calls_skipped"] == {"WebFetch": 1, "gm-bench_unknown": 1, "other_thing": 1}
     assert opencode.harness_tool_calls(telemetry) == 3
     # The last result per session, not the sum: 250 + 20 uncached, 90 read, 17 written.
     assert (telemetry["input_tokens"], telemetry["uncached_input_tokens"]) == (377, 270)
