@@ -211,8 +211,15 @@ state, cannot damage the host, and cannot carry information between episodes.
   that entity, so the id counts as exposed from then on and the read is
   reported as a guessed read. The audit is a screen for leaked ids, not
   proof; an accepted move on an id with no reply and no read behind it is
-  still a violation. Scout usage above the budget, and moves in the wrong
-  phase, are already protocol violations.
+  still a violation, with one exception added on 2026-09-27: an accepted
+  `draft` whose only unseen id is the prospect it picked is a guessed draft
+  pick, reported as a warning. The `claude-haiku-4-5` panel stopped listing
+  the draft class in late seasons and drafted `1040000`-style ids blind. A
+  prospect id is `1_000_000 + season * 10_000 + index`, and the index is
+  drawn independently of hidden potential (correlation 0.01 over 7,200
+  prospects), so such a pick uses no hidden information. Scout usage above
+  the budget, and moves in the wrong phase, are already protocol
+  violations.
 
 ## Row identity and eligibility
 

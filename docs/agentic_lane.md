@@ -168,8 +168,11 @@ named a player, prospect, team, or offer no earlier reply exposed. Accepted
 moves on unseen ids are `violations`; rejected ones are `suspicious`. Ids are
 sequential, so models do guess them: a successful read on a guessed id
 (`scout`, `inspect_player`, `inspect_team`) is reported as a `guessed_read`
-and the id counts as exposed from that reply on. The audit reports, it does
-not decide; publication does.
+and the id counts as exposed from that reply on. An accepted `draft` on a
+guessed prospect id is a `guessed_draft_pick`, not a violation: prospect ids
+are `1_000_000 + season * 10_000 + index` and the index is independent of
+hidden potential, so the pick is blind. Validation reports it as a warning.
+The audit reports, it does not decide; publication does.
 
 ## Validating a run
 
