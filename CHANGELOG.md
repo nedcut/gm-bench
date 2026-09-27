@@ -8,6 +8,13 @@ correction becomes a new contract version rather than an edit to an old one.
 
 Added 2026-09-20. Nothing published changes.
 
+- Fourth harness (2026-09-27): `gm-bench agentic --harness cursor` drives
+  the Cursor CLI (`cursor-agent` 2026.09.26-dd393fe) through the same
+  episode loop, in same-user isolation only (no pinned image yet). The
+  driver uses a private `HOME`, `CURSOR_CONFIG_DIR` and `CURSOR_DATA_DIR`,
+  keeps the Keychain out, takes a credential from `--cursor-token-file`,
+  and records how many of the account's cloud User Rules reached the prompt.
+  The contract fingerprint does not move.
 - Contract freeze (2026-09-25): the 2.0 contract is frozen as
   `gm-bench-2.0` at agentic fingerprint `07de948a4f4afbae`, and a test pins
   the pair, so any byte change to the tool surface, brief, episode engine or

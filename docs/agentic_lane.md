@@ -895,6 +895,93 @@ poll (`HarnessDriver.invocation_parked`, used only when
 `polls_for_park` is set), and a hook that runs before every invocation
 (`HarnessDriver.before_invocation`, the same-user config re-stage).
 
+## Cursor harness
+
+```bash
+python -m gm_bench agentic --harness cursor --model composer-2.5 \
+  --cursor-token-file /path/to/cursor-token \
+  --seeds 11 --seasons 1 --output /tmp/agentic-cursor
+```
+
+The Cursor CLI (`cursor-agent`) is the fourth harness
+(`gm_bench/agentic/cursor.py`, written against Cursor CLI
+2026.09.26-dd393fe). It runs through the same episode loop as the others. A
+Cursor row is its own row, `cursor/<version> · <model>`.
+
+**Status: same-user only.** Cursor ships the CLI as a downloaded tarball,
+not an npm package, so it has no pinned container image yet and
+`--isolation container` is refused. Same-user rows are `smoke` grade. Every
+Cursor episode spends your Cursor plan. Run it serially.
+
+A live same-user smoke ran on 2026-09-27: `composer-2.5`, seed 11, one
+season. It scored 113.9 with 4/4 phases closed by the agent and 41 GM-Bench
+tool calls, the same count in the ledger and in Cursor's event stream. It
+had no illegal moves, nudges or provider stalls, took 87 s, and used 1.20M
+input tokens (1.14M of them cache reads) and 10k output tokens. No
+credential was in any saved file. That account had 8 User Rules (13,337
+characters) in the prompt (see below), so the run proves the driver works
+and is not a clean row.
+
+What a run does per episode:
+
+1. Stages the proxy, and makes one private directory (mode 0700, outside
+   the scratch, removed at episode end even with `--keep-scratch`) holding
+   the harness's `HOME`, `CURSOR_CONFIG_DIR` and `CURSOR_DATA_DIR`. The only
+   staged file is `$HOME/.cursor/mcp.json` with one stdio server,
+   `gm-bench`, which launches the proxy (by absolute path) on the harness's
+   own `python3` with the socket path. Every other `CURSOR_*` variable is
+   dropped, `AGENT_CLI_CREDENTIAL_STORE=memory` keeps the macOS Keychain out
+   of the run, and `DIRENV_DISABLE=1` stops Cursor loading an `.envrc`
+   above the scratch.
+2. Runs `cursor-agent -p --output-format stream-json --trust --force
+   --approve-mcps --sandbox disabled --model <m> <brief>` in the scratch
+   directory, capturing `seed-<n>/cursor-events.jsonl`. Cursor puts the
+   reasoning effort in the model id (`gpt-5.6-sol-high`), so `--variant` is
+   refused.
+3. Nudges and provider-stall retries run the same command with `--resume
+   <session id>`, which keeps the chat's context.
+4. Before every invocation it removes project config the agent could have
+   written into the scratch (`.cursor/`, `.cursorrules`) and hooks, rules,
+   skills, agents, commands and permission files in `$HOME/.cursor`, and
+   rewrites `mcp.json`. What it removed is recorded as
+   `harness_run.config_dir_findings`.
+
+Authentication. `--cursor-token-file <path>` holds one token: a Cursor API
+key (handed over as `CURSOR_API_KEY`) or a session token, which is a JWT
+(handed over as `CURSOR_AUTH_TOKEN`). Without the file, `CURSOR_API_KEY` or
+`CURSOR_AUTH_TOKEN` from your environment is used. The host's Keychain login
+is never read. The value is replaced with `[REDACTED]` in
+`cursor-events.jsonl` and `cursor-stderr.log` when the episode ends.
+
+**Account User Rules reach the prompt.** Cursor adds the account's
+cloud-synced User Rules (Cursor Settings, Rules) to every prompt, and the
+CLI has no switch to turn that off. The driver counts them in the chat
+store after each episode and records `harness_run.account_user_rules`
+(`{"rules": n, "characters": m}`, never the text). A row whose count is not
+zero was played with your own instructions in the prompt. Before a row you
+mean to publish, clear the User Rules or use an account that has none.
+
+Telemetry. `result.usage` covers one process, not the session, so the
+episode's tokens are the sum of every result (`inputTokens` is uncached;
+`cacheReadTokens` and `cacheWriteTokens` are added to make the inclusive
+input). A killed invocation writes no result, so its tokens are lost and
+`usage_complete` is false. `api_calls` counts completed invocations;
+`harness.model_steps` counts distinct `model_call_id` values on tool events,
+which is a lower bound on model requests. Cost is `None`, and the
+API-equivalent estimate is `None` for any model `pricing.json` does not
+price, including Cursor's Composer models. GM-Bench calls are
+`mcpToolCall` events recorded as `gm-bench_<tool>`. `getMcpToolsToolCall`
+(Cursor reading a tool schema from its cache) never reaches the server and
+is recorded as `get_mcp_tools`.
+
+Errors. A failed run prints plain text on stderr and writes no `result`.
+The driver reads the stderr that each invocation added. Rate limits,
+`resource_exhausted`, `unavailable`, 408, 425, 429 and 5xx statuses,
+timeouts and dropped connections count as provider stalls. A spent plan
+allowance (`usage limit`, `hit your ... limit`) is quota exhaustion. Cursor
+gives no reset time, so the episode and the panel stop. Neither message has
+been seen live yet.
+
 ## Private panel
 
 A full row is the 32-seed private panel (`docs/bench_v2_spec.md`, Panel
