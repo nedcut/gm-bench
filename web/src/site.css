@@ -722,6 +722,12 @@
   color: var(--faint);
 }
 
+.next-status a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .status-dot {
   width: 8px;
   height: 8px;

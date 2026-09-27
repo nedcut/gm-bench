@@ -21,7 +21,7 @@ mountPage(
     <Scoreboard data={leaderboard} benchmark={benchmark} />
     <Season />
     <PlayAlong set={puzzleData as PuzzleSet} />
-    <NextUp />
+    <NextUp data={leaderboard} />
     <Quickstart />
   </>,
 );

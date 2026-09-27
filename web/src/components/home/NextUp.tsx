@@ -1,4 +1,5 @@
-import { REPO_BLOB } from "../../site";
+import type { Leaderboard } from "../../types";
+import { REPO_BLOB, routes } from "../../site";
 
 const HARNESSES = ["OpenCode", "Codex CLI", "Claude Code"];
 
@@ -13,10 +14,13 @@ const TOOL_LOG = [
   ["→", "end_phase", "()"],
 ] as const;
 
-/* A preview of GM-Bench 2.0. Deliberately carries no scores: the 2.0 lane
-   publishes nothing until a panel-grade row exists, and smoke rows never
-   reach the site. When one does, it appears on the results page. */
-export default function NextUp() {
+/* A preview of GM-Bench 2.0. Deliberately carries no scores or order, even
+   once panel rows exist: 2.0 ranks nothing, and a row's only supported
+   comparison is against pick-trader, which the results page shows with its
+   interval. Smoke rows never reach the site, so every row counted here is
+   panel grade. */
+export default function NextUp({ data }: { data: Leaderboard }) {
+  const panelRows = (data.agentic_lane ?? []).length;
   return (
     <section className="next" aria-labelledby="next-title">
       <div className="shell next-inner">
@@ -37,10 +41,21 @@ export default function NextUp() {
               <li key={name}>{name}</li>
             ))}
           </ul>
-          <p className="next-status">
-            <span className="status-dot" aria-hidden="true" /> No panel results yet. They will
-            appear on the results page when the first panel-grade run is published.
-          </p>
+          {panelRows === 0 ? (
+            <p className="next-status">
+              <span className="status-dot" aria-hidden="true" /> No panel results yet. They will
+              appear on the results page when the first panel-grade run is published.
+            </p>
+          ) : (
+            <p className="next-status">
+              <span className="status-dot" aria-hidden="true" />
+              <span>
+                {panelRows} panel {panelRows === 1 ? "row is" : "rows are"} published.{" "}
+                <a href={`${routes.results}#agentic-lane`}>See the 2.0 rows on the results page</a>,
+                each compared only with pick-trader on the same seeds.
+              </span>
+            </p>
+          )}
           <a className="link-arrow" href={`${REPO_BLOB}docs/bench_v2_spec.md`}>
             Read the 2.0 design
           </a>
