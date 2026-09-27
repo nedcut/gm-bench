@@ -179,10 +179,14 @@ python -m gm_bench agentic-validate /tmp/agentic-big-pickle
 
 Exit code 0 means every episode's ledger replays to the recorded score, its
 header seed matches the episode, it audits clean, the GM-Bench tool calls in
-the retained `opencode-events.jsonl` (or `codex-events.jsonl`) equal the
-replayed ledger's (the recorded agreement is checked against that recount,
-not trusted), and the run's contract block matches this checkout's
-`agentic_contract()`. Failed phases, timeouts, guard stops, and missing
+the retained `opencode-events.jsonl` (or `codex-events.jsonl`,
+`claude-events.jsonl`) equal the replayed ledger's, and the run's contract
+block matches this checkout's `agentic_contract()`. The agreement the driver
+recorded is checked against that recount, not trusted: a recorded agreement
+the recount contradicts is a problem. A recorded mismatch that the recount
+resolves, because the driver's event parser has since been fixed, is a
+warning, and `agentic-redact` publishes the recount with the recorded figure
+beside it as `recorded`. Failed phases, timeouts, guard stops, and missing
 telemetry are warnings: reported, never hidden, never fatal. A missing event
 stream is a problem.
 
