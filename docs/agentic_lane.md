@@ -416,7 +416,11 @@ full panel as hours of quota. The driver is tested against a stand-in
 20/20 phases closed by the agent, no nudges or provider stalls, 134 tool
 calls, 10.7 min, 13.0M input tokens, $0.18 at API prices. After it the
 Codex five-hour quota window read 78% used; the run records only that end
-reading, so check the window before a panel.
+reading, so check the window before a panel. The first panel-grade row,
+the 32-seed private panel at five seasons in a container (2026-09-26), is
+committed at `results/agentic/codex-0.156.1-gpt-6-luna-panel-32x5.json`:
+mean 227.4, 640/640 phases closed by the agent, no nudges, provider stalls
+or quota pauses, 10.3 min per episode, $4.54 at API prices for the panel.
 
 What a run does per episode:
 

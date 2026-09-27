@@ -1,7 +1,6 @@
 """The site's GM-Bench 2.0 section: panel-grade rows only, kept apart from every 1.0 table.
 
-No panel-grade row exists yet, so the panel rows here are fixtures built in
-memory from the committed smoke row (grade, isolation, and seed groups edited,
+The panel rows here are fixtures built in memory from the committed smoke row (grade, isolation, and seed groups edited,
 plus a synthetic reference block coherent with the row) and written to a
 temporary directory, never under ``results/agentic/``.
 """
@@ -82,11 +81,12 @@ def _build(
     return build_study(root=root, output_path=tmp_path / "leaderboard.json", agentic_dir=agentic_dir)
 
 
-def test_current_results_publish_an_empty_agentic_lane(tmp_path: Path) -> None:
-    """Only a smoke row is committed today, so the site's 2.0 section has nothing to show."""
+def test_current_results_publish_only_the_committed_panel_rows(tmp_path: Path) -> None:
+    """The site's 2.0 section shows the committed panel rows and none of the smoke rows."""
     assert _smoke()["grade"] == "smoke"
     dataset = build_study(output_path=tmp_path / "leaderboard.json")
-    assert dataset["agentic_lane"] == []
+    assert [row["id"] for row in dataset["agentic_lane"]] == ["agentic:codex-0.156.1:gpt-6-luna"]
+    assert all(row["grade"] == "panel" for row in dataset["agentic_lane"])
     assert json.loads(SITE_DATASET.read_text()) == dataset
 
 
