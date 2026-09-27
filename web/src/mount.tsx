@@ -5,6 +5,7 @@ import type { Leaderboard } from "./types";
 import type { PageKey } from "./site";
 import Nav from "./components/Nav";
 import Footer from "./components/Footer";
+import ScrollToHash from "./components/ScrollToHash";
 import "./index.css";
 import "./site.css";
 
@@ -22,6 +23,7 @@ export function mountPage(page: PageKey, children: ReactNode) {
         {children}
       </main>
       <Footer data={leaderboard} />
+      <ScrollToHash />
     </StrictMode>,
   );
 }
