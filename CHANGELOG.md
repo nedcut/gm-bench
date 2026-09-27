@@ -8,6 +8,15 @@ correction becomes a new contract version rather than an edit to an old one.
 
 Added 2026-09-20. Nothing published changes.
 
+- Prompt check (2026-09-27): before a panel, `gm-bench agentic` launches the
+  harness once against a loopback capture server and searches what it would
+  send the model for the operator's home path, instruction files and skills.
+  It refuses the panel on any hit, and on no captured request. The check is
+  recorded as `run.json` `prompt_check` and published with the row, and a
+  recorded failure fails validation. It found that same-user OpenCode sent
+  the operator's global `AGENTS.md` and 16 personal skills. Same-user
+  OpenCode now gets a private home and `XDG_*` directories. No committed row
+  is affected: every one is a container run, whose home is a fresh volume.
 - Fourth harness (2026-09-27): `gm-bench agentic --harness cursor` drives
   the Cursor CLI (`cursor-agent` 2026.09.26-dd393fe) through the same
   episode loop, in same-user isolation only (no pinned image yet). The

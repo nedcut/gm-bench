@@ -35,6 +35,7 @@ from gm_bench.agentic.audit import audit_ledger
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import AgenticEpisode
 from gm_bench.agentic.opencode import harness_tool_calls
+from gm_bench.agentic.prompt_check import prompt_check_problems
 
 _CONTRACT_KEYS = ("base_contract_fingerprint", "agentic_fingerprint", "tool_surface", "brief", "scoring_version")
 # How to read each harness's retained event stream when recounting its GM-Bench tool calls.
@@ -70,6 +71,7 @@ def validate_run(run_path: str | Path) -> dict[str, Any]:
         run_warnings.append("repeated seeds present; within-seed noise is measurable but the panel is not one-per-seed")
 
     harness_name = (run.get("harness") or {}).get("name")
+    run_problems.extend(prompt_check_problems(run))
     per_episode = []
     problems = list(run_problems)
     warnings = list(run_warnings)

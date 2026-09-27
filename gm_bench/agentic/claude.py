@@ -969,6 +969,11 @@ class ClaudeDriver(HarnessDriver):
     ) -> list[str]:
         return [*self._options(model, variant, workdir), "--resume", session_id, "--", text]
 
+    prompt_capture_unavailable = None
+
+    def capture_overrides(self, args: list[str], *, model: str, base_url: str) -> tuple[list[str], dict[str, str]]:
+        return args, {"ANTHROPIC_BASE_URL": base_url}
+
     def parse_events(self, lines: list[str]) -> dict[str, Any]:
         return parse_claude_events(lines)
 

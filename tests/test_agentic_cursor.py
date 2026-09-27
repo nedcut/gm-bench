@@ -29,6 +29,7 @@ from gm_bench.agentic.cursor import (
     quota_exhaustion,
     token_env,
 )
+from gm_bench.agentic.prompt_check import OperatorMarkers, operator_content
 
 DUMMY_KEY = "key_dummy-not-a-real-cursor-api-key-0000"
 DUMMY_JWT = "eyJhbGciOiJIUzI1NiJ9.eyJkdW1teSI6dHJ1ZX0.dummy-signature-0000"
@@ -207,7 +208,13 @@ def test_cursor_panel_plays_through_the_staged_proxy_nudges_by_resume_and_valida
     binary, log = _fake_cursor(tmp_path, [{"phases": 1}, {"phases": 3}], monkeypatch)
     run_dir = tmp_path / "run"
     payload = cursor.run_panel(
-        [11], model=MODEL, run_dir=run_dir, seasons=1, binary=str(binary), token_file=_token_file(tmp_path)
+        [11],
+        model=MODEL,
+        run_dir=run_dir,
+        seasons=1,
+        binary=str(binary),
+        token_file=_token_file(tmp_path),
+        prompt_check=True,
     )
     assert payload["agent"] == f"cursor:{MODEL}"
     assert payload["harness"] == {"name": "cursor", "version": "2026.09.26-dd393fe", "model": MODEL, "variant": None}
@@ -268,7 +275,9 @@ def test_cursor_panel_plays_through_the_staged_proxy_nudges_by_resume_and_valida
         "unexpected": [],
         "user_rules": 0,
         "user_rule_characters": 0,
+        "operator_content": [],
     }
+    assert payload["prompt_check"]["checked"] is True and payload["prompt_check"]["problems"] == []
     # The one-word prompt check ran first, in the same credential setup, before any episode.
     [probe] = [json.loads(line) for line in Path(f"{log}.probes").read_text().splitlines()]
     assert probe["argv"][-1] == cursor.PROBE_PROMPT and probe["cursor_env"] == first["cursor_env"]
@@ -500,15 +509,22 @@ def test_prompt_audit_names_sections_and_counts_rules_never_copies_them(tmp_path
     db.execute("INSERT INTO blobs VALUES ('b', ?)", (b"\x00binary",))
     db.commit()
     db.close()
-    audit = prompt_audit(tmp_path)
+    audit = prompt_audit(tmp_path, OperatorMarkers(home="/no-such-operator-home"))
     assert audit == {
         "sections": ["agent_skills", "cloud_instructions", "rules", "user_info"],
         "unexpected": ["cloud_instructions", "rules"],
         "user_rules": 2,
         "user_rule_characters": 8,
+        "operator_content": [],
     }
     assert "three" not in json.dumps(audit)
     assert prompt_audit(tmp_path / "missing") is None
+    # The operator's own instruction lines in Cursor's context are caught like any harness's.
+    markers = OperatorMarkers(home="/h", lines={"Text between sections, long enough to be distinctive.": "AGENTS.md"})
+    content_with_line = content.replace(
+        "text between sections.", "Text between sections, long enough to be distinctive."
+    )
+    assert operator_content([content_with_line], markers) == ["1 line(s) of ~/AGENTS.md"]
     assert prompt_audit_problems("cursor", {"prompt_audit": audit}) == [
         "prompt carried context from outside the harness: cloud_instructions, rules (2 account User Rules)"
     ]
@@ -520,9 +536,15 @@ def test_a_panel_whose_prompt_carries_account_rules_is_refused_before_it_starts(
 ) -> None:
     binary, log = _fake_cursor(tmp_path, [{"phases": 4}], monkeypatch, rules=["Always commit with a haiku."])
     run_dir = tmp_path / "run"
-    with pytest.raises(ValueError, match=r"prompt carried context from outside the harness: rules \(1 account"):
+    with pytest.raises(cursor.PromptCheckError, match=r"outside the harness: rules \(1 account.*Cursor Settings"):
         cursor.run_panel(
-            [11], model=MODEL, run_dir=run_dir, seasons=1, binary=str(binary), token_file=_token_file(tmp_path)
+            [11],
+            model=MODEL,
+            run_dir=run_dir,
+            seasons=1,
+            binary=str(binary),
+            token_file=_token_file(tmp_path),
+            prompt_check=True,
         )
     assert not run_dir.exists() and not log.exists()
 
@@ -533,10 +555,8 @@ def test_an_episode_whose_prompt_carried_rules_fails_validation_and_publication(
     from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
     from gm_bench.agentic.validate import validate_run
 
-    # Rules the account gained after the prompt check passed.
+    # A run without the prompt check (or rules the account gained after it passed).
     binary, _log = _fake_cursor(tmp_path, [{"phases": 4}], monkeypatch, rules=["Be terse."])
-    clean = {"sections": ["user_info"], "unexpected": [], "user_rules": 0, "user_rule_characters": 0}
-    monkeypatch.setattr(cursor, "probe_prompt", lambda **kwargs: clean)
     run_dir = tmp_path / "run"
     payload = cursor.run_panel(
         [11], model=MODEL, run_dir=run_dir, seasons=1, binary=str(binary), token_file=_token_file(tmp_path)

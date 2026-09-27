@@ -26,7 +26,13 @@ For each seed, serially:
 3. It checks the sandbox and refuses to start if the scratch directory sits
    under a GM-Bench checkout or if `python3` on the harness's `PATH` can
    `import gm_bench`. The harness environment is the operator's minus every
-   `GM_BENCH_*` variable, Python path overrides, and the virtualenv.
+   `GM_BENCH_*` variable, Python path overrides, and the virtualenv. A
+   same-user OpenCode run also gets a private home (mode 0700, outside the
+   scratch, removed at episode end): `HOME` and every `XDG_*` base
+   directory point into it and every `OPENCODE_*` variable is dropped.
+   Otherwise OpenCode reads the operator's `~/.config/opencode/AGENTS.md`
+   and the skills in `~/.agents/skills` and `~/.claude/skills`, and puts
+   them in the prompt. `--pure` does not stop that.
 4. It runs `opencode run --format json --pure --auto --dir <scratch>` with the
    task brief from `gm_bench/agentic/brief.py` as the message and captures
    the event stream to `seed-<n>/opencode-events.jsonl`.
@@ -170,6 +176,61 @@ sequential, so models do guess them: a successful read on a guessed id
 (`scout`, `inspect_player`, `inspect_team`) is reported as a `guessed_read`
 and the id counts as exposed from that reply on. The audit reports, it does
 not decide; publication does.
+
+## The prompt check
+
+Before a panel's first episode, `gm-bench agentic` proves what the harness
+would send the model (`gm_bench/agentic/prompt_check.py`). It launches the
+harness once, set up exactly as an episode's first invocation (same driver,
+environment, staged files, command line and brief). The only change is
+that the model endpoint is a capture server on the loopback:
+`ANTHROPIC_BASE_URL` for Claude Code, `openai_base_url` and
+`chatgpt_base_url` for Codex (plus uncompressed request bodies), and the
+model's provider `baseURL` for OpenCode. The server records each model
+request and answers with one word, so no provider is contacted and nothing
+is spent. It also acts as the harness's HTTP(S) proxy and refuses every
+other connection, recording the host.
+
+The captured requests are then searched for the operator's content:
+
+- the operator's home directory path;
+- any line of 40 characters or more from their instruction files
+  (`~/AGENTS.md`, `~/.agents/AGENTS.md`, `~/.codex/AGENTS.md`,
+  `~/.claude/CLAUDE.md`, `~/.config/opencode/AGENTS.md`, and others);
+- the description of any skill under `~/.agents/skills`, `~/.claude/skills`,
+  `~/.codex/skills` or `~/.config/opencode/skills` (dot directories such as
+  Codex's bundled `skills/.system` are skipped).
+
+A check that captured no model request fails too, because it proved
+nothing. If the check finds anything, the panel does not start
+(`PromptCheckError`). The record is kept as `run.json` `prompt_check` and
+published with the row. `agentic-validate` and the published-row check
+refuse a run whose recorded check has problems. `--skip-prompt-check` is
+for development and records `prompt_check: null`.
+
+Cursor builds its prompt on Cursor's servers, so its check is a one-word
+chat whose recorded context is audited instead (see "Cursor harness"),
+followed by the same search. Container runs are recorded as not checked:
+only the scratch directory and a fresh home volume reach the harness, and
+its egress firewall keeps it from reaching a loopback server.
+
+What the check cannot see: anything a provider adds on its own servers, and
+what an account endpoint would return (a ChatGPT-login Codex fetches
+plugins, apps and user settings at startup; the check answers those itself).
+
+First results, 2026-09-27, same-user, on the operator's Mac:
+
+| Harness | Model requests | Operator content |
+|---|---|---|
+| OpenCode 1.18.32 as launched before this fix | 2 | home path 19 times, 21 lines of `~/.agents/AGENTS.md`, 16 operator skills |
+| OpenCode 1.18.32 with the private home | 2 | none |
+| Claude Code (`claude` on PATH) | 1 | none |
+| Codex 0.157.1 (native binary) | 1 | none |
+
+With the `codex` on that Mac's PATH (a Node wrapper) the check failed
+closed: the wrapper's `node` is a version-manager shim that tries to
+download Node into the fresh home, so the harness never reached the model.
+Pass the native binary with `--binary` there.
 
 ## Validating a run
 
@@ -966,9 +1027,10 @@ sections. Cursor itself adds `user_info`, `agent_transcripts`,
 workspace rules), cloud instructions, memories, or a section Cursor adds in
 a later version.
 
-- Before a panel, `run_panel` makes one one-word call (`--mode ask`, "Reply
-  with the single word ok.") in a throwaway workspace set up like an
-  episode's, and refuses to start if that prompt has an unexpected section.
+- Before a panel, the prompt check (see "The prompt check") makes one
+  one-word call (`--mode ask`, "Reply with the single word ok.") in a
+  throwaway workspace set up like an episode's. It refuses to start if that
+  prompt has an unexpected section or any of the operator's own content.
 - Every episode records `harness_run.prompt_audit` (section names, the
   unexpected ones, and how many User Rules and characters, never their
   text), and published rows carry it.

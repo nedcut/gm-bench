@@ -388,6 +388,12 @@ def main(argv: list[str] | None = None) -> None:
         help="file holding a Cursor API key or session token (--harness cursor only), handed to the harness as "
         "CURSOR_API_KEY or CURSOR_AUTH_TOKEN, never on a command line; the host Cursor login is not used",
     )
+    agentic_parser.add_argument(
+        "--skip-prompt-check",
+        action="store_true",
+        help="do not first prove what the harness would send the model (recorded as prompt_check: null); "
+        "for development only",
+    )
     agentic_parser.add_argument("--keep-scratch", action="store_true", help="leave the agent workspace on disk")
     agentic_parser.add_argument("--json", action="store_true")
 
@@ -1252,6 +1258,7 @@ def _agentic_command(args: argparse.Namespace) -> None:
     from gm_bench.agentic import cursor as cursor_driver
     from gm_bench.agentic import opencode as opencode_driver
     from gm_bench.agentic.container import ContainerError
+    from gm_bench.agentic.prompt_check import PromptCheckError
     from gm_bench.agentic.publication import seed_groups
 
     if args.codex_auth_file and args.harness != "codex":
@@ -1321,10 +1328,11 @@ def _agentic_command(args: argparse.Namespace) -> None:
                 name_episodes_by_position=private,
                 isolation=args.isolation,
                 docker=args.docker,
+                prompt_check=not args.skip_prompt_check,
                 **harness_options,
             )
-    except (ContainerError, cursor_driver.PromptCheckError) as exc:
-        # Docker missing or not running, the harness image would not build, or Cursor's prompt is not clean.
+    except (ContainerError, PromptCheckError) as exc:
+        # Docker missing or not running, the harness image would not build, or the prompt check failed.
         raise SystemExit(f"gm-bench agentic: {exc}") from None
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))

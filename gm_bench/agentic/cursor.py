@@ -94,9 +94,10 @@ live probes on composer-2.5 on 2026-09-27):
   its outermost sections and flags any outside :data:`HARNESS_SECTIONS`
   (User Rules, workspace rules, cloud instructions, memories, anything new),
   recording names and counts, never text, as ``harness_run.prompt_audit``.
-  :func:`run_panel` first makes one one-word call in a throwaway workspace
-  set up like an episode's (:func:`probe_prompt`) and refuses the panel if
-  that prompt carries anything unexpected; ``agentic-validate`` and the
+  The pre-panel prompt check (:meth:`CursorDriver.check_prompt`, on from the
+  CLI) makes one one-word call in a throwaway workspace set up like an
+  episode's (:func:`probe_prompt`) and refuses the panel if that prompt
+  carries anything unexpected or any of the operator's own content; ``agentic-validate`` and the
   published-row check refuse a Cursor episode whose audit is missing or not
   clean (:func:`prompt_audit_problems`).
 - **Authentication.** ``--cursor-token-file <path>`` holds one token: a
@@ -131,6 +132,7 @@ from gm_bench.agentic import opencode
 from gm_bench.agentic.codex import REDACTED, api_equivalent_fields, redact_file
 from gm_bench.agentic.harness import HarnessDriver
 from gm_bench.agentic.opencode import PROXY_FILENAME, HarnessLaunch, stage_proxy
+from gm_bench.agentic.prompt_check import OperatorMarkers, PromptCheckError, operator_content, operator_markers
 
 HARNESS_NAME = "cursor"
 MCP_SERVER_NAME = "gm-bench"
@@ -406,10 +408,6 @@ HARNESS_SECTIONS = frozenset(
 PROBE_PROMPT = "Reply with the single word ok."
 
 
-class PromptCheckError(ValueError):
-    """The one-word prompt check failed, or its prompt carried context from outside the harness."""
-
-
 _SECTION_OPEN_RE = re.compile(r"<([a-z][a-z0-9_-]*)(?:\s[^>]*)?>")
 
 
@@ -452,7 +450,7 @@ def _context_messages(config_dir: Path) -> list[str]:
     return found
 
 
-def prompt_audit(config_dir: Path) -> dict[str, Any] | None:
+def prompt_audit(config_dir: Path, markers: OperatorMarkers | None = None) -> dict[str, Any] | None:
     """What Cursor put in the episode's prompt besides the brief; ``None`` when no chat store was readable.
 
     ``sections``: every outermost section of the context messages;
@@ -470,6 +468,7 @@ def prompt_audit(config_dir: Path) -> dict[str, Any] | None:
         "unexpected": [name for name in sections if name not in HARNESS_SECTIONS],
         "user_rules": max(len(found) for found in rules),
         "user_rule_characters": max(sum(len(rule) for rule in found) for found in rules),
+        "operator_content": operator_content(messages, operator_markers() if markers is None else markers),
     }
 
 
@@ -480,12 +479,14 @@ def prompt_audit_problems(harness_name: str | None, harness_run: dict[str, Any])
     audit = harness_run.get("prompt_audit")
     if not isinstance(audit, dict):
         return ["no prompt audit: nothing shows the prompt held only the harness's own context"]
+    problems = []
     if audit.get("unexpected"):
-        return [
+        problems.append(
             f"prompt carried context from outside the harness: {', '.join(audit['unexpected'])} "
             f"({audit.get('user_rules', 0)} account User Rules)"
-        ]
-    return []
+        )
+    problems += [f"prompt carried the operator's content: {found}" for found in audit.get("operator_content") or []]
+    return problems
 
 
 def probe_prompt(*, model: str, binary: str = "cursor-agent", token_file: str | Path | None = None) -> dict[str, Any]:
@@ -584,6 +585,22 @@ class CursorDriver(HarnessDriver):
 
     def version(self, binary: str) -> str | None:
         return cursor_version(binary)
+
+    def check_prompt(self, *, binary: str, model: str, variant: str | None) -> dict[str, Any]:
+        """Cursor builds its prompt on its servers, so no loopback capture: audit a one-word chat instead."""
+        audit = probe_prompt(model=model, binary=binary, token_file=self.token_file)
+        problems = prompt_audit_problems(HARNESS_NAME, {"prompt_audit": audit})
+        if audit["user_rules"]:
+            problems.append(
+                "Cursor's servers add the account's User Rules to every prompt: clear them in Cursor Settings > "
+                "Rules (keep a copy to restore afterwards) and run again"
+            )
+        return {
+            "checked": True,
+            "method": "one-word prompt; the context Cursor recorded",
+            **audit,
+            "problems": problems,
+        }
 
     def ensure_image(self, *, docker: str, env: dict[str, str]) -> dict[str, Any]:
         raise ValueError("--harness cursor has no container image")
@@ -769,19 +786,5 @@ def run_episode(
 def run_panel(
     seeds: list[int], *, binary: str = "cursor-agent", token_file: str | Path | None = None, **kwargs: Any
 ) -> dict[str, Any]:
-    """``opencode.run_panel`` with the Cursor driver; seeds run serially.
-
-    First a one-word prompt check (:func:`probe_prompt`): a panel whose prompt
-    would carry anything from outside the harness is refused before it starts.
-    """
-    driver = CursorDriver(token_file=token_file)
-    driver.preflight(kwargs.get("isolation", "same-user"))
-    problems = prompt_audit_problems(
-        HARNESS_NAME, {"prompt_audit": probe_prompt(model=kwargs["model"], binary=binary, token_file=token_file)}
-    )
-    if problems:
-        raise PromptCheckError(
-            f"Cursor prompt check: {problems[0]}. Cursor's servers add the account's User Rules to every prompt; "
-            "clear them in Cursor Settings > Rules (keep a copy to restore afterwards) and run again"
-        )
-    return opencode.run_panel(seeds, binary=binary, driver=driver, **kwargs)
+    """``opencode.run_panel`` with the Cursor driver; seeds run serially."""
+    return opencode.run_panel(seeds, binary=binary, driver=CursorDriver(token_file=token_file), **kwargs)
