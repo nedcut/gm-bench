@@ -736,6 +736,24 @@ def test_parse_claude_events_counts_tools_once_per_id_and_keeps_the_session_tota
             "msg_4", _tool("toolu_5", "mcp__gm-bench__end_phase"), input_tokens=300, cache_creation_input_tokens=7
         ),
         _assistant("msg_5", _tool("toolu_6", "mcp__other__thing")),
+        # The bare server name is no tool: Claude Code refuses it before any server sees it.
+        _assistant("msg_5", _tool("toolu_8", "mcp__gm-bench")),
+        json.dumps(
+            {
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "content": "<tool_use_error>Error: No such tool available: mcp__gm-bench</tool_use_error>",
+                            "is_error": True,
+                            "tool_use_id": "toolu_8",
+                        }
+                    ],
+                },
+            }
+        ),
         _result(
             {MODEL: _mu(250, 60, 90, 17, 9), "claude-haiku-4-5": _mu(20, 2)},
             cost=0.5,
@@ -750,7 +768,7 @@ def test_parse_claude_events_counts_tools_once_per_id_and_keeps_the_session_tota
         "gm-bench_get_status": 1,
         "gm-bench_scout": 1,
     }
-    assert telemetry["harness_tool_calls_skipped"] == {"WebFetch": 1, "other_thing": 1}
+    assert telemetry["harness_tool_calls_skipped"] == {"WebFetch": 1, "gm-bench_unknown": 1, "other_thing": 1}
     assert opencode.harness_tool_calls(telemetry) == 3
     # The last result per session, not the sum: 250 + 20 uncached, 90 read, 17 written.
     assert (telemetry["input_tokens"], telemetry["uncached_input_tokens"]) == (377, 270)
@@ -804,15 +822,15 @@ def test_claude_usage_block_prices_each_model_and_publishes_no_cost() -> None:
     assert harness["harness_cost_estimate_usd"] == 3.0 and harness["cost_reported_by_harness"] is False
     assert harness["models"] == [sonnet]
 
-    # A subagent on another model is priced at its own entry (Haiku 4.5 has no cached rate: input rate).
+    # A subagent on another model is priced at its own entry (Sonnet 4.6 has no cached rate: input rate).
     mixed = [
         _init(),
         _assistant("m1"),
-        _result({sonnet: _mu(1_000_000, 0), "claude-haiku-4-5-20251001": _mu(0, 0, 1_000_000)}),
+        _result({sonnet: _mu(1_000_000, 0), "claude-sonnet-4-6": _mu(0, 0, 1_000_000)}),
     ]
     both = claude.usage_block(parse_claude_events(mixed), model="sonnet", decisions=20)["harness"]
-    assert both["api_equivalent_cost_usd"] == pytest.approx(2.0 + 1.0)
-    assert [source["key"] for source in both["pricing_source"]["models"]] == ["claude-haiku-4-5", "claude-sonnet-5"]
+    assert both["api_equivalent_cost_usd"] == pytest.approx(2.0 + 3.0)
+    assert [source["key"] for source in both["pricing_source"]["models"]] == ["claude-sonnet-4-6", "claude-sonnet-5"]
     assert both["pricing_source"]["models"][0]["cached_input_rate"] == "input (no cached price)"
     # Any unpriced model with tokens: no estimate at all, rather than a partial one.
     unpriced = [_init(), _assistant("m1"), _result({sonnet: _mu(10, 1), "mystery-model-9000": _mu(10, 1)})]

@@ -1,10 +1,17 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#F4F7FA" />
+    <meta name="theme-color" content="#0c1522" />
+    <script>
+      // Apply a saved theme before first paint so a light-theme reader never sees a dark flash.
+      try {
+        var saved = localStorage.getItem("gm-bench-theme");
+        if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved;
+      } catch (e) {}
+    </script>
     <meta
       name="description"
       content="GM-Bench: a deterministic front-office benchmark for LLM agents. sota-v5 (contract a600b7da0c302231): 11 published models, every one trailing the strongest scripted heuristic on a 29-seed private panel, plus a separate decision-model lane."
@@ -13,22 +20,28 @@
     <link rel="canonical" href="https://nedcut.github.io/gm-bench/" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://nedcut.github.io/gm-bench/" />
-    <meta property="og:title" content="GM-Bench — sota-v5 panel results" />
+    <meta property="og:title" content="GM-Bench — can an LLM run a hockey team?" />
     <meta
       property="og:description"
       content="sota-v5: 11 published models on a 29-seed private panel, every one below the pick-trader bar. Reference-only analysis, no model-to-model ranking."
     />
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="GM-Bench — sota-v5 panel results" />
+    <meta property="og:image" content="https://nedcut.github.io/gm-bench/media/og-card.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:video" content="https://nedcut.github.io/gm-bench/media/gm-bench-promo.mp4" />
+    <meta property="og:video:type" content="video/mp4" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="GM-Bench — can an LLM run a hockey team?" />
     <meta
       name="twitter:description"
       content="sota-v5: 11 published models on a 29-seed private panel, every one below the pick-trader bar."
     />
-    <title>GM-Bench — sota-v5 panel results</title>
+    <meta name="twitter:image" content="https://nedcut.github.io/gm-bench/media/og-card.jpg" />
+    <title>GM-Bench — can an LLM run a hockey team?</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..800;1,62..125,400..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..900;1,62..125,400..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
   </head>

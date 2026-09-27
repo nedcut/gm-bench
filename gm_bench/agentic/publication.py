@@ -227,6 +227,8 @@ def compact_agentic_run(
     episodes = [
         _compact_episode(index, episode, groups[index], public_seeds) for index, episode in enumerate(raw_episodes)
     ]
+    for episode, report in zip(episodes, validation["per_episode"], strict=True):
+        _publish_recount(episode, report)
     artifact: dict[str, Any] = {
         "publication": {
             "format": AGENTIC_PUBLICATION_FORMAT,
@@ -357,6 +359,25 @@ def _by_index(validation: dict[str, Any], key: str) -> list[str]:
     for index, report in enumerate(validation["per_episode"]):
         entries.extend(f"episode {index}: {item}" for item in report[key])
     return entries
+
+
+def _publish_recount(episode: dict[str, Any], report: dict[str, Any]) -> None:
+    """Replace a recorded tool-call mismatch that the validator's recount resolved.
+
+    The recount from the ledger and the event stream is the evidence; the
+    driver's recorded figure is kept beside it as ``recorded`` so the row
+    shows it was corrected.
+    """
+    harness_run = episode["harness_run"]
+    recorded = harness_run.get("tool_call_agreement")
+    if not report.get("tool_calls_recounted") or not isinstance(recorded, dict) or recorded.get("agree"):
+        return
+    harness_run["tool_call_agreement"] = {
+        "agree": True,
+        "harness": report["harness_tool_calls"],
+        "ledger": report["replayed_tool_calls"],
+        "recorded": recorded,
+    }
 
 
 def _compact_episode(index: int, episode: dict[str, Any], group: int, public_seeds: bool) -> dict[str, Any]:
