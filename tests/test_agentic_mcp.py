@@ -334,6 +334,17 @@ def test_validate_run_replays_audits_and_checks_contract(tmp_path: Path) -> None
     run["episodes"][0]["harness_run"]["tool_call_agreement"] = {"ledger": 99999, "harness": 0, "agree": True}
     report = check()
     assert any("does not match the recomputed" in p for p in report["problems"]), report["problems"]
+    # A recorded mismatch the recount resolves (a since-fixed event parser) is a warning, not a problem.
+    run["episodes"][0]["harness_run"]["tool_call_agreement"] = {"ledger": calls, "harness": calls + 1, "agree": False}
+    report = check()
+    assert report["ok"], report["problems"]
+    assert any("superseded by the recount" in w for w in report["warnings"]), report["warnings"]
+    assert report["per_episode"][0]["tool_calls_recounted"] is True
+    # ... but not when the recount disagrees too.
+    events.write_text("\n".join(lines[:-1]) + "\n")
+    report = check()
+    assert any("tool-call mismatch" in p for p in report["problems"]), report["problems"]
+    events.write_text("\n".join(lines) + "\n")
     run["episodes"][0]["harness_run"]["tool_call_agreement"] = {"ledger": calls, "harness": calls, "agree": True}
     events.write_text("\n".join(lines[:-1]) + "\n")  # a truncated harness stream
     report = check()

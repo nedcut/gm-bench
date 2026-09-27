@@ -267,7 +267,7 @@ export interface AgenticLaneRow {
     episodes: number;
     tool_calls: number;
     tool_calls_per_episode: number;
-    tool_calls_by_tool: Record<string, number>;
+    tool_calls_by_tool: Partial<Record<string, number>>;
     scout_points_used: number;
     phases_ended_by: Record<string, number>;
     nudges_used: number;

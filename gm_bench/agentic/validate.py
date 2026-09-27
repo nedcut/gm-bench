@@ -142,12 +142,11 @@ def _validate_episode(episode: dict[str, Any], run_dir: Path, harness_name: str 
     # Gate 2 of the spec, recomputed from the evidence: the replayed ledger's
     # tool-call count against the harness's own event stream. The recorded
     # agreement is then checked against both, so a stale or edited claim is
-    # caught along with a truncated event file.
+    # caught along with a truncated event file. The recount is what decides:
+    # a recorded mismatch that the recount resolves (the driver's event parser
+    # has since been fixed) is a warning, and redaction publishes the recount.
+    # A recorded agreement the recount contradicts stays a problem.
     agreement = harness_run.get("tool_call_agreement")
-    if agreement is None:
-        warnings.append("no tool-call agreement recorded")
-    elif not agreement.get("agree"):
-        problems.append(f"ledger/harness tool-call mismatch {agreement.get('ledger')}/{agreement.get('harness')}")
     harness_calls: int | None = None
     if events_path is None or not events_path.is_file():
         problems.append("harness event stream missing; tool-call agreement cannot be recomputed")
@@ -156,15 +155,28 @@ def _validate_episode(episode: dict[str, Any], run_dir: Path, harness_name: str 
     else:
         telemetry = EVENT_PARSERS[harness_name](events_path.read_text(encoding="utf-8").splitlines())
         harness_calls = harness_tool_calls(telemetry)
+    recounted = replayed_calls is not None and replayed_calls == harness_calls
+    recorded = f"{agreement.get('ledger')}/{agreement.get('harness')}" if agreement is not None else None
+    if agreement is None:
+        warnings.append("no tool-call agreement recorded")
+    elif not agreement.get("agree"):
+        if recounted:
+            warnings.append(
+                f"recorded ledger/harness tool-call mismatch {recorded} superseded by the recount "
+                f"{replayed_calls}/{harness_calls}"
+            )
+        else:
+            problems.append(f"ledger/harness tool-call mismatch {recorded}")
     if replayed_calls is not None and harness_calls is not None:
         if replayed_calls != harness_calls:
             problems.append(f"replayed ledger has {replayed_calls} tool calls, harness stream has {harness_calls}")
-        elif agreement is not None and (
-            agreement.get("ledger") != replayed_calls or agreement.get("harness") != harness_calls
+        elif (
+            agreement is not None
+            and agreement.get("agree")
+            and (agreement.get("ledger") != replayed_calls or agreement.get("harness") != harness_calls)
         ):
             problems.append(
-                f"recorded tool-call agreement {agreement.get('ledger')}/{agreement.get('harness')} "
-                f"does not match the recomputed {replayed_calls}/{harness_calls}"
+                f"recorded tool-call agreement {recorded} does not match the recomputed {replayed_calls}/{harness_calls}"
             )
 
     failed = int(episode.get("failed_decisions", 0))
@@ -192,6 +204,7 @@ def _validate_episode(episode: dict[str, Any], run_dir: Path, harness_name: str 
         "replayed_score": replayed_score,
         "replayed_tool_calls": replayed_calls,
         "harness_tool_calls": harness_calls,
+        "tool_calls_recounted": recounted,
         "audit": None
         if audit is None
         else {k: v for k, v in audit.items() if k not in ("violations", "suspicious", "guessed_reads")},
