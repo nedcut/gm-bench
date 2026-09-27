@@ -822,15 +822,15 @@ def test_claude_usage_block_prices_each_model_and_publishes_no_cost() -> None:
     assert harness["harness_cost_estimate_usd"] == 3.0 and harness["cost_reported_by_harness"] is False
     assert harness["models"] == [sonnet]
 
-    # A subagent on another model is priced at its own entry (Haiku 4.5 has no cached rate: input rate).
+    # A subagent on another model is priced at its own entry (Sonnet 4.6 has no cached rate: input rate).
     mixed = [
         _init(),
         _assistant("m1"),
-        _result({sonnet: _mu(1_000_000, 0), "claude-haiku-4-5-20251001": _mu(0, 0, 1_000_000)}),
+        _result({sonnet: _mu(1_000_000, 0), "claude-sonnet-4-6": _mu(0, 0, 1_000_000)}),
     ]
     both = claude.usage_block(parse_claude_events(mixed), model="sonnet", decisions=20)["harness"]
-    assert both["api_equivalent_cost_usd"] == pytest.approx(2.0 + 1.0)
-    assert [source["key"] for source in both["pricing_source"]["models"]] == ["claude-haiku-4-5", "claude-sonnet-5"]
+    assert both["api_equivalent_cost_usd"] == pytest.approx(2.0 + 3.0)
+    assert [source["key"] for source in both["pricing_source"]["models"]] == ["claude-sonnet-4-6", "claude-sonnet-5"]
     assert both["pricing_source"]["models"][0]["cached_input_rate"] == "input (no cached price)"
     # Any unpriced model with tokens: no estimate at all, rather than a partial one.
     unpriced = [_init(), _assistant("m1"), _result({sonnet: _mu(10, 1), "mystery-model-9000": _mu(10, 1)})]
