@@ -1126,10 +1126,13 @@ def _run_harness(
         except BaseException:
             # The driver is being stopped: take the harness (and its container) down with it.
             if process.poll() is None:
-                if on_kill is not None:
-                    on_kill()
-                process.kill()
-                process.wait()
+                try:
+                    if on_kill is not None:
+                        on_kill()
+                finally:
+                    # Even if a second interrupt cuts the container removal short.
+                    process.kill()
+                    process.wait()
             raise
     return exit_code, timed_out, time.perf_counter() - started, was_stalled
 
