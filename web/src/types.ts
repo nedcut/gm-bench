@@ -247,7 +247,7 @@ export interface AgenticLaneRow {
     num_seeds: number;
     paired_lift_mean: number;
     paired_lift_stddev: number;
-    paired_lift_ci95: [number, number];
+    paired_lift_ci95: number[];
     sign_flip_p_value: number;
     significant_at_95: boolean;
     candidate_seed_win_rate: number;
@@ -267,7 +267,7 @@ export interface AgenticLaneRow {
     episodes: number;
     tool_calls: number;
     tool_calls_per_episode: number;
-    tool_calls_by_tool: Record<string, number>;
+    tool_calls_by_tool: Partial<Record<string, number>>;
     scout_points_used: number;
     phases_ended_by: Record<string, number>;
     nudges_used: number;

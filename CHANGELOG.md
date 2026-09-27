@@ -305,6 +305,29 @@ Added 2026-09-20. Nothing published changes.
   and 11.3 for Claude, so a 32-seed panel resolves about 27 and 23 points.
   All 16 episodes closed every phase themselves on the same committed
   driver. Written up in the spec under "Repeat noise on the paid harnesses".
+- First panel-grade 2.0 row: Codex 0.156.1 on `gpt-6-luna`, the frozen
+  32-seed private panel at five seasons, container isolation, played from
+  clean `main` at `4d742cc`
+  (`results/agentic/codex-0.156.1-gpt-6-luna-panel-32x5.json`). Mean 227.4
+  (SD 41.0), 640/640 phases closed by the agent, 0 failed decisions, 19
+  penalized illegal moves, no nudges, provider stalls or quota pauses,
+  10.3 min per episode, $4.54 at API prices. Against the predeclared
+  `pick-trader` reference (249.18) the paired lift is -21.8, 95% interval
+  -43.3 to +0.1, sign-flip p 0.062, winning 28% of seeds: not significant.
+  The site's 2.0 section now renders, with this row flagged `unpinned`.
+- Second panel-grade 2.0 row: Claude Code 2.1.281 on `claude-sonnet-5`, the
+  same frozen 32-seed private panel at five seasons, container isolation,
+  played from clean `main` at `4d742cc`
+  (`results/agentic/claude-2.1.281-claude-sonnet-5-panel-32x5.json`). Mean
+  227.4 (SD 54.3), 640/640 phases closed by the agent, 0 failed decisions,
+  24 penalized illegal moves, no nudges, provider stalls or compactions,
+  14.5 min per episode, $157 at API prices. Against `pick-trader` the paired
+  lift is -21.8, 95% interval -47.2 to +3.5, sign-flip p 0.108, winning 41%
+  of seeds: not significant. One episode recorded a 165/166 tool-call
+  mismatch because the Claude event parser counted a call to the bare
+  server name `mcp__gm-bench`, which Claude Code refused before any server
+  saw it. The parser is fixed, and the row publishes the recount (165/165)
+  with the recorded figure beside it.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

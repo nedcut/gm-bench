@@ -414,6 +414,22 @@ def test_validation_catches_contract_drift_paths_and_tampering(tmp_path: Path) -
     assert any("validation.ok" in e for e in validate_agentic_artifact(unvalidated)["errors"])
 
 
+def test_a_recorded_mismatch_the_recount_resolves_is_published_as_the_recount(tmp_path: Path) -> None:
+    run_dir = _write_run(tmp_path, [11, 12])
+    raw = json.loads((run_dir / "run.json").read_text())
+    agreement = raw["episodes"][1]["harness_run"]["tool_call_agreement"]
+    stale = {"ledger": agreement["ledger"], "harness": agreement["harness"] + 1, "agree": False}
+    raw["episodes"][1]["harness_run"]["tool_call_agreement"] = stale
+    (run_dir / "run.json").write_text(json.dumps(raw, sort_keys=True))
+
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    assert artifact["validation"]["ok"] is True
+    assert artifact["episodes"][0]["harness_run"]["tool_call_agreement"] == agreement
+    assert artifact["episodes"][1]["harness_run"]["tool_call_agreement"] == {**agreement, "recorded": stale}
+    assert any("superseded by the recount" in w for w in artifact["validation"]["warnings"])
+    assert validate_agentic_artifact(artifact, raw_run=run_dir)["ok"]
+
+
 def test_cli_redact_then_validate_round_trip(tmp_path: Path, capsys) -> None:
     from gm_bench.cli import main
 

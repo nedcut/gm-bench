@@ -179,10 +179,14 @@ python -m gm_bench agentic-validate /tmp/agentic-big-pickle
 
 Exit code 0 means every episode's ledger replays to the recorded score, its
 header seed matches the episode, it audits clean, the GM-Bench tool calls in
-the retained `opencode-events.jsonl` (or `codex-events.jsonl`) equal the
-replayed ledger's (the recorded agreement is checked against that recount,
-not trusted), and the run's contract block matches this checkout's
-`agentic_contract()`. Failed phases, timeouts, guard stops, and missing
+the retained `opencode-events.jsonl` (or `codex-events.jsonl`,
+`claude-events.jsonl`) equal the replayed ledger's, and the run's contract
+block matches this checkout's `agentic_contract()`. The agreement the driver
+recorded is checked against that recount, not trusted: a recorded agreement
+the recount contradicts is a problem. A recorded mismatch that the recount
+resolves, because the driver's event parser has since been fixed, is a
+warning, and `agentic-redact` publishes the recount with the recorded figure
+beside it as `recorded`. Failed phases, timeouts, guard stops, and missing
 telemetry are warnings: reported, never hidden, never fatal. A missing event
 stream is a problem.
 
@@ -416,7 +420,11 @@ full panel as hours of quota. The driver is tested against a stand-in
 20/20 phases closed by the agent, no nudges or provider stalls, 134 tool
 calls, 10.7 min, 13.0M input tokens, $0.18 at API prices. After it the
 Codex five-hour quota window read 78% used; the run records only that end
-reading, so check the window before a panel.
+reading, so check the window before a panel. The first panel-grade row,
+the 32-seed private panel at five seasons in a container (2026-09-26), is
+committed at `results/agentic/codex-0.156.1-gpt-6-luna-panel-32x5.json`:
+mean 227.4, 640/640 phases closed by the agent, no nudges, provider stalls
+or quota pauses, 10.3 min per episode, $4.54 at API prices for the panel.
 
 What a run does per episode:
 
@@ -656,7 +664,13 @@ in any saved file). A five-season container smoke on seed 11 (2026-09-25)
 is committed at `results/agentic/claude-2.1.281-claude-sonnet-5-smoke-1x5.json`:
 score 248.0, 20/20 phases closed by the agent, no nudges, provider stalls or
 compactions, 180 tool calls, 19.8 min, 16.8M input tokens, $5.05 at API
-prices. No panel-grade Claude row exists yet. Every Claude episode spends your Claude subscription's
+prices. The 32-seed private panel at five seasons in a container
+(2026-09-27) is committed at
+`results/agentic/claude-2.1.281-claude-sonnet-5-panel-32x5.json`: mean
+227.4, 640/640 phases closed by the agent, no nudges, provider stalls or
+compactions, 14.5 min per episode, $157 at API prices for the panel, and no
+subscription limit hit. One episode's recorded tool-call agreement (165/166)
+came from a parser bug and is published as the recount (165/165). Every Claude episode spends your Claude subscription's
 quota (or API money with `ANTHROPIC_API_KEY`). Run it serially (the driver
 has no parallel mode), smoke one short episode before a panel, and budget a
 full panel as hours of quota.

@@ -373,6 +373,18 @@ def _tool_name(name: Any) -> str:
     return name
 
 
+def _unknown_tool_result(block: Any) -> bool:
+    """A tool_result for a call Claude Code refused because no tool has that name (it never reached a server)."""
+    if not (isinstance(block, dict) and block.get("type") == "tool_result" and block.get("is_error")):
+        return False
+    if not block.get("tool_use_id"):
+        return False
+    content = block.get("content")
+    if isinstance(content, list):
+        content = " ".join(str(part.get("text", "")) for part in content if isinstance(part, dict))
+    return isinstance(content, str) and "No such tool available" in content
+
+
 _TOKEN_KEYS = ("uncached", "cache_read", "cache_write", "output", "reasoning")
 
 
@@ -428,7 +440,9 @@ def parse_claude_events(lines: list[str]) -> dict[str, Any]:
     id, so a call cut off by a guard stop still counts: it reached the
     server. A call Claude Code denied before running it (a
     ``permission_denied`` event or an entry in ``permission_denials``)
-    never reached the server; it is counted in ``harness_tool_calls_skipped``.
+    never reached the server; it is counted in ``harness_tool_calls_skipped``,
+    as is a call Claude Code refused because no tool has that name (for
+    example the bare server name ``mcp__gm-bench``).
     Tokens: per session, the last result on a version that restores totals
     on resume, otherwise the sum of the results; plus, for an invocation
     that wrote no result, its assistant frames once per ``message.id``.
@@ -490,6 +504,11 @@ def parse_claude_events(lines: list[str]) -> dict[str, Any]:
                 for block in message.get("content") or []:
                     if isinstance(block, dict) and block.get("type") == "tool_use" and block.get("id"):
                         tool_uses[str(block["id"])] = _tool_name(block.get("name"))
+            elif kind == "user":
+                message = event.get("message") if isinstance(event.get("message"), dict) else {}
+                for block in message.get("content") if isinstance(message.get("content"), list) else []:
+                    if _unknown_tool_result(block):
+                        denied.add(str(block["tool_use_id"]))
             elif kind == "result":
                 result = event
         if session is not None:
