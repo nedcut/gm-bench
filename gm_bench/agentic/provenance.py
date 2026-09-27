@@ -60,6 +60,7 @@ DRIVER_SOURCES = (
     f"{_PACKAGE}/claude.py",  # Claude Code adapter
     f"{_PACKAGE}/codex.py",  # Codex CLI adapter
     f"{_PACKAGE}/container.py",  # Docker launcher: Dockerfiles, pinned harness versions, egress firewall
+    f"{_PACKAGE}/cursor.py",  # Cursor CLI adapter
     f"{_PACKAGE}/harness.py",  # the interface the shared loop calls
     f"{_PACKAGE}/opencode.py",  # OpenCode adapter and the shared episode loop
 )
