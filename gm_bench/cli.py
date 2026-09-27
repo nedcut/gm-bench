@@ -1323,8 +1323,8 @@ def _agentic_command(args: argparse.Namespace) -> None:
                 docker=args.docker,
                 **harness_options,
             )
-    except ContainerError as exc:
-        # Docker missing or not running, or the harness image would not build.
+    except (ContainerError, cursor_driver.PromptCheckError) as exc:
+        # Docker missing or not running, the harness image would not build, or Cursor's prompt is not clean.
         raise SystemExit(f"gm-bench agentic: {exc}") from None
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))

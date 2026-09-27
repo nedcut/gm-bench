@@ -22,9 +22,10 @@ import pytest
 from gm_bench.agentic import cursor, opencode
 from gm_bench.agentic.cursor import (
     CursorDriver,
-    account_user_rules,
     ended_in_provider_stall,
     parse_cursor_events,
+    prompt_audit,
+    prompt_audit_problems,
     quota_exhaustion,
     token_env,
 )
@@ -35,7 +36,10 @@ MODEL = "composer-fake"
 
 # The fake ``cursor-agent``. Behaviour per invocation comes from the plan file
 # named by FAKE_CURSOR_PLAN: {"log": path, "state": path, "steps": [{"phases":
-# n, "stderr": text, "exit": code, "cat_env": bool, "tamper": bool}, ...]}.
+# n, "stderr": text, "exit": code, "cat_env": bool, "tamper": bool}, ...],
+# "rules": [text, ...]}; the rules are account User Rules the server adds to
+# every prompt, including the driver's one-word ``--mode ask`` prompt check,
+# which is answered without using up a step.
 # Each phase is a get_status then an end_phase through the proxy the staged
 # mcp.json declares, the first preceded by a schema lookup, as Cursor does.
 # ``stderr`` fails the run the way the CLI does: text on stderr, no result.
@@ -48,14 +52,40 @@ if argv == ["--version"]:
     print("2026.09.26-dd393fe")
     sys.exit(0)
 plan = json.loads(Path(os.environ["FAKE_CURSOR_PLAN"]).read_text())
+home = Path(os.environ["HOME"])
+config_dir = Path(os.environ["CURSOR_CONFIG_DIR"])
+
+def emit(event):
+    print(json.dumps(event), flush=True)
+
+def record_context(session):
+    # Cursor keeps the chat, with the prompt context, in a store under CURSOR_CONFIG_DIR.
+    chat = config_dir / "chats" / "workspace" / session
+    chat.mkdir(parents=True, exist_ok=True)
+    db = __import__("sqlite3").connect(chat / "store.db")
+    db.execute("CREATE TABLE IF NOT EXISTS blobs (id TEXT, data BLOB)")
+    rules = "".join(f"<user_rule>{rule}</user_rule>" for rule in plan.get("rules", []))
+    context = "<user_info>OS</user_info>\n" + (f"<rules><user_rules>{rules}</user_rules></rules>\n" if rules else "")
+    context += "<agent_skills>bundled</agent_skills>"
+    db.execute("INSERT INTO blobs VALUES (?, ?)", ("c", json.dumps({"role": "user", "content": context}).encode()))
+    db.commit()
+    db.close()
+
+if "--mode" in argv:
+    with open(plan["log"] + ".probes", "a") as log:
+        log.write(json.dumps({"argv": argv, "cursor_env": sorted(k for k in os.environ if k.startswith("CURSOR"))}) + "\n")
+    session = str(uuid.uuid4())
+    record_context(session)
+    emit({"type": "system", "subtype": "init", "session_id": session, "model": "Composer Fake"})
+    emit({"type": "result", "subtype": "success", "is_error": False, "result": "ok", "session_id": session,
+          "usage": {"inputTokens": 10, "outputTokens": 1, "cacheReadTokens": 0, "cacheWriteTokens": 0}})
+    sys.exit(0)
 state_path = Path(plan["state"])
 state = json.loads(state_path.read_text()) if state_path.exists() else {"invocations": 0}
 state["invocations"] += 1
 invocation = state["invocations"]
 state_path.write_text(json.dumps(state))
 step = plan["steps"][min(invocation, len(plan["steps"])) - 1]
-home = Path(os.environ["HOME"])
-config_dir = Path(os.environ["CURSOR_CONFIG_DIR"])
 
 def value(flag):
     return argv[argv.index(flag) + 1] if flag in argv else None
@@ -73,23 +103,12 @@ with open(plan["log"], "a") as log:
     }) + "\n")
 assert argv[0] == "-p" and value("--output-format") == "stream-json" and "--approve-mcps" in argv
 
-def emit(event):
-    print(json.dumps(event), flush=True)
-
 session = value("--resume") or str(uuid.uuid4())
 emit({"type": "system", "subtype": "init", "apiKeySource": "env", "cwd": os.getcwd(), "session_id": session,
       "model": "Composer Fake", "permissionMode": "default"})
 emit({"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": argv[-1]}]},
       "session_id": session})
-# Cursor keeps the chat, with the prompt context, in a store under CURSOR_CONFIG_DIR.
-chat = config_dir / "chats" / "workspace" / session
-chat.mkdir(parents=True, exist_ok=True)
-db = __import__("sqlite3").connect(chat / "store.db")
-db.execute("CREATE TABLE IF NOT EXISTS blobs (id TEXT, data BLOB)")
-context = "<user_info>OS</user_info><rules><user_rules><user_rule>Be terse.</user_rule></user_rules></rules>"
-db.execute("INSERT INTO blobs VALUES (?, ?)", ("c", json.dumps({"role": "user", "content": context}).encode()))
-db.commit()
-db.close()
+record_context(session)
 
 def call(call_id, tool_call, step):
     step_id = f"{session}-{invocation}-{step}"
@@ -143,13 +162,17 @@ sys.exit(step.get("exit", 0))
 """
 
 
-def _fake_cursor(tmp_path: Path, steps: list[dict], monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
+def _fake_cursor(
+    tmp_path: Path, steps: list[dict], monkeypatch: pytest.MonkeyPatch, *, rules: list[str] | None = None
+) -> tuple[Path, Path]:
     binary = tmp_path / "fake-cursor-agent"
     binary.write_text(f"#!{sys.executable}\n{FAKE_CURSOR}")
     binary.chmod(0o755)
     log = tmp_path / "cursor-calls.jsonl"
     plan = tmp_path / "plan.json"
-    plan.write_text(json.dumps({"log": str(log), "state": str(tmp_path / "state.json"), "steps": steps}))
+    plan.write_text(
+        json.dumps({"log": str(log), "state": str(tmp_path / "state.json"), "steps": steps, "rules": rules or []})
+    )
     monkeypatch.setenv("FAKE_CURSOR_PLAN", str(plan))
     # Host Cursor state that must not reach the harness.
     monkeypatch.setenv("CURSOR_CONFIG_DIR", str(tmp_path / "host-cursor-config"))
@@ -240,7 +263,15 @@ def test_cursor_panel_plays_through_the_staged_proxy_nudges_by_resume_and_valida
     assert usage["harness"]["usage_complete"] is True and usage["harness"]["model_steps"] == 10
     assert usage["cost_usd"] is None and usage["harness"]["api_equivalent_cost_usd"] is None
     assert harness_run["auth"] == "token-file" and harness_run["session_resume"] == "cursor-agent -p --resume"
-    assert harness_run["account_user_rules"] == {"rules": 1, "characters": len("Be terse.")}
+    assert harness_run["prompt_audit"] == {
+        "sections": ["agent_skills", "user_info"],
+        "unexpected": [],
+        "user_rules": 0,
+        "user_rule_characters": 0,
+    }
+    # The one-word prompt check ran first, in the same credential setup, before any episode.
+    [probe] = [json.loads(line) for line in Path(f"{log}.probes").read_text().splitlines()]
+    assert probe["argv"][-1] == cursor.PROBE_PROMPT and probe["cursor_env"] == first["cursor_env"]
     assert harness_run["config_dir_findings"] == []
     assert DUMMY_KEY not in json.dumps(payload)
 
@@ -383,6 +414,13 @@ def test_cli_dispatches_cursor_and_refuses_its_wrong_flags(tmp_path: Path, monke
         with pytest.raises(SystemExit, match=message):
             cli.main([*base, *extra])
 
+    def refused(seeds, **kwargs):
+        raise cursor.PromptCheckError("Cursor prompt check: prompt carried context from outside the harness: rules")
+
+    monkeypatch.setattr(cursor, "run_panel", refused)
+    with pytest.raises(SystemExit, match="gm-bench agentic: Cursor prompt check: .*rules"):
+        cli.main([*base, "--harness", "cursor", "--cursor-token-file", str(token)])
+
 
 # -- parser -----------------------------------------------------------------------
 
@@ -448,18 +486,69 @@ def test_usage_limits_and_ordinary_endings_are_never_stalls() -> None:
     assert quota_exhaustion(ok, "usage limit") is None
 
 
-def test_account_user_rules_are_counted_never_copied(tmp_path: Path) -> None:
+def test_prompt_audit_names_sections_and_counts_rules_never_copies_them(tmp_path: Path) -> None:
     chat = tmp_path / "chats" / "w" / "s"
     chat.mkdir(parents=True)
     db = sqlite3.connect(chat / "store.db")
     db.execute("CREATE TABLE blobs (id TEXT, data BLOB)")
-    content = "<user_info>x</user_info><user_rules><user_rule>one</user_rule><user_rule>three</user_rule></user_rules>"
+    content = (
+        "<user_info>x <b>y</b></user_info>\nNote: text between sections.\n"
+        "<rules><user_rules><user_rule>one</user_rule><user_rule>three</user_rule></user_rules></rules>"
+        "<agent_skills><agent_skill>s</agent_skill></agent_skills><cloud_instructions>c</cloud_instructions>"
+    )
     db.execute("INSERT INTO blobs VALUES ('a', ?)", (json.dumps({"role": "user", "content": content}).encode(),))
     db.execute("INSERT INTO blobs VALUES ('b', ?)", (b"\x00binary",))
     db.commit()
     db.close()
-    assert account_user_rules(tmp_path) == {"rules": 2, "characters": 8}
-    assert account_user_rules(tmp_path / "missing") is None
+    audit = prompt_audit(tmp_path)
+    assert audit == {
+        "sections": ["agent_skills", "cloud_instructions", "rules", "user_info"],
+        "unexpected": ["cloud_instructions", "rules"],
+        "user_rules": 2,
+        "user_rule_characters": 8,
+    }
+    assert "three" not in json.dumps(audit)
+    assert prompt_audit(tmp_path / "missing") is None
+    assert prompt_audit_problems("cursor", {"prompt_audit": audit}) == [
+        "prompt carried context from outside the harness: cloud_instructions, rules (2 account User Rules)"
+    ]
+    assert prompt_audit_problems("cursor", {}) and prompt_audit_problems("claude", {}) == []
+
+
+def test_a_panel_whose_prompt_carries_account_rules_is_refused_before_it_starts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    binary, log = _fake_cursor(tmp_path, [{"phases": 4}], monkeypatch, rules=["Always commit with a haiku."])
+    run_dir = tmp_path / "run"
+    with pytest.raises(ValueError, match=r"prompt carried context from outside the harness: rules \(1 account"):
+        cursor.run_panel(
+            [11], model=MODEL, run_dir=run_dir, seasons=1, binary=str(binary), token_file=_token_file(tmp_path)
+        )
+    assert not run_dir.exists() and not log.exists()
+
+
+def test_an_episode_whose_prompt_carried_rules_fails_validation_and_publication(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
+    from gm_bench.agentic.validate import validate_run
+
+    # Rules the account gained after the prompt check passed.
+    binary, _log = _fake_cursor(tmp_path, [{"phases": 4}], monkeypatch, rules=["Be terse."])
+    clean = {"sections": ["user_info"], "unexpected": [], "user_rules": 0, "user_rule_characters": 0}
+    monkeypatch.setattr(cursor, "probe_prompt", lambda **kwargs: clean)
+    run_dir = tmp_path / "run"
+    payload = cursor.run_panel(
+        [11], model=MODEL, run_dir=run_dir, seasons=1, binary=str(binary), token_file=_token_file(tmp_path)
+    )
+    assert payload["episodes"][0]["harness_run"]["prompt_audit"]["unexpected"] == ["rules"]
+    report = validate_run(run_dir)
+    assert not report["ok"]
+    assert any("outside the harness: rules" in problem for problem in report["per_episode"][0]["problems"])
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    assert artifact["episodes"][0]["harness_run"]["prompt_audit"]["user_rules"] == 1
+    errors = validate_agentic_artifact(artifact)["errors"]
+    assert any("outside the harness: rules" in error for error in errors)
 
 
 def test_cursor_version_probe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

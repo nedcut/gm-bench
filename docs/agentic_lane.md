@@ -918,9 +918,10 @@ season. It scored 113.9 with 4/4 phases closed by the agent and 41 GM-Bench
 tool calls, the same count in the ledger and in Cursor's event stream. It
 had no illegal moves, nudges or provider stalls, took 87 s, and used 1.20M
 input tokens (1.14M of them cache reads) and 10k output tokens. No
-credential was in any saved file. That account had 8 User Rules (13,337
-characters) in the prompt (see below), so the run proves the driver works
-and is not a clean row.
+credential was in any saved file. The account had 8 User Rules (13,337
+characters) in the prompt, so the run proves the driver works and is not a
+clean row. The prompt gate below was added after it and refuses that
+account until the rules are cleared.
 
 What a run does per episode:
 
@@ -953,13 +954,29 @@ key (handed over as `CURSOR_API_KEY`) or a session token, which is a JWT
 is never read. The value is replaced with `[REDACTED]` in
 `cursor-events.jsonl` and `cursor-stderr.log` when the episode ends.
 
-**Account User Rules reach the prompt.** Cursor adds the account's
-cloud-synced User Rules (Cursor Settings, Rules) to every prompt, and the
-CLI has no switch to turn that off. The driver counts them in the chat
-store after each episode and records `harness_run.account_user_rules`
-(`{"rules": n, "characters": m}`, never the text). A row whose count is not
-zero was played with your own instructions in the prompt. Before a row you
-mean to publish, clear the User Rules or use an account that has none.
+**What reaches the prompt, and the prompt gate.** Cursor's servers add the
+account's cloud-synced User Rules (Cursor Settings, Rules) to every prompt.
+The CLI never fetches them and has no switch to leave them out, so no
+client setting or proxy can remove them. The driver proves the prompt
+instead. Cursor stores each chat's context message in
+`CURSOR_CONFIG_DIR/chats`, and the driver lists that message's outermost
+sections. Cursor itself adds `user_info`, `agent_transcripts`,
+`agent_skills` (its 14 bundled skills), `dynamic_tools` and
+`mcp_instructions`. Anything else is unexpected: `rules` (User Rules or
+workspace rules), cloud instructions, memories, or a section Cursor adds in
+a later version.
+
+- Before a panel, `run_panel` makes one one-word call (`--mode ask`, "Reply
+  with the single word ok.") in a throwaway workspace set up like an
+  episode's, and refuses to start if that prompt has an unexpected section.
+- Every episode records `harness_run.prompt_audit` (section names, the
+  unexpected ones, and how many User Rules and characters, never their
+  text), and published rows carry it.
+- `agentic-validate` and the published-row check refuse a Cursor episode
+  whose audit is missing or lists an unexpected section.
+
+To run Cursor on an account that has User Rules, copy the rules somewhere,
+clear them in Cursor Settings, run, and restore them afterwards.
 
 Telemetry. `result.usage` covers one process, not the session, so the
 episode's tokens are the sum of every result (`inputTokens` is uncached;

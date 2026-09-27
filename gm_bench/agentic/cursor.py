@@ -86,15 +86,19 @@ live probes on composer-2.5 on 2026-09-27):
   invocation the driver removes those entries (:data:`HOME_CONFIG_ENTRIES`,
   :data:`SCRATCH_CONFIG_ENTRIES`), rewrites ``mcp.json``, and records what it
   found as ``harness_run.config_dir_findings``.
-- **Account rules.** Cursor adds the account's cloud-synced User Rules to
-  every prompt, and no flag or setting in the CLI turns that off. They come
-  from the account, not from any file the driver controls, so the only fix
-  is an account with none (clear them in Cursor Settings, Rules, or use a
-  dedicated account). After the episode the driver reads the chat store's
-  first context message and records how many ``<user_rule>`` entries and
-  characters it carried, never their text, as
-  ``harness_run.account_user_rules``; a row whose count is not zero was
-  played with operator instructions in the prompt.
+- **What reaches the prompt.** Cursor's servers add the account's
+  cloud-synced User Rules to every prompt; the CLI never fetches them (it has
+  no such request) and has no flag or setting to leave them out. So the
+  driver proves the prompt instead. Cursor keeps each chat's context message
+  in ``CURSOR_CONFIG_DIR/chats/*/*/store.db``; :func:`prompt_audit` lists
+  its outermost sections and flags any outside :data:`HARNESS_SECTIONS`
+  (User Rules, workspace rules, cloud instructions, memories, anything new),
+  recording names and counts, never text, as ``harness_run.prompt_audit``.
+  :func:`run_panel` first makes one one-word call in a throwaway workspace
+  set up like an episode's (:func:`probe_prompt`) and refuses the panel if
+  that prompt carries anything unexpected; ``agentic-validate`` and the
+  published-row check refuse a Cursor episode whose audit is missing or not
+  clean (:func:`prompt_audit_problems`).
 - **Authentication.** ``--cursor-token-file <path>`` holds one token: a
   Cursor API key (handed over as ``CURSOR_API_KEY``) or a session token, a
   JWT (three dot-separated parts, handed over as ``CURSOR_AUTH_TOKEN``);
@@ -124,7 +128,7 @@ from pathlib import Path
 from typing import Any
 
 from gm_bench.agentic import opencode
-from gm_bench.agentic.codex import api_equivalent_fields, redact_file
+from gm_bench.agentic.codex import REDACTED, api_equivalent_fields, redact_file
 from gm_bench.agentic.harness import HarnessDriver
 from gm_bench.agentic.opencode import PROXY_FILENAME, HarnessLaunch, stage_proxy
 
@@ -384,13 +388,48 @@ def usage_block(telemetry: dict[str, Any], *, model: str, decisions: int) -> dic
     return usage
 
 
-def account_user_rules(config_dir: Path) -> dict[str, Any] | None:
-    """How many account User Rules (and characters) Cursor put in the episode's first prompt; ``None`` if unreadable.
+# The context sections Cursor itself adds to every prompt: environment facts, where its own
+# transcripts live, its bundled skills, its dynamic tool namespaces, the MCP server's own
+# instructions (ours), and workspace facts. Anything else (User Rules, workspace rules, cloud
+# instructions, memories, an unknown section) came from outside the harness.
+HARNESS_SECTIONS = frozenset(
+    {
+        "user_info",
+        "agent_transcripts",
+        "agent_skills",
+        "dynamic_tools",
+        "mcp_instructions",
+        "project_layout",
+        "git_status",
+    }
+)
+PROBE_PROMPT = "Reply with the single word ok."
 
-    Reads the first context message that carries ``<user_info>`` from each
-    chat store under ``config_dir/chats``; records counts, never text.
-    """
-    counts: list[dict[str, int]] = []
+
+class PromptCheckError(ValueError):
+    """The one-word prompt check failed, or its prompt carried context from outside the harness."""
+
+
+_SECTION_OPEN_RE = re.compile(r"<([a-z][a-z0-9_-]*)(?:\s[^>]*)?>")
+
+
+def top_level_sections(text: str) -> list[str]:
+    """The outermost ``<section>...</section>`` names in a context message, in order."""
+    sections = []
+    position = 0
+    while (match := _SECTION_OPEN_RE.search(text, position)) is not None:
+        close = text.find(f"</{match.group(1)}>", match.end())
+        if close < 0:
+            position = match.end()
+            continue
+        sections.append(match.group(1))
+        position = close + len(match.group(1)) + 3
+    return sections
+
+
+def _context_messages(config_dir: Path) -> list[str]:
+    """Each chat store's first context message (the one carrying ``<user_info>``) under ``config_dir/chats``."""
+    found = []
     for store in sorted(config_dir.glob("chats/*/*/store.db")):
         try:
             connection = sqlite3.connect(f"file:{store}?mode=ro", uri=True)
@@ -407,14 +446,93 @@ def account_user_rules(config_dir: Path) -> dict[str, Any] | None:
                 content = json.loads(data).get("content")
             except (UnicodeDecodeError, json.JSONDecodeError, AttributeError):
                 continue
-            if not isinstance(content, str):
-                continue
-            rules = re.findall(r"<user_rule>(.*?)</user_rule>", content, re.DOTALL)
-            counts.append({"rules": len(rules), "characters": sum(len(rule) for rule in rules)})
-            break
-    if not counts:
+            if isinstance(content, str):
+                found.append(content)
+                break
+    return found
+
+
+def prompt_audit(config_dir: Path) -> dict[str, Any] | None:
+    """What Cursor put in the episode's prompt besides the brief; ``None`` when no chat store was readable.
+
+    ``sections``: every outermost section of the context messages;
+    ``unexpected``: those not in :data:`HARNESS_SECTIONS`; ``user_rules`` and
+    ``user_rule_characters``: the account's User Rules in them. Names and
+    counts only, never text.
+    """
+    messages = _context_messages(config_dir)
+    if not messages:
         return None
-    return {"rules": max(c["rules"] for c in counts), "characters": max(c["characters"] for c in counts)}
+    sections = sorted({name for message in messages for name in top_level_sections(message)})
+    rules = [re.findall(r"<user_rule>(.*?)</user_rule>", message, re.DOTALL) for message in messages]
+    return {
+        "sections": sections,
+        "unexpected": [name for name in sections if name not in HARNESS_SECTIONS],
+        "user_rules": max(len(found) for found in rules),
+        "user_rule_characters": max(sum(len(rule) for rule in found) for found in rules),
+    }
+
+
+def prompt_audit_problems(harness_name: str | None, harness_run: dict[str, Any]) -> list[str]:
+    """Why a Cursor episode's prompt cannot be trusted: no audit, or sections from outside the harness."""
+    if harness_name != HARNESS_NAME:
+        return []
+    audit = harness_run.get("prompt_audit")
+    if not isinstance(audit, dict):
+        return ["no prompt audit: nothing shows the prompt held only the harness's own context"]
+    if audit.get("unexpected"):
+        return [
+            f"prompt carried context from outside the harness: {', '.join(audit['unexpected'])} "
+            f"({audit.get('user_rules', 0)} account User Rules)"
+        ]
+    return []
+
+
+def probe_prompt(*, model: str, binary: str = "cursor-agent", token_file: str | Path | None = None) -> dict[str, Any]:
+    """Ask Cursor for one word in a throwaway workspace set up exactly as an episode's, and audit that prompt.
+
+    One tiny model call on the operator's plan, so a panel refuses to start
+    before it spends an episode on a prompt that carries someone's rules.
+    Raises ``ValueError`` when the call fails or leaves no readable chat.
+    """
+    driver = CursorDriver(token_file=token_file)
+    scratch = Path(tempfile.mkdtemp(prefix="gmb-cursor-probe-"))
+    try:
+        env = driver.environment(opencode.harness_environment(), scratch, "same-user")
+        private = driver._homes[scratch]
+        argv = [
+            binary,
+            "-p",
+            "--output-format",
+            "stream-json",
+            "--trust",
+            "--mode",
+            "ask",
+            "--model",
+            model,
+            PROBE_PROMPT,
+        ]
+        try:
+            completed = subprocess.run(
+                argv, cwd=scratch, env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=300
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise PromptCheckError(f"Cursor prompt check could not run: {exc}") from None
+        audit = prompt_audit(private / _CONFIG)
+        if completed.returncode != 0 or audit is None:
+            detail = completed.stderr.strip()[-300:]
+            for secret in driver._secrets.get(scratch, set()):
+                detail = detail.replace(secret, REDACTED)
+            raise PromptCheckError(
+                f"Cursor prompt check failed (exit {completed.returncode}): {detail or 'no chat recorded'}"
+            )
+        return audit
+    finally:
+        driver._secrets.pop(scratch, None)
+        private = driver._homes.pop(scratch, None)
+        if private is not None:
+            shutil.rmtree(private, ignore_errors=True)
+        shutil.rmtree(scratch, ignore_errors=True)
 
 
 # -- the driver ---------------------------------------------------------------
@@ -437,7 +555,7 @@ class CursorDriver(HarnessDriver):
         self._sources: dict[Path, str] = {}
         self._configs: dict[Path, dict[str, Any]] = {}
         self._findings: dict[Path, list[str]] = {}
-        self._rules: dict[Path, dict[str, Any] | None] = {}
+        self._audits: dict[Path, dict[str, Any] | None] = {}
         # The episode's stderr log and its size when the current invocation started.
         self._stderr: tuple[Path, int] | None = None
 
@@ -590,7 +708,7 @@ class CursorDriver(HarnessDriver):
 
     def collect(self, launch: HarnessLaunch) -> None:
         private = self._homes.get(launch.scratch)
-        self._rules[launch.scratch] = account_user_rules(private / _CONFIG) if private is not None else None
+        self._audits[launch.scratch] = prompt_audit(private / _CONFIG) if private is not None else None
 
     def run_record(self, launch: HarnessLaunch) -> dict[str, Any]:
         config = self._configs.pop(launch.scratch, None)
@@ -601,8 +719,8 @@ class CursorDriver(HarnessDriver):
             "(removed at episode end)",
             "config_dir_guard": CONFIG_DIR_GUARD,
             "config_dir_findings": self._findings.pop(launch.scratch, []),
-            # The account's cloud User Rules Cursor put in the prompt (counts only); None if unread.
-            "account_user_rules": self._rules.pop(launch.scratch, None),
+            # The sections Cursor put in the prompt besides the brief (names and counts only); None if unread.
+            "prompt_audit": self._audits.pop(launch.scratch, None),
             "sandbox": SANDBOX,
             "permissions": "--force --approve-mcps --trust",
             "credential_store": HARNESS_ENV["AGENT_CLI_CREDENTIAL_STORE"],
@@ -651,5 +769,19 @@ def run_episode(
 def run_panel(
     seeds: list[int], *, binary: str = "cursor-agent", token_file: str | Path | None = None, **kwargs: Any
 ) -> dict[str, Any]:
-    """``opencode.run_panel`` with the Cursor driver; seeds run serially."""
-    return opencode.run_panel(seeds, binary=binary, driver=CursorDriver(token_file=token_file), **kwargs)
+    """``opencode.run_panel`` with the Cursor driver; seeds run serially.
+
+    First a one-word prompt check (:func:`probe_prompt`): a panel whose prompt
+    would carry anything from outside the harness is refused before it starts.
+    """
+    driver = CursorDriver(token_file=token_file)
+    driver.preflight(kwargs.get("isolation", "same-user"))
+    problems = prompt_audit_problems(
+        HARNESS_NAME, {"prompt_audit": probe_prompt(model=kwargs["model"], binary=binary, token_file=token_file)}
+    )
+    if problems:
+        raise PromptCheckError(
+            f"Cursor prompt check: {problems[0]}. Cursor's servers add the account's User Rules to every prompt; "
+            "clear them in Cursor Settings > Rules (keep a copy to restore afterwards) and run again"
+        )
+    return opencode.run_panel(seeds, binary=binary, driver=driver, **kwargs)
