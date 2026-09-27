@@ -53,13 +53,16 @@ function subjectOutcome(
 
 export default function PuzzleCard({
   puzzle,
+  initialPick = null,
   onPick,
 }: {
   puzzle: Puzzle;
-  /** Called once, with whether the pick was the best recorded move. */
-  onPick?: (best: boolean) => void;
+  /** An earlier pick to restore: the card opens answered, options locked. */
+  initialPick?: string | null;
+  /** Called once, with whether the pick was the best recorded move and its option id. */
+  onPick?: (best: boolean, optionId: string) => void;
 }) {
-  const [picked, setPicked] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(initialPick);
   const { situation } = puzzle;
   const best = puzzle.options.find((option) => option.id === puzzle.answer) ?? puzzle.options[0];
   const revealed = picked !== null;
@@ -120,7 +123,7 @@ export default function PuzzleCard({
                 className={classes.join(" ")}
                 onClick={() => {
                   setPicked(option.id);
-                  onPick?.(option.id === puzzle.answer);
+                  onPick?.(option.id === puzzle.answer, option.id);
                 }}
                 disabled={revealed}
                 aria-pressed={isPicked}

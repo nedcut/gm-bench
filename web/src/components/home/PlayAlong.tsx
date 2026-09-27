@@ -13,12 +13,14 @@ const MECHANIC_LABEL: Record<string, string> = {
 export default function PlayAlong({ set }: { set: PuzzleSet }) {
   const deck = set.puzzles;
   const [index, setIndex] = useState(0);
-  const [results, setResults] = useState<Record<string, boolean>>({});
+  // Each card's pick and its verdict, so a card restores the reader's answer
+  // when they come back to it and the tally always counts that same pick.
+  const [results, setResults] = useState<Record<string, { optionId: string; isBest: boolean }>>({});
   const puzzle = deck[index];
   if (!puzzle) return null;
 
   const played = Object.keys(results).length;
-  const best = Object.values(results).filter(Boolean).length;
+  const best = Object.values(results).filter((result) => result.isBest).length;
   const answered = puzzle.id in results;
   const go = (step: number) => setIndex((i) => (i + step + deck.length) % deck.length);
 
@@ -70,7 +72,10 @@ export default function PlayAlong({ set }: { set: PuzzleSet }) {
           <PuzzleCard
             key={puzzle.id}
             puzzle={puzzle}
-            onPick={(isBest) => setResults((r) => (puzzle.id in r ? r : { ...r, [puzzle.id]: isBest }))}
+            initialPick={results[puzzle.id]?.optionId ?? null}
+            onPick={(isBest, optionId) =>
+              setResults((r) => (puzzle.id in r ? r : { ...r, [puzzle.id]: { optionId, isBest } }))
+            }
           />
         </div>
       </div>
