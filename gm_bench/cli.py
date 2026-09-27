@@ -6,8 +6,10 @@ import argparse
 import json
 import os
 import platform
+import signal
 import sys
 import tempfile
+import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -77,6 +79,37 @@ def _model_worker_count(agent: Any, requested: int | None) -> int | None:
     if isinstance(agent, (ExternalProcessAgent, PersistentProcessAgent)):
         return 1
     return None
+
+
+@contextmanager
+def _sigterm_stops_the_run():
+    """Turn SIGTERM into ``SystemExit(143)`` so a stopped agentic run still cleans up.
+
+    Python's default SIGTERM ends the process without running ``finally``
+    blocks, so ``kill`` or ``pkill`` on the driver left the harness container
+    (and its home volume) running: killing the ``docker run`` client does not
+    stop a container. As an exception, the episode loop's cleanup removes
+    them. A second SIGTERM during that cleanup is ignored so it cannot cut it
+    short; every docker call there has a timeout, and SIGKILL still works.
+    """
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+
+    def _ignore(_signum: int, _frame: Any) -> None:
+        # A handler rather than SIG_IGN, which the cleanup's docker children would inherit.
+        pass
+
+    def _stop(signum: int, _frame: Any) -> None:
+        signal.signal(signal.SIGTERM, _ignore)
+        print("gm-bench agentic: SIGTERM, stopping the harness and cleaning up", file=sys.stderr)
+        raise SystemExit(128 + signum)
+
+    previous = signal.signal(signal.SIGTERM, _stop)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, previous)
 
 
 @contextmanager
@@ -1251,25 +1284,26 @@ def _agentic_command(args: argparse.Namespace) -> None:
     else:
         run_panel = opencode_driver.run_panel
     try:
-        payload = run_panel(
-            seeds,
-            model=args.model,
-            run_dir=_Path(args.output),
-            seasons=args.seasons,
-            binary=args.binary or args.harness,
-            variant=args.variant,
-            phase_guard_seconds=args.phase_guard_seconds,
-            max_nudges=args.max_nudges,
-            max_provider_stalls=args.max_provider_stalls,
-            max_provider_stall_wait_seconds=args.max_provider_stall_wait_seconds,
-            silent_harness_seconds=args.silent_harness_seconds,
-            progress=_progress,
-            keep_scratch=args.keep_scratch,
-            name_episodes_by_position=private,
-            isolation=args.isolation,
-            docker=args.docker,
-            **harness_options,
-        )
+        with _sigterm_stops_the_run():
+            payload = run_panel(
+                seeds,
+                model=args.model,
+                run_dir=_Path(args.output),
+                seasons=args.seasons,
+                binary=args.binary or args.harness,
+                variant=args.variant,
+                phase_guard_seconds=args.phase_guard_seconds,
+                max_nudges=args.max_nudges,
+                max_provider_stalls=args.max_provider_stalls,
+                max_provider_stall_wait_seconds=args.max_provider_stall_wait_seconds,
+                silent_harness_seconds=args.silent_harness_seconds,
+                progress=_progress,
+                keep_scratch=args.keep_scratch,
+                name_episodes_by_position=private,
+                isolation=args.isolation,
+                docker=args.docker,
+                **harness_options,
+            )
     except ContainerError as exc:
         # Docker missing or not running, or the harness image would not build.
         raise SystemExit(f"gm-bench agentic: {exc}") from None

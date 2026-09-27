@@ -1083,7 +1083,9 @@ def _run_harness(
     true the harness is killed and the flag is returned, distinct from the
     episode timeout so the caller can still nudge. ``on_kill`` runs before
     either kill: killing the ``docker run`` client does not stop its
-    container, so the container launcher removes it there.
+    container, so the container launcher removes it there. The same happens
+    when the driver itself is interrupted while the harness runs (Ctrl-C, or
+    SIGTERM through the CLI's handler), before the interruption goes on.
     """
     poll_seconds = HARNESS_POLL_SECONDS if poll_seconds is None else poll_seconds
     started = time.perf_counter()
@@ -1096,30 +1098,39 @@ def _run_harness(
         process = subprocess.Popen(
             command, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=events, stderr=errors, text=True
         )
-        while True:
-            remaining = deadline - time.perf_counter()
-            if remaining <= 0:
-                timed_out = True
-                # Stop the harness itself first: for a container the local
-                # process is only the docker client, and killing it leaves the
-                # harness running until ``docker rm``. Every tool call in that
-                # window would reach the ledger but not the event stream.
-                if on_kill is not None:
-                    on_kill()
-                process.kill()
-                exit_code: int | None = process.wait()
-                break
-            try:
-                exit_code = process.wait(timeout=min(poll_seconds, remaining))
-                break
-            except subprocess.TimeoutExpired:
-                if stalled is not None and stalled():
-                    was_stalled = True
+        try:
+            while True:
+                remaining = deadline - time.perf_counter()
+                if remaining <= 0:
+                    timed_out = True
+                    # Stop the harness itself first: for a container the local
+                    # process is only the docker client, and killing it leaves the
+                    # harness running until ``docker rm``. Every tool call in that
+                    # window would reach the ledger but not the event stream.
                     if on_kill is not None:
                         on_kill()
                     process.kill()
-                    exit_code = process.wait()
+                    exit_code: int | None = process.wait()
                     break
+                try:
+                    exit_code = process.wait(timeout=min(poll_seconds, remaining))
+                    break
+                except subprocess.TimeoutExpired:
+                    if stalled is not None and stalled():
+                        was_stalled = True
+                        if on_kill is not None:
+                            on_kill()
+                        process.kill()
+                        exit_code = process.wait()
+                        break
+        except BaseException:
+            # The driver is being stopped: take the harness (and its container) down with it.
+            if process.poll() is None:
+                if on_kill is not None:
+                    on_kill()
+                process.kill()
+                process.wait()
+            raise
     return exit_code, timed_out, time.perf_counter() - started, was_stalled
 
 
