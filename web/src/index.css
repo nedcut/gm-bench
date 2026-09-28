@@ -3780,6 +3780,10 @@ tbody tr.tier-start td {
   margin-top: 8px;
 }
 
+.agentic-lane-notes + .agentic-lane-intro {
+  margin-top: 18px;
+}
+
 .agentic-lane-notes code {
   font-family: var(--font-mono);
   font-size: 12px;

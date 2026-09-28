@@ -3,19 +3,20 @@ import { REPO_BLOB, routes } from "../../site";
 
 const HARNESSES = ["OpenCode", "Codex CLI", "Claude Code"];
 
+/* Argument names and id shapes match gm_bench/agentic/tools.py: player ids
+   are small integers, prospect ids are 1_000_000 + season * 10_000 + index. */
 const TOOL_LOG = [
   ["→", "get_status", "()"],
   ["→", "list_trade_market", "()"],
-  ["→", "inspect_player", "(1042)"],
-  ["→", "trade", "(partner_team_id=7, give=[1042])"],
-  ["→", "list_draft_class", "()"],
-  ["→", "draft", "(prospect_id=88)"],
-  ["→", "set_lineup", "(18 players)"],
+  ["→", "inspect_player", "(player_id=41)"],
+  ["→", "trade", "(partner_team_id=1, give_player_ids=[7], receive_player_ids=[41])"],
+  ["→", "set_lineup", "(player_ids=[18 ids])"],
   ["→", "end_phase", "()"],
+  ["→", "list_draft_class", "()"],
+  ["→", "draft", "(prospect_id=1010002)"],
 ] as const;
 
-/* A preview of GM-Bench 2.0. Deliberately carries no scores or order, even
-   once panel rows exist: 2.0 ranks nothing, and a row's only supported
+/* GM-Bench 2.0 on the home page. Deliberately carries no scores or order: 2.0 ranks nothing, and a row's only supported
    comparison is against pick-trader, which the results page shows with its
    interval. Smoke rows never reach the site, so every row counted here is
    panel grade. */
@@ -25,7 +26,7 @@ export default function NextUp({ data }: { data: Leaderboard }) {
     <section className="next" aria-labelledby="next-title">
       <div className="shell next-inner">
         <div>
-          <p className="eyebrow">Next · GM-Bench 2.0</p>
+          <p className="eyebrow">{panelRows === 0 ? "Next · GM-Bench 2.0" : "New · GM-Bench 2.0"}</p>
           <h2 id="next-title" className="display-2">
             One continuous <span className="accent-blue">five-season episode.</span>
           </h2>
