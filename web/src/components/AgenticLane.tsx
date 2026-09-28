@@ -182,12 +182,34 @@ function wallMinutes(row: AgenticLaneRow): string {
 
 /* Spec, Row identity and eligibility: an unpinned row carries the flag and a
  * plain sentence that it may not be reproducible. */
+/* The MDD for the row-versus-pick-trader contrast at 80% power and two-sided
+ * alpha 0.05, from the row's own paired-lift SD: (1.96 + 0.84) * SD / sqrt(n). */
+function detectableLift(row: AgenticLaneRow): number {
+  return ((1.96 + 0.84) * row.reference.paired_lift_stddev) / Math.sqrt(row.reference.num_seeds);
+}
+
+/* Caveats a row's numbers cannot carry: rules and provenance that differ
+ * between rows. Keyed by row id; see docs/bench_v2_spec.md, "Changes after
+ * the freeze". */
+const ROW_CAVEATS: Record<string, string> = {
+  "agentic:claude-2.1.281:claude-haiku-4-5":
+    "Admitted under a post-hoc audit rule adopted on 2026-09-27, after this panel ran: in 4 episodes the " +
+    "model drafted 6 prospects by guessed id without listing the draft class. Prospect ids carry no hidden " +
+    "information, so these picks are reported as warnings, not violations. Played on driver commit 21b71dc; " +
+    "the other rows ran on 4d742cc. The two differ only in how Claude Code's tool calls are counted, not in " +
+    "scoring.",
+  "agentic:claude-2.1.281:claude-sonnet-5":
+    "One episode's ledger = harness figure is a recount: the run recorded 165 of 166 because the event " +
+    "parser counted a call to a tool name that does not exist; after the parser fix the count is 165 of 165.",
+};
+
 const UNPINNED_SENTENCE =
   "The model version or provider behind this row is not pinned, so the row may not be reproducible. It is an extra data point, not a headline.";
 
 export default function AgenticLane({ data }: { data: LeaderboardData }) {
   const rows = data.agentic_lane ?? [];
   if (rows.length === 0) return null;
+  const v1PickTrader = data.baselines.find((baseline) => baseline.agent === "pick-trader");
 
   return (
     <section className="analysis-section agentic-lane" id="agentic-lane">
@@ -205,9 +227,9 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
           reported, not capped: tool calls, tokens, cost, and wall time sit beside the score and
           never inside it. A row is one model in one harness at one version, so two harnesses on the
           same model are two rows, shown side by side with no p-value between them. Every row here
-          ran the frozen private panel with the harness separated from the driver by a different
-          user or a container, because a harness running as the driver's user can find the private
-          seeds through the operating system. See the <a href={SPEC_DOC}>2.0 specification</a> and the{" "}
+          ran the frozen private panel with the harness in a container, separated from the driver,
+          because a harness running as the driver's user can find the private seeds through the
+          operating system. See the <a href={SPEC_DOC}>2.0 specification</a> and the{" "}
           <a href={LANE_DOC}>operator guide</a>.
         </p>
         <p className="agentic-lane-intro">
@@ -241,7 +263,7 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                   Panel
                 </th>
                 <th>Tool calls / episode</th>
-                <th title="Phases the agent closed itself, out of all phases; the rest were closed by the phase guard">
+                <th title="Phases the agent closed itself, out of all phases; the rest were closed by the phase guard or when the harness exited">
                   Closed by agent
                 </th>
                 <th title="Phases where the agent called only get_status and end_phase: it read nothing beyond the status and made no move">
@@ -333,13 +355,29 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
               {row.illegal_actions ?? 0} illegal action
               {row.illegal_actions === 1 ? "" : "s"}.
               {quotaNote(row)}
+              {` At this panel's spread, a lift smaller than about ${fmt(detectableLift(row), 0)} points cannot be detected reliably.`}
               {effortNote(row)}
               {row.v1_row_id
                 ? ` The same model has a 1.0 row (${row.v1_row_id}); the two are different benchmarks and are not paired here.`
                 : ""}
+              {ROW_CAVEATS[row.id] ? ` ${ROW_CAVEATS[row.id]}` : ""}
             </li>
           ))}
         </ul>
+        <p className="agentic-lane-intro">
+          {`Pick-trader scores ${fmt(rows[0].reference.mean_score, 1)} on this ${rows[0].reference.num_seeds}-seed panel`}
+          {v1PickTrader ? ` and ${fmt(v1PickTrader.mean_score, 1)} in the 1.0 tables` : ""} because
+          the 1.0 panel is only the first 29 of these seeds; the three added seeds move its mean. The panel was sized to detect a lift of 24 to 33 points, but the
+          per-seed lifts spread more than expected, so a lift that is not significant here means the
+          panel cannot tell, not that the row matches pick-trader. Every row ran at its harness's
+          default reasoning effort. The harnesses also differ in the tools they give the model beside
+          GM-Bench's: Claude Code runs without web tools and loads each GM-Bench tool's schema through
+          ToolSearch before first use, while Codex and OpenCode keep their built-in tools, web
+          included. The container allows the public internet, so an agent could read this
+          repository, pick-trader's source included. No panel agent used the web: the recorded tool
+          events and a review of the Claude Code event streams show none. See the <a href={SPEC_DOC}>specification</a> for how 2.0 differs from 1.0
+          beyond the interface.
+        </p>
       </div>
     </section>
   );

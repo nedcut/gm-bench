@@ -6,9 +6,15 @@ operator's view: what a run does, what it writes, and how to read it.
 ## What happens in a run
 
 ```bash
-python -m gm_bench agentic --harness opencode --model opencode/big-pickle \
-  --seeds 11 12 --seasons 5 --output /tmp/agentic-big-pickle
+python -m gm_bench agentic --harness opencode --model opencode/space-bunny-free \
+  --seeds 11 12 --seasons 5 --output /tmp/agentic-space-bunny-dev
 ```
+
+The examples on this page use `opencode/space-bunny-free`, the free
+OpenCode model behind the committed smoke row. Free `opencode/*` models come
+and go and have quotas: `opencode/big-pickle`, used in the early smokes,
+exhausted its free quota before the contract freeze. Run `opencode models`
+to see what is free today, and substitute.
 
 For each seed, serially:
 
@@ -188,7 +194,7 @@ every phase failed, exactly like a 1.0 adapter that never produced output.
 
 ```python
 from gm_bench.agentic.audit import audit_ledger
-audit_ledger("/tmp/agentic-big-pickle/seed-11/ledger.jsonl")
+audit_ledger("/tmp/agentic-space-bunny-dev/seed-11/ledger.jsonl")
 ```
 
 Every tool reply's entity ids are recorded, so the audit can list moves that
@@ -205,7 +211,7 @@ The audit reports, it does not decide; publication does.
 ## Validating a run
 
 ```bash
-python -m gm_bench agentic-validate /tmp/agentic-big-pickle
+python -m gm_bench agentic-validate /tmp/agentic-space-bunny-dev
 ```
 
 Exit code 0 means every episode's ledger replays to the recorded score, its
@@ -237,7 +243,14 @@ on public seeds.
 
 ## Publishing a row
 
+The committed OpenCode smoke row was produced this way (2026-09-25,
+OpenCode 1.18.31, Docker running): run, redact, then validate the artifact
+alone and against its raw run.
+
 ```bash
+python -m gm_bench agentic --harness opencode --isolation container \
+    --model opencode/space-bunny-free --seeds 1 2 3 4 5 6 7 8 --seasons 5 \
+    --output /tmp/agentic-space-bunny
 python -m gm_bench agentic-redact /tmp/agentic-space-bunny \
     --output results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json \
     --isolation container --public-seeds
@@ -360,7 +373,7 @@ panel row at that season count to agree.
 ## Running the harness in a container
 
 ```bash
-python -m gm_bench agentic --isolation container --model opencode/big-pickle \
+python -m gm_bench agentic --isolation container --model opencode/space-bunny-free \
   --seeds 11 --seasons 1 --output /tmp/agentic-container
 ```
 
@@ -468,13 +481,19 @@ result is still written.
 ## Codex harness
 
 ```bash
-python -m gm_bench agentic --harness codex --model gpt-5.5 --variant low \
+python -m gm_bench agentic --harness codex --model gpt-6-luna \
   --codex-auth-file /path/to/codex-auth.json \
   --seeds 11 --seasons 1 --output /tmp/agentic-codex
-python -m gm_bench agentic --harness codex --isolation container --model gpt-5.5 \
+python -m gm_bench agentic --harness codex --isolation container --model gpt-6-luna \
   --codex-auth-file /path/to/codex-auth.json \
   --seeds 11 --seasons 1 --output /tmp/agentic-codex-container
 ```
+
+These are the model and flags the committed Codex rows used. No committed
+row passes `--variant`, on any harness, so every row ran at the harness's
+default reasoning effort. `--variant` sets it explicitly (for Codex,
+`-c model_reasoning_effort="<variant>"`), and a row run with it is a
+different row.
 
 The Codex CLI is the second harness (`gm_bench/agentic/codex.py`, written
 and tested against Codex CLI 0.156.1). It runs through the same episode loop
@@ -500,6 +519,13 @@ the 32-seed private panel at five seasons in a container (2026-09-26), is
 committed at `results/agentic/codex-0.156.1-gpt-6-luna-panel-32x5.json`:
 mean 227.4, 640/640 phases closed by the agent, no nudges, provider stalls
 or quota pauses, 10.3 min per episode, $4.54 at API prices for the panel.
+That cost is a lower bound. The row carries
+`api_equivalent_long_context_possible: true`: an episode sends about 10M
+input tokens, and in some turns the input grew by more than the 272K-token
+long-context threshold, so some requests may have been billed at the
+long-context tier (2x input and cache, 1.5x output). The
+estimate always uses short-context rates (see "API-equivalent cost
+estimate" below), so the true API-price cost may be higher.
 
 What a run does per episode:
 
@@ -912,9 +938,13 @@ stops the episode and the panel, exactly as for Codex's usage limit;
 the process for a rejected window to reset instead of exiting, so the
 loop also polls the running invocation and stops it when a rejection is
 open and no result has arrived; that stop is a quota pause, not a guard
-kill. The streamed windows (utilization and reset per `rateLimitType`)
-are recorded as `harness_run.quota_windows` and drive the between-episode
-pause at 95% used.
+kill. The driver can also record windows streamed with a `utilization`
+figure as `harness_run.quota_windows`, which would drive the
+between-episode pause at 95% used. In practice Claude Code 2.1.281 streamed
+none: every committed Claude row has empty `quota_windows` and no quota
+pauses. So on Claude Code the between-episode pause never fires, and the
+first sign of a spent window is the rejection itself. Check your usage
+before a panel.
 
 The config directory between invocations. The agent's shell runs as the
 same user as Claude Code, so between two invocations it could write a
@@ -1000,6 +1030,39 @@ poll (`HarnessDriver.invocation_parked`, used only when
 `polls_for_park` is set), and a hook that runs before every invocation
 (`HarnessDriver.before_invocation`, the same-user config re-stage).
 
+## What else the agent can use
+
+Each harness runs with its own tools beside the GM-Bench tools, and they
+differ. This is part of what a row measures, since a row is model plus
+harness.
+
+- **Claude Code** runs with `--tools
+  Bash,Read,Edit,Write,Glob,Grep,NotebookEdit,ToolSearch`. It has no web
+  fetch or web search tool, and `dontAsk` denies any other tool. Its
+  GM-Bench tools are deferred: the model sees them by name only and calls
+  ToolSearch to load a tool's schema before first use (see "Claude Code
+  harness"). The two panel rows made 200 (`claude-sonnet-5`) and 167
+  (`claude-haiku-4-5`) ToolSearch calls over 32 episodes.
+- **OpenCode and Codex** run with their built-in tool sets unrestricted,
+  including any web tool the harness ships (OpenCode's web fetch, Codex's
+  web search), and put every GM-Bench tool schema in the first prompt.
+
+Network. In a container the egress rule blocks the host and private
+networks but allows the public internet, because the harness needs its
+model provider. So an agent can reach anything public, including this
+repository: the simulator source, the scripted `pick-trader` policy
+(`gm_bench/agents.py`), and these docs. It cannot reach a panel seed that
+way (see "Red-teaming the sandbox"), but it could read how the benchmark
+works and what the reference policy does.
+
+No panel agent used the web. The committed Codex panel row records no
+harness tool event except GM-Bench calls: no shell command and no web
+search. The Claude rows record `Bash`, `Read`, `Edit`, `Write` and
+`ToolSearch` events only, and the pre-release audit of the retained Claude
+event streams found no shell command that contacted an external host.
+Nothing enforces this for future rows; check a new row's event stream
+before publishing it.
+
 ## Private panel
 
 A full row is the 32-seed private panel (`docs/bench_v2_spec.md`, Panel
@@ -1016,8 +1079,17 @@ The seeds and salt live only in the macOS Keychain
 ```bash
 python scripts/run_bench_v2_panel_from_keychain.py --verify-only
 python scripts/run_bench_v2_panel_from_keychain.py \
-    --model opencode/big-pickle --output /path/outside/the/checkout/run
+    --harness codex --isolation container --model gpt-6-luna \
+    --codex-auth-file /path/to/codex-auth.json \
+    --output /path/outside/the/checkout/run
 ```
+
+Always pass `--isolation container`. The launcher keeps the seeds off
+command lines, but without a container the harness runs as your user: the
+agent's shell can `ps` the driver, find the run directory, and read the
+seeds from the ledger headers there, as the same-user red-team probe did.
+Such a run redacts as `smoke` at best, and it has exposed private seeds to
+the model. Never run a same-user panel on the private seeds.
 
 `--verify-only` checks the escrow against every committed digest and prints
 only the result. A run first refuses to start while any driver or contract
@@ -1048,7 +1120,7 @@ episodes' `result.json`), so panel grade still needs
 
 ```bash
 python3 -c 'import secrets; print((1 << 32) + secrets.randbelow((1 << 63) - (1 << 32)))' \
-    | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team-container \
+    | python scripts/agentic_red_team.py --model opencode/space-bunny-free --output /tmp/red-team-container \
     --isolation container
 ```
 
