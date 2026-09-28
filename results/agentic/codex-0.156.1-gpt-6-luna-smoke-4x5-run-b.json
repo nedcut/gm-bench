@@ -59,6 +59,16 @@
     "git_driver_clean": true,
     "git_head": "6cabc38c9f1aaac688a98c7d02c65b04aaacde8e"
   },
+  "effective_reasoning_effort": {
+    "note": "codex exec --json reports no effort; the driver reads turn_context.effort from the session rollouts, and runs recorded before it did (2026-09-28) kept none",
+    "reported": null,
+    "requested": null
+  },
+  "empty_phases": {
+    "count": 0,
+    "definition": "a closed phase whose every ledger tool call (if any) was get_status or end_phase: the agent read nothing beyond the status and made no move",
+    "phases": 80
+  },
   "episodes": [
     {
       "agentic": {
@@ -234,6 +244,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 213.976,
       "harness_run": {
@@ -499,6 +510,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 216.271,
       "harness_run": {
@@ -762,6 +774,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 282.503,
       "harness_run": {
@@ -1025,6 +1038,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 196.998,
       "harness_run": {
@@ -1153,7 +1167,7 @@
   },
   "phase_guard_seconds": 1200.0,
   "publication": {
-    "compacted_at_utc": "2026-09-26T01:39:35+00:00",
+    "compacted_at_utc": "2026-09-28T14:04:18+00:00",
     "format": "gm-bench-agentic-summary-v1",
     "raw_artifact_sha256": "1458595346eb03350754e360a69aa3b5fa891020bf1af22e6b0db84c1f88d5bc",
     "traces_included": false

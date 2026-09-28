@@ -8,6 +8,21 @@ correction becomes a new contract version rather than an edit to an old one.
 
 Added 2026-09-20. Nothing published changes.
 
+- Release fixes (2026-09-28, driver, validation and publication only; the
+  agentic fingerprint stays `07de948a4f4afbae`). The `claude-haiku-4-5`
+  panel row's API-equivalent cost is re-derived from its retained events:
+  $27.71, not $25.14 (its 1-hour cache writes had been priced at the
+  5-minute rate because frames name the dated snapshot); the row keeps the
+  recorded figure beside it. Scores do not change. Every committed row was
+  re-redacted from its raw run and now carries empty-phase counts
+  (Haiku 301/640, Sonnet 0/640, Codex 1/640, space-bunny 6/160) and the
+  reasoning effort requested and reported; the Haiku reference's
+  sign-flip p-value is published as the bound 5e-05 instead of 0.0. An
+  episode a provider ended past its stall budget now stops the panel and
+  is refused for publication, as are the `muse-spark` panel's episodes 15
+  and 16; OpenCode's `FreeUsageLimitError` is quota exhaustion; the
+  Keychain panel launcher refuses same-user isolation.
+
 - Contract freeze (2026-09-25): the 2.0 contract is frozen as
   `gm-bench-2.0` at agentic fingerprint `07de948a4f4afbae`, and a test pins
   the pair, so any byte change to the tool surface, brief, episode engine or

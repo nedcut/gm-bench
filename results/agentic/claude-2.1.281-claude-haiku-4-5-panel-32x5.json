@@ -2,8 +2,13 @@
   "agent": "claude:claude-haiku-4-5",
   "agentic_summary": {
     "api_equivalent_cost_episodes": 32,
-    "api_equivalent_cost_usd": 25.143227,
-    "api_equivalent_long_context_possible": false,
+    "api_equivalent_cost_usd": 27.707858,
+    "api_equivalent_long_context_possible": null,
+    "api_equivalent_recorded": {
+      "api_equivalent_cost_episodes": 32,
+      "api_equivalent_cost_usd": 25.143227,
+      "api_equivalent_long_context_possible": false
+    },
     "compactions": 0,
     "mean_tool_calls_per_episode": 91.19,
     "mean_wall_seconds": 363.1,
@@ -61,6 +66,16 @@
     ],
     "git_driver_clean": true,
     "git_head": "21b71dcade93bb13617d3748c86243ee323f4385"
+  },
+  "effective_reasoning_effort": {
+    "note": "Claude Code's stream-json init and result events carry no effort level",
+    "reported": null,
+    "requested": null
+  },
+  "empty_phases": {
+    "count": 301,
+    "definition": "a closed phase whose every ledger tool call (if any) was get_status or end_phase: the agent read nothing beyond the status and made no move",
+    "phases": 640
   },
   "episodes": [
     {
@@ -236,6 +251,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 8,
       "failed_decisions": 0,
       "final_score": 119.908,
       "harness_run": {
@@ -289,7 +305,24 @@
         "cached_input_tokens": 6119672,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.945471,
+          "api_equivalent_cost_usd": 1.03192,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.945471,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 115265,
           "compactions": 0,
@@ -508,6 +541,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 11,
       "failed_decisions": 0,
       "final_score": 106.783,
       "harness_run": {
@@ -547,7 +581,24 @@
         "cached_input_tokens": 3739054,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.625718,
+          "api_equivalent_cost_usd": 0.691898,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.625718,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 88240,
           "compactions": 0,
@@ -763,6 +814,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 8,
       "failed_decisions": 0,
       "final_score": 146.631,
       "harness_run": {
@@ -802,7 +854,24 @@
         "cached_input_tokens": 5097142,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.786091,
+          "api_equivalent_cost_usd": 0.862651,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.786091,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 102080,
           "compactions": 0,
@@ -1019,6 +1088,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 11,
       "failed_decisions": 0,
       "final_score": 142.32,
       "harness_run": {
@@ -1058,7 +1128,24 @@
         "cached_input_tokens": 4376533,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.719244,
+          "api_equivalent_cost_usd": 0.796161,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.719244,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 102556,
           "compactions": 0,
@@ -1278,6 +1365,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 12,
       "failed_decisions": 0,
       "final_score": 107.968,
       "harness_run": {
@@ -1317,7 +1405,24 @@
         "cached_input_tokens": 3101107,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.562076,
+          "api_equivalent_cost_usd": 0.626918,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.562076,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 86455,
           "compactions": 0,
@@ -1533,6 +1638,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 7,
       "failed_decisions": 0,
       "final_score": 178.262,
       "harness_run": {
@@ -1572,7 +1678,24 @@
         "cached_input_tokens": 5734241,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.832636,
+          "api_equivalent_cost_usd": 0.91615,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.832636,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 111352,
           "compactions": 0,
@@ -1788,6 +1911,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 8,
       "failed_decisions": 0,
       "final_score": 163.567,
       "harness_run": {
@@ -1827,7 +1951,24 @@
         "cached_input_tokens": 6055664,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.918762,
+          "api_equivalent_cost_usd": 1.00967,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.918762,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 121211,
           "compactions": 0,
@@ -2042,6 +2183,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 9,
       "failed_decisions": 0,
       "final_score": 120.045,
       "harness_run": {
@@ -2081,7 +2223,24 @@
         "cached_input_tokens": 5740431,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.82808,
+          "api_equivalent_cost_usd": 0.900144,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.82808,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 96086,
           "compactions": 0,
@@ -2297,6 +2456,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 10,
       "failed_decisions": 0,
       "final_score": 125.718,
       "harness_run": {
@@ -2336,7 +2496,24 @@
         "cached_input_tokens": 5734657,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.884229,
+          "api_equivalent_cost_usd": 0.973107,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.884229,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 118504,
           "compactions": 0,
@@ -2553,6 +2730,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 8,
       "failed_decisions": 0,
       "final_score": 121.172,
       "harness_run": {
@@ -2592,7 +2770,24 @@
         "cached_input_tokens": 3870339,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.657278,
+          "api_equivalent_cost_usd": 0.737859,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.657278,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 107441,
           "compactions": 0,
@@ -2810,6 +3005,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 12,
       "failed_decisions": 0,
       "final_score": 88.228,
       "harness_run": {
@@ -2849,7 +3045,24 @@
         "cached_input_tokens": 4790737,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.80933,
+          "api_equivalent_cost_usd": 0.882233,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.80933,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 97203,
           "compactions": 0,
@@ -3063,6 +3276,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 8,
       "failed_decisions": 0,
       "final_score": 246.961,
       "harness_run": {
@@ -3102,7 +3316,24 @@
         "cached_input_tokens": 3983819,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.693746,
+          "api_equivalent_cost_usd": 0.76873,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.693746,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 99979,
           "compactions": 0,
@@ -3317,6 +3548,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 12,
       "failed_decisions": 0,
       "final_score": 81.928,
       "harness_run": {
@@ -3356,7 +3588,24 @@
         "cached_input_tokens": 4671769,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.738155,
+          "api_equivalent_cost_usd": 0.811385,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.738155,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 97640,
           "compactions": 0,
@@ -3573,6 +3822,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 8,
       "failed_decisions": 0,
       "final_score": 143.552,
       "harness_run": {
@@ -3612,7 +3862,24 @@
         "cached_input_tokens": 4569592,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.775663,
+          "api_equivalent_cost_usd": 0.867734,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.775663,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 122761,
           "compactions": 0,
@@ -3830,6 +4097,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 9,
       "failed_decisions": 0,
       "final_score": 97.667,
       "harness_run": {
@@ -3869,7 +4137,24 @@
         "cached_input_tokens": 5294939,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.836329,
+          "api_equivalent_cost_usd": 0.91869,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.836329,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 109814,
           "compactions": 0,
@@ -4085,6 +4370,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 8,
       "failed_decisions": 0,
       "final_score": 205.385,
       "harness_run": {
@@ -4124,7 +4410,24 @@
         "cached_input_tokens": 5884798,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.895324,
+          "api_equivalent_cost_usd": 0.982377,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.895324,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 116070,
           "compactions": 0,
@@ -4341,6 +4644,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 13,
       "failed_decisions": 0,
       "final_score": 124.288,
       "harness_run": {
@@ -4380,7 +4684,24 @@
         "cached_input_tokens": 3242789,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.554015,
+          "api_equivalent_cost_usd": 0.616202,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.554015,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 82916,
           "compactions": 0,
@@ -4597,6 +4918,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 13,
       "failed_decisions": 0,
       "final_score": 81.508,
       "harness_run": {
@@ -4636,7 +4958,24 @@
         "cached_input_tokens": 3405872,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.603881,
+          "api_equivalent_cost_usd": 0.674694,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.603881,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 94417,
           "compactions": 0,
@@ -4854,6 +5193,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 8,
       "failed_decisions": 0,
       "final_score": 133.793,
       "harness_run": {
@@ -4893,7 +5233,24 @@
         "cached_input_tokens": 5817643,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.875637,
+          "api_equivalent_cost_usd": 0.969483,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.875637,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 125128,
           "compactions": 0,
@@ -5113,6 +5470,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 10,
       "failed_decisions": 0,
       "final_score": 108.568,
       "harness_run": {
@@ -5152,7 +5510,24 @@
         "cached_input_tokens": 2889525,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.499317,
+          "api_equivalent_cost_usd": 0.566009,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.499317,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 88922,
           "compactions": 0,
@@ -5368,6 +5743,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 7,
       "failed_decisions": 0,
       "final_score": 129.455,
       "harness_run": {
@@ -5407,7 +5783,24 @@
         "cached_input_tokens": 4329224,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.746055,
+          "api_equivalent_cost_usd": 0.829188,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.746055,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 110844,
           "compactions": 0,
@@ -5621,6 +6014,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 11,
       "failed_decisions": 0,
       "final_score": 99.668,
       "harness_run": {
@@ -5660,7 +6054,24 @@
         "cached_input_tokens": 4935935,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.8309,
+          "api_equivalent_cost_usd": 0.909231,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.8309,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 104441,
           "compactions": 0,
@@ -5878,6 +6289,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 9,
       "failed_decisions": 0,
       "final_score": 106.72,
       "harness_run": {
@@ -5931,7 +6343,24 @@
         "cached_input_tokens": 6122136,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.927929,
+          "api_equivalent_cost_usd": 1.012877,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.927929,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 113263,
           "compactions": 0,
@@ -6146,6 +6575,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 8,
       "failed_decisions": 0,
       "final_score": 163.673,
       "harness_run": {
@@ -6185,7 +6615,24 @@
         "cached_input_tokens": 4125499,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.681062,
+          "api_equivalent_cost_usd": 0.757813,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.681062,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 102335,
           "compactions": 0,
@@ -6399,6 +6846,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 8,
       "failed_decisions": 0,
       "final_score": 130.83,
       "harness_run": {
@@ -6438,7 +6886,24 @@
         "cached_input_tokens": 3917175,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.643085,
+          "api_equivalent_cost_usd": 0.715664,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.643085,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 96771,
           "compactions": 0,
@@ -6655,6 +7120,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 12,
       "failed_decisions": 0,
       "final_score": 168.468,
       "harness_run": {
@@ -6694,7 +7160,24 @@
         "cached_input_tokens": 4493466,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.739227,
+          "api_equivalent_cost_usd": 0.814893,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.739227,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 100888,
           "compactions": 0,
@@ -6916,6 +7399,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 6,
       "failed_decisions": 0,
       "final_score": 101.242,
       "harness_run": {
@@ -6969,7 +7453,24 @@
         "cached_input_tokens": 7414832,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 1.058892,
+          "api_equivalent_cost_usd": 1.149925,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 1.058892,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 121378,
           "compactions": 0,
@@ -7186,6 +7687,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 12,
       "failed_decisions": 0,
       "final_score": 107.328,
       "harness_run": {
@@ -7225,7 +7727,24 @@
         "cached_input_tokens": 3985140,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.703775,
+          "api_equivalent_cost_usd": 0.775433,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.703775,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 95544,
           "compactions": 0,
@@ -7444,6 +7963,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 10,
       "failed_decisions": 0,
       "final_score": 146.988,
       "harness_run": {
@@ -7483,7 +8003,24 @@
         "cached_input_tokens": 5971446,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 1.006483,
+          "api_equivalent_cost_usd": 1.100318,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 1.006483,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 125113,
           "compactions": 0,
@@ -7703,6 +8240,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 10,
       "failed_decisions": 0,
       "final_score": 150.908,
       "harness_run": {
@@ -7742,7 +8280,24 @@
         "cached_input_tokens": 5575188,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.908882,
+          "api_equivalent_cost_usd": 0.999799,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.908882,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 121222,
           "compactions": 0,
@@ -7959,6 +8514,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 10,
       "failed_decisions": 0,
       "final_score": 77.468,
       "harness_run": {
@@ -7998,7 +8554,24 @@
         "cached_input_tokens": 4099552,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 0.672988,
+          "api_equivalent_cost_usd": 0.748514,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 0.672988,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 100701,
           "compactions": 0,
@@ -8214,6 +8787,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 5,
       "failed_decisions": 0,
       "final_score": 137.127,
       "harness_run": {
@@ -8253,7 +8827,24 @@
         "cached_input_tokens": 7824543,
         "cost_usd": null,
         "harness": {
-          "api_equivalent_cost_usd": 1.182967,
+          "api_equivalent_cost_usd": 1.290188,
+          "api_equivalent_recomputed": {
+            "driver_digest": "69a96e9ca919814d",
+            "from": "retained claude-events.jsonl",
+            "recorded": {
+              "api_equivalent_cost_usd": 1.182967,
+              "billed_by_harness": false,
+              "cost_basis": "api-list-price-estimate",
+              "long_context_requests_possible": null,
+              "pricing_source": {
+                "cache_write_1h_rate": "cache-write-1h",
+                "cache_write_rate": "cache-write",
+                "cached_input_rate": "cached",
+                "key": "claude-haiku-4-5",
+                "verified": "2026-09-27"
+              }
+            }
+          },
           "billed_by_harness": false,
           "cache_write_tokens": 142962,
           "compactions": 0,
@@ -8330,7 +8921,7 @@
   },
   "phase_guard_seconds": 1200.0,
   "publication": {
-    "compacted_at_utc": "2026-09-27T21:57:26+00:00",
+    "compacted_at_utc": "2026-09-28T14:03:32+00:00",
     "format": "gm-bench-agentic-summary-v1",
     "raw_artifact_sha256": "77c39b2da128d4ce166e6d33c3a6cb55dd472796ee53a93ba9ef1335351735c3",
     "traces_included": false
@@ -8354,7 +8945,8 @@
     "paired_lift_stddev": 40.731,
     "per_seed": [],
     "seasons": 5,
-    "sign_flip_p_value": 0.0,
+    "sign_flip_p_value": 5e-05,
+    "sign_flip_p_value_upper_bound": true,
     "significant_at_95": true
   },
   "seasons": 5,
