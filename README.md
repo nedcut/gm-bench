@@ -49,7 +49,9 @@ started.
   (`gpt-6-luna`) mean 227.4 and Claude Code (`claude-sonnet-5`) mean 227.4.
   Both trail the `pick-trader` heuristic by about 22 points (Codex -21.8,
   95% interval -43.3 to +0.1; Claude -21.8, -47.2 to +3.5), and neither gap
-  is significant. The site's 2.0 section shows them.
+  is significant. Claude Code on `claude-haiku-4-5` scores 130.1, 119.1
+  points below `pick-trader` (95% interval -132.8 to -104.5), and loses on
+  every seed. The site's 2.0 section shows all three.
 
 The frozen design is in [docs/bench_v2_spec.md](docs/bench_v2_spec.md) and the
 operator guide is [docs/agentic_lane.md](docs/agentic_lane.md).

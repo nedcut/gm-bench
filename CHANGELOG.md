@@ -342,6 +342,23 @@ Added 2026-09-20. Nothing published changes.
   server name `mcp__gm-bench`, which Claude Code refused before any server
   saw it. The parser is fixed, and the row publishes the recount (165/165)
   with the recorded figure beside it.
+- Audit rule change (2026-09-27): an accepted `draft` on a prospect id no
+  tool reply exposed is now a `guessed_draft_pick`, reported as a warning,
+  instead of a violation that blocks publication. Prospect ids are
+  `1_000_000 + season * 10_000 + index` with the index independent of hidden
+  potential, so a guessed pick is blind; a test pins that independence. Any
+  other accepted move on an unseen id is still a violation. Prompted by the
+  `claude-haiku-4-5` panel, which drafted six guessed ids in four episodes.
+- Third panel-grade 2.0 row: Claude Code 2.1.281 on `claude-haiku-4-5`, the
+  frozen 32-seed private panel at five seasons, container isolation, played
+  from clean `main` at `21b71dc`
+  (`results/agentic/claude-2.1.281-claude-haiku-4-5-panel-32x5.json`). Mean
+  130.1 (SD 36.1), 640/640 phases closed by the agent, 0 failed decisions,
+  56 penalized illegal moves, 3 nudges, no provider stalls or compactions,
+  6.1 min per episode, $25 at API prices. Against `pick-trader` the paired
+  lift is -119.1, 95% interval -132.8 to -104.5, p < 0.001, winning no
+  seed: significantly below the scripted bar. Six draft picks on guessed
+  prospect ids are reported as warnings under the rule above.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 

@@ -168,8 +168,11 @@ named a player, prospect, team, or offer no earlier reply exposed. Accepted
 moves on unseen ids are `violations`; rejected ones are `suspicious`. Ids are
 sequential, so models do guess them: a successful read on a guessed id
 (`scout`, `inspect_player`, `inspect_team`) is reported as a `guessed_read`
-and the id counts as exposed from that reply on. The audit reports, it does
-not decide; publication does.
+and the id counts as exposed from that reply on. An accepted `draft` on a
+guessed prospect id is a `guessed_draft_pick`, not a violation: prospect ids
+are `1_000_000 + season * 10_000 + index` and the index is independent of
+hidden potential, so the pick is blind. Validation reports it as a warning.
+The audit reports, it does not decide; publication does.
 
 ## Validating a run
 
@@ -670,7 +673,13 @@ prices. The 32-seed private panel at five seasons in a container
 227.4, 640/640 phases closed by the agent, no nudges, provider stalls or
 compactions, 14.5 min per episode, $157 at API prices for the panel, and no
 subscription limit hit. One episode's recorded tool-call agreement (165/166)
-came from a parser bug and is published as the recount (165/165). Every Claude episode spends your Claude subscription's
+came from a parser bug and is published as the recount (165/165). A
+second panel on `claude-haiku-4-5` (2026-09-27) is committed at
+`results/agentic/claude-2.1.281-claude-haiku-4-5-panel-32x5.json`: mean
+130.1, 640/640 phases closed by the agent, 3 nudges, no provider stalls,
+6.1 min per episode, $25 at API prices. In late seasons it drafted six
+guessed prospect ids without listing the class; they are reported as
+guessed draft picks (warnings), not violations. Every Claude episode spends your Claude subscription's
 quota (or API money with `ANTHROPIC_API_KEY`). Run it serially (the driver
 has no parallel mode), smoke one short episode before a panel, and budget a
 full panel as hours of quota.
