@@ -704,6 +704,23 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
     return bool(_RETRYABLE_MESSAGE_RE.search(_result_text(result)))
 
 
+def reported_efforts(lines: list[str]) -> set[str]:
+    """Effort levels the stream itself reported: an ``effort`` or ``reasoning_effort`` on a ``system``/``init`` event.
+
+    Claude Code 2.1.281 reports none (its init carries only
+    ``per_turn_effort_active``), so on that version this is empty and the
+    effort is known only from the ``--effort`` the driver passed, if any.
+    """
+    found: set[str] = set()
+    for event in _events(lines):
+        if not _is_init(event):
+            continue
+        for key in ("effort", "reasoning_effort"):
+            if isinstance(event.get(key), str) and event[key]:
+                found.add(event[key])
+    return found
+
+
 def quota_windows(lines: list[str]) -> list[dict[str, Any]]:
     """The subscription windows the stream reported: the latest ``utilization`` and reset per ``rateLimitType``."""
     latest: dict[str, dict[str, Any]] = {}
@@ -827,6 +844,7 @@ class ClaudeDriver(HarnessDriver):
         self._homes: dict[Path, Path] = {}
         self._secrets: dict[Path, set[str]] = {}
         self._quota: dict[Path, list[dict[str, Any]]] = {}
+        self._effort: dict[Path, list[str]] = {}
         self._sources: dict[Path, str] = {}
         # Per launch: the staged MCP config, and what the config-dir guard found.
         self._configs: dict[Path, dict[str, Any]] = {}
@@ -1014,6 +1032,7 @@ class ClaudeDriver(HarnessDriver):
         events = launch.evidence_paths[0] if launch.evidence_paths else None
         lines = events.read_text(encoding="utf-8").splitlines() if events is not None and events.is_file() else []
         self._quota[launch.scratch] = quota_windows(lines)
+        self._effort[launch.scratch] = sorted(reported_efforts(lines))
         stderr = launch.evidence_paths[1] if len(launch.evidence_paths) > 1 else None
         if launch.container is not None and stderr is not None and stderr.is_file():
             # Launches gmb-claude refused because the agent changed the config layout.
@@ -1031,6 +1050,11 @@ class ClaudeDriver(HarnessDriver):
             # API key, which reports none); the stream names no plan.
             "quota_windows": self._quota.pop(launch.scratch, []),
             "plan_type": None,
+            # The effort the stream reported (``None``: it reported none; see ``reported_efforts``).
+            "reasoning_effort": {
+                "reported": self._effort.pop(launch.scratch, None) or None,
+                "source": "system/init events",
+            },
             # The whole staged MCP config; it names only the proxy and where it connects.
             "harness_config": json.dumps(self._configs.pop(launch.scratch, None) or self._config(launch), indent=2),
             "claude_config_dir": f"{CLAUDE_CONFIG_DIR} (episode volume, removed at episode end)"
