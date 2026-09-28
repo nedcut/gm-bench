@@ -66,7 +66,7 @@ from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import DEFAULT_PHASE_GUARD_SECONDS, AgenticEpisode
 from gm_bench.agentic.harness import HarnessDriver
 from gm_bench.agentic.mcp_server import EPISODE_ENV, SocketMcpServer
-from gm_bench.agentic.prompt_check import CONTAINER_NOT_CHECKED, PromptCheckError, not_checked
+from gm_bench.agentic.prompt_check import PromptCheckError
 from gm_bench.agentic.provenance import driver_digest, driver_provenance
 from gm_bench.agents import external_agent_environment
 from gm_bench.protocol import PHASES
@@ -1467,21 +1467,21 @@ def run_panel(
     the model (:meth:`HarnessDriver.check_prompt`, ``prompt_check.py``), records
     it as ``run.json`` ``prompt_check``, and raises ``PromptCheckError`` before
     anything else runs if the prompt carries the operator's content. Container
-    runs are recorded as not checked: only the scratch directory and a fresh
-    home volume reach the harness there.
+    runs are recorded as not checked (only the scratch directory and a fresh
+    home volume reach the harness there) unless the driver checks them in the
+    image: Cursor does, because its servers add account content whatever the
+    isolation.
     """
     driver = driver if driver is not None else OPENCODE_DRIVER
     if isolation not in DRIVER_ISOLATION:
         raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
     driver.preflight(isolation)
     driver.check_model(model)
+    # Built (or found) before the prompt check, which a container panel may run in it.
+    image = driver.ensure_image(docker=docker, env=harness_environment()) if isolation == "container" else None
     check: dict[str, Any] | None = None
     if prompt_check:
-        check = (
-            not_checked(CONTAINER_NOT_CHECKED)
-            if isolation == "container"
-            else driver.check_prompt(binary=binary, model=model, variant=variant)
-        )
+        check = driver.check_prompt(binary=binary, model=model, variant=variant, image=image, docker=docker)
         if progress is not None:
             progress({"stage": "prompt_check", "checked": check["checked"], "problems": check["problems"]})
         if check["problems"]:
@@ -1489,12 +1489,7 @@ def run_panel(
     # Which driver code plays this run (``provenance.py``); rechecked when it ends.
     driver_record = driver_provenance()
     run_dir.mkdir(parents=True, exist_ok=True)
-    image = None
-    if isolation == "container":
-        image = driver.ensure_image(docker=docker, env=harness_environment())
-        version = image[driver.image_version_key]
-    else:
-        version = driver.version(binary)
+    version = image[driver.image_version_key] if image is not None else driver.version(binary)
     episodes = []
     attempts: dict[int, int] = {}
     width = max(2, len(str(len(seeds) - 1)))
