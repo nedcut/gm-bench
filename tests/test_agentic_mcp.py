@@ -1777,6 +1777,10 @@ def test_a_recorded_provider_refusal_never_carries_the_operator_key() -> None:
     echoed["error"]["data"]["message"] = f"Invalid API key {key}"
     refused = driver.provider_error([json.dumps(echoed)])
     assert refused == {"status_code": 400, "message": "Invalid API key [REDACTED]"}
+    # A key that straddles the 300-character cut is redacted whole before the cut.
+    echoed["error"]["data"]["message"] = "x" * 290 + key
+    refused = driver.provider_error([json.dumps(echoed)])
+    assert key[:10] not in refused["message"] and refused["message"] == "x" * 290 + "[REDACTED]"
 
 
 def test_a_provider_ended_episode_stops_the_panel_and_the_run_cannot_be_published(tmp_path: Path, monkeypatch) -> None:

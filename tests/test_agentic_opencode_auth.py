@@ -184,6 +184,39 @@ def test_a_key_the_agent_prints_is_redacted_from_the_run_directory(
     assert validate_run(run_dir)["ok"]
 
 
+def test_a_printed_key_with_json_special_characters_is_redacted_in_every_escaped_form(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # auth.json escapes the key once and the event stream escapes auth.json again.
+    key = 'sk-dummy"quote\\slash-0000'
+    key_file = tmp_path / "key"
+    key_file.write_text(key + "\n")
+    scripted = _scripted_harness([{"phases": 4}], [])
+
+    def cat_auth(command, *, env, events_path, stderr_path, **kwargs):
+        text = (Path(env["XDG_DATA_HOME"]) / "opencode" / "auth.json").read_text()
+        with events_path.open("a") as events:
+            part = {"type": "tool", "tool": "bash", "state": {"output": text}}
+            events.write(json.dumps({"type": "tool_use", "sessionID": "ses_fake", "part": part}) + "\n")
+        return scripted(command, env=env, events_path=events_path, stderr_path=stderr_path, **kwargs)
+
+    monkeypatch.setattr(opencode, "_run_harness", cat_auth)
+    monkeypatch.setattr(opencode, "sandbox_problems", lambda scratch, env: [])
+    run_dir = tmp_path / "run"
+    opencode.run_panel(
+        [11],
+        model="opencode-go/kimi-k3",
+        run_dir=run_dir,
+        seasons=1,
+        binary="none",
+        driver=OpenCodeDriver(auth_file=key_file),
+    )
+    once = json.dumps(key)[1:-1]
+    forms = {key, once, json.dumps(once)[1:-1]}
+    events = (run_dir / "seed-11" / "opencode-events.jsonl").read_text()
+    assert "[REDACTED]" in events and not any(form in events for form in forms)
+
+
 def test_a_go_model_without_a_key_is_refused_before_anything_runs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

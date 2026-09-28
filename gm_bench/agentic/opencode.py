@@ -638,7 +638,8 @@ def provider_error(lines: list[str]) -> dict[str, Any] | None:
     message = data.get("message", error.get("message"))
     return {
         "status_code": status if isinstance(status, int) else None,
-        "message": message[:300] if isinstance(message, str) else None,
+        # Whole: the driver redacts it before cutting it (``OpenCodeDriver.provider_error``).
+        "message": message if isinstance(message, str) else None,
     }
 
 
@@ -1877,6 +1878,9 @@ class OpenCodeDriver(HarnessDriver):
         from gm_bench.agentic.codex import redact_file
 
         secrets = self._secrets.pop(launch.scratch, set())
+        # An agent that prints auth.json puts the key in the event stream JSON-escaped twice
+        # (auth.json's own string, then the event's); redact_file covers the raw and once-escaped forms.
+        secrets |= {json.dumps(json.dumps(secret)[1:-1])[1:-1] for secret in secrets}
         home = self._homes.pop(launch.scratch, None)
         if home is not None:
             shutil.rmtree(home, ignore_errors=True)
@@ -1942,8 +1946,10 @@ class OpenCodeDriver(HarnessDriver):
 
         refused = provider_error(lines)
         if refused is not None and refused["message"] is not None:
+            # Redact the whole message before cutting it, so no key straddles the cut.
             for secret in set().union(*self._secrets.values()):
                 refused["message"] = refused["message"].replace(secret, REDACTED)
+            refused["message"] = refused["message"][:300]
         return refused
 
     def usage_block(self, telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
