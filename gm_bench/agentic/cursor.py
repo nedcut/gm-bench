@@ -85,7 +85,9 @@ live probes on composer-2.5 on 2026-09-27):
   ``$HOME/.cursor``, and the next resume would load them. Before every
   invocation the driver removes those entries (:data:`HOME_CONFIG_ENTRIES`,
   :data:`SCRATCH_CONFIG_ENTRIES`), rewrites ``mcp.json``, and records what it
-  found as ``harness_run.config_dir_findings``.
+  found as ``harness_run.config_dir_findings``. In a container the image's
+  launcher ``gmb-cursor`` does the same inside each invocation's fresh
+  container, before it execs the CLI (below).
 - **What reaches the prompt.** Cursor's servers add the account's
   cloud-synced User Rules to every prompt; the CLI never fetches them (it has
   no such request) and has no flag or setting to leave them out. So the
@@ -105,7 +107,7 @@ live probes on composer-2.5 on 2026-09-27):
   :func:`probe_prompt`) and refuses the panel if that prompt carries
   anything unexpected or any of the operator's own content; ``agentic-validate`` and the
   published-row check refuse a Cursor episode whose audit is missing or not
-  clean (:func:`prompt_audit_problems`).
+  clean (:func:`prompt_audit_problems`), whatever its isolation.
 - **Authentication.** ``--cursor-token-file <path>`` holds one token: a
   Cursor API key (handed over as ``CURSOR_API_KEY``) or a session token, a
   JWT (three dot-separated parts, handed over as ``CURSOR_AUTH_TOKEN``);
@@ -114,9 +116,43 @@ live probes on composer-2.5 on 2026-09-27):
   the agent's shell inherits and can print: that is the harness's key, not
   the benchmark's. When the episode ends the driver replaces it with
   ``[REDACTED]`` in ``cursor-events.jsonl`` and ``cursor-stderr.log``.
-- **Container isolation** is refused for now: Cursor ships the CLI as a
-  downloaded tarball, not an npm package, so it needs its own pinned image
-  recipe. Same-user rows are ``smoke`` grade.
+- **Container isolation** runs Cursor CLI 2026.09.26-dd393fe from its own
+  pinned image (``container.CURSOR_IMAGE``: the release tarball for the build
+  architecture, checked against its SHA-256 and unpacked root-owned under
+  ``/opt/cursor-agent``, on the shared digest-pinned base with the egress
+  firewall entrypoint, the unprivileged ``node`` user and Debian's python3
+  for the proxy), with the same flags as same-user runs. The run records
+  the image (tag, id, Dockerfile SHA-256, base image, the ``cursor_version``
+  the image reports) under ``harness.container``, so a container row can be
+  panel grade. It needs ``--cursor-token-file``: the container gets no
+  environment, so the token travels on the stdin of a throwaway ``docker
+  run`` into the episode's home volume (``ContainerHarness.seed_home``,
+  ``/home/node/.gmb-cursor-token``, mode 0600, with the variable
+  :func:`token_env` picks), never onto a command line, into a ``docker run
+  -e`` variable, or into the bind-mounted scratch, and is removed with the
+  volume. The staged ``mcp.json`` (the proxy under ``/work`` on the
+  container's python3) is seeded the same way. Every invocation starts in
+  the image's launcher ``gmb-cursor`` (``container.CURSOR_WRAPPER``), with
+  the ``mcp.json`` text as its first argument. In that fresh container, where
+  nothing the agent started in an earlier invocation still runs, it removes
+  the same home and scratch entries the same-user guard does, restores
+  ``mcp.json``, sets ``HOME``, ``CURSOR_CONFIG_DIR`` and ``CURSOR_DATA_DIR``
+  to three directories of the volume, ``AGENT_CLI_CREDENTIAL_STORE=memory``
+  and ``DIRENV_DISABLE=1``, exports the token, and execs the pinned CLI. It
+  reports each removal on stderr, where the driver collects it into
+  ``config_dir_findings``, and refuses to start the CLI (exit 96,
+  ``gmb-cursor: refused:``) when one of those directories is a symlink or
+  not a directory, an entry cannot be removed, or the token is missing.
+  Cursor itself writes ``$HOME/.cursor`` on every start, so a read-only
+  root-owned layout like Claude's cannot hold it. The prompt audit reads the
+  chat stores out of the volume (``ContainerHarness.home_tree``) before the
+  volume is removed, and gates publication exactly as it does same-user:
+  Cursor's servers add the account's User Rules whatever the isolation. For
+  the same reason the pre-panel prompt check runs for a container panel too,
+  in the image (``probe_prompt`` with ``image``), where every other harness's
+  container panel is recorded as not checked: a panel that would carry
+  account rules is refused before its first episode, not found out after
+  it.
 
 Every Cursor run spends the operator's Cursor plan, and the driver runs
 episodes serially: never run it in parallel.
@@ -125,18 +161,33 @@ episodes serially: never run it in parallel.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import re
 import shutil
+import socket
 import sqlite3
 import subprocess
+import tarfile
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from gm_bench.agentic import opencode
 from gm_bench.agentic.codex import REDACTED, api_equivalent_fields, redact_file
+from gm_bench.agentic.container import (
+    CURSOR_CONFIG_DIR,
+    CURSOR_HOME_ENTRIES,
+    CURSOR_IMAGE,
+    CURSOR_SCRATCH_ENTRIES,
+    CURSOR_TOKEN_FILENAME,
+    CURSOR_USER_DIR,
+    CURSOR_WRAPPER_PATH,
+    CURSOR_WRAPPER_PREFIX,
+    ContainerHarness,
+    ensure_image,
+)
 from gm_bench.agentic.harness import HarnessDriver
 from gm_bench.agentic.opencode import PROXY_FILENAME, HarnessLaunch, stage_proxy
 from gm_bench.agentic.prompt_check import OperatorMarkers, PromptCheckError, operator_content, operator_markers
@@ -151,21 +202,15 @@ HARNESS_ENV = {"AGENT_CLI_CREDENTIAL_STORE": "memory", "DIRENV_DISABLE": "1"}
 SANDBOX = "disabled"
 # The private directory's layout: HOME, CURSOR_CONFIG_DIR, CURSOR_DATA_DIR.
 _HOME, _CONFIG, _DATA = "home", "config", "data"
-# What Cursor loads from ``$HOME/.cursor`` as configuration or instructions, besides mcp.json.
-HOME_CONFIG_ENTRIES = (
-    "hooks.json",
-    "rules",
-    "skills",
-    "agents",
-    "commands",
-    "plugins",
-    "cli.json",
-    "permissions.json",
-    "mcp-approvals.json",
-)
-# What Cursor loads from the workspace as project configuration or instructions.
-SCRATCH_CONFIG_ENTRIES = (".cursor", ".cursorrules")
-CONFIG_DIR_GUARD = "home and project config entries removed and mcp.json rewritten before every invocation"
+# What Cursor loads from ``$HOME/.cursor`` as configuration or instructions, besides mcp.json,
+# and from the workspace; the same lists the container launcher clears.
+HOME_CONFIG_ENTRIES = CURSOR_HOME_ENTRIES
+SCRATCH_CONFIG_ENTRIES = CURSOR_SCRATCH_ENTRIES
+CONFIG_DIR_GUARD = {
+    "same-user": "home and project config entries removed and mcp.json rewritten before every invocation",
+    "container": f"home and project config entries removed and mcp.json rewritten by {CURSOR_WRAPPER_PATH} "
+    "inside every invocation's container",
+}
 
 # A failed run's text that reads as a transient provider failure.
 _RETRYABLE_MESSAGE_RE = re.compile(
@@ -577,7 +622,41 @@ def prompt_audit_problems(harness_name: str | None, harness_run: dict[str, Any])
     return problems
 
 
-def probe_prompt(*, model: str, binary: str = "cursor-agent", token_file: str | Path | None = None) -> dict[str, Any]:
+def volume_prompt_audit(harness: ContainerHarness) -> dict[str, Any] | None:
+    """:func:`prompt_audit` of a container episode's chats, read out of its home volume before it is removed.
+
+    The chat stores come back as a tar stream (``ContainerHarness.home_tree``).
+    Only its regular files, by relative paths, are written, into a private
+    temporary directory removed as soon as the audit has read them.
+    """
+    archive = harness.home_tree(f"{CURSOR_CONFIG_DIR}/chats")
+    if archive is None:
+        return None
+    with tempfile.TemporaryDirectory(prefix="gmb-cursor-audit-") as directory:
+        root = Path(directory)
+        try:
+            with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+                for member in tar:
+                    parts = PurePosixPath(member.name).parts
+                    source = tar.extractfile(member) if member.isfile() else None
+                    if source is None or member.name.startswith("/") or ".." in parts:
+                        continue
+                    target = root.joinpath(*parts)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(source.read())
+        except tarfile.TarError:
+            return None
+        return prompt_audit(root / CURSOR_CONFIG_DIR)
+
+
+def probe_prompt(
+    *,
+    model: str,
+    binary: str = "cursor-agent",
+    token_file: str | Path | None = None,
+    image: dict[str, Any] | None = None,
+    docker: str = "docker",
+) -> dict[str, Any]:
     """Ask Cursor for one word in a throwaway workspace and audit that prompt.
 
     The workspace gets an episode's private ``HOME`` and ``CURSOR_CONFIG_DIR``
@@ -585,33 +664,37 @@ def probe_prompt(*, model: str, binary: str = "cursor-agent", token_file: str | 
     or ``--approve-mcps``: the call runs in ``--mode ask`` with no MCP
     server. That keeps it to one tiny model call on the operator's plan, enough for a panel to refuse to
     start before it spends an episode on a prompt that carries someone's
-    rules; each episode's own prompt is audited again when it ends.
+    rules; each episode's own prompt is audited again when it ends. With
+    ``image`` the call runs in that harness image, exactly as a container
+    episode's invocations do, with its own home volume; the one host port the
+    egress rule leaves open is a listener that never answers.
     Raises ``ValueError`` when the call fails or leaves no readable chat.
     """
     driver = CursorDriver(token_file=token_file)
     scratch = Path(tempfile.mkdtemp(prefix="gmb-cursor-probe-"))
+    harness: ContainerHarness | None = None
+    listener: socket.socket | None = None
     try:
-        env = driver.environment(opencode.harness_environment(), scratch, "same-user")
-        private = driver._homes[scratch]
-        argv = [
-            binary,
-            "-p",
-            "--output-format",
-            "stream-json",
-            "--trust",
-            "--mode",
-            "ask",
-            "--model",
-            model,
-            PROBE_PROMPT,
-        ]
+        env = driver.environment(opencode.harness_environment(), scratch, "same-user" if image is None else "container")
+        options = ["-p", "--output-format", "stream-json", "--trust", "--mode", "ask", "--model", model, PROBE_PROMPT]
+        name = None
+        if image is None:
+            argv = [binary, *options]
+        else:
+            listener = socket.create_server(("127.0.0.1", 0))
+            harness = ContainerHarness(image, scratch, driver_port=listener.getsockname()[1], docker=docker, env=env)
+            harness.seed_home(driver._home_files(None))
+            # An empty mcp.json argument: the launcher leaves no MCP server configured.
+            argv, name = harness.command([CURSOR_WRAPPER_PATH, "", *options])
         try:
             completed = subprocess.run(
                 argv, cwd=scratch, env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=300
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
+            if harness is not None and name is not None:
+                harness.kill(name)
             raise PromptCheckError(f"Cursor prompt check could not run: {exc}") from None
-        audit = prompt_audit(private / _CONFIG)
+        audit = prompt_audit(driver._homes[scratch] / _CONFIG) if harness is None else volume_prompt_audit(harness)
         if completed.returncode != 0 or audit is None:
             # Redact the whole stderr before cutting it, so no token straddles the cut.
             detail = completed.stderr
@@ -623,6 +706,10 @@ def probe_prompt(*, model: str, binary: str = "cursor-agent", token_file: str | 
             )
         return audit
     finally:
+        if harness is not None:
+            harness.close()
+        if listener is not None:
+            listener.close()
         driver._secrets.pop(scratch, None)
         private = driver._homes.pop(scratch, None)
         if private is not None:
@@ -634,12 +721,13 @@ def probe_prompt(*, model: str, binary: str = "cursor-agent", token_file: str | 
 
 
 class CursorDriver(HarnessDriver):
-    """The Cursor CLI behind the shared episode loop (same-user isolation only)."""
+    """The Cursor CLI behind the shared episode loop."""
 
     name = HARNESS_NAME
     default_binary = "cursor-agent"
-    container_executable = "cursor-agent"
-    image_version_key = "cursor_version"
+    # The image's launcher: it clears the config the agent could add, exports the token, and execs the CLI.
+    container_executable = CURSOR_WRAPPER_PATH
+    image_version_key = CURSOR_IMAGE.version_key
 
     def __init__(self, *, token_file: str | Path | None = None) -> None:
         self.token_file = Path(token_file).expanduser() if token_file is not None else None
@@ -651,6 +739,8 @@ class CursorDriver(HarnessDriver):
         self._configs: dict[Path, dict[str, Any]] = {}
         self._findings: dict[Path, list[str]] = {}
         self._audits: dict[Path, dict[str, Any] | None] = {}
+        # The mcp.json text the container launcher restores, per working directory.
+        self._mcp_args: dict[str, str] = {}
         # The episode's stderr log and its size when the current invocation started.
         self._stderr: tuple[Path, int] | None = None
 
@@ -664,9 +754,10 @@ class CursorDriver(HarnessDriver):
         return "none"
 
     def preflight(self, isolation: str) -> None:
-        if isolation == "container":
+        if isolation == "container" and self.token_file is None:
             raise ValueError(
-                "--harness cursor runs in same-user isolation only: there is no pinned Cursor CLI image yet"
+                "--isolation container with --harness cursor needs --cursor-token-file (a Cursor API key or session "
+                "token): the container gets no environment and no host login, so the CLI has no credential otherwise"
             )
         if self.token_file is not None:
             read_token_file(self.token_file)
@@ -680,9 +771,21 @@ class CursorDriver(HarnessDriver):
     def version(self, binary: str) -> str | None:
         return cursor_version(binary)
 
-    def check_prompt(self, *, binary: str, model: str, variant: str | None) -> dict[str, Any]:
-        """Cursor builds its prompt on its servers, so no loopback capture: audit a one-word chat instead."""
-        audit = probe_prompt(model=model, binary=binary, token_file=self.token_file)
+    def check_prompt(
+        self,
+        *,
+        binary: str,
+        model: str,
+        variant: str | None,
+        image: dict[str, Any] | None = None,
+        docker: str = "docker",
+    ) -> dict[str, Any]:
+        """Cursor builds its prompt on its servers, so no loopback capture: audit a one-word chat instead.
+
+        A container panel is checked too, in its image: the account's User
+        Rules reach the prompt from Cursor's servers whatever the isolation.
+        """
+        audit = probe_prompt(model=model, binary=binary, token_file=self.token_file, image=image, docker=docker)
         problems = prompt_audit_problems(HARNESS_NAME, {"prompt_audit": audit})
         if audit["user_rules"]:
             problems.append(
@@ -698,11 +801,20 @@ class CursorDriver(HarnessDriver):
         }
 
     def ensure_image(self, *, docker: str, env: dict[str, str]) -> dict[str, Any]:
-        raise ValueError("--harness cursor has no container image")
+        return ensure_image(docker=docker, env=env, spec=CURSOR_IMAGE)
 
     def environment(self, env: dict[str, str], scratch: Path, isolation: str) -> dict[str, str]:
-        if isolation != "same-user":
-            raise ValueError("--harness cursor runs in same-user isolation only")
+        if isolation == "container":
+            # This is only the docker client's environment; the container gets none of it.
+            # The token reaches the harness through the home volume (``stage``).
+            if self.token_file is None:
+                raise ValueError("--isolation container with --harness cursor needs --cursor-token-file")
+            for key in tuple(env):
+                if key.startswith("CURSOR_"):
+                    env.pop(key)
+            self._sources[scratch] = "token-file"
+            self._secrets.setdefault(scratch, set()).add(read_token_file(self.token_file))
+            return env
         source = self.auth_source(env)
         self._sources[scratch] = source
         credential: tuple[str, str] | None = None
@@ -733,11 +845,26 @@ class CursorDriver(HarnessDriver):
     def _mcp_path(self, launch: HarnessLaunch) -> Path:
         return self._homes[launch.scratch] / _HOME / ".cursor" / MCP_CONFIG_FILENAME
 
+    def _home_files(self, config: dict[str, Any] | None) -> dict[str, bytes]:
+        """What ``seed_home`` writes into a container's home volume: the token (under its variable), and mcp.json."""
+        assert self.token_file is not None
+        token = read_token_file(self.token_file)
+        files = {CURSOR_TOKEN_FILENAME: f"{token_env(token)}\n{token}\n".encode()}
+        if config is not None:
+            files[f"{CURSOR_USER_DIR}/{MCP_CONFIG_FILENAME}"] = json.dumps(config, indent=2).encode()
+        return files
+
     def stage(self, launch: HarnessLaunch) -> None:
         stage_proxy(launch.scratch, secret=launch.secret)
         config = mcp_config(launch.workdir, launch.proxy_target, python=launch.proxy_python)
         self._configs[launch.scratch] = config
         self._findings[launch.scratch] = []
+        if launch.container is not None:
+            # Into the episode's home volume over the docker client's stdin: never a command line,
+            # an environment variable, or the bind-mounted scratch. gmb-cursor exports the token.
+            launch.container.seed_home(self._home_files(config))
+            self._mcp_args[launch.workdir] = json.dumps(config, indent=2)
+            return
         self._write_mcp_config(self._mcp_path(launch), config)
 
     @staticmethod
@@ -747,13 +874,16 @@ class CursorDriver(HarnessDriver):
             json.dump(config, handle, indent=2)
 
     def before_invocation(self, launch: HarnessLaunch) -> None:
-        """Undo whatever the agent added to the config it could reach, and mark where this invocation's stderr starts."""
+        """Undo whatever the agent added to the config it could reach, and mark where this invocation's stderr starts.
+
+        In a container ``gmb-cursor`` does the undoing, inside the invocation's own container.
+        """
         stderr = launch.evidence_paths[1] if len(launch.evidence_paths) > 1 else None
         if stderr is not None:
             self._stderr = (stderr, stderr.stat().st_size if stderr.is_file() else 0)
         private = self._homes.get(launch.scratch)
         config = self._configs.get(launch.scratch)
-        if private is None or config is None:
+        if launch.container is not None or private is None or config is None:
             return
         findings = self._findings.setdefault(launch.scratch, [])
         home = private / _HOME / ".cursor"
@@ -798,13 +928,18 @@ class CursorDriver(HarnessDriver):
             model,
         ]
 
+    def _launcher_args(self, workdir: str, isolation: str) -> list[str]:
+        """In a container, gmb-cursor's first argument: the mcp.json it restores before every launch."""
+        return [self._mcp_args[workdir]] if isolation == "container" else []
+
     def run_args(self, *, model: str, variant: str | None, workdir: str, brief: str, isolation: str) -> list[str]:
-        return [*self._options(model, variant), brief]
+        return [*self._launcher_args(workdir, isolation), *self._options(model, variant), brief]
 
     def resume_args(
         self, *, model: str, variant: str | None, workdir: str, session_id: str, text: str, isolation: str
     ) -> list[str]:
-        return [*self._options(model, variant), "--resume", session_id, text]
+        options = self._options(model, variant)
+        return [*self._launcher_args(workdir, isolation), *options, "--resume", session_id, text]
 
     def parse_events(self, lines: list[str]) -> dict[str, Any]:
         return parse_cursor_events(lines)
@@ -819,17 +954,30 @@ class CursorDriver(HarnessDriver):
         return usage_block(telemetry, model=model, decisions=decisions)
 
     def collect(self, launch: HarnessLaunch) -> None:
-        private = self._homes.get(launch.scratch)
-        self._audits[launch.scratch] = prompt_audit(private / _CONFIG) if private is not None else None
+        if launch.container is None:
+            private = self._homes.get(launch.scratch)
+            self._audits[launch.scratch] = prompt_audit(private / _CONFIG) if private is not None else None
+            return
+        self._audits[launch.scratch] = volume_prompt_audit(launch.container)
+        stderr = launch.evidence_paths[1] if len(launch.evidence_paths) > 1 else None
+        if stderr is not None and stderr.is_file():
+            # What gmb-cursor removed or restored before a launch, and any launch it refused.
+            self._findings.setdefault(launch.scratch, []).extend(
+                line.strip()
+                for line in stderr.read_text(encoding="utf-8", errors="replace").splitlines()
+                if line.startswith(CURSOR_WRAPPER_PREFIX)
+            )
 
     def run_record(self, launch: HarnessLaunch) -> dict[str, Any]:
         config = self._configs.pop(launch.scratch, None)
+        container = launch.container is not None
         return {
             # The whole staged mcp.json; it names only the proxy and where it connects.
             "harness_config": json.dumps(config, indent=2) if config is not None else None,
-            "cursor_home": "private HOME, CURSOR_CONFIG_DIR and CURSOR_DATA_DIR outside the scratch "
-            "(removed at episode end)",
-            "config_dir_guard": CONFIG_DIR_GUARD,
+            "cursor_home": "HOME, CURSOR_CONFIG_DIR and CURSOR_DATA_DIR in the episode volume (removed at episode end)"
+            if container
+            else "private HOME, CURSOR_CONFIG_DIR and CURSOR_DATA_DIR outside the scratch (removed at episode end)",
+            "config_dir_guard": CONFIG_DIR_GUARD[launch.isolation],
             "config_dir_findings": self._findings.pop(launch.scratch, []),
             # The sections Cursor put in the prompt besides the brief (names and counts only); None if unread.
             "prompt_audit": self._audits.pop(launch.scratch, None),
@@ -837,14 +985,18 @@ class CursorDriver(HarnessDriver):
             "permissions": "--force --approve-mcps --trust",
             "credential_store": HARNESS_ENV["AGENT_CLI_CREDENTIAL_STORE"],
             "auth": self._sources.pop(launch.scratch, "none"),
-            "credential_handoff": "harness environment",
+            "credential_handoff": "home volume over docker run stdin, exported by gmb-cursor"
+            if container
+            else "harness environment",
             "session_resume": "cursor-agent -p --resume",
         }
 
     def cleanup(self, launch: HarnessLaunch) -> None:
         # The private directory (chats, transcripts, any credential) never outlives the
         # episode, even with --keep-scratch, and no credential value stays in the evidence.
+        # (A container's home volume goes with the container, before this runs.)
         secrets = self._secrets.pop(launch.scratch, set())
+        self._mcp_args.pop(getattr(launch, "workdir", ""), None)
         private = self._homes.pop(launch.scratch, None)
         if private is not None:
             shutil.rmtree(private, ignore_errors=True)
