@@ -86,6 +86,24 @@ dated; the summary above is the current state.
   and 16; OpenCode's `FreeUsageLimitError` is quota exhaustion; the
   Keychain panel launcher refuses same-user isolation.
 
+- Prompt check (2026-09-27): before a panel, `gm-bench agentic` launches the
+  harness against a loopback capture server twice, once as the operator and
+  once with their home swapped for an empty one, and treats any prompt line
+  only the first sent as the operator's. It also searches the capture for the
+  operator's home path, instruction files (with their `@` imports, Claude
+  rules and memories, OpenCode `instructions`) and skills (with installed
+  Claude plugins). It refuses the panel on any hit, and on no captured
+  request. The check is recorded as `run.json` `prompt_check` and published
+  with the row, a recorded failure fails validation, and a same-user row
+  whose check was skipped cannot be published. It found that same-user OpenCode sent
+  the operator's global `AGENTS.md` and 16 personal skills. Same-user
+  OpenCode now gets a private home and `XDG_*` directories. No committed row
+  is affected: every one is a container run, whose home is a fresh volume.
+  The check passes OpenCode's model catalog download (`models.opencode.ai`)
+  through, and resumes a launch that failed at startup before any model
+  request, as the episode does; without both, a model missing from
+  OpenCode's bundled catalog (`space-bunny-free` on 1.18.32) failed the check.
+
 - Fourth harness (2026-09-27): `gm-bench agentic --harness cursor` drives
   the Cursor CLI (`cursor-agent` 2026.09.26-dd393fe) through the same
   episode loop, in same-user isolation only (no pinned image yet). The

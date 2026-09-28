@@ -906,6 +906,21 @@ class CodexDriver(HarnessDriver):
     ) -> list[str]:
         return ["exec", "resume", *self._options(model, variant, isolation), session_id, text]
 
+    prompt_capture_unavailable = None
+
+    def capture_overrides(self, args: list[str], *, model: str, base_url: str) -> tuple[list[str], dict[str, str]]:
+        # The API and the ChatGPT backend (plugins, apps, settings) at the capture server, and
+        # uncompressed request bodies (a ChatGPT login otherwise sends zstd, which the stdlib cannot read).
+        overrides = [
+            "-c",
+            f"openai_base_url={json.dumps(base_url + '/v1')}",
+            "-c",
+            f"chatgpt_base_url={json.dumps(base_url + '/backend-api/')}",
+            "-c",
+            "features.enable_request_compression=false",
+        ]
+        return [args[0], *overrides, *args[1:]], {}
+
     def parse_events(self, lines: list[str]) -> dict[str, Any]:
         return parse_codex_events(lines)
 

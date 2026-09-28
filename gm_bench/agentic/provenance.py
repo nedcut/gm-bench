@@ -63,6 +63,7 @@ DRIVER_SOURCES = (
     f"{_PACKAGE}/cursor.py",  # Cursor CLI adapter
     f"{_PACKAGE}/harness.py",  # the interface the shared loop calls
     f"{_PACKAGE}/opencode.py",  # OpenCode adapter and the shared episode loop
+    f"{_PACKAGE}/prompt_check.py",  # proves what the harness would send the model before a panel
 )
 #: Name the run's identity or document the package; change nothing about play.
 RECORD_SOURCES = (

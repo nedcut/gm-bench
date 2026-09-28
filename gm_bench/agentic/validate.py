@@ -46,6 +46,7 @@ from gm_bench.agentic.audit import audit_ledger
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import AgenticEpisode
 from gm_bench.agentic.opencode import harness_tool_calls
+from gm_bench.agentic.prompt_check import prompt_check_problems, unchecked_same_user
 
 # The engine's reply to a call whose arguments were not a JSON object (``tools.validate_arguments``
 # via ``episode._execute``); the ledger then records ``arguments: {}``.
@@ -92,6 +93,9 @@ def validate_run(run_path: str | Path) -> dict[str, Any]:
         )
 
     harness_name = (run.get("harness") or {}).get("name")
+    run_problems.extend(prompt_check_problems(run))
+    if (unchecked := unchecked_same_user(run)) is not None:
+        run_warnings.append(f"{unchecked}; it validates but cannot be published")
     per_episode = []
     problems = list(run_problems)
     warnings = list(run_warnings)

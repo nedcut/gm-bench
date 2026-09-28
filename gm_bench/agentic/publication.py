@@ -76,6 +76,7 @@ from gm_bench.agentic import claude
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.cursor import prompt_audit_problems
 from gm_bench.agentic.opencode import TOKEN_SHAPE, _api_equivalent_summary, normalized_tokens
+from gm_bench.agentic.prompt_check import prompt_check_problems, unchecked_same_user
 from gm_bench.agentic.provenance import driver_digest, provenance_problems, reproducible_driver
 from gm_bench.agentic.validate import EMPTY_PHASE_DEFINITION, provider_ended, validate_run
 from gm_bench.publication import canonical_sha256
@@ -301,6 +302,8 @@ def compact_agentic_run(
         "contract": raw.get("contract"),
         # Absent from runs recorded before the driver recorded itself.
         **({"driver": raw["driver"]} if "driver" in raw else {}),
+        # What the harness would send the model, checked before the first episode (absent from older runs).
+        **({"prompt_check": raw["prompt_check"]} if "prompt_check" in raw else {}),
         "panel": {
             "seed_count": len(seeds),
             "distinct_seeds": distinct,
@@ -696,6 +699,9 @@ def validate_agentic_artifact(
     driver_errors, driver_warnings = _driver_findings(artifact, grade, checkout_driver_digest)
     errors.extend(driver_errors)
     warnings.extend(driver_warnings)
+    errors.extend(prompt_check_problems(artifact))
+    if (unchecked := unchecked_same_user(artifact)) is not None:
+        errors.append(unchecked)
 
     episodes = artifact.get("episodes") or []
     if len(episodes) != seed_count:

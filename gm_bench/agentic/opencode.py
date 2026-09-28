@@ -66,6 +66,7 @@ from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import DEFAULT_PHASE_GUARD_SECONDS, AgenticEpisode
 from gm_bench.agentic.harness import HarnessDriver
 from gm_bench.agentic.mcp_server import EPISODE_ENV, SocketMcpServer
+from gm_bench.agentic.prompt_check import CONTAINER_NOT_CHECKED, PromptCheckError, not_checked
 from gm_bench.agentic.provenance import driver_digest, driver_provenance
 from gm_bench.agents import external_agent_environment
 from gm_bench.protocol import PHASES
@@ -287,6 +288,7 @@ class HarnessLaunch:
         scratch_prefix: str = "gm-bench-agentic-",
         driver: HarnessDriver | None = None,
         evidence_paths: tuple[Path, ...] = (),
+        base_environment: dict[str, str] | None = None,
     ) -> None:
         if isolation not in DRIVER_ISOLATION:
             raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
@@ -306,7 +308,8 @@ class HarnessLaunch:
         # Containers or volumes ``close`` could not remove (container mode only).
         self.cleanup_problems: list[str] = []
         try:
-            self.env = self.driver.environment(harness_environment(), self.scratch, isolation)
+            # ``base_environment`` stands in for the operator's (the prompt check's empty-home run).
+            self.env = self.driver.environment(harness_environment(base_environment), self.scratch, isolation)
             if isolation == "container":
                 assert image is not None
                 self._secret = secrets.token_urlsafe(32)
@@ -1412,6 +1415,7 @@ def run_panel(
     docker: str = "docker",
     driver: HarnessDriver | None = None,
     quota_pause_percent: float = QUOTA_PAUSE_PERCENT,
+    prompt_check: bool = False,
     sleep: Callable[[float], None] = time.sleep,
     clock: Callable[[], float] = time.time,
 ) -> dict[str, Any]:
@@ -1451,11 +1455,29 @@ def run_panel(
     ended (``harness_run.ended_by_provider``: its last invocation was a
     provider stall past the stall or wait budget), recorded as
     ``stopped_for_provider``; such a run is not publishable.
+
+    ``prompt_check`` (on from the CLI) first proves what the harness would send
+    the model (:meth:`HarnessDriver.check_prompt`, ``prompt_check.py``), records
+    it as ``run.json`` ``prompt_check``, and raises ``PromptCheckError`` before
+    anything else runs if the prompt carries the operator's content. Container
+    runs are recorded as not checked: only the scratch directory and a fresh
+    home volume reach the harness there.
     """
     driver = driver if driver is not None else OPENCODE_DRIVER
     if isolation not in DRIVER_ISOLATION:
         raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
     driver.preflight(isolation)
+    check: dict[str, Any] | None = None
+    if prompt_check:
+        check = (
+            not_checked(CONTAINER_NOT_CHECKED)
+            if isolation == "container"
+            else driver.check_prompt(binary=binary, model=model, variant=variant)
+        )
+        if progress is not None:
+            progress({"stage": "prompt_check", "checked": check["checked"], "problems": check["problems"]})
+        if check["problems"]:
+            raise PromptCheckError(f"{driver.name} prompt check: " + "; ".join(check["problems"]))
     # Which driver code plays this run (``provenance.py``); rechecked when it ends.
     driver_record = driver_provenance()
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -1544,6 +1566,8 @@ def run_panel(
         "isolation": isolation,
         "contract": agentic_contract(),
         "driver": driver_record,
+        # What the harness would send the model, checked before the first episode; None when not asked for.
+        "prompt_check": check,
         "seeds": list(seeds),
         "seasons": seasons,
         "phase_guard_seconds": phase_guard_seconds,
@@ -1694,13 +1718,63 @@ def _agentic_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
 # -- the OpenCode driver ------------------------------------------------------
 
 
+# What a same-user OpenCode run points at its private directory: OpenCode reads the
+# operator's config, AGENTS.md and skills from $XDG_CONFIG_HOME/opencode, and also
+# ~/.claude/CLAUDE.md, ~/.claude/skills and ~/.agents/skills, all under HOME.
+OPENCODE_HOME_ENV = ("HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME")
+
+
 class OpenCodeDriver(HarnessDriver):
-    """OpenCode behind the shared loop. Methods look up this module's functions at call time."""
+    """OpenCode behind the shared loop. Methods look up this module's functions at call time.
+
+    Same-user runs get a private home (mode 0700, outside the scratch,
+    removed at episode end): ``HOME`` and every ``XDG_*`` base directory
+    point into it, and every ``OPENCODE_*`` variable is dropped, so none of
+    the operator's OpenCode config, instructions or skills (nor Claude's or
+    the shared ``~/.agents`` ones OpenCode also reads) reach the agent, and
+    the session store the nudges resume lives there. ``--pure`` does not do
+    this: it turns off plugins, not instruction files or skills. A
+    container's home is already a fresh volume.
+    """
 
     name = HARNESS_NAME
     default_binary = "opencode"
     container_executable = "opencode"
     image_version_key = "opencode_version"
+    prompt_capture_unavailable = None
+
+    def __init__(self) -> None:
+        self._homes: dict[Path, Path] = {}
+
+    def environment(self, env: dict[str, str], scratch: Path, isolation: str) -> dict[str, str]:
+        for key in tuple(env):
+            if key.startswith("OPENCODE_"):
+                env.pop(key)
+        if isolation == "same-user":
+            home = Path(tempfile.mkdtemp(prefix="gmb-opencode-"))
+            self._homes[scratch] = home
+            env["HOME"] = str(home)
+            for key in OPENCODE_HOME_ENV[1:]:
+                path = home / key.lower().removeprefix("xdg_").removesuffix("_home")
+                path.mkdir(mode=0o700)
+                env[key] = str(path)
+        return env
+
+    def run_record(self, launch: HarnessLaunch) -> dict[str, Any]:
+        if launch.container is not None:
+            return {}
+        return {"opencode_home": "private HOME and XDG directories outside the scratch (removed at episode end)"}
+
+    def cleanup(self, launch: HarnessLaunch) -> None:
+        home = self._homes.pop(launch.scratch, None)
+        if home is not None:
+            shutil.rmtree(home, ignore_errors=True)
+
+    def capture_overrides(self, args: list[str], *, model: str, base_url: str) -> tuple[list[str], dict[str, str]]:
+        # The model's provider (``opencode`` for Zen) pointed at the capture server; merged over opencode.json.
+        provider = model.split("/", 1)[0]
+        options = {"baseURL": f"{base_url}/v1", "apiKey": "gm-bench-prompt-check"}
+        return args, {"OPENCODE_CONFIG_CONTENT": json.dumps({"provider": {provider: {"options": options}}})}
 
     def version(self, binary: str) -> str | None:
         return opencode_version(binary)

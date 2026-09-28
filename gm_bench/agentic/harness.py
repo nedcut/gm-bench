@@ -111,6 +111,30 @@ class HarnessDriver:
     def usage_block(self, telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
         raise NotImplementedError
 
+    #: Why this harness's prompt cannot be captured on the loopback (``prompt_check.py``); ``None`` when it can.
+    prompt_capture_unavailable: str | None = "this harness has no capture override"
+
+    def check_prompt(self, *, binary: str, model: str, variant: str | None) -> dict[str, Any]:
+        """Before a panel: what this harness would send the model, searched for the operator's content.
+
+        The default launches the harness against a loopback capture server
+        (``prompt_check.run_prompt_check``). The record's ``problems`` must be
+        empty for the panel to start.
+        """
+        from gm_bench.agentic.prompt_check import not_checked, run_prompt_check
+
+        if self.prompt_capture_unavailable:
+            return not_checked(self.prompt_capture_unavailable)
+        return run_prompt_check(self, binary=binary, model=model, variant=variant)
+
+    def capture_overrides(self, args: list[str], *, model: str, base_url: str) -> tuple[list[str], dict[str, str]]:
+        """The one change the prompt check makes to a first invocation: its model endpoint is ``base_url``.
+
+        Returns the arguments and the environment variables to add. Nothing
+        else about the launch may change, or the check proves nothing.
+        """
+        raise NotImplementedError
+
     def collect(self, launch: HarnessLaunch) -> None:
         """Read what the harness left in its home before :meth:`cleanup` and the container close remove it.
 
