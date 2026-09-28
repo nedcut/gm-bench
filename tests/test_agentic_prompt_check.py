@@ -303,7 +303,7 @@ def test_run_panel_refuses_a_dirty_prompt_before_anything_runs(
 def test_a_container_run_is_recorded_as_not_checked(fake_claude, tmp_path: Path) -> None:
     binary, driver = fake_claude
     events: list[dict] = []
-    # The check is decided before the image build, which fails here without Docker.
+    # The image is built first (the check may run in it); without Docker nothing else runs.
     with pytest.raises(ContainerError):
         opencode.run_panel(
             [11],
@@ -317,7 +317,11 @@ def test_a_container_run_is_recorded_as_not_checked(fake_claude, tmp_path: Path)
             prompt_check=True,
             progress=events.append,
         )
-    assert events[0] == {"stage": "prompt_check", "checked": False, "problems": []}
+    assert events == []
+    # Given the image, a harness whose prompt is built from its home records the run as not checked.
+    image = {"image": "gm-bench-agentic-claude:test", "image_id": "sha256:" + "d" * 64}
+    check = driver.check_prompt(binary=binary, model="m", variant=None, image=image)
+    assert check == {"checked": False, "reason": CONTAINER_NOT_CHECKED, "problems": []}
 
 
 def test_operator_markers_read_instruction_files_and_skills_but_not_bundled_ones(tmp_path: Path) -> None:

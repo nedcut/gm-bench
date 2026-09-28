@@ -15,7 +15,7 @@ Modules:
 - ``opencode``  the first harness driver, and the episode loop every driver shares
 - ``codex``     the Codex CLI driver
 - ``claude``    the Claude Code driver
-- ``cursor``    the Cursor CLI driver (same-user isolation only)
+- ``cursor``    the Cursor CLI driver
 - ``container`` the Docker launcher for container isolation
 - ``provenance`` which driver code played a run (recorded beside the fingerprint)
 """
