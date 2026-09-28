@@ -38,6 +38,9 @@ def _panel_fixture(*, isolation: str = "separate-user", model: str | None = None
         episode.update(index=index, seed_group=index)
         episodes.append(episode)
     row["episodes"] = episodes
+    row["empty_phases"].update(
+        count=sum(e["empty_phases"] for e in episodes), phases=sum(e["decisions"] for e in episodes)
+    )
     row["grade"] = "panel"
     row["isolation"] = isolation
     row["panel"] = {
@@ -138,6 +141,7 @@ def test_panel_row_is_published_beside_every_1_0_table(tmp_path: Path) -> None:
     assert telemetry["telemetry_episodes"] == PANEL_MIN_SEEDS
     assert telemetry["input_tokens"] == repeats * sum(e["usage"]["input_tokens"] for e in _smoke()["episodes"])
     assert telemetry["cost_usd"] == 0.0
+    assert telemetry["empty_phases"] == repeats * sum(e["empty_phases"] for e in _smoke()["episodes"]) == 24
     assert row["agreement"] == {
         "episodes": PANEL_MIN_SEEDS,
         "episodes_agreeing": PANEL_MIN_SEEDS,

@@ -162,7 +162,19 @@ def test_launcher_runs_the_agentic_cli_with_seeds_on_stdin_only(
     output = tmp_path / "run"
 
     assert (
-        launcher.main(["--model", "opencode/big-pickle", "--output", str(output), "--variant", "low", "--isolation-x"])
+        launcher.main(
+            [
+                "--model",
+                "opencode/big-pickle",
+                "--output",
+                str(output),
+                "--variant",
+                "low",
+                "--isolation-x",
+                "--isolation",
+                "container",
+            ]
+        )
         == 0
     )
 
@@ -180,6 +192,8 @@ def test_launcher_runs_the_agentic_cli_with_seeds_on_stdin_only(
         "--variant",
         "low",
         "--isolation-x",
+        "--isolation",
+        "container",
     ]
     seeds = seeds_text.split(",")
     for argv in [call["argv"], sys.argv, *commands]:
@@ -199,12 +213,13 @@ def test_launcher_passes_provider_stall_limits_through_unchanged(
         "--max-provider-stall-wait-seconds=28800",
         "--silent-harness-seconds",
         "300",
+        "--isolation=container",
     ]
 
     assert launcher.main(["--model", "opencode/big-pickle", "--output", str(tmp_path / "run"), *limits]) == 0
 
     (call,) = calls
-    assert call["argv"][-5:] == limits
+    assert call["argv"][-6:] == limits
 
 
 @pytest.mark.parametrize(
@@ -246,6 +261,30 @@ def test_launcher_refuses_passthrough_that_would_expose_seeds(
     assert calls == []
 
 
+@pytest.mark.parametrize(
+    "isolation",
+    [[], ["--isolation", "same-user"], ["--isolation=same-user"], ["--iso", "same-user"]],
+    ids=["default", "explicit", "equals", "abbreviated"],
+)
+def test_launcher_refuses_a_same_user_panel_before_reading_the_escrow(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, isolation: list[str]
+) -> None:
+    """A same-user harness can read the run directory (and ``ps``): the private seeds would leak."""
+    _, commands = _install_fixture(tmp_path, monkeypatch)
+    calls = _capture_cli(monkeypatch)
+
+    with pytest.raises(ValueError, match="--isolation container"):
+        launcher.main(["--model", "m", "--output", str(tmp_path / "run"), *isolation])
+    assert calls == [] and commands == []  # the Keychain was never read
+
+    # Only the loudly named override lets it start, and the override is not passed on.
+    assert (
+        launcher.main(["--model", "m", "--output", str(tmp_path / "run"), *isolation, launcher.SAME_USER_OVERRIDE]) == 0
+    )
+    (call,) = calls
+    assert launcher.SAME_USER_OVERRIDE not in call["argv"]
+
+
 def test_launcher_refuses_before_running_when_the_escrow_does_not_match(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -253,7 +292,7 @@ def test_launcher_refuses_before_running_when_the_escrow_does_not_match(
     calls = _capture_cli(monkeypatch)
 
     with pytest.raises(ValueError, match="hiding commitment"):
-        launcher.main(["--model", "m", "--output", str(tmp_path / "run")])
+        launcher.main(["--model", "m", "--output", str(tmp_path / "run"), "--isolation", "container"])
     assert calls == []
 
 
@@ -293,7 +332,7 @@ def test_launcher_refuses_a_panel_on_uncommitted_driver_code_before_reading_the_
     monkeypatch.setattr(launcher, "dirty_played_files", lambda: dirty)
 
     with pytest.raises(ValueError, match=message):
-        launcher.main(["--model", "m", "--output", str(tmp_path / "run")])
+        launcher.main(["--model", "m", "--output", str(tmp_path / "run"), "--isolation", "container"])
     assert calls == []
     assert commands == []  # the Keychain was never read
     # Verifying the escrow runs nothing, so it does not need a clean driver.

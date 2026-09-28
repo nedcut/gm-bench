@@ -147,6 +147,10 @@ source at tag ``rust-v0.156.1``: ``codex-rs/exec/src/exec_events.rs``,
   recorded as ``harness_run.auth_file_update``, never the values. An
   API-key ``auth.json`` (``{"auth_mode": "apikey", "OPENAI_API_KEY": "..."}``)
   is never rotated.
+- **Reasoning effort.** ``codex exec --json`` does not report the effort a
+  turn ran at, but the session rollout's ``turn_context`` records
+  (``payload.effort``) do; the driver reads them with the quota windows and
+  records the distinct values as ``harness_run.reasoning_effort``.
 
 Every Codex run spends the operator's OpenAI quota or money, and the driver
 runs episodes serially: never run it in parallel.
@@ -744,6 +748,42 @@ def rollout_quota(lines: list[str]) -> dict[str, Any]:
     return {"quota_windows": windows, "plan_type": plan if isinstance(plan, str) else None}
 
 
+def rollout_efforts(lines: list[str]) -> list[str]:
+    """The distinct reasoning efforts in rollout ``turn_context`` records (``payload.effort``), sorted."""
+    efforts: set[str] = set()
+    for line in lines:
+        if '"turn_context"' not in line:
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        payload = record.get("payload") if isinstance(record, dict) and record.get("type") == "turn_context" else None
+        effort = payload.get("effort") if isinstance(payload, dict) else None
+        if isinstance(effort, str) and effort:
+            efforts.add(effort)
+    return sorted(efforts)
+
+
+def _rollout_lines(codex_home: Path, needle: str) -> list[str]:
+    lines: list[str] = []
+    for path in sorted((codex_home / SESSIONS_DIRNAME).rglob(ROLLOUT_GLOB)):
+        try:
+            with path.open(encoding="utf-8", errors="replace") as handle:
+                lines.extend(line for line in handle if needle in line)
+        except OSError:
+            continue
+    return lines
+
+
+def reasoning_effort_record(lines: list[str] | None) -> dict[str, Any]:
+    """``harness_run.reasoning_effort``: the efforts the rollouts recorded (``None`` when unreadable or absent)."""
+    return {
+        "reported": (rollout_efforts(lines) or None) if lines is not None else None,
+        "source": "rollout turn_context.effort",
+    }
+
+
 def read_rollout_quota(codex_home: Path) -> dict[str, Any]:
     """:func:`rollout_quota` over every plain rollout under ``codex_home/sessions`` (compressed ones are skipped)."""
     lines: list[str] = []
@@ -781,6 +821,8 @@ class CodexDriver(HarnessDriver):
         self._staged_auth: dict[Path, bytes] = {}
         self._left_auth: dict[Path, bytes | None] = {}
         self._auth_updates: dict[Path, str] = {}
+        # Per launch: the reasoning efforts the rollouts recorded.
+        self._effort: dict[Path, dict[str, Any]] = {}
 
     def auth_source(self, isolation: str) -> str:
         if self.auth_file is not None:
@@ -888,9 +930,16 @@ class CodexDriver(HarnessDriver):
                 f"{CODEX_HOME_DIRNAME}/{SESSIONS_DIRNAME}", ROLLOUT_GLOB, '"token_count"'
             )
             self._quota[launch.scratch] = rollout_quota(lines) if lines is not None else {}
+            contexts = launch.container.home_lines(
+                f"{CODEX_HOME_DIRNAME}/{SESSIONS_DIRNAME}", ROLLOUT_GLOB, '"turn_context"'
+            )
+            self._effort[launch.scratch] = reasoning_effort_record(contexts)
             return
         home = self._homes.get(launch.scratch)
         self._quota[launch.scratch] = read_rollout_quota(home) if home is not None else {}
+        self._effort[launch.scratch] = reasoning_effort_record(
+            _rollout_lines(home, '"turn_context"') if home is not None else None
+        )
 
     def run_record(self, launch: HarnessLaunch) -> dict[str, Any]:
         container = launch.container is not None
@@ -909,6 +958,8 @@ class CodexDriver(HarnessDriver):
             "auth": self.auth_source(launch.isolation),
             # What happened to a login Codex rotated: written back to --codex-auth-file or why not.
             "auth_file_update": self._auth_updates.pop(launch.scratch, None),
+            # The effort each turn ran at, as the session rollouts recorded it (``None``: not recorded).
+            "reasoning_effort": self._effort.pop(launch.scratch, reasoning_effort_record(None)),
             "session_resume": "codex exec resume",
         }
 
