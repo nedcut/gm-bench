@@ -60,9 +60,10 @@ model plays through. A model row on two harnesses is two rows.
 Secondary claim, possible because the simulator and the first 29 seeds are
 shared: the same model's 1.0 one-shot score against its 2.0 agentic score,
 paired per seed. It is not free. It needs the same model to have a published
-1.0 row, and none of the three 2.0 panel rows does (`gpt-6-luna` and
-`claude-sonnet-5` were not in the 1.0 cohort, and `claude-haiku-4.5` was
-ineligible there), so no such pairing exists yet. It would also measure more
+1.0 row, and none of the four 2.0 panel rows does (`gpt-6-luna` and
+`claude-sonnet-5` were not in the 1.0 cohort, `claude-haiku-4.5` was
+ineligible there, and `composer-2.5` has only an archived row from a
+contract before `sota-v5`), so no such pairing exists yet. It would also measure more
 than agency: see "How 2.0 differs from 1.0 beyond the interface".
 
 ## Interface
@@ -70,7 +71,7 @@ than agency: see "How 2.0 differs from 1.0 beyond the interface".
 GM-Bench 2.0 is a **Model Context Protocol (MCP) server** over the existing
 simulator, spoken over the stdio transport. The design discussion also
 planned a thin command-line wrapper for harnesses without MCP support. It
-was never built: all three supported harnesses speak MCP, and 2.0 ships
+was never built: all four supported harnesses speak MCP, and 2.0 ships
 without it.
 
 ### Tool surface
@@ -258,8 +259,8 @@ state, cannot damage the host, and cannot carry information between episodes.
   potential independently of its index (a test measures the correlation at
   0.0095 over 7,200 prospects), so a guessed id is a blind pick that uses no
   hidden information. The rule admits the `claude-haiku-4-5` panel row; the
-  Codex and `claude-sonnet-5` panel rows have no guessed draft pick and pass
-  under either rule. It is a post-hoc rule and is labelled as one wherever
+  Codex, `claude-sonnet-5` and Cursor panel rows have no guessed draft pick
+  and pass under either rule. It is a post-hoc rule and is labelled as one wherever
   the Haiku row is shown.
 
 ## Row identity and eligibility
@@ -587,7 +588,7 @@ Claude averaged 14.7 min and $5.03 per episode at API prices; Claude Code
 reports no quota windows, so the driver cannot pause ahead of a limit
 there.
 
-### Realized panel noise (2026-09-27, the three panel rows)
+### Realized panel noise (2026-09-27 to 2026-09-28, the four panel rows)
 
 The panel was sized on the calibration panel's paired-residual SD of 40.1,
 which gave an expected MDD of 24 to 33 points. The panels themselves were
@@ -601,12 +602,16 @@ noisier. The SD of the per-seed lift against `pick-trader` (each row's
 | Codex 0.156.1 · `gpt-6-luna` | 62.5 | about 31 |
 | Claude Code 2.1.281 · `claude-sonnet-5` | 73.4 | about 36 |
 | Claude Code 2.1.281 · `claude-haiku-4-5` | 40.7 | about 20 |
+| Cursor 2026.09.26-dd393fe · `composer-2.5` | 49.9 | about 25 |
 
 For the two rows near `pick-trader`, the panel cannot resolve a difference
 from it smaller than about 31 to 36 points. Both have a mean lift of −21.8
 with a 95% interval that crosses zero. That is "cannot tell", not "on par
 with `pick-trader`" and not "below it". The Haiku lift (−119.1) is far
-outside that range, so its result does not depend on the sizing.
+outside that range, so its result does not depend on the sizing. The
+Cursor lift (−18.6, 95% interval −35.6 to −1.4, sign-flip p 0.047) is
+significant, but smaller than that row's own MDD of about 25, so the
+panel resolved it with little margin.
 
 ## Publication
 
@@ -725,11 +730,14 @@ changes were made under the rule at the top of this file. Each is also in
 | 2026-09-27 | Harness container and home volume removed when the driver is killed or interrupted (#158) | driver | none; every panel ran before it |
 | 2026-09-27 | Guessed draft picks are warnings, not violations (#163) | audit, post-hoc | admits the `claude-haiku-4-5` panel row |
 | 2026-09-28 | This file: freeze rule restated, stale plans marked, realized noise and the 1.0 differences added | documentation | none |
+| 2026-09-28 | Cursor CLI as a fourth harness (#165), a pre-panel prompt check for every harness (#166), and Cursor in a pinned container (#171) | driver | the `composer-2.5` panel, the only row played by the Cursor driver |
 
-The three panel rows ran on two driver commits: Codex and `claude-sonnet-5`
+The four panel rows ran on three driver commits: Codex and `claude-sonnet-5`
 at `4d742cc` (driver digest `8a29130cb6635a4b`), `claude-haiku-4-5` at
-`21b71dc` (digest `6f1061d73d9cf5d6`). The only driver file that differs
-between them is `claude.py`, and the difference is the tool-call counting
+`21b71dc` (digest `6f1061d73d9cf5d6`), and `composer-2.5` at `b3d7de7`
+(digest `32f88e038b79a532`). The only driver file that differs between the
+first two is `claude.py`, and the difference is the tool-call counting
 fix in #159. It changes how Claude Code's own tool events are counted for
 the ledger-versus-harness check, not what the agent sees or how an episode
-is scored.
+is scored. The Cursor row is the only one played by `cursor.py`; the
+fingerprinted files are the same at all three commits.

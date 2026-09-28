@@ -7,7 +7,7 @@ correction becomes a new contract version rather than an edit to an old one.
 ## Unreleased — GM-Bench 2.0
 
 Work began 2026-09-20; the contract froze 2026-09-25; three panel-grade rows
-were published 2026-09-27. Not yet tagged. Nothing in GM-Bench 1.0 changes.
+were published 2026-09-27 and a fourth 2026-09-28. Not yet tagged. Nothing in GM-Bench 1.0 changes.
 
 Summary:
 
@@ -20,11 +20,13 @@ Summary:
   operated with `docs/agentic_lane.md`. The fingerprint covers
   `gm_bench/agentic/{tools,brief,episode,mcp_server}.py` and has not moved
   since the freeze.
-- **Harnesses.** OpenCode 1.18.31, Codex CLI 0.156.1 and Claude Code 2.1.281,
-  each from a pinned Docker image. Every committed row ran at the harness's
-  default reasoning effort (no `--variant`). Claude Code runs without web
-  tools and with its GM-Bench tools deferred behind ToolSearch; OpenCode and
-  Codex keep their built-in tools.
+- **Harnesses.** OpenCode 1.18.31, Codex CLI 0.156.1, Claude Code 2.1.281
+  and the Cursor CLI 2026.09.26-dd393fe, each from a pinned Docker image.
+  Every committed row ran at the harness's default reasoning effort (no
+  `--variant`). Claude Code runs without web tools and with its GM-Bench
+  tools deferred behind ToolSearch; OpenCode, Codex and Cursor keep their
+  built-in tools. Cursor's servers add seven default User Rules to every
+  prompt; a prompt gate admits those and refuses any other rule.
 - **Isolation.** The engine and seeds stay in the driver process. Panel
   rows need the harness in a container (`--isolation container`) with a
   firewall that allows only the public internet, DNS and the driver's port.
@@ -41,6 +43,10 @@ Summary:
   - Claude Code 2.1.281 · `claude-haiku-4-5`: mean 130.1, lift −119.1
     (−132.8 to −104.5), below `pick-trader` on every seed. Admitted under
     the post-hoc guessed-draft-pick rule below.
+  - Cursor 2026.09.26-dd393fe · `composer-2.5`: mean 230.6, lift −18.6
+    (−35.6 to −1.4, p = 0.047), significant; ahead of `pick-trader` on 12
+    of 32 seeds. No cost figure: Cursor reports none and `composer-2.5`
+    has no list price.
 
   The realized paired-lift SDs (62.5 and 73.4) put the panel's minimum
   detectable difference against `pick-trader` at about 31 to 36 points, so
@@ -53,8 +59,10 @@ Summary:
   driver fixes and driver provenance (every row records the driver commit
   that played it; the Codex and `claude-sonnet-5` panels ran at `4d742cc`,
   `claude-haiku-4-5` at `21b71dc`, which differs only in Claude Code
-  tool-call counting); a validation rule that publishes a tool-call recount
-  when it resolves a recorded mismatch (one `claude-sonnet-5` episode); and
+  tool-call counting, and `composer-2.5` at `b3d7de7`, the first commit
+  with the Cursor container driver); a validation rule that publishes a
+  tool-call recount when it resolves a recorded mismatch (one
+  `claude-sonnet-5` episode); and
   a post-hoc audit rule, adopted 2026-09-27 after the Haiku panel had run,
   that reports a draft pick on a guessed prospect id as a warning, not a
   violation. The spec now states which files are frozen and which rules may
@@ -70,6 +78,21 @@ Summary:
 The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
+
+- Fourth panel-grade 2.0 row (2026-09-28): the Cursor CLI
+  2026.09.26-dd393fe on `composer-2.5`, the frozen 32-seed private panel at
+  five seasons, container isolation, played from clean `main` at `b3d7de7`
+  (`results/agentic/cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5.json`).
+  Mean 230.6 (SD 27.7), 640/640 phases closed by the agent, 0 failed
+  decisions, 55 penalized illegal moves, no nudges, provider stalls or
+  guard stops, 127.6 tool calls and 3.5 min per episode, 125/640 empty
+  phases. Against `pick-trader` the paired lift is −18.6, 95% interval
+  −35.6 to −1.4, sign-flip p 0.047: significantly below the scripted bar,
+  with little margin (the row's MDD is about 25). The prompt audit passed
+  on all 32 episodes with only Cursor's seven default rules. Cost is
+  unmeasured (Cursor reports none; `composer-2.5` is not in
+  `gm_bench/pricing.json`), as are reasoning effort and compactions. The
+  model is unpinned.
 
 - Release fixes (2026-09-28, driver, validation and publication only; the
   agentic fingerprint stays `07de948a4f4afbae`). The `claude-haiku-4-5`
