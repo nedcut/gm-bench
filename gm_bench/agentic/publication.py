@@ -59,7 +59,7 @@ from typing import Any
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.cursor import prompt_audit_problems
 from gm_bench.agentic.opencode import TOKEN_SHAPE
-from gm_bench.agentic.prompt_check import prompt_check_problems
+from gm_bench.agentic.prompt_check import prompt_check_problems, unchecked_same_user
 from gm_bench.agentic.provenance import driver_digest, provenance_problems, reproducible_driver
 from gm_bench.agentic.validate import validate_run
 from gm_bench.publication import canonical_sha256
@@ -533,6 +533,8 @@ def validate_agentic_artifact(
     errors.extend(driver_errors)
     warnings.extend(driver_warnings)
     errors.extend(prompt_check_problems(artifact))
+    if (unchecked := unchecked_same_user(artifact)) is not None:
+        errors.append(unchecked)
 
     episodes = artifact.get("episodes") or []
     if len(episodes) != seed_count:

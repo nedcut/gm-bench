@@ -66,7 +66,7 @@ from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import DEFAULT_PHASE_GUARD_SECONDS, AgenticEpisode
 from gm_bench.agentic.harness import HarnessDriver
 from gm_bench.agentic.mcp_server import EPISODE_ENV, SocketMcpServer
-from gm_bench.agentic.prompt_check import PromptCheckError, not_checked
+from gm_bench.agentic.prompt_check import CONTAINER_NOT_CHECKED, PromptCheckError, not_checked
 from gm_bench.agentic.provenance import driver_digest, driver_provenance
 from gm_bench.agents import external_agent_environment
 from gm_bench.protocol import PHASES
@@ -274,6 +274,7 @@ class HarnessLaunch:
         scratch_prefix: str = "gm-bench-agentic-",
         driver: HarnessDriver | None = None,
         evidence_paths: tuple[Path, ...] = (),
+        base_environment: dict[str, str] | None = None,
     ) -> None:
         if isolation not in DRIVER_ISOLATION:
             raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
@@ -293,7 +294,8 @@ class HarnessLaunch:
         # Containers or volumes ``close`` could not remove (container mode only).
         self.cleanup_problems: list[str] = []
         try:
-            self.env = self.driver.environment(harness_environment(), self.scratch, isolation)
+            # ``base_environment`` stands in for the operator's (the prompt check's empty-home run).
+            self.env = self.driver.environment(harness_environment(base_environment), self.scratch, isolation)
             if isolation == "container":
                 assert image is not None
                 self._secret = secrets.token_urlsafe(32)
@@ -1365,7 +1367,7 @@ def run_panel(
     check: dict[str, Any] | None = None
     if prompt_check:
         check = (
-            not_checked("container isolation: only the scratch directory and a fresh home volume reach the harness")
+            not_checked(CONTAINER_NOT_CHECKED)
             if isolation == "container"
             else driver.check_prompt(binary=binary, model=model, variant=variant)
         )

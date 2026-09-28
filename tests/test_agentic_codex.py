@@ -28,6 +28,7 @@ from gm_bench.agentic.codex import (
     ended_in_provider_stall,
     parse_codex_events,
 )
+from tests.test_agentic_publication import CLEAN_PROMPT_CHECK
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DUMMY_KEY = "sk-dummy-not-a-real-key-0000"
@@ -195,8 +196,17 @@ def test_codex_panel_plays_through_the_staged_proxy_nudges_by_resume_and_validat
     # First run: one phase, then the model answers with text and codex exits 0. The nudge resumes and finishes.
     binary, log = _fake_codex(tmp_path, [{"phases": 1}, {"phases": 3}], monkeypatch)
     run_dir = tmp_path / "run"
+    # Published below as a same-user row, so it needs the CLI's pre-panel prompt check (its own tests
+    # are in test_agentic_prompt_check.py); here it is taken as clean.
+    monkeypatch.setattr(codex.CodexDriver, "check_prompt", lambda self, **kwargs: CLEAN_PROMPT_CHECK)
     payload = codex.run_panel(
-        [11], model="gpt-fake", run_dir=run_dir, seasons=1, binary=str(binary), auth_file=_auth_file(tmp_path)
+        [11],
+        prompt_check=True,
+        model="gpt-fake",
+        run_dir=run_dir,
+        seasons=1,
+        binary=str(binary),
+        auth_file=_auth_file(tmp_path),
     )
     assert payload["agent"] == "codex:gpt-fake"
     assert payload["harness"] == {"name": "codex", "version": "0.156.1", "model": "gpt-fake", "variant": None}
@@ -808,8 +818,12 @@ def test_codex_quota_windows_are_recorded_per_episode_and_pause_the_panel(
     sleeps: list[float] = []
     events: list[dict] = []
     run_dir = tmp_path / "run"
+    # Published below as a same-user row, so it needs the CLI's pre-panel prompt check (its own tests
+    # are in test_agentic_prompt_check.py); here it is taken as clean.
+    monkeypatch.setattr(codex.CodexDriver, "check_prompt", lambda self, **kwargs: CLEAN_PROMPT_CHECK)
     payload = codex.run_panel(
         [11, 12],
+        prompt_check=True,
         model="gpt-fake",
         run_dir=run_dir,
         seasons=1,
@@ -989,8 +1003,12 @@ def test_usage_limit_within_the_wait_budget_pauses_then_resumes_the_session(
     sleeps: list[float] = []
     events: list[dict] = []
     run_dir = tmp_path / "run"
+    # Published below as a same-user row, so it needs the CLI's pre-panel prompt check (its own tests
+    # are in test_agentic_prompt_check.py); here it is taken as clean.
+    monkeypatch.setattr(codex.CodexDriver, "check_prompt", lambda self, **kwargs: CLEAN_PROMPT_CHECK)
     payload = codex.run_panel(
         [11],
+        prompt_check=True,
         model="gpt-fake",
         run_dir=run_dir,
         seasons=1,

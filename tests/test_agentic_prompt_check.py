@@ -17,24 +17,38 @@ import pytest
 from gm_bench.agentic import claude, codex, opencode
 from gm_bench.agentic.container import ContainerError
 from gm_bench.agentic.prompt_check import (
+    CONTAINER_NOT_CHECKED,
     OperatorMarkers,
     PromptCheckError,
+    empty_home_environment,
+    home_only_lines,
     operator_content,
     operator_markers,
     prompt_check_problems,
     run_prompt_check,
+    unchecked_same_user,
 )
 
 OPERATOR_LINE = "Always sign every commit message with the operator's favourite haiku."
 
 FAKE_HARNESS = r"""
-import json, os, sys, urllib.request
+import datetime, glob, json, os, sys, urllib.request, uuid
 if sys.argv[1:] == ["--version"]:
     print("0.0.1 (Fake)")
     sys.exit(0)
 if os.environ.get("FAKE_SILENT"):
     sys.exit(3)
-body = {"model": "m", "stream": False, "system": os.environ.get("FAKE_SYSTEM", "You are a harness."),
+# A runtime the harness needs from a path the operator's environment names (a version manager, say).
+if os.environ.get("FAKE_RUNTIME") and not os.path.exists(os.environ["FAKE_RUNTIME"]):
+    sys.exit(4)
+# What changes from launch to launch and is nobody's content, as a real harness's system prompt has.
+system = os.environ.get("FAKE_SYSTEM", "You are a harness.")
+system += f"\nWorking directory: {os.getcwd()}\nSession: {uuid.uuid4()}\nToday is {datetime.datetime.now().isoformat()}"
+# Plugins from wherever an inherited variable points: a location no marker list names.
+if os.environ.get("XDG_CONFIG_HOME"):
+    for skill in sorted(glob.glob(os.path.join(os.environ["XDG_CONFIG_HOME"], "fakeharness/plugins/*/SKILL.md"))):
+        system += "\n" + open(skill).read()
+body = {"model": "m", "stream": False, "system": system,
         "messages": [{"role": "user", "content": sys.argv[-1]}]}
 request = urllib.request.Request(os.environ["ANTHROPIC_BASE_URL"] + "/v1/messages", data=json.dumps(body).encode(),
                                  headers={"content-type": "application/json"})
@@ -51,7 +65,7 @@ def fake_claude(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[str, c
     token = tmp_path / "token"
     token.write_text("sk-ant-oat01-dummy-not-real\n")
     monkeypatch.setattr(opencode, "sandbox_problems", lambda scratch, env: [])
-    for key in ("FAKE_SYSTEM", "FAKE_SILENT"):
+    for key in ("FAKE_SYSTEM", "FAKE_SILENT", "FAKE_RUNTIME", "XDG_CONFIG_HOME"):
         monkeypatch.delenv(key, raising=False)
     return str(binary), claude.ClaudeDriver(token_file=token)
 
@@ -66,6 +80,89 @@ def test_a_clean_prompt_is_captured_on_the_loopback_and_passes(fake_claude) -> N
     # The real brief was sent, and nothing else was contacted.
     assert check["request_characters"] > 1000 and check["refused_hosts"] == []
     assert check["operator_content"] == [] and check["problems"] == []
+
+
+def _operator_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A home for the operator, current for the test, with a plugin skill where no marker list looks."""
+    home = tmp_path / "operator-home"
+    skill = home / ".config" / "fakeharness" / "plugins" / "pstack" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text(
+        "---\nname: poteto-mode\ndescription: The operator's own working style.\n---\n"
+        "Always delegate to subagents and never ask before reversible work.\n"
+    )
+    monkeypatch.setenv("HOME", str(home))
+    # An inherited variable pointing into the home: the Claude driver passes XDG_CONFIG_HOME through.
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home / ".config"))
+    return home
+
+
+def test_prompt_content_only_the_operators_home_explains_is_caught_wherever_it_was_read(
+    fake_claude, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    binary, driver = fake_claude
+    home = _operator_home(tmp_path, monkeypatch)
+    check = run_prompt_check(driver, binary=binary, model="m", markers=MARKERS, home=home)
+    # The marker search knows nothing of this location; the empty-home run does.
+    assert check["operator_content"] == []
+    assert check["empty_home"]["model_requests"] == 1
+    assert check["empty_home"]["lines_only_with_operator_home"] == 4
+    [problem] = check["problems"]
+    assert problem.startswith("4 prompt line(s) (")
+    assert "appear only when the harness can see the operator's home" in problem
+    assert '"Always delegate to subagents and never ask before reversi..."' in problem
+
+
+def test_the_empty_home_run_hides_every_variable_that_points_into_the_home(tmp_path: Path) -> None:
+    home, empty = Path("/Users/operator"), tmp_path / "empty"
+    env = empty_home_environment(
+        home,
+        empty,
+        {
+            "HOME": "/Users/operator",
+            "XDG_CONFIG_HOME": "/Users/operator/.config",
+            "SOME_TOOL_DIRS": "/opt/x:/Users/operator/tools",
+            "PATH": "/Users/operator/.local/bin:/usr/bin",
+            "OTHER": "/Users/operator-2/x",
+            "TOKEN": "keep",
+        },
+    )
+    assert env == {
+        "HOME": str(empty),
+        "XDG_CONFIG_HOME": f"{empty}/.config",
+        "SOME_TOOL_DIRS": f"/opt/x:{empty}/tools",
+        "PATH": "/Users/operator/.local/bin:/usr/bin",
+        "OTHER": "/Users/operator-2/x",
+        "TOKEN": "keep",
+    }
+
+
+def test_a_harness_that_cannot_start_with_an_empty_home_fails_the_check(
+    fake_claude, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    binary, driver = fake_claude
+    home = tmp_path / "operator-home"
+    (home / "runtime").mkdir(parents=True)
+    monkeypatch.setenv("FAKE_RUNTIME", str(home / "runtime"))
+    check = run_prompt_check(driver, binary=binary, model="m", markers=MARKERS, home=home)
+    assert check["model_requests"] == 1 and check["empty_home"]["model_requests"] == 0
+    assert check["problems"] == [
+        "with an empty home the harness sent no readable model request (exit 4), so nothing shows which of its "
+        "prompt came from the operator's home"
+    ]
+
+
+def test_launch_to_launch_noise_is_not_operator_content() -> None:
+    real = [
+        "cwd /private/var/folders/ab/T/gm-bench-agentic-x1y2/\nsession 0b7c3e2a-1d4f-4c55-9a8e-3f1b2c4d5e6f",
+        "Today's date is 2026-09-28. Server http://127.0.0.1:53211/v1 at 14:02:11 id toolu_01AbCdEfGhIjKlMnOp",
+    ]
+    empty = [
+        "cwd /tmp/gm-bench-agentic-zz99/\nsession 11111111-2222-3333-4444-555555555555",
+        "Today's date is 2026-09-29. Server http://127.0.0.1:60001/v1 at 09:15:00 id toolu_01ZyXwVuTsRqPoNmLk",
+    ]
+    assert home_only_lines(real, empty) == []
+    assert home_only_lines([*real, "Sign every commit with a haiku."], empty) == ["Sign every commit with a haiku."]
 
 
 def test_operator_content_in_the_prompt_is_a_problem(fake_claude, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -206,3 +303,60 @@ def test_recorded_check_problems_block_validation_and_publication_but_absence_do
     dirty = {"prompt_check": {"checked": True, "problems": ["1 line(s) of ~/AGENTS.md"]}}
     assert prompt_check_problems(dirty) == ["prompt check: 1 line(s) of ~/AGENTS.md"]
     assert os.sep in MARKERS.home
+
+
+def test_operator_markers_also_read_plugins_rules_memories_imports_and_opencode_instructions(tmp_path: Path) -> None:
+    lines = {
+        ".claude/rules/style.md": "Rules: prefer the smallest correct change to any file.",
+        ".claude/projects/-work/memory/MEMORY.md": "Memory: the operator's benchmark runs must stay serial.",
+        "notes/imported.md": "Imported: a line CLAUDE.md pulls in from outside ~/.claude.",
+        ".config/opencode/extra.md": "OpenCode instructions: a file named by opencode.json.",
+    }
+    for relative, line in lines.items():
+        (tmp_path / relative).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / relative).write_text(line + "\n")
+    (tmp_path / ".claude" / "CLAUDE.md").write_text("# Mine\n@~/notes/imported.md\n")
+    (tmp_path / ".config" / "opencode" / "opencode.json").write_text(json.dumps({"instructions": ["extra.md"]}))
+    plugin = tmp_path / ".claude" / "plugins" / "cache" / "market" / "pstack" / "abc123" / "skills" / "poteto"
+    plugin.mkdir(parents=True)
+    (plugin / "SKILL.md").write_text(
+        "---\nname: poteto-mode\ndescription: The operator's own agent working style.\n---\n"
+    )
+    catalogue = tmp_path / ".claude" / "plugins" / "marketplaces" / "market" / "skills" / "other"
+    catalogue.mkdir(parents=True)
+    (catalogue / "SKILL.md").write_text(
+        "---\nname: other\ndescription: A catalogued plugin nobody installed here.\n---\n"
+    )
+    markers = operator_markers(tmp_path)
+    assert markers.lines == {line: relative for relative, line in lines.items()}
+    assert markers.skills == {"The operator's own agent working style.": "poteto-mode"}
+
+
+def test_a_same_user_row_whose_check_was_skipped_cannot_be_published() -> None:
+    new_driver = {"driver_files": ["gm_bench/agentic/opencode.py", "gm_bench/agentic/prompt_check.py"]}
+    skipped = {"isolation": "same-user", "driver": new_driver, "prompt_check": None}
+    assert unchecked_same_user(skipped) == (
+        "prompt check was skipped (--skip-prompt-check): a same-user row must show what its harness would send the model"
+    )
+    assert unchecked_same_user({"isolation": "same-user", "prompt_check": None})
+    assert unchecked_same_user({**skipped, "prompt_check": {"checked": False, "reason": "no capture override"}})
+    assert unchecked_same_user({**skipped, "prompt_check": {"checked": True, "problems": []}}) is None
+    # A container run (or one understated as same-user, which still records why it was not checked).
+    assert unchecked_same_user({**skipped, "isolation": "container"}) is None
+    assert unchecked_same_user({**skipped, "prompt_check": {"checked": False, "reason": CONTAINER_NOT_CHECKED}}) is None
+    # Recorded before the check existed: no key, and a driver without the module.
+    assert (
+        unchecked_same_user({"isolation": "same-user", "driver": {"driver_files": ["gm_bench/agentic/opencode.py"]}})
+        is None
+    )
+
+
+def test_committed_rows_still_validate() -> None:
+    from gm_bench.agentic.publication import validate_agentic_artifact
+
+    rows = sorted((Path(__file__).resolve().parents[1] / "results" / "agentic").glob("*.json"))
+    assert rows
+    for row in rows:
+        artifact = json.loads(row.read_text())
+        assert unchecked_same_user(artifact) is None, row.name
+        assert validate_agentic_artifact(artifact)["ok"], row.name

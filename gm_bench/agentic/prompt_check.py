@@ -17,14 +17,32 @@ line, the real brief), with one change the driver supplies
 request and answers with a one-word reply, so no provider is contacted and
 nothing is spent. Every other HTTP(S) connection goes through the server as
 a proxy and is refused, and its host is recorded. The captured requests are
-then searched (:func:`operator_content`) for the operator's home directory
-path, for any distinctive line of the operator's instruction files, and for
-the descriptions of the operator's skills (:func:`operator_markers`). A
-check that captured no model request fails too: it proved nothing.
+then compared with a second capture of the same launch in which the
+operator's home is replaced by an empty synthetic one
+(:func:`empty_home_environment`): any prompt line that appears only when the
+real home is visible came from the operator, wherever it was read from
+(:func:`home_only_lines`). As a second signal, the requests are searched
+(:func:`operator_content`) for the operator's home directory path, for any
+distinctive line of the operator's instruction files, memories and rules,
+and for the descriptions of the operator's skills, including installed
+plugins' (:func:`operator_markers`). A check that captured no model request
+fails too: it proved nothing.
+
+Only the first invocation is captured. Nudges and provider-stall retries
+resume the same session in the same launch: the same private home, config
+directory and environment the check proved, with the driver's own nudge text
+in place of the brief. So they read no configuration the first invocation
+did not; what they can add is what the agent itself wrote during the
+episode, and the Claude and Cursor drivers remove config the agent writes
+into their homes before every invocation.
 
 What it cannot see: anything a provider adds on its own servers, and
 anything an account endpoint would return, because those endpoints are
-refused or answered by the capture server. Container runs are not checked:
+refused or answered by the capture server. The empty-home run hides the home
+the environment names (``HOME`` and every variable holding a path inside it,
+except ``*PATH`` search paths, which must still find the harness); a harness
+that looks its home up another way (the user database) sees the real one in
+both runs, and only the marker search can catch what it reads there. Container runs are not checked:
 only the scratch directory and a fresh home volume reach the harness, and
 the egress firewall does not let it reach a loopback capture server. Cursor
 builds its prompt on Cursor's servers, so ``cursor.py`` audits the prompt
@@ -33,8 +51,10 @@ Cursor recorded instead.
 
 from __future__ import annotations
 
+import glob
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -66,17 +86,30 @@ INSTRUCTION_FILES = (
     ".config/opencode/AGENTS.md",
     ".cursor/AGENTS.md",
 )
+# More of the operator's instructions: Claude Code's rules, its per-project memories.
+INSTRUCTION_GLOBS = (
+    ".claude/rules/**/*.md",
+    ".claude/projects/*/memory/*.md",
+    ".cursor/rules/**/*.md*",
+)
+# OpenCode configs whose ``instructions`` list names more instruction files.
+OPENCODE_CONFIGS = (".config/opencode/opencode.json", ".config/opencode/opencode.jsonc")
 # Where the operator's own skills live. Directories starting with a dot are
 # skipped: Codex keeps its bundled skills in ``skills/.system``, which every
-# Codex run lists anyway.
+# Codex run lists anyway. ``.claude/plugins/cache`` holds the installed Claude
+# Code plugins (``marketplaces`` holds catalogues of plugins not installed).
 SKILL_ROOTS = (
     ".agents/skills",
     ".claude/skills",
+    ".claude/plugins/cache",
     ".codex/skills",
     ".config/opencode/skill",
     ".config/opencode/skills",
     ".cursor/skills",
 )
+MAX_INSTRUCTION_FILES = 500
+# ``@path`` on its own line imports a file into a CLAUDE.md or AGENTS.md.
+_IMPORT_RE = re.compile(r"^@(\S+)\s*$", re.MULTILINE)
 # Shorter lines and descriptions are too generic to attribute to the operator.
 MIN_LINE = 40
 MIN_DESCRIPTION = 30
@@ -122,20 +155,64 @@ def _description(skill_md: Path) -> tuple[str, str] | None:
     return (fields.get("name") or skill_md.parent.name, description) if len(description) >= MIN_DESCRIPTION else None
 
 
+def _instruction_paths(home: Path) -> list[Path]:
+    """The operator's instruction files: the fixed list, rules and memories, and OpenCode's ``instructions``."""
+    paths = [home / relative for relative in INSTRUCTION_FILES]
+    for pattern in INSTRUCTION_GLOBS:
+        paths += sorted(home.glob(pattern))
+    for relative in OPENCODE_CONFIGS:
+        try:
+            text = (home / relative).read_text(encoding="utf-8")
+            # JSONC: drop whole-line comments; a config this cannot read is skipped.
+            config = json.loads("\n".join(line for line in text.splitlines() if not line.lstrip().startswith("//")))
+        except (OSError, ValueError):
+            continue
+        for entry in config.get("instructions") or [] if isinstance(config, dict) else []:
+            if isinstance(entry, str) and not entry.startswith(("http://", "https://")):
+                pattern = _in_home(entry, home)
+                pattern = pattern if pattern.is_absolute() else (home / relative).parent / pattern
+                paths += [Path(found) for found in sorted(glob.glob(str(pattern), recursive=True))]
+    return paths
+
+
+def _in_home(path: str, home: Path) -> Path:
+    """``path`` with a leading ``~`` meaning ``home``."""
+    return home / path[2:] if path.startswith("~/") else Path(path)
+
+
+def _label(path: Path, home: Path) -> str:
+    try:
+        return str(path.relative_to(home))
+    except ValueError:
+        return str(path)
+
+
 def operator_markers(home: Path | None = None) -> OperatorMarkers:
-    """Collect the operator's home path, instruction lines and skill descriptions from ``home``."""
+    """Collect the operator's home path, instruction lines and skill descriptions from ``home``.
+
+    Instruction files are read with the files they import (``@path`` lines,
+    one level deep), so text a CLAUDE.md pulls in from elsewhere counts too.
+    """
     home = Path.home() if home is None else home
     markers = OperatorMarkers(home=str(home))
-    for relative in INSTRUCTION_FILES:
-        path = home / relative
+    queue, read = _instruction_paths(home), set()
+    while queue and len(read) < MAX_INSTRUCTION_FILES:
+        path = queue.pop(0)
         try:
+            resolved = path.resolve()
+            if resolved in read or not path.is_file():
+                continue
+            read.add(resolved)
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
+        for target in _IMPORT_RE.findall(text):
+            imported = _in_home(target, home)
+            queue.append(imported if imported.is_absolute() else path.parent / imported)
         for line in text.splitlines():
             line = line.strip()
             if len(line) >= MIN_LINE:
-                markers.lines.setdefault(line, relative)
+                markers.lines.setdefault(line, _label(path, home))
     seen = 0
     for root in SKILL_ROOTS:
         base = home / root
@@ -388,30 +465,101 @@ def proxy_environment(url: str) -> dict[str, str]:
     }
 
 
+# -- the empty-home comparison ----------------------------------------------------------
+
+# What differs between two launches of the same harness and is nobody's content: temporary
+# paths (scratch, private homes, sockets), the capture server's port, ids, dates and times.
+_VOLATILE = (
+    (
+        re.compile(r"(?:/private)?(?:/var/folders|/tmp|" + re.escape(tempfile.gettempdir()) + r")/[^\s\"'`<>),;]*"),
+        "<tmp>",
+    ),
+    (re.compile(r"(?:127\.0\.0\.1|localhost):\d+"), "<loopback>"),
+    (re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"), "<uuid>"),
+    (re.compile(r"\b(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{16,}\b"), "<id>"),
+    (re.compile(r"\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?"), "<date>"),
+    (
+        re.compile(
+            r"\b(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day\b|"
+            r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2},? \d{4}"
+        ),
+        "<date>",
+    ),
+    (re.compile(r"\b\d{1,2}:\d{2}(?::\d{2})?\b"), "<time>"),
+    (re.compile(r"\b\d{9,}\b"), "<number>"),
+)
+
+
+def normalized_lines(texts: list[str]) -> set[str]:
+    """Every non-blank line of ``texts`` with the volatile parts of a launch replaced by placeholders."""
+    lines = set()
+    for text in texts:
+        for line in text.splitlines():
+            for pattern, placeholder in _VOLATILE:
+                line = pattern.sub(placeholder, line)
+            if line := line.strip():
+                lines.add(line)
+    return lines
+
+
+def home_only_lines(real: list[str], empty: list[str]) -> list[str]:
+    """Lines the real-home capture sent that the empty-home capture did not: the operator's content."""
+    return sorted(normalized_lines(real) - normalized_lines(empty))
+
+
+def empty_home_environment(home: Path, empty: Path, base: dict[str, str] | None = None) -> dict[str, str]:
+    """The operator's environment with their home swapped for ``empty``.
+
+    ``HOME`` and every variable that names a path inside the home point into
+    ``empty`` instead; ``*PATH`` search paths are kept, so the harness and its
+    interpreter are still found.
+    """
+    inside = re.compile(re.escape(str(home)) + r"(?=/|:|$)")
+    env = dict(os.environ if base is None else base)
+    for key, value in env.items():
+        if not key.endswith("PATH"):
+            env[key] = inside.sub(str(empty), value)
+    env["HOME"] = str(empty)
+    return env
+
+
 # -- the check ------------------------------------------------------------------------
 
 
-def run_prompt_check(
+@dataclass
+class _Capture:
+    records: list[dict[str, Any]]
+    exit_code: int | None
+    timed_out: bool
+
+    @property
+    def model_requests(self) -> list[dict[str, Any]]:
+        return [record for record in self.records if record["kind"] == "model"]
+
+    @property
+    def texts(self) -> list[str]:
+        return [text for record in self.model_requests for text in record.get("strings", [])]
+
+    @property
+    def readable(self) -> bool:
+        return any("strings" in record for record in self.model_requests)
+
+
+def _capture(
     driver: HarnessDriver,
     *,
     binary: str,
     model: str,
-    variant: str | None = None,
-    markers: OperatorMarkers | None = None,
-    timeout: float = CHECK_SECONDS,
-) -> dict[str, Any]:
-    """Capture the harness's first requests against a loopback server and search them for operator content.
-
-    Returns the record ``run.json`` keeps as ``prompt_check``: what was
-    captured, what was refused, and ``operator_content`` (empty when clean)
-    plus ``problems``. Never raises for a dirty prompt; the caller decides.
-    """
+    variant: str | None,
+    timeout: float,
+    base_environment: dict[str, str] | None = None,
+) -> _Capture:
+    """Launch the harness once, as an episode's first invocation, against a fresh capture server."""
     from gm_bench.agentic.brief import task_brief
     from gm_bench.agentic.episode import AgenticEpisode
     from gm_bench.agentic.opencode import HarnessLaunch
     from gm_bench.simulator import League
 
-    markers = operator_markers() if markers is None else markers
     work = Path(tempfile.mkdtemp(prefix="gmb-prompt-check-"))
     events, errors = work / "events.jsonl", work / "stderr.log"
     episode = AgenticEpisode(CHECK_SEED, 1, 0, ledger_path=work / "ledger.jsonl")
@@ -419,7 +567,13 @@ def run_prompt_check(
     timed_out = False
     try:
         with CaptureServer() as server:
-            launch = HarnessLaunch(episode, binary=binary, driver=driver, evidence_paths=(events, errors))
+            launch = HarnessLaunch(
+                episode,
+                binary=binary,
+                driver=driver,
+                evidence_paths=(events, errors),
+                base_environment=base_environment,
+            )
             try:
                 launch.prepare()
                 brief = task_brief(1, League.new(seed=CHECK_SEED, user_team_id=0).user_team.name, 0)
@@ -449,36 +603,117 @@ def run_prompt_check(
     finally:
         episode.close()
         shutil.rmtree(work, ignore_errors=True)
+    return _Capture(records, exit_code, timed_out)
 
-    model_requests = [record for record in records if record["kind"] == "model"]
-    readable = [record for record in model_requests if "strings" in record]
-    findings = operator_content([text for record in readable for text in record["strings"]], markers)
+
+def _excerpt(line: str, width: int = 60) -> str:
+    return json.dumps(line if len(line) <= width else line[: width - 3] + "...")
+
+
+def run_prompt_check(
+    driver: HarnessDriver,
+    *,
+    binary: str,
+    model: str,
+    variant: str | None = None,
+    markers: OperatorMarkers | None = None,
+    timeout: float = CHECK_SECONDS,
+    home: Path | None = None,
+) -> dict[str, Any]:
+    """Capture the harness's first requests against a loopback server, twice, and find the operator's content.
+
+    The first capture runs in the operator's environment, the second with
+    their home (``home``, default the current user's) swapped for an empty
+    synthetic one. Lines only the first sent are the operator's; the marker
+    search (:func:`operator_content`) runs over the first as well. Returns
+    the record ``run.json`` keeps as ``prompt_check``: what was captured,
+    what was refused, and ``operator_content`` (empty when clean) plus
+    ``problems``, which name counts and, since a check with problems stops
+    the panel before anything is recorded, a short excerpt for the operator.
+    Never raises for a dirty prompt; the caller decides.
+    """
+    markers = operator_markers() if markers is None else markers
+    home = Path.home() if home is None else home
+    options = {"binary": binary, "model": model, "variant": variant, "timeout": timeout}
+    real = _capture(driver, **options)
+    empty_dir = Path(tempfile.mkdtemp(prefix="gmb-empty-home-"))
+    try:
+        empty = _capture(driver, **options, base_environment=empty_home_environment(home, empty_dir))
+    finally:
+        shutil.rmtree(empty_dir, ignore_errors=True)
+
+    findings = operator_content(real.texts, markers)
     problems = list(findings)
-    if not readable:
+    if not real.readable:
         problems.append(
             f"the harness sent no readable model request to the capture server "
-            f"(exit {exit_code}{', timed out' if timed_out else ''}), so nothing shows what it would send"
+            f"(exit {real.exit_code}{', timed out' if real.timed_out else ''}), so nothing shows what it would send"
         )
     problems += [
-        f"unreadable model request: {record['unreadable']}" for record in model_requests if "unreadable" in record
+        f"unreadable model request: {record['unreadable']}" for record in real.model_requests if "unreadable" in record
     ]
+    extra: list[str] = []
+    if real.readable and not empty.readable:
+        problems.append(
+            f"with an empty home the harness sent no readable model request "
+            f"(exit {empty.exit_code}{', timed out' if empty.timed_out else ''}), so nothing shows which of its "
+            "prompt came from the operator's home"
+        )
+    elif real.readable:
+        extra = home_only_lines(real.texts, empty.texts)
+        if extra:
+            problems.append(
+                f"{len(extra)} prompt line(s) ({sum(len(line) for line in extra)} characters) appear only when the "
+                f"harness can see the operator's home, e.g. {', '.join(_excerpt(line) for line in extra[:3])}"
+            )
     return {
         "checked": True,
-        "method": "loopback capture server; no provider contacted",
-        "model_requests": len(model_requests),
-        "request_characters": sum(len(text) for record in readable for text in record["strings"]),
-        "other_requests": sorted({f"{r['method']} {r['path']}" for r in records if r["kind"] == "other"}),
-        "refused_hosts": sorted({r["host"] for r in records if r["kind"] == "refused"}),
+        "method": "loopback capture server, then again with an empty home; no provider contacted",
+        "model_requests": len(real.model_requests),
+        "request_characters": sum(len(text) for text in real.texts),
+        "other_requests": sorted({f"{r['method']} {r['path']}" for r in real.records if r["kind"] == "other"}),
+        "refused_hosts": sorted({r["host"] for r in real.records if r["kind"] == "refused"}),
+        "empty_home": {
+            "model_requests": len(empty.model_requests),
+            "lines_only_with_operator_home": len(extra),
+            "characters_only_with_operator_home": sum(len(line) for line in extra),
+        },
         "operator_markers": markers.summary(),
         "operator_content": findings,
         "problems": problems,
-        "exit_code": exit_code,
-        "timed_out": timed_out,
+        "exit_code": real.exit_code,
+        "timed_out": real.timed_out,
     }
+
+
+CONTAINER_NOT_CHECKED = "container isolation: only the scratch directory and a fresh home volume reach the harness"
 
 
 def not_checked(reason: str) -> dict[str, Any]:
     return {"checked": False, "reason": reason, "problems": []}
+
+
+def unchecked_same_user(run: dict[str, Any]) -> str | None:
+    """Why a same-user run or row cannot be published without a prompt check; ``None`` when it can.
+
+    Only runs recorded by a driver that has the check count (``run.json``
+    carries the ``prompt_check`` key, or the driver's files include this
+    module): a same-user run whose check was skipped or not run proves
+    nothing about what its harness sent. Runs recorded before the check
+    existed and container runs, whose harness sees only the scratch and a
+    fresh home volume, are unaffected (so is a row stated at another
+    isolation, which a driver never records).
+    """
+    if run.get("isolation", "same-user") != "same-user":
+        return None
+    driver_files = (run.get("driver") or {}).get("driver_files") or []
+    if "prompt_check" not in run and not any(str(name).endswith("/prompt_check.py") for name in driver_files):
+        return None
+    check = run.get("prompt_check")
+    if isinstance(check, dict) and (check.get("checked") is True or check.get("reason") == CONTAINER_NOT_CHECKED):
+        return None
+    how = "was skipped (--skip-prompt-check)" if check is None else "did not run"
+    return f"prompt check {how}: a same-user row must show what its harness would send the model"
 
 
 def prompt_check_problems(run: dict[str, Any]) -> list[str]:
@@ -487,6 +722,8 @@ def prompt_check_problems(run: dict[str, Any]) -> list[str]:
     A run without a check (recorded before it existed, or with
     ``--skip-prompt-check``) and a container run recorded as not checked have
     none: adding a finding there would change every older row's redaction.
+    A same-user run whose check was skipped is refused at publication by
+    :func:`unchecked_same_user` instead.
     """
     check = run.get("prompt_check")
     problems = check.get("problems") if isinstance(check, dict) else None

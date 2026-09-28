@@ -35,7 +35,7 @@ from gm_bench.agentic.audit import audit_ledger
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import AgenticEpisode
 from gm_bench.agentic.opencode import harness_tool_calls
-from gm_bench.agentic.prompt_check import prompt_check_problems
+from gm_bench.agentic.prompt_check import prompt_check_problems, unchecked_same_user
 
 _CONTRACT_KEYS = ("base_contract_fingerprint", "agentic_fingerprint", "tool_surface", "brief", "scoring_version")
 # How to read each harness's retained event stream when recounting its GM-Bench tool calls.
@@ -72,6 +72,8 @@ def validate_run(run_path: str | Path) -> dict[str, Any]:
 
     harness_name = (run.get("harness") or {}).get("name")
     run_problems.extend(prompt_check_problems(run))
+    if (unchecked := unchecked_same_user(run)) is not None:
+        run_warnings.append(f"{unchecked}; it validates but cannot be published")
     per_episode = []
     problems = list(run_problems)
     warnings = list(run_warnings)

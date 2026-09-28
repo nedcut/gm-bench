@@ -194,13 +194,37 @@ request and answers with one word, so no provider is contacted and nothing
 is spent. It also acts as the harness's HTTP(S) proxy and refuses every
 other connection, recording the host.
 
-The captured requests are then searched for the operator's content:
+The check then launches the harness a second time the same way, with the
+operator's home swapped for an empty synthetic one: `HOME` and every
+environment variable that names a path inside the home point into the empty
+directory (`*PATH` search paths are kept so the harness and its interpreter
+are still found). Any prompt line the first capture sent and the second did
+not came from the operator's home, wherever the harness read it (a plugin's
+`SKILL.md`, a file a `CLAUDE.md` imports, a memory, an unlisted config
+directory). Before the comparison, what differs between any two launches is
+replaced by placeholders: temporary paths (scratch, private homes, sockets),
+the capture server's port, UUIDs and other long ids, dates and times. The
+record keeps only counts (`empty_home`); the error that stops the panel
+quotes up to three of the lines, truncated, so the operator can find them.
+If the second launch sends no model request, the check fails: nothing then
+shows which of the prompt came from the home. Cursor's check is a recorded
+chat (below) and has no second launch.
+
+The empty home hides only the home the environment names. A harness that
+looks up its home another way (the user database) sees the real one in both
+launches, so the captured requests are also searched for the operator's
+content directly:
 
 - the operator's home directory path;
 - any line of 40 characters or more from their instruction files
   (`~/AGENTS.md`, `~/.agents/AGENTS.md`, `~/.codex/AGENTS.md`,
-  `~/.claude/CLAUDE.md`, `~/.config/opencode/AGENTS.md`, and others);
+  `~/.claude/CLAUDE.md`, `~/.config/opencode/AGENTS.md`, and others),
+  Claude Code's rules (`~/.claude/rules`) and per-project memories
+  (`~/.claude/projects/*/memory`), the files named by OpenCode's
+  `instructions`, and any file an instruction file imports with an `@path`
+  line (one level);
 - the description of any skill under `~/.agents/skills`, `~/.claude/skills`,
+  the installed Claude Code plugins (`~/.claude/plugins/cache`),
   `~/.codex/skills` or `~/.config/opencode/skills` (dot directories such as
   Codex's bundled `skills/.system` are skipped).
 
@@ -209,7 +233,19 @@ nothing. If the check finds anything, the panel does not start
 (`PromptCheckError`). The record is kept as `run.json` `prompt_check` and
 published with the row. `agentic-validate` and the published-row check
 refuse a run whose recorded check has problems. `--skip-prompt-check` is
-for development and records `prompt_check: null`.
+for development and records `prompt_check: null`: `agentic-validate` warns,
+and the published-row check refuses such a same-user row at any grade. Rows
+recorded before the check existed (no `prompt_check` key and no
+`prompt_check.py` in the driver's files) and container rows are unaffected.
+
+Only the first invocation is captured. Nudges and provider-stall retries
+resume the same session in the same launch, so they run in the private home,
+config directory and environment the check proved, with the driver's own
+nudge text in place of the brief: they load no configuration the first
+invocation did not. What a resume can add is what the agent itself wrote
+during the episode. The Claude and Cursor drivers remove config the agent
+writes into their homes before every invocation; for Codex and OpenCode it
+is the agent's own work, in its own session.
 
 Cursor builds its prompt on Cursor's servers, so its check is a one-word
 chat whose recorded context is audited instead (see "Cursor harness"),

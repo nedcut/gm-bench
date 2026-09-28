@@ -692,6 +692,13 @@ def test_an_episode_whose_prompt_carried_rules_fails_validation_and_publication(
     assert artifact["episodes"][0]["harness_run"]["prompt_audit"]["user_rules"] == 1
     errors = validate_agentic_artifact(artifact)["errors"]
     assert any("outside the harness: rules" in error for error in errors)
+    # Run without the check, a same-user row is refused on that ground alone.
+    assert artifact["prompt_check"] is None
+    assert any(warning.startswith("prompt check was skipped") for warning in report["warnings"])
+    assert (
+        "prompt check was skipped (--skip-prompt-check): a same-user row must show what its harness would send the model"
+        in errors
+    )
 
 
 def test_a_failed_prompt_check_redacts_a_token_that_straddles_the_stderr_cut(

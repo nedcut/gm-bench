@@ -9,11 +9,15 @@ correction becomes a new contract version rather than an edit to an old one.
 Added 2026-09-20. Nothing published changes.
 
 - Prompt check (2026-09-27): before a panel, `gm-bench agentic` launches the
-  harness once against a loopback capture server and searches what it would
-  send the model for the operator's home path, instruction files and skills.
-  It refuses the panel on any hit, and on no captured request. The check is
-  recorded as `run.json` `prompt_check` and published with the row, and a
-  recorded failure fails validation. It found that same-user OpenCode sent
+  harness against a loopback capture server twice, once as the operator and
+  once with their home swapped for an empty one, and treats any prompt line
+  only the first sent as the operator's. It also searches the capture for the
+  operator's home path, instruction files (with their `@` imports, Claude
+  rules and memories, OpenCode `instructions`) and skills (with installed
+  Claude plugins). It refuses the panel on any hit, and on no captured
+  request. The check is recorded as `run.json` `prompt_check` and published
+  with the row, a recorded failure fails validation, and a same-user row
+  whose check was skipped cannot be published. It found that same-user OpenCode sent
   the operator's global `AGENTS.md` and 16 personal skills. Same-user
   OpenCode now gets a private home and `XDG_*` directories. No committed row
   is affected: every one is a container run, whose home is a fresh volume.

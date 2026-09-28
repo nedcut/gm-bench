@@ -28,6 +28,7 @@ from gm_bench.agentic.claude import (
     parse_claude_events,
     quota_exhaustion,
 )
+from tests.test_agentic_publication import CLEAN_PROMPT_CHECK
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DUMMY_TOKEN = "sk-ant-oat01-dummy-not-a-real-token-0000"
@@ -250,8 +251,17 @@ def test_claude_panel_plays_through_the_staged_proxy_nudges_by_resume_and_valida
     # First run: one phase, then the model answers with text and exits 0. The nudge resumes and finishes.
     binary, log = _fake_claude(tmp_path, [{"phases": 1}, {"phases": 3}], monkeypatch)
     run_dir = tmp_path / "run"
+    # Published below as a same-user row, so it needs the CLI's pre-panel prompt check (its own tests
+    # are in test_agentic_prompt_check.py); here it is taken as clean.
+    monkeypatch.setattr(claude.ClaudeDriver, "check_prompt", lambda self, **kwargs: CLEAN_PROMPT_CHECK)
     payload = claude.run_panel(
-        [11], model=MODEL, run_dir=run_dir, seasons=1, binary=str(binary), token_file=_token_file(tmp_path)
+        [11],
+        prompt_check=True,
+        model=MODEL,
+        run_dir=run_dir,
+        seasons=1,
+        binary=str(binary),
+        token_file=_token_file(tmp_path),
     )
     assert payload["agent"] == f"claude:{MODEL}"
     assert payload["harness"] == {"name": "claude", "version": "2.1.281", "model": MODEL, "variant": None}
@@ -378,8 +388,12 @@ def test_usage_limit_within_the_wait_budget_pauses_then_resumes_the_session(
     sleeps: list[float] = []
     events: list[dict] = []
     run_dir = tmp_path / "run"
+    # Published below as a same-user row, so it needs the CLI's pre-panel prompt check (its own tests
+    # are in test_agentic_prompt_check.py); here it is taken as clean.
+    monkeypatch.setattr(claude.ClaudeDriver, "check_prompt", lambda self, **kwargs: CLEAN_PROMPT_CHECK)
     payload = claude.run_panel(
         [11],
+        prompt_check=True,
         model=MODEL,
         run_dir=run_dir,
         seasons=1,

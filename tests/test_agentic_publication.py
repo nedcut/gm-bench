@@ -61,6 +61,10 @@ def fixture_reference(artifact: dict, *, reference_mean: float = 249.18) -> dict
     }
 
 
+# What ``gm-bench agentic`` records when the pre-panel prompt check found nothing.
+CLEAN_PROMPT_CHECK = {"checked": True, "operator_content": [], "problems": []}
+
+
 def clean_driver(**overrides) -> dict:
     """The driver block of a run played on this checkout's driver code, committed."""
     return {
@@ -81,8 +85,12 @@ def _write_run(
     idle: bool = False,
     isolation: str | None = None,
     driver: dict | None | str = "clean",
+    prompt_check: dict | None | str = "clean",
 ) -> Path:
     """A run directory with real ledgers and event streams, as run_panel would write it, without a harness.
+
+    ``prompt_check`` is the CLI's clean pre-panel check unless given
+    (``None`` records a skipped check, ``"absent"`` a run from before it).
 
     A repeated seed gets its own attempt directory (``seed-11-r2``) and plays
     differently, so per-seed and per-episode means diverge. With ``idle``
@@ -150,6 +158,8 @@ def _write_run(
         run["isolation"] = isolation
     if driver is not None:
         run["driver"] = clean_driver() if driver == "clean" else driver
+    if prompt_check != "absent":
+        run["prompt_check"] = CLEAN_PROMPT_CHECK if prompt_check == "clean" else prompt_check
     (run_dir / "run.json").write_text(json.dumps(run, sort_keys=True), encoding="utf-8")
     return run_dir
 
