@@ -621,6 +621,26 @@ def _final_error(lines: list[str]) -> tuple[dict[str, Any], dict[str, Any], list
     return error, data, events[:-1]
 
 
+def provider_error(lines: list[str]) -> dict[str, Any] | None:
+    """``{"status_code": ..., "message": ...}`` when the invocation ended on an ``APIError`` from the provider.
+
+    For example OpenCode Go's 400 "This Go model requires Global regions"
+    (``isRetryable`` false), which every retry and nudge gets again.
+    """
+    ending = _final_error(lines)
+    if ending is None:
+        return None
+    error, data, _before = ending
+    if error.get("name") != "APIError":
+        return None
+    status = data.get("statusCode")
+    message = data.get("message", error.get("message"))
+    return {
+        "status_code": status if isinstance(status, int) else None,
+        "message": message[:300] if isinstance(message, str) else None,
+    }
+
+
 def _startup_server_error(error: dict[str, Any], data: dict[str, Any], before: list[dict[str, Any]]) -> bool:
     """OpenCode's generic server error, before the invocation did anything but start a step."""
     message = data.get("message", error.get("message"))
@@ -1074,15 +1094,22 @@ def run_episode(
         # stall that could not be retried. The phases still open are closed below as when
         # the harness exits, but the episode is marked, the panel stops, and publication
         # refuses the run: those phases were never played.
+        # So did a provider that answered the last invocation with an API error the loop
+        # could not get past (a non-retryable refusal: every nudge gets it again).
         ended_by_provider: dict[str, Any] | None = None
         final_state = _engine_state(episode)
-        if not final_state["done"] and last_stalled and ended_by_quota is None and not timed_out:
+        unfinished = not final_state["done"] and ended_by_quota is None and not timed_out
+        refused = (
+            driver.provider_error(_invocation_lines(events_path, offset)) if unfinished and not last_stalled else None
+        )
+        if unfinished and (last_stalled or refused is not None):
             ended_by_provider = {
-                "reason": stall_budget_spent(),
+                "reason": stall_budget_spent() if last_stalled else "provider_error",
                 "season": final_state["season"],
                 "phase": final_state["phase"],
                 "provider_stalls": provider_stalls,
                 "provider_stall_wait_seconds": round(stall_wait, 3),
+                **({"provider_error": refused} if refused is not None else {}),
             }
             if progress is not None:
                 progress({"seed": seed, "stage": "provider_ended", **ended_by_provider})
@@ -1907,6 +1934,9 @@ class OpenCodeDriver(HarnessDriver):
 
     def quota_exhausted(self, lines: list[str], *, isolation: str, now: float) -> dict[str, Any] | None:
         return quota_exhaustion(lines, now=now)
+
+    def provider_error(self, lines: list[str]) -> dict[str, Any] | None:
+        return provider_error(lines)
 
     def usage_block(self, telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
         return usage_block(telemetry, model=model, decisions=decisions)

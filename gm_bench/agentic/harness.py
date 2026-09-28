@@ -85,6 +85,16 @@ class HarnessDriver:
         """Whether one invocation's events end in a retryable provider error."""
         raise NotImplementedError
 
+    def provider_error(self, lines: list[str]) -> dict[str, Any] | None:
+        """``{"status_code": ..., "message": ...}`` when one invocation ended on a provider API error.
+
+        Only asked about the last invocation of an episode the loop gave up on
+        unfinished, after it was neither a stall nor a spent quota: a provider
+        that refuses every request (a model the account cannot use, a bad key)
+        ended the episode, not the agent. ``None`` for any other ending.
+        """
+        return None
+
     def quota_exhausted(self, lines: list[str], *, isolation: str, now: float) -> dict[str, Any] | None:
         """Whether one invocation ended because the subscription's usage window is spent.
 

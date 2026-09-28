@@ -1719,6 +1719,47 @@ def test_exhausted_stall_budget_marks_the_episode_provider_ended(tmp_path: Path,
     assert quiet["harness_run"]["ended_by_provider"] is None and provider_ended(quiet) is None
 
 
+# The 2026-09-28 OpenCode Go ending on deepseek-v4.1-flash (ray faked): a non-retryable
+# refusal every nudge got again, which was scored as four failed decisions.
+_REGION_REFUSAL_ERROR = {
+    "type": "error",
+    "sessionID": "ses_fake",
+    "error": {
+        "name": "APIError",
+        "data": {
+            "message": "Upstream request failed: This Go model requires Global regions. Select Global in your "
+            "workspace's Privacy settings to use it.",
+            "statusCode": 400,
+            "isRetryable": False,
+            "responseHeaders": {"cf-ray": "fake-PHL", "content-type": "application/json"},
+            "metadata": {"url": "https://opencode.ai/zen/go/v1/chat/completions"},
+        },
+    },
+}
+
+
+def test_a_provider_refusal_the_nudges_cannot_get_past_marks_the_episode_provider_ended(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from gm_bench.agentic.validate import provider_ended
+
+    script = [
+        {"phases": 0, "error": _REGION_REFUSAL_ERROR, "exit": 1},
+        {"phases": 0, "error": _REGION_REFUSAL_ERROR, "exit": 1},
+    ]
+    result, _calls, _sleeps = _stall_episode(tmp_path, monkeypatch, script)
+    ended = result["harness_run"]["ended_by_provider"]
+    assert ended["reason"] == "provider_error" and (ended["season"], ended["phase"]) == (1, "preseason")
+    assert ended["provider_error"]["status_code"] == 400
+    assert ended["provider_error"]["message"].startswith("Upstream request failed: This Go model requires Global")
+    assert provider_ended(result) == ended
+    # One refusal a nudge gets past is not the provider ending the episode.
+    passed, _calls, _sleeps = _stall_episode(
+        tmp_path / "passed", monkeypatch, [{"phases": 1, "error": _REGION_REFUSAL_ERROR, "exit": 1}, {"phases": 3}]
+    )
+    assert passed["harness_run"]["ended_by_provider"] is None
+
+
 def test_a_provider_ended_episode_stops_the_panel_and_the_run_cannot_be_published(tmp_path: Path, monkeypatch) -> None:
     import gm_bench.agentic.opencode as driver
     from gm_bench.agentic.publication import compact_agentic_run
