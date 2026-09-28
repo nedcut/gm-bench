@@ -141,6 +141,11 @@ def _validate_episode(episode: dict[str, Any], run_dir: Path, harness_name: str 
                 warnings.append(f"audit: {len(audit['suspicious'])} rejected move(s) on unseen ids")
             if audit.get("guessed_reads"):
                 warnings.append(f"audit: {len(audit['guessed_reads'])} successful read(s) on guessed ids")
+            if audit.get("guessed_draft_picks"):
+                warnings.append(
+                    f"audit: {len(audit['guessed_draft_picks'])} draft pick(s) on guessed prospect ids "
+                    "(blind picks: prospect ids carry no hidden information)"
+                )
 
     # Gate 2 of the spec, recomputed from the evidence: the replayed ledger's
     # tool-call count against the harness's own event stream. The recorded
@@ -211,7 +216,11 @@ def _validate_episode(episode: dict[str, Any], run_dir: Path, harness_name: str 
         "tool_calls_recounted": recounted,
         "audit": None
         if audit is None
-        else {k: v for k, v in audit.items() if k not in ("violations", "suspicious", "guessed_reads")},
+        else {
+            k: v
+            for k, v in audit.items()
+            if k not in ("violations", "suspicious", "guessed_reads", "guessed_draft_picks")
+        },
         "problems": problems,
         "warnings": warnings,
     }

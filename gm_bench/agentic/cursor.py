@@ -96,11 +96,14 @@ live probes on composer-2.5 on 2026-09-27):
   recording names and counts, never text, as ``harness_run.prompt_audit``.
   The servers also send seven rules of their own in the User Rules slot to
   every account, which the account cannot see or remove; those
-  (:data:`CURSOR_DEFAULT_RULES`, matched by digest) count as the harness's.
+  (:data:`CURSOR_DEFAULT_RULES`, matched by digest) count as the harness's
+  only when the rules slot has exactly Cursor's recorded shape; any other
+  shape is refused, never parsed leniently.
   The pre-panel prompt check (:meth:`CursorDriver.check_prompt`, on from the
-  CLI) makes one one-word call in a throwaway workspace set up like an
-  episode's (:func:`probe_prompt`) and refuses the panel if that prompt
-  carries anything unexpected or any of the operator's own content; ``agentic-validate`` and the
+  CLI) makes one one-word ``--mode ask`` call in a throwaway workspace with
+  an episode's private directories and credential (but no MCP server;
+  :func:`probe_prompt`) and refuses the panel if that prompt carries
+  anything unexpected or any of the operator's own content; ``agentic-validate`` and the
   published-row check refuse a Cursor episode whose audit is missing or not
   clean (:func:`prompt_audit_problems`).
 - **Authentication.** ``--cursor-token-file <path>`` holds one token: a
@@ -443,7 +446,12 @@ def top_level_sections(text: str) -> list[str]:
 
 
 def _context_messages(config_dir: Path) -> list[str]:
-    """Each chat store's first context message (the one carrying ``<user_info>``) under ``config_dir/chats``."""
+    """Every context message (a message carrying ``<user_info>``) in every chat store under ``config_dir/chats``.
+
+    Cursor writes one per chat today; a resume that wrote another would be
+    audited too. A message without ``<user_info>`` is the brief, a nudge or
+    a tool result and is not treated as context.
+    """
     found = []
     for store in sorted(config_dir.glob("chats/*/*/store.db")):
         try:
@@ -463,18 +471,54 @@ def _context_messages(config_dir: Path) -> list[str]:
                 continue
             if isinstance(content, str):
                 found.append(content)
-                break
     return found
 
 
-def _rules_are_cursor_defaults(message: str, rules: list[str]) -> bool:
-    """Whether the message's ``<rules>`` section holds only User Rules that are Cursor's own defaults."""
-    found = re.search(r"<rules>(.*?)</rules>", message, re.DOTALL)
-    if found is None:
-        return True
-    return top_level_sections(found.group(1)) == ["user_rules"] and all(
-        _rule_digest(rule) in CURSOR_DEFAULT_RULES for rule in rules
-    )
+# The exact shape of Cursor's rules slot, recorded 2026-09-27 on cursor-agent 2026.09.26-dd393fe:
+# ``<rules>``, this preamble, ``<user_rules description=...>``, then ``<user_rule>`` elements and
+# nothing else. Anything that differs (attributes, text, another subsection, a stray rule tag) is
+# not parsed leniently: the slot is counted as unrecognised and refused.
+_RULES_PREAMBLE = (
+    "The rules section has a number of possible rules/memories/context that you should consider. "
+    "In each subsection, we provide instructions about what information the subsection contains "
+    "and how you should consider/follow the contents of the subsection."
+)
+_USER_RULES_OPENERS = (
+    '<user_rules description="These are rules set by the user that you should follow if appropriate.">',
+    "<user_rules>",
+)
+_RULES_BLOCK_RE = re.compile(r"<rules>(.*?)</rules>", re.DOTALL)
+_RULE_TAG_RE = re.compile(r"</?(?:rules|user_rules|user_rule)\b[^>]*>")
+_USER_RULE_RE = re.compile(r"\s*<user_rule>(.*?)</user_rule>", re.DOTALL)
+_ANY_USER_RULE_RE = re.compile(r"<user_rule(?:\s[^>]*)?>(.*?)</user_rule>", re.DOTALL)
+
+
+def _parse_rules_block(body: str) -> list[str] | None:
+    """The User Rules in one ``<rules>`` body of exactly Cursor's shape, or ``None`` for any other shape."""
+    rest = body.strip()
+    if rest.startswith(_RULES_PREAMBLE):
+        rest = rest[len(_RULES_PREAMBLE) :].lstrip()
+    opener = next((opener for opener in _USER_RULES_OPENERS if rest.startswith(opener)), None)
+    if opener is None or not rest.endswith("</user_rules>"):
+        return None
+    rest = rest[len(opener) : -len("</user_rules>")]
+    rules, position = [], 0
+    while (match := _USER_RULE_RE.match(rest, position)) is not None:
+        rules.append(match.group(1))
+        position = match.end()
+    return rules if not rest[position:].strip() else None
+
+
+def _rules_slots(message: str) -> tuple[list[str], int]:
+    """Every User Rule in the message, and how many rules slots or stray rule tags are not Cursor's exact shape.
+
+    Rules are counted leniently (any ``<user_rule ...>`` anywhere) so an
+    unrecognised shape still reports what it carried; only an exact shape
+    can pass.
+    """
+    unrecognised = sum(_parse_rules_block(body) is None for body in _RULES_BLOCK_RE.findall(message))
+    unrecognised += len(_RULE_TAG_RE.findall(_RULES_BLOCK_RE.sub("", message)))
+    return _ANY_USER_RULE_RE.findall(message), unrecognised
 
 
 def _rule_digest(rule: str) -> str:
@@ -485,27 +529,31 @@ def prompt_audit(config_dir: Path, markers: OperatorMarkers | None = None) -> di
     """What Cursor put in the episode's prompt besides the brief; ``None`` when no chat store was readable.
 
     ``sections``: every outermost section of the context messages;
-    ``unexpected``: those not in :data:`HARNESS_SECTIONS` (``rules`` counts
-    as the harness's own when it holds nothing but :data:`CURSOR_DEFAULT_RULES`);
-    ``default_rules``: how many of those it held; ``user_rules`` and
-    ``user_rule_characters``: every other User Rule. Names and counts only,
-    never text.
+    ``unexpected``: those not in :data:`HARNESS_SECTIONS`, plus ``rules``
+    unless every rules slot has exactly Cursor's shape and holds nothing but
+    :data:`CURSOR_DEFAULT_RULES`; ``default_rules``: how many of those it
+    held; ``user_rules`` and ``user_rule_characters``: every other User Rule;
+    ``unrecognised_rules``: rules slots or rule tags in any other shape.
+    Names and counts only, never text.
     """
     messages = _context_messages(config_dir)
     if not messages:
         return None
     sections = sorted({name for message in messages for name in top_level_sections(message)})
-    rules = [re.findall(r"<user_rule>(.*?)</user_rule>", message, re.DOTALL) for message in messages]
-    others = [[rule for rule in found if _rule_digest(rule) not in CURSOR_DEFAULT_RULES] for found in rules]
-    defaults_only = all(_rules_are_cursor_defaults(message, found) for message, found in zip(messages, rules))
+    slots = [_rules_slots(message) for message in messages]
+    others = [[rule for rule in rules if _rule_digest(rule) not in CURSOR_DEFAULT_RULES] for rules, _ in slots]
+    unrecognised = max(count for _, count in slots)
+    rules_clean = unrecognised == 0 and not any(others)
+    unexpected = {name for name in sections if name not in HARNESS_SECTIONS and name != "rules"}
+    if not rules_clean:
+        unexpected.add("rules")
     return {
         "sections": sections,
-        "unexpected": [
-            name for name in sections if name not in HARNESS_SECTIONS and not (name == "rules" and defaults_only)
-        ],
-        "default_rules": max(len(found) - len(other) for found, other in zip(rules, others)),
+        "unexpected": sorted(unexpected),
+        "default_rules": max(len(rules) - len(other) for (rules, _), other in zip(slots, others)),
         "user_rules": max(len(other) for other in others),
         "user_rule_characters": max(sum(len(rule) for rule in other) for other in others),
+        "unrecognised_rules": unrecognised,
         "operator_content": operator_content(messages, operator_markers() if markers is None else markers),
     }
 
@@ -518,20 +566,26 @@ def prompt_audit_problems(harness_name: str | None, harness_run: dict[str, Any])
     if not isinstance(audit, dict):
         return ["no prompt audit: nothing shows the prompt held only the harness's own context"]
     problems = []
-    if audit.get("unexpected"):
+    if audit.get("unexpected") or audit.get("user_rules") or audit.get("unrecognised_rules"):
+        unexpected = audit.get("unexpected") or ["rules"]
         problems.append(
-            f"prompt carried context from outside the harness: {', '.join(audit['unexpected'])} "
-            f"({audit.get('user_rules', 0)} User Rules that are not Cursor's defaults)"
+            f"prompt carried context from outside the harness: {', '.join(unexpected)} "
+            f"({audit.get('user_rules', 0)} User Rules that are not Cursor's defaults, "
+            f"{audit.get('unrecognised_rules', 0)} rules slots in an unrecognised shape)"
         )
     problems += [f"prompt carried the operator's content: {found}" for found in audit.get("operator_content") or []]
     return problems
 
 
 def probe_prompt(*, model: str, binary: str = "cursor-agent", token_file: str | Path | None = None) -> dict[str, Any]:
-    """Ask Cursor for one word in a throwaway workspace set up exactly as an episode's, and audit that prompt.
+    """Ask Cursor for one word in a throwaway workspace and audit that prompt.
 
-    One tiny model call on the operator's plan, so a panel refuses to start
-    before it spends an episode on a prompt that carries someone's rules.
+    The workspace gets an episode's private ``HOME`` and ``CURSOR_CONFIG_DIR``
+    and its credential handling, but not the staged ``mcp.json``, ``--force``
+    or ``--approve-mcps``: the call runs in ``--mode ask`` with no MCP
+    server. That keeps it to one tiny model call on the operator's plan, enough for a panel to refuse to
+    start before it spends an episode on a prompt that carries someone's
+    rules; each episode's own prompt is audited again when it ends.
     Raises ``ValueError`` when the call fails or leaves no readable chat.
     """
     driver = CursorDriver(token_file=token_file)
@@ -559,9 +613,11 @@ def probe_prompt(*, model: str, binary: str = "cursor-agent", token_file: str | 
             raise PromptCheckError(f"Cursor prompt check could not run: {exc}") from None
         audit = prompt_audit(private / _CONFIG)
         if completed.returncode != 0 or audit is None:
-            detail = completed.stderr.strip()[-300:]
+            # Redact the whole stderr before cutting it, so no token straddles the cut.
+            detail = completed.stderr
             for secret in driver._secrets.get(scratch, set()):
                 detail = detail.replace(secret, REDACTED)
+            detail = detail.strip()[-300:]
             raise PromptCheckError(
                 f"Cursor prompt check failed (exit {completed.returncode}): {detail or 'no chat recorded'}"
             )

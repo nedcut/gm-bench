@@ -174,8 +174,11 @@ named a player, prospect, team, or offer no earlier reply exposed. Accepted
 moves on unseen ids are `violations`; rejected ones are `suspicious`. Ids are
 sequential, so models do guess them: a successful read on a guessed id
 (`scout`, `inspect_player`, `inspect_team`) is reported as a `guessed_read`
-and the id counts as exposed from that reply on. The audit reports, it does
-not decide; publication does.
+and the id counts as exposed from that reply on. An accepted `draft` on a
+guessed prospect id is a `guessed_draft_pick`, not a violation: prospect ids
+are `1_000_000 + season * 10_000 + index` and the index is independent of
+hidden potential, so the pick is blind. Validation reports it as a warning.
+The audit reports, it does not decide; publication does.
 
 ## The prompt check
 
@@ -745,7 +748,13 @@ prices. The 32-seed private panel at five seasons in a container
 227.4, 640/640 phases closed by the agent, no nudges, provider stalls or
 compactions, 14.5 min per episode, $157 at API prices for the panel, and no
 subscription limit hit. One episode's recorded tool-call agreement (165/166)
-came from a parser bug and is published as the recount (165/165). Every Claude episode spends your Claude subscription's
+came from a parser bug and is published as the recount (165/165). A
+second panel on `claude-haiku-4-5` (2026-09-27) is committed at
+`results/agentic/claude-2.1.281-claude-haiku-4-5-panel-32x5.json`: mean
+130.1, 640/640 phases closed by the agent, 3 nudges, no provider stalls,
+6.1 min per episode, $25 at API prices. In late seasons it drafted six
+guessed prospect ids without listing the class; they are reported as
+guessed draft picks (warnings), not violations. Every Claude episode spends your Claude subscription's
 quota (or API money with `ANTHROPIC_API_KEY`). Run it serially (the driver
 has no parallel mode), smoke one short episode before a panel, and budget a
 full panel as hours of quota.
@@ -1037,13 +1046,13 @@ is never read. The value is replaced with `[REDACTED]` in
 account's cloud-synced User Rules (Cursor Settings, Rules) to every prompt.
 The CLI never fetches them and has no switch to leave them out, so no
 client setting or proxy can remove them. The driver proves the prompt
-instead. Cursor stores each chat's context message in
-`CURSOR_CONFIG_DIR/chats`, and the driver lists that message's outermost
-sections. Cursor itself adds `user_info`, `agent_transcripts`,
-`agent_skills` (its 14 bundled skills), `dynamic_tools` and
-`mcp_instructions`. Anything else is unexpected: `rules` (User Rules or
-workspace rules), cloud instructions, memories, or a section Cursor adds in
-a later version.
+instead. Cursor stores each chat's context message (the one carrying
+`<user_info>`) in `CURSOR_CONFIG_DIR/chats`, and the driver lists the
+outermost sections of every such message. Cursor itself adds `user_info`,
+`agent_transcripts`, `agent_skills` (its 14 bundled skills),
+`dynamic_tools`, `mcp_instructions`, `project_layout` and `git_status`.
+Anything else is unexpected: `rules` (User Rules or workspace rules), cloud
+instructions, memories, or a section Cursor adds in a later version.
 
 Cursor's servers also put seven rules of their own in the User Rules slot
 of every account's prompt (git commits, pull requests, following
@@ -1053,20 +1062,28 @@ are not in the account's Rules settings and cannot be removed: on
 2026-09-27, after the account's only visible rule was deleted, these seven
 were still sent. They are part of the harness, so the driver lists their
 SHA-256 digests (`CURSOR_DEFAULT_RULES`) and a `rules` section is expected
-when it holds nothing but those. Any other User Rule, any other subsection
-of `rules`, or a default whose wording Cursor changes is still refused
-until someone reviews it and adds its digest.
+when it holds nothing but those, in exactly the shape Cursor sends: `<rules>`,
+Cursor's fixed preamble sentence, one `<user_rules>` (bare or with Cursor's
+`description` attribute), and `<user_rule>` elements with no attributes and
+no text between them. The gate fails closed. Any other User Rule, any other
+text or subsection in `rules`, a `rules` or `user_rule` tag with other
+attributes, a rule tag outside a `rules` section, or a default whose wording
+Cursor changes is refused until someone reviews it and adds it here.
 
 - Before a panel, the prompt check (see "The prompt check") makes one
   one-word call (`--mode ask`, "Reply with the single word ok.") in a
-  throwaway workspace set up like an episode's. It refuses to start if that
-  prompt has an unexpected section or any of the operator's own content.
+  throwaway workspace with an episode's private `HOME`, config directory and
+  credential. It refuses to start if that prompt has an unexpected section
+  or any of the operator's own content. The call has no MCP server (no
+  staged `mcp.json`, `--force` or `--approve-mcps`), so it costs one tiny
+  model call; each episode's own prompt is audited again when it ends.
 - Every episode records `harness_run.prompt_audit` (section names, the
-  unexpected ones, how many of Cursor's default rules were present, and how
-  many other User Rules and characters, never their text), and published
-  rows carry it.
+  unexpected ones, how many of Cursor's default rules were present, how
+  many other User Rules and characters, and how many rules slots were in an
+  unrecognised shape, never their text), and published rows carry it.
 - `agentic-validate` and the published-row check refuse a Cursor episode
-  whose audit is missing or lists an unexpected section.
+  whose audit is missing, lists an unexpected section, counts any User Rule
+  that is not a default, or counts an unrecognised rules slot.
 
 To run Cursor on an account that has its own User Rules, copy the rules
 somewhere, clear them in Cursor Settings, run, and restore them

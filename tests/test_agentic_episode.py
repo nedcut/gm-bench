@@ -277,14 +277,34 @@ def test_ledger_audit_accepts_a_guessed_id_once_a_read_confirms_it(tmp_path: Pat
     assert [finding["tool"] for finding in report["guessed_reads"]] == ["scout"]
     assert report["guessed_reads"][0]["unseen_ids"] == [guessed]
 
-    # Drafting a guessed id with no read at all is still a violation.
+    # Drafting a guessed id with no read at all is a blind pick: reported, not a violation.
     ledger2 = tmp_path / "ledger2.jsonl"
     episode = AgenticEpisode(11, seasons=1, ledger_path=ledger2)
     while episode.phase != "draft":
         episode.call_tool("end_phase", {})
     assert episode.call_tool("draft", {"prospect_id": blind})["ok"]
     episode.close()
-    assert audit_ledger(ledger2)["clean"] is False
+    report = audit_ledger(ledger2)
+    assert report["clean"] is True and report["violations"] == []
+    assert [(f["tool"], f["unseen_ids"]) for f in report["guessed_draft_picks"]] == [("draft", [blind])]
+
+
+def test_prospect_ids_carry_no_hidden_potential() -> None:
+    """Why a blind draft pick is not a leak: a prospect's id index says nothing about its true potential."""
+    from statistics import correlation
+
+    from gm_bench.generator import generate_draft_class
+
+    indices: list[float] = []
+    potentials: list[float] = []
+    for seed in range(1, 41):
+        for season in (1, 3, 5):
+            prospects = sorted(generate_draft_class(seed, season, 60).values(), key=lambda p: p.id)
+            assert [p.id for p in prospects] == [1_000_000 + season * 10_000 + i for i in range(60)]
+            indices.extend(float(p.id % 10_000) for p in prospects)
+            potentials.extend(p.true_potential for p in prospects)
+    # 7,200 prospects: the index is generation order, not a ranking by hidden potential.
+    assert abs(correlation(indices, potentials)) < 0.05
 
 
 def test_ledger_audit_declines_ledgers_without_exposure_records() -> None:

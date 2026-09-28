@@ -17,8 +17,12 @@ Everything is reported, never silently dropped: an *accepted* move on an id
 no reply exposed and no read confirmed is a ``violation`` (it changed the
 league on information the tools did not provide); a *rejected* move on such
 an id is ``suspicious``; a successful read on an unseen id is a
-``guessed_read``. Publication decides what to do with each; the audit only
-states the facts.
+``guessed_read``. One exception to ``violation``: an accepted ``draft`` whose
+only unseen id is the ``prospect_id`` is a ``guessed_draft_pick``. A prospect
+id is ``1_000_000 + season * 10_000 + index`` and the index is drawn
+independently of hidden potential (``generator.generate_draft_class``), so
+the guess is a blind pick that carries no hidden information. Publication
+decides what to do with each; the audit only states the facts.
 """
 
 from __future__ import annotations
@@ -69,6 +73,7 @@ def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
     violations: list[dict[str, Any]] = []
     suspicious: list[dict[str, Any]] = []
     guessed_reads: list[dict[str, Any]] = []
+    guessed_draft_picks: list[dict[str, Any]] = []
     moves = 0
     for record in records:
         if record.get("event") != "tool_call" or not record.get("executed", True):
@@ -93,7 +98,9 @@ def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
                 }
                 # A rejected query on a bad id is ordinary exploration; a
                 # move on an unseen id is what the audit exists for.
-                if spec["kind"] == "move" and record.get("ok"):
+                if spec["kind"] == "move" and record.get("ok") and _blind_draft_pick(tool, record, unseen):
+                    guessed_draft_picks.append(finding)
+                elif spec["kind"] == "move" and record.get("ok"):
                     violations.append(finding)
                 elif spec["kind"] == "move":
                     suspicious.append(finding)
@@ -110,8 +117,14 @@ def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
         "violations": violations,
         "suspicious": suspicious,
         "guessed_reads": guessed_reads,
+        "guessed_draft_picks": guessed_draft_picks,
         "clean": not violations,
     }
+
+
+def _blind_draft_pick(tool: Any, record: dict[str, Any], unseen: list[int | str]) -> bool:
+    """A draft whose only unseen id is the prospect it picked (see the module docstring)."""
+    return tool == "draft" and unseen == [(record.get("arguments") or {}).get("prospect_id")]
 
 
 def _referenced_ids(arguments: dict[str, Any]) -> set[int | str]:
