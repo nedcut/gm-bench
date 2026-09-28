@@ -16,8 +16,11 @@ Added 2026-09-20. Nothing published changes.
   and gates the prompt. Cursor's servers add the account's cloud User Rules to
   every prompt, so the driver audits each chat's context sections and
   refuses to start a panel, validate an episode or publish a row whose
-  prompt carries anything outside the harness's own context. The contract
-  fingerprint does not move.
+  prompt carries anything outside the harness's own context. Seven rules
+  that Cursor's servers send to every account in the User Rules slot, which
+  the account cannot see or remove, are matched by digest and count as the
+  harness's own; any other rule, or a reworded default, is refused. The
+  contract fingerprint does not move.
 - Contract freeze (2026-09-25): the 2.0 contract is frozen as
   `gm-bench-2.0` at agentic fingerprint `07de948a4f4afbae`, and a test pins
   the pair, so any byte change to the tool surface, brief, episode engine or

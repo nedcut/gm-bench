@@ -94,6 +94,9 @@ live probes on composer-2.5 on 2026-09-27):
   its outermost sections and flags any outside :data:`HARNESS_SECTIONS`
   (User Rules, workspace rules, cloud instructions, memories, anything new),
   recording names and counts, never text, as ``harness_run.prompt_audit``.
+  The servers also send seven rules of their own in the User Rules slot to
+  every account, which the account cannot see or remove; those
+  (:data:`CURSOR_DEFAULT_RULES`, matched by digest) count as the harness's.
   :func:`run_panel` first makes one one-word call in a throwaway workspace
   set up like an episode's (:func:`probe_prompt`) and refuses the panel if
   that prompt carries anything unexpected; ``agentic-validate`` and the
@@ -117,6 +120,7 @@ episodes serially: never run it in parallel.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -403,6 +407,19 @@ HARNESS_SECTIONS = frozenset(
         "git_status",
     }
 )
+# The User Rules Cursor's servers put in every account's prompt, by the SHA-256 of their stripped
+# text. None appears in the account's Rules settings and they cannot be removed, so they are part
+# of the harness. Recorded 2026-09-27 on cursor-agent 2026.09.26-dd393fe; a changed wording no
+# longer matches and is refused like any other rule until it is reviewed and added here.
+CURSOR_DEFAULT_RULES = {
+    "9496d9d5bfea9732e466b0c8df8eeef83568d4ad16ab5b0457e35c55dfcab82f": "<committing-changes-with-git>",
+    "4f776713eb215e255e1ff6e8e7c69f38f905fd97f1a0e89eb1d0eb8ccb31f444": "<creating-pull-requests>",
+    "1f2c2198b1fa552463f85850e2e15fd0299407b0f579cb5ebe8a7873653285bc": "Follow ALL user, tool, system, and skill instructions",
+    "4e1b31065d865dd99c504452e4ad79afd63bb2b8c8309a312a5dccdadac1e971": "IMPORTANT: This is a real environment",
+    "881a46d23dedda90405a6cf4452bf11aa36ac1ada919ee4c8243f98e9f0fb6ef": "When communicating with the user:",
+    "3d37d95b73104a0c134c9288e7f46980293d5aef6d51560b5afbb62fad51381e": "Reason about conversation history",
+    "9f07ab247a8191d90790e85c9a503fe195d83913d0af612e992ab82ffe0d0ceb": "**Always follow these principles when writing code**",
+}
 PROBE_PROMPT = "Reply with the single word ok."
 
 
@@ -452,24 +469,45 @@ def _context_messages(config_dir: Path) -> list[str]:
     return found
 
 
+def _rules_are_cursor_defaults(message: str, rules: list[str]) -> bool:
+    """Whether the message's ``<rules>`` section holds only User Rules that are Cursor's own defaults."""
+    found = re.search(r"<rules>(.*?)</rules>", message, re.DOTALL)
+    if found is None:
+        return True
+    return top_level_sections(found.group(1)) == ["user_rules"] and all(
+        _rule_digest(rule) in CURSOR_DEFAULT_RULES for rule in rules
+    )
+
+
+def _rule_digest(rule: str) -> str:
+    return hashlib.sha256(rule.strip().encode("utf-8")).hexdigest()
+
+
 def prompt_audit(config_dir: Path) -> dict[str, Any] | None:
     """What Cursor put in the episode's prompt besides the brief; ``None`` when no chat store was readable.
 
     ``sections``: every outermost section of the context messages;
-    ``unexpected``: those not in :data:`HARNESS_SECTIONS`; ``user_rules`` and
-    ``user_rule_characters``: the account's User Rules in them. Names and
-    counts only, never text.
+    ``unexpected``: those not in :data:`HARNESS_SECTIONS` (``rules`` counts
+    as the harness's own when it holds nothing but :data:`CURSOR_DEFAULT_RULES`);
+    ``default_rules``: how many of those it held; ``user_rules`` and
+    ``user_rule_characters``: every other User Rule. Names and counts only,
+    never text.
     """
     messages = _context_messages(config_dir)
     if not messages:
         return None
     sections = sorted({name for message in messages for name in top_level_sections(message)})
     rules = [re.findall(r"<user_rule>(.*?)</user_rule>", message, re.DOTALL) for message in messages]
+    others = [[rule for rule in found if _rule_digest(rule) not in CURSOR_DEFAULT_RULES] for found in rules]
+    defaults_only = all(_rules_are_cursor_defaults(message, found) for message, found in zip(messages, rules))
     return {
         "sections": sections,
-        "unexpected": [name for name in sections if name not in HARNESS_SECTIONS],
-        "user_rules": max(len(found) for found in rules),
-        "user_rule_characters": max(sum(len(rule) for rule in found) for found in rules),
+        "unexpected": [
+            name for name in sections if name not in HARNESS_SECTIONS and not (name == "rules" and defaults_only)
+        ],
+        "default_rules": max(len(found) - len(other) for found, other in zip(rules, others)),
+        "user_rules": max(len(other) for other in others),
+        "user_rule_characters": max(sum(len(rule) for rule in other) for other in others),
     }
 
 
@@ -483,7 +521,7 @@ def prompt_audit_problems(harness_name: str | None, harness_run: dict[str, Any])
     if audit.get("unexpected"):
         return [
             f"prompt carried context from outside the harness: {', '.join(audit['unexpected'])} "
-            f"({audit.get('user_rules', 0)} account User Rules)"
+            f"({audit.get('user_rules', 0)} User Rules that are not Cursor's defaults)"
         ]
     return []
 

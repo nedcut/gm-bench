@@ -920,8 +920,12 @@ had no illegal moves, nudges or provider stalls, took 87 s, and used 1.20M
 input tokens (1.14M of them cache reads) and 10k output tokens. No
 credential was in any saved file. The account had 8 User Rules (13,337
 characters) in the prompt, so the run proves the driver works and is not a
-clean row. The prompt gate below was added after it and refuses that
-account until the rules are cleared.
+clean row. The prompt gate below was added after it and refused that
+account. After the account's one rule of its own was deleted, the same
+smoke was rerun with the gate on: the prompt held only Cursor's own
+sections and its seven default rules, and the run scored 122.8 with 0/4
+failed decisions, 32 GM-Bench tool calls, 1.03M input tokens (0.99M cache
+reads) and 11k output tokens, and passed `agentic-validate`.
 
 What a run does per episode:
 
@@ -966,17 +970,31 @@ sections. Cursor itself adds `user_info`, `agent_transcripts`,
 workspace rules), cloud instructions, memories, or a section Cursor adds in
 a later version.
 
+Cursor's servers also put seven rules of their own in the User Rules slot
+of every account's prompt (git commits, pull requests, following
+instructions, "this is a real environment", communicating with the user,
+reading conversation history, code principles; 11,804 characters). They
+are not in the account's Rules settings and cannot be removed: on
+2026-09-27, after the account's only visible rule was deleted, these seven
+were still sent. They are part of the harness, so the driver lists their
+SHA-256 digests (`CURSOR_DEFAULT_RULES`) and a `rules` section is expected
+when it holds nothing but those. Any other User Rule, any other subsection
+of `rules`, or a default whose wording Cursor changes is still refused
+until someone reviews it and adds its digest.
+
 - Before a panel, `run_panel` makes one one-word call (`--mode ask`, "Reply
   with the single word ok.") in a throwaway workspace set up like an
   episode's, and refuses to start if that prompt has an unexpected section.
 - Every episode records `harness_run.prompt_audit` (section names, the
-  unexpected ones, and how many User Rules and characters, never their
-  text), and published rows carry it.
+  unexpected ones, how many of Cursor's default rules were present, and how
+  many other User Rules and characters, never their text), and published
+  rows carry it.
 - `agentic-validate` and the published-row check refuse a Cursor episode
   whose audit is missing or lists an unexpected section.
 
-To run Cursor on an account that has User Rules, copy the rules somewhere,
-clear them in Cursor Settings, run, and restore them afterwards.
+To run Cursor on an account that has its own User Rules, copy the rules
+somewhere, clear them in Cursor Settings, run, and restore them
+afterwards.
 
 Telemetry. `result.usage` covers one process, not the session, so the
 episode's tokens are the sum of every result (`inputTokens` is uncached;
