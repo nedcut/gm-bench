@@ -94,6 +94,14 @@ dated; the summary above is the current state.
   `gm_bench/pricing.json`), as are reasoning effort and compactions. The
   model is unpinned.
 
+- Cursor's grok defaults (2026-09-28, driver only; the agentic fingerprint
+  stays `07de948a4f4afbae`). Cursor's servers send a per-model set of their
+  own rules: grok-4.7 gets the git-commit and pull-request rules plus two
+  not recorded before (verify web-app changes in a browser; state points in
+  affirmative language), and the prompt check refused its first panel. A
+  one-word probe showed both are absent from the account's rules; their
+  digests join `CURSOR_DEFAULT_RULES`. No committed row is affected.
+
 - Release fixes (2026-09-28, driver, validation and publication only; the
   agentic fingerprint stays `07de948a4f4afbae`). The `claude-haiku-4-5`
   panel row's API-equivalent cost is re-derived from its retained events:

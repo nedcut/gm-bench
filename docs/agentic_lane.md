@@ -1299,7 +1299,11 @@ instructions, "this is a real environment", communicating with the user,
 reading conversation history, code principles; 11,804 characters). They
 are not in the account's Rules settings and cannot be removed: on
 2026-09-27, after the account's only visible rule was deleted, these seven
-were still sent. They are part of the harness, so the driver lists their
+were still sent. The set depends on the model: grok-4.7 gets the git-commit
+and pull-request rules plus two others (verifying web-app changes in a
+browser, and stating points in affirmative language), recorded 2026-09-28
+by a one-word probe and absent from the account's own rules. They are part
+of the harness, so the driver lists their
 SHA-256 digests (`CURSOR_DEFAULT_RULES`) and a `rules` section is expected
 when it holds nothing but those, in exactly the shape Cursor sends: `<rules>`,
 Cursor's fixed preamble sentence, one `<user_rules>` (bare or with Cursor's
