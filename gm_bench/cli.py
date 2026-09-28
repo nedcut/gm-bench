@@ -308,7 +308,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     agentic_parser.add_argument(
         "--harness",
-        choices=["opencode", "codex", "claude"],
+        choices=["opencode", "codex", "claude", "cursor"],
         default="opencode",
         help="the harness the model plays through; part of the row identity",
     )
@@ -327,7 +327,7 @@ def main(argv: list[str] | None = None) -> None:
     agentic_parser.add_argument(
         "--variant",
         help="harness reasoning variant, e.g. minimal/low/high (OpenCode --variant; Codex model_reasoning_effort; "
-        "Claude Code --effort)",
+        "Claude Code --effort; not for Cursor, whose model ids name the effort)",
     )
     agentic_parser.add_argument("--phase-guard-seconds", type=float, default=20 * 60.0)
     agentic_parser.add_argument(
@@ -376,7 +376,8 @@ def main(argv: list[str] | None = None) -> None:
     )
     agentic_parser.add_argument("--docker", default="docker", help="docker executable for --isolation container")
     agentic_parser.add_argument(
-        "--binary", help="harness executable (same-user isolation); default opencode, codex or claude per --harness"
+        "--binary",
+        help="harness executable (same-user isolation); default opencode, codex, claude or cursor-agent per --harness",
     )
     agentic_parser.add_argument(
         "--codex-auth-file",
@@ -388,6 +389,11 @@ def main(argv: list[str] | None = None) -> None:
         help="file holding a `claude setup-token` token (--harness claude only; required with --isolation "
         "container), handed to the harness as CLAUDE_CODE_OAUTH_TOKEN, never on a command line; the host Claude "
         "Code login is not used",
+    )
+    agentic_parser.add_argument(
+        "--cursor-token-file",
+        help="file holding a Cursor API key or session token (--harness cursor only), handed to the harness as "
+        "CURSOR_API_KEY or CURSOR_AUTH_TOKEN, never on a command line; the host Cursor login is not used",
     )
     agentic_parser.add_argument("--keep-scratch", action="store_true", help="leave the agent workspace on disk")
     agentic_parser.add_argument("--json", action="store_true")
@@ -1256,6 +1262,7 @@ def _agentic_command(args: argparse.Namespace) -> None:
 
     from gm_bench.agentic import claude as claude_driver
     from gm_bench.agentic import codex as codex_driver
+    from gm_bench.agentic import cursor as cursor_driver
     from gm_bench.agentic import opencode as opencode_driver
     from gm_bench.agentic.container import ContainerError
     from gm_bench.agentic.publication import seed_groups
@@ -1264,6 +1271,8 @@ def _agentic_command(args: argparse.Namespace) -> None:
         raise SystemExit("--codex-auth-file is only for --harness codex")
     if args.claude_token_file and args.harness != "claude":
         raise SystemExit("--claude-token-file is only for --harness claude")
+    if args.cursor_token_file and args.harness != "cursor":
+        raise SystemExit("--cursor-token-file is only for --harness cursor")
     seeds = list(args.seeds)
     private = args.seeds_stdin
     if private:
@@ -1294,6 +1303,16 @@ def _agentic_command(args: argparse.Namespace) -> None:
             claude_driver.ClaudeDriver(token_file=args.claude_token_file).preflight(args.isolation)
         except ValueError as exc:
             raise SystemExit(f"gm-bench agentic: {exc}") from None
+    elif args.harness == "cursor":
+        run_panel = cursor_driver.run_panel
+        harness_options["token_file"] = args.cursor_token_file
+        if args.variant:
+            raise SystemExit("gm-bench agentic: --harness cursor takes no --variant; name the effort in --model")
+        try:
+            # Refuse before anything runs: no credentials, or an isolation Cursor cannot use yet.
+            cursor_driver.CursorDriver(token_file=args.cursor_token_file).preflight(args.isolation)
+        except ValueError as exc:
+            raise SystemExit(f"gm-bench agentic: {exc}") from None
     else:
         run_panel = opencode_driver.run_panel
     try:
@@ -1303,7 +1322,7 @@ def _agentic_command(args: argparse.Namespace) -> None:
                 model=args.model,
                 run_dir=_Path(args.output),
                 seasons=args.seasons,
-                binary=args.binary or args.harness,
+                binary=args.binary or ("cursor-agent" if args.harness == "cursor" else args.harness),
                 variant=args.variant,
                 phase_guard_seconds=args.phase_guard_seconds,
                 max_nudges=args.max_nudges,
@@ -1318,8 +1337,8 @@ def _agentic_command(args: argparse.Namespace) -> None:
                 docker=args.docker,
                 **harness_options,
             )
-    except ContainerError as exc:
-        # Docker missing or not running, or the harness image would not build.
+    except (ContainerError, cursor_driver.PromptCheckError) as exc:
+        # Docker missing or not running, the harness image would not build, or Cursor's prompt is not clean.
         raise SystemExit(f"gm-bench agentic: {exc}") from None
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))

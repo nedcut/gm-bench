@@ -86,6 +86,20 @@ dated; the summary above is the current state.
   and 16; OpenCode's `FreeUsageLimitError` is quota exhaustion; the
   Keychain panel launcher refuses same-user isolation.
 
+- Fourth harness (2026-09-27): `gm-bench agentic --harness cursor` drives
+  the Cursor CLI (`cursor-agent` 2026.09.26-dd393fe) through the same
+  episode loop, in same-user isolation only (no pinned image yet). The
+  driver uses a private `HOME`, `CURSOR_CONFIG_DIR` and `CURSOR_DATA_DIR`,
+  keeps the Keychain out, takes a credential from `--cursor-token-file`,
+  and gates the prompt. Cursor's servers add the account's cloud User Rules to
+  every prompt, so the driver audits each chat's context sections and
+  refuses to start a panel, validate an episode or publish a row whose
+  prompt carries anything outside the harness's own context. Seven rules
+  that Cursor's servers send to every account in the User Rules slot, which
+  the account cannot see or remove, are matched by digest and count as the
+  harness's own; any other rule, a reworded default, or a rules slot in
+  any shape but Cursor's exact one is refused. The contract fingerprint
+  does not move.
 - Codex login write-back (2026-09-27): when Codex renews a ChatGPT login
   during an episode, the driver writes the renewed `auth.json` back over
   `--codex-auth-file` (same-user from the private `CODEX_HOME`, container

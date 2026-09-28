@@ -7,7 +7,8 @@ differs between harnesses is a :class:`HarnessDriver`: how to find its
 version, how to stage its configuration beside the proxy, the command lines
 for the first run and for a resume, how to read its event stream, and what
 counts as a provider stall in that stream. ``opencode.OpenCodeDriver``,
-``codex.CodexDriver`` and ``claude.ClaudeDriver`` are the implementations.
+``codex.CodexDriver``, ``claude.ClaudeDriver`` and ``cursor.CursorDriver`` are the
+implementations.
 """
 
 from __future__ import annotations

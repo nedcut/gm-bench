@@ -1075,6 +1075,136 @@ event streams found no shell command that contacted an external host.
 Nothing enforces this for future rows; check a new row's event stream
 before publishing it.
 
+## Cursor harness
+
+```bash
+python -m gm_bench agentic --harness cursor --model composer-2.5 \
+  --cursor-token-file /path/to/cursor-token \
+  --seeds 11 --seasons 1 --output /tmp/agentic-cursor
+```
+
+The Cursor CLI (`cursor-agent`) is the fourth harness
+(`gm_bench/agentic/cursor.py`, written against Cursor CLI
+2026.09.26-dd393fe). It runs through the same episode loop as the others. A
+Cursor row is its own row, `cursor/<version> · <model>`.
+
+**Status: same-user only.** Cursor ships the CLI as a downloaded tarball,
+not an npm package, so it has no pinned container image yet and
+`--isolation container` is refused. Same-user rows are `smoke` grade. Every
+Cursor episode spends your Cursor plan. Run it serially.
+
+A live same-user smoke ran on 2026-09-27: `composer-2.5`, seed 11, one
+season. It scored 113.9 with 4/4 phases closed by the agent and 41 GM-Bench
+tool calls, the same count in the ledger and in Cursor's event stream. It
+had no illegal moves, nudges or provider stalls, took 87 s, and used 1.20M
+input tokens (1.14M of them cache reads) and 10k output tokens. No
+credential was in any saved file. The account had 8 User Rules (13,337
+characters) in the prompt, so the run proves the driver works and is not a
+clean row. The prompt gate below was added after it and refused that
+account. After the account's one rule of its own was deleted, the same
+smoke was rerun with the gate on: the prompt held only Cursor's own
+sections and its seven default rules, and the run scored 122.8 with 0/4
+failed decisions, 32 GM-Bench tool calls, 1.03M input tokens (0.99M cache
+reads) and 11k output tokens, and passed `agentic-validate`.
+
+What a run does per episode:
+
+1. Stages the proxy, and makes one private directory (mode 0700, outside
+   the scratch, removed at episode end even with `--keep-scratch`) holding
+   the harness's `HOME`, `CURSOR_CONFIG_DIR` and `CURSOR_DATA_DIR`. The only
+   staged file is `$HOME/.cursor/mcp.json` with one stdio server,
+   `gm-bench`, which launches the proxy (by absolute path) on the harness's
+   own `python3` with the socket path. Every other `CURSOR_*` variable is
+   dropped, `AGENT_CLI_CREDENTIAL_STORE=memory` keeps the macOS Keychain out
+   of the run, and `DIRENV_DISABLE=1` stops Cursor loading an `.envrc`
+   above the scratch.
+2. Runs `cursor-agent -p --output-format stream-json --trust --force
+   --approve-mcps --sandbox disabled --model <m> <brief>` in the scratch
+   directory, capturing `seed-<n>/cursor-events.jsonl`. Cursor puts the
+   reasoning effort in the model id (`gpt-5.6-sol-high`), so `--variant` is
+   refused.
+3. Nudges and provider-stall retries run the same command with `--resume
+   <session id>`, which keeps the chat's context.
+4. Before every invocation it removes project config the agent could have
+   written into the scratch (`.cursor/`, `.cursorrules`) and hooks, rules,
+   skills, agents, commands and permission files in `$HOME/.cursor`, and
+   rewrites `mcp.json`. What it removed is recorded as
+   `harness_run.config_dir_findings`.
+
+Authentication. `--cursor-token-file <path>` holds one token: a Cursor API
+key (handed over as `CURSOR_API_KEY`) or a session token, which is a JWT
+(handed over as `CURSOR_AUTH_TOKEN`). Without the file, `CURSOR_API_KEY` or
+`CURSOR_AUTH_TOKEN` from your environment is used. The host's Keychain login
+is never read. The value is replaced with `[REDACTED]` in
+`cursor-events.jsonl` and `cursor-stderr.log` when the episode ends.
+
+**What reaches the prompt, and the prompt gate.** Cursor's servers add the
+account's cloud-synced User Rules (Cursor Settings, Rules) to every prompt.
+The CLI never fetches them and has no switch to leave them out, so no
+client setting or proxy can remove them. The driver proves the prompt
+instead. Cursor stores each chat's context message (the one carrying
+`<user_info>`) in `CURSOR_CONFIG_DIR/chats`, and the driver lists the
+outermost sections of every such message. Cursor itself adds `user_info`,
+`agent_transcripts`, `agent_skills` (its 14 bundled skills),
+`dynamic_tools`, `mcp_instructions`, `project_layout` and `git_status`.
+Anything else is unexpected: `rules` (User Rules or workspace rules), cloud
+instructions, memories, or a section Cursor adds in a later version.
+
+Cursor's servers also put seven rules of their own in the User Rules slot
+of every account's prompt (git commits, pull requests, following
+instructions, "this is a real environment", communicating with the user,
+reading conversation history, code principles; 11,804 characters). They
+are not in the account's Rules settings and cannot be removed: on
+2026-09-27, after the account's only visible rule was deleted, these seven
+were still sent. They are part of the harness, so the driver lists their
+SHA-256 digests (`CURSOR_DEFAULT_RULES`) and a `rules` section is expected
+when it holds nothing but those, in exactly the shape Cursor sends: `<rules>`,
+Cursor's fixed preamble sentence, one `<user_rules>` (bare or with Cursor's
+`description` attribute), and `<user_rule>` elements with no attributes and
+no text between them. The gate fails closed. Any other User Rule, any other
+text or subsection in `rules`, a `rules` or `user_rule` tag with other
+attributes, a rule tag outside a `rules` section, or a default whose wording
+Cursor changes is refused until someone reviews it and adds it here.
+
+- Before a panel, `run_panel` makes one one-word call (`--mode ask`, "Reply
+  with the single word ok.") in a throwaway workspace with an episode's
+  private `HOME`, config directory and credential, and refuses to start if
+  that prompt has an unexpected section. The call has no MCP server
+  (no staged `mcp.json`, `--force` or `--approve-mcps`), so it costs one tiny
+  model call; each episode's own prompt is audited again when it ends.
+- Every episode records `harness_run.prompt_audit` (section names, the
+  unexpected ones, how many of Cursor's default rules were present, how
+  many other User Rules and characters, and how many rules slots were in an
+  unrecognised shape, never their text), and published rows carry it.
+- `agentic-validate` and the published-row check refuse a Cursor episode
+  whose audit is missing, lists an unexpected section, counts any User Rule
+  that is not a default, or counts an unrecognised rules slot.
+
+To run Cursor on an account that has its own User Rules, copy the rules
+somewhere, clear them in Cursor Settings, run, and restore them
+afterwards.
+
+Telemetry. `result.usage` covers one process, not the session, so the
+episode's tokens are the sum of every result (`inputTokens` is uncached;
+`cacheReadTokens` and `cacheWriteTokens` are added to make the inclusive
+input). A killed invocation writes no result, so its tokens are lost and
+`usage_complete` is false. `api_calls` counts completed invocations;
+`harness.model_steps` counts distinct `model_call_id` values on tool events,
+which is a lower bound on model requests. Cost is `None`, and the
+API-equivalent estimate is `None` for any model `pricing.json` does not
+price, including Cursor's Composer models. GM-Bench calls are
+`mcpToolCall` events recorded as `gm-bench_<tool>`. `getMcpToolsToolCall`
+(Cursor reading a tool schema from its cache) never reaches the server and
+is recorded as `get_mcp_tools`.
+
+Errors. A failed run prints plain text on stderr and writes no `result`.
+The driver reads the stderr that each invocation added. Rate limits,
+`resource_exhausted`, `unavailable`, 408, 425, 429 and 5xx statuses,
+timeouts and dropped connections count as provider stalls. A spent plan
+allowance (`usage limit`, `hit your ... limit`) is quota exhaustion. Cursor
+gives no reset time, so the episode and the panel stop. Neither message has
+been seen live yet.
+
 ## Private panel
 
 A full row is the 32-seed private panel (`docs/bench_v2_spec.md`, Panel

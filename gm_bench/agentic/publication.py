@@ -74,6 +74,7 @@ from typing import Any
 
 from gm_bench.agentic import claude
 from gm_bench.agentic.contract import agentic_contract
+from gm_bench.agentic.cursor import prompt_audit_problems
 from gm_bench.agentic.opencode import TOKEN_SHAPE, _api_equivalent_summary, normalized_tokens
 from gm_bench.agentic.provenance import driver_digest, provenance_problems, reproducible_driver
 from gm_bench.agentic.validate import EMPTY_PHASE_DEFINITION, provider_ended, validate_run
@@ -176,6 +177,8 @@ _HARNESS_RUN_KEYS = (
     # reset time when the episode stopped because it was beyond the budget.
     "quota_pauses",
     "ended_by_quota",
+    # Cursor: the prompt's context sections (names and counts only); absent for other harnesses.
+    "prompt_audit",
     # Absent from runs recorded before the driver marked them (validate.provider_ended infers it).
     "ended_by_provider",
     "max_provider_wait_seconds",
@@ -707,6 +710,12 @@ def validate_agentic_artifact(
         if not agreement.get("agree", False):
             errors.append(f"episode {episode.get('index')}: ledger and harness disagree on tool calls")
         errors.extend(f"episode {episode.get('index')}: {problem}" for problem in token_shape_problems(episode))
+        errors.extend(
+            f"episode {episode.get('index')}: {problem}"
+            for problem in prompt_audit_problems(
+                (artifact.get("harness") or {}).get("name"), episode.get("harness_run") or {}
+            )
+        )
     # Seed groups tie the episodes to the distinct-seed count and let the
     # mean be recomputed the way the runner computes it (mean of per-seed
     # means), which is the only way a repeated-seed run can be checked.

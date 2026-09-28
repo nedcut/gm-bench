@@ -41,7 +41,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from gm_bench.agentic import claude, codex, opencode
+from gm_bench.agentic import claude, codex, cursor, opencode
 from gm_bench.agentic.audit import audit_ledger
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import AgenticEpisode
@@ -58,6 +58,7 @@ EVENT_PARSERS = {
     opencode.HARNESS_NAME: opencode.parse_opencode_events,
     codex.HARNESS_NAME: codex.parse_codex_events,
     claude.HARNESS_NAME: claude.parse_claude_events,
+    cursor.HARNESS_NAME: cursor.parse_cursor_events,
 }
 
 
@@ -370,6 +371,7 @@ def _validate_episode(episode: dict[str, Any], run_dir: Path, harness_name: str 
         warnings.append(f"harness exit code {final_exit}")
     if harness_run.get("server_drained") is False:
         warnings.append("a proxy connection was still open when the socket server stopped")
+    problems.extend(cursor.prompt_audit_problems(harness_name, harness_run))
     usage = episode.get("usage") or {}
     if not (usage.get("harness") or {}).get("telemetry_reported", False):
         warnings.append("harness reported no token telemetry; usage is unmeasured")
