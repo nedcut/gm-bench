@@ -392,7 +392,8 @@ def main(argv: list[str] | None = None) -> None:
     )
     agentic_parser.add_argument(
         "--cursor-token-file",
-        help="file holding a Cursor API key or session token (--harness cursor only), handed to the harness as "
+        help="file holding a Cursor API key or session token (--harness cursor only; required with --isolation "
+        "container), handed to the harness as "
         "CURSOR_API_KEY or CURSOR_AUTH_TOKEN, never on a command line; the host Cursor login is not used",
     )
     agentic_parser.add_argument(
@@ -1316,7 +1317,7 @@ def _agentic_command(args: argparse.Namespace) -> None:
         if args.variant:
             raise SystemExit("gm-bench agentic: --harness cursor takes no --variant; name the effort in --model")
         try:
-            # Refuse before anything runs: no credentials, or an isolation Cursor cannot use yet.
+            # Refuse before anything runs: no credentials, or none the container can get.
             cursor_driver.CursorDriver(token_file=args.cursor_token_file).preflight(args.isolation)
         except ValueError as exc:
             raise SystemExit(f"gm-bench agentic: {exc}") from None

@@ -114,15 +114,28 @@ class HarnessDriver:
     #: Why this harness's prompt cannot be captured on the loopback (``prompt_check.py``); ``None`` when it can.
     prompt_capture_unavailable: str | None = "this harness has no capture override"
 
-    def check_prompt(self, *, binary: str, model: str, variant: str | None) -> dict[str, Any]:
+    def check_prompt(
+        self,
+        *,
+        binary: str,
+        model: str,
+        variant: str | None,
+        image: dict[str, Any] | None = None,
+        docker: str = "docker",
+    ) -> dict[str, Any]:
         """Before a panel: what this harness would send the model, searched for the operator's content.
 
         The default launches the harness against a loopback capture server
         (``prompt_check.run_prompt_check``). The record's ``problems`` must be
-        empty for the panel to start.
+        empty for the panel to start. ``image`` is the harness image of a
+        container panel; by default such a panel is recorded as not checked,
+        because only the scratch directory and a fresh home volume reach the
+        harness there.
         """
-        from gm_bench.agentic.prompt_check import not_checked, run_prompt_check
+        from gm_bench.agentic.prompt_check import CONTAINER_NOT_CHECKED, not_checked, run_prompt_check
 
+        if image is not None:
+            return not_checked(CONTAINER_NOT_CHECKED)
         if self.prompt_capture_unavailable:
             return not_checked(self.prompt_capture_unavailable)
         return run_prompt_check(self, binary=binary, model=model, variant=variant)

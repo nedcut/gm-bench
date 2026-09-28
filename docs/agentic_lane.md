@@ -291,9 +291,11 @@ is the agent's own work, in its own session.
 
 Cursor builds its prompt on Cursor's servers, so its check is a one-word
 chat whose recorded context is audited instead (see "Cursor harness"),
-followed by the same search. Container runs are recorded as not checked:
-only the scratch directory and a fresh home volume reach the harness, and
-its egress firewall keeps it from reaching a loopback server.
+followed by the same search. Container runs of the other harnesses are
+recorded as not checked: only the scratch directory and a fresh home volume
+reach the harness, and its egress firewall keeps it from reaching a
+loopback server. A Cursor container panel is checked anyway, in its image:
+Cursor's servers add the account's User Rules whatever the isolation.
 
 What the check cannot see: anything a provider adds on its own servers, and
 what an account endpoint would return (a ChatGPT-login Codex fetches
@@ -1207,9 +1209,8 @@ The Cursor CLI (`cursor-agent`) is the fourth harness
 2026.09.26-dd393fe). It runs through the same episode loop as the others. A
 Cursor row is its own row, `cursor/<version> · <model>`.
 
-**Status: same-user only.** Cursor ships the CLI as a downloaded tarball,
-not an npm package, so it has no pinned container image yet and
-`--isolation container` is refused. Same-user rows are `smoke` grade. Every
+**Status: same-user and container.** Same-user rows are `smoke` grade;
+`--isolation container` (below) is what a panel-grade row needs. Every
 Cursor episode spends your Cursor plan. Run it serially.
 
 A live same-user smoke ran on 2026-09-27: `composer-2.5`, seed 11, one
@@ -1303,6 +1304,60 @@ Cursor changes is refused until someone reviews it and adds it here.
 To run Cursor on an account that has its own User Rules, copy the rules
 somewhere, clear them in Cursor Settings, run, and restore them
 afterwards.
+
+**Container isolation.** `--isolation container` runs the CLI from its own
+image, `gm-bench-agentic-cursor:2026.09.26-dd393fe-<Dockerfile digest>`,
+built locally on first use (`container.CURSOR_IMAGE`). Cursor ships the CLI
+as a tarball with its own Node, not an npm package, so the image downloads
+the release tarball the official installer (`https://cursor.com/install`)
+would fetch, `downloads.cursor.com/lab/2026.09.26-dd393fe/linux/<arch>/agent-cli-package.tar.gz`,
+checks it against a pinned SHA-256 (`arm64`
+`ab1178d0d8c10b254e7e427d1d673533a389338424e75034be9ab9da02845bde`,
+`x64` `8085fd120f5c71f4eae7fea26a043718e5644e3071e4fab3220a0e58c51f9593`),
+and unpacks it root-owned under `/opt/cursor-agent`. Everything else is
+the shared image: the digest-pinned Node base, Debian's `python3` for the
+proxy, the egress firewall, the unprivileged `node` user. The run records
+the image tag, id, Dockerfile SHA-256 and the `cursor_version` the image
+reports under `harness.container`.
+
+```bash
+python -m gm_bench agentic --harness cursor --model composer-2.5 \
+  --isolation container --cursor-token-file /path/to/cursor-token \
+  --seeds 11 --seasons 1 --output /tmp/agentic-cursor-container
+```
+
+- The container gets no environment, so `--cursor-token-file` is required.
+  The token travels on the stdin of a throwaway `docker run` into the
+  episode's home volume (`/home/node/.gmb-cursor-token`, mode 0600, with the
+  variable the API-key-or-JWT rule picks), never onto a command line, into
+  a `docker run -e` variable, or into the scratch, and is removed with the
+  volume. `mcp.json` (the proxy under `/work` on the container's `python3`)
+  is seeded the same way.
+- Every invocation starts in the image's launcher, `/usr/local/bin/gmb-cursor`,
+  with the `mcp.json` text as its first argument. Each invocation is a fresh
+  container, so nothing the agent started in the previous one is still
+  running. The launcher removes the same scratch and `$HOME/.cursor` entries
+  the same-user guard removes, restores `mcp.json`, points `HOME`,
+  `CURSOR_CONFIG_DIR` and `CURSOR_DATA_DIR` at the volume, sets
+  `AGENT_CLI_CREDENTIAL_STORE=memory` and `DIRENV_DISABLE=1`, exports the
+  token, and execs the pinned CLI. Each removal is a `gmb-cursor:` line on
+  stderr, collected into `config_dir_findings`. If a config directory is a
+  symlink or not a directory, an entry cannot be removed, or the token is
+  missing, it refuses to start the CLI (exit 96, `gmb-cursor: refused:`).
+  A read-only root-owned layout like Claude's cannot work here, because
+  Cursor writes `$HOME/.cursor` itself on every start.
+- The prompt audit reads the chat stores out of the volume before it is
+  removed, and gates publication exactly as a same-user audit does.
+- The pre-panel prompt check runs in the image too (a container of its own
+  with no MCP server), where the other harnesses' container panels are
+  recorded as not checked. Account rules come from Cursor's servers whatever
+  the isolation, so the check refuses such a panel before its first episode.
+
+On 2026-09-28 the image was built on Docker 29.3.1 (linux/arm64, image id
+`sha256:38117c574e2e...`), reported `2026.09.26-dd393fe` with no network,
+passed the sandbox and egress-canary checks, and the launcher ran `--version`
+with a dummy key, removed planted config, and refused a symlinked config
+directory and a missing token. No model call has run in the container yet.
 
 Telemetry. `result.usage` covers one process, not the session, so the
 episode's tokens are the sum of every result (`inputTokens` is uncached;

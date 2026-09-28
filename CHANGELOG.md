@@ -86,6 +86,21 @@ dated; the summary above is the current state.
   and 16; OpenCode's `FreeUsageLimitError` is quota exhaustion; the
   Keychain panel launcher refuses same-user isolation.
 
+- Cursor in a container (2026-09-28, driver only; the agentic fingerprint
+  stays `07de948a4f4afbae`): `--harness cursor --isolation container` runs
+  `cursor-agent` 2026.09.26-dd393fe from its own image. The image downloads
+  the release tarball for its architecture from Cursor's CDN, checks a
+  pinned SHA-256 (arm64 and x64), and unpacks it root-owned; the other
+  images' Dockerfiles are byte-for-byte unchanged. The token and `mcp.json`
+  are seeded into the episode's home volume over `docker run` stdin, and a
+  launcher (`gmb-cursor`) removes config the agent planted, restores
+  `mcp.json`, exports the token and execs the CLI in every invocation's
+  fresh container, refusing (exit 96) on a home it cannot trust. The prompt
+  audit reads the chats out of the volume and still gates publication, and
+  the pre-panel prompt check runs in the image, because Cursor's servers
+  add account rules whatever the isolation. The image built and passed its
+  no-spend checks on 2026-09-28; no model has run in it yet.
+
 - Prompt check (2026-09-27): before a panel, `gm-bench agentic` launches the
   harness against a loopback capture server twice, once as the operator and
   once with their home swapped for an empty one, and treats any prompt line

@@ -27,21 +27,25 @@ driver process on the host:
   listener on the host loopback must be unreachable from the container.
 
 The free ``opencode/*`` models need no credentials, so none are provisioned.
-The Codex CLI and Claude Code do: their drivers copy an operator-provided
-credential (Codex's ``auth.json``, a ``claude setup-token`` token) into the
+The Codex CLI, Claude Code and the Cursor CLI do: their drivers copy an
+operator-provided credential (Codex's ``auth.json``, a ``claude
+setup-token`` token, a Cursor API key or session token) into the
 per-episode home volume with :meth:`ContainerHarness.seed_home`, over the
 ``docker run`` client's stdin, never onto a command line, into an
 environment variable, or into the bind-mounted scratch directory
-(``codex.py``, ``claude.py``).
+(``codex.py``, ``claude.py``, ``cursor.py``).
 
 Each harness gets its own image (:class:`ImageSpec`), built locally from
 :func:`dockerfile`: a digest-pinned Node base, Debian's ``python3`` for the
 standard-library proxy, ``procps``, and the pinned harness package
 (``opencode-ai``, ``@openai/codex`` or ``@anthropic-ai/claude-code``). The
 Claude image adds :data:`CLAUDE_WRAPPER` and a root-owned configuration
-layout (:data:`CLAUDE_IMAGE_EXTRA`). The run records the image id (the
-content digest of what actually ran), the Dockerfile's SHA-256, and the
-harness version the image reports.
+layout (:data:`CLAUDE_IMAGE_EXTRA`). Cursor ships its CLI as a tarball, not
+an npm package, so its image installs that instead (:data:`CURSOR_INSTALL`,
+checked against a pinned SHA-256 per architecture) and adds
+:data:`CURSOR_WRAPPER`. The run records the image id (the content digest of
+what actually ran), the Dockerfile's SHA-256, and the harness version the
+image reports.
 """
 
 from __future__ import annotations
@@ -165,13 +169,137 @@ CLAUDE_IMAGE_EXTRA = (
 )
 
 
+# The Cursor CLI in a container. Cursor ships ``cursor-agent`` as a tarball with its own Node:
+# the official installer (https://cursor.com/install) downloads CURSOR_DOWNLOAD_URL for the
+# version, OS and architecture. The image downloads exactly the pinned version's tarball for
+# the build architecture, checks its SHA-256, and unpacks it root-owned under /opt. An
+# auto-update would land in ``$HOME/.local/share/cursor-agent`` in the home volume, which the
+# wrapper never runs. The version is the one the same-user driver was checked against.
+CONTAINER_CURSOR_VERSION = "2026.09.26-dd393fe"
+CURSOR_DOWNLOAD_URL = "https://downloads.cursor.com/lab/{version}/linux/{arch}/agent-cli-package.tar.gz"
+# Debian architecture -> (Cursor's name for it, SHA-256 of agent-cli-package.tar.gz).
+CURSOR_TARBALLS = {
+    "arm64": ("arm64", "ab1178d0d8c10b254e7e427d1d673533a389338424e75034be9ab9da02845bde"),
+    "amd64": ("x64", "8085fd120f5c71f4eae7fea26a043718e5644e3071e4fab3220a0e58c51f9593"),
+}
+CURSOR_INSTALL_DIR = "/opt/cursor-agent"
+# Dockerfile lines (run as root) that install the Cursor CLI in place of ``npm install``.
+CURSOR_INSTALL = (
+    "RUN set -eu; \\\n"
+    ' case "$(dpkg --print-architecture)" in \\\n'
+    + "".join(f"  {debian}) arch={arch} sum={digest} ;; \\\n" for debian, (arch, digest) in CURSOR_TARBALLS.items())
+    + '  *) echo "no pinned Cursor CLI tarball for this architecture" >&2; exit 1 ;; \\\n'
+    " esac; \\\n"
+    # The CDN refuses Python's default User-Agent (403), so the download names itself.
+    ' python3 -c "import shutil, sys, urllib.request as u; shutil.copyfileobj(u.urlopen(u.Request(sys.argv[1], \\\n'
+    "  headers={'User-Agent': 'gm-bench-image-build'})), open(sys.argv[2], 'wb'))\" \\\n"
+    f'  "{CURSOR_DOWNLOAD_URL.format(version=CONTAINER_CURSOR_VERSION, arch="$arch")}" /tmp/cursor.tar.gz; \\\n'
+    ' echo "$sum  /tmp/cursor.tar.gz" | sha256sum -c -; \\\n'
+    f" mkdir {CURSOR_INSTALL_DIR}; \\\n"
+    f" tar --strip-components=1 --no-same-owner -xzf /tmp/cursor.tar.gz -C {CURSOR_INSTALL_DIR}; \\\n"
+    " rm /tmp/cursor.tar.gz; \\\n"
+    f" ln -s {CURSOR_INSTALL_DIR}/cursor-agent /usr/local/bin/cursor-agent\n"
+)
+# The per-episode home volume is the harness's home, which the agent (the same ``node`` user
+# as the CLI) can write between invocations: entries in ``$HOME/.cursor`` (hooks, rules,
+# skills, agents, commands, plugins, cli.json, permissions, MCP approvals, mcp.json) and the
+# scratch's ``.cursor/`` and ``.cursorrules`` would load on the next resume. Cursor itself
+# writes ``$HOME/.cursor`` (its bundled skills, on every start), so a root-owned layout like
+# Claude's cannot hold it. Instead :data:`CURSOR_WRAPPER` runs first in every invocation's
+# fresh container, where nothing the agent started in the previous one is still running: it
+# removes those entries, restores ``mcp.json`` to its first argument (the driver's config;
+# empty for none), reports each change on stderr, and refuses to start the CLI (exit 96) when
+# the directories it relies on are not plain directories, an entry cannot be removed, or the
+# token is missing.
+CURSOR_WRAPPER_PATH = "/usr/local/bin/gmb-cursor"
+CURSOR_TOKEN_FILENAME = ".gmb-cursor-token"
+# ``$HOME/.cursor``, CURSOR_CONFIG_DIR (cli-config.json, chats) and CURSOR_DATA_DIR in the volume.
+CURSOR_USER_DIR = ".cursor"
+CURSOR_CONFIG_DIR = ".cursor-config"
+CURSOR_DATA_DIR = ".cursor-data"
+CURSOR_WRAPPER_REFUSED = 96
+# Every stderr line the wrapper writes starts with this; a refused launch's with the marker.
+CURSOR_WRAPPER_PREFIX = "gmb-cursor: "
+CURSOR_WRAPPER_MARKER = "gmb-cursor: refused:"
+# What Cursor loads from ``$HOME/.cursor`` as configuration or instructions, besides mcp.json.
+CURSOR_HOME_ENTRIES = (
+    "hooks.json",
+    "rules",
+    "skills",
+    "agents",
+    "commands",
+    "plugins",
+    "cli.json",
+    "permissions.json",
+    "mcp-approvals.json",
+)
+# What Cursor loads from the workspace as project configuration or instructions.
+CURSOR_SCRATCH_ENTRIES = (".cursor", ".cursorrules")
+CURSOR_WRAPPER = rf"""#!/bin/sh
+# Launch the Cursor CLI for GM-Bench: remove the config the agent could have added, restore
+# mcp.json, hand over the token, exec cursor-agent. Usage: gmb-cursor MCP_JSON|"" ARGS...
+set -eu
+GMB_CURSOR_AGENT={CURSOR_INSTALL_DIR}/cursor-agent
+home="${{HOME:-{HOME}}}"
+user="$home/{CURSOR_USER_DIR}"
+refuse() {{ echo "gmb-cursor: refused: $*" >&2; exit 96; }}
+wipe() {{
+  [ -L "$1" ] || chmod -R u+rwx "$1" 2>/dev/null || true
+  rm -rf -- "$1" 2>/dev/null || true
+  [ ! -e "$1" ] && [ ! -L "$1" ] || refuse "cannot remove $1"
+}}
+remove() {{
+  [ -e "$1" ] || [ -L "$1" ] || return 0
+  echo "gmb-cursor: removed $2 from $3 before a launch" >&2
+  wipe "$1"
+}}
+[ "$#" -ge 1 ] || refuse "no mcp.json argument"
+mcp="$1"
+shift
+for dir in "$user" "$home/{CURSOR_CONFIG_DIR}" "$home/{CURSOR_DATA_DIR}"; do
+  [ ! -L "$dir" ] || refuse "$dir is a symlink"
+  mkdir -p -m 0700 "$dir" 2>/dev/null || true
+  [ -d "$dir" ] && [ ! -L "$dir" ] || refuse "$dir is not a directory"
+done
+for name in {" ".join(CURSOR_HOME_ENTRIES)}; do
+  remove "$user/$name" "$name" '$HOME/.cursor'
+done
+for name in {" ".join(CURSOR_SCRATCH_ENTRIES)}; do
+  remove "$PWD/$name" "$name" "the scratch"
+done
+if [ -z "$mcp" ]; then
+  remove "$user/mcp.json" mcp.json '$HOME/.cursor'
+elif [ -L "$user/mcp.json" ] || [ ! -f "$user/mcp.json" ] || [ "$(cat "$user/mcp.json"; echo .)" != "$mcp." ]; then
+  echo "gmb-cursor: restored mcp.json before a launch" >&2
+  wipe "$user/mcp.json"
+  printf '%s' "$mcp" > "$user/mcp.json" || refuse "cannot write $user/mcp.json"
+fi
+token_file="$home/{CURSOR_TOKEN_FILENAME}"
+[ -f "$token_file" ] && [ ! -L "$token_file" ] || refuse "no token in the home volume"
+variable=$(sed -n 1p "$token_file")
+token=$(sed -n 2p "$token_file")
+case "$variable" in CURSOR_API_KEY|CURSOR_AUTH_TOKEN) ;; *) refuse "the token file names no Cursor variable" ;; esac
+[ -n "$token" ] || refuse "the token in the home volume is empty"
+eval "$variable=\$token"
+export "$variable"
+CURSOR_CONFIG_DIR="$home/{CURSOR_CONFIG_DIR}"
+CURSOR_DATA_DIR="$home/{CURSOR_DATA_DIR}"
+AGENT_CLI_CREDENTIAL_STORE=memory
+DIRENV_DISABLE=1
+export CURSOR_CONFIG_DIR CURSOR_DATA_DIR AGENT_CLI_CREDENTIAL_STORE DIRENV_DISABLE
+exec "$GMB_CURSOR_AGENT" "$@"
+"""
+# Dockerfile lines (run as root, before ``USER node``) that finish the Cursor image.
+CURSOR_IMAGE_EXTRA = f"COPY --chmod=755 <<'GMB_CURSOR' {CURSOR_WRAPPER_PATH}\n{CURSOR_WRAPPER}GMB_CURSOR\n"
+
+
 class ContainerError(RuntimeError):
     """Docker is missing, the image would not build, or it is not what was pinned."""
 
 
 @dataclass(frozen=True)
 class ImageSpec:
-    """One harness image: the npm package pinned into it and how it reports its version."""
+    """One harness image: the package pinned into it and how it reports its version."""
 
     harness: str
     package: str
@@ -182,6 +310,8 @@ class ImageSpec:
     version_key: str
     # Harness-specific Dockerfile lines, run as root before ``USER node``.
     extra: str = ""
+    # Dockerfile lines that install the harness in place of ``npm install -g package@version``.
+    install: str = ""
 
 
 OPENCODE_IMAGE = ImageSpec(
@@ -199,18 +329,36 @@ CLAUDE_IMAGE = ImageSpec(
     "claude_version",
     CLAUDE_IMAGE_EXTRA,
 )
+CURSOR_IMAGE = ImageSpec(
+    "cursor",
+    "cursor-agent",
+    CONTAINER_CURSOR_VERSION,
+    "gm-bench-agentic-cursor",
+    "cursor-agent",
+    "cursor_version",
+    CURSOR_IMAGE_EXTRA,
+    CURSOR_INSTALL,
+)
 
 
 def dockerfile(
-    opencode_version: str = CONTAINER_OPENCODE_VERSION, *, package: str = "opencode-ai", extra: str = ""
+    opencode_version: str = CONTAINER_OPENCODE_VERSION,
+    *,
+    package: str = "opencode-ai",
+    extra: str = "",
+    install: str = "",
 ) -> str:
-    """The harness image. The OpenCode and Codex images' text (and so their tags) is unchanged by ``extra``."""
+    """The harness image. ``install`` replaces the npm line; without it and ``extra`` the text is unchanged.
+
+    So the OpenCode, Codex and Claude images' text (and their tags and recorded digests) never moves.
+    """
+    npm = f"RUN npm install -g {package}@{opencode_version} && npm cache clean --force\n"
     return (
         f"FROM {BASE_IMAGE}\n"
         "RUN apt-get update \\\n"
         " && apt-get install -y --no-install-recommends python3 procps ca-certificates iptables \\\n"
         " && rm -rf /var/lib/apt/lists/*\n"
-        f"RUN npm install -g {package}@{opencode_version} && npm cache clean --force\n"
+        f"{install or npm}"
         f"COPY --chmod=755 <<'GMB_EGRESS' {EGRESS_ENTRYPOINT}\n{EGRESS_SCRIPT}GMB_EGRESS\n"
         f"{extra}"
         "USER node\n"
@@ -251,7 +399,7 @@ def ensure_image(
             OPENCODE_IMAGE.version_key,
         )
     pinned = spec.version
-    text = dockerfile(pinned, package=spec.package, extra=spec.extra)
+    text = dockerfile(pinned, package=spec.package, extra=spec.extra, install=spec.install)
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
     tag = f"{spec.repository}:{pinned}-{digest[:12]}"
     server = _docker(docker, "version", "--format", "{{.Server.Version}}", env=env)
@@ -272,8 +420,9 @@ def ensure_image(
         docker, "run", "--rm", "--network", "none", image_id, spec.executable, "--version", env=env, timeout=120
     )
     reported = (probe.stdout or "").strip().splitlines()
-    # ``opencode --version`` prints the bare version, ``codex --version`` ``codex-cli <version>``, and
-    # ``claude --version`` ``<version> (Claude Code)``: the first version-shaped word of the last line.
+    # ``opencode --version`` and ``cursor-agent --version`` print the bare version, ``codex --version``
+    # ``codex-cli <version>``, and ``claude --version`` ``<version> (Claude Code)``: the first
+    # version-shaped word of the last line.
     words = reported[-1].split() if reported else []
     versions = [word for word in words if re.fullmatch(r"\d+\.\d+\.\d+\S*", word)]
     version = versions[0] if versions else (words[-1] if words else None)
@@ -569,6 +718,18 @@ class ContainerHarness:
         come back on its stdout and are never written to the host. Never
         raises: ``None`` when the file is missing or the volume could not be read.
         """
+        return self._home_output(["cat", "--", f"{HOME}/{path}"], timeout=timeout)
+
+    def home_tree(self, directory: str, *, timeout: float = 120.0) -> bytes | None:
+        """A tar stream of ``directory`` (relative to the harness home) in the home volume, before :meth:`close`.
+
+        Read like :meth:`home_file`; the stream comes back on stdout and
+        members keep their names relative to the home. ``None`` when the
+        directory is missing or the volume could not be read.
+        """
+        return self._home_output(["tar", "-c", "-C", HOME, "--", directory], timeout=timeout)
+
+    def _home_output(self, command: list[str], *, timeout: float) -> bytes | None:
         try:
             done = _docker(
                 self.docker,
@@ -583,9 +744,7 @@ class ContainerHarness:
                 "--mount",
                 f"type=volume,source={self.volume},target={HOME}",
                 self.image["image_id"],
-                "cat",
-                "--",
-                f"{HOME}/{path}",
+                *command,
                 env=self.env,
                 text=False,
                 timeout=timeout,
