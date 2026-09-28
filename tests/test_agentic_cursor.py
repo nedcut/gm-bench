@@ -65,8 +65,10 @@ def record_context(session):
     chat.mkdir(parents=True, exist_ok=True)
     db = __import__("sqlite3").connect(chat / "store.db")
     db.execute("CREATE TABLE IF NOT EXISTS blobs (id TEXT, data BLOB)")
-    rules = "".join(f"<user_rule>{rule}</user_rule>" for rule in plan.get("rules", []))
-    context = "<user_info>OS</user_info>\n" + (f"<rules><user_rules>{rules}</user_rules></rules>\n" if rules else "")
+    # The rules slot in the shape Cursor sends it: preamble, described <user_rules>, bare <user_rule>s.
+    rules = "\n\n".join(f"<user_rule>{rule}</user_rule>" for rule in plan.get("rules", []))
+    slot = f"<rules>\n{plan['preamble']}\n\n\n{plan['user_rules_open']}\n{rules}\n</user_rules>\n</rules>\n"
+    context = "<user_info>OS</user_info>\n" + (slot if rules else "")
     context += "<agent_skills>bundled</agent_skills>"
     db.execute("INSERT INTO blobs VALUES (?, ?)", ("c", json.dumps({"role": "user", "content": context}).encode()))
     db.commit()
@@ -75,6 +77,9 @@ def record_context(session):
 if "--mode" in argv:
     with open(plan["log"] + ".probes", "a") as log:
         log.write(json.dumps({"argv": argv, "cursor_env": sorted(k for k in os.environ if k.startswith("CURSOR"))}) + "\n")
+    if plan.get("probe_stderr"):
+        sys.stderr.write(plan["probe_stderr"].replace("$KEY", os.environ.get("CURSOR_API_KEY", "")))
+        sys.exit(1)
     session = str(uuid.uuid4())
     record_context(session)
     emit({"type": "system", "subtype": "init", "session_id": session, "model": "Composer Fake"})
@@ -172,7 +177,16 @@ def _fake_cursor(
     log = tmp_path / "cursor-calls.jsonl"
     plan = tmp_path / "plan.json"
     plan.write_text(
-        json.dumps({"log": str(log), "state": str(tmp_path / "state.json"), "steps": steps, "rules": rules or []})
+        json.dumps(
+            {
+                "log": str(log),
+                "state": str(tmp_path / "state.json"),
+                "steps": steps,
+                "rules": rules or [],
+                "preamble": cursor._RULES_PREAMBLE,
+                "user_rules_open": cursor._USER_RULES_OPENERS[0],
+            }
+        )
     )
     monkeypatch.setenv("FAKE_CURSOR_PLAN", str(plan))
     # Host Cursor state that must not reach the harness.
@@ -270,6 +284,7 @@ def test_cursor_panel_plays_through_the_staged_proxy_nudges_by_resume_and_valida
         "default_rules": 0,
         "user_rules": 0,
         "user_rule_characters": 0,
+        "unrecognised_rules": 0,
     }
     # The one-word prompt check ran first, in the same credential setup, before any episode.
     [probe] = [json.loads(line) for line in Path(f"{log}.probes").read_text().splitlines()]
@@ -509,11 +524,13 @@ def test_prompt_audit_names_sections_and_counts_rules_never_copies_them(tmp_path
         "default_rules": 0,
         "user_rules": 2,
         "user_rule_characters": 8,
+        "unrecognised_rules": 0,
     }
     assert "three" not in json.dumps(audit)
     assert prompt_audit(tmp_path / "missing") is None
     assert prompt_audit_problems("cursor", {"prompt_audit": audit}) == [
-        "prompt carried context from outside the harness: cloud_instructions, rules (2 User Rules that are not Cursor's defaults)"
+        "prompt carried context from outside the harness: cloud_instructions, rules "
+        "(2 User Rules that are not Cursor's defaults, 0 rules slots in an unrecognised shape)"
     ]
     assert prompt_audit_problems("cursor", {}) and prompt_audit_problems("claude", {}) == []
 
@@ -550,6 +567,75 @@ def test_cursors_own_default_rules_are_the_harness_and_any_other_rule_is_not(
     assert audit(f"<user_rule>{default}</user_rule>", "<memories>m</memories>")["unexpected"] == ["rules"]
 
 
+def _audit_content(tmp_path: Path, *contents: str) -> dict:
+    chat = tmp_path / "chats" / "w" / "s"
+    chat.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(chat / "store.db")
+    db.execute("DROP TABLE IF EXISTS blobs")
+    db.execute("CREATE TABLE blobs (id TEXT, data BLOB)")
+    for index, content in enumerate(contents):
+        db.execute("INSERT INTO blobs VALUES (?, ?)", (str(index), json.dumps({"content": content}).encode()))
+    db.commit()
+    db.close()
+    return prompt_audit(tmp_path)
+
+
+def test_the_rules_gate_accepts_only_cursors_exact_shape_and_refuses_every_other(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    default, mine = "Cursor ships this rule to every account.", "Always commit with a haiku."
+    monkeypatch.setattr(cursor, "CURSOR_DEFAULT_RULES", {hashlib.sha256(default.encode()).hexdigest(): "d"})
+    preamble, described = cursor._RULES_PREAMBLE, cursor._USER_RULES_OPENERS[0]
+    rule = f"<user_rule>{default}</user_rule>"
+
+    # The shape Cursor sends (recorded from real chat stores): preamble, described <user_rules>, bare rules.
+    exact = (
+        f"<user_info>OS</user_info>\n<rules>\n{preamble}\n\n\n{described}\n{rule}\n\n{rule}\n</user_rules>\n</rules>\n"
+    )
+    clean = _audit_content(tmp_path, exact)
+    assert clean["unexpected"] == [] and clean["default_rules"] == 2
+    assert (clean["user_rules"], clean["unrecognised_rules"]) == (0, 0)
+    assert prompt_audit_problems("cursor", {"prompt_audit": clean}) == []
+
+    refused = {
+        "text directly inside <rules>": f"<rules>Be terse.<user_rules>{rule}</user_rules></rules>",
+        "text after <user_rules>": f"<rules><user_rules>{rule}</user_rules>Be terse.</rules>",
+        "a reworded preamble": f"<rules>{preamble} Also be terse.<user_rules>{rule}</user_rules></rules>",
+        "text in <user_rules> without a <user_rule>": f"<rules><user_rules>{rule}Be terse.</user_rules></rules>",
+        "only text in <user_rules>": "<rules><user_rules>Be terse.</user_rules></rules>",
+        "<rules> with an attribute": f'<rules id="1"><user_rules>{rule}</user_rules></rules>',
+        "<user_rules> with another attribute": f'<rules><user_rules id="1">{rule}</user_rules></rules>',
+        "<user_rule> with an attribute": f'<rules><user_rules><user_rule id="1">{default}</user_rule></user_rules></rules>',
+        "an unclosed <rules>": f"<rules><user_rules>{rule}</user_rules>",
+        "a second <user_rules>": f"<rules><user_rules>{rule}</user_rules><user_rules>{rule}</user_rules></rules>",
+        "a rule outside <rules>": f"<rules><user_rules>{rule}</user_rules></rules><user_rule>{default}</user_rule>",
+        "a second, odd rules block": f"<rules><user_rules>{rule}</user_rules></rules><rules>Be terse.</rules>",
+    }
+    for shape, slot in refused.items():
+        audit = _audit_content(tmp_path, f"<user_info>OS</user_info>\n{slot}")
+        assert "rules" in audit["unexpected"], shape
+        assert audit["unrecognised_rules"] >= 1, shape
+        assert prompt_audit_problems("cursor", {"prompt_audit": audit}), shape
+        assert "Be terse" not in json.dumps(audit), shape
+
+    # A non-default rule counts even when it hides in an attributed tag.
+    hidden = _audit_content(
+        tmp_path,
+        f'<user_info>OS</user_info>\n<rules id="1"><user_rules>{rule}<user_rule>{mine}</user_rule></user_rules></rules>',
+    )
+    assert (hidden["user_rules"], hidden["user_rule_characters"]) == (1, len(mine))
+    # Every context message is audited, not just a chat's first.
+    later = _audit_content(
+        tmp_path,
+        "<user_info>OS</user_info>",
+        f"<user_info>OS</user_info><rules><user_rules><user_rule>{mine}</user_rule></user_rules></rules>",
+    )
+    assert later["unexpected"] == ["rules"] and later["user_rules"] == 1
+    # An audit that counts a foreign rule is refused even if its unexpected list is empty.
+    assert prompt_audit_problems("cursor", {"prompt_audit": {"unexpected": [], "user_rules": 1}})
+    assert prompt_audit_problems("cursor", {"prompt_audit": {"unexpected": [], "unrecognised_rules": 1}})
+
+
 def test_a_panel_whose_prompt_carries_account_rules_is_refused_before_it_starts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -584,6 +670,22 @@ def test_an_episode_whose_prompt_carried_rules_fails_validation_and_publication(
     assert artifact["episodes"][0]["harness_run"]["prompt_audit"]["user_rules"] == 1
     errors = validate_agentic_artifact(artifact)["errors"]
     assert any("outside the harness: rules" in error for error in errors)
+
+
+def test_a_failed_prompt_check_redacts_a_token_that_straddles_the_stderr_cut(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    binary, _log = _fake_cursor(tmp_path, [{}], monkeypatch)
+    plan_path = Path(os.environ["FAKE_CURSOR_PLAN"])
+    plan = json.loads(plan_path.read_text())
+    # The key starts before the last 300 characters and ends inside them.
+    plan["probe_stderr"] = "E" * 50 + "$KEY" + "z" * 280
+    plan_path.write_text(json.dumps(plan))
+    with pytest.raises(cursor.PromptCheckError) as raised:
+        cursor.probe_prompt(model=MODEL, binary=str(binary), token_file=_token_file(tmp_path))
+    message = str(raised.value)
+    assert "z" * 280 in message
+    assert not any(DUMMY_KEY[i : i + 8] in message for i in range(len(DUMMY_KEY) - 7))
 
 
 def test_cursor_version_probe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
