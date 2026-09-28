@@ -16,7 +16,9 @@ line, the real brief), with one change the driver supplies
 :class:`CaptureServer` on the loopback. The server records every model
 request and answers with a one-word reply, so no provider is contacted and
 nothing is spent. Every other HTTP(S) connection goes through the server as
-a proxy and is refused, and its host is recorded. The captured requests are
+a proxy and is refused, and its host is recorded, except a public model
+catalog the harness downloads to resolve the model name
+(:data:`CATALOG_HOSTS`), which is passed through. The captured requests are
 then compared with a second capture of the same launch in which the
 operator's home is replaced by an empty synthetic one
 (:func:`empty_home_environment`): any prompt line that appears only when the
@@ -28,7 +30,14 @@ and for the descriptions of the operator's skills, including installed
 plugins' (:func:`operator_markers`). A check that captured no model request
 fails too: it proved nothing.
 
-Only the first invocation is captured. Nudges and provider-stall retries
+Only the first invocation is captured, unless it ended in a provider stall
+the episode would retry (:meth:`HarnessDriver.ended_in_provider_stall`)
+before sending any model request: then the session is resumed with a nudge,
+as the episode does, up to ``MAX_STARTUP_SERVER_ERROR_RETRIES`` times.
+OpenCode needs this for a model missing from the catalog snapshot it ships
+with: its first launch in a fresh home resolves the model before the catalog
+download finishes and fails, and the resumed launch finds the downloaded
+catalog. Later nudges and provider-stall retries
 resume the same session in the same launch: the same private home, config
 directory and environment the check proved, with the driver's own nudge text
 in place of the brief. So they read no configuration the first invocation
@@ -55,7 +64,9 @@ import glob
 import json
 import os
 import re
+import select
 import shutil
+import socket
 import subprocess
 import tempfile
 import threading
@@ -74,6 +85,12 @@ CHECK_SECONDS = 180.0
 # A public seed: the check's brief must not be built from a private panel seed.
 CHECK_SEED = 1
 REPLY = "ok"
+# Public model catalogs a harness downloads at start-up to resolve a model name,
+# passed through (a TLS tunnel to port 443) instead of refused. OpenCode GETs
+# ``models.opencode.ai/api.json`` (no body; a user agent and trace ids) into its
+# cache, which an episode's private home starts without.
+CATALOG_HOSTS = ("models.opencode.ai",)
+CATALOG_SECONDS = 30.0
 
 # Where the operator's own instructions live, relative to their home directory.
 INSTRUCTION_FILES = (
@@ -268,10 +285,39 @@ class _Handler(BaseHTTPRequestHandler):
         pass
 
     def do_CONNECT(self) -> None:
+        host, _, port = self.path.rpartition(":")
+        if host in CATALOG_HOSTS and port == "443":
+            return self._tunnel(host)
         # A proxied connection to anywhere else: refused, host recorded.
-        self.server.record({"kind": "refused", "host": self.path.rsplit(":", 1)[0]})
+        self.server.record({"kind": "refused", "host": host})
         self.send_response(403)
         self.end_headers()
+
+    def _tunnel(self, host: str) -> None:
+        """Pass a proxied connection to a catalog host through until either side closes."""
+        try:
+            upstream = socket.create_connection((host, 443), timeout=CATALOG_SECONDS)
+        except OSError as error:
+            self.server.record({"kind": "forwarded", "host": host, "failed": str(error)})
+            self.send_response(502)
+            self.end_headers()
+            return
+        self.server.record({"kind": "forwarded", "host": host})
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.flush()
+        self.close_connection = True
+        with upstream:
+            ends = {self.connection: upstream, upstream: self.connection}
+            while True:
+                ready, _, _ = select.select(list(ends), [], [], CATALOG_SECONDS)
+                try:
+                    data = ready[0].recv(65536) if ready else b""
+                    if not data:
+                        return
+                    ends[ready[0]].sendall(data)
+                except OSError:
+                    return
 
     def do_GET(self) -> None:
         path = self.path.split("?", 1)[0]
@@ -531,6 +577,7 @@ class _Capture:
     records: list[dict[str, Any]]
     exit_code: int | None
     timed_out: bool
+    stall_retries: int = 0
 
     @property
     def model_requests(self) -> list[dict[str, Any]]:
@@ -555,9 +602,9 @@ def _capture(
     base_environment: dict[str, str] | None = None,
 ) -> _Capture:
     """Launch the harness once, as an episode's first invocation, against a fresh capture server."""
-    from gm_bench.agentic.brief import task_brief
+    from gm_bench.agentic.brief import nudge_message, task_brief
     from gm_bench.agentic.episode import AgenticEpisode
-    from gm_bench.agentic.opencode import HarnessLaunch
+    from gm_bench.agentic.opencode import DEFAULT_MAX_NUDGES, MAX_STARTUP_SERVER_ERROR_RETRIES, HarnessLaunch
     from gm_bench.simulator import League
 
     work = Path(tempfile.mkdtemp(prefix="gmb-prompt-check-"))
@@ -565,6 +612,7 @@ def _capture(
     episode = AgenticEpisode(CHECK_SEED, 1, 0, ledger_path=work / "ledger.jsonl")
     exit_code: int | None = None
     timed_out = False
+    stall_retries = 0
     try:
         with CaptureServer() as server:
             launch = HarnessLaunch(
@@ -580,30 +628,53 @@ def _capture(
                 args = driver.run_args(
                     model=model, variant=variant, workdir=launch.workdir, brief=brief, isolation="same-user"
                 )
-                args, overrides = driver.capture_overrides(args, model=model, base_url=server.url)
-                command, _on_kill = launch.command(args)
-                env = {**launch.env, **proxy_environment(server.url), **overrides}
-                with events.open("w") as out, errors.open("w") as err:
-                    try:
-                        exit_code = subprocess.run(
-                            command,
-                            cwd=launch.scratch,
-                            env=env,
-                            stdin=subprocess.DEVNULL,
-                            stdout=out,
-                            stderr=err,
-                            timeout=timeout,
-                            check=False,
-                        ).returncode
-                    except subprocess.TimeoutExpired:
-                        timed_out = True
+                while True:
+                    args, overrides = driver.capture_overrides(args, model=model, base_url=server.url)
+                    command, _on_kill = launch.command(args)
+                    env = {**launch.env, **proxy_environment(server.url), **overrides}
+                    with events.open("w") as out, errors.open("w") as err:
+                        try:
+                            exit_code = subprocess.run(
+                                command,
+                                cwd=launch.scratch,
+                                env=env,
+                                stdin=subprocess.DEVNULL,
+                                stdout=out,
+                                stderr=err,
+                                timeout=timeout,
+                                check=False,
+                            ).returncode
+                        except subprocess.TimeoutExpired:
+                            timed_out = True
+                    # A launch that stalled before any model request is resumed, as the episode would.
+                    lines = events.read_text(encoding="utf-8").splitlines()
+                    if (
+                        timed_out
+                        or any(record["kind"] == "model" for record in server.records)
+                        or stall_retries >= MAX_STARTUP_SERVER_ERROR_RETRIES
+                        or not driver.ended_in_provider_stall(lines)
+                    ):
+                        break
+                    session_id = driver.parse_events(lines)["session_id"]
+                    if not session_id:
+                        break
+                    stall_retries += 1
+                    text = nudge_message(episode.season, episode.phase, 1, 1, DEFAULT_MAX_NUDGES)
+                    args = driver.resume_args(
+                        model=model,
+                        variant=variant,
+                        workdir=launch.workdir,
+                        session_id=session_id,
+                        text=text,
+                        isolation="same-user",
+                    )
             finally:
                 launch.close()
             records = list(server.records)
     finally:
         episode.close()
         shutil.rmtree(work, ignore_errors=True)
-    return _Capture(records, exit_code, timed_out)
+    return _Capture(records, exit_code, timed_out, stall_retries)
 
 
 def _excerpt(line: str, width: int = 60) -> str:
@@ -673,8 +744,11 @@ def run_prompt_check(
         "request_characters": sum(len(text) for text in real.texts),
         "other_requests": sorted({f"{r['method']} {r['path']}" for r in real.records if r["kind"] == "other"}),
         "refused_hosts": sorted({r["host"] for r in real.records if r["kind"] == "refused"}),
+        "forwarded_hosts": sorted({r["host"] for r in real.records if r["kind"] == "forwarded"}),
+        "stall_retries": real.stall_retries,
         "empty_home": {
             "model_requests": len(empty.model_requests),
+            "stall_retries": empty.stall_retries,
             "lines_only_with_operator_home": len(extra),
             "characters_only_with_operator_home": sum(len(line) for line in extra),
         },

@@ -185,6 +185,98 @@ def test_a_harness_that_sends_nothing_proves_nothing(fake_claude, monkeypatch: p
     ]
 
 
+# A stand-in ``opencode`` with OpenCode 1.18.32's start-up for a model missing from its bundled
+# catalog snapshot: it downloads the catalog from models.opencode.ai into its cache through the
+# proxy, but a launch that started without a cached catalog fails at start-up (model not found,
+# reported as "Unexpected server error") before any model request. A resumed launch finds the cache.
+FAKE_OPENCODE = r"""
+import json, os, socket, sys, urllib.parse, urllib.request
+if sys.argv[1:] == ["--version"]:
+    print("1.18.32")
+    sys.exit(0)
+proxy = urllib.parse.urlsplit(os.environ["HTTPS_PROXY"])
+def connect(host):
+    tunnel = socket.create_connection((proxy.hostname, proxy.port), timeout=30)
+    tunnel.sendall(f"CONNECT {host}:443 HTTP/1.1\r\nHost: {host}:443\r\n\r\n".encode())
+    status = tunnel.recv(4096).split(b"\r\n", 1)[0]
+    if b" 200 " not in status:
+        return None
+    tunnel.sendall(b"GET /api.json HTTP/1.1\r\n\r\n")
+    data = b""
+    while chunk := tunnel.recv(65536):
+        data += chunk
+    return data
+connect("telemetry.example")
+cache = os.path.join(os.environ["XDG_CACHE_HOME"], "opencode", "models.json")
+cached = os.path.exists(cache)
+catalog = connect("models.opencode.ai")
+if catalog:
+    os.makedirs(os.path.dirname(cache), exist_ok=True)
+    open(cache, "wb").write(catalog)
+if not cached:
+    print(json.dumps({"type": "error", "sessionID": "ses_check", "error": {"name": "UnknownError",
+          "data": {"message": "Unexpected server error. Check server logs for details."}}}))
+    sys.exit(1)
+if sys.argv[sys.argv.index("--session") + 1] != "ses_check":
+    sys.exit(5)
+config = json.loads(os.environ["OPENCODE_CONFIG_CONTENT"])["provider"]["opencode"]["options"]
+body = {"model": "m", "messages": [{"role": "system", "content": "You are OpenCode."},
+                                   {"role": "user", "content": sys.argv[-1]}]}
+request = urllib.request.Request(config["baseURL"] + "/chat/completions", data=json.dumps(body).encode(),
+                                 headers={"content-type": "application/json"})
+urllib.request.urlopen(request, timeout=30).read()
+print(json.dumps({"type": "text", "sessionID": "ses_check"}))
+"""
+
+
+def test_opencode_gets_its_model_catalog_and_is_resumed_after_a_start_up_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import socket
+    import threading
+
+    from gm_bench.agentic import prompt_check
+
+    # Stands in for models.opencode.ai:443, so the tunnel is followed without the network.
+    catalog, dial = socket.create_server(("127.0.0.1", 0)), socket.create_connection
+    dialed: list[tuple[str, int]] = []
+
+    def serve() -> None:
+        while True:
+            try:
+                connection, _ = catalog.accept()
+            except OSError:
+                return
+            with connection:
+                connection.recv(4096)
+                connection.sendall(b"HTTP/1.1 200 OK\r\n\r\n{}")
+
+    threading.Thread(target=serve, daemon=True).start()
+
+    def create_connection(address: tuple[str, int], timeout: float) -> socket.socket:
+        dialed.append(address)
+        return dial(catalog.getsockname(), timeout=timeout)
+
+    monkeypatch.setattr(prompt_check.socket, "create_connection", create_connection)
+    monkeypatch.setattr(opencode, "sandbox_problems", lambda scratch, env: [])
+    binary = tmp_path / "fake-opencode"
+    binary.write_text(f"#!{sys.executable}\n{FAKE_OPENCODE}")
+    binary.chmod(0o755)
+    try:
+        check = run_prompt_check(
+            opencode.OPENCODE_DRIVER, binary=str(binary), model="opencode/new-free", markers=MARKERS
+        )
+    finally:
+        catalog.close()
+    # The catalog host alone was passed through; everything else is still refused.
+    assert dialed and set(dialed) == {("models.opencode.ai", 443)}
+    assert check["forwarded_hosts"] == ["models.opencode.ai"]
+    assert check["refused_hosts"] == ["telemetry.example"]
+    # The first launch failed at start-up; the session it opened was resumed, as an episode's is.
+    assert check["stall_retries"] == 1 and check["empty_home"]["stall_retries"] == 1
+    assert check["model_requests"] == 1 and check["exit_code"] == 0 and check["problems"] == []
+
+
 def test_run_panel_refuses_a_dirty_prompt_before_anything_runs(
     fake_claude, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

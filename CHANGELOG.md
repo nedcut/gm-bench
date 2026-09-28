@@ -21,6 +21,10 @@ Added 2026-09-20. Nothing published changes.
   the operator's global `AGENTS.md` and 16 personal skills. Same-user
   OpenCode now gets a private home and `XDG_*` directories. No committed row
   is affected: every one is a container run, whose home is a fresh volume.
+  The check passes OpenCode's model catalog download (`models.opencode.ai`)
+  through, and resumes a launch that failed at startup before any model
+  request, as the episode does; without both, a model missing from
+  OpenCode's bundled catalog (`space-bunny-free` on 1.18.32) failed the check.
 - Fourth harness (2026-09-27): `gm-bench agentic --harness cursor` drives
   the Cursor CLI (`cursor-agent` 2026.09.26-dd393fe) through the same
   episode loop, in same-user isolation only (no pinned image yet). The

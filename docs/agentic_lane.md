@@ -192,7 +192,15 @@ that the model endpoint is a capture server on the loopback:
 model's provider `baseURL` for OpenCode. The server records each model
 request and answers with one word, so no provider is contacted and nothing
 is spent. It also acts as the harness's HTTP(S) proxy and refuses every
-other connection, recording the host.
+other connection, recording the host, except the public model catalog
+OpenCode downloads to resolve a model name (`models.opencode.ai`), which it
+passes through and records as `forwarded_hosts`. A private home starts
+without that catalog, so for a model missing from the snapshot OpenCode
+ships with (`opencode/space-bunny-free` on 1.18.32), the first launch fails
+at startup with "Unexpected server error" before any model request, as it
+does in an episode. The episode retries that as a provider stall by resuming
+the session with a nudge, and the check does the same (`stall_retries`, at
+most 3); the resumed launch finds the downloaded catalog.
 
 The check then launches the harness a second time the same way, with the
 operator's home swapped for an empty synthetic one: `HOME` and every
