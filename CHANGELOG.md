@@ -4,9 +4,72 @@ This changelog records public GM-Bench releases: what evidence each one freezes
 and what it does not claim. Frozen releases are never rerun or rewritten; a
 correction becomes a new contract version rather than an edit to an old one.
 
-## Unreleased — GM-Bench 2.0 spec and agentic lane scaffolding
+## Unreleased — GM-Bench 2.0
 
-Added 2026-09-20. Nothing published changes.
+Work began 2026-09-20; the contract froze 2026-09-25; three panel-grade rows
+were published 2026-09-27. Not yet tagged. Nothing in GM-Bench 1.0 changes.
+
+Summary:
+
+- **Contract.** GM-Bench 2.0 (`gm-bench-2.0`, agentic fingerprint
+  `07de948a4f4afbae`, on the 1.0 contract `a600b7da0c302231`): the 1.0
+  simulator and scoring, driven by a model inside its own agent harness
+  through a standard-library MCP tool server, one continuous five-season
+  session per episode. Budgets are reported, not capped. A row is model +
+  harness + harness version. Specified in `docs/bench_v2_spec.md`,
+  operated with `docs/agentic_lane.md`. The fingerprint covers
+  `gm_bench/agentic/{tools,brief,episode,mcp_server}.py` and has not moved
+  since the freeze.
+- **Harnesses.** OpenCode 1.18.31, Codex CLI 0.156.1 and Claude Code 2.1.281,
+  each from a pinned Docker image. Every committed row ran at the harness's
+  default reasoning effort (no `--variant`). Claude Code runs without web
+  tools and with its GM-Bench tools deferred behind ToolSearch; OpenCode and
+  Codex keep their built-in tools.
+- **Isolation.** The engine and seeds stay in the driver process. Panel
+  rows need the harness in a container (`--isolation container`) with a
+  firewall that allows only the public internet, DNS and the driver's port.
+  No driver launches `separate-user` isolation. Red-team probes found the
+  seed on a same-user machine (through `ps`) and did not find a private-range
+  seed from inside a container.
+- **Panel rows** (32 private seeds, five seasons, container, all flagged
+  `unpinned`), each compared only with `pick-trader` (249.18 on these 32
+  seeds):
+  - Codex 0.156.1 · `gpt-6-luna`: mean 227.4, lift −21.8 (95% interval
+    −43.3 to +0.1), not significant.
+  - Claude Code 2.1.281 · `claude-sonnet-5`: mean 227.4, lift −21.8
+    (−47.2 to +3.5), not significant.
+  - Claude Code 2.1.281 · `claude-haiku-4-5`: mean 130.1, lift −119.1
+    (−132.8 to −104.5), below `pick-trader` on every seed. Admitted under
+    the post-hoc guessed-draft-pick rule below.
+
+  The realized paired-lift SDs (62.5 and 73.4) put the panel's minimum
+  detectable difference against `pick-trader` at about 31 to 36 points, so
+  the two −21.8 lifts mean "cannot tell", not "on par".
+- **Smoke rows and noise probes** (public seeds, not on the site): an 8-seed
+  OpenCode row on `opencode/space-bunny-free`, one five-season episode each
+  on Codex and Claude Code, and a 4 seeds × 2 runs repeat-noise probe on
+  each paid harness.
+- **Changes after the freeze**, none of which moved the fingerprint:
+  driver fixes and driver provenance (every row records the driver commit
+  that played it; the Codex and `claude-sonnet-5` panels ran at `4d742cc`,
+  `claude-haiku-4-5` at `21b71dc`, which differs only in Claude Code
+  tool-call counting); a validation rule that publishes a tool-call recount
+  when it resolves a recorded mismatch (one `claude-sonnet-5` episode); and
+  a post-hoc audit rule, adopted 2026-09-27 after the Haiku panel had run,
+  that reports a draft pick on a guessed prospect id as a warning, not a
+  violation. The spec now states which files are frozen and which rules may
+  change without a new version, and lists every post-freeze change with
+  the rows it affected.
+- **Not claimed:** no ranking of rows, harnesses or models; no p-value
+  between two rows; no 1.0-versus-2.0 pairing (no 2.0 model has a 1.0 row).
+  Contract-level defects found after the freeze are queued in
+  `docs/bench_v2_1_queue.md`.
+
+### Development log
+
+The entries below were written as the work landed, roughly in order.
+Interim statements that nothing was published yet have been removed or
+dated; the summary above is the current state.
 
 - Contract freeze (2026-09-25): the 2.0 contract is frozen as
   `gm-bench-2.0` at agentic fingerprint `07de948a4f4afbae`, and a test pins
@@ -15,8 +78,8 @@ Added 2026-09-20. Nothing published changes.
   did not move (the version label is not a fingerprint source), but every
   row records the label, so the `space-bunny-free` smoke row was rerun
   under it (container, seeds 1 to 8, five seasons: mean 217.8, SD 20.5,
-  160/160 phases closed by the agent, 0 failed decisions). All five gates before a paid run in `docs/bench_v2_spec.md`
-  are met. Container red-team verdict: a probe using the example seed
+  160/160 phases closed by the agent, 0 failed decisions). All five gates
+  before a paid run in `docs/bench_v2_spec.md` are met. Container red-team verdict: a probe using the example seed
   printed in `scripts/agentic_red_team.py` found it by downloading the
   public source and rebuilding that league offline, nothing from the host;
   a probe with a fresh seed from the private-panel range (2**32 to
@@ -32,13 +95,13 @@ Added 2026-09-20. Nothing published changes.
 - Code: `gm_bench/agentic/` (tool surface, task brief, episode engine with a
   replayable ledger, standard-library MCP server, OpenCode driver, ledger
   audit) and the `gm-bench agentic` subcommand. Operator guide in
-  `docs/agentic_lane.md`. No 2.0 result is published or claimed yet.
+  `docs/agentic_lane.md`.
 - Publication: `gm-bench agentic-redact` writes one compact artifact per row
   under `results/agentic/` (format `gm-bench-agentic-summary-v1`), bound to
   the operator-held raw run by SHA-256, seeds redacted, graded `panel` or
   `smoke` by the spec's rules (32 seeds, redaction, harness isolated from
   the driver). CI validates every committed row against the checkout's 2.0
-  contract. Rows committed so far are `smoke` grade on public seeds.
+  contract. Smoke rows are committed on public seeds.
 - Sandbox: the engine and seed stay in the driver process and serve MCP over
   a private socket through a standard-library proxy the harness launches.
   A red-team probe (`scripts/agentic_red_team.py`) confirmed the agent
@@ -54,7 +117,7 @@ Added 2026-09-20. Nothing published changes.
   never on a command line. With `--seeds-stdin`, episode directories are
   named by position (`episode-00`, ...) so the harness's open files do not
   name a seed, and every harness now gets `/dev/null` as stdin. Panel
-  execution waits for the owner attestation.
+  execution waited for the owner attestation, recorded 2026-09-23.
 - Site and panel-row checks: `agentic-validate` and `agentic-redact` reject a
   `panel`-grade row whose `panel.sha256` or distinct-seed count differs from
   the frozen panel in `config/bench_v2_lane.json` (smoke rows are exempt).
@@ -64,8 +127,8 @@ Added 2026-09-20. Nothing published changes.
   `model_pinning` in the lane config shows the spec's `unpinned` flag and
   may-not-be-reproducible sentence; rows are ordered by model and harness,
   not score, and show no 1.0 row's score. The results-data validator
-  keeps 2.0 rows out of every 1.0 table. No panel-grade row exists yet, so
-  the site is unchanged.
+  keeps 2.0 rows out of every 1.0 table. The section stayed empty until the
+  first panel-grade row (2026-09-27).
 - Reference contrast: a `panel`-grade artifact now carries the spec's one
   supported inference, a `reference` block comparing the row with
   `pick-trader` on the same seeds and seasons. `agentic-redact` computes it
@@ -144,7 +207,7 @@ Added 2026-09-20. Nothing published changes.
   `agentic-validate` recounts tool calls from a Codex event stream as it
   does for OpenCode. Proven against a stand-in `codex` and `docker`, and by
   two live 1-season smokes on `gpt-6-luna` (seed 11, same-user and
-  container, 2026-09-24); no Codex row is committed yet.
+  container, 2026-09-24).
 - Codex API-equivalent cost: `cost_usd` stays unmeasured, and beside it a
   Codex episode now records `usage.harness.api_equivalent_cost_usd`, what
   its tokens would cost at OpenAI API list price with cached input and
@@ -243,8 +306,8 @@ Added 2026-09-20. Nothing published changes.
   a stand-in `claude` and `docker` and, with no model call, against the real
   image (opt-in `GM_BENCH_DOCKER_TESTS=1`), and live: a one-season
   `claude-sonnet-5` smoke on seed 11 in the container scored 118.9 with no
-  config-directory findings and no credential in any saved file. No Claude
-  result is published. The contract fingerprint is unchanged.
+  config-directory findings and no credential in any saved file. The
+  contract fingerprint is unchanged.
 - Silent harness: OpenCode retries a 429 internally without printing any
   event, so a rate-limited run looked hung until the 20-minute phase guard
   killed it and its phases closed as `harness_exit`. The driver now stops an
@@ -253,8 +316,8 @@ Added 2026-09-20. Nothing published changes.
   provider stall, not a guard stop or a nudge; the silent window comes off
   the phase clock. Counted as `silent_kills` per episode (`silent` per nudge),
   `silent_harness_kills` in the run summary and site telemetry.
-- Docs: the README gains a short GM-Bench 2.0 status section (implemented,
-  one smoke row, no panel-grade result yet), and `docs/bench_v2_spec.md`
+- Docs (2026-09-25): the README gains a short GM-Bench 2.0 status section
+  (at the time: implemented, one smoke row, no panel-grade result), and `docs/bench_v2_spec.md`
   gains a current-behaviour repeat-noise measurement from the two
   `space-bunny-free` smoke runs on seeds 1 to 8: within-seed SD 43 over all
   eight seeds and 23 without seed 1, so a 32-seed panel resolves about 39 or
@@ -311,7 +374,10 @@ Added 2026-09-20. Nothing published changes.
   (`results/agentic/codex-0.156.1-gpt-6-luna-panel-32x5.json`). Mean 227.4
   (SD 41.0), 640/640 phases closed by the agent, 0 failed decisions, 19
   penalized illegal moves, no nudges, provider stalls or quota pauses,
-  10.3 min per episode, $4.54 at API prices. Against the predeclared
+  10.3 min per episode, $4.54 at API prices, a lower bound: the row sets
+  `api_equivalent_long_context_possible` (about 10M input tokens per
+  episode, with turns growing past the 272K long-context threshold) and the
+  estimate uses short-context rates. Against the predeclared
   `pick-trader` reference (249.18) the paired lift is -21.8, 95% interval
   -43.3 to +0.1, sign-flip p 0.062, winning 28% of seeds: not significant.
   The site's 2.0 section now renders, with this row flagged `unpinned`.
@@ -328,7 +394,8 @@ Added 2026-09-20. Nothing published changes.
   server name `mcp__gm-bench`, which Claude Code refused before any server
   saw it. The parser is fixed, and the row publishes the recount (165/165)
   with the recorded figure beside it.
-- Audit rule change (2026-09-27): an accepted `draft` on a prospect id no
+- Post-hoc audit rule (2026-09-27, adopted after the `claude-haiku-4-5`
+  panel had run): an accepted `draft` on a prospect id no
   tool reply exposed is now a `guessed_draft_pick`, reported as a warning,
   instead of a violation that blocks publication. Prospect ids are
   `1_000_000 + season * 10_000 + index` with the index independent of hidden
@@ -345,6 +412,25 @@ Added 2026-09-20. Nothing published changes.
   lift is -119.1, 95% interval -132.8 to -104.5, p < 0.001, winning no
   seed: significantly below the scripted bar. Six draft picks on guessed
   prospect ids are reported as warnings under the rule above.
+- Documentation audit before release (2026-09-28): `docs/bench_v2_spec.md`
+  now states what the freeze covers (the four fingerprinted files, the 1.0
+  simulator contract, the seed panel) and what may change without a new
+  version (driver, audit, validation and publication rules, disclosed here
+  with their date and affected rows), records the guessed-draft-pick rule
+  as post-hoc, adds the realized panel noise and a section on how 2.0
+  differs from 1.0 beyond the interface (unlimited calls per phase,
+  unpenalized schema rejections, draft class visibility, `inspect_player`
+  on prospects), and marks plans that did not happen (a command-line
+  wrapper, 8-seed private smoke rows, a 5 × 3 noise probe, the lowest
+  reasoning variant, a free 1.0-versus-2.0 pairing). Deferred contract
+  changes are listed in `docs/bench_v2_1_queue.md`. `docs/agentic_lane.md`
+  gains the command behind the committed OpenCode smoke row, container
+  isolation in the panel launcher example, a section on each harness's
+  non-GM-Bench tools and the container's public egress, and corrections on
+  Claude Code quota windows and the Codex long-context cost caveat. The
+  site's 2.0 section gains per-row caveats, and a draft findings post is in
+  `docs/blog/gm-bench-2.0-findings.md`. No row, driver or contract file
+  changes.
 
 ## Unreleased — decision-model lane beside the `sota-v5` headline
 
