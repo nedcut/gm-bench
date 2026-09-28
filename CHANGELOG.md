@@ -79,6 +79,27 @@ The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
 
+- OpenCode API keys (2026-09-28, driver only; the agentic fingerprint stays
+  `07de948a4f4afbae`). `gm-bench agentic --harness opencode
+  --opencode-auth-file <path>` runs OpenCode Go (`opencode-go/*`) models,
+  same-user or in a container. The key is written as OpenCode's
+  own `auth.json` for `opencode-go` only into the episode's private
+  data directory or its home volume (over `docker run` stdin), never onto a
+  command line or into the harness environment, and is redacted from the
+  event stream and stderr log when the episode ends. An `opencode-go/*` model
+  without the file is refused before anything runs. Each episode records
+  `harness_run.auth` and `auth_providers`, never the key. A spent Go window
+  (`GoUsageLimitError`, read from OpenCode's source, not yet seen live) is
+  quota exhaustion with its `retry-after` reset, like `FreeUsageLimitError`.
+  An episode the loop gives up on unfinished, whose last invocation made no
+  tool call and ended on a provider API error OpenCode marks non-retryable
+  (for example Go's 400 "This Go model requires Global regions"), is now
+  `ended_by_provider` with reason
+  `provider_error`, so it stops the panel and cannot be published; before,
+  the first Go smoke scored such a refusal as four failed decisions. The
+  recorded error message is redacted of the key.
+  No committed row is affected.
+
 - Fourth panel-grade 2.0 row (2026-09-28): the Cursor CLI
   2026.09.26-dd393fe on `composer-2.5`, the frozen 32-seed private panel at
   five seasons, container isolation, played from clean `main` at `b3d7de7`

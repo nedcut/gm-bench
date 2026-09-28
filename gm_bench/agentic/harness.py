@@ -43,6 +43,9 @@ class HarnessDriver:
     def preflight(self, isolation: str) -> None:
         """Refuse a run this harness cannot start (for example, no credentials). Raises ``ValueError``."""
 
+    def check_model(self, model: str) -> None:
+        """Refuse a model this harness cannot run as configured (for example, a paid one with no key). Raises ``ValueError``."""
+
     def version(self, binary: str) -> str | None:
         raise NotImplementedError
 
@@ -81,6 +84,16 @@ class HarnessDriver:
     def ended_in_provider_stall(self, lines: list[str]) -> bool:
         """Whether one invocation's events end in a retryable provider error."""
         raise NotImplementedError
+
+    def provider_error(self, lines: list[str]) -> dict[str, Any] | None:
+        """``{"status_code": ..., "message": ...}`` when one invocation ended on a provider API error.
+
+        Only asked about the last invocation of an episode the loop gave up on
+        unfinished, after it was neither a stall nor a spent quota: a provider
+        that refuses every request (a model the account cannot use, a bad key)
+        ended the episode, not the agent. ``None`` for any other ending.
+        """
+        return None
 
     def quota_exhausted(self, lines: list[str], *, isolation: str, now: float) -> dict[str, Any] | None:
         """Whether one invocation ended because the subscription's usage window is spent.

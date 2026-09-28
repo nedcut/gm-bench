@@ -14,8 +14,8 @@ and the harness gets ``/dev/null`` as stdin, so its open-file table (``lsof``)
 names no seed either. The run directory still holds the seeds (every ledger
 header does, as does each finished episode's ``result.json``), which is why a
 panel-grade row also needs the harness isolated from the driver: pass
-``--isolation container`` (with ``--codex-auth-file`` or
-``--claude-token-file`` for those harnesses), which the driver provides.
+``--isolation container`` (with ``--codex-auth-file``,
+``--claude-token-file`` or ``--opencode-auth-file`` for those harnesses), which the driver provides.
 The launcher refuses any other isolation: a same-user harness is a process
 of the operator's user, so the agent's shell can read those files and the
 private seeds with them. Only ``--i-understand-same-user-leaks-private-seeds``
@@ -30,7 +30,7 @@ differs from ``HEAD`` or is untracked, or when the checkout is not a git
 work tree. Commit or stash the change first; there is no override.
 
 Arguments this launcher does not know are passed to ``gm-bench agentic``
-unchanged, so driver options (``--harness``, ``--codex-auth-file``, ``--claude-token-file``,
+unchanged, so driver options (``--harness``, ``--codex-auth-file``, ``--claude-token-file``, ``--opencode-auth-file``,
 ``--variant``, ``--phase-guard-seconds``, ``--max-provider-stalls``,
 ``--max-provider-stall-wait-seconds``, ``--silent-harness-seconds``, ``--binary``,
 ``--isolation``) work here without a change to this file. ``--seeds`` and ``--json`` are refused: the first would
