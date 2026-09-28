@@ -924,7 +924,8 @@ class CodexDriver(HarnessDriver):
         # The rollouts are append-only, so reading once after the last
         # invocation sees every token_count the episode's invocations wrote.
         if launch.container is not None:
-            if launch.scratch in self._staged_auth:
+            if self.auth_file is not None:
+                # Codex may have rotated the refresh token: redacted, and written back, in ``cleanup``.
                 self._left_auth[launch.scratch] = launch.container.home_file(f"{CODEX_HOME_DIRNAME}/{AUTH_FILENAME}")
             lines = launch.container.home_lines(
                 f"{CODEX_HOME_DIRNAME}/{SESSIONS_DIRNAME}", ROLLOUT_GLOB, '"token_count"'
