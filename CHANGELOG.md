@@ -356,7 +356,7 @@ Added 2026-09-20. Nothing published changes.
   (`results/agentic/claude-2.1.281-claude-haiku-4-5-panel-32x5.json`). Mean
   130.1 (SD 36.1), 640/640 phases closed by the agent, 0 failed decisions,
   56 penalized illegal moves, 3 nudges, no provider stalls or compactions,
-  6.1 min per episode, $25 at API prices. Against `pick-trader` the paired
+  6.1 min per episode, $25 at API prices (re-derived as $27.71 on 2026-09-28, above). Against `pick-trader` the paired
   lift is -119.1, 95% interval -132.8 to -104.5, p < 0.001, winning no
   seed: significantly below the scripted bar. Six draft picks on guessed
   prospect ids are reported as warnings under the rule above.
