@@ -11,6 +11,7 @@ with ``mcpToolCall`` and ``getMcpToolsToolCall``, and a ``result`` whose
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sqlite3
@@ -273,6 +274,7 @@ def test_cursor_panel_plays_through_the_staged_proxy_nudges_by_resume_and_valida
     assert harness_run["prompt_audit"] == {
         "sections": ["agent_skills", "user_info"],
         "unexpected": [],
+        "default_rules": 0,
         "user_rules": 0,
         "user_rule_characters": 0,
         "operator_content": [],
@@ -513,6 +515,7 @@ def test_prompt_audit_names_sections_and_counts_rules_never_copies_them(tmp_path
     assert audit == {
         "sections": ["agent_skills", "cloud_instructions", "rules", "user_info"],
         "unexpected": ["cloud_instructions", "rules"],
+        "default_rules": 0,
         "user_rules": 2,
         "user_rule_characters": 8,
         "operator_content": [],
@@ -526,9 +529,41 @@ def test_prompt_audit_names_sections_and_counts_rules_never_copies_them(tmp_path
     )
     assert operator_content([content_with_line], markers) == ["1 line(s) of ~/AGENTS.md"]
     assert prompt_audit_problems("cursor", {"prompt_audit": audit}) == [
-        "prompt carried context from outside the harness: cloud_instructions, rules (2 account User Rules)"
+        "prompt carried context from outside the harness: cloud_instructions, rules (2 User Rules that are not Cursor's defaults)"
     ]
     assert prompt_audit_problems("cursor", {}) and prompt_audit_problems("claude", {}) == []
+
+
+def test_cursors_own_default_rules_are_the_harness_and_any_other_rule_is_not(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    default, mine = "Cursor ships this rule to every account.", "Always commit with a haiku."
+    monkeypatch.setattr(cursor, "CURSOR_DEFAULT_RULES", {hashlib.sha256(default.encode()).hexdigest(): "d"})
+    chat = tmp_path / "chats" / "w" / "s"
+    chat.mkdir(parents=True)
+
+    def audit(rules: str, extra: str = "") -> dict:
+        db = sqlite3.connect(chat / "store.db")
+        db.execute("DROP TABLE IF EXISTS blobs")
+        db.execute("CREATE TABLE blobs (id TEXT, data BLOB)")
+        content = f"<user_info>OS</user_info>\n<rules>{extra}<user_rules>{rules}</user_rules></rules>"
+        db.execute("INSERT INTO blobs VALUES ('a', ?)", (json.dumps({"content": content}).encode(),))
+        db.commit()
+        db.close()
+        return prompt_audit(tmp_path)
+
+    clean = audit(f"<user_rule>\n{default}\n</user_rule>")
+    assert clean["unexpected"] == [] and (clean["default_rules"], clean["user_rules"]) == (1, 0)
+    assert prompt_audit_problems("cursor", {"prompt_audit": clean}) == []
+    # One of the account's own rules next to the default, or a default reworded: refused.
+    for rules in (
+        f"<user_rule>{default}</user_rule><user_rule>{mine}</user_rule>",
+        f"<user_rule>{default}!</user_rule>",
+    ):
+        dirty = audit(rules)
+        assert dirty["unexpected"] == ["rules"] and dirty["user_rules"] == 1
+    # Anything else under <rules> (memories, workspace rules) is refused even with only default User Rules.
+    assert audit(f"<user_rule>{default}</user_rule>", "<memories>m</memories>")["unexpected"] == ["rules"]
 
 
 def test_a_panel_whose_prompt_carries_account_rules_is_refused_before_it_starts(
@@ -536,7 +571,9 @@ def test_a_panel_whose_prompt_carries_account_rules_is_refused_before_it_starts(
 ) -> None:
     binary, log = _fake_cursor(tmp_path, [{"phases": 4}], monkeypatch, rules=["Always commit with a haiku."])
     run_dir = tmp_path / "run"
-    with pytest.raises(cursor.PromptCheckError, match=r"outside the harness: rules \(1 account.*Cursor Settings"):
+    with pytest.raises(
+        cursor.PromptCheckError, match=r"outside the harness: rules \(1 User Rules that.*Cursor Settings"
+    ):
         cursor.run_panel(
             [11],
             model=MODEL,
