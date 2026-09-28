@@ -622,16 +622,17 @@ def _final_error(lines: list[str]) -> tuple[dict[str, Any], dict[str, Any], list
 
 
 def provider_error(lines: list[str]) -> dict[str, Any] | None:
-    """``{"status_code": ..., "message": ...}`` when the invocation ended on an ``APIError`` from the provider.
+    """``{"status_code": ..., "message": ...}`` when the invocation ended on an ``APIError`` the provider marked final.
 
     For example OpenCode Go's 400 "This Go model requires Global regions"
-    (``isRetryable`` false), which every retry and nudge gets again.
+    (``isRetryable`` false), which every retry and nudge gets again. An error
+    OpenCode would retry, or one that does not say, is not a refusal.
     """
     ending = _final_error(lines)
     if ending is None:
         return None
     error, data, _before = ending
-    if error.get("name") != "APIError":
+    if error.get("name") != "APIError" or data.get("isRetryable") is not False:
         return None
     status = data.get("statusCode")
     message = data.get("message", error.get("message"))
@@ -862,6 +863,8 @@ def run_episode(
         # Nor is a stop for a parked invocation (a spent usage window).
         stalled = killed and not watch.parked and not silent
         guard_kills += int(stalled)
+        # What the latest invocation did, for a provider refusal at the end: its new tool calls, and whether it was stopped.
+        last_progress, last_killed = _engine_state(episode)["tool_calls"], killed
         # Provider stalls: a run that ended on a retryable provider error (a
         # 429, an overload), or was stopped as silent, is retried after a
         # backoff and is not a nudge.
@@ -1047,6 +1050,7 @@ def run_episode(
             guard_kills += int(nudge_stalled)
             after = _engine_state(episode)
             progress_calls = after["tool_calls"] - state["tool_calls"]
+            last_progress, last_killed = progress_calls, nudge_killed
             last_stalled = silent or (
                 not nudge_timed_out
                 and not nudge_killed
@@ -1094,13 +1098,15 @@ def run_episode(
         # stall that could not be retried. The phases still open are closed below as when
         # the harness exits, but the episode is marked, the panel stops, and publication
         # refuses the run: those phases were never played.
-        # So did a provider that answered the last invocation with an API error the loop
-        # could not get past (a non-retryable refusal: every nudge gets it again).
+        # So did a provider that refused the last invocation outright (a non-retryable API
+        # error) when that invocation made no tool call and was not stopped by a guard.
         ended_by_provider: dict[str, Any] | None = None
         final_state = _engine_state(episode)
         unfinished = not final_state["done"] and ended_by_quota is None and not timed_out
         refused = (
-            driver.provider_error(_invocation_lines(events_path, offset)) if unfinished and not last_stalled else None
+            driver.provider_error(_invocation_lines(events_path, offset))
+            if unfinished and not last_stalled and last_progress == 0 and not last_killed
+            else None
         )
         if unfinished and (last_stalled or refused is not None):
             ended_by_provider = {
@@ -1931,7 +1937,14 @@ class OpenCodeDriver(HarnessDriver):
         return quota_exhaustion(lines, now=now)
 
     def provider_error(self, lines: list[str]) -> dict[str, Any] | None:
-        return provider_error(lines)
+        # Read before the episode's evidence is redacted, and recorded in result.json: redact it here.
+        from gm_bench.agentic.codex import REDACTED
+
+        refused = provider_error(lines)
+        if refused is not None and refused["message"] is not None:
+            for secret in set().union(*self._secrets.values()):
+                refused["message"] = refused["message"].replace(secret, REDACTED)
+        return refused
 
     def usage_block(self, telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
         return usage_block(telemetry, model=model, decisions=decisions)
