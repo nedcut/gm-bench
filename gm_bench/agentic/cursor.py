@@ -961,12 +961,15 @@ class CursorDriver(HarnessDriver):
         self._audits[launch.scratch] = volume_prompt_audit(launch.container)
         stderr = launch.evidence_paths[1] if len(launch.evidence_paths) > 1 else None
         if stderr is not None and stderr.is_file():
-            # What gmb-cursor removed or restored before a launch, and any launch it refused.
-            self._findings.setdefault(launch.scratch, []).extend(
-                line.strip()
-                for line in stderr.read_text(encoding="utf-8", errors="replace").splitlines()
-                if line.startswith(CURSOR_WRAPPER_PREFIX)
-            )
+            # What gmb-cursor removed or restored before a launch, and any launch it refused. The
+            # agent names what it planted, so a line can carry the token; run.json is not redacted later.
+            secrets = self._secrets.get(launch.scratch, set())
+            for line in stderr.read_text(encoding="utf-8", errors="replace").splitlines():
+                if not line.startswith(CURSOR_WRAPPER_PREFIX):
+                    continue
+                for secret in secrets:
+                    line = line.replace(secret, REDACTED)
+                self._findings.setdefault(launch.scratch, []).append(line.strip())
 
     def run_record(self, launch: HarnessLaunch) -> dict[str, Any]:
         config = self._configs.pop(launch.scratch, None)

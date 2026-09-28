@@ -1140,3 +1140,25 @@ def test_real_cursor_image_keeps_the_token_off_docker_and_refuses_a_tampered_hom
         run(["docker", "rm", "--force", inspected])
         assert harness.close() == []
         listener.close()
+
+
+def test_a_container_finding_that_names_the_token_is_redacted_in_the_run_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The agent names what it plants, so gmb-cursor's report of removing it can carry the token,
+    # and config_dir_findings lands in run.json, which is not redacted at episode end.
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(cursor, "volume_prompt_audit", lambda container: None)
+    driver = cursor.CursorDriver()
+    scratch = tmp_path / "scratch"
+    driver._secrets[scratch] = {DUMMY_KEY}
+    stderr = tmp_path / "cursor-stderr.log"
+    stderr.write_text(
+        f"gmb-cursor: removed rules/{DUMMY_KEY}.md from $HOME/.cursor before a launch\nunrelated {DUMMY_KEY}\n"
+    )
+    launch = SimpleNamespace(scratch=scratch, container=object(), evidence_paths=[tmp_path / "events", stderr])
+    driver.collect(launch)
+    assert driver._findings[scratch] == [
+        f"gmb-cursor: removed rules/{cursor.REDACTED}.md from $HOME/.cursor before a launch"
+    ]
