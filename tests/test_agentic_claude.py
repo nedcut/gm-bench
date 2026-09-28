@@ -878,6 +878,20 @@ def test_claude_one_hour_cache_writes_are_priced_at_the_one_hour_rate() -> None:
     assert claude.api_equivalent_fields(parse_claude_events(flat))["api_equivalent_cost_usd"] == pytest.approx(2.5)
 
 
+def test_one_hour_writes_match_a_dated_frame_model_to_its_model_usage_alias() -> None:
+    # The Haiku panel's shape: frames name the dated snapshot, modelUsage the alias the run asked for.
+    tiers = {"ephemeral_5m_input_tokens": 0, "ephemeral_1h_input_tokens": 1_000_000}
+    frame = _assistant(
+        "m1", model="claude-haiku-4-5-20251001", cache_creation_input_tokens=1_000_000, cache_creation=tiers
+    )
+    telemetry = parse_claude_events([_init(), frame, _result({"claude-haiku-4-5": _mu(0, 0, 0, 1_000_000)})])
+    assert telemetry["tokens_by_model"]["claude-haiku-4-5"]["cache_write_1h"] == 1_000_000
+    # Every write at Haiku's 1-hour 2.00, not the 5-minute 1.25.
+    assert claude.api_equivalent_fields(telemetry)["api_equivalent_cost_usd"] == pytest.approx(2.0)
+    assert claude.undated_model("claude-haiku-4-5-20251001") == "claude-haiku-4-5"
+    assert claude.undated_model("claude-sonnet-5") == "claude-sonnet-5"
+
+
 # -- stalls and quota -------------------------------------------------------------
 
 
@@ -1408,3 +1422,108 @@ def test_real_claude_image_keeps_the_token_off_docker_and_the_config_dir_locked(
         run(["docker", "rm", "--force", inspected])
         assert harness.close() == []
         listener.close()
+
+
+# -- re-deriving a published cost from the retained events ------------------------
+
+
+def _as_recorded_before_the_dated_match(run_dir: Path) -> None:
+    """Rewrite a fake Claude run as the Haiku panel recorded it: dated frames, 1-hour writes priced at 5 minutes."""
+    events = run_dir / "seed-11" / "claude-events.jsonl"
+    lines = []
+    for line in events.read_text().splitlines():
+        event = json.loads(line)
+        if event.get("type") == "assistant":
+            usage = event["message"]["usage"]
+            usage["cache_creation"] = {"ephemeral_1h_input_tokens": usage["cache_creation_input_tokens"]}
+            event["message"]["model"] = "claude-haiku-4-5-20251001"
+        lines.append(json.dumps(event))
+    events.write_text("\n".join(lines) + "\n")
+    raw = json.loads((run_dir / "run.json").read_text())
+    telemetry = parse_claude_events(lines)
+    for tokens in telemetry["tokens_by_model"].values():
+        tokens["cache_write_1h"] = 0  # what the exact-id match found
+    raw["episodes"][0]["usage"]["harness"].update(claude.api_equivalent_fields(telemetry))
+    (run_dir / "run.json").write_text(json.dumps(raw))
+
+
+def test_a_published_claude_cost_is_rederived_from_the_retained_events(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from gm_bench.agentic.provenance import driver_digest
+    from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
+
+    binary, _log = _fake_claude(tmp_path, [{"phases": 4}], monkeypatch)
+    run_dir = tmp_path / "run"
+    # Published below as a same-user row, so it needs the CLI's pre-panel prompt check (its own tests
+    # are in test_agentic_prompt_check.py); here it is taken as clean.
+    monkeypatch.setattr(claude.ClaudeDriver, "check_prompt", lambda self, **kwargs: CLEAN_PROMPT_CHECK)
+    claude.run_panel(
+        [11],
+        prompt_check=True,
+        model="claude-haiku-4-5",
+        run_dir=run_dir,
+        seasons=1,
+        binary=str(binary),
+        token_file=_token_file(tmp_path),
+    )
+    _as_recorded_before_the_dated_match(run_dir)
+    recorded = json.loads((run_dir / "run.json").read_text())["episodes"][0]["usage"]["harness"]
+
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    harness = artifact["episodes"][0]["usage"]["harness"]
+    # 100 cache-write tokens, all 1-hour: 2.00 not 1.25 per million, so the figure rises by 75e-6.
+    assert harness["api_equivalent_cost_usd"] == pytest.approx(recorded["api_equivalent_cost_usd"] + 75e-6)
+    assert harness["api_equivalent_recomputed"] == {
+        "from": "retained claude-events.jsonl",
+        "driver_digest": driver_digest(),
+        "recorded": {key: recorded[key] for key in harness["api_equivalent_recomputed"]["recorded"]},
+    }
+    assert (
+        harness["api_equivalent_recomputed"]["recorded"]["api_equivalent_cost_usd"]
+        == recorded["api_equivalent_cost_usd"]
+    )
+    summary = artifact["agentic_summary"]
+    assert summary["api_equivalent_cost_usd"] == harness["api_equivalent_cost_usd"]
+    assert summary["api_equivalent_recorded"]["api_equivalent_cost_usd"] == recorded["api_equivalent_cost_usd"]
+    assert validate_agentic_artifact(artifact, raw_run=run_dir)["ok"]
+    # A later driver that reproduces the figure still matches.
+    moved = json.loads(json.dumps(artifact))
+    moved["episodes"][0]["usage"]["harness"]["api_equivalent_recomputed"]["driver_digest"] = "0" * 16
+    assert validate_agentic_artifact(moved, raw_run=run_dir)["ok"]
+    # A hand-edited figure does not reproduce.
+    edited = json.loads(json.dumps(artifact))
+    edited["episodes"][0]["usage"]["harness"]["api_equivalent_cost_usd"] += 1.0
+    assert not validate_agentic_artifact(edited, raw_run=run_dir)["ok"]
+
+    # A stream that no longer gives the recorded tokens is not the one the run parsed: refused.
+    events = run_dir / "seed-11" / "claude-events.jsonl"
+    events.write_text(events.read_text().replace('"inputTokens": 1000', '"inputTokens": 1001'))
+    with pytest.raises(ValueError, match="refusing to re-derive"):
+        compact_agentic_run(run_dir, isolation="same-user")
+
+
+def test_an_unchanged_claude_cost_is_published_as_recorded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from gm_bench.agentic.publication import compact_agentic_run
+
+    binary, _log = _fake_claude(tmp_path, [{"phases": 4}], monkeypatch)
+    run_dir = tmp_path / "run"
+    claude.run_panel(
+        [11], model="claude-haiku-4-5", run_dir=run_dir, seasons=1, binary=str(binary), token_file=_token_file(tmp_path)
+    )
+    raw = json.loads((run_dir / "run.json").read_text())
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    harness = artifact["episodes"][0]["usage"]["harness"]
+    assert "api_equivalent_recomputed" not in harness
+    assert harness["api_equivalent_cost_usd"] == raw["episodes"][0]["usage"]["harness"]["api_equivalent_cost_usd"]
+    # The stream reports no effort level, and none was asked for: said so, not guessed.
+    assert raw["episodes"][0]["harness_run"]["reasoning_effort"] == {"reported": None, "source": "system/init events"}
+    effort = artifact["effective_reasoning_effort"]
+    assert effort["requested"] is None and effort["reported"] is None and "no effort level" in effort["note"]
+
+
+def test_claude_reported_efforts_read_only_the_init_events() -> None:
+    init = json.loads(_init())
+    assert claude.reported_efforts([json.dumps(init | {"per_turn_effort_active": False})]) == set()
+    assert claude.reported_efforts([json.dumps(init | {"effort": "high"})]) == {"high"}
+    assert claude.reported_efforts([_assistant("m1"), json.dumps({"type": "result", "effort": "low"})]) == set()

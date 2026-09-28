@@ -43,6 +43,21 @@ This repo has two products:
   next). Smoke with `--preset smoke` before any full panel. Full serial panel is hours
   of quota, not minutes — budget a whole 5h window on purpose.
 
+### GM-Bench 2.0 (`gm_bench/agentic/`, `gm-bench agentic`)
+
+- The contract is frozen at agentic fingerprint `07de948a4f4afbae`. It covers
+  `gm_bench/agentic/{tools,brief,episode,mcp_server}.py` byte for byte: any edit,
+  even to a docstring or comment, fails `tests/test_agentic_mcp.py` and invalidates
+  every committed row. Changes that belong in a new contract go to
+  `docs/bench_v2_1_queue.md`. Driver files (`gm_bench/agentic/provenance.py` lists
+  them) may change; each row records the driver commit that played it.
+- `--isolation container` needs Docker with the daemon running. Private-panel runs
+  (`scripts/run_bench_v2_panel_from_keychain.py`) always pass `--isolation container`:
+  a same-user harness can read the private seeds from the run directory.
+- `agentic --harness claude` (and `codex`) spends subscription quota. The driver is
+  serial; run one harness at a time and smoke one short episode before a panel.
+  Operator guide: `docs/agentic_lane.md`.
+
 ### Web (`web/`)
 
 - Managed with **Bun** (installed at `~/.bun/bin`, added to `PATH` via `~/.bashrc`).

@@ -1,8 +1,31 @@
 # GM-Bench 2.0 specification
 
 Frozen decisions for the 2.0 benchmark. Settled 2026-09-20 from the design
-discussion that followed the `sota-v5` publication. Changes to this file after
-the 2.0 contract freeze create a new benchmark version.
+discussion that followed the `sota-v5` publication, and frozen on 2026-09-25
+as `gm-bench-2.0` at agentic fingerprint `07de948a4f4afbae`.
+
+What the freeze covers, and what a change to it means:
+
+- **Frozen; a change is a new benchmark version.** The four fingerprinted
+  files (`gm_bench/agentic/tools.py`, `brief.py`, `episode.py`,
+  `mcp_server.py`), the 1.0 simulator contract they sit on (`sota-v5`,
+  fingerprint `a600b7da0c302231`: simulator, scoring, and the 1.0 contract
+  sources), and the 32-seed private panel in `config/bench_v2_lane.json`.
+  `tests/test_agentic_mcp.py` pins the fingerprint, so a byte change to the
+  four files or to a 1.0 contract source fails CI; the panel is pinned by
+  digest in the lane config.
+- **May change without a version bump.** The driver that plays an episode
+  (recorded per row, see "Publication"), the post-hoc audit, validation and
+  publication rules, and the measurements and notes in this file. Each such
+  change is disclosed in `CHANGELOG.md` with its date and the rows it
+  affected. "Changes after the freeze" at the end of this file lists them.
+
+The first version of this paragraph said that any change to this file after
+the freeze creates a new benchmark version. That was never how the freeze
+worked in practice: the file changed five times between the freeze and this
+restatement (see the list at the end), and one of those changes, the
+guessed-draft-pick audit exception, was adopted after a panel had run. The
+rule above states the practice.
 
 ## Naming
 
@@ -34,16 +57,21 @@ these conditions. The harness is part of the row identity because it supplies
 the system prompt, tool-calling loop, compaction, and permission model the
 model plays through. A model row on two harnesses is two rows.
 
-Secondary claim, available for free because the simulator and seeds are
-unchanged: the same model's 1.0 one-shot score against its 2.0 agentic score,
-paired per seed. Whether agency helps is a result, not an assumption.
+Secondary claim, possible because the simulator and the first 29 seeds are
+shared: the same model's 1.0 one-shot score against its 2.0 agentic score,
+paired per seed. It is not free. It needs the same model to have a published
+1.0 row, and none of the three 2.0 panel rows does (`gpt-6-luna` and
+`claude-sonnet-5` were not in the 1.0 cohort, and `claude-haiku-4.5` was
+ineligible there), so no such pairing exists yet. It would also measure more
+than agency: see "How 2.0 differs from 1.0 beyond the interface".
 
 ## Interface
 
 GM-Bench 2.0 is a **Model Context Protocol (MCP) server** over the existing
-simulator, spoken over the stdio transport. A thin command-line wrapper
-exposes the same verbs for harnesses without MCP support. Both paths share
-one code path and produce identical ledgers.
+simulator, spoken over the stdio transport. The design discussion also
+planned a thin command-line wrapper for harnesses without MCP support. It
+was never built: all three supported harnesses speak MCP, and 2.0 ships
+without it.
 
 ### Tool surface
 
@@ -129,9 +157,12 @@ The agent ends a phase by calling `end_phase`. Precautions, in order:
   harness reports them
 - input, output, cached, and reasoning tokens, where the harness reports them
 - wall-clock per phase and per episode
-- cost in dollars from the harness's own accounting, falling back to
-  `gm_bench/pricing.json` at the model's list price when the harness reports
-  tokens but not cost
+- cost in dollars. OpenCode reports a cost and it is used as reported.
+  Codex reports none, and Claude Code's `total_cost_usd` is a client-side
+  estimate, not a bill, so for both `cost_usd` stays unmeasured and the row
+  carries an API-equivalent estimate instead: the reported tokens priced at
+  the model's list price in `gm_bench/pricing.json`
+  (`docs/agentic_lane.md`, the Codex and Claude Code sections)
 
 Spending is controlled by choosing which models to run, not by the contract.
 Cost sits beside the score on the site, never inside it.
@@ -172,8 +203,9 @@ state, cannot damage the host, and cannot carry information between episodes.
   carries `--seeds`, and `ps` shows it to any process of the same user, as it
   would the driver's memory on systems that allow same-user tracing. A
   process-level sandbox cannot close that. Private-panel rows must run the
-  driver under a different user or in a container from the harness; the
-  free-model smokes here did not, and are labelled accordingly. The
+  driver under a different user or in a container from the harness. The
+  early free-model smokes ran same-user and were labelled accordingly; the
+  committed OpenCode smoke row and every paid row ran in a container. The
   red-team probe (`scripts/agentic_red_team.py`, 2026-09-21) measured
   exactly this boundary: the agent read the scratch directory, the config,
   the proxy, the environment, and the socket directory and learned nothing;
@@ -211,20 +243,29 @@ state, cannot damage the host, and cannot carry information between episodes.
   that entity, so the id counts as exposed from then on and the read is
   reported as a guessed read. The audit is a screen for leaked ids, not
   proof; an accepted move on an id with no reply and no read behind it is
-  still a violation, with one exception added on 2026-09-27: an accepted
-  `draft` whose only unseen id is the prospect it picked is a guessed draft
-  pick, reported as a warning. The `claude-haiku-4-5` panel stopped listing
-  the draft class in late seasons and drafted `1040000`-style ids blind. A
-  prospect id is `1_000_000 + season * 10_000 + index`, and the index is
-  drawn independently of hidden potential (correlation 0.01 over 7,200
-  prospects), so such a pick uses no hidden information. Scout usage above
-  the budget, and moves in the wrong phase, are already protocol
-  violations.
+  still a violation, with one exception. Scout usage above the budget, and
+  moves in the wrong phase, are already protocol violations.
+- **Guessed draft picks (post-hoc rule, 2026-09-27).** An accepted `draft`
+  whose only unseen id is the prospect it picked is a `guessed_draft_pick`,
+  reported as a validation warning, not a violation. This rule was adopted
+  after the `claude-haiku-4-5` panel had run, because that panel failed
+  validation under the original rule: in 4 of 32 episodes the model stopped
+  listing the draft class in seasons 4 and 5 and drafted ids it had never
+  been shown (`1040000`, `1040010`, `1040020`, `1050000`), 6 picks in all.
+  The justification is in the generator, not the result:
+  `generator.generate_draft_class` assigns prospect ids as
+  `1_000_000 + season * 10_000 + index` and draws each prospect's hidden
+  potential independently of its index (a test measures the correlation at
+  0.0095 over 7,200 prospects), so a guessed id is a blind pick that uses no
+  hidden information. The rule admits the `claude-haiku-4-5` panel row; the
+  Codex and `claude-sonnet-5` panel rows have no guessed draft pick and pass
+  under either rule. It is a post-hoc rule and is labelled as one wherever
+  the Haiku row is shown.
 
 ## Row identity and eligibility
 
 A row is `model + harness + harness version` (for example
-`opencode/1.18.30 · anthropic/claude-haiku-4.5`). The model string is what
+`codex/0.156.1 · gpt-6-luna`). The model string is what
 the harness resolves it to; the driver records the harness's own model
 identifier and, where available, the served model version.
 
@@ -272,13 +313,20 @@ Decisions:
 
 - **Full row:** 32 seeds × 1. Expected MDD 24 to 33 points depending on the
   model's repeat noise, which for agentic runs is expected toward the high end.
-- **Smoke row:** 8 seeds × 1 from the same panel, for development and for
-  free-model rows where a full run is not worth the wall-clock. Published
-  only with the `smoke` flag and no reference contrast.
-- **Repeat-noise probe:** within-seed repeat SD is not measured per row. It is
-  measured once per harness on one cheap model (5 seeds × 3), published in
-  the calibration doc, and used as the assumed noise for that harness's rows,
-  the same way 1.0 assumed 15.
+- **Smoke row:** any row that is not panel grade (fewer than 32 seeds,
+  public seeds, or same-user isolation). The plan was 8 seeds × 1 from the
+  private panel; in practice every committed smoke row runs on public seeds
+  (kept in the artifact with `--public-seeds`), none on private ones: the
+  OpenCode row is 8 seeds × 5 seasons, the first paid-harness smokes 1 × 5,
+  and the repeat-noise probes 4 × 5. Committed with the `smoke` flag and no
+  reference contrast, and not shown on the site.
+- **Repeat-noise probe:** within-seed repeat SD is not measured per row. The
+  plan was 5 seeds × 3 per harness in the calibration doc. What ran is
+  recorded below, in this file: two 8-seed runs on the free OpenCode model,
+  and 4 seeds × 2 runs on each paid harness (Codex, Claude Code). Those
+  figures are the assumed repeat noise for each harness's rows, the same
+  way 1.0 assumed 15. The realized noise of the panels themselves is in
+  "Realized panel noise" below.
 - The only supported inference remains the predeclared reference contrast
   against `pick-trader` on the same seeds. No ranking or tiering.
 
@@ -319,8 +367,11 @@ The driver, per episode:
 1. Creates the scratch directory and writes an `opencode.json` declaring the
    GM-Bench server as a local MCP server with `codemode` off.
 2. Starts `opencode run --format json --pure --dir <scratch> --model <m>` with
-   the task brief as the message and, where the model supports it, the lowest
-   reasoning variant.
+   the task brief as the message. The design called for the lowest
+   reasoning variant; the driver instead passes `--variant` only when the
+   operator gives one, and every committed row, on every harness, ran
+   without it, at the harness's default reasoning effort
+   (`harness.variant` is `null` in each artifact).
 3. Parses the newline-delimited JSON events for turns, tool calls, tokens,
    cost, and compaction, and joins them to the server ledger by timestamp.
 4. Records the OpenCode version, the resolved model string, and the full
@@ -536,6 +587,27 @@ Claude averaged 14.7 min and $5.03 per episode at API prices; Claude Code
 reports no quota windows, so the driver cannot pause ahead of a limit
 there.
 
+### Realized panel noise (2026-09-27, the three panel rows)
+
+The panel was sized on the calibration panel's paired-residual SD of 40.1,
+which gave an expected MDD of 24 to 33 points. The panels themselves were
+noisier. The SD of the per-seed lift against `pick-trader` (each row's
+`reference.paired_lift_stddev`) and the MDD it implies for that contrast at
+80% power and two-sided alpha 0.05, one episode per seed on 32 seeds
+((1.96 + 0.84) × SD / √32):
+
+| row | paired-lift SD | realized MDD |
+|---|---|---|
+| Codex 0.156.1 · `gpt-6-luna` | 62.5 | about 31 |
+| Claude Code 2.1.281 · `claude-sonnet-5` | 73.4 | about 36 |
+| Claude Code 2.1.281 · `claude-haiku-4-5` | 40.7 | about 20 |
+
+For the two rows near `pick-trader`, the panel cannot resolve a difference
+from it smaller than about 31 to 36 points. Both have a mean lift of −21.8
+with a 95% interval that crosses zero. That is "cannot tell", not "on par
+with `pick-trader`" and not "below it". The Haiku lift (−119.1) is far
+outside that range, so its result does not depend on the sizing.
+
 ## Publication
 
 - **Raw evidence stays with the operator.** A run directory holds seeds,
@@ -589,6 +661,45 @@ there.
 - **Site section** lands with the first panel-grade row; smoke rows are
   committed for reproducibility, not shown.
 
+## How 2.0 differs from 1.0 beyond the interface
+
+2.0 runs the same simulator and scoring as 1.0, but moving from one prompt
+per phase to a tool session changes more than the interface. A future
+1.0-versus-2.0 pairing on one model measures all of the following together,
+not agency alone:
+
+- **Action budget.** A paid 1.0 agent gets one model call per phase
+  (`runner._interaction_rounds_for_agent`), and the simulator applies at
+  most 24 actions from it (`League.apply_actions`, `actions[:24]`). A 2.0
+  agent may make any number of tool calls per phase and sees each result
+  before the next call.
+- **Malformed calls.** In 2.0 a tool call that fails the input schema
+  (a missing required argument, a wrong type, an unexpected argument) is
+  rejected by the engine before it reaches the simulator and is not
+  penalized (`episode._execute`, `tools.validate_arguments`). In 1.0 the
+  same mistake reaches the simulator and is a protocol violation: a
+  `sign_free_agent` without `salary` becomes salary 0 and is penalized as
+  "salary must be a positive amount". The schema does not cover every
+  simulator rule: `years` has a minimum of 1 but no maximum, so `years: 6`
+  passes the schema and is penalized by the simulator in both versions,
+  while `years: 0` is an unpenalized schema rejection in 2.0 and a penalty
+  in 1.0.
+- **Draft class visibility.** 1.0's compact observation carries a draft
+  class summary (the count and the top 8 prospect ids by overall) in every
+  phase. In 2.0 `list_draft_class` answers only in the draft phase, and
+  `get_status` gives only the count. `scout` accepts a prospect id in any
+  phase, so a 2.0 agent can scout a guessed prospect id before the draft;
+  the audit reports that as a `guessed_read`, a warning.
+- **`inspect_player` on prospects.** The tool description says it works on
+  "any team, free agent, or prospect", but the simulator looks the id up
+  among signed players only, so a prospect id returns "unknown player id"
+  (not penalized). 1.0 has the same lookup, but its prompt does not promise
+  prospects.
+
+These are contract behaviours, so they stay as they are in 2.0. The ones
+that are defects are queued for the next contract version in
+`docs/bench_v2_1_queue.md`.
+
 ## Not in 2.0
 
 - Simulator mechanics (2.1).
@@ -596,3 +707,29 @@ there.
 - A `full` observation tier.
 - Cross-harness comparison claims. Two harnesses on one model are two rows;
   the site may show them side by side, and no p-value is attached.
+
+## Changes after the freeze
+
+The fingerprint has not moved since the freeze (`07de948a4f4afbae`). These
+changes were made under the rule at the top of this file. Each is also in
+`CHANGELOG.md`.
+
+| date | change | kind | rows affected |
+|---|---|---|---|
+| 2026-09-25 | Repeat-noise measurement from the two `space-bunny-free` runs (#150) | measurement | none |
+| 2026-09-25 | OpenCode's startup server error retried as a provider stall; `final_exit_code` recorded (#152) | driver | runs after it; the OpenCode smoke row predates it |
+| 2026-09-25 | Driver provenance: every run records its driver digest and commit; panel grade needs a clean one (#151) | driver, publication | every row after it |
+| 2026-09-25 | Repeat-noise probe on the paid harnesses, 4 seeds × 2 (#155) | measurement | none |
+| 2026-09-27 | Claude Code calls to a nonexistent tool name no longer counted as GM-Bench calls (#159); a recount that resolves a recorded mismatch is published as a warning (#160) | driver, validation | `claude-sonnet-5` panel (episode 27 published as the recount, 165/165, with the recorded 165/166 beside it); `claude-haiku-4-5` panel played on the fixed parser |
+| 2026-09-27 | Claude Haiku 4.5 cache read and write prices added to `gm_bench/pricing.json` (#162) | pricing | `claude-haiku-4-5` panel's API-equivalent cost estimate |
+| 2026-09-27 | Harness container and home volume removed when the driver is killed or interrupted (#158) | driver | none; every panel ran before it |
+| 2026-09-27 | Guessed draft picks are warnings, not violations (#163) | audit, post-hoc | admits the `claude-haiku-4-5` panel row |
+| 2026-09-28 | This file: freeze rule restated, stale plans marked, realized noise and the 1.0 differences added | documentation | none |
+
+The three panel rows ran on two driver commits: Codex and `claude-sonnet-5`
+at `4d742cc` (driver digest `8a29130cb6635a4b`), `claude-haiku-4-5` at
+`21b71dc` (digest `6f1061d73d9cf5d6`). The only driver file that differs
+between them is `claude.py`, and the difference is the tool-call counting
+fix in #159. It changes how Claude Code's own tool events are counted for
+the ledger-versus-harness check, not what the agent sees or how an episode
+is scored.

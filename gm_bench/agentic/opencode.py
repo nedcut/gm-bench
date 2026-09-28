@@ -82,11 +82,25 @@ DEFAULT_MAX_NUDGES = 20
 # counting the relaunch as a nudge: exponential backoff from 60 s, doubling,
 # capped at 600 s, at most 48 retries and 6 hours of waiting per episode, so a
 # run can wait out a provider's quota window (the wait is off the phase guard
-# clock). Past either budget a stall is treated like any other harness exit.
+# clock). Past either budget the episode is marked ``ended_by_provider`` and the panel stops.
 PROVIDER_STALL_BACKOFF_START_SECONDS = 60.0
 PROVIDER_STALL_BACKOFF_CAP_SECONDS = 600.0
 DEFAULT_MAX_PROVIDER_STALLS = 48
 DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS = 6 * 3600.0
+# Stall backoff and in-episode quota pauses each have their own budget above;
+# this caps the two together, so one episode never waits more than 6 hours in
+# all (without it a stall budget and a quota budget could add up to 12).
+DEFAULT_MAX_PROVIDER_WAIT_SECONDS = 6 * 3600.0
+# What a stall retry or a quota resume sends into the session. It is not the
+# brief's nudge (``brief.nudge_message``): the agent did not stop, the provider
+# failed, so it is told so, and no reminder number is spent. Recorded in each
+# episode's ``harness_run.provider_resume_message``.
+PROVIDER_RESUME_MESSAGE = (
+    "The previous run ended on a provider error (a rate limit, an outage, or a spent usage window), not on "
+    "anything you did. You are in season {season} of {seasons}, phase {phase}, and this phase is still open. "
+    "Continue from here: call `get_status`, finish this phase, and keep calling `end_phase` until it reports "
+    "that the episode is complete."
+)
 # Before the next episode, a subscription window at or above this share used
 # (percent, as the harness reports it in ``harness_run.quota_windows``) pauses
 # the panel until the window resets, plus QUOTA_RESET_MARGIN_SECONDS.
@@ -501,7 +515,9 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
     carries a transient HTTP status (``RETRYABLE_STATUS_CODES``), or whose
     message reads as a rate limit, an overload, or "try again later". Any
     other ending, including a non-retryable error such as a 401, is the
-    agent (or the harness) stopping.
+    agent (or the harness) stopping. A spent free allowance
+    (``FreeUsageLimitError``) is quota exhaustion (:func:`quota_exhaustion`),
+    never a stall, although OpenCode marks it retryable.
 
     OpenCode's own server failing at startup is a stall too: an
     ``UnknownError`` reading "Unexpected server error" that ends an
@@ -515,7 +531,7 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
     retried is capped separately (``MAX_STARTUP_SERVER_ERROR_RETRIES``).
     """
     ending = _final_error(lines)
-    if ending is None:
+    if ending is None or quota_exhaustion(lines) is not None:
         return False
     error, data, before = ending
     if _startup_server_error(error, data, before):
@@ -530,6 +546,46 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
         if isinstance(message, str) and _RETRYABLE_MESSAGE_RE.search(message):
             return True
     return False
+
+
+# The body OpenCode's own gateway (opencode.ai/zen) returns when a free model's
+# usage allowance is spent. It comes as a 429 marked ``isRetryable``, but it is
+# a spent allowance, not a transient stall: in the 2026-09-26 ``muse-spark``
+# panel it was followed by hours of silent retries.
+_FREE_USAGE_LIMIT_RE = re.compile(r"FreeUsageLimitError")
+
+
+def quota_exhaustion(lines: list[str], *, now: float | None = None) -> dict[str, Any] | None:
+    """``{"message_class": "free_usage_limit", "reset_at_utc": ...}`` when the invocation ended on a spent free allowance.
+
+    The last event must be an ``error`` whose response body names
+    ``FreeUsageLimitError``. The reset is read from a ``retry-after`` header
+    in seconds when there is one; otherwise it is unknown (``None``), and the
+    shared loop then stops the episode and the panel.
+    """
+    ending = _final_error(lines)
+    if ending is None:
+        return None
+    error, data, _before = ending
+    body = " ".join(str(source.get("responseBody") or "") for source in (data, error))
+    if not _FREE_USAGE_LIMIT_RE.search(body):
+        return None
+    reset = None
+    headers = data.get("responseHeaders") if isinstance(data.get("responseHeaders"), dict) else {}
+    retry_after = {str(key).lower(): value for key, value in headers.items()}.get("retry-after")
+    try:
+        seconds = float(retry_after) if retry_after is not None else None
+    except (TypeError, ValueError):
+        seconds = None
+    if seconds is not None and seconds > 0:
+        base = now if now is not None else time.time()
+        reset = _dt.datetime.fromtimestamp(base + seconds, _dt.timezone.utc).replace(microsecond=0).isoformat()
+    return {"message_class": "free_usage_limit", "reset_at_utc": reset}
+
+
+def provider_resume_message(season: int, phase: str, seasons: int) -> str:
+    """The text a stall retry or a quota resume sends: :data:`PROVIDER_RESUME_MESSAGE` filled in."""
+    return PROVIDER_RESUME_MESSAGE.format(season=season, phase=phase, seasons=seasons)
 
 
 def ended_in_startup_server_error(lines: list[str]) -> bool:
@@ -686,6 +742,7 @@ def run_episode(
     docker: str = "docker",
     max_provider_stalls: int = DEFAULT_MAX_PROVIDER_STALLS,
     max_provider_stall_wait_seconds: float = DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
+    max_provider_wait_seconds: float = DEFAULT_MAX_PROVIDER_WAIT_SECONDS,
     silent_harness_seconds: float = SILENT_HARNESS_SECONDS,
     stall_backoff: Callable[[int], float] = provider_stall_backoff,
     sleep: Callable[[float], None] = time.sleep,
@@ -806,12 +863,27 @@ def run_episode(
         ended_by_quota: dict[str, Any] | None = None
 
         def can_retry_stall() -> bool:
+            backoff = stall_backoff(consecutive_stalls)
             return (
                 last_stalled
                 and stall_retries < max_provider_stalls
-                and stall_wait + stall_backoff(consecutive_stalls) <= max_provider_stall_wait_seconds
+                and stall_wait + backoff <= max_provider_stall_wait_seconds
+                # Stall backoff and quota pauses together.
+                and stall_wait + quota_wait + backoff <= max_provider_wait_seconds
                 and startup_errors <= MAX_STARTUP_SERVER_ERROR_RETRIES
             )
+
+        def stall_budget_spent() -> str:
+            """Why a stall can no longer be retried (for ``ended_by_provider``)."""
+            if startup_errors > MAX_STARTUP_SERVER_ERROR_RETRIES:
+                return "startup_server_error_limit"
+            if stall_retries >= max_provider_stalls:
+                return "stall_retry_limit"
+            if stall_wait + stall_backoff(consecutive_stalls) > max_provider_stall_wait_seconds:
+                return "stall_wait_budget"
+            if stall_wait + quota_wait + stall_backoff(consecutive_stalls) > max_provider_wait_seconds:
+                return "provider_wait_budget"
+            return "no_session_to_resume"
 
         # The nudge loop. A harness ends a run whenever the model answers with
         # text and no tool call; weak models do that mid-phase. Resume the same
@@ -829,7 +901,13 @@ def run_episode(
             quota_resume = False
             if pending_quota is not None:
                 pause = _quota_exhaustion_pause(
-                    pending_quota, clock(), max_provider_stall_wait_seconds - quota_wait, state
+                    pending_quota,
+                    clock(),
+                    min(
+                        max_provider_stall_wait_seconds - quota_wait,
+                        max_provider_wait_seconds - quota_wait - stall_wait,
+                    ),
+                    state,
                 )
                 if pause is None:
                     ended_by_quota = {
@@ -888,14 +966,12 @@ def run_episode(
                 stall_wait += backoff
             elif not quota_resume:
                 productive_nudges += 1
-            # A stall retry or a quota resume shows the next reminder's number without using it up.
-            text = nudge_message(
-                state["season"],
-                state["phase"],
-                seasons,
-                min(productive_nudges + int(retry or quota_resume), max_nudges),
-                max_nudges,
-            )
+            # The provider failed, not the agent: a stall retry or a quota resume says so and
+            # spends no reminder; only a real nudge sends the brief's numbered reminder.
+            if retry or quota_resume:
+                text = provider_resume_message(state["season"], state["phase"], seasons)
+            else:
+                text = nudge_message(state["season"], state["phase"], seasons, productive_nudges, max_nudges)
             if progress is not None:
                 progress(
                     {
@@ -987,6 +1063,22 @@ def run_episode(
             timed_out = timed_out or nudge_timed_out
             if progress_calls == 0 and not can_retry_stall() and pending_quota is None:
                 break
+        # The provider, not the agent, ended the episode: the last invocation was a provider
+        # stall that could not be retried. The phases still open are closed below as when
+        # the harness exits, but the episode is marked, the panel stops, and publication
+        # refuses the run: those phases were never played.
+        ended_by_provider: dict[str, Any] | None = None
+        final_state = _engine_state(episode)
+        if not final_state["done"] and last_stalled and ended_by_quota is None and not timed_out:
+            ended_by_provider = {
+                "reason": stall_budget_spent(),
+                "season": final_state["season"],
+                "phase": final_state["phase"],
+                "provider_stalls": provider_stalls,
+                "provider_stall_wait_seconds": round(stall_wait, 3),
+            }
+            if progress is not None:
+                progress({"seed": seed, "stage": "provider_ended", **ended_by_provider})
     finally:
         server_drained = launch.close(keep_scratch=keep_scratch)
 
@@ -1032,6 +1124,13 @@ def run_episode(
         # stopped early if the window's reset was beyond the wait budget.
         "quota_pauses": quota_pauses,
         "ended_by_quota": ended_by_quota,
+        # Set when the last invocation was a provider stall past its budget: the phases
+        # left open were not played, so the run cannot be published (see ``validate``).
+        "ended_by_provider": ended_by_provider,
+        # Stall backoff and quota pauses together are capped at this per episode.
+        "max_provider_wait_seconds": max_provider_wait_seconds,
+        # The text a stall retry or a quota resume sent (not a nudge; no reminder spent).
+        "provider_resume_message": PROVIDER_RESUME_MESSAGE,
         # False when a proxy thread was still inside the engine after the
         # stop timeout; the dispatch lock above still ordered the finalize.
         "server_drained": server_drained,
@@ -1307,6 +1406,7 @@ def run_panel(
     max_nudges: int = DEFAULT_MAX_NUDGES,
     max_provider_stalls: int = DEFAULT_MAX_PROVIDER_STALLS,
     max_provider_stall_wait_seconds: float = DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
+    max_provider_wait_seconds: float = DEFAULT_MAX_PROVIDER_WAIT_SECONDS,
     silent_harness_seconds: float = SILENT_HARNESS_SECONDS,
     progress: ProgressCallback | None = None,
     keep_scratch: bool = False,
@@ -1351,7 +1451,10 @@ def run_panel(
     there too, with their ``episode`` position. An episode that stopped because
     its window's reset was beyond the wait budget (``harness_run.ended_by_quota``)
     stops the panel: no later seed starts, and ``run.json`` records
-    ``stopped_for_quota`` with the reset time.
+    ``stopped_for_quota`` with the reset time. So does an episode the provider
+    ended (``harness_run.ended_by_provider``: its last invocation was a
+    provider stall past the stall or wait budget), recorded as
+    ``stopped_for_provider``; such a run is not publishable.
 
     ``prompt_check`` (on from the CLI) first proves what the harness would send
     the model (:meth:`HarnessDriver.check_prompt`, ``prompt_check.py``), records
@@ -1389,6 +1492,7 @@ def run_panel(
     width = max(2, len(str(len(seeds) - 1)))
     quota_pauses: list[dict[str, Any]] = []
     stopped_for_quota: dict[str, Any] | None = None
+    stopped_for_provider: dict[str, Any] | None = None
     for position, seed in enumerate(seeds):
         if episodes:
             pause = _quota_pause(
@@ -1415,6 +1519,7 @@ def run_panel(
                 max_nudges=max_nudges,
                 max_provider_stalls=max_provider_stalls,
                 max_provider_stall_wait_seconds=max_provider_stall_wait_seconds,
+                max_provider_wait_seconds=max_provider_wait_seconds,
                 silent_harness_seconds=silent_harness_seconds,
                 progress=progress,
                 keep_scratch=keep_scratch,
@@ -1438,6 +1543,16 @@ def run_panel(
             if progress is not None:
                 progress({"stage": "panel_stopped_for_quota", **stopped_for_quota})
             break
+        if run.get("ended_by_provider"):
+            # A provider that stayed down past the stall budget would fail the next seed too.
+            stopped_for_provider = {
+                "after_episode": position,
+                "episodes_not_run": len(seeds) - position - 1,
+                "reason": run["ended_by_provider"]["reason"],
+            }
+            if progress is not None:
+                progress({"stage": "panel_stopped_for_provider", **stopped_for_provider})
+            break
     driver_record["changed_during_run"] = driver_digest() != driver_record["driver_digest"]
     harness: dict[str, Any] = {"name": driver.name, "version": version, "model": model, "variant": variant}
     if image is not None:
@@ -1459,6 +1574,7 @@ def run_panel(
         "max_nudges": max_nudges,
         "max_provider_stalls": max_provider_stalls,
         "max_provider_stall_wait_seconds": max_provider_stall_wait_seconds,
+        "max_provider_wait_seconds": max_provider_wait_seconds,
         "silent_harness_seconds": silent_harness_seconds,
         "episodes": episodes,
         "summary": summarize_episodes(episodes),
@@ -1470,6 +1586,9 @@ def run_panel(
     if stopped_for_quota is not None:
         # The panel is incomplete: ``seeds`` lists every seed, ``episodes`` only those played.
         payload["stopped_for_quota"] = stopped_for_quota
+    if stopped_for_provider is not None:
+        # Incomplete too, and its last episode was ended by the provider: not publishable.
+        payload["stopped_for_provider"] = stopped_for_provider
     (run_dir / "run.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return payload
 
@@ -1554,10 +1673,15 @@ def _api_equivalent_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     if not any("api_equivalent_cost_usd" in block for block in harness):
         return {}
     values = [block["api_equivalent_cost_usd"] for block in harness if block.get("api_equivalent_cost_usd") is not None]
+    flags = [block.get("long_context_requests_possible") for block in harness if "api_equivalent_cost_usd" in block]
     return {
         "api_equivalent_cost_usd": round(sum(values), 6) if values else None,
         "api_equivalent_cost_episodes": len(values),
-        "api_equivalent_long_context_possible": any(block.get("long_context_requests_possible") for block in harness),
+        # True if any episode may have crossed the tier; None (unknown) if any episode
+        # could not tell (no threshold in its price entry) and none did; False otherwise.
+        "api_equivalent_long_context_possible": True
+        if any(flags)
+        else (None if any(flag is None for flag in flags) else False),
     }
 
 
@@ -1681,6 +1805,9 @@ class OpenCodeDriver(HarnessDriver):
 
     def ended_in_provider_stall(self, lines: list[str]) -> bool:
         return ended_in_provider_stall(lines)
+
+    def quota_exhausted(self, lines: list[str], *, isolation: str, now: float) -> dict[str, Any] | None:
+        return quota_exhaustion(lines, now=now)
 
     def usage_block(self, telemetry: dict[str, Any], *, model: str, decisions: int) -> dict[str, Any]:
         return usage_block(telemetry, model=model, decisions=decisions)

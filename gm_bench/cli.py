@@ -339,6 +339,7 @@ def main(argv: list[str] | None = None) -> None:
     from gm_bench.agentic.opencode import (
         DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
         DEFAULT_MAX_PROVIDER_STALLS,
+        DEFAULT_MAX_PROVIDER_WAIT_SECONDS,
         SILENT_HARNESS_SECONDS,
     )
 
@@ -353,6 +354,12 @@ def main(argv: list[str] | None = None) -> None:
         type=float,
         default=DEFAULT_MAX_PROVIDER_STALL_WAIT_SECONDS,
         help="total backoff per episode spent waiting out provider errors (60 s doubling, capped at 600 s)",
+    )
+    agentic_parser.add_argument(
+        "--max-provider-wait-seconds",
+        type=float,
+        default=DEFAULT_MAX_PROVIDER_WAIT_SECONDS,
+        help="cap per episode on provider-stall backoff and in-episode quota pauses together",
     )
     agentic_parser.add_argument(
         "--silent-harness-seconds",
@@ -408,6 +415,12 @@ def main(argv: list[str] | None = None) -> None:
         help="the artifact's raw run directory or run.json: also check the SHA-256 binding and a fresh redaction",
     )
     agentic_validate_parser.add_argument("--json", action="store_true")
+    agentic_validate_parser.add_argument(
+        "--show-seeds",
+        action="store_true",
+        help="name a run directory's episodes by seed in the report; by default seeds are redacted, since a "
+        "private-panel run's seeds must never reach a terminal or a log",
+    )
 
     agentic_redact_parser = subparsers.add_parser(
         "agentic-redact", help="write the compact, committable artifact for an agentic run"
@@ -1322,6 +1335,7 @@ def _agentic_command(args: argparse.Namespace) -> None:
                 max_nudges=args.max_nudges,
                 max_provider_stalls=args.max_provider_stalls,
                 max_provider_stall_wait_seconds=args.max_provider_stall_wait_seconds,
+                max_provider_wait_seconds=args.max_provider_wait_seconds,
                 silent_harness_seconds=args.silent_harness_seconds,
                 progress=_progress,
                 keep_scratch=args.keep_scratch,
@@ -1365,7 +1379,7 @@ def _read_stdin_seeds(text: str) -> list[int]:
 
 def _agentic_validate_command(args: argparse.Namespace) -> None:
     from gm_bench.agentic.publication import is_agentic_artifact, validate_agentic_artifact
-    from gm_bench.agentic.validate import validate_run
+    from gm_bench.agentic.validate import redact_seeds, validate_run
 
     target = Path(args.run)
     payload = json.loads(target.read_text(encoding="utf-8")) if target.is_file() else {}
@@ -1374,6 +1388,8 @@ def _agentic_validate_command(args: argparse.Namespace) -> None:
         problems, label = report["errors"], f"{report['agent']} ({report['grade']} artifact)"
     else:
         report = validate_run(target)
+        if not args.show_seeds:
+            report = redact_seeds(report)
         problems, label = report["problems"], f"{report['agent']}: {report['episodes']} episode(s)"
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))

@@ -16,6 +16,11 @@ header does, as does each finished episode's ``result.json``), which is why a
 panel-grade row also needs the harness isolated from the driver: pass
 ``--isolation container`` (with ``--codex-auth-file`` or
 ``--claude-token-file`` for those harnesses), which the driver provides.
+The launcher refuses any other isolation: a same-user harness is a process
+of the operator's user, so the agent's shell can read those files and the
+private seeds with them. Only ``--i-understand-same-user-leaks-private-seeds``
+lets a same-user run start, for a deliberate test of that leak; its row
+could never be panel grade anyway.
 
 Episodes run serially: the driver has no parallel mode, on purpose.
 
@@ -62,6 +67,9 @@ KEYCHAIN_ACCOUNT = "nedcutler"
 KEYCHAIN_ESCROW_PREFIX = "macos-keychain:"
 PANEL_SEASONS = 5
 _REFUSED_PASSTHROUGH = ("--seeds", "--seeds-stdin", "--json")
+# The only isolation that keeps the agent off the run directory (and so off the seeds).
+PANEL_ISOLATION = "container"
+SAME_USER_OVERRIDE = "--i-understand-same-user-leaks-private-seeds"
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -171,11 +179,26 @@ def require_committed_driver() -> None:
         )
 
 
+def passthrough_isolation(passthrough: list[str]) -> str | None:
+    """The ``--isolation`` the passthrough gives ``gm-bench agentic`` (as its parser reads it), or ``None``."""
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--isolation")
+    known, _ = parser.parse_known_args(passthrough)
+    return known.isolation
+
+
 def agentic_argv(args: argparse.Namespace, passthrough: list[str]) -> list[str]:
     """The in-process ``gm-bench`` argument list. Seeds are not part of it."""
     for arg in passthrough:
         if arg.split("=", 1)[0] in _REFUSED_PASSTHROUGH:
             raise ValueError(f"{arg} is not allowed here: the launcher owns the seed input and output format")
+    isolation = passthrough_isolation(passthrough)
+    if isolation != PANEL_ISOLATION and not getattr(args, "allow_same_user", False):
+        raise ValueError(
+            f"--isolation {isolation or 'same-user (the default)'} would run the harness as your user, whose shell "
+            f"can read the run directory and so the private seeds (and, same-user, `ps` shows the driver); pass "
+            f"--isolation {PANEL_ISOLATION}. To run same-user anyway, knowingly, pass {SAME_USER_OVERRIDE}"
+        )
     return [
         "agentic",
         "--seeds-stdin",
@@ -198,6 +221,12 @@ def main(argv: list[str] | None = None) -> int:
         "--verify-only",
         action="store_true",
         help="check the escrow against the committed digests and print only the result",
+    )
+    parser.add_argument(
+        SAME_USER_OVERRIDE,
+        dest="allow_same_user",
+        action="store_true",
+        help="allow a run without --isolation container; the harness can then read the private seeds",
     )
     args, passthrough = parser.parse_known_args(argv)
     if PRIVATE_SEEDS_ENV in os.environ:

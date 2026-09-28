@@ -7,11 +7,12 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-09-22
+**Last reviewed:** 2026-09-28
 **Current target:** `sota-v5` is published: tag, GitHub release, reproduction
 guide, site, and findings post all shipped on 2026-09-04. What remains in this
 document is external reproduction and the open presentation items in Phases 3
-through 7. GM-Bench 2.0 is specified separately in `docs/bench_v2_spec.md`.
+through 7. GM-Bench 2.0 is specified separately in `docs/bench_v2_spec.md`; its
+release checklist is below, before "Current weekly focus".
 **Current state:** Publication of `sota-v5` was authorized on 2026-09-03 and
 published on 2026-09-04. The release archive is verified (SHA-256
 `7fa7ae546132e96c87546683bbe4de4d88c2715c40b439ee48332d166829eef2`). The panel
@@ -85,6 +86,41 @@ owner actions still open on 2026-09-03 are done (rechecked 2026-09-22):
 - [x] Published the v5 findings post in place: `docs/blog/sota-v5-findings.md`
   landed with #132 on 2026-09-04 and is linked from the top of `README.md` and
   from the site footer.
+
+**GM-Bench 2.0 release checklist (last reviewed 2026-09-28).** The contract
+is frozen and three panel rows are on the site; the release is not tagged.
+
+- [x] Contract frozen as `gm-bench-2.0` at agentic fingerprint
+  `07de948a4f4afbae` on 2026-09-25 (#149), with all five pre-panel gates in
+  `docs/bench_v2_spec.md` met, including the container red-team probes.
+- [x] 32-seed private panel drawn, escrowed and committed by digest in
+  `config/bench_v2_lane.json`; owner attestation recorded 2026-09-23.
+- [x] Smoke rows (#154) and the paid-harness repeat-noise probe, 4 seeds × 2
+  runs on Codex and Claude Code (#155), committed on public seeds.
+- [x] Panel rows committed and shown on the site, all `unpinned`: Codex
+  `gpt-6-luna` (#156), Claude Code `claude-sonnet-5` (#161), Claude Code
+  `claude-haiku-4-5` (#164, admitted under the post-hoc guessed-draft-pick
+  rule from #163).
+- [x] Pre-release documentation audit: freeze rule restated, post-freeze
+  changes listed with the rows they affected, realized panel noise (MDD
+  about 31 to 36 points against `pick-trader`), how 2.0 differs from 1.0
+  beyond the interface, deferred contract changes in
+  `docs/bench_v2_1_queue.md`, and per-row caveats on the site.
+- [ ] Driver and publication fixes from the same audit merged (separate PR),
+  and any row they re-publish recorded in `CHANGELOG.md`.
+- [ ] Owner decision on pinning: `model_pinning.pinned_models` is empty, so
+  every row is "an extra data point, not a headline" until a served model
+  version is pinned.
+- [ ] A 2.0 reproduction guide in the style of
+  `docs/REPRODUCING_SOTA_V5_RELEASE.md` (validate committed rows without
+  credentials).
+- [ ] Findings post finalized from the draft
+  `docs/blog/gm-bench-2.0-findings.md`.
+- [ ] Owner cuts the tag and GitHub release and moves the CHANGELOG entry
+  out of "Unreleased".
+- Not part of this release: the Cursor harness (#165), the harness prompt
+  check (#166) and Codex login write-back (#167) are open PRs; rows from
+  them would be new rows, not changes to these three.
 
 **Current weekly focus:** External reproduction and the open presentation
 items in Phases 3 through 7.

@@ -42,6 +42,8 @@ DUMMY_KEY = "sk-dummy-not-a-real-key-0000"
 # sandbox is workspace-write and the server's tools are not approved;
 # ``shell_proxy`` then drives the proxy from a shell command instead, as a
 # model could. ``cat_auth`` prints CODEX_HOME/auth.json from a shell command.
+# ``rotate_auth`` renews a ChatGPT login as Codex does: a new refresh token in
+# CODEX_HOME/auth.json (the old one appended with "-r"); the log records the one it found.
 FAKE_CODEX = r"""
 import json, os, subprocess, sys, tomllib, uuid
 from pathlib import Path
@@ -87,6 +89,12 @@ else:
 emit({"type": "thread.started", "thread_id": thread})
 emit({"type": "turn.started"})
 item = 0
+if step.get("rotate_auth"):
+    auth = json.loads((home / "auth.json").read_text())
+    with open(plan["log"], "a") as log:
+        log.write(json.dumps({"refresh_token_found": auth["tokens"]["refresh_token"]}) + "\n")
+    auth["tokens"]["refresh_token"] += "-r"
+    (home / "auth.json").write_text(json.dumps(auth))
 if step.get("cat_auth"):
     auth = home / "auth.json"
     text = auth.read_text() if auth.exists() else "CODEX_API_KEY=" + os.environ.get("CODEX_API_KEY", "")
@@ -180,6 +188,17 @@ def _auth_file(tmp_path: Path) -> Path:
     return path
 
 
+CHATGPT_REFRESH = "rt-dummy-not-a-real-refresh-token"
+
+
+def _chatgpt_auth_file(tmp_path: Path) -> Path:
+    path = tmp_path / "operator-chatgpt-auth.json"
+    tokens = {"access_token": "at-dummy-not-a-real-access-token", "refresh_token": CHATGPT_REFRESH}
+    path.write_text(json.dumps({"auth_mode": "chatgpt", "tokens": tokens}))
+    path.chmod(0o600)
+    return path
+
+
 def _calls(log: Path) -> list[dict]:
     return [json.loads(line) for line in log.read_text().splitlines()]
 
@@ -250,6 +269,7 @@ def test_codex_panel_plays_through_the_staged_proxy_nudges_by_resume_and_validat
     assert usage["cost_usd"] is None and usage["harness"]["tool_calls_skipped"] == {}
     assert payload["agentic_summary"]["compactions"] is None
     assert harness_run["auth"] == "auth-file" and harness_run["session_resume"] == "codex exec resume"
+    assert harness_run["auth_file_update"] == "unchanged"
     assert tomllib.loads(harness_run["harness_config"])["mcp_servers"]["gm-bench"]["args"][0] == "gm_bench_proxy.py"
     assert DUMMY_KEY not in json.dumps(payload)
 
@@ -606,6 +626,46 @@ def test_a_codex_credential_the_agent_prints_is_redacted_from_the_run_directory(
     # The redacted stream still parses and still agrees with the ledger.
     assert payload["episodes"][0]["harness_run"]["tool_call_agreement"]["agree"] is True
     assert validate_run(run_dir)["ok"]
+
+
+def test_a_login_codex_renews_is_written_back_so_the_next_episode_and_the_operator_keep_a_working_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    binary, log = _fake_codex(tmp_path, [{"phases": 4, "rotate_auth": True, "cat_auth": True}], monkeypatch)
+    auth_file = _chatgpt_auth_file(tmp_path)
+    run_dir = tmp_path / "run"
+    payload = codex.run_panel(
+        [11, 12], model="gpt-fake", run_dir=run_dir, seasons=1, binary=str(binary), auth_file=auth_file
+    )
+    # Each episode started from the login the one before it left, not the used-up original.
+    found = [call["refresh_token_found"] for call in _calls(log) if "refresh_token_found" in call]
+    assert found == [CHATGPT_REFRESH, CHATGPT_REFRESH + "-r"]
+    assert json.loads(auth_file.read_text())["tokens"]["refresh_token"] == CHATGPT_REFRESH + "-r-r"
+    assert auth_file.stat().st_mode & 0o777 == 0o600
+    assert sorted(p.name for p in tmp_path.glob("*auth*")) == [auth_file.name]
+    assert [episode["harness_run"]["auth_file_update"] for episode in payload["episodes"]] == ["updated"] * 2
+    # Neither the staged nor the renewed refresh token stays in the run directory.
+    for path in run_dir.rglob("*"):
+        if path.is_file():
+            assert CHATGPT_REFRESH not in path.read_text()
+
+
+def test_write_back_auth_never_overwrites_a_newer_login_or_writes_a_non_login(tmp_path: Path) -> None:
+    from gm_bench.agentic.codex import write_back_auth
+
+    staged = _chatgpt_auth_file(tmp_path).read_bytes()
+    path = tmp_path / "operator-chatgpt-auth.json"
+    renewed = staged.replace(CHATGPT_REFRESH.encode(), b"rt-renewed-by-codex")
+    assert write_back_auth(path, staged, staged) == "unchanged"
+    assert write_back_auth(path, staged, None) == "not written: the auth.json Codex left could not be read"
+    assert write_back_auth(path, staged, b"{}") == "not written: the auth.json Codex left is not a login"
+    assert path.read_bytes() == staged
+    # The operator logged in again during the episode: that login wins.
+    path.write_bytes(b'{"tokens": {"refresh_token": "newer"}}')
+    assert write_back_auth(path, staged, renewed) == "not written: the auth file changed during the episode"
+    assert path.read_bytes() == b'{"tokens": {"refresh_token": "newer"}}'
+    path.write_bytes(staged)
+    assert write_back_auth(path, staged, renewed) == "updated" and path.read_bytes() == renewed
 
 
 def test_codex_publishes_no_cost_even_for_a_priced_model_and_no_measured_zeroes() -> None:
@@ -1149,6 +1209,9 @@ def _fake_docker(tmp_path: Path) -> tuple[Path, Path, Path]:
         f"    print(json.dumps({report!r}))\n"
         "elif args[-2:] == ['codex', '--version']:\n"
         "    print('codex-cli 0.156.1')\n"
+        "elif args[-3:-1] == ['cat', '--']:\n"
+        f"    left = Path({str(tmp_path / 'volume-auth.json')!r})\n"
+        "    sys.stdout.buffer.write(left.read_bytes()) if left.exists() else sys.exit(1)\n"
     )
     script.chmod(0o755)
     return script, log, stdin_dir
@@ -1245,9 +1308,17 @@ def test_codex_container_launch_puts_the_auth_file_only_in_the_home_volume(tmp_p
         record = driver.run_record(launch)
         assert record["auth"] == "auth-file" and record["sandbox_mode"] == "danger-full-access"
         assert record["codex_home"].startswith("/home/node/.codex")
+        # Codex renewed the login inside the volume.
+        renewed = json.loads(auth.read_text()) | {"OPENAI_API_KEY": "sk-renewed-in-the-volume"}
+        (tmp_path / "volume-auth.json").write_text(json.dumps(renewed))
     finally:
         assert launch.close() is True
+    # Read back from the volume before it was removed, by a container with no network, and written back.
+    assert json.loads(auth.read_text()) == renewed and driver.run_record(launch)["auth_file_update"] == "updated"
     calls = _calls(log)
+    [read] = [call for call in calls if call[-3:-1] == ["cat", "--"]]
+    assert read[-1] == "/home/node/.codex/auth.json" and read[read.index("--network") + 1] == "none"
+    assert calls.index(read) < calls.index([c for c in calls if c[:2] == ["volume", "rm"]][0])
     # The credential and the key never appear on any docker command line or in the run's record.
     assert not any(DUMMY_KEY in arg or str(auth) in arg for call in calls for arg in call)
     assert DUMMY_KEY not in json.dumps(record)
@@ -1305,3 +1376,60 @@ def test_keychain_launcher_passes_the_harness_through() -> None:
     )
     assert argv[-6:] == ["--harness", "codex", "--codex-auth-file", "/secure/auth.json", "--isolation", "container"]
     assert "--seeds" not in argv
+
+
+# -- a login Codex rotated inside a container, and the effort the rollouts record ---
+
+
+def test_container_redacts_a_login_codex_rotated_in_the_home_volume_and_records_its_effort(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    from gm_bench.agentic.container import ContainerHarness
+
+    staged = {"auth_mode": "chatgpt", "tokens": {"refresh_token": "rt-staged-0000000000", "id_token": "id-000000000"}}
+    rotated = {"auth_mode": "chatgpt", "tokens": {"refresh_token": "rt-rotated-111111111", "id_token": "id-111111111"}}
+    auth = tmp_path / "operator-auth.json"
+    auth.write_text(json.dumps(staged))
+    context = {"type": "turn_context", "payload": {"model": "gpt-fake", "effort": "medium", "summary": "auto"}}
+    docker = tmp_path / "docker"
+    docker.write_text(
+        f"#!{sys.executable}\n"
+        "import json, sys\n"
+        "args = sys.argv[1:]\n"
+        "if args[:1] == ['run'] and 'cat' in args:\n"
+        f"    sys.stdout.write({json.dumps(rotated)!r})\n"
+        "elif args[:1] == ['run'] and args[-1] == '\"turn_context\"':\n"
+        f"    print({json.dumps(context)!r})\n"
+    )
+    docker.chmod(0o755)
+    harness = ContainerHarness({"image_id": "sha256:x"}, tmp_path, driver_port=1, docker=str(docker), env={})
+    assert harness.home_file(".codex/auth.json") == json.dumps(rotated).encode()
+    events = tmp_path / "codex-events.jsonl"
+    # The agent printed the rotated login before the episode ended.
+    events.write_text(json.dumps({"type": "item.completed", "item": {"aggregated_output": json.dumps(rotated)}}) + "\n")
+    launch = SimpleNamespace(
+        container=harness, scratch=tmp_path / "scratch", evidence_paths=(events,), isolation="container"
+    )
+    driver = CodexDriver(auth_file=auth)
+    driver.collect(launch)
+    record = driver.run_record(SimpleNamespace(**vars(launch), proxy_target="h:1", proxy_python="python3"))
+    driver.cleanup(launch)
+    text = events.read_text()
+    assert "rt-rotated-111111111" not in text and "id-111111111" not in text and "[REDACTED]" in text
+    assert record["reasoning_effort"] == {"reported": ["medium"], "source": "rollout turn_context.effort"}
+
+
+def test_rollout_efforts_read_turn_context_records_only() -> None:
+    def line(kind: str, payload: dict) -> str:
+        return json.dumps({"timestamp": "2026-09-28T00:00:00Z", "type": kind, "payload": payload})
+
+    lines = [
+        line("turn_context", {"effort": "high", "model": "gpt-x"}),
+        line("turn_context", {"effort": "low"}),
+        line("turn_context", {"effort": None}),
+        line("event_msg", {"type": "token_count", "effort": "xhigh"}),
+        "not json",
+    ]
+    assert codex.rollout_efforts(lines) == ["high", "low"]
+    assert codex.reasoning_effort_record(None) == {"reported": None, "source": "rollout turn_context.effort"}
+    assert codex.reasoning_effort_record([])["reported"] is None

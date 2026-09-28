@@ -6,9 +6,15 @@ operator's view: what a run does, what it writes, and how to read it.
 ## What happens in a run
 
 ```bash
-python -m gm_bench agentic --harness opencode --model opencode/big-pickle \
-  --seeds 11 12 --seasons 5 --output /tmp/agentic-big-pickle
+python -m gm_bench agentic --harness opencode --model opencode/space-bunny-free \
+  --seeds 11 12 --seasons 5 --output /tmp/agentic-space-bunny-dev
 ```
+
+The examples on this page use `opencode/space-bunny-free`, the free
+OpenCode model behind the committed smoke row. Free `opencode/*` models come
+and go and have quotas: `opencode/big-pickle`, used in the early smokes,
+exhausted its free quota before the contract freeze. Run `opencode models`
+to see what is free today, and substitute.
 
 For each seed, serially:
 
@@ -63,13 +69,32 @@ A run that ends on a retryable provider error (the last event is an `error`
 with `isRetryable`, a 408/425/429/500/502/503/504 status, or a rate-limit,
 overload or try-again-later message) is a **provider stall**, not the agent
 stopping: the driver waits 60 s, doubling per consecutive stall up to 600 s,
-then resumes the session with the same reminder. A stall retry does not
-spend a nudge, and a retry that stalls again without a tool call does not end
-the loop. The per-episode limits default to 48 retries and 6 hours of
-waiting (`--max-provider-stalls`, `--max-provider-stall-wait-seconds`,
+then resumes the session. The resume text is not the nudge reminder: it
+tells the agent the provider failed, not the agent, and spends no reminder
+number (`PROVIDER_RESUME_MESSAGE` in `opencode.py`, recorded per episode as
+`harness_run.provider_resume_message`; quota resumes send it too). A stall
+retry does not spend a nudge, and a retry that stalls again without a tool
+call does not end the loop. The per-episode limits default to 48 retries and
+6 hours of waiting (`--max-provider-stalls`, `--max-provider-stall-wait-seconds`,
 recorded in `run.json` and the published row), long enough to wait out a
 free-tier quota window; with the 600 s cap the 6-hour budget binds first, at
-38 retries. Past either limit a stall is handled like any other exit. The wait is not phase-guard time: the driver
+38 retries. Stall backoff and in-episode quota pauses (below) also share one
+cap, `--max-provider-wait-seconds` (default 6 hours, recorded in `run.json`
+and `harness_run.max_provider_wait_seconds`), so one episode never waits 12.
+
+Past a limit the provider, not the agent, has ended the episode. The driver
+still closes the open phases (as `harness_exit`: the engine has no other
+way), but records `harness_run.ended_by_provider` (`reason`:
+`stall_retry_limit`, `stall_wait_budget`, `provider_wait_budget`,
+`startup_server_error_limit` or `no_session_to_resume`; the season and phase;
+the stalls and wait), and `run_panel` starts no further seed, recording
+`stopped_for_provider` in `run.json`. `agentic-validate` reports such an
+episode as a problem and `agentic-redact` refuses the run: those phases were
+never played, so the score is not the model's. Runs recorded before the
+field are read the same way when their last invocation was a provider stall
+and phases were left open: the 2026-09-26 `muse-spark` panel's episodes 15
+(39 stalls, 5 h 55 min of backoff, 16 phases never played, scored 174.8) and
+16 (no tool call at all, scored 64.3) are exactly that. The wait is not phase-guard time: the driver
 takes it off the open phase's clock (`AgenticEpisode.exclude_from_phase_clock`,
 logged in the ledger as a `clock_pause` event that replay and the audit
 ignore, and left out of the phase's recorded `seconds`), so only time a
@@ -93,6 +118,15 @@ spent while it waits. OpenCode gives the same error for persistent faults too
 3 times in a row (`MAX_STARTUP_SERVER_ERROR_RETRIES`, 60 + 120 + 240 s); a
 fourth in a row ends the loop as an exhausted stall budget does, instead of
 backing off for up to the six-hour stall budget.
+
+OpenCode's own gateway (`opencode.ai/zen`) answers a free model whose
+allowance is spent with a 429 marked retryable whose body names
+`FreeUsageLimitError`. That is quota exhaustion, not a stall
+(`opencode.quota_exhaustion`): its reset is read from a `retry-after`
+header when one is sent, and is otherwise unknown, so the episode stops at
+once as `ended_by_quota` (`message_class: "free_usage_limit"`) and the panel
+stops, as for Codex's usage limit below. In the `muse-spark` panel that
+error was followed by hours of silent retries.
 
 `harness_run.exit_code` is the first launch's exit code, and
 `harness_run.final_exit_code` the last invocation's (the first launch's when
@@ -166,7 +200,7 @@ every phase failed, exactly like a 1.0 adapter that never produced output.
 
 ```python
 from gm_bench.agentic.audit import audit_ledger
-audit_ledger("/tmp/agentic-big-pickle/seed-11/ledger.jsonl")
+audit_ledger("/tmp/agentic-space-bunny-dev/seed-11/ledger.jsonl")
 ```
 
 Every tool reply's entity ids are recorded, so the audit can list moves that
@@ -296,7 +330,7 @@ Pass the native binary with `--binary` there.
 ## Validating a run
 
 ```bash
-python -m gm_bench agentic-validate /tmp/agentic-big-pickle
+python -m gm_bench agentic-validate /tmp/agentic-space-bunny-dev
 ```
 
 Exit code 0 means every episode's ledger replays to the recorded score, its
@@ -308,13 +342,34 @@ recorded is checked against that recount, not trusted: a recorded agreement
 the recount contradicts is a problem. A recorded mismatch that the recount
 resolves, because the driver's event parser has since been fixed, is a
 warning, and `agentic-redact` publishes the recount with the recorded figure
-beside it as `recorded`. Failed phases, timeouts, guard stops, and missing
-telemetry are warnings: reported, never hidden, never fatal. A missing event
-stream is a problem.
+beside it as `recorded`. The recount compares each tool, not only the total,
+so two offsetting differences are a problem. Failed phases, timeouts, guard
+stops, and missing telemetry are warnings: reported, never hidden, never
+fatal. A missing event stream is a problem, and so is an episode the
+provider ended (above).
+
+Replay skips one kind of ledger entry: a call whose arguments were not a
+JSON object is rejected live (`invalid arguments: arguments must be an
+object`) but logged with `arguments: {}` (the engine's `_log_call`, a
+contract source), and replaying `{}` could execute it, for example close a
+phase with `end_phase`. Validation counts such an entry and does not
+execute it, with a warning.
+
+`agentic-validate` names episodes by index only and prints `<redacted>`
+for every seed, in text and in `--json`, because a private-panel run's seeds
+must never reach a terminal or a log. `--show-seeds` prints them for a run
+on public seeds.
 
 ## Publishing a row
 
+The committed OpenCode smoke row was produced this way (2026-09-25,
+OpenCode 1.18.31, Docker running): run, redact, then validate the artifact
+alone and against its raw run.
+
 ```bash
+python -m gm_bench agentic --harness opencode --isolation container \
+    --model opencode/space-bunny-free --seeds 1 2 3 4 5 6 7 8 --seasons 5 \
+    --output /tmp/agentic-space-bunny
 python -m gm_bench agentic-redact /tmp/agentic-space-bunny \
     --output results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json \
     --isolation container --public-seeds
@@ -389,7 +444,37 @@ or is wider than its standard deviation allows, and a seed win rate of 0 or
 1 against the sign of the lift. The p-value is not tied to the interval,
 because the exact sign-flip test and the bootstrap interval can disagree.
 `agentic-validate --raw` recomputes the block from the simulator as part of
-the fresh redaction and requires it to be identical.
+the fresh redaction and requires it to be identical. Beyond 20 seeds the
+sign-flip test samples 20,000 flips; when none is as extreme as the observed
+lift the runner reports 0.0, which the test cannot resolve, so the block
+publishes the bound `1 / 20001` (`5e-05`) with
+`sign_flip_p_value_upper_bound: true`, and validation rejects a bare 0.0 on
+such a panel. `paired_lift_stddev`, like the site's score spread, is a
+population standard deviation (divides by n).
+
+Three more things are derived at redaction, all optional so older rows
+still validate:
+
+- `empty_phases`, per episode and for the row (`count` of `phases`): phases
+  whose every ledger call was `get_status` or `end_phase`, so the agent read
+  nothing beyond the status and made no move (`validate.EMPTY_PHASE_DEFINITION`).
+- `effective_reasoning_effort`: the `--variant` the run passed (`requested`,
+  `null` for the harness default) and what the harness itself reported
+  (`reported`). Codex records the effort in its session rollout's
+  `turn_context` records, which the driver now reads before the home goes
+  (`harness_run.reasoning_effort`); runs before that kept none. Claude Code
+  2.1.281's stream carries no effort level, and OpenCode's none either, so
+  `reported` is `null` with a `note` saying why.
+- For a Claude Code row, the API-equivalent cost is re-derived from the
+  retained `claude-events.jsonl` with this checkout's parser. The run
+  recorded its cost when it played, so a parser fix would otherwise never
+  reach a published row. The re-derivation must give exactly the recorded
+  token counts or the redaction is refused; a cost that differs is
+  published with `usage.harness.api_equivalent_recomputed` (`recorded`
+  figures, the `driver_digest` that re-derived them) and the row's
+  `agentic_summary` keeps its recorded API fields under
+  `api_equivalent_recorded`. `--raw` accepts it only when the fresh
+  redaction reproduces it (the digest may differ).
 
 A hand edit that shifts the pick-trader mean and the lift together stays
 internally consistent, and CI never has the raw run. But `pick-trader` and
@@ -407,7 +492,7 @@ panel row at that season count to agree.
 ## Running the harness in a container
 
 ```bash
-python -m gm_bench agentic --isolation container --model opencode/big-pickle \
+python -m gm_bench agentic --isolation container --model opencode/space-bunny-free \
   --seeds 11 --seasons 1 --output /tmp/agentic-container
 ```
 
@@ -515,13 +600,19 @@ result is still written.
 ## Codex harness
 
 ```bash
-python -m gm_bench agentic --harness codex --model gpt-5.5 --variant low \
+python -m gm_bench agentic --harness codex --model gpt-6-luna \
   --codex-auth-file /path/to/codex-auth.json \
   --seeds 11 --seasons 1 --output /tmp/agentic-codex
-python -m gm_bench agentic --harness codex --isolation container --model gpt-5.5 \
+python -m gm_bench agentic --harness codex --isolation container --model gpt-6-luna \
   --codex-auth-file /path/to/codex-auth.json \
   --seeds 11 --seasons 1 --output /tmp/agentic-codex-container
 ```
+
+These are the model and flags the committed Codex rows used. No committed
+row passes `--variant`, on any harness, so every row ran at the harness's
+default reasoning effort. `--variant` sets it explicitly (for Codex,
+`-c model_reasoning_effort="<variant>"`), and a row run with it is a
+different row.
 
 The Codex CLI is the second harness (`gm_bench/agentic/codex.py`, written
 and tested against Codex CLI 0.156.1). It runs through the same episode loop
@@ -547,6 +638,13 @@ the 32-seed private panel at five seasons in a container (2026-09-26), is
 committed at `results/agentic/codex-0.156.1-gpt-6-luna-panel-32x5.json`:
 mean 227.4, 640/640 phases closed by the agent, no nudges, provider stalls
 or quota pauses, 10.3 min per episode, $4.54 at API prices for the panel.
+That cost is a lower bound. The row carries
+`api_equivalent_long_context_possible: true`: an episode sends about 10M
+input tokens, and in some turns the input grew by more than the 272K-token
+long-context threshold, so some requests may have been billed at the
+long-context tier (2x input and cache, 1.5x output). The
+estimate always uses short-context rates (see "API-equivalent cost
+estimate" below), so the true API-price cost may be higher.
 
 What a run does per episode:
 
@@ -602,10 +700,22 @@ Authentication. Because the host `~/.codex` is not used, the ChatGPT login
 there is not inherited. Give the harness a credential deliberately:
 
 - `--codex-auth-file <path>`: a Codex `auth.json`. An API-key file is
-  `{"auth_mode": "apikey", "OPENAI_API_KEY": "sk-..."}`; a copy of a ChatGPT
-  login's `~/.codex/auth.json` also works, but Codex may rotate its refresh
-  token inside the episode, which can sign the host copy out. Keep the file
-  outside the checkout and outside the run directory.
+  `{"auth_mode": "apikey", "OPENAI_API_KEY": "sk-..."}`. A ChatGPT login's
+  `auth.json` also works. Keep the file outside the checkout and outside the
+  run directory.
+
+  Codex renews a ChatGPT login inside the episode when it is about eight days
+  old or its access token has expired. Renewing replaces the refresh token,
+  and the old one stops working. So when an episode ends the driver writes
+  the login Codex left back over the `--codex-auth-file` (mode 0600,
+  atomically), and the next episode starts from it. It skips the write if
+  the file changed during the episode (you logged in again), and says so on
+  stderr. `harness_run.auth_file_update` records `unchanged`, `updated`, or
+  why it was not written. Only the file you pass is kept current: point
+  `--codex-auth-file` at `~/.codex/auth.json` itself if your interactive
+  Codex should keep working, because a renewed copy leaves the original
+  signed out. Before this, runs from a copy signed the operator's Codex out
+  (on 2026-09-27 its refresh token was refused as already used).
 - Same-user only: `CODEX_API_KEY` in your environment, which `codex exec`
   reads. It is dropped when `--codex-auth-file` is given, so the file is
   what Codex uses.
@@ -624,8 +734,9 @@ That is the harness's key, not the benchmark's; it gives no access to the
 seed, the ledger, or the host. Anything the agent prints lands in the event
 stream (`command_execution.aggregated_output`), so when the episode ends the
 driver replaces every credential value (the file's `OPENAI_API_KEY` and
-`tokens`, as staged and, same-user, as Codex left them after any refresh;
-or the `CODEX_API_KEY` value) with `[REDACTED]` in `codex-events.jsonl` and
+`tokens`, as staged and as Codex left them after any refresh, read from the
+private `CODEX_HOME` or, in a container, from the home volume before it is
+removed; or the `CODEX_API_KEY` value) with `[REDACTED]` in `codex-events.jsonl` and
 `codex-stderr.log`. A kept scratch directory is not redacted: it holds
 whatever the agent wrote there. `harness_run.auth` records which source was
 used (`auth-file` or `CODEX_API_KEY`), never the value.
@@ -684,7 +795,16 @@ the figure other tools show for a subscription run:
   is `true` when some turn's input grew by more than the threshold (some
   request may then have been billed at the long-context tier, so the
   estimate may be low), `false` when no turn did (so no request can have),
-  and `null` when the entry names no threshold.
+  and `null` when the entry names no threshold. The run's summary flag is
+  likewise `null`, not `false`, when every episode's is `null`.
+
+  The committed `gpt-6-luna` rows carry `true`: an episode is one turn of
+  about 10M input tokens, so the per-turn bound says nothing about any one
+  request. Pricing any request at the long-context tier needs its own input
+  size, which lives only in the session rollout; that goes with the
+  episode's home and is not retained. (`pricing.json` also records only the
+  threshold, not long-context rates.) So those rows stay at short-context
+  rates with this caveat, and the estimate may be low.
 
 What it is not: a bill, a measured cost, or a number comparable to an
 OpenCode row's `cost_usd`. It ignores Batch, Flex, Fast mode, and regional
@@ -796,7 +916,10 @@ came from a parser bug and is published as the recount (165/165). A
 second panel on `claude-haiku-4-5` (2026-09-27) is committed at
 `results/agentic/claude-2.1.281-claude-haiku-4-5-panel-32x5.json`: mean
 130.1, 640/640 phases closed by the agent, 3 nudges, no provider stalls,
-6.1 min per episode, $25 at API prices. In late seasons it drafted six
+6.1 min per episode, $27.71 at API prices (first published as $25.14: the
+1-hour cache writes were priced at the 5-minute rate, see Cost below; the
+row now carries the re-derived figure with the recorded one beside it). In
+late seasons it drafted six
 guessed prospect ids without listing the class; they are reported as
 guessed draft picks (warnings), not violations. Every Claude episode spends your Claude subscription's
 quota (or API money with `ANTHROPIC_API_KEY`). Run it serially (the driver
@@ -918,8 +1041,19 @@ model with tokens leaves it `null`. On a subscription Claude Code writes
 frame's `usage.cache_creation` does, so each model's 1-hour share of its
 frame writes is priced at `cache_write_1h_per_mtok` (the entry's
 `cache_write_per_mtok` when it has none, labelled in
-`pricing_source.cache_write_1h_rate`). On three live `claude-sonnet-5`
-smokes this matched Claude Code's own figure to the microdollar. Claude
+`pricing_source.cache_write_1h_rate`). Frames name the dated snapshot
+(`claude-haiku-4-5-20251001`) where `modelUsage` names the alias
+(`claude-haiku-4-5`), so the two are matched with the date suffix removed;
+before 2026-09-28 they were matched exactly, which found no 1-hour writes
+for Haiku. On three live `claude-sonnet-5` smokes this matched Claude
+Code's own figure to the microdollar, and on the Haiku panel it now matches
+too ($27.707858 against Claude Code's $27.707856).
+
+A resumed session does not double-count: since 2.1.277 each result carries
+the session's running total, and the parser keeps the last one per session.
+On the Haiku panel's three resumed episodes (0, 22, 26) the final result's
+input, cache-read and cache-write totals equal the sum over distinct message
+ids of the frames exactly. Claude
 Code's own figure is kept as
 `usage.harness.harness_cost_estimate_usd` for comparison only.
 
@@ -935,9 +1069,13 @@ stops the episode and the panel, exactly as for Codex's usage limit;
 the process for a rejected window to reset instead of exiting, so the
 loop also polls the running invocation and stops it when a rejection is
 open and no result has arrived; that stop is a quota pause, not a guard
-kill. The streamed windows (utilization and reset per `rateLimitType`)
-are recorded as `harness_run.quota_windows` and drive the between-episode
-pause at 95% used.
+kill. The driver can also record windows streamed with a `utilization`
+figure as `harness_run.quota_windows`, which would drive the
+between-episode pause at 95% used. In practice Claude Code 2.1.281 streamed
+none: every committed Claude row has empty `quota_windows` and no quota
+pauses. So on Claude Code the between-episode pause never fires, and the
+first sign of a spent window is the rejection itself. Check your usage
+before a panel.
 
 The config directory between invocations. The agent's shell runs as the
 same user as Claude Code, so between two invocations it could write a
@@ -1022,6 +1160,39 @@ What does not fit the shared interface, and was added to it: the park
 poll (`HarnessDriver.invocation_parked`, used only when
 `polls_for_park` is set), and a hook that runs before every invocation
 (`HarnessDriver.before_invocation`, the same-user config re-stage).
+
+## What else the agent can use
+
+Each harness runs with its own tools beside the GM-Bench tools, and they
+differ. This is part of what a row measures, since a row is model plus
+harness.
+
+- **Claude Code** runs with `--tools
+  Bash,Read,Edit,Write,Glob,Grep,NotebookEdit,ToolSearch`. It has no web
+  fetch or web search tool, and `dontAsk` denies any other tool. Its
+  GM-Bench tools are deferred: the model sees them by name only and calls
+  ToolSearch to load a tool's schema before first use (see "Claude Code
+  harness"). The two panel rows made 200 (`claude-sonnet-5`) and 167
+  (`claude-haiku-4-5`) ToolSearch calls over 32 episodes.
+- **OpenCode and Codex** run with their built-in tool sets unrestricted,
+  including any web tool the harness ships (OpenCode's web fetch, Codex's
+  web search), and put every GM-Bench tool schema in the first prompt.
+
+Network. In a container the egress rule blocks the host and private
+networks but allows the public internet, because the harness needs its
+model provider. So an agent can reach anything public, including this
+repository: the simulator source, the scripted `pick-trader` policy
+(`gm_bench/agents.py`), and these docs. It cannot reach a panel seed that
+way (see "Red-teaming the sandbox"), but it could read how the benchmark
+works and what the reference policy does.
+
+No panel agent used the web. The committed Codex panel row records no
+harness tool event except GM-Bench calls: no shell command and no web
+search. The Claude rows record `Bash`, `Read`, `Edit`, `Write` and
+`ToolSearch` events only, and the pre-release audit of the retained Claude
+event streams found no shell command that contacted an external host.
+Nothing enforces this for future rows; check a new row's event stream
+before publishing it.
 
 ## Cursor harness
 
@@ -1170,8 +1341,17 @@ The seeds and salt live only in the macOS Keychain
 ```bash
 python scripts/run_bench_v2_panel_from_keychain.py --verify-only
 python scripts/run_bench_v2_panel_from_keychain.py \
-    --model opencode/big-pickle --output /path/outside/the/checkout/run
+    --harness codex --isolation container --model gpt-6-luna \
+    --codex-auth-file /path/to/codex-auth.json \
+    --output /path/outside/the/checkout/run
 ```
+
+Always pass `--isolation container`. The launcher keeps the seeds off
+command lines, but without a container the harness runs as your user: the
+agent's shell can `ps` the driver, find the run directory, and read the
+seeds from the ledger headers there, as the same-user red-team probe did.
+Such a run redacts as `smoke` at best, and it has exposed private seeds to
+the model. Never run a same-user panel on the private seeds.
 
 `--verify-only` checks the escrow against every committed digest and prints
 only the result. A run first refuses to start while any driver or contract
@@ -1181,6 +1361,10 @@ replays it. It then checks the same digests, refuses to start until the
 lane's `owner_attestation_status` is `attested-before-seed-access`, and then
 runs `gm-bench agentic --seeds-stdin` in its own process with the seeds on
 standard input. No command line or environment variable carries them.
+It refuses to start without `--isolation container`: a same-user harness
+runs as your user and its shell can read the run directory (and `ps`), so
+the private seeds would leak. Only
+`--i-understand-same-user-leaks-private-seeds` overrides that.
 Episode directories are named by position (`episode-00`, `episode-01`, ...)
 rather than `seed-<seed>`, because the harness's stdout and stderr are files
 there and would otherwise show the seed in its open-file table; the harness's
@@ -1198,7 +1382,7 @@ episodes' `result.json`), so panel grade still needs
 
 ```bash
 python3 -c 'import secrets; print((1 << 32) + secrets.randbelow((1 << 63) - (1 << 32)))' \
-    | python scripts/agentic_red_team.py --model opencode/big-pickle --output /tmp/red-team-container \
+    | python scripts/agentic_red_team.py --model opencode/space-bunny-free --output /tmp/red-team-container \
     --isolation container
 ```
 

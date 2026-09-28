@@ -193,3 +193,34 @@ transactions, season traces, and per-decision telemetry while preserving
 summary statistics, per-seed/repeat scores, aggregate usage, provenance, and a
 SHA-256 of the canonical raw payload. CI rejects current leaderboard artifacts
 that are not compact or exceed 1 MB.
+
+## GM-Bench 2.0 (agentic lane)
+
+Everything above is GM-Bench 1.0. A 2.0 row is a model playing through its own
+harness (`docs/agentic_lane.md`) and is validated by `gm-bench agentic-validate`,
+not by `validate_leaderboard_payload`.
+
+- **The private panel is closed to third parties.** A panel-grade 2.0 row runs
+  the frozen 32-seed private panel, whose seeds live only in the maintainer's
+  Keychain escrow (`config/bench_v2_lane.json`). Only panel rows appear on the
+  site.
+- **You can submit a smoke row on public seeds.** Run the harness in a
+  container, redact with the seeds kept, and validate:
+
+  ```bash
+  python -m gm_bench agentic --harness opencode --isolation container \
+      --model <model> --seeds 1 2 3 4 5 6 7 8 --seasons 5 --output /tmp/<run>
+  python -m gm_bench agentic-redact /tmp/<run> \
+      --output results/agentic/<harness>-<version>-<model>-smoke-8x5.json \
+      --isolation container --public-seeds
+  python -m gm_bench agentic-validate results/agentic/<harness>-<version>-<model>-smoke-8x5.json
+  python -m gm_bench agentic-validate results/agentic/<harness>-<version>-<model>-smoke-8x5.json \
+      --raw /tmp/<run>
+  ```
+
+  Open a PR with the artifact only (never the raw run directory). Run from a
+  clean commit so the row's `driver` block names it, and say which commit and
+  harness version you used. CI re-validates the artifact against the
+  checkout's 2.0 contract; a smoke row is committed for reproducibility and
+  is not shown on the site. Run Claude Code and other subscription harnesses
+  serially (the driver has no parallel mode).
