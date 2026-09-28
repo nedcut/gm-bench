@@ -864,6 +864,20 @@ def test_claude_one_hour_cache_writes_are_priced_at_the_one_hour_rate() -> None:
     assert claude.api_equivalent_fields(parse_claude_events(flat))["api_equivalent_cost_usd"] == pytest.approx(2.5)
 
 
+def test_one_hour_writes_match_a_dated_frame_model_to_its_model_usage_alias() -> None:
+    # The Haiku panel's shape: frames name the dated snapshot, modelUsage the alias the run asked for.
+    tiers = {"ephemeral_5m_input_tokens": 0, "ephemeral_1h_input_tokens": 1_000_000}
+    frame = _assistant(
+        "m1", model="claude-haiku-4-5-20251001", cache_creation_input_tokens=1_000_000, cache_creation=tiers
+    )
+    telemetry = parse_claude_events([_init(), frame, _result({"claude-haiku-4-5": _mu(0, 0, 0, 1_000_000)})])
+    assert telemetry["tokens_by_model"]["claude-haiku-4-5"]["cache_write_1h"] == 1_000_000
+    # Every write at Haiku's 1-hour 2.00, not the 5-minute 1.25.
+    assert claude.api_equivalent_fields(telemetry)["api_equivalent_cost_usd"] == pytest.approx(2.0)
+    assert claude.undated_model("claude-haiku-4-5-20251001") == "claude-haiku-4-5"
+    assert claude.undated_model("claude-sonnet-5") == "claude-sonnet-5"
+
+
 # -- stalls and quota -------------------------------------------------------------
 
 
