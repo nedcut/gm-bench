@@ -86,6 +86,13 @@ dated; the summary above is the current state.
   and 16; OpenCode's `FreeUsageLimitError` is quota exhaustion; the
   Keychain panel launcher refuses same-user isolation.
 
+- Codex login write-back (2026-09-27): when Codex renews a ChatGPT login
+  during an episode, the driver writes the renewed `auth.json` back over
+  `--codex-auth-file` (same-user from the private `CODEX_HOME`, container
+  from the home volume before it is removed), unless the file changed
+  meanwhile. The next episode starts from the working login, and the
+  operator's Codex is no longer signed out by a run. Each episode records
+  `harness_run.auth_file_update`. The contract fingerprint does not move.
 - Contract freeze (2026-09-25): the 2.0 contract is frozen as
   `gm-bench-2.0` at agentic fingerprint `07de948a4f4afbae`, and a test pins
   the pair, so any byte change to the tool surface, brief, episode engine or
