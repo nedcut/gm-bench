@@ -83,6 +83,11 @@ dated; the summary above is the current state.
   `harness_run.auth` and `auth_providers`, never the key. A spent Go window
   (`GoUsageLimitError`, read from OpenCode's source, not yet seen live) is
   quota exhaustion with its `retry-after` reset, like `FreeUsageLimitError`.
+  An episode the loop gives up on unfinished, whose last invocation ended on
+  a provider API error (for example Go's non-retryable 400 "This Go model
+  requires Global regions"), is now `ended_by_provider` with reason
+  `provider_error`, so it stops the panel and cannot be published; before,
+  the first Go smoke scored such a refusal as four failed decisions.
   No committed row is affected.
 
 - Release fixes (2026-09-28, driver, validation and publication only; the
