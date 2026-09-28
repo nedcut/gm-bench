@@ -96,8 +96,9 @@ live probes on composer-2.5 on 2026-09-27):
   its outermost sections and flags any outside :data:`HARNESS_SECTIONS`
   (User Rules, workspace rules, cloud instructions, memories, anything new),
   recording names and counts, never text, as ``harness_run.prompt_audit``.
-  The servers also send seven rules of their own in the User Rules slot to
-  every account, which the account cannot see or remove; those
+  The servers also send rules of their own in the User Rules slot to every
+  account, which the account cannot see or remove, and the set depends on
+  the model (seven on composer-2.5, four on grok-4.7); those
   (:data:`CURSOR_DEFAULT_RULES`, matched by digest) count as the harness's
   only when the rules slot has exactly Cursor's recorded shape; any other
   shape is refused, never parsed leniently.
@@ -469,6 +470,10 @@ CURSOR_DEFAULT_RULES = {
     "881a46d23dedda90405a6cf4452bf11aa36ac1ada919ee4c8243f98e9f0fb6ef": "When communicating with the user:",
     "3d37d95b73104a0c134c9288e7f46980293d5aef6d51560b5afbb62fad51381e": "Reason about conversation history",
     "9f07ab247a8191d90790e85c9a503fe195d83913d0af612e992ab82ffe0d0ceb": "**Always follow these principles when writing code**",
+    # The set depends on the model. Recorded 2026-09-28 on grok-4.7, which gets the first two above
+    # and these two, and not the other five; both were absent from the account's own rules.
+    "49c208d44a46e9562fd29a07d5c6d3d7350480b804deed4ccb85e3f7a4de6b9b": "When implementing or fixing anything in a web application",
+    "baf046d751fd1ae63dea74833aaf5e58885463bc31011492ee47222ad371813d": "State points directly in affirmative language",
 }
 PROBE_PROMPT = "Reply with the single word ok."
 
