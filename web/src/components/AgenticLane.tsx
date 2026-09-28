@@ -160,6 +160,22 @@ function phasesByAgent(row: AgenticLaneRow): string {
   return `${fmt(ended.agent ?? 0, 0)} / ${fmt(total, 0)}`;
 }
 
+/* Phases where the agent only called get_status and end_phase; unmeasured on rows redacted before the count. */
+function emptyPhases(row: AgenticLaneRow): string {
+  const empty = row.telemetry.empty_phases;
+  if (empty === undefined || empty === null) return "—";
+  const total = Object.values(row.telemetry.phases_ended_by).reduce((sum, count) => sum + count, 0);
+  return `${fmt(empty, 0)} / ${fmt(total, 0)}`;
+}
+
+function effortNote(row: AgenticLaneRow): string {
+  const effort = row.effective_reasoning_effort;
+  if (!effort) return "";
+  const asked = effort.requested ? `effort ${effort.requested} requested` : "no effort requested (the harness default)";
+  const reported = effort.reported ? `, harness reported ${effort.reported.join(", ")}` : ", not reported by the harness";
+  return ` Reasoning: ${asked}${reported}.`;
+}
+
 function wallMinutes(row: AgenticLaneRow): string {
   return `${fmt(row.telemetry.wall_seconds_per_episode / 60, 1)} min`;
 }
@@ -238,7 +254,7 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
               <tr>
                 <th>Model</th>
                 <th>Harness</th>
-                <th title="Mean of per-seed scores, ± their standard deviation across seeds">Score</th>
+                <th title="Mean of per-seed scores, ± their population standard deviation across seeds">Score</th>
                 <th title="Lowest and highest per-seed score">Seed range</th>
                 <th title="Row score minus pick-trader's on the same seeds and seasons: mean of per-seed differences, bootstrap 95% interval, and two-sided sign-flip p-value. The only inference the 2.0 specification supports.">
                   vs pick-trader (same seeds)
@@ -249,6 +265,9 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                 <th>Tool calls / episode</th>
                 <th title="Phases the agent closed itself, out of all phases; the rest were closed by the phase guard or when the harness exited">
                   Closed by agent
+                </th>
+                <th title="Phases where the agent called only get_status and end_phase: it read nothing beyond the status and made no move">
+                  Empty phases
                 </th>
                 <th title="Prompts sent when the harness stopped before the season was over, averaged over all episodes">
                   Nudges / episode
@@ -296,6 +315,7 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
                   </td>
                   <td className="numeric">{numOrDash(row.telemetry.tool_calls_per_episode, 1)}</td>
                   <td className="numeric">{phasesByAgent(row)}</td>
+                  <td className="numeric">{emptyPhases(row)}</td>
                   <td className="numeric">{fmt(row.telemetry.nudges_per_episode, 2)}</td>
                   <td className="numeric">
                     <span title={tokensTitle(row)}>
@@ -336,6 +356,7 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
               {row.illegal_actions === 1 ? "" : "s"}.
               {quotaNote(row)}
               {` At this panel's spread, a lift smaller than about ${fmt(detectableLift(row), 0)} points cannot be detected reliably.`}
+              {effortNote(row)}
               {row.v1_row_id
                 ? ` The same model has a 1.0 row (${row.v1_row_id}); the two are different benchmarks and are not paired here.`
                 : ""}

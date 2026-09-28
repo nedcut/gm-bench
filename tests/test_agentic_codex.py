@@ -1287,3 +1287,60 @@ def test_keychain_launcher_passes_the_harness_through() -> None:
     )
     assert argv[-6:] == ["--harness", "codex", "--codex-auth-file", "/secure/auth.json", "--isolation", "container"]
     assert "--seeds" not in argv
+
+
+# -- a login Codex rotated inside a container, and the effort the rollouts record ---
+
+
+def test_container_redacts_a_login_codex_rotated_in_the_home_volume_and_records_its_effort(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    from gm_bench.agentic.container import ContainerHarness
+
+    staged = {"auth_mode": "chatgpt", "tokens": {"refresh_token": "rt-staged-0000000000", "id_token": "id-000000000"}}
+    rotated = {"auth_mode": "chatgpt", "tokens": {"refresh_token": "rt-rotated-111111111", "id_token": "id-111111111"}}
+    auth = tmp_path / "operator-auth.json"
+    auth.write_text(json.dumps(staged))
+    context = {"type": "turn_context", "payload": {"model": "gpt-fake", "effort": "medium", "summary": "auto"}}
+    docker = tmp_path / "docker"
+    docker.write_text(
+        f"#!{sys.executable}\n"
+        "import json, sys\n"
+        "args = sys.argv[1:]\n"
+        "if args[:1] == ['run'] and 'cat' in args:\n"
+        f"    sys.stdout.write({json.dumps(rotated)!r})\n"
+        "elif args[:1] == ['run'] and args[-1] == '\"turn_context\"':\n"
+        f"    print({json.dumps(context)!r})\n"
+    )
+    docker.chmod(0o755)
+    harness = ContainerHarness({"image_id": "sha256:x"}, tmp_path, driver_port=1, docker=str(docker), env={})
+    assert harness.home_file(".codex/auth.json") == json.dumps(rotated).encode()
+    events = tmp_path / "codex-events.jsonl"
+    # The agent printed the rotated login before the episode ended.
+    events.write_text(json.dumps({"type": "item.completed", "item": {"aggregated_output": json.dumps(rotated)}}) + "\n")
+    launch = SimpleNamespace(
+        container=harness, scratch=tmp_path / "scratch", evidence_paths=(events,), isolation="container"
+    )
+    driver = CodexDriver(auth_file=auth)
+    driver.collect(launch)
+    record = driver.run_record(SimpleNamespace(**vars(launch), proxy_target="h:1", proxy_python="python3"))
+    driver.cleanup(launch)
+    text = events.read_text()
+    assert "rt-rotated-111111111" not in text and "id-111111111" not in text and "[REDACTED]" in text
+    assert record["reasoning_effort"] == {"reported": ["medium"], "source": "rollout turn_context.effort"}
+
+
+def test_rollout_efforts_read_turn_context_records_only() -> None:
+    def line(kind: str, payload: dict) -> str:
+        return json.dumps({"timestamp": "2026-09-28T00:00:00Z", "type": kind, "payload": payload})
+
+    lines = [
+        line("turn_context", {"effort": "high", "model": "gpt-x"}),
+        line("turn_context", {"effort": "low"}),
+        line("turn_context", {"effort": None}),
+        line("event_msg", {"type": "token_count", "effort": "xhigh"}),
+        "not json",
+    ]
+    assert codex.rollout_efforts(lines) == ["high", "low"]
+    assert codex.reasoning_effort_record(None) == {"reported": None, "source": "rollout turn_context.effort"}
+    assert codex.reasoning_effort_record([])["reported"] is None
