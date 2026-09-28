@@ -1,4 +1,4 @@
-"""OpenCode API keys (``--opencode-auth-file``) for paid Go and Zen models, and a spent Go window."""
+"""OpenCode API keys (``--opencode-auth-file``) for OpenCode Go models, and a spent Go window."""
 
 from __future__ import annotations
 
@@ -29,15 +29,15 @@ def test_the_key_file_is_checked_without_echoing_it_and_go_models_need_one(tmp_p
     key = _key_file(tmp_path)
     OpenCodeDriver(auth_file=key).preflight("container")
     OpenCodeDriver(auth_file=key).check_model("opencode-go/kimi-k3")
-    OpenCodeDriver(auth_file=key).check_model("opencode/some-paid-zen-model")
     # Free Zen models keep working with no key at all.
     OpenCodeDriver().preflight("container")
     OpenCodeDriver().check_model("opencode/space-bunny-free")
     with pytest.raises(ValueError, match="needs an OpenCode API key: pass --opencode-auth-file"):
         OpenCodeDriver().check_model("opencode-go/grok-4.7")
-    # The key serves only OpenCode's own gateways.
-    with pytest.raises(ValueError, match="not anthropic/claude-x"):
-        OpenCodeDriver(auth_file=key).check_model("anthropic/claude-x")
+    # The key is staged for Go only: not for Zen (paid Zen would bill the account's balance) or anyone else.
+    for model in ("opencode/some-paid-zen-model", "opencode/space-bunny-free", "anthropic/claude-x"):
+        with pytest.raises(ValueError, match=f"not {model}"):
+            OpenCodeDriver(auth_file=key).check_model(model)
     bad = tmp_path / "bad"
     bad.write_text(f"{DUMMY_KEY} second-token\n")
     with pytest.raises(ValueError, match="exactly one OpenCode API key") as excinfo:
@@ -85,7 +85,6 @@ def test_same_user_key_is_opencodes_auth_json_in_the_private_data_dir_only(
         launch.prepare()
         auth = Path(launch.env["XDG_DATA_HOME"]) / "opencode" / "auth.json"
         assert json.loads(auth.read_text()) == {
-            "opencode": {"type": "api", "key": DUMMY_KEY},
             "opencode-go": {"type": "api", "key": DUMMY_KEY},
         }
         assert auth.stat().st_mode & 0o777 == 0o600 and auth.parent.stat().st_mode & 0o077 == 0
@@ -94,7 +93,7 @@ def test_same_user_key_is_opencodes_auth_json_in_the_private_data_dir_only(
         assert not any(DUMMY_KEY in value for value in launch.env.values())
         assert not [key for key in launch.env if key.startswith("OPENCODE_")]
         record = driver.run_record(launch)
-        assert record["auth"] == "auth-file" and record["auth_providers"] == ["opencode", "opencode-go"]
+        assert record["auth"] == "auth-file" and record["auth_providers"] == ["opencode-go"]
         assert DUMMY_KEY not in json.dumps(record)
         home = Path(launch.env["HOME"])
     finally:

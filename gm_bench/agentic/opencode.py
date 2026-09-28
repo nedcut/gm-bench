@@ -1735,11 +1735,12 @@ OPENCODE_HOME_ENV = ("HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME
 # is what ``opencode auth login`` writes for an API key (mode 0600).
 AUTH_PATH = "opencode/auth.json"
 CONTAINER_DATA_DIR = ".local/share"
-# One OpenCode API key serves both of OpenCode's own gateways: Zen (``opencode``)
-# and the Go subscription (``opencode-go``), so the key is stored for both.
-AUTH_PROVIDERS = ("opencode", "opencode-go")
-# OpenCode loads ``opencode-go`` only with a key; ``opencode`` without one keeps just
-# its free models, on the shared key ``public``.
+# The key is stored for the Go subscription (``opencode-go``) only. The same key
+# would also unlock paid Zen (``opencode``) models, billed to the account's Zen
+# balance, and would move free Zen models off the shared key ``public`` onto the
+# operator's; leaving ``opencode`` out keeps both of those from happening silently.
+AUTH_PROVIDERS = ("opencode-go",)
+# OpenCode loads ``opencode-go`` only with a key.
 KEY_REQUIRED_PROVIDERS = ("opencode-go",)
 
 
@@ -1775,7 +1776,7 @@ class OpenCodeDriver(HarnessDriver):
     container's home is already a fresh volume.
 
     ``auth_file`` (``--opencode-auth-file``) holds one OpenCode API key, for
-    the paid Go (``opencode-go/*``) and Zen models. It is written as
+    the OpenCode Go (``opencode-go/*``) models. It is written as
     OpenCode's own ``auth.json`` (:data:`AUTH_PATH`, mode 0600) into the
     private data directory, or into the container's home volume over
     ``docker run`` stdin (``ContainerHarness.seed_home``), never onto a

@@ -73,9 +73,9 @@ dated; the summary above is the current state.
 
 - OpenCode API keys (2026-09-28, driver only; the agentic fingerprint stays
   `07de948a4f4afbae`). `gm-bench agentic --harness opencode
-  --opencode-auth-file <path>` runs paid OpenCode Go (`opencode-go/*`) and
-  Zen models, same-user or in a container. The key is written as OpenCode's
-  own `auth.json` for `opencode` and `opencode-go` into the episode's private
+  --opencode-auth-file <path>` runs OpenCode Go (`opencode-go/*`) models,
+  same-user or in a container. The key is written as OpenCode's
+  own `auth.json` for `opencode-go` only into the episode's private
   data directory or its home volume (over `docker run` stdin), never onto a
   command line or into the harness environment, and is redacted from the
   event stream and stderr log when the episode ends. An `opencode-go/*` model

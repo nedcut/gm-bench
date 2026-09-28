@@ -398,7 +398,7 @@ def main(argv: list[str] | None = None) -> None:
     agentic_parser.add_argument(
         "--opencode-auth-file",
         help="file holding one OpenCode API key (--harness opencode only; required for opencode-go/* models), "
-        "written as OpenCode's auth.json for opencode and opencode-go in the episode's own home, never on a "
+        "written as OpenCode's auth.json for opencode-go only in the episode's own home, never on a "
         "command line or in the environment; the host OpenCode login is not used",
     )
     agentic_parser.add_argument(
