@@ -88,7 +88,7 @@ owner actions still open on 2026-09-03 are done (rechecked 2026-09-22):
   from the site footer.
 
 **GM-Bench 2.0 release checklist (last reviewed 2026-09-28).** The contract
-is frozen and three panel rows are on the site; the release is not tagged.
+is frozen and four panel rows are on the site; the release is not tagged.
 
 - [x] Contract frozen as `gm-bench-2.0` at agentic fingerprint
   `07de948a4f4afbae` on 2026-09-25 (#149), with all five pre-panel gates in
@@ -100,7 +100,7 @@ is frozen and three panel rows are on the site; the release is not tagged.
 - [x] Panel rows committed and shown on the site, all `unpinned`: Codex
   `gpt-6-luna` (#156), Claude Code `claude-sonnet-5` (#161), Claude Code
   `claude-haiku-4-5` (#164, admitted under the post-hoc guessed-draft-pick
-  rule from #163).
+  rule from #163), Cursor `composer-2.5` (container, 2026-09-28).
 - [x] Pre-release documentation audit: freeze rule restated, post-freeze
   changes listed with the rows they affected, realized panel noise (MDD
   about 31 to 36 points against `pick-trader`), how 2.0 differs from 1.0

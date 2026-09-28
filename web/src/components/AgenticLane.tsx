@@ -196,11 +196,17 @@ const ROW_CAVEATS: Record<string, string> = {
     "Admitted under a post-hoc audit rule adopted on 2026-09-27, after this panel ran: in 4 episodes the " +
     "model drafted 6 prospects by guessed id without listing the draft class. Prospect ids carry no hidden " +
     "information, so these picks are reported as warnings, not violations. Played on driver commit 21b71dc; " +
-    "the other rows ran on 4d742cc. The two differ only in how Claude Code's tool calls are counted, not in " +
-    "scoring.",
+    "the gpt-6-luna and claude-sonnet-5 rows ran on 4d742cc. The two differ only in how Claude Code's tool " +
+    "calls are counted, not in scoring.",
   "agentic:claude-2.1.281:claude-sonnet-5":
     "One episode's ledger = harness figure is a recount: the run recorded 165 of 166 because the event " +
     "parser counted a call to a tool name that does not exist; after the parser fix the count is 165 of 165.",
+  "agentic:cursor-2026.09.26-dd393fe:composer-2.5":
+    "Cursor's servers add seven default User Rules of their own to every prompt. They are part of the " +
+    "harness: the prompt audit found those seven, identical, and nothing else in all 32 episodes. Cursor " +
+    "reports no cost and composer-2.5 has no per-token list price, so cost is unmeasured and there is no " +
+    "API-equivalent estimate. In 125 of the 640 phases the agent called only get_status and end_phase. " +
+    "Played on driver commit b3d7de7, the first with Cursor's container driver.",
 };
 
 const UNPINNED_SENTENCE =
@@ -372,8 +378,8 @@ export default function AgenticLane({ data }: { data: LeaderboardData }) {
           panel cannot tell, not that the row matches pick-trader. Every row ran at its harness's
           default reasoning effort. The harnesses also differ in the tools they give the model beside
           GM-Bench's: Claude Code runs without web tools and loads each GM-Bench tool's schema through
-          ToolSearch before first use, while Codex and OpenCode keep their built-in tools, web
-          included. The container allows the public internet, so an agent could read this
+          ToolSearch before first use, while Codex, OpenCode and Cursor keep their built-in tools
+          (Codex and OpenCode ship web tools). The container allows the public internet, so an agent could read this
           repository, pick-trader's source included. No panel agent used the web: the recorded tool
           events and a review of the Claude Code event streams show none. See the <a href={SPEC_DOC}>specification</a> for how 2.0 differs from 1.0
           beyond the interface.

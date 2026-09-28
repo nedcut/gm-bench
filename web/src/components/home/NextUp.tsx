@@ -1,7 +1,7 @@
 import type { Leaderboard } from "../../types";
 import { REPO_BLOB, routes } from "../../site";
 
-const HARNESSES = ["OpenCode", "Codex CLI", "Claude Code"];
+const HARNESSES = ["OpenCode", "Codex CLI", "Claude Code", "Cursor CLI"];
 
 /* Argument names and id shapes match gm_bench/agentic/tools.py: player ids
    are small integers, prospect ids are 1_000_000 + season * 10_000 + index. */

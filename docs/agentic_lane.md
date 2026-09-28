@@ -1179,6 +1179,11 @@ harness.
 - **OpenCode and Codex** run with their built-in tool sets unrestricted,
   including any web tool the harness ships (OpenCode's web fetch, Codex's
   web search), and put every GM-Bench tool schema in the first prompt.
+- **Cursor** runs with its built-in tools unrestricted (`--force` runs
+  every tool call without asking). It reads a GM-Bench tool's schema from
+  its own cache (`get_mcp_tools`, which never reaches the server) before
+  calling it; the `composer-2.5` panel made 259 such reads over 32
+  episodes.
 
 Network. In a container the egress rule blocks the host and private
 networks but allows the public internet, because the harness needs its
@@ -1192,7 +1197,10 @@ No panel agent used the web. The committed Codex panel row records no
 harness tool event except GM-Bench calls: no shell command and no web
 search. The Claude rows record `Bash`, `Read`, `Edit`, `Write` and
 `ToolSearch` events only, and the pre-release audit of the retained Claude
-event streams found no shell command that contacted an external host.
+event streams found no shell command that contacted an external host. The
+Cursor row records GM-Bench calls, `get_mcp_tools` schema reads, and one
+malformed MCP call that Cursor rejected before it reached any server
+(`unknown_unknown`): no shell command, file tool or web tool.
 Nothing enforces this for future rows; check a new row's event stream
 before publishing it.
 
@@ -1209,9 +1217,24 @@ The Cursor CLI (`cursor-agent`) is the fourth harness
 2026.09.26-dd393fe). It runs through the same episode loop as the others. A
 Cursor row is its own row, `cursor/<version> · <model>`.
 
-**Status: same-user and container.** Same-user rows are `smoke` grade;
-`--isolation container` (below) is what a panel-grade row needs. Every
-Cursor episode spends your Cursor plan. Run it serially.
+**Status: same-user and container; one panel row published.** Same-user
+rows are `smoke` grade; `--isolation container` (below) is what a
+panel-grade row needs. Every Cursor episode spends your Cursor plan. Run it
+serially.
+
+The 32-seed private panel at five seasons in a container (`composer-2.5`,
+2026-09-28, driver commit `b3d7de7`) is committed at
+`results/agentic/cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5.json`:
+mean 230.6 (SD 27.7), 18.6 below `pick-trader` (95% interval -35.6 to
+-1.4, p = 0.047), 640/640 phases closed by the agent, 0 failed decisions,
+55 penalized illegal moves, no nudges, provider stalls or guard stops,
+127.6 tool calls and 3.5 min per episode. 125 of the 640 phases were
+empty (only `get_status` and `end_phase`). The prompt audit passed on all
+32 episodes with Cursor's seven default rules and nothing else. Cost is
+unmeasured: Cursor reports none, and `composer-2.5` has no price in
+`gm_bench/pricing.json`, so there is no API-equivalent estimate either.
+Cursor reports no reasoning effort or reasoning tokens, and compactions
+are unmeasured. The model is unpinned.
 
 A live same-user smoke ran on 2026-09-27: `composer-2.5`, seed 11, one
 season. It scored 113.9 with 4/4 phases closed by the agent and 41 GM-Bench
@@ -1361,7 +1384,8 @@ On 2026-09-28 the image was built on Docker 29.3.1 (linux/arm64, image id
 `sha256:38117c574e2e...`), reported `2026.09.26-dd393fe` with no network,
 passed the sandbox and egress-canary checks, and the launcher ran `--version`
 with a dummy key, removed planted config, and refused a symlinked config
-directory and a missing token. No model call has run in the container yet.
+directory and a missing token. The `composer-2.5` panel (above) ran in this
+image.
 
 Telemetry. `result.usage` covers one process, not the session, so the
 episode's tokens are the sum of every result (`inputTokens` is uncached;
