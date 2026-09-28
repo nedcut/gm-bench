@@ -71,6 +71,20 @@ The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
 
+- OpenCode API keys (2026-09-28, driver only; the agentic fingerprint stays
+  `07de948a4f4afbae`). `gm-bench agentic --harness opencode
+  --opencode-auth-file <path>` runs paid OpenCode Go (`opencode-go/*`) and
+  Zen models, same-user or in a container. The key is written as OpenCode's
+  own `auth.json` for `opencode` and `opencode-go` into the episode's private
+  data directory or its home volume (over `docker run` stdin), never onto a
+  command line or into the harness environment, and is redacted from the
+  event stream and stderr log when the episode ends. An `opencode-go/*` model
+  without the file is refused before anything runs. Each episode records
+  `harness_run.auth` and `auth_providers`, never the key. A spent Go window
+  (`GoUsageLimitError`, read from OpenCode's source, not yet seen live) is
+  quota exhaustion with its `retry-after` reset, like `FreeUsageLimitError`.
+  No committed row is affected.
+
 - Release fixes (2026-09-28, driver, validation and publication only; the
   agentic fingerprint stays `07de948a4f4afbae`). The `claude-haiku-4-5`
   panel row's API-equivalent cost is re-derived from its retained events:

@@ -43,6 +43,9 @@ class HarnessDriver:
     def preflight(self, isolation: str) -> None:
         """Refuse a run this harness cannot start (for example, no credentials). Raises ``ValueError``."""
 
+    def check_model(self, model: str) -> None:
+        """Refuse a model this harness cannot run as configured (for example, a paid one with no key). Raises ``ValueError``."""
+
     def version(self, binary: str) -> str | None:
         raise NotImplementedError
 

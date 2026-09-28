@@ -515,9 +515,9 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
     carries a transient HTTP status (``RETRYABLE_STATUS_CODES``), or whose
     message reads as a rate limit, an overload, or "try again later". Any
     other ending, including a non-retryable error such as a 401, is the
-    agent (or the harness) stopping. A spent free allowance
-    (``FreeUsageLimitError``) is quota exhaustion (:func:`quota_exhaustion`),
-    never a stall, although OpenCode marks it retryable.
+    agent (or the harness) stopping. A spent free or Go allowance
+    (``FreeUsageLimitError``, ``GoUsageLimitError``) is quota exhaustion
+    (:func:`quota_exhaustion`), never a stall, although OpenCode marks it retryable.
 
     OpenCode's own server failing at startup is a stall too: an
     ``UnknownError`` reading "Unexpected server error" that ends an
@@ -548,27 +548,33 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
     return False
 
 
-# The body OpenCode's own gateway (opencode.ai/zen) returns when a free model's
-# usage allowance is spent. It comes as a 429 marked ``isRetryable``, but it is
-# a spent allowance, not a transient stall: in the 2026-09-26 ``muse-spark``
-# panel it was followed by hours of silent retries.
-_FREE_USAGE_LIMIT_RE = re.compile(r"FreeUsageLimitError")
+# The error types OpenCode's own gateway (opencode.ai/zen) names in the response
+# body when a usage allowance is spent. Both come as a 429 marked ``isRetryable``,
+# but they are a spent allowance, not a transient stall: in the 2026-09-26
+# ``muse-spark`` panel ``FreeUsageLimitError`` (a free model's allowance) was
+# followed by hours of silent retries. ``GoUsageLimitError`` is a spent OpenCode
+# Go window: OpenCode 1.18.32 (``SessionRetry.retryable``) matches it the same way
+# and reads its reset from ``retry-after`` (seconds). That is from the harness
+# source; no Go run has recorded it yet.
+_USAGE_LIMIT_CLASSES = (("FreeUsageLimitError", "free_usage_limit"), ("GoUsageLimitError", "go_usage_limit"))
 
 
 def quota_exhaustion(lines: list[str], *, now: float | None = None) -> dict[str, Any] | None:
-    """``{"message_class": "free_usage_limit", "reset_at_utc": ...}`` when the invocation ended on a spent free allowance.
+    """``{"message_class": ..., "reset_at_utc": ...}`` when the invocation ended on a spent OpenCode allowance.
 
     The last event must be an ``error`` whose response body names
-    ``FreeUsageLimitError``. The reset is read from a ``retry-after`` header
-    in seconds when there is one; otherwise it is unknown (``None``), and the
-    shared loop then stops the episode and the panel.
+    ``FreeUsageLimitError`` (``message_class`` ``free_usage_limit``) or
+    ``GoUsageLimitError`` (``go_usage_limit``). The reset is read from a
+    ``retry-after`` header in seconds when there is one; otherwise it is
+    unknown (``None``), and the shared loop then stops the episode and the panel.
     """
     ending = _final_error(lines)
     if ending is None:
         return None
     error, data, _before = ending
     body = " ".join(str(source.get("responseBody") or "") for source in (data, error))
-    if not _FREE_USAGE_LIMIT_RE.search(body):
+    message_class = next((name for marker, name in _USAGE_LIMIT_CLASSES if marker in body), None)
+    if message_class is None:
         return None
     reset = None
     headers = data.get("responseHeaders") if isinstance(data.get("responseHeaders"), dict) else {}
@@ -580,7 +586,7 @@ def quota_exhaustion(lines: list[str], *, now: float | None = None) -> dict[str,
     if seconds is not None and seconds > 0:
         base = now if now is not None else time.time()
         reset = _dt.datetime.fromtimestamp(base + seconds, _dt.timezone.utc).replace(microsecond=0).isoformat()
-    return {"message_class": "free_usage_limit", "reset_at_utc": reset}
+    return {"message_class": message_class, "reset_at_utc": reset}
 
 
 def provider_resume_message(season: int, phase: str, seasons: int) -> str:
@@ -750,6 +756,7 @@ def run_episode(
     driver: HarnessDriver | None = None,
 ) -> dict[str, Any]:
     driver = driver if driver is not None else OPENCODE_DRIVER
+    driver.check_model(model)
     episode_dir = episode_dir if episode_dir is not None else run_dir / f"seed-{seed}"
     if episode_dir.exists() and any(episode_dir.iterdir()):
         # The ledger is append-only, so a second episode in the same directory
@@ -1467,6 +1474,7 @@ def run_panel(
     if isolation not in DRIVER_ISOLATION:
         raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
     driver.preflight(isolation)
+    driver.check_model(model)
     check: dict[str, Any] | None = None
     if prompt_check:
         check = (
@@ -1722,6 +1730,36 @@ def _agentic_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
 # operator's config, AGENTS.md and skills from $XDG_CONFIG_HOME/opencode, and also
 # ~/.claude/CLAUDE.md, ~/.claude/skills and ~/.agents/skills, all under HOME.
 OPENCODE_HOME_ENV = ("HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME")
+# OpenCode's credential store, under its data directory ($XDG_DATA_HOME, else
+# ~/.local/share): ``{"<provider id>": {"type": "api", "key": "..."}}``, which
+# is what ``opencode auth login`` writes for an API key (mode 0600).
+AUTH_PATH = "opencode/auth.json"
+CONTAINER_DATA_DIR = ".local/share"
+# One OpenCode API key serves both of OpenCode's own gateways: Zen (``opencode``)
+# and the Go subscription (``opencode-go``), so the key is stored for both.
+AUTH_PROVIDERS = ("opencode", "opencode-go")
+# OpenCode loads ``opencode-go`` only with a key; ``opencode`` without one keeps just
+# its free models, on the shared key ``public``.
+KEY_REQUIRED_PROVIDERS = ("opencode-go",)
+
+
+def read_auth_file(path: str | Path) -> str:
+    """The operator's OpenCode API key, checked for shape without echoing any of it."""
+    path = Path(path).expanduser()
+    if not path.is_file():
+        raise ValueError(f"--opencode-auth-file {path} is not a file")
+    try:
+        key = path.read_text(encoding="utf-8").strip()
+    except UnicodeDecodeError:
+        raise ValueError(f"--opencode-auth-file {path} is not text; expected one OpenCode API key") from None
+    if not key or any(character.isspace() for character in key):
+        raise ValueError(f"--opencode-auth-file {path} must hold exactly one OpenCode API key on one line")
+    return key
+
+
+def opencode_auth_json(key: str) -> bytes:
+    """The ``auth.json`` staged for the harness: ``key`` for each of :data:`AUTH_PROVIDERS`."""
+    return json.dumps({provider: {"type": "api", "key": key} for provider in AUTH_PROVIDERS}, indent=2).encode()
 
 
 class OpenCodeDriver(HarnessDriver):
@@ -1735,6 +1773,17 @@ class OpenCodeDriver(HarnessDriver):
     the session store the nudges resume lives there. ``--pure`` does not do
     this: it turns off plugins, not instruction files or skills. A
     container's home is already a fresh volume.
+
+    ``auth_file`` (``--opencode-auth-file``) holds one OpenCode API key, for
+    the paid Go (``opencode-go/*``) and Zen models. It is written as
+    OpenCode's own ``auth.json`` (:data:`AUTH_PATH`, mode 0600) into the
+    private data directory, or into the container's home volume over
+    ``docker run`` stdin (``ContainerHarness.seed_home``), never onto a
+    command line, into the harness environment, or into the scratch. The
+    agent can still read it from its own home: that is the harness's key,
+    not the benchmark's. When the episode ends the key is replaced with
+    ``[REDACTED]`` in the event stream and stderr log. Without the file no
+    credential is provisioned, and an ``opencode-go/*`` model is refused.
     """
 
     name = HARNESS_NAME
@@ -1743,8 +1792,28 @@ class OpenCodeDriver(HarnessDriver):
     image_version_key = "opencode_version"
     prompt_capture_unavailable = None
 
-    def __init__(self) -> None:
+    def __init__(self, *, auth_file: str | Path | None = None) -> None:
+        self.auth_file = Path(auth_file).expanduser() if auth_file is not None else None
+        # Per launch (keyed by scratch directory): the private home, and the key to redact from the evidence.
         self._homes: dict[Path, Path] = {}
+        self._secrets: dict[Path, set[str]] = {}
+
+    def preflight(self, isolation: str) -> None:
+        if self.auth_file is not None:
+            read_auth_file(self.auth_file)
+
+    def check_model(self, model: str) -> None:
+        provider = model.split("/", 1)[0]
+        if self.auth_file is None and provider in KEY_REQUIRED_PROVIDERS:
+            raise ValueError(
+                f"--model {model} needs an OpenCode API key: pass --opencode-auth-file (a file holding the key); "
+                "the operator's OpenCode login and OPENCODE_* variables are deliberately not used"
+            )
+        if self.auth_file is not None and provider not in AUTH_PROVIDERS:
+            raise ValueError(
+                f"--opencode-auth-file holds an OpenCode API key, which serves only {' and '.join(AUTH_PROVIDERS)} "
+                f"models, not {model}"
+            )
 
     def environment(self, env: dict[str, str], scratch: Path, isolation: str) -> dict[str, str]:
         for key in tuple(env):
@@ -1761,14 +1830,29 @@ class OpenCodeDriver(HarnessDriver):
         return env
 
     def run_record(self, launch: HarnessLaunch) -> dict[str, Any]:
+        # Whether a key was staged, and for which providers; never the value.
+        record: dict[str, Any] = {
+            "auth": "auth-file" if self.auth_file is not None else "none",
+            "auth_providers": list(AUTH_PROVIDERS) if self.auth_file is not None else [],
+        }
         if launch.container is not None:
-            return {}
-        return {"opencode_home": "private HOME and XDG directories outside the scratch (removed at episode end)"}
+            return record
+        return {
+            "opencode_home": "private HOME and XDG directories outside the scratch (removed at episode end)",
+            **record,
+        }
 
     def cleanup(self, launch: HarnessLaunch) -> None:
+        # The key never outlives the episode (the home goes, even with --keep-scratch)
+        # and never stays in the evidence. A kept scratch directory is not redacted.
+        from gm_bench.agentic.codex import redact_file
+
+        secrets = self._secrets.pop(launch.scratch, set())
         home = self._homes.pop(launch.scratch, None)
         if home is not None:
             shutil.rmtree(home, ignore_errors=True)
+        for path in launch.evidence_paths:
+            redact_file(path, secrets)
 
     def capture_overrides(self, args: list[str], *, model: str, base_url: str) -> tuple[list[str], dict[str, str]]:
         # The model's provider (``opencode`` for Zen) pointed at the capture server; merged over opencode.json.
@@ -1784,6 +1868,20 @@ class OpenCodeDriver(HarnessDriver):
 
     def stage(self, launch: HarnessLaunch) -> None:
         stage_scratch(launch.scratch, launch.proxy_target, launch.env, python=launch.proxy_python, secret=launch.secret)
+        if self.auth_file is None:
+            return
+        key = read_auth_file(self.auth_file)
+        self._secrets.setdefault(launch.scratch, set()).add(key)
+        data = opencode_auth_json(key)
+        if launch.container is not None:
+            # Into the episode's home volume over stdin; never the bind-mounted scratch.
+            launch.container.seed_home({f"{CONTAINER_DATA_DIR}/{AUTH_PATH}": data})
+            return
+        path = Path(launch.env["XDG_DATA_HOME"]) / AUTH_PATH
+        path.parent.mkdir(mode=0o700)
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(data)
 
     def run_args(self, *, model: str, variant: str | None, workdir: str, brief: str, isolation: str) -> list[str]:
         return [*self._base(model, variant, workdir), brief]

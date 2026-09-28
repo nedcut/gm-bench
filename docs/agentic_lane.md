@@ -128,6 +128,22 @@ once as `ended_by_quota` (`message_class: "free_usage_limit"`) and the panel
 stops, as for Codex's usage limit below. In the `muse-spark` panel that
 error was followed by hours of silent retries.
 
+A spent OpenCode Go window (`opencode-go/*`, see "Running the harness in a
+container") is handled the same way, as `message_class: "go_usage_limit"`:
+the body names `GoUsageLimitError`, and the `retry-after` header gives the
+reset in seconds, so a window that resets within the wait budget pauses the
+episode and resumes it, and one further off (a weekly or monthly cap) stops
+the episode and the panel. That wording is read from OpenCode 1.18.32's own
+retry code, which matches the same name and header; no Go run has recorded
+it yet. OpenCode retries this error inside the harness too, up to five
+times, each after the full `retry-after`, printing nothing while it waits.
+An invocation that hits it before its first event is stopped as a silent
+harness and retried as a stall; one that hits it after it has acted sits
+until the phase guard stops it. Either way the error event this rule reads
+may never be printed, and the episode then ends on the stall budget
+(`ended_by_provider`) rather than as quota exhaustion. Watch the Go usage
+page during a panel.
+
 `harness_run.exit_code` is the first launch's exit code, and
 `harness_run.final_exit_code` the last invocation's (the first launch's when
 there was no nudge, retry or resume); each nudge entry keeps its own
@@ -525,11 +541,59 @@ mode.
 Authentication. The free `opencode/*` models need no credentials: OpenCode
 1.18.31 on the host stores none for them (`opencode auth list` shows 0
 credentials) and the container lists and runs them anonymously. Nothing is
-provisioned. A model that needs a provider key is not supported in container
-mode yet; do not mount `~/.config/opencode` or the home directory to get
-one, because that directory's `AGENTS.md`, skills and commands would change
-what the harness plays with. The harness's only configuration is the staged
-`opencode.json`.
+provisioned unless you pass `--opencode-auth-file`. Do not mount
+`~/.config/opencode` or the home directory to get a key, because that
+directory's `AGENTS.md`, skills and commands would change what the harness
+plays with. The harness's only configuration is the staged `opencode.json`.
+
+Paid OpenCode models (the OpenCode Go subscription, `opencode-go/*`, and
+paid Zen models, `opencode/*`) take one OpenCode API key:
+
+```bash
+python -m gm_bench agentic --isolation container --model opencode-go/kimi-k3 \
+  --opencode-auth-file ~/.config/gm-bench/opencode-go-key \
+  --seeds 11 --seasons 1 --output /tmp/agentic-opencode-go
+```
+
+- `--opencode-auth-file <path>`: a file holding the key alone on one line.
+  Keep it outside the checkout, mode 0600. The driver writes it as
+  OpenCode's own credential store, `auth.json` (`{"opencode": {"type":
+  "api", "key": ...}, "opencode-go": {...}}`, the shape `opencode auth
+  login` writes), under the key for both providers, because one OpenCode
+  key serves both gateways. Same-user runs get it in the private data
+  directory (`$XDG_DATA_HOME/opencode/auth.json`, mode 0600, removed with
+  the private home). Container runs get it in the per-episode home volume
+  (`/home/node/.local/share/opencode/auth.json`) over the stdin of a
+  throwaway `docker run`, as the Codex and Claude credentials are. It never
+  goes on a command line, into a `docker run -e` variable, into the
+  harness environment, or into the scratch directory.
+- An `opencode-go/*` model without the file is refused before anything
+  runs: OpenCode does not load the Go provider without a key. A paid
+  `opencode/*` model without it is not refused up front (the driver does
+  not know Zen's prices); without a key OpenCode keeps only the free Zen
+  models, so the first launch fails. The file with a model of any other
+  provider is refused.
+  The operator's own OpenCode login (`~/.local/share/opencode/auth.json`)
+  and `OPENCODE_API_KEY` are never used.
+- With the file, free `opencode/*` models also run on your key rather than
+  OpenCode's shared anonymous one.
+
+The trade-off, as for Codex and Claude Code: the agent can read its own
+harness's credential, from `auth.json` in its home. The key is kept out of
+the harness environment so a bare `env` does not show it, but a `cat` does.
+That is the harness's key, not the benchmark's, and it gives no access to
+the seed; it does give access to your Go allowance and Zen balance, so use
+a key you can revoke. What the agent prints lands in the retained event
+stream, so when the episode ends the driver replaces the key with
+`[REDACTED]` in `opencode-events.jsonl` and `opencode-stderr.log`. A kept
+scratch directory is not redacted. `harness_run.auth` records `auth-file`
+or `none`, and `harness_run.auth_providers` the provider ids the key was
+stored for, never the value.
+
+The OpenCode 1.18.31 image's bundled model catalog is older than OpenCode's
+live one (`opencode-go/grok-4.7` is missing until the catalog is refreshed),
+so a container episode on a newer model may open on OpenCode's startup
+`UnknownError`, which the driver retries as a startup stall (see above).
 
 What the container can see:
 

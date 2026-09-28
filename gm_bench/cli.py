@@ -396,6 +396,12 @@ def main(argv: list[str] | None = None) -> None:
         "CURSOR_API_KEY or CURSOR_AUTH_TOKEN, never on a command line; the host Cursor login is not used",
     )
     agentic_parser.add_argument(
+        "--opencode-auth-file",
+        help="file holding one OpenCode API key (--harness opencode only; required for opencode-go/* models), "
+        "written as OpenCode's auth.json for opencode and opencode-go in the episode's own home, never on a "
+        "command line or in the environment; the host OpenCode login is not used",
+    )
+    agentic_parser.add_argument(
         "--skip-prompt-check",
         action="store_true",
         help="do not first prove what the harness would send the model (recorded as prompt_check: null); "
@@ -1280,6 +1286,8 @@ def _agentic_command(args: argparse.Namespace) -> None:
         raise SystemExit("--claude-token-file is only for --harness claude")
     if args.cursor_token_file and args.harness != "cursor":
         raise SystemExit("--cursor-token-file is only for --harness cursor")
+    if args.opencode_auth_file and args.harness != "opencode":
+        raise SystemExit("--opencode-auth-file is only for --harness opencode")
     seeds = list(args.seeds)
     private = args.seeds_stdin
     if private:
@@ -1322,6 +1330,14 @@ def _agentic_command(args: argparse.Namespace) -> None:
             raise SystemExit(f"gm-bench agentic: {exc}") from None
     else:
         run_panel = opencode_driver.run_panel
+        driver = opencode_driver.OpenCodeDriver(auth_file=args.opencode_auth_file)
+        harness_options["driver"] = driver
+        try:
+            # Refuse before anything runs: an unreadable key file, or a paid model with no key.
+            driver.preflight(args.isolation)
+            driver.check_model(args.model)
+        except ValueError as exc:
+            raise SystemExit(f"gm-bench agentic: {exc}") from None
     try:
         with _sigterm_stops_the_run():
             payload = run_panel(
