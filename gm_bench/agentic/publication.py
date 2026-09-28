@@ -35,7 +35,23 @@ artifact per row, produced by :func:`compact_agentic_run`, which
   private seeds on disk. Like a redacted 1.0 row it
   keeps the aggregates and empties ``per_seed``: a per-seed lift plus the
   deterministic pick-trader score on that seed is the row's per-seed score. A
-  ``smoke`` row gets no reference block.
+  ``smoke`` row gets no reference block. A sign-flip p-value the Monte
+  Carlo test cannot resolve (no draw as extreme, so the runner reports 0.0)
+  is stored as its bound, ``1 / (draws + 1)``, flagged
+  ``sign_flip_p_value_upper_bound``;
+- re-derives, for a Claude Code row, each episode's API-equivalent cost from
+  the retained ``claude-events.jsonl`` with this checkout's parser. The run
+  recorded its cost when it played, so a parser fixed since then (the 1-hour
+  cache-write match of 2026-09-28) would otherwise never reach the row. The
+  re-derivation must reproduce the recorded token counts exactly; when its
+  cost differs, the row carries the new figure with the recorded one beside
+  it under ``api_equivalent_recomputed`` (and the driver digest that did the
+  re-derivation), as the tool-call recount does;
+- counts each episode's empty phases (``validate.EMPTY_PHASE_DEFINITION``)
+  from its ledger, and states the reasoning effort the run asked for and
+  what the harness reported (``effective_reasoning_effort``);
+- refuses a run with an episode the provider ended
+  (``validate.provider_ended``): its open phases were never played.
 
 :func:`validate_agentic_artifact` checks a committed artifact against the
 contract this checkout computes and against those grade rules. A panel-grade
@@ -56,11 +72,12 @@ import re
 from pathlib import Path
 from typing import Any
 
+from gm_bench.agentic import claude
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.cursor import prompt_audit_problems
-from gm_bench.agentic.opencode import TOKEN_SHAPE
+from gm_bench.agentic.opencode import TOKEN_SHAPE, _api_equivalent_summary, normalized_tokens
 from gm_bench.agentic.provenance import driver_digest, provenance_problems, reproducible_driver
-from gm_bench.agentic.validate import validate_run
+from gm_bench.agentic.validate import EMPTY_PHASE_DEFINITION, provider_ended, validate_run
 from gm_bench.publication import canonical_sha256
 from gm_bench.runner import _paired_analysis, _precise_mean_score, run_many_cached_baselines
 
@@ -92,6 +109,25 @@ _REFERENCE_KEYS = (
     "significant_at_95",
     "candidate_seed_win_rate",
     "per_seed",
+)
+# Present only when the sign-flip p-value is a bound (see ``reference_contrast``).
+_REFERENCE_OPTIONAL_KEYS = ("sign_flip_p_value_upper_bound",)
+# ``runner._sign_flip_p_value`` samples this many sign flips beyond 20 seeds (a 1.0
+# contract source, so the constant is restated here, not imported).
+SIGN_FLIP_DRAWS = 20000
+SIGN_FLIP_EXACT_MAX_SEEDS = 20
+SIGN_FLIP_P_BOUND = round(1 / (SIGN_FLIP_DRAWS + 1), 6)
+_API_EQUIVALENT_KEYS = (
+    "api_equivalent_cost_usd",
+    "cost_basis",
+    "billed_by_harness",
+    "pricing_source",
+    "long_context_requests_possible",
+)
+_API_SUMMARY_KEYS = (
+    "api_equivalent_cost_usd",
+    "api_equivalent_cost_episodes",
+    "api_equivalent_long_context_possible",
 )
 _CONTRACT_KEYS = (
     "benchmark_version",
@@ -143,6 +179,11 @@ _HARNESS_RUN_KEYS = (
     "ended_by_quota",
     # Cursor: the prompt's context sections (names and counts only); absent for other harnesses.
     "prompt_audit",
+    # Absent from runs recorded before the driver marked them (validate.provider_ended infers it).
+    "ended_by_provider",
+    "max_provider_wait_seconds",
+    # What the harness reported about reasoning effort (absent before it was recorded).
+    "reasoning_effort",
 )
 # Present on every nudge a driver records; the provider-stall keys only on runs
 # recorded since the driver learned to retry provider stalls, and ``silent``
@@ -222,6 +263,13 @@ def compact_agentic_run(
     validation = validate_run(run_path)
     seeds = [int(seed) for seed in raw.get("seeds") or []]
     raw_episodes = raw.get("episodes") or []
+    for index, episode in enumerate(raw_episodes):
+        ended = provider_ended(episode)
+        if ended is not None:
+            raise ValueError(
+                f"episode {index} was ended by the provider ({ended.get('reason')}), not played to the end; "
+                "its open phases were never played, so the run cannot be published: rerun it"
+            )
     groups = seed_groups([episode.get("seed") for episode in raw_episodes])
     distinct = len(set(groups))
     panel_ready = distinct >= PANEL_MIN_SEEDS and isolation in _PANEL_ISOLATION and not public_seeds
@@ -232,6 +280,12 @@ def compact_agentic_run(
     ]
     for episode, report in zip(episodes, validation["per_episode"], strict=True):
         _publish_recount(episode, report)
+        episode["empty_phases"] = report.get("empty_phases")
+    if (raw.get("harness") or {}).get("name") == claude.HARNESS_NAME:
+        for episode, raw_episode in zip(episodes, raw_episodes, strict=True):
+            _recost_claude_episode(episode, raw_episode, run_path.parent)
+    agentic_summary = _published_agentic_summary(raw.get("agentic_summary"), episodes)
+    empty = [episode["empty_phases"] for episode in episodes]
     artifact: dict[str, Any] = {
         "publication": {
             "format": AGENTIC_PUBLICATION_FORMAT,
@@ -259,13 +313,29 @@ def compact_agentic_run(
         # Absent from runs recorded before the driver retried provider stalls.
         **{
             key: raw[key]
-            for key in ("max_provider_stalls", "max_provider_stall_wait_seconds", "silent_harness_seconds")
+            for key in (
+                "max_provider_stalls",
+                "max_provider_stall_wait_seconds",
+                "max_provider_wait_seconds",
+                "silent_harness_seconds",
+            )
             if key in raw
         },
         # Panel pauses for an exhausted subscription window (positions, never seeds).
-        **{key: raw[key] for key in ("quota_pause_percent", "quota_pauses", "stopped_for_quota") if key in raw},
+        **{
+            key: raw[key]
+            for key in ("quota_pause_percent", "quota_pauses", "stopped_for_quota", "stopped_for_provider")
+            if key in raw
+        },
         "summary": raw.get("summary"),
-        "agentic_summary": raw.get("agentic_summary"),
+        "agentic_summary": agentic_summary,
+        "effective_reasoning_effort": effective_reasoning_effort(raw, run_path.parent),
+        # Phases where the agent only read the status and ended the phase, over the whole row.
+        "empty_phases": {
+            "count": sum(empty) if all(isinstance(value, int) for value in empty) else None,
+            "phases": sum(int(episode.get("decisions") or 0) for episode in episodes),
+            "definition": EMPTY_PHASE_DEFINITION,
+        },
         "episodes": episodes,
         # Rebuilt by episode index: the raw report labels entries with the
         # seed, which must not reach a redacted artifact.
@@ -318,6 +388,10 @@ def reference_contrast(raw: dict[str, Any]) -> dict[str, Any]:
     reference, _ = run_many_cached_baselines(REFERENCE_AGENT, seeds, seasons, use_cache=False)
     floor, _ = run_many_cached_baselines(REFERENCE_FLOOR_AGENT, seeds, seasons, use_cache=False)
     paired = _paired_analysis(seeds, candidate, [reference])
+    p_value = paired["sign_flip_p_value"]
+    # Beyond 20 seeds the runner samples SIGN_FLIP_DRAWS flips; with no draw as extreme it
+    # reports 0.0, which is below what the test can resolve. Publish the bound instead.
+    bounded = p_value == 0.0 and paired["num_seeds"] > SIGN_FLIP_EXACT_MAX_SEEDS
     return {
         "agent": REFERENCE_AGENT,
         "mean_score": paired["best_baseline"]["mean_score"],
@@ -327,7 +401,8 @@ def reference_contrast(raw: dict[str, Any]) -> dict[str, Any]:
         "paired_lift_mean": paired["paired_lift_mean"],
         "paired_lift_stddev": paired["paired_lift_stddev"],
         "paired_lift_ci95": paired["paired_lift_ci95"],
-        "sign_flip_p_value": paired["sign_flip_p_value"],
+        "sign_flip_p_value": SIGN_FLIP_P_BOUND if bounded else p_value,
+        **({"sign_flip_p_value_upper_bound": True} if bounded else {}),
         "significant_at_95": paired["significant_at_95"],
         "candidate_seed_win_rate": paired["candidate_seed_win_rate"],
         # Withheld, as in a redacted 1.0 row: per-seed lifts on private seeds
@@ -380,6 +455,98 @@ def _publish_recount(episode: dict[str, Any], report: dict[str, Any]) -> None:
         "harness": report["harness_tool_calls"],
         "ledger": report["replayed_tool_calls"],
         "recorded": recorded,
+    }
+
+
+def _recost_claude_episode(episode: dict[str, Any], raw_episode: dict[str, Any], run_dir: Path) -> None:
+    """Re-derive a Claude episode's API-equivalent cost from its retained event stream.
+
+    The token counts must come out exactly as recorded, or the stream is not
+    the one the run parsed and nothing is published. A cost that differs from
+    the recorded one replaces it, with the recorded fields kept under
+    ``api_equivalent_recomputed.recorded``.
+    """
+    harness_run = raw_episode.get("harness_run") or {}
+    recorded_path = harness_run.get("events_path")
+    events = Path(str(recorded_path)) if recorded_path else None
+    if events is not None and not events.is_absolute():
+        events = run_dir / events
+    if events is None or not events.is_file():
+        raise ValueError(f"episode {episode['index']}: the Claude event stream is missing; cannot re-derive its cost")
+    telemetry = claude.parse_claude_events(events.read_text(encoding="utf-8").splitlines())
+    usage = raw_episode.get("usage") or {}
+    tokens = normalized_tokens(telemetry)
+    for key in ("input_tokens", "output_tokens", "cached_input_tokens", "cache_write_input_tokens"):
+        if key in usage and usage[key] != tokens[key]:
+            raise ValueError(
+                f"episode {episode['index']}: re-parsing the Claude event stream gives {key} {tokens[key]}, "
+                f"the run recorded {usage[key]}; refusing to re-derive its cost"
+            )
+    fresh = claude.api_equivalent_fields(telemetry)
+    harness = episode["usage"]["harness"]
+    recorded = {key: harness.get(key) for key in _API_EQUIVALENT_KEYS}
+    if fresh == recorded:
+        return
+    harness.update(fresh)
+    harness["api_equivalent_recomputed"] = {
+        "from": "retained claude-events.jsonl",
+        "driver_digest": driver_digest(),
+        "recorded": recorded,
+    }
+
+
+def _published_agentic_summary(summary: Any, episodes: list[dict[str, Any]]) -> Any:
+    """The run's ``agentic_summary`` with its API-equivalent fields taken from the published episodes.
+
+    They differ from the recorded ones when an episode's cost was re-derived,
+    or when the recorded flag read ``False`` for episodes that could not tell
+    (the driver's summary before 2026-09-28); the recorded fields are kept
+    under ``api_equivalent_recorded``.
+    """
+    if not isinstance(summary, dict) or not any(key in summary for key in _API_SUMMARY_KEYS):
+        return summary
+    fresh = _api_equivalent_summary(episodes)
+    recorded = {key: summary.get(key) for key in _API_SUMMARY_KEYS}
+    if not fresh or fresh == recorded:
+        return summary
+    return {**summary, **fresh, "api_equivalent_recorded": recorded}
+
+
+def effective_reasoning_effort(raw: dict[str, Any], run_dir: Path) -> dict[str, Any]:
+    """The reasoning effort the run asked for, and what the harness itself reported.
+
+    ``requested`` is the ``--variant`` the driver passed (``None``: nothing was
+    passed and the harness used its default for the model). ``reported`` is
+    the distinct efforts the harness reported across episodes (Codex's session
+    rollout, recorded by the driver as ``harness_run.reasoning_effort``;
+    Claude Code's ``system``/``init`` events), or ``None`` when no episode's
+    evidence says, with ``note`` saying why.
+    """
+    harness = raw.get("harness") or {}
+    name = harness.get("name")
+    requested = harness.get("variant")
+    episodes = raw.get("episodes") or []
+    reported: set[str] = set()
+    recorded = [(episode.get("harness_run") or {}).get("reasoning_effort") for episode in episodes]
+    for record in recorded:
+        if isinstance(record, dict):
+            reported.update(str(value) for value in record.get("reported") or [])
+    if name == claude.HARNESS_NAME and not any(isinstance(record, dict) for record in recorded):
+        for episode in episodes:
+            path = (episode.get("harness_run") or {}).get("events_path")
+            events = run_dir / str(path) if path and not Path(str(path)).is_absolute() else Path(str(path or ""))
+            if path and events.is_file():
+                reported.update(claude.reported_efforts(events.read_text(encoding="utf-8").splitlines()))
+    notes = {
+        "codex": "codex exec --json reports no effort; the driver reads turn_context.effort from the session "
+        "rollouts, and runs recorded before it did (2026-09-28) kept none",
+        "claude": "Claude Code's stream-json init and result events carry no effort level",
+        "opencode": "OpenCode's event stream reports no effort; requested is the --variant passed to it",
+    }
+    return {
+        "requested": requested,
+        "reported": sorted(reported) or None,
+        "note": None if reported else notes.get(str(name), "the harness reports no effort"),
     }
 
 
@@ -587,6 +754,8 @@ def validate_agentic_artifact(
         errors.extend(pin_errors)
         warnings.extend(pin_warnings)
 
+    errors.extend(_derived_field_errors(artifact, episodes))
+
     validation = artifact.get("validation") or {}
     if validation.get("ok") is not True:
         errors.append("validation.ok is not true; the raw run did not validate at redaction time")
@@ -601,6 +770,44 @@ def validate_agentic_artifact(
     if raw_run is not None and not errors:
         errors.extend(_check_against_raw_run(artifact, raw_run))
     return {"ok": not errors, "errors": errors, "warnings": warnings, "grade": grade, "agent": artifact.get("agent")}
+
+
+def _derived_field_errors(artifact: dict[str, Any], episodes: list[dict[str, Any]]) -> list[str]:
+    """Consistency of what redaction derived: re-derived costs, the cost summary, empty phases.
+
+    All are optional (rows written before them carry none). Only ``--raw``
+    can recompute them; here they must at least agree with each other.
+    """
+    errors: list[str] = []
+    for episode in episodes:
+        harness = ((episode.get("usage") or {}).get("harness")) or {}
+        recomputed = harness.get("api_equivalent_recomputed")
+        if recomputed is not None and not (
+            isinstance(recomputed, dict)
+            and isinstance(recomputed.get("recorded"), dict)
+            and re.fullmatch(r"[0-9a-f]{16}", str(recomputed.get("driver_digest") or ""))
+        ):
+            errors.append(
+                f"episode {episode.get('index')}: usage.harness.api_equivalent_recomputed needs the recorded "
+                "figures and the driver_digest that re-derived them"
+            )
+        empty = episode.get("empty_phases")
+        if empty is not None and not (_is_int(empty) and 0 <= empty <= int(episode.get("decisions") or 0)):
+            errors.append(f"episode {episode.get('index')}: empty_phases must be between 0 and its decisions")
+    summary = artifact.get("agentic_summary") or {}
+    if "api_equivalent_recorded" in summary:
+        fresh = _api_equivalent_summary(episodes)
+        if any(summary.get(key) != value for key, value in fresh.items()):
+            errors.append("agentic_summary API-equivalent fields do not match the published episodes")
+    empty_block = artifact.get("empty_phases")
+    if empty_block is not None:
+        counts = [episode.get("empty_phases") for episode in episodes]
+        expected = sum(counts) if all(_is_int(count) for count in counts) else None
+        if not isinstance(empty_block, dict) or empty_block.get("count") != expected:
+            errors.append("empty_phases.count is not the sum of the episodes' empty_phases")
+        elif empty_block.get("phases") != sum(int(episode.get("decisions") or 0) for episode in episodes):
+            errors.append("empty_phases.phases is not the row's phase count")
+    return errors
 
 
 def _driver_findings(artifact: dict[str, Any], grade: Any, checkout_digest: str | None) -> tuple[list[str], list[str]]:
@@ -644,9 +851,9 @@ def _reference_errors(reference: Any, distinct: int, seasons: Any, candidate_mea
         return [f"panel grade needs the reference block: the predeclared {REFERENCE_AGENT} contrast on the same seeds"]
     errors: list[str] = []
     keys = set(reference)
-    if keys != set(_REFERENCE_KEYS):
+    if not set(_REFERENCE_KEYS) <= keys <= set(_REFERENCE_KEYS) | set(_REFERENCE_OPTIONAL_KEYS):
         missing = sorted(set(_REFERENCE_KEYS) - keys)
-        extra = sorted(keys - set(_REFERENCE_KEYS))
+        extra = sorted(keys - set(_REFERENCE_KEYS) - set(_REFERENCE_OPTIONAL_KEYS))
         errors.append(f"reference has missing keys {missing} and unexpected keys {extra}")
     if reference.get("agent") != REFERENCE_AGENT:
         errors.append(f"reference.agent must be {REFERENCE_AGENT!r}, the spec's predeclared contrast")
@@ -677,6 +884,21 @@ def _reference_errors(reference: Any, distinct: int, seasons: Any, candidate_mea
     p_value = reference.get("sign_flip_p_value")
     if not (_is_finite_number(p_value) and 0.0 <= p_value <= 1.0):
         errors.append("reference.sign_flip_p_value must be a number between 0 and 1")
+    if "sign_flip_p_value_upper_bound" in reference and not (
+        reference["sign_flip_p_value_upper_bound"] is True
+        and p_value == SIGN_FLIP_P_BOUND
+        and _is_int(distinct)
+        and distinct > SIGN_FLIP_EXACT_MAX_SEEDS
+    ):
+        errors.append(
+            "reference.sign_flip_p_value_upper_bound marks the Monte Carlo bound: it must be true, with "
+            f"sign_flip_p_value {SIGN_FLIP_P_BOUND} on more than {SIGN_FLIP_EXACT_MAX_SEEDS} seeds"
+        )
+    elif p_value == 0.0 and _is_int(distinct) and distinct > SIGN_FLIP_EXACT_MAX_SEEDS:
+        errors.append(
+            f"reference.sign_flip_p_value 0.0 is below what {SIGN_FLIP_DRAWS} sign-flip draws resolve; "
+            f"publish the bound {SIGN_FLIP_P_BOUND} with sign_flip_p_value_upper_bound"
+        )
     significant = reference.get("significant_at_95")
     if not isinstance(significant, bool):
         errors.append("reference.significant_at_95 must be a boolean")
@@ -820,6 +1042,13 @@ def _check_against_raw_run(artifact: dict[str, Any], raw_run: str | Path) -> lis
         )
     except ValueError as exc:
         return [str(exc)]
+    # A re-derived cost names the driver that re-derived it; a later driver that reproduces
+    # the same figures from the same stream is a match, not a difference.
+    for mine, theirs in zip(fresh.get("episodes") or [], artifact.get("episodes") or [], strict=False):
+        fresh_block = ((mine.get("usage") or {}).get("harness") or {}).get("api_equivalent_recomputed")
+        kept_block = ((theirs.get("usage") or {}).get("harness") or {}).get("api_equivalent_recomputed")
+        if isinstance(fresh_block, dict) and isinstance(kept_block, dict):
+            fresh_block["driver_digest"] = kept_block.get("driver_digest")
     if canonical_sha256(fresh) == canonical_sha256(artifact):
         return []
     differing = sorted(key for key in set(fresh) | set(artifact) if fresh.get(key) != artifact.get(key))

@@ -22,6 +22,7 @@ from gm_bench.agentic.publication import (
     seed_panel_sha256,
     validate_agentic_artifact,
 )
+from gm_bench.agentic.validate import validate_run
 from gm_bench.publication import canonical_sha256
 from gm_bench.runner import summarize_episodes
 
@@ -34,8 +35,15 @@ def _panel_row(tmp_path: Path) -> dict:
     artifact["grade"] = "panel"
     artifact["panel"].update(seed_count=PANEL_MIN_SEEDS, distinct_seeds=PANEL_MIN_SEEDS, sha256=LANE_PANEL_SHA256)
     artifact["episodes"] = [dict(artifact["episodes"][0], index=i, seed_group=i) for i in range(PANEL_MIN_SEEDS)]
+    _recount_empty_phases(artifact)
     artifact["reference"] = fixture_reference(artifact)
     return artifact
+
+
+def _recount_empty_phases(artifact: dict) -> None:
+    """Keep a hand-built row's empty-phase total in step with the episodes it was given."""
+    artifact["empty_phases"]["count"] = sum(episode["empty_phases"] for episode in artifact["episodes"])
+    artifact["empty_phases"]["phases"] = sum(episode["decisions"] for episode in artifact["episodes"])
 
 
 def fixture_reference(artifact: dict, *, reference_mean: float = 249.18) -> dict:
@@ -81,6 +89,7 @@ def _write_run(
     idle: bool = False,
     isolation: str | None = None,
     driver: dict | None | str = "clean",
+    non_object_call: bool = False,
 ) -> Path:
     """A run directory with real ledgers and event streams, as run_panel would write it, without a harness.
 
@@ -97,6 +106,9 @@ def _write_run(
         name = f"seed-{seed}" if attempts[seed] == 1 else f"seed-{seed}-r{attempts[seed]}"
         ledger = run_dir / name / "ledger.jsonl"
         episode = AgenticEpisode(seed, seasons=1, ledger_path=ledger)
+        if non_object_call:
+            # Rejected live ("arguments must be an object") and logged with ``arguments: {}``.
+            assert not episode.call_tool("end_phase", ["not", "an", "object"])["ok"]
         if attempts[seed] == 1 and not idle:
             roster = episode.call_tool("get_team", {})["data"]["roster"]
             episode.call_tool("set_lineup", {"player_ids": [p["id"] for p in roster][:18]})
@@ -314,6 +326,7 @@ def test_panel_grade_needs_distinct_seeds_isolation_and_redaction(tmp_path: Path
     repeated["panel"]["seed_count"] = PANEL_MIN_SEEDS
     repeated["panel"]["distinct_seeds"] = 1
     repeated["episodes"] = [dict(repeated["episodes"][0], index=i) for i in range(PANEL_MIN_SEEDS)]
+    _recount_empty_phases(repeated)
     report = validate_agentic_artifact(repeated)
     assert any(f"at least {PANEL_MIN_SEEDS} distinct seeds, has 1" in error for error in report["errors"])
     repeated["panel"]["distinct_seeds"] = PANEL_MIN_SEEDS  # claiming otherwise is caught by the groups
@@ -324,6 +337,7 @@ def test_panel_grade_needs_distinct_seeds_isolation_and_redaction(tmp_path: Path
     panel = json.loads(json.dumps(artifact))
     panel["panel"]["seed_count"] = panel["panel"]["distinct_seeds"] = PANEL_MIN_SEEDS
     panel["episodes"] = [dict(panel["episodes"][0], index=i, seed_group=i) for i in range(PANEL_MIN_SEEDS)]
+    _recount_empty_phases(panel)
     panel["isolation"] = "same-user"
     report = validate_agentic_artifact(panel)
     assert any("isolated from the driver" in error for error in report["errors"])
@@ -465,6 +479,7 @@ def test_panel_row_must_carry_the_lanes_frozen_panel(tmp_path: Path) -> None:
     wider = json.loads(json.dumps(panel))
     wider["panel"]["seed_count"] = wider["panel"]["distinct_seeds"] = PANEL_MIN_SEEDS + 1
     wider["episodes"].append(dict(wider["episodes"][0], index=PANEL_MIN_SEEDS, seed_group=PANEL_MIN_SEEDS))
+    _recount_empty_phases(wider)
     wider["summary"]["mean_score"] = wider["episodes"][0]["final_score"]
     wider["reference"] = fixture_reference(wider)
     report = validate_agentic_artifact(wider)
@@ -888,3 +903,89 @@ def test_a_panel_run_on_uncommitted_driver_code_redacts_as_smoke(tmp_path: Path,
         assert artifact["grade"] == "smoke" and "reference" not in artifact
         report = validate_agentic_artifact(artifact, raw_run=run_dir)
         assert report["ok"], report
+
+
+# -- release fixes: seeds in the validation report, per-tool recount, replay, derived fields ---------
+
+
+PRIVATE_LOOKING_SEED = 4_611_686_018_427_387_903
+
+
+def test_validate_cli_prints_no_seed_unless_asked(tmp_path: Path, capsys) -> None:
+    from gm_bench.cli import main
+
+    run_dir = _write_run(tmp_path, [PRIVATE_LOOKING_SEED])
+    raw = json.loads((run_dir / "run.json").read_text())
+    raw["episodes"][0]["harness_run"]["exit_code"] = 1  # a warning, so the labels are printed too
+    (run_dir / "run.json").write_text(json.dumps(raw))
+    for extra in (["--json"], []):
+        main(["agentic-validate", str(run_dir), *extra])
+        out = capsys.readouterr().out
+        assert str(PRIVATE_LOOKING_SEED) not in out, extra
+    main(["agentic-validate", str(run_dir), "--json"])
+    report = json.loads(capsys.readouterr().out)
+    assert report["per_episode"][0]["seed"] == "<redacted>"
+    assert report["warnings"] == ["episode 0: harness exit code 1"]
+    main(["agentic-validate", str(run_dir), "--json", "--show-seeds"])
+    assert json.loads(capsys.readouterr().out)["per_episode"][0]["seed"] == PRIVATE_LOOKING_SEED
+
+
+def test_tool_call_recount_compares_each_tool_not_only_the_total(tmp_path: Path) -> None:
+    run_dir = _write_run(tmp_path, [11])
+    assert validate_run(run_dir)["ok"]
+    events = run_dir / "seed-11" / "opencode-events.jsonl"
+    # Same total, different tools: one get_team event relabelled as a draft.
+    text = events.read_text().replace("gm-bench_get_team", "gm-bench_draft", 1)
+    events.write_text(text)
+    report = validate_run(run_dir)
+    assert not report["ok"]
+    assert any("disagree per tool (draft, get_team)" in problem for problem in report["problems"])
+    assert report["per_episode"][0]["tool_calls_recounted"] is False
+
+
+def test_a_call_with_non_object_arguments_is_counted_but_not_replayed(tmp_path: Path) -> None:
+    run_dir = _write_run(tmp_path, [11], non_object_call=True)
+    ledger = [json.loads(line) for line in (run_dir / "seed-11" / "ledger.jsonl").read_text().splitlines()]
+    [odd] = [record for record in ledger if record.get("message") == "invalid arguments: arguments must be an object"]
+    assert odd["arguments"] == {} and odd["tool"] == "end_phase" and odd["executed"] is True
+    report = validate_run(run_dir)
+    assert report["ok"], report
+    episode = report["per_episode"][0]
+    assert episode["replayed_score"] == episode["final_score"]
+    assert episode["replayed_tool_calls"] == episode["harness_tool_calls"]
+    assert any("non-object arguments" in warning for warning in report["warnings"])
+
+
+def test_empty_phases_are_counted_from_the_ledger(tmp_path: Path) -> None:
+    from gm_bench.agentic.validate import empty_phases
+
+    # Seed 11 plays get_team and set_lineup in its first phase; the other three only end.
+    run_dir = _write_run(tmp_path, [11, 12], idle=False)
+    assert empty_phases(run_dir / "seed-11" / "ledger.jsonl") == 3
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    assert [episode["empty_phases"] for episode in artifact["episodes"]] == [3, 3]
+    assert artifact["empty_phases"]["count"] == 6 and artifact["empty_phases"]["phases"] == 8
+    assert validate_agentic_artifact(artifact, raw_run=run_dir)["ok"]
+    tampered = json.loads(json.dumps(artifact))
+    tampered["empty_phases"]["count"] = 0
+    assert "empty_phases.count is not the sum" in " ".join(validate_agentic_artifact(tampered)["errors"])
+
+
+def test_a_sign_flip_p_value_below_resolution_is_published_as_a_bound(tmp_path: Path) -> None:
+    from gm_bench.agentic.publication import SIGN_FLIP_P_BOUND, reference_contrast
+
+    # 21 seeds (Monte Carlo, not exact) on which the row loses every time by a lot.
+    raw = {"seasons": 1, "episodes": [{"seed": seed, "final_score": -500.0, "seasons": 1} for seed in range(1, 22)]}
+    reference = reference_contrast(raw)
+    assert reference["sign_flip_p_value"] == SIGN_FLIP_P_BOUND == 5e-05
+    assert reference["sign_flip_p_value_upper_bound"] is True
+
+    panel = _panel_row(tmp_path)
+    panel["reference"]["sign_flip_p_value"] = 0.0
+    errors = validate_agentic_artifact(panel)["errors"]
+    assert any("below what 20000 sign-flip draws resolve" in error for error in errors)
+    panel["reference"].update(sign_flip_p_value=SIGN_FLIP_P_BOUND, sign_flip_p_value_upper_bound=True)
+    assert validate_agentic_artifact(panel)["ok"], validate_agentic_artifact(panel)
+    panel["reference"]["sign_flip_p_value"] = 0.2
+    errors = validate_agentic_artifact(panel)["errors"]
+    assert any("marks the Monte Carlo bound" in error for error in errors)

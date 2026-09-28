@@ -35,23 +35,34 @@ answering one prompt per decision phase, a model plays one continuous
 five-season episode inside a tool-using harness (OpenCode, Codex CLI, or
 Claude Code), acting through an MCP (Model Context Protocol) tool server. A
 2.0 row is identified by model + harness + harness version, and 2.0 rows never
-enter a 1.0 table. The implementation is complete; evaluation has only
-started.
+enter a 1.0 table. The contract froze on 2026-09-25, and three panel rows
+have been published so far.
 
 - Implemented: drivers for all three harnesses, Docker container isolation
   for the harness, the private 32-seed panel frozen by digest with its seeds
   held in escrow, and validation that replays every episode ledger to the
   score the row claims.
-- Committed so far: `smoke` rows on public seeds under `results/agentic/`:
-  eight seeds on a free OpenCode model, and one five-season episode each on
-  Codex (`gpt-6-luna`) and Claude Code (`claude-sonnet-5`).
-- Panel-grade results on the frozen 32-seed private panel: Codex
-  (`gpt-6-luna`) mean 227.4 and Claude Code (`claude-sonnet-5`) mean 227.4.
-  Both trail the `pick-trader` heuristic by about 22 points (Codex -21.8,
-  95% interval -43.3 to +0.1; Claude -21.8, -47.2 to +3.5), and neither gap
-  is significant. Claude Code on `claude-haiku-4-5` scores 130.1, 119.1
-  points below `pick-trader` (95% interval -132.8 to -104.5), and loses on
-  every seed. The site's 2.0 section shows all three.
+- Smoke rows on public seeds under `results/agentic/`, not shown on the
+  site: eight seeds on a free OpenCode model, one five-season episode each
+  on Codex (`gpt-6-luna`) and Claude Code (`claude-sonnet-5`), and four
+  repeat-noise rows (seeds 1 to 4, run twice on each of those two).
+- Panel rows on the frozen 32-seed private panel, each compared only with
+  the `pick-trader` heuristic on the same seeds (249.2 there; the 1.0
+  figure of 247.1 is on the 29-seed 1.0 panel). All three are flagged
+  `unpinned`: the model version behind them is not pinned, so they may not
+  be reproducible, and they are extra data points, not headline results.
+  - Codex (`gpt-6-luna`) and Claude Code (`claude-sonnet-5`) both average
+    227.4, 21.8 points below `pick-trader` (Codex 95% interval -43.3 to
+    +0.1; Claude -47.2 to +3.5). Neither gap is significant, and on these
+    panels the smallest difference it can reliably detect (80% power) is
+    about 31 to 36 points. So the result is "can't tell", not "on par with
+    `pick-trader`".
+  - Claude Code on `claude-haiku-4-5` averages 130.1, 119.1 points below
+    `pick-trader` (95% interval -132.8 to -104.5), and loses on every seed.
+    It passes the ledger audit only under a rule adopted after it ran:
+    six draft picks on prospect ids it guessed rather than listed are
+    reported as warnings, because prospect ids carry no hidden information.
+  - Every row ran at the harness's default reasoning effort.
 
 The frozen design is in [docs/bench_v2_spec.md](docs/bench_v2_spec.md) and the
 operator guide is [docs/agentic_lane.md](docs/agentic_lane.md).

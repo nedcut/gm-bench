@@ -1654,3 +1654,241 @@ def test_silent_kill_counts_reach_run_json_and_the_redacted_artifact(tmp_path: P
 
     telemetry = _agentic_telemetry(artifact["episodes"])
     assert (telemetry["silent_harness_kills"], telemetry["provider_stalls"], telemetry["guard_kills"]) == (1, 1, 0)
+
+
+# -- provider-ended episodes, free usage limits, the combined wait cap --------------
+
+# The muse-spark panel's episode-15 ending (session id and ray faked): OpenCode's own
+# gateway saying the free model's allowance is spent, as a retryable 429.
+_FREE_USAGE_LIMIT_ERROR = {
+    "type": "error",
+    "sessionID": "ses_fake",
+    "error": {
+        "name": "APIError",
+        "data": {
+            "message": "Error from provider (Console): Rate limit exceeded. Please try again later.",
+            "statusCode": 429,
+            "isRetryable": True,
+            "responseHeaders": {"cf-ray": "fake-PHL", "content-type": "application/json"},
+            "responseBody": json.dumps(
+                {
+                    "type": "error",
+                    "error": {
+                        "type": "FreeUsageLimitError",
+                        "message": "Error from provider (Console): Rate limit exceeded. Please try again later.",
+                    },
+                }
+            ),
+            "metadata": {"url": "https://opencode.ai/zen/v1/responses"},
+        },
+    },
+}
+
+
+def test_stall_retry_resumes_with_the_provider_message_not_a_numbered_nudge(tmp_path: Path, monkeypatch) -> None:
+    from gm_bench.agentic.opencode import PROVIDER_RESUME_MESSAGE
+
+    script = [{"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1}, {"phases": 3}]
+    result, calls, _sleeps = _stall_episode(tmp_path, monkeypatch, script, stall_backoff=lambda n: 0.0)
+    text = calls[1][-1]
+    assert "provider error" in text and "not on anything you did" in text
+    assert "You stopped" not in text and "Reminder" not in text
+    assert result["harness_run"]["provider_resume_message"] == PROVIDER_RESUME_MESSAGE
+    assert result["harness_run"]["nudges_used"] == 0 and result["harness_run"]["ended_by_provider"] is None
+
+
+def test_exhausted_stall_budget_marks_the_episode_provider_ended(tmp_path: Path, monkeypatch) -> None:
+    from gm_bench.agentic.validate import provider_ended
+
+    script = [
+        {"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 0, "error": _RATE_LIMIT_ERROR, "exit": 1},
+    ]
+    result, _calls, _sleeps = _stall_episode(tmp_path, monkeypatch, script, max_provider_stalls=2)
+    ended = result["harness_run"]["ended_by_provider"]
+    assert ended == {
+        "reason": "stall_retry_limit",
+        "season": 1,
+        "phase": "midseason",
+        "provider_stalls": 3,
+        "provider_stall_wait_seconds": 180.0,
+    }
+    assert provider_ended(result) == ended
+    # An episode the agent (not the provider) walked away from is not marked.
+    quiet, _calls, _sleeps = _stall_episode(tmp_path / "quiet", monkeypatch, [{"phases": 1}, {"phases": 0}])
+    assert quiet["harness_run"]["ended_by_provider"] is None and provider_ended(quiet) is None
+
+
+def test_a_provider_ended_episode_stops_the_panel_and_the_run_cannot_be_published(tmp_path: Path, monkeypatch) -> None:
+    import gm_bench.agentic.opencode as driver
+    from gm_bench.agentic.publication import compact_agentic_run
+    from gm_bench.agentic.validate import validate_run
+
+    calls: list[list[str]] = []
+    script = [
+        {"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1},
+        {"phases": 0, "error": _RATE_LIMIT_ERROR, "exit": 1},
+    ]
+    monkeypatch.setattr(driver, "_run_harness", _scripted_harness(script, calls))
+    monkeypatch.setattr(driver, "sandbox_problems", lambda scratch, env: [])
+    events: list[dict] = []
+    run = driver.run_panel(
+        [11, 12, 13],
+        model="fake/model",
+        run_dir=tmp_path / "run",
+        seasons=1,
+        binary=str(tmp_path / "no-opencode"),
+        max_provider_stalls=1,
+        progress=events.append,
+        sleep=lambda seconds: None,
+    )
+    assert len(run["episodes"]) == 1
+    assert run["stopped_for_provider"] == {"after_episode": 0, "episodes_not_run": 2, "reason": "stall_retry_limit"}
+    assert any(event.get("stage") == "panel_stopped_for_provider" for event in events)
+    report = validate_run(tmp_path / "run")
+    assert not report["ok"]
+    assert any("ended by the provider (stall_retry_limit)" in problem for problem in report["problems"])
+    with pytest.raises(ValueError, match="ended by the provider"):
+        compact_agentic_run(tmp_path / "run", isolation="same-user")
+
+
+def test_episodes_the_provider_ended_before_it_was_recorded_are_recognised() -> None:
+    """Trimmed from the muse-spark panel's episodes 15 and 16 (no seed, no ledger): scored as if played."""
+    from gm_bench.agentic.validate import provider_ended
+
+    def stall(number: int, *, silent: bool, new_session: bool, calls: int = 0) -> dict:
+        return {
+            "number": number,
+            "season": 2,
+            "phase": "preseason",
+            "new_tool_calls": calls,
+            "phases_closed": 0,
+            "exit_code": 137 if silent else 1,
+            "stall_retry": True,
+            "backoff_seconds": 600.0,
+            "provider_stall": True,
+            "quota_resume": False,
+            "silent": silent,
+            "new_session": new_session,
+        }
+
+    # Episode 15: four phases played, then 5 free-limit errors and 34 silent retries; 16 phases never played.
+    ep15 = {
+        "final_score": 174.838,
+        "agentic": {"phases_ended_by": {"agent": 4, "harness_exit": 16}, "tool_calls": 50},
+        "harness_run": {
+            "provider_stalls": 39,
+            "provider_stall_wait_seconds": 21300.0,
+            "silent_kills": 34,
+            "ended_by_quota": None,
+            "timed_out": False,
+            "nudges": [stall(n, silent=n > 4, new_session=False) for n in range(1, 39)],
+        },
+    }
+    # Episode 16: no tool call at all; every launch was silent and started a new session.
+    ep16 = {
+        "final_score": 64.288,
+        "agentic": {"phases_ended_by": {"harness_exit": 20}, "tool_calls": 0},
+        "harness_run": {
+            "provider_stalls": 39,
+            "provider_stall_wait_seconds": 21300.0,
+            "silent_kills": 39,
+            "ended_by_quota": None,
+            "timed_out": False,
+            "nudges": [stall(n, silent=True, new_session=True) for n in range(1, 39)],
+        },
+    }
+    for episode in (ep15, ep16):
+        ended = provider_ended(episode)
+        assert ended is not None and ended["reason"].startswith("inferred")
+        assert ended["provider_stalls"] == 39
+    # A stall the agent recovered from, or open phases after an ordinary stop, is not provider-ended.
+    recovered = json.loads(json.dumps(ep15))
+    recovered["harness_run"]["nudges"][-1]["provider_stall"] = False
+    assert provider_ended(recovered) is None
+    finished = json.loads(json.dumps(ep15))
+    finished["agentic"]["phases_ended_by"] = {"agent": 20}
+    assert provider_ended(finished) is None
+    assert provider_ended({**ep16, "harness_run": {**ep16["harness_run"], "ended_by_provider": None}}) is None
+
+
+def test_a_spent_free_allowance_is_quota_exhaustion_that_stops_the_panel(tmp_path: Path, monkeypatch) -> None:
+    import gm_bench.agentic.opencode as driver
+
+    line = json.dumps(_FREE_USAGE_LIMIT_ERROR)
+    assert driver.quota_exhaustion(["{}", line]) == {"message_class": "free_usage_limit", "reset_at_utc": None}
+    # Retryable by its flags, but never a stall: waiting it out is the quota rules' call.
+    assert not driver.ended_in_provider_stall([line])
+    assert driver.ended_in_provider_stall([json.dumps(_RATE_LIMIT_ERROR)])
+    assert driver.quota_exhaustion([json.dumps(_RATE_LIMIT_ERROR)]) is None
+    # A retry-after header, when the gateway sends one, is the reset.
+    with_retry = json.loads(line)
+    with_retry["error"]["data"]["responseHeaders"]["Retry-After"] = "120"
+    assert driver.quota_exhaustion([json.dumps(with_retry)], now=1_790_000_000.0) == {
+        "message_class": "free_usage_limit",
+        "reset_at_utc": "2026-09-21T14:15:20+00:00",
+    }
+
+    calls: list[list[str]] = []
+    sleeps: list[float] = []
+    script = [{"phases": 1, "error": _FREE_USAGE_LIMIT_ERROR, "exit": 1}]
+    monkeypatch.setattr(driver, "_run_harness", _scripted_harness(script, calls))
+    monkeypatch.setattr(driver, "sandbox_problems", lambda scratch, env: [])
+    run = driver.run_panel(
+        [11, 12], model="fake/model", run_dir=tmp_path / "run", seasons=1, binary="none", sleep=sleeps.append
+    )
+    # No backoff, no retry: the episode stopped at once and no later seed started.
+    assert len(calls) == 1 and sleeps == []
+    [episode] = run["episodes"]
+    assert episode["harness_run"]["ended_by_quota"] == {"reset_at_utc": None, "message_class": "free_usage_limit"}
+    assert episode["harness_run"]["provider_stalls"] == 0 and episode["harness_run"]["ended_by_provider"] is None
+    assert run["stopped_for_quota"]["episodes_not_run"] == 1
+
+
+def test_stall_backoff_and_quota_pauses_share_one_wait_cap(tmp_path: Path, monkeypatch) -> None:
+
+    retry_in = json.loads(json.dumps(_FREE_USAGE_LIMIT_ERROR))
+    retry_in["error"]["data"]["responseHeaders"]["retry-after"] = "600"
+    now = [1_790_000_000.0]
+    script = [
+        {"phases": 1, "error": _RATE_LIMIT_ERROR, "exit": 1},  # stall: 60 s backoff
+        {"phases": 1, "error": retry_in, "exit": 1},  # quota: a 660 s pause would fit its own budget...
+        {"phases": 2},
+    ]
+    result, calls, sleeps = _stall_episode(
+        tmp_path,
+        monkeypatch,
+        script,
+        clock=lambda: now[0],
+        max_provider_stall_wait_seconds=3600.0,
+        max_provider_wait_seconds=600.0,
+    )
+    # ...but not the 600 s the stall and the quota pause may take together, so the episode stops there.
+    assert sleeps == [60.0] and len(calls) == 2
+    assert result["harness_run"]["ended_by_quota"]["message_class"] == "free_usage_limit"
+    assert result["harness_run"]["max_provider_wait_seconds"] == 600.0
+
+    # With room for both, the pause is taken and the episode finishes.
+    result, calls, sleeps = _stall_episode(
+        tmp_path / "roomy",
+        monkeypatch,
+        script,
+        clock=lambda: now[0],
+        max_provider_stall_wait_seconds=3600.0,
+        max_provider_wait_seconds=3600.0,
+    )
+    assert sleeps == [60.0, 660.0] and len(calls) == 3
+    assert result["harness_run"]["quota_pauses"][0]["wait_seconds"] == 660.0
+    assert result["failed_decisions"] == 0
+
+
+def test_api_equivalent_summary_is_unknown_when_no_episode_can_tell() -> None:
+    from gm_bench.agentic.opencode import _api_equivalent_summary
+
+    def episode(flag):
+        return {"usage": {"harness": {"api_equivalent_cost_usd": 1.0, "long_context_requests_possible": flag}}}
+
+    assert _api_equivalent_summary([episode(None), episode(None)])["api_equivalent_long_context_possible"] is None
+    assert _api_equivalent_summary([episode(None), episode(True)])["api_equivalent_long_context_possible"] is True
+    assert _api_equivalent_summary([episode(False), episode(False)])["api_equivalent_long_context_possible"] is False
+    assert _api_equivalent_summary([episode(False), episode(None)])["api_equivalent_long_context_possible"] is None

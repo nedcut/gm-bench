@@ -31,6 +31,7 @@ const REFERENCE_KEYS = [
   "significant_at_95",
   "candidate_seed_win_rate",
   "per_seed",
+  "sign_flip_p_value_upper_bound",
 ];
 const INFERENCE_KEY = /p_value|holm|paired|lift|per_seed/i;
 
@@ -90,6 +91,10 @@ function referenceIssues(row: AgenticLaneRow, lanePanel: AgenticLanePanel, label
   if (!ciOk) issues.push(`${label} reference.paired_lift_ci95 is not [low, high]`);
   const p = reference.sign_flip_p_value;
   if (!isFiniteNumber(p) || p < 0 || p > 1) issues.push(`${label} reference.sign_flip_p_value is not a probability`);
+  const bound = (reference as { sign_flip_p_value_upper_bound?: unknown }).sign_flip_p_value_upper_bound;
+  if (bound !== undefined && (bound !== true || !isFiniteNumber(p) || p >= 0.001)) {
+    issues.push(`${label} reference.sign_flip_p_value_upper_bound must be true on a p-value bound below 0.001`);
+  }
   if (typeof reference.significant_at_95 !== "boolean") {
     issues.push(`${label} reference.significant_at_95 is not a boolean`);
   } else if (ciOk && reference.significant_at_95 !== (ci[0] > 0 || ci[1] < 0)) {
@@ -185,6 +190,11 @@ function telemetryIssues(row: AgenticLaneRow, label: string): string[] {
     if (isFiniteNumber(t.reasoning_tokens) && isFiniteNumber(t.output_tokens) && t.reasoning_tokens > t.output_tokens) {
       issues.push(`${label} reasoning_tokens exceeds output_tokens, which includes reasoning`);
     }
+  }
+  const empty = t.empty_phases;
+  const phases = Object.values(t.phases_ended_by ?? {}).reduce((sum, count) => sum + count, 0);
+  if (empty !== undefined && empty !== null && !(Number.isInteger(empty) && empty >= 0 && empty <= phases)) {
+    issues.push(`${label} telemetry.empty_phases is not a count between 0 and the row's ${phases} phases`);
   }
   const estimate = t.api_equivalent_cost_usd;
   if (isFiniteNumber(estimate) && isFiniteNumber(t.cost_usd) && Math.abs(estimate - t.cost_usd) < 1e-9) {

@@ -226,7 +226,7 @@ export interface AgenticLaneRow {
   seasons: number;
   phase_guard_seconds: number | null;
   max_nudges: number | null;
-  /** Mean of per-seed means, and the population SD, min, and max of those means. */
+  /** Mean of per-seed means, and the population SD (divides by n, not n - 1), min, and max of those means. */
   mean_score: number;
   score_stddev: number;
   seed_mean_min: number;
@@ -246,9 +246,13 @@ export interface AgenticLaneRow {
     seasons: number;
     num_seeds: number;
     paired_lift_mean: number;
+    /** Population SD (divides by n) of the per-seed lifts. */
     paired_lift_stddev: number;
     paired_lift_ci95: number[];
     sign_flip_p_value: number;
+    /** Present (true) when no Monte Carlo sign flip was as extreme as the observed lift: the p-value is
+     * then the bound 1 / (draws + 1), not an estimate. */
+    sign_flip_p_value_upper_bound?: true;
     significant_at_95: boolean;
     candidate_seed_win_rate: number;
   };
@@ -303,8 +307,12 @@ export interface AgenticLaneRow {
     api_equivalent_cost_per_episode_usd?: number | null;
     api_equivalent_cost_episodes?: number;
     /** Some turn's input grew past the model's long-context threshold, so a request may
-     * have been billed at the higher tier and the short-context estimate may be low. */
-    api_equivalent_long_context_possible?: boolean;
+     * have been billed at the higher tier and the short-context estimate may be low. Null when
+     * the model's price names no threshold, so no episode could tell. */
+    api_equivalent_long_context_possible?: boolean | null;
+    /** Phases where every tool call was get_status or end_phase: the agent read nothing beyond the
+     * status and made no move. Null or absent for rows redacted before the count existed. */
+    empty_phases?: number | null;
     /** A subscription harness's usage windows as it reported them (Codex), and the panel's
      * pauses for an exhausted window. Null or absent when no episode reported any. */
     quota?: {
@@ -317,6 +325,9 @@ export interface AgenticLaneRow {
       episodes_ended_by_quota?: number;
     } | null;
   };
+  /** The reasoning effort the run asked for (null: none passed, the harness default) and what the
+   * harness itself reported (null: it reports none; `note` says why). Absent from older rows. */
+  effective_reasoning_effort?: { requested: string | null; reported: string[] | null; note: string | null } | null;
   /** Server ledger (authoritative) versus the harness's own tool-event count. */
   agreement: {
     episodes: number;
