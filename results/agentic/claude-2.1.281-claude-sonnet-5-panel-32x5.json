@@ -3,7 +3,12 @@
   "agentic_summary": {
     "api_equivalent_cost_episodes": 32,
     "api_equivalent_cost_usd": 157.37534,
-    "api_equivalent_long_context_possible": false,
+    "api_equivalent_long_context_possible": null,
+    "api_equivalent_recorded": {
+      "api_equivalent_cost_episodes": 32,
+      "api_equivalent_cost_usd": 157.37534,
+      "api_equivalent_long_context_possible": false
+    },
     "compactions": 0,
     "mean_tool_calls_per_episode": 164.38,
     "mean_wall_seconds": 867.7,
@@ -61,6 +66,16 @@
     ],
     "git_driver_clean": true,
     "git_head": "4d742cc6c18a5f1f313a7da68dc75027d9c6f1fd"
+  },
+  "effective_reasoning_effort": {
+    "note": "Claude Code's stream-json init and result events carry no effort level",
+    "reported": null,
+    "requested": null
+  },
+  "empty_phases": {
+    "count": 0,
+    "definition": "a closed phase whose every ledger tool call (if any) was get_status or end_phase: the agent read nothing beyond the status and made no move",
+    "phases": 640
   },
   "episodes": [
     {
@@ -238,6 +253,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 227.083,
       "harness_run": {
@@ -499,6 +515,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 223.584,
       "harness_run": {
@@ -760,6 +777,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 154.348,
       "harness_run": {
@@ -1021,6 +1039,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 253.511,
       "harness_run": {
@@ -1282,6 +1301,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 191.016,
       "harness_run": {
@@ -1542,6 +1562,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 205.668,
       "harness_run": {
@@ -1803,6 +1824,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 189.577,
       "harness_run": {
@@ -2064,6 +2086,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 259.26,
       "harness_run": {
@@ -2325,6 +2348,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 182.767,
       "harness_run": {
@@ -2584,6 +2608,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 216.115,
       "harness_run": {
@@ -2845,6 +2870,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 319.151,
       "harness_run": {
@@ -3105,6 +3131,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 195.388,
       "harness_run": {
@@ -3366,6 +3393,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 249.41,
       "harness_run": {
@@ -3628,6 +3656,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 198.226,
       "harness_run": {
@@ -3891,6 +3920,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 147.281,
       "harness_run": {
@@ -4154,6 +4184,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 183.269,
       "harness_run": {
@@ -4416,6 +4447,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 173.586,
       "harness_run": {
@@ -4677,6 +4709,7 @@
       },
       "championships": 3,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 349.101,
       "harness_run": {
@@ -4937,6 +4970,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 269.536,
       "harness_run": {
@@ -5197,6 +5231,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 213.251,
       "harness_run": {
@@ -5457,6 +5492,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 197.185,
       "harness_run": {
@@ -5717,6 +5753,7 @@
       },
       "championships": 4,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 381.628,
       "harness_run": {
@@ -5977,6 +6014,7 @@
       },
       "championships": 2,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 328.365,
       "harness_run": {
@@ -6237,6 +6275,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 199.513,
       "harness_run": {
@@ -6497,6 +6536,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 249.967,
       "harness_run": {
@@ -6758,6 +6798,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 164.41,
       "harness_run": {
@@ -7019,6 +7060,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 206.319,
       "harness_run": {
@@ -7280,6 +7322,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 220.036,
       "harness_run": {
@@ -7548,6 +7591,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 250.953,
       "harness_run": {
@@ -7809,6 +7853,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 230.717,
       "harness_run": {
@@ -8069,6 +8114,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 255.136,
       "harness_run": {
@@ -8328,6 +8374,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 191.22,
       "harness_run": {
@@ -8445,7 +8492,7 @@
   },
   "phase_guard_seconds": 1200.0,
   "publication": {
-    "compacted_at_utc": "2026-09-27T13:47:06+00:00",
+    "compacted_at_utc": "2026-09-28T14:03:48+00:00",
     "format": "gm-bench-agentic-summary-v1",
     "raw_artifact_sha256": "a7d20142e7bbf96ea105eeff128b1c14dd8378190618b354af79d1ea4672727b",
     "traces_included": false

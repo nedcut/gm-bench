@@ -561,6 +561,39 @@ class ContainerHarness:
             return None
         return (done.stdout or "").splitlines()
 
+    def home_file(self, path: str, *, timeout: float = 120.0) -> bytes | None:
+        """The bytes of ``path`` (relative to the harness home) in the home volume, before :meth:`close`.
+
+        Read like :meth:`home_lines`, by a throwaway container that mounts
+        only the volume, with no network and no capabilities; the contents
+        come back on its stdout and are never written to the host. Never
+        raises: ``None`` when the file is missing or the volume could not be read.
+        """
+        try:
+            done = _docker(
+                self.docker,
+                "run",
+                "--rm",
+                "--network",
+                "none",
+                "--cap-drop",
+                "ALL",
+                "--security-opt",
+                "no-new-privileges",
+                "--mount",
+                f"type=volume,source={self.volume},target={HOME}",
+                self.image["image_id"],
+                "cat",
+                "--",
+                f"{HOME}/{path}",
+                env=self.env,
+                text=False,
+                timeout=timeout,
+            )
+        except (ContainerError, OSError):
+            return None
+        return done.stdout if done.returncode == 0 else None
+
     def kill(self, name: str) -> None:
         """Stop a container whose ``docker run`` client was killed; the client going away does not stop it."""
         self._quietly("rm", "--force", name)

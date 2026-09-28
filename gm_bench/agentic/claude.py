@@ -5,8 +5,10 @@ engine and socket server in this process, sandbox check, nudges, provider
 stall retries, the phase-guard watch, finalization). This module supplies
 only what is specific to the Claude Code CLI, as a :class:`ClaudeDriver`.
 
-Proven only against a stand-in ``claude`` (``tests/test_agentic_claude.py``);
-no live episode has run. What the driver relies on was read from Claude Code
+Tested against a stand-in ``claude`` (``tests/test_agentic_claude.py``) and
+run live since 2026-09-24 (smokes, and the ``claude-sonnet-5`` and
+``claude-haiku-4-5`` 32-seed panels, both in a container; see
+``docs/agentic_lane.md``). What the driver relies on was read from Claude Code
 2.1.281 (``claude --version`` prints ``2.1.281 (Claude Code)``; ``claude
 --help``, ``claude auth --help``, ``claude setup-token --help``), the Claude
 Code documentation (CLI reference, headless mode, authentication, errors,
@@ -75,7 +77,10 @@ at 0.3.276 (Claude Code 2.1.276), which types the stream-json messages:
   5-minute 1.25x. ``modelUsage`` does not split the tiers, but each
   assistant frame's ``usage.cache_creation`` does, so each model's 1-hour
   share of its frame writes is applied to its ``modelUsage`` writes and
-  priced at ``cache_write_1h_per_mtok``.
+  priced at ``cache_write_1h_per_mtok``. Frames name the dated snapshot
+  (``claude-haiku-4-5-20251001``) where ``modelUsage`` names the alias
+  (``claude-haiku-4-5``), so the two are matched with the date suffix
+  removed (:func:`undated_model`).
 - **Resume.** ``claude -p --resume <session id> ... -- <text>`` continues the
   same session with its context and the same MCP configuration. The session
   id is the ``session_id`` of the latest ``system``/``init``. Session
@@ -350,6 +355,19 @@ def _events(lines: list[str]) -> list[dict[str, Any]]:
     return events
 
 
+# A Claude snapshot id's date suffix: ``claude-haiku-4-5-20251001``.
+_DATED_SUFFIX_RE = re.compile(r"-\d{8}$")
+
+
+def undated_model(model: str) -> str:
+    """``claude-haiku-4-5-20251001`` -> ``claude-haiku-4-5``; an id without a date is returned as is.
+
+    Assistant frames carry the dated snapshot id and ``modelUsage`` the alias
+    the run asked for, so frame figures are matched to a model this way.
+    """
+    return _DATED_SUFFIX_RE.sub("", model)
+
+
 def _is_init(event: dict[str, Any]) -> bool:
     return event.get("type") == "system" and event.get("subtype") == "init"
 
@@ -500,7 +518,8 @@ def parse_claude_events(lines: list[str]) -> dict[str, Any]:
                         )
                         frame_writes[message_id] = (model, tokens["cache_write"], write_1h)
                         request = tokens["uncached"] + tokens["cache_read"] + tokens["cache_write"]
-                        max_request_input[model] = max(max_request_input.get(model, 0), request)
+                        key = undated_model(model)
+                        max_request_input[key] = max(max_request_input.get(key, 0), request)
                 for block in message.get("content") or []:
                     if isinstance(block, dict) and block.get("type") == "tool_use" and block.get("id"):
                         tool_uses[str(block["id"])] = _tool_name(block.get("name"))
@@ -543,8 +562,14 @@ def parse_claude_events(lines: list[str]) -> dict[str, Any]:
     _add(by_model, unreported)
     by_model = {model: tokens for model, tokens in sorted(by_model.items()) if any(tokens.values())}
     for model, tokens in by_model.items():
-        writes = sum(write for owner, write, _ in frame_writes.values() if owner == model)
-        writes_1h = sum(write_1h for owner, _, write_1h in frame_writes.values() if owner == model)
+        # Frames name the dated snapshot, modelUsage the alias: compare them undated.
+        owned = [
+            (write, write_1h)
+            for owner, write, write_1h in frame_writes.values()
+            if undated_model(owner) == undated_model(model)
+        ]
+        writes = sum(write for write, _ in owned)
+        writes_1h = sum(write_1h for _, write_1h in owned)
         # The frames' 1-hour share, applied to the reported writes (a frame missing from the stream skews nothing).
         tokens["cache_write_1h"] = round(tokens["cache_write"] * min(writes_1h, writes) / writes) if writes else 0
 
@@ -567,7 +592,7 @@ def parse_claude_events(lines: list[str]) -> dict[str, Any]:
         "cached_input_tokens": total("cache_read"),
         "cache_write_tokens": total("cache_write"),
         "tokens_by_model": by_model,
-        # The largest single API request's input, per model (exact: frame input and cache counts are final).
+        # The largest single API request's input, per undated model (exact: frame input and cache counts are final).
         "max_request_input_tokens": dict(sorted(max_request_input.items())),
         # Not observable: per-frame output_tokens is the placeholder from message_start.
         "max_output_tokens_per_call": None,
@@ -679,6 +704,23 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
     return bool(_RETRYABLE_MESSAGE_RE.search(_result_text(result)))
 
 
+def reported_efforts(lines: list[str]) -> set[str]:
+    """Effort levels the stream itself reported: an ``effort`` or ``reasoning_effort`` on a ``system``/``init`` event.
+
+    Claude Code 2.1.281 reports none (its init carries only
+    ``per_turn_effort_active``), so on that version this is empty and the
+    effort is known only from the ``--effort`` the driver passed, if any.
+    """
+    found: set[str] = set()
+    for event in _events(lines):
+        if not _is_init(event):
+            continue
+        for key in ("effort", "reasoning_effort"):
+            if isinstance(event.get(key), str) and event[key]:
+                found.add(event[key])
+    return found
+
+
 def quota_windows(lines: list[str]) -> list[dict[str, Any]]:
     """The subscription windows the stream reported: the latest ``utilization`` and reset per ``rateLimitType``."""
     latest: dict[str, dict[str, Any]] = {}
@@ -749,7 +791,7 @@ def api_equivalent_fields(telemetry: dict[str, Any]) -> dict[str, Any]:
                 "cache_write_input_tokens": tokens["cache_write"],
                 "cache_write_1h_input_tokens": tokens.get("cache_write_1h", 0),
                 "output_tokens": tokens["output"],
-                "max_request_input_tokens": (telemetry.get("max_request_input_tokens") or {}).get(model),
+                "max_request_input_tokens": (telemetry.get("max_request_input_tokens") or {}).get(undated_model(model)),
             },
             model,
         )
@@ -802,6 +844,7 @@ class ClaudeDriver(HarnessDriver):
         self._homes: dict[Path, Path] = {}
         self._secrets: dict[Path, set[str]] = {}
         self._quota: dict[Path, list[dict[str, Any]]] = {}
+        self._effort: dict[Path, list[str]] = {}
         self._sources: dict[Path, str] = {}
         # Per launch: the staged MCP config, and what the config-dir guard found.
         self._configs: dict[Path, dict[str, Any]] = {}
@@ -989,6 +1032,7 @@ class ClaudeDriver(HarnessDriver):
         events = launch.evidence_paths[0] if launch.evidence_paths else None
         lines = events.read_text(encoding="utf-8").splitlines() if events is not None and events.is_file() else []
         self._quota[launch.scratch] = quota_windows(lines)
+        self._effort[launch.scratch] = sorted(reported_efforts(lines))
         stderr = launch.evidence_paths[1] if len(launch.evidence_paths) > 1 else None
         if launch.container is not None and stderr is not None and stderr.is_file():
             # Launches gmb-claude refused because the agent changed the config layout.
@@ -1006,6 +1050,11 @@ class ClaudeDriver(HarnessDriver):
             # API key, which reports none); the stream names no plan.
             "quota_windows": self._quota.pop(launch.scratch, []),
             "plan_type": None,
+            # The effort the stream reported (``None``: it reported none; see ``reported_efforts``).
+            "reasoning_effort": {
+                "reported": self._effort.pop(launch.scratch, None) or None,
+                "source": "system/init events",
+            },
             # The whole staged MCP config; it names only the proxy and where it connects.
             "harness_config": json.dumps(self._configs.pop(launch.scratch, None) or self._config(launch), indent=2),
             "claude_config_dir": f"{CLAUDE_CONFIG_DIR} (episode volume, removed at episode end)"

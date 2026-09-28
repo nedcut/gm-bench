@@ -9,7 +9,7 @@
         "ledger_tool_calls": 2918
       },
       "artifact_path": "results/agentic/claude-2.1.281-claude-haiku-4-5-panel-32x5.json",
-      "compacted_at_utc": "2026-09-27T21:57:26+00:00",
+      "compacted_at_utc": "2026-09-28T14:03:32+00:00",
       "contract": {
         "agentic_fingerprint": "07de948a4f4afbae",
         "base_benchmark_version": "sota-v5",
@@ -19,6 +19,11 @@
         "scoring_version": "score-v1",
         "simulator_version": "sim-v4",
         "tool_surface": "gm-bench-agentic-v1"
+      },
+      "effective_reasoning_effort": {
+        "note": "Claude Code's stream-json init and result events carry no effort level",
+        "reported": null,
+        "requested": null
       },
       "failed_decisions": 0,
       "grade": "panel",
@@ -59,7 +64,8 @@
         "paired_lift_mean": -119.051,
         "paired_lift_stddev": 40.731,
         "seasons": 5,
-        "sign_flip_p_value": 0.0,
+        "sign_flip_p_value": 5e-05,
+        "sign_flip_p_value_upper_bound": true,
         "significant_at_95": true
       },
       "score_stddev": 36.084,
@@ -68,14 +74,15 @@
       "seed_mean_min": 77.468,
       "telemetry": {
         "api_equivalent_cost_episodes": 32,
-        "api_equivalent_cost_per_episode_usd": 0.7857,
-        "api_equivalent_cost_usd": 25.1432,
-        "api_equivalent_long_context_possible": false,
+        "api_equivalent_cost_per_episode_usd": 0.8659,
+        "api_equivalent_cost_usd": 27.7079,
+        "api_equivalent_long_context_possible": null,
         "cache_write_input_tokens": 3419502,
         "cached_input_tokens": 156914459,
         "compactions": 0,
         "cost_per_episode_usd": null,
         "cost_usd": null,
+        "empty_phases": 301,
         "episodes": 32,
         "guard_kills": 0,
         "input_tokens": 160352893,
@@ -133,7 +140,7 @@
         "ledger_tool_calls": 5260
       },
       "artifact_path": "results/agentic/claude-2.1.281-claude-sonnet-5-panel-32x5.json",
-      "compacted_at_utc": "2026-09-27T13:47:06+00:00",
+      "compacted_at_utc": "2026-09-28T14:03:48+00:00",
       "contract": {
         "agentic_fingerprint": "07de948a4f4afbae",
         "base_benchmark_version": "sota-v5",
@@ -143,6 +150,11 @@
         "scoring_version": "score-v1",
         "simulator_version": "sim-v4",
         "tool_surface": "gm-bench-agentic-v1"
+      },
+      "effective_reasoning_effort": {
+        "note": "Claude Code's stream-json init and result events carry no effort level",
+        "reported": null,
+        "requested": null
       },
       "failed_decisions": 0,
       "grade": "panel",
@@ -194,12 +206,13 @@
         "api_equivalent_cost_episodes": 32,
         "api_equivalent_cost_per_episode_usd": 4.918,
         "api_equivalent_cost_usd": 157.3753,
-        "api_equivalent_long_context_possible": false,
+        "api_equivalent_long_context_possible": null,
         "cache_write_input_tokens": 7859807,
         "cached_input_tokens": 529856375,
         "compactions": 0,
         "cost_per_episode_usd": null,
         "cost_usd": null,
+        "empty_phases": 0,
         "episodes": 32,
         "guard_kills": 0,
         "input_tokens": 537723476,
@@ -257,7 +270,7 @@
         "ledger_tool_calls": 4794
       },
       "artifact_path": "results/agentic/codex-0.156.1-gpt-6-luna-panel-32x5.json",
-      "compacted_at_utc": "2026-09-26T20:42:00+00:00",
+      "compacted_at_utc": "2026-09-28T14:04:06+00:00",
       "contract": {
         "agentic_fingerprint": "07de948a4f4afbae",
         "base_benchmark_version": "sota-v5",
@@ -267,6 +280,11 @@
         "scoring_version": "score-v1",
         "simulator_version": "sim-v4",
         "tool_surface": "gm-bench-agentic-v1"
+      },
+      "effective_reasoning_effort": {
+        "note": "codex exec --json reports no effort; the driver reads turn_context.effort from the session rollouts, and runs recorded before it did (2026-09-28) kept none",
+        "reported": null,
+        "requested": null
       },
       "failed_decisions": 0,
       "grade": "panel",
@@ -324,6 +342,7 @@
         "compactions": null,
         "cost_per_episode_usd": null,
         "cost_usd": null,
+        "empty_phases": 1,
         "episodes": 32,
         "guard_kills": 0,
         "input_tokens": 331182925,
@@ -1608,5 +1627,5 @@
     "smoke_gate_issues": [],
     "status": "complete"
   },
-  "updated": "2026-09-27"
+  "updated": "2026-09-28"
 }

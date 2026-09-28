@@ -47,6 +47,16 @@
     "simulator_version": "sim-v4",
     "tool_surface": "gm-bench-agentic-v1"
   },
+  "effective_reasoning_effort": {
+    "note": "OpenCode's event stream reports no effort; requested is the --variant passed to it",
+    "reported": null,
+    "requested": null
+  },
+  "empty_phases": {
+    "count": 6,
+    "definition": "a closed phase whose every ledger tool call (if any) was get_status or end_phase: the agent read nothing beyond the status and made no move",
+    "phases": 160
+  },
   "episodes": [
     {
       "agentic": {
@@ -222,6 +232,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 182.03,
       "harness_run": {
@@ -478,6 +489,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 225.081,
       "harness_run": {
@@ -719,6 +731,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 249.388,
       "harness_run": {
@@ -962,6 +975,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 1,
       "failed_decisions": 0,
       "final_score": 201.397,
       "harness_run": {
@@ -1209,6 +1223,7 @@
       },
       "championships": 2,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 223.248,
       "harness_run": {
@@ -1474,6 +1489,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 0,
       "failed_decisions": 0,
       "final_score": 226.616,
       "harness_run": {
@@ -1738,6 +1754,7 @@
       },
       "championships": 0,
       "decisions": 20,
+      "empty_phases": 2,
       "failed_decisions": 0,
       "final_score": 199.277,
       "harness_run": {
@@ -1998,6 +2015,7 @@
       },
       "championships": 1,
       "decisions": 20,
+      "empty_phases": 3,
       "failed_decisions": 0,
       "final_score": 235.283,
       "harness_run": {
@@ -2123,7 +2141,7 @@
   },
   "phase_guard_seconds": 1200.0,
   "publication": {
-    "compacted_at_utc": "2026-09-25T02:58:14+00:00",
+    "compacted_at_utc": "2026-09-28T14:04:19+00:00",
     "format": "gm-bench-agentic-summary-v1",
     "raw_artifact_sha256": "f548e249e23d1ed80e011356e2946fd889d2cfcefc51470b375de1bf52a24277",
     "traces_included": false

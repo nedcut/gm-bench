@@ -160,6 +160,11 @@ jobs:
             count=$((count + 1))
           done < <(find results/agentic -type f -name '*.json' -print0 2>/dev/null || true)
           echo "validated $count agentic row(s)"
+          # Zero rows means the directory moved or the glob broke, not that everything passed.
+          if [ "$count" -eq 0 ]; then
+            echo "::error::no GM-Bench 2.0 rows found under results/agentic; nothing was validated"
+            exit 1
+          fi
       - name: Output-budget analysis is reproducible
         # Publishing keys off analysis.status; regenerate from the committed
         # sweep config (+ optional cell artifacts) and refuse hand-edited status.
