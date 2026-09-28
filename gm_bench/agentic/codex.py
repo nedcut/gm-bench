@@ -132,10 +132,21 @@ source at tag ``rust-v0.156.1``: ``codex-rs/exec/src/exec_events.rs``,
   ``tokens``, as staged and as Codex left them, and ``CODEX_API_KEY``) with
   ``[REDACTED]`` in ``codex-events.jsonl`` and ``codex-stderr.log``. A kept
   scratch directory is not redacted: it holds whatever the agent wrote.
-  A ChatGPT ``auth.json`` carries a refresh token that Codex may rotate
-  inside the episode; an API-key ``auth.json``
-  (``{"auth_mode": "apikey", "OPENAI_API_KEY": "..."}``) does not have that
-  problem.
+  A ChatGPT ``auth.json`` carries a refresh token that Codex rotates when
+  it renews the login (it does so when the login is about eight days old or
+  the access token has expired), and the old refresh token then stops
+  working. Left alone, the renewed copy would be deleted with the episode's
+  home and the ``--codex-auth-file`` it came from would be dead: the next
+  episode, and the operator's own Codex, would fail with
+  ``refresh_token_reused``. So when an episode ends the driver reads the
+  ``auth.json`` Codex left (from the private ``CODEX_HOME``, or from the home
+  volume before it is removed) and, if it differs from what was staged,
+  writes it back over the auth file (:func:`write_back_auth`: mode 0600,
+  atomically, and only if the file still holds exactly what was staged, so a
+  login the operator made meanwhile is never overwritten). The outcome is
+  recorded as ``harness_run.auth_file_update``, never the values. An
+  API-key ``auth.json`` (``{"auth_mode": "apikey", "OPENAI_API_KEY": "..."}``)
+  is never rotated.
 
 Every Codex run spends the operator's OpenAI quota or money, and the driver
 runs episodes serially: never run it in parallel.
@@ -150,6 +161,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -289,6 +301,42 @@ def redact_file(path: Path, values: set[str]) -> bool:
         return False
     path.write_text(redacted, encoding="utf-8", errors="surrogateescape")
     return True
+
+
+def write_back_auth(path: Path, staged: bytes, current: bytes | None) -> str:
+    """Put the login Codex left (``current``) back in the auth file it was staged from; what happened.
+
+    ``unchanged`` when Codex did not rotate it; ``updated`` when it did and
+    the file now holds the new login. Otherwise the file is left as it was
+    and the reason starts with ``not written``: Codex's copy could not be
+    read or is not a login, or the file no longer holds what was staged (the
+    operator logged in again meanwhile, and that newer login wins).
+    """
+    if current is None:
+        return "not written: the auth.json Codex left could not be read"
+    if current == staged:
+        return "unchanged"
+    try:
+        payload = json.loads(current)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        payload = None
+    if not isinstance(payload, dict) or not (payload.get("OPENAI_API_KEY") or payload.get("tokens")):
+        return "not written: the auth.json Codex left is not a login"
+    try:
+        if path.read_bytes() != staged:
+            return "not written: the auth file changed during the episode"
+        temporary = path.with_name(f".{path.name}.gm-bench-{os.getpid()}")
+        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(current)
+            os.replace(temporary, path)
+        except BaseException:
+            temporary.unlink(missing_ok=True)
+            raise
+    except OSError as exc:
+        return f"not written: {exc.strerror or type(exc).__name__}"
+    return "updated"
 
 
 def read_auth_file(path: str | Path) -> bytes:
@@ -727,6 +775,12 @@ class CodexDriver(HarnessDriver):
         self._secrets: dict[Path, set[str]] = {}
         # Per launch: the subscription quota read from the session rollouts by ``collect``.
         self._quota: dict[Path, dict[str, Any]] = {}
+        # Per launch with --codex-auth-file: the auth.json staged, the one Codex left in a
+        # container's home volume (read by ``collect`` before the volume goes), and what
+        # ``cleanup`` did with a rotated login.
+        self._staged_auth: dict[Path, bytes] = {}
+        self._left_auth: dict[Path, bytes | None] = {}
+        self._auth_updates: dict[Path, str] = {}
 
     def auth_source(self, isolation: str) -> str:
         if self.auth_file is not None:
@@ -781,6 +835,7 @@ class CodexDriver(HarnessDriver):
         if self.auth_file is not None:
             files[AUTH_FILENAME] = read_auth_file(self.auth_file)
             secrets.update(auth_secrets(files[AUTH_FILENAME]))
+            self._staged_auth[launch.scratch] = files[AUTH_FILENAME]
         if launch.container is not None:
             # Into the episode's home volume over stdin; never the bind-mounted scratch.
             launch.container.seed_home({f"{CODEX_HOME_DIRNAME}/{name}": data for name, data in files.items()})
@@ -827,6 +882,8 @@ class CodexDriver(HarnessDriver):
         # The rollouts are append-only, so reading once after the last
         # invocation sees every token_count the episode's invocations wrote.
         if launch.container is not None:
+            if launch.scratch in self._staged_auth:
+                self._left_auth[launch.scratch] = launch.container.home_file(f"{CODEX_HOME_DIRNAME}/{AUTH_FILENAME}")
             lines = launch.container.home_lines(
                 f"{CODEX_HOME_DIRNAME}/{SESSIONS_DIRNAME}", ROLLOUT_GLOB, '"token_count"'
             )
@@ -850,6 +907,8 @@ class CodexDriver(HarnessDriver):
             else "private directory outside the scratch (removed at episode end)",
             "sandbox_mode": CONTAINER_SANDBOX if container else SAME_USER_SANDBOX,
             "auth": self.auth_source(launch.isolation),
+            # What happened to a login Codex rotated: written back to --codex-auth-file or why not.
+            "auth_file_update": self._auth_updates.pop(launch.scratch, None),
             "session_resume": "codex exec resume",
         }
 
@@ -858,12 +917,23 @@ class CodexDriver(HarnessDriver):
         # the private home goes, and no credential value stays in the evidence.
         secrets = self._secrets.pop(launch.scratch, set())
         home = self._homes.pop(launch.scratch, None)
+        left = self._left_auth.pop(launch.scratch, None)
         if home is not None:
             auth = home / AUTH_FILENAME
-            if auth.is_file():
-                # Codex may have rotated a ChatGPT refresh token during the episode.
-                secrets.update(auth_secrets(auth.read_bytes()))
+            left = auth.read_bytes() if auth.is_file() else None
             shutil.rmtree(home, ignore_errors=True)
+        if left is not None:
+            # Codex may have rotated a ChatGPT refresh token during the episode.
+            secrets.update(auth_secrets(left))
+        staged = self._staged_auth.pop(launch.scratch, None)
+        if staged is not None and self.auth_file is not None:
+            update = write_back_auth(self.auth_file, staged, left)
+            self._auth_updates[launch.scratch] = update
+            if update.startswith("not written"):
+                sys.stderr.write(
+                    f"gm-bench agentic: --codex-auth-file {self.auth_file}: {update}; if Codex renewed the login "
+                    "during the episode, the file's login no longer works and needs `codex login`\n"
+                )
         for path in launch.evidence_paths:
             redact_file(path, secrets)
 

@@ -483,10 +483,22 @@ Authentication. Because the host `~/.codex` is not used, the ChatGPT login
 there is not inherited. Give the harness a credential deliberately:
 
 - `--codex-auth-file <path>`: a Codex `auth.json`. An API-key file is
-  `{"auth_mode": "apikey", "OPENAI_API_KEY": "sk-..."}`; a copy of a ChatGPT
-  login's `~/.codex/auth.json` also works, but Codex may rotate its refresh
-  token inside the episode, which can sign the host copy out. Keep the file
-  outside the checkout and outside the run directory.
+  `{"auth_mode": "apikey", "OPENAI_API_KEY": "sk-..."}`. A ChatGPT login's
+  `auth.json` also works. Keep the file outside the checkout and outside the
+  run directory.
+
+  Codex renews a ChatGPT login inside the episode when it is about eight days
+  old or its access token has expired. Renewing replaces the refresh token,
+  and the old one stops working. So when an episode ends the driver writes
+  the login Codex left back over the `--codex-auth-file` (mode 0600,
+  atomically), and the next episode starts from it. It skips the write if
+  the file changed during the episode (you logged in again), and says so on
+  stderr. `harness_run.auth_file_update` records `unchanged`, `updated`, or
+  why it was not written. Only the file you pass is kept current: point
+  `--codex-auth-file` at `~/.codex/auth.json` itself if your interactive
+  Codex should keep working, because a renewed copy leaves the original
+  signed out. Before this, runs from a copy signed the operator's Codex out
+  (on 2026-09-27 its refresh token was refused as already used).
 - Same-user only: `CODEX_API_KEY` in your environment, which `codex exec`
   reads. It is dropped when `--codex-auth-file` is given, so the file is
   what Codex uses.
