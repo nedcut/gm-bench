@@ -218,6 +218,19 @@ What the check cannot see: anything a provider adds on its own servers, and
 what an account endpoint would return (a ChatGPT-login Codex fetches
 plugins, apps and user settings at startup; the check answers those itself).
 
+To see what a real account adds, Codex was also run once on 2026-09-27 with
+the operator's ChatGPT login, its account endpoints reached for real and only
+the model request sent to the capture server. The prompt grew from 61,427 to
+64,033 characters. All of the extra text was OpenAI's generic plugin
+catalog: a longer `<recommended_plugins>` list of curated plugins that are
+not installed (Dropbox, Box, Figma, GitHub, Gmail, Google Drive, Linear,
+Notion, Slack, Teams and others), a `request_plugin_install` tool, and
+reworded apps instructions. Nothing specific to the account appeared: no
+installed apps or connectors, no custom instructions or memories, and none
+of the operator's content. The catalog is the same for any ChatGPT login,
+so it counts as part of the harness, but it is fetched at startup and can
+change without a Codex release.
+
 First results, 2026-09-27, same-user, on the operator's Mac:
 
 | Harness | Model requests | Operator content |
