@@ -4,8 +4,9 @@ GM-Bench 2.0 is frozen at agentic fingerprint `07de948a4f4afbae`
 (`docs/bench_v2_spec.md`). Everything below was found after the freeze. Each
 item either changes a fingerprinted file (`gm_bench/agentic/tools.py`,
 `brief.py`, `episode.py`, `mcp_server.py`), so fixing it is a new benchmark
-version, or changes a post-hoc rule that a published row relied on. None of
-them is fixed in 2.0. The spec reserves 2.1 for simulator mechanics; these
+version, changes a post-hoc rule that a published row relied on, or is a
+driver change that can alter future measurements without a version bump
+(disclosed per the spec's freeze rules). None of them is fixed in 2.0. The spec reserves 2.1 for simulator mechanics; these
 items ride on whichever contract version comes next.
 
 Recorded 2026-09-28 from the pre-release audit. Line references are to
