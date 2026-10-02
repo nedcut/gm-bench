@@ -43,7 +43,7 @@ supports no comparison between them: 2.0 ranks nothing.
 
 Cursor is also below the scripted bar, with a smaller margin: its paired
 lift is −18.6, the interval excludes zero, and the sign-flip p-value is
-0.0469. It beats `pick-trader` on 12 of 32 seeds. Its realized minimum
+0.0469, so the evidence is marginal. It beats `pick-trader` on 12 of 32 seeds. Its realized minimum
 detectable difference is about 25 points. These are separate contrasts
 against the scripted reference, not tests between model or harness rows.
 
@@ -81,8 +81,9 @@ in the [operator guide](../agentic_lane.md#publishing-a-row).
   through ToolSearch; Codex and Cursor keep their built-in tools. Cursor's
   servers add seven default User Rules; the prompt audit found only those
   on every panel episode. Cursor's reasoning effort and compactions are
-  unmeasured. The container can reach the public internet. No panel agent
-  used the web.
+  unmeasured. The container can reach the public internet. The committed
+  harness tool counts record no web-search or fetch tool use; they do not
+  prove an absence of network access through shell commands.
 - **2.0 versus 1.0 is not only agency.** A 2.0 agent can make any number of
   tool calls per phase, where a paid 1.0 agent got one call per phase. Malformed
   tool calls are rejected without penalty, and the draft class is visible only

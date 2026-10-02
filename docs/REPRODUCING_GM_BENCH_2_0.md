@@ -32,6 +32,7 @@ Work from the repository root for the remaining commands.
 ## Validate all committed 2.0 artifacts
 
 ```bash
+(
 set -eu
 count=0
 for artifact in results/agentic/*.json; do
@@ -40,6 +41,7 @@ for artifact in results/agentic/*.json; do
 done
 test "$count" -eq 11
 printf 'validated %s agentic artifacts\n' "$count"
+)
 ```
 
 Expected: eleven reports with `"ok": true` and `"errors": []`: four
@@ -104,6 +106,8 @@ Keep the original evidence unchanged. Make a temporary copy under the
 gitignored `output/` directory:
 
 ```bash
+(
+set -eu
 mkdir -p output/reproduction
 .venv/bin/python - <<'PY'
 import json
@@ -118,6 +122,7 @@ if .venv/bin/python -m gm_bench agentic-validate output/reproduction/tampered.js
   printf 'ERROR: corrupted artifact was accepted\n' >&2
   exit 1
 fi
+)
 ```
 
 Expected: validator exit 1, `"ok": false`, and an error that
