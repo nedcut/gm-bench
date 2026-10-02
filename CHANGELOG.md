@@ -79,6 +79,14 @@ The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
 
+- Cursor "out of usage" (2026-09-29, driver only; the agentic fingerprint
+  stays `07de948a4f4afbae`). When the grok-4.7 panel spent the Cursor plan
+  at episode 20, every launch printed "You're out of usage", which the
+  usage-limit pattern missed: the driver nudged, and eleven empty episodes
+  were scored as failed decisions instead of the panel stopping on quota.
+  The pattern now matches it. That run is not publishable. No committed
+  row is affected.
+
 - OpenCode API keys (2026-09-28, driver only; the agentic fingerprint stays
   `07de948a4f4afbae`). `gm-bench agentic --harness opencode
   --opencode-auth-file <path>` runs OpenCode Go (`opencode-go/*`) models,
