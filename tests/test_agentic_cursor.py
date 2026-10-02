@@ -510,9 +510,17 @@ def test_transient_stderr_failures_are_provider_stalls(stderr: str) -> None:
     assert quota_exhaustion(lines, stderr) is None
 
 
-def test_usage_limits_and_ordinary_endings_are_never_stalls() -> None:
+@pytest.mark.parametrize(
+    "limit",
+    [
+        "You've hit your usage limit. Upgrade to continue.",
+        # Seen live 2026-09-29 on grok-4.7: every launch after the plan ran out printed this, twice.
+        "ActionRequiredError: Increase limits for faster responses You're out of usage. Switch to Auto, or ask "
+        "your admin to increase your limit to continue.",
+    ],
+)
+def test_usage_limits_and_ordinary_endings_are_never_stalls(limit: str) -> None:
     lines = [_event("system", subtype="init", session_id="s")]
-    limit = "You've hit your usage limit. Upgrade to continue."
     assert not ended_in_provider_stall(lines, limit)
     assert quota_exhaustion(lines, limit) == {"message_class": "usage_limit", "reset_at_utc": None}
     assert not ended_in_provider_stall(lines, "Cannot use this model: nope. Available models: auto")

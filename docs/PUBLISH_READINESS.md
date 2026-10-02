@@ -7,7 +7,7 @@
 > to preserve this first draft; the goal is to make it more accurate as the
 > project develops.
 
-**Last reviewed:** 2026-09-28
+**Last reviewed:** 2026-10-02
 **Current target:** `sota-v5` is published: tag, GitHub release, reproduction
 guide, site, and findings post all shipped on 2026-09-04. What remains in this
 document is external reproduction and the open presentation items in Phases 3
@@ -87,7 +87,7 @@ owner actions still open on 2026-09-03 are done (rechecked 2026-09-22):
   landed with #132 on 2026-09-04 and is linked from the top of `README.md` and
   from the site footer.
 
-**GM-Bench 2.0 release checklist (last reviewed 2026-09-28).** The contract
+**GM-Bench 2.0 release checklist (last reviewed 2026-10-02).** The contract
 is frozen and four panel rows are on the site; the release is not tagged.
 
 - [x] Contract frozen as `gm-bench-2.0` at agentic fingerprint
@@ -100,27 +100,39 @@ is frozen and four panel rows are on the site; the release is not tagged.
 - [x] Panel rows committed and shown on the site, all `unpinned`: Codex
   `gpt-6-luna` (#156), Claude Code `claude-sonnet-5` (#161), Claude Code
   `claude-haiku-4-5` (#164, admitted under the post-hoc guessed-draft-pick
-  rule from #163), Cursor `composer-2.5` (container, 2026-09-28).
+  rule from #163), Cursor `composer-2.5` (#173, container, 2026-09-28).
 - [x] Pre-release documentation audit: freeze rule restated, post-freeze
   changes listed with the rows they affected, realized panel noise (MDD
   about 31 to 36 points against `pick-trader`), how 2.0 differs from 1.0
   beyond the interface, deferred contract changes in
   `docs/bench_v2_1_queue.md`, and per-row caveats on the site.
-- [ ] Driver and publication fixes from the same audit merged (separate PR),
-  and any row they re-publish recorded in `CHANGELOG.md`.
+- [x] Driver and publication fixes from the same audit merged in #169
+  (`4523b33`, 2026-09-28), followed by the documentation audit in #168
+  (`8832ff6`). Re-published rows and the Haiku API-equivalent cost
+  correction ($25.14 to $27.71, scores unchanged) are recorded in
+  `CHANGELOG.md` under "Release fixes". These are estimates, not bills.
 - [ ] Owner decision on pinning: `model_pinning.pinned_models` is empty, so
   every row is "an extra data point, not a headline" until a served model
   version is pinned.
-- [ ] A 2.0 reproduction guide in the style of
-  `docs/REPRODUCING_SOTA_V5_RELEASE.md` (validate committed rows without
-  credentials).
-- [ ] Findings post finalized from the draft
-  `docs/blog/gm-bench-2.0-findings.md`.
+- [x] [2.0 clean-clone verification guide](REPRODUCING_GM_BENCH_2_0.md):
+  validate committed rows without credentials or model spending, with
+  explicit limits on reproducing withheld raw evidence and private seeds.
+- [x] [Findings draft](blog/gm-bench-2.0-findings.md) reconciled with all
+  four committed panel rows and their cost disclosures.
+- [ ] Owner approves the findings text for final publication. It remains
+  labelled draft; updating it does not cut a release.
 - [ ] Owner cuts the tag and GitHub release and moves the CHANGELOG entry
   out of "Unreleased".
-- Not part of this release: the Cursor harness (#165), the harness prompt
-  check (#166) and Codex login write-back (#167) are open PRs; rows from
-  them would be new rows, not changes to these three.
+- [x] Cursor harness (#165, `4ceef73`), harness prompt check (#166,
+  `5585b2e`) and Codex login write-back (#167, `b5cbdd2`) merged on
+  2026-09-28. Cursor container support followed in #171 (`b3d7de7`),
+  and #173 published the fourth panel row. #166 and #167 did not change
+  the scores of the earlier rows; the recorded driver revision remains
+  part of each row's identity.
+
+The remaining owner decisions above do not authorize new paid runs or edits
+to the frozen 2.0 contract. Audit provenance, replay and server-reliability
+changes in `docs/bench_v2_1_queue.md` remain deferred to a version decision.
 
 **Current weekly focus:** External reproduction and the open presentation
 items in Phases 3 through 7.
