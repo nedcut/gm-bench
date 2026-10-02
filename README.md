@@ -71,8 +71,11 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
     every prompt; the audit found only those, on every episode.
   - Every row ran at the harness's default reasoning effort.
 
-The frozen design is in [docs/bench_v2_spec.md](docs/bench_v2_spec.md) and the
-operator guide is [docs/agentic_lane.md](docs/agentic_lane.md).
+The frozen design is in [docs/bench_v2_spec.md](docs/bench_v2_spec.md), the
+operator guide is [docs/agentic_lane.md](docs/agentic_lane.md), and the
+[clean-clone verification guide](docs/REPRODUCING_GM_BENCH_2_0.md) checks
+the committed 2.0 artifacts without credentials or model spending. The four
+rows are public; a 2.0 tag and GitHub release have not been cut.
 
 ## Play along
 
