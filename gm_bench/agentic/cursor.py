@@ -58,9 +58,11 @@ live probes on composer-2.5 on 2026-09-27):
   ``resource_exhausted``, ``unavailable``, a rate limit, an overload, a
   timeout, or a dropped connection. It is quota exhaustion when it reads as
   a spent plan allowance (``usage limit``, ``hit your ... limit``, ``spend
-  limit``); Cursor states no reset time, so the shared loop stops the
-  episode and the panel. Neither message has been seen live; the patterns
-  are the CLI's gRPC status names and the other drivers' wording.
+  limit``, ``out of usage``); Cursor states no reset time, so the shared
+  loop stops the episode and the panel. Only "You're out of usage" has been
+  seen live (2026-09-29, on grok-4.7, after a missed match let eleven
+  panel episodes score empty); the other patterns are the CLI's gRPC status
+  names and the other drivers' wording.
 - **Configuration and what is not inherited.** Cursor reads its login from
   the macOS Keychain (or a file store), ``cli-config.json`` and chats from
   ``CURSOR_CONFIG_DIR`` (default ``~/.cursor``), projects, transcripts and
@@ -220,9 +222,12 @@ _RETRYABLE_MESSAGE_RE = re.compile(
     r"|connection (?:error|reset|refused|closed|lost)|econnreset|network error|stream (?:closed|disconnected)",
     re.IGNORECASE,
 )
-# A spent plan allowance: never a stall, and Cursor states no reset time.
+# A spent plan allowance: never a stall, and Cursor states no reset time. Seen live 2026-09-29
+# (cursor-agent 2026.09.26-dd393fe, grok-4.7): "ActionRequiredError: Increase limits for faster
+# responses You're out of usage. Switch to Auto, or ask your admin to increase your limit to continue."
 USAGE_LIMIT_RE = re.compile(
-    r"usage limit|you(?:'|’)ve hit your\b[^.\n]*\blimit|spend(?:ing)? limit|out of (?:fast )?requests", re.IGNORECASE
+    r"usage limit|you(?:'|’)ve hit your\b[^.\n]*\blimit|spend(?:ing)? limit|out of (?:usage|(?:fast )?requests)",
+    re.IGNORECASE,
 )
 
 
