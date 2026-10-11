@@ -46,8 +46,8 @@ export default function Hero({ data, benchmark }: { data: Leaderboard; benchmark
             <a className="cta" href={routes.results}>
               See the results
             </a>
-            <a className="cta cta-ghost" href="#play">
-              Make a call yourself
+            <a className="cta cta-ghost" href={routes.replays}>
+              Explore the trajectories
             </a>
           </div>
           <p className="lead-meta">

@@ -57,3 +57,7 @@ seed_panel_salts/
 
 # Illustrative puzzle source recordings (regenerate with scripts/record_decisions.py)
 data/decision-records/
+
+# Browser QA output (review screenshots are kept under docs).
+web/test-results/
+web/playwright-report/
