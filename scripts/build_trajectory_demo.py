@@ -37,6 +37,45 @@ SOURCE_COMMIT = "4f87f40a73269a32ab1e3789569dd48d2d1084ec"
 SOURCE_PACKAGE_SHA256 = "70e044bca5ed8875835953d3a147757c05f3274380894233ccdc94c51c336e15"
 
 
+# Pin the original source surface, not every module in a future checkout.
+# Adding an independent experiment must not rewrite public-demo provenance.
+# A new dependency of this demo requires changing a pinned importer, which the
+# digest still rejects until the source commit/manifest/hash are reviewed.
+SOURCE_MODULES = (
+    "__init__.py",
+    "__main__.py",
+    "action_validation.py",
+    "agent_utils.py",
+    "agents.py",
+    "baseline_cache.py",
+    "benchmark_config.py",
+    "calibration.py",
+    "cli.py",
+    "contract.py",
+    "decision_providers.py",
+    "environment.py",
+    "generator.py",
+    "gui.py",
+    "model_runs.py",
+    "models.py",
+    "official.py",
+    "oracle.py",
+    "protocol.py",
+    "providers.py",
+    "publication.py",
+    "recorder.py",
+    "repair.py",
+    "runner.py",
+    "scaffold_view.py",
+    "scoring.py",
+    "session.py",
+    "simulator.py",
+    "storage.py",
+    "telemetry.py",
+    "validity.py",
+)
+
+
 class CaptureAgent(Agent):
     """Retain the full observation actually passed to the scripted policy."""
 
@@ -51,9 +90,10 @@ class CaptureAgent(Agent):
 
 
 def source_package_digest() -> str:
-    """Hash executed root modules, including recorder/agents, without Git history."""
+    """Hash the pinned source manifest, independent of unrelated module additions."""
     digest = hashlib.sha256()
-    for path in sorted((ROOT / "gm_bench").glob("*.py")):
+    for name in SOURCE_MODULES:
+        path = ROOT / "gm_bench" / name
         digest.update(path.name.encode() + b"\0" + path.read_bytes() + b"\0")
     return digest.hexdigest()
 
