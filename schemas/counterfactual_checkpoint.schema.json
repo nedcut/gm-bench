@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Experimental counterfactual checkpoint",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "gm-counterfactual-checkpoint-v1"
+    },
+    "track": {
+      "const": "experimental-public-dev"
+    },
+    "family": {
+      "const": "draft"
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32
+    },
+    "season": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "phase": {
+      "const": "draft"
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "benchmark_contract": {
+          "type": "object"
+        },
+        "implementation_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "python": {
+          "type": "string"
+        },
+        "continuation_policy": {
+          "const": "value-one-batch-per-window-v1"
+        }
+      },
+      "required": [
+        "benchmark_contract",
+        "implementation_sha256",
+        "python",
+        "continuation_policy"
+      ],
+      "additionalProperties": false
+    },
+    "prefix": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "season": {
+            "type": "integer"
+          },
+          "phase": {
+            "enum": [
+              "preseason",
+              "midseason",
+              "trade_deadline",
+              "draft"
+            ]
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "season",
+          "phase",
+          "actions",
+          "results"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 11
+    },
+    "observation": {
+      "type": "object",
+      "required": [
+        "team",
+        "draft_class",
+        "phase",
+        "season",
+        "seed"
+      ]
+    },
+    "state_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "checkpoint_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "schema_version",
+    "track",
+    "family",
+    "seed",
+    "season",
+    "phase",
+    "provenance",
+    "prefix",
+    "observation",
+    "state_sha256",
+    "checkpoint_id"
+  ],
+  "additionalProperties": false
+}
