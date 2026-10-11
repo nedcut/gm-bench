@@ -1,0 +1,522 @@
+[
+  {
+    "backend_fingerprints": [
+      "scripted-rules-v1"
+    ],
+    "condition": "no_persistent_journal",
+    "elapsed_seconds": {
+      "basis": "episode client wall clock including finalization",
+      "status": "measured",
+      "value": 0.09739356299996871
+    },
+    "identity_verified": true,
+    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "metrics": {
+      "completed": 1,
+      "failed_decisions": 0,
+      "final_score": 118.573,
+      "illegal_actions": 0,
+      "model_calls": 12,
+      "protocol_penalty": 0.0,
+      "rejected_tool_calls": 0,
+      "strategy_score": 118.573,
+      "tool_calls": 12
+    },
+    "observed_models": [
+      "scripted-rules-v1"
+    ],
+    "phases_ended_by": {
+      "agent": 4
+    },
+    "repeat": 0,
+    "seed": 701,
+    "termination": "completed",
+    "tool_calls_by_tool": {
+      "end_phase": 4,
+      "get_rules": 4,
+      "get_status": 4
+    },
+    "usage": {
+      "billed_cost_usd": {
+        "basis": "billing not queried",
+        "status": "unavailable",
+        "value": null
+      },
+      "completion_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "cost_usd": {
+        "basis": "offline fixture; no provider calls",
+        "status": "measured",
+        "value": 0
+      },
+      "prompt_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "provider_latency_seconds": {
+        "basis": "client wall clock",
+        "status": "measured",
+        "value": 0.007011877999957505
+      }
+    }
+  },
+  {
+    "backend_fingerprints": [
+      "scripted-rules-v1"
+    ],
+    "condition": "structured_decision_journal",
+    "elapsed_seconds": {
+      "basis": "episode client wall clock including finalization",
+      "status": "measured",
+      "value": 0.0602463010000065
+    },
+    "identity_verified": true,
+    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "metrics": {
+      "completed": 1,
+      "failed_decisions": 0,
+      "final_score": 118.573,
+      "illegal_actions": 0,
+      "model_calls": 9,
+      "protocol_penalty": 0.0,
+      "rejected_tool_calls": 0,
+      "strategy_score": 118.573,
+      "tool_calls": 9
+    },
+    "observed_models": [
+      "scripted-rules-v1"
+    ],
+    "phases_ended_by": {
+      "agent": 4
+    },
+    "repeat": 0,
+    "seed": 701,
+    "termination": "completed",
+    "tool_calls_by_tool": {
+      "end_phase": 4,
+      "get_rules": 1,
+      "get_status": 4
+    },
+    "usage": {
+      "billed_cost_usd": {
+        "basis": "billing not queried",
+        "status": "unavailable",
+        "value": null
+      },
+      "completion_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "cost_usd": {
+        "basis": "offline fixture; no provider calls",
+        "status": "measured",
+        "value": 0
+      },
+      "prompt_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "provider_latency_seconds": {
+        "basis": "client wall clock",
+        "status": "measured",
+        "value": 0.0031449550000388626
+      }
+    }
+  },
+  {
+    "backend_fingerprints": [
+      "scripted-rules-v1"
+    ],
+    "condition": "structured_decision_journal",
+    "elapsed_seconds": {
+      "basis": "episode client wall clock including finalization",
+      "status": "measured",
+      "value": 0.06053735000000415
+    },
+    "identity_verified": true,
+    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "metrics": {
+      "completed": 1,
+      "failed_decisions": 0,
+      "final_score": 118.573,
+      "illegal_actions": 0,
+      "model_calls": 9,
+      "protocol_penalty": 0.0,
+      "rejected_tool_calls": 0,
+      "strategy_score": 118.573,
+      "tool_calls": 9
+    },
+    "observed_models": [
+      "scripted-rules-v1"
+    ],
+    "phases_ended_by": {
+      "agent": 4
+    },
+    "repeat": 1,
+    "seed": 701,
+    "termination": "completed",
+    "tool_calls_by_tool": {
+      "end_phase": 4,
+      "get_rules": 1,
+      "get_status": 4
+    },
+    "usage": {
+      "billed_cost_usd": {
+        "basis": "billing not queried",
+        "status": "unavailable",
+        "value": null
+      },
+      "completion_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "cost_usd": {
+        "basis": "offline fixture; no provider calls",
+        "status": "measured",
+        "value": 0
+      },
+      "prompt_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "provider_latency_seconds": {
+        "basis": "client wall clock",
+        "status": "measured",
+        "value": 0.0030749510000305236
+      }
+    }
+  },
+  {
+    "backend_fingerprints": [
+      "scripted-rules-v1"
+    ],
+    "condition": "no_persistent_journal",
+    "elapsed_seconds": {
+      "basis": "episode client wall clock including finalization",
+      "status": "measured",
+      "value": 0.07584350100000847
+    },
+    "identity_verified": true,
+    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "metrics": {
+      "completed": 1,
+      "failed_decisions": 0,
+      "final_score": 118.573,
+      "illegal_actions": 0,
+      "model_calls": 12,
+      "protocol_penalty": 0.0,
+      "rejected_tool_calls": 0,
+      "strategy_score": 118.573,
+      "tool_calls": 12
+    },
+    "observed_models": [
+      "scripted-rules-v1"
+    ],
+    "phases_ended_by": {
+      "agent": 4
+    },
+    "repeat": 1,
+    "seed": 701,
+    "termination": "completed",
+    "tool_calls_by_tool": {
+      "end_phase": 4,
+      "get_rules": 4,
+      "get_status": 4
+    },
+    "usage": {
+      "billed_cost_usd": {
+        "basis": "billing not queried",
+        "status": "unavailable",
+        "value": null
+      },
+      "completion_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "cost_usd": {
+        "basis": "offline fixture; no provider calls",
+        "status": "measured",
+        "value": 0
+      },
+      "prompt_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "provider_latency_seconds": {
+        "basis": "client wall clock",
+        "status": "measured",
+        "value": 0.005792301999804295
+      }
+    }
+  },
+  {
+    "backend_fingerprints": [
+      "scripted-rules-v1"
+    ],
+    "condition": "structured_decision_journal",
+    "elapsed_seconds": {
+      "basis": "episode client wall clock including finalization",
+      "status": "measured",
+      "value": 0.0376122679999753
+    },
+    "identity_verified": true,
+    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "metrics": {
+      "completed": 1,
+      "failed_decisions": 0,
+      "final_score": 88.365,
+      "illegal_actions": 0,
+      "model_calls": 9,
+      "protocol_penalty": 0.0,
+      "rejected_tool_calls": 0,
+      "strategy_score": 88.365,
+      "tool_calls": 9
+    },
+    "observed_models": [
+      "scripted-rules-v1"
+    ],
+    "phases_ended_by": {
+      "agent": 4
+    },
+    "repeat": 0,
+    "seed": 702,
+    "termination": "completed",
+    "tool_calls_by_tool": {
+      "end_phase": 4,
+      "get_rules": 1,
+      "get_status": 4
+    },
+    "usage": {
+      "billed_cost_usd": {
+        "basis": "billing not queried",
+        "status": "unavailable",
+        "value": null
+      },
+      "completion_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "cost_usd": {
+        "basis": "offline fixture; no provider calls",
+        "status": "measured",
+        "value": 0
+      },
+      "prompt_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "provider_latency_seconds": {
+        "basis": "client wall clock",
+        "status": "measured",
+        "value": 0.0030009930000005625
+      }
+    }
+  },
+  {
+    "backend_fingerprints": [
+      "scripted-rules-v1"
+    ],
+    "condition": "no_persistent_journal",
+    "elapsed_seconds": {
+      "basis": "episode client wall clock including finalization",
+      "status": "measured",
+      "value": 0.04918772100006663
+    },
+    "identity_verified": true,
+    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "metrics": {
+      "completed": 1,
+      "failed_decisions": 0,
+      "final_score": 88.365,
+      "illegal_actions": 0,
+      "model_calls": 12,
+      "protocol_penalty": 0.0,
+      "rejected_tool_calls": 0,
+      "strategy_score": 88.365,
+      "tool_calls": 12
+    },
+    "observed_models": [
+      "scripted-rules-v1"
+    ],
+    "phases_ended_by": {
+      "agent": 4
+    },
+    "repeat": 0,
+    "seed": 702,
+    "termination": "completed",
+    "tool_calls_by_tool": {
+      "end_phase": 4,
+      "get_rules": 4,
+      "get_status": 4
+    },
+    "usage": {
+      "billed_cost_usd": {
+        "basis": "billing not queried",
+        "status": "unavailable",
+        "value": null
+      },
+      "completion_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "cost_usd": {
+        "basis": "offline fixture; no provider calls",
+        "status": "measured",
+        "value": 0
+      },
+      "prompt_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "provider_latency_seconds": {
+        "basis": "client wall clock",
+        "status": "measured",
+        "value": 0.0044874500001697015
+      }
+    }
+  },
+  {
+    "backend_fingerprints": [
+      "scripted-rules-v1"
+    ],
+    "condition": "no_persistent_journal",
+    "elapsed_seconds": {
+      "basis": "episode client wall clock including finalization",
+      "status": "measured",
+      "value": 0.04950379599995358
+    },
+    "identity_verified": true,
+    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "metrics": {
+      "completed": 1,
+      "failed_decisions": 0,
+      "final_score": 88.365,
+      "illegal_actions": 0,
+      "model_calls": 12,
+      "protocol_penalty": 0.0,
+      "rejected_tool_calls": 0,
+      "strategy_score": 88.365,
+      "tool_calls": 12
+    },
+    "observed_models": [
+      "scripted-rules-v1"
+    ],
+    "phases_ended_by": {
+      "agent": 4
+    },
+    "repeat": 1,
+    "seed": 702,
+    "termination": "completed",
+    "tool_calls_by_tool": {
+      "end_phase": 4,
+      "get_rules": 4,
+      "get_status": 4
+    },
+    "usage": {
+      "billed_cost_usd": {
+        "basis": "billing not queried",
+        "status": "unavailable",
+        "value": null
+      },
+      "completion_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "cost_usd": {
+        "basis": "offline fixture; no provider calls",
+        "status": "measured",
+        "value": 0
+      },
+      "prompt_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "provider_latency_seconds": {
+        "basis": "client wall clock",
+        "status": "measured",
+        "value": 0.00455712600012248
+      }
+    }
+  },
+  {
+    "backend_fingerprints": [
+      "scripted-rules-v1"
+    ],
+    "condition": "structured_decision_journal",
+    "elapsed_seconds": {
+      "basis": "episode client wall clock including finalization",
+      "status": "measured",
+      "value": 0.03834512699995685
+    },
+    "identity_verified": true,
+    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "metrics": {
+      "completed": 1,
+      "failed_decisions": 0,
+      "final_score": 88.365,
+      "illegal_actions": 0,
+      "model_calls": 9,
+      "protocol_penalty": 0.0,
+      "rejected_tool_calls": 0,
+      "strategy_score": 88.365,
+      "tool_calls": 9
+    },
+    "observed_models": [
+      "scripted-rules-v1"
+    ],
+    "phases_ended_by": {
+      "agent": 4
+    },
+    "repeat": 1,
+    "seed": 702,
+    "termination": "completed",
+    "tool_calls_by_tool": {
+      "end_phase": 4,
+      "get_rules": 1,
+      "get_status": 4
+    },
+    "usage": {
+      "billed_cost_usd": {
+        "basis": "billing not queried",
+        "status": "unavailable",
+        "value": null
+      },
+      "completion_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "cost_usd": {
+        "basis": "offline fixture; no provider calls",
+        "status": "measured",
+        "value": 0
+      },
+      "prompt_tokens": {
+        "basis": "provider reported; scripted calls use zero tokens; null if any call lacks usage",
+        "status": "measured",
+        "value": 0
+      },
+      "provider_latency_seconds": {
+        "basis": "client wall clock",
+        "status": "measured",
+        "value": 0.003173518000153308
+      }
+    }
+  }
+]

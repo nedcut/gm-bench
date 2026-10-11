@@ -1,0 +1,77 @@
+{
+  "analysis": {
+    "direction": "structured_decision_journal minus no_persistent_journal",
+    "failures": "retain all completed runner records including failures; abandon remaining phases and score them",
+    "missing": "no complete-panel estimate unless every preregistered cell exists exactly once",
+    "pair": "public simulator seed x repeat index; fresh episode and provider request state per condition",
+    "primary": "final_score",
+    "repeats": "average paired differences within seed first; seeds are the analysis units",
+    "retry": "none; interrupted panels are incomplete; rerun the whole panel in a new directory, retain both",
+    "secondary": [
+      "completed",
+      "illegal_actions",
+      "tool_calls",
+      "rejected_tool_calls",
+      "model_calls"
+    ],
+    "uncertainty": "descriptive seed-level standard error; null for fewer than two seeds; no significance test"
+  },
+  "base_contract": {
+    "agentic_fingerprint": "07de948a4f4afbae",
+    "base_benchmark_version": "sota-v5",
+    "base_contract_fingerprint": "a600b7da0c302231",
+    "benchmark_version": "gm-bench-2.0",
+    "brief": "gm-bench-agentic-brief-v1",
+    "scoring_scale_fingerprint": "05a60ff4f691e734",
+    "scoring_version": "score-v1",
+    "simulator_version": "sim-v4",
+    "tool_surface": "gm-bench-agentic-v1"
+  },
+  "conditions": [
+    "no_persistent_journal",
+    "structured_decision_journal"
+  ],
+  "controls": {
+    "max_calls_per_phase": 12,
+    "max_journal_chars": 4000,
+    "max_output_tokens": 2048,
+    "max_request_chars": 120000,
+    "socket_timeout_seconds": 60
+  },
+  "created_utc": "2026-10-11T00:18:26.648331+00:00",
+  "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+  "model": {
+    "expected_response_model": "scripted-rules-v1",
+    "harness": "stateless-json-one-tool-v1",
+    "pin_status": "pinned",
+    "provider": "scripted",
+    "requested": "scripted-rules-v1",
+    "sampling_seed": "unsupported"
+  },
+  "pricing_usd_per_million": null,
+  "protocol": {
+    "clock": "engine phase guard disabled in BOTH arms; bounded calls and socket inactivity timeout, not wall deadline",
+    "context": "reset history at every phase; journal generated in both arms, retained across phases only in treatment",
+    "observations": "only current phase coordinates, current-phase call/reply history, journal, tool schemas and brief",
+    "order": "alternate condition order by seed index plus repeat index; serial execution",
+    "overflow": "stop entire episode on budget, malformed response, provider or identity error; no truncation or retries",
+    "request_budget": "max_request_chars bounds canonical JSON request characters, not wire bytes or tokens",
+    "sampling": "temperature 0; sampling seed unsupported by this adapter, not sent; provider nondeterminism remains",
+    "seed_visibility": "public demonstration seeds only; numeric simulator seed never included in model request",
+    "tools": "frozen 2.0 tool semantics except write_memo unavailable in BOTH conditions"
+  },
+  "provenance": {
+    "git_head": "35bbb6250d127b73f57ceadc62d2d339451d04fb",
+    "python": "3.12.14",
+    "source_sha256": "41b94f81bfc8749c12ada2cb8809c066430f1834fe268150a51ec18d0327a93e",
+    "working_tree_dirty": false
+  },
+  "repeats": 2,
+  "seasons": 1,
+  "seed_scope": "public",
+  "seeds": [
+    701,
+    702
+  ],
+  "version": "gm-bench-memory-experiment-v1"
+}

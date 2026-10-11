@@ -1,0 +1,158 @@
+{
+  "all_episodes_completed": true,
+  "all_identities_verified": true,
+  "analysis": {
+    "direction": "structured_decision_journal minus no_persistent_journal",
+    "failures": "retain all completed runner records including failures; abandon remaining phases and score them",
+    "missing": "no complete-panel estimate unless every preregistered cell exists exactly once",
+    "pair": "public simulator seed x repeat index; fresh episode and provider request state per condition",
+    "primary": "final_score",
+    "repeats": "average paired differences within seed first; seeds are the analysis units",
+    "retry": "none; interrupted panels are incomplete; rerun the whole panel in a new directory, retain both",
+    "secondary": [
+      "completed",
+      "illegal_actions",
+      "tool_calls",
+      "rejected_tool_calls",
+      "model_calls"
+    ],
+    "uncertainty": "descriptive seed-level standard error; null for fewer than two seeds; no significance test"
+  },
+  "cells_expected": 8,
+  "cells_recorded": 8,
+  "complete_panel": true,
+  "evidence": "offline fixture",
+  "limitations": [
+    "Offline scripted fixtures test machinery, not whether memory improves LLM performance.",
+    "Historical facts remain retrievable through tools: this may measure retrieval efficiency, not memory dependence.",
+    "Both arms plan and write journals; only cross-phase retention differs. This does not isolate planning benefit.",
+    "Journal input tokens and resulting actions can differ; equal resource ceilings do not mean equal realized compute.",
+    "Public seeds, fixed order counterbalancing, one model/harness and small panels limit generalization.",
+    "A model snapshot ID is not deterministic inference; backend fingerprints and sampling support are recorded.",
+    "Existing four 2.0 rows are unpinned exploratory evidence; no causal 1.0 versus 2.0 comparison is supported."
+  ],
+  "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+  "missing_cells": [],
+  "model": {
+    "expected_response_model": "scripted-rules-v1",
+    "harness": "stateless-json-one-tool-v1",
+    "pin_status": "pinned",
+    "provider": "scripted",
+    "requested": "scripted-rules-v1",
+    "sampling_seed": "unsupported"
+  },
+  "paired_metrics": {
+    "completed": {
+      "mean_difference": 0,
+      "pair_count": 4,
+      "seed_count": 2,
+      "seed_mean_differences": [
+        0,
+        0
+      ],
+      "seed_standard_error": 0.0
+    },
+    "final_score": {
+      "mean_difference": 0.0,
+      "pair_count": 4,
+      "seed_count": 2,
+      "seed_mean_differences": [
+        0.0,
+        0.0
+      ],
+      "seed_standard_error": 0.0
+    },
+    "illegal_actions": {
+      "mean_difference": 0,
+      "pair_count": 4,
+      "seed_count": 2,
+      "seed_mean_differences": [
+        0,
+        0
+      ],
+      "seed_standard_error": 0.0
+    },
+    "model_calls": {
+      "mean_difference": -3,
+      "pair_count": 4,
+      "seed_count": 2,
+      "seed_mean_differences": [
+        -3,
+        -3
+      ],
+      "seed_standard_error": 0.0
+    },
+    "rejected_tool_calls": {
+      "mean_difference": 0,
+      "pair_count": 4,
+      "seed_count": 2,
+      "seed_mean_differences": [
+        0,
+        0
+      ],
+      "seed_standard_error": 0.0
+    },
+    "tool_calls": {
+      "mean_difference": -3,
+      "pair_count": 4,
+      "seed_count": 2,
+      "seed_mean_differences": [
+        -3,
+        -3
+      ],
+      "seed_standard_error": 0.0
+    }
+  },
+  "pairs": [
+    {
+      "deltas": {
+        "completed": 0,
+        "final_score": 0.0,
+        "illegal_actions": 0,
+        "model_calls": -3,
+        "rejected_tool_calls": 0,
+        "tool_calls": -3
+      },
+      "repeat": 0,
+      "seed": 701
+    },
+    {
+      "deltas": {
+        "completed": 0,
+        "final_score": 0.0,
+        "illegal_actions": 0,
+        "model_calls": -3,
+        "rejected_tool_calls": 0,
+        "tool_calls": -3
+      },
+      "repeat": 1,
+      "seed": 701
+    },
+    {
+      "deltas": {
+        "completed": 0,
+        "final_score": 0.0,
+        "illegal_actions": 0,
+        "model_calls": -3,
+        "rejected_tool_calls": 0,
+        "tool_calls": -3
+      },
+      "repeat": 0,
+      "seed": 702
+    },
+    {
+      "deltas": {
+        "completed": 0,
+        "final_score": 0.0,
+        "illegal_actions": 0,
+        "model_calls": -3,
+        "rejected_tool_calls": 0,
+        "tool_calls": -3
+      },
+      "repeat": 1,
+      "seed": 702
+    }
+  ],
+  "source_unchanged": true,
+  "version": "gm-bench-memory-experiment-v1"
+}
