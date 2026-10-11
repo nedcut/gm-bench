@@ -3,16 +3,21 @@ import type { PuzzleSet } from "../types";
 import { mountPage } from "../mount";
 import PageHeader from "../components/PageHeader";
 import ReplayBrowser from "../components/ReplayBrowser";
+import TrajectoryExplorer from "../components/TrajectoryExplorer";
 
 mountPage(
   "replays",
   <>
-    <PageHeader kicker="Inspect a run" title="Watch a GM work.">
+    <PageHeader kicker="Research desk / Experimental public track" title="Same opening. Different futures.">
       <p>
-        One committed episode, every observation it saw and every move it made, plus a verifier
-        that replays the file in your browser and checks it lands on the same final state.
+        A testbed for long-horizon planning, tool use and resource allocation, played out in a
+        hockey front office. Inspect two real scripted trajectories through five seasons
+        of trades, cap pressure and roster decisions. No model performance claim is made.
       </p>
     </PageHeader>
-    <ReplayBrowser puzzles={puzzleData as PuzzleSet} />
+    <TrajectoryExplorer />
+    <div className="shell"><details className="tx-legacy"><summary>Original conservative replay &amp; browser verifier</summary>
+      <ReplayBrowser puzzles={puzzleData as PuzzleSet} />
+    </details></div>
   </>,
 );
