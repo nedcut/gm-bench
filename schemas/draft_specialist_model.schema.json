@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "gm-draft-specialist-linear-v1"
+    },
+    "track": {
+      "const": "experimental-public-dev"
+    },
+    "feature_names": {
+      "const": [
+        "overall",
+        "potential",
+        "age",
+        "injury_risk",
+        "salary",
+        "forward",
+        "defender",
+        "goalie",
+        "center",
+        "position_upgrade"
+      ]
+    },
+    "weights": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 10,
+      "maxItems": 10
+    },
+    "scales": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "minItems": 10,
+      "maxItems": 10
+    },
+    "ridge": {
+      "const": 1.0
+    },
+    "label_horizon": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "continuation_policy": {
+      "const": "value-one-batch-per-window-v1"
+    },
+    "training_seeds": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 32
+      },
+      "minItems": 2,
+      "maxItems": 16,
+      "uniqueItems": true
+    },
+    "training_comparison_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "minItems": 2,
+      "maxItems": 16,
+      "uniqueItems": true
+    },
+    "label_provenance": {
+      "type": "object",
+      "properties": {
+        "benchmark_contract": {
+          "type": "object"
+        },
+        "implementation_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "python": {
+          "type": "string"
+        },
+        "continuation_policy": {
+          "const": "value-one-batch-per-window-v1"
+        }
+      },
+      "required": [
+        "benchmark_contract",
+        "implementation_sha256",
+        "python",
+        "continuation_policy"
+      ],
+      "additionalProperties": false
+    },
+    "specialist_source_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "prediction_kind": {
+      "const": "relative preference only; uncalibrated absolute values"
+    },
+    "model_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "schema_version",
+    "track",
+    "feature_names",
+    "weights",
+    "scales",
+    "ridge",
+    "label_horizon",
+    "continuation_policy",
+    "training_seeds",
+    "training_comparison_ids",
+    "label_provenance",
+    "specialist_source_sha256",
+    "prediction_kind",
+    "model_id"
+  ],
+  "additionalProperties": false
+}

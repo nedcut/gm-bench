@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "gm-draft-specialist-evaluation-v1"
+    },
+    "track": {
+      "const": "experimental-public-dev"
+    },
+    "model_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "training_seeds": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 32
+      },
+      "minItems": 2,
+      "maxItems": 16,
+      "uniqueItems": true
+    },
+    "test_seeds": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 32
+      },
+      "minItems": 2,
+      "maxItems": 16,
+      "uniqueItems": true
+    },
+    "label_horizon": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "episodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "seed": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32
+          },
+          "checkpoint_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "comparison_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "selected_index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 11
+          },
+          "heuristic_index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 11
+          },
+          "selected_estimated_score": {
+            "type": "number"
+          },
+          "heuristic_estimated_score": {
+            "type": "number"
+          },
+          "estimated_score_delta_vs_heuristic": {
+            "type": "number"
+          },
+          "estimated_candidate_gap": {
+            "type": "number",
+            "minimum": 0
+          },
+          "heuristic_estimated_candidate_gap": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "seed",
+          "checkpoint_id",
+          "comparison_id",
+          "selected_index",
+          "heuristic_index",
+          "selected_estimated_score",
+          "heuristic_estimated_score",
+          "estimated_score_delta_vs_heuristic",
+          "estimated_candidate_gap",
+          "heuristic_estimated_candidate_gap"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 2,
+      "maxItems": 16
+    },
+    "uncertainty_unit": {
+      "const": "independent held-out public episode seed"
+    },
+    "score_delta_vs_heuristic": {
+      "type": "object",
+      "properties": {
+        "n": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "mean": {
+          "type": "number"
+        },
+        "standard_error": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "normal_95_interval": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "required": [
+        "n",
+        "mean",
+        "standard_error",
+        "normal_95_interval"
+      ],
+      "additionalProperties": false
+    },
+    "mean_estimated_candidate_gap": {
+      "type": "number",
+      "minimum": 0
+    },
+    "mean_heuristic_estimated_candidate_gap": {
+      "type": "number",
+      "minimum": 0
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "report_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "schema_version",
+    "track",
+    "model_id",
+    "training_seeds",
+    "test_seeds",
+    "label_horizon",
+    "episodes",
+    "uncertainty_unit",
+    "score_delta_vs_heuristic",
+    "mean_estimated_candidate_gap",
+    "mean_heuristic_estimated_candidate_gap",
+    "limitations",
+    "report_id"
+  ],
+  "additionalProperties": false
+}
