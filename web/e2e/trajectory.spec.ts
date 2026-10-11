@@ -97,3 +97,27 @@ test("empty, mismatched, absent observations, corrupt render fields", async ({ p
   }
   expect(errors).toEqual([]);
 });
+
+test("retained browser verifier runs the original fixture with matching runtime", async ({ page }) => {
+  // Use the installed runtime bytes to avoid CDN/certificate dependencies in CI.
+  // The exact route also asserts that the worker requests the installed version.
+  const { version } = await import("pyodide");
+  const served: string[] = [];
+  await page.route(`https://cdn.jsdelivr.net/pyodide/v${version}/full/*`, async route => {
+    const filename = new URL(route.request().url()).pathname.split("/").at(-1)!;
+    const types: Record<string, string> = {
+      "pyodide.asm.mjs": "text/javascript", "pyodide.asm.wasm": "application/wasm",
+      "pyodide-lock.json": "application/json", "python_stdlib.zip": "application/zip",
+    };
+    if (!types[filename]) throw new Error(`Unexpected runtime file: ${filename}`);
+    served.push(filename);
+    await route.fulfill({ body: readFileSync(new URL(`../node_modules/pyodide/${filename}`, import.meta.url)), contentType: types[filename], headers: { "Access-Control-Allow-Origin": "*" } });
+  });
+  await page.goto("/replays/");
+  await page.getByText("Original conservative replay & browser verifier", { exact: true }).click();
+  await page.getByRole("button", { name: "verify fixture", exact: true }).click();
+  await expect(page.locator(".replay-check")).toContainText("Verified 20 decision windows", { timeout: 45000 });
+  expect(served).toContain("pyodide.asm.wasm");
+  await page.getByRole("button", { name: "run again", exact: true }).click();
+  await expect(page.locator(".replay-check")).toContainText("Verified 20 decision windows", { timeout: 45000 });
+});
