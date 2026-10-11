@@ -14,7 +14,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "validate:trajectories": "python3 ../scripts/build_trajectory_demo.py --check && bun test scripts/trajectoryData.test.ts",
-    "test:browser": "bun run prepare:replay && playwright test"
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "d3-array": "^3.2.4",

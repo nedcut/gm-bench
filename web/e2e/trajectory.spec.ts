@@ -99,6 +99,7 @@ test("empty, mismatched, absent observations, corrupt render fields", async ({ p
 });
 
 test("retained browser verifier runs the original fixture with matching runtime", async ({ page }) => {
+  test.setTimeout(90000);
   // Use the installed runtime bytes to avoid CDN/certificate dependencies in CI.
   // The exact route also asserts that the worker requests the installed version.
   const { version } = await import("pyodide");

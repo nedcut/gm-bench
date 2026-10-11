@@ -8,5 +8,5 @@ export default defineConfig({
     launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {},
     trace: "retain-on-failure",
   },
-  webServer: { command: "bun run dev --host 127.0.0.1 --port 5178", url: "http://127.0.0.1:5178/replays/", reuseExistingServer: !process.env.CI },
+  webServer: { command: "bun run build && bun run preview --host 127.0.0.1 --port 5178", url: "http://127.0.0.1:5178/replays/", reuseExistingServer: false },
 });
