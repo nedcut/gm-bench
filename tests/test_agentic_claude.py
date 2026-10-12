@@ -1162,9 +1162,10 @@ def test_claude_image_is_pinned_with_its_launcher_and_the_other_images_are_uncha
 
     from gm_bench.agentic import container
 
-    # The OpenCode and Codex image texts (and so their tags and recorded digests) did not move.
-    assert hashlib.sha256(container.dockerfile().encode()).hexdigest() == (
-        "eaf1fdfb2359e16e4468530aeed10e6e249a67a751c8b9a488e58a8d9d416ba8"
+    # The OpenCode and Codex image texts (and so their tags and recorded digests) did not move
+    # (OpenCode's moves only with its pin, 2.0.27).
+    assert hashlib.sha256(container.image_dockerfile(container.OPENCODE_IMAGE).encode()).hexdigest() == (
+        "68c6a0dff0b97c2a85583f9dd11ad67fa5d588c5a13c7e9786783c17e90c233f"
     )
     codex = container.CODEX_IMAGE
     assert hashlib.sha256(

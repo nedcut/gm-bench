@@ -62,7 +62,31 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-CONTAINER_OPENCODE_VERSION = "1.18.31"
+# OpenCode 2.x is not published to npm (``opencode-ai`` stops at 1.19.0): it ships as one binary
+# per OS and architecture (OPENCODE_DOWNLOAD_URL; the anomalyco Homebrew tap's ``opencode-v2``
+# formula pins the same files and SHA-256s). The image downloads the pinned version's tarball
+# for the build architecture, checks its SHA-256, and installs the binary root-owned.
+CONTAINER_OPENCODE_VERSION = "2.0.27"
+OPENCODE_DOWNLOAD_URL = "https://opencode.ai/files/bin/{version}/opencode-linux-{arch}.tar.gz"
+# Debian architecture -> (OpenCode's name for it, SHA-256 of the tarball).
+OPENCODE_TARBALLS = {
+    "arm64": ("arm64", "28db459fa99c3582b968e39ceccc44254c152492056d40cd2bc548669d68aab7"),
+    "amd64": ("x64-baseline", "4bc0688d05941ede36afa12c94b814e3914dcc9159edf6d1953c98b103731bb9"),
+}
+# Dockerfile lines (run as root) that install OpenCode in place of ``npm install``.
+OPENCODE_INSTALL = (
+    "RUN set -eu; \\\n"
+    ' case "$(dpkg --print-architecture)" in \\\n'
+    + "".join(f"  {debian}) arch={arch} sum={digest} ;; \\\n" for debian, (arch, digest) in OPENCODE_TARBALLS.items())
+    + '  *) echo "no pinned OpenCode tarball for this architecture" >&2; exit 1 ;; \\\n'
+    " esac; \\\n"
+    ' python3 -c "import shutil, sys, urllib.request as u; shutil.copyfileobj(u.urlopen(u.Request(sys.argv[1], \\\n'
+    "  headers={'User-Agent': 'gm-bench-image-build'})), open(sys.argv[2], 'wb'))\" \\\n"
+    f'  "{OPENCODE_DOWNLOAD_URL.format(version=CONTAINER_OPENCODE_VERSION, arch="$arch")}" /tmp/opencode.tar.gz; \\\n'
+    ' echo "$sum  /tmp/opencode.tar.gz" | sha256sum -c -; \\\n'
+    " tar --no-same-owner -xzf /tmp/opencode.tar.gz -C /usr/local/bin opencode; \\\n"
+    " rm /tmp/opencode.tar.gz\n"
+)
 CONTAINER_CODEX_VERSION = "0.156.1"
 CONTAINER_CLAUDE_VERSION = "2.1.281"
 BASE_IMAGE = "node:22-bookworm-slim@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9"
@@ -315,7 +339,13 @@ class ImageSpec:
 
 
 OPENCODE_IMAGE = ImageSpec(
-    "opencode", "opencode-ai", CONTAINER_OPENCODE_VERSION, IMAGE_REPOSITORY, "opencode", "opencode_version"
+    "opencode",
+    "opencode",
+    CONTAINER_OPENCODE_VERSION,
+    IMAGE_REPOSITORY,
+    "opencode",
+    "opencode_version",
+    install=OPENCODE_INSTALL,
 )
 CODEX_IMAGE = ImageSpec(
     "codex", "@openai/codex", CONTAINER_CODEX_VERSION, "gm-bench-agentic-codex", "codex", "codex_version"
@@ -376,30 +406,24 @@ def _docker(docker: str, *args: str, env: dict[str, str] | None = None, **kwargs
         raise ContainerError(f"{docker} {args[0] if args else ''} did not finish within {exc.timeout} s") from exc
 
 
+def image_dockerfile(spec: ImageSpec) -> str:
+    """The Dockerfile text of one harness image."""
+    return dockerfile(spec.version, package=spec.package, extra=spec.extra, install=spec.install)
+
+
 def ensure_image(
-    opencode_version: str = CONTAINER_OPENCODE_VERSION,
     *,
     docker: str = "docker",
     env: dict[str, str] | None = None,
-    spec: ImageSpec | None = None,
+    spec: ImageSpec = OPENCODE_IMAGE,
 ) -> dict[str, Any]:
     """Build the harness image if it is missing and describe exactly what will run.
 
     ``spec`` selects the harness image (:data:`CODEX_IMAGE`,
-    :data:`CLAUDE_IMAGE`); without it this is the OpenCode image at
-    ``opencode_version``, as before.
+    :data:`CLAUDE_IMAGE`, :data:`CURSOR_IMAGE`); the OpenCode image by default.
     """
-    if spec is None:
-        spec = ImageSpec(
-            OPENCODE_IMAGE.harness,
-            OPENCODE_IMAGE.package,
-            opencode_version,
-            OPENCODE_IMAGE.repository,
-            OPENCODE_IMAGE.executable,
-            OPENCODE_IMAGE.version_key,
-        )
     pinned = spec.version
-    text = dockerfile(pinned, package=spec.package, extra=spec.extra, install=spec.install)
+    text = image_dockerfile(spec)
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
     tag = f"{spec.repository}:{pinned}-{digest[:12]}"
     server = _docker(docker, "version", "--format", "{{.Server.Version}}", env=env)
@@ -420,11 +444,11 @@ def ensure_image(
         docker, "run", "--rm", "--network", "none", image_id, spec.executable, "--version", env=env, timeout=120
     )
     reported = (probe.stdout or "").strip().splitlines()
-    # ``opencode --version`` and ``cursor-agent --version`` print the bare version, ``codex --version``
-    # ``codex-cli <version>``, and ``claude --version`` ``<version> (Claude Code)``: the first
-    # version-shaped word of the last line.
+    # ``cursor-agent --version`` prints the bare version, ``opencode --version`` (2.x)
+    # ``opencode v<version>``, ``codex --version`` ``codex-cli <version>``, and ``claude --version``
+    # ``<version> (Claude Code)``: the first version-shaped word of the last line, without a ``v``.
     words = reported[-1].split() if reported else []
-    versions = [word for word in words if re.fullmatch(r"\d+\.\d+\.\d+\S*", word)]
+    versions = [match.group(1) for word in words if (match := re.fullmatch(r"v?(\d+\.\d+\.\d+\S*)", word))]
     version = versions[0] if versions else (words[-1] if words else None)
     if version != pinned:
         raise ContainerError(f"image {tag} reports {spec.harness} {version!r}, pinned {pinned!r}")
