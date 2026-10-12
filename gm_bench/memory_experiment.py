@@ -1,4 +1,7 @@
-"""Preregister and run a separate, public-seed-only paired journal experiment.
+"""Preregister and run a separate, public-seed-only paired harness-design experiment.
+
+The model, tools, seeds and limits are fixed; only the cross-phase context policy
+varies (no journal versus a retained structured decision journal).
 
 Run ``python -m gm_bench.memory_experiment --help``. No frozen entrypoint imports
 this module. The experimental wrapper, limits and observations are not GM-Bench 2.0.
@@ -26,9 +29,15 @@ from gm_bench.agentic.brief import task_brief
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import AgenticEpisode
 from gm_bench.agentic.tools import TOOLS
-from gm_bench.memory_experiment_provider import openai_chat, scripted
+from gm_bench.memory_experiment_provider import anthropic_messages, openai_chat, scripted
 
 VERSION = "gm-bench-memory-experiment-v1"
+PROVIDERS = {
+    "scripted": (scripted, None),
+    "openai-chat": (openai_chat, "OPENAI_API_KEY"),
+    "anthropic-messages": (anthropic_messages, "ANTHROPIC_API_KEY"),
+}
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
 CONDITIONS = ["no_persistent_journal", "structured_decision_journal"]
 SOURCES = ["memory_experiment.py", "memory_experiment_provider.py"]
 ANALYSIS = {
@@ -57,7 +66,8 @@ PROTOCOL = {
     "request_budget": "max_request_chars bounds canonical JSON request characters, not wire bytes or tokens",
     "overflow": "stop entire episode on budget, malformed response, provider or identity error; no truncation or retries",
     "order": "alternate condition order by seed index plus repeat index; serial execution",
-    "sampling": "temperature 0; sampling seed unsupported by this adapter, not sent; provider nondeterminism remains",
+    "sampling": "openai-chat sends temperature 0; anthropic-messages sends no sampling parameters but a registered "
+    "effort with adaptive thinking; sampling seed unsupported, not sent; provider nondeterminism remains",
     "seed_visibility": "public demonstration seeds only; numeric simulator seed never included in model request",
 }
 LIMITATIONS = [
@@ -67,6 +77,7 @@ LIMITATIONS = [
     "Journal input tokens and resulting actions can differ; equal resource ceilings do not mean equal realized compute.",
     "Public seeds, fixed order counterbalancing, one model/harness and small panels limit generalization.",
     "A model snapshot ID is not deterministic inference; backend fingerprints and sampling support are recorded.",
+    "Claude model IDs carry no date; a pin is checked only against the returned model field, not proven a snapshot.",
     "Existing four 2.0 rows are unpinned exploratory evidence; no causal 1.0 versus 2.0 comparison is supported.",
 ]
 
@@ -126,6 +137,7 @@ def register(
     pin: str = "pinned",
     controls: dict[str, int] | None = None,
     pricing: dict[str, float] | None = None,
+    effort: str | None = None,
 ) -> dict[str, Any]:
     manifest = {
         "version": VERSION,
@@ -144,6 +156,7 @@ def register(
             "pin_status": pin,
             "expected_response_model": model if pin == "pinned" else None,
             "sampling_seed": "unsupported",
+            "effort": effort,
             "harness": "stateless-json-one-tool-v1",
         },
         "pricing_usd_per_million": pricing,
@@ -186,7 +199,7 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
     if set(controls) != set(CONTROLS) or any(type(v) is not int or v < 1 for v in controls.values()):
         raise ValueError("controls must contain exactly the positive integer limits")
     model = manifest["model"]
-    if model["provider"] not in ("scripted", "openai-chat") or model["pin_status"] not in (
+    if model["provider"] not in PROVIDERS or model["pin_status"] not in (
         "pinned",
         "unpinned",
         "unsupported",
@@ -196,6 +209,9 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
         raise ValueError("model ID is required")
     if model["sampling_seed"] != "unsupported" or model["harness"] != "stateless-json-one-tool-v1":
         raise ValueError("unsupported sampling or harness configuration")
+    effort = model.get("effort")
+    if not (effort in EFFORTS if model["provider"] == "anthropic-messages" else effort is None):
+        raise ValueError(f"anthropic-messages requires an explicit effort in {EFFORTS}; other providers take none")
     if model["provider"] == "scripted" and (
         model["requested"] != "scripted-rules-v1" or model["pin_status"] != "pinned"
     ):
@@ -531,9 +547,9 @@ def run(
     if manifest["model"]["provider"] != "scripted" and not allow_paid:
         raise ValueError("real provider disabled; a separately authorized run requires --allow-paid")
     if provider is None:
-        provider = scripted if manifest["model"]["provider"] == "scripted" else openai_chat
-        if provider == openai_chat and not os.environ.get("OPENAI_API_KEY"):
-            raise ValueError("OPENAI_API_KEY is absent")
+        provider, credential = PROVIDERS[manifest["model"]["provider"]]
+        if credential and not os.environ.get(credential):
+            raise ValueError(f"{credential} is absent")
     output.mkdir(parents=True, exist_ok=False)
     write_json(output / "manifest.json", manifest)  # written before the first outcome
     before = provenance()
@@ -587,9 +603,10 @@ def main(argv: list[str] | None = None) -> None:
     pre.add_argument("--public-seeds", type=int, nargs="+", required=True)
     pre.add_argument("--repeats", type=int, default=2)
     pre.add_argument("--seasons", type=int, default=1)
-    pre.add_argument("--provider", choices=["scripted", "openai-chat"], default="scripted")
+    pre.add_argument("--provider", choices=sorted(PROVIDERS), default="scripted")
     pre.add_argument("--model", default="scripted-rules-v1")
     pre.add_argument("--pin-status", choices=["pinned", "unpinned", "unsupported"], default="pinned")
+    pre.add_argument("--effort", choices=EFFORTS, help="required for anthropic-messages; fixed for every cell")
     for key, default in CONTROLS.items():
         pre.add_argument("--" + key.replace("_", "-"), type=int, default=default)
     pre.add_argument("--input-usd-per-million", type=float)
@@ -615,6 +632,7 @@ def main(argv: list[str] | None = None) -> None:
                 pin=args.pin_status,
                 controls={key: getattr(args, key) for key in CONTROLS},
                 pricing=None if rates[0] is None else dict(zip(("input", "output"), rates)),
+                effort=args.effort,
             )
             write_json(args.out, manifest)
             print(manifest["manifest_sha256"])

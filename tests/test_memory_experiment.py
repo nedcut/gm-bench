@@ -285,3 +285,104 @@ def test_new_modules_are_shipped_by_existing_package_configuration():
     # No shared packaging or frozen CLI edits are needed for these top-level modules.
     root = Path(__file__).parents[1]
     assert '"gm_bench",' in (root / "pyproject.toml").read_text()
+
+
+def test_anthropic_registration_requires_explicit_effort_and_accepts_undated_pin():
+    with pytest.raises(ValueError, match="effort"):
+        exp.register([701], provider="anthropic-messages", model="claude-sonnet-5-5")
+    with pytest.raises(ValueError, match="effort"):
+        exp.register([701], provider="openai-chat", model="test-2026-01-01", effort="low")
+    manifest = exp.register([701], provider="anthropic-messages", model="claude-sonnet-5-5", effort="low")
+    assert manifest["model"]["effort"] == "low"
+    assert manifest["model"]["expected_response_model"] == "claude-sonnet-5-5"
+
+
+def test_anthropic_gate_requires_spend_flag_and_credential(tmp_path, monkeypatch):
+    manifest = exp.register([701], provider="anthropic-messages", model="claude-sonnet-5-5", effort="low")
+    path = tmp_path / "registration.json"
+    exp.write_json(path, manifest)
+    with pytest.raises(ValueError, match="allow-paid"):
+        exp.run(path, tmp_path / "out")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+        exp.run(path, tmp_path / "out", allow_paid=True)
+    assert not (tmp_path / "out").exists()
+
+
+def test_anthropic_route_runs_full_pinned_panel_through_registered_provider(tmp_path, monkeypatch):
+    manifest = exp.register([701], repeats=1, provider="anthropic-messages", model="claude-sonnet-5-5", effort="low")
+    path = tmp_path / "registration.json"
+    exp.write_json(path, manifest)
+    calls = []
+
+    def fake(request, model, controls):
+        calls.append(model["effort"])
+        response = providers.scripted(request, model, controls)
+        response["usage"] = {"prompt_tokens": 10, "completion_tokens": 2}
+        return response
+
+    monkeypatch.setitem(exp.PROVIDERS, "anthropic-messages", (fake, "ANTHROPIC_API_KEY"))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-test-key")
+    report = exp.run(path, tmp_path / "out", allow_paid=True)
+    assert report["complete_panel"] and report["all_identities_verified"]
+    assert report["evidence"] == "experimental model run"
+    assert calls and set(calls) == {"low"}
+
+
+def test_stateless_anthropic_wire_without_network(monkeypatch):
+    sent = []
+    body = {
+        "id": "msg_1",
+        "model": "claude-sonnet-5-5",
+        "stop_reason": "end_turn",
+        "content": [
+            {"type": "thinking", "thinking": ""},
+            {"type": "text", "text": '{"tool":'},
+            {"type": "text", "text": "1}"},
+        ],
+        "usage": {
+            "input_tokens": 100,
+            "cache_read_input_tokens": 5,
+            "cache_creation_input_tokens": 0,
+            "output_tokens": 7,
+        },
+    }
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def read(self):
+            return json.dumps(body).encode()
+
+    class Client:
+        def open(self, request, timeout):
+            sent.append((request, timeout))
+            return Response()
+
+    monkeypatch.setattr(providers.urllib.request, "build_opener", lambda *args: Client())
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-test-key")
+    request = {"instructions": "JSON only", "journal": exp.empty_journal(), "history": []}
+    response = providers.anthropic_messages(request, {"requested": "claude-sonnet-5-5", "effort": "low"}, exp.CONTROLS)
+    assert response["content"] == '{"tool":1}'
+    assert response["model"] == "claude-sonnet-5-5" and response["request_id"] == "msg_1"
+    assert response["usage"] == {"prompt_tokens": 105, "completion_tokens": 7}
+    wire, timeout = sent[0]
+    sent_body = json.loads(wire.data)
+    assert wire.full_url == "https://api.anthropic.com/v1/messages"
+    assert wire.get_header("X-api-key") == "fake-test-key"
+    assert sent_body["system"] == "JSON only" and len(sent_body["messages"]) == 1
+    assert sent_body["max_tokens"] == exp.CONTROLS["max_output_tokens"]
+    assert sent_body["output_config"] == {"effort": "low"} and sent_body["thinking"] == {"type": "adaptive"}
+    assert not {"temperature", "top_p", "top_k"} & set(sent_body)
+    assert timeout == exp.CONTROLS["socket_timeout_seconds"]
+
+    body["usage"] = {"output_tokens": 7}
+    body["content"] = []
+    body["stop_reason"] = "refusal"
+    response = providers.anthropic_messages(request, {"requested": "claude-sonnet-5-5", "effort": "low"}, exp.CONTROLS)
+    assert response["usage"]["prompt_tokens"] is None
+    assert response["content"] == "" and response["stop_reason"] == "refusal"
