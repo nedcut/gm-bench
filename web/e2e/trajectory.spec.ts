@@ -27,7 +27,7 @@ test("opens on an agent run beside pick-trader, with its recorded tool calls", a
 test("all windows, reversed navigation, views, swapping and browser history", async ({ page }) => {
   const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
   await page.goto("/replays/?left=conservative&right=pick-trader");
-  await expect(page.getByRole("heading", { name: "Inspect the decision window." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Season 1, Preseason" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Previous decision", exact: true })).toBeDisabled();
   for (let i = 2; i <= 20; i++) {
     await page.getByRole("button", { name: "Next decision", exact: true }).click();
@@ -118,7 +118,7 @@ test("empty, mismatched, absent observations, corrupt render fields", async ({ p
   expect(errors).toEqual([]);
 });
 
-test("retained browser verifier runs the original fixture with matching runtime", async ({ page }) => {
+test("method page verifier runs the original fixture with matching runtime", async ({ page }) => {
   test.setTimeout(90000);
   // Use the installed runtime bytes to avoid CDN/certificate dependencies in CI.
   // The exact route also asserts that the worker requests the installed version.
@@ -134,8 +134,7 @@ test("retained browser verifier runs the original fixture with matching runtime"
     served.push(filename);
     await route.fulfill({ body: readFileSync(new URL(`../node_modules/pyodide/${filename}`, import.meta.url)), contentType: types[filename], headers: { "Access-Control-Allow-Origin": "*" } });
   });
-  await page.goto("/replays/");
-  await page.getByText("Original conservative replay & browser verifier", { exact: true }).click();
+  await page.goto("/method/");
   await page.getByRole("button", { name: "verify fixture", exact: true }).click();
   await expect(page.locator(".replay-check")).toContainText("Verified 20 decision windows", { timeout: 45000 });
   expect(served).toContain("pyodide.asm.wasm");

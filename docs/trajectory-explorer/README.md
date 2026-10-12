@@ -9,7 +9,7 @@ The `/replays/` page opens on a synchronized comparison of a GM-Bench 2.0 agent 
 | Codex 0.156.1 · `gpt-6-luna` | agent run | 194.63 |
 | Conservative | scripted policy | 107.55 |
 
-The original conservative replay and Pyodide verifier remain available in the disclosure below the explorer; their fixture is unchanged. The verifier’s stale CDN version now derives from the installed Pyodide loader version.
+The original conservative replay's Pyodide verifier now lives on the `/method/` page; its fixture is unchanged. The verifier’s stale CDN version now derives from the installed Pyodide loader version.
 
 ## Agent runs
 
@@ -35,7 +35,7 @@ One seed shows how each player behaved, not who is better. On the 32-seed privat
 3. Use **First trade deadline**: Claude Code accepts one offer and declines two; pick-trader makes its own future-pick trade. This is not a causal claim about the final score.
 4. Move between any of five seasons and four phases, or use Previous/Next. Controls work by keyboard. The URL preserves the window, policies and evidence view; browser Back/Forward restores them.
 5. Switch to **Roster & changes** or **Observations & tools**. Roster additions/departures compare consecutive opening observations, including simulation between windows. For an agent run, **Observations & tools** lists every MCP tool call in the window before the state snapshot. Scripted policies make no tool calls; their raw observations are captured at the policy boundary. No model reasoning is invented.
-6. Inspect the final weighted score ledger, provenance hashes, and downloadable JSON. Expand the original replay to use its existing browser verifier.
+6. Inspect the final weighted score ledger, provenance hashes, and downloadable JSON. The browser verifier for the original replay is on `/method/`.
 
 At mobile widths the two labeled ledgers stack. Roster and score tables scroll within their region without overflowing the page. Native buttons/selects/disclosures provide keyboard controls and visible focus; no hover-only evidence is required.
 

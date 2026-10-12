@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#000000" />
+    <script>
+      // Apply a saved theme before first paint so a light-theme reader never sees a dark flash.
+      try {
+        var saved = localStorage.getItem("gm-bench-theme");
+        if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved;
+      } catch (e) {}
+    </script>
+    <meta name="description" content="GM-Bench 2.0 score against cost per five-season game, for each harness and model." />
+    <link rel="canonical" href="https://nedcut.github.io/gm-bench/cost/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://nedcut.github.io/gm-bench/cost/" />
+    <meta property="og:title" content="Score vs cost · GM-Bench" />
+    <meta property="og:description" content="GM-Bench 2.0 score against cost per five-season game, for each harness and model." />
+    <meta property="og:image" content="https://nedcut.github.io/gm-bench/media/og-card.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Score vs cost · GM-Bench" />
+    <meta name="twitter:description" content="GM-Bench 2.0 score against cost per five-season game, for each harness and model." />
+    <meta name="twitter:image" content="https://nedcut.github.io/gm-bench/media/og-card.jpg" />
+    <title>Score vs cost · GM-Bench</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/pages/cost.tsx"></script>
+  </body>
+</html>
