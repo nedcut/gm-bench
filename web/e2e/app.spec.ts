@@ -15,7 +15,8 @@ async function noErrors(page: Page) {
 test("standings lists every 2.0 row by score with pick-trader, and nothing from 1.0", async ({ page }) => {
   const errors = await noErrors(page);
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("No model beats pick-trader yet.");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Can an LLM run a hockey team?");
+  await expect(page.locator(".intro-answer")).toHaveText("Not yet. No model beats pick-trader.");
   const names = await page.locator(".standings tbody .name").allTextContents();
   for (const row of rows) expect(names).toContain(row.model);
   expect(names).toContain("pick-trader");

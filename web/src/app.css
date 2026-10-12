@@ -2,25 +2,26 @@
    line (pick-trader) and one color per vendor. Dark by default. */
 
 :root {
-  --bg: #000;
-  --surface: #0a0a0a;
-  --raised: #111;
-  --line: #1b1b1b;
-  --line-2: #2a2a2a;
-  --text: #ededed;
-  --text-2: #9b9b9b;
-  --text-3: #8c8c8c;
-  --bar: #ff5c5c;
-  --bar-soft: rgba(255, 92, 92, 0.1);
-  --track: #141414;
-  --bot: #3b3b3b;
-  --accent: #e2a76f;
-  --focus: #7aa7ff;
-  --code-bg: #0d0d0d;
+  --bg: #0b1320;
+  --surface: #0f1a29;
+  --raised: #142235;
+  --line: #1c2a3b;
+  --line-2: #2a3c50;
+  --text: #e9eef4;
+  --text-2: #a7b8c8;
+  --text-3: #8497ab;
+  --bar: #ff5262;
+  --bar-soft: rgba(255, 82, 98, 0.12);
+  --track: #16243a;
+  --bot: #415469;
+  --accent: #6ea3ff;
+  --rink-blue: #6ea3ff;
+  --focus: #6ea3ff;
+  --code-bg: #0a111c;
 
   --vendor-anthropic: #e8956b;
-  --vendor-openai: #e6e6e6;
-  --vendor-cursor: #8fb8ff;
+  --vendor-openai: #dfe7ef;
+  --vendor-cursor: #9be0ff;
   --vendor-google: #5b9bff;
   --vendor-xai: #b8a8ff;
   --vendor-zai: #79d3c6;
@@ -57,28 +58,29 @@
 }
 
 :root[data-theme="light"] {
-  --bg: #fbfbfa;
+  --bg: #f4f7fa;
   --surface: #ffffff;
-  --raised: #f3f3f1;
-  --line: #ececea;
-  --line-2: #dcdcd8;
-  --text: #121212;
-  --text-2: #5c5c5a;
-  --text-3: #6b6b67;
-  --bar: #d62b2b;
-  --bar-soft: rgba(214, 43, 43, 0.07);
-  --track: #efefec;
-  --bot: #c9c9c4;
-  --accent: #b5652a;
-  --focus: #2457c5;
-  --code-bg: #f4f4f2;
-  --code-fg: #1d1d1d;
-  --code-dim: #6f6f6c;
-  --code-line: rgba(0, 0, 0, 0.07);
+  --raised: #e9eff5;
+  --line: #dce4ec;
+  --line-2: #c5d1dd;
+  --text: #0f1b2d;
+  --text-2: #3f5266;
+  --text-3: #5d6f82;
+  --bar: #d42a3b;
+  --bar-soft: rgba(212, 42, 59, 0.08);
+  --track: #e3eaf1;
+  --bot: #b3c0cd;
+  --accent: #1e4fa3;
+  --rink-blue: #1e4fa3;
+  --focus: #1e4fa3;
+  --code-bg: #edf2f7;
+  --code-fg: #13202f;
+  --code-dim: #5d6f82;
+  --code-line: rgba(15, 27, 45, 0.08);
 
   --vendor-anthropic: #c8602f;
-  --vendor-openai: #3a3a3a;
-  --vendor-cursor: #2f6fd6;
+  --vendor-openai: #2b3a4c;
+  --vendor-cursor: #0b7fb0;
   --vendor-google: #1f6be0;
   --vendor-xai: #6c55d8;
   --vendor-zai: #1f9a8a;
@@ -175,18 +177,7 @@ pre {
   border-bottom: 1px solid var(--line);
 }
 
-.wordmark {
-  font-size: 19px;
-  font-weight: 750;
-  letter-spacing: -0.03em;
-  text-decoration: none;
-  white-space: nowrap;
-}
 
-.wordmark span {
-  color: var(--text-3);
-  font-weight: 500;
-}
 
 .tabs {
   display: flex;
@@ -286,24 +277,8 @@ main:focus {
 
 /* ---------- intro ---------- */
 
-.intro {
-  padding: 32px 24px 8px;
-}
 
-.intro h1 {
-  margin: 0;
-  font-size: clamp(26px, 3.2vw, 38px);
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  line-height: 1.1;
-}
 
-.intro p {
-  max-width: 68ch;
-  margin: 8px 0 0;
-  color: var(--text-2);
-  font-size: 15px;
-}
 
 /* ---------- workspace: view + side panel ---------- */
 
@@ -945,4 +920,190 @@ main:focus {
 .footer span a {
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+/* ---------- hockey identity ---------- */
+
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-stretch: 80%;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.view-head h2,
+.season-strip h2,
+.multiple h3 {
+  font-stretch: 80%;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.view-head h2 {
+  font-size: 16px;
+}
+
+/* Scores read like an arena scoreboard: condensed, heavy, tabular. */
+.score,
+.stat dd,
+.hbar .val {
+  font-stretch: 78%;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.stat dd {
+  font-size: 22px;
+}
+
+.intro {
+  position: relative;
+  overflow: hidden;
+  padding: 40px 24px 34px;
+  background:
+    radial-gradient(ellipse 60% 90% at 72% 50%, color-mix(in srgb, var(--rink-blue) 14%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--surface), var(--bg));
+}
+
+.intro::after {
+  /* the red line and the blue line, where the boards meet the ice */
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--bar) 0 62%, transparent 62% 63%, var(--rink-blue) 63%);
+}
+
+.rink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.rink-red {
+  fill: var(--bar);
+}
+
+.rink-blue {
+  fill: var(--rink-blue);
+}
+
+.rink-circle {
+  fill: none;
+  stroke: var(--rink-blue);
+  stroke-width: 4;
+}
+
+.intro-copy {
+  position: relative;
+  max-width: 720px;
+}
+
+.intro h1 {
+  margin: 0;
+  font-stretch: 72%;
+  font-weight: 900;
+  font-size: clamp(36px, 5vw, 64px);
+  line-height: 0.92;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.intro-answer {
+  margin: 14px 0 0;
+  color: var(--bar) !important;
+  font-stretch: 85%;
+  font-weight: 800;
+  font-size: clamp(18px, 2vw, 22px) !important;
+}
+
+.intro p {
+  max-width: 60ch;
+  margin: 8px 0 0;
+  color: var(--text-2);
+  font-size: 15px;
+}
+
+.season-strip {
+  margin-top: 36px;
+}
+
+.season-strip h2 {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.season-strip ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.season-strip li {
+  padding: 10px 12px 11px;
+  border-top: 3px solid var(--rink-blue);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 13px;
+  counter-increment: phase;
+}
+
+.season-strip li.is-red {
+  border-top-color: var(--bar);
+}
+
+.season-strip li span {
+  display: block;
+  color: var(--text);
+  font-stretch: 85%;
+  font-weight: 800;
+  font-size: 15px;
+}
+
+@media (max-width: 640px) {
+  .intro {
+    padding: 28px 14px 26px;
+  }
+
+  .season-strip ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wordmark {
+    font-size: 16px;
+  }
+}
+
+.multiple h3 small {
+  text-transform: none;
+  letter-spacing: 0;
+  font-stretch: 100%;
+  font-weight: 400;
+}
+
+/* Pages without the center-ice intro carry the boards stripe under the top bar. */
+.app:not(.page-standings) .topbar {
+  border-bottom: 0;
+  box-shadow: inset 0 -3px 0 0 transparent;
+}
+
+.app:not(.page-standings) .topbar::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--bar) 0 62%, transparent 62% 63%, var(--rink-blue) 63%);
 }

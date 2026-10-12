@@ -27,11 +27,12 @@ function ThemeToggle() {
 export default function Shell({ page, data, children }: { page: PageKey; data: Leaderboard; children: ReactNode }) {
   const contract = data.agentic_lane?.[0]?.contract;
   return (
-    <div className="app">
+    <div className={`app page-${page}`}>
       <a className="skip-link" href="#main">Skip to content</a>
       <header className="topbar">
         <a className="wordmark" href={routes.standings}>
-          gm<span>-bench</span>
+          <img src={`${import.meta.env.BASE_URL}favicon.svg`} width="22" height="22" alt="" aria-hidden="true" />
+          GM-Bench
         </a>
         <nav className="tabs" aria-label="Views">
           {TABS.map((tab) => (

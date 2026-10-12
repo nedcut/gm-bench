@@ -14,6 +14,8 @@ import {
   type StandingsRow,
 } from "../v2";
 import Panel from "./Panel";
+import Rink from "./Rink";
+import SeasonStrip from "./SeasonStrip";
 
 function Bar({ row, max, bar }: { row: StandingsRow; max: number; bar: number }) {
   const at = (v: number) => `${Math.max(0, Math.min(100, (v / max) * 100))}%`;
@@ -76,16 +78,22 @@ export default function Standings({ data }: { data: Leaderboard }) {
   return (
     <>
       <section className="intro">
-        <h1>{beat === 0 ? "No model beats pick-trader yet." : `${beat} of ${models.length} models beat pick-trader.`}</h1>
-        <p>
-          GM-Bench gives an AI agent a hockey team to run for five seasons, through its own coding-agent harness. pick-trader
-          is a short scripted policy.
-        </p>
+        <Rink />
+        <div className="intro-copy">
+          <h1>Can an LLM run a hockey team?</h1>
+          <p className="intro-answer">
+            {beat === 0 ? "Not yet. No model beats pick-trader." : `${beat} of ${models.length} models beat pick-trader.`}
+          </p>
+          <p>
+            Each agent runs a franchise for five seasons inside its own harness: Claude Code, Codex, Cursor or OpenCode.
+            pick-trader is a short scripted GM.
+          </p>
+        </div>
       </section>
       <div className="workspace">
         <section className="view" aria-labelledby="standings-title">
           <div className="view-head">
-            <h2 id="standings-title">Five-season score</h2>
+            <h2 id="standings-title">Standings</h2>
             <span>
               {seedCount(data) ?? "—"} private seeds · bars show 95% intervals · red line: pick-trader
             </span>
@@ -117,7 +125,7 @@ export default function Standings({ data }: { data: Leaderboard }) {
                       <span className={`dot ${row.kind === "model" ? `vendor-${row.vendor.key}` : ""}`} aria-hidden="true" />
                       <span className="name">{row.label}</span>
                       {row.kind === "model" && <span className="tag">{row.harness}</span>}
-                      {row.kind === "bot" && <span className="tag">{row.isBar ? "the bar" : "bot"}</span>}
+                      {row.kind === "bot" && <span className="tag">{row.isBar ? "the bar" : "scripted"}</span>}
                     </button>
                   </th>
                   <td className="col-bar">
@@ -135,6 +143,7 @@ export default function Standings({ data }: { data: Leaderboard }) {
             Sorted by score for reading. Each row is compared only with pick-trader on the same seeds, never with
             another row.
           </p>
+          <SeasonStrip />
         </section>
         <Panel
           models={models}
