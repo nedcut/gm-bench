@@ -28,18 +28,12 @@ export default function PlayAlong({ set }: { set: PuzzleSet }) {
     <section className="play" id="play" tabIndex={-1} aria-labelledby="play-title">
       <div className="shell play-inner">
         <div className="play-copy">
-          <p className="eyebrow">Play along</p>
           <h2 id="play-title" className="display-2">
             Your call, GM.
           </h2>
           <p>
-            {deck.length} real decisions pulled from recorded episodes. Every option is a move some
-            scripted policy actually made from that exact spot, with no invented distractors. Pick
-            one and see what each move did to the roster.
-          </p>
-          <p className="play-note">
-            Graded on the immediate change to the roster, because a single season is mostly luck.
-            It is a teaching aid, not a benchmark result.
+            {deck.length} real decisions from recorded games. Each option is a move a scripted
+            policy made from that spot. Pick one to see what it did to the roster.
           </p>
           <div className="play-tally" aria-live="polite">
             <span className="play-tally-num">

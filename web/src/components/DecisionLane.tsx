@@ -48,19 +48,12 @@ export default function DecisionLane({ data }: { data: LeaderboardData }) {
     <section className="analysis-section decision-lane" id="decision-lane">
       <div className="results-shell">
         <div className="analysis-heading">
-          <div>
-            <p className="kicker">Decision-model lane</p>
-            <h2>A model that answers questions instead of writing the batch</h2>
-          </div>
+          <h2>Decision-model lane</h2>
         </div>
         <p className="decision-lane-intro">
-          These rows ran the same contract, the same {seedCount ?? "private"}-seed private panel,
-          and the same eight scripted baselines as the headline above, but the model never wrote an
-          action. The adapter asked it a fixed set of typed questions each decision and composed the
-          batch from the answers under{" "}
-          <a href={LANE_DOC}>published rules</a>. Read a score here as the model plus that question
-          scaffold. The lane is not in the pre-registered Holm family and has no place in the shot
-          chart or the headline count; its comparison is against the scripted baselines only.
+          The model answers a fixed set of typed questions each decision and an adapter builds the
+          moves from its answers (<a href={LANE_DOC}>rules</a>). Same {seedCount ?? "private"}{" "}
+          seeds as 1.0; kept out of the 1.0 headline.
         </p>
         <div
           className="results-table-wrap"
@@ -119,6 +112,8 @@ export default function DecisionLane({ data }: { data: LeaderboardData }) {
             </tbody>
           </table>
         </div>
+        <details className="agentic-lane-details">
+          <summary>Run details</summary>
         <ul className="decision-lane-notes">
           {rows.map((model) => (
             <li key={model.id}>
@@ -132,6 +127,7 @@ export default function DecisionLane({ data }: { data: LeaderboardData }) {
             </li>
           ))}
         </ul>
+        </details>
       </div>
     </section>
   );

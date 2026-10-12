@@ -7,7 +7,6 @@ import Hero from "./components/home/Hero";
 import Scoreboard from "./components/home/Scoreboard";
 import Season from "./components/home/Season";
 import PlayAlong from "./components/home/PlayAlong";
-import NextUp from "./components/home/NextUp";
 import Quickstart from "./components/Quickstart";
 
 forwardLegacyHash();
@@ -21,7 +20,6 @@ mountPage(
     <Scoreboard data={leaderboard} benchmark={benchmark} />
     <Season />
     <PlayAlong set={puzzleData as PuzzleSet} />
-    <NextUp data={leaderboard} />
     <Quickstart />
   </>,
 );

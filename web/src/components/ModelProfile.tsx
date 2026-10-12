@@ -9,7 +9,6 @@ import {
 } from "../benchmarkData";
 import { fmt, formatTokensPerDecision, numOrDash, pctOrDash } from "../lib";
 import type { Leaderboard as LeaderboardData } from "../types";
-import { routes } from "../site";
 
 /* One published row, opened up.
  *
@@ -18,10 +17,6 @@ import { routes } from "../site";
  * in the chart, the table, or the heatmap opens it here. Every v6 field is
  * optional, so each block states plainly when a row does not report something
  * instead of printing a zero that reads like a measurement. */
-
-/* `run_info.seed_panel.name` for a row run on a private seed panel; such a row
- * publishes its panel width and commitment hash but never its seed values. */
-const PRIVATE_SEED_PANEL = "private-env";
 
 function Figure({
   label,
@@ -105,21 +100,18 @@ export default function ModelProfile({
 
   return (
     <section className="section profile-section" id="profile" tabIndex={-1}>
-      <div className="shell">
+      <div className="results-shell">
         <div className="section-head">
-          <p className="kicker">Model profile</p>
           <h2>{shortModelName(model.model)}</h2>
           <p>
-            <code>{model.model}</code> on {model.provider}, {model.lane ?? "api"} lane. Run
-            under {model.benchmark_version ?? "unversioned"} over {seedCountLabel} seeds and{" "}
-            {model.seasons ?? data.preset.seasons} seasons.
+            <code>{model.model}</code> via {model.provider}, {seedCountLabel} seeds,{" "}
+            {model.seasons ?? data.preset.seasons} seasons. Pick a model in the table above to switch.
           </p>
         </div>
 
         <div className="panel">
           <div className="panel-title">
             <h3>Score and uncertainty</h3>
-            <span>higher is better</span>
           </div>
           <dl className="profile-figures">
             <Figure
@@ -153,36 +145,24 @@ export default function ModelProfile({
           </dl>
         </div>
 
-        <div className="panel">
-          <div className="panel-title">
-            <h3>Per-seed scores</h3>
-            <span>
-              {model.seed_panel === PRIVATE_SEED_PANEL ? "private panel, " : ""}
-              {seedCount === null ? "—" : `${seedCount} seeds`}
-            </span>
+        {(seedScores.length > 0 || seeds) && (
+          <div className="panel">
+            <div className="panel-title">
+              <h3>Per-seed scores</h3>
+            </div>
+            {seedScores.length > 0 ? (
+              <SeedScores scores={seedScores} />
+            ) : (
+              <p>
+                Seeds: <code>{seeds?.join(", ")}</code>
+              </p>
+            )}
           </div>
-          {seedScores.length > 0 ? (
-            <SeedScores scores={seedScores} />
-          ) : seeds ? (
-            <p>
-              This row publishes the seed panel but not its per-seed scores. Seeds run:{" "}
-              <code>{seeds.join(", ")}</code>.
-            </p>
-          ) : (
-            <p>
-              This row ran a private seed panel, so neither its seed values nor its per-seed
-              scores are published.{" "}
-              {seedCount === null
-                ? "It does not report how wide the panel was."
-                : `Only the panel width, ${seedCount} seeds, and the commitment hash below are public.`}
-            </p>
-          )}
-        </div>
+        )}
 
         <div className="panel">
           <div className="panel-title">
             <h3>Reliability</h3>
-            <span>reported beside the score, never inside it</span>
           </div>
           <dl className="profile-figures">
             <Figure
@@ -233,7 +213,6 @@ export default function ModelProfile({
         <div className="panel">
           <div className="panel-title">
             <h3>Cost</h3>
-            <span>as billed on the run</span>
           </div>
           <dl className="profile-figures">
             <Figure
@@ -257,11 +236,8 @@ export default function ModelProfile({
           </dl>
         </div>
 
-        <div className="panel">
-          <div className="panel-title">
-            <h3>Provenance</h3>
-            <span>enough to rebuild this row</span>
-          </div>
+        <details className="panel profile-provenance-panel">
+          <summary>Provenance</summary>
           <dl className="profile-provenance">
             <div>
               <dt>Contract fingerprint</dt>
@@ -292,12 +268,7 @@ export default function ModelProfile({
               ))}
             </ul>
           )}
-          <p className="profile-replay-link">
-            <a href={routes.replays}>Open the replay browser</a>. It plays the one committed
-            episode for this benchmark. The per-model episode files are named by the hashes
-            above and are not published here.
-          </p>
-        </div>
+        </details>
       </div>
     </section>
   );

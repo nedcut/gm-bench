@@ -546,9 +546,6 @@ export default function ResultsExplorer({
     return benchmark.models.filter((model) => selectedIds.has(model.id));
   }, [benchmark.models, selectedIds]);
 
-  const selectedModel =
-    benchmark.models.find((model) => model.id === selectedModelId) ??
-    benchmark.models[0];
   const bestModel = benchmark.models[0];
   // The Holm family is the pre-registered model set, not the published rows:
   // stating the published count here would understate the correction.
@@ -573,22 +570,14 @@ export default function ResultsExplorer({
       <div className="results-shell">
         <div className="result-overview">
           <div className="result-overview-copy">
-            <p className="kicker">Panel results</p>
-            <h2>Performance against the pick-trader bar.</h2>
+            <h2>1.0: one prompt per decision</h2>
             <p>
-              {benchmark.modelCount} published model{benchmark.modelCount === 1 ? "" : "s"},
-              each with its own scaffold, ran the same {presetSeedCount(data) ?? "private"}{" "}
-              private seeds. The seed list was committed under a salted hash before any run.{" "}
-              {registeredCount} models were registered up front. 3 were ruled ineligible for
-              how they behaved, and 2 were dropped after infrastructure failures.
+              {benchmark.modelCount} models, {presetSeedCount(data) ?? "private"} private seeds, one
+              run per seed. Holm-adjusted family test against <code>pick-trader</code>: rejects for{" "}
+              {benchmark.holmRejectedCount} of {benchmark.modelCount} at 0.05 (family of{" "}
+              {registeredCount} registered). Models are listed by
+              score, not ranked against each other.
             </p>
-            <small>
-              Every model is compared with <code>pick-trader</code> and nothing else. All
-              of them finish below it, and the predeclared Holm-adjusted family test rejects for{" "}
-              {benchmark.holmRejectedCount} of {benchmark.modelCount} at 0.05 across the
-              family of {registeredCount}. We do not rank models against each other. Each
-              seed ran once, so within-seed noise is unmeasured.
-            </small>
           </div>
           <dl className="result-readouts">
             <div>
@@ -660,7 +649,6 @@ export default function ResultsExplorer({
               Score vs cost
             </button>
           </div>
-          <span className="toolbar-context">API lane, {filtered.length} visible</span>
           <div className="model-picker">
             <button
               type="button"
@@ -705,26 +693,11 @@ export default function ResultsExplorer({
 
         <div className="chart-panel">
           <div className="chart-panel-head">
-            <div>
-              <span className="chart-story-label">
-                {view === "lift" ? "Primary comparison" : "Secondary lens"}
-              </span>
-              <h2>
-                {view === "lift"
-                  ? filtered.every((model) => model.primary_lift < 0)
-                    ? "Every paired difference is below the pick-trader bar."
-                    : "Paired difference versus the pick-trader bar"
-                  : "Score vs cost per episode"}
-              </h2>
-              <p>
-                {view === "lift"
-                  ? `Paired lift against pick-trader, the one contrast the publication protocol froze. Whiskers are 95% bootstrap intervals and are descriptive only. The predeclared Holm-adjusted family test rejects for ${benchmark.holmRejectedCount} of ${benchmark.modelCount} rows.`
-                  : benchmark.modelsAboveBar === 0
-                    ? "Price varies widely, but no observed mean reaches the pick-trader bar."
-                    : `Price varies widely; ${benchmark.modelsAboveBar} of ${benchmark.modelCount} observed means reach the pick-trader bar.`}
-              </p>
-            </div>
-            <span>{filtered.length} models</span>
+            <p>
+              {view === "lift"
+                ? "Score minus pick-trader on the same seeds. Bars are 95% bootstrap intervals; left of zero is worse."
+                : "Mean score against cost per episode."}
+            </p>
           </div>
           {filtered.length === 0 ? (
             <div className="empty-results">
@@ -755,21 +728,6 @@ export default function ResultsExplorer({
                   onSelect={onSelectModel}
                 />
               )}
-            </div>
-          )}
-          {selectedModel && selectedIds.has(selectedModel.id) && (
-            <div className="chart-selection" aria-live="polite">
-              <span className="selection-status">Selected</span>
-              <strong>{shortModelName(selectedModel.model)}</strong>
-              <span>score {fmt(selectedModel.mean_score, 1)}</span>
-              <span>paired lift {fmt(selectedModel.primary_lift, 1)}</span>
-              <span>
-                95% lift CI [{fmt(selectedModel.primary_ci95[0], 1)},{" "}
-                {fmt(selectedModel.primary_ci95[1], 1)}]
-              </span>
-              <span>${fmt(selectedModel.cost_per_episode_usd, 2)} / episode</span>
-              <span>{formatTokensPerDecision(selectedModel)} tokens / decision</span>
-              <a href="#profile">Open profile ↓</a>
             </div>
           )}
         </div>

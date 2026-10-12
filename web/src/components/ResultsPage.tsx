@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { buildBenchmarkView } from "../benchmarkData";
-import { fmt } from "../lib";
 import { REPO_BLOB } from "../site";
 import { leaderboard } from "../mount";
 import PageHeader from "./PageHeader";
@@ -17,11 +16,11 @@ export default function ResultsPage() {
   const hasDecisionRows = (leaderboard.decision_lane_models ?? []).length > 0;
   const hasAgenticRows = (leaderboard.agentic_lane ?? []).length > 0;
   const jumps = [
-    { href: "#results", label: "Scoreboard" },
+    { href: "#results", label: "1.0 results" },
+    ...(hasAgenticRows ? [{ href: "#agentic-lane", label: "2.0 results" }] : []),
     { href: "#profile", label: "Model profile" },
-    { href: "#analysis", label: "Analysis" },
+    { href: "#analysis", label: "Illegal moves" },
     ...(hasDecisionRows ? [{ href: "#decision-lane", label: "Decision lane" }] : []),
-    ...(hasAgenticRows ? [{ href: "#agentic-lane", label: "2.0 agentic" }] : []),
   ];
 
   return (
@@ -30,20 +29,16 @@ export default function ResultsPage() {
         kicker={`${leaderboard.contract?.benchmark_version ?? "results"} · updated ${leaderboard.updated}`}
         title={
           <>
-            {benchmark.modelsAboveBar} of {benchmark.modelCount} models beat the{" "}
-            <span className="accent-red">scripted bar.</span>
+            {benchmark.modelsAboveBar === 0 ? "No model beats" : `${benchmark.modelsAboveBar} of ${benchmark.modelCount} models beat`} the scripted bar
           </>
         }
         jumps={jumps}
         wide
       >
         <p>
-          Every model ran the same {leaderboard.preset.seed_count ?? "—"} private seeds for{" "}
-          {leaderboard.preset.seasons} seasons and was compared with one reference: the{" "}
-          <code>pick-trader</code> policy at {fmt(benchmark.scriptedBar, 1)}. Models are listed by
-          score for reading; the study compares each one only with that bar, never with each other.
-          Read the <a href={`${REPO_BLOB}docs/blog/sota-v5-findings.md`}>findings</a> or{" "}
-          <a href={`${REPO_BLOB}docs/REPRODUCING_SOTA_V5_RELEASE.md`}>reproduce the release</a>.
+          Every model is compared with one scripted policy, <code>pick-trader</code>, on the same
+          private seeds. <a href={`${REPO_BLOB}docs/blog/sota-v5-findings.md`}>Findings</a> ·{" "}
+          <a href={`${REPO_BLOB}docs/REPRODUCING_SOTA_V5_RELEASE.md`}>Reproduce</a>
         </p>
       </PageHeader>
       <ResultsExplorer
@@ -52,6 +47,7 @@ export default function ResultsPage() {
         selectedModelId={selectedModelId}
         onSelectModel={setSelectedModelId}
       />
+      <AgenticLane data={leaderboard} />
       <ModelProfile data={leaderboard} benchmark={benchmark} selectedModelId={selectedModelId} />
       <Analysis
         benchmark={benchmark}
@@ -59,7 +55,6 @@ export default function ResultsPage() {
         onSelectModel={setSelectedModelId}
       />
       <DecisionLane data={leaderboard} />
-      <AgenticLane data={leaderboard} />
     </>
   );
 }

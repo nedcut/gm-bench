@@ -67,11 +67,10 @@ export default function Quickstart() {
     <section className="section" id="quickstart">
       <div className="shell">
         <div className="section-head">
-          <p className="kicker">Run</p>
-          <h2>Run the scripted baselines first, then your agent.</h2>
+          <h2>Run it</h2>
           <p>
-            Any subprocess works with <code>--agent-cmd</code>. The observation and action
-            schemas are in <code>schemas/</code>.
+            Python 3.11+, no dependencies. Any process that reads JSON on stdin and writes JSON on
+            stdout can play through <code>--agent-cmd</code>.
           </p>
         </div>
         <div className="quickstart-grid">
@@ -79,8 +78,7 @@ export default function Quickstart() {
           <CommandCard title="2. Evaluate your agent" code={CANDIDATE_CMDS} />
         </div>
         <div className="adapter-line">
-          <strong>Compatible with</strong> Codex CLI, Claude Code, Ollama, OpenAI-compatible
-          endpoints, opencode, or any stdin/stdout process:
+          <strong>Example adapters</strong>
           <div className="adapter-chips">
             {ADAPTERS.map((adapter) => (
               <code key={adapter.name} title={adapter.name}>

@@ -1,24 +1,20 @@
 import type { Snapshot } from "../types";
 import { PHASES } from "../content";
 
-const PROTO_POINTS = [
-  {
-    title: "Observation on stdin",
-    body: "One JSON object per decision: your roster, lineup, and cap room, the standings, free agents, the draft class, the trade market, recent transactions, and your own memo.",
-  },
-  {
-    title: "Actions on stdout",
-    body: "An envelope holding a list of actions and optional token usage. Verbs: sign_free_agent, trade, draft, set_lineup, memo, release, and noop.",
-  },
-  {
-    title: "Deterministic replay",
-    body: "Leagues, development rolls, and injuries derive from the seed. Same agent, same seed, same episode.",
-  },
-  {
-    title: "Scored beyond wins",
-    body: "The objective rewards wins, titles, future assets, prospect value, and cap health, and it penalizes illegal actions. Wins count over a trailing three-season window. Assets are scored at the end. That favours building slowly over mortgaging the future for one season.",
-  },
-];
+/* Score weights, copied from SCORE_SCALES["score-v1"] in gm_bench/scoring.py
+   (frozen with the sota-v5 contract). */
+const SCORE_ROWS = [
+  ["Recent wins", "+0.42", "per win, last three seasons"],
+  ["Playoff rounds", "+9", "per round won"],
+  ["Championships", "+35", "per title"],
+  ["Roster assets", "+0.16", "per point of total player value"],
+  ["Young assets", "+0.18", "per point of young-player value"],
+  ["Future picks", "+0.16", "per point of draft-pick value"],
+  ["Cap room", "+0.35", "per $1M, capped between −12 and +10"],
+  ["Lineup strength", "+0.28", "per point of lineup rating"],
+  ["Roster depth", "+8", "per unit of depth"],
+  ["Illegal action", "−2.5", "each rejected move"],
+] as const;
 
 const OBSERVATION_SNIPPET = `{
   "phase": "trade_deadline",
@@ -73,14 +69,10 @@ export default function HowItWorks({ snapshot }: { snapshot: Snapshot }) {
     <section className="section section-alt" id="protocol">
       <div className="shell">
         <div className="section-head">
-          <p className="kicker">Protocol</p>
-          <h2>Four decision points per season. Five seasons per episode.</h2>
+          <h2>Five seasons, four decisions each</h2>
           <p>
-            No browser automation and no memorized rosters. Every player is fictional. The
-            agent reads JSON on stdin and writes JSON on stdout, so any process can play, and
-            reading that contract is part of what the benchmark measures. The public seed
-            panel is deterministic and published, so an agent could be tuned to it. Treat
-            these results as reproducible evidence, not as proof against contamination.
+            Every player is fictional and every league is built from a seed. The agent reads one
+            JSON observation per decision and writes back a list of moves.
           </p>
         </div>
 
@@ -99,22 +91,40 @@ export default function HowItWorks({ snapshot }: { snapshot: Snapshot }) {
 
         <div className="protocol-grid">
           <div>
-            {PROTO_POINTS.map((point) => (
-              <div key={point.title} className="proto-point">
-                <h4>{point.title}</h4>
-                <p>{point.body}</p>
-              </div>
-            ))}
+            <h3 className="protocol-subhead">How a score is built</h3>
+            <table className="score-table">
+              <thead>
+                <tr>
+                  <th>Component</th>
+                  <th>Points</th>
+                  <th>Unit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {SCORE_ROWS.map(([name, points, unit]) => (
+                  <tr key={name}>
+                    <th scope="row">{name}</th>
+                    <td className="numeric">{points}</td>
+                    <td>{unit}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="protocol-note">
+              Assets are scored at the end of season five, so trading the future for one good
+              season costs points. The public seeds are published, so an agent could be tuned to
+              them; results use private seeds.
+            </p>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <CodeCard title="Observation, read from stdin" code={OBSERVATION_SNIPPET} />
-            <CodeCard title="Actions, written to stdout" code={ACTIONS_SNIPPET} />
+          <div className="protocol-code">
+            <CodeCard title="Observation (stdin)" code={OBSERVATION_SNIPPET} />
+            <CodeCard title="Moves (stdout)" code={ACTIONS_SNIPPET} />
           </div>
         </div>
 
         <div className="panel" style={{ marginTop: 18 }}>
           <div className="panel-title">
-            <h3>Transaction wire</h3>
+            <h3>Sample transactions</h3>
             <span>
               {snapshot.season_trace.agent}, seed {snapshot.season_trace.seed}
             </span>

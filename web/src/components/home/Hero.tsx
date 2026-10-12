@@ -32,15 +32,13 @@ export default function Hero({ data, benchmark }: { data: Leaderboard; benchmark
       <RinkLines />
       <div className="shell lead-inner">
         <div className="lead-copy">
-          <p className="eyebrow">A front-office benchmark for AI agents</p>
           <h1 id="page-title" className="lead-title">
-            Can an LLM run a <span className="accent-red">hockey team?</span>
+            Can an LLM run a hockey team?
           </h1>
           <p className="lead-lede">
-            GM-Bench hands an agent a fictional franchise for {data.preset.seasons} seasons: free
-            agency, waivers, trades and the draft, all under a hard salary cap. We gave it to{" "}
-            {benchmark.modelCount} models. <strong>{benchmark.modelsAboveBar} of them</strong> beat a
-            short scripted policy.
+            {data.preset.seasons} seasons of free agency, trades and drafts under a hard salary cap.{" "}
+            {benchmark.modelCount + (data.agentic_lane?.length ?? 0)} model runs so far;{" "}
+            <strong>{benchmark.modelsAboveBar === 0 ? "none" : benchmark.modelsAboveBar}</strong> beat a short scripted policy.
           </p>
           <div className="lead-actions">
             <a className="cta" href={routes.results}>
@@ -50,12 +48,6 @@ export default function Hero({ data, benchmark }: { data: Leaderboard; benchmark
               Make a call yourself
             </a>
           </div>
-          <p className="lead-meta">
-            <span>{data.contract?.benchmark_version ?? "unversioned"}</span>
-            <span>{data.preset.seed_count ?? "—"} private seeds</span>
-            <span>deterministic</span>
-            <span>open source</span>
-          </p>
         </div>
         <PromoVideo />
       </div>
