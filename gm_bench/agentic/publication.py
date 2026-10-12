@@ -229,6 +229,10 @@ _HARNESS_USAGE_KEYS = (
     "billed_by_harness",
     "pricing_source",
     "long_context_requests_possible",
+    # OpenCode 2.x: whether the tokens are the session store's (``session_export``) or the
+    # event stream's, which misses each invocation's last step (``event_stream``), and why.
+    "token_source",
+    "session_export_error",
 )
 
 
