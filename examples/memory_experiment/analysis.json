@@ -29,11 +29,13 @@
     "Journal input tokens and resulting actions can differ; equal resource ceilings do not mean equal realized compute.",
     "Public seeds, fixed order counterbalancing, one model/harness and small panels limit generalization.",
     "A model snapshot ID is not deterministic inference; backend fingerprints and sampling support are recorded.",
+    "Claude model IDs carry no date; a pin is checked only against the returned model field, not proven a snapshot.",
     "Existing four 2.0 rows are unpinned exploratory evidence; no causal 1.0 versus 2.0 comparison is supported."
   ],
-  "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+  "manifest_sha256": "6759eefd4be7cbbbc6b419fbcf5539286f197bfc0d4b530778d2e85b7cffaeb8",
   "missing_cells": [],
   "model": {
+    "effort": null,
     "expected_response_model": "scripted-rules-v1",
     "harness": "stateless-json-one-tool-v1",
     "pin_status": "pinned",

@@ -38,9 +38,10 @@
     "max_request_chars": 120000,
     "socket_timeout_seconds": 60
   },
-  "created_utc": "2026-10-11T00:18:26.648331+00:00",
-  "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+  "created_utc": "2026-10-12T18:42:56.531649+00:00",
+  "manifest_sha256": "6759eefd4be7cbbbc6b419fbcf5539286f197bfc0d4b530778d2e85b7cffaeb8",
   "model": {
+    "effort": null,
     "expected_response_model": "scripted-rules-v1",
     "harness": "stateless-json-one-tool-v1",
     "pin_status": "pinned",
@@ -56,14 +57,14 @@
     "order": "alternate condition order by seed index plus repeat index; serial execution",
     "overflow": "stop entire episode on budget, malformed response, provider or identity error; no truncation or retries",
     "request_budget": "max_request_chars bounds canonical JSON request characters, not wire bytes or tokens",
-    "sampling": "temperature 0; sampling seed unsupported by this adapter, not sent; provider nondeterminism remains",
+    "sampling": "openai-chat sends temperature 0; anthropic-messages sends no sampling parameters but a registered effort with adaptive thinking; sampling seed unsupported, not sent; provider nondeterminism remains",
     "seed_visibility": "public demonstration seeds only; numeric simulator seed never included in model request",
     "tools": "frozen 2.0 tool semantics except write_memo unavailable in BOTH conditions"
   },
   "provenance": {
-    "git_head": "35bbb6250d127b73f57ceadc62d2d339451d04fb",
-    "python": "3.12.14",
-    "source_sha256": "41b94f81bfc8749c12ada2cb8809c066430f1834fe268150a51ec18d0327a93e",
+    "git_head": "d3e87938e37cce87eb7c16c13cba35270a463c7c",
+    "python": "3.13.13",
+    "source_sha256": "4b1bd1c8c3f0099b2fc2bc8179844079e789a1f5f06bf610188c37f2ce78bc97",
     "working_tree_dirty": false
   },
   "repeats": 2,

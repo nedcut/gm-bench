@@ -7,10 +7,10 @@
     "elapsed_seconds": {
       "basis": "episode client wall clock including finalization",
       "status": "measured",
-      "value": 0.09739356299996871
+      "value": 0.04444633300045098
     },
     "identity_verified": true,
-    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "manifest_sha256": "6759eefd4be7cbbbc6b419fbcf5539286f197bfc0d4b530778d2e85b7cffaeb8",
     "metrics": {
       "completed": 1,
       "failed_decisions": 0,
@@ -60,7 +60,7 @@
       "provider_latency_seconds": {
         "basis": "client wall clock",
         "status": "measured",
-        "value": 0.007011877999957505
+        "value": 0.0020910840030410327
       }
     }
   },
@@ -72,10 +72,10 @@
     "elapsed_seconds": {
       "basis": "episode client wall clock including finalization",
       "status": "measured",
-      "value": 0.0602463010000065
+      "value": 0.038745416999518056
     },
     "identity_verified": true,
-    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "manifest_sha256": "6759eefd4be7cbbbc6b419fbcf5539286f197bfc0d4b530778d2e85b7cffaeb8",
     "metrics": {
       "completed": 1,
       "failed_decisions": 0,
@@ -125,7 +125,7 @@
       "provider_latency_seconds": {
         "basis": "client wall clock",
         "status": "measured",
-        "value": 0.0031449550000388626
+        "value": 0.0015054579998832196
       }
     }
   },
@@ -137,10 +137,10 @@
     "elapsed_seconds": {
       "basis": "episode client wall clock including finalization",
       "status": "measured",
-      "value": 0.06053735000000415
+      "value": 0.039693334001640324
     },
     "identity_verified": true,
-    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "manifest_sha256": "6759eefd4be7cbbbc6b419fbcf5539286f197bfc0d4b530778d2e85b7cffaeb8",
     "metrics": {
       "completed": 1,
       "failed_decisions": 0,
@@ -190,7 +190,7 @@
       "provider_latency_seconds": {
         "basis": "client wall clock",
         "status": "measured",
-        "value": 0.0030749510000305236
+        "value": 0.0016529160002392018
       }
     }
   },
@@ -202,10 +202,10 @@
     "elapsed_seconds": {
       "basis": "episode client wall clock including finalization",
       "status": "measured",
-      "value": 0.07584350100000847
+      "value": 0.04554633300176647
     },
     "identity_verified": true,
-    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "manifest_sha256": "6759eefd4be7cbbbc6b419fbcf5539286f197bfc0d4b530778d2e85b7cffaeb8",
     "metrics": {
       "completed": 1,
       "failed_decisions": 0,
@@ -255,7 +255,7 @@
       "provider_latency_seconds": {
         "basis": "client wall clock",
         "status": "measured",
-        "value": 0.005792301999804295
+        "value": 0.0030334149960253853
       }
     }
   },
@@ -267,10 +267,10 @@
     "elapsed_seconds": {
       "basis": "episode client wall clock including finalization",
       "status": "measured",
-      "value": 0.0376122679999753
+      "value": 0.021727375000409666
     },
     "identity_verified": true,
-    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "manifest_sha256": "6759eefd4be7cbbbc6b419fbcf5539286f197bfc0d4b530778d2e85b7cffaeb8",
     "metrics": {
       "completed": 1,
       "failed_decisions": 0,
@@ -320,7 +320,7 @@
       "provider_latency_seconds": {
         "basis": "client wall clock",
         "status": "measured",
-        "value": 0.0030009930000005625
+        "value": 0.0014901229969837004
       }
     }
   },
@@ -332,10 +332,10 @@
     "elapsed_seconds": {
       "basis": "episode client wall clock including finalization",
       "status": "measured",
-      "value": 0.04918772100006663
+      "value": 0.026857667000513175
     },
     "identity_verified": true,
-    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "manifest_sha256": "6759eefd4be7cbbbc6b419fbcf5539286f197bfc0d4b530778d2e85b7cffaeb8",
     "metrics": {
       "completed": 1,
       "failed_decisions": 0,
@@ -385,7 +385,7 @@
       "provider_latency_seconds": {
         "basis": "client wall clock",
         "status": "measured",
-        "value": 0.0044874500001697015
+        "value": 0.00219462399945769
       }
     }
   },
@@ -397,10 +397,10 @@
     "elapsed_seconds": {
       "basis": "episode client wall clock including finalization",
       "status": "measured",
-      "value": 0.04950379599995358
+      "value": 0.026614542000970687
     },
     "identity_verified": true,
-    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "manifest_sha256": "6759eefd4be7cbbbc6b419fbcf5539286f197bfc0d4b530778d2e85b7cffaeb8",
     "metrics": {
       "completed": 1,
       "failed_decisions": 0,
@@ -450,7 +450,7 @@
       "provider_latency_seconds": {
         "basis": "client wall clock",
         "status": "measured",
-        "value": 0.00455712600012248
+        "value": 0.002163499002563185
       }
     }
   },
@@ -462,10 +462,10 @@
     "elapsed_seconds": {
       "basis": "episode client wall clock including finalization",
       "status": "measured",
-      "value": 0.03834512699995685
+      "value": 0.021265375000439235
     },
     "identity_verified": true,
-    "manifest_sha256": "1587cd504cd6e7e50db0559caeae7c17ad03a0335576591cc97e9735a8210339",
+    "manifest_sha256": "6759eefd4be7cbbbc6b419fbcf5539286f197bfc0d4b530778d2e85b7cffaeb8",
     "metrics": {
       "completed": 1,
       "failed_decisions": 0,
@@ -515,7 +515,7 @@
       "provider_latency_seconds": {
         "basis": "client wall clock",
         "status": "measured",
-        "value": 0.003173518000153308
+        "value": 0.0015668729993194574
       }
     }
   }

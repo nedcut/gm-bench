@@ -11,6 +11,17 @@ Only the harness's context policy changes. The model, tools, seeds and
 resource ceilings stay the same. A difference between the two arms is
 therefore an effect of how the harness manages context, not of which model ran.
 
+The planned model is `claude-sonnet-5`, the model behind the committed Claude
+Code rows of the GM-Bench 2.0 agentic lane
+(`results/agentic/claude-2.1.281-claude-sonnet-5-*.json`). That gives three
+harness designs around one model: Claude Code (the existing rows), and this
+minimal one-tool-per-request harness with and without the journal. Only the two
+arms of this experiment form a controlled comparison. Claude Code keeps the
+conversation history across the whole episode and has its own tools and
+prompting, while this harness resets history every phase. Setting this
+experiment's results next to the Claude Code row compares harness designs; it is
+not a matched ablation of Claude Code.
+
 The two arms (called *conditions* in the code and reports):
 
 - `no_persistent_journal` (control): every phase starts with an empty
@@ -220,7 +231,7 @@ What the adapter sends and records:
   requests no prompt caching, so the cache counts should be zero; any cache reads
   would make the estimated cost slightly too high, not too low.
 
-Identity: Claude model IDs such as `claude-sonnet-5-5` carry no date suffix.
+Identity: Claude model IDs such as `claude-sonnet-5` carry no date suffix.
 With `--pin-status pinned` the runner checks that every response names exactly
 the requested model, and stops the episode on a mismatch. It cannot prove that
 the ID is a fixed snapshot rather than an alias; confirm that from Anthropic's
@@ -245,7 +256,7 @@ for this harness:
 
 | Source in bench_v2_spec.md | Within-seed SD | SD of a paired difference |
 |---|---:|---:|
-| "Repeat noise on the paid harnesses": Claude Code, `claude-sonnet-5` | 11.3 | 16.0 (= √2 × 11.3) |
+| "Repeat noise on the paid harnesses": Claude Code, `claude-sonnet-5` (the planned model) | 11.3 | 16.0 (= √2 × 11.3) |
 | "Repeat noise under current behaviour": free model, without seed 1 | 23.3 | 33.0 |
 | Same, all eight seeds | 43.4 | 61.4 |
 | "Realized panel noise": `claude-sonnet-5` lift against `pick-trader` | — | 73.4 |
@@ -292,19 +303,21 @@ One cell is one five-season episode (20 phases) in one arm. The estimate:
   0.5M input tokens per cell at the low end, 1.1M typical, 2.5M high.
 - **Output.** That panel row averaged 62,000 output tokens per episode. Here
   each request also rewrites the journal (up to 4,000 characters), so expect
-  80,000 to 240,000.
+  80,000 to 240,000, about 150,000 typical.
 
-| Model (list price per 1M input / output) | Low | Typical | High |
+| Model (USD per 1M input / output tokens) | Low | Typical | High |
 |---|---:|---:|---:|
-| `claude-haiku-5-5` ($0.10 / $0.50) | $0.09 | $0.19 | $0.37 |
-| `claude-sonnet-5-5` ($2 / $10) | $1.80 | $3.70 | $7.40 |
-| `claude-opus-5-5` ($4 / $20) | $3.60 | $7.40 | $15 |
+| `claude-sonnet-5` ($2 / $10) | $1.80 | $3.70 | $7.40 |
+| `claude-haiku-4-5` ($1 / $5) | $0.90 | $1.85 | $3.70 |
 
-Prices are Anthropic list prices as of 2026-10-06; check them at registration and
+Prices come from `gm_bench/pricing.json` (`claude-sonnet-5` verified 2026-09-24,
+`claude-haiku-4-5` verified 2026-09-27). Check them again at registration and
 pass them with `--input-usd-per-million` and `--output-usd-per-million`. With
-`claude-sonnet-5-5`, the 64-cell panel is about $240 (range $115 to $475) and the
-16-cell pilot about $60. Wall time is serial: at 5 to 30 seconds per request, a
-cell takes roughly 15 to 80 minutes, so the panel takes days, not hours.
+`claude-sonnet-5`, the 64-cell panel is about $237 (range $115 to $474) and the
+16-cell pilot about $59. The `claude-haiku-4-5` row is a price comparison only:
+Haiku 4.5 accepts neither adaptive thinking nor `effort`, so this adapter's
+requests to it would fail as provider errors. Wall time is serial: at 5 to 30
+seconds per request, a cell takes roughly 15 to 80 minutes, so the panel takes days, not hours.
 
 ### Commands (do not run without separate spend authorization)
 
@@ -317,7 +330,7 @@ target, but it raises the worst case.
 export ANTHROPIC_API_KEY=...   # existing authorized credential
 .venv/bin/python -m gm_bench.memory_experiment register \
   --public-seeds 801 802 803 804 --repeats 2 --seasons 5 \
-  --provider anthropic-messages --model claude-sonnet-5-5 --effort low \
+  --provider anthropic-messages --model claude-sonnet-5 --effort low \
   --pin-status pinned --max-output-tokens 8192 \
   --input-usd-per-million 2 --output-usd-per-million 10 \
   --out /tmp/context-policy-pilot-registration.json
@@ -331,7 +344,7 @@ Panel, registered separately after the pilot, on seeds the pilot did not use:
 ```sh
 .venv/bin/python -m gm_bench.memory_experiment register \
   --public-seeds $(seq 701 732) --repeats 1 --seasons 5 \
-  --provider anthropic-messages --model claude-sonnet-5-5 --effort low \
+  --provider anthropic-messages --model claude-sonnet-5 --effort low \
   --pin-status pinned --max-output-tokens 8192 \
   --input-usd-per-million 2 --output-usd-per-million 10 \
   --out /tmp/context-policy-panel-registration.json

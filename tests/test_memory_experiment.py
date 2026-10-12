@@ -289,16 +289,16 @@ def test_new_modules_are_shipped_by_existing_package_configuration():
 
 def test_anthropic_registration_requires_explicit_effort_and_accepts_undated_pin():
     with pytest.raises(ValueError, match="effort"):
-        exp.register([701], provider="anthropic-messages", model="claude-sonnet-5-5")
+        exp.register([701], provider="anthropic-messages", model="claude-sonnet-5")
     with pytest.raises(ValueError, match="effort"):
         exp.register([701], provider="openai-chat", model="test-2026-01-01", effort="low")
-    manifest = exp.register([701], provider="anthropic-messages", model="claude-sonnet-5-5", effort="low")
+    manifest = exp.register([701], provider="anthropic-messages", model="claude-sonnet-5", effort="low")
     assert manifest["model"]["effort"] == "low"
-    assert manifest["model"]["expected_response_model"] == "claude-sonnet-5-5"
+    assert manifest["model"]["expected_response_model"] == "claude-sonnet-5"
 
 
 def test_anthropic_gate_requires_spend_flag_and_credential(tmp_path, monkeypatch):
-    manifest = exp.register([701], provider="anthropic-messages", model="claude-sonnet-5-5", effort="low")
+    manifest = exp.register([701], provider="anthropic-messages", model="claude-sonnet-5", effort="low")
     path = tmp_path / "registration.json"
     exp.write_json(path, manifest)
     with pytest.raises(ValueError, match="allow-paid"):
@@ -310,7 +310,7 @@ def test_anthropic_gate_requires_spend_flag_and_credential(tmp_path, monkeypatch
 
 
 def test_anthropic_route_runs_full_pinned_panel_through_registered_provider(tmp_path, monkeypatch):
-    manifest = exp.register([701], repeats=1, provider="anthropic-messages", model="claude-sonnet-5-5", effort="low")
+    manifest = exp.register([701], repeats=1, provider="anthropic-messages", model="claude-sonnet-5", effort="low")
     path = tmp_path / "registration.json"
     exp.write_json(path, manifest)
     calls = []
@@ -333,7 +333,7 @@ def test_stateless_anthropic_wire_without_network(monkeypatch):
     sent = []
     body = {
         "id": "msg_1",
-        "model": "claude-sonnet-5-5",
+        "model": "claude-sonnet-5",
         "stop_reason": "end_turn",
         "content": [
             {"type": "thinking", "thinking": ""},
@@ -366,9 +366,9 @@ def test_stateless_anthropic_wire_without_network(monkeypatch):
     monkeypatch.setattr(providers.urllib.request, "build_opener", lambda *args: Client())
     monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-test-key")
     request = {"instructions": "JSON only", "journal": exp.empty_journal(), "history": []}
-    response = providers.anthropic_messages(request, {"requested": "claude-sonnet-5-5", "effort": "low"}, exp.CONTROLS)
+    response = providers.anthropic_messages(request, {"requested": "claude-sonnet-5", "effort": "low"}, exp.CONTROLS)
     assert response["content"] == '{"tool":1}'
-    assert response["model"] == "claude-sonnet-5-5" and response["request_id"] == "msg_1"
+    assert response["model"] == "claude-sonnet-5" and response["request_id"] == "msg_1"
     assert response["usage"] == {"prompt_tokens": 105, "completion_tokens": 7}
     wire, timeout = sent[0]
     sent_body = json.loads(wire.data)
@@ -383,6 +383,6 @@ def test_stateless_anthropic_wire_without_network(monkeypatch):
     body["usage"] = {"output_tokens": 7}
     body["content"] = []
     body["stop_reason"] = "refusal"
-    response = providers.anthropic_messages(request, {"requested": "claude-sonnet-5-5", "effort": "low"}, exp.CONTROLS)
+    response = providers.anthropic_messages(request, {"requested": "claude-sonnet-5", "effort": "low"}, exp.CONTROLS)
     assert response["usage"]["prompt_tokens"] is None
     assert response["content"] == "" and response["stop_reason"] == "refusal"
