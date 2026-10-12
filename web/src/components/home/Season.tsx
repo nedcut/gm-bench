@@ -3,7 +3,7 @@ import { PHASES } from "../../content";
 
 const FACTS = [
   { title: "JSON in, JSON out", body: "Any process that reads an observation and writes an action batch can play: a chat model, a coding agent, or your own script." },
-  { title: "Same seed, same league", body: "Leagues, development rolls and injuries all derive from the seed, so every agent faces exactly the same league." },
+  { title: "Same seed, same league", body: "Leagues, development rolls and injuries all derive from the seed, so agents begin in the same league. Their actions can change subsequent trajectories." },
   { title: "Scored like a dynasty", body: "Wins, titles, prospects, future picks and cap health all count, so mortgaging the future for one season does not pay." },
 ];
 
@@ -14,7 +14,7 @@ export default function Season() {
       <div className="shell">
         <p className="eyebrow">How it plays</p>
         <h2 id="season-title" className="display-2">
-          Five seasons. Four calls a season.
+          Five seasons. Four decision windows.
         </h2>
         <ol className="zones">
           {PHASES.map((phase) => (

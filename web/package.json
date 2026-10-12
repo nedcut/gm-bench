@@ -10,9 +10,11 @@
     "validate:replay:node": "bun scripts/validate_replay_node.mjs",
     "validate:replay": "bun run prepare:replay && bun run validate:replay:node",
     "generate:replay": "python3 ../scripts/build_web_replay_bundle.py --write-fixture",
-    "build": "bun run validate:data && bun run validate:replay && tsc -b && vite build",
+    "build": "bun run validate:data && bun run validate:replay && bun run validate:trajectories && tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "validate:trajectories": "python3 ../scripts/build_trajectory_demo.py --check && bun test scripts/trajectoryData.test.ts",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "d3-array": "^3.2.4",
@@ -22,6 +24,8 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.64.0",
     "@types/d3-array": "^3.2.2",
     "@types/d3-scale": "^4.0.9",
     "@types/node": "^26.1.1",
