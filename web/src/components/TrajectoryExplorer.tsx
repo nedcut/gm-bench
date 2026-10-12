@@ -27,7 +27,7 @@ function JsonEvidence({ title, value }: { title: string; value: unknown }) {
 function ToolTrace({ decision }: { decision: Decision }) {
   const calls = decision.tool_calls ?? [];
   return <>
-    <p className="tx-note">Every MCP tool call the agent made in this window, in order, as recorded in its ledger. Replies are the server's recorded messages (truncated to 300 characters); data payloads are not stored. Phase ended by: {decision.ended_by ?? "unknown"}.</p>
+    <p className="tx-note">Every tool call in this window, from the agent's ledger. Phase ended by: {decision.ended_by ?? "unknown"}.</p>
     {calls.length ? <ol className="tx-action-log tx-tool-log">{calls.map(c => <li key={c.seq} className={c.ok ? "" : "tx-rejected"}>
       <span className="tx-action-no">{String(c.seq).padStart(3, "0")}</span>
       <div><span className="tx-verdict">{c.kind} · {c.ok ? "ok" : "refused"}{c.penalized ? " · penalized" : ""}{c.executed ? "" : " · not executed"}</span><h4><code>{c.tool}</code></h4><p>{c.message}</p>
@@ -40,8 +40,8 @@ function ObservationView({ decision, episode }: { decision: Decision; episode: E
   return <div className="tx-observations">
     {isAgent(episode) && <ToolTrace decision={decision} />}
     <p className="tx-note">{isAgent(episode)
-      ? "Below: the full league state at phase open, rebuilt by replaying the ledger. The agent never received this object; it saw only the tool replies above."
-      : "Full observations captured at the policy boundary. These are supplied to scripted policies; they are not model-retrieved MCP responses."}</p>
+      ? "League state at phase open, rebuilt from the ledger. The agent never received this object, only the tool replies above."
+      : "The full observation this scripted policy received."}</p>
     {decision.interaction_rounds.length === 0 && <p>No interaction rounds recorded.</p>}
     {decision.interaction_rounds.map(round => <div key={round.round}>
       <h4>Round {round.round + 1}</h4>
@@ -51,7 +51,7 @@ function ObservationView({ decision, episode }: { decision: Decision; episode: E
         <JsonEvidence title="Inspect logged scouting reports" value={round.observation.scout_reports ?? "Unavailable: no scouting reports logged in this observation."} />
       </> : <p>Observation unavailable for this round. No reconstruction is shown.</p>}
     </div>)}
-    {!isAgent(episode) && <aside className="tx-note"><strong>Tool retrieval trace: unavailable.</strong> This recorder logs simulator action batches, not MCP calls. No model reasoning or tool-use claim can be inferred from these demos.</aside>}
+    {!isAgent(episode) && <aside className="tx-note"><strong>Tool retrieval trace: unavailable.</strong> Scripted policies make no tool calls.</aside>}
   </div>;
 }
 
@@ -59,7 +59,7 @@ function RosterView({ observation, previous, index }: { observation?: Observatio
   const roster = observation?.team?.roster;
   const change = rosterChange(previous, observation);
   return <>
-    <p className="tx-note">Roster entering this window. Changes since the previous window include opponent activity, development and season transitions; they are not attributed solely to the last action.</p>
+    <p className="tx-note">Roster entering this window. Changes include other teams' moves and the season rollover.</p>
     {index === 0 ? <p className="tx-roster-change">Opening roster · no previous window.</p> : change ? <div className="tx-roster-change">
       <p><strong>In ({change.added.length})</strong> {change.added.map(p => p.name).join(", ") || "No additions"}</p>
       <p><strong>Out ({change.removed.length})</strong> {change.removed.map(p => p.name).join(", ") || "No departures"}</p>
@@ -120,8 +120,8 @@ function Lane({ episode, index, view, side }: { episode: Episode; index: number;
       {index > 0 && previousCap !== undefined && team?.cap_room !== undefined && <small>Entering cap vs previous window: {signed(team.cap_room - previousCap)}M, including intervening simulation.</small>}
       <JsonEvidence title="Source: immediate component deltas" value={d.delta} />
     </div>
-    {d.delta.future_pick_assets !== undefined && d.delta.future_pick_assets !== 0 && <p className="tx-note"><strong>Pick ledger:</strong> this window changes future-pick asset value by {signed(d.delta.future_pick_assets)}, worth {signed(d.delta.future_pick_assets_contribution)} immediate score units. This is a state change, not evidence of a better long-term outcome.</p>}
-    {d.phase === "draft" && <p className="tx-note"><strong>Draft checkpoint:</strong> accepted picks below are recorded acquisitions. Their future development is unknown at this decision; the season-end ledger contains later outcomes.</p>}
+    {d.delta.future_pick_assets !== undefined && d.delta.future_pick_assets !== 0 && <p className="tx-note"><strong>Pick ledger:</strong> future-pick value {signed(d.delta.future_pick_assets)} ({signed(d.delta.future_pick_assets_contribution)} points).</p>}
+    
     <div className="tx-lane-body" key={`${episode.fixture.agent}-${index}-${view}`}>
       {view === "actions" ? <ActionsView decision={d} episode={episode} /> : view === "roster" ? <RosterView observation={observation} previous={previous} index={index} /> : <ObservationView decision={d} episode={episode} />}
     </div>
@@ -130,7 +130,7 @@ function Lane({ episode, index, view, side }: { episode: Episode; index: number;
 
 function ScoreComparison({ left, right }: { left: Episode; right: Episode }) {
   return <section className="tx-scores" aria-labelledby="score-heading">
-    <div className="tx-section-heading"><div><p className="eyebrow">The final ledger</p><h2 id="score-heading">What the score rewards.</h2></div><p>End-of-episode weighted contributions. This is the frozen scoring function, not an explanation of causality or a ranking from one seed.</p></div>
+    <div className="tx-section-heading"><div><h2 id="score-heading">Final score by component</h2></div></div>
     <div className="tx-table-scroll" tabIndex={0} role="region" aria-label="Final score decomposition, scroll horizontally"><table className="tx-score-table">
       <caption>Score units · final state after season rollover · public seed 1</caption><thead><tr><th>Component</th><th>{label(left)}</th><th>{label(right)}</th></tr></thead>
       <tbody>{COMPONENTS.map(([key, title]) => <tr key={key}><th scope="row">{title}</th>{[left, right].map(e => {
@@ -139,7 +139,7 @@ function ScoreComparison({ left, right }: { left: Episode; right: Episode }) {
       })}</tr>)}<tr><th scope="row">Protocol penalty (subtracted)</th><td>{number(left.score.protocol_penalty, 2)}</td><td>{number(right.score.protocol_penalty, 2)}</td></tr></tbody>
       <tfoot><tr><th scope="row">Final score</th><td>{number(left.score.final_score, 2)}</td><td>{number(right.score.final_score, 2)}</td></tr></tfoot>
     </table></div>
-    <p className="tx-note">Rounded for display; full precision in the export. The final ledger is recomputed after the fifth summary is appended and the season/cap advances; the chart records the earlier season-summary checkpoint. “Recent wins” uses the engine’s last three cumulative season-summary win totals. Cap contribution is clamped. Immediate decision deltas exclude later wins, playoffs and championships.</p>
+    <p className="tx-note">Rounded for display. Season-end scores in the chart are taken before each rollover; the final score after it.</p>
   </section>;
 }
 
@@ -192,28 +192,28 @@ export default function TrajectoryExplorer() {
   const issue = left && right ? comparisonIssue(left, right) : "The selected recording is unavailable. Choose an available policy on each side.";
   const season = Math.floor(selection.index / 4) + 1;
   return <section className="tx-explorer" id="replay" aria-label="Experimental trajectory explorer"><div className="shell">
-    {!data && !error && <div className="tx-state" role="status"><span className="eyebrow">Loading public evidence</span><h2>Opening the front-office ledger…</h2><p>Two scripted policies and two agent runs, five seasons each. The complete export includes full observations and may take a moment.</p></div>}
-    {error && <div className="tx-state" role="alert"><span className="eyebrow">Evidence unavailable</span><h2>The recordings could not be opened.</h2><p>{error}</p><p>No substitute data is displayed.</p><button onClick={() => setAttempt(n => n + 1)}>Retry loading</button><a href={trajectoryUrl()}>Open the source export</a></div>}
+    {!data && !error && <div className="tx-state" role="status"><h2>Opening the front-office ledger…</h2><p>About 1 MB of recorded games.</p></div>}
+    {error && <div className="tx-state" role="alert"><h2>The recordings could not be opened.</h2><p>{error}</p><p>No substitute data is displayed.</p><button onClick={() => setAttempt(n => n + 1)}>Retry loading</button><a href={trajectoryUrl()}>Open the source export</a></div>}
     {data && <>
-      <div className="tx-scenario"><div><p className="eyebrow">Public scenario / 001</p><h2>{left?.fixture.decisions[0]?.interaction_rounds[0]?.observation?.team?.name ?? "Public scenario"}</h2><p>Same franchise. Same opening balance sheet. Two different players: scripted policies or LLM agents in their own harnesses.</p></div><dl><div><dt>Horizon</dt><dd>05 <small>seasons</small></dd></div><div><dt>Opening cap room</dt><dd>{left?.fixture.decisions[0]?.interaction_rounds[0]?.observation?.team?.cap_room === undefined ? "—" : `$${number(left.fixture.decisions[0].interaction_rounds[0].observation.team.cap_room, 2)}`}<small>M</small></dd></div><div><dt>Tool calls A / B</dt><dd>{left && right ? `${toolCalls(left)} / ${toolCalls(right)}` : "—"}</dd></div></dl></div>
+      <div className="tx-scenario"><div><h2>{left?.fixture.decisions[0]?.interaction_rounds[0]?.observation?.team?.name ?? "Public scenario"}</h2><p>Same team, same opening roster and cap, public seed 1.</p></div><dl><div><dt>Horizon</dt><dd>05 <small>seasons</small></dd></div><div><dt>Opening cap room</dt><dd>{left?.fixture.decisions[0]?.interaction_rounds[0]?.observation?.team?.cap_room === undefined ? "—" : `$${number(left.fixture.decisions[0].interaction_rounds[0].observation.team.cap_room, 2)}`}<small>M</small></dd></div><div><dt>Tool calls A / B</dt><dd>{left && right ? `${toolCalls(left)} / ${toolCalls(right)}` : "—"}</dd></div></dl></div>
       <div className="tx-selectors"><label>A / Left policy<select value={selection.left} onChange={e => choose({ left: e.target.value })}>
         {!left && <option value={selection.left}>Unavailable recording</option>}{data.episodes.map(e => <option key={e.fixture.agent} value={e.fixture.agent}>{label(e)} · {kindLabel(e)}</option>)}</select></label>
         <button onClick={() => choose({ left: selection.right, right: selection.left })} aria-label="Swap left and right policies">⇄ <span>Swap</span></button>
         <label>B / Right policy<select value={selection.right} onChange={e => choose({ right: e.target.value })}>
           {!right && <option value={selection.right}>Unavailable recording</option>}{data.episodes.map(e => <option key={e.fixture.agent} value={e.fixture.agent}>{label(e)} · {kindLabel(e)}</option>)}</select></label></div>
       {data.episodes.length < 2 ? <div className="tx-state" role="status"><h2>No comparison available.</h2><p>Two public recordings are required. No private-panel trace is substituted.</p></div> : issue ? <div className="tx-state" role="status"><h2>Comparison paused.</h2><p>{issue}</p></div> : left && right && <>
-        <p className="tx-comparability"><strong>Matched start · divergent trajectories.</strong> Seed, team, contract, configuration and initial observation agree. Later windows share a calendar position, not an identical state. One public seed supports inspection, not a performance claim: the four 2.0 panel rows are measured on 32 private seeds.</p>
-        <div className="tx-reading-path" role="group" aria-label="Suggested evidence checkpoints"><span>Follow the evidence</span><button onClick={() => choose({ index: 0, view: "actions" })}>01 · Opening preseason</button><button onClick={() => choose({ index: 2, view: "actions" })}>02 · First trade deadline</button><button onClick={() => choose({ index: 19, view: "roster" })}>03 · Five seasons later</button></div>
+        <p className="tx-comparability"><strong>Matched start · divergent trajectories.</strong> One seed shows how each player behaves, not who is better: the 2.0 panel uses 32 private seeds.</p>
+        <div className="tx-reading-path" role="group" aria-label="Suggested evidence checkpoints"><span>Jump to</span><button onClick={() => choose({ index: 0, view: "actions" })}>01 · Opening preseason</button><button onClick={() => choose({ index: 2, view: "actions" })}>02 · First trade deadline</button><button onClick={() => choose({ index: 19, view: "roster" })}>03 · Five seasons later</button></div>
         <nav className="tx-timeline" aria-label="Five-season timeline"><div className="tx-season-buttons">{[1, 2, 3, 4, 5].map(s => <button key={s} aria-pressed={s === season} onClick={() => choose({ index: (s - 1) * 4 + selection.index % 4 })}><span>Season</span><strong>0{s}</strong></button>)}</div>
           <SeasonChart left={left} right={right} season={season} />
           <div className="tx-phase-buttons" role="group" aria-label="Decision phase">{["preseason", "midseason", "trade_deadline", "draft"].map((p, i) => <button key={p} aria-pressed={selection.index % 4 === i} onClick={() => choose({ index: (season - 1) * 4 + i })}>{phaseLabel(p)}</button>)}</div>
         </nav>
-        <div className="tx-decision-heading"><div><p className="eyebrow">S{season} / {phaseLabel(left.fixture.decisions[selection.index].phase)}</p><h2>Inspect the decision window.</h2></div><div className="tx-prev-next"><button disabled={selection.index === 0} onClick={() => choose({ index: selection.index - 1 })} aria-label="Previous decision">← Previous</button><span aria-live="polite" aria-atomic="true">Window {selection.index + 1} of 20</span><button disabled={selection.index === 19} onClick={() => choose({ index: selection.index + 1 })} aria-label="Next decision">Next →</button></div></div>
+        <div className="tx-decision-heading"><div><p className="eyebrow">Season {season}, {phaseLabel(left.fixture.decisions[selection.index].phase)}</p><h2>Inspect the decision window.</h2></div><div className="tx-prev-next"><button disabled={selection.index === 0} onClick={() => choose({ index: selection.index - 1 })} aria-label="Previous decision">← Previous</button><span aria-live="polite" aria-atomic="true">Window {selection.index + 1} of 20</span><button disabled={selection.index === 19} onClick={() => choose({ index: selection.index + 1 })} aria-label="Next decision">Next →</button></div></div>
         <div className="tx-views" role="group" aria-label="Evidence view">{([["actions", "Actions & outcomes"], ["roster", "Roster & changes"], ["observations", "Observations & tools"]] as const).map(([view, title]) => <button key={view} aria-pressed={selection.view === view} onClick={() => choose({ view })}>{title}</button>)}</div>
         <div className="tx-lanes"><Lane episode={left} index={selection.index} view={selection.view} side="left" /><Lane episode={right} index={selection.index} view={selection.view} side="right" /></div>
         <ScoreComparison left={left} right={right} />
       </>}
-      <section className="tx-provenance" aria-labelledby="provenance-heading"><div><p className="eyebrow">Evidence, with boundaries</p><h2 id="provenance-heading">A demonstration, not a leaderboard.</h2><p>Everything here is public/dev seed 1. The two scripted policies ran locally; both replay to their recorded final-state digests in the export check. The two agent runs are seed 1 of the committed GM-Bench 2.0 smoke rows (run a), played in a firewalled container. The export check replays each agent's tool-call ledger through the frozen engine, requires every replayed reply to match the recorded one, and requires the final score to equal the committed row's. Model reasoning is not included; only tool calls and their replies are.</p><p>The conservative trajectory reproduces the existing public replay. This explorer adds richer recorded evidence; it does not introduce a new benchmark contract.</p><p>Published 1.0 and 2.0 results remain separate. Unpinned model/harness results are exploratory and may not reproduce. No counterfactual or memory study is claimed here.</p></div><div className="tx-source-ledger"><h3>Reproduction ledger</h3><dl><dt>Track</dt><dd>{data.track}</dd><dt>Engine / recorder checkout</dt><dd><a href={`${REPO}/tree/${data.source_commit}`}>{data.source_commit.slice(0, 12)}</a></dd><dt>Starting-state SHA-256</dt><dd><code>{data.starting_state_digest}</code></dd>{data.episodes.map(e => <div key={e.fixture.agent}><dt>{label(e)} · final-state SHA-256</dt><dd><code>{e.fixture.expected.state_digest}</code></dd><dt>Contract fingerprint</dt><dd><code>{e.fixture.provenance?.contract_fingerprint}</code></dd>{agentMetadata(e) && <><dt>Agent ledger SHA-256</dt><dd><a href={`${REPO}/blob/main/${agentMetadata(e)!.ledger}`}><code>{agentMetadata(e)!.ledger_sha256}</code></a></dd><dt>Source row</dt><dd><a href={`${REPO}/blob/main/${agentMetadata(e)!.source_row}`}>{agentMetadata(e)!.source_row.split("/").at(-1)}</a></dd></>}</div>)}</dl><a href={trajectoryUrl()} download>Download all public recordings (JSON) ↓</a><a href={`${REPO}/blob/${data.source_commit}/gm_bench/scoring.py`}>Inspect the scoring function ↗</a><p className="tx-note">The download includes full observations, action arguments, results and score components. The browser validates structure and comparability; the Python export check re-simulates every episode.</p></div></section>
+      <section className="tx-provenance" aria-labelledby="provenance-heading"><div><h2 id="provenance-heading">Where this comes from</h2><p>The agent runs are seed 1 of the committed Claude Code and Codex smoke rows. The export replays each ledger through the frozen engine and must reproduce every tool reply and the published score. The scripted runs replay to their recorded final states. Model reasoning is not included.</p></div><div className="tx-source-ledger"><h3>Reproduction ledger</h3><dl><dt>Track</dt><dd>{data.track}</dd><dt>Engine / recorder checkout</dt><dd><a href={`${REPO}/tree/${data.source_commit}`}>{data.source_commit.slice(0, 12)}</a></dd><dt>Starting-state SHA-256</dt><dd><code>{data.starting_state_digest}</code></dd>{data.episodes.map(e => <div key={e.fixture.agent}><dt>{label(e)} · final-state SHA-256</dt><dd><code>{e.fixture.expected.state_digest}</code></dd><dt>Contract fingerprint</dt><dd><code>{e.fixture.provenance?.contract_fingerprint}</code></dd>{agentMetadata(e) && <><dt>Agent ledger SHA-256</dt><dd><a href={`${REPO}/blob/main/${agentMetadata(e)!.ledger}`}><code>{agentMetadata(e)!.ledger_sha256}</code></a></dd><dt>Source row</dt><dd><a href={`${REPO}/blob/main/${agentMetadata(e)!.source_row}`}>{agentMetadata(e)!.source_row.split("/").at(-1)}</a></dd></>}</div>)}</dl><a href={trajectoryUrl()} download>Download all public recordings (JSON) ↓</a><a href={`${REPO}/blob/${data.source_commit}/gm_bench/scoring.py`}>Inspect the scoring function ↗</a><p className="tx-note">The download includes full observations, action arguments, results and score components. The browser validates structure and comparability; the Python export check re-simulates every episode.</p></div></section>
     </>}
   </div></section>;
 }

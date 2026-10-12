@@ -8,13 +8,8 @@ import TrajectoryExplorer from "../components/TrajectoryExplorer";
 mountPage(
   "replays",
   <>
-    <PageHeader kicker="Research desk / Experimental public track" title="Same opening. Different futures.">
-      <p>
-        A testbed for long-horizon planning, tool use and resource allocation, played out in a
-        hockey front office. Follow a Claude Code agent and a Codex agent beside scripted policies through five seasons
-        of trades, cap pressure and roster decisions, down to every tool call. One public seed: an
-        inspection, not a ranking.
-      </p>
+    <PageHeader kicker="Replays" title="Same opening, different futures">
+      <p>Two LLM agents and two scripted policies run the same team for five seasons. Pick any two and step through every decision.</p>
     </PageHeader>
     <TrajectoryExplorer />
     <div className="shell"><details className="tx-legacy"><summary>Original conservative replay &amp; browser verifier</summary>
