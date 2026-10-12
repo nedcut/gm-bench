@@ -62,12 +62,13 @@ def _build(
     *rows: tuple[str, dict],
     pinned_models: dict | None = None,
     reference_scores: dict | None = None,
+    bot_scores: dict | None = None,
 ) -> dict:
     agentic_dir = tmp_path / "agentic"
     agentic_dir.mkdir()
     for name, payload in rows:
         (agentic_dir / name).write_text(json.dumps(payload))
-    if pinned_models is None and reference_scores is None:
+    if pinned_models is None and reference_scores is None and bot_scores is None:
         return build_study(output_path=tmp_path / "leaderboard.json", agentic_dir=agentic_dir)
     root = tmp_path / "root"
     shutil.copytree(Path("config"), root / "config")
@@ -80,6 +81,8 @@ def _build(
         lane["model_pinning"]["pinned_models"] = pinned_models
     if reference_scores is not None:
         lane["reference_scores"]["mean_scores"] = reference_scores
+    if bot_scores is not None:
+        lane["scripted_bot_scores"]["mean_scores"] = bot_scores
     lane_path.write_text(json.dumps(lane))
     return build_study(root=root, output_path=tmp_path / "leaderboard.json", agentic_dir=agentic_dir)
 
@@ -96,6 +99,24 @@ def test_current_results_publish_only_the_committed_panel_rows(tmp_path: Path) -
     ]
     assert all(row["grade"] == "panel" for row in dataset["agentic_lane"])
     assert json.loads(SITE_DATASET.read_text()) == dataset
+
+
+def test_all_eight_scripted_bots_are_published_on_the_2_0_panel(tmp_path: Path) -> None:
+    """The site shows every 1.0 bot on the 2.0 panel, with pick-trader and random equal to the row pins."""
+    dataset = build_study(output_path=tmp_path / "leaderboard.json")
+    bots = {bot["agent"]: bot["mean_score"] for bot in dataset["agentic_bots"]}
+    assert set(bots) == {"pick-trader", "strategic", "shrewd", "win-now", "value", "rebuild", "conservative", "random"}
+    assert [bot["mean_score"] for bot in dataset["agentic_bots"]] == sorted(bots.values(), reverse=True)
+    for row in dataset["agentic_lane"]:
+        assert bots["pick-trader"] == row["reference"]["mean_score"]
+        assert bots["random"] == row["reference"]["floor"]["mean_score"]
+
+
+def test_a_bot_mean_off_the_reference_pin_fails_the_build(tmp_path: Path) -> None:
+    lane = json.loads(Path("config/bench_v2_lane.json").read_text())
+    shifted = dict(lane["scripted_bot_scores"]["mean_scores"], **{"pick-trader": 250.0})
+    with pytest.raises(ValueError, match="reference_scores pins"):
+        _build(tmp_path, bot_scores=shifted)
 
 
 def test_panel_row_is_published_beside_every_1_0_table(tmp_path: Path) -> None:
