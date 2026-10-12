@@ -73,6 +73,9 @@
 .tx-rejected .tx-verdict { color: var(--red); font-weight: 600; }
 .tx-action-log h4 { font-size: 14px; font-weight: 600; line-height: 1.5; }
 .tx-action-log p { font-size: 12px; color: var(--steel); margin-top: 6px; }
+.tx-tool-log > li { padding: 8px 0; }
+.tx-tool-log h4 { display: inline; margin-left: 8px; }
+.tx-tool-log p { margin-top: 2px; }
 .tx-json { margin-top: 12px; }
 .tx-json summary { font: 11px var(--font-mono); color: var(--steel); cursor: pointer; padding: 5px 0; min-height: 28px; }
 .tx-json pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 340px; overflow: auto; background: var(--card); border: 1px solid var(--line); padding: 15px; font: 11px/1.6 var(--font-mono); margin-top: 10px; }

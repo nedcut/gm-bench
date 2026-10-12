@@ -32,7 +32,7 @@ def assert_export_matches(actual, expected, path=()):
         tolerant = (
             len(path) == 4
             and path[0] == "episodes"
-            and path[1] in (0, 1)
+            and isinstance(path[1], int)
             and path[2] == "components"
             and path[3]
             in (
@@ -55,23 +55,65 @@ def test_public_demo_replays_and_preserves_original():
     assert payload["tool_trace"] is None
     assert payload["seed_scope"] == "public-dev"
     assert payload["source_package_sha256"] == export.source_package_digest()
+    kinds = [episode["kind"] for episode in payload["episodes"]]
+    assert kinds == ["scripted-demo", "scripted-demo", "agentic-run", "agentic-run"]
     for episode in payload["episodes"]:
         fixture = episode["fixture"]
-        assert episode["kind"] == "scripted-demo"
         assert fixture["seed"] == 1
         assert len(fixture["decisions"]) == 20
-        assert validate_replay_fixture(fixture)["valid"]
+        if episode["kind"] == "scripted-demo":
+            assert validate_replay_fixture(fixture)["valid"]
         if fixture["agent"] == "conservative":
             assert fixture["expected"] == original["expected"]
             for new, old in zip(fixture["decisions"], original["decisions"], strict=True):
                 assert [r["actions"] for r in new["interaction_rounds"]] == [
                     r["actions"] for r in old["interaction_rounds"]
                 ]
-    left, right = payload["episodes"]
-    assert (
-        left["fixture"]["decisions"][0]["interaction_rounds"][0]["observation"]
-        == right["fixture"]["decisions"][0]["interaction_rounds"][0]["observation"]
-    )
+    first = [e["fixture"]["decisions"][0]["interaction_rounds"][0]["observation"] for e in payload["episodes"]]
+    assert all(observation == first[0] for observation in first)
+
+
+def test_agent_runs_match_their_ledgers_and_committed_rows():
+    payload = json.loads(export.DESTINATION.read_bytes())
+    agents = [e for e in payload["episodes"] if e["kind"] == "agentic-run"]
+    assert [e["fixture"]["agent"] for e in agents] == [run["agent"] for run in export.AGENT_RUNS]
+    for episode, run in zip(agents, export.AGENT_RUNS, strict=True):
+        metadata = episode["fixture"]["metadata"]
+        ledger = export.LEDGERS / run["ledger"]
+        assert metadata["ledger_sha256"] == hashlib.sha256(ledger.read_bytes()).hexdigest()
+        row = json.loads((export.EVIDENCE / run["row"]).read_text())
+        committed = next(e for e in row["episodes"] if e["seed"] == 1)
+        assert round(episode["score"]["final_score"], 3) == committed["final_score"]
+        calls = [c for d in episode["fixture"]["decisions"] for c in d["tool_calls"]]
+        assert len(calls) == committed["agentic"]["tool_calls"]
+        assert all(d["ended_by"] == "agent" for d in episode["fixture"]["decisions"])
+
+
+@pytest.fixture
+def ledger_copy(tmp_path, monkeypatch):
+    """Byte-identical copies of the agent ledgers that tests can tamper with."""
+    for run in export.AGENT_RUNS:
+        shutil.copyfile(export.LEDGERS / run["ledger"], tmp_path / run["ledger"])
+    monkeypatch.setattr(export, "LEDGERS", tmp_path)
+    return tmp_path / export.AGENT_RUNS[0]["ledger"]
+
+
+def test_tampered_ledger_is_rejected(ledger_copy):
+    lines = ledger_copy.read_text().splitlines()
+    index = next(i for i, line in enumerate(lines) if '"tool": "sign_free_agent"' in line and '"ok": true' in line)
+    record = json.loads(lines[index])
+    record["arguments"]["years"] = 5 if record["arguments"].get("years") != 5 else 4
+    lines[index] = json.dumps(record, sort_keys=True)
+    ledger_copy.write_text("\n".join(lines) + "\n")
+    with pytest.raises(ValueError, match="replayed differently|replayed score"):
+        export.build_demo()
+
+
+def test_truncated_ledger_is_rejected(ledger_copy):
+    lines = ledger_copy.read_text().splitlines()
+    ledger_copy.write_text("\n".join(lines[: len(lines) // 2]) + "\n")
+    with pytest.raises(ValueError, match="does not complete five seasons"):
+        export.build_demo()
 
 
 def test_export_refuses_misattributed_source(monkeypatch):

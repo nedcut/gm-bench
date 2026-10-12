@@ -4,9 +4,29 @@ import { readFileSync } from "node:fs";
 const original = JSON.parse(readFileSync(new URL("../public/replay/trajectory-demo.json", import.meta.url), "utf8"));
 const endpoint = "**/replay/trajectory-demo.json";
 
-test("all windows, reversed navigation, views, swapping and browser history", async ({ page }) => {
+test("opens on an agent run beside pick-trader, with its recorded tool calls", async ({ page }) => {
   const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
   await page.goto("/replays/");
+  await expect(page.locator(".tx-left h3")).toHaveText("Claude Code · sonnet-5");
+  await expect(page.locator(".tx-right h3")).toHaveText("Pick-trader");
+  await expect(page.locator(".tx-left .tx-policy-tag")).toContainText("agent run · claude 2.1.281");
+  await expect(page.getByText("Matched start · divergent trajectories.")).toBeVisible();
+  await page.getByRole("button", { name: "Observations & tools", exact: true }).click();
+  await expect(page.locator(".tx-left").getByText("get_status", { exact: true }).first()).toBeVisible();
+  await expect(page.locator(".tx-left").getByText("Tool retrieval trace: unavailable.")).toHaveCount(0);
+  await expect(page.locator(".tx-right").getByText("Tool retrieval trace: unavailable.")).toHaveCount(1);
+  const axe = await new AxeBuilder({ page }).include(".tx-explorer").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+  expect(axe.violations).toEqual([]);
+  await page.getByLabel("B / Right policy").selectOption("codex-gpt-6-luna");
+  await expect(page.locator(".tx-right h3")).toHaveText("Codex · gpt-6-luna");
+  await expect(page.locator(".tx-score-table tfoot")).toContainText("224.30");
+  await expect(page.locator(".tx-score-table tfoot")).toContainText("194.63");
+  expect(errors).toEqual([]);
+});
+
+test("all windows, reversed navigation, views, swapping and browser history", async ({ page }) => {
+  const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
+  await page.goto("/replays/?left=conservative&right=pick-trader");
   await expect(page.getByRole("heading", { name: "Inspect the decision window." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Previous decision", exact: true })).toBeDisabled();
   for (let i = 2; i <= 20; i++) {
@@ -18,7 +38,7 @@ test("all windows, reversed navigation, views, swapping and browser history", as
     await page.getByRole("button", { name: "Previous decision", exact: true }).click();
     await expect(page.getByText(`Window ${i} of 20`, { exact: true })).toBeVisible();
   }
-  await page.getByRole("button", { name: "02 · First deadline: future picks" }).click();
+  await page.getByRole("button", { name: "02 · First trade deadline" }).click();
   await expect(page.getByText("Pick ledger:")).toBeVisible();
   await page.getByRole("button", { name: "Roster & changes", exact: true }).click();
   await expect(page.locator(".tx-roster")).toHaveCount(2);
@@ -84,7 +104,7 @@ test("empty, mismatched, absent observations, corrupt render fields", async ({ p
     if (kind === "bad-player") data.episodes[0].fixture.expected.state.players["1"] = null;
     if (kind === "no-results") data.episodes[0].fixture.decisions[1].results = [];
     await page.route(endpoint, route => route.fulfill({ json: data }));
-    await page.goto("/replays/?window=2&view=observations");
+    await page.goto("/replays/?window=2&view=observations&left=conservative&right=pick-trader");
     if (kind === "empty") await expect(page.getByRole("heading", { name: "No comparison available." })).toBeVisible();
     if (kind === "mismatch") await expect(page.getByText(/Starting scenarios do not match/)).toBeVisible();
     if (kind === "missing") await expect(page.getByText("Observation unavailable for this round. No reconstruction is shown.")).toBeVisible();

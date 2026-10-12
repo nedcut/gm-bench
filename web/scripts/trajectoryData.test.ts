@@ -8,7 +8,7 @@ describe("public trajectory evidence", () => {
   test("real pair has a matched start, reconciled scores and complete windows", () => {
     const data = parseTrajectories(fresh());
     expect(comparisonIssue(data.episodes[0], data.episodes[1])).toBeNull();
-    expect(data.episodes.map(e => e.fixture.decisions.length)).toEqual([20, 20]);
+    expect(data.episodes.map(e => e.fixture.decisions.length)).toEqual([20, 20, 20, 20]);
     expect(data.episodes[0].score.final_score).toBeCloseTo(107.5535877262878, 8);
     expect(data.episodes[1].score.final_score).toBeCloseTo(198.14748468577113, 8);
   });
@@ -20,6 +20,25 @@ describe("public trajectory evidence", () => {
     b.fixture.decisions = [];
     expect(comparisonIssue(a, b)).toMatch(/no recorded/);
     expect(parseTrajectories({ ...fresh(), episodes: [] }).episodes).toEqual([]);
+  });
+  test("agent runs pair with the scripted policies and carry their tool calls", () => {
+    const data = parseTrajectories(fresh());
+    const [, pickTrader, claude, codex] = data.episodes;
+    expect([claude.kind, codex.kind]).toEqual(["agentic-run", "agentic-run"]);
+    expect(comparisonIssue(claude, pickTrader)).toBeNull();
+    expect(comparisonIssue(claude, codex)).toBeNull();
+    expect(claude.score.final_score).toBeCloseTo(224.298, 3);
+    expect(codex.score.final_score).toBeCloseTo(194.629, 3);
+    expect(claude.fixture.decisions.reduce((n, d) => n + (d.tool_calls?.length ?? 0), 0)).toBe(167);
+    expect(codex.fixture.decisions.reduce((n, d) => n + (d.tool_calls?.length ?? 0), 0)).toBe(132);
+  });
+  test.each(["tool_calls", "tool-call", "ledger"])("rejects malformed agent %s", field => {
+    const data = fresh();
+    const decision = data.episodes[2].fixture.decisions[0];
+    if (field === "tool_calls") delete decision.tool_calls;
+    if (field === "tool-call") decision.tool_calls[0].ok = "yes";
+    if (field === "ledger") data.episodes[2].fixture.metadata.ledger_sha256 = "unknown";
+    expect(() => parseTrajectories(data)).toThrow();
   });
   test.each(["seed", "user_team_id", "config", "contract", "observation", "windows"])("refuses incompatible %s", field => {
     const [a, b] = parseTrajectories(fresh()).episodes;
@@ -34,7 +53,7 @@ describe("public trajectory evidence", () => {
   test("missing later observations remain unavailable, not a zero roster", () => {
     const data = fresh();
     delete data.episodes[0].fixture.decisions[2].interaction_rounds[0].observation;
-    expect(parseTrajectories(data).episodes).toHaveLength(2);
+    expect(parseTrajectories(data).episodes).toHaveLength(4);
     expect(rosterChange(undefined, {})).toBeNull();
     expect(rosterChange({ team: { roster: [{ id: 1, name: "One" }] } }, { team: { roster: [{ id: 2, name: "Two" }] } })).toEqual({ added: [{ id: 2, name: "Two" }], removed: [{ id: 1, name: "One" }] });
   });

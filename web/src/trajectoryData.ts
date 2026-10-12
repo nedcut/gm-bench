@@ -5,6 +5,17 @@ export interface Observation {
   scout_reports?: unknown;
   [key: string]: unknown;
 }
+export interface ToolCall {
+  seq: number;
+  tool: string;
+  kind: string;
+  arguments: Record<string, unknown>;
+  ok: boolean;
+  message: string;
+  executed: boolean;
+  penalized: boolean;
+  ids_exposed: number;
+}
 export interface Decision {
   decision_index: number;
   season: number;
@@ -12,9 +23,22 @@ export interface Decision {
   interaction_rounds: { round: number; observation?: Observation; actions: Record<string, unknown>[] }[];
   results: { accepted: boolean; message: string; action: Record<string, unknown> }[];
   delta: Record<string, number>;
+  /** Agent runs only: every MCP tool call in the window, as recorded in the ledger. */
+  tool_calls?: ToolCall[];
+  ended_by?: string;
+}
+export interface AgentMetadata {
+  harness: string;
+  harness_version: string;
+  model: string;
+  isolation: string;
+  grade: string;
+  source_row: string;
+  ledger: string;
+  ledger_sha256: string;
 }
 export interface Episode {
-  kind: "scripted-demo";
+  kind: "scripted-demo" | "agentic-run";
   fixture: Omit<ReplayFixture, "decisions"> & { config: Record<string, unknown>; decisions: Decision[] };
   components: Record<string, number>;
   score: { final_score: number; strategy_score: number; protocol_penalty: number };
@@ -30,7 +54,12 @@ export interface Trajectories {
   episodes: Episode[];
 }
 export const trajectoryUrl = () => `${import.meta.env.BASE_URL}replay/trajectory-demo.json`;
-export const LABELS: Record<string, string> = { conservative: "Conservative", "pick-trader": "Pick-trader" };
+export const LABELS: Record<string, string> = {
+  conservative: "Conservative", "pick-trader": "Pick-trader",
+  "claude-code-sonnet-5": "Claude Code · sonnet-5", "codex-gpt-6-luna": "Codex · gpt-6-luna",
+};
+export const isAgent = (e: Episode) => e.kind === "agentic-run";
+export const agentMetadata = (e: Episode) => isAgent(e) ? (e.fixture as unknown as { metadata: AgentMetadata }).metadata : null;
 export const COMPONENTS = [
   ["recent_wins", "Recent wins"], ["playoff_rounds", "Playoff rounds"],
   ["championships", "Championships"], ["total_assets", "Roster assets"],
@@ -59,9 +88,12 @@ export function parseTrajectories(value: unknown): Trajectories {
       typeof value.source_commit !== "string" || !/^[a-f0-9]{40}$/.test(value.source_commit) ||
       value.tool_trace !== null || !Array.isArray(value.episodes)) throw new Error("Unsupported public trajectory export.");
   for (const item of value.episodes) {
-    if (!object(item) || item.kind !== "scripted-demo" || !object(item.fixture) ||
+    if (!object(item) || (item.kind !== "scripted-demo" && item.kind !== "agentic-run") || !object(item.fixture) ||
         !object(item.components) || !object(item.score)) throw new Error("Invalid episode evidence.");
     const f = item.fixture;
+    if (item.kind === "agentic-run" && (!object(f.metadata) ||
+        !["harness", "harness_version", "model", "ledger"].every(k => typeof (f.metadata as Record<string, unknown>)[k] === "string") ||
+        !digest((f.metadata as Record<string, unknown>).ledger_sha256))) throw new Error("Invalid agent run provenance.");
     if (f.schema !== "gm-bench-decision-replay-v1" || typeof f.agent !== "string" ||
         !finite(f.seed) || !finite(f.user_team_id) || !object(f.config) || !object(f.provenance) ||
         typeof f.provenance.contract_fingerprint !== "string" || !object(f.expected) ||
@@ -97,6 +129,9 @@ export function parseTrajectories(value: unknown): Trajectories {
         }
       }
       if (!d.results.every(r => object(r) && typeof r.accepted === "boolean" && typeof r.message === "string" && object(r.action))) throw new Error("Invalid action results.");
+      if (item.kind === "agentic-run" && (!Array.isArray(d.tool_calls) || !d.tool_calls.every(c => object(c) &&
+          finite(c.seq) && typeof c.tool === "string" && typeof c.ok === "boolean" && typeof c.message === "string" &&
+          typeof c.executed === "boolean" && object(c.arguments)))) throw new Error("Invalid tool-call evidence.");
     }
   }
   if (new Set(value.episodes.map(e => e.fixture.agent)).size !== value.episodes.length) throw new Error("Duplicate episode identifiers.");

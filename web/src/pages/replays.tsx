@@ -11,8 +11,9 @@ mountPage(
     <PageHeader kicker="Research desk / Experimental public track" title="Same opening. Different futures.">
       <p>
         A testbed for long-horizon planning, tool use and resource allocation, played out in a
-        hockey front office. Inspect two real scripted trajectories through five seasons
-        of trades, cap pressure and roster decisions. No model performance claim is made.
+        hockey front office. Follow a Claude Code agent and a Codex agent beside scripted policies through five seasons
+        of trades, cap pressure and roster decisions, down to every tool call. One public seed: an
+        inspection, not a ranking.
       </p>
     </PageHeader>
     <TrajectoryExplorer />
