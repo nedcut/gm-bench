@@ -192,7 +192,7 @@ export default function TrajectoryExplorer() {
   const issue = left && right ? comparisonIssue(left, right) : "The selected recording is unavailable. Choose an available policy on each side.";
   const season = Math.floor(selection.index / 4) + 1;
   return <section className="tx-explorer" id="replay" aria-label="Experimental trajectory explorer"><div className="shell">
-    {!data && !error && <div className="tx-state" role="status"><h2>Opening the front-office ledger…</h2><p>About 1 MB of recorded games.</p></div>}
+    {!data && !error && <div className="tx-state" role="status"><h2>Opening the front-office ledger…</h2><p>Loading four five-season games with full observations.</p></div>}
     {error && <div className="tx-state" role="alert"><h2>The recordings could not be opened.</h2><p>{error}</p><p>No substitute data is displayed.</p><button onClick={() => setAttempt(n => n + 1)}>Retry loading</button><a href={trajectoryUrl()}>Open the source export</a></div>}
     {data && <>
       <div className="tx-scenario"><div><h2>{left?.fixture.decisions[0]?.interaction_rounds[0]?.observation?.team?.name ?? "Public scenario"}</h2><p>Same team, same opening roster and cap, public seed 1.</p></div><dl><div><dt>Horizon</dt><dd>05 <small>seasons</small></dd></div><div><dt>Opening cap room</dt><dd>{left?.fixture.decisions[0]?.interaction_rounds[0]?.observation?.team?.cap_room === undefined ? "—" : `$${number(left.fixture.decisions[0].interaction_rounds[0].observation.team.cap_room, 2)}`}<small>M</small></dd></div><div><dt>Tool calls A / B</dt><dd>{left && right ? `${toolCalls(left)} / ${toolCalls(right)}` : "—"}</dd></div></dl></div>
