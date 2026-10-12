@@ -207,6 +207,11 @@ const ROW_CAVEATS: Record<string, string> = {
     "reports no cost and composer-2.5 has no per-token list price, so cost is unmeasured and there is no " +
     "API-equivalent estimate. In 125 of the 640 phases the agent called only get_status and end_phase. " +
     "Played on driver commit b3d7de7, the first with Cursor's container driver.",
+  "agentic:opencode-1.18.31:opencode-go/deepseek-v4.1-flash":
+    "Run on an OpenCode Go subscription. The cost shown is OpenCode's own figure; Go counts usage against " +
+    "the plan's limits rather than billing per token, and the row has no API-equivalent estimate. In 56 of " +
+    "the 640 phases the agent called only get_status and end_phase. Played on driver commit 07de4b2, the " +
+    "first with OpenCode Go keys.",
 };
 
 const UNPINNED_SENTENCE =

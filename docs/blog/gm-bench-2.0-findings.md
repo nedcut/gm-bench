@@ -1,7 +1,7 @@
 # GM-Bench 2.0: a model in its own harness (DRAFT, not published)
 
-> **Draft.** Updated 2026-10-02 for the owner to review before final
-> publication. Four panel rows are public under `results/agentic/`; a 2.0
+> **Draft.** Updated 2026-10-12 for the owner to review before final
+> publication. Five panel rows are public under `results/agentic/`; a 2.0
 > tag and GitHub release have not been cut. Numbers and cost disclosures
 > below reflect the committed artifacts, including the merged release fixes.
 
@@ -15,7 +15,7 @@ are the ones 1.0 used.
 
 ## What ran
 
-Four rows on the frozen 32-seed private panel, five seasons, each harness in
+Five rows on the frozen 32-seed private panel, five seasons, each harness in
 a firewalled Docker container:
 
 | row | mean | vs `pick-trader` (95% interval) |
@@ -24,9 +24,10 @@ a firewalled Docker container:
 | Claude Code 2.1.281 · `claude-sonnet-5` | 227.4 | −21.8 (−47.2 to +3.5) |
 | Claude Code 2.1.281 · `claude-haiku-4-5` | 130.1 | −119.1 (−132.8 to −104.5) |
 | Cursor 2026.09.26-dd393fe · `composer-2.5` | 230.6 | −18.6 (−35.6 to −1.4) |
+| OpenCode 1.18.31 · `opencode-go/deepseek-v4.1-flash` | 247.1 | −2.0 (−22.4 to +18.0) |
 
 `pick-trader`, the scripted reference policy, averages 249.2 on these seeds.
-All four rows closed all 640 phases themselves. All four are flagged
+All five rows closed all 640 phases themselves. All five are flagged
 `unpinned`: the served model version is not pinned, so they may not be
 reproducible. Under the frozen eligibility rule they are extra data points,
 not headline results.
@@ -44,13 +45,20 @@ supports no comparison between them: 2.0 ranks nothing.
 Cursor is also below the scripted bar, with a smaller margin: its paired
 lift is −18.6, the interval excludes zero, and the sign-flip p-value is
 0.0469, so the evidence is marginal. It beats `pick-trader` on 12 of 32 seeds. Its realized minimum
-detectable difference is about 25 points. These are separate contrasts
-against the scripted reference, not tests between model or harness rows.
+detectable difference is about 25 points.
+
+DeepSeek V4.1 Flash on OpenCode lands closest to the scripted bar: a
+paired lift of −2.0 with an interval from −22.4 to +18.0 (p = 0.84), ahead
+of `pick-trader` on 15 of 32 seeds. With a realized minimum detectable
+difference of about 29 points, that is "cannot tell", not "on par". These
+are separate contrasts against the scripted reference, not tests between
+model or harness rows.
 
 ## Cost disclosures
 
-All four panel rows have `summary.usage.cost_usd: null` and zero decisions
-with measured cost. Subscription quota use is not a per-token bill.
+Four panel rows have `summary.usage.cost_usd: null` and zero decisions
+with measured cost. The OpenCode row carries OpenCode's own cost figure.
+Subscription quota use is not a per-token bill.
 
 | row | API-equivalent estimate for the whole 32-episode panel |
 |---|---|
@@ -58,6 +66,7 @@ with measured cost. Subscription quota use is not a per-token bill.
 | Claude Code · `claude-sonnet-5` | $157.38 at API list prices |
 | Claude Code · `claude-haiku-4-5` | $27.71 at API list prices, corrected from $25.14 |
 | Cursor · `composer-2.5` | Unmeasured; no harness-reported cost or model list price |
+| OpenCode · `deepseek-v4.1-flash` | $3.69 as OpenCode reports it, on an OpenCode Go subscription; no API-equivalent estimate |
 
 These estimates come from recorded token usage and the repository's dated
 price entries; they do not measure the subscription's bill or establish
