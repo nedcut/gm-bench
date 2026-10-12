@@ -12,10 +12,11 @@ from scripts import build_trajectory_demo as export
 
 
 def assert_export_matches(actual, expected, path=()):
-    """Preserve JSON semantics; allow two ULPs only in four asset rollups.
+    """Preserve JSON semantics; allow two ULPs only in final score rollups.
 
-    Python 3.12 changed float summation. The 3.11 export differs by one ULP
-    in these derived components, never in recorded actions or replay state.
+    Python 3.12 changed float summation (sum() became compensated). Under
+    3.11 the final component and score totals of an episode differ by one
+    ULP; recorded actions, replay state and per-decision deltas never do.
     Object key order is immaterial; array order and scalar types are exact.
     """
     assert type(actual) is type(expected), path
@@ -33,14 +34,7 @@ def assert_export_matches(actual, expected, path=()):
             len(path) == 4
             and path[0] == "episodes"
             and isinstance(path[1], int)
-            and path[2] == "components"
-            and path[3]
-            in (
-                "future_pick_assets",
-                "future_pick_assets_contribution",
-                "total_assets",
-                "total_assets_contribution",
-            )
+            and (path[2] == "components" or (path[2] == "score" and path[3] in ("final_score", "strategy_score")))
         )
         assert abs(actual - expected) <= (2 * math.ulp(expected) if tolerant else 0), path
     else:

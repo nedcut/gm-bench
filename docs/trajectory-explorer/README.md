@@ -65,15 +65,11 @@ python3 -m gm_bench validate-contract
 ```
 
 Python 3.11 remains supported by the test suite. Its older float summation
-produces one-ULP differences in six derived asset-component values in this
-export. The regression comparison permits at most two ULPs only in the
-`future_pick_assets`, `future_pick_assets_contribution`, `total_assets`, and
-`total_assets_contribution` fields of the two final component ledgers. JSON
-structure, scalar types, integers, array ordering, replay data, and all other
-floats must match exactly. Separate before/after hashes require byte-identical
-exports within one runtime when unrelated modules are added. Negative tests
-reject structural, type, order, non-finite, and out-of-bound numeric changes.
-The CLI's `--check` deliberately retains strict byte equality; use Python 3.12
+produces one-ULP differences in the final score rollups (each episode's
+`components` and its `final_score` / `strategy_score`). The regression
+comparison allows at most two ULPs there and nowhere else: JSON structure,
+scalar types, integers, array ordering, replay data, per-decision deltas and
+all other floats must match exactly. The CLI's `--check` deliberately retains strict byte equality; use Python 3.12
 for that check and the web build. No fixture or frozen scoring code is rewritten
 to accommodate another interpreter's rounding.
 
