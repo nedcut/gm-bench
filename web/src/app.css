@@ -967,14 +967,15 @@ main:focus {
   gap: 2px;
 }
 
+/* The name gets its own line over the bar, so model names are never cut off. */
 .hbar {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) 72px;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  grid-template-areas: "name name" "meter val";
   align-items: center;
-  gap: 12px;
+  gap: 4px 12px;
   width: 100%;
-  height: 32px;
-  padding: 0 8px;
+  padding: 7px 8px;
   border: 0;
   border-radius: 6px;
   background: none;
@@ -993,16 +994,21 @@ main:focus {
 }
 
 .hbar .name {
+  grid-area: name;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
   min-width: 0;
-  white-space: nowrap;
+}
+
+.hbar .name .dot {
+  flex: none;
+  align-self: center;
 }
 
 .hbar .name-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .hbar .muted {
@@ -1011,6 +1017,7 @@ main:focus {
 }
 
 .hbar .meter {
+  grid-area: meter;
   height: 10px;
   border-radius: 5px;
 }
@@ -1020,6 +1027,7 @@ main:focus {
 }
 
 .hbar .val {
+  grid-area: val;
   text-align: right;
 }
 
@@ -1144,22 +1152,7 @@ main:focus {
 
   .hbar {
     grid-template-columns: minmax(0, 1fr) 56px;
-    grid-template-areas: "name name" "meter val";
     gap: 4px 10px;
-    height: auto;
-    padding: 7px 8px;
-  }
-
-  .hbar .name {
-    grid-area: name;
-  }
-
-  .hbar .meter {
-    grid-area: meter;
-  }
-
-  .hbar .val {
-    grid-area: val;
   }
 }
 
