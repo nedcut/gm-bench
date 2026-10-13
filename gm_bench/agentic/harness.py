@@ -168,6 +168,15 @@ class HarnessDriver:
         stopping. Must not raise; whatever it keeps is reported by :meth:`run_record`.
         """
 
+    def final_telemetry(self, launch: HarnessLaunch, telemetry: dict[str, Any]) -> dict[str, Any]:
+        """The episode's telemetry, from the event stream's parse and whatever :meth:`collect` read.
+
+        Called once per episode, after :meth:`collect`. The default is the
+        stream's parse unchanged; OpenCode replaces its token counts with the
+        session store's.
+        """
+        return telemetry
+
     def run_record(self, launch: HarnessLaunch) -> dict[str, Any]:
         """Extra ``harness_run`` fields describing how this harness was configured."""
         return {}

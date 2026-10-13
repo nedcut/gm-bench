@@ -1220,12 +1220,12 @@ def _fake_docker(tmp_path: Path) -> tuple[Path, Path, Path]:
 def test_codex_image_is_its_own_pinned_image_and_the_opencode_image_is_unchanged(tmp_path: Path) -> None:
     import hashlib
 
-    from gm_bench.agentic.container import CODEX_IMAGE, dockerfile, ensure_image
+    from gm_bench.agentic.container import CODEX_IMAGE, OPENCODE_IMAGE, dockerfile, ensure_image, image_dockerfile
 
-    # The OpenCode image text (and so its tag and recorded digest) did not move.
-    assert (
-        hashlib.sha256(dockerfile().encode()).hexdigest()
-        == "eaf1fdfb2359e16e4468530aeed10e6e249a67a751c8b9a488e58a8d9d416ba8"
+    # The OpenCode image text (and so its tag and recorded digest) moves only with its pin:
+    # this is the OpenCode 2.0.27 image (1.18.31's was eaf1fdfb2359...).
+    assert hashlib.sha256(image_dockerfile(OPENCODE_IMAGE).encode()).hexdigest() == (
+        "68c6a0dff0b97c2a85583f9dd11ad67fa5d588c5a13c7e9786783c17e90c233f"
     )
     codex_text = dockerfile(CODEX_IMAGE.version, package=CODEX_IMAGE.package)
     assert "npm install -g @openai/codex@0.156.1 " in codex_text and "opencode" not in codex_text

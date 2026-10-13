@@ -753,8 +753,9 @@ def test_cursor_image_installs_the_pinned_tarball_and_the_other_images_are_uncha
         text = container.dockerfile(spec.version, package=spec.package, extra=spec.extra, install=spec.install)
         return hashlib.sha256(text.encode()).hexdigest()
 
-    # The other images' texts (and so their tags and recorded digests) did not move.
-    assert digest(container.OPENCODE_IMAGE) == "eaf1fdfb2359e16e4468530aeed10e6e249a67a751c8b9a488e58a8d9d416ba8"
+    # The other images' texts (and so their tags and recorded digests) did not move
+    # (OpenCode's moves only with its pin, 2.0.27).
+    assert digest(container.OPENCODE_IMAGE) == "68c6a0dff0b97c2a85583f9dd11ad67fa5d588c5a13c7e9786783c17e90c233f"
     assert digest(container.CODEX_IMAGE) == "578af3e044d44e746bdc879560042be3698049c1a1cdd067b66d03b8397fc8ce"
     assert digest(container.CLAUDE_IMAGE) == "1781dcc2b7dad71fe8b4191ecb2472d145d995333423e359df5420fc7c8a2cd2"
     spec = container.CURSOR_IMAGE
