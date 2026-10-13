@@ -203,6 +203,20 @@ pre {
   color: var(--text);
 }
 
+.tab-short {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .tab-long {
+    display: none;
+  }
+
+  .tab-short {
+    display: inline;
+  }
+}
+
 .tabs a[aria-current="page"] {
   color: var(--text);
   border-bottom-color: var(--accent);
@@ -745,6 +759,389 @@ main:focus {
   background: var(--code-bg);
   font-size: 12.5px;
   line-height: 1.6;
+}
+
+/* ---------- how it works ---------- */
+
+.page.how {
+  max-width: 980px;
+}
+
+.how-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.how-steps button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.how-steps button span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--raised);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.how-steps button.is-done span {
+  background: var(--rink-blue);
+  color: var(--bg);
+}
+
+.how-steps button[aria-current="step"] {
+  border-color: var(--bar);
+  color: var(--text);
+}
+
+.how-steps button[aria-current="step"] span {
+  background: var(--bar);
+  color: var(--bg);
+}
+
+.how-step:focus {
+  outline: none;
+}
+
+.how-step > h2 {
+  margin: 28px 0 4px;
+  font-size: 24px;
+}
+
+.how-block {
+  margin-top: 22px;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.how-block h3 {
+  margin: 0 0 10px;
+  font-stretch: 85%;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.how-block p {
+  margin: 0 0 10px;
+}
+
+.how-block p:last-child {
+  margin-bottom: 0;
+}
+
+.how-hint {
+  color: var(--text-3) !important;
+  font-size: 12.5px;
+}
+
+.how-situation {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin: 12px 0 0;
+}
+
+.how-situation div {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--raised);
+}
+
+.how-situation dt {
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+
+.how-situation dd {
+  margin: 2px 0 0;
+  font-stretch: 85%;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.how-table {
+  margin: 4px 0 12px;
+  font-size: 13px;
+}
+
+.how-table .r + td:not(.r) {
+  padding-left: 20px;
+}
+
+.how-table .r {
+  padding-right: 0;
+  padding-left: 10px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.how-final th,
+.how-final td {
+  border-bottom: 0;
+  font-weight: 700;
+}
+
+.how-offers {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page .how-offers li {
+  display: grid;
+  grid-template-columns: 140px 1fr 1fr;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--raised);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.how-tools {
+  display: grid;
+  gap: 10px;
+}
+
+.how-tools > div {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  align-items: start;
+}
+
+.how-tools-label {
+  padding-top: 4px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.how-tools ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page .how-tools li {
+  margin: 0;
+  padding: 3px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  color: var(--text-2);
+  font-family: var(--font-code);
+  font-size: 11.5px;
+}
+
+.page .how-tools li.is-used {
+  border-color: var(--bar);
+  background: var(--bar-soft);
+  color: var(--text);
+}
+
+.page .how-tools li.is-closed {
+  border-style: dashed;
+  opacity: 0.4;
+}
+
+.how-moves {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.page .how-moves li {
+  color: var(--text);
+  font-size: 13.5px;
+}
+
+.how-moves li.is-rejected {
+  color: var(--text-3);
+}
+
+.how-player .muted {
+  margin-left: 6px;
+  font-size: 12px;
+}
+
+.how-offers .how-player {
+  display: block;
+}
+
+.page .how-why {
+  margin-top: 14px;
+  padding-left: 12px;
+  border-left: 3px solid var(--rink-blue);
+  font-size: 13.5px;
+}
+
+.how-raw {
+  margin-top: 12px;
+}
+
+.how-raw summary {
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.how-raw .code-block {
+  margin-top: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.how-brief {
+  max-height: 420px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.how-tool-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page .how-tool-list li {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 12px;
+  margin: 0;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.how-tool-list code {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.how-delta {
+  display: grid;
+  gap: 4px;
+  max-width: 520px;
+}
+
+.how-delta-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 56px;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.how-delta-row b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.how-delta-row.is-total {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  font-weight: 700;
+}
+
+/* A diverging bar from the middle: gains right, losses left. */
+.how-delta-track {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--track);
+}
+
+.how-delta-track i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  border-radius: 4px;
+  background: var(--rink-blue);
+}
+
+.how-delta-track i.is-neg {
+  right: 50%;
+  left: auto;
+  background: var(--bar);
+}
+
+.how-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.how-button {
+  padding: 9px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.how-button.is-primary {
+  border-color: var(--bar);
+  background: var(--bar);
+  color: var(--bg);
+}
+
+.how-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.how-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+@media (max-width: 640px) {
+  .page .how-offers li,
+  .page .how-tool-list li,
+  .how-tools > div {
+    grid-template-columns: 1fr;
+  }
+
+  .how-steps button {
+    font-size: 12px;
+  }
+
+  .how-table {
+    font-size: 12px;
+  }
 }
 
 /* ---------- charts ---------- */

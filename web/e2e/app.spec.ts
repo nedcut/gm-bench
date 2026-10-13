@@ -20,7 +20,7 @@ function verdict(set: Row[], clear: string, above: string, none: string): string
   const a = set.filter((row) => row.mean_score > bar).length;
   return c > 0 ? clear.replace("N", String(c)) : a > 0 ? above.replace("N", String(a)) : none;
 }
-const PAGES = ["/", "/cost/", "/tools/", "/replays/", "/method/", "/v1/"];
+const PAGES = ["/", "/how-it-works/", "/cost/", "/tools/", "/replays/", "/method/", "/v1/"];
 
 async function noErrors(page: Page) {
   const errors: string[] = [];
@@ -76,6 +76,25 @@ test("score vs cost plots measured rows and names the unmeasured ones", async ({
     r.telemetry.cost_per_episode_usd === null && (r.telemetry.api_equivalent_cost_per_episode_usd ?? null) === null);
   await expect(page.locator(".chart circle")).toHaveCount(rows.length - unmeasured.length);
   for (const r of unmeasured) await expect(page.getByText(new RegExp(`cost unmeasured: .*${r.model}`))).toBeVisible();
+});
+
+test("how it works steps through one pick-trader season with its tool calls", async ({ page }) => {
+  const errors = await noErrors(page);
+  await page.goto("/how-it-works/");
+  await expect(page.locator(".tabs a[aria-current=page]")).toHaveText("How it works");
+  await expect(page.locator(".how-brief")).toContainText("You are the general manager of");
+  await page.getByRole("button", { name: "Preseason →" }).click();
+  await expect(page).toHaveURL(/#preseason$/);
+  await expect(page.locator(".how-step h2")).toHaveText("Season 1 · Preseason");
+  await expect(page.locator(".how-moves")).toContainText("Extended Gabe Reed");
+  await page.getByText(/tool calls a model would make/).click();
+  await expect(page.locator(".how-raw code")).toContainText('extend_contract({"player_id":8');
+  await page.getByRole("button", { name: /Trade deadline/ }).first().click();
+  await expect(page.locator(".how-moves")).toContainText("to Boston Harbors for their season-2 draft pick");
+  await page.goto("/how-it-works/#recap");
+  await expect(page.locator(".how-step h2")).toHaveText("The rest of the game");
+  await expect(page.locator(".how-final")).toContainText("198.");
+  expect(errors).toEqual([]);
 });
 
 test("cost points and tool bars open details in the side panel and highlight their row", async ({ page }) => {

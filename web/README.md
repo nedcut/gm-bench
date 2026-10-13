@@ -12,6 +12,11 @@ file; see `vite.config.ts`):
 - `/` (`src/main.tsx`, `src/app/Standings.tsx`): the 2.0 standings. Every
   panel row with the scripted bots, sorted by score for reading, with a side
   panel for filters (harness, vendor, bots) and a row's details.
+- `/how-it-works/` (`src/app/HowItWorks.tsx`): a step-by-step walkthrough of
+  one pick-trader season: the brief, the tools open in each phase, the moves
+  as 2.0 tool calls, and how the score moved. Its data,
+  `src/data/walkthrough.json`, is built by `scripts/build_walkthrough.py` from
+  the public demo game in `public/replay/trajectory-demo.json`.
 - `/cost/` (`src/app/CostView.tsx`): score against cost per game.
 - `/tools/` (`src/app/ToolsView.tsx`): tool calls, tokens, wall time and
   empty phases per game.

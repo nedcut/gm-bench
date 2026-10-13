@@ -3,10 +3,12 @@ import { useTheme } from "../theme";
 import { REPO, REPO_BLOB, routes, type PageKey } from "../site";
 import type { Leaderboard } from "../types";
 
-const TABS: { page: PageKey; label: string }[] = [
+/* `short` labels replace the long ones on phones, so all five tabs fit at 320px. */
+const TABS: { page: PageKey; label: string; short?: string }[] = [
   { page: "standings", label: "Standings" },
-  { page: "cost", label: "Score vs cost" },
-  { page: "tools", label: "Tool use" },
+  { page: "how", label: "How it works" },
+  { page: "cost", label: "Score vs cost", short: "Cost" },
+  { page: "tools", label: "Tool use", short: "Tools" },
   { page: "replays", label: "Replays" },
 ];
 
@@ -49,8 +51,15 @@ export default function Shell({ page, data, children }: { page: PageKey; data: L
         </a>
         <nav className="tabs" aria-label="Views">
           {TABS.map((tab) => (
-            <a key={tab.page} href={routes[tab.page]} aria-current={tab.page === page ? "page" : undefined}>
-              {tab.label}
+            <a key={tab.page} href={routes[tab.page]} aria-current={tab.page === page ? "page" : undefined} aria-label={tab.short ? tab.label : undefined}>
+              {tab.short ? (
+                <>
+                  <span className="tab-long">{tab.label}</span>
+                  <span className="tab-short">{tab.short}</span>
+                </>
+              ) : (
+                tab.label
+              )}
             </a>
           ))}
         </nav>

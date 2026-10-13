@@ -544,7 +544,8 @@ provider behavior should be explicit.
 
 The public site (Vite + React + TypeScript, managed with Bun) lives in
 [`web/`](web/README.md). It is a small data app over a committed snapshot of
-real benchmark output: Standings (`/`), Score vs cost (`/cost/`), Tool use
+real benchmark output: Standings (`/`), How it works (`/how-it-works/`), Score
+vs cost (`/cost/`), Tool use
 (`/tools/`), Replays (`/replays/`), Method (`/method/`) and the 1.0 archive
 (`/v1/`). It builds to a fully static bundle:
 

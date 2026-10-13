@@ -13,6 +13,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         standings: resolve(__dirname, 'index.html'),
+        how: resolve(__dirname, 'how-it-works/index.html'),
         cost: resolve(__dirname, 'cost/index.html'),
         tools: resolve(__dirname, 'tools/index.html'),
         replays: resolve(__dirname, 'replays/index.html'),

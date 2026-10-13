@@ -5,6 +5,7 @@ const BASE = import.meta.env?.BASE_URL ?? "/";
 
 export const routes = {
   standings: BASE,
+  how: `${BASE}how-it-works/`,
   cost: `${BASE}cost/`,
   tools: `${BASE}tools/`,
   replays: `${BASE}replays/`,
