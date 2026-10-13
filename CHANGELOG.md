@@ -7,8 +7,8 @@ correction becomes a new contract version rather than an edit to an old one.
 ## Unreleased — GM-Bench 2.0
 
 Work began 2026-09-20; the contract froze 2026-09-25; three panel-grade rows
-were published 2026-09-27, a fourth 2026-09-28 and a fifth 2026-10-12 (its
-panel ran 2026-09-28 to 09-29). Not yet tagged. Nothing in GM-Bench 1.0 changes.
+were published 2026-09-27, a fourth 2026-09-28, a fifth 2026-10-12 (its
+panel ran 2026-09-28 to 09-29) and a sixth 2026-10-13. Not yet tagged. Nothing in GM-Bench 1.0 changes.
 
 Summary:
 
@@ -21,8 +21,10 @@ Summary:
   operated with `docs/agentic_lane.md`. The fingerprint covers
   `gm_bench/agentic/{tools,brief,episode,mcp_server}.py` and has not moved
   since the freeze.
-- **Harnesses.** OpenCode 1.18.31, Codex CLI 0.156.1, Claude Code 2.1.281
-  and the Cursor CLI 2026.09.26-dd393fe, each from a pinned Docker image.
+- **Harnesses.** The committed rows ran on OpenCode 1.18.31, Codex CLI
+  0.156.1 and 0.162.1, Claude Code 2.1.281 and the Cursor CLI
+  2026.09.26-dd393fe, each from a pinned Docker image. The images now pin
+  OpenCode 2.0.27 and Codex CLI 0.162.1.
   Every committed row ran at the harness's default reasoning effort (no
   `--variant`). Claude Code runs without web tools and with its GM-Bench
   tools deferred behind ToolSearch; OpenCode, Codex and Cursor keep their
@@ -51,10 +53,16 @@ Summary:
   - OpenCode 1.18.31 · `opencode-go/deepseek-v4.1-flash`: mean 247.1, lift
     −2.0 (−22.4 to +18.0, p = 0.84), not significant; ahead of
     `pick-trader` on 15 of 32 seeds. OpenCode reports $3.69 for the panel.
+  - Codex 0.162.1 · `gpt-6.1-sol`: mean 273.2, lift +24.0 (+1.6 to +45.8,
+    p = 0.046), significant; ahead of `pick-trader` on 23 of 32 seeds. The
+    first 2.0 row whose interval lies above zero. No measured cost.
 
   The realized paired-lift SDs (62.5 and 73.4) put the panel's minimum
   detectable difference against `pick-trader` at about 31 to 36 points, so
-  the two −21.8 lifts mean "cannot tell", not "on par".
+  the two −21.8 lifts mean "cannot tell", not "on par". The `gpt-6.1-sol`
+  lift (+24.0, lift SD 64.0, MDD about 32) is significant but smaller than
+  that row's own MDD, and the interval's lower bound is +1.6: one unpinned
+  row on one panel, resolved with little margin.
 - **Smoke rows and noise probes** (public seeds, not on the site): an 8-seed
   OpenCode row on `opencode/space-bunny-free`, one five-season episode each
   on Codex and Claude Code, and a 4 seeds × 2 runs repeat-noise probe on
@@ -64,8 +72,10 @@ Summary:
   that played it; the Codex and `claude-sonnet-5` panels ran at `4d742cc`,
   `claude-haiku-4-5` at `21b71dc`, which differs only in Claude Code
   tool-call counting, `composer-2.5` at `b3d7de7`, the first commit
-  with the Cursor container driver, and `deepseek-v4.1-flash` at `07de4b2`,
-  the first with OpenCode Go keys); a validation rule that publishes a
+  with the Cursor container driver, `deepseek-v4.1-flash` at `07de4b2`,
+  the first with OpenCode Go keys, and `gpt-6.1-sol` at `1411e2e`, the
+  first with Codex 0.162.1 and without the account's apps and plugins); a
+  validation rule that publishes a
   tool-call recount when it resolves a recorded mismatch (one
   `claude-sonnet-5` episode); and
   a post-hoc audit rule, adopted 2026-09-27 after the Haiku panel had run,
@@ -84,8 +94,29 @@ The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
 
+- Sixth panel-grade 2.0 row (2026-10-13): Codex 0.162.1 on `gpt-6.1-sol`,
+  the frozen 32-seed private panel at five seasons, container isolation,
+  played 2026-10-13 from clean `main` at `1411e2e` (#192; driver digest
+  `23e83ff80184fec8`)
+  (`results/agentic/codex-0.162.1-gpt-6.1-sol-panel-32x5.json`). Mean
+  273.2 (SD 49.4, seed means 181.6 to 374.0), 640/640 phases closed by the
+  agent, 0 failed decisions, 81 penalized illegal moves, 0 nudges, 0 empty
+  phases, no guard stops, 9 provider stalls (780 s of backoff), 170.1 tool
+  calls and 8.5 min per episode, ledger = harness on 32/32 episodes. The
+  agent made 36 `draft` calls in 160 draft phases and 518 `trade` calls.
+  Against `pick-trader` the paired lift is +24.0, 95% interval +1.6 to
+  +45.8, sign-flip p 0.046, ahead on 23 of 32 seeds, with a realized MDD of
+  about 32: significant, with little margin. It is the first 2.0 row whose
+  interval clears `pick-trader`. Codex reports no cost; the API-equivalent
+  estimate is $17.38 for the panel ($0.54 per episode), a lower bound
+  because long-context requests are possible. The run used a ChatGPT
+  `prolite` plan (at most 7% of the weekly window, no quota pauses), with
+  the account's apps, plugins and connectors turned off (#192). Reasoning
+  effort is the harness default (Codex reports none). The model is
+  unpinned.
+
 - OpenCode 2.x: GM-Bench tools in the first model request, and no Code
-  Mode `execute` (2026-10-13, driver only; the agentic fingerprint stays
+  Mode `execute` (2026-10-13, #193, driver only; the agentic fingerprint stays
   `07de948a4f4afbae`). The deepseek-v4.1-flash panel played on OpenCode
   2.0.27 showed nearly every episode opening with the agent probing
   `execute`, the shell and the scratch files for its tools (148 `execute`
@@ -103,7 +134,7 @@ dated; the summary above is the current state.
   fixed driver. The committed 1.18.31 deepseek row is not affected by the
   launcher (it is 2.x only).
 
-- Claude Code: no claude.ai connectors (2026-10-13, driver only; the
+- Claude Code: no claude.ai connectors (2026-10-13, #192, driver only; the
   agentic fingerprint stays `07de948a4f4afbae`). An audit of Claude Code
   2.1.281 in its container image with the real `setup-token` token found
   nothing account-specific reaching the agent, but found that
@@ -116,7 +147,7 @@ dated; the summary above is the current state.
   allowed built-ins and GM-Bench.
 
 - Codex: no ChatGPT account plugins, apps or connectors (2026-10-13,
-  driver only; the agentic fingerprint stays `07de948a4f4afbae`). A Codex
+  #192, driver only; the agentic fingerprint stays `07de948a4f4afbae`). A Codex
   container smoke logged a failed connection to `mcp.neon.tech`, and a
   capture against the real account explained it. With a ChatGPT login,
   Codex 0.156.1 and 0.162.1 sync the account's installed plugins into the
@@ -141,7 +172,7 @@ dated; the summary above is the current state.
   in the first prompt. See "Account plugins and apps" in
   `docs/agentic_lane.md`.
 
-- Codex CLI 0.162.1 (2026-10-12, driver only; the agentic fingerprint
+- Codex CLI 0.162.1 (2026-10-12, #192, driver only; the agentic fingerprint
   stays `07de948a4f4afbae`). The Codex container image now pins 0.162.1
   (was 0.156.1): the ChatGPT backend refused `gpt-6.1-sol` to 0.156.1 with
   a 400 "not supported when using Codex with a ChatGPT account". Every
@@ -170,8 +201,8 @@ dated; the summary above is the current state.
   plan's limits rather than billing per token. Reasoning effort is the
   harness default (OpenCode reports none). The model is unpinned.
 
-- Container isolation on a native Linux Docker Engine (2026-10-12, driver
-  only; the agentic fingerprint stays `07de948a4f4afbae`). The container
+- Container isolation on a native Linux Docker Engine (2026-10-12, #191,
+  driver only; the agentic fingerprint stays `07de948a4f4afbae`). The container
   driver assumed Docker Desktop, where `host.docker.internal` reaches the
   host loopback; a native engine (Linux, or WSL 2 without Docker Desktop)
   resolves no such name and cannot reach the host loopback, so the proxy
@@ -184,7 +215,7 @@ dated; the summary above is the current state.
   `~/.config/gm-bench/<service>.escrow` and checks it against the same
   committed digests.
 
-- OpenCode 2.x (2026-10-12, driver only; the agentic fingerprint stays
+- OpenCode 2.x (2026-10-12, #190, driver only; the agentic fingerprint stays
   `07de948a4f4afbae`). The OpenCode driver now runs OpenCode 2.x only, and
   the container image pins 2.0.27. OpenCode 2 rejects `--pure`, `--dir` and
   `--variant` (it prints help and launches nothing), so on 2.x the old

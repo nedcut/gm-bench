@@ -217,6 +217,12 @@ const ROW_CAVEATS: Record<string, string> = {
     "the plan's limits rather than billing per token, and the row has no API-equivalent estimate. In 56 of " +
     "the 640 phases the agent called only get_status and end_phase. Played on driver commit 07de4b2, the " +
     "first with OpenCode Go keys.",
+  "agentic:codex-0.162.1:gpt-6.1-sol":
+    "Ran with the ChatGPT account's apps, plugins and connectors turned off, unlike the gpt-6-luna row. Codex " +
+    "reports no cost; the estimate shown is at short-context list prices and may be low, because the artifact " +
+    "flags possible long-context requests. The agent made 36 draft calls across the 160 draft phases and 518 " +
+    "trade calls, and its event stream records no tool call other than GM-Bench calls. The lift's 95% interval starts at +1.6, so the panel resolved it with little margin. Played " +
+    "on driver commit 1411e2e, the first with Codex 0.162.1.",
 };
 
 const UNPINNED_SENTENCE =

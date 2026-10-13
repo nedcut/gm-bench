@@ -87,8 +87,8 @@ owner actions still open on 2026-09-03 are done (rechecked 2026-09-22):
   landed with #132 on 2026-09-04 and is linked from the top of `README.md` and
   from the site footer.
 
-**GM-Bench 2.0 release checklist (last reviewed 2026-10-02).** The contract
-is frozen and five panel rows are on the site; the release is not tagged.
+**GM-Bench 2.0 release checklist (last reviewed 2026-10-13).** The contract
+is frozen and six panel rows are on the site; the release is not tagged.
 
 - [x] Contract frozen as `gm-bench-2.0` at agentic fingerprint
   `07de948a4f4afbae` on 2026-09-25 (#149), with all five pre-panel gates in
@@ -102,10 +102,12 @@ is frozen and five panel rows are on the site; the release is not tagged.
   `claude-haiku-4-5` (#164, admitted under the post-hoc guessed-draft-pick
   rule from #163), Cursor `composer-2.5` (#173, container, 2026-09-28),
   OpenCode `opencode-go/deepseek-v4.1-flash` (container, published
-  2026-10-12).
+  2026-10-12), Codex 0.162.1 `gpt-6.1-sol` (container, published
+  2026-10-13).
 - [x] Pre-release documentation audit: freeze rule restated, post-freeze
   changes listed with the rows they affected, realized panel noise (MDD
-  about 31 to 36 points against `pick-trader`), how 2.0 differs from 1.0
+  about 31 to 36 points against `pick-trader` for the two rows near it at
+  the time; about 20 to 36 across the six rows now in the spec), how 2.0 differs from 1.0
   beyond the interface, deferred contract changes in
   `docs/bench_v2_1_queue.md`, and per-row caveats on the site.
 - [x] Driver and publication fixes from the same audit merged in #169
@@ -120,8 +122,9 @@ is frozen and five panel rows are on the site; the release is not tagged.
   validate committed rows without credentials or model spending, with
   explicit limits on reproducing withheld raw evidence and private seeds.
 - [x] [Findings draft](blog/gm-bench-2.0-findings.md) reconciled with all
-  five committed panel rows and their cost disclosures (updated
-  2026-10-12 for the DeepSeek row).
+  six committed panel rows and their cost disclosures (updated
+  2026-10-12 for the DeepSeek row and 2026-10-13 for the `gpt-6.1-sol`
+  row).
 - [ ] Owner approves the findings text for final publication. It remains
   labelled draft; updating it does not cut a release.
 - [ ] Owner cuts the tag and GitHub release and moves the CHANGELOG entry
