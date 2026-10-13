@@ -25,10 +25,13 @@ For each seed, serially:
    copy on disk is the ledger header under `--output`, a directory the agent
    is never told about.
 2. It creates an empty scratch directory holding a standard-library proxy
-   script (`gm_bench_proxy.py`, copied from `gm_bench/agentic/_proxy.py`) and
-   an `opencode.json` that launches the proxy on the harness's own `python3`
-   with the socket path as its only argument, with code mode off so each
-   model tool call is one ledger entry.
+   script (`gm_bench_proxy.py`, copied from `gm_bench/agentic/_proxy.py`), a
+   standard-library launcher (`gm_bench_opencode_launch.py`, from
+   `gm_bench/agentic/_opencode_launch.py`), and an `opencode.json` that
+   launches the proxy on the harness's own `python3` with the socket path as
+   its only argument, with code mode off so each model tool call is one
+   ledger entry, and denies the `execute` permission so OpenCode offers no
+   Code Mode tool at all.
 3. It checks the sandbox and refuses to start if the scratch directory sits
    under a GM-Bench checkout or if `python3` on the harness's `PATH` can
    `import gm_bench`. The harness environment is the operator's minus every
@@ -39,10 +42,11 @@ For each seed, serially:
    Otherwise OpenCode reads the operator's `~/.config/opencode/AGENTS.md`
    and the skills in `~/.agents/skills` and `~/.claude/skills`, and puts
    them in the prompt (see "The prompt check" below).
-4. It runs `opencode run --format json --standalone --auto --model <model>`
-   in the scratch directory with the task brief from
-   `gm_bench/agentic/brief.py` as the message and captures the event stream
-   to `seed-<n>/opencode-events.jsonl`.
+4. It runs `opencode run --format json --auto --model <model>` through the
+   launcher in the scratch directory, on a private server whose MCP servers
+   have connected (see "OpenCode 2.x" below), with the task brief from
+   `gm_bench/agentic/brief.py` as the message, and captures the event
+   stream to `seed-<n>/opencode-events.jsonl`.
 5. When the harness exits, the driver rebuilds the episode from
    `seed-<n>/ledger.jsonl`, closes any phase the agent left open as a failed
    decision, joins the harness's token and cost telemetry, scores, and writes
@@ -62,12 +66,40 @@ checked against the binary on 2026-10-12:
   any of them it prints its help and launches nothing. A variant is now
   part of the model, `--model provider/model#variant` (`--variant` on the
   CLI is passed that way).
-- `run` attaches to a shared background service by default. The driver
-  passes `--standalone`, so each invocation gets a private server of its
-  own, started in the scratch directory with the episode's private home;
-  no episode shares a server or a session store with another, or with the
-  operator's own OpenCode. `--session <id>` resumes from the session store
-  in that home, so nudges keep their context.
+- `run` attaches to a shared background service by default. Each driver
+  invocation gets a private server of its own instead, started in the
+  scratch directory with the episode's private home; no episode shares a
+  server or a session store with another, or with the operator's own
+  OpenCode. `--session <id>` resumes from the session store in that home,
+  so nudges keep their context.
+- `run --standalone` starts that private server and sends the prompt at
+  once, while the server is still connecting its MCP servers in the
+  background, and each model request offers the tools of the servers
+  connected by then (`MCP.tools` does not wait for a server's start-up;
+  `MCP.callTool` does; unchanged in 2.0.28). The GM-Bench proxy takes most
+  of a second to connect, so the first model request of every invocation
+  (the brief, and every nudge or stall resume) went out without the
+  GM-Bench tools. The deepseek-v4.1-flash panel played on 2.0.27 on
+  2026-10-13 shows it: almost every episode opens with the agent probing
+  Code Mode's `execute` (148 calls, every one answered "Unknown tool"),
+  the shell and the scratch files for tools that were not there yet, then
+  finds them on its second step. So each `run` goes through the staged
+  launcher: it starts `opencode serve --hostname 127.0.0.1 --port 0` with a
+  password of its own, polls `GET /api/mcp` until no MCP server is
+  pending, refuses to go on (exit 1, on stderr) if one failed to connect or
+  60 s pass, and only then runs `opencode run --server <url>` with the
+  driver's arguments. OpenCode keeps `OPENCODE_SERVER_PASSWORD` and
+  `OPENCODE_PASSWORD` out of the environment of the processes it starts, so
+  the agent's shell does not see the password. The server goes when the
+  client exits, when the launcher is signalled, and, through a guard
+  process the launcher forks, when the launcher is killed outright (as a
+  same-user harness is on a timeout or a stall). `session export` and
+  `auth import` still run `--standalone`: they need no MCP server.
+- Code Mode: `codemode: false` on the GM-Bench server keeps its tools
+  direct (they never appear inside `execute`), but 2.x still offers
+  `execute` for its own built-in tools, which default to Code Mode
+  (session, worktree and MCP-resource helpers). The config denies the
+  `execute` permission, which removes the tool from the request.
 - The workspace is the directory `run` starts in, read from `PWD` before
   the process's working directory. Same-user runs set `PWD` to the scratch
   directory; without that, the driver's own directory (the checkout) would
@@ -1526,7 +1558,9 @@ harness.
 - **OpenCode and Codex** run with their built-in tool sets unrestricted,
   including any web tool the harness ships (OpenCode's web fetch, Codex's
   web search). OpenCode puts every GM-Bench tool schema in the first
-  prompt. Codex does not when the model is in code mode, as `gpt-6-luna`
+  prompt, through the launcher (see "OpenCode 2.x"); on 2.0.27 without it
+  the first request of each invocation had none. OpenCode's Code Mode
+  `execute` tool is denied. Codex does not when the model is in code mode, as `gpt-6-luna`
   and `gpt-6.1-sol` are by the model catalog as of 2026-10-12. The prompt
   then declares Codex's built-ins and the JavaScript `exec` tool. The 24
   GM-Bench tools are deferred: they are absent from the first request (no

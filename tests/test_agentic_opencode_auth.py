@@ -126,7 +126,11 @@ def test_same_user_key_is_imported_into_the_private_data_dir_only(
         assert not (data / opencode.CREDENTIALS_PATH).exists()
         assert (data / "opencode").stat().st_mode & 0o077 == 0
         # Not in the scratch, not in the harness environment (which the agent's shell inherits).
-        assert sorted(p.name for p in launch.scratch.iterdir()) == ["gm_bench_proxy.py", "opencode.json"]
+        assert sorted(p.name for p in launch.scratch.iterdir()) == [
+            "gm_bench_opencode_launch.py",
+            "gm_bench_proxy.py",
+            "opencode.json",
+        ]
         assert not any(DUMMY_KEY in value for value in launch.env.values())
         assert not [key for key in launch.env if key.startswith("OPENCODE_")]
         record = driver.run_record(launch)
@@ -175,7 +179,7 @@ def test_container_key_reaches_only_the_home_volume(tmp_path: Path) -> None:
     try:
         launch.prepare()
         assert sorted(p.name for p in launch.scratch.iterdir()) == sorted(
-            ["opencode.json", "gm_bench_proxy.py", _proxy.SECRET_FILENAME]
+            ["opencode.json", "gm_bench_proxy.py", "gm_bench_opencode_launch.py", _proxy.SECRET_FILENAME]
         )
         calls = _calls(log)
         [seed_index] = [i for i, call in enumerate(calls) if "-i" in call]

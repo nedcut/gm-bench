@@ -81,12 +81,12 @@ def _error(kind: str, message: str = "m", **extra) -> str:
 
 def test_run_and_resume_use_a_private_server_and_carry_no_removed_flags() -> None:
     args = OPENCODE_DRIVER.run_args(model="opencode/m", variant=None, workdir="/w", brief="B", isolation="same-user")
-    assert args == ["run", "--format", "json", "--standalone", "--auto", "--model", "opencode/m", "B"]
+    assert args == ["run", "--format", "json", "--auto", "--model", "opencode/m", "B"]
     resume = OPENCODE_DRIVER.resume_args(
         model="opencode/m", variant="high", workdir="/w", session_id="ses_v2", text="T", isolation="container"
     )
     assert resume == [
-        "run", "--format", "json", "--standalone", "--auto", "--model", "opencode/m#high", "--session", "ses_v2", "T",
+        "run", "--format", "json", "--auto", "--model", "opencode/m#high", "--session", "ses_v2", "T",
     ]  # fmt: skip
     # OpenCode 2 rejects these with its help text and launches nothing.
     for removed in ("--pure", "--dir", "--variant"):

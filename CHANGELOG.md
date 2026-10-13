@@ -84,6 +84,25 @@ The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
 
+- OpenCode 2.x: GM-Bench tools in the first model request, and no Code
+  Mode `execute` (2026-10-13, driver only; the agentic fingerprint stays
+  `07de948a4f4afbae`). The deepseek-v4.1-flash panel played on OpenCode
+  2.0.27 showed nearly every episode opening with the agent probing
+  `execute`, the shell and the scratch files for its tools (148 `execute`
+  calls, each answered "Unknown tool"; 3 shell, 6 read and 2 write calls)
+  before finding the GM-Bench tools on its second step. `run --standalone`
+  sends the prompt before its server has connected the MCP servers, and
+  2.0.27's `MCP.tools` lists only connected servers (2.0.28 is the same).
+  Each `opencode run` now goes through a staged standard-library launcher
+  (`gm_bench/agentic/_opencode_launch.py`, a new driver file) that starts
+  `opencode serve` on loopback with its own password, waits until no MCP
+  server is pending, and runs `run --server`. `opencode.json` also denies
+  the `execute` permission: `codemode: false` already kept the GM-Bench
+  tools out of Code Mode, but OpenCode still offered `execute` for its own
+  built-in tools. That 2.0.27 panel is not published; it is re-run on the
+  fixed driver. The committed 1.18.31 deepseek row is not affected by the
+  launcher (it is 2.x only).
+
 - Claude Code: no claude.ai connectors (2026-10-13, driver only; the
   agentic fingerprint stays `07de948a4f4afbae`). An audit of Claude Code
   2.1.281 in its container image with the real `setup-token` token found

@@ -56,6 +56,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_SOURCES = tuple(f"{_PACKAGE}/{name}" for name in _AGENTIC_CONTRACT_SOURCES)
 #: Shape how an episode is played, and are not fingerprinted.
 DRIVER_SOURCES = (
+    f"{_PACKAGE}/_opencode_launch.py",  # copied into the agent's workspace; starts each OpenCode run
     f"{_PACKAGE}/_proxy.py",  # copied into the agent's workspace; the harness launches it
     f"{_PACKAGE}/claude.py",  # Claude Code adapter
     f"{_PACKAGE}/codex.py",  # Codex CLI adapter

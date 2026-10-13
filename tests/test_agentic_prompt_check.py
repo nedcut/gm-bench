@@ -194,6 +194,21 @@ import json, os, socket, sys, urllib.parse, urllib.request
 if sys.argv[1:] == ["--version"]:
     print("1.18.32")
     sys.exit(0)
+if sys.argv[1:2] == ["serve"]:
+    # The launcher's server: reports its address, and every MCP server as connected.
+    import http.server
+    class Status(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = json.dumps({"data": [{"name": "gm-bench", "status": {"status": "connected"}}]}).encode()
+            self.send_response(200)
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        def log_message(self, *args):
+            pass
+    server = http.server.HTTPServer(("127.0.0.1", 0), Status)
+    print(f"server listening on http://127.0.0.1:{server.server_address[1]}", flush=True)
+    server.serve_forever()
 proxy = urllib.parse.urlsplit(os.environ["HTTPS_PROXY"])
 def connect(host):
     tunnel = socket.create_connection((proxy.hostname, proxy.port), timeout=30)
