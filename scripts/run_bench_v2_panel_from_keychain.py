@@ -117,22 +117,28 @@ def escrow_file(service: str) -> Path:
 def _escrow_file_text(service: str) -> str:
     path = escrow_file(service)
     try:
-        info = path.lstat()
         directory = path.parent.lstat()
+        # O_NOFOLLOW refuses a link; the checks and the read then use this one open file,
+        # so a file swapped in after the check is never read.
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0))
     except FileNotFoundError:
         raise ValueError(
             f"no Keychain on this host and no escrow copy at {path}; on the Mac run "
             f"`security find-generic-password -s {service} -a {KEYCHAIN_ACCOUNT} -w` and save its output there "
             "(mode 0600, directory 0700)"
         ) from None
-    if not stat.S_ISREG(info.st_mode):
-        raise ValueError(f"{path} must be a regular file, not a link or anything else")
-    for item, name in ((info, str(path)), (directory, str(path.parent))):
-        if item.st_uid != os.getuid():
-            raise ValueError(f"{name} must be owned by you")
-        if item.st_mode & 0o077:
-            raise ValueError(f"{name} must have no group or other access (chmod go-rwx)")
-    return path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise ValueError(f"{path} must be a regular file, not a link or anything else ({error.strerror})") from None
+    with os.fdopen(descriptor, "r", encoding="utf-8") as handle:
+        info = os.fstat(handle.fileno())
+        if not stat.S_ISREG(info.st_mode):
+            raise ValueError(f"{path} must be a regular file, not a link or anything else")
+        for item, name in ((info, str(path)), (directory, str(path.parent))):
+            if item.st_uid != os.getuid():
+                raise ValueError(f"{name} must be owned by you")
+            if item.st_mode & 0o077:
+                raise ValueError(f"{name} must have no group or other access (chmod go-rwx)")
+        return handle.read()
 
 
 def _keychain_record(service: str) -> dict[str, Any]:

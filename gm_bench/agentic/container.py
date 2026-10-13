@@ -428,11 +428,18 @@ def host_gateway(*, docker: str = "docker", env: dict[str, str] | None = None) -
     if platform.system() != "Linux":
         # Docker Desktop, or a VM (Colima, OrbStack) whose bridge is not on this host.
         return None
-    info = _docker(docker, "info", "--format", "{{.OperatingSystem}}", env=env, timeout=60)
+    info = _docker(
+        docker, "info", "--format", "{{.OperatingSystem}}|{{range .SecurityOptions}}{{.}} {{end}}", env=env, timeout=60
+    )
     if info.returncode != 0:
         raise ContainerError(f"docker info failed: {(info.stderr or info.stdout).strip()[-400:]}")
-    if not info.stdout.strip() or "Docker Desktop" in info.stdout:
+    system, _, options = info.stdout.strip().partition("|")
+    if not system.strip() or "Docker Desktop" in system:
         return None
+    if "name=rootless" in options:
+        # The bridge lives in RootlessKit's network namespace, not the driver's, so nothing
+        # the driver can bind is reachable from the container through it.
+        raise ContainerError("rootless Docker is not supported for container isolation; use a rootful engine")
     bridge = _docker(
         docker,
         "network",

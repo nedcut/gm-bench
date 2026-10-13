@@ -10,13 +10,15 @@ import pytest
 from gm_bench.agentic import container
 
 
-def _fake_docker(monkeypatch: pytest.MonkeyPatch, *, system: str, os_name: str, gateway: str = "172.17.0.1") -> list:
+def _fake_docker(
+    monkeypatch: pytest.MonkeyPatch, *, system: str, os_name: str, gateway: str = "172.17.0.1", options: str = ""
+) -> list:
     calls: list[tuple[str, ...]] = []
 
     def fake(_docker: str, *args: str, **_kwargs: object) -> SimpleNamespace:
         calls.append(args)
         if args[:1] == ("info",):
-            return SimpleNamespace(returncode=0, stdout=f"{os_name}\n", stderr="")
+            return SimpleNamespace(returncode=0, stdout=f"{os_name}|{options}\n", stderr="")
         if args[:2] == ("network", "inspect"):
             return SimpleNamespace(returncode=0, stdout=f"{gateway} \n", stderr="")
         raise AssertionError(args)
@@ -64,3 +66,15 @@ def test_harness_command_maps_the_host_alias_before_the_image(tmp_path: Path) ->
     at = argv.index("--add-host")
     assert argv[at + 1] == "host.docker.internal:172.17.0.1"
     assert at < argv.index(image["image_id"])
+
+
+def test_rootless_docker_is_refused_rather_than_listening_on_an_unreachable_bridge(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = _fake_docker(
+        monkeypatch, system="Linux", os_name="Ubuntu 24.04.4 LTS", options="name=seccomp,profile=builtin name=rootless "
+    )
+
+    with pytest.raises(container.ContainerError, match="rootless"):
+        container.host_gateway()
+    assert not any(call[:2] == ("network", "inspect") for call in calls)
