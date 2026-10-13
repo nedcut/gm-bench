@@ -20,7 +20,8 @@ if one failed to connect, and then runs ``opencode run --server <url>`` with
 the arguments it was given. The client's exit code is the launcher's. The
 server is stopped when the client exits, when the launcher is signalled, and,
 through a guard process holding a pipe from the launcher, when the launcher
-is killed outright (the driver kills a same-user harness with SIGKILL on a
+is killed outright: the launcher leads a process group of its own, and the
+guard stops whatever is left in it (the driver kills a same-user harness with SIGKILL on a
 timeout or a stall).
 
 Usage:
@@ -66,47 +67,55 @@ class Signalled(BaseException):
         self.signum = signum
 
 
-def _guard(read_fd: int) -> None:
-    """In a forked child: collect the pids the launcher reports, and stop them when the pipe closes."""
+def _guard(read_fd: int, group: int) -> None:
+    """In a forked child: when the launcher is gone, stop what is left of its process group.
+
+    Every process the launcher starts is in its group from the moment it is
+    forked, so a child the launcher had no time to record (a signal, or a
+    SIGKILL, right after ``Popen``) is still covered.
+    """
+    # A group of its own, so the group it stops does not include it.
+    os.setpgid(0, 0)
     # Hold none of the launcher's streams (the harness's event stream and stderr log) open.
     devnull = os.open(os.devnull, os.O_RDWR)
     for fd in (0, 1, 2):
         os.dup2(devnull, fd)
-    pids: list[int] = []
-    with os.fdopen(read_fd, "r", encoding="ascii") as pipe:
-        for line in pipe:
-            if line.strip().isdigit():
-                pids.append(int(line))
+    with os.fdopen(read_fd, "rb") as pipe:
+        pipe.read()
+    # The pipe closes as the launcher exits; let it finish, so its exit status is its own.
+    deadline = time.monotonic() + STOP_SECONDS
+    while os.getppid() == group and time.monotonic() < deadline:
+        time.sleep(POLL_SECONDS)
     for sig in (signal.SIGTERM, signal.SIGKILL):
-        alive = []
-        for pid in pids:
-            try:
-                os.kill(pid, sig)
-                alive.append(pid)
-            except OSError:
-                pass
-        if not alive:
-            break
+        try:
+            os.killpg(group, sig)
+        except OSError:
+            return
         deadline = time.monotonic() + STOP_SECONDS
-        while time.monotonic() < deadline and any(_exists(pid) for pid in alive):
+        while time.monotonic() < deadline and _group_alive(group):
             time.sleep(POLL_SECONDS)
+        if not _group_alive(group):
+            return
 
 
-def _exists(pid: int) -> bool:
+def _group_alive(group: int) -> bool:
     try:
-        os.kill(pid, 0)
+        os.killpg(group, 0)
     except OSError:
         return False
     return True
 
 
 def _start_guard() -> int:
-    """Fork the guard; returns the pipe's write end, which only the launcher holds."""
+    """Lead a process group of our own and fork the guard; returns the pipe's write end, which only the launcher holds."""
+    if os.getpgid(0) != os.getpid():
+        os.setpgid(0, 0)
+    group = os.getpid()
     read_fd, write_fd = os.pipe()
     if os.fork() == 0:
         os.close(write_fd)
         try:
-            _guard(read_fd)
+            _guard(read_fd, group)
         finally:
             os._exit(0)
     os.close(read_fd)
@@ -206,7 +215,6 @@ def main(argv: list[str]) -> int:
             stdout=subprocess.PIPE,
             env={**base, "OPENCODE_SERVER_PASSWORD": password},
         )
-        os.write(guard, f"{server.pid}\n".encode("ascii"))
         try:
             port = _server_port(server)
             wait_for_mcp(port, password, server)
@@ -218,7 +226,6 @@ def main(argv: list[str]) -> int:
             stdin=subprocess.DEVNULL,
             env={**base, "OPENCODE_PASSWORD": password},
         )
-        os.write(guard, f"{client.pid}\n".encode("ascii"))
         return client.wait()
     except Signalled as signalled:
         return 128 + signalled.signum
