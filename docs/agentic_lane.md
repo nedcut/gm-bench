@@ -38,10 +38,11 @@ For each seed, serially:
    directory point into it and every `OPENCODE_*` variable is dropped.
    Otherwise OpenCode reads the operator's `~/.config/opencode/AGENTS.md`
    and the skills in `~/.agents/skills` and `~/.claude/skills`, and puts
-   them in the prompt. `--pure` does not stop that.
-4. It runs `opencode run --format json --pure --auto --dir <scratch>` with the
-   task brief from `gm_bench/agentic/brief.py` as the message and captures
-   the event stream to `seed-<n>/opencode-events.jsonl`.
+   them in the prompt (see "The prompt check" below).
+4. It runs `opencode run --format json --standalone --auto --model <model>`
+   in the scratch directory with the task brief from
+   `gm_bench/agentic/brief.py` as the message and captures the event stream
+   to `seed-<n>/opencode-events.jsonl`.
 5. When the harness exits, the driver rebuilds the episode from
    `seed-<n>/ledger.jsonl`, closes any phase the agent left open as a failed
    decision, joins the harness's token and cost telemetry, scores, and writes
@@ -49,6 +50,45 @@ For each seed, serially:
    the usual `summary` block, and an `agentic_summary`. Evidence paths in
    `harness_run` are relative to the run directory, so the directory can be
    moved and still validate.
+
+### OpenCode 2.x
+
+The driver supports OpenCode 2.x only (2.0.27 in the container image).
+Rows played on 1.18.31 still validate: each row records the driver commit
+that played it. What changed from 1.18, read from the 2.0.27 source and
+checked against the binary on 2026-10-12:
+
+- `opencode run` no longer accepts `--pure`, `--dir` or `--variant`; given
+  any of them it prints its help and launches nothing. A variant is now
+  part of the model, `--model provider/model#variant` (`--variant` on the
+  CLI is passed that way).
+- `run` attaches to a shared background service by default. The driver
+  passes `--standalone`, so each invocation gets a private server of its
+  own, started in the scratch directory with the episode's private home;
+  no episode shares a server or a session store with another, or with the
+  operator's own OpenCode. `--session <id>` resumes from the session store
+  in that home, so nudges keep their context.
+- The workspace is the directory `run` starts in, read from `PWD` before
+  the process's working directory. Same-user runs set `PWD` to the scratch
+  directory; without that, the driver's own directory (the checkout) would
+  be the agent's workspace. A container starts in the mounted scratch.
+- Without `--pure`, 2.x loads what its config discovery finds: the global
+  config directory, `~/.claude` and `~/.agents` (instructions, skills,
+  plugins), and `AGENTS.md`, `opencode.json`, `.opencode`, `.claude` and
+  `.agents` walking up from the workspace. The private home and the empty
+  scratch leave none of that; the prompt check proves it on every panel.
+- Errors are `{"type": ..., "message": ..., "status": ..., "response":
+  {"body": ...}}` (for example `provider.no-route`, `provider.rate-limit`,
+  `provider.quota`), not 1.18's `{"name": ..., "data": {...}}`. The
+  detectors below read both.
+- The JSON stream stops printing step events once the session goes idle, so
+  the last model step of each invocation has no `step_finish` and the
+  stream undercounts tokens. The driver reads the counts from the session
+  store instead (see "Reading the result").
+- Credentials live in OpenCode's database; a staged `auth.json` is ignored
+  (see "Running the harness in a container").
+- OpenCode 2.x is not published to npm (`opencode-ai` stops at 1.19.0); the
+  image installs the release binary.
 
 The run directory must be fresh: an episode directory that already holds
 evidence is refused before any harness launches, because the ledger is
@@ -103,11 +143,14 @@ harness was running counts toward the guard. Each nudge entry records
 records `provider_stalls` and `provider_stall_wait_seconds`.
 
 OpenCode's own server can also fail at startup: in two 8-seed container runs
-of `opencode/space-bunny-free`, 9 of 16 episodes opened with a single
+of `opencode/space-bunny-free` on 1.18.31, 9 of 16 episodes opened with a single
 `error` event (`"name": "UnknownError"`, message "Unexpected server error.
 Check server logs for details.") about a second after launch, before any
-tool call, and the resumed session then played the whole episode. That
-error is a provider stall (same backoff, budget and clock pause) only when
+tool call, and the resumed session then played the whole episode. OpenCode
+2.x reports the same race (a model missing from the catalog snapshot it
+ships with, before the first catalog download lands in the session store's
+cache) as `provider.no-route`, "Model unavailable: <model>". Either error
+is a provider stall (same backoff, budget and clock pause) only when
 it ends an invocation that did nothing else first: no tool call, no model
 text, no finished model step (a `step_start` alone is allowed). The same
 error after the invocation acted goes through the nudge path as before: it
@@ -120,29 +163,39 @@ fourth in a row ends the loop as an exhausted stall budget does, instead of
 backing off for up to the six-hour stall budget.
 
 OpenCode's own gateway (`opencode.ai/zen`) answers a free model whose
-allowance is spent with a 429 marked retryable whose body names
-`FreeUsageLimitError`. That is quota exhaustion, not a stall
-(`opencode.quota_exhaustion`): its reset is read from a `retry-after`
-header when one is sent, and is otherwise unknown, so the episode stops at
-once as `ended_by_quota` (`message_class: "free_usage_limit"`) and the panel
-stops, as for Codex's usage limit below. In the `muse-spark` panel that
-error was followed by hours of silent retries.
+allowance is spent with a 429 whose body names `FreeUsageLimitError`.
+That is quota exhaustion, not a stall (`opencode.quota_exhaustion`).
+OpenCode 1.18 marked it retryable (in the `muse-spark` panel it was
+followed by hours of silent retries) and sent its `retry-after` header in
+the error. OpenCode 2.x classifies it as a spent quota, does not retry it,
+and reports it as `provider.quota` with the body but no headers, so its
+reset is always unknown: the episode stops at once as `ended_by_quota`
+(`message_class: "free_usage_limit"`) and the panel stops, as for Codex's
+usage limit below. Any other 2.x `provider.quota` error (a 402, an
+exhausted balance) is handled the same way, as `provider_quota`.
 
 A spent OpenCode Go window (`opencode-go/*`, see "Running the harness in a
 container") is handled the same way, as `message_class: "go_usage_limit"`:
-the body names `GoUsageLimitError`, and the `retry-after` header gives the
-reset in seconds, so a window that resets within the wait budget pauses the
-episode and resumes it, and one further off (a weekly or monthly cap) stops
-the episode and the panel. That wording is read from OpenCode 1.18.32's own
-retry code, which matches the same name and header; no Go run has recorded
-it yet. OpenCode retries this error inside the harness too, up to five
-times, each after the full `retry-after`, printing nothing while it waits.
-An invocation that hits it before its first event is stopped as a silent
-harness and retried as a stall; one that hits it after it has acted sits
-until the phase guard stops it. Either way the error event this rule reads
-may never be printed, and the episode then ends on the stall budget
-(`ended_by_provider`) rather than as quota exhaustion. Watch the Go usage
-page during a panel.
+the body names `GoUsageLimitError`. On OpenCode 2.x that error arrives at
+once (2.x does not retry a quota) and without its `retry-after` header, so
+the reset is unknown and the episode and the panel stop, even for a
+5-hour window that would have reset within the wait budget; restart the
+panel after the window resets. (On 1.18 the header gave the reset, a
+window within the budget paused the episode and resumed it, and 1.18's own
+silent retries could hide the error entirely.) No Go run has recorded this
+error yet. Watch the Go usage page during a panel.
+
+The other provider errors 2.x reports by type. `provider.rate-limit`,
+`provider.internal`, `provider.transport`, `provider.invalid-output`,
+`provider.unknown` and `provider.timeout` are the transient ones (2.x's own
+retry policy, `isRetryable`, plus a timeout) and are stalls; OpenCode has
+already retried them itself, 10 times over about 84 s, before the error
+reaches the stream. Any other `provider.*` error (`provider.invalid-request`,
+`provider.auth`, `provider.no-route` after the invocation acted,
+`provider.content-filter`) is the provider refusing: when it ends an
+unfinished episode's last invocation without a tool call, the episode is
+recorded as ended by the provider (`reason: "provider_error"`), as a
+non-retryable 1.18 `APIError` was.
 
 `harness_run.exit_code` is the first launch's exit code, and
 `harness_run.final_exit_code` the last invocation's (the first launch's when
@@ -152,8 +205,9 @@ that recovered from a failed first launch does not warn. Runs recorded
 before `final_exit_code` existed are read from `exit_code`, as before.
 
 OpenCode retries a 429 inside the harness and prints nothing to its event
-stream while it does, so a rate-limited harness can look hung rather than
-end on an `error` event. A harness invocation that has appended no byte to
+stream while it does (2.x: up to 10 times, each gap at least the provider's
+`retry-after`, capped at 15 minutes), so a rate-limited harness can look
+hung rather than end on an `error` event. A harness invocation that has appended no byte to
 its event stream and made no ledger tool call for 240 s since launch
 (`--silent-harness-seconds`, recorded in `run.json` and the published row;
 0 disables it) is a **silent harness**: the driver stops it through the
@@ -201,7 +255,18 @@ season summaries, transactions) plus:
   adapter does. Runs recorded before this shape carry no `token_shape` (their
   OpenCode input excludes cached tokens and their output excludes reasoning);
   they still validate, the site labels their tokens as the harness's own
-  convention, and publication checks the sums only for shaped rows
+  convention, and publication checks the sums only for shaped rows.
+  OpenCode 2.x's stream omits the last model step of every invocation (no
+  `step_finish` once the session goes idle), so at the end of the episode
+  the driver runs `opencode session export <id> --standalone` in the
+  episode's home (in the container, on its home volume) and sums the
+  session's assistant messages (one per model step) and compactions
+  instead. `usage.harness.token_source` says which source the counts came
+  from: `session_export`, or `event_stream` with the reason in
+  `usage.harness.session_export_error` when the export failed. Event-stream
+  counts undercount; they are labelled, not hidden. The session's own
+  total (`info.tokens`) is not used, because it also counts OpenCode's side
+  requests such as the session title
 - `harness_run`: the command (brief elided), first and final exit codes, timeout flag, wall
   time, nudges used and what each bought, phase-guard stops (`guard_kills`),
   provider stalls and the backoff waited for them,
@@ -247,8 +312,8 @@ OpenCode downloads to resolve a model name (`models.opencode.ai`), which it
 passes through and records as `forwarded_hosts`. A private home starts
 without that catalog, so for a model missing from the snapshot OpenCode
 ships with (`opencode/space-bunny-free` on 1.18.32), the first launch fails
-at startup with "Unexpected server error" before any model request, as it
-does in an episode. The episode retries that as a provider stall by resuming
+at startup (1.18: "Unexpected server error"; 2.x: `provider.no-route`)
+before any model request, as it does in an episode. The episode retries that as a provider stall by resuming
 the session with a nudge, and the check does the same (`stall_retries`, at
 most 3); the resumed launch finds the downloaded catalog.
 
@@ -336,6 +401,8 @@ First results, 2026-09-27, same-user, on the operator's Mac:
 |---|---|---|
 | OpenCode 1.18.32 as launched before this fix | 2 | home path 19 times, 21 lines of `~/.agents/AGENTS.md`, 16 operator skills |
 | OpenCode 1.18.32 with the private home | 2 | none |
+| OpenCode 2.0.27 without the private home (2026-10-12, a test of the check) | 2 | home path once, 21 lines of `~/.agents/AGENTS.md`, 16 operator skills; 91 lines only with the operator's home |
+| OpenCode 2.0.27 with the private home (2026-10-12) | 2 | none; 0 lines only with the operator's home |
 | Claude Code (`claude` on PATH) | 1 | none |
 | Codex 0.157.1 (native binary) | 1 | none |
 | Cursor 2026.09.26-dd393fe (`composer-2.5`, the recorded context) | 1 | none; Cursor's 7 default rules and none of the account's own |
@@ -532,8 +599,14 @@ The image. On the first run the driver builds
 Dockerfile it pipes to `docker build` (no build context): a digest-pinned
 `node:22-bookworm-slim` base, Debian's `python3` for the proxy, `procps`,
 `iptables` for the egress rule, the `gmb-egress` entrypoint, and
-`opencode-ai@1.18.31`. It refuses to run if the image reports a
-different OpenCode version. `run.json` records the image tag, image id
+OpenCode 2.0.27. OpenCode 2.x is not on npm, so the image downloads the
+release tarball for the build architecture
+(`https://opencode.ai/files/bin/2.0.27/opencode-linux-<arch>.tar.gz`),
+checks it against a pinned SHA-256 (the same files and sums the anomalyco
+Homebrew tap's `opencode-v2` formula pins) and installs the binary
+root-owned. Images before 2.x installed `opencode-ai@1.18.31` from npm. It
+refuses to run if the image reports a different OpenCode version
+(`opencode --version` prints `opencode v2.0.27` on 2.x). `run.json` records the image tag, image id
 (the content digest of what ran), base image, Dockerfile SHA-256, OpenCode
 version, Docker server version, and the egress rule under
 `harness.container`, and that block is carried into the published
@@ -541,8 +614,8 @@ artifact. `--binary` is ignored in container
 mode.
 
 Authentication. The free `opencode/*` models need no credentials: OpenCode
-1.18.31 on the host stores none for them (`opencode auth list` shows 0
-credentials) and the container lists and runs them anonymously. Nothing is
+stores none for them (`opencode auth list` shows none) and the container
+lists and runs them anonymously. Nothing is
 provisioned unless you pass `--opencode-auth-file`. Do not mount
 `~/.config/opencode` or the home directory to get a key, because that
 directory's `AGENTS.md`, skills and commands would change what the harness
@@ -557,19 +630,29 @@ python -m gm_bench agentic --isolation container --model opencode-go/kimi-k3 \
 ```
 
 - `--opencode-auth-file <path>`: a file holding the key alone on one line.
-  Keep it outside the checkout, mode 0600. The driver writes it as
-  OpenCode's own credential store, `auth.json` (`{"opencode-go": {"type":
-  "api", "key": ...}}`, the shape `opencode auth login` writes), for the Go
-  provider only. The same key would also unlock paid Zen (`opencode/*`)
-  models, billed to the account's Zen balance, and would move free Zen
-  models off OpenCode's shared anonymous key, so it is not stored for
-  `opencode`. Same-user runs get it in the private data
-  directory (`$XDG_DATA_HOME/opencode/auth.json`, mode 0600, removed with
-  the private home). Container runs get it in the per-episode home volume
-  (`/home/node/.local/share/opencode/auth.json`) over the stdin of a
-  throwaway `docker run`, as the Codex and Claude credentials are. It never
-  goes on a command line, into a `docker run -e` variable, into the
-  harness environment, or into the scratch directory.
+  Keep it outside the checkout, mode 0600. The driver stores it in
+  OpenCode's own credential store for the Go provider (`opencode-go`) only.
+  The same key would also unlock paid Zen (`opencode/*`) models, billed to
+  the account's Zen balance, and would move free Zen models off OpenCode's
+  shared anonymous key, so it is not stored for `opencode`. OpenCode 2.x
+  keeps credentials in its database and imports a 1.x `auth.json` only as
+  a database migration, which a fresh database skips, so a staged
+  `auth.json` is never read. The driver instead writes the key in `opencode
+  auth export`'s format (`[{"integrationID": "opencode-go", "value":
+  {"type": "key", "key": ...}, ...}]`, mode 0600) into OpenCode's data
+  directory, runs `opencode auth import <file> --standalone`, and removes
+  the file. Same-user runs do this in the private data directory
+  (`$XDG_DATA_HOME/opencode/`, run from the private home, removed with it).
+  Container runs get the file in the per-episode home volume
+  (`/home/node/.local/share/opencode/`) over the stdin of a throwaway
+  `docker run`, as the Codex and Claude credentials are, and import it in
+  a container on that volume as the `node` user. It never goes on a
+  command line, into a `docker run -e` variable, into the harness
+  environment, or into the scratch directory. Checked on 2026-10-12 with a
+  dummy key (no model call): the import lists 31 `opencode-go/*` models,
+  including `opencode-go/deepseek-v4.1-flash`, and the same 11 free
+  `opencode/*` models as no key; a staged `auth.json` lists no
+  `opencode-go/*` model.
 - An `opencode-go/*` model without the file is refused before anything
   runs: OpenCode does not load the Go provider without a key. The file with
   any other model, `opencode/*` included, is refused.
@@ -577,7 +660,7 @@ python -m gm_bench agentic --isolation container --model opencode-go/kimi-k3 \
   and `OPENCODE_API_KEY` are never used.
 
 The trade-off, as for Codex and Claude Code: the agent can read its own
-harness's credential, from `auth.json` in its home. The key is kept out of
+harness's credential, from the database in its home. The key is kept out of
 the harness environment so a bare `env` does not show it, but a `cat` does.
 That is the harness's key, not the benchmark's, and it gives no access to
 the seed; it does give access to your Go allowance (and Zen balance), so use
@@ -588,10 +671,11 @@ scratch directory is not redacted. `harness_run.auth` records `auth-file`
 or `none`, and `harness_run.auth_providers` the provider ids the key was
 stored for, never the value.
 
-The OpenCode 1.18.31 image's bundled model catalog is older than OpenCode's
-live one (`opencode-go/grok-4.7` is missing until the catalog is refreshed),
-so a container episode on a newer model may open on OpenCode's startup
-`UnknownError`, which the driver retries as a startup stall (see above).
+An image's bundled model catalog is older than OpenCode's live one (on
+1.18.31, `opencode-go/grok-4.7` was missing until the catalog was
+refreshed), so a container episode on a newer model may open on OpenCode's
+startup error (1.18: `UnknownError`; 2.x: `provider.no-route`), which the
+driver retries as a startup stall (see above).
 
 What the container can see:
 

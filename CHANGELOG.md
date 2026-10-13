@@ -79,6 +79,27 @@ The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
 
+- OpenCode 2.x (2026-10-12, driver only; the agentic fingerprint stays
+  `07de948a4f4afbae`). The OpenCode driver now runs OpenCode 2.x only, and
+  the container image pins 2.0.27. OpenCode 2 rejects `--pure`, `--dir` and
+  `--variant` (it prints help and launches nothing), so on 2.x the old
+  driver ran no harness at all. The driver now runs `opencode run
+  --standalone` (a private server per invocation, never 2.x's shared
+  background service), with the variant as `--model provider/model#variant`
+  and the workspace set through `PWD`, which 2.x reads before the working
+  directory. Error detection reads 2.x's typed errors as well as 1.18's: a
+  spent free or Go allowance (`provider.quota`) now stops the episode with
+  the reset unknown, because 2.x drops the `retry-after` header. 2.x's JSON
+  stream omits the last model step of every invocation, so token counts now
+  come from `opencode session export`, labelled `usage.harness.token_source`.
+  A staged `auth.json` is never read by 2.x, so the Go key is staged with
+  `opencode auth import`. OpenCode 2.x is not on npm; the image installs
+  the release tarball by pinned SHA-256. The prompt check passes on 2.0.27
+  with the private home, and without it finds 21 lines of the operator's
+  `AGENTS.md` and 16 skills, so the private home is still needed. Rows played
+  on 1.18.31 keep validating at the driver commit they record. No committed
+  row is affected.
+
 - Cursor "out of usage" (2026-09-29, driver only; the agentic fingerprint
   stays `07de948a4f4afbae`). When the grok-4.7 panel spent the Cursor plan
   at episode 20, every launch printed "You're out of usage", which the
