@@ -55,16 +55,15 @@ def test_public_claim_surfaces_use_the_frozen_lane_and_current_gate() -> None:
 
 
 def test_employer_facing_site_links_current_evidence_and_metadata() -> None:
-    results = Path("web/src/components/ResultsExplorer.tsx").read_text()
-    footer = Path("web/src/components/Footer.tsx").read_text()
+    shell = Path("web/src/app/Shell.tsx").read_text()
+    archive = Path("web/src/app/V1Archive.tsx").read_text()
     index = Path("web/index.html").read_text()
 
-    assert "Above scripted bar" in results
-    assert "modelsAboveBar" in results
-    assert "Holm-adjusted family test" in results
-    assert "sota-v5-publication-2026-09-03" in footer
-    assert "Ned Cutler" in footer
-    assert "REPRODUCING_SOTA_V5_RELEASE.md" in footer
+    assert "Ned Cutler" in shell
+    assert "REPRODUCING_GM_BENCH_2_0.md" in shell
+    assert "sota-v5-publication-2026-09-03" in archive
+    assert "REPRODUCING_SOTA_V5_RELEASE.md" in archive
+    assert "holmRejectedCount" in archive
     assert 'href="%BASE_URL%favicon.svg"' in index
     assert 'rel="canonical" href="https://nedcut.github.io/gm-bench/"' in index
     assert 'property="og:title"' in index

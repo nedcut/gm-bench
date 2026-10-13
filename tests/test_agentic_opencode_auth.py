@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import sys
 import tarfile
 from pathlib import Path
 
@@ -23,6 +24,31 @@ def _key_file(tmp_path: Path) -> Path:
     path.write_text(DUMMY_KEY + "\n")
     path.chmod(0o600)
     return path
+
+
+# Where the stand-in ``opencode`` keeps what ``auth import`` gave it, under its data directory.
+_STORE = Path("opencode") / "stand-in-credential-store.json"
+
+
+def _fake_opencode(tmp_path: Path) -> Path:
+    """A stand-in ``opencode``: ``auth import FILE --standalone`` copies FILE into a store in its data directory.
+
+    It also records the directory it ran in, and fails any other command.
+    """
+    script = tmp_path / "fake-opencode"
+    script.write_text(
+        f"#!{sys.executable}\n"
+        "import os, sys\n"
+        "from pathlib import Path\n"
+        "args = sys.argv[1:]\n"
+        "if args[:2] != ['auth', 'import'] or args[3:] != ['--standalone']:\n"
+        "    sys.exit(2)\n"
+        f"store = Path(os.environ['XDG_DATA_HOME'], {str(_STORE)!r})\n"
+        "store.write_bytes(Path(args[2]).read_bytes())\n"
+        "store.with_name('import-cwd').write_text(os.getcwd() + '|' + os.environ['PWD'])\n"
+    )
+    script.chmod(0o755)
+    return script
 
 
 def test_the_key_file_is_checked_without_echoing_it_and_go_models_need_one(tmp_path: Path) -> None:
@@ -71,7 +97,7 @@ def test_cli_refuses_a_go_model_without_a_key_and_hands_the_driver_the_file(
         cli.main([*base, "--model", "gpt-x", "--harness", "codex", "--opencode-auth-file", str(key)])
 
 
-def test_same_user_key_is_opencodes_auth_json_in_the_private_data_dir_only(
+def test_same_user_key_is_imported_into_the_private_data_dir_only(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from gm_bench.agentic.episode import AgenticEpisode
@@ -80,22 +106,36 @@ def test_same_user_key_is_opencodes_auth_json_in_the_private_data_dir_only(
     monkeypatch.setattr(opencode, "sandbox_problems", lambda scratch, env: [])
     episode = AgenticEpisode(1, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
     driver = OpenCodeDriver(auth_file=_key_file(tmp_path))
-    launch = opencode.HarnessLaunch(episode, binary="opencode", driver=driver)
+    launch = opencode.HarnessLaunch(episode, binary=str(_fake_opencode(tmp_path)), driver=driver)
     try:
         launch.prepare()
-        auth = Path(launch.env["XDG_DATA_HOME"]) / "opencode" / "auth.json"
-        assert json.loads(auth.read_text()) == {
-            "opencode-go": {"type": "api", "key": DUMMY_KEY},
-        }
-        assert auth.stat().st_mode & 0o777 == 0o600 and auth.parent.stat().st_mode & 0o077 == 0
+        data = Path(launch.env["XDG_DATA_HOME"])
+        # OpenCode 2 reads the key only through ``auth import``, in ``auth export``'s format.
+        assert json.loads((data / _STORE).read_text()) == [
+            {
+                "id": "cred_gmbench_opencode_go",
+                "integrationID": "opencode-go",
+                "label": "API key",
+                "active": True,
+                "value": {"type": "key", "key": DUMMY_KEY},
+            }
+        ]
+        # The import ran from the private home, never the scratch, and its file is gone.
+        home = Path(launch.env["HOME"])
+        assert (data / _STORE).with_name("import-cwd").read_text() == f"{home.resolve()}|{home}"
+        assert not (data / opencode.CREDENTIALS_PATH).exists()
+        assert (data / "opencode").stat().st_mode & 0o077 == 0
         # Not in the scratch, not in the harness environment (which the agent's shell inherits).
-        assert sorted(p.name for p in launch.scratch.iterdir()) == ["gm_bench_proxy.py", "opencode.json"]
+        assert sorted(p.name for p in launch.scratch.iterdir()) == [
+            "gm_bench_opencode_launch.py",
+            "gm_bench_proxy.py",
+            "opencode.json",
+        ]
         assert not any(DUMMY_KEY in value for value in launch.env.values())
         assert not [key for key in launch.env if key.startswith("OPENCODE_")]
         record = driver.run_record(launch)
         assert record["auth"] == "auth-file" and record["auth_providers"] == ["opencode-go"]
         assert DUMMY_KEY not in json.dumps(record)
-        home = Path(launch.env["HOME"])
     finally:
         launch.close()
     assert not home.exists()
@@ -103,6 +143,27 @@ def test_same_user_key_is_opencodes_auth_json_in_the_private_data_dir_only(
     # Without a file nothing is staged, and the record says so.
     without = opencode.OPENCODE_DRIVER.run_record(launch)
     assert (without["auth"], without["auth_providers"]) == ("none", [])
+
+
+def test_a_failed_import_stops_the_launch_without_quoting_the_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from gm_bench.agentic.episode import AgenticEpisode
+
+    monkeypatch.setattr(opencode, "sandbox_problems", lambda scratch, env: [])
+    failing = tmp_path / "failing-opencode"
+    failing.write_text(f"#!{sys.executable}\nimport sys\nprint(open(sys.argv[3]).read())\nsys.exit(3)\n")
+    failing.chmod(0o755)
+    episode = AgenticEpisode(1, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
+    launch = opencode.HarnessLaunch(episode, binary=str(failing), driver=OpenCodeDriver(auth_file=_key_file(tmp_path)))
+    try:
+        with pytest.raises(RuntimeError, match="auth import exited 3") as excinfo:
+            launch.prepare()
+        assert DUMMY_KEY not in str(excinfo.value)
+        assert not (Path(launch.env["XDG_DATA_HOME"]) / opencode.CREDENTIALS_PATH).exists()
+    finally:
+        launch.close()
+    episode.close()
 
 
 def test_container_key_reaches_only_the_home_volume(tmp_path: Path) -> None:
@@ -118,20 +179,24 @@ def test_container_key_reaches_only_the_home_volume(tmp_path: Path) -> None:
     try:
         launch.prepare()
         assert sorted(p.name for p in launch.scratch.iterdir()) == sorted(
-            ["opencode.json", "gm_bench_proxy.py", _proxy.SECRET_FILENAME]
+            ["opencode.json", "gm_bench_proxy.py", "gm_bench_opencode_launch.py", _proxy.SECRET_FILENAME]
         )
         calls = _calls(log)
         [seed_index] = [i for i, call in enumerate(calls) if "-i" in call]
         seeding = calls[seed_index]
         assert seeding[seeding.index("--network") + 1] == "none" and "-e" not in seeding
+        staged = ".local/share/opencode/gmb-credentials.json"
         with tarfile.open(fileobj=io.BytesIO((stdin_dir / f"{seed_index}.bin").read_bytes())) as tar:
             members = {member.name: member for member in tar.getmembers()}
-            assert sorted(members) == [".local/share/opencode", ".local/share/opencode/auth.json"]
-            assert members[".local/share/opencode/auth.json"].mode == 0o600
-            assert json.loads(tar.extractfile(".local/share/opencode/auth.json").read())["opencode-go"] == {
-                "type": "api",
-                "key": DUMMY_KEY,
-            }
+            assert sorted(members) == [".local/share/opencode", staged]
+            assert members[staged].mode == 0o600
+            [entry] = json.loads(tar.extractfile(staged).read())
+            assert (entry["integrationID"], entry["value"]) == ("opencode-go", {"type": "key", "key": DUMMY_KEY})
+        # Then imported, and removed, by the harness user in a container on the same home volume.
+        [importing] = [call for call in calls[seed_index + 1 :] if opencode._CONTAINER_IMPORT in call]
+        volume = next(arg for arg in importing if arg.startswith("type=volume,source=gmb-home-"))
+        assert any(volume.split(",")[1] in arg for arg in seeding)
+        assert importing[-5:] == ["sh", "-c", opencode._CONTAINER_IMPORT, "sh", f"/home/node/{staged}"]
         argv, _on_kill = launch.command(
             driver.run_args(
                 model="opencode-go/kimi-k3", variant=None, workdir=launch.workdir, brief="B", isolation="container"
@@ -157,7 +222,7 @@ def test_a_key_the_agent_prints_is_redacted_from_the_run_directory(
 
     def cat_auth(command, *, env, events_path, stderr_path, **kwargs):
         # The agent reads its harness's credential and prints it, to both streams.
-        text = (Path(env["XDG_DATA_HOME"]) / "opencode" / "auth.json").read_text()
+        text = (Path(env["XDG_DATA_HOME"]) / _STORE).read_text()
         with events_path.open("a") as events:
             part = {"type": "tool", "tool": "bash", "state": {"output": text}}
             events.write(json.dumps({"type": "tool_use", "sessionID": "ses_fake", "part": part}) + "\n")
@@ -172,7 +237,7 @@ def test_a_key_the_agent_prints_is_redacted_from_the_run_directory(
         model="opencode-go/kimi-k3",
         run_dir=run_dir,
         seasons=1,
-        binary="none",
+        binary=str(_fake_opencode(tmp_path)),
         driver=OpenCodeDriver(auth_file=_key_file(tmp_path)),
     )
     assert "[REDACTED]" in (run_dir / "seed-11" / "opencode-events.jsonl").read_text()
@@ -187,14 +252,14 @@ def test_a_key_the_agent_prints_is_redacted_from_the_run_directory(
 def test_a_printed_key_with_json_special_characters_is_redacted_in_every_escaped_form(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # auth.json escapes the key once and the event stream escapes auth.json again.
+    # The credential store escapes the key once and the event stream escapes the store again.
     key = 'sk-dummy"quote\\slash-0000'
     key_file = tmp_path / "key"
     key_file.write_text(key + "\n")
     scripted = _scripted_harness([{"phases": 4}], [])
 
     def cat_auth(command, *, env, events_path, stderr_path, **kwargs):
-        text = (Path(env["XDG_DATA_HOME"]) / "opencode" / "auth.json").read_text()
+        text = (Path(env["XDG_DATA_HOME"]) / _STORE).read_text()
         with events_path.open("a") as events:
             part = {"type": "tool", "tool": "bash", "state": {"output": text}}
             events.write(json.dumps({"type": "tool_use", "sessionID": "ses_fake", "part": part}) + "\n")
@@ -208,7 +273,7 @@ def test_a_printed_key_with_json_special_characters_is_redacted_in_every_escaped
         model="opencode-go/kimi-k3",
         run_dir=run_dir,
         seasons=1,
-        binary="none",
+        binary=str(_fake_opencode(tmp_path)),
         driver=OpenCodeDriver(auth_file=key_file),
     )
     once = json.dumps(key)[1:-1]
@@ -267,6 +332,7 @@ def test_a_spent_go_window_is_quota_exhaustion_with_its_reset_and_never_a_stall(
         seasons=1,
         sleep=sleeps.append,
         clock=lambda: 1_790_000_000.0,
+        binary=str(_fake_opencode(tmp_path)),
         driver=driver,
     )
     assert sleeps == [7260.0] and len(calls) == 2
@@ -287,10 +353,63 @@ def test_a_spent_go_window_is_quota_exhaustion_with_its_reset_and_never_a_stall(
         model="opencode-go/kimi-k3",
         run_dir=tmp_path / "stopped",
         seasons=1,
-        binary="none",
+        binary=str(_fake_opencode(tmp_path)),
         sleep=sleeps.append,
         driver=driver,
     )
     assert len(calls) == 1 and sleeps == []
     assert panel["episodes"][0]["harness_run"]["ended_by_quota"]["message_class"] == "go_usage_limit"
+    assert panel["stopped_for_quota"]["episodes_not_run"] == 1
+
+
+# OpenCode 2.x reports the same spent window as ``provider.quota`` with the body under
+# ``response.body`` and no headers (``toSessionError``), and never retries it.
+_GO_USAGE_LIMIT_ERROR_V2 = {
+    "type": "error",
+    "timestamp": 1791835929154,
+    "sessionID": "ses_fake",
+    "error": {
+        "type": "provider.quota",
+        "message": "Usage limit reached.",
+        "status": 429,
+        "response": {"body": _GO_USAGE_LIMIT_ERROR["error"]["data"]["responseBody"]},
+    },
+}
+
+
+def test_a_spent_go_window_on_opencode_2_stops_the_panel_with_the_reset_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    line = json.dumps(_GO_USAGE_LIMIT_ERROR_V2)
+    assert opencode.quota_exhaustion([line], now=1_790_000_000.0) == {
+        "message_class": "go_usage_limit",
+        "reset_at_utc": None,
+    }
+    assert not opencode.ended_in_provider_stall([line]) and opencode.provider_error([line]) is None
+    # Any other spent allowance OpenCode 2 classifies as a quota is one too.
+    other = {**_GO_USAGE_LIMIT_ERROR_V2, "error": {"type": "provider.quota", "message": "Insufficient balance"}}
+    assert opencode.quota_exhaustion([json.dumps(other)])["message_class"] == "provider_quota"
+
+    monkeypatch.setattr(opencode, "sandbox_problems", lambda scratch, env: [])
+    calls: list[list[str]] = []
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        opencode,
+        "_run_harness",
+        _scripted_harness([{"phases": 1, "error": _GO_USAGE_LIMIT_ERROR_V2, "exit": 1}], calls),
+    )
+    panel = opencode.run_panel(
+        [11, 12],
+        model="opencode-go/kimi-k3",
+        run_dir=tmp_path / "stopped",
+        seasons=1,
+        binary=str(_fake_opencode(tmp_path)),
+        sleep=sleeps.append,
+        driver=OpenCodeDriver(auth_file=_key_file(tmp_path)),
+    )
+    assert len(calls) == 1 and sleeps == []
+    assert panel["episodes"][0]["harness_run"]["ended_by_quota"] == {
+        "message_class": "go_usage_limit",
+        "reset_at_utc": None,
+    }
     assert panel["stopped_for_quota"]["episodes_not_run"] == 1

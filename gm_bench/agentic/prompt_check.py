@@ -36,8 +36,8 @@ before sending any model request: then the session is resumed with a nudge,
 as the episode does, up to ``MAX_STARTUP_SERVER_ERROR_RETRIES`` times.
 OpenCode needs this for a model missing from the catalog snapshot it ships
 with: its first launch in a fresh home resolves the model before the catalog
-download finishes and fails, and the resumed launch finds the downloaded
-catalog. Later nudges and provider-stall retries
+download finishes and fails (1.18: ``UnknownError``; 2.x: ``provider.no-route``),
+and the resumed launch finds the downloaded catalog. Later nudges and provider-stall retries
 resume the same session in the same launch: the same private home, config
 directory and environment the check proved, with the driver's own nudge text
 in place of the brief. So they read no configuration the first invocation
@@ -86,9 +86,9 @@ CHECK_SECONDS = 180.0
 CHECK_SEED = 1
 REPLY = "ok"
 # Public model catalogs a harness downloads at start-up to resolve a model name,
-# passed through (a TLS tunnel to port 443) instead of refused. OpenCode GETs
-# ``models.opencode.ai/api.json`` (no body; a user agent and trace ids) into its
-# cache, which an episode's private home starts without.
+# passed through (a TLS tunnel to port 443) instead of refused. OpenCode (1.18 and
+# 2.x) GETs ``models.opencode.ai/api.json`` (no body; a user agent and trace ids)
+# into its cache, which an episode's private home starts without.
 CATALOG_HOSTS = ("models.opencode.ai",)
 CATALOG_SECONDS = 30.0
 
@@ -478,15 +478,16 @@ class CaptureServer(ThreadingHTTPServer):
 
     daemon_threads = True
 
-    def __init__(self) -> None:
-        super().__init__(("127.0.0.1", 0), _Handler)
+    def __init__(self, host: str = "127.0.0.1", handler: type[BaseHTTPRequestHandler] | None = None) -> None:
+        # ``host`` and ``handler`` are for ``scripts/audit_codex_tools.py``, which serves a container.
+        super().__init__((host, 0), handler or _Handler)
         self.records: list[dict[str, Any]] = []
         self._lock = threading.Lock()
         self._thread = threading.Thread(target=self.serve_forever, daemon=True)
 
     @property
     def url(self) -> str:
-        return f"http://127.0.0.1:{self.server_address[1]}"
+        return f"http://{self.server_address[0]}:{self.server_address[1]}"
 
     def record(self, entry: dict[str, Any]) -> None:
         with self._lock:

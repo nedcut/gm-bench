@@ -40,6 +40,23 @@
     "recorded_at_utc": "2026-09-23T05:05:00Z",
     "recorded_from": "Computed directly on the frozen 32-seed panel at 5 seasons with gm_bench.runner.run_many_cached_baselines(use_cache=False), seeds read from the Keychain escrow in-process by scripts/run_bench_v2_panel_from_keychain.verified_seed_text; only the two means were printed."
   },
+  "scripted_bot_scores": {
+    "source": "docs/agentic_lane.md, Publication",
+    "rule": "Every scripted baseline the 1.0 tables show, played on the frozen 32-seed panel at these seasons. Shown beside panel rows as context only; no row is tested against any bot except pick-trader. The site build and the site data check reject a pick-trader or random mean here that differs from reference_scores.",
+    "seasons": 5,
+    "mean_scores": {
+      "pick-trader": 249.18,
+      "strategic": 242.899,
+      "shrewd": 228.809,
+      "win-now": 178.751,
+      "value": 174.355,
+      "rebuild": 124.26,
+      "conservative": 123.925,
+      "random": 90.367
+    },
+    "recorded_at_utc": "2026-10-12T19:40:00Z",
+    "recorded_from": "Computed directly on the frozen 32-seed panel at 5 seasons with gm_bench.runner.run_many_cached_baselines(use_cache=False), seeds read from the Keychain escrow in-process by scripts/run_bench_v2_panel_from_keychain.verified_seed_text; only the means were printed. pick-trader and random reproduced reference_scores exactly."
+  },
   "seed_panel": {
     "status": "frozen",
     "name": "private-env",

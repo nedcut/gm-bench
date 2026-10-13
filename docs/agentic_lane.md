@@ -25,10 +25,13 @@ For each seed, serially:
    copy on disk is the ledger header under `--output`, a directory the agent
    is never told about.
 2. It creates an empty scratch directory holding a standard-library proxy
-   script (`gm_bench_proxy.py`, copied from `gm_bench/agentic/_proxy.py`) and
-   an `opencode.json` that launches the proxy on the harness's own `python3`
-   with the socket path as its only argument, with code mode off so each
-   model tool call is one ledger entry.
+   script (`gm_bench_proxy.py`, copied from `gm_bench/agentic/_proxy.py`), a
+   standard-library launcher (`gm_bench_opencode_launch.py`, from
+   `gm_bench/agentic/_opencode_launch.py`), and an `opencode.json` that
+   launches the proxy on the harness's own `python3` with the socket path as
+   its only argument, with code mode off so each model tool call is one
+   ledger entry, and denies the `execute` permission so OpenCode offers no
+   Code Mode tool at all.
 3. It checks the sandbox and refuses to start if the scratch directory sits
    under a GM-Bench checkout or if `python3` on the harness's `PATH` can
    `import gm_bench`. The harness environment is the operator's minus every
@@ -38,10 +41,12 @@ For each seed, serially:
    directory point into it and every `OPENCODE_*` variable is dropped.
    Otherwise OpenCode reads the operator's `~/.config/opencode/AGENTS.md`
    and the skills in `~/.agents/skills` and `~/.claude/skills`, and puts
-   them in the prompt. `--pure` does not stop that.
-4. It runs `opencode run --format json --pure --auto --dir <scratch>` with the
-   task brief from `gm_bench/agentic/brief.py` as the message and captures
-   the event stream to `seed-<n>/opencode-events.jsonl`.
+   them in the prompt (see "The prompt check" below).
+4. It runs `opencode run --format json --auto --model <model>` through the
+   launcher in the scratch directory, on a private server whose MCP servers
+   have connected (see "OpenCode 2.x" below), with the task brief from
+   `gm_bench/agentic/brief.py` as the message, and captures the event
+   stream to `seed-<n>/opencode-events.jsonl`.
 5. When the harness exits, the driver rebuilds the episode from
    `seed-<n>/ledger.jsonl`, closes any phase the agent left open as a failed
    decision, joins the harness's token and cost telemetry, scores, and writes
@@ -49,6 +54,73 @@ For each seed, serially:
    the usual `summary` block, and an `agentic_summary`. Evidence paths in
    `harness_run` are relative to the run directory, so the directory can be
    moved and still validate.
+
+### OpenCode 2.x
+
+The driver supports OpenCode 2.x only (2.0.27 in the container image).
+Rows played on 1.18.31 still validate: each row records the driver commit
+that played it. What changed from 1.18, read from the 2.0.27 source and
+checked against the binary on 2026-10-12:
+
+- `opencode run` no longer accepts `--pure`, `--dir` or `--variant`; given
+  any of them it prints its help and launches nothing. A variant is now
+  part of the model, `--model provider/model#variant` (`--variant` on the
+  CLI is passed that way).
+- `run` attaches to a shared background service by default. Each driver
+  invocation gets a private server of its own instead, started in the
+  scratch directory with the episode's private home; no episode shares a
+  server or a session store with another, or with the operator's own
+  OpenCode. `--session <id>` resumes from the session store in that home,
+  so nudges keep their context.
+- `run --standalone` starts that private server and sends the prompt at
+  once, while the server is still connecting its MCP servers in the
+  background, and each model request offers the tools of the servers
+  connected by then (`MCP.tools` does not wait for a server's start-up;
+  `MCP.callTool` does; unchanged in 2.0.28). The GM-Bench proxy takes most
+  of a second to connect, so the first model request of every invocation
+  (the brief, and every nudge or stall resume) went out without the
+  GM-Bench tools. The deepseek-v4.1-flash panel played on 2.0.27 on
+  2026-10-13 shows it: almost every episode opens with the agent probing
+  Code Mode's `execute` (148 calls, every one answered "Unknown tool"),
+  the shell and the scratch files for tools that were not there yet, then
+  finds them on its second step. So each `run` goes through the staged
+  launcher: it starts `opencode serve --hostname 127.0.0.1 --port 0` with a
+  password of its own, polls `GET /api/mcp` until no MCP server is
+  pending, refuses to go on (exit 1, on stderr) if one failed to connect or
+  60 s pass, and only then runs `opencode run --server <url>` with the
+  driver's arguments. OpenCode keeps `OPENCODE_SERVER_PASSWORD` and
+  `OPENCODE_PASSWORD` out of the environment of the processes it starts, so
+  the agent's shell does not see the password. The server goes when the
+  client exits, when the launcher is signalled, and, through a guard
+  process the launcher forks, when the launcher is killed outright (as a
+  same-user harness is on a timeout or a stall). `session export` and
+  `auth import` still run `--standalone`: they need no MCP server.
+- Code Mode: `codemode: false` on the GM-Bench server keeps its tools
+  direct (they never appear inside `execute`), but 2.x still offers
+  `execute` for its own built-in tools, which default to Code Mode
+  (session, worktree and MCP-resource helpers). The config denies the
+  `execute` permission, which removes the tool from the request.
+- The workspace is the directory `run` starts in, read from `PWD` before
+  the process's working directory. Same-user runs set `PWD` to the scratch
+  directory; without that, the driver's own directory (the checkout) would
+  be the agent's workspace. A container starts in the mounted scratch.
+- Without `--pure`, 2.x loads what its config discovery finds: the global
+  config directory, `~/.claude` and `~/.agents` (instructions, skills,
+  plugins), and `AGENTS.md`, `opencode.json`, `.opencode`, `.claude` and
+  `.agents` walking up from the workspace. The private home and the empty
+  scratch leave none of that; the prompt check proves it on every panel.
+- Errors are `{"type": ..., "message": ..., "status": ..., "response":
+  {"body": ...}}` (for example `provider.no-route`, `provider.rate-limit`,
+  `provider.quota`), not 1.18's `{"name": ..., "data": {...}}`. The
+  detectors below read both.
+- The JSON stream stops printing step events once the session goes idle, so
+  the last model step of each invocation has no `step_finish` and the
+  stream undercounts tokens. The driver reads the counts from the session
+  store instead (see "Reading the result").
+- Credentials live in OpenCode's database; a staged `auth.json` is ignored
+  (see "Running the harness in a container").
+- OpenCode 2.x is not published to npm (`opencode-ai` stops at 1.19.0); the
+  image installs the release binary.
 
 The run directory must be fresh: an episode directory that already holds
 evidence is refused before any harness launches, because the ledger is
@@ -103,11 +175,14 @@ harness was running counts toward the guard. Each nudge entry records
 records `provider_stalls` and `provider_stall_wait_seconds`.
 
 OpenCode's own server can also fail at startup: in two 8-seed container runs
-of `opencode/space-bunny-free`, 9 of 16 episodes opened with a single
+of `opencode/space-bunny-free` on 1.18.31, 9 of 16 episodes opened with a single
 `error` event (`"name": "UnknownError"`, message "Unexpected server error.
 Check server logs for details.") about a second after launch, before any
-tool call, and the resumed session then played the whole episode. That
-error is a provider stall (same backoff, budget and clock pause) only when
+tool call, and the resumed session then played the whole episode. OpenCode
+2.x reports the same race (a model missing from the catalog snapshot it
+ships with, before the first catalog download lands in the session store's
+cache) as `provider.no-route`, "Model unavailable: <model>". Either error
+is a provider stall (same backoff, budget and clock pause) only when
 it ends an invocation that did nothing else first: no tool call, no model
 text, no finished model step (a `step_start` alone is allowed). The same
 error after the invocation acted goes through the nudge path as before: it
@@ -120,29 +195,39 @@ fourth in a row ends the loop as an exhausted stall budget does, instead of
 backing off for up to the six-hour stall budget.
 
 OpenCode's own gateway (`opencode.ai/zen`) answers a free model whose
-allowance is spent with a 429 marked retryable whose body names
-`FreeUsageLimitError`. That is quota exhaustion, not a stall
-(`opencode.quota_exhaustion`): its reset is read from a `retry-after`
-header when one is sent, and is otherwise unknown, so the episode stops at
-once as `ended_by_quota` (`message_class: "free_usage_limit"`) and the panel
-stops, as for Codex's usage limit below. In the `muse-spark` panel that
-error was followed by hours of silent retries.
+allowance is spent with a 429 whose body names `FreeUsageLimitError`.
+That is quota exhaustion, not a stall (`opencode.quota_exhaustion`).
+OpenCode 1.18 marked it retryable (in the `muse-spark` panel it was
+followed by hours of silent retries) and sent its `retry-after` header in
+the error. OpenCode 2.x classifies it as a spent quota, does not retry it,
+and reports it as `provider.quota` with the body but no headers, so its
+reset is always unknown: the episode stops at once as `ended_by_quota`
+(`message_class: "free_usage_limit"`) and the panel stops, as for Codex's
+usage limit below. Any other 2.x `provider.quota` error (a 402, an
+exhausted balance) is handled the same way, as `provider_quota`.
 
 A spent OpenCode Go window (`opencode-go/*`, see "Running the harness in a
 container") is handled the same way, as `message_class: "go_usage_limit"`:
-the body names `GoUsageLimitError`, and the `retry-after` header gives the
-reset in seconds, so a window that resets within the wait budget pauses the
-episode and resumes it, and one further off (a weekly or monthly cap) stops
-the episode and the panel. That wording is read from OpenCode 1.18.32's own
-retry code, which matches the same name and header; no Go run has recorded
-it yet. OpenCode retries this error inside the harness too, up to five
-times, each after the full `retry-after`, printing nothing while it waits.
-An invocation that hits it before its first event is stopped as a silent
-harness and retried as a stall; one that hits it after it has acted sits
-until the phase guard stops it. Either way the error event this rule reads
-may never be printed, and the episode then ends on the stall budget
-(`ended_by_provider`) rather than as quota exhaustion. Watch the Go usage
-page during a panel.
+the body names `GoUsageLimitError`. On OpenCode 2.x that error arrives at
+once (2.x does not retry a quota) and without its `retry-after` header, so
+the reset is unknown and the episode and the panel stop, even for a
+5-hour window that would have reset within the wait budget; restart the
+panel after the window resets. (On 1.18 the header gave the reset, a
+window within the budget paused the episode and resumed it, and 1.18's own
+silent retries could hide the error entirely.) No Go run has recorded this
+error yet. Watch the Go usage page during a panel.
+
+The other provider errors 2.x reports by type. `provider.rate-limit`,
+`provider.internal`, `provider.transport`, `provider.invalid-output`,
+`provider.unknown` and `provider.timeout` are the transient ones (2.x's own
+retry policy, `isRetryable`, plus a timeout) and are stalls; OpenCode has
+already retried them itself, 10 times over about 84 s, before the error
+reaches the stream. Any other `provider.*` error (`provider.invalid-request`,
+`provider.auth`, `provider.no-route` after the invocation acted,
+`provider.content-filter`) is the provider refusing: when it ends an
+unfinished episode's last invocation without a tool call, the episode is
+recorded as ended by the provider (`reason: "provider_error"`), as a
+non-retryable 1.18 `APIError` was.
 
 `harness_run.exit_code` is the first launch's exit code, and
 `harness_run.final_exit_code` the last invocation's (the first launch's when
@@ -152,8 +237,9 @@ that recovered from a failed first launch does not warn. Runs recorded
 before `final_exit_code` existed are read from `exit_code`, as before.
 
 OpenCode retries a 429 inside the harness and prints nothing to its event
-stream while it does, so a rate-limited harness can look hung rather than
-end on an `error` event. A harness invocation that has appended no byte to
+stream while it does (2.x: up to 10 times, each gap at least the provider's
+`retry-after`, capped at 15 minutes), so a rate-limited harness can look
+hung rather than end on an `error` event. A harness invocation that has appended no byte to
 its event stream and made no ledger tool call for 240 s since launch
 (`--silent-harness-seconds`, recorded in `run.json` and the published row;
 0 disables it) is a **silent harness**: the driver stops it through the
@@ -201,7 +287,18 @@ season summaries, transactions) plus:
   adapter does. Runs recorded before this shape carry no `token_shape` (their
   OpenCode input excludes cached tokens and their output excludes reasoning);
   they still validate, the site labels their tokens as the harness's own
-  convention, and publication checks the sums only for shaped rows
+  convention, and publication checks the sums only for shaped rows.
+  OpenCode 2.x's stream omits the last model step of every invocation (no
+  `step_finish` once the session goes idle), so at the end of the episode
+  the driver runs `opencode session export <id> --standalone` in the
+  episode's home (in the container, on its home volume) and sums the
+  session's assistant messages (one per model step) and compactions
+  instead. `usage.harness.token_source` says which source the counts came
+  from: `session_export`, or `event_stream` with the reason in
+  `usage.harness.session_export_error` when the export failed. Event-stream
+  counts undercount; they are labelled, not hidden. The session's own
+  total (`info.tokens`) is not used, because it also counts OpenCode's side
+  requests such as the session title
 - `harness_run`: the command (brief elided), first and final exit codes, timeout flag, wall
   time, nudges used and what each bought, phase-guard stops (`guard_kills`),
   provider stalls and the backoff waited for them,
@@ -247,8 +344,8 @@ OpenCode downloads to resolve a model name (`models.opencode.ai`), which it
 passes through and records as `forwarded_hosts`. A private home starts
 without that catalog, so for a model missing from the snapshot OpenCode
 ships with (`opencode/space-bunny-free` on 1.18.32), the first launch fails
-at startup with "Unexpected server error" before any model request, as it
-does in an episode. The episode retries that as a provider stall by resuming
+at startup (1.18: "Unexpected server error"; 2.x: `provider.no-route`)
+before any model request, as it does in an episode. The episode retries that as a provider stall by resuming
 the session with a nudge, and the check does the same (`stall_retries`, at
 most 3); the resumed launch finds the downloaded catalog.
 
@@ -330,12 +427,53 @@ of the operator's content. The catalog is the same for any ChatGPT login,
 so it counts as part of the harness, but it is fetched at startup and can
 change without a Codex release.
 
+That run read only the prompt text, and so missed what the account adds as
+tools. In code mode (the model catalog's `tool_mode = "code_mode_only"`,
+which `gpt-6-luna` and `gpt-6.1-sol` carry as of 2026-10-12) Codex declares
+its built-ins in the prompt but defers every MCP tool: the agent finds them
+in the `exec` tool's `ALL_TOOLS` and can call them, and the prompt never
+names them. On 2026-10-12 a capture that asked `exec` for `ALL_TOOLS`
+found 668 tools from the account's connected ChatGPT apps
+(`mcp__codex_apps__*`: Gmail, GitHub, Google Drive, Calendar and Contacts,
+Linear, Atlassian, Neon, Adobe, Jam, Hugging Face, Wispr Flow and others).
+It also found 24 account-installed plugins synced into the home, whose own
+MCP servers started in the harness. That was on 0.156.1 and on 0.162.1.
+The driver now turns all of it off (see "Account plugins and apps" under
+"Codex harness"). Since the prompt check cannot see account tools,
+`scripts/audit_codex_tools.py` audits the whole tool set against the real
+account before a Codex panel, and that audit is required.
+
+Claude Code 2.1.281 was audited the same way on 2026-10-13, in its
+container image with the real `setup-token` token. Only the model request
+was answered locally (a TLS-intercepting proxy for `api.anthropic.com`,
+not `ANTHROPIC_BASE_URL`); every other call reached Anthropic. Nothing
+account-specific reached the agent: the requests offered only the allowed
+built-ins and `ToolSearch`, and the deferred list held `NotebookEdit` and
+the 24 `mcp__gm-bench__*` tools and nothing else, also after a 25-second
+wait. The account calls were remote managed settings
+(`/api/claude_code/settings`, 404) and policy limits (one restriction).
+Claude Code does try to load the account's claude.ai connectors (Gmail,
+Drive and the like) despite `--strict-mcp-config`; the `setup-token`
+token's `user:inference` scope stopped it (`Missing user:mcp_servers
+scope`). The driver now sets `ENABLE_CLAUDEAI_MCP_SERVERS=false`, which
+skips that fetch whatever the credential. No committed Claude row records
+a tool outside the allowed built-ins and GM-Bench. Two limits of the
+prompt check for Claude Code follow from this. With `ANTHROPIC_BASE_URL`
+on a non-Anthropic host, Claude Code turns tool search off and inlines all
+24 GM-Bench schemas, so the check does not see the deferred layout an
+episode has. And it never sees the account's remote managed settings: if
+the account joins an organization that sets them, they apply silently, and
+no flag turns that fetch off. Check that the account belongs to no such
+organization before a Claude panel.
+
 First results, 2026-09-27, same-user, on the operator's Mac:
 
 | Harness | Model requests | Operator content |
 |---|---|---|
 | OpenCode 1.18.32 as launched before this fix | 2 | home path 19 times, 21 lines of `~/.agents/AGENTS.md`, 16 operator skills |
 | OpenCode 1.18.32 with the private home | 2 | none |
+| OpenCode 2.0.27 without the private home (2026-10-12, a test of the check) | 2 | home path once, 21 lines of `~/.agents/AGENTS.md`, 16 operator skills; 91 lines only with the operator's home |
+| OpenCode 2.0.27 with the private home (2026-10-12) | 2 | none; 0 lines only with the operator's home |
 | Claude Code (`claude` on PATH) | 1 | none |
 | Codex 0.157.1 (native binary) | 1 | none |
 | Cursor 2026.09.26-dd393fe (`composer-2.5`, the recorded context) | 1 | none; Cursor's 7 default rules and none of the account's own |
@@ -507,6 +645,15 @@ For any other season count nothing is pinned: validation warns that the
 reference is unpinned, and the site build and data check require every
 panel row at that season count to agree.
 
+The site also shows the other six scripted baselines from the 1.0 tables
+beside the panel rows, as context only: no row is tested against any of
+them. Their 5-season means on the same panel are recorded under
+`scripted_bot_scores` in `config/bench_v2_lane.json` (computed 2026-10-12 the
+same way, means only): strategic 242.899, shrewd 228.809, win-now 178.751,
+value 174.355, rebuild 124.26, conservative 123.925. That block repeats
+pick-trader and random, and the site build and data check reject it if
+those two differ from `reference_scores`.
+
 ## Running the harness in a container
 
 ```bash
@@ -527,13 +674,32 @@ model provider. No Docker Desktop setting needs changing: `/var/folders`
 temp directories are shared by default, and `host.docker.internal` reaches
 the host loopback out of the box.
 
+A native Docker Engine on a Linux host (Docker Engine in Linux or in WSL 2,
+not Docker Desktop) also works; checked on 2026-10-12 with Docker 29.7.2 in
+WSL 2 Ubuntu 24.04 (linux/amd64). Such an engine resolves no
+`host.docker.internal` and a container cannot reach the host loopback, so
+when `docker info` names an operating system other than Docker Desktop on
+a Linux host, the driver listens on the default bridge's gateway (the
+host's `docker0` address, usually `172.17.0.1`) instead of `127.0.0.1` and
+starts every container with `--add-host host.docker.internal:<gateway>`.
+The gateway is recorded as `harness.container.host_gateway`; Docker
+Desktop runs record none. The egress canary binds the same address, so the
+probe tests the rule where the driver actually listens. Nothing needs
+configuring: the user only needs access to the Docker socket.
+
 The image. On the first run the driver builds
 `gm-bench-agentic-opencode:<opencode version>-<Dockerfile hash>` from a
 Dockerfile it pipes to `docker build` (no build context): a digest-pinned
 `node:22-bookworm-slim` base, Debian's `python3` for the proxy, `procps`,
 `iptables` for the egress rule, the `gmb-egress` entrypoint, and
-`opencode-ai@1.18.31`. It refuses to run if the image reports a
-different OpenCode version. `run.json` records the image tag, image id
+OpenCode 2.0.27. OpenCode 2.x is not on npm, so the image downloads the
+release tarball for the build architecture
+(`https://opencode.ai/files/bin/2.0.27/opencode-linux-<arch>.tar.gz`),
+checks it against a pinned SHA-256 (the same files and sums the anomalyco
+Homebrew tap's `opencode-v2` formula pins) and installs the binary
+root-owned. Images before 2.x installed `opencode-ai@1.18.31` from npm. It
+refuses to run if the image reports a different OpenCode version
+(`opencode --version` prints `opencode v2.0.27` on 2.x). `run.json` records the image tag, image id
 (the content digest of what ran), base image, Dockerfile SHA-256, OpenCode
 version, Docker server version, and the egress rule under
 `harness.container`, and that block is carried into the published
@@ -541,8 +707,8 @@ artifact. `--binary` is ignored in container
 mode.
 
 Authentication. The free `opencode/*` models need no credentials: OpenCode
-1.18.31 on the host stores none for them (`opencode auth list` shows 0
-credentials) and the container lists and runs them anonymously. Nothing is
+stores none for them (`opencode auth list` shows none) and the container
+lists and runs them anonymously. Nothing is
 provisioned unless you pass `--opencode-auth-file`. Do not mount
 `~/.config/opencode` or the home directory to get a key, because that
 directory's `AGENTS.md`, skills and commands would change what the harness
@@ -557,19 +723,29 @@ python -m gm_bench agentic --isolation container --model opencode-go/kimi-k3 \
 ```
 
 - `--opencode-auth-file <path>`: a file holding the key alone on one line.
-  Keep it outside the checkout, mode 0600. The driver writes it as
-  OpenCode's own credential store, `auth.json` (`{"opencode-go": {"type":
-  "api", "key": ...}}`, the shape `opencode auth login` writes), for the Go
-  provider only. The same key would also unlock paid Zen (`opencode/*`)
-  models, billed to the account's Zen balance, and would move free Zen
-  models off OpenCode's shared anonymous key, so it is not stored for
-  `opencode`. Same-user runs get it in the private data
-  directory (`$XDG_DATA_HOME/opencode/auth.json`, mode 0600, removed with
-  the private home). Container runs get it in the per-episode home volume
-  (`/home/node/.local/share/opencode/auth.json`) over the stdin of a
-  throwaway `docker run`, as the Codex and Claude credentials are. It never
-  goes on a command line, into a `docker run -e` variable, into the
-  harness environment, or into the scratch directory.
+  Keep it outside the checkout, mode 0600. The driver stores it in
+  OpenCode's own credential store for the Go provider (`opencode-go`) only.
+  The same key would also unlock paid Zen (`opencode/*`) models, billed to
+  the account's Zen balance, and would move free Zen models off OpenCode's
+  shared anonymous key, so it is not stored for `opencode`. OpenCode 2.x
+  keeps credentials in its database and imports a 1.x `auth.json` only as
+  a database migration, which a fresh database skips, so a staged
+  `auth.json` is never read. The driver instead writes the key in `opencode
+  auth export`'s format (`[{"integrationID": "opencode-go", "value":
+  {"type": "key", "key": ...}, ...}]`, mode 0600) into OpenCode's data
+  directory, runs `opencode auth import <file> --standalone`, and removes
+  the file. Same-user runs do this in the private data directory
+  (`$XDG_DATA_HOME/opencode/`, run from the private home, removed with it).
+  Container runs get the file in the per-episode home volume
+  (`/home/node/.local/share/opencode/`) over the stdin of a throwaway
+  `docker run`, as the Codex and Claude credentials are, and import it in
+  a container on that volume as the `node` user. It never goes on a
+  command line, into a `docker run -e` variable, into the harness
+  environment, or into the scratch directory. Checked on 2026-10-12 with a
+  dummy key (no model call): the import lists 31 `opencode-go/*` models,
+  including `opencode-go/deepseek-v4.1-flash`, and the same 11 free
+  `opencode/*` models as no key; a staged `auth.json` lists no
+  `opencode-go/*` model.
 - An `opencode-go/*` model without the file is refused before anything
   runs: OpenCode does not load the Go provider without a key. The file with
   any other model, `opencode/*` included, is refused.
@@ -577,7 +753,7 @@ python -m gm_bench agentic --isolation container --model opencode-go/kimi-k3 \
   and `OPENCODE_API_KEY` are never used.
 
 The trade-off, as for Codex and Claude Code: the agent can read its own
-harness's credential, from `auth.json` in its home. The key is kept out of
+harness's credential, from the database in its home. The key is kept out of
 the harness environment so a bare `env` does not show it, but a `cat` does.
 That is the harness's key, not the benchmark's, and it gives no access to
 the seed; it does give access to your Go allowance (and Zen balance), so use
@@ -588,10 +764,11 @@ scratch directory is not redacted. `harness_run.auth` records `auth-file`
 or `none`, and `harness_run.auth_providers` the provider ids the key was
 stored for, never the value.
 
-The OpenCode 1.18.31 image's bundled model catalog is older than OpenCode's
-live one (`opencode-go/grok-4.7` is missing until the catalog is refreshed),
-so a container episode on a newer model may open on OpenCode's startup
-`UnknownError`, which the driver retries as a startup stall (see above).
+An image's bundled model catalog is older than OpenCode's live one (on
+1.18.31, `opencode-go/grok-4.7` was missing until the catalog was
+refreshed), so a container episode on a newer model may open on OpenCode's
+startup error (1.18: `UnknownError`; 2.x: `provider.no-route`), which the
+driver retries as a startup stall (see above).
 
 What the container can see:
 
@@ -620,7 +797,8 @@ before OpenCode starts, so the agent cannot change the rule.
 
 The transport. Docker Desktop cannot pass a host Unix socket through a bind
 mount (the connect fails with `ENOTSUP`), so in container mode the driver's
-server listens on `127.0.0.1` on an ephemeral port and the proxy dials
+server listens on `127.0.0.1` (on a native Linux engine, the bridge
+gateway; see "Requirements" above) on an ephemeral port and the proxy dials
 `host.docker.internal:<port>`. Any local process can dial a loopback port,
 so every connection must first send a per-run random secret, which the
 driver writes to `gm_bench_proxy.secret` in the scratch directory (mode
@@ -670,14 +848,17 @@ python -m gm_bench agentic --harness codex --isolation container --model gpt-6-l
   --seeds 11 --seasons 1 --output /tmp/agentic-codex-container
 ```
 
-These are the model and flags the committed Codex rows used. No committed
+These are the model and flags the committed `gpt-6-luna` rows used; the
+`gpt-6.1-sol` panel used the same flags with `--model gpt-6.1-sol`. No committed
 row passes `--variant`, on any harness, so every row ran at the harness's
 default reasoning effort. `--variant` sets it explicitly (for Codex,
 `-c model_reasoning_effort="<variant>"`), and a row run with it is a
 different row.
 
 The Codex CLI is the second harness (`gm_bench/agentic/codex.py`, written
-and tested against Codex CLI 0.156.1). It runs through the same episode loop
+against Codex CLI 0.156.1, which played the committed `gpt-6-luna` rows,
+and re-verified against 0.162.1, which the container image now pins and
+which played the `gpt-6.1-sol` panel; see "Codex 0.162.1" below). It runs through the same episode loop
 as OpenCode: same engine, proxy, sandbox check, nudges, provider-stall
 retries, phase guard, ledger, and validation. A Codex row is its own row,
 `codex/<version> · <model>`, never merged with an OpenCode row on the same
@@ -706,7 +887,15 @@ input tokens, and in some turns the input grew by more than the 272K-token
 long-context threshold, so some requests may have been billed at the
 long-context tier (2x input and cache, 1.5x output). The
 estimate always uses short-context rates (see "API-equivalent cost
-estimate" below), so the true API-price cost may be higher.
+estimate" below), so the true API-price cost may be higher. The second,
+on `gpt-6.1-sol` with Codex 0.162.1 (2026-10-13, driver commit `1411e2e`,
+the account's apps and plugins turned off), is committed at
+`results/agentic/codex-0.162.1-gpt-6.1-sol-panel-32x5.json`: mean 273.2,
+640/640 phases closed by the agent, no nudges or quota pauses, 9 provider
+stalls (780 s of backoff), 170.1 tool calls and 8.5 min per episode, $17.38
+at API prices for the panel, also a lower bound
+(`api_equivalent_long_context_possible: true`). On a ChatGPT `prolite`
+plan the weekly window peaked at 7% used.
 
 What a run does per episode:
 
@@ -717,18 +906,22 @@ What a run does per episode:
    container), and whose `default_tools_approval_mode = "approve"` approves
    that server's tools. Nothing else is configured. The approval key is
    required: exec mode never asks for approval, so under `workspace-write`
-   Codex 0.156.1 would refuse every GM-Bench call (tools without a read-only
+   Codex (0.156.1 and 0.162.1 alike) would refuse every GM-Bench call (tools without a read-only
    annotation need approval) with "MCP tool call requires approval, but
    approval policy is never". It approves only this server.
 2. Runs `codex exec --json --skip-git-repo-check --model <m>` with the task
    brief as the prompt and the scratch directory as the working directory,
    capturing `seed-<n>/codex-events.jsonl`. `--variant` becomes
    `-c model_reasoning_effort="<variant>"`. Exec mode never asks for
-   approval.
+   approval. Every invocation also passes `-c features.apps=false -c
+   features.plugins=false -c features.remote_plugin=false`, so nothing from
+   the ChatGPT account reaches the agent (see "Account plugins and apps"
+   below); `harness_run.disabled_features` records them.
 3. Nudges and provider-stall retries run `codex exec resume <session id>
    <reminder>` on the same session (the id is the `thread_id` of the first
    `thread.started` event), so Codex keeps its context. `resume` accepts no
-   `--sandbox` flag, so the sandbox is set with `-c` on every invocation.
+   `--sandbox` flag, so the sandbox and the disabled features are set with
+   `-c` on every invocation.
 4. A run whose last event is `turn.failed` or `error` with a retryable
    message (a 408, 425, 429 or 5xx status, "rate limit", "high demand",
    "at capacity", a dropped stream or connection, a timeout) is a provider
@@ -803,11 +996,153 @@ removed; or the `CODEX_API_KEY` value) with `[REDACTED]` in `codex-events.jsonl`
 whatever the agent wrote there. `harness_run.auth` records which source was
 used (`auth-file` or `CODEX_API_KEY`), never the value.
 
-The image. `gm-bench-agentic-codex:0.156.1-<Dockerfile hash>` is built on
+The image. `gm-bench-agentic-codex:0.162.1-<Dockerfile hash>` is built on
 first use from the same digest-pinned base and egress entrypoint as the
-OpenCode image, with `@openai/codex@0.156.1` instead of `opencode-ai`; the
+OpenCode image, with `@openai/codex@0.162.1` instead of `opencode-ai`; the
 OpenCode image is unchanged. `run.json` records it under
-`harness.container`, with `codex_version` as the image reports it.
+`harness.container`, with `codex_version` as the image reports it. The
+committed `gpt-6-luna` rows ran in `gm-bench-agentic-codex:0.156.1-578af3e044d4`
+and keep validating at the driver commit they record; the `gpt-6.1-sol`
+panel ran in `gm-bench-agentic-codex:0.162.1-f8095c887ac3`.
+
+### Account plugins and apps
+
+A ChatGPT login brings the account into the harness, and until 2026-10-12
+the driver let it in. Two Codex mechanisms do this, and both are on by
+default in 0.156.1 and 0.162.1 (`codex-rs/features/src/lib.rs`: `apps`,
+`plugins`, `remote_plugin`). The source lines are in the `codex.py`
+docstring.
+
+- **Installed plugins.** A few seconds after start, Codex syncs the
+  plugins installed on the account into
+  `CODEX_HOME/plugins/cache/openai-curated-remote` and refreshes MCP.
+  Those plugins' MCP servers then start inside the harness. On the
+  operator's account that was 24 plugins, with servers for `neon` (an
+  HTTP server at `mcp.neon.tech`, which fails for want of OAuth: the
+  `AuthRequired ... mcp.neon.tech` line in `codex-stderr.log`),
+  `codex-security`, `creative-production` and `xcodebuildmcp`.
+- **Connected apps.** The hosted `codex_apps` MCP server serves the
+  account's connected ChatGPT apps as tools. On 2026-10-12 that was 668
+  tools: Gmail (read, send, delete), GitHub, Google Drive, Calendar and
+  Contacts, Linear, Atlassian, Neon, Adobe, Jam, Hugging Face, Wispr Flow
+  meetings and notes, and ChatGPT spaces.
+
+In code mode Codex defers every MCP tool. The model catalog puts
+`gpt-6-luna` and `gpt-6.1-sol` in code mode (`tool_mode =
+"code_mode_only"`). A deferred tool is absent from the prompt text but
+listed in the `exec` tool's `ALL_TOOLS`, and the agent can call it from
+there. The prompt carried only the generic `<recommended_plugins>` list and
+a `request_plugin_install` tool. So neither the 2026-09-27 account capture
+nor the prompt check could see the app tools.
+
+The driver now passes `-c features.apps=false -c features.plugins=false -c
+features.remote_plugin=false` on every invocation (`codex.DISABLED_FEATURES`),
+in both isolations. They go on the command line, not in the staged
+`config.toml`, because `-c` overrides every config layer and the agent can
+rewrite the `config.toml` in its own home between invocations. Captured on
+2026-10-12:
+
+| | Default | Disabled |
+|---|---|---|
+| Account tools in `ALL_TOOLS` (besides the built-ins and GM-Bench tools) | 668 `codex_apps` | 0 |
+| Account plugins synced | 24 | 0 |
+| Plugin MCP servers started | 4 | 0 |
+| First request (0.162.1, `gpt-6.1-sol`, one-line prompt) | 72,766 characters | 70,698 characters |
+| First request (0.156.1, `gpt-6-luna`, one-line prompt) | 69,116 characters | 67,049 characters |
+
+The prompt loses only the `<recommended_plugins>` block and
+`request_plugin_install`; the built-ins, the bundled `.system` skills and
+the `gm-bench` server are unchanged. `apps=false` alone keeps the plugin
+sync and its MCP servers, and `plugins=false` alone keeps the 668 app
+tools. `remote_plugin=false` changes nothing more today.
+
+A row run with these flags does not have the same Codex built-ins as the
+committed `codex/0.156.1 · gpt-6-luna` rows, which ran with the account's
+apps and plugins available. Those rows record no tool call other than
+GM-Bench calls (`tool_calls_by_tool` in all four artifacts). Which apps
+were connected on 2026-09-26 was not recorded.
+
+**Tool audit (required before a Codex panel).** Run it with the auth file
+the panel will use, under the subscription lock:
+
+```bash
+flock /tmp/gmb-subscription-smoke.lock \
+  uv run python scripts/audit_codex_tools.py --codex-auth-file /path/to/codex-auth.json --model gpt-6.1-sol
+```
+
+It plays one throwaway episode on public seed 11 in the Codex image. The
+driver stages it exactly as an episode's first invocation: real engine and
+proxy, home volume with the login, same command line. Only the model
+request (`openai_base_url`, which carries a ChatGPT login's
+`/backend-api/codex/responses`) goes to a capture server on the host.
+Codex's account endpoints and the model catalog reach ChatGPT for real.
+The capture server answers the first request with a code-mode `exec` call.
+That call waits 15 seconds for the plugin sync, then prints `ALL_TOOLS`,
+and the follow-up request gets a one-word reply. Nothing is spent. Because
+the capture server listens on a second host port, the episode runs without
+the egress firewall; it holds only a public seed.
+
+The audit prints tool counts by server and PASS or FAIL, never request
+text or credentials. It fails on any MCP tool not under `mcp__gm_bench__`,
+a plugin-install tool, a `<recommended_plugins>` list, or an account
+plugin synced into the home. It also fails if no GM-Bench tool is
+reachable. `--without-disabled-features` drops the driver's flags, and
+`--codex-version 0.156.1` audits the image the committed rows ran in. On
+2026-10-13 with the operator's login:
+
+| Image, model | Flags | Tools by server | Plugins synced | Result |
+|---|---|---|---|---|
+| 0.162.1, `gpt-6.1-sol` | on | 24 built-in, 24 `gm_bench` | 0 | PASS |
+| 0.162.1, `gpt-6.1-sol` | off | 25 built-in, 668 `codex_apps`, 24 `gm_bench` | 24 | FAIL |
+| 0.156.1, `gpt-6-luna` | on | 24 built-in, 24 `gm_bench` | 0 | PASS |
+| 0.156.1, `gpt-6-luna` | off | 25 built-in, 668 `codex_apps`, 24 `gm_bench` | 24 | FAIL |
+
+(The built-in counts include the `exec`, `wait`, collaboration and clock
+tools the request declares, which `ALL_TOOLS` does not list.)
+
+### Codex 0.162.1
+
+The container image pins Codex CLI 0.162.1 (from 0.156.1, 2026-10-12)
+because the ChatGPT backend refuses newer models to the old client: on
+0.156.1, `gpt-6.1-sol` failed with a 400 "The 'gpt-6.1-sol' model is not
+supported when using Codex with a ChatGPT account" and a warning that the
+model's metadata was not found. Every claim the driver relies on (listed
+at the top of `gm_bench/agentic/codex.py`) was re-read from the source at
+tag `rust-v0.162.1` and the 0.162.1 binary. What changed that touches the
+driver:
+
+- Nothing in the `codex exec --json` stream: `exec/src/exec_events.rs` and
+  `exec/src/event_processor_with_jsonl_output.rs` are byte-identical
+  between the tags, so the events, item types, and the running usage total
+  are the same. The flags the driver passes, the `-c` keys it sets
+  (`sandbox_mode`, `sandbox_workspace_write.network_access`,
+  `model_reasoning_effort`, `default_tools_approval_mode`, and the capture
+  overrides), the forced `approval_policy = never`, the MCP auto-approval
+  rule, the pre-dispatch refusal messages, the `auth.json` format, the
+  file credential store, and the eight-day login refresh are unchanged.
+- The rollout persistence filter was rewritten (`persisted_event_msg` in
+  `rollout/src/policy.rs`), but it still persists every `token_count`
+  (with `rate_limits`) and every `turn_context` (with `effort`), so the
+  quota windows and reasoning effort read the same way. A background
+  worker now compresses rollouts older than seven days to `.zst`; an
+  episode's home is new, so the driver never meets one.
+- The usage-limit message links `chatgpt.com/settings/usage` (was
+  `chatgpt.com/codex/settings/usage`) and covers a new `promax` plan; the
+  "try again at" time is formatted as before.
+- Codex now retries "Selected model is at capacity" and "exceeded retry
+  limit" itself when the server advised a delay, so fewer of them reach
+  `turn.failed`; the text is unchanged and still a provider stall. A new
+  "Flex capacity unavailable." error comes only from the flex service
+  tier, which the driver never selects.
+- A new `exec` flag (`--cyber-access-program`) and an experimental
+  Daybreak feature (off by default) are not used.
+
+A five-season container smoke of `gpt-6.1-sol` on 0.162.1 (seed 11,
+2026-10-12, not committed) closed 20/20 phases itself in one turn, with no
+nudges, stalls or failed decisions, 165 tool calls (harness and ledger
+agree), 6.5 min, score 200.6, and validated. As on 0.156.1, a run without
+`--variant` records no reasoning effort: the rollout's `turn_context`
+carries `effort` only when one is selected.
 
 Telemetry. `codex exec --json` reports a running token total per session on
 `turn.completed` (input including cached, cached, cache writes, output,
@@ -1001,7 +1336,9 @@ What a run does per episode:
    directory, and every other `CLAUDE_*`, `CLAUDECODE` and `ANTHROPIC_*`
    variable is dropped. `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` stops
    the auto-updater (a harness that upgrades itself mid-panel changes the
-   row identity), telemetry and error reports.
+   row identity), telemetry and error reports. `ENABLE_CLAUDEAI_MCP_SERVERS=false`
+   stops the fetch of the account's claude.ai connectors (see "Account
+   connectors" below).
 2. Runs `claude -p --output-format stream-json --verbose --mcp-config
    <private>/mcp.json --strict-mcp-config --setting-sources user
    --disable-slash-commands --tools
@@ -1181,8 +1518,9 @@ stdin of a throwaway `docker run` (no network, no capabilities, only the
 home volume mounted) into the episode's home volume as
 `/home/node/.gmb-claude-token`, mode 0600, and is removed with the volume.
 Each invocation runs `gmb-claude`, which reads that file, exports it as
-`CLAUDE_CODE_OAUTH_TOKEN` with `CLAUDE_CONFIG_DIR=/home/node/.claude` and
-`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`, and execs `claude` with the
+`CLAUDE_CODE_OAUTH_TOKEN` with `CLAUDE_CONFIG_DIR=/home/node/.claude`,
+`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` and
+`ENABLE_CLAUDEAI_MCP_SERVERS=false`, and execs `claude` with the
 driver's arguments. The token is never on the `docker run` command line or
 in a `-e` variable, so neither `ps` on the host nor `docker inspect` shows
 it; the only credential-bearing thing that leaves the host process is that
@@ -1238,7 +1576,22 @@ harness.
   (`claude-haiku-4-5`) ToolSearch calls over 32 episodes.
 - **OpenCode and Codex** run with their built-in tool sets unrestricted,
   including any web tool the harness ships (OpenCode's web fetch, Codex's
-  web search), and put every GM-Bench tool schema in the first prompt.
+  web search). OpenCode puts every GM-Bench tool schema in the first
+  prompt, through the launcher (see "OpenCode 2.x"); on 2.0.27 without it
+  the first request of each invocation had none. OpenCode's Code Mode
+  `execute` tool is denied. Codex does not when the model is in code mode, as `gpt-6-luna`
+  and `gpt-6.1-sol` are by the model catalog as of 2026-10-12. The prompt
+  then declares Codex's built-ins and the JavaScript `exec` tool. The 24
+  GM-Bench tools are deferred: they are absent from the first request (no
+  schema and not even a name) and callable from `exec` as
+  `tools.mcp__gm_bench__<tool>`, listed in `ALL_TOOLS`. The brief names
+  them. That is true on 0.162.1 and, with the 2026-10-12 catalog, on 0.156.1
+  (`scripts/audit_codex_tools.py`). The catalog decides code mode, not the
+  Codex version, and the catalog `gpt-6-luna` had on 2026-09-26 was not
+  recorded, so whether the committed Luna rows saw the schemas up front is
+  not known. Codex no longer gets the ChatGPT account's apps and plugins
+  (see "Account plugins and apps"); the committed Codex rows ran with them
+  available and called none.
 - **Cursor** runs with its built-in tools unrestricted (`--force` runs
   every tool call without asking). It reads a GM-Bench tool's schema from
   its own cache (`get_mcp_tools`, which never reaches the server) before
@@ -1478,8 +1831,20 @@ commitment. Positions 1 to 29 are the `sota-v5` private panel in its
 committed order, which is what pairs a model's 1.0 and 2.0 scores per seed;
 positions 30 to 32 were drawn 2026-09-22 by
 `scripts/draw_bench_v2_private_panel.py` with the generator that drew v5.
-The seeds and salt live only in the macOS Keychain
+The seeds and salt live in the macOS Keychain
 (`gm-bench-bench-v2-private-panel`).
+
+On a host without the Keychain (a Linux driver host), the launcher reads a
+copy of the same record from
+`~/.config/gm-bench/gm-bench-bench-v2-private-panel.escrow`: the exact
+output of `security find-generic-password -s gm-bench-bench-v2-private-panel
+-a nedcutler -w`, made on the Mac, owned by you, with no group or other
+access on the file or on `~/.config/gm-bench`. A link, a shared file or a
+missing file is refused. The copy is checked against the same committed
+digests as the Keychain, so it cannot give the driver a different panel;
+what it adds is one more place the seeds are kept, so keep that host's
+disk to yourself. Make the copy in a Terminal on the Mac itself: over SSH
+the login Keychain refuses (`security` exits 36, interaction not allowed).
 
 ```bash
 python scripts/run_bench_v2_panel_from_keychain.py --verify-only

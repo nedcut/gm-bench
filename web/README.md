@@ -1,37 +1,37 @@
 # GM-Bench Web
 
-A forward-facing landing site for GM-Bench, built with [Vite](https://vite.dev),
-React, TypeScript, and [Bun](https://bun.sh). It presents the benchmark to the
-outside world: what the decision loop looks like, the stdin/stdout agent
-protocol, reference baseline results, and a two-command quickstart.
+The public GM-Bench site, built with [Vite](https://vite.dev), React,
+TypeScript and [Bun](https://bun.sh). It is a small data app: GM-Bench 2.0
+results first, with as little prose as possible.
 
-The site is fully static and deploys anywhere (GitHub Pages, Netlify,
-Cloudflare Pages, ...). The demo walkthrough reads
-`src/data/snapshot.json`; the published results and analysis views read
-`src/data/leaderboard.json`, which is generated only from committed,
-policy-validated evidence.
+The site is fully static. Every page reads `src/data/leaderboard.json`, which
+is generated only from committed, policy-validated evidence. There is one HTML
+entry per page (GitHub Pages has no SPA fallback, so every linked URL is a real
+file; see `vite.config.ts`):
 
-The site is four static pages, one HTML entry each (GitHub Pages has no SPA
-fallback, so every linked URL is a real file; see `vite.config.ts`):
+- `/` (`src/main.tsx`, `src/app/Standings.tsx`): the 2.0 standings. Every
+  panel row with the scripted bots, sorted by score for reading, with a side
+  panel for filters (harness, vendor, bots) and a row's details.
+- `/how-it-works/` (`src/app/HowItWorks.tsx`): a step-by-step walkthrough of
+  one pick-trader season: the brief, the tools open in each phase, the moves
+  as 2.0 tool calls, and how the score moved. Its data,
+  `src/data/walkthrough.json`, is built by `scripts/build_walkthrough.py` from
+  the public demo game in `public/replay/trajectory-demo.json`.
+- `/cost/` (`src/app/CostView.tsx`): score against cost per game.
+- `/tools/` (`src/app/ToolsView.tsx`): tool calls, tokens, wall time and
+  empty phases per game.
+- `/replays/` (`src/pages/replays.tsx`): the trajectory explorer and the
+  play-along decision deck.
+- `/method/` (`src/app/Method.tsx`): rules, scoring, statistics, caveats, how
+  to run it, and the in-browser replay verifier. Linked from the footer.
+- `/v1/` (`src/app/V1Archive.tsx`): the superseded 1.0 (sota-v5) results.
+  Linked from the footer.
 
-- `/` (`src/main.tsx`): the landing page. The promo video, the headline
-  finding, how a season plays, the play-along decision deck, a 2.0 preview
-  that carries no scores, and the quickstart.
-- `/results/` (`src/pages/results.tsx`): three surfaces share one model
-  selection, in page order: the leaderboard (`#results`), the model profile
-  (`#profile`), and the mechanics analysis (`#analysis`), followed by the
-  decision lane and the 2.0 lane.
-- `/replays/` (`src/pages/replays.tsx`): plays one committed episode and does
-  not follow the selection.
-- `/protocol/` (`src/pages/protocol.tsx`): the full protocol and quickstart.
-
-The site used to be one page addressed by hash, so the landing page forwards
-the old anchors (`/#results`, `/#replay`, ...) to their new pages
-(`src/site.ts`). The promo video and social card live in `public/media/`; the
-video's source and renderer are not part of this package. The v6 reliability fields
-(`malformed_rate`, `unrecoverable_rate`, `within_seed_score_stddev`,
-`per_seed_scores`, `route`) are optional on every leaderboard row: rows that
-predate them render "not reported" rather than a zero.
+Filters are stored in `localStorage` and apply on every tab. `src/v2.ts` turns
+the leaderboard record into the rows every page shows. Styles are
+`src/app.css` (the app) plus `src/legacy.css`, scoped under `.legacy`, for the
+components carried over from the earlier site (play-along deck, replay
+verifier). The social card lives in `public/media/`.
 
 ## Develop
 
@@ -103,8 +103,7 @@ model, and harness, never by score, and carry no 1.0 row's score. Each row
 carries its artifact's `reference` block, the spec's one supported inference:
 pick-trader on the row's own seeds and seasons (pick-trader and random means,
 paired lift with its 95% interval, sign-flip p, seed win rate). The 2.0
-section and its jump link on the results page render nothing while the list
-is empty, and
+pages show an empty table while the list is empty, and
 `scripts/validate_results_data.ts` fails the build if a 2.0 row is not panel
 grade, is off the frozen panel, is same-user, lacks the pinning flag, lacks a
 reference or carries one that is not pick-trader on exactly the row's (and the

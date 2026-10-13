@@ -1,7 +1,7 @@
 # GM-Bench 2.0: a model in its own harness (DRAFT, not published)
 
-> **Draft.** Updated 2026-10-02 for the owner to review before final
-> publication. Four panel rows are public under `results/agentic/`; a 2.0
+> **Draft.** Updated 2026-10-13 for the owner to review before final
+> publication. Six panel rows are public under `results/agentic/`; a 2.0
 > tag and GitHub release have not been cut. Numbers and cost disclosures
 > below reflect the committed artifacts, including the merged release fixes.
 
@@ -15,7 +15,7 @@ are the ones 1.0 used.
 
 ## What ran
 
-Four rows on the frozen 32-seed private panel, five seasons, each harness in
+Six rows on the frozen 32-seed private panel, five seasons, each harness in
 a firewalled Docker container:
 
 | row | mean | vs `pick-trader` (95% interval) |
@@ -24,9 +24,11 @@ a firewalled Docker container:
 | Claude Code 2.1.281 · `claude-sonnet-5` | 227.4 | −21.8 (−47.2 to +3.5) |
 | Claude Code 2.1.281 · `claude-haiku-4-5` | 130.1 | −119.1 (−132.8 to −104.5) |
 | Cursor 2026.09.26-dd393fe · `composer-2.5` | 230.6 | −18.6 (−35.6 to −1.4) |
+| OpenCode 1.18.31 · `opencode-go/deepseek-v4.1-flash` | 247.1 | −2.0 (−22.4 to +18.0) |
+| Codex 0.162.1 · `gpt-6.1-sol` | 273.2 | +24.0 (+1.6 to +45.8) |
 
 `pick-trader`, the scripted reference policy, averages 249.2 on these seeds.
-All four rows closed all 640 phases themselves. All four are flagged
+All six rows closed all 640 phases themselves. All six are flagged
 `unpinned`: the served model version is not pinned, so they may not be
 reproducible. Under the frozen eligibility rule they are extra data points,
 not headline results.
@@ -44,13 +46,31 @@ supports no comparison between them: 2.0 ranks nothing.
 Cursor is also below the scripted bar, with a smaller margin: its paired
 lift is −18.6, the interval excludes zero, and the sign-flip p-value is
 0.0469, so the evidence is marginal. It beats `pick-trader` on 12 of 32 seeds. Its realized minimum
-detectable difference is about 25 points. These are separate contrasts
-against the scripted reference, not tests between model or harness rows.
+detectable difference is about 25 points.
+
+DeepSeek V4.1 Flash on OpenCode lands closest to the scripted bar: a
+paired lift of −2.0 with an interval from −22.4 to +18.0 (p = 0.84), ahead
+of `pick-trader` on 15 of 32 seeds. With a realized minimum detectable
+difference of about 29 points, that is "cannot tell", not "on par".
+
+`gpt-6.1-sol` on Codex 0.162.1 is the first 2.0 row whose interval lies
+above `pick-trader`: a paired lift of +24.0, 95% interval +1.6 to +45.8,
+sign-flip p 0.046, ahead on 23 of 32 seeds. The evidence is marginal in
+the same way as Cursor's, in the other direction: the lower bound is 1.6
+points, the lift is below the row's realized minimum detectable difference
+of about 32, and the row is one unpinned run on one panel. Each row's
+p-value is its own, not adjusted for the six rows; under a Holm correction
+across them neither this 0.046 nor Cursor's 0.047 would be significant.
+The agent made
+36 `draft` calls across the 160 draft phases and 518 `trade` calls. These
+are separate contrasts against the scripted reference, not tests between
+model or harness rows.
 
 ## Cost disclosures
 
-All four panel rows have `summary.usage.cost_usd: null` and zero decisions
-with measured cost. Subscription quota use is not a per-token bill.
+Five panel rows have `summary.usage.cost_usd: null` and zero decisions
+with measured cost. The OpenCode row carries OpenCode's own cost figure.
+Subscription quota use is not a per-token bill.
 
 | row | API-equivalent estimate for the whole 32-episode panel |
 |---|---|
@@ -58,10 +78,12 @@ with measured cost. Subscription quota use is not a per-token bill.
 | Claude Code · `claude-sonnet-5` | $157.38 at API list prices |
 | Claude Code · `claude-haiku-4-5` | $27.71 at API list prices, corrected from $25.14 |
 | Cursor · `composer-2.5` | Unmeasured; no harness-reported cost or model list price |
+| OpenCode · `deepseek-v4.1-flash` | $3.69 as OpenCode reports it, on an OpenCode Go subscription; no API-equivalent estimate |
+| Codex · `gpt-6.1-sol` | $17.38, a lower bound at short-context list prices |
 
 These estimates come from recorded token usage and the repository's dated
 price entries; they do not measure the subscription's bill or establish
-cost-efficiency comparisons. Codex's artifact flags possible long-context
+cost-efficiency comparisons. Both Codex artifacts flag possible long-context
 requests, whose higher rates the estimate cannot reconstruct. The Haiku
 correction landed in #169: retained events identify 1-hour cache writes
 that had been priced at the 5-minute rate. The artifact preserves the old
@@ -78,7 +100,11 @@ in the [operator guide](../agentic_lane.md#publishing-a-row).
   `docs/bench_v2_spec.md`.
 - **Harness defaults.** Every row ran at the harness's default reasoning
   effort. Claude Code runs without web tools and loads each game tool's schema
-  through ToolSearch; Codex and Cursor keep their built-in tools. Cursor's
+  through ToolSearch; Codex and Cursor keep their built-in tools. The
+  `gpt-6-luna` row ran with the ChatGPT account's connected apps and
+  installed plugins available to the agent and recorded no call to them;
+  the `gpt-6.1-sol` row ran with them turned off, on Codex 0.162.1 rather
+  than 0.156.1, so the two Codex rows do not share a harness setup. Cursor's
   servers add seven default User Rules; the prompt audit found only those
   on every panel episode. Cursor's reasoning effort and compactions are
   unmeasured. The container can reach the public internet. The committed

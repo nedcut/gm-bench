@@ -71,11 +71,7 @@ button {
 .brand-mark {
   width: 38px;
   height: 38px;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  background: #eef4df;
-  color: var(--rail);
+  flex: none;
 }
 
 svg {
@@ -88,9 +84,10 @@ svg {
   stroke-linejoin: round;
 }
 
-.brand-mark svg {
-  width: 25px;
-  height: 25px;
+.brand-mark img {
+  display: block;
+  width: 38px;
+  height: 38px;
 }
 
 .side-rail nav {

@@ -7,7 +7,8 @@ correction becomes a new contract version rather than an edit to an old one.
 ## Unreleased — GM-Bench 2.0
 
 Work began 2026-09-20; the contract froze 2026-09-25; three panel-grade rows
-were published 2026-09-27 and a fourth 2026-09-28. Not yet tagged. Nothing in GM-Bench 1.0 changes.
+were published 2026-09-27, a fourth 2026-09-28, a fifth 2026-10-12 (its
+panel ran 2026-09-28 to 09-29) and a sixth 2026-10-13. Not yet tagged. Nothing in GM-Bench 1.0 changes.
 
 Summary:
 
@@ -20,8 +21,10 @@ Summary:
   operated with `docs/agentic_lane.md`. The fingerprint covers
   `gm_bench/agentic/{tools,brief,episode,mcp_server}.py` and has not moved
   since the freeze.
-- **Harnesses.** OpenCode 1.18.31, Codex CLI 0.156.1, Claude Code 2.1.281
-  and the Cursor CLI 2026.09.26-dd393fe, each from a pinned Docker image.
+- **Harnesses.** The committed rows ran on OpenCode 1.18.31, Codex CLI
+  0.156.1 and 0.162.1, Claude Code 2.1.281 and the Cursor CLI
+  2026.09.26-dd393fe, each from a pinned Docker image. The images now pin
+  OpenCode 2.0.27 and Codex CLI 0.162.1.
   Every committed row ran at the harness's default reasoning effort (no
   `--variant`). Claude Code runs without web tools and with its GM-Bench
   tools deferred behind ToolSearch; OpenCode, Codex and Cursor keep their
@@ -47,10 +50,19 @@ Summary:
     (−35.6 to −1.4, p = 0.047), significant; ahead of `pick-trader` on 12
     of 32 seeds. No cost figure: Cursor reports none and `composer-2.5`
     has no list price.
+  - OpenCode 1.18.31 · `opencode-go/deepseek-v4.1-flash`: mean 247.1, lift
+    −2.0 (−22.4 to +18.0, p = 0.84), not significant; ahead of
+    `pick-trader` on 15 of 32 seeds. OpenCode reports $3.69 for the panel.
+  - Codex 0.162.1 · `gpt-6.1-sol`: mean 273.2, lift +24.0 (+1.6 to +45.8,
+    p = 0.046), significant; ahead of `pick-trader` on 23 of 32 seeds. The
+    first 2.0 row whose interval lies above zero. No measured cost.
 
   The realized paired-lift SDs (62.5 and 73.4) put the panel's minimum
   detectable difference against `pick-trader` at about 31 to 36 points, so
-  the two −21.8 lifts mean "cannot tell", not "on par".
+  the two −21.8 lifts mean "cannot tell", not "on par". The `gpt-6.1-sol`
+  lift (+24.0, lift SD 64.0, MDD about 32) is significant but smaller than
+  that row's own MDD, and the interval's lower bound is +1.6: one unpinned
+  row on one panel, resolved with little margin.
 - **Smoke rows and noise probes** (public seeds, not on the site): an 8-seed
   OpenCode row on `opencode/space-bunny-free`, one five-season episode each
   on Codex and Claude Code, and a 4 seeds × 2 runs repeat-noise probe on
@@ -59,8 +71,11 @@ Summary:
   driver fixes and driver provenance (every row records the driver commit
   that played it; the Codex and `claude-sonnet-5` panels ran at `4d742cc`,
   `claude-haiku-4-5` at `21b71dc`, which differs only in Claude Code
-  tool-call counting, and `composer-2.5` at `b3d7de7`, the first commit
-  with the Cursor container driver); a validation rule that publishes a
+  tool-call counting, `composer-2.5` at `b3d7de7`, the first commit
+  with the Cursor container driver, `deepseek-v4.1-flash` at `07de4b2`,
+  the first with OpenCode Go keys, and `gpt-6.1-sol` at `1411e2e`, the
+  first with Codex 0.162.1 and without the account's apps and plugins); a
+  validation rule that publishes a
   tool-call recount when it resolves a recorded mismatch (one
   `claude-sonnet-5` episode); and
   a post-hoc audit rule, adopted 2026-09-27 after the Haiku panel had run,
@@ -78,6 +93,148 @@ Summary:
 The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
+
+- Sixth panel-grade 2.0 row (2026-10-13): Codex 0.162.1 on `gpt-6.1-sol`,
+  the frozen 32-seed private panel at five seasons, container isolation,
+  played 2026-10-13 from clean `main` at `1411e2e` (#192; driver digest
+  `23e83ff80184fec8`)
+  (`results/agentic/codex-0.162.1-gpt-6.1-sol-panel-32x5.json`). Mean
+  273.2 (SD 49.4, seed means 181.6 to 374.0), 640/640 phases closed by the
+  agent, 0 failed decisions, 81 penalized illegal moves, 0 nudges, 0 empty
+  phases, no guard stops, 9 provider stalls (780 s of backoff), 170.1 tool
+  calls and 8.5 min per episode, ledger = harness on 32/32 episodes. The
+  agent made 36 `draft` calls in 160 draft phases and 518 `trade` calls.
+  Against `pick-trader` the paired lift is +24.0, 95% interval +1.6 to
+  +45.8, sign-flip p 0.046, ahead on 23 of 32 seeds, with a realized MDD of
+  about 32: significant, with little margin. It is the first 2.0 row whose
+  interval clears `pick-trader`. Codex reports no cost; the API-equivalent
+  estimate is $17.38 for the panel ($0.54 per episode), a lower bound
+  because long-context requests are possible. The run used a ChatGPT
+  `prolite` plan (at most 7% of the weekly window, no quota pauses), with
+  the account's apps, plugins and connectors turned off (#192). Reasoning
+  effort is the harness default (Codex reports none). The model is
+  unpinned.
+
+- OpenCode 2.x: GM-Bench tools in the first model request, and no Code
+  Mode `execute` (2026-10-13, #193, driver only; the agentic fingerprint stays
+  `07de948a4f4afbae`). The deepseek-v4.1-flash panel played on OpenCode
+  2.0.27 showed nearly every episode opening with the agent probing
+  `execute`, the shell and the scratch files for its tools (148 `execute`
+  calls, each answered "Unknown tool"; 3 shell, 6 read and 2 write calls)
+  before finding the GM-Bench tools on its second step. `run --standalone`
+  sends the prompt before its server has connected the MCP servers, and
+  2.0.27's `MCP.tools` lists only connected servers (2.0.28 is the same).
+  Each `opencode run` now goes through a staged standard-library launcher
+  (`gm_bench/agentic/_opencode_launch.py`, a new driver file) that starts
+  `opencode serve` on loopback with its own password, waits until no MCP
+  server is pending, and runs `run --server`. `opencode.json` also denies
+  the `execute` permission: `codemode: false` already kept the GM-Bench
+  tools out of Code Mode, but OpenCode still offered `execute` for its own
+  built-in tools. That 2.0.27 panel is not published; it is re-run on the
+  fixed driver. The committed 1.18.31 deepseek row is not affected by the
+  launcher (it is 2.x only).
+
+- Claude Code: no claude.ai connectors (2026-10-13, #192, driver only; the
+  agentic fingerprint stays `07de948a4f4afbae`). An audit of Claude Code
+  2.1.281 in its container image with the real `setup-token` token found
+  nothing account-specific reaching the agent, but found that
+  `--strict-mcp-config` does not stop the fetch of the account's claude.ai
+  connectors; only the token's `user:inference` scope did. The driver now
+  sets `ENABLE_CLAUDEAI_MCP_SERVERS=false` in the harness environment and
+  in the image's `gmb-claude` launcher (the Claude image's Dockerfile hash
+  moves from `1781dcc2b7da`, which played the committed Claude rows, to
+  `f0e72cbaea92`). No committed Claude row recorded a tool outside the
+  allowed built-ins and GM-Bench.
+
+- Codex: no ChatGPT account plugins, apps or connectors (2026-10-13,
+  #192, driver only; the agentic fingerprint stays `07de948a4f4afbae`). A Codex
+  container smoke logged a failed connection to `mcp.neon.tech`, and a
+  capture against the real account explained it. With a ChatGPT login,
+  Codex 0.156.1 and 0.162.1 sync the account's installed plugins into the
+  harness home and start their MCP servers (24 plugins; `neon`,
+  `codex-security`, `creative-production`, `xcodebuildmcp`). The hosted
+  `codex_apps` server also exposes the account's connected ChatGPT apps:
+  668 tools including Gmail, GitHub, Google Drive and Neon. In code mode
+  those tools are deferred, out of the prompt text but callable from
+  `exec` and listed in `ALL_TOOLS`, so neither the 2026-09-27 account
+  capture nor the prompt check saw them. The driver now passes `-c
+  features.apps=false -c features.plugins=false -c
+  features.remote_plugin=false` on every invocation and records them as
+  `harness_run.disabled_features` (published in the compact artifact).
+  The first prompt loses only the generic `<recommended_plugins>` list and
+  the `request_plugin_install` tool. New `scripts/audit_codex_tools.py`
+  audits the agent's whole tool set against the real account at no quota
+  cost, and is required before a Codex panel: PASS on 0.162.1 and 0.156.1
+  with the flags, FAIL without them. The committed `gpt-6-luna` rows ran
+  with the account's apps and plugins available and recorded no
+  non-GM-Bench tool call; their artifacts are unchanged. Also corrected:
+  in code mode Codex defers the GM-Bench tool schemas too, so they are not
+  in the first prompt. See "Account plugins and apps" in
+  `docs/agentic_lane.md`.
+
+- Codex CLI 0.162.1 (2026-10-12, #192, driver only; the agentic fingerprint
+  stays `07de948a4f4afbae`). The Codex container image now pins 0.162.1
+  (was 0.156.1): the ChatGPT backend refused `gpt-6.1-sol` to 0.156.1 with
+  a 400 "not supported when using Codex with a ChatGPT account". Every
+  claim in the driver's docstring was re-verified against the
+  `rust-v0.162.1` source and binary. The `exec --json` stream is
+  byte-identical in source; rollout `token_count` and `turn_context`
+  records still persist; the usage-limit text now links
+  `chatgpt.com/settings/usage`; no driver logic changed. `gpt-6.1-sol` is
+  priced in `pricing.json` ($2 input, $0.10 cached, $2.50 cache write,
+  $10 output, 272K long-context tier; verified 2026-10-12). The committed
+  Codex rows were played on 0.156.1 and keep validating at the driver
+  commit they record. See "Codex 0.162.1" in `docs/agentic_lane.md`.
+
+- Fifth panel-grade 2.0 row (2026-10-12; the panel ran 2026-09-28 to
+  09-29): OpenCode 1.18.31 on `opencode-go/deepseek-v4.1-flash`, the
+  frozen 32-seed private panel at five seasons, container isolation,
+  played from clean `main` at `07de4b2` (#172)
+  (`results/agentic/opencode-1.18.31-deepseek-v4.1-flash-panel-32x5.json`).
+  Mean 247.1 (SD 50.3), 640/640 phases closed by the agent, 0 failed
+  decisions, 35 penalized illegal moves, 2 nudges, no provider stalls or
+  guard stops, 156.3 tool calls and 12.3 min per episode, 56/640 empty
+  phases. Against `pick-trader` the paired lift is −2.0, 95% interval
+  −22.4 to +18.0, sign-flip p 0.84, with a realized MDD of about 29:
+  "cannot tell". OpenCode's own cost figure is $3.69 for the panel; the
+  run used an OpenCode Go subscription, which counts usage against the
+  plan's limits rather than billing per token. Reasoning effort is the
+  harness default (OpenCode reports none). The model is unpinned.
+
+- Container isolation on a native Linux Docker Engine (2026-10-12, #191,
+  driver only; the agentic fingerprint stays `07de948a4f4afbae`). The container
+  driver assumed Docker Desktop, where `host.docker.internal` reaches the
+  host loopback; a native engine (Linux, or WSL 2 without Docker Desktop)
+  resolves no such name and cannot reach the host loopback, so the proxy
+  could never dial the driver. On a Linux host whose engine is not Docker
+  Desktop, the driver now listens on the default bridge's gateway, maps
+  `host.docker.internal` to it with `--add-host`, binds the egress canary
+  there too, and records the address as `harness.container.host_gateway`.
+  Docker Desktop runs are unchanged. Off macOS, the private-panel launcher
+  reads a private copy of the Keychain record from
+  `~/.config/gm-bench/<service>.escrow` and checks it against the same
+  committed digests.
+
+- OpenCode 2.x (2026-10-12, #190, driver only; the agentic fingerprint stays
+  `07de948a4f4afbae`). The OpenCode driver now runs OpenCode 2.x only, and
+  the container image pins 2.0.27. OpenCode 2 rejects `--pure`, `--dir` and
+  `--variant` (it prints help and launches nothing), so on 2.x the old
+  driver ran no harness at all. The driver now runs `opencode run
+  --standalone` (a private server per invocation, never 2.x's shared
+  background service), with the variant as `--model provider/model#variant`
+  and the workspace set through `PWD`, which 2.x reads before the working
+  directory. Error detection reads 2.x's typed errors as well as 1.18's: a
+  spent free or Go allowance (`provider.quota`) now stops the episode with
+  the reset unknown, because 2.x drops the `retry-after` header. 2.x's JSON
+  stream omits the last model step of every invocation, so token counts now
+  come from `opencode session export`, labelled `usage.harness.token_source`.
+  A staged `auth.json` is never read by 2.x, so the Go key is staged with
+  `opencode auth import`. OpenCode 2.x is not on npm; the image installs
+  the release tarball by pinned SHA-256. The prompt check passes on 2.0.27
+  with the private home, and without it finds 21 lines of the operator's
+  `AGENTS.md` and 16 skills, so the private home is still needed. Rows played
+  on 1.18.31 keep validating at the driver commit they record. No committed
+  row is affected.
 
 - Cursor "out of usage" (2026-09-29, driver only; the agentic fingerprint
   stays `07de948a4f4afbae`). When the grok-4.7 panel spent the Cursor plan
