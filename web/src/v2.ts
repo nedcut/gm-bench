@@ -114,10 +114,18 @@ const ROW_CAVEATS: Record<string, string> = {
   "agentic:claude-2.1.281:claude-sonnet-5":
     "One episode's tool-call count is a recount: the run recorded 165 of 166 because the event parser " +
     "counted a call to a tool name that does not exist; after the parser fix the count is 165 of 165.",
+  "agentic:codex-0.156.1:gpt-6-luna":
+    "Ran with the ChatGPT account's connected apps and plugins available: Codex exposed about 668 extra " +
+    "tools (Gmail, GitHub, Google Drive and others). The row records no tool call other than GM-Bench calls. " +
+    "Codex runs since 2026-10-13 turn these off.",
   "agentic:cursor-2026.09.26-dd393fe:composer-2.5":
     "Cursor's servers add seven default User Rules of their own to every prompt; they are part of the " +
     "harness. Cursor reports no cost and composer-2.5 has no per-token list price, so cost is unmeasured. " +
     "Played on driver commit b3d7de7, the first with Cursor's container driver.",
+  "agentic:opencode-1.18.31:opencode-go/deepseek-v4.1-flash":
+    "Run on an OpenCode Go subscription. The cost shown is OpenCode's own figure; Go counts usage against " +
+    "the plan's limits rather than billing per token, and there is no API-equivalent estimate. Played on " +
+    "driver commit 07de4b2, the first with OpenCode Go keys.",
 };
 
 function modelRow(row: AgenticLaneRow): ModelRow {
@@ -129,8 +137,8 @@ function modelRow(row: AgenticLaneRow): ModelRow {
   return {
     kind: "model",
     id: row.id,
-    label: row.model,
-    model: row.model,
+    label: row.model.split("/").at(-1) ?? row.model,
+    model: row.model.split("/").at(-1) ?? row.model,
     harness: HARNESSES[row.harness.name] ?? row.harness.name,
     harnessKey: row.harness.name,
     harnessVersion: row.harness.version + (row.harness.variant ? ` (${row.harness.variant})` : ""),

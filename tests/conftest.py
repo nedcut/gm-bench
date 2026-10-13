@@ -17,6 +17,20 @@ def isolate_baseline_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
 
 
 @pytest.fixture(autouse=True)
+def no_real_opencode_session_export(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the OpenCode driver from launching a real ``opencode session export`` after a fake episode.
+
+    The driver reads token counts back from OpenCode's session store when an
+    episode ends; tests that fake the harness have no store, and the binary on
+    the machine running the suite must not be what they exercise. A test of
+    the export path patches ``export_session`` itself.
+    """
+    monkeypatch.setattr(
+        "gm_bench.agentic.opencode.export_session", lambda launch, session_id: (None, "not exported in tests")
+    )
+
+
+@pytest.fixture(autouse=True)
 def block_real_provider_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stop the test suite from ever authenticating against a paid provider.
 

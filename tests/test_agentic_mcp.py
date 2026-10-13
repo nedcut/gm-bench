@@ -785,7 +785,7 @@ def test_container_launch_mounts_only_the_scratch_and_keeps_the_secret_off_the_c
         assert secret_file.read_text().strip() == launch.server.secret
         assert secret_file.stat().st_mode & 0o077 == 0
         assert sorted(p.name for p in launch.scratch.iterdir()) == sorted(
-            ["opencode.json", "gm_bench_proxy.py", _proxy.SECRET_FILENAME]
+            ["opencode.json", "gm_bench_proxy.py", "gm_bench_opencode_launch.py", _proxy.SECRET_FILENAME]
         )
 
         argv, on_kill = launch.command(["run", "--dir", WORKDIR, "--model", "m", "brief"])
@@ -809,6 +809,8 @@ def test_container_launch_mounts_only_the_scratch_and_keeps_the_secret_off_the_c
         assert argv[argv.index(image["image_id"]) + 1 :] == [
             EGRESS_ENTRYPOINT,
             str(port),
+            "python3",
+            f"{WORKDIR}/gm_bench_opencode_launch.py",
             "opencode",
             "run",
             "--dir",
@@ -859,13 +861,29 @@ def test_container_launch_refuses_to_start_when_the_egress_probe_fails(
 
 
 def test_egress_script_is_valid_sh_and_baked_into_the_image() -> None:
-    from gm_bench.agentic.container import EGRESS_ENTRYPOINT, EGRESS_SCRIPT, dockerfile
+    from gm_bench.agentic.container import EGRESS_ENTRYPOINT, EGRESS_SCRIPT, OPENCODE_IMAGE, image_dockerfile
 
     checked = subprocess.run(["sh", "-n"], input=EGRESS_SCRIPT, capture_output=True, text=True, check=False)
     assert checked.returncode == 0, checked.stderr
-    text = dockerfile()
+    text = image_dockerfile(OPENCODE_IMAGE)
     assert EGRESS_SCRIPT in text and EGRESS_ENTRYPOINT in text
     assert text.index(EGRESS_ENTRYPOINT) < text.index("USER node")
+
+
+def test_opencode_image_installs_the_pinned_2x_tarball_not_npm() -> None:
+    from gm_bench.agentic.container import OPENCODE_IMAGE, OPENCODE_TARBALLS, image_dockerfile
+
+    text = image_dockerfile(OPENCODE_IMAGE)
+    # OpenCode 2.x is not on npm; the image fetches the pinned binary and checks it first.
+    assert "npm install" not in text
+    for debian, (arch, digest) in OPENCODE_TARBALLS.items():
+        assert f"{debian}) arch={arch} sum={digest} ;;" in text
+    assert '"https://opencode.ai/files/bin/2.0.27/opencode-linux-$arch.tar.gz"' in text
+    install = text[text.index("RUN set -eu") : text.index("COPY")]
+    checked = subprocess.run(["sh", "-n"], input=install.removeprefix("RUN "), capture_output=True, text=True)
+    assert checked.returncode == 0, checked.stderr
+    assert install.index("sha256sum -c -") < install.index("tar --no-same-owner")
+    assert text.index("/usr/local/bin opencode") < text.index("USER node")
 
 
 def test_docker_timeouts_become_container_errors_and_cleanup_still_finishes(
@@ -952,7 +970,8 @@ def _fake_docker_with_a_running_harness(tmp_path: Path) -> tuple[Path, Path, Pat
         "elif args[:2] == ['image', 'inspect']:\n"
         "    print('sha256:' + 'a' * 64)\n"
         "elif args[:1] == ['run'] and args[-1:] == ['--version']:\n"
-        f"    print({CONTAINER_OPENCODE_VERSION!r})\n"
+        # OpenCode 2.x's own wording.
+        f"    print('opencode v' + {CONTAINER_OPENCODE_VERSION!r})\n"
         "elif 'import gm_bench' in args:\n"
         "    sys.stderr.write(\"ModuleNotFoundError: No module named 'gm_bench'\\n\")\n"
         "    sys.exit(1)\n"

@@ -94,7 +94,7 @@ function ModelDetails({ row }: { row: ModelRow }) {
       <div className="detail-title">
         <span className={`dot vendor-${row.vendor.key}`} aria-hidden="true" />
         <div>
-          <h2>{row.model}</h2>
+          <h2>{row.source.model}</h2>
           <p>
             {row.harness} {row.harnessVersion} · {row.vendor.name}
           </p>

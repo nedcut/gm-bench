@@ -18,7 +18,7 @@ test("standings lists every 2.0 row by score with pick-trader, and nothing from 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Can an LLM run a hockey team?");
   await expect(page.locator(".intro-answer")).toHaveText("Not yet. No model beats pick-trader.");
   const names = await page.locator(".standings tbody .name").allTextContents();
-  for (const row of rows) expect(names).toContain(row.model);
+  for (const row of rows) expect(names).toContain(row.model.split("/").at(-1));
   expect(names).toContain("pick-trader");
   expect(names).not.toContain("gemini-3.7-flash");
   const scores = (await page.locator(".standings tbody .score").allTextContents()).map(Number);

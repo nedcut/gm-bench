@@ -158,8 +158,22 @@ at 0.3.276 (Claude Code 2.1.276), which types the stream-json messages:
   ``config_dir_findings``.
   ``CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`` stops the auto-updater (a
   harness that upgrades itself mid-panel would change the row identity),
-  telemetry and error reporting. Machine-wide managed settings, if an
-  administrator installed any, still apply; nothing can turn them off.
+  telemetry and error reporting. ``ENABLE_CLAUDEAI_MCP_SERVERS=false``
+  stops Claude Code from fetching the account's claude.ai connectors (remote
+  MCP servers such as Gmail or Google Drive). ``--strict-mcp-config`` does
+  not stop that fetch: on 2.1.281 it is skipped only by this variable, the
+  ``disableClaudeAiConnectors`` setting, or a token without the
+  ``user:mcp_servers`` scope. A ``claude setup-token`` token has only
+  ``user:inference``, so no committed row loaded a connector (checked
+  2026-10-13 with the real token in the container: the log says ``Missing
+  user:mcp_servers scope``, and with the scope claimed Anthropic's server
+  refused ``/v1/mcp_servers`` with 403), but a broader credential would
+  load them. With the variable set the log says ``Disabled via env var``
+  and no ``/v1/mcp_servers`` request is made. Machine-wide managed
+  settings, if an administrator installed any, and the account's remote
+  managed settings (``/api/claude_code/settings``, a 404 for this account
+  on 2026-10-13; an organization's would apply) still apply; nothing can
+  turn them off.
 - **Visible tools.** ``--tools Bash,Read,Edit,Write,Glob,Grep,NotebookEdit,ToolSearch``
   limits the built-in tools the model is shown, so it is never offered web, subagent,
   workflow or scheduling tools that the permission mode would then deny. MCP tools are
@@ -256,8 +270,9 @@ ALLOWED_TOOLS = (f"{_MCP_PREFIX}{MCP_SERVER_NAME}", *CODE_TOOLS)
 VISIBLE_TOOLS = (*CODE_TOOLS, "ToolSearch")
 # Only the private CLAUDE_CONFIG_DIR's settings; never the scratch's .claude/ (project, local).
 SETTING_SOURCES = "user"
-# Set in the harness environment: no auto-update mid-panel, no telemetry or error reports.
-HARNESS_ENV = {"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"}
+# Set in the harness environment: no auto-update mid-panel, no telemetry or error reports, and
+# no claude.ai connectors (the account's Gmail, Drive, ... MCP servers; --strict-mcp-config does not stop that fetch).
+HARNESS_ENV = {"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "ENABLE_CLAUDEAI_MCP_SERVERS": "false"}
 # From this version a resumed session's result carries the session's whole total.
 RESUME_RESTORES_TOTALS = (2, 1, 277)
 # What Claude Code loads from CLAUDE_CONFIG_DIR as configuration or instructions. Same-user: removed

@@ -915,6 +915,14 @@ main:focus {
   .v1-table .col-bar {
     display: none;
   }
+
+  .standings .row-name .name {
+    max-width: 96px;
+  }
+
+  .col-bar {
+    min-width: 32px;
+  }
 }
 
 .footer span a {
