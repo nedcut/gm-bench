@@ -118,9 +118,9 @@ def _escrow_file_text(service: str) -> str:
     path = escrow_file(service)
     try:
         directory = path.parent.lstat()
-        # O_NOFOLLOW refuses a link; the checks and the read then use this one open file,
+        # O_NOFOLLOW refuses a link and O_NONBLOCK a FIFO without a writer; the checks and the read then use this one open file,
         # so a file swapped in after the check is never read.
-        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0))
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | getattr(os, "O_CLOEXEC", 0))
     except FileNotFoundError:
         raise ValueError(
             f"no Keychain on this host and no escrow copy at {path}; on the Mac run "
