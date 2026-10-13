@@ -99,6 +99,7 @@ def _install_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, v5_sha:
     monkeypatch.delenv(PRIVATE_SEEDS_ENV, raising=False)
     monkeypatch.setattr(launcher, "ROOT", root)
     monkeypatch.setattr(launcher.subprocess, "run", fake_run)
+    monkeypatch.setattr(launcher, "MACOS", True)
     monkeypatch.setattr(launcher, "dirty_played_files", lambda: [])
     return seeds_text, commands
 
@@ -110,6 +111,65 @@ def test_launcher_reads_the_named_escrow_and_verifies_every_digest(
 
     assert launcher.verified_seed_text(launcher._lane(), launcher._shared_lane()) == expected
     assert commands == [["security", "find-generic-password", "-s", SERVICE, "-a", launcher.KEYCHAIN_ACCOUNT, "-w"]]
+
+
+def _install_escrow_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[str, Path]:
+    expected, commands = _install_fixture(tmp_path, monkeypatch)
+    record = bytes.fromhex(launcher.subprocess.run([]).stdout.strip())
+    commands.clear()
+    escrow_dir = tmp_path / "escrow"
+    escrow_dir.mkdir(mode=0o700)
+    path = escrow_dir / f"{SERVICE}.escrow"
+    path.write_text(record.hex() + "\n")
+    path.chmod(0o600)
+    monkeypatch.setattr(launcher, "MACOS", False)
+    monkeypatch.setattr(launcher, "ESCROW_DIR", escrow_dir)
+    return expected, path
+
+
+def test_launcher_off_macos_reads_a_private_copy_of_the_keychain_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    expected, path = _install_escrow_file(tmp_path, monkeypatch)
+
+    assert launcher.escrow_file(SERVICE) == path
+    assert launcher.verified_seed_text(launcher._lane(), launcher._shared_lane()) == expected
+
+
+def test_launcher_off_macos_refuses_a_missing_or_shared_escrow_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _expected, path = _install_escrow_file(tmp_path, monkeypatch)
+    lane, shared = launcher._lane(), launcher._shared_lane()
+
+    path.chmod(0o640)
+    with pytest.raises(ValueError, match="no group or other access"):
+        launcher.verified_seed_text(lane, shared)
+    path.chmod(0o600)
+    path.parent.chmod(0o755)
+    with pytest.raises(ValueError, match="no group or other access"):
+        launcher.verified_seed_text(lane, shared)
+    path.parent.chmod(0o700)
+    link = path.with_name("target")
+    path.rename(link)
+    path.symlink_to(link)
+    with pytest.raises(ValueError, match="regular file"):
+        launcher.verified_seed_text(lane, shared)
+    path.unlink()
+    with pytest.raises(ValueError, match="no escrow copy"):
+        launcher.verified_seed_text(lane, shared)
+
+
+def test_launcher_off_macos_still_checks_the_copy_against_the_commitment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _expected, path = _install_escrow_file(tmp_path, monkeypatch)
+    record = json.loads(bytes.fromhex(path.read_text().strip()))
+    record["salt"] = "0" * len(record["salt"])
+    path.write_text(json.dumps(record))
+
+    with pytest.raises(ValueError, match="hiding commitment"):
+        launcher.verified_seed_text(launcher._lane(), launcher._shared_lane())
 
 
 @pytest.mark.parametrize(

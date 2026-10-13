@@ -66,6 +66,7 @@ from gm_bench.agentic.container import (
     ContainerHarness,
     container_egress_problems,
     container_sandbox_problems,
+    driver_listen_host,
     ensure_image,
 )
 from gm_bench.agentic.contract import agentic_contract
@@ -343,7 +344,7 @@ class HarnessLaunch:
             if isolation == "container":
                 assert image is not None
                 self._secret = secrets.token_urlsafe(32)
-                self.server = SocketMcpServer(episode, ("127.0.0.1", 0), secret=self._secret)
+                self.server = SocketMcpServer(episode, (driver_listen_host(image), 0), secret=self._secret)
                 self.server.start()
                 self.container = ContainerHarness(
                     image, self.scratch, driver_port=self.server.address[1], docker=docker, env=self.env
