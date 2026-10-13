@@ -383,6 +383,8 @@ export interface Leaderboard {
    * array above; optional so the archived sota-v2 dataset still types.
    */
   agentic_lane?: AgenticLaneRow[];
+  /** Scripted baselines on the frozen 2.0 panel (config/bench_v2_lane.json scripted_bot_scores). Context only. */
+  agentic_bots?: Array<{ agent: string; mean_score: number }>;
   excluded_models: Array<{ id: string | null; issues: string[] }>;
   publication: {
     status: string;

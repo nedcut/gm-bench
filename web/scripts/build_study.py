@@ -214,6 +214,30 @@ def _require_one_reference_per_season_count(rows: list[dict[str, Any]]) -> None:
             )
 
 
+def _agentic_bots(lane: dict[str, Any]) -> list[dict[str, Any]]:
+    """Scripted baselines on the frozen 2.0 panel, for display beside the panel rows.
+
+    Context only: rows are tested against pick-trader and nothing else. The
+    pick-trader and random means must equal ``reference_scores``, the values
+    every row's contrast is pinned to, so the table cannot show a bar that
+    differs from the one rows were measured against.
+    """
+    block = lane.get("scripted_bot_scores")
+    if not block:
+        return []
+    means = block["mean_scores"]
+    pins = (lane.get("reference_scores") or {}).get("mean_scores") or {}
+    if block.get("seasons") != (lane.get("reference_scores") or {}).get("seasons"):
+        raise ValueError("scripted_bot_scores and reference_scores cover different season counts")
+    for agent, pinned in pins.items():
+        if pinned is not None and means.get(agent) != pinned:
+            raise ValueError(
+                f"scripted_bot_scores.{agent} is {means.get(agent)!r} but reference_scores pins {pinned!r}"
+            )
+    bots = [{"agent": agent, "mean_score": float(score)} for agent, score in means.items()]
+    return sorted(bots, key=lambda bot: -bot["mean_score"])
+
+
 def _agentic_pinned_models(lane: dict[str, Any]) -> dict[str, str]:
     """Model id -> the served version or provider pin that makes a row on it reproducible."""
     pinning = lane.get("model_pinning") or {}
@@ -579,9 +603,10 @@ def build_study(
     agentic_source = agentic_dir or root / AGENTIC_ARTIFACTS_DIR.relative_to(ROOT)
     if not agentic_source.is_absolute():
         agentic_source = root / agentic_source
+    agentic_lane_config = _read(root / AGENTIC_LANE_CONFIG)
     agentic_lane = _agentic_lane_rows(
         agentic_source,
-        lane=_read(root / AGENTIC_LANE_CONFIG),
+        lane=agentic_lane_config,
         v1_rows=[*models, *(row for row in current_rows if row.get("lane") == "cli-harness"), *decision_lane_models],
     )
     v1_ids = headline_ids | {row["id"] for row in decision_lane_models}
@@ -607,6 +632,7 @@ def build_study(
         "cli_harness_models": [row for row in current_rows if row.get("lane") == "cli-harness"],
         "decision_lane_models": decision_lane_models,
         "agentic_lane": agentic_lane,
+        "agentic_bots": _agentic_bots(agentic_lane_config),
         "excluded_models": [],
         "publication": publication,
         "headroom": headroom,

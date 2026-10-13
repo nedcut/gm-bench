@@ -645,6 +645,15 @@ For any other season count nothing is pinned: validation warns that the
 reference is unpinned, and the site build and data check require every
 panel row at that season count to agree.
 
+The site also shows the other six scripted baselines from the 1.0 tables
+beside the panel rows, as context only: no row is tested against any of
+them. Their 5-season means on the same panel are recorded under
+`scripted_bot_scores` in `config/bench_v2_lane.json` (computed 2026-10-12 the
+same way, means only): strategic 242.899, shrewd 228.809, win-now 178.751,
+value 174.355, rebuild 124.26, conservative 123.925. That block repeats
+pick-trader and random, and the site build and data check reject it if
+those two differ from `reference_scores`.
+
 ## Running the harness in a container
 
 ```bash
