@@ -59,6 +59,24 @@ if (agenticIssues.length > 0) {
   throw new Error(`Agentic lane data is not publishable:\n  ${agenticIssues.join("\n  ")}`);
 }
 
+// Bots shown beside the 2.0 rows must be exactly the lane's recorded means, and
+// pick-trader and random must equal the pins every row's contrast uses.
+const botBlock = (benchV2Lane as { scripted_bot_scores?: { mean_scores: Record<string, number> } }).scripted_bot_scores;
+const shownBots = leaderboard.agentic_bots ?? [];
+if (botBlock) {
+  const expected = Object.entries(botBlock.mean_scores).sort(([, a], [, b]) => b - a);
+  if (JSON.stringify(shownBots.map((bot) => [bot.agent, bot.mean_score])) !== JSON.stringify(expected)) {
+    throw new Error("agentic_bots does not match config/bench_v2_lane.json scripted_bot_scores");
+  }
+  for (const [agent, pinned] of Object.entries(benchV2Lane.reference_scores.mean_scores)) {
+    if (pinned !== null && botBlock.mean_scores[agent] !== pinned) {
+      throw new Error(`scripted_bot_scores.${agent} differs from the reference_scores pin ${pinned}`);
+    }
+  }
+} else if (shownBots.length > 0) {
+  throw new Error("agentic_bots is published but the lane config records no scripted_bot_scores");
+}
+
 // The same rules must reject each way a 2.0 row could go wrong. The fixture is
 // synthetic and lives only in memory.
 const agenticFixture = {

@@ -1,4 +1,38 @@
 {
+  "agentic_bots": [
+    {
+      "agent": "pick-trader",
+      "mean_score": 249.18
+    },
+    {
+      "agent": "strategic",
+      "mean_score": 242.899
+    },
+    {
+      "agent": "shrewd",
+      "mean_score": 228.809
+    },
+    {
+      "agent": "win-now",
+      "mean_score": 178.751
+    },
+    {
+      "agent": "value",
+      "mean_score": 174.355
+    },
+    {
+      "agent": "rebuild",
+      "mean_score": 124.26
+    },
+    {
+      "agent": "conservative",
+      "mean_score": 123.925
+    },
+    {
+      "agent": "random",
+      "mean_score": 90.367
+    }
+  ],
   "agentic_lane": [
     {
       "agent": "claude:claude-haiku-4-5",
