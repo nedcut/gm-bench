@@ -35,7 +35,7 @@ export default function NextUp({ data }: { data: Leaderboard }) {
             inside a real agent harness, acting through an MCP tool server (a standard interface
             for giving a model tools), on the same simulator and a frozen 32-seed private panel.
             A result is tied to model, harness and harness version, and never mixed into a 1.0
-            table.
+            table. Unpinned model/harness results are exploratory and may not reproduce.
           </p>
           <ul className="harness-chips" aria-label="Supported harnesses">
             {HARNESSES.map((name) => (
@@ -63,7 +63,7 @@ export default function NextUp({ data }: { data: Leaderboard }) {
         </div>
         <div className="terminal" aria-hidden="true">
           <div className="terminal-bar">
-            <span>mcp · gm-bench tools</span>
+            <span>mcp · illustrative tool sequence</span>
             <span className="accent-red">season 1 / 5</span>
           </div>
           <ol>

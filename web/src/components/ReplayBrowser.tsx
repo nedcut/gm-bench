@@ -113,7 +113,7 @@ export default function ReplayBrowser({ puzzles }: { puzzles: PuzzleSet }) {
     summaries.length || new Set((fixture?.decisions ?? []).map((entry) => entry.season)).size;
 
   return (
-    <section className="section replay-section" id="replay" tabIndex={-1}>
+    <section className="section replay-section" id="original-replay" tabIndex={-1}>
       <div className="shell">
         <div className="section-head">
           <p className="kicker">Replays</p>
@@ -223,7 +223,7 @@ export default function ReplayBrowser({ puzzles }: { puzzles: PuzzleSet }) {
                       </dl>
                       {roster && (
                         <details className="replay-roster">
-                          <summary>Roster as the model saw it ({roster.rows.length})</summary>
+                          <summary>Recorded compact roster excerpt ({roster.rows.length})</summary>
                           <div className="replay-roster-scroll">
                             <table>
                               <thead>
