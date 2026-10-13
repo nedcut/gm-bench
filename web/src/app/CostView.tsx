@@ -7,7 +7,7 @@ type Scale = "log" | "linear";
 
 const LOG_TICKS = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30];
 /* Rough advance width of an 11.5px label character, for placing labels. */
-const CHAR = 6.4;
+const CHAR = 6;
 
 function useWidth<T extends Element>() {
   const ref = useRef<T>(null);
@@ -43,37 +43,50 @@ interface Box {
 const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.top < b.bottom && b.top < a.bottom;
 
 /* Labels beside their points: right of the dot when it fits, else left, else
-   nudged up or down, clear of other labels, other dots and `fixed` boxes
-   (the pick-trader line, its label, and the interval whiskers). */
+   nudged up or down, clear of other labels, other dots and `fixed` boxes.
+   Staying near its dot matters more than missing the `soft` boxes (the
+   pick-trader line and the interval whiskers): a label crosses them, halo and
+   all, before it drifts far. */
 function placeLabels(
   points: { x: number; y: number; width: number }[],
   lines: number,
   plot: { left: number; right: number; top: number; bottom: number },
   fixed: Box[],
+  soft: Box[],
 ) {
-  const height = lines * 15 + 2;
+  /* From cap height above the first baseline to just under the last. */
+  const box = (x0: number, width: number, baseline: number) => ({ x0, x1: x0 + width, top: baseline - 10, bottom: baseline + (lines - 1) * 15 + 3 });
   const taken: Box[] = [...fixed, ...points.map((p) => ({ x0: p.x - 8, x1: p.x + 8, top: p.y - 8, bottom: p.y + 8 }))];
   const out = new Array<{ x: number; y: number; anchorEnd: boolean }>(points.length);
   const order = points.map((p, i) => ({ ...p, i })).sort((a, b) => a.y - b.y);
   for (const point of order) {
     const base = point.y + 4 - (lines - 1) * 7.5;
     let best: { x: number; y: number; anchorEnd: boolean; box: Box } | null = null;
-    search: for (const dy of [0, 16, -16, 32, -32, 48, -48]) {
-      for (const anchorEnd of [false, true]) {
-        const x = anchorEnd ? point.x - 12 : point.x + 12;
-        const x0 = anchorEnd ? x - point.width : x;
-        const box = { x0, x1: x0 + point.width, top: base + dy - 12, bottom: base + dy - 12 + height };
-        if (box.x0 < plot.left || box.x1 > plot.right || box.top < plot.top || box.bottom > plot.bottom) continue;
-        if (taken.some((other) => overlaps(box, other))) continue;
-        best = { x, y: base + dy, anchorEnd, box };
-        break search;
+    const strict = [...taken, ...soft];
+    const tries: [Box[], number[]][] = [
+      [strict, [0, 16, -16]],
+      [taken, [0, 16, -16]],
+      [strict, [32, -32, 48, -48]],
+      [taken, [32, -32, 48, -48]],
+    ];
+    search: for (const [avoid, offsets] of tries) {
+      for (const dy of offsets) {
+        for (const anchorEnd of [false, true]) {
+          const x = anchorEnd ? point.x - 12 : point.x + 12;
+          const x0 = anchorEnd ? x - point.width : x;
+          const area = box(x0, point.width, base + dy);
+          if (area.x0 < plot.left || area.x1 > plot.right || area.top < plot.top || area.bottom > plot.bottom) continue;
+          if (avoid.some((other) => overlaps(area, other))) continue;
+          best = { x, y: base + dy, anchorEnd, box: area };
+          break search;
+        }
       }
     }
     if (!best) {
       const anchorEnd = point.x + 12 + point.width > plot.right;
       const x = anchorEnd ? point.x - 12 : point.x + 12;
       const x0 = anchorEnd ? x - point.width : x;
-      best = { x, y: base, anchorEnd, box: { x0, x1: x0 + point.width, top: base - 12, bottom: base - 12 + height } };
+      best = { x, y: base, anchorEnd, box: box(x0, point.width, base) };
     }
     taken.push(best.box);
     out[point.i] = { x: best.x, y: best.y, anchorEnd: best.anchorEnd };
@@ -141,7 +154,7 @@ function Chart({ priced, bar, scale, view }: { priced: ModelRow[]; bar: number; 
 
   const points = priced.map((row) => ({ x: x(row.cost.usd as number), y: y(row.score) }));
   const barLabel = `pick-trader ${num(bar)}`;
-  const barBox = { x0: right - 6 - barLabel.length * CHAR, x1: right, top: y(bar) - 20, bottom: y(bar) - 2 };
+  const barBox = { x0: right - 6 - barLabel.length * CHAR, x1: right, top: y(bar) - 17, bottom: y(bar) - 4 };
   const noteBox = { x0: PAD.l, x1: PAD.l + 130, top: PAD.t, bottom: PAD.t + 26 };
   /* Wide charts add the harness and cost under each name. */
   const sub = (row: ModelRow) => `${row.harness} · ${usd(row)}`;
@@ -149,9 +162,8 @@ function Chart({ priced, bar, scale, view }: { priced: ModelRow[]; bar: number; 
     points.map((p, i) => ({ ...p, width: Math.max(priced[i].model.length, narrow ? 0 : sub(priced[i]).length) * CHAR })),
     narrow ? 1 : 2,
     { left: PAD.l + 4, right: right - 4, top: PAD.t, bottom: H - PAD.b },
+    [barBox, noteBox],
     [
-      barBox,
-      noteBox,
       { x0: PAD.l, x1: right, top: y(bar) - 3, bottom: y(bar) + 3 },
       ...priced.flatMap((row, i) => (row.ci ? [{ x0: points[i].x - 3, x1: points[i].x + 3, top: y(row.ci[1]), bottom: y(row.ci[0]) }] : [])),
     ],
