@@ -92,7 +92,7 @@ OPENCODE_INSTALL = (
     " tar --no-same-owner -xzf /tmp/opencode.tar.gz -C /usr/local/bin opencode; \\\n"
     " rm /tmp/opencode.tar.gz\n"
 )
-CONTAINER_CODEX_VERSION = "0.156.1"
+CONTAINER_CODEX_VERSION = "0.162.1"
 CONTAINER_CLAUDE_VERSION = "2.1.281"
 BASE_IMAGE = "node:22-bookworm-slim@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9"
 IMAGE_REPOSITORY = "gm-bench-agentic-opencode"
@@ -183,7 +183,8 @@ CLAUDE_CODE_OAUTH_TOKEN=$(cat "$home/.gmb-claude-token")
 [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ] || refuse "the token in the home volume is empty"
 CLAUDE_CONFIG_DIR="$config"
 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
-export CLAUDE_CODE_OAUTH_TOKEN CLAUDE_CONFIG_DIR CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC
+ENABLE_CLAUDEAI_MCP_SERVERS=false
+export CLAUDE_CODE_OAUTH_TOKEN CLAUDE_CONFIG_DIR CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC ENABLE_CLAUDEAI_MCP_SERVERS
 exec claude "$@"
 """
 # Dockerfile lines (run as root, before ``USER node``) that make the Claude image.

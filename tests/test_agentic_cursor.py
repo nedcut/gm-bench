@@ -754,10 +754,13 @@ def test_cursor_image_installs_the_pinned_tarball_and_the_other_images_are_uncha
         return hashlib.sha256(text.encode()).hexdigest()
 
     # The other images' texts (and so their tags and recorded digests) did not move
-    # (OpenCode's moves only with its pin, 2.0.27).
+    # (OpenCode's and Codex's move only with their pins, 2.0.27 and 0.162.1; Codex 0.156.1's
+    # was 578af3e044d4..., the image that played the committed Codex rows).
     assert digest(container.OPENCODE_IMAGE) == "68c6a0dff0b97c2a85583f9dd11ad67fa5d588c5a13c7e9786783c17e90c233f"
-    assert digest(container.CODEX_IMAGE) == "578af3e044d44e746bdc879560042be3698049c1a1cdd067b66d03b8397fc8ce"
-    assert digest(container.CLAUDE_IMAGE) == "1781dcc2b7dad71fe8b4191ecb2472d145d995333423e359df5420fc7c8a2cd2"
+    assert digest(container.CODEX_IMAGE) == "f8095c887ac3b80bd3991396e92ed393b3d2ce030ddace1530a1206daf42a735"
+    # Claude's moved on 2026-10-13 when its launcher started exporting ENABLE_CLAUDEAI_MCP_SERVERS=false
+    # (was 1781dcc2b7da..., the image that played the committed Claude rows).
+    assert digest(container.CLAUDE_IMAGE) == "f0e72cbaea92ff433d916bb1cf4b4972a14a971930ee73144b17d7aad744dc0d"
     spec = container.CURSOR_IMAGE
     assert (spec.version, spec.executable, spec.version_key) == ("2026.09.26-dd393fe", "cursor-agent", "cursor_version")
     text = container.dockerfile(spec.version, package=spec.package, extra=spec.extra, install=spec.install)

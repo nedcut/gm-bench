@@ -185,6 +185,9 @@ _HARNESS_RUN_KEYS = (
     "max_provider_wait_seconds",
     # What the harness reported about reasoning effort (absent before it was recorded).
     "reasoning_effort",
+    # Codex features the driver turned off (account plugins, apps and connectors);
+    # absent for other harnesses and for Codex runs recorded before 2026-10-12.
+    "disabled_features",
 )
 # Present on every nudge a driver records; the provider-stall keys only on runs
 # recorded since the driver learned to retry provider stalls, and ``silent``
