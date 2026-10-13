@@ -17,7 +17,11 @@ driver process on the host:
   AGENTS.md, skills) is visible;
 - the proxy reaches the driver over TCP on the host loopback through
   :data:`HOST_ALIAS`, because Docker Desktop cannot pass a host Unix socket
-  through a bind mount, and presents a per-run secret on every connection;
+  through a bind mount, and presents a per-run secret on every connection.
+  A native Linux engine (Docker Engine in a Linux VM or WSL) has no
+  :data:`HOST_ALIAS` and cannot reach the host loopback, so there the driver
+  listens on the default bridge's gateway address instead and maps
+  :data:`HOST_ALIAS` to it with ``--add-host`` (:func:`host_gateway`);
 - :data:`HOST_ALIAS` reaches every service on the host loopback, not only
   the driver, so each invocation starts as root in :data:`EGRESS_ENTRYPOINT`,
   which installs a firewall in the container's own network namespace
@@ -53,6 +57,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import platform
 import re
 import secrets
 import socket
@@ -411,6 +416,52 @@ def image_dockerfile(spec: ImageSpec) -> str:
     return dockerfile(spec.version, package=spec.package, extra=spec.extra, install=spec.install)
 
 
+def host_gateway(*, docker: str = "docker", env: dict[str, str] | None = None) -> str | None:
+    """Where the driver listens for the container: ``None`` (the host loopback) on Docker Desktop.
+
+    Docker Desktop resolves :data:`HOST_ALIAS` to the host loopback by itself.
+    A native engine on a Linux host resolves nothing and keeps the host loopback out of
+    reach, so there the driver listens on the default bridge's gateway (the
+    host's ``docker0`` address, reachable from containers and the host only)
+    and every container gets ``--add-host`` mapping :data:`HOST_ALIAS` to it.
+    """
+    if platform.system() != "Linux":
+        # Docker Desktop, or a VM (Colima, OrbStack) whose bridge is not on this host.
+        return None
+    info = _docker(docker, "info", "--format", "{{.OperatingSystem}}", env=env, timeout=60)
+    if info.returncode != 0:
+        raise ContainerError(f"docker info failed: {(info.stderr or info.stdout).strip()[-400:]}")
+    if not info.stdout.strip() or "Docker Desktop" in info.stdout:
+        return None
+    bridge = _docker(
+        docker,
+        "network",
+        "inspect",
+        "bridge",
+        "--format",
+        "{{range .IPAM.Config}}{{.Gateway}} {{end}}",
+        env=env,
+        timeout=60,
+    )
+    gateways = [word for word in bridge.stdout.split() if re.fullmatch(r"\d+\.\d+\.\d+\.\d+", word)]
+    if bridge.returncode != 0 or not gateways:
+        raise ContainerError(
+            f"cannot find the default bridge's IPv4 gateway: {(bridge.stderr or bridge.stdout).strip()[-400:]}"
+        )
+    return gateways[0]
+
+
+def _host_args(image: dict[str, Any]) -> tuple[str, ...]:
+    """``--add-host`` for :data:`HOST_ALIAS` on a native Linux engine; nothing on Docker Desktop."""
+    gateway = image.get("host_gateway")
+    return ("--add-host", f"{HOST_ALIAS}:{gateway}") if gateway else ()
+
+
+def driver_listen_host(image: dict[str, Any]) -> str:
+    """The address the driver's TCP server and the egress canary bind for this image's Docker."""
+    return image.get("host_gateway") or "127.0.0.1"
+
+
 def ensure_image(
     *,
     docker: str = "docker",
@@ -452,7 +503,9 @@ def ensure_image(
     version = versions[0] if versions else (words[-1] if words else None)
     if version != pinned:
         raise ContainerError(f"image {tag} reports {spec.harness} {version!r}, pinned {pinned!r}")
+    gateway = host_gateway(docker=docker, env=env)
     return {
+        **({"host_gateway": gateway} if gateway else {}),
         "runtime": "docker",
         "docker_server_version": server.stdout.strip(),
         "image": tag,
@@ -540,7 +593,8 @@ def container_egress_problems(
     """
     canary = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        canary.bind(("127.0.0.1", 0))
+        # Beside the driver: the host loopback on Docker Desktop, the bridge gateway on a native engine.
+        canary.bind((driver_listen_host(image), 0))
         canary.listen(4)
         port = canary.getsockname()[1]
         probe = _docker(
@@ -548,6 +602,7 @@ def container_egress_problems(
             "run",
             "--rm",
             *_HARDENING,
+            *_host_args(image),
             image["image_id"],
             EGRESS_ENTRYPOINT,
             str(driver_port),
@@ -637,6 +692,7 @@ class ContainerHarness:
             f"type=volume,source={self.volume},target={HOME}",
             "--workdir",
             WORKDIR,
+            *_host_args(self.image),
             self.image["image_id"],
             EGRESS_ENTRYPOINT,
             str(self.driver_port),

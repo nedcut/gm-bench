@@ -99,6 +99,20 @@ dated; the summary above is the current state.
   plan's limits rather than billing per token. Reasoning effort is the
   harness default (OpenCode reports none). The model is unpinned.
 
+- Container isolation on a native Linux Docker Engine (2026-10-12, driver
+  only; the agentic fingerprint stays `07de948a4f4afbae`). The container
+  driver assumed Docker Desktop, where `host.docker.internal` reaches the
+  host loopback; a native engine (Linux, or WSL 2 without Docker Desktop)
+  resolves no such name and cannot reach the host loopback, so the proxy
+  could never dial the driver. On a Linux host whose engine is not Docker
+  Desktop, the driver now listens on the default bridge's gateway, maps
+  `host.docker.internal` to it with `--add-host`, binds the egress canary
+  there too, and records the address as `harness.container.host_gateway`.
+  Docker Desktop runs are unchanged. Off macOS, the private-panel launcher
+  reads a private copy of the Keychain record from
+  `~/.config/gm-bench/<service>.escrow` and checks it against the same
+  committed digests.
+
 - OpenCode 2.x (2026-10-12, driver only; the agentic fingerprint stays
   `07de948a4f4afbae`). The OpenCode driver now runs OpenCode 2.x only, and
   the container image pins 2.0.27. OpenCode 2 rejects `--pure`, `--dir` and

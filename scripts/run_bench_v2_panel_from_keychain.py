@@ -22,6 +22,13 @@ private seeds with them. Only ``--i-understand-same-user-leaks-private-seeds``
 lets a same-user run start, for a deliberate test of that leak; its row
 could never be panel grade anyway.
 
+On a host without the macOS Keychain (Linux), the launcher reads a copy of
+the same Keychain record from ``~/.config/gm-bench/<service>.escrow``
+(:func:`escrow_file`): the exact output of ``security find-generic-password
+... -w`` on the Mac, owned by the operator, with no group or other access
+on the file or its directory. The copy is checked against the same
+committed digests, so it cannot hand the driver a different panel.
+
 Episodes run serially: the driver has no parallel mode, on purpose.
 
 A paid panel must be reproducible from a commit, so the launcher refuses to
@@ -47,6 +54,7 @@ import argparse
 import io
 import json
 import os
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -65,6 +73,9 @@ LANE_PATH = Path("config") / "bench_v2_lane.json"
 SHARED_LANE_PATH = Path("config") / "sota_v5_lane.json"
 KEYCHAIN_ACCOUNT = "nedcutler"
 KEYCHAIN_ESCROW_PREFIX = "macos-keychain:"
+# Where the Keychain lives; elsewhere the launcher reads ESCROW_DIR / "<service>.escrow".
+MACOS = sys.platform == "darwin"
+ESCROW_DIR = Path.home() / ".config" / "gm-bench"
 PANEL_SEASONS = 5
 _REFUSED_PASSTHROUGH = ("--seeds", "--seeds-stdin", "--json")
 # The only isolation that keeps the agent off the run directory (and so off the seeds).
@@ -98,14 +109,43 @@ def keychain_service(lane: dict[str, Any]) -> str:
     return service
 
 
+def escrow_file(service: str) -> Path:
+    """The off-Mac copy of the Keychain record: ``security ... -w`` output, private to the operator."""
+    return ESCROW_DIR / f"{service}.escrow"
+
+
+def _escrow_file_text(service: str) -> str:
+    path = escrow_file(service)
+    try:
+        info = path.lstat()
+        directory = path.parent.lstat()
+    except FileNotFoundError:
+        raise ValueError(
+            f"no Keychain on this host and no escrow copy at {path}; on the Mac run "
+            f"`security find-generic-password -s {service} -a {KEYCHAIN_ACCOUNT} -w` and save its output there "
+            "(mode 0600, directory 0700)"
+        ) from None
+    if not stat.S_ISREG(info.st_mode):
+        raise ValueError(f"{path} must be a regular file, not a link or anything else")
+    for item, name in ((info, str(path)), (directory, str(path.parent))):
+        if item.st_uid != os.getuid():
+            raise ValueError(f"{name} must be owned by you")
+        if item.st_mode & 0o077:
+            raise ValueError(f"{name} must have no group or other access (chmod go-rwx)")
+    return path.read_text(encoding="utf-8")
+
+
 def _keychain_record(service: str) -> dict[str, Any]:
-    result = subprocess.run(  # noqa: S603 - fixed macOS Keychain command
-        ["security", "find-generic-password", "-s", service, "-a", KEYCHAIN_ACCOUNT, "-w"],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    raw = result.stdout.strip()
+    if MACOS:
+        result = subprocess.run(  # noqa: S603 - fixed macOS Keychain command
+            ["security", "find-generic-password", "-s", service, "-a", KEYCHAIN_ACCOUNT, "-w"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        raw = result.stdout.strip()
+    else:
+        raw = _escrow_file_text(service).strip()
     try:
         decoded = bytes.fromhex(raw).decode() if not raw.startswith("{") else raw
         record = json.loads(decoded)

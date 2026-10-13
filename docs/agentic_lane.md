@@ -594,6 +594,19 @@ model provider. No Docker Desktop setting needs changing: `/var/folders`
 temp directories are shared by default, and `host.docker.internal` reaches
 the host loopback out of the box.
 
+A native Docker Engine on a Linux host (Docker Engine in Linux or in WSL 2,
+not Docker Desktop) also works; checked on 2026-10-12 with Docker 29.7.2 in
+WSL 2 Ubuntu 24.04 (linux/amd64). Such an engine resolves no
+`host.docker.internal` and a container cannot reach the host loopback, so
+when `docker info` names an operating system other than Docker Desktop on
+a Linux host, the driver listens on the default bridge's gateway (the
+host's `docker0` address, usually `172.17.0.1`) instead of `127.0.0.1` and
+starts every container with `--add-host host.docker.internal:<gateway>`.
+The gateway is recorded as `harness.container.host_gateway`; Docker
+Desktop runs record none. The egress canary binds the same address, so the
+probe tests the rule where the driver actually listens. Nothing needs
+configuring: the user only needs access to the Docker socket.
+
 The image. On the first run the driver builds
 `gm-bench-agentic-opencode:<opencode version>-<Dockerfile hash>` from a
 Dockerfile it pipes to `docker build` (no build context): a digest-pinned
@@ -704,7 +717,8 @@ before OpenCode starts, so the agent cannot change the rule.
 
 The transport. Docker Desktop cannot pass a host Unix socket through a bind
 mount (the connect fails with `ENOTSUP`), so in container mode the driver's
-server listens on `127.0.0.1` on an ephemeral port and the proxy dials
+server listens on `127.0.0.1` (on a native Linux engine, the bridge
+gateway; see "Requirements" above) on an ephemeral port and the proxy dials
 `host.docker.internal:<port>`. Any local process can dial a loopback port,
 so every connection must first send a per-run random secret, which the
 driver writes to `gm_bench_proxy.secret` in the scratch directory (mode
@@ -1562,8 +1576,20 @@ commitment. Positions 1 to 29 are the `sota-v5` private panel in its
 committed order, which is what pairs a model's 1.0 and 2.0 scores per seed;
 positions 30 to 32 were drawn 2026-09-22 by
 `scripts/draw_bench_v2_private_panel.py` with the generator that drew v5.
-The seeds and salt live only in the macOS Keychain
+The seeds and salt live in the macOS Keychain
 (`gm-bench-bench-v2-private-panel`).
+
+On a host without the Keychain (a Linux driver host), the launcher reads a
+copy of the same record from
+`~/.config/gm-bench/gm-bench-bench-v2-private-panel.escrow`: the exact
+output of `security find-generic-password -s gm-bench-bench-v2-private-panel
+-a nedcutler -w`, made on the Mac, owned by you, with no group or other
+access on the file or on `~/.config/gm-bench`. A link, a shared file or a
+missing file is refused. The copy is checked against the same committed
+digests as the Keychain, so it cannot give the driver a different panel;
+what it adds is one more place the seeds are kept, so keep that host's
+disk to yourself. Make the copy in a Terminal on the Mac itself: over SSH
+the login Keychain refuses (`security` exits 36, interaction not allowed).
 
 ```bash
 python scripts/run_bench_v2_panel_from_keychain.py --verify-only
