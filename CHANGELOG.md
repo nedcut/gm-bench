@@ -7,7 +7,8 @@ correction becomes a new contract version rather than an edit to an old one.
 ## Unreleased — GM-Bench 2.0
 
 Work began 2026-09-20; the contract froze 2026-09-25; three panel-grade rows
-were published 2026-09-27 and a fourth 2026-09-28. Not yet tagged. Nothing in GM-Bench 1.0 changes.
+were published 2026-09-27, a fourth 2026-09-28 and a fifth 2026-10-12 (its
+panel ran 2026-09-28 to 09-29). Not yet tagged. Nothing in GM-Bench 1.0 changes.
 
 Summary:
 
@@ -47,6 +48,9 @@ Summary:
     (−35.6 to −1.4, p = 0.047), significant; ahead of `pick-trader` on 12
     of 32 seeds. No cost figure: Cursor reports none and `composer-2.5`
     has no list price.
+  - OpenCode 1.18.31 · `opencode-go/deepseek-v4.1-flash`: mean 247.1, lift
+    −2.0 (−22.4 to +18.0, p = 0.84), not significant; ahead of
+    `pick-trader` on 15 of 32 seeds. OpenCode reports $3.69 for the panel.
 
   The realized paired-lift SDs (62.5 and 73.4) put the panel's minimum
   detectable difference against `pick-trader` at about 31 to 36 points, so
@@ -59,8 +63,9 @@ Summary:
   driver fixes and driver provenance (every row records the driver commit
   that played it; the Codex and `claude-sonnet-5` panels ran at `4d742cc`,
   `claude-haiku-4-5` at `21b71dc`, which differs only in Claude Code
-  tool-call counting, and `composer-2.5` at `b3d7de7`, the first commit
-  with the Cursor container driver); a validation rule that publishes a
+  tool-call counting, `composer-2.5` at `b3d7de7`, the first commit
+  with the Cursor container driver, and `deepseek-v4.1-flash` at `07de4b2`,
+  the first with OpenCode Go keys); a validation rule that publishes a
   tool-call recount when it resolves a recorded mismatch (one
   `claude-sonnet-5` episode); and
   a post-hoc audit rule, adopted 2026-09-27 after the Haiku panel had run,
@@ -78,6 +83,21 @@ Summary:
 The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
+
+- Fifth panel-grade 2.0 row (2026-10-12; the panel ran 2026-09-28 to
+  09-29): OpenCode 1.18.31 on `opencode-go/deepseek-v4.1-flash`, the
+  frozen 32-seed private panel at five seasons, container isolation,
+  played from clean `main` at `07de4b2` (#172)
+  (`results/agentic/opencode-1.18.31-deepseek-v4.1-flash-panel-32x5.json`).
+  Mean 247.1 (SD 50.3), 640/640 phases closed by the agent, 0 failed
+  decisions, 35 penalized illegal moves, 2 nudges, no provider stalls or
+  guard stops, 156.3 tool calls and 12.3 min per episode, 56/640 empty
+  phases. Against `pick-trader` the paired lift is −2.0, 95% interval
+  −22.4 to +18.0, sign-flip p 0.84, with a realized MDD of about 29:
+  "cannot tell". OpenCode's own cost figure is $3.69 for the panel; the
+  run used an OpenCode Go subscription, which counts usage against the
+  plan's limits rather than billing per token. Reasoning effort is the
+  harness default (OpenCode reports none). The model is unpinned.
 
 - OpenCode 2.x (2026-10-12, driver only; the agentic fingerprint stays
   `07de948a4f4afbae`). The OpenCode driver now runs OpenCode 2.x only, and

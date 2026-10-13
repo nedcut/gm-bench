@@ -6,7 +6,7 @@ the supported CLI against the public compact artifacts and scripted agents.
 Downloading source and installing development tools requires internet access.
 The validation commands themselves run locally without model requests.
 
-Four panel rows are public, but GM-Bench 2.0 has no tag or GitHub release yet.
+Five panel rows are public, but GM-Bench 2.0 has no tag or GitHub release yet.
 The rows are all `unpinned`: they may not be reproducible and are extra data
 points, not headline results. This guide does not promote them to headlines.
 
@@ -39,12 +39,12 @@ for artifact in results/agentic/*.json; do
   .venv/bin/python -m gm_bench agentic-validate "$artifact" --json
   count=$((count + 1))
 done
-test "$count" -eq 11
+test "$count" -eq 12
 printf 'validated %s agentic artifacts\n' "$count"
 )
 ```
 
-Expected: eleven reports with `"ok": true` and `"errors": []`: four
+Expected: twelve reports with `"ok": true` and `"errors": []`: five
 `panel` artifacts and seven `smoke` artifacts. The smoke rows use public
 seeds and do not appear in the site's panel table.
 
@@ -67,7 +67,7 @@ from gm_bench.agentic.contract import agentic_fingerprint
 assert agentic_fingerprint() == "07de948a4f4afbae"
 artifacts = [json.loads(p.read_text()) for p in sorted(Path("results/agentic").glob("*.json"))]
 panels = [d for d in artifacts if d["grade"] == "panel"]
-assert len(artifacts) == 11 and len(panels) == 4
+assert len(artifacts) == 12 and len(panels) == 5
 lane = json.loads(Path("config/bench_v2_lane.json").read_text())
 assert lane["model_pinning"]["pinned_models"] == {}
 for row in panels:
@@ -75,19 +75,21 @@ for row in panels:
     assert row["panel"]["sha256"] == lane["seed_panel"]["artifact_panel_sha256"]
     assert row["reference"]["num_seeds"] == 32 and row["seasons"] == 5
     assert row["isolation"] == "container"
-    assert row["summary"]["usage"]["cost_usd"] is None
+    cost = row["summary"]["usage"]["cost_usd"]
+    assert (cost is None) == (row["harness"]["name"] != "opencode")
     harness = row["harness"]
     print(harness["name"], harness["version"], harness["model"],
           "mean", row["summary"]["mean_score"],
           "lift", row["reference"]["paired_lift_mean"],
-          "API-equivalent estimate", row["agentic_summary"]["api_equivalent_cost_usd"])
+          "cost", cost,
+          "API-equivalent estimate", row["agentic_summary"].get("api_equivalent_cost_usd"))
 print("frozen agentic fingerprint", agentic_fingerprint())
 PY
 ```
 
 Expected panel means are 227.404 (Codex `gpt-6-luna`), 227.393 (Claude Code
-`claude-sonnet-5`), 130.129 (Claude Code `claude-haiku-4-5`) and 230.563
-(Cursor `composer-2.5`). The reference is `pick-trader` at 249.18 on the
+`claude-sonnet-5`), 130.129 (Claude Code `claude-haiku-4-5`), 230.563
+(Cursor `composer-2.5`) and 247.134 (OpenCode `deepseek-v4.1-flash`). The reference is `pick-trader` at 249.18 on the
 frozen 32-seed panel. Every contrast is against that reference; these are
 not tests between model or harness rows.
 
@@ -97,8 +99,11 @@ list-price estimates from token usage, not subscription bills. Codex's
 short-context estimate is a lower bound because the artifact flags possible
 long-context requests. Haiku preserves its former $25.143227 beside the
 corrected estimate. Cursor reports no cost, and its model has no repository
-list price, so its estimate is `null`. All four measured `cost_usd` values
-are `null`; none of these values supports a measured cost ranking.
+list price, so its estimate is `null`. Those four rows' measured
+`cost_usd` values are `null`. The OpenCode row carries OpenCode's own cost
+figure, $3.691094, and no API-equivalent estimate; it ran on an OpenCode Go
+subscription, which counts usage against the plan's limits rather than
+billing per token. None of these values supports a cost ranking.
 
 ## Confirm a corrupted compact artifact is rejected
 
