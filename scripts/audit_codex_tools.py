@@ -156,10 +156,18 @@ class AuditHandler(_Handler):
             # A WebSocket upgrade is refused, so Codex falls back to HTTPS, which the server reads.
             self.server.record({"kind": "other", "method": "GET", "path": path})
             return self._json(404, {"error": {"message": "gm-bench audit: not found"}})
-        url = CHATGPT_CODEX + path.split(CAPTURE_PATH, 1)[-1] + (f"?{query}" if query else "")
+        suffix = path.split(CAPTURE_PATH, 1)[-1]
+        if not re.fullmatch(r"(/[A-Za-z0-9_.-]+)*/models/?", suffix) or ".." in suffix:
+            self.server.record({"kind": "other", "method": "GET", "path": path})
+            return self._json(404, {"error": {"message": "gm-bench audit: not found"}})
+        # Always https://chatgpt.com/backend-api/codex/.../models: a fixed scheme and host, a checked path.
+        url = CHATGPT_CODEX + suffix + (f"?{query}" if query else "")
         headers = {key: value for key, value in self.headers.items() if key.lower() not in _SKIP_HEADERS}
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=30) as response:
+            request = urllib.request.Request(url, headers=headers)
+            with (
+                urllib.request.urlopen(request, timeout=30) as response
+            ):  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
                 code, data = response.status, response.read()
         except urllib.error.HTTPError as error:
             code, data = error.code, error.read()
