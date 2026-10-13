@@ -6,20 +6,22 @@ the supported CLI against the public compact artifacts and scripted agents.
 Downloading source and installing development tools requires internet access.
 The validation commands themselves run locally without model requests.
 
-Five panel rows are public, but GM-Bench 2.0 has no tag or GitHub release yet.
+Six panel rows are public, but GM-Bench 2.0 has no tag or GitHub release yet.
 The rows are all `unpinned`: they may not be reproducible and are extra data
 points, not headline results. This guide does not promote them to headlines.
 
 ## Check out the evidence snapshot and install
 
-Use Python 3.11 or newer. The full commit below is the main-branch evidence
-snapshot reviewed on 2026-10-02, not a release tag. Detaching at it keeps this
-guide's expected artifact counts stable if more rows land later.
+Use Python 3.11 or newer. The evidence snapshot is the main-branch commit
+that added the newest panel row (Codex `gpt-6.1-sol`, published 2026-10-13),
+not a release tag; the `git log` lookup below finds it. Detaching at it keeps
+this guide's expected artifact counts stable if more rows land later.
 
 ```bash
 git clone https://github.com/nedcut/gm-bench.git
 cd gm-bench
-git checkout --detach 07de4b20af32d4a6a7381c13abf4577296c277d3
+git checkout --detach "$(git log origin/main -1 --diff-filter=A --format=%H -- \
+  results/agentic/codex-0.162.1-gpt-6.1-sol-panel-32x5.json)"
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 .venv/bin/python -m gm_bench --help
@@ -39,12 +41,12 @@ for artifact in results/agentic/*.json; do
   .venv/bin/python -m gm_bench agentic-validate "$artifact" --json
   count=$((count + 1))
 done
-test "$count" -eq 12
+test "$count" -eq 13
 printf 'validated %s agentic artifacts\n' "$count"
 )
 ```
 
-Expected: twelve reports with `"ok": true` and `"errors": []`: five
+Expected: thirteen reports with `"ok": true` and `"errors": []`: six
 `panel` artifacts and seven `smoke` artifacts. The smoke rows use public
 seeds and do not appear in the site's panel table.
 
@@ -67,7 +69,7 @@ from gm_bench.agentic.contract import agentic_fingerprint
 assert agentic_fingerprint() == "07de948a4f4afbae"
 artifacts = [json.loads(p.read_text()) for p in sorted(Path("results/agentic").glob("*.json"))]
 panels = [d for d in artifacts if d["grade"] == "panel"]
-assert len(artifacts) == 12 and len(panels) == 5
+assert len(artifacts) == 13 and len(panels) == 6
 lane = json.loads(Path("config/bench_v2_lane.json").read_text())
 assert lane["model_pinning"]["pinned_models"] == {}
 for row in panels:
@@ -89,17 +91,18 @@ PY
 
 Expected panel means are 227.404 (Codex `gpt-6-luna`), 227.393 (Claude Code
 `claude-sonnet-5`), 130.129 (Claude Code `claude-haiku-4-5`), 230.563
-(Cursor `composer-2.5`) and 247.134 (OpenCode `deepseek-v4.1-flash`). The reference is `pick-trader` at 249.18 on the
+(Cursor `composer-2.5`), 247.134 (OpenCode `deepseek-v4.1-flash`) and
+273.167 (Codex `gpt-6.1-sol`). The reference is `pick-trader` at 249.18 on the
 frozen 32-seed panel. Every contrast is against that reference; these are
 not tests between model or harness rows.
 
-The whole-panel API-equivalent estimates are $4.539983, $157.375340 and
-$27.707858 for Codex, Sonnet and Haiku respectively. They are dated
-list-price estimates from token usage, not subscription bills. Codex's
-short-context estimate is a lower bound because the artifact flags possible
-long-context requests. Haiku preserves its former $25.143227 beside the
+The whole-panel API-equivalent estimates are $4.539983, $157.375340,
+$27.707858 and $17.379311 for `gpt-6-luna`, Sonnet, Haiku and
+`gpt-6.1-sol` respectively. They are dated list-price estimates from token
+usage, not subscription bills. Both Codex estimates are short-context lower
+bounds because their artifacts flag possible long-context requests. Haiku preserves its former $25.143227 beside the
 corrected estimate. Cursor reports no cost, and its model has no repository
-list price, so its estimate is `null`. Those four rows' measured
+list price, so its estimate is `null`. Those five rows' measured
 `cost_usd` values are `null`. The OpenCode row carries OpenCode's own cost
 figure, $3.691094, and no API-equivalent estimate; it ran on an OpenCode Go
 subscription, which counts usage against the plan's limits rather than

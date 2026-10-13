@@ -94,5 +94,5 @@ change alters what a new row measures against the existing ones.
     fingerprint covers the tool surface and brief the server offers, not
     the harness's own system prompt, tool list or deferral (Claude Code
     shows MCP tools by name and loads schemas through ToolSearch). The
-    prompt check proposed in #166 (open at the time of writing) records what
+    prompt check proposed in #166 (merged 2026-09-28) records what
     each harness sends; decide whether a row should carry it.
