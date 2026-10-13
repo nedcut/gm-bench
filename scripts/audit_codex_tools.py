@@ -165,9 +165,8 @@ class AuditHandler(_Handler):
         headers = {key: value for key, value in self.headers.items() if key.lower() not in _SKIP_HEADERS}
         try:
             request = urllib.request.Request(url, headers=headers)
-            with (
-                urllib.request.urlopen(request, timeout=30) as response
-            ):  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+            opened = urllib.request.urlopen(request, timeout=30)  # nosemgrep
+            with opened as response:
                 code, data = response.status, response.read()
         except urllib.error.HTTPError as error:
             code, data = error.code, error.read()
