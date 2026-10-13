@@ -67,6 +67,10 @@ class HarnessDriver:
         during the previous invocation, and that must restore or check it.
         """
 
+    def invocation_argv(self, launch: HarnessLaunch, executable: str, args: list[str]) -> list[str]:
+        """The command line that runs ``executable`` with ``args`` where the harness runs (host or container)."""
+        return [executable, *args]
+
     def run_args(self, *, model: str, variant: str | None, workdir: str, brief: str, isolation: str) -> list[str]:
         """Arguments after the executable for the first invocation; the brief must be the last one."""
         raise NotImplementedError
@@ -167,6 +171,15 @@ class HarnessDriver:
         Runs once per episode, after the last invocation, while the server is
         stopping. Must not raise; whatever it keeps is reported by :meth:`run_record`.
         """
+
+    def final_telemetry(self, launch: HarnessLaunch, telemetry: dict[str, Any]) -> dict[str, Any]:
+        """The episode's telemetry, from the event stream's parse and whatever :meth:`collect` read.
+
+        Called once per episode, after :meth:`collect`. The default is the
+        stream's parse unchanged; OpenCode replaces its token counts with the
+        session store's.
+        """
+        return telemetry
 
     def run_record(self, launch: HarnessLaunch) -> dict[str, Any]:
         """Extra ``harness_run`` fields describing how this harness was configured."""

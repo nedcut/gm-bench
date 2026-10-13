@@ -1,0 +1,24 @@
+name: Trajectory browser QA
+
+on:
+  pull_request:
+    paths:
+      - 'web/**'
+      - 'scripts/build_trajectory_demo.py'
+      - '.github/workflows/trajectory-web.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  trajectory-browser:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run test:browser

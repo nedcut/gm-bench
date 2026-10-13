@@ -88,7 +88,7 @@ owner actions still open on 2026-09-03 are done (rechecked 2026-09-22):
   from the site footer.
 
 **GM-Bench 2.0 release checklist (last reviewed 2026-10-02).** The contract
-is frozen and four panel rows are on the site; the release is not tagged.
+is frozen and five panel rows are on the site; the release is not tagged.
 
 - [x] Contract frozen as `gm-bench-2.0` at agentic fingerprint
   `07de948a4f4afbae` on 2026-09-25 (#149), with all five pre-panel gates in
@@ -100,7 +100,9 @@ is frozen and four panel rows are on the site; the release is not tagged.
 - [x] Panel rows committed and shown on the site, all `unpinned`: Codex
   `gpt-6-luna` (#156), Claude Code `claude-sonnet-5` (#161), Claude Code
   `claude-haiku-4-5` (#164, admitted under the post-hoc guessed-draft-pick
-  rule from #163), Cursor `composer-2.5` (#173, container, 2026-09-28).
+  rule from #163), Cursor `composer-2.5` (#173, container, 2026-09-28),
+  OpenCode `opencode-go/deepseek-v4.1-flash` (container, published
+  2026-10-12).
 - [x] Pre-release documentation audit: freeze rule restated, post-freeze
   changes listed with the rows they affected, realized panel noise (MDD
   about 31 to 36 points against `pick-trader`), how 2.0 differs from 1.0
@@ -118,7 +120,8 @@ is frozen and four panel rows are on the site; the release is not tagged.
   validate committed rows without credentials or model spending, with
   explicit limits on reproducing withheld raw evidence and private seeds.
 - [x] [Findings draft](blog/gm-bench-2.0-findings.md) reconciled with all
-  four committed panel rows and their cost disclosures.
+  five committed panel rows and their cost disclosures (updated
+  2026-10-12 for the DeepSeek row).
 - [ ] Owner approves the findings text for final publication. It remains
   labelled draft; updating it does not cut a release.
 - [ ] Owner cuts the tag and GitHub release and moves the CHANGELOG entry

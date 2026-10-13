@@ -201,12 +201,22 @@ const ROW_CAVEATS: Record<string, string> = {
   "agentic:claude-2.1.281:claude-sonnet-5":
     "One episode's ledger = harness figure is a recount: the run recorded 165 of 166 because the event " +
     "parser counted a call to a tool name that does not exist; after the parser fix the count is 165 of 165.",
+  "agentic:codex-0.156.1:gpt-6-luna":
+    "Ran with the ChatGPT account's connected apps and installed plugins available to the agent: Codex " +
+    "exposed the apps as about 668 extra tools (Gmail, GitHub, Google Drive and others) callable from its " +
+    "exec tool, though not named in the prompt. The row records no tool call other than GM-Bench calls. " +
+    "Codex runs since 2026-10-13 turn these off, so later Codex rows do not have the same built-ins.",
   "agentic:cursor-2026.09.26-dd393fe:composer-2.5":
     "Cursor's servers add seven default User Rules of their own to every prompt. They are part of the " +
     "harness: the prompt audit found those seven, identical, and nothing else in all 32 episodes. Cursor " +
     "reports no cost and composer-2.5 has no per-token list price, so cost is unmeasured and there is no " +
     "API-equivalent estimate. In 125 of the 640 phases the agent called only get_status and end_phase. " +
     "Played on driver commit b3d7de7, the first with Cursor's container driver.",
+  "agentic:opencode-1.18.31:opencode-go/deepseek-v4.1-flash":
+    "Run on an OpenCode Go subscription. The cost shown is OpenCode's own figure; Go counts usage against " +
+    "the plan's limits rather than billing per token, and the row has no API-equivalent estimate. In 56 of " +
+    "the 640 phases the agent called only get_status and end_phase. Played on driver commit 07de4b2, the " +
+    "first with OpenCode Go keys.",
 };
 
 const UNPINNED_SENTENCE =

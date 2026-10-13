@@ -36,7 +36,7 @@ five-season episode inside a tool-using harness (OpenCode, Codex CLI,
 Claude Code, or the Cursor CLI), acting through an MCP (Model Context
 Protocol) tool server. A 2.0 row is identified by model + harness + harness
 version, and 2.0 rows never enter a 1.0 table. The contract froze on
-2026-09-25, and four panel rows have been published so far.
+2026-09-25, and five panel rows have been published so far.
 
 - Implemented: drivers for all four harnesses, Docker container isolation
   for the harness, the private 32-seed panel frozen by digest with its seeds
@@ -48,7 +48,7 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
   repeat-noise rows (seeds 1 to 4, run twice on each of those two).
 - Panel rows on the frozen 32-seed private panel, each compared only with
   the `pick-trader` heuristic on the same seeds (249.2 there; the 1.0
-  figure of 247.1 is on the 29-seed 1.0 panel). All four are flagged
+  figure of 247.1 is on the 29-seed 1.0 panel). All five are flagged
   `unpinned`: the model version behind them is not pinned, so they may not
   be reproducible, and they are extra data points, not headline results.
   - Codex (`gpt-6-luna`) and Claude Code (`claude-sonnet-5`) both average
@@ -69,12 +69,18 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
     Cursor reports no cost and `composer-2.5` has no list price, so the row
     has no cost figure. Cursor's servers add seven default User Rules to
     every prompt; the audit found only those, on every episode.
+  - OpenCode 1.18.31 on `opencode-go/deepseek-v4.1-flash` (an OpenCode Go
+    subscription model) averages 247.1, 2.0 points below `pick-trader`
+    (95% interval -22.4 to +18.0, p = 0.84), and is ahead of it on 15 of
+    the 32 seeds. Like the Codex and Claude rows, that is "can't tell"
+    (this panel's smallest reliably detectable difference is about 29
+    points). OpenCode reports a cost of $3.69 for the whole panel.
   - Every row ran at the harness's default reasoning effort.
 
 The frozen design is in [docs/bench_v2_spec.md](docs/bench_v2_spec.md), the
 operator guide is [docs/agentic_lane.md](docs/agentic_lane.md), and the
 [clean-clone verification guide](docs/REPRODUCING_GM_BENCH_2_0.md) checks
-the committed 2.0 artifacts without credentials or model spending. The four
+the committed 2.0 artifacts without credentials or model spending. The five
 rows are public; a 2.0 tag and GitHub release have not been cut.
 
 ## Play along

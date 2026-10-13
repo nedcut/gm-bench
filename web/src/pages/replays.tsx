@@ -3,16 +3,17 @@ import type { PuzzleSet } from "../types";
 import { mountPage } from "../mount";
 import PageHeader from "../components/PageHeader";
 import ReplayBrowser from "../components/ReplayBrowser";
+import TrajectoryExplorer from "../components/TrajectoryExplorer";
 
 mountPage(
   "replays",
   <>
-    <PageHeader kicker="Inspect a run" title="Watch a GM work.">
-      <p>
-        One committed episode, every observation it saw and every move it made, plus a verifier
-        that replays the file in your browser and checks it lands on the same final state.
-      </p>
+    <PageHeader kicker="Replays" title="Same opening, different futures">
+      <p>Two LLM agents and two scripted policies run the same team for five seasons. Pick any two and step through every decision.</p>
     </PageHeader>
-    <ReplayBrowser puzzles={puzzleData as PuzzleSet} />
+    <TrajectoryExplorer />
+    <div className="shell"><details className="tx-legacy"><summary>Original conservative replay &amp; browser verifier</summary>
+      <ReplayBrowser puzzles={puzzleData as PuzzleSet} />
+    </details></div>
   </>,
 );

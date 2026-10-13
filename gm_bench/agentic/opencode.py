@@ -7,14 +7,18 @@ Per episode the driver:
    socket, or, with the harness in a container, over a loopback TCP port
    that only accepts connections presenting a per-run secret;
 2. creates an empty scratch directory holding only a standard-library proxy
-   script and an ``opencode.json`` that launches it on the harness's own
-   python3, with code mode off so one model tool call is one ledger entry;
+   script, a standard-library launcher, and an ``opencode.json`` that
+   launches the proxy on the harness's own python3, with code mode off so one
+   model tool call is one ledger entry;
 3. proves the sandbox: no GM-Bench checkout above the scratch directory and
    ``gm_bench`` not importable from the harness's own environment;
-4. runs ``opencode run --format json`` with the task brief, capturing its
-   event stream, and nudges the session if it stops early;
+4. runs ``opencode run --format json`` (OpenCode 2.x) with the task brief
+   on a private server whose MCP servers have connected (the launcher),
+   capturing its event stream, and nudges the session if it stops early;
 5. closes any phase the harness walked away from as a failed decision, joins
-   the harness's token telemetry, and scores.
+   the harness's token telemetry (read back from the session store with
+   ``opencode session export``, because OpenCode 2's stream drops the last
+   step's usage), and scores.
 
 The harness environment is the operator's environment minus private-seed
 material, Python path overrides and the interpreter's virtualenv, so the
@@ -52,14 +56,18 @@ from pathlib import Path
 from typing import Any, Callable
 
 import gm_bench
-from gm_bench.agentic import _proxy
+from gm_bench.agentic import _opencode_launch, _proxy
 from gm_bench.agentic.brief import nudge_message, task_brief
+from gm_bench.agentic.container import (
+    HOME as CONTAINER_HOME,
+)
 from gm_bench.agentic.container import (
     HOST_ALIAS,
     WORKDIR,
     ContainerHarness,
     container_egress_problems,
     container_sandbox_problems,
+    driver_listen_host,
     ensure_image,
 )
 from gm_bench.agentic.contract import agentic_contract
@@ -119,13 +127,37 @@ HARNESS_POLL_SECONDS = 5.0
 SILENT_HARNESS_SECONDS = 240.0
 RETRYABLE_STATUS_CODES = frozenset({408, 425, 429, 500, 502, 503, 504})
 _RETRYABLE_MESSAGE_RE = re.compile(r"rate[ _-]?limit|overloaded|try again later", re.IGNORECASE)
-# OpenCode's server answers an unhandled exception with this ``UnknownError``;
+# OpenCode 2 names each session error by ``type`` (``toSessionError`` in
+# ``packages/core/src/session/to-session-error.ts``). These are the provider
+# failures its own retry policy treats as transient (``isRetryable`` in
+# ``packages/ai/src/provider-error.ts``: rate limits, provider-side errors,
+# transport failures, an incomplete stream, an unclassified failure), plus a
+# provider timeout. OpenCode retries them itself (10 times, about 84 s) before
+# the error reaches the stream, so one that ends a run is a stall.
+RETRYABLE_ERROR_TYPES = frozenset(
+    {
+        "provider.rate-limit",
+        "provider.internal",
+        "provider.transport",
+        "provider.invalid-output",
+        "provider.unknown",
+        "provider.timeout",
+    }
+)
+# A spent allowance (OpenCode 2's ``QuotaExceeded``: a 402, or a Zen
+# ``FreeUsageLimitError`` / ``GoUsageLimitError``); never retried by OpenCode 2.
+QUOTA_ERROR_TYPE = "provider.quota"
+# OpenCode 1.18's server answered an unhandled exception with this ``UnknownError``;
 # a stall only when it ends an invocation that did nothing else first.
 _SERVER_ERROR_MESSAGE_RE = re.compile(r"unexpected server error", re.IGNORECASE)
-# The same error is also OpenCode's answer to a persistent fault (a deprecated
-# model, a broken config), which no wait fixes. So it is retried at most this
-# many times in a row (60 + 120 + 240 s of backoff), after which the loop ends
-# as it does when the stall budget runs out, instead of backing off for hours.
+# OpenCode 2's equivalent at startup: a model missing from the catalog snapshot
+# it ships with fails to resolve ("Model unavailable: ...") before the first
+# catalog download lands in the session store's cache.
+_STARTUP_NO_ROUTE_TYPE = "provider.no-route"
+# The same errors are also OpenCode's answer to a persistent fault (a deprecated
+# or misspelled model, a broken config), which no wait fixes. So they are retried
+# at most this many times in a row (60 + 120 + 240 s of backoff), after which the
+# loop ends as it does when the stall budget runs out, instead of backing off for hours.
 MAX_STARTUP_SERVER_ERROR_RETRIES = 3
 # What the driver itself can do. ``separate-user`` is a valid statement in a
 # published row (publication.ISOLATION_LEVELS) but no driver launches it yet.
@@ -201,6 +233,8 @@ def sandbox_problems(scratch: Path, env: dict[str, str]) -> list[str]:
 
 
 PROXY_FILENAME = "gm_bench_proxy.py"
+#: Starts each ``opencode run`` against a server whose MCP servers have connected (``_opencode_launch.py``).
+LAUNCHER_FILENAME = "gm_bench_opencode_launch.py"
 
 
 def harness_python(env: dict[str, str]) -> str:
@@ -223,9 +257,16 @@ def opencode_config(target: str | Path, *, python: str = "python3") -> dict[str,
     Everything in it is readable by the agent, so it names only the proxy
     script beside it and where the proxy connects: a socket path, or
     ``host:port`` for a containerized harness.
+
+    ``codemode: false`` keeps the GM-Bench tools direct, one model tool call
+    per ledger entry. OpenCode 2.x still offers Code Mode's ``execute`` tool
+    for its own built-in tools (session, worktree and MCP-resource helpers
+    default to Code Mode), which the agent cannot use for the task, so the
+    permission denies it and the tool is not offered at all.
     """
     return {
         "$schema": "https://opencode.ai/config.json",
+        "permission": {"execute": "deny"},
         "mcp": {
             "servers": {
                 "gm-bench": {
@@ -252,6 +293,9 @@ def stage_scratch(
     proxy reads it; it is never on any command line.
     """
     stage_proxy(scratch, secret=secret)
+    (scratch / LAUNCHER_FILENAME).write_text(
+        Path(_opencode_launch.__file__).read_text(encoding="utf-8"), encoding="utf-8"
+    )
     config = opencode_config(target, python=python or harness_python(env))
     (scratch / "opencode.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
 
@@ -313,7 +357,7 @@ class HarnessLaunch:
             if isolation == "container":
                 assert image is not None
                 self._secret = secrets.token_urlsafe(32)
-                self.server = SocketMcpServer(episode, ("127.0.0.1", 0), secret=self._secret)
+                self.server = SocketMcpServer(episode, (driver_listen_host(image), 0), secret=self._secret)
                 self.server.start()
                 self.container = ContainerHarness(
                     image, self.scratch, driver_port=self.server.address[1], docker=docker, env=self.env
@@ -382,9 +426,11 @@ class HarnessLaunch:
         """
         self.driver.before_invocation(self)
         if self.container is None:
-            return [self.binary, *harness_args], None
+            return self.driver.invocation_argv(self, self.binary, harness_args), None
         container = self.container
-        argv, name = container.command([self.driver.container_executable, *harness_args])
+        argv, name = container.command(
+            self.driver.invocation_argv(self, self.driver.container_executable, harness_args)
+        )
         return argv, lambda: container.kill(name)
 
     def close(self, *, keep_scratch: bool = False) -> bool:
@@ -410,12 +456,20 @@ class HarnessLaunch:
 
 
 def opencode_version(binary: str = "opencode") -> str | None:
+    """The bare version ``binary --version`` reports: OpenCode 2.x prints ``opencode v2.0.27``, 1.x ``1.18.31``."""
     try:
         completed = subprocess.run([binary, "--version"], capture_output=True, text=True, check=False, timeout=30)
     except (OSError, subprocess.TimeoutExpired):
         return None
     text = (completed.stdout or completed.stderr).strip()
-    return text.splitlines()[-1].strip() if text else None
+    if not text:
+        return None
+    line = text.splitlines()[-1].strip()
+    for word in line.split():
+        match = re.fullmatch(r"v?(\d+\.\d+\.\d+\S*)", word)
+        if match:
+            return match.group(1)
+    return line
 
 
 # -- telemetry ----------------------------------------------------------------
@@ -439,6 +493,14 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
     adapter does (``accumulateOpenCodeStepUsage``, MIT, Copyright (c) 2026 T3
     Tools Inc.). ``max_output_tokens_per_call`` is likewise per step, reasoning
     included.
+
+    OpenCode 2's ``run`` stops printing step events once the session goes
+    idle (``finalizing`` in ``packages/cli/src/run/noninteractive.ts``), so
+    the last step of each invocation usually has no ``step_finish`` and the
+    stream undercounts. The driver therefore replaces the token counts with
+    the session store's (:func:`session_export_usage`) and records which
+    source it used (``token_source``); this parse stays the source of the
+    tool counts and the session id.
     """
     totals = {"input": 0, "output": 0, "reasoning": 0, "cache_read": 0, "cache_write": 0}
     cost = 0.0
@@ -503,6 +565,103 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
     }
 
 
+# What ``usage.harness.token_source`` says the token counts came from.
+TOKEN_SOURCE_EXPORT = "session_export"
+TOKEN_SOURCE_STREAM = "event_stream"
+SESSION_EXPORT_SECONDS = 120.0
+
+
+def session_export_usage(export: Any) -> dict[str, Any] | None:
+    """The token counts of ``opencode session export <id>`` in :func:`parse_opencode_events`'s shape.
+
+    OpenCode 2 stores one ``assistant`` message per model step, with that
+    step's ``tokens`` ({input, output, reasoning, cache:{read, write}}, the
+    same convention as ``step_finish``) and ``cost``, and one ``compaction``
+    message per compaction with the compaction request's own usage. Both are
+    summed; ``model_calls`` counts the assistant messages that carry usage.
+    The session's own total (``info.tokens``) is not used: it also counts
+    OpenCode's side requests such as the session title. ``None`` when the
+    export is not a session (``{"info": ..., "messages": [...]}``).
+    """
+    if not isinstance(export, dict) or not isinstance(export.get("messages"), list):
+        return None
+    totals = {"input": 0, "output": 0, "reasoning": 0, "cache_read": 0, "cache_write": 0}
+    cost = 0.0
+    saw_cost = False
+    steps = 0
+    max_output = 0
+    compactions = 0
+    for message in export["messages"]:
+        if not isinstance(message, dict):
+            continue
+        kind = message.get("type")
+        if kind == "compaction":
+            compactions += 1
+        elif kind != "assistant":
+            continue
+        tokens = message.get("tokens")
+        if not isinstance(tokens, dict):
+            continue
+        output = _int(tokens.get("output")) + _int(tokens.get("reasoning"))
+        if kind == "assistant":
+            steps += 1
+            max_output = max(max_output, output)
+        totals["input"] += _int(tokens.get("input"))
+        totals["output"] += output
+        totals["reasoning"] += _int(tokens.get("reasoning"))
+        cache = tokens.get("cache") if isinstance(tokens.get("cache"), dict) else {}
+        totals["cache_read"] += _int(cache.get("read"))
+        totals["cache_write"] += _int(cache.get("write"))
+        if isinstance(message.get("cost"), (int, float)) and not isinstance(message.get("cost"), bool):
+            cost += float(message["cost"])
+            saw_cost = True
+    return {
+        "model_calls": steps,
+        "input_tokens": totals["input"] + totals["cache_read"] + totals["cache_write"],
+        "uncached_input_tokens": totals["input"],
+        "output_tokens": totals["output"],
+        "reasoning_tokens": totals["reasoning"],
+        "cached_input_tokens": totals["cache_read"],
+        "cache_write_tokens": totals["cache_write"],
+        "max_output_tokens_per_call": max_output,
+        "cost_usd": round(cost, 6) if saw_cost else None,
+        "compactions": compactions,
+    }
+
+
+def export_session(launch: HarnessLaunch, session_id: str) -> tuple[Any, str | None]:
+    """Run ``opencode session export <id> --standalone`` where the episode ran: ``(parsed JSON, None)`` or ``(None, why not)``.
+
+    Same-user, in the episode's private home; in a container, in a further
+    container on the episode's home volume. Called before either is removed.
+    """
+    args = ["session", "export", session_id, "--standalone"]
+    command, on_kill = launch.command(args)
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=launch.scratch,
+            env=launch.env,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=SESSION_EXPORT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        if on_kill is not None:
+            on_kill()
+        return None, f"session export did not finish within {SESSION_EXPORT_SECONDS:.0f} s"
+    except OSError as error:
+        return None, f"session export could not start: {error.strerror or error}"
+    if completed.returncode != 0:
+        return None, f"session export exited {completed.returncode}"
+    try:
+        return json.loads(completed.stdout), None
+    except json.JSONDecodeError:
+        return None, "session export printed no JSON"
+
+
 def provider_stall_backoff(consecutive: int) -> float:
     """Seconds to wait before retrying the ``consecutive``-th stall in a row (1-based): 60, 120, 240, 480, 600, 600..."""
     return min(PROVIDER_STALL_BACKOFF_START_SECONDS * 2 ** max(consecutive - 1, 0), PROVIDER_STALL_BACKOFF_CAP_SECONDS)
@@ -511,24 +670,29 @@ def provider_stall_backoff(consecutive: int) -> float:
 def ended_in_provider_stall(lines: list[str]) -> bool:
     """Whether one invocation's event stream ends in a retryable provider error.
 
-    The last event must be an ``error`` whose data says ``isRetryable``, or
+    The last event must be an ``error`` that OpenCode marks transient: in
+    OpenCode 2 (``{"type": ..., "message": ..., "status": ...}``) one of
+    :data:`RETRYABLE_ERROR_TYPES`; in OpenCode 1.18 (``{"name": ..., "data":
+    {...}}``) one whose data says ``isRetryable``. Either way an error that
     carries a transient HTTP status (``RETRYABLE_STATUS_CODES``), or whose
-    message reads as a rate limit, an overload, or "try again later". Any
-    other ending, including a non-retryable error such as a 401, is the
-    agent (or the harness) stopping. A spent free or Go allowance
-    (``FreeUsageLimitError``, ``GoUsageLimitError``) is quota exhaustion
-    (:func:`quota_exhaustion`), never a stall, although OpenCode marks it retryable.
+    message reads as a rate limit, an overload, or "try again later", is one
+    too. Any other ending, including a non-retryable error such as a 401, is
+    the agent (or the harness) stopping. A spent allowance (OpenCode 2's
+    ``provider.quota``; ``FreeUsageLimitError`` or ``GoUsageLimitError`` in
+    the body) is quota exhaustion (:func:`quota_exhaustion`), never a stall.
 
-    OpenCode's own server failing at startup is a stall too: an
-    ``UnknownError`` reading "Unexpected server error" that ends an
+    OpenCode failing at startup is a stall too, when the error ends an
     invocation which did nothing else first (no tool call, no model text, no
-    finished model step; ``step_start`` alone is allowed). Nine of sixteen
-    container episodes of ``opencode/space-bunny-free`` opened on exactly that
-    single event about a second after launch, and the resumed session then
-    played the whole episode. The same error after the invocation acted is
-    not retried: it may come from the episode's own state and would repeat,
-    and each retry would re-send the context. How many times in a row it is
-    retried is capped separately (``MAX_STARTUP_SERVER_ERROR_RETRIES``).
+    finished model step; ``step_start`` alone is allowed): 1.18's
+    ``UnknownError`` "Unexpected server error", and 2.x's ``provider.no-route``
+    for a model its bundled catalog snapshot does not have yet. Nine of
+    sixteen 1.18 container episodes of ``opencode/space-bunny-free`` opened on
+    exactly that single event about a second after launch, and the resumed
+    session then played the whole episode. The same error after the
+    invocation acted is not retried: it may come from the episode's own state
+    and would repeat, and each retry would re-send the context. How many
+    times in a row it is retried is capped separately
+    (``MAX_STARTUP_SERVER_ERROR_RETRIES``).
     """
     ending = _final_error(lines)
     if ending is None or quota_exhaustion(lines) is not None:
@@ -536,11 +700,13 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
     error, data, before = ending
     if _startup_server_error(error, data, before):
         return True
+    if error.get("type") in RETRYABLE_ERROR_TYPES:
+        return True
     for source in (data, error):
         if source.get("isRetryable") is True:
             return True
-        status = source.get("statusCode")
-        if isinstance(status, int) and not isinstance(status, bool) and status in RETRYABLE_STATUS_CODES:
+        status = _status(source)
+        if status is not None and status in RETRYABLE_STATUS_CODES:
             return True
         message = source.get("message")
         if isinstance(message, str) and _RETRYABLE_MESSAGE_RE.search(message):
@@ -548,14 +714,33 @@ def ended_in_provider_stall(lines: list[str]) -> bool:
     return False
 
 
+def _status(source: dict[str, Any]) -> int | None:
+    """The HTTP status an error names: ``statusCode`` (OpenCode 1.18) or ``status`` (2.x)."""
+    for key in ("statusCode", "status"):
+        status = source.get(key)
+        if isinstance(status, int) and not isinstance(status, bool):
+            return status
+    return None
+
+
+def _response_body(error: dict[str, Any], data: dict[str, Any]) -> str:
+    """The provider's response body: ``data.responseBody`` (OpenCode 1.18) or ``response.body`` (2.x)."""
+    bodies = [str(source.get("responseBody") or "") for source in (data, error)]
+    response = error.get("response")
+    if isinstance(response, dict):
+        bodies.append(str(response.get("body") or ""))
+    return " ".join(body for body in bodies if body)
+
+
 # The error types OpenCode's own gateway (opencode.ai/zen) names in the response
-# body when a usage allowance is spent. Both come as a 429 marked ``isRetryable``,
-# but they are a spent allowance, not a transient stall: in the 2026-09-26
-# ``muse-spark`` panel ``FreeUsageLimitError`` (a free model's allowance) was
-# followed by hours of silent retries. ``GoUsageLimitError`` is a spent OpenCode
-# Go window: OpenCode 1.18.32 (``SessionRetry.retryable``) matches it the same way
-# and reads its reset from ``retry-after`` (seconds). That is from the harness
-# source; no Go run has recorded it yet.
+# body when a usage allowance is spent. Both come as a 429, but they are a spent
+# allowance, not a transient stall: in the 2026-09-26 ``muse-spark`` panel
+# (OpenCode 1.18, which marked them ``isRetryable``) ``FreeUsageLimitError`` (a
+# free model's allowance) was followed by hours of silent retries.
+# ``GoUsageLimitError`` is a spent OpenCode Go window. OpenCode 2 classifies both
+# as ``QuotaExceeded`` (``QUOTA_CODES`` in ``packages/ai/src/provider-error.ts``),
+# reports them as ``provider.quota`` with the body under ``response.body``, and
+# does not retry them. No Go run has recorded either yet.
 _USAGE_LIMIT_CLASSES = (("FreeUsageLimitError", "free_usage_limit"), ("GoUsageLimitError", "go_usage_limit"))
 
 
@@ -564,16 +749,21 @@ def quota_exhaustion(lines: list[str], *, now: float | None = None) -> dict[str,
 
     The last event must be an ``error`` whose response body names
     ``FreeUsageLimitError`` (``message_class`` ``free_usage_limit``) or
-    ``GoUsageLimitError`` (``go_usage_limit``). The reset is read from a
-    ``retry-after`` header in seconds when there is one; otherwise it is
-    unknown (``None``), and the shared loop then stops the episode and the panel.
+    ``GoUsageLimitError`` (``go_usage_limit``), or any other OpenCode 2
+    ``provider.quota`` error (``provider_quota``: a 402, an exhausted credit
+    balance). The reset is read from a ``retry-after`` header in seconds when
+    the error carries one (OpenCode 1.18 did; 2.x keeps only the status and
+    body, so its reset is always unknown); otherwise it is unknown
+    (``None``), and the shared loop then stops the episode and the panel.
     """
     ending = _final_error(lines)
     if ending is None:
         return None
     error, data, _before = ending
-    body = " ".join(str(source.get("responseBody") or "") for source in (data, error))
+    body = _response_body(error, data)
     message_class = next((name for marker, name in _USAGE_LIMIT_CLASSES if marker in body), None)
+    if message_class is None and error.get("type") == QUOTA_ERROR_TYPE:
+        message_class = "provider_quota"
     if message_class is None:
         return None
     reset = None
@@ -622,36 +812,48 @@ def _final_error(lines: list[str]) -> tuple[dict[str, Any], dict[str, Any], list
 
 
 def provider_error(lines: list[str]) -> dict[str, Any] | None:
-    """``{"status_code": ..., "message": ...}`` when the invocation ended on an ``APIError`` the provider marked final.
+    """``{"status_code": ..., "message": ...}`` when the invocation ended on a provider error OpenCode marked final.
 
-    For example OpenCode Go's 400 "This Go model requires Global regions"
-    (``isRetryable`` false), which every retry and nudge gets again. An error
-    OpenCode would retry, or one that does not say, is not a refusal.
+    For example OpenCode Go's 400 "This Go model requires Global regions",
+    which every retry and nudge gets again: in OpenCode 2 any ``provider.*``
+    error that is neither transient (:data:`RETRYABLE_ERROR_TYPES`) nor a
+    spent allowance (``provider.quota``), such as ``provider.invalid-request``,
+    ``provider.auth`` or ``provider.no-route``; in OpenCode 1.18 an
+    ``APIError`` with ``isRetryable`` false. An error OpenCode would retry, or
+    one that does not say, is not a refusal.
     """
     ending = _final_error(lines)
     if ending is None:
         return None
     error, data, _before = ending
-    if error.get("name") != "APIError" or data.get("isRetryable") is not False:
+    kind = error.get("type")
+    if isinstance(kind, str) and kind.startswith("provider."):
+        if kind in RETRYABLE_ERROR_TYPES or kind == QUOTA_ERROR_TYPE:
+            return None
+    elif error.get("name") != "APIError" or data.get("isRetryable") is not False:
         return None
-    status = data.get("statusCode")
+    status = _status(data) if _status(data) is not None else _status(error)
     message = data.get("message", error.get("message"))
     return {
-        "status_code": status if isinstance(status, int) else None,
+        "status_code": status,
         # Whole: the driver redacts it before cutting it (``OpenCodeDriver.provider_error``).
         "message": message if isinstance(message, str) else None,
     }
 
 
 def _startup_server_error(error: dict[str, Any], data: dict[str, Any], before: list[dict[str, Any]]) -> bool:
-    """OpenCode's generic server error, before the invocation did anything but start a step."""
+    """OpenCode failing to start the run, before the invocation did anything but start a step.
+
+    1.18's generic ``UnknownError`` server error, or 2.x's ``provider.no-route``
+    (the model did not resolve).
+    """
     message = data.get("message", error.get("message"))
-    return (
+    startup = error.get("type") == _STARTUP_NO_ROUTE_TYPE or (
         error.get("name") == "UnknownError"
         and isinstance(message, str)
         and _SERVER_ERROR_MESSAGE_RE.search(message) is not None
-        and all(event.get("type") == "step_start" for event in before)
     )
+    return startup and all(event.get("type") == "step_start" for event in before)
 
 
 def _invocation_lines(events_path: Path, offset: int) -> list[str]:
@@ -744,6 +946,10 @@ def usage_block(
         "cache_write_tokens": telemetry["cache_write_tokens"],
         "telemetry_reported": telemetry["model_calls"] > 0,
     }
+    # OpenCode 2: where the token counts came from, and why not the session store if not.
+    for key in ("token_source", "session_export_error"):
+        if telemetry.get(key) is not None:
+            usage["harness"][key] = telemetry[key]
     return usage
 
 
@@ -1123,7 +1329,9 @@ def run_episode(
     finally:
         server_drained = launch.close(keep_scratch=keep_scratch)
 
-    telemetry = driver.parse_events(events_path.read_text(encoding="utf-8").splitlines())
+    telemetry = driver.final_telemetry(
+        launch, driver.parse_events(events_path.read_text(encoding="utf-8").splitlines())
+    )
     # server.stop() hung up on every proxy and joined its thread, so nothing
     # should be inside the engine now; the lock covers a join that timed out.
     with server.dispatch_lock:
@@ -1759,11 +1967,17 @@ def _agentic_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
 # operator's config, AGENTS.md and skills from $XDG_CONFIG_HOME/opencode, and also
 # ~/.claude/CLAUDE.md, ~/.claude/skills and ~/.agents/skills, all under HOME.
 OPENCODE_HOME_ENV = ("HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME")
-# OpenCode's credential store, under its data directory ($XDG_DATA_HOME, else
-# ~/.local/share): ``{"<provider id>": {"type": "api", "key": "..."}}``, which
-# is what ``opencode auth login`` writes for an API key (mode 0600).
-AUTH_PATH = "opencode/auth.json"
+# OpenCode 2 keeps credentials in its database (``opencode.db`` under its data
+# directory, $XDG_DATA_HOME/opencode, else ~/.local/share/opencode). It still
+# has an import of 1.x's ``auth.json``, but only as a migration, which a fresh
+# database skips (``packages/core/src/database/migration.ts`` marks every
+# migration done when it bootstraps an empty database), so a staged
+# ``auth.json`` is never read. The key is staged with ``opencode auth import``
+# instead: this file (``auth export``'s format, mode 0600) is written into the
+# data directory, imported by a ``--standalone`` server, and removed.
+CREDENTIALS_PATH = "opencode/gmb-credentials.json"
 CONTAINER_DATA_DIR = ".local/share"
+IMPORT_SECONDS = 120.0
 # The key is stored for the Go subscription (``opencode-go``) only. The same key
 # would also unlock paid Zen (``opencode``) models, billed to the account's Zen
 # balance, and would move free Zen models off the shared key ``public`` onto the
@@ -1787,9 +2001,24 @@ def read_auth_file(path: str | Path) -> str:
     return key
 
 
-def opencode_auth_json(key: str) -> bytes:
-    """The ``auth.json`` staged for the harness: ``key`` for each of :data:`AUTH_PROVIDERS`."""
-    return json.dumps({provider: {"type": "api", "key": key} for provider in AUTH_PROVIDERS}, indent=2).encode()
+def opencode_credentials_json(key: str) -> bytes:
+    """What ``opencode auth import`` reads (``auth export``'s format): ``key`` for each of :data:`AUTH_PROVIDERS`."""
+    entries = [
+        {
+            "id": f"cred_gmbench_{provider.replace('-', '_')}",
+            "integrationID": provider,
+            "label": "API key",
+            "active": True,
+            "value": {"type": "key", "key": key},
+        }
+        for provider in AUTH_PROVIDERS
+    ]
+    return json.dumps(entries, indent=2).encode()
+
+
+# Run inside the container as the harness user: import the staged file from the
+# home volume, then remove it whatever the import did.
+_CONTAINER_IMPORT = 'cd "$HOME" && opencode auth import "$1" --standalone; status=$?; rm -f "$1"; exit "$status"'
 
 
 class OpenCodeDriver(HarnessDriver):
@@ -1798,11 +2027,27 @@ class OpenCodeDriver(HarnessDriver):
     Same-user runs get a private home (mode 0700, outside the scratch,
     removed at episode end): ``HOME`` and every ``XDG_*`` base directory
     point into it, and every ``OPENCODE_*`` variable is dropped, so none of
-    the operator's OpenCode config, instructions or skills (nor Claude's or
-    the shared ``~/.agents`` ones OpenCode also reads) reach the agent, and
-    the session store the nudges resume lives there. ``--pure`` does not do
-    this: it turns off plugins, not instruction files or skills. A
+    the operator's OpenCode config, instructions, skills or plugins (nor
+    Claude's or the shared ``~/.agents`` ones OpenCode also reads) reach the
+    agent, and the session store the nudges resume lives there. A
     container's home is already a fresh volume.
+
+    OpenCode 2.x: each invocation runs on a private server for that
+    invocation alone, never the shared background service (which would serve
+    every run from one server and one session store). ``run --standalone``
+    starts one, but sends the prompt before its MCP servers have connected,
+    so the first model request of every invocation lacked the GM-Bench tools
+    (2.0.27, 2.0.28). So each ``run`` goes through the staged launcher
+    (:data:`LAUNCHER_FILENAME`, ``_opencode_launch.py``): it starts
+    ``opencode serve`` on a loopback port with a password of its own, waits
+    until the MCP servers have connected, and runs ``run --server``. Other
+    commands (``session export``, ``auth import``) still run
+    ``--standalone``: they need no MCP server. The workspace is
+    the directory ``run`` starts in, read from ``PWD`` before the working
+    directory (``packages/cli/src/run/run.ts``); 2.x has no ``--dir``, so
+    same-user runs set ``PWD`` to the scratch directory, and the container's
+    working directory is the mounted scratch. 2.x also has no ``--pure`` and
+    no ``--variant``: a variant is ``--model provider/model#variant``.
 
     ``auth_file`` (``--opencode-auth-file``) holds one OpenCode API key, for
     the OpenCode Go (``opencode-go/*``) models. It is written as
@@ -1827,6 +2072,8 @@ class OpenCodeDriver(HarnessDriver):
         # Per launch (keyed by scratch directory): the private home, and the key to redact from the evidence.
         self._homes: dict[Path, Path] = {}
         self._secrets: dict[Path, set[str]] = {}
+        # Per launch: the token counts read from the session store, or why they could not be.
+        self._session_usage: dict[Path, tuple[dict[str, Any] | None, str | None]] = {}
 
     def preflight(self, isolation: str) -> None:
         if self.auth_file is not None:
@@ -1857,7 +2104,31 @@ class OpenCodeDriver(HarnessDriver):
                 path = home / key.lower().removeprefix("xdg_").removesuffix("_home")
                 path.mkdir(mode=0o700)
                 env[key] = str(path)
+            # OpenCode 2 takes its workspace from PWD before the working directory; the
+            # operator's PWD would make the driver's own directory the agent's workspace.
+            env["PWD"] = str(scratch)
         return env
+
+    def collect(self, launch: HarnessLaunch) -> None:
+        # The session store, not the stream, has every step's usage (see ``parse_opencode_events``).
+        events = launch.evidence_paths[0] if launch.evidence_paths else None
+        lines = events.read_text(encoding="utf-8").splitlines() if events is not None and events.is_file() else []
+        session_id = parse_opencode_events(lines)["session_id"]
+        if not session_id:
+            self._session_usage[launch.scratch] = (None, "no session to export")
+            return
+        export, problem = export_session(launch, str(session_id))
+        usage = session_export_usage(export) if problem is None else None
+        if problem is None and usage is None:
+            problem = "session export is not a session"
+        self._session_usage[launch.scratch] = (usage, problem)
+
+    def final_telemetry(self, launch: HarnessLaunch, telemetry: dict[str, Any]) -> dict[str, Any]:
+        usage, problem = self._session_usage.pop(launch.scratch, (None, "session store not read"))
+        if usage is None:
+            # The stream's counts, which miss the last step of each invocation: said so, not hidden.
+            return {**telemetry, "token_source": TOKEN_SOURCE_STREAM, "session_export_error": problem}
+        return {**telemetry, **usage, "token_source": TOKEN_SOURCE_EXPORT}
 
     def run_record(self, launch: HarnessLaunch) -> dict[str, Any]:
         # Whether a key was staged, and for which providers; never the value.
@@ -1905,16 +2176,48 @@ class OpenCodeDriver(HarnessDriver):
             return
         key = read_auth_file(self.auth_file)
         self._secrets.setdefault(launch.scratch, set()).add(key)
-        data = opencode_auth_json(key)
+        data = opencode_credentials_json(key)
         if launch.container is not None:
             # Into the episode's home volume over stdin; never the bind-mounted scratch.
-            launch.container.seed_home({f"{CONTAINER_DATA_DIR}/{AUTH_PATH}": data})
-            return
-        path = Path(launch.env["XDG_DATA_HOME"]) / AUTH_PATH
-        path.parent.mkdir(mode=0o700)
-        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(descriptor, "wb") as handle:
-            handle.write(data)
+            relative = f"{CONTAINER_DATA_DIR}/{CREDENTIALS_PATH}"
+            launch.container.seed_home({relative: data})
+            command, _name = launch.container.command(
+                ["sh", "-c", _CONTAINER_IMPORT, "sh", f"{CONTAINER_HOME}/{relative}"]
+            )
+            cwd = launch.scratch
+        else:
+            path = Path(launch.env["XDG_DATA_HOME"]) / CREDENTIALS_PATH
+            path.parent.mkdir(mode=0o700, exist_ok=True)
+            descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(data)
+            command = [launch.binary, "auth", "import", str(path), "--standalone"]
+            # Run from the private home, so the import's server does not start in the scratch.
+            cwd = self._homes[launch.scratch]
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=cwd,
+                env={**launch.env, "PWD": str(cwd)} if launch.container is None else launch.env,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                check=False,
+                timeout=IMPORT_SECONDS,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise RuntimeError(f"opencode auth import did not run: {type(error).__name__}") from None
+        finally:
+            if launch.container is None:
+                path.unlink(missing_ok=True)
+        if completed.returncode != 0:
+            # Its output is not quoted: it is about a file that holds the key.
+            raise RuntimeError(f"opencode auth import exited {completed.returncode}; the key was not staged")
+
+    def invocation_argv(self, launch: HarnessLaunch, executable: str, args: list[str]) -> list[str]:
+        # ``run`` goes through the staged launcher (see the class docstring); other commands do not.
+        if args[:1] != ["run"]:
+            return [executable, *args]
+        return [launch.proxy_python, str(Path(launch.workdir) / LAUNCHER_FILENAME), executable, *args]
 
     def run_args(self, *, model: str, variant: str | None, workdir: str, brief: str, isolation: str) -> list[str]:
         return [*self._base(model, variant, workdir), brief]
@@ -1926,10 +2229,15 @@ class OpenCodeDriver(HarnessDriver):
 
     @staticmethod
     def _base(model: str, variant: str | None, workdir: str) -> list[str]:
-        base = ["run", "--format", "json", "--pure", "--auto", "--dir", workdir, "--model", model]
-        if variant:
-            base += ["--variant", variant]
-        return base
+        # ``workdir`` is where the invocation starts (see the class docstring), not an argument.
+        return [
+            "run",
+            "--format",
+            "json",
+            "--auto",
+            "--model",
+            f"{model}#{variant}" if variant else model,
+        ]
 
     def parse_events(self, lines: list[str]) -> dict[str, Any]:
         return parse_opencode_events(lines)
