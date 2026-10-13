@@ -24,6 +24,19 @@ function ThemeToggle() {
   );
 }
 
+/* The GM-Bench mark (web/public/brand/): the letters are the bench back and the
+   seat plank runs across their feet. Drawn inline so it follows the theme. */
+function BrandMark() {
+  return (
+    <svg className="brand-mark" viewBox="2 10 256 136" width="41" height="22" aria-hidden="true">
+      <path fill="currentColor" d="M116,14 H36 V95 H116 V58 H76 V78 H96 V90 H56 V34 H116 Z" />
+      <path fill="currentColor" d="M128,95 V14 H152 L176,50 L200,14 H224 V95 H204 V50 L176,80 L148,50 V95 Z" />
+      <path fill="var(--bar)" d="M14,98 H246 V111 H234 V139 H224 V111 H36 V139 H26 V111 H14 Z" />
+      <rect fill="var(--rink-blue)" x="6" y="139.5" width="248" height="3" />
+    </svg>
+  );
+}
+
 export default function Shell({ page, data, children }: { page: PageKey; data: Leaderboard; children: ReactNode }) {
   const contract = data.agentic_lane?.[0]?.contract;
   return (
@@ -31,7 +44,7 @@ export default function Shell({ page, data, children }: { page: PageKey; data: L
       <a className="skip-link" href="#main">Skip to content</a>
       <header className="topbar">
         <a className="wordmark" href={routes.standings}>
-          <img src={`${import.meta.env.BASE_URL}favicon.svg`} width="22" height="22" alt="" aria-hidden="true" />
+          <BrandMark />
           GM-Bench
         </a>
         <nav className="tabs" aria-label="Views">

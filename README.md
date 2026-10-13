@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="web/public/brand/gm-bench-mark-dark.svg" />
+    <img src="web/public/brand/gm-bench-mark-light.svg" alt="GM-Bench" width="200" />
+  </picture>
+</p>
+
 # GM-Bench
 
 GM-Bench is a small, deterministic sports general-manager benchmark inspired by

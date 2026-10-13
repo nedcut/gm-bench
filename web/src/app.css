@@ -1204,6 +1204,10 @@ main:focus {
   white-space: nowrap;
 }
 
+.wordmark .brand-mark {
+  flex: none;
+}
+
 .view-head h1,
 .view-head h2,
 .season-strip h2,
