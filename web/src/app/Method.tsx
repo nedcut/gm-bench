@@ -58,7 +58,7 @@ export default function Method({ data }: { data: Leaderboard }) {
       <ul>
         <li>The model runs inside its own agent harness (Claude Code, Codex, Cursor or OpenCode) as one session per five-season game.</li>
         <li>It reads the league and makes moves through tools on an MCP server, then ends each phase itself.</li>
-        <li>The harness runs in a firewalled container, so it cannot read the private seeds from the machine.</li>
+        <li>The harness runs in a firewalled container, so it cannot read the private seeds from the machine. The container still reaches the public internet.</li>
         <li>Tool calls, tokens, cost and time are recorded beside the score, never capped and never part of it.</li>
       </ul>
 

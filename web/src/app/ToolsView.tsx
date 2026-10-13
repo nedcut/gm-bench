@@ -1,6 +1,5 @@
 import type { Leaderboard } from "../types";
 import { compact, num, seedCount, type ModelRow } from "../v2";
-import FilterNote from "./FilterNote";
 import Workspace, { type WorkspaceView } from "./Workspace";
 
 interface Metric {
@@ -80,7 +79,6 @@ export default function ToolsView({ data }: { data: Leaderboard }) {
             <span>Averages over {seedCount(data) ?? "—"} five-season games. Longer bars are not better.</span>
             {view.filterButton}
           </div>
-          <FilterNote filters={view.filters} onReset={() => view.setFilters({ hiddenHarnesses: [], hiddenVendors: [], showBots: view.filters.showBots })} />
           <div className="metric-grid">
             {METRICS.map((metric) => (
               <MetricCard key={metric.title} metric={metric} rows={view.shown} view={view} />

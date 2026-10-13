@@ -1,5 +1,6 @@
 import type { Leaderboard } from "../types";
 import {
+  clearsBar,
   costText,
   modelRows,
   num,
@@ -63,7 +64,8 @@ function vsBar(row: ModelRow) {
 export default function Standings({ data }: { data: Leaderboard }) {
   const bar = pickTraderScore(data) ?? 0;
   const models = modelRows(data);
-  const beat = models.filter((row) => row.score > bar).length;
+  const clear = models.filter(clearsBar).length;
+  const above = models.filter((row) => row.score > bar).length;
 
   return (
     <>
@@ -72,9 +74,11 @@ export default function Standings({ data }: { data: Leaderboard }) {
         <div className="intro-copy">
           <h1>Can an LLM run a hockey team?</h1>
           <p className="intro-answer">
-            {beat === 0
-              ? "Not yet. No model beats pick-trader."
-              : `${beat} of ${models.length} models beat pick-trader.`}
+            {clear > 0
+              ? `${clear} of ${models.length} models beat${clear === 1 ? "s" : ""} pick-trader by more than the noise.`
+              : above > 0
+                ? `Not clearly. ${above} of ${models.length} score above pick-trader, within the noise.`
+                : "Not yet. No model beats pick-trader."}
           </p>
           <p>
             Each agent runs a franchise for five seasons inside its own harness:

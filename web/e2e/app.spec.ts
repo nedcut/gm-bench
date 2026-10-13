@@ -3,7 +3,23 @@ import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
 
 const data = JSON.parse(readFileSync(new URL("../src/data/leaderboard.json", import.meta.url), "utf8"));
-const rows: { model: string; mean_score: number }[] = data.agentic_lane;
+type Row = {
+  model: string;
+  mean_score: number;
+  reference: { mean_score: number; paired_lift_ci95: number[] };
+  telemetry: { cost_per_episode_usd: number | null; api_equivalent_cost_per_episode_usd?: number | null };
+};
+const rows: Row[] = data.agentic_lane;
+const bar = rows[0].reference.mean_score;
+const clears = (row: Row) => row.reference.paired_lift_ci95[0] > 0;
+const priced = rows.filter(
+  (row) => (row.telemetry.cost_per_episode_usd ?? row.telemetry.api_equivalent_cost_per_episode_usd ?? null) !== null,
+);
+function verdict(set: Row[], clear: string, above: string, none: string): string {
+  const c = set.filter(clears).length;
+  const a = set.filter((row) => row.mean_score > bar).length;
+  return c > 0 ? clear.replace("N", String(c)) : a > 0 ? above.replace("N", String(a)) : none;
+}
 const PAGES = ["/", "/cost/", "/tools/", "/replays/", "/method/", "/v1/"];
 
 async function noErrors(page: Page) {
@@ -16,7 +32,14 @@ test("standings lists every 2.0 row by score with pick-trader, and nothing from 
   const errors = await noErrors(page);
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Can an LLM run a hockey team?");
-  await expect(page.locator(".intro-answer")).toHaveText("Not yet. No model beats pick-trader.");
+  await expect(page.locator(".intro-answer")).toHaveText(
+    verdict(
+      rows,
+      `N of ${rows.length} models beat${rows.filter(clears).length === 1 ? "s" : ""} pick-trader by more than the noise.`,
+      `Not clearly. N of ${rows.length} score above pick-trader, within the noise.`,
+      "Not yet. No model beats pick-trader.",
+    ),
+  );
   const names = await page.locator(".standings tbody .name").allTextContents();
   for (const row of rows) expect(names).toContain(row.model.split("/").at(-1));
   expect(names).toContain("pick-trader");
@@ -35,9 +58,9 @@ test("filters hide rows on every tab and a row opens its details", async ({ page
   await expect(page.locator(".standings tbody .name", { hasText: "random" })).toHaveCount(0);
   await expect(page.locator(".standings tbody .name", { hasText: "pick-trader" })).toHaveCount(1);
   await page.goto("/tools/");
-  await expect(page.getByText(/Hidden by your filter: Claude Code/)).toBeVisible();
   await expect(page.locator(".hbar", { hasText: "claude-sonnet-5" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Show all" }).click();
+  await expect(page.getByRole("checkbox", { name: /Claude Code/ })).not.toBeChecked();
+  await page.getByRole("button", { name: "Reset" }).click();
   await expect(page.locator(".hbar", { hasText: "claude-sonnet-5" }).first()).toBeVisible();
   await page.goto("/");
   await page.locator(".row-name", { hasText: "gpt-6-luna" }).click();
@@ -58,7 +81,14 @@ test("score vs cost plots measured rows and names the unmeasured ones", async ({
 test("cost points and tool bars open details in the side panel and highlight their row", async ({ page }) => {
   const errors = await noErrors(page);
   await page.goto("/cost/");
-  await expect(page.locator(".view-head span")).toContainText("No measured row scores above pick-trader.");
+  await expect(page.locator(".view-head span")).toContainText(
+    verdict(
+      priced,
+      `N measured row${priced.filter(clears).length === 1 ? " beats" : "s beat"} pick-trader by more than the noise.`,
+      `N measured row${priced.filter((row) => row.mean_score > bar).length === 1 ? " scores" : "s score"} above pick-trader's mean, within the noise.`,
+      "No measured row scores above pick-trader.",
+    ),
+  );
   const point = page.getByRole("button", { name: /^gpt-6-luna, Codex: score/ });
   await point.locator("circle").hover();
   await expect(page.locator(".chart .pt.is-dim")).toHaveCount(await page.locator(".chart .pt").count() - 1);

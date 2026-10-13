@@ -11,6 +11,7 @@
   --text-2: #a7b8c8;
   --text-3: #8497ab;
   --bar: #ff5262;
+  --pos: #4fd18b;
   --bar-soft: rgba(255, 82, 98, 0.12);
   --track: #16243a;
   --bot: #415469;
@@ -67,6 +68,7 @@
   --text-2: #3f5266;
   --text-3: #5d6f82;
   --bar: #d42a3b;
+  --pos: #13784a;
   --bar-soft: rgba(212, 42, 59, 0.08);
   --track: #e3eaf1;
   --bot: #b3c0cd;
@@ -489,7 +491,7 @@ main:focus {
 }
 
 .pos {
-  color: #4fd18b;
+  color: var(--pos);
 }
 
 /* ---------- side panel ---------- */
@@ -560,9 +562,34 @@ main:focus {
   cursor: pointer;
 }
 
+/* Each toggle is a dot in the row's color: filled when shown, a ring when hidden. */
 .check input {
-  margin: 0;
-  accent-color: var(--text);
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin: 0 1px;
+  border: 2px solid var(--c, var(--text-2));
+  border-radius: 50%;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+
+.check input:checked {
+  background: var(--c, var(--text-2));
+}
+
+.check input.is-bot {
+  --c: var(--bot);
+}
+
+.check input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.check:has(input:not(:checked)) > span {
+  color: var(--text-3);
 }
 
 .check small {
@@ -798,11 +825,6 @@ main:focus {
   opacity: 0.05;
 }
 
-.chart .leader {
-  stroke-opacity: 0.28;
-  stroke-width: 1;
-}
-
 .chart .pt {
   cursor: pointer;
   outline: none;
@@ -888,10 +910,6 @@ main:focus {
   border: 2px solid var(--text-2);
   border-radius: 50%;
   background: var(--text-2);
-}
-
-.key-dot.is-hollow {
-  background: none;
 }
 
 .key-ci {

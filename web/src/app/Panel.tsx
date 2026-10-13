@@ -57,8 +57,7 @@ function FilterView({ models, filters, onFilters, hint }: { models: ModelRow[]; 
         <legend>Vendor</legend>
         {vendors.map((vendor) => (
           <label key={vendor.key} className="check">
-            <input type="checkbox" checked={!filters.hiddenVendors.includes(vendor.key)} onChange={() => onFilters({ ...filters, hiddenVendors: toggle(filters.hiddenVendors, vendor.key) })} />
-            <span className={`dot vendor-${vendor.key}`} aria-hidden="true" />
+            <input type="checkbox" className={`vendor-${vendor.key}`} checked={!filters.hiddenVendors.includes(vendor.key)} onChange={() => onFilters({ ...filters, hiddenVendors: toggle(filters.hiddenVendors, vendor.key) })} />
             <span>{vendor.name}</span>
             <small>{count((m) => m.vendor.key === vendor.key)}</small>
           </label>
@@ -67,7 +66,7 @@ function FilterView({ models, filters, onFilters, hint }: { models: ModelRow[]; 
       <fieldset>
         <legend>Scripted bots</legend>
         <label className="check">
-          <input type="checkbox" checked={filters.showBots} onChange={() => onFilters({ ...filters, showBots: !filters.showBots })} />
+          <input type="checkbox" className="is-bot" checked={filters.showBots} onChange={() => onFilters({ ...filters, showBots: !filters.showBots })} />
           <span>Show bots</span>
         </label>
       </fieldset>

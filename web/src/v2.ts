@@ -118,6 +118,11 @@ const ROW_CAVEATS: Record<string, string> = {
     "Ran with the ChatGPT account's connected apps and plugins available: Codex exposed about 668 extra " +
     "tools (Gmail, GitHub, Google Drive and others). The row records no tool call other than GM-Bench calls. " +
     "Codex runs since 2026-10-13 turn these off.",
+  "agentic:codex-0.162.1:gpt-6.1-sol":
+    "Ran with the ChatGPT account's apps, plugins and connectors turned off, unlike the gpt-6-luna row. " +
+    "Codex reports no cost; the estimate is at short-context list prices and may be low. The agent made 36 " +
+    "draft calls across the 160 draft phases and 518 trade calls. The lift's 95% interval starts at +1.6, " +
+    "so the margin is thin. Played on driver commit 1411e2e, the first with Codex 0.162.1.",
   "agentic:cursor-2026.09.26-dd393fe:composer-2.5":
     "Cursor's servers add seven default User Rules of their own to every prompt; they are part of the " +
     "harness. Cursor reports no cost and composer-2.5 has no per-token list price, so cost is unmeasured. " +
@@ -195,6 +200,11 @@ export function modelRows(data: Leaderboard): ModelRow[] {
 
 export function pickTraderScore(data: Leaderboard): number | null {
   return data.agentic_lane?.[0]?.reference.mean_score ?? null;
+}
+
+/** Ahead of pick-trader by more than the noise: the paired-lift 95% interval sits above zero. */
+export function clearsBar(row: ModelRow): boolean {
+  return row.liftCi !== null && row.liftCi[0] > 0;
 }
 
 export function seedCount(data: Leaderboard): number | null {

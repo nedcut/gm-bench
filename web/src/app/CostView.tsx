@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { Leaderboard } from "../types";
-import { costText, num, pickTraderScore, type ModelRow } from "../v2";
-import FilterNote from "./FilterNote";
+import { clearsBar, num, pickTraderScore, type ModelRow } from "../v2";
 import Workspace, { type WorkspaceView } from "./Workspace";
 
 type Scale = "log" | "linear";
@@ -34,35 +33,56 @@ function linearTicks(max: number): number[] {
   return ticks;
 }
 
-/* Spread label positions at least `gap` apart, keeping each near its target
-   and inside [top, bottom]. */
-function spread(targets: number[], gap: number, top: number, bottom: number): number[] {
-  const order = targets.map((y, i) => ({ y, i })).sort((a, b) => a.y - b.y);
-  const ys = order.map((o) => o.y);
-  for (let k = 0; k < ys.length; k++) ys[k] = Math.max(ys[k], k === 0 ? top : ys[k - 1] + gap);
-  for (let k = ys.length - 1; k >= 0; k--) ys[k] = Math.min(ys[k], k === ys.length - 1 ? bottom : ys[k + 1] - gap);
-  const out = new Array<number>(targets.length);
-  order.forEach((o, k) => (out[o.i] = ys[k]));
-  return out;
+interface Box {
+  x0: number;
+  x1: number;
+  top: number;
+  bottom: number;
 }
 
-/* In-place labels for narrow charts: beside the point, on the side with room,
-   pushed down when they would overlap one already placed. */
-function besidePoints(points: { x: number; y: number; width: number }[], right: number) {
+const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.top < b.bottom && b.top < a.bottom;
+
+/* Labels beside their points: right of the dot when it fits, else left, else
+   nudged up or down, clear of other labels, other dots and `fixed` boxes
+   (the pick-trader line, its label, and the interval whiskers). */
+function placeLabels(
+  points: { x: number; y: number; width: number }[],
+  lines: number,
+  plot: { left: number; right: number; top: number; bottom: number },
+  fixed: Box[],
+) {
+  const height = lines * 15 + 2;
+  const taken: Box[] = [...fixed, ...points.map((p) => ({ x0: p.x - 8, x1: p.x + 8, top: p.y - 8, bottom: p.y + 8 }))];
+  const out = new Array<{ x: number; y: number; anchorEnd: boolean }>(points.length);
   const order = points.map((p, i) => ({ ...p, i })).sort((a, b) => a.y - b.y);
-  const placed: { x0: number; x1: number; y: number }[] = [];
-  const out = new Array<{ y: number; anchorEnd: boolean }>(points.length);
   for (const point of order) {
-    const anchorEnd = point.x + 12 + point.width > right;
-    const x0 = anchorEnd ? point.x - 12 - point.width : point.x + 12;
-    const x1 = x0 + point.width;
-    let y = point.y + 4;
-    for (const other of placed) if (x0 < other.x1 && other.x0 < x1 && Math.abs(y - other.y) < 17) y = other.y + 17;
-    placed.push({ x0, x1, y });
-    out[point.i] = { y, anchorEnd };
+    const base = point.y + 4 - (lines - 1) * 7.5;
+    let best: { x: number; y: number; anchorEnd: boolean; box: Box } | null = null;
+    search: for (const dy of [0, 16, -16, 32, -32, 48, -48]) {
+      for (const anchorEnd of [false, true]) {
+        const x = anchorEnd ? point.x - 12 : point.x + 12;
+        const x0 = anchorEnd ? x - point.width : x;
+        const box = { x0, x1: x0 + point.width, top: base + dy - 12, bottom: base + dy - 12 + height };
+        if (box.x0 < plot.left || box.x1 > plot.right || box.top < plot.top || box.bottom > plot.bottom) continue;
+        if (taken.some((other) => overlaps(box, other))) continue;
+        best = { x, y: base + dy, anchorEnd, box };
+        break search;
+      }
+    }
+    if (!best) {
+      const anchorEnd = point.x + 12 + point.width > plot.right;
+      const x = anchorEnd ? point.x - 12 : point.x + 12;
+      const x0 = anchorEnd ? x - point.width : x;
+      best = { x, y: base, anchorEnd, box: { x0, x1: x0 + point.width, top: base - 12, bottom: base - 12 + height } };
+    }
+    taken.push(best.box);
+    out[point.i] = { x: best.x, y: best.y, anchorEnd: best.anchorEnd };
   }
   return out;
 }
+
+/* The chart shows billed and estimated costs alike; the row details say which is which. */
+const usd = (row: ModelRow) => `$${num(row.cost.usd, 2)}`;
 
 /* One sentence on cost and the bar. Rows are never compared with each other. */
 function takeaway(priced: ModelRow[], bar: number): string {
@@ -72,12 +92,17 @@ function takeaway(priced: ModelRow[], bar: number): string {
   const hi = byCost.at(-1)!;
   const ratio = (hi.cost.usd as number) / (lo.cost.usd as number);
   const above = priced.filter((row) => row.score > bar).length;
+  const clear = priced.filter(clearsBar).length;
   const range =
     priced.length === 1
-      ? `One measured row, at ${costText(lo.cost)} a game.`
-      : `Cost per game runs from ${costText(lo.cost)} to ${costText(hi.cost)}${Number.isFinite(ratio) && ratio >= 2 ? `, a ${Math.round(ratio)}× spread` : ""}.`;
+      ? `One measured row, at ${usd(lo)} a game.`
+      : `Cost per game runs from ${usd(lo)} to ${usd(hi)}${Number.isFinite(ratio) && ratio >= 2 ? `, a ${Math.round(ratio)}× spread` : ""}.`;
   const verdict =
-    above === 0 ? "No measured row scores above pick-trader." : `${above} measured row${above === 1 ? "" : "s"} score above pick-trader's mean.`;
+    clear > 0
+      ? `${clear} measured row${clear === 1 ? " beats" : "s beat"} pick-trader by more than the noise.`
+      : above > 0
+        ? `${above} measured row${above === 1 ? " scores" : "s score"} above pick-trader's mean, within the noise.`
+        : "No measured row scores above pick-trader.";
   return `${range} ${verdict}`;
 }
 
@@ -87,7 +112,7 @@ function Chart({ priced, bar, scale, view }: { priced: ModelRow[]; bar: number; 
   const narrow = W < 640;
   const viewport = typeof window === "undefined" ? 800 : window.innerHeight;
   const H = narrow ? 360 : Math.round(Math.max(420, Math.min(620, viewport - 300)));
-  const PAD = narrow ? { l: 40, r: 10, t: 16, b: 46 } : { l: 52, r: 230, t: 16, b: 50 };
+  const PAD = narrow ? { l: 40, r: 10, t: 16, b: 46 } : { l: 52, r: 20, t: 16, b: 50 };
   const right = W - PAD.r;
 
   const costs = priced.map((row) => row.cost.usd as number);
@@ -115,10 +140,22 @@ function Chart({ priced, bar, scale, view }: { priced: ModelRow[]; bar: number; 
   for (let t = yLo; t <= yHi; t += 50) yTicks.push(t);
 
   const points = priced.map((row) => ({ x: x(row.cost.usd as number), y: y(row.score) }));
-  /* pick-trader takes a slot in the label column too, last in the list. */
-  const column = spread([...points.map((p) => p.y), y(bar)], 32, PAD.t + 8, H - PAD.b - 16);
-  const barLabelY = column.at(-1)!;
-  const beside = besidePoints(points.map((p, i) => ({ ...p, width: priced[i].model.length * CHAR })), right);
+  const barLabel = `pick-trader ${num(bar)}`;
+  const barBox = { x0: right - 6 - barLabel.length * CHAR, x1: right, top: y(bar) - 20, bottom: y(bar) - 2 };
+  const noteBox = { x0: PAD.l, x1: PAD.l + 130, top: PAD.t, bottom: PAD.t + 26 };
+  /* Wide charts add the harness and cost under each name. */
+  const sub = (row: ModelRow) => `${row.harness} · ${usd(row)}`;
+  const labels = placeLabels(
+    points.map((p, i) => ({ ...p, width: Math.max(priced[i].model.length, narrow ? 0 : sub(priced[i]).length) * CHAR })),
+    narrow ? 1 : 2,
+    { left: PAD.l + 4, right: right - 4, top: PAD.t, bottom: H - PAD.b },
+    [
+      barBox,
+      noteBox,
+      { x0: PAD.l, x1: right, top: y(bar) - 3, bottom: y(bar) + 3 },
+      ...priced.flatMap((row, i) => (row.ci ? [{ x0: points[i].x - 3, x1: points[i].x + 3, top: y(row.ci[1]), bottom: y(row.ci[0]) }] : [])),
+    ],
+  );
 
   const activate = (id: string) => (event: KeyboardEvent) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -155,22 +192,8 @@ function Chart({ priced, bar, scale, view }: { priced: ModelRow[]; bar: number; 
             : `Cost per five-season game (USD, ${scale === "linear" ? "linear scale" : hasZero ? "positive costs log scale; $0 separate" : "log scale"})`}
         </text>
         <text className="bar-note" x={PAD.l + 10} y={PAD.t + 18}>Above pick-trader</text>
-        {narrow ? (
-          <>
-            <line className="bar-line" x1={PAD.l} x2={right} y1={y(bar)} y2={y(bar)} />
-            <text className="bar-label" x={right - 6} y={y(bar) - 7} textAnchor="end">pick-trader {num(bar)}</text>
-          </>
-        ) : (
-          <>
-            <polyline className="bar-line" fill="none" points={`${PAD.l},${y(bar)} ${right},${y(bar)} ${right + 20},${barLabelY}`} />
-            <text className="bar-label" x={right + 26} y={barLabelY - 1}>
-              pick-trader
-              <tspan className="axis-label" x={right + 26} dy="15">
-                scripted bar · {num(bar)}
-              </tspan>
-            </text>
-          </>
-        )}
+        <line className="bar-line" x1={PAD.l} x2={right} y1={y(bar)} y2={y(bar)} />
+        <text className="bar-label" x={right - 6} y={y(bar) - 7} textAnchor="end">{barLabel}</text>
         {priced.map((row, i) => {
           const { x: px, y: py } = points[i];
           const color = `var(--vendor-${row.vendor.key})`;
@@ -183,7 +206,7 @@ function Chart({ priced, bar, scale, view }: { priced: ModelRow[]; bar: number; 
               role="button"
               tabIndex={0}
               aria-pressed={selected}
-              aria-label={`${row.model}, ${row.harness}: score ${num(row.score)}, ${costText(row.cost)} per game`}
+              aria-label={`${row.model}, ${row.harness}: score ${num(row.score)}, ${usd(row)} per game`}
               onClick={() => view.select(row.id)}
               onKeyDown={activate(row.id)}
               onMouseEnter={() => view.hover(row.id)}
@@ -192,20 +215,15 @@ function Chart({ priced, bar, scale, view }: { priced: ModelRow[]; bar: number; 
               onBlur={() => view.hover(null)}
             >
               {row.ci && <line x1={px} x2={px} y1={y(row.ci[0])} y2={y(row.ci[1])} stroke={color} strokeOpacity="0.5" strokeWidth="2" />}
-              {!narrow && <line className="leader" x1={px + 9} x2={right + 20} y1={py} y2={column[i]} stroke={color} />}
-              <circle cx={px} cy={py} r={selected ? 7.5 : 6} fill={row.cost.kind === "estimate" ? "var(--bg)" : color} stroke={color} strokeWidth={selected ? 3 : 2} />
-              {narrow ? (
-                <text className="point-label" x={beside[i].anchorEnd ? px - 12 : px + 12} y={beside[i].y} textAnchor={beside[i].anchorEnd ? "end" : "start"}>
-                  {row.model}
-                </text>
-              ) : (
-                <text className="point-label" x={right + 26} y={column[i] - 1}>
-                  <tspan style={{ fill: color }}>{row.model}</tspan>
-                  <tspan className="axis-label" x={right + 26} dy="15">
-                    {row.harness} · {costText(row.cost)}
+              <circle cx={px} cy={py} r={selected ? 7.5 : 6} fill={color} stroke={selected ? "var(--text)" : color} strokeWidth={selected ? 2.5 : 2} />
+              <text className="point-label" x={labels[i].x} y={labels[i].y} textAnchor={labels[i].anchorEnd ? "end" : "start"}>
+                {row.model}
+                {!narrow && (
+                  <tspan className="axis-label" x={labels[i].x} dy="15">
+                    {sub(row)}
                   </tspan>
-                </text>
-              )}
+                )}
+              </text>
             </g>
           );
         })}
@@ -220,7 +238,7 @@ function Chart({ priced, bar, scale, view }: { priced: ModelRow[]; bar: number; 
                 <span>
                   {row.model} <span className="muted">· {row.harness}</span>
                 </span>
-                <span className="val">{costText(row.cost)}</span>
+                <span className="val">{usd(row)}</span>
               </li>
             ))}
         </ul>
@@ -244,12 +262,10 @@ export default function CostView({ data }: { data: Leaderboard }) {
               <span>{takeaway(priced, bar)}</span>
               {view.filterButton}
             </div>
-            <FilterNote filters={view.filters} onReset={() => view.setFilters({ hiddenHarnesses: [], hiddenVendors: [], showBots: view.filters.showBots })} />
             <div className="card">
               <div className="card-head">
                 <ul className="legend" aria-label="Legend">
-                  <li><i className="key-dot" /> Billed</li>
-                  <li><i className="key-dot is-hollow" /> API list-price estimate</li>
+                  <li><i className="key-dot" /> Model, colored by vendor</li>
                   <li><i className="key-ci" /> 95% interval</li>
                   <li><i className="key-bar" /> pick-trader</li>
                 </ul>
