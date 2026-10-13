@@ -7,13 +7,14 @@ Per episode the driver:
    socket, or, with the harness in a container, over a loopback TCP port
    that only accepts connections presenting a per-run secret;
 2. creates an empty scratch directory holding only a standard-library proxy
-   script and an ``opencode.json`` that launches it on the harness's own
-   python3, with code mode off so one model tool call is one ledger entry;
+   script, a standard-library launcher, and an ``opencode.json`` that
+   launches the proxy on the harness's own python3, with code mode off so one
+   model tool call is one ledger entry;
 3. proves the sandbox: no GM-Bench checkout above the scratch directory and
    ``gm_bench`` not importable from the harness's own environment;
-4. runs ``opencode run --format json --standalone`` (OpenCode 2.x) with the
-   task brief, capturing its event stream, and nudges the session if it
-   stops early;
+4. runs ``opencode run --format json`` (OpenCode 2.x) with the task brief
+   on a private server whose MCP servers have connected (the launcher),
+   capturing its event stream, and nudges the session if it stops early;
 5. closes any phase the harness walked away from as a failed decision, joins
    the harness's token telemetry (read back from the session store with
    ``opencode session export``, because OpenCode 2's stream drops the last
@@ -55,7 +56,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import gm_bench
-from gm_bench.agentic import _proxy
+from gm_bench.agentic import _opencode_launch, _proxy
 from gm_bench.agentic.brief import nudge_message, task_brief
 from gm_bench.agentic.container import (
     HOME as CONTAINER_HOME,
@@ -232,6 +233,8 @@ def sandbox_problems(scratch: Path, env: dict[str, str]) -> list[str]:
 
 
 PROXY_FILENAME = "gm_bench_proxy.py"
+#: Starts each ``opencode run`` against a server whose MCP servers have connected (``_opencode_launch.py``).
+LAUNCHER_FILENAME = "gm_bench_opencode_launch.py"
 
 
 def harness_python(env: dict[str, str]) -> str:
@@ -254,9 +257,16 @@ def opencode_config(target: str | Path, *, python: str = "python3") -> dict[str,
     Everything in it is readable by the agent, so it names only the proxy
     script beside it and where the proxy connects: a socket path, or
     ``host:port`` for a containerized harness.
+
+    ``codemode: false`` keeps the GM-Bench tools direct, one model tool call
+    per ledger entry. OpenCode 2.x still offers Code Mode's ``execute`` tool
+    for its own built-in tools (session, worktree and MCP-resource helpers
+    default to Code Mode), which the agent cannot use for the task, so the
+    permission denies it and the tool is not offered at all.
     """
     return {
         "$schema": "https://opencode.ai/config.json",
+        "permission": {"execute": "deny"},
         "mcp": {
             "servers": {
                 "gm-bench": {
@@ -283,6 +293,9 @@ def stage_scratch(
     proxy reads it; it is never on any command line.
     """
     stage_proxy(scratch, secret=secret)
+    (scratch / LAUNCHER_FILENAME).write_text(
+        Path(_opencode_launch.__file__).read_text(encoding="utf-8"), encoding="utf-8"
+    )
     config = opencode_config(target, python=python or harness_python(env))
     (scratch / "opencode.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
 
@@ -413,9 +426,11 @@ class HarnessLaunch:
         """
         self.driver.before_invocation(self)
         if self.container is None:
-            return [self.binary, *harness_args], None
+            return self.driver.invocation_argv(self, self.binary, harness_args), None
         container = self.container
-        argv, name = container.command([self.driver.container_executable, *harness_args])
+        argv, name = container.command(
+            self.driver.invocation_argv(self, self.driver.container_executable, harness_args)
+        )
         return argv, lambda: container.kill(name)
 
     def close(self, *, keep_scratch: bool = False) -> bool:
@@ -2017,9 +2032,17 @@ class OpenCodeDriver(HarnessDriver):
     agent, and the session store the nudges resume lives there. A
     container's home is already a fresh volume.
 
-    OpenCode 2.x: each invocation runs ``--standalone``, a private server
-    for that process alone, never the shared background service (which would
-    serve every run from one server and one session store). The workspace is
+    OpenCode 2.x: each invocation runs on a private server for that
+    invocation alone, never the shared background service (which would serve
+    every run from one server and one session store). ``run --standalone``
+    starts one, but sends the prompt before its MCP servers have connected,
+    so the first model request of every invocation lacked the GM-Bench tools
+    (2.0.27, 2.0.28). So each ``run`` goes through the staged launcher
+    (:data:`LAUNCHER_FILENAME`, ``_opencode_launch.py``): it starts
+    ``opencode serve`` on a loopback port with a password of its own, waits
+    until the MCP servers have connected, and runs ``run --server``. Other
+    commands (``session export``, ``auth import``) still run
+    ``--standalone``: they need no MCP server. The workspace is
     the directory ``run`` starts in, read from ``PWD`` before the working
     directory (``packages/cli/src/run/run.ts``); 2.x has no ``--dir``, so
     same-user runs set ``PWD`` to the scratch directory, and the container's
@@ -2190,6 +2213,12 @@ class OpenCodeDriver(HarnessDriver):
             # Its output is not quoted: it is about a file that holds the key.
             raise RuntimeError(f"opencode auth import exited {completed.returncode}; the key was not staged")
 
+    def invocation_argv(self, launch: HarnessLaunch, executable: str, args: list[str]) -> list[str]:
+        # ``run`` goes through the staged launcher (see the class docstring); other commands do not.
+        if args[:1] != ["run"]:
+            return [executable, *args]
+        return [launch.proxy_python, str(Path(launch.workdir) / LAUNCHER_FILENAME), executable, *args]
+
     def run_args(self, *, model: str, variant: str | None, workdir: str, brief: str, isolation: str) -> list[str]:
         return [*self._base(model, variant, workdir), brief]
 
@@ -2205,7 +2234,6 @@ class OpenCodeDriver(HarnessDriver):
             "run",
             "--format",
             "json",
-            "--standalone",
             "--auto",
             "--model",
             f"{model}#{variant}" if variant else model,

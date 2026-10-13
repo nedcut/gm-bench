@@ -785,7 +785,7 @@ def test_container_launch_mounts_only_the_scratch_and_keeps_the_secret_off_the_c
         assert secret_file.read_text().strip() == launch.server.secret
         assert secret_file.stat().st_mode & 0o077 == 0
         assert sorted(p.name for p in launch.scratch.iterdir()) == sorted(
-            ["opencode.json", "gm_bench_proxy.py", _proxy.SECRET_FILENAME]
+            ["opencode.json", "gm_bench_proxy.py", "gm_bench_opencode_launch.py", _proxy.SECRET_FILENAME]
         )
 
         argv, on_kill = launch.command(["run", "--dir", WORKDIR, "--model", "m", "brief"])
@@ -809,6 +809,8 @@ def test_container_launch_mounts_only_the_scratch_and_keeps_the_secret_off_the_c
         assert argv[argv.index(image["image_id"]) + 1 :] == [
             EGRESS_ENTRYPOINT,
             str(port),
+            "python3",
+            f"{WORKDIR}/gm_bench_opencode_launch.py",
             "opencode",
             "run",
             "--dir",

@@ -67,6 +67,10 @@ class HarnessDriver:
         during the previous invocation, and that must restore or check it.
         """
 
+    def invocation_argv(self, launch: HarnessLaunch, executable: str, args: list[str]) -> list[str]:
+        """The command line that runs ``executable`` with ``args`` where the harness runs (host or container)."""
+        return [executable, *args]
+
     def run_args(self, *, model: str, variant: str | None, workdir: str, brief: str, isolation: str) -> list[str]:
         """Arguments after the executable for the first invocation; the brief must be the last one."""
         raise NotImplementedError
