@@ -33,13 +33,15 @@ export default function CostView({ data }: { data: Leaderboard }) {
   const unmeasured = shown.filter((row) => row.cost.usd === null);
   const bar = pickTraderScore(data) ?? 0;
 
-  const costs = priced.map((row) => row.cost.usd as number);
+  const costs = priced.map((row) => row.cost.usd as number).filter((usd) => usd > 0);
+  const hasZero = priced.some((row) => row.cost.usd === 0);
+  const positiveStart = PAD.l + (hasZero ? 100 : 0);
   const xLo = Math.log10(Math.min(...costs, 0.1) / 1.6);
   const xHi = Math.log10(Math.max(...costs, 1) * 1.6);
   const scores = [...priced.map((row) => row.score), bar];
   const yLo = Math.floor(Math.min(...scores) / 50) * 50 - 10;
   const yHi = Math.ceil(Math.max(...scores) / 50) * 50 + 10;
-  const x = (usd: number) => PAD.l + ((Math.log10(usd) - xLo) / (xHi - xLo)) * (W - PAD.l - PAD.r);
+  const x = (usd: number) => usd === 0 ? PAD.l : positiveStart + ((Math.log10(usd) - xLo) / (xHi - xLo)) * (W - positiveStart - PAD.r);
   const y = (score: number) => PAD.t + (1 - (score - yLo) / (yHi - yLo)) * (H - PAD.t - PAD.b);
   const labelYs = placeLabels(priced.map((row) => ({ x: x(row.cost.usd as number), y: y(row.score) })), 17, 240);
   const yTicks: number[] = [];
@@ -62,10 +64,16 @@ export default function CostView({ data }: { data: Leaderboard }) {
               <text x={PAD.l - 10} y={y(t) + 4} textAnchor="end">{t}</text>
             </g>
           ))}
+          {hasZero && (
+            <g>
+              <text x={PAD.l} y={H - PAD.b + 20} textAnchor="middle">$0</text>
+              <line className="grid" x1={PAD.l + 50} x2={PAD.l + 50} y1={PAD.t} y2={H - PAD.b} strokeDasharray="4 4" />
+            </g>
+          )}
           {TICKS.filter((t) => Math.log10(t) >= xLo && Math.log10(t) <= xHi).map((t) => (
             <text key={t} x={x(t)} y={H - PAD.b + 20} textAnchor="middle">${t}</text>
           ))}
-          <text className="axis-label" x={(PAD.l + W - PAD.r) / 2} y={H - 6} textAnchor="middle">Cost per five-season game (USD, log scale)</text>
+          <text className="axis-label" x={(PAD.l + W - PAD.r) / 2} y={H - 6} textAnchor="middle">Cost per five-season game (USD, {hasZero ? "positive costs log scale; $0 separate" : "log scale"})</text>
           <text className="axis-label" x={14} y={PAD.t + 4}>Score</text>
           <line className="bar-line" x1={PAD.l} x2={W - PAD.r} y1={y(bar)} y2={y(bar)} />
           <text className="bar-label" x={PAD.l + 6} y={y(bar) - 6}>pick-trader {num(bar)}</text>

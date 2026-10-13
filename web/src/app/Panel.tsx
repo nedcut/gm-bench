@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from "react";
 import { REPO_BLOB } from "../site";
 import {
   HARNESSES,
@@ -171,10 +172,66 @@ export default function Panel({
   open: boolean;
   onClose: () => void;
 }) {
+  const panelRef = useRef<HTMLElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 900px)").matches);
+
+  useLayoutEffect(() => {
+    const query = window.matchMedia("(max-width: 900px)");
+    const update = () => setMobile(query.matches);
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!open || !mobile || !panel) return;
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // Inert each sibling along the ancestor path, leaving the sheet and scrim usable.
+    const background: { element: HTMLElement; inert: boolean }[] = [];
+    for (let node: HTMLElement | null = panel; node?.parentElement; node = node.parentElement) {
+      for (const sibling of node.parentElement.children) {
+        if (sibling instanceof HTMLElement && sibling !== node && !sibling.classList.contains("sheet-scrim")) {
+          background.push({ element: sibling, inert: sibling.inert });
+          sibling.inert = true;
+        }
+      }
+    }
+    closeRef.current?.focus();
+    const contain = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const controls = [...panel.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex]')]
+        .filter((el) => el.tabIndex >= 0 && !el.matches(":disabled") && el.getClientRects().length > 0);
+      const first = controls[0];
+      const last = controls.at(-1);
+      if (event.shiftKey ? document.activeElement === first : document.activeElement === last) {
+        event.preventDefault();
+        (event.shiftKey ? last : first)?.focus();
+      }
+    };
+    const keepInside = (event: FocusEvent) => {
+      if (!panel.contains(event.target as Node)) closeRef.current?.focus();
+    };
+    document.addEventListener("keydown", contain);
+    document.addEventListener("focusin", keepInside);
+    return () => {
+      document.removeEventListener("keydown", contain);
+      document.removeEventListener("focusin", keepInside);
+      for (const { element, inert } of background) element.inert = inert;
+      if (trigger?.isConnected && trigger.getClientRects().length) trigger.focus();
+      else document.querySelector<HTMLButtonElement>(".sheet-button")?.focus();
+    };
+  }, [open, mobile]);
+
+  // Returning from details removes the focused back button.
+  useLayoutEffect(() => {
+    if (open && mobile && !panelRef.current?.contains(document.activeElement)) closeRef.current?.focus();
+  }, [row, open, mobile]);
+
   return (
     <>
-      {open && <button type="button" className="sheet-scrim" aria-label="Close panel" onClick={onClose} />}
-      <aside className={`panel${open ? " is-open" : ""}`} aria-label={row ? "Row details" : "Filters"}>
+      {open && <button type="button" className="sheet-scrim" tabIndex={-1} aria-label="Close panel" onClick={onClose} />}
+      <aside ref={panelRef} role={open && mobile ? "dialog" : undefined} aria-modal={open && mobile ? true : undefined} className={`panel${open ? " is-open" : ""}`} aria-label={row ? "Row details" : "Filters"}>
         <div className="panel-bar">
           {row ? (
             <button type="button" className="text-button" onClick={onBack}>
@@ -183,7 +240,7 @@ export default function Panel({
           ) : (
             <span />
           )}
-          <button type="button" className="text-button sheet-close" onClick={onClose}>
+          <button type="button" ref={closeRef} className="text-button sheet-close" onClick={onClose}>
             Close
           </button>
         </div>

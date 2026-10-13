@@ -97,7 +97,7 @@ export default function Standings({ data }: { data: Leaderboard }) {
             <span>
               {seedCount(data) ?? "—"} private seeds · bars show 95% intervals · red line: pick-trader
             </span>
-            <button type="button" className="sheet-button" onClick={() => { setSelected(null); setSheetOpen(true); }}>
+            <button type="button" className="sheet-button" onClick={(event) => { event.currentTarget.focus(); setSelected(null); setSheetOpen(true); }}>
               Filter
             </button>
           </div>
@@ -118,10 +118,10 @@ export default function Standings({ data }: { data: Leaderboard }) {
                   key={row.id}
                   className={row.kind === "bot" ? (row.isBar ? "is-bar" : "is-bot") : undefined}
                   aria-selected={row.id === selected}
-                  onClick={() => select(row.id)}
+                  onClick={(event) => { event.currentTarget.querySelector("button")?.focus(); select(row.id); }}
                 >
                   <th scope="row">
-                    <button type="button" className="row-name" onClick={(e) => { e.stopPropagation(); select(row.id); }}>
+                    <button type="button" className="row-name" onClick={(e) => { e.stopPropagation(); e.currentTarget.focus(); select(row.id); }}>
                       <span className={`dot ${row.kind === "model" ? `vendor-${row.vendor.key}` : ""}`} aria-hidden="true" />
                       <span className="name">{row.label}</span>
                       {row.kind === "model" && <span className="tag">{row.harness}</span>}
