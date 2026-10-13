@@ -478,15 +478,16 @@ class CaptureServer(ThreadingHTTPServer):
 
     daemon_threads = True
 
-    def __init__(self) -> None:
-        super().__init__(("127.0.0.1", 0), _Handler)
+    def __init__(self, host: str = "127.0.0.1", handler: type[BaseHTTPRequestHandler] | None = None) -> None:
+        # ``host`` and ``handler`` are for ``scripts/audit_codex_tools.py``, which serves a container.
+        super().__init__((host, 0), handler or _Handler)
         self.records: list[dict[str, Any]] = []
         self._lock = threading.Lock()
         self._thread = threading.Thread(target=self.serve_forever, daemon=True)
 
     @property
     def url(self) -> str:
-        return f"http://127.0.0.1:{self.server_address[1]}"
+        return f"http://{self.server_address[0]}:{self.server_address[1]}"
 
     def record(self, entry: dict[str, Any]) -> None:
         with self._lock:

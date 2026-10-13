@@ -120,6 +120,39 @@ supported when using Codex with a ChatGPT account``:
   ``gm-bench_<tool>`` so the ledger-versus-harness agreement counts them.
   Codex's own built-in tools stay as the harness ships them; they are part of
   the row identity (``codex/<version>``).
+- **No account plugins, apps or connectors.** With a ChatGPT login, Codex
+  adds tools from the account itself. Both mechanisms are on by default in
+  0.156.1 and 0.162.1 (``features/src/lib.rs``: ``apps`` at 1462,
+  ``plugins`` at 1559, ``remote_plugin`` at 1649). (1) Account-installed
+  plugins: ``maybe_start_remote_installed_plugin_bundle_sync``
+  (``core-plugins/src/manager.rs:1593``, gated only on ``plugins`` at 1599)
+  fetches the account's installed plugins (``core-plugins/src/remote.rs:1277``)
+  into ``CODEX_HOME/plugins/cache/openai-curated-remote`` a few seconds after
+  start, then refreshes MCP, so those plugins' own MCP servers start inside
+  the harness (on 2026-10-12: ``neon`` at ``mcp.neon.tech``, which fails
+  for want of OAuth and logs ``AuthRequired`` to stderr, and stdio servers
+  from ``codex-security``, ``creative-production`` and ``build-ios-apps``).
+  (2) Connected apps: the hosted ``codex_apps`` MCP server
+  (``ext/mcp/src/lib.rs:50``, gated on ``apps``) serves the account's
+  connected ChatGPT apps (Gmail, GitHub, Google Drive and Calendar, Linear,
+  Neon and others) as tools. In code mode those tools, like every MCP tool,
+  are deferred: they are not in the prompt text but are callable from the
+  ``exec`` tool and listed in its ``ALL_TOOLS``
+  (``code-mode-protocol/src/description.rs:16``). A capture on 2026-10-12
+  counted 668 ``mcp__codex_apps__*`` tools there on both versions, while
+  the prompt text carried only the generic ``<recommended_plugins>`` list
+  and a ``request_plugin_install`` tool. The driver passes ``-c
+  features.<name>=false`` for each of :data:`DISABLED_FEATURES` on every
+  invocation, which leaves the built-ins, the ``.system`` skills and the
+  ``gm-bench`` server and removes exactly those two prompt blocks and every
+  account tool. ``apps`` alone leaves the plugin sync and its MCP servers,
+  and ``plugins`` alone leaves the 668 app tools. ``remote_plugin`` changes
+  nothing more today but costs nothing. They go on the command line, not in
+  the staged ``config.toml``, because ``-c`` overrides every config layer and
+  the agent can rewrite ``config.toml`` in its own home between
+  invocations. ``harness_run.disabled_features`` records them.
+  ``scripts/audit_codex_tools.py`` checks the agent's whole tool set
+  against the real account before a panel.
 - **Sandbox.** Same-user: ``sandbox_mode = "workspace-write"`` (commands may
   write only the working directory and temp directories) with
   ``sandbox_workspace_write.network_access = true``, the least permission
@@ -208,6 +241,9 @@ CONTAINER_SANDBOX = "danger-full-access"
 CONTAINER_CODEX_HOME = f"{HOME}/{CODEX_HOME_DIRNAME}"
 # Without it, ``codex exec`` (approval policy never) refuses every GM-Bench call in workspace-write.
 TOOLS_APPROVAL_MODE = "approve"
+# Codex features turned off on every invocation (``-c features.<name>=false``), so that nothing
+# from the ChatGPT account (installed plugins, connected apps) reaches the agent.
+DISABLED_FEATURES = ("apps", "plugins", "remote_plugin")
 REDACTED = "[REDACTED]"
 # ``harness.cost_basis`` of the API-equivalent estimate: list price, not a bill.
 COST_BASIS = "api-list-price-estimate"
@@ -917,6 +953,8 @@ class CodexDriver(HarnessDriver):
         options = ["--json", "--skip-git-repo-check", "--model", model, "-c", f"sandbox_mode={json.dumps(sandbox)}"]
         if sandbox == SAME_USER_SANDBOX:
             options += ["-c", "sandbox_workspace_write.network_access=true"]
+        for feature in DISABLED_FEATURES:
+            options += ["-c", f"features.{feature}=false"]
         if variant:
             options += ["-c", f"model_reasoning_effort={json.dumps(variant)}"]
         return options
@@ -990,6 +1028,8 @@ class CodexDriver(HarnessDriver):
             "plan_type": quota.get("plan_type"),
             # The whole staged config; it names only the proxy and where it connects.
             "harness_config": self._config_text(launch),
+            # Turned off with -c on every invocation: no account plugins, apps or connectors.
+            "disabled_features": list(DISABLED_FEATURES),
             "codex_home": f"{CONTAINER_CODEX_HOME} (episode volume)"
             if container
             else "private directory outside the scratch (removed at episode end)",

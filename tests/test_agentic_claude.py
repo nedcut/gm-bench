@@ -1530,3 +1530,16 @@ def test_claude_reported_efforts_read_only_the_init_events() -> None:
     assert claude.reported_efforts([json.dumps(init | {"per_turn_effort_active": False})]) == set()
     assert claude.reported_efforts([json.dumps(init | {"effort": "high"})]) == {"high"}
     assert claude.reported_efforts([_assistant("m1"), json.dumps({"type": "result", "effort": "low"})]) == set()
+
+
+def test_claude_code_never_loads_the_accounts_claude_ai_connectors() -> None:
+    # --strict-mcp-config does not stop the connector fetch on 2.1.281; this variable does,
+    # same-user (the harness environment) and in a container (the image's launcher).
+    from gm_bench.agentic import claude, container
+
+    assert claude.HARNESS_ENV["ENABLE_CLAUDEAI_MCP_SERVERS"] == "false"
+    lines = container.CLAUDE_WRAPPER.splitlines()
+    assert "ENABLE_CLAUDEAI_MCP_SERVERS=false" in lines
+    [export] = [line for line in lines if line.startswith("export ")]
+    assert "ENABLE_CLAUDEAI_MCP_SERVERS" in export.split()
+    assert export.split().index("ENABLE_CLAUDEAI_MCP_SERVERS") and lines.index(export) < lines.index('exec claude "$@"')

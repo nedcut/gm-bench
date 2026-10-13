@@ -735,6 +735,7 @@ changes were made under the rule at the top of this file. Each is also in
 | 2026-09-28 | This file: freeze rule restated, stale plans marked, realized noise and the 1.0 differences added | documentation | none |
 | 2026-09-28 | Cursor CLI as a fourth harness (#165), a pre-panel prompt check for every harness (#166), and Cursor in a pinned container (#171) | driver | the `composer-2.5` panel, the only row played by the Cursor driver |
 | 2026-09-28 | OpenCode Go models through an OpenCode API key file (#172) | driver | the `deepseek-v4.1-flash` panel, the only row played with a key |
+| 2026-10-13 | Codex runs with the ChatGPT account's plugins, apps and connectors turned off (`-c features.apps=false -c features.plugins=false -c features.remote_plugin=false`, recorded as `harness_run.disabled_features`), and `scripts/audit_codex_tools.py` audits the agent's whole tool set before a Codex panel | driver | the `gpt-6-luna` panel and its smokes ran before it, with the account's connected ChatGPT apps (668 deferred tools) and installed plugins available to the agent; they recorded no tool call other than GM-Bench calls. Codex rows after it do not have the same built-ins |
 
 The five panel rows ran on four driver commits: Codex and `claude-sonnet-5`
 at `4d742cc` (driver digest `8a29130cb6635a4b`), `claude-haiku-4-5` at

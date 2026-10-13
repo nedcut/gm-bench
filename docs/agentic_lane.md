@@ -395,6 +395,45 @@ of the operator's content. The catalog is the same for any ChatGPT login,
 so it counts as part of the harness, but it is fetched at startup and can
 change without a Codex release.
 
+That run read only the prompt text, and so missed what the account adds as
+tools. In code mode (the model catalog's `tool_mode = "code_mode_only"`,
+which `gpt-6-luna` and `gpt-6.1-sol` carry as of 2026-10-12) Codex declares
+its built-ins in the prompt but defers every MCP tool: the agent finds them
+in the `exec` tool's `ALL_TOOLS` and can call them, and the prompt never
+names them. On 2026-10-12 a capture that asked `exec` for `ALL_TOOLS`
+found 668 tools from the account's connected ChatGPT apps
+(`mcp__codex_apps__*`: Gmail, GitHub, Google Drive, Calendar and Contacts,
+Linear, Atlassian, Neon, Adobe, Jam, Hugging Face, Wispr Flow and others).
+It also found 24 account-installed plugins synced into the home, whose own
+MCP servers started in the harness. That was on 0.156.1 and on 0.162.1.
+The driver now turns all of it off (see "Account plugins and apps" under
+"Codex harness"). Since the prompt check cannot see account tools,
+`scripts/audit_codex_tools.py` audits the whole tool set against the real
+account before a Codex panel, and that audit is required.
+
+Claude Code 2.1.281 was audited the same way on 2026-10-13, in its
+container image with the real `setup-token` token. Only the model request
+was answered locally (a TLS-intercepting proxy for `api.anthropic.com`,
+not `ANTHROPIC_BASE_URL`); every other call reached Anthropic. Nothing
+account-specific reached the agent: the requests offered only the allowed
+built-ins and `ToolSearch`, and the deferred list held `NotebookEdit` and
+the 24 `mcp__gm-bench__*` tools and nothing else, also after a 25-second
+wait. The account calls were remote managed settings
+(`/api/claude_code/settings`, 404) and policy limits (one restriction).
+Claude Code does try to load the account's claude.ai connectors (Gmail,
+Drive and the like) despite `--strict-mcp-config`; the `setup-token`
+token's `user:inference` scope stopped it (`Missing user:mcp_servers
+scope`). The driver now sets `ENABLE_CLAUDEAI_MCP_SERVERS=false`, which
+skips that fetch whatever the credential. No committed Claude row records
+a tool outside the allowed built-ins and GM-Bench. Two limits of the
+prompt check for Claude Code follow from this. With `ANTHROPIC_BASE_URL`
+on a non-Anthropic host, Claude Code turns tool search off and inlines all
+24 GM-Bench schemas, so the check does not see the deferred layout an
+episode has. And it never sees the account's remote managed settings: if
+the account joins an organization that sets them, they apply silently, and
+no flag turns that fetch off. Check that the account belongs to no such
+organization before a Claude panel.
+
 First results, 2026-09-27, same-user, on the operator's Mac:
 
 | Harness | Model requests | Operator content |
@@ -824,11 +863,15 @@ What a run does per episode:
    brief as the prompt and the scratch directory as the working directory,
    capturing `seed-<n>/codex-events.jsonl`. `--variant` becomes
    `-c model_reasoning_effort="<variant>"`. Exec mode never asks for
-   approval.
+   approval. Every invocation also passes `-c features.apps=false -c
+   features.plugins=false -c features.remote_plugin=false`, so nothing from
+   the ChatGPT account reaches the agent (see "Account plugins and apps"
+   below); `harness_run.disabled_features` records them.
 3. Nudges and provider-stall retries run `codex exec resume <session id>
    <reminder>` on the same session (the id is the `thread_id` of the first
    `thread.started` event), so Codex keeps its context. `resume` accepts no
-   `--sandbox` flag, so the sandbox is set with `-c` on every invocation.
+   `--sandbox` flag, so the sandbox and the disabled features are set with
+   `-c` on every invocation.
 4. A run whose last event is `turn.failed` or `error` with a retryable
    message (a 408, 425, 429 or 5xx status, "rate limit", "high demand",
    "at capacity", a dropped stream or connection, a timeout) is a provider
@@ -910,6 +953,101 @@ OpenCode image is unchanged. `run.json` records it under
 `harness.container`, with `codex_version` as the image reports it. The
 committed Codex rows ran in `gm-bench-agentic-codex:0.156.1-578af3e044d4`
 and keep validating at the driver commit they record.
+
+### Account plugins and apps
+
+A ChatGPT login brings the account into the harness, and until 2026-10-12
+the driver let it in. Two Codex mechanisms do this, and both are on by
+default in 0.156.1 and 0.162.1 (`codex-rs/features/src/lib.rs`: `apps`,
+`plugins`, `remote_plugin`). The source lines are in the `codex.py`
+docstring.
+
+- **Installed plugins.** A few seconds after start, Codex syncs the
+  plugins installed on the account into
+  `CODEX_HOME/plugins/cache/openai-curated-remote` and refreshes MCP.
+  Those plugins' MCP servers then start inside the harness. On the
+  operator's account that was 24 plugins, with servers for `neon` (an
+  HTTP server at `mcp.neon.tech`, which fails for want of OAuth: the
+  `AuthRequired ... mcp.neon.tech` line in `codex-stderr.log`),
+  `codex-security`, `creative-production` and `xcodebuildmcp`.
+- **Connected apps.** The hosted `codex_apps` MCP server serves the
+  account's connected ChatGPT apps as tools. On 2026-10-12 that was 668
+  tools: Gmail (read, send, delete), GitHub, Google Drive, Calendar and
+  Contacts, Linear, Atlassian, Neon, Adobe, Jam, Hugging Face, Wispr Flow
+  meetings and notes, and ChatGPT spaces.
+
+In code mode Codex defers every MCP tool. The model catalog puts
+`gpt-6-luna` and `gpt-6.1-sol` in code mode (`tool_mode =
+"code_mode_only"`). A deferred tool is absent from the prompt text but
+listed in the `exec` tool's `ALL_TOOLS`, and the agent can call it from
+there. The prompt carried only the generic `<recommended_plugins>` list and
+a `request_plugin_install` tool. So neither the 2026-09-27 account capture
+nor the prompt check could see the app tools.
+
+The driver now passes `-c features.apps=false -c features.plugins=false -c
+features.remote_plugin=false` on every invocation (`codex.DISABLED_FEATURES`),
+in both isolations. They go on the command line, not in the staged
+`config.toml`, because `-c` overrides every config layer and the agent can
+rewrite the `config.toml` in its own home between invocations. Captured on
+2026-10-12:
+
+| | Default | Disabled |
+|---|---|---|
+| Account tools in `ALL_TOOLS` (besides the built-ins and GM-Bench tools) | 668 `codex_apps` | 0 |
+| Account plugins synced | 24 | 0 |
+| Plugin MCP servers started | 4 | 0 |
+| First request (0.162.1, `gpt-6.1-sol`, one-line prompt) | 72,766 characters | 70,698 characters |
+| First request (0.156.1, `gpt-6-luna`, one-line prompt) | 69,116 characters | 67,049 characters |
+
+The prompt loses only the `<recommended_plugins>` block and
+`request_plugin_install`; the built-ins, the bundled `.system` skills and
+the `gm-bench` server are unchanged. `apps=false` alone keeps the plugin
+sync and its MCP servers, and `plugins=false` alone keeps the 668 app
+tools. `remote_plugin=false` changes nothing more today.
+
+A row run with these flags does not have the same Codex built-ins as the
+committed `codex/0.156.1 · gpt-6-luna` rows, which ran with the account's
+apps and plugins available. Those rows record no tool call other than
+GM-Bench calls (`tool_calls_by_tool` in all four artifacts). Which apps
+were connected on 2026-09-26 was not recorded.
+
+**Tool audit (required before a Codex panel).** Run it with the auth file
+the panel will use, under the subscription lock:
+
+```bash
+flock /tmp/gmb-subscription-smoke.lock \
+  uv run python scripts/audit_codex_tools.py --codex-auth-file /path/to/codex-auth.json --model gpt-6.1-sol
+```
+
+It plays one throwaway episode on public seed 11 in the Codex image. The
+driver stages it exactly as an episode's first invocation: real engine and
+proxy, home volume with the login, same command line. Only the model
+request (`openai_base_url`, which carries a ChatGPT login's
+`/backend-api/codex/responses`) goes to a capture server on the host.
+Codex's account endpoints and the model catalog reach ChatGPT for real.
+The capture server answers the first request with a code-mode `exec` call.
+That call waits 15 seconds for the plugin sync, then prints `ALL_TOOLS`,
+and the follow-up request gets a one-word reply. Nothing is spent. Because
+the capture server listens on a second host port, the episode runs without
+the egress firewall; it holds only a public seed.
+
+The audit prints tool counts by server and PASS or FAIL, never request
+text or credentials. It fails on any MCP tool not under `mcp__gm_bench__`,
+a plugin-install tool, a `<recommended_plugins>` list, or an account
+plugin synced into the home. It also fails if no GM-Bench tool is
+reachable. `--without-disabled-features` drops the driver's flags, and
+`--codex-version 0.156.1` audits the image the committed rows ran in. On
+2026-10-13 with the operator's login:
+
+| Image, model | Flags | Tools by server | Plugins synced | Result |
+|---|---|---|---|---|
+| 0.162.1, `gpt-6.1-sol` | on | 24 built-in, 24 `gm_bench` | 0 | PASS |
+| 0.162.1, `gpt-6.1-sol` | off | 25 built-in, 668 `codex_apps`, 24 `gm_bench` | 24 | FAIL |
+| 0.156.1, `gpt-6-luna` | on | 24 built-in, 24 `gm_bench` | 0 | PASS |
+| 0.156.1, `gpt-6-luna` | off | 25 built-in, 668 `codex_apps`, 24 `gm_bench` | 24 | FAIL |
+
+(The built-in counts include the `exec`, `wait`, collaboration and clock
+tools the request declares, which `ALL_TOOLS` does not list.)
 
 ### Codex 0.162.1
 
@@ -1147,7 +1285,9 @@ What a run does per episode:
    directory, and every other `CLAUDE_*`, `CLAUDECODE` and `ANTHROPIC_*`
    variable is dropped. `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` stops
    the auto-updater (a harness that upgrades itself mid-panel changes the
-   row identity), telemetry and error reports.
+   row identity), telemetry and error reports. `ENABLE_CLAUDEAI_MCP_SERVERS=false`
+   stops the fetch of the account's claude.ai connectors (see "Account
+   connectors" below).
 2. Runs `claude -p --output-format stream-json --verbose --mcp-config
    <private>/mcp.json --strict-mcp-config --setting-sources user
    --disable-slash-commands --tools
@@ -1327,8 +1467,9 @@ stdin of a throwaway `docker run` (no network, no capabilities, only the
 home volume mounted) into the episode's home volume as
 `/home/node/.gmb-claude-token`, mode 0600, and is removed with the volume.
 Each invocation runs `gmb-claude`, which reads that file, exports it as
-`CLAUDE_CODE_OAUTH_TOKEN` with `CLAUDE_CONFIG_DIR=/home/node/.claude` and
-`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`, and execs `claude` with the
+`CLAUDE_CODE_OAUTH_TOKEN` with `CLAUDE_CONFIG_DIR=/home/node/.claude`,
+`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` and
+`ENABLE_CLAUDEAI_MCP_SERVERS=false`, and execs `claude` with the
 driver's arguments. The token is never on the `docker run` command line or
 in a `-e` variable, so neither `ps` on the host nor `docker inspect` shows
 it; the only credential-bearing thing that leaves the host process is that
@@ -1384,7 +1525,20 @@ harness.
   (`claude-haiku-4-5`) ToolSearch calls over 32 episodes.
 - **OpenCode and Codex** run with their built-in tool sets unrestricted,
   including any web tool the harness ships (OpenCode's web fetch, Codex's
-  web search), and put every GM-Bench tool schema in the first prompt.
+  web search). OpenCode puts every GM-Bench tool schema in the first
+  prompt. Codex does not when the model is in code mode, as `gpt-6-luna`
+  and `gpt-6.1-sol` are by the model catalog as of 2026-10-12. The prompt
+  then declares Codex's built-ins and the JavaScript `exec` tool. The 24
+  GM-Bench tools are deferred: they are absent from the first request (no
+  schema and not even a name) and callable from `exec` as
+  `tools.mcp__gm_bench__<tool>`, listed in `ALL_TOOLS`. The brief names
+  them. That is true on 0.162.1 and, with the 2026-10-12 catalog, on 0.156.1
+  (`scripts/audit_codex_tools.py`). The catalog decides code mode, not the
+  Codex version, and the catalog `gpt-6-luna` had on 2026-09-26 was not
+  recorded, so whether the committed Luna rows saw the schemas up front is
+  not known. Codex no longer gets the ChatGPT account's apps and plugins
+  (see "Account plugins and apps"); the committed Codex rows ran with them
+  available and called none.
 - **Cursor** runs with its built-in tools unrestricted (`--force` runs
   every tool call without asking). It reads a GM-Bench tool's schema from
   its own cache (`get_mcp_tools`, which never reaches the server) before

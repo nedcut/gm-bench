@@ -84,6 +84,44 @@ The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
 
+- Claude Code: no claude.ai connectors (2026-10-13, driver only; the
+  agentic fingerprint stays `07de948a4f4afbae`). An audit of Claude Code
+  2.1.281 in its container image with the real `setup-token` token found
+  nothing account-specific reaching the agent, but found that
+  `--strict-mcp-config` does not stop the fetch of the account's claude.ai
+  connectors; only the token's `user:inference` scope did. The driver now
+  sets `ENABLE_CLAUDEAI_MCP_SERVERS=false` in the harness environment and
+  in the image's `gmb-claude` launcher (the Claude image's Dockerfile hash
+  moves from `1781dcc2b7da`, which played the committed Claude rows, to
+  `f0e72cbaea92`). No committed Claude row recorded a tool outside the
+  allowed built-ins and GM-Bench.
+
+- Codex: no ChatGPT account plugins, apps or connectors (2026-10-13,
+  driver only; the agentic fingerprint stays `07de948a4f4afbae`). A Codex
+  container smoke logged a failed connection to `mcp.neon.tech`, and a
+  capture against the real account explained it. With a ChatGPT login,
+  Codex 0.156.1 and 0.162.1 sync the account's installed plugins into the
+  harness home and start their MCP servers (24 plugins; `neon`,
+  `codex-security`, `creative-production`, `xcodebuildmcp`). The hosted
+  `codex_apps` server also exposes the account's connected ChatGPT apps:
+  668 tools including Gmail, GitHub, Google Drive and Neon. In code mode
+  those tools are deferred, out of the prompt text but callable from
+  `exec` and listed in `ALL_TOOLS`, so neither the 2026-09-27 account
+  capture nor the prompt check saw them. The driver now passes `-c
+  features.apps=false -c features.plugins=false -c
+  features.remote_plugin=false` on every invocation and records them as
+  `harness_run.disabled_features` (published in the compact artifact).
+  The first prompt loses only the generic `<recommended_plugins>` list and
+  the `request_plugin_install` tool. New `scripts/audit_codex_tools.py`
+  audits the agent's whole tool set against the real account at no quota
+  cost, and is required before a Codex panel: PASS on 0.162.1 and 0.156.1
+  with the flags, FAIL without them. The committed `gpt-6-luna` rows ran
+  with the account's apps and plugins available and recorded no
+  non-GM-Bench tool call; their artifacts are unchanged. Also corrected:
+  in code mode Codex defers the GM-Bench tool schemas too, so they are not
+  in the first prompt. See "Account plugins and apps" in
+  `docs/agentic_lane.md`.
+
 - Codex CLI 0.162.1 (2026-10-12, driver only; the agentic fingerprint
   stays `07de948a4f4afbae`). The Codex container image now pins 0.162.1
   (was 0.156.1): the ChatGPT backend refused `gpt-6.1-sol` to 0.156.1 with

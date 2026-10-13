@@ -280,6 +280,29 @@ def test_codex_panel_plays_through_the_staged_proxy_nudges_by_resume_and_validat
     artifact = compact_agentic_run(run_dir, isolation="same-user")
     assert artifact["harness"]["name"] == "codex"
     assert validate_agentic_artifact(artifact)["ok"]
+    # The account's plugins, apps and connectors are off on the first invocation and the resume,
+    # and the run and the published artifact say so.
+    flags = ["features.apps=false", "features.plugins=false", "features.remote_plugin=false"]
+    for call in calls:
+        overrides = [call["argv"][i + 1] for i, arg in enumerate(call["argv"]) if arg == "-c"]
+        assert all(flag in overrides for flag in flags), call["argv"]
+    assert harness_run["disabled_features"] == ["apps", "plugins", "remote_plugin"]
+    assert artifact["episodes"][0]["harness_run"]["disabled_features"] == ["apps", "plugins", "remote_plugin"]
+
+
+@pytest.mark.parametrize("isolation", ["same-user", "container"])
+def test_codex_turns_off_account_plugins_and_apps_on_every_invocation(isolation: str) -> None:
+    driver = codex.CodexDriver()
+    run = driver.run_args(model="m", variant=None, workdir="/w", brief="B", isolation=isolation)
+    resume = driver.resume_args(model="m", variant="high", workdir="/w", session_id="T", text="N", isolation=isolation)
+    for argv in (run, resume):
+        overrides = [argv[i + 1] for i, arg in enumerate(argv) if arg == "-c"]
+        assert [o for o in overrides if o.startswith("features.")] == [
+            f"features.{name}=false" for name in codex.DISABLED_FEATURES
+        ]
+    assert set(codex.DISABLED_FEATURES) == {"apps", "plugins", "remote_plugin"}
+    # Not in the staged config.toml, which the agent can rewrite between invocations.
+    assert "features" not in tomllib.loads(codex.codex_config_toml(codex.codex_config("/tmp/s")))
 
 
 def test_codex_provider_stall_is_retried_by_resume_and_is_not_a_nudge(
@@ -432,6 +455,12 @@ def test_codex_staging_keeps_host_codex_home_out_and_the_config_to_one_server(
             'sandbox_mode="workspace-write"',
             "-c",
             "sandbox_workspace_write.network_access=true",
+            "-c",
+            "features.apps=false",
+            "-c",
+            "features.plugins=false",
+            "-c",
+            "features.remote_plugin=false",
             "-c",
             'model_reasoning_effort="low"',
             "BRIEF",
@@ -1308,6 +1337,12 @@ def test_codex_container_launch_puts_the_auth_file_only_in_the_home_volume(tmp_p
             "gpt-x",
             "-c",
             'sandbox_mode="danger-full-access"',
+            "-c",
+            "features.apps=false",
+            "-c",
+            "features.plugins=false",
+            "-c",
+            "features.remote_plugin=false",
             "BRIEF",
         ]
         binds = [argv[i + 1] for i, arg in enumerate(argv) if arg == "--mount" and argv[i + 1].startswith("type=bind")]

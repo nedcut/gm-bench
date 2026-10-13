@@ -201,6 +201,11 @@ const ROW_CAVEATS: Record<string, string> = {
   "agentic:claude-2.1.281:claude-sonnet-5":
     "One episode's ledger = harness figure is a recount: the run recorded 165 of 166 because the event " +
     "parser counted a call to a tool name that does not exist; after the parser fix the count is 165 of 165.",
+  "agentic:codex-0.156.1:gpt-6-luna":
+    "Ran with the ChatGPT account's connected apps and installed plugins available to the agent: Codex " +
+    "exposed the apps as about 668 extra tools (Gmail, GitHub, Google Drive and others) callable from its " +
+    "exec tool, though not named in the prompt. The row records no tool call other than GM-Bench calls. " +
+    "Codex runs since 2026-10-13 turn these off, so later Codex rows do not have the same built-ins.",
   "agentic:cursor-2026.09.26-dd393fe:composer-2.5":
     "Cursor's servers add seven default User Rules of their own to every prompt. They are part of the " +
     "harness: the prompt audit found those seven, identical, and nothing else in all 32 episodes. Cursor " +
