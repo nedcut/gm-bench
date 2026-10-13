@@ -776,6 +776,10 @@ main:focus {
   list-style: none;
 }
 
+.page .how-steps > li {
+  margin-top: 0;
+}
+
 .how-steps button {
   display: flex;
   align-items: center;
