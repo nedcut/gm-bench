@@ -1,29 +1,46 @@
-import { useEffect, useMemo, useState } from "react";
 import type { Leaderboard } from "../types";
 import {
-  botRows,
   costText,
   modelRows,
   num,
   pickTraderScore,
   seedCount,
   signed,
-  useFilters,
-  visible,
   type ModelRow,
   type StandingsRow,
 } from "../v2";
-import Panel from "./Panel";
 import Rink from "./Rink";
 import SeasonStrip from "./SeasonStrip";
+import Workspace from "./Workspace";
 
-function Bar({ row, max, bar }: { row: StandingsRow; max: number; bar: number }) {
+function Bar({
+  row,
+  max,
+  bar,
+}: {
+  row: StandingsRow;
+  max: number;
+  bar: number;
+}) {
   const at = (v: number) => `${Math.max(0, Math.min(100, (v / max) * 100))}%`;
   const ci = row.kind === "model" ? row.ci : null;
   return (
     <span className="meter" aria-hidden="true">
-      <i className={row.kind === "model" ? `vendor-${row.vendor.key}` : undefined} style={{ width: at(row.score) }} />
-      {ci && <b className="whisker" style={{ left: at(ci[0]), width: `calc(${at(ci[1])} - ${at(ci[0])})` }} />}
+      <i
+        className={
+          row.kind === "model" ? `vendor-${row.vendor.key}` : undefined
+        }
+        style={{ width: at(row.score) }}
+      />
+      {ci && (
+        <b
+          className="whisker"
+          style={{
+            left: at(ci[0]),
+            width: `calc(${at(ci[1])} - ${at(ci[0])})`,
+          }}
+        />
+      )}
       <s style={{ left: at(bar) }} />
     </span>
   );
@@ -44,36 +61,9 @@ function vsBar(row: ModelRow) {
 }
 
 export default function Standings({ data }: { data: Leaderboard }) {
-  const models = useMemo(() => modelRows(data), [data]);
-  const bots = useMemo(() => botRows(data), [data]);
   const bar = pickTraderScore(data) ?? 0;
-  const [filters, setFilters] = useFilters();
-  const [selected, setSelected] = useState<string | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
-
-  const rows: StandingsRow[] = [
-    ...models.filter((row) => visible(row, filters)),
-    ...bots.filter((row) => filters.showBots || row.isBar),
-  ].sort((a, b) => b.score - a.score);
-  const max = Math.ceil(Math.max(bar, ...rows.map((r) => (r.kind === "model" && r.ci ? r.ci[1] : r.score))) / 50) * 50;
-  const selectedRow = [...models, ...bots].find((row) => row.id === selected) ?? null;
+  const models = modelRows(data);
   const beat = models.filter((row) => row.score > bar).length;
-
-  useEffect(() => {
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSelected(null);
-        setSheetOpen(false);
-      }
-    };
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, []);
-
-  const select = (id: string) => {
-    setSelected((current) => (current === id ? null : id));
-    setSheetOpen(true);
-  };
 
   return (
     <>
@@ -82,79 +72,133 @@ export default function Standings({ data }: { data: Leaderboard }) {
         <div className="intro-copy">
           <h1>Can an LLM run a hockey team?</h1>
           <p className="intro-answer">
-            {beat === 0 ? "Not yet. No model beats pick-trader." : `${beat} of ${models.length} models beat pick-trader.`}
+            {beat === 0
+              ? "Not yet. No model beats pick-trader."
+              : `${beat} of ${models.length} models beat pick-trader.`}
           </p>
           <p>
-            Each agent runs a franchise for five seasons inside its own harness: Claude Code, Codex, Cursor or OpenCode.
-            pick-trader is a short scripted GM.
+            Each agent runs a franchise for five seasons inside its own harness:
+            Claude Code, Codex, Cursor or OpenCode. pick-trader is a short
+            scripted GM.
           </p>
         </div>
       </section>
-      <div className="workspace">
-        <section className="view" aria-labelledby="standings-title">
-          <div className="view-head">
-            <h2 id="standings-title">Standings</h2>
-            <span>
-              {seedCount(data) ?? "—"} private seeds · bars show 95% intervals · red line: pick-trader
-            </span>
-            <button type="button" className="sheet-button" onClick={(event) => { event.currentTarget.focus(); setSelected(null); setSheetOpen(true); }}>
-              Filter
-            </button>
-          </div>
-          <table className="standings">
-            <thead>
-              <tr>
-                <th scope="col">Player</th>
-                <th scope="col" className="col-bar"><span className="sr-only">Score bar</span></th>
-                <th scope="col" className="r">Score</th>
-                <th scope="col" className="r">vs pick-trader</th>
-                <th scope="col" className="r hide-sm">Tool calls</th>
-                <th scope="col" className="r hide-sm">$ / game</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className={row.kind === "bot" ? (row.isBar ? "is-bar" : "is-bot") : undefined}
-                  aria-selected={row.id === selected}
-                  onClick={(event) => { event.currentTarget.querySelector("button")?.focus(); select(row.id); }}
-                >
-                  <th scope="row">
-                    <button type="button" className="row-name" onClick={(e) => { e.stopPropagation(); e.currentTarget.focus(); select(row.id); }}>
-                      <span className={`dot ${row.kind === "model" ? `vendor-${row.vendor.key}` : ""}`} aria-hidden="true" />
-                      <span className="name">{row.label}</span>
-                      {row.kind === "model" && <span className="tag">{row.harness}</span>}
-                      {row.kind === "bot" && <span className="tag">{row.isBar ? "the bar" : "scripted"}</span>}
-                    </button>
-                  </th>
-                  <td className="col-bar">
-                    <Bar row={row} max={max} bar={bar} />
-                  </td>
-                  <td className="r score">{num(row.score)}</td>
-                  <td className="r lift">{row.kind === "model" ? vsBar(row) : ""}</td>
-                  <td className="r hide-sm">{row.kind === "model" ? num(row.toolCalls, 0) : ""}</td>
-                  <td className="r hide-sm">{row.kind === "model" ? costText(row.cost) : ""}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="view-note">
-            Sorted by score for reading. Each row is compared only with pick-trader on the same seeds, never with
-            another row.
-          </p>
-          <SeasonStrip />
-        </section>
-        <Panel
-          models={models}
-          filters={filters}
-          onFilters={setFilters}
-          row={selectedRow}
-          onBack={() => setSelected(null)}
-          open={sheetOpen}
-          onClose={() => setSheetOpen(false)}
-        />
-      </div>
+      <Workspace data={data} hint="Click a row for its details.">
+        {({ shown, bots, filters, selected, select, filterButton }) => {
+          const rows: StandingsRow[] = [
+            ...shown,
+            ...bots.filter((row) => filters.showBots || row.isBar),
+          ].sort((a, b) => b.score - a.score);
+          const max =
+            Math.ceil(
+              Math.max(
+                bar,
+                ...rows.map((r) =>
+                  r.kind === "model" && r.ci ? r.ci[1] : r.score,
+                ),
+              ) / 50,
+            ) * 50;
+          return (
+            <section className="view" aria-labelledby="standings-title">
+              <div className="view-head">
+                <h2 id="standings-title">Standings</h2>
+                <span>
+                  {seedCount(data) ?? "—"} private seeds · bars show 95%
+                  intervals · red line: pick-trader
+                </span>
+                {filterButton}
+              </div>
+              <div className="card table-card">
+                <table className="standings">
+                  <thead>
+                    <tr>
+                      <th scope="col">Player</th>
+                      <th scope="col" className="col-bar">
+                        <span className="sr-only">Score bar</span>
+                      </th>
+                      <th scope="col" className="r">
+                        Score
+                      </th>
+                      <th scope="col" className="r">
+                        vs pick-trader
+                      </th>
+                      <th scope="col" className="r hide-sm">
+                        Tool calls
+                      </th>
+                      <th scope="col" className="r hide-sm">
+                        $ / game
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className={
+                          row.kind === "bot"
+                            ? row.isBar
+                              ? "is-bar"
+                              : "is-bot"
+                            : undefined
+                        }
+                        aria-selected={row.id === selected}
+                        onClick={(event) => {
+                          event.currentTarget.querySelector("button")?.focus();
+                          select(row.id);
+                        }}
+                      >
+                        <th scope="row">
+                          <button
+                            type="button"
+                            className="row-name"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.currentTarget.focus();
+                              select(row.id);
+                            }}
+                          >
+                            <span
+                              className={`dot ${row.kind === "model" ? `vendor-${row.vendor.key}` : ""}`}
+                              aria-hidden="true"
+                            />
+                            <span className="name">{row.label}</span>
+                            {row.kind === "model" && (
+                              <span className="tag">{row.harness}</span>
+                            )}
+                            {row.kind === "bot" && (
+                              <span className="tag">
+                                {row.isBar ? "the bar" : "scripted"}
+                              </span>
+                            )}
+                          </button>
+                        </th>
+                        <td className="col-bar">
+                          <Bar row={row} max={max} bar={bar} />
+                        </td>
+                        <td className="r score">{num(row.score)}</td>
+                        <td className="r lift">
+                          {row.kind === "model" ? vsBar(row) : ""}
+                        </td>
+                        <td className="r hide-sm">
+                          {row.kind === "model" ? num(row.toolCalls, 0) : ""}
+                        </td>
+                        <td className="r hide-sm">
+                          {row.kind === "model" ? costText(row.cost) : ""}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="view-note">
+                Sorted by score for reading. Each row is compared only with
+                pick-trader on the same seeds, never with another row.
+              </p>
+              <SeasonStrip />
+            </section>
+          );
+        }}
+      </Workspace>
     </>
   );
 }

@@ -1,28 +1,35 @@
-import { useMemo } from "react";
 import type { Leaderboard } from "../types";
-import { compact, modelRows, num, seedCount, useFilters, visible, type ModelRow } from "../v2";
+import { compact, num, seedCount, type ModelRow } from "../v2";
 import FilterNote from "./FilterNote";
+import Workspace, { type WorkspaceView } from "./Workspace";
 
 interface Metric {
   title: string;
-  unit: string;
+  note: string;
   value: (row: ModelRow) => number | null;
   text: (value: number) => string;
 }
 
 const METRICS: Metric[] = [
-  { title: "Tool calls", unit: "per game", value: (r) => r.toolCalls, text: (v) => num(v, 0) },
-  { title: "Input tokens", unit: "per game", value: (r) => r.inputTokens, text: (v) => compact(v) },
-  { title: "Wall time", unit: "minutes per game", value: (r) => r.minutes, text: (v) => num(v, 1) },
+  { title: "Tool calls", note: "Per game", value: (r) => r.toolCalls, text: (v) => num(v, 0) },
+  { title: "Wall time", note: "Minutes per five-season game", value: (r) => r.minutes, text: (v) => `${num(v, 1)} min` },
+  { title: "Input tokens", note: "Per game", value: (r) => r.inputTokens, text: (v) => compact(v) },
+  { title: "Output tokens", note: "Per game", value: (r) => r.outputTokens, text: (v) => compact(v) },
   {
     title: "Empty phases",
-    unit: "status check, then end; share of all phases",
+    note: "Ended after only a status check; share of all phases",
     value: (r) => (r.emptyPhases === null || r.phases === 0 ? null : (100 * r.emptyPhases) / r.phases),
-    text: (v) => `${num(v, 0)}%`,
+    text: (v) => `${num(v, v < 10 && v > 0 ? 1 : 0)}%`,
+  },
+  {
+    title: "Illegal moves",
+    note: "Moves the simulator rejected, per game",
+    value: (r) => (r.illegal === null || r.source.panel.episodes === 0 ? null : r.illegal / r.source.panel.episodes),
+    text: (v) => num(v, 2),
   },
 ];
 
-function Multiple({ metric, rows }: { metric: Metric; rows: ModelRow[] }) {
+function MetricCard({ metric, rows, view }: { metric: Metric; rows: ModelRow[]; view: WorkspaceView }) {
   const measured = rows
     .map((row) => ({ row, value: metric.value(row) }))
     .filter((item): item is { row: ModelRow; value: number } => item.value !== null)
@@ -30,42 +37,57 @@ function Multiple({ metric, rows }: { metric: Metric; rows: ModelRow[] }) {
   const missing = rows.length - measured.length;
   const max = Math.max(...measured.map((item) => item.value), 1e-9);
   return (
-    <div className="multiple">
-      <h3>
-        {metric.title}
-        <small>{metric.unit}</small>
-      </h3>
-      {measured.map(({ row, value }) => (
-        <div key={row.id} className="hbar">
-          <span className="name" title={`${row.model}, ${row.harness}`}>
-            {row.model} <span className="muted">· {row.harness}</span>
-          </span>
-          <span className="meter" aria-hidden="true">
-            <i className={`vendor-${row.vendor.key}`} style={{ width: `${(value / max) * 100}%` }} />
-          </span>
-          <span className="val">{metric.text(value)}</span>
-        </div>
-      ))}
+    <section className="card metric">
+      <h2>{metric.title}</h2>
+      <p className="card-note">{metric.note}</p>
+      <div className="hbars">
+        {measured.map(({ row, value }) => (
+          <button
+            key={row.id}
+            type="button"
+            className={`hbar${view.focus !== null && view.focus !== row.id ? " is-dim" : ""}`}
+            aria-pressed={view.selected === row.id}
+            onClick={() => view.select(row.id)}
+            onMouseEnter={() => view.hover(row.id)}
+            onMouseLeave={() => view.hover(null)}
+            onFocus={() => view.hover(row.id)}
+            onBlur={() => view.hover(null)}
+          >
+            <span className="name">
+              <span className={`dot vendor-${row.vendor.key}`} aria-hidden="true" />
+              <span className="name-text">{row.model}</span>
+              <span className="muted">{row.harness}</span>
+            </span>
+            <span className="meter" aria-hidden="true">
+              <i className={`vendor-${row.vendor.key}`} style={{ width: `${Math.max((value / max) * 100, value > 0 ? 1 : 0)}%` }} />
+            </span>
+            <span className="val">{metric.text(value)}</span>
+          </button>
+        ))}
+      </div>
       {missing > 0 && <p className="view-note">{missing} not measured.</p>}
-    </div>
+    </section>
   );
 }
 
 export default function ToolsView({ data }: { data: Leaderboard }) {
-  const [filters, setFilters] = useFilters();
-  const rows = useMemo(() => modelRows(data), [data]).filter((row) => visible(row, filters));
   return (
-    <section className="view page-view" aria-labelledby="tools-title">
-      <div className="view-head">
-        <h1 id="tools-title">How each agent used its harness</h1>
-        <span>Averages over {seedCount(data) ?? "—"} five-season games. Longer bars are not better.</span>
-      </div>
-      <FilterNote filters={filters} onReset={() => setFilters({ hiddenHarnesses: [], hiddenVendors: [], showBots: filters.showBots })} />
-      <div className="small-multiples">
-        {METRICS.map((metric) => (
-          <Multiple key={metric.title} metric={metric} rows={rows} />
-        ))}
-      </div>
-    </section>
+    <Workspace data={data} hint="Click a bar for its details.">
+      {(view) => (
+        <section className="view page-view" aria-labelledby="tools-title">
+          <div className="view-head">
+            <h1 id="tools-title">How each agent used its harness</h1>
+            <span>Averages over {seedCount(data) ?? "—"} five-season games. Longer bars are not better.</span>
+            {view.filterButton}
+          </div>
+          <FilterNote filters={view.filters} onReset={() => view.setFilters({ hiddenHarnesses: [], hiddenVendors: [], showBots: view.filters.showBots })} />
+          <div className="metric-grid">
+            {METRICS.map((metric) => (
+              <MetricCard key={metric.title} metric={metric} rows={view.shown} view={view} />
+            ))}
+          </div>
+        </section>
+      )}
+    </Workspace>
   );
 }

@@ -28,7 +28,7 @@ function toggle(list: string[], key: string): string[] {
   return list.includes(key) ? list.filter((item) => item !== key) : [...list, key];
 }
 
-function FilterView({ models, filters, onFilters }: { models: ModelRow[]; filters: Filters; onFilters: (f: Filters) => void }) {
+function FilterView({ models, filters, onFilters, hint }: { models: ModelRow[]; filters: Filters; onFilters: (f: Filters) => void; hint: string }) {
   const harnesses = [...new Set(models.map((m) => m.harnessKey))].sort();
   const vendors = [...new Map(models.map((m) => [m.vendor.key, m.vendor])).values()].sort((a, b) => a.name.localeCompare(b.name));
   const count = (pred: (m: ModelRow) => boolean) => models.filter(pred).length;
@@ -71,7 +71,7 @@ function FilterView({ models, filters, onFilters }: { models: ModelRow[]; filter
           <span>Show bots</span>
         </label>
       </fieldset>
-      <p className="panel-hint">Click a row for its details.</p>
+      <p className="panel-hint">{hint}</p>
     </>
   );
 }
@@ -118,7 +118,7 @@ function ModelDetails({ row }: { row: ModelRow }) {
         />
         <Stat label="Minutes / game" value={num(row.minutes)} />
         <Stat label="Empty phases" value={row.emptyPhases === null ? "—" : `${row.emptyPhases} / ${row.phases}`} note="status check, then end" />
-        <Stat label="Illegal moves" value={row.illegal === null ? "—" : String(row.illegal)} />
+        <Stat label="Illegal moves" value={row.illegal === null ? "—" : String(row.illegal)} note={`over ${row.source.panel.episodes} games`} />
       </dl>
       <ul className="detail-notes">
         <li>
@@ -163,6 +163,7 @@ export default function Panel({
   onBack,
   open,
   onClose,
+  hint,
 }: {
   models: ModelRow[];
   filters: Filters;
@@ -171,10 +172,11 @@ export default function Panel({
   onBack: () => void;
   open: boolean;
   onClose: () => void;
+  hint: string;
 }) {
   const panelRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 900px)").matches);
+  const [mobile, setMobile] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches);
 
   useLayoutEffect(() => {
     const query = window.matchMedia("(max-width: 900px)");
@@ -245,7 +247,7 @@ export default function Panel({
           </button>
         </div>
         {row === null ? (
-          <FilterView models={models} filters={filters} onFilters={onFilters} />
+          <FilterView models={models} filters={filters} onFilters={onFilters} hint={hint} />
         ) : row.kind === "model" ? (
           <ModelDetails row={row} />
         ) : (

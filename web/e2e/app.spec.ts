@@ -55,6 +55,26 @@ test("score vs cost plots measured rows and names the unmeasured ones", async ({
   for (const r of unmeasured) await expect(page.getByText(new RegExp(`cost unmeasured: .*${r.model}`))).toBeVisible();
 });
 
+test("cost points and tool bars open details in the side panel and highlight their row", async ({ page }) => {
+  const errors = await noErrors(page);
+  await page.goto("/cost/");
+  await expect(page.locator(".view-head span")).toContainText("No measured row scores above pick-trader.");
+  const point = page.getByRole("button", { name: /^gpt-6-luna, Codex: score/ });
+  await point.locator("circle").hover();
+  await expect(page.locator(".chart .pt.is-dim")).toHaveCount(await page.locator(".chart .pt").count() - 1);
+  await point.locator("circle").click();
+  await expect(page.locator(".side-panel h2")).toHaveText("gpt-6-luna");
+  await expect(point).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Linear" }).click();
+  await expect(page.getByText(/linear scale/)).toBeVisible();
+  await page.goto("/tools/");
+  await expect(page.locator(".metric")).toHaveCount(6);
+  await page.locator(".hbar", { hasText: "claude-haiku-4-5" }).first().click();
+  await expect(page.locator(".side-panel h2")).toHaveText("claude-haiku-4-5");
+  await expect(page.locator(".hbar[aria-pressed=true]")).toHaveCount(6);
+  expect(errors).toEqual([]);
+});
+
 test("phone layout: filter opens as a sheet and no page scrolls sideways", async ({ page }) => {
   const errors = await noErrors(page);
   await page.setViewportSize({ width: 390, height: 800 });

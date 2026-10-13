@@ -1,6 +1,7 @@
 /* Page URLs, built from Vite's base so they work at "/" locally and at
    "/gm-bench/" on GitHub Pages. */
-const BASE = import.meta.env.BASE_URL;
+// "/" outside Vite, where the chart tests render components directly.
+const BASE = import.meta.env?.BASE_URL ?? "/";
 
 export const routes = {
   standings: BASE,

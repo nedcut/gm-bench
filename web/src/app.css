@@ -308,7 +308,7 @@ main:focus {
 }
 
 .view-head span {
-  color: var(--text-3);
+  color: var(--text-2);
   font-size: 12.5px;
 }
 
@@ -787,46 +787,240 @@ main:focus {
   stroke-linejoin: round;
 }
 
-.small-multiples {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 28px 40px;
+.chart .bar-note {
+  fill: var(--bar);
+  font-size: 11px;
+  opacity: 0.75;
 }
 
-.multiple h3 {
-  margin: 0 0 10px;
-  font-size: 13.5px;
-  font-weight: 650;
+.chart .above-bar {
+  fill: var(--bar);
+  opacity: 0.05;
 }
 
-.multiple h3 small {
-  margin-left: 6px;
+.chart .leader {
+  stroke-opacity: 0.28;
+  stroke-width: 1;
+}
+
+.chart .pt {
+  cursor: pointer;
+  outline: none;
+}
+
+.chart .pt:focus-visible .point-label {
+  text-decoration: underline;
+}
+
+/* Hovering or selecting a row fades the others, on every chart. */
+.pt,
+.hbar {
+  transition: opacity 0.15s ease;
+}
+
+.is-dim {
+  opacity: 0.25;
+}
+
+/* ---------- cards ---------- */
+
+.table-card {
+  padding: 10px 8px 4px;
+}
+
+.table-card .standings thead th {
+  padding-top: 4px;
+}
+
+.table-card .standings tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .card.table-card {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+}
+
+.card {
+  min-width: 0;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 20px;
+  margin-bottom: 6px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.legend i {
+  display: inline-block;
+}
+
+.key-dot {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--text-2);
+  border-radius: 50%;
+  background: var(--text-2);
+}
+
+.key-dot.is-hollow {
+  background: none;
+}
+
+.key-ci {
+  width: 2px;
+  height: 14px;
+  background: var(--text-2);
+  opacity: 0.6;
+}
+
+.key-bar {
+  width: 16px;
+  height: 2px;
+  background: var(--bar);
+}
+
+/* A segmented control: one choice of two or three. */
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+}
+
+.seg button {
+  padding: 3px 11px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
   color: var(--text-3);
-  font-weight: 400;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.seg button:hover {
+  color: var(--text);
+}
+
+.seg button[aria-pressed="true"] {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  gap: 16px;
+}
+
+.metric h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.metric h2::before {
+  /* the blue line, as on the season strip */
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 9px;
+  border-radius: 2px;
+  background: var(--rink-blue);
+}
+
+.card-note {
+  margin: 2px 0 12px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.hbars {
+  display: grid;
+  gap: 2px;
 }
 
 .hbar {
   display: grid;
-  grid-template-columns: minmax(150px, 230px) minmax(0, 1fr) 64px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) 72px;
   align-items: center;
-  gap: 10px;
-  height: 26px;
+  gap: 12px;
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
   font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hbar:hover,
+.hbar[aria-pressed="true"] {
+  background: var(--raised);
+}
+
+.hbar[aria-pressed="true"] {
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .hbar .name {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   white-space: nowrap;
 }
 
+.hbar .name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hbar .muted {
+  flex: none;
+  font-size: 11.5px;
+}
+
+.hbar .meter {
+  height: 10px;
+  border-radius: 5px;
+}
+
 .hbar .meter i {
-  opacity: 0.9;
+  border-radius: 5px;
 }
 
 .hbar .val {
   text-align: right;
-  font-weight: 600;
 }
 
 /* ---------- mobile ---------- */
@@ -871,10 +1065,6 @@ main:focus {
     z-index: 30;
     border: 0;
     background: rgba(0, 0, 0, 0.5);
-  }
-
-  .small-multiples {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -955,9 +1145,9 @@ main:focus {
   .hbar {
     grid-template-columns: minmax(0, 1fr) 56px;
     grid-template-areas: "name name" "meter val";
-    gap: 2px 10px;
+    gap: 4px 10px;
     height: auto;
-    margin-bottom: 8px;
+    padding: 7px 8px;
   }
 
   .hbar .name {
@@ -1017,7 +1207,7 @@ main:focus {
 .view-head h1,
 .view-head h2,
 .season-strip h2,
-.multiple h3 {
+.metric h2 {
   font-stretch: 80%;
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -1163,13 +1353,6 @@ main:focus {
   .wordmark {
     font-size: 16px;
   }
-}
-
-.multiple h3 small {
-  text-transform: none;
-  letter-spacing: 0;
-  font-stretch: 100%;
-  font-weight: 400;
 }
 
 /* Pages without the center-ice intro carry the boards stripe under the top bar. */
