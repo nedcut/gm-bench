@@ -848,16 +848,17 @@ python -m gm_bench agentic --harness codex --isolation container --model gpt-6-l
   --seeds 11 --seasons 1 --output /tmp/agentic-codex-container
 ```
 
-These are the model and flags the committed Codex rows used. No committed
+These are the model and flags the committed `gpt-6-luna` rows used; the
+`gpt-6.1-sol` panel used the same flags with `--model gpt-6.1-sol`. No committed
 row passes `--variant`, on any harness, so every row ran at the harness's
 default reasoning effort. `--variant` sets it explicitly (for Codex,
 `-c model_reasoning_effort="<variant>"`), and a row run with it is a
 different row.
 
 The Codex CLI is the second harness (`gm_bench/agentic/codex.py`, written
-against Codex CLI 0.156.1, which played every committed Codex row, and
-re-verified against 0.162.1, which the container image now pins; see
-"Codex 0.162.1" below). It runs through the same episode loop
+against Codex CLI 0.156.1, which played the committed `gpt-6-luna` rows,
+and re-verified against 0.162.1, which the container image now pins and
+which played the `gpt-6.1-sol` panel; see "Codex 0.162.1" below). It runs through the same episode loop
 as OpenCode: same engine, proxy, sandbox check, nudges, provider-stall
 retries, phase guard, ledger, and validation. A Codex row is its own row,
 `codex/<version> · <model>`, never merged with an OpenCode row on the same
@@ -886,7 +887,15 @@ input tokens, and in some turns the input grew by more than the 272K-token
 long-context threshold, so some requests may have been billed at the
 long-context tier (2x input and cache, 1.5x output). The
 estimate always uses short-context rates (see "API-equivalent cost
-estimate" below), so the true API-price cost may be higher.
+estimate" below), so the true API-price cost may be higher. The second,
+on `gpt-6.1-sol` with Codex 0.162.1 (2026-10-13, driver commit `1411e2e`,
+the account's apps and plugins turned off), is committed at
+`results/agentic/codex-0.162.1-gpt-6.1-sol-panel-32x5.json`: mean 273.2,
+640/640 phases closed by the agent, no nudges or quota pauses, 9 provider
+stalls (780 s of backoff), 170.1 tool calls and 8.5 min per episode, $17.38
+at API prices for the panel, also a lower bound
+(`api_equivalent_long_context_possible: true`). On a ChatGPT `prolite`
+plan the weekly window peaked at 7% used.
 
 What a run does per episode:
 
@@ -992,8 +1001,9 @@ first use from the same digest-pinned base and egress entrypoint as the
 OpenCode image, with `@openai/codex@0.162.1` instead of `opencode-ai`; the
 OpenCode image is unchanged. `run.json` records it under
 `harness.container`, with `codex_version` as the image reports it. The
-committed Codex rows ran in `gm-bench-agentic-codex:0.156.1-578af3e044d4`
-and keep validating at the driver commit they record.
+committed `gpt-6-luna` rows ran in `gm-bench-agentic-codex:0.156.1-578af3e044d4`
+and keep validating at the driver commit they record; the `gpt-6.1-sol`
+panel ran in `gm-bench-agentic-codex:0.162.1-f8095c887ac3`.
 
 ### Account plugins and apps
 
