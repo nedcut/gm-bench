@@ -1,0 +1,1085 @@
+{
+ "brief": "You are the general manager of Anchorage Auroras (team id 0) in a 12-team hockey league.\nYou run the franchise for 5 seasons through the `gm-bench` tools. This is a benchmark: your\nscore is computed when the last season ends and nothing you do outside the tools counts.\n\nHow the calendar works\nEach season has four decision phases, in this order:\n  1. preseason: sign free agents, extend expiring contracts (only here), trade, set your lineup\n  2. midseason: about a third of the season has been played; injuries and a waiver wire appear\n  3. trade_deadline: opponents may have sent you offers; last trades before the playoffs\n  4. draft: use your pick on a prospect; opponents ahead of you have already picked\nIn every phase you may call tools as many times as you like: read the state, gather information,\nmake moves, then call `end_phase`. That is the only way time advances. Moves apply immediately and\ncannot be undone. Once you call `end_phase`, opponents act and the next phase opens; the response\ntells you where you are. After the final draft, `end_phase` reports that the episode is complete\nand you should stop. You will call `end_phase` exactly 20 times over the whole run.\n\nWhat you are scored on, in priority order\n  1. Winning over all 5 seasons, especially championships and deep playoff runs\n  2. Being a contender consistently rather than once\n  3. Regular-season record\n  4. A capped credit for the roster, prospects, picks and cap health you leave behind\nIllegal moves (bad ids, cap or roster violations, wrong phase) are rejected and cost score.\nDeclined offers cost nothing: a trade partner or free agent turning you down is normal negotiation,\nbut after a few declines in one phase a counterparty stops talking until the next phase.\n\nWhat you can and cannot see\nRatings you see are public estimates. True potential is hidden; `scout` gives a near-true reading\nfor a few players per season. Trade partners judge offers on their own hidden valuation, and free\nagents accept anything at or above their published quote. Opponents keep making moves between your\nphases, so a player available now may be gone next phase.\n\nWorking method\nStart each phase with `get_status`. Read `get_rules` once early. Fetch only what you need: every\ntool call is recorded and reported beside your score, so calling everything every phase is a cost.\n`get_team` shows your roster; `set_lineup` matters every phase because it decides who plays and who\ndevelops. You may keep notes in files here, in your own context, or with `write_memo`. Do not look\nfor, read, or reason about the benchmark's source code or hidden data; the only legitimate\ninformation is what the tools return.\n\nBegin now with `get_status`.",
+ "final_score": 198.15,
+ "schema": "gm-bench-walkthrough-v1",
+ "season": 1,
+ "seasons": [
+  {
+   "champion": "Nashville Sound",
+   "losses": 14,
+   "playoff_rounds": 1,
+   "score_after_season": 126.91,
+   "season": 1,
+   "wins": 19
+  },
+  {
+   "champion": "Nashville Sound",
+   "losses": 37,
+   "playoff_rounds": 0,
+   "score_after_season": 154.92,
+   "season": 2,
+   "wins": 29
+  },
+  {
+   "champion": "Portland Pines",
+   "losses": 52,
+   "playoff_rounds": 0,
+   "score_after_season": 145.47,
+   "season": 3,
+   "wins": 47
+  },
+  {
+   "champion": "Montreal Saints",
+   "losses": 74,
+   "playoff_rounds": 0,
+   "score_after_season": 166.72,
+   "season": 4,
+   "wins": 58
+  }
+ ],
+ "source": {
+  "agent": "pick-trader",
+  "file": "web/public/replay/trajectory-demo.json",
+  "seed": 1,
+  "seed_scope": "public-dev",
+  "source_commit": "4f87f40a73269a32ab1e3789569dd48d2d1084ec",
+  "track": "experimental-public-demo"
+ },
+ "steps": [
+  {
+   "context": {
+    "expiring": [
+     {
+      "age": 26,
+      "contract_years": 1,
+      "extension_quotes": {
+       "2": 5.4,
+       "3": 5.51,
+       "4": 5.61,
+       "5": 5.72
+      },
+      "id": 4,
+      "name": "Finn Jensen",
+      "overall": 67.9,
+      "position": "D",
+      "potential": 69.7,
+      "salary": 5.62
+     },
+     {
+      "age": 23,
+      "contract_years": 1,
+      "extension_quotes": {
+       "2": 4.76,
+       "3": 4.86,
+       "4": 4.95,
+       "5": 5.04
+      },
+      "id": 8,
+      "name": "Gabe Reed",
+      "overall": 65.0,
+      "position": "D",
+      "potential": 75.6,
+      "salary": 4.19
+     },
+     {
+      "age": 23,
+      "contract_years": 1,
+      "extension_quotes": {
+       "2": 4.1,
+       "3": 4.18,
+       "4": 4.26,
+       "5": 4.34
+      },
+      "id": 9,
+      "name": "Milo Quill",
+      "overall": 62.1,
+      "position": "F",
+      "potential": 62.3,
+      "salary": 4.43
+     },
+     {
+      "age": 23,
+      "contract_years": 1,
+      "extension_quotes": {
+       "2": 2.51,
+       "3": 2.56,
+       "4": 2.61,
+       "5": 2.66
+      },
+      "id": 13,
+      "name": "Jules Mason",
+      "overall": 55.1,
+      "position": "F",
+      "potential": 62.4,
+      "salary": 2.62
+     },
+     {
+      "age": 21,
+      "contract_years": 1,
+      "extension_quotes": {
+       "2": 1.89,
+       "3": 1.93,
+       "4": 1.97,
+       "5": 2.0
+      },
+      "id": 11,
+      "name": "Rafi Ivers",
+      "overall": 52.4,
+      "position": "F",
+      "potential": 56.7,
+      "salary": 2.15
+     },
+     {
+      "age": 22,
+      "contract_years": 1,
+      "extension_quotes": {
+       "2": 0.77,
+       "3": 0.79,
+       "4": 0.8,
+       "5": 0.82
+      },
+      "id": 16,
+      "name": "Jules Chen",
+      "overall": 47.4,
+      "position": "F",
+      "potential": 44.7,
+      "salary": 0.83
+     },
+     {
+      "age": 29,
+      "contract_years": 1,
+      "extension_quotes": {
+       "2": 0.72,
+       "3": 0.73,
+       "4": 0.75,
+       "5": 0.76
+      },
+      "id": 2,
+      "name": "Kai Anders",
+      "overall": 46.2,
+      "position": "G",
+      "potential": 56.7,
+      "salary": 0.75
+     }
+    ],
+    "free_agent_count": 36,
+    "free_agents": [
+     {
+      "age": 29,
+      "asking_salary": 6.39,
+      "contract_years": 0,
+      "id": 305,
+      "name": "Owen Olsen",
+      "overall": 74.3,
+      "position": "D",
+      "potential": 58.0,
+      "salary": 0.0
+     },
+     {
+      "age": 30,
+      "asking_salary": 5.88,
+      "contract_years": 0,
+      "id": 301,
+      "name": "Quin Hayes",
+      "overall": 71.8,
+      "position": "G",
+      "potential": 57.4,
+      "salary": 0.0
+     },
+     {
+      "age": 22,
+      "asking_salary": 5.81,
+      "contract_years": 0,
+      "id": 280,
+      "name": "Owen Stone",
+      "overall": 71.5,
+      "position": "F",
+      "potential": 67.7,
+      "salary": 0.0
+     },
+     {
+      "age": 31,
+      "asking_salary": 5.4,
+      "contract_years": 0,
+      "id": 300,
+      "name": "Ivan Stone",
+      "overall": 70.5,
+      "position": "F",
+      "potential": 73.0,
+      "salary": 0.0
+     },
+     {
+      "age": 30,
+      "asking_salary": 4.83,
+      "contract_years": 0,
+      "id": 277,
+      "name": "Eli Hayes",
+      "overall": 66.9,
+      "position": "G",
+      "potential": 74.0,
+      "salary": 0.0
+     },
+     {
+      "age": 26,
+      "asking_salary": 4.66,
+      "contract_years": 0,
+      "id": 290,
+      "name": "Jules Frost",
+      "overall": 66.0,
+      "position": "F",
+      "potential": 65.4,
+      "salary": 0.0
+     }
+    ]
+   },
+   "delta": {
+    "cap_room_contribution": -6.51,
+    "current_strength_contribution": 0.0,
+    "future_pick_assets_contribution": 0.0,
+    "roster_depth_contribution": 0.33,
+    "total_assets_contribution": 14.34,
+    "young_assets_contribution": 8.42
+   },
+   "moves": [
+    {
+     "accepted": true,
+     "arguments": {
+      "text": "Build sustainable value, preserve cap flexibility, and reassess at the deadline."
+     },
+     "message": "memo saved",
+     "tool": "write_memo"
+    },
+    {
+     "accepted": true,
+     "arguments": {
+      "player_id": 8,
+      "salary": 4.95,
+      "years": 4
+     },
+     "message": "extended Gabe Reed for 4 year(s)",
+     "player": {
+      "age": 23,
+      "contract_years": 1,
+      "id": 8,
+      "name": "Gabe Reed",
+      "overall": 65.0,
+      "position": "D",
+      "potential": 75.6,
+      "salary": 4.19
+     },
+     "tool": "extend_contract"
+    },
+    {
+     "accepted": true,
+     "arguments": {
+      "player_id": 4,
+      "salary": 5.51,
+      "years": 3
+     },
+     "message": "extended Finn Jensen for 3 year(s)",
+     "player": {
+      "age": 26,
+      "contract_years": 1,
+      "id": 4,
+      "name": "Finn Jensen",
+      "overall": 67.9,
+      "position": "D",
+      "potential": 69.7,
+      "salary": 5.62
+     },
+     "tool": "extend_contract"
+    },
+    {
+     "accepted": true,
+     "arguments": {
+      "player_id": 280,
+      "salary": 6.04,
+      "years": 3
+     },
+     "message": "signed Owen Stone",
+     "player": {
+      "age": 22,
+      "contract_years": 0,
+      "id": 280,
+      "name": "Owen Stone",
+      "overall": 71.5,
+      "position": "F",
+      "potential": 67.7,
+      "salary": 0.0
+     },
+     "tool": "sign_free_agent"
+    },
+    {
+     "accepted": true,
+     "arguments": {
+      "player_id": 290,
+      "salary": 4.84,
+      "years": 3
+     },
+     "message": "signed Jules Frost",
+     "player": {
+      "age": 26,
+      "contract_years": 0,
+      "id": 290,
+      "name": "Jules Frost",
+      "overall": 66.0,
+      "position": "F",
+      "potential": 65.4,
+      "salary": 0.0
+     },
+     "tool": "sign_free_agent"
+    },
+    {
+     "accepted": true,
+     "arguments": {
+      "player_id": 296,
+      "salary": 2.24,
+      "years": 3
+     },
+     "message": "signed Jules Price",
+     "player": {
+      "age": 23,
+      "contract_years": 0,
+      "id": 296,
+      "name": "Jules Price",
+      "overall": 54.2,
+      "position": "F",
+      "potential": 66.3,
+      "salary": 0.0
+     },
+     "tool": "sign_free_agent"
+    },
+    {
+     "accepted": true,
+     "arguments": {
+      "player_id": 277,
+      "salary": 4.83,
+      "years": 1
+     },
+     "message": "signed Eli Hayes",
+     "player": {
+      "age": 30,
+      "contract_years": 0,
+      "id": 277,
+      "name": "Eli Hayes",
+      "overall": 66.9,
+      "position": "G",
+      "potential": 74.0,
+      "salary": 0.0
+     },
+     "tool": "sign_free_agent"
+    },
+    {
+     "accepted": true,
+     "arguments": {
+      "player_ids": [
+       19,
+       14,
+       9,
+       15,
+       21,
+       13,
+       17,
+       10,
+       11,
+       23,
+       8,
+       4,
+       5,
+       3,
+       1,
+       6,
+       12,
+       20
+      ]
+     },
+     "dressed": 18,
+     "message": "lineup set",
+     "tool": "set_lineup"
+    }
+   ],
+   "note": "sign free agents, extend expiring contracts (only here), trade, set your lineup",
+   "phase": "preseason",
+   "queries": [],
+   "scouted": [],
+   "situation": {
+    "cap_room": 19.45,
+    "losses": 0,
+    "payroll": 66.55,
+    "picks": 7,
+    "rank": 1,
+    "roster_size": 23,
+    "wins": 0
+   }
+  },
+  {
+   "context": {
+    "waiver_wire": [
+     {
+      "age": 22,
+      "contract_years": 0,
+      "id": 254,
+      "name": "Leo Ivers",
+      "overall": 48.9,
+      "position": "G",
+      "potential": 51.2,
+      "salary": 0.0
+     },
+     {
+      "age": 32,
+      "contract_years": 0,
+      "id": 106,
+      "name": "Milo Hayes",
+      "overall": 44.3,
+      "position": "F",
+      "potential": 53.1,
+      "salary": 0.0
+     },
+     {
+      "age": 27,
+      "contract_years": 0,
+      "id": 66,
+      "name": "Ben Mason",
+      "overall": 42.5,
+      "position": "F",
+      "potential": 46.9,
+      "salary": 0.0
+     }
+    ]
+   },
+   "delta": {
+    "cap_room_contribution": 0.0,
+    "current_strength_contribution": 1.51,
+    "future_pick_assets_contribution": 0.0,
+    "roster_depth_contribution": 0.0,
+    "total_assets_contribution": 0.0,
+    "young_assets_contribution": 0.0
+   },
+   "moves": [
+    {
+     "accepted": true,
+     "arguments": {
+      "player_ids": [
+       280,
+       290,
+       14,
+       19,
+       9,
+       15,
+       21,
+       17,
+       13,
+       10,
+       4,
+       8,
+       3,
+       5,
+       277,
+       1,
+       23,
+       296
+      ]
+     },
+     "dressed": 18,
+     "message": "lineup set",
+     "tool": "set_lineup"
+    }
+   ],
+   "note": "about a third of the season has been played; injuries and a waiver wire appear",
+   "phase": "midseason",
+   "queries": [],
+   "scouted": [],
+   "situation": {
+    "cap_room": 0.85,
+    "losses": 6,
+    "payroll": 85.15,
+    "picks": 7,
+    "rank": 6,
+    "roster_size": 27,
+    "wins": 5
+   }
+  },
+  {
+   "context": {
+    "offers": [
+     {
+      "id": "offer-9-1-trade_deadline-213-2",
+      "team": "Nashville Sound",
+      "you_get": [
+       {
+        "age": 27,
+        "contract_years": 4,
+        "id": 213,
+        "name": "Cal Jensen",
+        "overall": 48.9,
+        "position": "D",
+        "potential": 48.9,
+        "salary": 1.0
+       }
+      ],
+      "you_get_picks": [],
+      "you_give": [
+       {
+        "age": 29,
+        "contract_years": 1,
+        "id": 2,
+        "name": "Kai Anders",
+        "overall": 46.2,
+        "position": "G",
+        "potential": 56.7,
+        "salary": 0.75
+       }
+      ],
+      "you_give_picks": []
+     },
+     {
+      "id": "offer-8-1-trade_deadline-207-2",
+      "team": "Montreal Saints",
+      "you_get": [
+       {
+        "age": 32,
+        "contract_years": 2,
+        "id": 207,
+        "name": "Alex Evans",
+        "overall": 50.7,
+        "position": "F",
+        "potential": 52.3,
+        "salary": 2.1
+       }
+      ],
+      "you_get_picks": [],
+      "you_give": [
+       {
+        "age": 29,
+        "contract_years": 1,
+        "id": 2,
+        "name": "Kai Anders",
+        "overall": 46.2,
+        "position": "G",
+        "potential": 56.7,
+        "salary": 0.75
+       }
+      ],
+      "you_give_picks": []
+     },
+     {
+      "id": "offer-3-1-trade_deadline-71-2",
+      "team": "Calgary Peaks",
+      "you_get": [
+       {
+        "age": 25,
+        "contract_years": 4,
+        "id": 71,
+        "name": "Cal Stone",
+        "overall": 45.7,
+        "position": "G",
+        "potential": 52.3,
+        "salary": 0.75
+       }
+      ],
+      "you_get_picks": [],
+      "you_give": [
+       {
+        "age": 29,
+        "contract_years": 1,
+        "id": 2,
+        "name": "Kai Anders",
+        "overall": 46.2,
+        "position": "G",
+        "potential": 56.7,
+        "salary": 0.75
+       }
+      ],
+      "you_give_picks": []
+     }
+    ],
+    "trade_market_count": 22
+   },
+   "delta": {
+    "cap_room_contribution": 0.61,
+    "current_strength_contribution": -0.02,
+    "future_pick_assets_contribution": 1.54,
+    "roster_depth_contribution": 0.0,
+    "total_assets_contribution": -0.71,
+    "young_assets_contribution": 0.0
+   },
+   "moves": [
+    {
+     "accepted": true,
+     "arguments": {
+      "player_id": 284,
+      "salary": 0.73,
+      "years": 1
+     },
+     "message": "signed Eli Olsen",
+     "player": {
+      "age": 34,
+      "contract_years": 0,
+      "id": 284,
+      "name": "Eli Olsen",
+      "overall": 47.7,
+      "position": "F",
+      "potential": 61.4,
+      "salary": 0.0
+     },
+     "tool": "sign_free_agent"
+    },
+    {
+     "accepted": true,
+     "arguments": {
+      "player_ids": [
+       280,
+       19,
+       290,
+       14,
+       9,
+       15,
+       21,
+       296,
+       13,
+       17,
+       8,
+       4,
+       5,
+       3,
+       277,
+       6,
+       10,
+       1
+      ]
+     },
+     "dressed": 18,
+     "message": "lineup set",
+     "tool": "set_lineup"
+    },
+    {
+     "accepted": true,
+     "arguments": {
+      "offer_id": "offer-3-1-trade_deadline-71-2"
+     },
+     "message": "declined offer from Calgary Peaks",
+     "tool": "reject_trade_offer"
+    },
+    {
+     "accepted": true,
+     "arguments": {
+      "offer_id": "offer-9-1-trade_deadline-213-2"
+     },
+     "message": "declined offer from Nashville Sound",
+     "tool": "reject_trade_offer"
+    },
+    {
+     "accepted": true,
+     "arguments": {
+      "offer_id": "offer-8-1-trade_deadline-207-2"
+     },
+     "message": "declined offer from Montreal Saints",
+     "tool": "reject_trade_offer"
+    },
+    {
+     "accepted": true,
+     "arguments": {
+      "give_pick_seasons": [],
+      "give_player_ids": [
+       12
+      ],
+      "partner_team_id": 2,
+      "receive_pick_seasons": [
+       2
+      ],
+      "receive_player_ids": []
+     },
+     "get": [],
+     "give": [
+      {
+       "age": 34,
+       "contract_years": 2,
+       "id": 12,
+       "name": "Leo Jensen",
+       "overall": 52.8,
+       "position": "F",
+       "potential": 74.0,
+       "salary": 2.47
+      }
+     ],
+     "message": "trade accepted",
+     "partner": "Boston Harbors",
+     "tool": "trade"
+    }
+   ],
+   "note": "opponents may have sent you offers; last trades before the playoffs",
+   "phase": "trade_deadline",
+   "queries": [],
+   "scouted": [],
+   "situation": {
+    "cap_room": 0.85,
+    "losses": 6,
+    "payroll": 85.15,
+    "picks": 7,
+    "rank": 6,
+    "roster_size": 27,
+    "wins": 5
+   }
+  },
+  {
+   "context": {
+    "prospect_count": 56,
+    "prospects": [
+     {
+      "age": 18,
+      "contract_years": 3,
+      "id": 1010048,
+      "name": "Rafi Ivers",
+      "overall": 62.3,
+      "position": "D",
+      "potential": 73.6,
+      "salary": 0.95
+     },
+     {
+      "age": 19,
+      "contract_years": 3,
+      "id": 1010050,
+      "name": "Owen Ivers",
+      "overall": 61.9,
+      "position": "F",
+      "potential": 61.8,
+      "salary": 0.95
+     },
+     {
+      "age": 18,
+      "contract_years": 3,
+      "id": 1010006,
+      "name": "Theo Vale",
+      "overall": 58.6,
+      "position": "F",
+      "potential": 74.3,
+      "salary": 0.95
+     },
+     {
+      "age": 19,
+      "contract_years": 3,
+      "id": 1010045,
+      "name": "Theo Berg",
+      "overall": 58.3,
+      "position": "F",
+      "potential": 68.7,
+      "salary": 0.95
+     },
+     {
+      "age": 20,
+      "contract_years": 3,
+      "id": 1010001,
+      "name": "Kai Frost",
+      "overall": 58.0,
+      "position": "F",
+      "potential": 76.9,
+      "salary": 0.95
+     },
+     {
+      "age": 18,
+      "contract_years": 3,
+      "id": 1010003,
+      "name": "Theo Reed",
+      "overall": 57.7,
+      "position": "F",
+      "potential": 64.1,
+      "salary": 0.95
+     }
+    ]
+   },
+   "delta": {
+    "cap_room_contribution": -0.93,
+    "current_strength_contribution": -0.0,
+    "future_pick_assets_contribution": 0.0,
+    "roster_depth_contribution": 0.0,
+    "total_assets_contribution": 6.0,
+    "young_assets_contribution": 5.42
+   },
+   "moves": [
+    {
+     "accepted": true,
+     "arguments": {
+      "player_id": 312,
+      "salary": 1.71,
+      "years": 1
+     },
+     "message": "signed Nico Jensen",
+     "player": {
+      "age": 28,
+      "contract_years": 0,
+      "id": 312,
+      "name": "Nico Jensen",
+      "overall": 51.4,
+      "position": "F",
+      "potential": 57.1,
+      "salary": 0.0
+     },
+     "tool": "sign_free_agent"
+    },
+    {
+     "accepted": true,
+     "arguments": {
+      "prospect_id": 1010048
+     },
+     "message": "drafted Rafi Ivers",
+     "player": {
+      "age": 18,
+      "contract_years": 3,
+      "id": 1010048,
+      "name": "Rafi Ivers",
+      "overall": 62.3,
+      "position": "D",
+      "potential": 73.6,
+      "salary": 0.95
+     },
+     "tool": "draft"
+    },
+    {
+     "accepted": true,
+     "arguments": {
+      "player_ids": [
+       280,
+       19,
+       290,
+       14,
+       9,
+       15,
+       21,
+       296,
+       13,
+       17,
+       8,
+       4,
+       5,
+       3,
+       277,
+       6,
+       10,
+       1
+      ]
+     },
+     "dressed": 18,
+     "message": "lineup set",
+     "tool": "set_lineup"
+    }
+   ],
+   "note": "use your pick on a prospect; opponents ahead of you have already picked",
+   "phase": "draft",
+   "queries": [
+    {
+     "arguments": {
+      "player_id": 1010048
+     },
+     "tool": "scout"
+    },
+    {
+     "arguments": {
+      "player_id": 1010001
+     },
+     "tool": "scout"
+    },
+    {
+     "arguments": {
+      "player_id": 1010006
+     },
+     "tool": "scout"
+    }
+   ],
+   "scouted": [
+    {
+     "age": 20,
+     "contract_years": 3,
+     "id": 1010001,
+     "name": "Kai Frost",
+     "overall": 58.0,
+     "position": "F",
+     "potential": 76.9,
+     "salary": 0.95,
+     "scouted_potential": 77.5
+    },
+    {
+     "age": 18,
+     "contract_years": 3,
+     "id": 1010006,
+     "name": "Theo Vale",
+     "overall": 58.6,
+     "position": "F",
+     "potential": 74.3,
+     "salary": 0.95,
+     "scouted_potential": 67.7
+    },
+    {
+     "age": 18,
+     "contract_years": 3,
+     "id": 1010048,
+     "name": "Rafi Ivers",
+     "overall": 62.3,
+     "position": "D",
+     "potential": 73.6,
+     "salary": 0.95,
+     "scouted_potential": 74.2
+    }
+   ],
+   "situation": {
+    "cap_room": 2.59,
+    "losses": 6,
+    "payroll": 83.41,
+    "picks": 8,
+    "rank": 6,
+    "roster_size": 27,
+    "wins": 5
+   }
+  }
+ ],
+ "team": {
+  "id": 0,
+  "name": "Anchorage Auroras",
+  "teams": 12
+ },
+ "tools": [
+  {
+   "kind": "read",
+   "name": "get_status",
+   "only": null,
+   "summary": "Where you are: season, phase, your team's record, cap room, picks, lineup, standings, season history, scouting points left, your saved memo, and the tools legal in this phase."
+  },
+  {
+   "kind": "read",
+   "name": "get_rules",
+   "only": null,
+   "summary": "League rules with current numbers: salary cap, roster and lineup limits, contract and dead-cap terms, free-agent willingness, pick trading, scouting."
+  },
+  {
+   "kind": "read",
+   "name": "get_team",
+   "only": null,
+   "summary": "Your full roster with public ratings, contracts, injuries, dead-cap cost of releasing each player, and extension quotes for players in their final year."
+  },
+  {
+   "kind": "read",
+   "name": "list_draft_class",
+   "only": "draft",
+   "summary": "Prospects still available at your pick."
+  },
+  {
+   "kind": "read",
+   "name": "list_waiver_wire",
+   "only": "midseason",
+   "summary": "Players opponents waived, claimable with claim_waiver."
+  },
+  {
+   "kind": "read",
+   "name": "list_offers",
+   "only": null,
+   "summary": "Trade offers opponents have sent you, with offer ids for accept_trade_offer, reject_trade_offer and counter_trade_offer."
+  },
+  {
+   "kind": "read",
+   "name": "list_trade_market",
+   "only": null,
+   "summary": "Players opponents are shopping, with the team that holds each one."
+  },
+  {
+   "kind": "read",
+   "name": "list_transactions",
+   "only": null,
+   "summary": "Roster-changing moves league-wide over the current and previous season."
+  },
+  {
+   "kind": "query",
+   "name": "inspect_team",
+   "only": null,
+   "summary": "Another team's cap position, picks and full public roster."
+  },
+  {
+   "kind": "query",
+   "name": "inspect_player",
+   "only": null,
+   "summary": "One player's full public card (any team, free agent, or prospect)."
+  },
+  {
+   "kind": "query",
+   "name": "list_free_agents",
+   "only": null,
+   "summary": "Free agents with asking quotes, optionally filtered by position and minimum overall."
+  },
+  {
+   "kind": "query",
+   "name": "scout",
+   "only": null,
+   "summary": "Spend one of your scouting points for a near-true reading of a player's or prospect's potential."
+  },
+  {
+   "kind": "move",
+   "name": "sign_free_agent",
+   "only": null,
+   "summary": "Offer a free agent a contract."
+  },
+  {
+   "kind": "move",
+   "name": "extend_contract",
+   "only": "preseason",
+   "summary": "Extend a roster player in his final contract year."
+  },
+  {
+   "kind": "move",
+   "name": "release_player",
+   "only": null,
+   "summary": "Release a roster player."
+  },
+  {
+   "kind": "move",
+   "name": "trade",
+   "only": null,
+   "summary": "Propose a trade."
+  },
+  {
+   "kind": "move",
+   "name": "draft",
+   "only": "draft",
+   "summary": "Use your current-season pick on a prospect."
+  },
+  {
+   "kind": "move",
+   "name": "set_lineup",
+   "only": null,
+   "summary": "Choose the 18 players who dress."
+  },
+  {
+   "kind": "move",
+   "name": "claim_waiver",
+   "only": "midseason",
+   "summary": "Claim a player from the waiver wire."
+  },
+  {
+   "kind": "move",
+   "name": "accept_trade_offer",
+   "only": null,
+   "summary": "Accept an incoming offer by id."
+  },
+  {
+   "kind": "move",
+   "name": "reject_trade_offer",
+   "only": null,
+   "summary": "Reject an incoming offer by id."
+  },
+  {
+   "kind": "move",
+   "name": "counter_trade_offer",
+   "only": null,
+   "summary": "Counter an incoming offer with different assets; omitted fields keep the offer's."
+  },
+  {
+   "kind": "move",
+   "name": "write_memo",
+   "only": null,
+   "summary": "Save up to 2000 characters of notes to yourself, returned by every get_status."
+  },
+  {
+   "kind": "control",
+   "name": "end_phase",
+   "only": null,
+   "summary": "Finish this decision phase."
+  }
+ ]
+}

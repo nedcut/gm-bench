@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="2 10 256 136" width="256" height="136">
+  <title>GM-Bench</title>
+  <!-- The letters are the bench back; the seat plank runs across their feet. -->
+  <path fill="#0f1b2d" d="M116,14 H36 V95 H116 V58 H76 V78 H96 V90 H56 V34 H116 Z"/>
+  <path fill="#0f1b2d" d="M128,95 V14 H152 L176,50 L200,14 H224 V95 H204 V50 L176,80 L148,50 V95 Z"/>
+  <path fill="#d42a3b" d="M14,98 H246 V111 H234 V139 H224 V111 H36 V139 H26 V111 H14 Z"/>
+  <rect fill="#1e4fa3" x="6" y="139.5" width="248" height="3"/>
+</svg>

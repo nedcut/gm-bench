@@ -1,0 +1,472 @@
+/* Styles for the components carried over from the earlier site (trajectory
+   explorer chrome, play-along deck, replay verifier). Colors come from the
+   app tokens in app.css. */
+
+/* The earlier site zeroed every margin and padding, and these components were
+   written against that. Zero specificity: any rule below still wins. */
+:where(.legacy) :where(*) {
+  margin: 0;
+  padding: 0;
+}
+
+.legacy .panel,
+.legacy table,
+.legacy tbody tr {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .legacy .panel,
+  .legacy table,
+  .legacy tbody tr {
+    transition: none;
+  }
+}
+
+/* Left-aligned on the app's 24px gutter, like every other view. */
+.legacy .shell {
+  max-width: 1180px;
+  padding: 0 24px;
+}
+
+@media (max-width: 640px) {
+  .legacy .shell {
+    padding-inline: 14px;
+  }
+}
+
+/* A zone label: the section's name, sentence case, on a short blue line. */
+.legacy .kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue);
+  margin-bottom: 12px;
+}
+
+.legacy .kicker::before {
+  content: "";
+  width: 22px;
+  height: 2px;
+  background: var(--blue);
+  border-radius: 1px;
+}
+
+/* ---------- panels & tables ---------- */
+
+.legacy .panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 18px 20px;
+}
+
+.legacy .panel + .panel,
+.legacy .panel + .lane-note,
+.legacy .lane-note + .panel,
+.legacy .panel + .footnotes {
+  margin-top: 14px;
+}
+
+.legacy .panel-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-bottom: 12px;
+}
+
+.legacy .panel-title h3 {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14.5px;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+
+.legacy .panel-title span {
+  font-size: 12.5px;
+  color: var(--faint);
+}
+
+.legacy .panel > p {
+  font-size: 14.5px;
+  color: var(--steel);
+  max-width: 70ch;
+}
+
+.legacy .panel > p + p {
+  margin-top: 8px;
+}
+
+.legacy .panel > p code {
+  color: var(--ink);
+}
+
+.legacy .copy-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8fa8bd;
+  border: 1px solid rgba(220, 232, 242, 0.22);
+  border-radius: 999px;
+  padding: 2px 10px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.legacy .copy-btn:hover {
+  color: #fff;
+  border-color: #fff;
+}
+
+.legacy .replay-check {
+  margin-top: 18px;
+}
+
+.legacy .replay-check .copy-btn {
+  color: var(--text);
+  background: none;
+  border-color: var(--line-strong);
+  cursor: pointer;
+}
+
+.legacy .replay-check .copy-btn:hover {
+  color: var(--ink);
+  border-color: var(--blue);
+}
+
+.legacy .replay-check .copy-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.legacy .replay-check-note {
+  margin-top: 6px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+/* ---------- decision cards ----------
+   Same wire register as the tables. Red is still the bar to beat — here that is
+   the best move available on the board — and blue still marks the candidate,
+   which is now the visitor's pick. These cards live inside the replay view. */
+
+.legacy .puzzle-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.legacy .puzzle-situation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-2);
+}
+
+.legacy .puzzle-situation h3 {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+
+.legacy .puzzle-blurb {
+  color: var(--steel);
+  font-size: 14px;
+  max-width: 46ch;
+}
+
+.legacy .puzzle-facts {
+  display: flex;
+  gap: 22px;
+}
+
+.legacy .puzzle-facts dt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--faint);
+}
+
+.legacy .puzzle-facts dd {
+  font-family: var(--font-score);
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.legacy .puzzle-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.legacy .puzzle-options li + li {
+  border-top: 1px solid var(--line);
+}
+
+.legacy .puzzle-option {
+  display: flex;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 18px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.legacy .puzzle-option:not(:disabled):hover {
+  background: var(--blue-soft);
+}
+
+.legacy .puzzle-option:disabled {
+  cursor: default;
+}
+
+.legacy .puzzle-option.is-best {
+  border-left-color: var(--red);
+  background: var(--red-soft);
+}
+
+.legacy .puzzle-option.is-picked {
+  border-left-color: var(--blue);
+  background: var(--blue-soft);
+}
+
+.legacy .puzzle-option-mark {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+  padding-top: 2px;
+}
+
+.legacy .puzzle-option.is-best .puzzle-option-mark {
+  color: var(--red);
+}
+
+.legacy .puzzle-option.is-picked .puzzle-option-mark {
+  color: var(--blue);
+}
+
+.legacy .puzzle-option-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.legacy .puzzle-line {
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+
+.legacy .puzzle-reveal {
+  margin-top: 5px;
+  font-size: 13px;
+  color: var(--steel);
+}
+
+.legacy .puzzle-reveal b {
+  font-family: var(--font-score);
+  font-size: 17px;
+  color: var(--ink);
+}
+
+.legacy .puzzle-chosen {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--faint);
+  margin-top: 2px;
+}
+
+.legacy .puzzle-verdict {
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.legacy .puzzle-verdict-sub {
+  display: block;
+  margin-top: 4px;
+  font-weight: 400;
+  font-size: 13.5px;
+  color: var(--steel);
+}
+
+.legacy .puzzle-verdict-sub code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+@media (max-width: 640px) {
+  .legacy .puzzle-facts {
+    gap: 16px;
+  }
+
+  .legacy .puzzle-situation {
+    flex-direction: column;
+  }
+}
+
+.legacy .display-2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-stretch: 75%;
+  font-weight: 900;
+  font-size: clamp(36px, 5.2vw, 68px);
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.legacy .chip {
+  display: inline-block;
+  padding: 4px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-chip);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+
+/* ---------- section headings ---------- */
+
+.legacy .kicker {
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+
+.legacy .kicker::before {
+  width: 9px;
+  height: 9px;
+  border-radius: 0;
+  background: var(--red);
+}
+
+/* ---------- play along ---------- */
+
+.legacy .play {
+  position: relative;
+  padding: clamp(48px, 7vw, 88px) 0;
+  border-top: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 12% 30%, var(--red-soft), transparent 40%),
+    var(--paper-2);
+}
+
+.legacy .play-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(32px, 5vw, 64px);
+  align-items: start;
+}
+
+.legacy .play-copy {
+  position: sticky;
+  top: 90px;
+}
+
+.legacy .play-copy > p {
+  margin: 22px 0 0;
+  color: var(--steel);
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+.legacy .play-tally {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-top: 32px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+
+.legacy .play-tally-num {
+  font-family: var(--font-display);
+  font-stretch: 70%;
+  font-weight: 900;
+  font-size: 72px;
+  line-height: 0.9;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.legacy .play-tally-num small {
+  font-size: 0.45em;
+  color: var(--faint);
+}
+
+.legacy .play-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.legacy .play-count {
+  color: var(--faint);
+  font-size: 13px;
+}
+
+.legacy .play-nav {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.legacy .play-nav button {
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.legacy .play-nav button:hover {
+  border-color: var(--steel);
+}
+
+.legacy .play-nav button.is-ready {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 980px) {
+  .legacy .play-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .legacy .play-copy {
+    position: static;
+  }
+}

@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="web/public/brand/gm-bench-mark-dark.svg" />
+    <img src="web/public/brand/gm-bench-mark-light.svg" alt="GM-Bench" width="200" />
+  </picture>
+</p>
+
 # GM-Bench
 
 GM-Bench is a small, deterministic sports general-manager benchmark inspired by
@@ -96,11 +103,11 @@ rows are public; a 2.0 tag and GitHub release have not been cut.
 
 ## Play along
 
-The site opens with 24 real decisions taken from recorded episodes. Each one
-shows the situation and several options, where every option is a move some
-policy actually made from that same observation. There are no invented
-distractors. Pick one and the board reveals what each choice did to the roster,
-and who played it.
+The site's [Replays](https://nedcut.github.io/gm-bench/replays/) tab has 24 real
+decisions taken from recorded episodes. Each one shows the situation and several
+options, where every option is a move some policy actually made from that same
+observation. There are no invented distractors. Pick one and the board reveals
+what each choice did to the roster, and who played it.
 
 Options are graded by immediate state change rather than by replaying the rest
 of the season, because a single season is mostly luck: within-seed score noise
@@ -253,15 +260,16 @@ Read the [phase-one findings](docs/blog/sota-v2-findings.md), inspect the
 [generated analysis](results/analysis/publication-panel-analysis.json), or
 follow the [clean-clone reproduction guide](docs/REPRODUCING_SOTA_V2_RELEASE.md).
 
-The phase-one study remains frozen under its literal `sota-v2` contract, and
-the public site still serves it. The terminal `sota-v3` and `sota-v4` smoke
-campaigns preserve the post-release simulator fixes and route outcomes; neither
-ever ran a panel. `sota-v5` is the current published contract and superseded
-them after v4's Qwen route proved incompatible with the frozen
-reasoning-disabled lane. Historical evidence is not retroactively rewritten or
-rerun. See the [changelog](CHANGELOG.md) for what each release freezes, and the
-[living publication-readiness log](docs/PUBLISH_READINESS.md) for the decision
-boundary and remaining work.
+The phase-one study remains frozen under its literal `sota-v2` contract, and the
+findings and release linked above are its record; the site's [1.0
+archive](https://nedcut.github.io/gm-bench/v1/) shows the later `sota-v5` table.
+The terminal `sota-v3` and `sota-v4` smoke campaigns preserve the post-release
+simulator fixes and route outcomes; neither ever ran a panel. `sota-v5` is the
+current published contract and superseded them after v4's Qwen route proved
+incompatible with the frozen reasoning-disabled lane. Historical evidence is not
+retroactively rewritten or rerun. See the [changelog](CHANGELOG.md) for what
+each release freezes, and the [living publication-readiness
+log](docs/PUBLISH_READINESS.md) for the decision boundary and remaining work.
 
 ## What GM-Bench includes
 
@@ -319,10 +327,10 @@ GM-Bench includes:
 
 ## Leaderboard & Website
 
-The [live site](https://nedcut.github.io/gm-bench/) and generated leaderboard
-JSON reflect the frozen `sota-v2` phase-one study until a pre-registered `sota-v5`
-model panel is published; current development on `main` does not refresh those
-public headline numbers.
+The [live site](https://nedcut.github.io/gm-bench/) leads with the GM-Bench 2.0
+panel rows. The generated leaderboard JSON (`web/src/data/leaderboard.json`)
+holds those rows and the archived `sota-v5` 1.0 table, built only from committed
+artifacts.
 
 Official results use the `leaderboard` preset (8 held-back seeds × 5 seasons,
 full baseline panel; `GM_BENCH_PRIVATE_SEEDS` swaps in a private panel). Every
@@ -545,10 +553,12 @@ provider behavior should be explicit.
 
 ## Public Web Site
 
-A forward-facing landing site (Vite + React + TypeScript, managed with Bun)
-lives in [`web/`](web/README.md). It renders reference baseline results,
-the decision-loop and protocol overview, and a quickstart from a committed
-snapshot of real benchmark output, and builds to a fully static bundle:
+The public site (Vite + React + TypeScript, managed with Bun) lives in
+[`web/`](web/README.md). It is a small data app over a committed snapshot of
+real benchmark output: Standings (`/`), How it works (`/how-it-works/`), Score
+vs cost (`/cost/`), Tool use
+(`/tools/`), Replays (`/replays/`), Method (`/method/`) and the 1.0 archive
+(`/v1/`). It builds to a fully static bundle:
 
 ```bash
 cd web
