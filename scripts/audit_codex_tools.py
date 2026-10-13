@@ -49,14 +49,14 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import http.client
 import json
 import re
 import subprocess
 import sys
 import tempfile
 import time
-import urllib.error
-import urllib.request
+import urllib.parse
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -80,7 +80,8 @@ from gm_bench.agentic.opencode import HarnessLaunch  # noqa: E402
 from gm_bench.agentic.prompt_check import CaptureServer, _Handler  # noqa: E402
 from gm_bench.simulator import League  # noqa: E402
 
-CHATGPT_CODEX = "https://chatgpt.com/backend-api/codex"
+CHATGPT_HOST = "chatgpt.com"
+CHATGPT_CODEX_PATH = "/backend-api/codex"
 CAPTURE_PATH = "/backend-api/codex"
 # What the firewall entrypoint ends with (``container.EGRESS_SCRIPT``), minus the firewall.
 DROP_PRIVILEGES = [
@@ -156,22 +157,24 @@ class AuditHandler(_Handler):
             # A WebSocket upgrade is refused, so Codex falls back to HTTPS, which the server reads.
             self.server.record({"kind": "other", "method": "GET", "path": path})
             return self._json(404, {"error": {"message": "gm-bench audit: not found"}})
-        suffix = path.split(CAPTURE_PATH, 1)[-1]
-        if not re.fullmatch(r"(/[A-Za-z0-9_.-]+)*/models/?", suffix) or ".." in suffix:
+        if path.rstrip("/") != f"{CAPTURE_PATH}/models":
             self.server.record({"kind": "other", "method": "GET", "path": path})
             return self._json(404, {"error": {"message": "gm-bench audit: not found"}})
-        # Always https://chatgpt.com/backend-api/codex/.../models: a fixed scheme and host, a checked path.
-        url = CHATGPT_CODEX + suffix + (f"?{query}" if query else "")
+        # A literal TLS host and path; only the re-encoded query comes from the request.
+        query = urllib.parse.urlencode(urllib.parse.parse_qsl(query))
+        target = CHATGPT_CODEX_PATH + "/models" + (f"?{query}" if query else "")
         headers = {key: value for key, value in self.headers.items() if key.lower() not in _SKIP_HEADERS}
+        connection = http.client.HTTPSConnection(  # nosemgrep: python.lang.security.audit.httpsconnection-detected.httpsconnection-detected
+            CHATGPT_HOST, timeout=30
+        )
         try:
-            request = urllib.request.Request(url, headers=headers)
-            opened = urllib.request.urlopen(request, timeout=30)  # nosemgrep
-            with opened as response:
-                code, data = response.status, response.read()
-        except urllib.error.HTTPError as error:
-            code, data = error.code, error.read()
+            connection.request("GET", target, headers=headers)
+            response = connection.getresponse()
+            code, data = response.status, response.read()
         except OSError as error:
             code, data = 502, json.dumps({"error": {"message": str(error)}}).encode()
+        finally:
+            connection.close()
         self.server.record({"kind": "catalog", "status": code})
         self.send_response(code)
         self.send_header("content-type", "application/json")
