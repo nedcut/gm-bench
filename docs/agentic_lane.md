@@ -775,7 +775,9 @@ default reasoning effort. `--variant` sets it explicitly (for Codex,
 different row.
 
 The Codex CLI is the second harness (`gm_bench/agentic/codex.py`, written
-and tested against Codex CLI 0.156.1). It runs through the same episode loop
+against Codex CLI 0.156.1, which played every committed Codex row, and
+re-verified against 0.162.1, which the container image now pins; see
+"Codex 0.162.1" below). It runs through the same episode loop
 as OpenCode: same engine, proxy, sandbox check, nudges, provider-stall
 retries, phase guard, ledger, and validation. A Codex row is its own row,
 `codex/<version> · <model>`, never merged with an OpenCode row on the same
@@ -815,7 +817,7 @@ What a run does per episode:
    container), and whose `default_tools_approval_mode = "approve"` approves
    that server's tools. Nothing else is configured. The approval key is
    required: exec mode never asks for approval, so under `workspace-write`
-   Codex 0.156.1 would refuse every GM-Bench call (tools without a read-only
+   Codex (0.156.1 and 0.162.1 alike) would refuse every GM-Bench call (tools without a read-only
    annotation need approval) with "MCP tool call requires approval, but
    approval policy is never". It approves only this server.
 2. Runs `codex exec --json --skip-git-repo-check --model <m>` with the task
@@ -901,11 +903,57 @@ removed; or the `CODEX_API_KEY` value) with `[REDACTED]` in `codex-events.jsonl`
 whatever the agent wrote there. `harness_run.auth` records which source was
 used (`auth-file` or `CODEX_API_KEY`), never the value.
 
-The image. `gm-bench-agentic-codex:0.156.1-<Dockerfile hash>` is built on
+The image. `gm-bench-agentic-codex:0.162.1-<Dockerfile hash>` is built on
 first use from the same digest-pinned base and egress entrypoint as the
-OpenCode image, with `@openai/codex@0.156.1` instead of `opencode-ai`; the
+OpenCode image, with `@openai/codex@0.162.1` instead of `opencode-ai`; the
 OpenCode image is unchanged. `run.json` records it under
-`harness.container`, with `codex_version` as the image reports it.
+`harness.container`, with `codex_version` as the image reports it. The
+committed Codex rows ran in `gm-bench-agentic-codex:0.156.1-578af3e044d4`
+and keep validating at the driver commit they record.
+
+### Codex 0.162.1
+
+The container image pins Codex CLI 0.162.1 (from 0.156.1, 2026-10-12)
+because the ChatGPT backend refuses newer models to the old client: on
+0.156.1, `gpt-6.1-sol` failed with a 400 "The 'gpt-6.1-sol' model is not
+supported when using Codex with a ChatGPT account" and a warning that the
+model's metadata was not found. Every claim the driver relies on (listed
+at the top of `gm_bench/agentic/codex.py`) was re-read from the source at
+tag `rust-v0.162.1` and the 0.162.1 binary. What changed that touches the
+driver:
+
+- Nothing in the `codex exec --json` stream: `exec/src/exec_events.rs` and
+  `exec/src/event_processor_with_jsonl_output.rs` are byte-identical
+  between the tags, so the events, item types, and the running usage total
+  are the same. The flags the driver passes, the `-c` keys it sets
+  (`sandbox_mode`, `sandbox_workspace_write.network_access`,
+  `model_reasoning_effort`, `default_tools_approval_mode`, and the capture
+  overrides), the forced `approval_policy = never`, the MCP auto-approval
+  rule, the pre-dispatch refusal messages, the `auth.json` format, the
+  file credential store, and the eight-day login refresh are unchanged.
+- The rollout persistence filter was rewritten (`persisted_event_msg` in
+  `rollout/src/policy.rs`), but it still persists every `token_count`
+  (with `rate_limits`) and every `turn_context` (with `effort`), so the
+  quota windows and reasoning effort read the same way. A background
+  worker now compresses rollouts older than seven days to `.zst`; an
+  episode's home is new, so the driver never meets one.
+- The usage-limit message links `chatgpt.com/settings/usage` (was
+  `chatgpt.com/codex/settings/usage`) and covers a new `promax` plan; the
+  "try again at" time is formatted as before.
+- Codex now retries "Selected model is at capacity" and "exceeded retry
+  limit" itself when the server advised a delay, so fewer of them reach
+  `turn.failed`; the text is unchanged and still a provider stall. A new
+  "Flex capacity unavailable." error comes only from the flex service
+  tier, which the driver never selects.
+- A new `exec` flag (`--cyber-access-program`) and an experimental
+  Daybreak feature (off by default) are not used.
+
+A five-season container smoke of `gpt-6.1-sol` on 0.162.1 (seed 11,
+2026-10-12, not committed) closed 20/20 phases itself in one turn, with no
+nudges, stalls or failed decisions, 165 tool calls (harness and ledger
+agree), 6.5 min, score 200.6, and validated. As on 0.156.1, a run without
+`--variant` records no reasoning effort: the rollout's `turn_context`
+carries `effort` only when one is selected.
 
 Telemetry. `codex exec --json` reports a running token total per session on
 `turn.completed` (input including cached, cached, cache writes, output,

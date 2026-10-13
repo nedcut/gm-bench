@@ -5,13 +5,20 @@ engine and socket server in this process, sandbox check, nudges, provider
 stall retries, the phase-guard watch, finalization). This module supplies
 only what is specific to the Codex CLI, as a :class:`CodexDriver`.
 
-What the driver relies on, checked against Codex CLI 0.156.1 (``codex
---version`` prints ``codex-cli 0.156.1``; the help of ``codex``, ``codex
+What the driver relies on, checked against Codex CLI 0.162.1 (``codex
+--version`` prints ``codex-cli 0.162.1``; the help of ``codex``, ``codex
 exec``, ``codex exec resume``, ``codex mcp`` and ``codex login``, and the
-source at tag ``rust-v0.156.1``: ``codex-rs/exec/src/exec_events.rs``,
+source at tag ``rust-v0.162.1``: ``codex-rs/exec/src/exec_events.rs``,
 ``event_processor_with_jsonl_output.rs``, ``exec/src/lib.rs``,
 ``protocol/src/error.rs``, ``login/src/auth/storage.rs``,
-``core/src/session/mod.rs``, ``ext/skills/src/host_roots.rs``):
+``core/src/session/mod.rs``, ``ext/skills/src/host_roots.rs``,
+``rollout/src/policy.rs``). It was first written against 0.156.1 (tag
+``rust-v0.156.1``), which played the committed Codex rows; between the two
+tags ``exec_events.rs``, ``event_processor_with_jsonl_output.rs`` and
+``host_roots.rs`` are byte-identical, and every claim below holds for both
+except where it names one version. 0.162.1 is pinned because the ChatGPT
+backend refuses newer models (``gpt-6.1-sol``) to 0.156.1 with a 400 ``not
+supported when using Codex with a ChatGPT account``:
 
 - **Non-interactive run.** ``codex exec --json [OPTIONS] <prompt>`` runs one
   turn and prints JSON Lines on stdout. Headless ``exec`` never asks for
@@ -69,10 +76,19 @@ source at tag ``rust-v0.156.1``: ``codex-rs/exec/src/exec_events.rs``,
   ``request timed out``, ``We're currently experiencing high demand``,
   or ``Selected model is at capacity``. Those map into the shared
   provider-stall retry; ``Quota exceeded``, a 401, or a context-window error
-  do not.
+  do not. 0.162.1 itself retries ``Selected model is at capacity`` and
+  ``exceeded retry limit`` when the server advised a delay, so fewer of them
+  reach ``turn.failed``; their text is unchanged. A content-filtered
+  response still reads ``stream disconnected before completion: Incomplete
+  response returned, reason: content_filter`` (0.162.1 gives it its own
+  ``ContentFilter`` kind with the same text). ``Flex capacity unavailable.``
+  (new in 0.162.1) comes only from the flex service tier, which the driver
+  never selects, and is not a stall.
 - **Usage limit (quota exhaustion).** ``You’ve hit your usage limit. ...
   try again at Sep 24th, 2026 4:19 PM.`` (``UsageLimitReachedError`` in
-  ``protocol/src/error.rs``) is not a transient stall: the subscription's
+  ``protocol/src/error.rs``; the text between varies by plan, and 0.162.1
+  links ``chatgpt.com/settings/usage`` where 0.156.1 linked
+  ``chatgpt.com/codex/settings/usage``) is not a transient stall: the subscription's
   window is spent until the stated time. Codex formats that time in the
   Codex process's local time zone as ``%b %-d<st|nd|rd|th>, %Y %-I:%M %p``,
   or ``%-I:%M %p`` alone when the reset is later the same local day, or
@@ -150,7 +166,12 @@ source at tag ``rust-v0.156.1``: ``codex-rs/exec/src/exec_events.rs``,
 - **Reasoning effort.** ``codex exec --json`` does not report the effort a
   turn ran at, but the session rollout's ``turn_context`` records
   (``payload.effort``) do; the driver reads them with the quota windows and
-  records the distinct values as ``harness_run.reasoning_effort``.
+  records the distinct values as ``harness_run.reasoning_effort``. A
+  ``turn_context`` carries ``effort`` only when one was selected (``--variant``
+  or a configured ``model_reasoning_effort``); without one the field is
+  absent, Codex sends the model catalog's ``default_reasoning_level``
+  (``build_reasoning`` in ``core/src/client.rs``), and ``reported`` is
+  ``None``: the harness default, unrecorded (so in 0.156.1 and 0.162.1).
 
 Every Codex run spends the operator's OpenAI quota or money, and the driver
 runs episodes serially: never run it in parallel.
@@ -647,13 +668,15 @@ def api_equivalent_fields(telemetry: dict[str, Any], model: str) -> dict[str, An
 # ``codex exec --json`` reports no rate limits, but Codex writes every
 # ``token_count`` event, with the account's ``rate_limits`` snapshot, to the
 # session rollout under ``CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl``
-# (``RolloutItem::EventMsg``, persisted by ``should_persist_event_msg``; one
+# (``RolloutItem::EventMsg``, persisted by ``should_persist_event_msg`` in
+# 0.156.1 and ``persisted_event_msg`` in 0.162.1's ``rollout/src/policy.rs``,
+# which also always persists ``turn_context``; one
 # JSON object per line: ``{"timestamp", "type": "event_msg", "payload":
 # {"type": "token_count", "info", "rate_limits"}}``). A snapshot
 # (``RateLimitSnapshot`` in ``codex-rs/protocol/src/protocol.rs``) has
 # ``limit_id``, ``primary``/``secondary`` windows (``used_percent``,
 # ``window_minutes``, ``resets_at`` in epoch seconds), ``plan_type`` and
-# ``credits``. The reading below is a port of T3 Code's
+# ``credits``; 0.162.1 adds the ``promax`` plan type. The reading below is a port of T3 Code's
 # ``codexRateLimitsToWindows`` and ``mergeCodexRateLimits``
 # (apps/server/src/provider/Layers/codexUsageLimits.ts in
 # github.com/pingdotgg/t3code, MIT License, Copyright (c) 2026 T3 Tools Inc.):

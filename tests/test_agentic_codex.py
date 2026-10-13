@@ -3,7 +3,8 @@
 No test here runs the real Codex CLI or contacts a model. The fake binary
 reads the staged ``config.toml`` from its ``CODEX_HOME``, launches the MCP
 proxy that config declares, makes real GM-Bench tool calls through it, and
-prints the ``codex exec --json`` event stream of Codex CLI 0.156.1.
+prints the ``codex exec --json`` event stream of Codex CLI 0.162.1 (unchanged
+since 0.156.1, which played the committed Codex rows).
 """
 
 from __future__ import annotations
@@ -37,7 +38,7 @@ DUMMY_KEY = "sk-dummy-not-a-real-key-0000"
 # by FAKE_CODEX_PLAN: {"log": path, "state": path, "steps": [{"phases": n,
 # "error": message | null, "exit": code, "cat_auth": bool, "shell_proxy":
 # bool}, ...]}. Each phase is a get_status then an end_phase call through the
-# proxy the staged config declares. Like Codex 0.156.1 under ``exec``
+# proxy the staged config declares. Like Codex 0.162.1 under ``exec``
 # (approval policy never), it refuses every MCP call before dispatch when the
 # sandbox is workspace-write and the server's tools are not approved;
 # ``shell_proxy`` then drives the proxy from a shell command instead, as a
@@ -50,7 +51,7 @@ from pathlib import Path
 
 argv = sys.argv[1:]
 if argv == ["--version"]:
-    print("codex-cli 0.156.1")
+    print("codex-cli 0.162.1")
     sys.exit(0)
 plan = json.loads(Path(os.environ["FAKE_CODEX_PLAN"]).read_text())
 state_path = Path(plan["state"])
@@ -228,7 +229,7 @@ def test_codex_panel_plays_through_the_staged_proxy_nudges_by_resume_and_validat
         auth_file=_auth_file(tmp_path),
     )
     assert payload["agent"] == "codex:gpt-fake"
-    assert payload["harness"] == {"name": "codex", "version": "0.156.1", "model": "gpt-fake", "variant": None}
+    assert payload["harness"] == {"name": "codex", "version": "0.162.1", "model": "gpt-fake", "variant": None}
     [episode] = payload["episodes"]
     harness_run = episode["harness_run"]
     assert harness_run["harness"] == "codex"
@@ -326,7 +327,7 @@ def test_codex_provider_stall_is_retried_by_resume_and_is_not_a_nudge(
 
     run = {
         "agent": "codex:gpt-fake",
-        "harness": {"name": "codex", "version": "0.156.1", "model": "gpt-fake"},
+        "harness": {"name": "codex", "version": "0.162.1", "model": "gpt-fake"},
         "contract": opencode.agentic_contract(),
         "seeds": [11],
         "seasons": 1,
@@ -463,8 +464,8 @@ def test_codex_config_toml_round_trips_awkward_paths() -> None:
 
 def test_codex_version_probe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     binary, _log = _fake_codex(tmp_path, [{}], monkeypatch)
-    assert codex_version(str(binary)) == "0.156.1"
-    assert CodexDriver().version(str(binary)) == "0.156.1"
+    assert codex_version(str(binary)) == "0.162.1"
+    assert CodexDriver().version(str(binary)) == "0.162.1"
     assert codex_version(str(tmp_path / "no-such-codex")) is None
 
 
@@ -1001,12 +1002,18 @@ USAGE_LIMIT = (
     "You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit "
     "https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Sep 24th, 2026 4:19 PM."
 )
+# The same limit as Codex 0.162.1 words it for a Pro or Pro Lite plan (``UsageLimitReachedError``).
+USAGE_LIMIT_PRO = (
+    "You’ve hit your usage limit. Visit https://chatgpt.com/settings/usage to purchase more credits "
+    "or try again at Oct 13th, 2026 3:01 AM."
+)
 
 
 @pytest.mark.parametrize(
     ("message", "expected"),
     [
         (USAGE_LIMIT, "2026-09-24T16:19:00+00:00"),
+        (USAGE_LIMIT_PRO, "2026-10-13T03:01:00+00:00"),
         ("You’ve hit your usage limit. Try again at Sep 1st, 2026 12:05 AM.", "2026-09-01T00:05:00+00:00"),
         ("You’ve hit your usage limit. Try again at Oct 2nd, 2026 12:30 PM.", "2026-10-02T12:30:00+00:00"),
         ("You’ve hit your usage limit. Try again at Nov 23rd 2026 9:07 pm.", "2026-11-23T21:07:00+00:00"),
@@ -1208,7 +1215,7 @@ def _fake_docker(tmp_path: Path) -> tuple[Path, Path, Path]:
         f"elif {EGRESS_ENTRYPOINT!r} in args and '-c' in args:\n"
         f"    print(json.dumps({report!r}))\n"
         "elif args[-2:] == ['codex', '--version']:\n"
-        "    print('codex-cli 0.156.1')\n"
+        "    print('codex-cli 0.162.1')\n"
         "elif args[-3:-1] == ['cat', '--']:\n"
         f"    left = Path({str(tmp_path / 'volume-auth.json')!r})\n"
         "    sys.stdout.buffer.write(left.read_bytes()) if left.exists() else sys.exit(1)\n"
@@ -1228,11 +1235,11 @@ def test_codex_image_is_its_own_pinned_image_and_the_opencode_image_is_unchanged
         "68c6a0dff0b97c2a85583f9dd11ad67fa5d588c5a13c7e9786783c17e90c233f"
     )
     codex_text = dockerfile(CODEX_IMAGE.version, package=CODEX_IMAGE.package)
-    assert "npm install -g @openai/codex@0.156.1 " in codex_text and "opencode" not in codex_text
+    assert "npm install -g @openai/codex@0.162.1 " in codex_text and "opencode" not in codex_text
     docker, log, _stdin = _fake_docker(tmp_path)
     image = ensure_image(docker=str(docker), spec=CODEX_IMAGE)
-    assert image["codex_version"] == "0.156.1" and "opencode_version" not in image
-    assert image["image"].startswith("gm-bench-agentic-codex:0.156.1-")
+    assert image["codex_version"] == "0.162.1" and "opencode_version" not in image
+    assert image["image"].startswith("gm-bench-agentic-codex:0.162.1-")
     assert image["dockerfile_sha256"] == hashlib.sha256(codex_text.encode()).hexdigest()
     assert CodexDriver().ensure_image(docker=str(docker), env=dict(os.environ)) == image
     probes = [call for call in _calls(log) if call[-2:] == ["codex", "--version"]]

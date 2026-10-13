@@ -84,6 +84,20 @@ The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
 
+- Codex CLI 0.162.1 (2026-10-12, driver only; the agentic fingerprint
+  stays `07de948a4f4afbae`). The Codex container image now pins 0.162.1
+  (was 0.156.1): the ChatGPT backend refused `gpt-6.1-sol` to 0.156.1 with
+  a 400 "not supported when using Codex with a ChatGPT account". Every
+  claim in the driver's docstring was re-verified against the
+  `rust-v0.162.1` source and binary. The `exec --json` stream is
+  byte-identical in source; rollout `token_count` and `turn_context`
+  records still persist; the usage-limit text now links
+  `chatgpt.com/settings/usage`; no driver logic changed. `gpt-6.1-sol` is
+  priced in `pricing.json` ($2 input, $0.10 cached, $2.50 cache write,
+  $10 output, 272K long-context tier; verified 2026-10-12). The committed
+  Codex rows were played on 0.156.1 and keep validating at the driver
+  commit they record. See "Codex 0.162.1" in `docs/agentic_lane.md`.
+
 - Fifth panel-grade 2.0 row (2026-10-12; the panel ran 2026-09-28 to
   09-29): OpenCode 1.18.31 on `opencode-go/deepseek-v4.1-flash`, the
   frozen 32-seed private panel at five seasons, container isolation,

@@ -92,7 +92,7 @@ OPENCODE_INSTALL = (
     " tar --no-same-owner -xzf /tmp/opencode.tar.gz -C /usr/local/bin opencode; \\\n"
     " rm /tmp/opencode.tar.gz\n"
 )
-CONTAINER_CODEX_VERSION = "0.156.1"
+CONTAINER_CODEX_VERSION = "0.162.1"
 CONTAINER_CLAUDE_VERSION = "2.1.281"
 BASE_IMAGE = "node:22-bookworm-slim@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9"
 IMAGE_REPOSITORY = "gm-bench-agentic-opencode"

@@ -1163,14 +1163,16 @@ def test_claude_image_is_pinned_with_its_launcher_and_the_other_images_are_uncha
     from gm_bench.agentic import container
 
     # The OpenCode and Codex image texts (and so their tags and recorded digests) did not move
-    # (OpenCode's moves only with its pin, 2.0.27).
+    # (OpenCode's and Codex's move only with their pins, 2.0.27 and 0.162.1).
     assert hashlib.sha256(container.image_dockerfile(container.OPENCODE_IMAGE).encode()).hexdigest() == (
         "68c6a0dff0b97c2a85583f9dd11ad67fa5d588c5a13c7e9786783c17e90c233f"
     )
     codex = container.CODEX_IMAGE
     assert hashlib.sha256(
         container.dockerfile(codex.version, package=codex.package, extra=codex.extra).encode()
-    ).hexdigest() == ("578af3e044d44e746bdc879560042be3698049c1a1cdd067b66d03b8397fc8ce")
+    ).hexdigest() == (
+        "f8095c887ac3b80bd3991396e92ed393b3d2ce030ddace1530a1206daf42a735"
+    )  # Codex 0.162.1 (0.156.1's was 578af3e044d4...)
     spec = container.CLAUDE_IMAGE
     assert (spec.package, spec.version, spec.executable) == ("@anthropic-ai/claude-code", "2.1.281", "claude")
     text = container.dockerfile(spec.version, package=spec.package, extra=spec.extra)
