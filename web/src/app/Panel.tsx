@@ -231,7 +231,7 @@ export default function Panel({
   return (
     <>
       {open && <button type="button" className="sheet-scrim" tabIndex={-1} aria-label="Close panel" onClick={onClose} />}
-      <aside ref={panelRef} role={open && mobile ? "dialog" : undefined} aria-modal={open && mobile ? true : undefined} className={`panel${open ? " is-open" : ""}`} aria-label={row ? "Row details" : "Filters"}>
+      <aside ref={panelRef} role={open && mobile ? "dialog" : undefined} aria-modal={open && mobile ? true : undefined} className={`side-panel${open ? " is-open" : ""}`} aria-label={row ? "Row details" : "Filters"}>
         <div className="panel-bar">
           {row ? (
             <button type="button" className="text-button" onClick={onBack}>

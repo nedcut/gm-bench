@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useTheme } from "../theme";
-import { REPO, routes, type PageKey } from "../site";
+import { REPO, REPO_BLOB, routes, type PageKey } from "../site";
 import type { Leaderboard } from "../types";
 
 const TABS: { page: PageKey; label: string }[] = [
@@ -57,11 +57,9 @@ export default function Shell({ page, data, children }: { page: PageKey; data: L
         <nav aria-label="More">
           <a href={routes.method} aria-current={page === "method" ? "page" : undefined}>Method</a>
           <a href={routes.v1} aria-current={page === "v1" ? "page" : undefined}>1.0 archive</a>
-          <a href={`${REPO_BLOB_DOC}`}>Reproduce</a>
+          <a href={`${REPO_BLOB}docs/REPRODUCING_GM_BENCH_2_0.md`}>Reproduce</a>
         </nav>
       </footer>
     </div>
   );
 }
-
-const REPO_BLOB_DOC = `${REPO}/blob/main/docs/REPRODUCING_GM_BENCH_2_0.md`;

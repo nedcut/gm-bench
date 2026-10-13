@@ -41,10 +41,10 @@ test("filters hide rows on every tab and a row opens its details", async ({ page
   await expect(page.locator(".hbar", { hasText: "claude-sonnet-5" }).first()).toBeVisible();
   await page.goto("/");
   await page.locator(".row-name", { hasText: "gpt-6-luna" }).click();
-  await expect(page.locator(".panel h2")).toHaveText("gpt-6-luna");
-  await expect(page.locator(".panel")).toContainText("vs pick-trader");
+  await expect(page.locator(".side-panel h2")).toHaveText("gpt-6-luna");
+  await expect(page.locator(".side-panel")).toContainText("vs pick-trader");
   await page.getByRole("button", { name: "← Filters" }).click();
-  await expect(page.locator(".panel h2")).toHaveText("Filter");
+  await expect(page.locator(".side-panel h2")).toHaveText("Filter");
 });
 
 test("score vs cost plots measured rows and names the unmeasured ones", async ({ page }) => {
@@ -56,29 +56,45 @@ test("score vs cost plots measured rows and names the unmeasured ones", async ({
 });
 
 test("phone layout: filter opens as a sheet and no page scrolls sideways", async ({ page }) => {
+  const errors = await noErrors(page);
   await page.setViewportSize({ width: 390, height: 800 });
   await page.goto("/");
   await page.getByRole("button", { name: "Filter", exact: true }).click();
-  await expect(page.locator(".panel.is-open")).toBeVisible();
+  await expect(page.locator(".side-panel.is-open")).toBeVisible();
   await page.getByRole("button", { name: "Close", exact: true }).click();
-  await expect(page.locator(".panel.is-open")).toHaveCount(0);
+  await expect(page.locator(".side-panel.is-open")).toHaveCount(0);
   for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 800 });
     for (const path of PAGES) {
       await page.goto(path);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${path} at ${width}px`).toBe(true);
+      // Every tab stays reachable: the phone tab row must not clip any of them.
+      for (const tab of await page.locator(".tabs a").all()) {
+        const box = await tab.boundingBox();
+        expect(box && box.x >= 0 && box.x + box.width <= width, `${path} tab at ${width}px`).toBe(true);
+      }
     }
   }
+  expect(errors).toEqual([]);
 });
 
 test("every page passes axe in both themes", async ({ page }) => {
+  const errors = await noErrors(page);
   for (const theme of ["dark", "light"]) {
     await page.addInitScript((t) => localStorage.setItem("gm-bench-theme", t), theme);
-    for (const path of ["/", "/cost/", "/tools/", "/method/", "/v1/"]) {
+    for (const path of PAGES) {
       await page.goto(path);
       const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
       expect(result.violations.map((v) => `${path} ${theme}: ${v.id} ${v.nodes[0]?.target}`)).toEqual([]);
     }
+  }
+  expect(errors).toEqual([]);
+});
+
+test("every page has one h1", async ({ page }) => {
+  for (const path of PAGES) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1 }), path).toHaveCount(1);
   }
 });
 

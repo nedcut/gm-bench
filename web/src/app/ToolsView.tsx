@@ -57,7 +57,7 @@ export default function ToolsView({ data }: { data: Leaderboard }) {
   return (
     <section className="view page-view" aria-labelledby="tools-title">
       <div className="view-head">
-        <h2 id="tools-title">How each agent used its harness</h2>
+        <h1 id="tools-title">How each agent used its harness</h1>
         <span>Averages over {seedCount(data) ?? "—"} five-season games. Longer bars are not better.</span>
       </div>
       <FilterNote filters={filters} onReset={() => setFilters({ hiddenHarnesses: [], hiddenVendors: [], showBots: filters.showBots })} />
