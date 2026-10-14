@@ -105,7 +105,7 @@ test("how it works steps through one pick-trader season with its tool calls", as
 test("cost points and tool bars open details in the side panel and highlight their row", async ({ page }) => {
   const errors = await noErrors(page);
   await page.goto("/cost/");
-  await expect(page.locator(".view-head span")).toContainText(
+  await expect(page.locator("#cost .view-head span")).toContainText(
     verdict(
       priced,
       `N measured row${priced.filter(clears).length === 1 ? " beats" : "s beat"} pick-trader by more than the noise.`,
@@ -113,6 +113,7 @@ test("cost points and tool bars open details in the side panel and highlight the
       "No measured row scores above pick-trader.",
     ),
   );
+  await page.evaluate(() => document.fonts.ready);
   const point = page.getByRole("button", { name: /^gpt-6-luna, Codex: score/ });
   await point.locator("circle").hover();
   await expect(page.locator(".chart .pt.is-dim")).toHaveCount(await page.locator(".chart .pt").count() - 1);
@@ -245,7 +246,7 @@ test("mobile sheets contain focus, restore triggers, and survive navigation and 
   await expect(close).toBeFocused();
   await page.goto("/cost/");
   await expect(page.locator("[inert]")).toHaveCount(0);
-  await page.getByRole("link", { name: "Standings", exact: true }).click();
+  await page.getByRole("navigation", { name: "Views" }).getByRole("link", { name: "Standings", exact: true }).click();
   await filter.click();
   await expect(close).toBeFocused();
   const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();

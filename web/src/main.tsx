@@ -1,4 +1,4 @@
 import { leaderboard, mountPage } from "./mount";
-import Standings from "./app/Standings";
+import Stats from "./app/Stats";
 
-mountPage("standings", <Standings data={leaderboard} />);
+mountPage("standings", <Stats data={leaderboard} />);

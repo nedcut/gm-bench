@@ -19,8 +19,7 @@ export interface WorkspaceView {
   filterButton: ReactNode;
 }
 
-/* A view beside the shared side panel (filters, or the clicked row's
-   details). Every tab uses it, so filters and selection behave the same. */
+/* All stats sections share filters and selection beside one detail panel. */
 export default function Workspace({ data, hint, children }: { data: Leaderboard; hint: string; children: (view: WorkspaceView) => ReactNode }) {
   const models = useMemo(() => modelRows(data), [data]);
   const bots = useMemo(() => botRows(data), [data]);
