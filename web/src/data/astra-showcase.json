@@ -1,0 +1,443 @@
+{
+  "format": "astra-showcase-v1",
+  "source": "results/agentic/codex-0.162.1-gpt-6-astra-panel-32x5.json",
+  "episode_index": 28,
+  "raw_artifact_sha256": "091fff8d623165c0fe98538cf10a9c243e03bcd5f89a32dc506455aad2c25154",
+  "seasons": [
+    {
+      "season": 1,
+      "wins": 17,
+      "losses": 16,
+      "recorded_wins": 17,
+      "recorded_losses": 16,
+      "standing": 7,
+      "champion": false,
+      "finish": "First-round exit · 0 rounds won",
+      "score_after_season": 143.799,
+      "payroll": 75.19,
+      "cap_room": 10.81,
+      "cap": 86.0,
+      "roster_start": 23,
+      "roster_end": 20,
+      "rollover_departures": [
+        "Alex Chen",
+        "Ben Evans",
+        "Cal Frost",
+        "Quin Quill",
+        "Quin Reed"
+      ],
+      "lineup_calls": 4,
+      "moves": [
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Milo Olsen: $6.19M/year, 5 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Kai Chen: $3.51M/year, 5 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Ivan Chen: $4.10M/year, 5 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Alex Berg: $6.14M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "sign_free_agent",
+          "accepted": true,
+          "detail": "Signed Owen Frost: $5.16M/year, 3 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "sign_free_agent",
+          "accepted": true,
+          "detail": "Signed Jules Jensen: $4.63M/year, 3 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "trade",
+          "accepted": true,
+          "detail": "Offered Milo Berg, Jules Mason, Ivan Olsen, Drew Mason + season 2, 3 draft picks to Denver Comets for Rafi Grant."
+        },
+        {
+          "phase": "preseason",
+          "kind": "trade",
+          "accepted": true,
+          "detail": "Offered Leo Mason, Theo Hayes, Theo Berg + season 4 draft picks to Seattle Surge for Rafi Ivers, Hugo Anders."
+        },
+        {
+          "phase": "preseason",
+          "kind": "sign_free_agent",
+          "accepted": true,
+          "detail": "Signed Alex Stone: $4.49M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Rafi Ivers: $5.16M/year, 5 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Pax Ivers: $3.79M/year, 5 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "trade",
+          "accepted": false,
+          "detail": "Offered Quin Reed, Ben Evans, Alex Chen, Quin Quill + season 1 draft picks to Denver Comets for Drew Evans, Leo Chen. Rejected: pick seasons must be between 2 and 4."
+        },
+        {
+          "phase": "preseason",
+          "kind": "trade",
+          "accepted": false,
+          "detail": "Offered Quin Reed, Ben Evans, Alex Chen, Quin Quill to Denver Comets for Drew Evans, Leo Chen. Rejected: partner rejects the offer as too light."
+        },
+        {
+          "phase": "preseason",
+          "kind": "trade",
+          "accepted": false,
+          "detail": "Offered Quin Reed, Ben Evans, Alex Chen, Quin Quill to Denver Comets for Drew Evans. Rejected: partner rejects the offer as too light."
+        },
+        {
+          "phase": "midseason",
+          "kind": "sign_free_agent",
+          "accepted": true,
+          "detail": "Signed Rafi Stone: $3.21M/year, 2 years."
+        },
+        {
+          "phase": "midseason",
+          "kind": "sign_free_agent",
+          "accepted": true,
+          "detail": "Signed Eli Keller: $3.04M/year, 2 years."
+        },
+        {
+          "phase": "draft",
+          "kind": "draft",
+          "accepted": true,
+          "detail": "Drafted Finn Quill. Rookie contract: $0.95M/year, 3 years."
+        }
+      ]
+    },
+    {
+      "season": 2,
+      "wins": 20,
+      "losses": 13,
+      "recorded_wins": 37,
+      "recorded_losses": 29,
+      "standing": 4,
+      "champion": false,
+      "finish": "First-round exit · 0 rounds won",
+      "score_after_season": 143.185,
+      "payroll": 78.67,
+      "cap_room": 10.77,
+      "cap": 89.44,
+      "roster_start": 20,
+      "roster_end": 18,
+      "rollover_departures": [
+        "Jules Price"
+      ],
+      "lineup_calls": 4,
+      "moves": [
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Alex Berg: $6.62M/year, 4 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Finn Chen: $4.46M/year, 5 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Alex Stone: $4.83M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Rafi Stone: $3.45M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Eli Keller: $3.35M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "trade",
+          "accepted": true,
+          "detail": "Offered Eli Ivers, Alex Hayes, Cal Lund to Montreal Saints for Ivan Vale."
+        },
+        {
+          "phase": "preseason",
+          "kind": "sign_free_agent",
+          "accepted": true,
+          "detail": "Signed Alex Chen: $2.98M/year, 2 years."
+        },
+        {
+          "phase": "midseason",
+          "kind": "trade",
+          "accepted": true,
+          "detail": "Offered Alex Stone, Cal Berg + season 5 draft picks to Montreal Saints for Jules Diaz."
+        },
+        {
+          "phase": "midseason",
+          "kind": "claim_waiver",
+          "accepted": true,
+          "detail": "Claimed Jules Price: inherited $0.00M/year, 0 years remaining."
+        }
+      ]
+    },
+    {
+      "season": 3,
+      "wins": 26,
+      "losses": 7,
+      "recorded_wins": 63,
+      "recorded_losses": 36,
+      "standing": 1,
+      "champion": true,
+      "finish": "Champion · 3 rounds won",
+      "score_after_season": 181.89,
+      "payroll": 90.37,
+      "cap_room": 2.65,
+      "cap": 93.02,
+      "roster_start": 18,
+      "roster_end": 19,
+      "rollover_departures": [],
+      "lineup_calls": 4,
+      "moves": [
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Finn Quill: $7.95M/year, 5 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Owen Frost: $5.73M/year, 3 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Jules Jensen: $5.19M/year, 3 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Rafi Stone: $3.82M/year, 3 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Eli Keller: $3.60M/year, 3 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Alex Chen: $3.31M/year, 3 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "trade",
+          "accepted": false,
+          "detail": "Offered Alex Chen + season 6 draft picks to Austin Jackals for Quin Olsen. Rejected: partner rejects the offer as too light."
+        },
+        {
+          "phase": "preseason",
+          "kind": "sign_free_agent",
+          "accepted": true,
+          "detail": "Signed Nico Mason: $2.62M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "trade",
+          "accepted": false,
+          "detail": "Offered Rafi Stone + season 6 draft picks to Austin Jackals for Quin Olsen. Rejected: partner rejects the offer as too light."
+        }
+      ]
+    },
+    {
+      "season": 4,
+      "wins": 22,
+      "losses": 11,
+      "recorded_wins": 85,
+      "recorded_losses": 47,
+      "standing": 1,
+      "champion": true,
+      "finish": "Champion · 3 rounds won",
+      "score_after_season": 265.003,
+      "payroll": 91.28,
+      "cap_room": 5.46,
+      "cap": 96.74,
+      "roster_start": 19,
+      "roster_end": 18,
+      "rollover_departures": [
+        "Kai Anders",
+        "Vik Frost"
+      ],
+      "lineup_calls": 4,
+      "moves": [
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Hugo Anders: $4.17M/year, 5 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Jules Diaz: $7.46M/year, 3 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Nico Mason: $2.53M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "trade",
+          "accepted": true,
+          "detail": "Offered Alex Chen + season 6, 7 draft picks to Austin Jackals for Quin Olsen."
+        },
+        {
+          "phase": "midseason",
+          "kind": "claim_waiver",
+          "accepted": true,
+          "detail": "Claimed Kai Anders: inherited $0.00M/year, 0 years remaining."
+        }
+      ]
+    },
+    {
+      "season": 5,
+      "wins": 24,
+      "losses": 9,
+      "recorded_wins": 109,
+      "recorded_losses": 56,
+      "standing": 1,
+      "champion": true,
+      "finish": "Champion · 3 rounds won",
+      "score_after_season": 349.256,
+      "payroll": 98.77,
+      "cap_room": 1.84,
+      "cap": 100.61,
+      "roster_start": 18,
+      "roster_end": 18,
+      "rollover_departures": [],
+      "lineup_calls": 4,
+      "moves": [
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Ivan Vale: $3.66M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Alex Berg: $6.05M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Owen Frost: $5.18M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Rafi Stone: $3.32M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Nico Mason: $2.34M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Eli Keller: $3.94M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Rafi Grant: $8.50M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Pax Ivers: $4.27M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Jules Jensen: $5.71M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Ivan Chen: $5.50M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Kai Chen: $5.03M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Milo Olsen: $7.81M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Rafi Ivers: $7.08M/year, 2 years."
+        },
+        {
+          "phase": "preseason",
+          "kind": "extend_contract",
+          "accepted": true,
+          "detail": "Extended Quin Olsen: $6.34M/year, 2 years."
+        }
+      ]
+    }
+  ]
+}
