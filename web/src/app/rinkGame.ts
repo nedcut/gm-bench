@@ -4,6 +4,7 @@ export { GOAL_LEFT, GOAL_RIGHT, GOAL_TOP, GOAL_BOTTOM } from "./rinkNets";
 
 export const RINK_STORAGE_KEY = "gm-bench.rink.v1";
 export const PUCK_INDEX = 12;
+export const FACEOFF_DELAY_MS = 1000;
 export type ScoringTeam = "home" | "away";
 export interface RinkGame {
   bodies: Skater[];
@@ -27,6 +28,14 @@ export function awardGoal(game: RinkGame, team: ScoringTeam): ScoringTeam {
   settleInNet(puck, team);
   game.puckInGoal = team;
   return team;
+}
+
+/** Drop the puck back on its starting spot so play can resume after a goal. */
+export function faceoff(game: RinkGame) {
+  const puck = game.bodies[PUCK_INDEX];
+  puck.x = puck.homeX; puck.y = puck.homeY;
+  puck.vx = puck.vy = 0; puck.locked = false;
+  game.puckInGoal = null;
 }
 
 function settleInNet(puck: Skater, team: ScoringTeam) {
@@ -105,12 +114,8 @@ export function decodeRink(raw: string | null): RinkGame {
       body.x = saved.x; body.y = saved.y; body.vx = saved.vx; body.vy = saved.vy;
       contain(body); limitSpeed(body);
     }
-    if (data.puckInGoal === "home" || data.puckInGoal === "away") {
-      const puck = game.bodies[PUCK_INDEX];
-      const inNet = puck.x >= GOAL_LEFT + PUCK_RADIUS && puck.x <= GOAL_RIGHT - PUCK_RADIUS &&
-        (data.puckInGoal === "home" ? puck.y >= 52 && puck.y <= 62 : puck.y >= 408 && puck.y <= 418);
-      if (inNet) { game.puckInGoal = data.puckInGoal; settleInNet(puck, data.puckInGoal); }
-    }
+    // A page closed before the post-goal faceoff resumes with the puck at center.
+    if (data.puckInGoal === "home" || data.puckInGoal === "away") faceoff(game);
   } catch { /* A corrupt or older save starts a fresh rink. */ }
   return game;
 }

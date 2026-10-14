@@ -97,6 +97,26 @@ test("a fast drag through either mouth stays in that net and celebrates once", a
   }
 });
 
+test("a scored puck returns to its faceoff spot and can score again", async ({ page }) => {
+  await page.goto("/how-it-works/");
+  const puck = page.getByRole("button", { name: "Puck", exact: true });
+  const start = await puck.getAttribute("transform");
+  for (const goals of [1, 2]) {
+    const box = (await puck.boundingBox())!;
+    const target = await page.locator(".rink-board").evaluate(node => {
+      const point = new DOMPoint(160, 22).matrixTransform((node as SVGSVGElement).getScreenCTM()!);
+      return { x: point.x, y: point.y };
+    });
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(target.x, target.y);
+    await page.mouse.up();
+    await expect.poll(() => savedScore(page, "home")).toBe(goals);
+    expect(await puckY(page)).toBeLessThanOrEqual(62);
+    await expect(puck).toHaveAttribute("transform", start!, { timeout: 2000 });
+  }
+});
+
 test("another open page mirrors saved state without starting a second simulation", async ({ page, context }) => {
   await page.goto("/how-it-works/");
   const other = await context.newPage();

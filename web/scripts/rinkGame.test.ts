@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { advanceRink, checkGoal, decodeRink, encodeRink, newRinkGame, PUCK_INDEX, scoreDroppedPuck, tracePuck } from "../src/app/rinkGame";
+import { advanceRink, checkGoal, decodeRink, encodeRink, faceoff, newRinkGame, PUCK_INDEX, scoreDroppedPuck, tracePuck } from "../src/app/rinkGame";
 import { advance, bodyRadius, moveHeld, resolveCollisions } from "../src/app/rinkPhysics";
 
 describe("rink game", () => {
@@ -116,13 +116,27 @@ describe("rink game", () => {
     expect([puck.x, puck.y]).toEqual(position);
     expect(scoreDroppedPuck(game)).toBeNull();
     expect(game.score.home).toBe(1);
-    expect(decodeRink(encodeRink(game)).puckInGoal).toBe("home");
+    const reloaded = decodeRink(encodeRink(game));
+    expect(reloaded.puckInGoal).toBeNull();
+    expect(reloaded.bodies[PUCK_INDEX]).toMatchObject({ x: 160, y: 255, vx: 0, vy: 0, locked: false });
     puck.locked = false;
     puck.y = 85;
     tracePuck(game, 160, position[1]);
     expect(game.puckInGoal).toBeNull();
     puck.y = 58;
     expect(tracePuck(game, 160, 85).scored).toBe("home");
+    expect(game.score.home).toBe(2);
+  });
+  test("a faceoff returns a scored puck to its starting spot for the next shot", () => {
+    const game = newRinkGame(), puck = game.bodies[PUCK_INDEX];
+    Object.assign(puck, { x: 160, y: 25, vy: -1200 });
+    expect(tracePuck(game, 160, 90).scored).toBe("home");
+    faceoff(game);
+    expect(game.puckInGoal).toBeNull();
+    expect(puck).toMatchObject({ x: 160, y: 255, vx: 0, vy: 0, locked: false });
+    expect(game.score.home).toBe(1);
+    Object.assign(puck, { x: 160, y: 25, vy: -1200 });
+    expect(tracePuck(game, 160, 90).scored).toBe("home");
     expect(game.score.home).toBe(2);
   });
   test("players and puck remain inside rounded boards through repeated collisions", () => {
