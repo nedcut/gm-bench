@@ -1,6 +1,6 @@
 import type { Leaderboard } from "../types";
 import { compact, num, seedCount, type ModelRow } from "../v2";
-import Workspace, { type WorkspaceView } from "./Workspace";
+import { type WorkspaceView } from "./Workspace";
 
 interface Metric {
   title: string;
@@ -37,7 +37,7 @@ function MetricCard({ metric, rows, view }: { metric: Metric; rows: ModelRow[]; 
   const max = Math.max(...measured.map((item) => item.value), 1e-9);
   return (
     <section className="card metric">
-      <h2>{metric.title}</h2>
+      <h4>{metric.title}</h4>
       <p className="card-note">{metric.note}</p>
       <div className="hbars">
         {measured.map(({ row, value }) => (
@@ -69,23 +69,28 @@ function MetricCard({ metric, rows, view }: { metric: Metric; rows: ModelRow[]; 
   );
 }
 
-export default function ToolsView({ data }: { data: Leaderboard }) {
+const GROUPS = [
+  { title: "Activity & time", note: "How much work each harness did", metrics: METRICS.slice(0, 2) },
+  { title: "Token budget", note: "Reported input and output per game", metrics: METRICS.slice(2, 4) },
+  { title: "Phase outcomes", note: "Status-only phases and rejected moves", metrics: METRICS.slice(4) },
+];
+
+export function ToolsSection({ data, view }: { data: Leaderboard; view: WorkspaceView }) {
   return (
-    <Workspace data={data} hint="Click a bar for its details.">
-      {(view) => (
-        <section className="view page-view" aria-labelledby="tools-title">
-          <div className="view-head">
-            <h1 id="tools-title">How each agent used its harness</h1>
-            <span>Averages over {seedCount(data) ?? "—"} five-season games. Longer bars are not better.</span>
-            {view.filterButton}
-          </div>
-          <div className="metric-grid">
-            {METRICS.map((metric) => (
-              <MetricCard key={metric.title} metric={metric} rows={view.shown} view={view} />
-            ))}
-          </div>
-        </section>
-      )}
-    </Workspace>
+    <section className="view stats-section" id="tools" tabIndex={-1} aria-labelledby="tools-title">
+      <div className="view-head">
+        <h2 id="tools-title">How each agent used its harness</h2>
+        <span>Averages over {seedCount(data) ?? "—"} five-season games. Longer bars are not better.</span>
+      </div>
+      {view.shown.length === 0 && <p className="view-note">No models match the current filters. Reset the filters to see their statistics.</p>}
+      <div className="tool-ledger">
+        {GROUPS.map(group => (
+          <section className="tool-group" key={group.title} aria-label={group.title}>
+            <header><h3>{group.title}</h3><p>{group.note}</p></header>
+            <div className="tool-pair">{group.metrics.map(metric => <MetricCard key={metric.title} metric={metric} rows={view.shown} view={view} />)}</div>
+          </section>
+        ))}
+      </div>
+    </section>
   );
 }

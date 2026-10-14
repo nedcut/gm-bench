@@ -1,4 +1,4 @@
 import { leaderboard, mountPage } from "../mount";
-import CostView from "../app/CostView";
+import Stats from "../app/Stats";
 
-mountPage("cost", <CostView data={leaderboard} />);
+mountPage("standings", <Stats data={leaderboard} start="cost" />);

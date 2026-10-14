@@ -1,0 +1,20 @@
+{
+  "source": "results/agentic/codex-0.162.1-gpt-6-astra-panel-32x5.json",
+  "episode_index": 28,
+  "model": "gpt-6-astra",
+  "harness": "codex",
+  "harness_version": "0.162.1",
+  "seasons": 5,
+  "final_score": 409.132,
+  "strategy_score": 411.632,
+  "protocol_penalty": 2.5,
+  "championships": 3,
+  "wins": 311,
+  "tool_calls": 160,
+  "moves_accepted": 69,
+  "moves_rejected": 5,
+  "panel_mean_score": 288.417,
+  "panel_episodes": 32,
+  "selection_episodes": 320,
+  "selection_rows": 10
+}
