@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { version } from "pyodide";
 
 const SAVE_KEY = "gm-bench-human-save-v1";
@@ -31,6 +32,10 @@ async function runtime(page: Page) {
 }
 async function start(page: Page) {
   await runtime(page);
+  // A stale legacy archive must never be used by the game worker.
+  await page.route("**/replay/gm_bench.zip", () => {
+    throw new Error("The game requested the unversioned legacy archive");
+  });
   await page.goto("/play/");
   await page
     .getByRole("button", { name: "Start challenge", exact: true })
@@ -255,7 +260,7 @@ test("download failures are retryable, corrupt saves stay exportable", async ({
 }) => {
   test.setTimeout(90000);
   await runtime(page);
-  await page.route("**/replay/gm_bench.zip", (route) =>
+  await page.route("**/assets/gm_bench-*.zip", (route) =>
     route.fulfill({ status: 503, body: "unavailable" }),
   );
   await page.goto("/play/");
@@ -263,7 +268,7 @@ test("download failures are retryable, corrupt saves stay exportable", async ({
   await expect(page.getByRole("alert")).toContainText("HTTP 503", {
     timeout: 45000,
   });
-  await page.unroute("**/replay/gm_bench.zip");
+  await page.unroute("**/assets/gm_bench-*.zip");
   await page.getByRole("button", { name: "Start challenge" }).click();
   await expect(page.locator(".gm-scoreboard")).toBeVisible({ timeout: 45000 });
   await page.evaluate((key) => localStorage.setItem(key, "bad json"), SAVE_KEY);
@@ -331,4 +336,38 @@ test("all game screens and confirmation are accessible in both themes and fit ph
       ).toBe(true);
     }
   }
+});
+
+test("a bundle missing the game adapter shows a readable error and can retry", async ({
+  page,
+}) => {
+  test.setTimeout(90000);
+  await runtime(page);
+  const legacyArchive = execFileSync("python3", [
+    "-c",
+    `
+import io, sys, zipfile
+buffer = io.BytesIO()
+with zipfile.ZipFile(buffer, "w") as archive:
+    archive.writestr("gm_bench/__init__.py", "")
+sys.stdout.buffer.write(buffer.getvalue())
+`,
+  ]);
+  await page.route("**/assets/gm_bench-*.zip", (route) =>
+    route.fulfill({ body: legacyArchive, contentType: "application/zip" }),
+  );
+  await page.goto("/play/");
+  await page
+    .getByRole("button", { name: "Start challenge", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText(
+    "The simulator bundle could not be loaded",
+    { timeout: 45000 },
+  );
+  await expect(page.getByRole("alert")).not.toContainText("Traceback");
+  await page.unroute("**/assets/gm_bench-*.zip");
+  await page
+    .getByRole("button", { name: "Start challenge", exact: true })
+    .click();
+  await expect(page.locator(".gm-scoreboard")).toBeVisible({ timeout: 45000 });
 });

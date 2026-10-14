@@ -129,7 +129,11 @@ picks, season history, a score breakdown, and a final comparison with pick-trade
 on the same seed. The old decision deck links here.
 
 `src/game/gameWorker.ts` lazily loads Pyodide and the generated Python source
-bundle. `gm_bench/browser_game.py` adapts the frozen `AgenticEpisode` without
+bundle. Vite generates the game's archive at startup for both `bun dev` and
+production builds, then imports it as an asset with a content-hashed production
+URL. An old `public/replay/gm_bench.zip` cannot shadow the game bundle. Restart
+the dev server after editing Python simulator sources.
+`gm_bench/browser_game.py` adapts the frozen `AgenticEpisode` without
 changing the contract files. Decisions execute serially in the worker. There
 are no provider calls, server sessions, or writes to leaderboard evidence.
 Python is downloaded from jsDelivr on first launch, so a working connection is
@@ -161,5 +165,6 @@ assets with the installed Pyodide runtime bytes (no CDN dependency in tests):
 ```bash
 .venv/bin/python -m pytest -q tests/test_browser_game.py
 cd web
+bun test scripts/simulatorBundle.test.ts  # stale-archive dev startup regression
 bun run test:browser -- game.spec.ts
 ```

@@ -1,4 +1,5 @@
 import { loadPyodide, version, type PyodideAPI } from "pyodide";
+import bundleUrl from "../../.generated/gm_bench.zip?url";
 import type { GameRequest } from "./types";
 
 let runtime: Promise<PyodideAPI> | undefined;
@@ -7,9 +8,7 @@ async function initialize() {
   const pyodide = await loadPyodide({
     indexURL: `https://cdn.jsdelivr.net/pyodide/v${version}/full/`,
   });
-  const response = await fetch(
-    `${import.meta.env.BASE_URL}replay/gm_bench.zip`,
-  );
+  const response = await fetch(bundleUrl);
   if (!response.ok)
     throw new Error(
       `Simulator download failed (HTTP ${response.status}). Try again when connected.`,
@@ -20,9 +19,16 @@ async function initialize() {
     b.toString(16).padStart(2, "0"),
   ).join("");
   pyodide.FS.writeFile("/tmp/gm_bench.zip", new Uint8Array(bytes));
-  await pyodide.runPythonAsync(
-    'import sys\nsys.path.insert(0, "/tmp/gm_bench.zip")\nfrom gm_bench.browser_game import handle_request',
-  );
+  try {
+    await pyodide.runPythonAsync(
+      'import sys\nsys.path.insert(0, "/tmp/gm_bench.zip")\nfrom gm_bench.browser_game import handle_request',
+    );
+  } catch (cause) {
+    throw new Error(
+      "The simulator bundle could not be loaded. Reload the page to get the latest game version.",
+      { cause },
+    );
+  }
   return pyodide;
 }
 
