@@ -25,6 +25,26 @@
 .best-run-source { border-top: 1px solid var(--line); padding-top: 20px; }
 .best-run-source a { color: var(--blue); text-underline-offset: 4px; }
 .best-run-source span { display: block; font: 11px var(--font-mono); margin-top: 10px; }
+.best-run-counter-note { max-width: 900px; margin: 18px 0 32px; }
+.best-run-season { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 28px; padding: 30px 0; border-top: 1px solid var(--line); }
+.best-run-season-number { display: flex; flex-direction: column; align-items: start; gap: 8px; font: 12px var(--font-mono); color: var(--steel); }
+.best-run-season-number strong { font: 700 36px var(--font-display); color: var(--ink); }
+.best-run-title-badge { color: var(--blue); border: 1px solid var(--line-strong); padding: 5px 8px; }
+.best-run-season h3 { font-size: 21px; margin-bottom: 20px; }
+.best-run-season-stats { display: flex; flex-wrap: wrap; gap: 16px 32px; margin-bottom: 14px; }
+.best-run-season-stats dt { font-size: 11px; color: var(--steel); }
+.best-run-season-stats dd { margin: 6px 0 0; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.best-run .best-run-finish { color: var(--ink); font-weight: 600; margin-bottom: 10px; }
+.best-run-season details { margin-top: 18px; border: 1px solid var(--line); }
+.best-run-season summary { cursor: pointer; padding: 14px 16px; font-size: 13px; line-height: 1.6; }
+.best-run-season summary:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.best-run-season-detail { padding: 0 16px 16px; }
+.best-run-season-detail > p { margin: 12px 0; }
+.best-run-moves { padding-left: 24px; }
+.best-run-moves li { padding: 14px 0; border-top: 1px solid var(--line); }
+.best-run-move-status { font: 11px var(--font-mono); color: var(--blue); }
+.best-run-move-status.rejected { color: var(--steel); }
+.best-run-moves p { margin-top: 6px; overflow-wrap: anywhere; }
 @media (max-width: 600px) {
   .replay-examples { flex-direction: column; }
   .replay-examples button + button { padding-left: 0; }
@@ -33,4 +53,8 @@
   .best-run-evidence { grid-template-columns: 1fr; gap: 24px; }
   .best-run-outcomes { gap: 24px; }
   .best-run-outcomes > div { flex: 1 0 40%; }
+  .best-run-season { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .best-run-season-number { flex-direction: row; align-items: center; gap: 12px; }
+  .best-run-season-number strong { font-size: 26px; }
+  .best-run-season-stats { gap: 16px 24px; }
 }

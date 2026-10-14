@@ -29,6 +29,19 @@ for (const width of [1440, 390]) {
     await expect(best).toHaveAttribute("aria-pressed", "true");
     await page.reload();
     await expect(page.locator(".best-run-score strong")).toHaveText("409.132");
+    const seasons = page.locator(".best-run-season");
+    await expect(seasons).toHaveCount(5);
+    await expect(page.locator(".best-run-title-badge")).toHaveCount(3);
+    for (const [index, record] of ["17–16", "20–13", "26–7", "22–11", "24–9"].entries()) {
+      await expect(seasons.nth(index).locator(".best-run-season-stats")).toContainText(record);
+      await seasons.nth(index).locator("summary").click();
+      await expect(seasons.nth(index).locator(".best-run-moves")).toBeVisible();
+    }
+    await expect(seasons.nth(2)).toContainText("Rejected attempt");
+    await expect(seasons.nth(3)).toContainText("Offered Alex Chen + season 6, 7 draft picks");
+    await expect(seasons.nth(4)).toContainText("$8.50M/year, 2 years");
+    await expect(page.locator(".best-run-counter-note")).toContainText("109 actual wins");
+    await expect(page.locator(".best-run a[href*='seed=']")).toHaveCount(0);
     const axe = await new AxeBuilder({ page }).include(".replay-examples").include(".best-run").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
     expect(axe.violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
