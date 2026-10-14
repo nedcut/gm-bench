@@ -161,6 +161,10 @@ test("trade builder, counteroffers, extensions, releases and waivers expose cons
     .getByRole("dialog")
     .getByRole("button", { name: "Cancel", exact: true })
     .click();
+  await page.getByRole("button", { name: "Review release" }).click();
+  await confirm(page);
+  await expect(page.getByRole("status")).toContainText("released Kai Anders");
+  await expect(page.locator(".gm-context tbody tr")).toHaveCount(22);
   await office(page, "Trades");
   await page.getByLabel("Trade partner").selectOption("1");
   await page
@@ -185,6 +189,9 @@ test("trade builder, counteroffers, extensions, releases and waivers expose cons
   await expect(
     page.getByRole("heading", { name: "Waiver wire" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Review claim" }).first().click();
+  await confirm(page);
+  await expect(page.getByRole("status")).toContainText("claimed");
   await advance(page);
   await office(page, "Trades");
   await page
@@ -208,13 +215,11 @@ test("imports validate without losing active game, exports and replacing saves r
     (key) => localStorage.getItem(key)!,
     SAVE_KEY,
   );
-  await page
-    .getByLabel("Import save", { exact: true })
-    .setInputFiles({
-      name: "bad.json",
-      mimeType: "application/json",
-      buffer: Buffer.from('{"schema":"bad"}'),
-    });
+  await page.getByLabel("Import save", { exact: true }).setInputFiles({
+    name: "bad.json",
+    mimeType: "application/json",
+    buffer: Buffer.from('{"schema":"bad"}'),
+  });
   await confirm(page);
   await expect(page.getByRole("alert")).toContainText("not a GM-Bench");
   expect(
@@ -236,13 +241,11 @@ test("imports validate without losing active game, exports and replacing saves r
     "gm-bench-challenge-1.json",
   );
   await advance(page);
-  await page
-    .getByLabel("Import save", { exact: true })
-    .setInputFiles({
-      name: "valid.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(stored),
-    });
+  await page.getByLabel("Import save", { exact: true }).setInputFiles({
+    name: "valid.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(stored),
+  });
   await confirm(page);
   await expect(page.locator(".gm-scoreboard")).toContainText("Preseason");
 });

@@ -13,6 +13,7 @@ export interface Player {
   extension_quotes?: Record<string, number>;
   contract_quotes?: Record<string, number>;
   asking_salary?: number;
+  resign_blocked?: boolean;
 }
 export interface Team {
   id: number;
