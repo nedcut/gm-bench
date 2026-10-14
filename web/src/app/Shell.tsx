@@ -13,10 +13,11 @@ const TABS: { page: PageKey; label: string; short?: string }[] = [
 ];
 
 function ThemeToggle() {
-  const [theme, toggle] = useTheme();
+  const [theme, preference, cycle] = useTheme();
   const dark = theme === "dark";
+  const label = preference === "system" ? "device appearance" : `${preference} appearance`;
   return (
-    <button type="button" className="icon-button" onClick={toggle} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}>
+    <button type="button" className="icon-button" onClick={cycle} aria-label={`Appearance: ${label}. Change appearance`} title={`Appearance: ${label}`}>
       {dark ? (
         <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="10" cy="10" r="3.6" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M10 1.8v2.2M10 16v2.2M1.8 10H4M16 10h2.2M4.2 4.2l1.6 1.6M14.2 14.2l1.6 1.6M4.2 15.8l1.6-1.6M14.2 5.8l1.6-1.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
       ) : (
