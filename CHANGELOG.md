@@ -8,8 +8,8 @@ correction becomes a new contract version rather than an edit to an old one.
 
 Work began 2026-09-20; the contract froze 2026-09-25; three panel-grade rows
 were published 2026-09-27, a fourth 2026-09-28, a fifth 2026-10-12 (its
-panel ran 2026-09-28 to 09-29), and a sixth to ninth 2026-10-13. Not yet
-tagged. Nothing in GM-Bench 1.0 changes.
+panel ran 2026-09-28 to 09-29), a sixth to ninth 2026-10-13, and a tenth
+2026-10-14. Not yet tagged. Nothing in GM-Bench 1.0 changes.
 
 Summary:
 
@@ -64,13 +64,19 @@ Summary:
     lower bound, about $12 to $16 with Haiku 5.5's over-100K-token tier.
   - Codex 0.162.1 · `gpt-6-astra`: mean 288.4, lift +39.2 (+15.6 to
     +63.1, p = 0.0036), significant, and still so under a Holm correction
-    across the nine rows; ahead of `pick-trader` on 20 of 32 seeds; 123K
+    across the ten rows; ahead of `pick-trader` on 20 of 32 seeds; 123K
     tokens per decision. No measured cost; the API-equivalent estimate
     ($115.04) is a lower bound.
   - OpenCode 2.0.27 · `opencode-go/deepseek-v4.1-flash`: mean 244.6, lift
     −4.6 (−25.8 to +17.0, p = 0.67), not significant; ahead of
     `pick-trader` on 12 of 32 seeds; 661K tokens per decision. OpenCode
     reports $4.91 for the panel.
+  - Claude Code 2.1.281 · `claude-sonnet-5-5`: mean 217.1, lift −32.1
+    (−56.3 to −9.7, p = 0.012), significant, but not under a Holm
+    correction across the ten rows (adjusted p about 0.085); ahead of
+    `pick-trader` on 11 of 32 seeds; 295K tokens per decision. No measured
+    cost; the API-equivalent estimate is $38.31. Admitted under the
+    post-hoc guessed-signing rule below.
 
   The realized paired-lift SDs (62.5 and 73.4) put the panel's minimum
   detectable difference against `pick-trader` at about 31 to 36 points, so
@@ -78,7 +84,9 @@ Summary:
   lift (+24.0, lift SD 64.0, MDD about 32) is significant but smaller than
   that row's own MDD, and the interval's lower bound is +1.6: one unpinned
   row on one panel, resolved with little margin. The `gpt-6-astra` lift
-  (+39.2, lift SD 68.6, MDD about 34) is larger than its row's MDD.
+  (+39.2, lift SD 68.6, MDD about 34) is larger than its row's MDD. The
+  `claude-sonnet-5-5` lift (−32.1, lift SD 67.5, MDD about 33) is about
+  the size of its row's MDD.
 - **Smoke rows and noise probes** (public seeds, not on the site): an 8-seed
   OpenCode row on `opencode/space-bunny-free`, one five-season episode each
   on Codex and Claude Code, and a 4 seeds × 2 runs repeat-noise probe on
@@ -93,14 +101,15 @@ Summary:
   first with Codex 0.162.1 and without the account's apps and plugins, and
   `claude-haiku-5-5` at `3e8e600`, the first Claude row without the
   account's claude.ai connectors, the OpenCode 2.0.27 `deepseek-v4.1-flash`
-  at `93b1f7c`, the first with the OpenCode 2.x launcher, and `gpt-6-astra`
-  at `5d56c71`); a
+  at `93b1f7c`, the first with the OpenCode 2.x launcher, `gpt-6-astra`
+  at `5d56c71`, and `claude-sonnet-5-5` at `0f3042d`); a
   validation rule that publishes a
   tool-call recount when it resolves a recorded mismatch (one
   `claude-sonnet-5` episode and one OpenCode 2.0.27 episode); and
-  a post-hoc audit rule, adopted 2026-09-27 after the Haiku panel had run,
-  that reports a draft pick on a guessed prospect id as a warning, not a
-  violation. The spec now states which files are frozen and which rules may
+  two post-hoc audit rules, each adopted after the panel it admits had
+  run: a draft pick on a guessed prospect id (2026-09-27, the Haiku 4.5
+  panel) and a free-agent signing on a guessed player id (2026-10-14, the
+  Sonnet 5.5 panel) are warnings, not violations. The spec now states which files are frozen and which rules may
   change without a new version, and lists every post-freeze change with
   the rows it affected.
 - **Not claimed:** no ranking of rows, harnesses or models; no p-value
@@ -113,6 +122,50 @@ Summary:
 The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
+
+- Tenth panel-grade 2.0 row (2026-10-14): Claude Code 2.1.281 on
+  `claude-sonnet-5-5`, the frozen 32-seed private panel at five seasons,
+  container isolation, played 2026-10-13 to 10-14 from clean `main` at
+  `0f3042d` (#196; driver digest `0c20d2de9ce62901`, image
+  `gm-bench-agentic-claude:2.1.281-f0e72cbaea92`)
+  (`results/agentic/claude-2.1.281-claude-sonnet-5-5-panel-32x5.json`).
+  Mean 217.1 (SD 50.3, seed means 127.6 to 341.5), 640/640 phases closed
+  by the agent, 0 failed decisions, 37 penalized illegal moves, 0 nudges,
+  84 empty phases, no guard stops, no provider stalls, no quota pauses, no
+  compactions, 295K tokens per decision (cached input included), 106.6
+  GM-Bench tool calls and 2.9 min per episode, ledger = harness on 32/32
+  episodes. Besides GM-Bench calls the agent made only 37 ToolSearch
+  calls. The agent made 157 `draft` calls in 160 draft phases and 157
+  `trade` calls. Against `pick-trader` the paired lift is −32.1, 95%
+  interval −56.3 to −9.7, sign-flip p 0.012, ahead on 11 of 32 seeds,
+  with a realized MDD of about 33; Holm-adjusted across the ten rows, p is
+  about 0.085. The row is admitted under a post-hoc audit rule adopted
+  2026-10-14, after the panel ran (#198): in episode 19, preseason of
+  season 1, the agent listed 24 of the 36 free agents, signed player 302,
+  which the listing had not shown, for one year at the minimum salary,
+  said it had used an id it did not mean to, inspected him and released
+  him. Under the original rule that accepted signing was a violation and
+  failed validation. An accepted `sign_free_agent` whose only unseen id is
+  the player it signed is now a `guessed_signing`, a validation warning:
+  the general rule applies to every model and season, including retained
+  players, without a typo, salary or release condition. IDs encode position
+  slots; initial-pool potential correlation does not prove absence of leakage.
+  Both-rule raw coverage is recorded in
+  `docs/audit-signing-retrospective-2026-10-14.md`. The
+  other warnings are a rejected move on an unseen id (episode 3) and the
+  guessed read that followed the signing. Claude Code reports no cost; the
+  API-equivalent estimate is $38.31 for the panel ($1.20 per episode),
+  priced from the Sonnet 5.5 entry added before the run (#197). 184.6M of
+  the 188.3M input tokens were cache reads. Reasoning effort is the
+  harness default (Claude Code reports none). The model is unpinned.
+
+- Claude Sonnet 5.5 priced and smoked (2026-10-13, #197): a
+  `claude-sonnet-5-5` entry in `gm_bench/pricing.json` (verified against
+  platform.claude.com pricing; $0.10 cache hits, half Sonnet 5's; without
+  its own key the id resolved to the `claude-sonnet-5` prefix), and a
+  one-episode, five-season container smoke on public seed 11
+  (`results/agentic/claude-2.1.281-claude-sonnet-5-5-smoke-1x5.json`,
+  score 146.5, $1.28 API-equivalent).
 
 - Eighth and ninth panel-grade 2.0 rows (2026-10-13), both on the frozen
   32-seed private panel at five seasons, container isolation, driver

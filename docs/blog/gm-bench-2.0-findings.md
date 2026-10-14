@@ -1,7 +1,7 @@
 # GM-Bench 2.0: a model in its own harness (DRAFT, not published)
 
-> **Draft.** Updated 2026-10-13 for the owner to review before final
-> publication. Nine panel rows are public under `results/agentic/`; a 2.0
+> **Draft.** Updated 2026-10-14 for the owner to review before final
+> publication. Ten panel rows are public under `results/agentic/`; a 2.0
 > tag and GitHub release have not been cut. Numbers and cost disclosures
 > below reflect the committed artifacts, including the merged release fixes.
 
@@ -15,7 +15,7 @@ are the ones 1.0 used.
 
 ## What ran
 
-Nine rows on the frozen 32-seed private panel, five seasons, each harness in
+Ten rows on the frozen 32-seed private panel, five seasons, each harness in
 a firewalled Docker container:
 
 | row | mean | vs `pick-trader` (95% interval) | tokens / decision | cost, whole panel |
@@ -29,6 +29,7 @@ a firewalled Docker container:
 | Claude Code 2.1.281 · `claude-haiku-5-5` | 202.7 | −46.5 (−66.7 to −26.7) | 393K | $4.89 est., lower bound |
 | Codex 0.162.1 · `gpt-6-astra` | 288.4 | +39.2 (+15.6 to +63.1) | 123K | $115.04 est., lower bound |
 | OpenCode 2.0.27 · `opencode-go/deepseek-v4.1-flash` | 244.6 | −4.6 (−25.8 to +17.0) | 661K | $4.91 (OpenCode's figure) |
+| Claude Code 2.1.281 · `claude-sonnet-5-5` | 217.1 | −32.1 (−56.3 to −9.7) | 295K | $38.31 est. |
 
 Every row is in the agentic execution lane, inside the harness it names. A
 decision is one phase (20 per episode), and its tokens are everything the
@@ -36,7 +37,7 @@ harness sent and received in it, cached input included. "est." is an
 API-equivalent estimate, not a bill (see Cost disclosures).
 
 `pick-trader`, the scripted reference policy, averages 249.2 on these seeds.
-All nine rows closed all 640 phases themselves. All nine are flagged
+All ten rows closed all 640 phases themselves. All ten are flagged
 `unpinned`: the served model version is not pinned, so they may not be
 reproducible. Under the frozen eligibility rule they are extra data points,
 not headline results.
@@ -47,7 +48,15 @@ Haiku 4.5 is clearly below the scripted bar: it loses to `pick-trader` on
 every seed. Haiku 5.5, on the same harness, is also clearly below it: a
 paired lift of −46.5, 95% interval −66.7 to −26.7, sign-flip p 0.0002,
 ahead on 9 of 32 seeds, beyond its realized minimum detectable difference
-of about 29. For `gpt-6-luna` and `claude-sonnet-5` the panel cannot tell. Per-seed
+of about 29. Sonnet 5.5 is below it too: −32.1, 95% interval −56.3 to
+−9.7, sign-flip p 0.012, ahead on 11 of 32 seeds. That lift is about the
+size of its realized minimum detectable difference (about 33), and under
+a Holm correction across the ten rows it is not significant (adjusted p
+about 0.085), so the margin is thin. Its predecessor `claude-sonnet-5`
+averaged 227.4 on the same harness, but 2.0 does not test rows against
+each other. Sonnet 5.5 played fast and cheap by comparison: 2.9 minutes
+and 107 tool calls per episode against 14.5 minutes for Sonnet 5, and
+$38.31 for the panel against $157.38. For `gpt-6-luna` and `claude-sonnet-5` the panel cannot tell. Per-seed
 lifts varied more than the design assumed, so on these panels the smallest
 difference from `pick-trader` the benchmark can reliably detect is about 31
 to 36 points. A lift of −21.8 with an interval that crosses zero is "cannot
@@ -78,7 +87,7 @@ sign-flip p 0.046, ahead on 23 of 32 seeds. The evidence is marginal in
 the same way as Cursor's, in the other direction: the lower bound is 1.6
 points, the lift is below the row's realized minimum detectable difference
 of about 32, and the row is one unpinned run on one panel. Each row's
-p-value is its own, not adjusted for the nine rows; under a Holm correction
+p-value is its own, not adjusted for the ten rows; under a Holm correction
 across them neither this 0.046 nor Cursor's 0.047 would be significant.
 The agent made
 36 `draft` calls across the 160 draft phases and 518 `trade` calls.
@@ -88,7 +97,7 @@ far and the clearest result above the scripted bar: a paired lift of
 +39.2, 95% interval +15.6 to +63.1, sign-flip p 0.0036, ahead on 20 of 32
 seeds. The lift is larger than its realized minimum detectable difference
 of about 34, and it stays significant under a Holm correction across the
-nine rows (adjusted p about 0.025). It is still one unpinned run on one
+ten rows (adjusted p about 0.029). It is still one unpinned run on one
 panel, and its interval overlaps `gpt-6.1-sol`'s. It used 123K tokens per
 decision, the fewest of any row, and made 49 `draft` calls and 435
 `trade` calls. These are separate contrasts against the scripted
@@ -96,7 +105,7 @@ reference, not tests between model or harness rows.
 
 ## Cost disclosures
 
-Seven panel rows have `summary.usage.cost_usd: null` and zero decisions
+Eight panel rows have `summary.usage.cost_usd: null` and zero decisions
 with measured cost. The two OpenCode rows carry OpenCode's own cost figure.
 Subscription quota use is not a per-token bill.
 
@@ -111,6 +120,7 @@ Subscription quota use is not a per-token bill.
 | Claude Code · `claude-haiku-5-5` | $4.89, a lower bound at the up-to-100K-token list prices; about $12 to $16 with the over-100K tier |
 | Codex · `gpt-6-astra` | $115.04, a lower bound at short-context list prices; re-derived at redaction because the model had no price entry when the panel ran |
 | OpenCode 2.0.27 · `deepseek-v4.1-flash` | $4.91 as OpenCode reports it, on an OpenCode Go subscription; no API-equivalent estimate |
+| Claude Code · `claude-sonnet-5-5` | $38.31 at API list prices |
 
 These estimates come from recorded token usage and the repository's dated
 price entries; they do not measure the subscription's bill or establish
@@ -134,6 +144,19 @@ in the [operator guide](../agentic_lane.md#publishing-a-row).
   was narrowed: prospect ids are assigned independently of hidden potential,
   so a guessed pick is blind. The change and its reason are in
   `docs/bench_v2_spec.md`.
+- **A second post-hoc audit rule admits the Sonnet 5.5 row.** In one
+  episode Sonnet 5.5 signed a free agent whose id the listing had not
+  shown, at the minimum salary for one year, said it had used the wrong
+  id, and released him soon afterward. The audit counted the signing as
+  a violation. After the panel ran, a general rule admitted accepted blind
+  signings as warnings for every model and season, including retained players.
+  Typo, minimum salary and release are observations about this episode, not
+  policy conditions. Valid ID guesses alone do not prove cheating, and
+  initial-pool potential correlation does not prove absence of leakage.
+  The failed-original/passed-revised provenance remains disclosed; see
+  [the raw-run retrospective](../audit-signing-retrospective-2026-10-14.md).
+  No paid rerun was needed to improve eligibility.
+
 - **Harness defaults.** Every row ran at the harness's default reasoning
   effort. Claude Code runs without web tools and loads each game tool's schema
   through ToolSearch; Codex and Cursor keep their built-in tools. The
