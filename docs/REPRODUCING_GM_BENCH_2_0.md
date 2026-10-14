@@ -6,15 +6,15 @@ the supported CLI against the public compact artifacts and scripted agents.
 Downloading source and installing development tools requires internet access.
 The validation commands themselves run locally without model requests.
 
-Nine panel rows are public, but GM-Bench 2.0 has no tag or GitHub release yet.
+Ten panel rows are public, but GM-Bench 2.0 has no tag or GitHub release yet.
 The rows are all `unpinned`: they may not be reproducible and are extra data
 points, not headline results. This guide does not promote them to headlines.
 
 ## Check out the evidence snapshot and install
 
 Use Python 3.11 or newer. The evidence snapshot is the main-branch commit
-that added the newest panel rows (Codex `gpt-6-astra` and OpenCode 2.0.27
-`deepseek-v4.1-flash`, published together 2026-10-13),
+that added the newest panel row (Claude Code `claude-sonnet-5-5`, published
+2026-10-14),
 not a release tag; the `git log` lookup below finds it. Detaching at it keeps
 this guide's expected artifact counts stable if more rows land later.
 
@@ -22,7 +22,7 @@ this guide's expected artifact counts stable if more rows land later.
 git clone https://github.com/nedcut/gm-bench.git
 cd gm-bench
 git checkout --detach "$(git log origin/main -1 --diff-filter=A --format=%H -- \
-  results/agentic/codex-0.162.1-gpt-6-astra-panel-32x5.json)"
+  results/agentic/claude-2.1.281-claude-sonnet-5-5-panel-32x5.json)"
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 .venv/bin/python -m gm_bench --help
@@ -42,19 +42,19 @@ for artifact in results/agentic/*.json; do
   .venv/bin/python -m gm_bench agentic-validate "$artifact" --json
   count=$((count + 1))
 done
-test "$count" -eq 16
+test "$count" -eq 18
 printf 'validated %s agentic artifacts\n' "$count"
 )
 ```
 
-Expected: sixteen reports with `"ok": true` and `"errors": []`: nine
-`panel` artifacts and seven `smoke` artifacts. The smoke rows use public
+Expected: eighteen reports with `"ok": true` and `"errors": []`: ten
+`panel` artifacts and eight `smoke` artifacts. The smoke rows use public
 seeds and do not appear in the site's panel table.
 
 Warnings are separate from errors. Older rows record the driver revision
 that played them, so a warning that it differs from this checkout is
-expected. Haiku also retains the disclosed post-hoc guessed-draft-pick
-warnings. A zero exit status does not establish headline eligibility or
+expected. Haiku 4.5 also retains the disclosed post-hoc guessed-draft-pick
+warnings, and Sonnet 5.5 the disclosed post-hoc guessed-signing warning. A zero exit status does not establish headline eligibility or
 erase these caveats. Inspect the saved artifact's `validation` block as
 well as the validator's current report.
 
@@ -70,7 +70,7 @@ from gm_bench.agentic.contract import agentic_fingerprint
 assert agentic_fingerprint() == "07de948a4f4afbae"
 artifacts = [json.loads(p.read_text()) for p in sorted(Path("results/agentic").glob("*.json"))]
 panels = [d for d in artifacts if d["grade"] == "panel"]
-assert len(artifacts) == 16 and len(panels) == 9
+assert len(artifacts) == 18 and len(panels) == 10
 lane = json.loads(Path("config/bench_v2_lane.json").read_text())
 assert lane["model_pinning"]["pinned_models"] == {}
 for row in panels:
@@ -94,14 +94,15 @@ Expected panel means are 227.404 (Codex `gpt-6-luna`), 227.393 (Claude Code
 `claude-sonnet-5`), 130.129 (Claude Code `claude-haiku-4-5`), 230.563
 (Cursor `composer-2.5`), 247.134 (OpenCode 1.18.31 `deepseek-v4.1-flash`),
 273.167 (Codex `gpt-6.1-sol`), 202.665 (Claude Code `claude-haiku-5-5`),
-288.417 (Codex `gpt-6-astra`) and 244.586 (OpenCode 2.0.27
-`deepseek-v4.1-flash`). The reference is `pick-trader` at 249.18 on the
+288.417 (Codex `gpt-6-astra`), 244.586 (OpenCode 2.0.27
+`deepseek-v4.1-flash`) and 217.06 (Claude Code `claude-sonnet-5-5`). The reference is `pick-trader` at 249.18 on the
 frozen 32-seed panel. Every contrast is against that reference; these are
 not tests between model or harness rows.
 
 The whole-panel API-equivalent estimates are $4.539983, $157.375340,
-$27.707858, $17.379311, $4.887320 and $115.038552 for `gpt-6-luna`, Sonnet,
-Haiku 4.5, `gpt-6.1-sol`, Haiku 5.5 and `gpt-6-astra` respectively. They are
+$27.707858, $17.379311, $4.887320, $115.038552 and $38.312087 for
+`gpt-6-luna`, Sonnet 5, Haiku 4.5, `gpt-6.1-sol`, Haiku 5.5, `gpt-6-astra`
+and Sonnet 5.5 respectively. They are
 dated list-price estimates from token usage, not subscription bills. The
 `gpt-6-astra` estimate was re-derived at redaction (the run recorded `null`
 because the model was not yet priced), and its artifact keeps the recorded
@@ -111,7 +112,7 @@ is the Haiku 5.5 estimate: 1,037 of its 2,837 requests had prompts over
 Haiku 5.5's 100,000-token threshold, where every rate is 5x, which puts
 the panel at about $12 to $16. Haiku 4.5 preserves its former $25.143227 beside the
 corrected estimate. Cursor reports no cost, and its model has no repository
-list price, so its estimate is `null`. Those seven rows' measured
+list price, so its estimate is `null`. Those eight rows' measured
 `cost_usd` values are `null`. The two OpenCode rows carry OpenCode's own cost
 figures, $3.691094 (1.18.31) and $4.909211 (2.0.27), and no API-equivalent
 estimate; they ran on an OpenCode Go subscription, which counts usage against the plan's limits rather than

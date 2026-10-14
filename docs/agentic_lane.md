@@ -347,6 +347,10 @@ and the id counts as exposed from that reply on. An accepted `draft` on a
 guessed prospect id is a `guessed_draft_pick`, not a violation: prospect ids
 are `1_000_000 + season * 10_000 + index` and the index is independent of
 hidden potential, so the pick is blind. Validation reports it as a warning.
+Likewise an accepted `sign_free_agent` on a guessed player id is a
+`guessed_signing`: player ids are generation order, independent of hidden
+potential, so the signing is blind too. Both rules were adopted after the
+panel they admit had run (see the spec's "Changes after the freeze").
 The audit reports, it does not decide; publication does.
 
 ## The prompt check
@@ -1253,7 +1257,10 @@ the `pricing.json` this checkout has, so add and verify the model's entry
 (input, output, cache reads, cache writes including Anthropic's 1-hour
 tier, and any long-context threshold) before the smoke, not after the
 panel. The `claude-haiku-5-5` and `gpt-6-astra` panels (2026-10-13) ran
-without one and recorded no estimate. `agentic-redact` re-derives the
+without one and recorded no estimate; the `claude-sonnet-5-5` panel was
+priced first. A new id can also resolve to an older model's prefix entry
+(`claude-sonnet-5-5` would have matched `claude-sonnet-5`), so check the
+entry it actually resolves to with `telemetry.model_price_entry`. `agentic-redact` re-derives the
 estimate for a Claude Code or Codex row from its retained event streams
 (`claude-events.jsonl`, `codex-events.jsonl`) with this checkout's
 `pricing.json`, refusing if the stream no longer gives the recorded token
@@ -1377,7 +1384,19 @@ request whose prompt is over 100,000 tokens (`long_context_input_tokens`),
 and 1,037 of the panel's 2,837 requests were; repricing them from the
 per-request frames gives about $12 to $16. `pricing.json` had no Haiku 5.5
 entry when the panel ran, so the estimate was re-derived at redaction (see
-Cost below). Every Claude episode spends your Claude subscription's
+Cost below). Claude Sonnet 5.5 was priced before its first run (#197; a
+five-season container smoke on seed 11 is committed at
+`results/agentic/claude-2.1.281-claude-sonnet-5-5-smoke-1x5.json`: score
+146.5, 111 tool calls, 3.1 min, $1.28 at API prices). Its panel
+(2026-10-13 to 10-14, driver commit `0f3042d`) is committed at
+`results/agentic/claude-2.1.281-claude-sonnet-5-5-panel-32x5.json`: mean
+217.1, 640/640 phases closed by the agent, no nudges, provider stalls,
+quota pauses or compactions, 2.9 min per episode, and $38.31 at API prices
+for the panel (Sonnet 5's was $157; Sonnet 5.5's cache reads cost half as
+much, and it used about a third of the input tokens). In one episode it
+signed a free agent the listing had not shown and released him on the next
+call; that is reported as a guessed signing (a warning), under a rule
+adopted after the panel ran. Every Claude episode spends your Claude subscription's
 quota (or API money with `ANTHROPIC_API_KEY`). Run it serially (the driver
 has no parallel mode), smoke one short episode before a panel, and budget a
 full panel as hours of quota.
@@ -1631,9 +1650,9 @@ harness.
   fetch or web search tool, and `dontAsk` denies any other tool. Its
   GM-Bench tools are deferred: the model sees them by name only and calls
   ToolSearch to load a tool's schema before first use (see "Claude Code
-  harness"). The three panel rows made 200 (`claude-sonnet-5`), 167
-  (`claude-haiku-4-5`) and 146 (`claude-haiku-5-5`) ToolSearch calls over
-  32 episodes.
+  harness"). The four panel rows made 200 (`claude-sonnet-5`), 167
+  (`claude-haiku-4-5`), 146 (`claude-haiku-5-5`) and 37
+  (`claude-sonnet-5-5`) ToolSearch calls over 32 episodes.
 - **OpenCode and Codex** run with their built-in tool sets unrestricted,
   including any web tool the harness ships (OpenCode's web fetch, Codex's
   web search). OpenCode puts every GM-Bench tool schema in the first

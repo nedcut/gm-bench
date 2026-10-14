@@ -119,6 +119,12 @@ const ROW_CAVEATS: Record<string, string> = {
   "agentic:claude-2.1.281:claude-sonnet-5":
     "One episode's tool-call count is a recount: the run recorded 165 of 166 because the event parser " +
     "counted a call to a tool name that does not exist; after the parser fix the count is 165 of 165.",
+  "agentic:claude-2.1.281:claude-sonnet-5-5":
+    "Admitted under a post-hoc audit rule adopted on 2026-10-14, after this panel ran: in one episode the " +
+    "model signed a free agent whose id the listing had not shown, then released him on the next call. " +
+    "Player ids carry no hidden information, so the signing is reported as a warning, not a violation. " +
+    "Significant on its own (p = 0.012) but not under a Holm correction across the ten rows. " +
+    "Played on driver commit 0f3042d.",
   "agentic:codex-0.156.1:gpt-6-luna":
     "Ran with the ChatGPT account's connected apps and plugins available: Codex exposed about 668 extra " +
     "tools (Gmail, GitHub, Google Drive and others). The row records no tool call other than GM-Bench calls. " +

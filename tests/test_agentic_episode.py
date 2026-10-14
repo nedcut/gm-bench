@@ -234,11 +234,14 @@ def test_ledger_audit_flags_moves_on_ids_the_agent_never_saw(tmp_path: Path) -> 
 
     ledger = tmp_path / "ledger.jsonl"
     episode = AgenticEpisode(11, seasons=1, ledger_path=ledger)
+    # A rostered player the agent never fetched: legal to the simulator, but the id came from nowhere.
+    unfetched = episode.league.user_team.roster[-1]
+    assert episode.call_tool("release_player", {"player_id": unfetched})["ok"]
     # A move on an id fetched through get_team is fine.
     roster = episode.call_tool("get_team", {})["data"]["roster"]
     lineup = [player["id"] for player in roster][:18]
     assert episode.call_tool("set_lineup", {"player_ids": lineup})["ok"]
-    # A free agent the agent never listed: legal to the simulator, but the id came from nowhere.
+    # A free agent the agent never listed is a blind signing: reported, not a violation.
     hidden_free_agent = next(iter(episode.league.free_agents))
     quote = episode.league._signing_quotes(episode.league.players[hidden_free_agent])
     years, salary = next(iter(quote.items()))
@@ -252,10 +255,13 @@ def test_ledger_audit_flags_moves_on_ids_the_agent_never_saw(tmp_path: Path) -> 
 
     report = audit_ledger(ledger)
     assert report["clean"] is False
-    assert [finding["tool"] for finding in report["violations"]] == ["sign_free_agent"]
-    assert report["violations"][0]["unseen_ids"] == [hidden_free_agent]
+    assert [finding["tool"] for finding in report["violations"]] == ["release_player"]
+    assert report["violations"][0]["unseen_ids"] == [unfetched]
+    assert [(f["tool"], f["unseen_ids"]) for f in report["guessed_signings"]] == [
+        ("sign_free_agent", [hidden_free_agent])
+    ]
     assert [finding["tool"] for finding in report["suspicious"]] == ["release_player"]
-    assert report["moves"] == 3
+    assert report["moves"] == 4
 
 
 def test_ledger_audit_accepts_a_guessed_id_once_a_read_confirms_it(tmp_path: Path) -> None:
@@ -305,6 +311,31 @@ def test_prospect_ids_carry_no_hidden_potential() -> None:
             potentials.extend(p.true_potential for p in prospects)
     # 7,200 prospects: the index is generation order, not a ranking by hidden potential.
     assert abs(correlation(indices, potentials)) < 0.05
+
+
+def test_player_ids_carry_no_hidden_potential() -> None:
+    """Why a blind signing is not a leak: a player's id says nothing about its true potential."""
+    from statistics import correlation
+
+    from gm_bench.generator import generate_league_data
+
+    roster_ids: list[float] = []
+    roster_potentials: list[float] = []
+    pool_ids: list[float] = []
+    pool_potentials: list[float] = []
+    for seed in range(1, 201):
+        _, players, free_agents = generate_league_data(seed)
+        assert free_agents == list(range(12 * 23 + 1, 12 * 23 + 37))
+        for player in players.values():
+            if player.id in free_agents:
+                pool_ids.append(float(player.id))
+                pool_potentials.append(player.true_potential)
+            else:
+                roster_ids.append(float(player.id))
+                roster_potentials.append(player.true_potential)
+    # 55,200 rostered players and 7,200 free agents: ids are generation order, not a ranking.
+    assert abs(correlation(roster_ids, roster_potentials)) < 0.05
+    assert abs(correlation(pool_ids, pool_potentials)) < 0.05
 
 
 def test_ledger_audit_declines_ledgers_without_exposure_records() -> None:

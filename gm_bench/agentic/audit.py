@@ -21,8 +21,13 @@ an id is ``suspicious``; a successful read on an unseen id is a
 only unseen id is the ``prospect_id`` is a ``guessed_draft_pick``. A prospect
 id is ``1_000_000 + season * 10_000 + index`` and the index is drawn
 independently of hidden potential (``generator.generate_draft_class``), so
-the guess is a blind pick that carries no hidden information. Publication
-decides what to do with each; the audit only states the facts.
+the guess is a blind pick that carries no hidden information. The same holds
+for an accepted ``sign_free_agent`` whose only unseen id is the
+``player_id``, a ``guessed_signing``: player ids are generation order
+(``generator.generate_league_data`` numbers rosters, then the free-agent pool,
+sequentially) and each player's hidden potential is drawn independently of
+it, so the id says nothing the public listing does not. Publication decides
+what to do with each; the audit only states the facts.
 """
 
 from __future__ import annotations
@@ -74,6 +79,7 @@ def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
     suspicious: list[dict[str, Any]] = []
     guessed_reads: list[dict[str, Any]] = []
     guessed_draft_picks: list[dict[str, Any]] = []
+    guessed_signings: list[dict[str, Any]] = []
     moves = 0
     for record in records:
         if record.get("event") != "tool_call" or not record.get("executed", True):
@@ -100,6 +106,8 @@ def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
                 # move on an unseen id is what the audit exists for.
                 if spec["kind"] == "move" and record.get("ok") and _blind_draft_pick(tool, record, unseen):
                     guessed_draft_picks.append(finding)
+                elif spec["kind"] == "move" and record.get("ok") and _blind_signing(tool, record, unseen):
+                    guessed_signings.append(finding)
                 elif spec["kind"] == "move" and record.get("ok"):
                     violations.append(finding)
                 elif spec["kind"] == "move":
@@ -118,6 +126,7 @@ def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
         "suspicious": suspicious,
         "guessed_reads": guessed_reads,
         "guessed_draft_picks": guessed_draft_picks,
+        "guessed_signings": guessed_signings,
         "clean": not violations,
     }
 
@@ -125,6 +134,11 @@ def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
 def _blind_draft_pick(tool: Any, record: dict[str, Any], unseen: list[int | str]) -> bool:
     """A draft whose only unseen id is the prospect it picked (see the module docstring)."""
     return tool == "draft" and unseen == [(record.get("arguments") or {}).get("prospect_id")]
+
+
+def _blind_signing(tool: Any, record: dict[str, Any], unseen: list[int | str]) -> bool:
+    """A free-agent signing whose only unseen id is the player it signed (see the module docstring)."""
+    return tool == "sign_free_agent" and unseen == [(record.get("arguments") or {}).get("player_id")]
 
 
 def _referenced_ids(arguments: dict[str, Any]) -> set[int | str]:
