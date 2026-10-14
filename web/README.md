@@ -135,3 +135,53 @@ table.
 `src/data/leaderboard-sota-v2.json`, so the archived study stays reproducible.
 That builder preserves the release instead of recomputing its references on the
 live engine, and still excludes v3 and v4.
+
+## Play the human challenge
+
+Open `/play/` (the **Play** tab) to manage the Anchorage Auroras through the
+same five seasons and twenty decision windows as the benchmark. The interface
+includes the full roster and lineup, cap space, standings and rival rosters,
+contracts, free agents, waivers, trades and counteroffers, scouting, draft
+picks, season history, a score breakdown, and a final comparison with pick-trader
+on the same seed. The old decision deck links here.
+
+`src/game/gameWorker.ts` lazily loads Pyodide and the generated Python source
+bundle. Vite generates the game's archive at startup for both `bun dev` and
+production builds, then imports it as an asset with a content-hashed production
+URL. An old `public/replay/gm_bench.zip` cannot shadow the game bundle. Restart
+the dev server after editing Python simulator sources.
+`gm_bench/browser_game.py` adapts the frozen `AgenticEpisode` without
+changing the contract files. Decisions execute serially in the worker. There
+are no provider calls, server sessions, or writes to leaderboard evidence.
+Python is downloaded from jsDelivr on first launch, so a working connection is
+needed; loading failures leave saves available and can be retried.
+
+One challenge autosaves under `gm-bench-human-save-v1` in localStorage after
+each action. Export/import JSON to back up a game or transfer it. Saves hold a
+seed and action log and replay through the simulator on resume. Their engine
+version is the SHA-256 of the deterministic Python bundle; incompatible or
+malformed imports leave the current game intact. Export a save before changing
+simulator versions. LocalStorage failure leaves the active game playable and
+shows an export reminder.
+
+For a full manual test:
+
+1. Start seed 1, check the 23-player roster, $19.45M cap room, and tied standings.
+2. Set a lineup; negotiate a signing or preseason extension. Review the cap
+   impact, confirm, and check the updated roster and result summary.
+3. Build a trade, including future picks; advance to midseason for waivers and
+   the trade deadline for incoming offers and counteroffers.
+4. Open the draft, scout a prospect, and spend your pick before finishing the
+   season. Repeat through season five and inspect the final score and history.
+5. Export, reload, resume, and import. An invalid import must preserve the game.
+
+Automated coverage runs the original Python episode beside the browser adapter,
+restores at every window, and plays a complete challenge through production
+assets with the installed Pyodide runtime bytes (no CDN dependency in tests):
+
+```bash
+.venv/bin/python -m pytest -q tests/test_browser_game.py
+cd web
+bun test scripts/simulatorBundle.test.ts  # stale-archive dev startup regression
+bun run test:browser -- game.spec.ts
+```

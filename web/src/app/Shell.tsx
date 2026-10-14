@@ -9,6 +9,7 @@ const TABS: { page: PageKey; label: string }[] = [
   { page: "standings", label: "Standings" },
   { page: "how", label: "How it works" },
   { page: "replays", label: "Replays" },
+  { page: "play", label: "Play" },
 ];
 
 function ThemeToggle() {

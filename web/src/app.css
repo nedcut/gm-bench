@@ -1628,10 +1628,10 @@ main:focus {
     order: 3;
     flex: 1 0 100%;
     justify-content: space-between;
-    gap: 12px;
+    gap: 6px;
     height: 40px;
     border-top: 1px solid var(--line);
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .intro,

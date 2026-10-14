@@ -8,6 +8,7 @@ export const routes = {
   how: `${BASE}how-it-works/`,
   cost: `${BASE}cost/`,
   tools: `${BASE}tools/`,
+  play: `${BASE}play/`,
   replays: `${BASE}replays/`,
   method: `${BASE}method/`,
   v1: `${BASE}v1/`,
