@@ -86,7 +86,13 @@ export default function Game() {
         lastSnapshot.current = response.snapshot;
         setSnapshot(response.snapshot);
         setSave(response.save);
-        setMemo(response.snapshot.memo);
+        // Keep an unsaved notebook draft across other moves in the same game.
+        const savedMemo = response.snapshot.memo;
+        setMemo((draft) =>
+          !response.result || !before || draft === before.memo
+            ? savedMemo
+            : draft,
+        );
         const result = response.result;
         if (result) {
           const after = response.snapshot;
