@@ -1,7 +1,7 @@
 import { useLayoutEffect, useId, useRef } from "react";
 import BrandMark from "./BrandMark";
 import { createSkaters, FIXED_STEP, limitSpeed, moveHeld } from "./rinkPhysics";
-import { advanceRink, decodeRink, GOAL_LEFT, GOAL_RIGHT, loadRink, newRinkGame, PUCK_INDEX, RINK_STORAGE_KEY, saveRink, scoreDroppedPuck, tracePuck, type RinkGame, type ScoringTeam } from "./rinkGame";
+import { advanceRink, decodeRink, FACEOFF_DELAY_MS, faceoff, GOAL_LEFT, GOAL_RIGHT, loadRink, newRinkGame, PUCK_INDEX, RINK_STORAGE_KEY, saveRink, scoreDroppedPuck, tracePuck, type RinkGame, type ScoringTeam } from "./rinkGame";
 
 const STARTING_PLAYERS = createSkaters();
 
@@ -22,7 +22,7 @@ export default function RinkBoard() {
     const motion = matchMedia("(prefers-reduced-motion: reduce)");
     let frame = 0, previous = 0, accumulator = 0, visible = false;
     let savedAt = performance.now(), interactedAt = -Infinity;
-    let hintTimer = 0, goalTimer = 0;
+    let hintTimer = 0, goalTimer = 0, faceoffTimer = 0;
     const confetti: Animation[] = [];
     let drag: {
       index: number; pointer: number; inverse: DOMMatrix;
@@ -51,7 +51,14 @@ export default function RinkBoard() {
       }
       clearTimeout(goalTimer);
       goalTimer = window.setTimeout(() => { delete svg.dataset.goal; }, 1200);
+      clearTimeout(faceoffTimer);
+      faceoffTimer = window.setTimeout(dropPuck, FACEOFF_DELAY_MS);
       persist();
+    };
+    const dropPuck = () => {
+      if (drag?.index === PUCK_INDEX) finish(true, false);
+      faceoff(game);
+      draw(); persist(); wake();
     };
     const tracePuckMove = (x: number, y: number) => {
       const result = tracePuck(game, x, y);
@@ -241,6 +248,7 @@ export default function RinkBoard() {
     const focus = () => { wake(); scheduleHint(); };
     resetRef.current = () => {
       interact(); finish(true); stop();
+      clearTimeout(faceoffTimer);
       const fresh = newRinkGame();
       fresh.bodies.forEach((body, i) => Object.assign(bodies[i], body));
       game.score = fresh.score; game.puckInGoal = null;
@@ -267,7 +275,7 @@ export default function RinkBoard() {
     motion.addEventListener("change", reducedMotion);
     return () => {
       visible = false;
-      suspend(); observer.disconnect(); clearTimeout(goalTimer); confetti.forEach(animation => animation.cancel());
+      suspend(); observer.disconnect(); clearTimeout(goalTimer); clearTimeout(faceoffTimer); confetti.forEach(animation => animation.cancel());
       svg.removeEventListener("pointerdown", down);
       svg.removeEventListener("pointermove", move);
       svg.removeEventListener("pointerup", up);
