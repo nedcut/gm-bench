@@ -445,7 +445,7 @@
         "ledger_tool_calls": 3410
       },
       "artifact_path": "results/agentic/claude-2.1.281-claude-sonnet-5-5-panel-32x5.json",
-      "compacted_at_utc": "2026-10-14T09:17:02+00:00",
+      "compacted_at_utc": "2026-10-14T16:14:28+00:00",
       "contract": {
         "agentic_fingerprint": "07de948a4f4afbae",
         "base_benchmark_version": "sota-v5",
