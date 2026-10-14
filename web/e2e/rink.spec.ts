@@ -227,3 +227,19 @@ test("touch drag stays captured until release and cannot leave a rounded corner"
   await expect(player).toHaveAttribute("transform", "translate(75.00 205.00)");
   await client.detach();
 });
+
+test("returning a goalie home scores a puck pushed across the goal line", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const game = newRinkGame();
+  game.bodies[11].y = 110;
+  Object.assign(game.bodies[PUCK_INDEX], { x: 160, y: 85 });
+  await page.addInitScript(({ key, save }) => localStorage.setItem(key, save),
+    { key: RINK_STORAGE_KEY, save: encodeRink(game) });
+  await page.goto("/how-it-works/");
+  await page.locator('[data-player="11"]').focus();
+  await page.keyboard.press("Home");
+  await expect.poll(() => savedScore(page, "home")).toBe(1);
+  await expect(page.getByRole("status")).toContainText("Goal for Blue!");
+  expect(await puckY(page)).toBeGreaterThanOrEqual(53);
+  expect(await puckY(page)).toBeLessThanOrEqual(62);
+});

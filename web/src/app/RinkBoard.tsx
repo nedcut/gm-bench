@@ -195,7 +195,8 @@ export default function RinkBoard() {
         event.preventDefault(); interact();
         body.vx = body.vy = 0; body.locked = false;
         if (index === PUCK_INDEX) game.puckInGoal = null;
-        moveHeld(bodies, index, body.homeX, body.homeY);
+        // Returning a skater can push the puck through a goal or into a net wall.
+        moveHeld(bodies, index, body.homeX, body.homeY, index === PUCK_INDEX ? undefined : tracePuckMove);
       } else if (direction || shoot) {
         event.preventDefault(); interact();
         const [dx, dy] = direction ?? [0, body.team === "puck" ? (body.y < 235 ? -1 : 1) : body.team === "home" ? -1 : 1];
