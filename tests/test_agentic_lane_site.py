@@ -96,9 +96,11 @@ def test_current_results_publish_only_the_committed_panel_rows(tmp_path: Path) -
         "agentic:claude-2.1.281:claude-haiku-5-5",
         "agentic:claude-2.1.281:claude-sonnet-5",
         "agentic:codex-0.156.1:gpt-6-luna",
+        "agentic:codex-0.162.1:gpt-6-astra",
         "agentic:codex-0.162.1:gpt-6.1-sol",
         "agentic:cursor-2026.09.26-dd393fe:composer-2.5",
         "agentic:opencode-1.18.31:opencode-go/deepseek-v4.1-flash",
+        "agentic:opencode-2.0.27:opencode-go/deepseek-v4.1-flash",
     ]
     assert all(row["grade"] == "panel" for row in dataset["agentic_lane"])
     assert json.loads(SITE_DATASET.read_text()) == dataset

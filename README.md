@@ -43,7 +43,7 @@ five-season episode inside a tool-using harness (OpenCode, Codex CLI,
 Claude Code, or the Cursor CLI), acting through an MCP (Model Context
 Protocol) tool server. A 2.0 row is identified by model + harness + harness
 version, and 2.0 rows never enter a 1.0 table. The contract froze on
-2026-09-25, and seven panel rows have been published so far.
+2026-09-25, and nine panel rows have been published so far.
 
 - Implemented: drivers for all four harnesses, Docker container isolation
   for the harness, the private 32-seed panel frozen by digest with its seeds
@@ -55,7 +55,7 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
   repeat-noise rows (seeds 1 to 4, run twice on each of those two).
 - Panel rows on the frozen 32-seed private panel, each compared only with
   the `pick-trader` heuristic on the same seeds (249.2 there; the 1.0
-  figure of 247.1 is on the 29-seed 1.0 panel). All seven are flagged
+  figure of 247.1 is on the 29-seed 1.0 panel). All nine are flagged
   `unpinned`: the model version behind them is not pinned, so they may not
   be reproducible, and they are extra data points, not headline results.
   - Codex (`gpt-6-luna`) and Claude Code (`claude-sonnet-5`) both average
@@ -89,23 +89,40 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
     the 32 seeds. Like the `gpt-6-luna` and `claude-sonnet-5` rows, that is "can't tell"
     (this panel's smallest reliably detectable difference is about 29
     points). OpenCode reports a cost of $3.69 for the whole panel.
+  - The same model and plan on OpenCode 2.0.27 averages 244.6, 4.6 points
+    below `pick-trader` (95% interval -25.8 to +17.0, p = 0.67), ahead of
+    it on 12 of the 32 seeds: also "can't tell", and 2.5 points from the
+    1.18.31 row. It used 661K tokens per decision (cached input
+    included), and OpenCode reports $4.91 for the panel. A first 2.0.27
+    panel was discarded because OpenCode sent each first request before
+    the GM-Bench tools had connected; the driver fix (#193) played this one.
   - Codex 0.162.1 on `gpt-6.1-sol` averages 273.2, 24.0 points above
     `pick-trader` (95% interval +1.6 to +45.8, p = 0.046), and is ahead of
-    it on 23 of the 32 seeds. It is the only 2.0 row so far whose interval
-    lies above zero. The margin is thin: the lower bound is 1.6 points,
+    it on 23 of the 32 seeds. It and `gpt-6-astra` are the only 2.0 rows
+    so far whose interval lies above zero. The margin is thin: the lower bound is 1.6 points,
     the lift is smaller than this panel's smallest reliably detectable
     difference (about 32 points), and the row is unpinned. Each row's
-    p-value is its own, not adjusted for the seven rows; under a Holm
+    p-value is its own, not adjusted for the nine rows; under a Holm
     correction across them neither this p = 0.046 nor Cursor's 0.047 would
     be significant. Codex reports
     no cost; the API-equivalent estimate is $17.38 for the panel, possibly
     low because long-context requests are possible.
+  - Codex 0.162.1 on `gpt-6-astra` averages 288.4, 39.2 points above
+    `pick-trader` (95% interval +15.6 to +63.1, p = 0.0036), and is ahead
+    of it on 20 of the 32 seeds. It is the highest 2.0 mean so far and the
+    first lift above `pick-trader` larger than its panel's smallest
+    reliably detectable difference (about 34 points); it stays significant
+    under a Holm correction across the nine rows. Its interval overlaps
+    `gpt-6.1-sol`'s, and 2.0 does not test rows against each other. It used
+    123K tokens per decision (cached input included). Codex reports no
+    cost; the API-equivalent estimate is $115.04 for the panel at
+    short-context list prices, possibly low.
   - Every row ran at the harness's default reasoning effort.
 
 The frozen design is in [docs/bench_v2_spec.md](docs/bench_v2_spec.md), the
 operator guide is [docs/agentic_lane.md](docs/agentic_lane.md), and the
 [clean-clone verification guide](docs/REPRODUCING_GM_BENCH_2_0.md) checks
-the committed 2.0 artifacts without credentials or model spending. The seven
+the committed 2.0 artifacts without credentials or model spending. The nine
 rows are public; a 2.0 tag and GitHub release have not been cut.
 
 ## Play along

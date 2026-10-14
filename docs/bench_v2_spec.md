@@ -60,11 +60,11 @@ model plays through. A model row on two harnesses is two rows.
 Secondary claim, possible because the simulator and the first 29 seeds are
 shared: the same model's 1.0 one-shot score against its 2.0 agentic score,
 paired per seed. It is not free. It needs the same model to have a published
-1.0 row, and none of the seven 2.0 panel rows does (`gpt-6-luna` and
+1.0 row, and none of the nine 2.0 panel rows does (`gpt-6-luna` and
 `claude-sonnet-5` were not in the 1.0 cohort, `claude-haiku-4.5` was
 ineligible there, `composer-2.5` has only an archived row from a
-contract before `sota-v5`, and `deepseek-v4.1-flash`, `gpt-6.1-sol` and
-`claude-haiku-5-5` were not in the 1.0 cohort), so no such pairing exists yet. It would also measure more
+contract before `sota-v5`, and `deepseek-v4.1-flash`, `gpt-6.1-sol`,
+`claude-haiku-5-5` and `gpt-6-astra` were not in the 1.0 cohort), so no such pairing exists yet. It would also measure more
 than agency: see "How 2.0 differs from 1.0 beyond the interface".
 
 ## Interface
@@ -589,7 +589,7 @@ Claude averaged 14.7 min and $5.03 per episode at API prices; Claude Code
 reports no quota windows, so the driver cannot pause ahead of a limit
 there.
 
-### Realized panel noise (2026-09-27 to 2026-10-13, the seven panel rows)
+### Realized panel noise (2026-09-27 to 2026-10-13, the nine panel rows)
 
 The panel was sized on the calibration panel's paired-residual SD of 40.1,
 which gave an expected MDD of 24 to 33 points. The panels themselves were
@@ -607,6 +607,8 @@ noisier. The SD of the per-seed lift against `pick-trader` (each row's
 | OpenCode 1.18.31 · `opencode-go/deepseek-v4.1-flash` | 58.3 | about 29 |
 | Codex 0.162.1 · `gpt-6.1-sol` | 64.0 | about 32 |
 | Claude Code 2.1.281 · `claude-haiku-5-5` | 59.3 | about 29 |
+| Codex 0.162.1 · `gpt-6-astra` | 68.6 | about 34 |
+| OpenCode 2.0.27 · `opencode-go/deepseek-v4.1-flash` | 60.1 | about 30 |
 
 For the two rows near `pick-trader`, the panel cannot resolve a difference
 from it smaller than about 31 to 36 points. Both have a mean lift of −21.8
@@ -623,7 +625,13 @@ is smaller than its row's MDD of about 32 and the interval's near end is
 close to zero, so the panel resolved it with little margin. The
 `claude-haiku-5-5` lift (−46.5, 95% interval −66.7 to −26.7, sign-flip p
 0.0002) is larger than its row's MDD of about 29, and its interval ends
-well short of zero.
+well short of zero. The `gpt-6-astra` lift (+39.2, 95% interval +15.6 to
++63.1, sign-flip p 0.0036) is larger than its row's MDD of about 34, the
+first lift above `pick-trader` the panel resolves with margin; its
+interval overlaps the `gpt-6.1-sol` lift's. The OpenCode 2.0.27
+DeepSeek lift (−4.6, 95% interval −25.8 to +17.0) is "cannot tell", as
+the 1.18.31 row's is; the two rows are the same model and plan on two
+harness versions and differ by 2.5 points.
 
 ## Publication
 
@@ -743,33 +751,37 @@ changes were made under the rule at the top of this file. Each is also in
 | 2026-09-27 | Guessed draft picks are warnings, not violations (#163) | audit, post-hoc | admits the `claude-haiku-4-5` panel row |
 | 2026-09-28 | This file: freeze rule restated, stale plans marked, realized noise and the 1.0 differences added | documentation | none |
 | 2026-09-28 | Cursor CLI as a fourth harness (#165), a pre-panel prompt check for every harness (#166), and Cursor in a pinned container (#171) | driver | the `composer-2.5` panel, the only row played by the Cursor driver |
-| 2026-09-28 | OpenCode Go models through an OpenCode API key file (#172) | driver | the `deepseek-v4.1-flash` panel, the only row played with a key |
-| 2026-10-12 | OpenCode driver ported to OpenCode 2.x only, container image pins 2.0.27 (#190) | driver | none; the committed OpenCode rows are 1.18.31 and keep validating at the driver commit they record |
-| 2026-10-12 | Container isolation on a native Linux Docker Engine: the driver listens on the default bridge's gateway and maps `host.docker.internal` to it, recorded as `harness.container.host_gateway`; Docker Desktop runs unchanged (#191) | driver | the `gpt-6.1-sol` and `claude-haiku-5-5` panels, the rows played on a native engine (host gateway `172.17.0.1`); it changes how the container reaches the driver, not what the agent sees |
-| 2026-10-12 | Codex container image pins Codex CLI 0.162.1 (was 0.156.1), because the ChatGPT backend refused `gpt-6.1-sol` to 0.156.1; no driver logic changed (#192) | driver | the `gpt-6.1-sol` panel, the only row played on 0.162.1 |
-| 2026-10-13 | OpenCode 2.x invocations go through a staged launcher that waits for the MCP servers to connect before `opencode run --server` (the first model request of each invocation on 2.0.27 had no GM-Bench tools), and `opencode.json` denies Code Mode's `execute` (#193) | driver | the unpublished 2.0.27 `deepseek-v4.1-flash` panel of 2026-10-13, re-run on it; no committed row (the committed OpenCode rows are 1.18.31) |
+| 2026-09-28 | OpenCode Go models through an OpenCode API key file (#172) | driver | the two `deepseek-v4.1-flash` panels, the rows played with a key |
+| 2026-10-12 | OpenCode driver ported to OpenCode 2.x only, container image pins 2.0.27 (#190) | driver | the OpenCode 2.0.27 `deepseek-v4.1-flash` panel; the 1.18.31 rows keep validating at the driver commit they record |
+| 2026-10-12 | Container isolation on a native Linux Docker Engine: the driver listens on the default bridge's gateway and maps `host.docker.internal` to it, recorded as `harness.container.host_gateway`; Docker Desktop runs unchanged (#191) | driver | the `gpt-6.1-sol`, `claude-haiku-5-5`, `gpt-6-astra` and OpenCode 2.0.27 `deepseek-v4.1-flash` panels, the rows played on a native engine (host gateway `172.17.0.1`); it changes how the container reaches the driver, not what the agent sees |
+| 2026-10-12 | Codex container image pins Codex CLI 0.162.1 (was 0.156.1), because the ChatGPT backend refused `gpt-6.1-sol` to 0.156.1; no driver logic changed (#192) | driver | the `gpt-6.1-sol` and `gpt-6-astra` panels, the rows played on 0.162.1 |
+| 2026-10-13 | OpenCode 2.x invocations go through a staged launcher that waits for the MCP servers to connect before `opencode run --server` (the first model request of each invocation on 2.0.27 had no GM-Bench tools), and `opencode.json` denies Code Mode's `execute` (#193) | driver | the first 2.0.27 `deepseek-v4.1-flash` panel of 2026-10-13, discarded and re-run on it; the re-run is the OpenCode 2.0.27 row |
 | 2026-10-13 | Codex runs with the ChatGPT account's plugins, apps and connectors turned off (`-c features.apps=false -c features.plugins=false -c features.remote_plugin=false`, recorded as `harness_run.disabled_features`), and `scripts/audit_codex_tools.py` audits the agent's whole tool set before a Codex panel (#192) | driver | the `gpt-6-luna` panel and its smokes ran before it, with the account's connected ChatGPT apps (668 deferred tools) and installed plugins available to the agent; they recorded no tool call other than GM-Bench calls. Codex rows after it, starting with the `gpt-6.1-sol` panel, do not have the same built-ins |
 | 2026-10-13 | Claude Code runs without the account's claude.ai connectors (`ENABLE_CLAUDEAI_MCP_SERVERS=false` in the harness environment and the image's launcher; image Dockerfile hash `1781dcc2b7da` to `f0e72cbaea92`) (#192) | driver | the `claude-haiku-5-5` panel, the first Claude row played without them; the earlier Claude rows ran before it and recorded no tool outside the allowed built-ins and GM-Bench |
+| 2026-10-13 | GPT-6 Astra list prices added to `gm_bench/pricing.json`; `agentic-redact` re-derives a Codex row's API-equivalent estimate from its retained `codex-events.jsonl`, as it does a Claude Code row's | pricing, publication | the `gpt-6-astra` panel, which ran before the entry existed; its estimate was re-derived at redaction (published with the recorded `null` beside it) |
+| 2026-10-13 | OpenCode 2.x tool calls that OpenCode refused on its own input-schema check (`Invalid arguments for tool "<name>":`, before the tool runs) are counted as skipped, not as GM-Bench calls, as Codex's pre-dispatch refusals are | driver | the OpenCode 2.0.27 `deepseek-v4.1-flash` panel (episode 14 published as the recount, 166/166, with the recorded 166/167 beside it) |
 | 2026-10-13 | Claude Haiku 5.5 list prices added to `gm_bench/pricing.json`, with its 100,000-token prompt threshold as `long_context_input_tokens` | pricing | the `claude-haiku-5-5` panel, which ran before the entry existed; its API-equivalent estimate was re-derived at redaction from the retained event streams, at the up-to-100K rates (a lower bound) |
 
-The seven panel rows ran on six driver commits: `gpt-6-luna` and `claude-sonnet-5`
+The nine panel rows ran on eight driver commits: `gpt-6-luna` and `claude-sonnet-5`
 at `4d742cc` (driver digest `8a29130cb6635a4b`), `claude-haiku-4-5` at
 `21b71dc` (digest `6f1061d73d9cf5d6`), `composer-2.5` at `b3d7de7`
 (digest `32f88e038b79a532`), `deepseek-v4.1-flash` at `07de4b2`
 (digest `5b774619e069e6f5`), `gpt-6.1-sol` at `1411e2e` (digest
-`23e83ff80184fec8`), and `claude-haiku-5-5` at `3e8e600` (digest
-`5232221e589b7553`). The only driver file that differs between the
+`23e83ff80184fec8`), the OpenCode 2.0.27 `deepseek-v4.1-flash` at
+`93b1f7c`, `claude-haiku-5-5` at `3e8e600`, and `gpt-6-astra` at
+`5d56c71` (the last three all digest `5232221e589b7553`). The only driver file that differs between the
 first two is `claude.py`, and the difference is the tool-call counting
 fix in #159. It changes how Claude Code's own tool events are counted for
 the ledger-versus-harness check, not what the agent sees or how an episode
 is scored. The Cursor row is the only one played by `cursor.py`, the DeepSeek
-row the only one played with an OpenCode Go key, and the `gpt-6.1-sol` row
-the only one played on Codex 0.162.1 with the account's apps and plugins
-turned off, and the `claude-haiku-5-5` row the only Claude row played
+rows the only ones played with an OpenCode Go key (the 2.0.27 one the only
+one through the OpenCode 2.x driver and its launcher), the `gpt-6.1-sol`
+and `gpt-6-astra` rows the only ones played on Codex 0.162.1 with the
+account's apps and plugins turned off, and the `claude-haiku-5-5` row the only Claude row played
 without the account's claude.ai connectors (image
 `gm-bench-agentic-claude:2.1.281-f0e72cbaea92`); the fingerprinted files are
-the same at all six commits.
-The two Codex rows therefore differ in Codex version, container image
+the same at all eight commits.
+The `gpt-6-luna` row and the two Codex 0.162.1 rows therefore differ in Codex version, container image
 (`gm-bench-agentic-codex:0.156.1-578af3e044d4` and
 `gm-bench-agentic-codex:0.162.1-f8095c887ac3`) and the account apps and
 plugins available to the agent; they are not a like-for-like harness

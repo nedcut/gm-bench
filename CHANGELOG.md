@@ -8,7 +8,7 @@ correction becomes a new contract version rather than an edit to an old one.
 
 Work began 2026-09-20; the contract froze 2026-09-25; three panel-grade rows
 were published 2026-09-27, a fourth 2026-09-28, a fifth 2026-10-12 (its
-panel ran 2026-09-28 to 09-29), and a sixth and seventh 2026-10-13. Not yet
+panel ran 2026-09-28 to 09-29), and a sixth to ninth 2026-10-13. Not yet
 tagged. Nothing in GM-Bench 1.0 changes.
 
 Summary:
@@ -22,7 +22,7 @@ Summary:
   operated with `docs/agentic_lane.md`. The fingerprint covers
   `gm_bench/agentic/{tools,brief,episode,mcp_server}.py` and has not moved
   since the freeze.
-- **Harnesses.** The committed rows ran on OpenCode 1.18.31, Codex CLI
+- **Harnesses.** The committed rows ran on OpenCode 1.18.31 and 2.0.27, Codex CLI
   0.156.1 and 0.162.1, Claude Code 2.1.281 and the Cursor CLI
   2026.09.26-dd393fe, each from a pinned Docker image. The images now pin
   OpenCode 2.0.27 and Codex CLI 0.162.1.
@@ -62,13 +62,23 @@ Summary:
     of 32 seeds; 393K tokens per decision. No measured cost; the
     API-equivalent estimate ($4.89) is a
     lower bound, about $12 to $16 with Haiku 5.5's over-100K-token tier.
+  - Codex 0.162.1 · `gpt-6-astra`: mean 288.4, lift +39.2 (+15.6 to
+    +63.1, p = 0.0036), significant, and still so under a Holm correction
+    across the nine rows; ahead of `pick-trader` on 20 of 32 seeds; 123K
+    tokens per decision. No measured cost; the API-equivalent estimate
+    ($115.04) is a lower bound.
+  - OpenCode 2.0.27 · `opencode-go/deepseek-v4.1-flash`: mean 244.6, lift
+    −4.6 (−25.8 to +17.0, p = 0.67), not significant; ahead of
+    `pick-trader` on 12 of 32 seeds; 661K tokens per decision. OpenCode
+    reports $4.91 for the panel.
 
   The realized paired-lift SDs (62.5 and 73.4) put the panel's minimum
   detectable difference against `pick-trader` at about 31 to 36 points, so
   the two −21.8 lifts mean "cannot tell", not "on par". The `gpt-6.1-sol`
   lift (+24.0, lift SD 64.0, MDD about 32) is significant but smaller than
   that row's own MDD, and the interval's lower bound is +1.6: one unpinned
-  row on one panel, resolved with little margin.
+  row on one panel, resolved with little margin. The `gpt-6-astra` lift
+  (+39.2, lift SD 68.6, MDD about 34) is larger than its row's MDD.
 - **Smoke rows and noise probes** (public seeds, not on the site): an 8-seed
   OpenCode row on `opencode/space-bunny-free`, one five-season episode each
   on Codex and Claude Code, and a 4 seeds × 2 runs repeat-noise probe on
@@ -82,10 +92,12 @@ Summary:
   the first with OpenCode Go keys, `gpt-6.1-sol` at `1411e2e`, the
   first with Codex 0.162.1 and without the account's apps and plugins, and
   `claude-haiku-5-5` at `3e8e600`, the first Claude row without the
-  account's claude.ai connectors); a
+  account's claude.ai connectors, the OpenCode 2.0.27 `deepseek-v4.1-flash`
+  at `93b1f7c`, the first with the OpenCode 2.x launcher, and `gpt-6-astra`
+  at `5d56c71`); a
   validation rule that publishes a
   tool-call recount when it resolves a recorded mismatch (one
-  `claude-sonnet-5` episode); and
+  `claude-sonnet-5` episode and one OpenCode 2.0.27 episode); and
   a post-hoc audit rule, adopted 2026-09-27 after the Haiku panel had run,
   that reports a draft pick on a guessed prospect id as a warning, not a
   violation. The spec now states which files are frozen and which rules may
@@ -101,6 +113,60 @@ Summary:
 The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
+
+- Eighth and ninth panel-grade 2.0 rows (2026-10-13), both on the frozen
+  32-seed private panel at five seasons, container isolation, driver
+  digest `5232221e589b7553`, with a publication change and a driver fix
+  they needed:
+  - Codex 0.162.1 on `gpt-6-astra`, played 2026-10-13 from clean `main` at
+    `5d56c71` (#194; image `gm-bench-agentic-codex:0.162.1-f8095c887ac3`,
+    the account's apps, plugins and connectors off)
+    (`results/agentic/codex-0.162.1-gpt-6-astra-panel-32x5.json`). Mean
+    288.4 (SD 61.1, seed means 203.5 to 409.1), 640/640 phases closed by
+    the agent, 0 failed decisions, 58 penalized illegal moves, 0 nudges, 17
+    empty phases, no guard stops, no provider stalls, no quota pauses,
+    154.9 tool calls and 4.8 min per episode, 123K tokens per decision,
+    ledger = harness on 32/32 episodes, and only GM-Bench calls in the
+    event streams. The agent made 49 `draft` calls in 160 draft phases and
+    435 `trade` calls. Against `pick-trader` the paired lift is +39.2, 95%
+    interval +15.6 to +63.1, sign-flip p 0.0036, ahead on 20 of 32 seeds,
+    with a realized MDD of about 34; Holm-adjusted across the nine rows,
+    p is about 0.025. Codex reports no cost. `pricing.json` had no GPT-6
+    Astra entry when the panel ran; the entry was added (verified
+    2026-10-13 against its model page: $10 input, $1 cached, $12.50 cache
+    writes, $50 output, the 272K long-context tier), and `agentic-redact`
+    now re-derives a Codex row's API-equivalent estimate from its retained
+    `codex-events.jsonl`, as it already did a Claude Code row's (same
+    token-count check, recorded figures kept beside it): $115.04 for the
+    panel ($3.59 per episode), a lower bound because every episode had a
+    turn whose input grew past 272K. A ChatGPT `prolite` plan's weekly
+    window went from 11% to 49% used. Reasoning effort is the harness
+    default. The model is unpinned.
+  - OpenCode 2.0.27 on `opencode-go/deepseek-v4.1-flash`, played
+    2026-10-13 from clean `main` at `93b1f7c` (#193; image
+    `gm-bench-agentic-opencode:2.0.27-68c6a0dff0b9`), the same model and
+    OpenCode Go plan as the 1.18.31 row, and the re-run of the 2.0.27
+    panel #193 set aside
+    (`results/agentic/opencode-2.0.27-deepseek-v4.1-flash-panel-32x5.json`).
+    Mean 244.6 (SD 52.9, seed means 126.6 to 368.8), 640/640 phases closed
+    by the agent, 0 failed decisions, 33 penalized illegal moves, 0
+    nudges, 33 empty phases, no guard stops, provider stalls or
+    compactions, 160.4 tool calls and 14.6 min per episode, 661K tokens
+    per decision. The agent made 125 `draft` calls and 141 `trade` calls;
+    besides GM-Bench calls the streams hold one call to `gm-bench-scout`, a
+    tool name that does not exist. Against `pick-trader` the paired lift
+    is −4.6, 95% interval −25.8 to +17.0, sign-flip p 0.67, ahead on 12 of
+    32 seeds, realized MDD about 30: "cannot tell", 2.5 points from the
+    1.18.31 row. OpenCode reports $4.91 for the panel. In episode 14
+    OpenCode 2.0.27 refused one `trade` call on its own input-schema check
+    (`Invalid arguments for tool ...`, raised before the tool runs), so it
+    never reached GM-Bench, but the event parser counted it and the run
+    recorded 166/167. The parser now counts such a refusal under
+    `harness_tool_calls_skipped`, as it does Codex's pre-dispatch
+    refusals (a driver change; the fingerprint is unchanged), and the row
+    publishes the recount, 166/166, with the recorded figure beside it.
+    Episode 19 exited 1 with an empty stderr after the agent had closed
+    all 20 phases (a validation warning). The model is unpinned.
 
 - Seventh panel-grade 2.0 row (2026-10-13): Claude Code 2.1.281 on
   `claude-haiku-5-5`, the frozen 32-seed private panel at five seasons,

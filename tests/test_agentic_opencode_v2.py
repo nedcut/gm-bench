@@ -260,3 +260,24 @@ def test_opencode_version_reads_the_2x_wording(tmp_path: Path) -> None:
         fake.write_text(f"#!{sys.executable}\nprint({printed!r})\n")
         fake.chmod(0o755)
         assert opencode.opencode_version(str(fake)) == expected
+
+
+def test_a_call_opencode_refused_on_its_schema_is_skipped_not_counted() -> None:
+    def tool(name: str, status: str, error: str | None = None) -> str:
+        state = {"status": status, "input": {}} | ({"error": error} if error is not None else {})
+        return json.dumps({"type": "tool_use", "part": {"type": "tool", "tool": name, "state": state}})
+
+    refused = 'Invalid arguments for tool "gm-bench_trade":\n- partner_team_id: Missing key\n\nUpdate the arguments.'
+    telemetry = opencode.parse_opencode_events(
+        [
+            tool("gm-bench_trade", "error", refused),
+            # The engine's own rejection reached the server: still a call.
+            tool("gm-bench_trade", "error", '{"ok": false, "message": "partner rejects the offer"}'),
+            tool("gm-bench_get_status", "completed"),
+            # A refusal naming another tool is not this call's.
+            tool("gm-bench_draft", "error", refused),
+        ]
+    )
+    assert telemetry["harness_tool_events"] == {"gm-bench_draft": 1, "gm-bench_get_status": 1, "gm-bench_trade": 1}
+    assert telemetry["harness_tool_calls_skipped"] == {"gm-bench_trade": 1}
+    assert opencode.harness_tool_calls(telemetry) == 3

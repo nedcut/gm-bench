@@ -123,6 +123,11 @@ const ROW_CAVEATS: Record<string, string> = {
     "Ran with the ChatGPT account's connected apps and plugins available: Codex exposed about 668 extra " +
     "tools (Gmail, GitHub, Google Drive and others). The row records no tool call other than GM-Bench calls. " +
     "Codex runs since 2026-10-13 turn these off.",
+  "agentic:codex-0.162.1:gpt-6-astra":
+    "Ran with the ChatGPT account's apps, plugins and connectors turned off. Codex reports no cost; " +
+    "gpt-6-astra had no pricing.json entry when the panel ran, so the estimate was re-derived at redaction " +
+    "from the retained event streams, at short-context list prices. Every episode had a turn whose input " +
+    "passed the 272K long-context threshold, so it may be low. Played on driver commit 5d56c71.",
   "agentic:codex-0.162.1:gpt-6.1-sol":
     "Ran with the ChatGPT account's apps, plugins and connectors turned off, unlike the gpt-6-luna row. " +
     "Codex reports no cost; the estimate is at short-context list prices and may be low. The agent made 36 " +
@@ -136,6 +141,12 @@ const ROW_CAVEATS: Record<string, string> = {
     "Run on an OpenCode Go subscription. The cost shown is OpenCode's own figure; Go counts usage against " +
     "the plan's limits rather than billing per token, and there is no API-equivalent estimate. Played on " +
     "driver commit 07de4b2, the first with OpenCode Go keys.",
+  "agentic:opencode-2.0.27:opencode-go/deepseek-v4.1-flash":
+    "The same model and OpenCode Go plan as the 1.18.31 row, on OpenCode 2.0.27. The cost shown is " +
+    "OpenCode's own figure, not a per-token bill. A first 2.0.27 panel was discarded: OpenCode sent the " +
+    "first request before the GM-Bench tools had connected, fixed in driver commit 93b1f7c, which played " +
+    "this one. One episode's tool-call count is a recount: OpenCode refused one trade call on its own " +
+    "schema check before sending it, so it never reached GM-Bench; counted as 166 of 166.",
 };
 
 function modelRow(row: AgenticLaneRow): ModelRow {
@@ -200,7 +211,14 @@ export function botRows(data: Leaderboard): BotRow[] {
 }
 
 export function modelRows(data: Leaderboard): ModelRow[] {
-  return (data.agentic_lane ?? []).map(modelRow);
+  const rows = (data.agentic_lane ?? []).map(modelRow);
+  // The same model in two versions of one harness: name the version so the two read apart.
+  const key = (row: ModelRow) => `${row.harnessKey} ${row.model}`;
+  return rows.map((row) => {
+    if (rows.filter((other) => key(other) === key(row)).length < 2) return row;
+    const named = `${row.model} (${row.source.harness.version})`;
+    return { ...row, label: named, model: named };
+  });
 }
 
 export function pickTraderScore(data: Leaderboard): number | null {

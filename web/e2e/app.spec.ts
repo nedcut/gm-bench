@@ -41,7 +41,12 @@ test("standings lists every 2.0 row by score with pick-trader, and nothing from 
     ),
   );
   const names = await page.locator(".standings tbody .name").allTextContents();
-  for (const row of rows) expect(names).toContain(row.model.split("/").at(-1));
+  // A model on two versions of one harness is named with the version, once per row.
+  for (const row of rows) {
+    const model = row.model.split("/").at(-1)!;
+    const twins = rows.filter((other) => other.model === row.model && other.harness.name === row.harness.name);
+    expect(names).toContain(twins.length > 1 ? `${model} (${row.harness.version})` : model);
+  }
   expect(names).toContain("pick-trader");
   expect(names).not.toContain("gemini-3.7-flash");
   const scores = (await page.locator(".standings tbody .score").allTextContents()).map(Number);

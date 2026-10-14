@@ -494,6 +494,12 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
     Tools Inc.). ``max_output_tokens_per_call`` is likewise per step, reasoning
     included.
 
+    A tool part that ended ``error`` with OpenCode 2's own schema refusal
+    (``Invalid arguments for tool "<name>":``, raised when the input does not
+    decode against the tool's schema, before ``execute`` runs) never reached
+    the MCP server; it is counted in ``harness_tool_calls_skipped``, not as a
+    tool event, as Codex's pre-dispatch refusals are.
+
     OpenCode 2's ``run`` stops printing step events once the session goes
     idle (``finalizing`` in ``packages/cli/src/run/noninteractive.ts``), so
     the last step of each invocation usually has no ``step_finish`` and the
@@ -508,6 +514,7 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
     steps = 0
     max_output = 0
     tool_events: dict[str, int] = {}
+    skipped: dict[str, int] = {}
     compactions = 0
     errors = 0
     session_id = None
@@ -542,7 +549,10 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
                 saw_cost = True
         elif kind == "tool" or part.get("type") == "tool":
             name = str(part.get("tool") or event.get("tool") or "unknown")
-            tool_events[name] = tool_events.get(name, 0) + 1
+            if _refused_before_dispatch(part, name):
+                skipped[name] = skipped.get(name, 0) + 1
+            else:
+                tool_events[name] = tool_events.get(name, 0) + 1
         elif "compact" in kind or "compact" in str(part.get("type", "")):
             compactions += 1
         elif kind == "error":
@@ -558,11 +568,23 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
         "max_output_tokens_per_call": max_output,
         "cost_usd": round(cost, 6) if saw_cost else None,
         "harness_tool_events": dict(sorted(tool_events.items())),
+        "harness_tool_calls_skipped": dict(sorted(skipped.items())),
         "compactions": compactions,
         "errors": errors,
         "session_id": session_id,
         "event_types": dict(sorted(event_types.items())),
     }
+
+
+def _refused_before_dispatch(part: dict[str, Any], name: str) -> bool:
+    """A tool part OpenCode 2 failed on its input schema (``ip`` in 2.0.27's tool runtime) before calling the tool."""
+    state = part.get("state") if isinstance(part.get("state"), dict) else {}
+    error = state.get("error")
+    return (
+        state.get("status") == "error"
+        and isinstance(error, str)
+        and error.startswith(f'Invalid arguments for tool "{name}":')
+    )
 
 
 # What ``usage.harness.token_source`` says the token counts came from.

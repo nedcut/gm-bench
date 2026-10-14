@@ -1,7 +1,7 @@
 # GM-Bench 2.0: a model in its own harness (DRAFT, not published)
 
 > **Draft.** Updated 2026-10-13 for the owner to review before final
-> publication. Seven panel rows are public under `results/agentic/`; a 2.0
+> publication. Nine panel rows are public under `results/agentic/`; a 2.0
 > tag and GitHub release have not been cut. Numbers and cost disclosures
 > below reflect the committed artifacts, including the merged release fixes.
 
@@ -15,7 +15,7 @@ are the ones 1.0 used.
 
 ## What ran
 
-Seven rows on the frozen 32-seed private panel, five seasons, each harness in
+Nine rows on the frozen 32-seed private panel, five seasons, each harness in
 a firewalled Docker container:
 
 | row | mean | vs `pick-trader` (95% interval) | tokens / decision | cost, whole panel |
@@ -27,6 +27,8 @@ a firewalled Docker container:
 | OpenCode 1.18.31 · `opencode-go/deepseek-v4.1-flash` | 247.1 | −2.0 (−22.4 to +18.0) | 618K | $3.69 (OpenCode's figure) |
 | Codex 0.162.1 · `gpt-6.1-sol` | 273.2 | +24.0 (+1.6 to +45.8) | 137K | $17.38 est., lower bound |
 | Claude Code 2.1.281 · `claude-haiku-5-5` | 202.7 | −46.5 (−66.7 to −26.7) | 393K | $4.89 est., lower bound |
+| Codex 0.162.1 · `gpt-6-astra` | 288.4 | +39.2 (+15.6 to +63.1) | 123K | $115.04 est., lower bound |
+| OpenCode 2.0.27 · `opencode-go/deepseek-v4.1-flash` | 244.6 | −4.6 (−25.8 to +17.0) | 661K | $4.91 (OpenCode's figure) |
 
 Every row is in the agentic execution lane, inside the harness it names. A
 decision is one phase (20 per episode), and its tokens are everything the
@@ -34,7 +36,7 @@ harness sent and received in it, cached input included. "est." is an
 API-equivalent estimate, not a bill (see Cost disclosures).
 
 `pick-trader`, the scripted reference policy, averages 249.2 on these seeds.
-All seven rows closed all 640 phases themselves. All seven are flagged
+All nine rows closed all 640 phases themselves. All nine are flagged
 `unpinned`: the served model version is not pinned, so they may not be
 reproducible. Under the frozen eligibility rule they are extra data points,
 not headline results.
@@ -60,7 +62,15 @@ detectable difference is about 25 points.
 DeepSeek V4.1 Flash on OpenCode lands closest to the scripted bar: a
 paired lift of −2.0 with an interval from −22.4 to +18.0 (p = 0.84), ahead
 of `pick-trader` on 15 of 32 seeds. With a realized minimum detectable
-difference of about 29 points, that is "cannot tell", not "on par".
+difference of about 29 points, that is "cannot tell", not "on par". The same model
+and OpenCode Go plan on OpenCode 2.0.27 gives the same answer: −4.6,
+interval −25.8 to +17.0 (p = 0.67), ahead on 12 of 32 seeds, realized
+minimum detectable difference about 30. The two harness versions are two
+rows, and the 2.5-point gap between them is well inside either interval.
+A first 2.0.27 panel was discarded, unpublished: OpenCode 2.0.27 sent the
+first request of every invocation before the GM-Bench tools had
+connected, and the agent spent its opening steps probing for them. The
+driver fix (#193) played the published panel.
 
 `gpt-6.1-sol` on Codex 0.162.1 is the first 2.0 row whose interval lies
 above `pick-trader`: a paired lift of +24.0, 95% interval +1.6 to +45.8,
@@ -68,17 +78,26 @@ sign-flip p 0.046, ahead on 23 of 32 seeds. The evidence is marginal in
 the same way as Cursor's, in the other direction: the lower bound is 1.6
 points, the lift is below the row's realized minimum detectable difference
 of about 32, and the row is one unpinned run on one panel. Each row's
-p-value is its own, not adjusted for the seven rows; under a Holm correction
+p-value is its own, not adjusted for the nine rows; under a Holm correction
 across them neither this 0.046 nor Cursor's 0.047 would be significant.
 The agent made
-36 `draft` calls across the 160 draft phases and 518 `trade` calls. These
-are separate contrasts against the scripted reference, not tests between
-model or harness rows.
+36 `draft` calls across the 160 draft phases and 518 `trade` calls.
+
+`gpt-6-astra`, on the same Codex 0.162.1 setup, has the highest 2.0 mean so
+far and the clearest result above the scripted bar: a paired lift of
++39.2, 95% interval +15.6 to +63.1, sign-flip p 0.0036, ahead on 20 of 32
+seeds. The lift is larger than its realized minimum detectable difference
+of about 34, and it stays significant under a Holm correction across the
+nine rows (adjusted p about 0.025). It is still one unpinned run on one
+panel, and its interval overlaps `gpt-6.1-sol`'s. It used 123K tokens per
+decision, the fewest of any row, and made 49 `draft` calls and 435
+`trade` calls. These are separate contrasts against the scripted
+reference, not tests between model or harness rows.
 
 ## Cost disclosures
 
-Six panel rows have `summary.usage.cost_usd: null` and zero decisions
-with measured cost. The OpenCode row carries OpenCode's own cost figure.
+Seven panel rows have `summary.usage.cost_usd: null` and zero decisions
+with measured cost. The two OpenCode rows carry OpenCode's own cost figure.
 Subscription quota use is not a per-token bill.
 
 | row | API-equivalent estimate for the whole 32-episode panel |
@@ -90,10 +109,12 @@ Subscription quota use is not a per-token bill.
 | OpenCode · `deepseek-v4.1-flash` | $3.69 as OpenCode reports it, on an OpenCode Go subscription; no API-equivalent estimate |
 | Codex · `gpt-6.1-sol` | $17.38, a lower bound at short-context list prices |
 | Claude Code · `claude-haiku-5-5` | $4.89, a lower bound at the up-to-100K-token list prices; about $12 to $16 with the over-100K tier |
+| Codex · `gpt-6-astra` | $115.04, a lower bound at short-context list prices; re-derived at redaction because the model had no price entry when the panel ran |
+| OpenCode 2.0.27 · `deepseek-v4.1-flash` | $4.91 as OpenCode reports it, on an OpenCode Go subscription; no API-equivalent estimate |
 
 These estimates come from recorded token usage and the repository's dated
 price entries; they do not measure the subscription's bill or establish
-cost-efficiency comparisons. Both Codex artifacts flag possible long-context
+cost-efficiency comparisons. All three Codex artifacts flag possible long-context
 requests, whose higher rates the estimate cannot reconstruct. The Haiku 5.5
 artifact flags the same: Haiku 5.5 prices a request whose prompt is over
 100,000 tokens at 5x on every category, 1,037 of the panel's 2,837
@@ -118,8 +139,9 @@ in the [operator guide](../agentic_lane.md#publishing-a-row).
   through ToolSearch; Codex and Cursor keep their built-in tools. The
   `gpt-6-luna` row ran with the ChatGPT account's connected apps and
   installed plugins available to the agent and recorded no call to them;
-  the `gpt-6.1-sol` row ran with them turned off, on Codex 0.162.1 rather
-  than 0.156.1, so the two Codex rows do not share a harness setup. Cursor's
+  the `gpt-6.1-sol` and `gpt-6-astra` rows ran with them turned off, on
+  Codex 0.162.1 rather than 0.156.1, so `gpt-6-luna` does not share their
+  harness setup. Cursor's
   servers add seven default User Rules; the prompt audit found only those
   on every panel episode. Cursor's reasoning effort and compactions are
   unmeasured. The container can reach the public internet. The committed
