@@ -59,7 +59,8 @@ Summary:
     first 2.0 row whose interval lies above zero. No measured cost.
   - Claude Code 2.1.281 · `claude-haiku-5-5`: mean 202.7, lift −46.5
     (−66.7 to −26.7, p = 0.0002), significant; ahead of `pick-trader` on 9
-    of 32 seeds. No measured cost; the API-equivalent estimate ($4.89) is a
+    of 32 seeds; 393K tokens per decision. No measured cost; the
+    API-equivalent estimate ($4.89) is a
     lower bound, about $12 to $16 with Haiku 5.5's over-100K-token tier.
 
   The realized paired-lift SDs (62.5 and 73.4) put the panel's minimum
@@ -111,7 +112,8 @@ dated; the summary above is the current state.
   Mean 202.7 (SD 47.3, seed means 116.1 to 293.0), 640/640 phases closed
   by the agent, 0 failed decisions, 44 penalized illegal moves, 1 nudge,
   43 empty phases, no guard stops, no provider stalls, no quota pauses,
-  31 compactions, 132.3 GM-Bench tool calls and 6.4 min per episode,
+  31 compactions, 393K tokens per decision (cached input included),
+  132.3 GM-Bench tool calls and 6.4 min per episode,
   ledger = harness on 32/32 episodes. Besides GM-Bench calls the agent made
   only 146 ToolSearch calls (Claude Code loads the deferred GM-Bench tool
   schemas through it). The agent made 151 `draft` calls in 160 draft

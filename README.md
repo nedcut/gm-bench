@@ -71,7 +71,8 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
     reported as warnings, because prospect ids carry no hidden information.
   - Claude Code on `claude-haiku-5-5` averages 202.7, 46.5 points below
     `pick-trader` (95% interval -66.7 to -26.7, p = 0.0002), and is ahead
-    of it on 9 of the 32 seeds, a significant gap. The API-equivalent estimate is $4.89 for
+    of it on 9 of the 32 seeds, a significant gap. It used 393K tokens per
+    decision (one phase; cached input included). The API-equivalent estimate is $4.89 for
     the panel, a lower bound: Haiku 5.5 charges 5x for a request whose
     prompt is over 100,000 tokens, 1,037 of the 2,837 requests were, and
     pricing them at that tier puts the panel at about $12 to $16.

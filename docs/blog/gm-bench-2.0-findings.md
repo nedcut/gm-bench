@@ -18,15 +18,20 @@ are the ones 1.0 used.
 Seven rows on the frozen 32-seed private panel, five seasons, each harness in
 a firewalled Docker container:
 
-| row | mean | vs `pick-trader` (95% interval) |
-|---|---|---|
-| Codex 0.156.1 · `gpt-6-luna` | 227.4 | −21.8 (−43.3 to +0.1) |
-| Claude Code 2.1.281 · `claude-sonnet-5` | 227.4 | −21.8 (−47.2 to +3.5) |
-| Claude Code 2.1.281 · `claude-haiku-4-5` | 130.1 | −119.1 (−132.8 to −104.5) |
-| Cursor 2026.09.26-dd393fe · `composer-2.5` | 230.6 | −18.6 (−35.6 to −1.4) |
-| OpenCode 1.18.31 · `opencode-go/deepseek-v4.1-flash` | 247.1 | −2.0 (−22.4 to +18.0) |
-| Codex 0.162.1 · `gpt-6.1-sol` | 273.2 | +24.0 (+1.6 to +45.8) |
-| Claude Code 2.1.281 · `claude-haiku-5-5` | 202.7 | −46.5 (−66.7 to −26.7) |
+| row | mean | vs `pick-trader` (95% interval) | tokens / decision | cost, whole panel |
+|---|---|---|---|---|
+| Codex 0.156.1 · `gpt-6-luna` | 227.4 | −21.8 (−43.3 to +0.1) | 518K | $4.54 est., lower bound |
+| Claude Code 2.1.281 · `claude-sonnet-5` | 227.4 | −21.8 (−47.2 to +3.5) | 843K | $157.38 est. |
+| Claude Code 2.1.281 · `claude-haiku-4-5` | 130.1 | −119.1 (−132.8 to −104.5) | 252K | $27.71 est. |
+| Cursor 2026.09.26-dd393fe · `composer-2.5` | 230.6 | −18.6 (−35.6 to −1.4) | 255K | unmeasured |
+| OpenCode 1.18.31 · `opencode-go/deepseek-v4.1-flash` | 247.1 | −2.0 (−22.4 to +18.0) | 618K | $3.69 (OpenCode's figure) |
+| Codex 0.162.1 · `gpt-6.1-sol` | 273.2 | +24.0 (+1.6 to +45.8) | 137K | $17.38 est., lower bound |
+| Claude Code 2.1.281 · `claude-haiku-5-5` | 202.7 | −46.5 (−66.7 to −26.7) | 393K | $4.89 est., lower bound |
+
+Every row is in the agentic execution lane, inside the harness it names. A
+decision is one phase (20 per episode), and its tokens are everything the
+harness sent and received in it, cached input included. "est." is an
+API-equivalent estimate, not a bill (see Cost disclosures).
 
 `pick-trader`, the scripted reference policy, averages 249.2 on these seeds.
 All seven rows closed all 640 phases themselves. All seven are flagged
