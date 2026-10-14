@@ -8500,7 +8500,7 @@
     "reason": "container isolation: only the scratch directory and a fresh home volume reach the harness"
   },
   "publication": {
-    "compacted_at_utc": "2026-10-14T09:17:02+00:00",
+    "compacted_at_utc": "2026-10-14T16:14:28+00:00",
     "format": "gm-bench-agentic-summary-v1",
     "raw_artifact_sha256": "a1f927753b765272e4a3ba70d95d4013baa4b60fde6d30ea5b06dd7673d73cee",
     "traces_included": false
@@ -8776,7 +8776,7 @@
     "warnings": [
       "episode 3: audit: 1 rejected move(s) on unseen ids",
       "episode 19: audit: 1 successful read(s) on guessed ids",
-      "episode 19: audit: 1 free-agent signing(s) on guessed player ids (blind signings: player ids carry no hidden information)"
+      "episode 19: audit: 1 free-agent signing(s) on guessed player ids (blind signings permitted by the 2026-10-14 audit policy; leakage is not ruled out)"
     ]
   }
 }
