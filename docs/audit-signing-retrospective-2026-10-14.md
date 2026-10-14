@@ -57,7 +57,9 @@ this amendment.
 
 The interrupted Muse Spark 1.3 directory has no completed `run.json`: all 18
 retained ledgers (including the unfinished episode) were audited as orphans.
-All pass both ID audits, with no findings or changed counts. This is **not**
+All pass both ID audits. There is one unchanged suspicious finding (orphan
+index 12), with no violations, guessed reads, guessed drafts or guessed
+signings under either rule. No statuses or counts change. This is **not**
 full run validation or publication eligibility for Muse. There are 269 total
 retained raw ledgers covered. No excluded/incomplete run was filtered out.
 
