@@ -3,6 +3,7 @@ import type { Leaderboard } from "../types";
 import { routes } from "../site";
 import { num, pickTraderScore } from "../v2";
 import walkthroughData from "../data/walkthrough.json";
+import RinkSidebar from "./RinkSidebar";
 
 /* Built by scripts/build_walkthrough.py from season 1 of the public pick-trader
    demo game (web/public/replay/trajectory-demo.json). */
@@ -579,37 +580,40 @@ export default function HowItWorks({ data }: { data: Leaderboard }) {
   );
 
   return (
-    <article className="page how">
-      <h1>How it works</h1>
-      <p className="lede">
-        One season on the bench, decision by decision: what the GM is told, what it can do, and what the bar every model has to beat actually
-        did.
-      </p>
-      <ol className="how-steps" aria-label="Walkthrough steps">
-        {STEP_TITLES.map((title, i) => (
-          <li key={title}>
-            <button type="button" aria-current={i === index ? "step" : undefined} className={i < index ? "is-done" : undefined} onClick={() => go(i)}>
-              <span>{i === 0 ? "0" : i === last ? "★" : i}</span>
-              {title}
-            </button>
-          </li>
-        ))}
-      </ol>
-      <div id="how-step" className="how-step" tabIndex={-1} aria-live="polite">
-        <h2>
-          {step ? (
-            <>
-              <span className="muted">Season 1 ·</span> {PHASE_LABEL[step.phase]}
-            </>
-          ) : (
-            STEP_TITLES[index]
-          )}
-        </h2>
-        {index === 0 && <BriefStep />}
-        {step && <PhaseStep step={step} />}
-        {index === last && <RecapStep data={data} />}
-      </div>
-      {nav}
-    </article>
+    <div className="rink-layout">
+      <article className="page how">
+        <h1>How it works</h1>
+        <p className="lede">
+          One season on the bench, decision by decision: what the GM is told, what it can do, and what the bar every model has to beat actually
+          did.
+        </p>
+        <ol className="how-steps" aria-label="Walkthrough steps">
+          {STEP_TITLES.map((title, i) => (
+            <li key={title}>
+              <button type="button" aria-current={i === index ? "step" : undefined} className={i < index ? "is-done" : undefined} onClick={() => go(i)}>
+                <span>{i === 0 ? "0" : i === last ? "★" : i}</span>
+                {title}
+              </button>
+            </li>
+          ))}
+        </ol>
+        <div id="how-step" className="how-step" tabIndex={-1} aria-live="polite">
+          <h2>
+            {step ? (
+              <>
+                <span className="muted">Season 1 ·</span> {PHASE_LABEL[step.phase]}
+              </>
+            ) : (
+              STEP_TITLES[index]
+            )}
+          </h2>
+          {index === 0 && <BriefStep />}
+          {step && <PhaseStep step={step} />}
+          {index === last && <RecapStep data={data} />}
+        </div>
+        {nav}
+      </article>
+      <RinkSidebar step={index} />
+    </div>
   );
 }
