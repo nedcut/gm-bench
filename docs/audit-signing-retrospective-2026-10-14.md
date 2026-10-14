@@ -70,9 +70,12 @@ pass remain disclosed. The artifact itself validates successfully, but compact
 validation is **not** a raw-ledger re-audit.
 
 The local directory labelled Sonnet 5.5 instead has mean **209.510**, 56 illegal
-actions, no guessed signings, and manifest SHA-256
+actions, no guessed signings, and raw-byte manifest SHA-256
 `23397ed6d24af58422ce329e7bf35dec7af2aae7b09713f1bfba06f11aefc49e`.
-The published artifact binds to
+The publication validator hashes canonical JSON rather than file bytes. The
+local canonical manifest SHA-256 is
+`dc7184108d0c556af8f500a7b54b53435c95a404c704fc64882c86051d141aed`;
+the published artifact binds to canonical SHA-256
 `a1f927753b765272e4a3ba70d95d4013baa4b60fde6d30ea5b06dd7673d73cee`.
 `agentic-validate --raw` explicitly rejects that binding. The retained local
 run is counted as separate evidence, not substituted for the published run.
@@ -81,6 +84,13 @@ the local raw archive, Documents/code, Documents/Codex, Downloads or /tmp.
 Why the two runs differ is not established; no chronology or selection motive
 is inferred. Owner review should locate the matching raw evidence and explain
 the distinct run before relying on independent provenance confirmation.
+
+Canonical manifest hashes match 12 committed artifacts: Space Bunny smoke,
+Haiku 4.5 panel, Sonnet 5 panel, Luna panel, Composer panel, OpenCode Go 1.18.31
+DeepSeek panel, the four Sonnet/Luna probes and the two Sonnet/Luna smokes.
+This manifest binding check supplements the raw re-audit; it is not a claim of
+complete trace authenticity. Haiku 4.5 smoke and excluded Grok have no committed
+artifact binding in this checkout.
 
 Other published panel raw evidence absent from the local archive: GPT-6.1 Sol,
 GPT-6 Astra, Haiku 5.5, and OpenCode 2.0.27 DeepSeek v4.1 Flash (including the
