@@ -16,6 +16,7 @@ export default defineConfig({
         how: resolve(__dirname, 'how-it-works/index.html'),
         cost: resolve(__dirname, 'cost/index.html'),
         tools: resolve(__dirname, 'tools/index.html'),
+        play: resolve(__dirname, 'play/index.html'),
         replays: resolve(__dirname, 'replays/index.html'),
         method: resolve(__dirname, 'method/index.html'),
         v1: resolve(__dirname, 'v1/index.html'),

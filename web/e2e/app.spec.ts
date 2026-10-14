@@ -20,7 +20,7 @@ function verdict(set: Row[], clear: string, above: string, none: string): string
   const a = set.filter((row) => row.mean_score > bar).length;
   return c > 0 ? clear.replace("N", String(c)) : a > 0 ? above.replace("N", String(a)) : none;
 }
-const PAGES = ["/", "/how-it-works/", "/cost/", "/tools/", "/replays/", "/method/", "/v1/"];
+const PAGES = ["/", "/how-it-works/", "/cost/", "/tools/", "/replays/", "/play/", "/method/", "/v1/"];
 
 async function noErrors(page: Page) {
   const errors: string[] = [];

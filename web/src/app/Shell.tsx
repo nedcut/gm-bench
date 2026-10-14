@@ -10,6 +10,7 @@ const TABS: { page: PageKey; label: string; short?: string }[] = [
   { page: "cost", label: "Score vs cost", short: "Cost" },
   { page: "tools", label: "Tool use", short: "Tools" },
   { page: "replays", label: "Replays" },
+  { page: "play", label: "Play" },
 ];
 
 function ThemeToggle() {
