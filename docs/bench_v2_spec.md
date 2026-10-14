@@ -60,11 +60,11 @@ model plays through. A model row on two harnesses is two rows.
 Secondary claim, possible because the simulator and the first 29 seeds are
 shared: the same model's 1.0 one-shot score against its 2.0 agentic score,
 paired per seed. It is not free. It needs the same model to have a published
-1.0 row, and none of the ten 2.0 panel rows does (`gpt-6-luna` and
+1.0 row, and none of the eleven 2.0 panel rows does (`gpt-6-luna` and
 `claude-sonnet-5` were not in the 1.0 cohort, `claude-haiku-4.5` was
 ineligible there, `composer-2.5` has only an archived row from a
 contract before `sota-v5`, and `deepseek-v4.1-flash`, `gpt-6.1-sol`,
-`claude-haiku-5-5`, `gpt-6-astra` and `claude-sonnet-5-5` were not in the 1.0 cohort), so no such pairing exists yet. It would also measure more
+`claude-haiku-5-5`, `gpt-6-astra`, `claude-sonnet-5-5` and `claude-opus-5-5` were not in the 1.0 cohort), so no such pairing exists yet. It would also measure more
 than agency: see "How 2.0 differs from 1.0 beyond the interface".
 
 ## Interface
@@ -622,9 +622,10 @@ and about 0.3 of the weekly window per episode; the driver's quota pause
 fired live in run B (96% used, waited 39 min for the reset, then went on).
 Claude averaged 14.7 min and $5.03 per episode at API prices; Claude Code
 reports no quota windows, so the driver cannot pause ahead of a limit
-there.
+there. (Later Claude Code 2.1.281 panels show it does stream the window
+once it is nearly spent: the `claude-opus-5-5` panel paused once at 98%.)
 
-### Realized panel noise (2026-09-27 to 2026-10-14, the ten panel rows)
+### Realized panel noise (2026-09-27 to 2026-10-14, the eleven panel rows)
 
 The panel was sized on the calibration panel's paired-residual SD of 40.1,
 which gave an expected MDD of 24 to 33 points. The panels themselves were
@@ -645,6 +646,7 @@ noisier. The SD of the per-seed lift against `pick-trader` (each row's
 | Codex 0.162.1 · `gpt-6-astra` | 68.6 | about 34 |
 | OpenCode 2.0.27 · `opencode-go/deepseek-v4.1-flash` | 60.1 | about 30 |
 | Claude Code 2.1.281 · `claude-sonnet-5-5` | 67.5 | about 33 |
+| Claude Code 2.1.281 · `claude-opus-5-5` | 68.8 | about 34 |
 
 For the two rows near `pick-trader`, the panel cannot resolve a difference
 from it smaller than about 31 to 36 points. Both have a mean lift of −21.8
@@ -669,8 +671,11 @@ DeepSeek lift (−4.6, 95% interval −25.8 to +17.0) is "cannot tell", as
 the 1.18.31 row's is; the two rows are the same model and plan on two
 harness versions and differ by 2.5 points. The `claude-sonnet-5-5` lift
 (−32.1, 95% interval −56.3 to −9.7, sign-flip p 0.012) is about the size
-of its row's MDD of about 33, and Holm-adjusted across the ten rows its p
-is about 0.085, so the panel resolves it with little margin.
+of its row's MDD of about 33, and Holm-adjusted across the eleven rows its p
+is about 0.085, so the panel resolves it with little margin. The
+`claude-opus-5-5` lift (−46.7, 95% interval −69.6 to −21.3, sign-flip p
+0.001) is larger than its row's MDD of about 34, and Holm-adjusted across
+the eleven rows its p is about 0.009.
 
 ## Publication
 
@@ -792,7 +797,7 @@ changes were made under the rule at the top of this file. Each is also in
 | 2026-09-28 | Cursor CLI as a fourth harness (#165), a pre-panel prompt check for every harness (#166), and Cursor in a pinned container (#171) | driver | the `composer-2.5` panel, the only row played by the Cursor driver |
 | 2026-09-28 | OpenCode Go models through an OpenCode API key file (#172) | driver | the two `deepseek-v4.1-flash` panels, the rows played with a key |
 | 2026-10-12 | OpenCode driver ported to OpenCode 2.x only, container image pins 2.0.27 (#190) | driver | the OpenCode 2.0.27 `deepseek-v4.1-flash` panel; the 1.18.31 rows keep validating at the driver commit they record |
-| 2026-10-12 | Container isolation on a native Linux Docker Engine: the driver listens on the default bridge's gateway and maps `host.docker.internal` to it, recorded as `harness.container.host_gateway`; Docker Desktop runs unchanged (#191) | driver | the `gpt-6.1-sol`, `claude-haiku-5-5`, `gpt-6-astra` and OpenCode 2.0.27 `deepseek-v4.1-flash` panels, the rows played on a native engine (host gateway `172.17.0.1`); it changes how the container reaches the driver, not what the agent sees |
+| 2026-10-12 | Container isolation on a native Linux Docker Engine: the driver listens on the default bridge's gateway and maps `host.docker.internal` to it, recorded as `harness.container.host_gateway`; Docker Desktop runs unchanged (#191) | driver | the `gpt-6.1-sol`, `claude-haiku-5-5`, `gpt-6-astra`, OpenCode 2.0.27 `deepseek-v4.1-flash`, `claude-sonnet-5-5` and `claude-opus-5-5` panels, the rows played on a native engine (host gateway `172.17.0.1`); it changes how the container reaches the driver, not what the agent sees |
 | 2026-10-12 | Codex container image pins Codex CLI 0.162.1 (was 0.156.1), because the ChatGPT backend refused `gpt-6.1-sol` to 0.156.1; no driver logic changed (#192) | driver | the `gpt-6.1-sol` and `gpt-6-astra` panels, the rows played on 0.162.1 |
 | 2026-10-13 | OpenCode 2.x invocations go through a staged launcher that waits for the MCP servers to connect before `opencode run --server` (the first model request of each invocation on 2.0.27 had no GM-Bench tools), and `opencode.json` denies Code Mode's `execute` (#193) | driver | the first 2.0.27 `deepseek-v4.1-flash` panel of 2026-10-13, discarded and re-run on it; the re-run is the OpenCode 2.0.27 row |
 | 2026-10-13 | Codex runs with the ChatGPT account's plugins, apps and connectors turned off (`-c features.apps=false -c features.plugins=false -c features.remote_plugin=false`, recorded as `harness_run.disabled_features`), and `scripts/audit_codex_tools.py` audits the agent's whole tool set before a Codex panel (#192) | driver | the `gpt-6-luna` panel and its smokes ran before it, with the account's connected ChatGPT apps (668 deferred tools) and installed plugins available to the agent; they recorded no tool call other than GM-Bench calls. Codex rows after it, starting with the `gpt-6.1-sol` panel, do not have the same built-ins |
@@ -802,8 +807,9 @@ changes were made under the rule at the top of this file. Each is also in
 | 2026-10-13 | Claude Haiku 5.5 list prices added to `gm_bench/pricing.json`, with its 100,000-token prompt threshold as `long_context_input_tokens` | pricing | the `claude-haiku-5-5` panel, which ran before the entry existed; its API-equivalent estimate was re-derived at redaction from the retained event streams, at the up-to-100K rates (a lower bound) |
 | 2026-10-13 | Claude Sonnet 5.5 list prices added to `gm_bench/pricing.json` before its first run; without its own key the id resolved to the `claude-sonnet-5` prefix (#197) | pricing | the `claude-sonnet-5-5` smoke and panel, which ran on it |
 | 2026-10-14 | Guessed free-agent signings are warnings, not violations (#198) | audit, post-hoc | model-independent across all seasons; Sonnet 5.5 failed pre-signing/passes revised; retrospective coverage linked above |
+| 2026-10-14 | Claude Opus 5.5 list prices added to `gm_bench/pricing.json` before its first run; without its own key the id matched no entry (`73c949b`) | pricing | the `claude-opus-5-5` smoke and panel, which ran on it |
 
-The ten panel rows ran on nine driver commits: `gpt-6-luna` and `claude-sonnet-5`
+The eleven panel rows ran on ten driver commits: `gpt-6-luna` and `claude-sonnet-5`
 at `4d742cc` (driver digest `8a29130cb6635a4b`), `claude-haiku-4-5` at
 `21b71dc` (digest `6f1061d73d9cf5d6`), `composer-2.5` at `b3d7de7`
 (digest `32f88e038b79a532`), `deepseek-v4.1-flash` at `07de4b2`
@@ -811,7 +817,10 @@ at `4d742cc` (driver digest `8a29130cb6635a4b`), `claude-haiku-4-5` at
 `23e83ff80184fec8`), the OpenCode 2.0.27 `deepseek-v4.1-flash` at
 `93b1f7c`, `claude-haiku-5-5` at `3e8e600`, and `gpt-6-astra` at
 `5d56c71` (the last three all digest `5232221e589b7553`), and
-`claude-sonnet-5-5` at `0f3042d` (digest `0c20d2de9ce62901`). The only driver file that differs between the
+`claude-sonnet-5-5` at `0f3042d` and `claude-opus-5-5` at `73c949b` (both
+digest `0c20d2de9ce62901`; `73c949b` is `0f3042d` plus the Sonnet 5.5
+pricing entry and smoke (#197) and the Opus 5.5 pricing entry, with the same
+driver files). The only driver file that differs between the
 first two is `claude.py`, and the difference is the tool-call counting
 fix in #159. It changes how Claude Code's own tool events are counted for
 the ledger-versus-harness check, not what the agent sees or how an episode
@@ -819,11 +828,11 @@ is scored. The Cursor row is the only one played by `cursor.py`, the DeepSeek
 rows the only ones played with an OpenCode Go key (the 2.0.27 one the only
 one through the OpenCode 2.x driver and its launcher), the `gpt-6.1-sol`
 and `gpt-6-astra` rows the only ones played on Codex 0.162.1 with the
-account's apps and plugins turned off, and the `claude-haiku-5-5` and
-`claude-sonnet-5-5` rows the only Claude rows played
+account's apps and plugins turned off, and the `claude-haiku-5-5`,
+`claude-sonnet-5-5` and `claude-opus-5-5` rows the only Claude rows played
 without the account's claude.ai connectors (image
 `gm-bench-agentic-claude:2.1.281-f0e72cbaea92`); the fingerprinted files are
-the same at all nine commits.
+the same at all ten commits.
 The `gpt-6-luna` row and the two Codex 0.162.1 rows therefore differ in Codex version, container image
 (`gm-bench-agentic-codex:0.156.1-578af3e044d4` and
 `gm-bench-agentic-codex:0.162.1-f8095c887ac3`) and the account apps and
