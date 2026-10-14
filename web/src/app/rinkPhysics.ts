@@ -8,9 +8,13 @@ const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n
 export interface Skater {
   x: number; y: number; vx: number; vy: number;
   homeX: number; homeY: number; label: string; team: "home" | "away" | "puck";
+  locked?: boolean;
 }
 
 export const bodyRadius = (body: Skater) => body.team === "puck" ? PUCK_RADIUS : PLAYER_RADIUS;
+/** Inspect each puck movement before boards or another collision can undo it.
+ * Return true to stop the operation after a goal resets the puck. */
+export type PuckMotion = (fromX: number, fromY: number) => boolean;
 
 export function createSkaters(): Skater[] {
   const formation: [number, number, string][] = [
@@ -42,7 +46,7 @@ export function contain(skater: Skater) {
   }
 }
 
-export function resolveCollisions(skaters: Skater[], held = -1) {
+export function resolveCollisions(skaters: Skater[], held = -1, onPuckMove?: PuckMotion): boolean {
   // A held player is kinematic: it pushes other players without moving the pointer.
   for (let pass = 0; pass < 3; pass++) {
     for (let i = 0; i < skaters.length; i++) {
@@ -55,11 +59,18 @@ export function resolveCollisions(skaters: Skater[], held = -1) {
         const distance = Math.sqrt(squared);
         const nx = distance > 0.001 ? dx / distance : 1;
         const ny = distance > 0.001 ? dy / distance : 0;
-        const wa = i === held ? 0 : a.team === "puck" ? 5 : 1;
-        const wb = j === held ? 0 : b.team === "puck" ? 5 : 1;
+        const wa = i === held || a.locked ? 0 : a.team === "puck" ? 5 : 1;
+        const wb = j === held || b.locked ? 0 : b.team === "puck" ? 5 : 1;
+        if (wa + wb === 0) continue;
         const overlap = (contact - distance) / (wa + wb);
+        const puck = a.team === "puck" ? a : b.team === "puck" ? b : null;
+        const fromX = puck?.x ?? 0, fromY = puck?.y ?? 0;
         a.x -= nx * overlap * wa; a.y -= ny * overlap * wa;
         b.x += nx * overlap * wb; b.y += ny * overlap * wb;
+        if (puck && onPuckMove?.(fromX, fromY)) {
+          for (const skater of skaters) contain(skater);
+          return true;
+        }
         const approach = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
         if (approach < 0) {
           const impulse = -(1 + BOUNCE) * approach / (wa + wb);
@@ -70,6 +81,7 @@ export function resolveCollisions(skaters: Skater[], held = -1) {
     }
     for (const skater of skaters) contain(skater);
   }
+  return false;
 }
 
 export function limitSpeed(skater: Skater) {
@@ -81,20 +93,24 @@ export function limitSpeed(skater: Skater) {
 }
 
 /** Small fixed steps avoid tunneling and make damping independent of display Hz. */
-export function advance(skaters: Skater[], dt = FIXED_STEP, held = -1): boolean {
+export function advance(skaters: Skater[], dt = FIXED_STEP, held = -1, onPuckMove?: PuckMotion): boolean {
   for (let i = 0; i < skaters.length; i++) {
-    if (i === held) continue;
+    if (i === held || skaters[i].locked) continue;
     const skater = skaters[i];
     const damping = Math.exp(-(skater.team === "puck" ? 0.65 : 0.85) * dt);
     limitSpeed(skater);
+    const fromX = skater.x, fromY = skater.y;
     skater.x += skater.vx * dt; skater.y += skater.vy * dt;
+    if (skater.team === "puck" && onPuckMove?.(fromX, fromY)) {
+      return skaters.some((body, i) => i !== held && (body.vx !== 0 || body.vy !== 0));
+    }
     skater.vx *= damping; skater.vy *= damping;
     contain(skater);
   }
-  resolveCollisions(skaters, held);
+  resolveCollisions(skaters, held, onPuckMove);
   let moving = false;
   for (let i = 0; i < skaters.length; i++) {
-    if (i === held) continue;
+    if (i === held || skaters[i].locked) continue;
     const skater = skaters[i];
     limitSpeed(skater);
     if (Math.hypot(skater.vx, skater.vy) < 5) skater.vx = skater.vy = 0;
@@ -103,7 +119,7 @@ export function advance(skaters: Skater[], dt = FIXED_STEP, held = -1): boolean 
   return moving;
 }
 
-export function moveHeld(skaters: Skater[], index: number, x: number, y: number) {
+export function moveHeld(skaters: Skater[], index: number, x: number, y: number, onPuckMove?: PuckMotion) {
   const skater = skaters[index];
   const radius = bodyRadius(skater);
   x = clamp(x, 22 + radius, 298 - radius); y = clamp(y, 16 + radius, 454 - radius);
@@ -111,9 +127,11 @@ export function moveHeld(skaters: Skater[], index: number, x: number, y: number)
   const startX = skater.x, startY = skater.y;
   const steps = Math.max(1, Math.ceil(Math.hypot(x - startX, y - startY) / 7));
   for (let n = 1; n <= steps; n++) {
+    const fromX = skater.x, fromY = skater.y;
     skater.x = startX + (x - startX) * n / steps;
     skater.y = startY + (y - startY) * n / steps;
+    if (skater.team === "puck" && onPuckMove?.(fromX, fromY)) return;
     contain(skater);
-    resolveCollisions(skaters, index);
+    if (resolveCollisions(skaters, index, onPuckMove)) return;
   }
 }

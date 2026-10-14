@@ -813,12 +813,11 @@ main:focus {
 .rink-center-dot { fill: var(--rink-blue); }
 .rink-center-logo { color: var(--text); opacity: .85; }
 .rink-playground { min-width: 0; margin-bottom: 24px; }
-.rink-scoreboard { display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 22px; }
-.rink-scoreboard > span { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 650; }
-.rink-scoreboard strong { font-size: 24px; font-stretch: 75%; font-weight: 800; line-height: 1; }
-.rink-score-blue { color: var(--rink-blue); }
-.rink-score-red { color: var(--bar); }
-.rink-scoreboard .rink-score-divider { color: var(--text-3); font-size: 10px; font-weight: 400; }
+.rink-surface { position: relative; }
+.rink-reset { position: absolute; right: 18%; bottom: 8.5%; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: var(--surface); color: var(--text-3); cursor: pointer; }
+.rink-reset:hover { color: var(--rink-blue); background: var(--raised); }
+.rink-confetti { pointer-events: none; }
+.rink-confetti rect { opacity: 0; transform-box: fill-box; transform-origin: center; }
 .rink-net { fill: none; stroke: var(--bar); stroke-width: 2; opacity: .7; }
 .rink-net-mesh { stroke-width: .5; opacity: .55; }
 .rink-board[data-goal="home"] .rink-net-home { stroke: var(--rink-blue); opacity: 1; stroke-width: 3; }
@@ -845,9 +844,9 @@ main:focus {
 .rink-player.is-hinting .rink-player-art { animation: rink-wiggle .7s ease-in-out; }
 @keyframes rink-wiggle {
   0%, 100% { transform: translateX(0) rotate(0); }
-  25% { transform: translateX(-2px) rotate(-8deg); }
-  50% { transform: translateX(2px) rotate(8deg); }
-  75% { transform: translateX(-1px) rotate(-4deg); }
+  25% { transform: translateX(-4px) rotate(-12deg); }
+  50% { transform: translateX(4px) rotate(12deg); }
+  75% { transform: translateX(-2px) rotate(-6deg); }
 }
 @media (prefers-reduced-motion: reduce) {
   .rink-player.is-hinting .rink-player-art { animation: none; }

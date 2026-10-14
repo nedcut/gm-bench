@@ -1,7 +1,7 @@
 import { useLayoutEffect, useId, useRef } from "react";
 import BrandMark from "./BrandMark";
 import { createSkaters, FIXED_STEP, limitSpeed, moveHeld } from "./rinkPhysics";
-import { advanceRink, decodeRink, GOAL_LEFT, GOAL_RIGHT, loadRink, newRinkGame, PUCK_INDEX, RINK_STORAGE_KEY, saveRink, scoreDroppedPuck, type RinkGame, type ScoringTeam } from "./rinkGame";
+import { advanceRink, decodeRink, GOAL_LEFT, GOAL_RIGHT, loadRink, newRinkGame, PUCK_INDEX, RINK_STORAGE_KEY, saveRink, scoreDroppedPuck, tracePuck, type RinkGame, type ScoringTeam } from "./rinkGame";
 
 const STARTING_PLAYERS = createSkaters();
 
@@ -9,7 +9,7 @@ export default function RinkBoard() {
   const svgRef = useRef<SVGSVGElement>(null);
   const resetRef = useRef(() => {});
   const gameRef = useRef<RinkGame | null>(null);
-  const scoreRef = useRef<HTMLDivElement>(null);
+  const confettiRef = useRef<SVGGElement>(null);
   const statusRef = useRef<HTMLParagraphElement>(null);
   const id = useId();
 
@@ -22,7 +22,8 @@ export default function RinkBoard() {
     const motion = matchMedia("(prefers-reduced-motion: reduce)");
     let frame = 0, previous = 0, accumulator = 0, visible = false;
     let savedAt = performance.now(), interactedAt = -Infinity;
-    let hintTimer = 0, goalTimer = 0, hintIndex = 1;
+    let hintTimer = 0, goalTimer = 0;
+    const confetti: Animation[] = [];
     let drag: {
       index: number; pointer: number; inverse: DOMMatrix;
       offsetX: number; offsetY: number; x: number; y: number; time: number;
@@ -30,21 +31,32 @@ export default function RinkBoard() {
 
     const movingNow = () => bodies.some((body, i) => i !== drag?.index && (body.vx !== 0 || body.vy !== 0));
     const persist = () => { saveRink(game); savedAt = performance.now(); };
-    const updateScore = () => {
-      for (const team of ["home", "away"] as const) {
-        const node = scoreRef.current!.querySelector(`[data-score="${team}"]`)!;
-        const value = String(game.score[team]);
-        if (node.textContent !== value) node.textContent = value;
-      }
-    };
     const onGoal = (team: ScoringTeam | null) => {
       if (!team) return;
-      updateScore();
-      statusRef.current!.textContent = `Goal for ${team === "home" ? "Blue" : "Red"}! Blue ${game.score.home}, Red ${game.score.away}.`;
+      statusRef.current!.textContent = `Goal for ${team === "home" ? "Blue" : "Red"}!`;
       svg.dataset.goal = team;
+      confetti.forEach(animation => animation.cancel());
+      confetti.length = 0;
+      confettiRef.current!.setAttribute("transform", `translate(160 ${team === "home" ? 58 : 412})`);
+      if (!motion.matches) {
+        [...confettiRef.current!.children].forEach((piece, i) => {
+          const angle = i / 14 * Math.PI * 2;
+          const dx = Math.cos(angle) * (28 + i % 3 * 8);
+          const dy = Math.sin(angle) * (22 + i % 4 * 6);
+          confetti.push(piece.animate([
+            { transform: "translate(0, 0) rotate(0deg)", opacity: 1 },
+            { transform: `translate(${dx}px, ${dy}px) rotate(${i % 2 ? 220 : -220}deg)`, opacity: 0 },
+          ], { duration: 950, easing: "cubic-bezier(.12,.6,.4,1)" }));
+        });
+      }
       clearTimeout(goalTimer);
       goalTimer = window.setTimeout(() => { delete svg.dataset.goal; }, 1200);
       persist();
+    };
+    const tracePuckMove = (x: number, y: number) => {
+      const result = tracePuck(game, x, y);
+      onGoal(result.scored);
+      return result.blocked;
     };
     const draw = () => {
       for (let i = 0; i < bodies.length; i++) {
@@ -60,15 +72,19 @@ export default function RinkBoard() {
       clearTimeout(hintTimer); hintTimer = 0;
       for (const node of nodes) node.classList.remove("is-hinting");
     };
-    const scheduleHint = (delay = 5000) => {
+    const scheduleHint = (delay = 1600) => {
       if (hintTimer || !visible || document.hidden || motion.matches) return;
       hintTimer = window.setTimeout(() => {
         hintTimer = 0;
-        if (!drag && !movingNow() && performance.now() - interactedAt > 12000) {
-          nodes[hintIndex].classList.add("is-hinting");
-          hintIndex = (hintIndex + 5) % 12;
+        if (!drag && !movingNow() && performance.now() - interactedAt > 6000) {
+          const index = Math.floor(Math.random() * 12);
+          const angle = Math.random() * Math.PI * 2;
+          nodes[index].classList.add("is-hinting");
+          bodies[index].vx = Math.cos(angle) * 35;
+          bodies[index].vy = Math.sin(angle) * 35;
+          wake();
         }
-        scheduleHint(18000);
+        scheduleHint(5500 + Math.random() * 3500);
       }, delay);
     };
     const hintEnd = (event: AnimationEvent) => {
@@ -76,13 +92,20 @@ export default function RinkBoard() {
         (event.target as Element).closest("[data-player]")?.classList.remove("is-hinting");
       }
     };
-    const interact = () => { interactedAt = performance.now(); clearHint(); scheduleHint(18000); };
+    const interact = () => { interactedAt = performance.now(); clearHint(); scheduleHint(5500 + Math.random() * 3500); };
     const stop = () => {
       cancelAnimationFrame(frame);
       frame = previous = accumulator = 0;
     };
     const tick = (time: number) => {
       frame = 0;
+      if (motion.matches) {
+        previous = accumulator = 0;
+        clearHint();
+        for (const body of bodies) body.vx = body.vy = 0;
+        draw(); persist();
+        return;
+      }
       accumulator += previous ? Math.min((time - previous) / 1000, 1 / 30) : FIXED_STEP;
       previous = time;
       let moving = movingNow();
@@ -114,7 +137,10 @@ export default function RinkBoard() {
       if (!drag) return;
       const body = bodies[drag.index];
       if (cancelled || performance.now() - drag.time > 100 || motion.matches) body.vx = body.vy = 0;
-      if (!cancelled && drag.index === PUCK_INDEX) onGoal(scoreDroppedPuck(game));
+      if (!cancelled && drag.index === PUCK_INDEX) {
+        onGoal(scoreDroppedPuck(game));
+        if (game.puckInGoal && (game.puckInGoal === "home" ? body.y <= 62 : body.y >= 408)) body.locked = true;
+      }
       nodes[drag.index].classList.remove("is-held");
       const pointer = drag.pointer;
       drag = null;
@@ -132,6 +158,7 @@ export default function RinkBoard() {
       const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(inverse);
       const body = bodies[index];
       body.vx = body.vy = 0;
+      body.locked = false;
       drag = { index, pointer: event.pointerId, inverse,
         offsetX: point.x - body.x, offsetY: point.y - body.y,
         x: body.x, y: body.y, time: performance.now() };
@@ -148,9 +175,11 @@ export default function RinkBoard() {
       body.vx = (point.x - drag.offsetX - drag.x) / dt;
       body.vy = (point.y - drag.offsetY - drag.y) / dt;
       limitSpeed(body);
-      moveHeld(bodies, drag.index, point.x - drag.offsetX, point.y - drag.offsetY);
+      moveHeld(bodies, drag.index, point.x - drag.offsetX, point.y - drag.offsetY, tracePuckMove);
       drag.x = body.x; drag.y = body.y; drag.time = time;
-      draw(); wake();
+      draw();
+      if (body.locked) finish(true);
+      wake();
     };
     const up = (event: PointerEvent) => { if (event.pointerId === drag?.pointer) finish(); };
     const cancel = (event: PointerEvent) => { if (event.pointerId === drag?.pointer) finish(true); };
@@ -164,15 +193,17 @@ export default function RinkBoard() {
       const shoot = event.key === " " || event.key === "Enter";
       if (event.key === "Home") {
         event.preventDefault(); interact();
-        body.vx = body.vy = 0;
+        body.vx = body.vy = 0; body.locked = false;
+        if (index === PUCK_INDEX) game.puckInGoal = null;
         moveHeld(bodies, index, body.homeX, body.homeY);
       } else if (direction || shoot) {
         event.preventDefault(); interact();
         const [dx, dy] = direction ?? [0, body.team === "puck" ? (body.y < 235 ? -1 : 1) : body.team === "home" ? -1 : 1];
+        body.locked = false;
         const throwing = (event.shiftKey || shoot) && !motion.matches;
         body.vx = dx * (throwing ? 650 : 0);
         body.vy = dy * (throwing ? 650 : 0);
-        moveHeld(bodies, index, body.x + dx * 10, body.y + dy * 10);
+        moveHeld(bodies, index, body.x + dx * 10, body.y + dy * 10, tracePuckMove);
         if (index === PUCK_INDEX) onGoal(scoreDroppedPuck(game));
       } else return;
       draw(); persist(); wake();
@@ -186,7 +217,7 @@ export default function RinkBoard() {
       if (visible) { wake(); scheduleHint(); } else suspend();
     });
     const reducedMotion = () => {
-      if (motion.matches) { stop(); clearHint(); for (const body of bodies) body.vx = body.vy = 0; persist(); }
+      if (motion.matches) { stop(); clearHint(); confetti.forEach(animation => animation.cancel()); for (const body of bodies) body.vx = body.vy = 0; persist(); }
       else scheduleHint();
     };
     const storage = (event: StorageEvent) => {
@@ -194,8 +225,8 @@ export default function RinkBoard() {
       finish(true, false); stop(); clearHint();
       const incoming = decodeRink(event.newValue);
       incoming.bodies.forEach((body, i) => Object.assign(bodies[i], body, { vx: 0, vy: 0 }));
-      game.score = incoming.score;
-      draw(); updateScore(); scheduleHint();
+      game.score = incoming.score; game.puckInGoal = incoming.puckInGoal;
+      draw(); scheduleHint();
     };
     // Back/forward cache can restore an old page without rerunning React effects.
     const pageshow = (event: PageTransitionEvent) => {
@@ -203,20 +234,20 @@ export default function RinkBoard() {
       stop(); clearHint();
       const incoming = loadRink();
       incoming.bodies.forEach((body, i) => Object.assign(bodies[i], body));
-      game.score = incoming.score;
-      draw(); updateScore(); wake(); scheduleHint();
+      game.score = incoming.score; game.puckInGoal = incoming.puckInGoal;
+      draw(); wake(); scheduleHint();
     };
     const focus = () => { wake(); scheduleHint(); };
     resetRef.current = () => {
       interact(); finish(true); stop();
       const fresh = newRinkGame();
       fresh.bodies.forEach((body, i) => Object.assign(bodies[i], body));
-      game.score = fresh.score;
+      game.score = fresh.score; game.puckInGoal = null;
       delete svg.dataset.goal;
-      statusRef.current!.textContent = "Rink reset. Blue 0, Red 0.";
-      draw(); updateScore(); persist();
+      statusRef.current!.textContent = "Rink reset.";
+      draw(); persist();
     };
-    draw(); updateScore();
+    draw();
     observer.observe(svg);
     svg.addEventListener("pointerdown", down);
     svg.addEventListener("pointermove", move);
@@ -235,7 +266,7 @@ export default function RinkBoard() {
     motion.addEventListener("change", reducedMotion);
     return () => {
       visible = false;
-      suspend(); observer.disconnect(); clearTimeout(goalTimer);
+      suspend(); observer.disconnect(); clearTimeout(goalTimer); confetti.forEach(animation => animation.cancel());
       svg.removeEventListener("pointerdown", down);
       svg.removeEventListener("pointermove", move);
       svg.removeEventListener("pointerup", up);
@@ -256,12 +287,8 @@ export default function RinkBoard() {
 
   return (
     <div className="rink-playground">
-      <div className="rink-scoreboard" ref={scoreRef} aria-label="Rink score">
-        <span className="rink-score-blue">Blue <strong data-score="home">0</strong></span>
-        <span className="rink-score-divider">vs</span>
-        <span className="rink-score-red"><strong data-score="away">0</strong> Red</span>
-      </div>
       <p ref={statusRef} className="sr-only" role="status" aria-live="polite" />
+      <div className="rink-surface">
       <svg ref={svgRef} className="rink-board" viewBox="0 0 320 470" role="group" aria-label="Interactive hockey rink" aria-describedby={`${id}-help`}>
         <defs><clipPath id={`${id}-ice`}><rect x="22" y="16" width="276" height="438" rx="78" /></clipPath></defs>
         <g aria-hidden="true">
@@ -301,10 +328,16 @@ export default function RinkBoard() {
           <circle className="rink-puck-hit" r="13" /><circle className="rink-puck-disc" r="5" />
           <path d="M-2-2h3" />
         </g>
+        <g ref={confettiRef} className="rink-confetti" transform="translate(160 58)" aria-hidden="true">
+          {Array.from({ length: 14 }, (_, i) => <rect key={i} x={-2} y={-1.5} width="4" height="3" rx=".5" fill={["var(--bar)", "var(--rink-blue)", "#e5b64c"][i % 3]} />)}
+        </g>
       </svg>
+      <button type="button" className="rink-reset" onClick={() => resetRef.current()} aria-label="Reset rink" title="Reset rink">
+        <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="M4 7a6.5 6.5 0 1 1-.5 5M4 2.5V7h4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </button>
+      </div>
       <div className="rink-controls">
-        <span id={`${id}-help`}>Flick a player or puck to score<span className="sr-only">. Use arrow keys to move a focused player or puck, Shift plus arrow to throw, Space to shoot, and Home to return to its starting position. Blue scores in the top net; red in the bottom. Positions and scores are saved in this browser.</span></span>
-        <button type="button" onClick={() => resetRef.current()} aria-label="Reset rink and score">Reset</button>
+        <span id={`${id}-help`}>Flick a player or puck to score<span className="sr-only">. Use arrow keys to move a focused player or puck, Shift plus arrow to throw, Space to shoot, and Home to return to its starting position. Blue scores in the top net; red in the bottom. Your rink is saved in this browser.</span></span>
       </div>
     </div>
   );

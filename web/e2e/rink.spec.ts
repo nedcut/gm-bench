@@ -1,5 +1,10 @@
 import { encodeRink, newRinkGame, PUCK_INDEX, RINK_STORAGE_KEY } from "../src/app/rinkGame";
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+
+const savedScore = (page: Page, team: "home" | "away") => page.evaluate(({ key, team }) =>
+  JSON.parse(localStorage.getItem(key)!).score[team] as number, { key: RINK_STORAGE_KEY, team });
+const puckY = (page: Page) => page.locator(".rink-puck").evaluate(node =>
+  (node as unknown as SVGGElement).transform.baseVal.getItem(0).matrix.f);
 
 test.use({ viewport: { width: 1440, height: 1000 }, reducedMotion: "no-preference" });
 
@@ -25,30 +30,31 @@ test("puck shots score once, then positions and scores survive navigation and re
   await page.goto("/how-it-works/");
   await page.getByRole("button", { name: "Puck", exact: true }).focus();
   await page.keyboard.press("Shift+ArrowUp");
-  await expect(page.locator('[data-score="home"]')).toHaveText("1");
+  await expect.poll(() => savedScore(page, "home")).toBe(1);
   await expect(page.getByRole("status")).toContainText("Goal for Blue!");
-  await expect(page.locator(".rink-puck")).toHaveAttribute("transform", "translate(160.00 255.00)");
+  expect(await puckY(page)).toBeGreaterThanOrEqual(53);
+  expect(await puckY(page)).toBeLessThanOrEqual(62);
   await page.waitForTimeout(100);
-  await expect(page.locator('[data-score="home"]')).toHaveText("1");
+  await expect.poll(() => savedScore(page, "home")).toBe(1);
   const player = page.locator('[data-player="0"]');
   await player.focus();
   await page.keyboard.press("ArrowRight");
   const position = await player.getAttribute("transform");
   await page.locator('.tabs a[href="/replays/"]').click();
   await expect(page.locator('[data-player="0"]')).toHaveAttribute("transform", position!);
-  await expect(page.locator('[data-score="home"]')).toHaveText("1");
+  await expect.poll(() => savedScore(page, "home")).toBe(1);
   await page.locator('[data-player="0"]').focus();
   await page.keyboard.press("ArrowRight");
   await page.goBack();
   await expect(page.locator('[data-player="0"]')).toHaveAttribute("transform", "translate(95.00 265.00)");
-  await expect(page.locator('[data-score="home"]')).toHaveText("1");
+  await expect.poll(() => savedScore(page, "home")).toBe(1);
   await page.reload();
   await expect(page.locator('[data-player="0"]')).toHaveAttribute("transform", "translate(95.00 265.00)");
-  await expect(page.locator('[data-score="home"]')).toHaveText("1");
-  await page.getByRole("button", { name: "Reset rink and score" }).click();
-  await expect(page.locator('[data-score="home"]')).toHaveText("0");
+  await expect.poll(() => savedScore(page, "home")).toBe(1);
+  await page.getByRole("button", { name: "Reset rink" }).click();
+  await expect.poll(() => savedScore(page, "home")).toBe(0);
   await page.goto("/how-it-works/");
-  await expect(page.locator('[data-score="home"]')).toHaveText("0");
+  await expect.poll(() => savedScore(page, "home")).toBe(0);
   await expect(page.locator('[data-player="0"]')).toHaveAttribute("transform", "translate(75.00 265.00)");
 });
 
@@ -61,8 +67,34 @@ test("restoring a cached page loads the latest saved rink", async ({ page }) => 
     localStorage.setItem(key, save);
     window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
   }, { key: RINK_STORAGE_KEY, save: encodeRink(changed) });
-  await expect(page.locator('[data-score="home"]')).toHaveText("2");
+  await expect.poll(() => savedScore(page, "home")).toBe(2);
   await expect(page.locator('[data-player="0"]')).toHaveAttribute("transform", "translate(100.00 265.00)");
+});
+
+test("a fast drag through either mouth stays in that net and celebrates once", async ({ page }) => {
+  await page.goto("/how-it-works/");
+  await expect(page.locator(".rink-scoreboard")).toHaveCount(0);
+  for (const [team, targetY] of [["home", 22], ["away", 448]] as const) {
+    const puck = page.getByRole("button", { name: "Puck", exact: true });
+    const box = (await puck.boundingBox())!;
+    const target = await page.locator(".rink-board").evaluate((node, y) => {
+      const point = new DOMPoint(160, y).matrixTransform((node as SVGSVGElement).getScreenCTM()!);
+      return { x: point.x, y: point.y };
+    }, targetY);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(target.x, target.y);
+    await page.mouse.up();
+    await expect.poll(() => savedScore(page, team)).toBe(1);
+    const y = await puckY(page);
+    expect(y).toBeGreaterThanOrEqual(team === "home" ? 53 : 408);
+    expect(y).toBeLessThanOrEqual(team === "home" ? 62 : 417);
+    const position = await puck.getAttribute("transform");
+    expect(await page.locator(".rink-confetti rect").evaluateAll(nodes => nodes.some(node => node.getAnimations().some(a => a.playState === "running")))).toBe(true);
+    await page.waitForTimeout(150);
+    await expect(puck).toHaveAttribute("transform", position!);
+    expect(await savedScore(page, team)).toBe(1);
+  }
 });
 
 test("another open page mirrors saved state without starting a second simulation", async ({ page, context }) => {
@@ -76,20 +108,24 @@ test("another open page mirrors saved state without starting a second simulation
   await other.close();
 });
 
-test("idle wiggle hints at interaction without changing saved physics positions", async ({ page }) => {
+test("idle players visibly move, then settle and respect reduced motion", async ({ page }) => {
+  await page.addInitScript(() => { Math.random = () => 0; });
   await page.clock.install();
   await page.goto("/how-it-works/");
   await page.clock.runFor(100);
-  const position = await page.locator('[data-player="1"]').getAttribute("transform");
-  await page.clock.runFor(5000);
-  await expect(page.locator(".rink-player.is-hinting")).toHaveCount(1);
-  await expect(page.locator('[data-player="1"]')).toHaveAttribute("transform", position!);
+  const position = await page.locator('[data-player="0"]').getAttribute("transform");
+  await page.clock.runFor(1700);
+  expect(await page.locator('[data-player="0"]').getAttribute("transform")).not.toBe(position);
   await page.locator('[data-player="1"]').focus();
   await page.keyboard.press("ArrowLeft");
   await expect(page.locator(".rink-player.is-hinting")).toHaveCount(0);
   await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect.poll(() => page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
+  await page.clock.runFor(100);
+  const stopped = await page.locator('[data-player="0"]').getAttribute("transform");
   await page.clock.runFor(30000);
   await expect(page.locator(".rink-player.is-hinting")).toHaveCount(0);
+  await expect(page.locator('[data-player="0"]')).toHaveAttribute("transform", stopped!);
 });
 
 test("blocked browser storage does not prevent dragging or reset", async ({ page }) => {
@@ -102,7 +138,7 @@ test("blocked browser storage does not prevent dragging or reset", async ({ page
   await player.focus();
   await page.keyboard.press("ArrowRight");
   await expect(player).toHaveAttribute("transform", "translate(85.00 265.00)");
-  await page.getByRole("button", { name: "Reset rink and score" }).click();
+  await page.getByRole("button", { name: "Reset rink" }).click();
   await expect(player).toHaveAttribute("transform", "translate(75.00 265.00)");
 });
 
@@ -123,14 +159,14 @@ test("real pointer dragging, release inertia, collisions and reset", async ({ pa
   await expect(player).not.toHaveClass(/is-held/);
   await expect.poll(() => player.getAttribute("transform")).not.toBe(held);
   // Launch a player directly towards an opponent and observe transferred motion.
-  await page.getByRole("button", { name: "Reset rink and score" }).click();
+  await page.getByRole("button", { name: "Reset rink" }).click();
   const homeCenter = page.locator('[data-player="1"]');
   const awayCenter = page.locator('[data-player="7"]');
   const opponentStart = await awayCenter.getAttribute("transform");
   await homeCenter.focus();
   await page.keyboard.press("Shift+ArrowUp");
   await expect.poll(() => awayCenter.getAttribute("transform")).not.toBe(opponentStart);
-  await page.getByRole("button", { name: "Reset rink and score" }).click();
+  await page.getByRole("button", { name: "Reset rink" }).click();
   await expect(player).toHaveAttribute("transform", initial!);
   await page.waitForTimeout(300);
   await expect(player).toHaveAttribute("transform", initial!);
@@ -187,7 +223,7 @@ test("touch drag stays captured until release and cannot leave a rounded corner"
   expect(Math.hypot(position.x - cx, position.y - cy)).toBeLessThanOrEqual(64.01);
   await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await expect(player).not.toHaveClass(/is-held/);
-  await page.getByRole("button", { name: "Reset rink and score" }).click();
+  await page.getByRole("button", { name: "Reset rink" }).click();
   await expect(player).toHaveAttribute("transform", "translate(75.00 205.00)");
   await client.detach();
 });

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { advanceRink, checkGoal, decodeRink, encodeRink, newRinkGame, PUCK_INDEX, scoreDroppedPuck } from "../src/app/rinkGame";
-import { advance, bodyRadius, resolveCollisions } from "../src/app/rinkPhysics";
+import { advanceRink, checkGoal, decodeRink, encodeRink, newRinkGame, PUCK_INDEX, scoreDroppedPuck, tracePuck } from "../src/app/rinkGame";
+import { advance, bodyRadius, moveHeld, resolveCollisions } from "../src/app/rinkPhysics";
 
 describe("rink game", () => {
   test("a skater transfers momentum to the lighter puck", () => {
@@ -18,7 +18,8 @@ describe("rink game", () => {
     puck.y = 62;
     expect(checkGoal(game, 160, 70)).toBe("home");
     expect(game.score).toEqual({ home: 1, away: 0 });
-    expect([puck.x, puck.y, puck.vx, puck.vy]).toEqual([160, 255, 0, 0]);
+    expect([puck.x, puck.y, puck.vx, puck.vy]).toEqual([160, 62, 0, 0]);
+    expect(puck.locked).toBe(true);
     Object.assign(puck, { x: 185, y: 61 });
     expect(checkGoal(game, 185, 70)).toBeNull();
     Object.assign(puck, { x: 160, y: 75 });
@@ -45,6 +46,84 @@ describe("rink game", () => {
     Object.assign(puck, { x: 160, y: 55 });
     expect(advanceRink(game, 1 / 120, PUCK_INDEX).scored).toBeNull();
     expect(game.score.home).toBe(1);
+  });
+  test("a goal counts before a player behind the line can push the puck back out", () => {
+    for (const team of ["home", "away"] as const) {
+      const game = newRinkGame(), puck = game.bodies[PUCK_INDEX];
+      const keeper = game.bodies[team === "home" ? 11 : 5];
+      keeper.y = team === "home" ? 50 : 420;
+      Object.assign(puck, { x: 160, y: team === "home" ? 69 : 401, vy: team === "home" ? -1200 : 1200 });
+      expect(advanceRink(game).scored).toBe(team);
+      expect(game.score[team]).toBe(1);
+      expect(advanceRink(game).scored).toBeNull();
+      expect(puck.locked).toBe(true);
+      expect(game.puckInGoal).toBe(team);
+    }
+  });
+  test("a collision crossing counts even if another collision would undo it", () => {
+    const game = newRinkGame();
+    Object.assign(game.bodies[6], { x: 160, y: 45 });
+    Object.assign(game.bodies[11], { x: 160, y: 80 });
+    Object.assign(game.bodies[PUCK_INDEX], { x: 160, y: 64 });
+    expect(advanceRink(game).scored).toBe("home");
+    expect(game.score.home).toBe(1);
+    expect(game.bodies[PUCK_INDEX].y).toBeLessThanOrEqual(62);
+  });
+  test("dragging a skater into the puck scores during the sweep, once", () => {
+    const game = newRinkGame();
+    game.bodies[11].x = 75;
+    Object.assign(game.bodies[0], { x: 160, y: 100 });
+    Object.assign(game.bodies[PUCK_INDEX], { x: 160, y: 75 });
+    moveHeld(game.bodies, 0, 160, 50, (x, y) => tracePuck(game, x, y).blocked);
+    expect(game.score.home).toBe(1);
+    expect(game.bodies[PUCK_INDEX].locked).toBe(true);
+    expect(advanceRink(game).scored).toBeNull();
+  });
+  test("closed sides and backs bounce fast shots without awarding goals", () => {
+    for (const [fromX, fromY, x, y, vx, vy, reflected] of [
+      [100, 57, 170, 57, 1200, 0, "left"],
+      [210, 57, 150, 57, -1200, 0, "right"],
+      [160, 25, 160, 75, 0, 1200, "top"],
+      [160, 445, 160, 395, 0, -1200, "bottom"],
+    ] as const) {
+      const game = newRinkGame(), puck = game.bodies[PUCK_INDEX];
+      Object.assign(puck, { x, y, vx, vy });
+      const result = tracePuck(game, fromX, fromY);
+      expect(result.blocked).toBe(true);
+      expect(result.scored).toBeNull();
+      expect(game.score).toEqual({ home: 0, away: 0 });
+      if (reflected === "left") { expect(puck.x).toBeLessThan(138); expect(puck.vx).toBeLessThan(0); }
+      if (reflected === "right") { expect(puck.x).toBeGreaterThan(182); expect(puck.vx).toBeGreaterThan(0); }
+      if (reflected === "top") { expect(puck.y).toBeLessThan(47); expect(puck.vy).toBeLessThan(0); }
+      if (reflected === "bottom") { expect(puck.y).toBeGreaterThan(423); expect(puck.vy).toBeGreaterThan(0); }
+    }
+  });
+  test("a rounded post deflects a grazing shot and keeps it out", () => {
+    const game = newRinkGame(), puck = game.bodies[PUCK_INDEX];
+    Object.assign(puck, { x: 140, y: 50, vy: -1200 });
+    expect(tracePuck(game, 140, 85).scored).toBeNull();
+    expect(puck.y).toBeGreaterThan(67);
+    expect(puck.vx).toBeGreaterThan(0);
+  });
+  test("a fast shot through the mouth stays in the net without repeat scoring", () => {
+    const game = newRinkGame(), puck = game.bodies[PUCK_INDEX];
+    Object.assign(puck, { x: 160, y: 25, vy: -1200 });
+    expect(tracePuck(game, 160, 90).scored).toBe("home");
+    expect(puck.y).toBeGreaterThanOrEqual(53);
+    expect(puck.y).toBeLessThanOrEqual(62);
+    const position = [puck.x, puck.y];
+    for (let i = 0; i < 30; i++) expect(advanceRink(game).scored).toBeNull();
+    expect([puck.x, puck.y]).toEqual(position);
+    expect(scoreDroppedPuck(game)).toBeNull();
+    expect(game.score.home).toBe(1);
+    expect(decodeRink(encodeRink(game)).puckInGoal).toBe("home");
+    puck.locked = false;
+    puck.y = 85;
+    tracePuck(game, 160, position[1]);
+    expect(game.puckInGoal).toBeNull();
+    puck.y = 58;
+    expect(tracePuck(game, 160, 85).scored).toBe("home");
+    expect(game.score.home).toBe(2);
   });
   test("players and puck remain inside rounded boards through repeated collisions", () => {
     const game = newRinkGame();
