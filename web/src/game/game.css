@@ -1,0 +1,682 @@
+.gm-game {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 30px 28px 48px;
+}
+.gm-game h1 {
+  margin: 0;
+  font-size: clamp(30px, 4vw, 46px);
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+}
+.gm-game h2 {
+  margin: 0 0 12px;
+  font-size: 23px;
+  letter-spacing: -0.025em;
+}
+.gm-game h3 {
+  margin: 24px 0 10px;
+  font-size: 17px;
+}
+.gm-game h4 {
+  margin: 12px 0 8px;
+}
+.gm-game p {
+  color: var(--text-2);
+  max-width: 85ch;
+}
+.gm-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  font-weight: 700;
+  color: var(--accent) !important;
+}
+.gm-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 26px;
+}
+.gm-heading p {
+  margin: 8px 0;
+}
+.gm-game .gm-heading.is-compact {
+  margin-bottom: 16px;
+}
+.gm-game .is-compact h1 {
+  font-size: 22px;
+}
+.gm-heading .gm-actions {
+  margin: 0;
+}
+.gm-game button,
+.gm-file {
+  border: 1px solid var(--line-2);
+  border-radius: 5px;
+  background: var(--raised);
+  color: var(--text);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.gm-game button:hover,
+.gm-file:hover {
+  border-color: var(--accent);
+}
+.gm-game button:disabled,
+.gm-game fieldset:disabled button,
+.gm-file.is-disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.gm-game .gm-primary {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+.gm-game label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.gm-game input:not([type="checkbox"]):not([type="file"]),
+.gm-game select,
+.gm-game textarea {
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  padding: 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  max-width: 100%;
+  min-width: 0;
+}
+.gm-game input[type="number"] {
+  width: 170px;
+}
+.gm-game textarea {
+  width: 100%;
+  resize: vertical;
+}
+.gm-game .gm-file {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+}
+.gm-file input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+.gm-file:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.gm-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0;
+}
+.gm-welcome {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  margin-top: 40px;
+}
+.gm-welcome > div {
+  padding: clamp(24px, 4vw, 60px);
+}
+.gm-welcome h2 {
+  font-size: clamp(32px, 4vw, 56px);
+  line-height: 1.05;
+  margin-top: 20px;
+}
+.gm-welcome p {
+  font-size: 15px;
+}
+.gm-welcome .gm-actions {
+  align-items: end;
+  margin: 28px 0;
+}
+.gm-welcome-aside {
+  background: var(--raised);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 40px;
+  gap: 10px;
+  border-left: 1px solid var(--line);
+}
+.gm-welcome-aside b {
+  margin-top: 22px;
+  font-size: 20px;
+}
+.gm-welcome-aside span {
+  color: var(--text-2);
+}
+.gm-scoreboard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 22px;
+  padding: 22px;
+  border: 1px solid var(--line-2);
+  border-top: 3px solid var(--accent);
+  background: var(--surface);
+}
+.gm-scoreboard > div > span {
+  color: var(--text-3);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.gm-scoreboard h2 {
+  margin: 5px 0 2px;
+}
+.gm-scoreboard small {
+  color: var(--text-2);
+  font-size: 12px;
+}
+.gm-scoreboard dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  margin: 0;
+}
+.gm-scoreboard dt {
+  color: var(--text-2);
+  font-size: 11px;
+}
+.gm-scoreboard dd {
+  font-size: 21px;
+  font-weight: 650;
+  margin: 3px 0 0;
+}
+.gm-scoreboard dd small {
+  display: block;
+  font-weight: 400;
+}
+.gm-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  gap: 6px;
+  padding: 10px 14px;
+}
+.gm-progress > span {
+  font-size: 11px;
+  padding: 6px 10px;
+  color: var(--text-3);
+}
+.gm-progress [aria-current] {
+  color: var(--accent);
+  background: var(--raised);
+  border-radius: 4px;
+}
+.gm-save-status {
+  color: var(--text-3);
+  font-size: 11px;
+}
+/* Tabs, cap room, and the advance button stay in reach while scrolling. */
+.gm-bar {
+  position: sticky;
+  top: 56px;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 20px;
+  padding: 8px 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line-2);
+}
+.gm-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.gm-bar-status {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  font-weight: 650;
+  margin-left: auto;
+}
+.gm-badge {
+  display: inline-block;
+  min-width: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+.gm-nav button {
+  border: 0;
+  background: none;
+  color: var(--text-2);
+}
+.gm-nav [aria-current] {
+  background: var(--raised);
+  color: var(--text);
+}
+.gm-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 28px;
+  margin-top: 24px;
+  align-items: start;
+}
+.gm-game .gm-layout.is-wide {
+  grid-template-columns: minmax(0, 1fr);
+}
+.gm-main {
+  min-width: 0;
+}
+.gm-controls {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.gm-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+.gm-game .gm-table {
+  width: 100%;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.gm-table .gm-actions {
+  flex-wrap: nowrap;
+}
+.gm-table button {
+  font-size: 11px;
+  padding: 5px 8px;
+}
+.gm-table tr.is-open > * {
+  background: var(--raised);
+}
+.gm-table .gm-detail > td {
+  padding: 0 0 4px;
+  white-space: normal;
+}
+.gm-table .gm-detail .gm-card {
+  /* Stays in view when a wide table is scrolled sideways on phones. */
+  position: sticky;
+  left: 0;
+  width: min(100%, calc(100vw - 28px));
+  box-sizing: border-box;
+  margin: 0;
+  border-radius: 0 0 5px 5px;
+  border-top: 0;
+}
+.gm-game .gm-check {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+  cursor: pointer;
+}
+.gm-check input {
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+.gm-check small {
+  display: block;
+  color: var(--text-3);
+}
+.gm-context {
+  position: sticky;
+  top: 124px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 16px;
+}
+.gm-context summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 650;
+}
+.gm-context p {
+  font-size: 11px;
+}
+.gm-context-scroll {
+  max-height: 620px;
+  overflow-y: auto;
+}
+.gm-context table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.gm-context th {
+  text-align: left;
+  font-weight: 400;
+}
+.gm-context thead th {
+  color: var(--text-3);
+}
+.gm-context td {
+  text-align: right;
+}
+.gm-context td,
+.gm-context th {
+  padding: 7px 3px;
+  border-bottom: 1px solid var(--line);
+}
+.gm-context tbody th span {
+  display: block;
+  color: var(--text);
+}
+.gm-context small {
+  font-size: 10px;
+  color: var(--text-3);
+}
+.gm-card {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 5px;
+  padding: 18px;
+  margin: 18px 0;
+}
+.gm-card h3 {
+  margin-top: 0;
+}
+.gm-office-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 24px 0;
+}
+.gm-game .gm-office-card {
+  text-align: left;
+  background: var(--surface);
+  padding: 22px;
+}
+.gm-office-card b {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+.gm-office-card span {
+  display: block;
+  color: var(--text-2);
+}
+.gm-contract {
+  max-width: 480px;
+}
+.gm-contract label {
+  max-width: 280px;
+}
+.gm-note-label {
+  margin-bottom: 10px;
+}
+.gm-trade-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 0;
+  margin: 20px 0;
+  border: 0;
+  min-width: 0;
+}
+.gm-trade-grid legend {
+  margin-bottom: 10px;
+  color: var(--text-2);
+}
+.gm-trade-grid .gm-card {
+  min-width: 0;
+  margin: 0;
+}
+.gm-asset-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+.gm-game .gm-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  text-align: left;
+}
+.gm-you {
+  background: var(--raised);
+}
+.gm-transactions {
+  padding-left: 20px;
+}
+.gm-transactions li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.gm-transactions small {
+  display: block;
+  color: var(--text-3);
+}
+/* Move results float above the page so they are seen wherever the move was made. */
+.gm-toasts {
+  position: fixed;
+  z-index: 30;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, calc(100vw - 28px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.gm-game .gm-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  max-width: none;
+  padding: 12px 12px 12px 16px;
+  background: var(--raised);
+  color: var(--text);
+  border: 1px solid var(--line-2);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  box-shadow: 0 8px 28px #0006;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.gm-toast.is-ok {
+  border-left-color: var(--pos, var(--accent));
+}
+.gm-toast small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+.gm-game .gm-toast button {
+  border: 0;
+  background: none;
+  padding: 0 4px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-2);
+}
+.gm-game .gm-error {
+  border-left-color: var(--bar);
+  white-space: pre-wrap;
+}
+.gm-finale {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.gm-new {
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+  margin-top: 36px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+.gm-dialog {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  width: min(520px, calc(100vw - 32px));
+  padding: 24px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.gm-dialog::backdrop {
+  background: #0009;
+}
+.gm-dialog h2 {
+  font-size: 22px;
+}
+.gm-dialog p {
+  color: var(--text-2);
+}
+.gm-dialog .gm-actions {
+  justify-content: end;
+  margin-bottom: 0;
+}
+.gm-empty {
+  padding: 20px 0;
+}
+@media (max-width: 1100px) {
+  .gm-scoreboard dl {
+    gap: 20px;
+  }
+  .gm-layout {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 16px;
+  }
+}
+@media (max-width: 800px) {
+  .gm-game {
+    padding: 22px 14px 36px;
+  }
+  .gm-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .gm-context {
+    position: static;
+  }
+  .gm-context-scroll {
+    max-height: 190px;
+  }
+  .gm-context th,
+  .gm-context td {
+    padding: 4px;
+  }
+  .gm-scoreboard dl {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .gm-scoreboard dd {
+    font-size: 18px;
+  }
+  .gm-progress > span {
+    padding: 4px;
+    font-size: 10px;
+  }
+  .gm-bar-status {
+    width: 100%;
+  }
+  .gm-advance {
+    margin-left: auto;
+  }
+  .gm-heading {
+    flex-wrap: wrap;
+    gap: 0;
+  }
+  .gm-welcome {
+    grid-template-columns: 1fr;
+    margin-top: 24px;
+  }
+  .gm-welcome-aside {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding: 24px;
+  }
+}
+@media (max-width: 480px) {
+  .gm-office-grid,
+  .gm-trade-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .gm-game .gm-office-card {
+    padding: 16px;
+  }
+  .gm-nav {
+    gap: 0;
+  }
+  .gm-nav button {
+    font-size: 12px;
+    padding: 8px;
+  }
+  .gm-scoreboard {
+    padding: 16px;
+  }
+  .gm-scoreboard dl {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 640px) {
+  /* The site header wraps to two rows here, so the bar scrolls with the page. */
+  .gm-bar {
+    position: static;
+  }
+}
+.gm-score-terms {
+  max-width: 500px;
+}
+.gm-score-terms > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid var(--line);
+  padding: 7px 0;
+}
+.gm-score-terms dt {
+  color: var(--text-2);
+}
+.gm-score-terms dd {
+  margin: 0;
+}
+@media (max-width: 800px) {
+  /* Keep the player's name visible while a wide table scrolls sideways. */
+  .gm-table tbody th[scope="row"] {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--bg);
+  }
+}

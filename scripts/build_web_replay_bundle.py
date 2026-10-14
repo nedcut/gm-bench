@@ -28,10 +28,14 @@ sys.path.insert(0, str(ROOT))
 
 def build_bundle(destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
-    sources = sorted(PACKAGE.glob("*.py"))
+    sources = sorted(PACKAGE.glob("*.py")) + [
+        PACKAGE / "agentic" / name for name in ("__init__.py", "tools.py", "episode.py")
+    ]
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for source in sources:
-            info = zipfile.ZipInfo(f"gm_bench/{source.name}", date_time=(1980, 1, 1, 0, 0, 0))
+            info = zipfile.ZipInfo(
+                f"gm_bench/{source.relative_to(PACKAGE).as_posix()}", date_time=(1980, 1, 1, 0, 0, 0)
+            )
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o644 << 16
             archive.writestr(info, source.read_bytes())
