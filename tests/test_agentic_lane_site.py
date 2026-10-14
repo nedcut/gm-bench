@@ -93,6 +93,7 @@ def test_current_results_publish_only_the_committed_panel_rows(tmp_path: Path) -
     dataset = build_study(output_path=tmp_path / "leaderboard.json")
     assert sorted(row["id"] for row in dataset["agentic_lane"]) == [
         "agentic:claude-2.1.281:claude-haiku-4-5",
+        "agentic:claude-2.1.281:claude-haiku-5-5",
         "agentic:claude-2.1.281:claude-sonnet-5",
         "agentic:codex-0.156.1:gpt-6-luna",
         "agentic:codex-0.162.1:gpt-6.1-sol",

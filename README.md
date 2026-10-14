@@ -43,7 +43,7 @@ five-season episode inside a tool-using harness (OpenCode, Codex CLI,
 Claude Code, or the Cursor CLI), acting through an MCP (Model Context
 Protocol) tool server. A 2.0 row is identified by model + harness + harness
 version, and 2.0 rows never enter a 1.0 table. The contract froze on
-2026-09-25, and six panel rows have been published so far.
+2026-09-25, and seven panel rows have been published so far.
 
 - Implemented: drivers for all four harnesses, Docker container isolation
   for the harness, the private 32-seed panel frozen by digest with its seeds
@@ -55,7 +55,7 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
   repeat-noise rows (seeds 1 to 4, run twice on each of those two).
 - Panel rows on the frozen 32-seed private panel, each compared only with
   the `pick-trader` heuristic on the same seeds (249.2 there; the 1.0
-  figure of 247.1 is on the 29-seed 1.0 panel). All six are flagged
+  figure of 247.1 is on the 29-seed 1.0 panel). All seven are flagged
   `unpinned`: the model version behind them is not pinned, so they may not
   be reproducible, and they are extra data points, not headline results.
   - Codex (`gpt-6-luna`) and Claude Code (`claude-sonnet-5`) both average
@@ -69,6 +69,13 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
     It passes the ledger audit only under a rule adopted after it ran:
     six draft picks on prospect ids it guessed rather than listed are
     reported as warnings, because prospect ids carry no hidden information.
+  - Claude Code on `claude-haiku-5-5` averages 202.7, 46.5 points below
+    `pick-trader` (95% interval -66.7 to -26.7, p = 0.0002), and is ahead
+    of it on 9 of the 32 seeds, a significant gap. It used 393K tokens per
+    decision (one phase; cached input included). The API-equivalent estimate is $4.89 for
+    the panel, a lower bound: Haiku 5.5 charges 5x for a request whose
+    prompt is over 100,000 tokens, 1,037 of the 2,837 requests were, and
+    pricing them at that tier puts the panel at about $12 to $16.
   - The Cursor CLI on `composer-2.5` averages 230.6, 18.6 points below
     `pick-trader` (95% interval -35.6 to -1.4, p = 0.047). The gap is
     significant, though narrowly, and the row is ahead of `pick-trader` on
@@ -88,7 +95,7 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
     lies above zero. The margin is thin: the lower bound is 1.6 points,
     the lift is smaller than this panel's smallest reliably detectable
     difference (about 32 points), and the row is unpinned. Each row's
-    p-value is its own, not adjusted for the six rows; under a Holm
+    p-value is its own, not adjusted for the seven rows; under a Holm
     correction across them neither this p = 0.046 nor Cursor's 0.047 would
     be significant. Codex reports
     no cost; the API-equivalent estimate is $17.38 for the panel, possibly
@@ -98,7 +105,7 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
 The frozen design is in [docs/bench_v2_spec.md](docs/bench_v2_spec.md), the
 operator guide is [docs/agentic_lane.md](docs/agentic_lane.md), and the
 [clean-clone verification guide](docs/REPRODUCING_GM_BENCH_2_0.md) checks
-the committed 2.0 artifacts without credentials or model spending. The six
+the committed 2.0 artifacts without credentials or model spending. The seven
 rows are public; a 2.0 tag and GitHub release have not been cut.
 
 ## Play along

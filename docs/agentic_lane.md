@@ -1215,6 +1215,18 @@ basis in its tooltip when a row has an estimate but no billed cost, or
 `unmeasured` when it has neither. The site data check rejects a row whose
 estimate equals its billed `cost_usd`.
 
+Price the model before the run. A run prices its tokens as it plays, from
+the `pricing.json` this checkout has, so add and verify the model's entry
+(input, output, cache reads, cache writes including Anthropic's 1-hour
+tier, and any long-context threshold) before the smoke, not after the
+panel. The `claude-haiku-5-5` panel (2026-10-13) ran without one and
+recorded no estimate. `agentic-redact` re-derives the estimate only for a
+Claude Code row (from its retained event streams); any other harness's row
+publishes whatever the run recorded, `null` for an unpriced model. Note any
+tiered price the
+estimator can only bound (a `long_context_input_tokens` threshold) in the
+row's disclosures.
+
 Quota windows. `codex exec --json` carries no rate limits, but Codex writes
 each `token_count` event, with the account's rate-limit snapshot, to the
 session rollout (`CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl`). Once
@@ -1318,7 +1330,18 @@ second panel on `claude-haiku-4-5` (2026-09-27) is committed at
 row now carries the re-derived figure with the recorded one beside it). In
 late seasons it drafted six
 guessed prospect ids without listing the class; they are reported as
-guessed draft picks (warnings), not violations. Every Claude episode spends your Claude subscription's
+guessed draft picks (warnings), not violations. A third panel, on
+`claude-haiku-5-5` (2026-10-13, driver commit `3e8e600`, the first Claude
+row without the account's claude.ai connectors), is committed at
+`results/agentic/claude-2.1.281-claude-haiku-5-5-panel-32x5.json`: mean
+202.7, 640/640 phases closed by the agent, 1 nudge, no provider stalls or
+quota pauses, 31 compactions, 6.4 min per episode, and $4.89 at API prices
+for the panel, a lower bound. Haiku 5.5 charges 5x on every category for a
+request whose prompt is over 100,000 tokens (`long_context_input_tokens`),
+and 1,037 of the panel's 2,837 requests were; repricing them from the
+per-request frames gives about $12 to $16. `pricing.json` had no Haiku 5.5
+entry when the panel ran, so the estimate was re-derived at redaction (see
+Cost below). Every Claude episode spends your Claude subscription's
 quota (or API money with `ANTHROPIC_API_KEY`). Run it serially (the driver
 has no parallel mode), smoke one short episode before a panel, and budget a
 full panel as hours of quota.
@@ -1572,8 +1595,9 @@ harness.
   fetch or web search tool, and `dontAsk` denies any other tool. Its
   GM-Bench tools are deferred: the model sees them by name only and calls
   ToolSearch to load a tool's schema before first use (see "Claude Code
-  harness"). The two panel rows made 200 (`claude-sonnet-5`) and 167
-  (`claude-haiku-4-5`) ToolSearch calls over 32 episodes.
+  harness"). The three panel rows made 200 (`claude-sonnet-5`), 167
+  (`claude-haiku-4-5`) and 146 (`claude-haiku-5-5`) ToolSearch calls over
+  32 episodes.
 - **OpenCode and Codex** run with their built-in tool sets unrestricted,
   including any web tool the harness ships (OpenCode's web fetch, Codex's
   web search). OpenCode puts every GM-Bench tool schema in the first
