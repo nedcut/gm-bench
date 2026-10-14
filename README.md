@@ -92,7 +92,8 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
   - The same model and plan on OpenCode 2.0.27 averages 244.6, 4.6 points
     below `pick-trader` (95% interval -25.8 to +17.0, p = 0.67), ahead of
     it on 12 of the 32 seeds: also "can't tell", and 2.5 points from the
-    1.18.31 row. OpenCode reports $4.91 for the panel. A first 2.0.27
+    1.18.31 row. It used 661K tokens per decision (cached input
+    included), and OpenCode reports $4.91 for the panel. A first 2.0.27
     panel was discarded because OpenCode sent each first request before
     the GM-Bench tools had connected; the driver fix (#193) played this one.
   - Codex 0.162.1 on `gpt-6.1-sol` averages 273.2, 24.0 points above

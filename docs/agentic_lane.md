@@ -134,8 +134,8 @@ model and OpenCode Go plan as the 1.18.31 row; 2026-10-13, driver commit
 `93b1f7c`, the launcher's first panel) is committed at
 `results/agentic/opencode-2.0.27-deepseek-v4.1-flash-panel-32x5.json`:
 mean 244.6, 640/640 phases closed by the agent, no nudges, provider stalls
-or compactions, 160.4 tool calls and 14.6 min per episode, $4.91 as
-OpenCode reports it. In episode 14 OpenCode refused one `trade` call on
+or compactions, 160.4 tool calls and 14.6 min per episode, 661K tokens
+per decision (cached input included), $4.91 as OpenCode reports it. In episode 14 OpenCode refused one `trade` call on
 its schema check (no `partner_team_id`); the run recorded 166/167, and the
 row publishes the recount, 166/166, with the recorded figure beside it.
 Episode 19 exited 1 with an empty stderr after the agent had closed all 20
@@ -922,8 +922,9 @@ plan the weekly window peaked at 7% used. The third, on `gpt-6-astra`
 (2026-10-13, driver commit `5d56c71`, the same Codex 0.162.1 setup), is
 committed at `results/agentic/codex-0.162.1-gpt-6-astra-panel-32x5.json`:
 mean 288.4, 640/640 phases closed by the agent, no nudges, provider stalls
-or quota pauses, 154.9 tool calls and 4.8 min per episode, and only
-GM-Bench calls in the event streams. `pricing.json` had no `gpt-6-astra`
+or quota pauses, 154.9 tool calls and 4.8 min per episode, 123K tokens
+per decision (cached input included), and only GM-Bench calls in the
+event streams. `pricing.json` had no `gpt-6-astra`
 entry when it ran, so the run recorded no estimate; redaction re-derived
 it from the retained event streams: $115.04 for the panel, a lower bound
 (every episode had a turn whose input grew past 272K). On the same

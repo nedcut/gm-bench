@@ -69,7 +69,8 @@ Summary:
     ($115.04) is a lower bound.
   - OpenCode 2.0.27 · `opencode-go/deepseek-v4.1-flash`: mean 244.6, lift
     −4.6 (−25.8 to +17.0, p = 0.67), not significant; ahead of
-    `pick-trader` on 12 of 32 seeds. OpenCode reports $4.91 for the panel.
+    `pick-trader` on 12 of 32 seeds; 661K tokens per decision. OpenCode
+    reports $4.91 for the panel.
 
   The realized paired-lift SDs (62.5 and 73.4) put the panel's minimum
   detectable difference against `pick-trader` at about 31 to 36 points, so
