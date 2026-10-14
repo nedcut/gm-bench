@@ -1,7 +1,7 @@
 # GM-Bench 2.0: a model in its own harness (DRAFT, not published)
 
 > **Draft.** Updated 2026-10-14 for the owner to review before final
-> publication. Ten panel rows are public under `results/agentic/`; a 2.0
+> publication. Eleven panel rows are public under `results/agentic/`; a 2.0
 > tag and GitHub release have not been cut. Numbers and cost disclosures
 > below reflect the committed artifacts, including the merged release fixes.
 
@@ -15,7 +15,7 @@ are the ones 1.0 used.
 
 ## What ran
 
-Ten rows on the frozen 32-seed private panel, five seasons, each harness in
+Eleven rows on the frozen 32-seed private panel, five seasons, each harness in
 a firewalled Docker container:
 
 | row | mean | vs `pick-trader` (95% interval) | tokens / decision | cost, whole panel |
@@ -30,6 +30,7 @@ a firewalled Docker container:
 | Codex 0.162.1 · `gpt-6-astra` | 288.4 | +39.2 (+15.6 to +63.1) | 123K | $115.04 est., lower bound |
 | OpenCode 2.0.27 · `opencode-go/deepseek-v4.1-flash` | 244.6 | −4.6 (−25.8 to +17.0) | 661K | $4.91 (OpenCode's figure) |
 | Claude Code 2.1.281 · `claude-sonnet-5-5` | 217.1 | −32.1 (−56.3 to −9.7) | 295K | $38.31 est. |
+| Claude Code 2.1.281 · `claude-opus-5-5` | 202.5 | −46.7 (−69.6 to −21.3) | 540K | $129.12 est. |
 
 Every row is in the agentic execution lane, inside the harness it names. A
 decision is one phase (20 per episode), and its tokens are everything the
@@ -37,7 +38,7 @@ harness sent and received in it, cached input included. "est." is an
 API-equivalent estimate, not a bill (see Cost disclosures).
 
 `pick-trader`, the scripted reference policy, averages 249.2 on these seeds.
-All ten rows closed all 640 phases themselves. All ten are flagged
+All eleven rows closed all 640 phases themselves. All eleven are flagged
 `unpinned`: the served model version is not pinned, so they may not be
 reproducible. Under the frozen eligibility rule they are extra data points,
 not headline results.
@@ -51,7 +52,7 @@ ahead on 9 of 32 seeds, beyond its realized minimum detectable difference
 of about 29. Sonnet 5.5 is below it too: −32.1, 95% interval −56.3 to
 −9.7, sign-flip p 0.012, ahead on 11 of 32 seeds. That lift is about the
 size of its realized minimum detectable difference (about 33), and under
-a Holm correction across the ten rows it is not significant (adjusted p
+a Holm correction across the eleven rows it is not significant (adjusted p
 about 0.085), so the margin is thin. Its predecessor `claude-sonnet-5`
 averaged 227.4 on the same harness, but 2.0 does not test rows against
 each other. Sonnet 5.5 played fast and cheap by comparison: 2.9 minutes
@@ -62,6 +63,39 @@ difference from `pick-trader` the benchmark can reliably detect is about 31
 to 36 points. A lift of −21.8 with an interval that crosses zero is "cannot
 tell", not "on par". The two rows having the same mean is a coincidence and
 supports no comparison between them: 2.0 ranks nothing.
+
+Opus 5.5, also on Claude Code, is below the scripted bar by about as much
+as Haiku 5.5: a paired lift of −46.7, 95% interval −69.6 to −21.3,
+sign-flip p 0.001, ahead on 7 of 32 seeds. The lift is larger than its
+realized minimum detectable difference of about 34, and it stays
+significant under a Holm correction across the eleven rows (adjusted p
+about 0.009). Its mean, 202.5, is within 0.2 of Haiku 5.5's and below
+Sonnet 5.5's 217.1. It used 540K tokens per decision and 6.5 minutes per
+episode, and $129.12 for the panel at API prices.
+
+The score components show where its points went. Per episode, Opus 5.5
+earned about 12 more points than Sonnet 5.5 from wins, playoff rounds and
+championships, and about 23 fewer from the roster it left behind (total
+assets 15.9 against 26.6, young assets 8.3 against 20.9). It played the
+last season to win now ("Season 5 is the last one, so I'm going all in:
+future picks and cap health matter only a little now," episode 0; "Final
+season next, so everything goes toward winning now," episode 13), let
+contracts run out, so little of its
+roster was still under contract when the episode was scored after the
+season-5 rollover. Three episodes (0, 8 and 13) ended with zero total
+assets and zero roster depth. Its unused cap room, often 80 or more raw,
+is clamped at +10, so it earned nothing extra. It also traded heavily: 695 `trade` calls, 21.7
+per episode against about 4.9 for Sonnet 5.5, most refused as too light
+at no cost; in the trades it completed it gave away 126 draft picks and
+received none. Against the two GPT rows the gap is mostly that
+end-of-episode credit (about 50 points) and championships (about 17). The
+brief describes the end-of-episode term only as "a capped credit for the
+roster, prospects, picks and cap health you leave behind" and does not
+say that expiring contracts leave before it is counted; 33 of Opus's 59
+illegal moves (and 24 of Sonnet 5.5's 37) named a draft-pick season
+outside the tradable window, which shifts each season and is not in the
+tool schema. Both are queued as candidate clarifications for the next
+contract, not 2.0 changes.
 
 Cursor is also below the scripted bar, with a smaller margin: its paired
 lift is −18.6, the interval excludes zero, and the sign-flip p-value is
@@ -87,7 +121,7 @@ sign-flip p 0.046, ahead on 23 of 32 seeds. The evidence is marginal in
 the same way as Cursor's, in the other direction: the lower bound is 1.6
 points, the lift is below the row's realized minimum detectable difference
 of about 32, and the row is one unpinned run on one panel. Each row's
-p-value is its own, not adjusted for the ten rows; under a Holm correction
+p-value is its own, not adjusted for the eleven rows; under a Holm correction
 across them neither this 0.046 nor Cursor's 0.047 would be significant.
 The agent made
 36 `draft` calls across the 160 draft phases and 518 `trade` calls.
@@ -97,7 +131,7 @@ far and the clearest result above the scripted bar: a paired lift of
 +39.2, 95% interval +15.6 to +63.1, sign-flip p 0.0036, ahead on 20 of 32
 seeds. The lift is larger than its realized minimum detectable difference
 of about 34, and it stays significant under a Holm correction across the
-ten rows (adjusted p about 0.029). It is still one unpinned run on one
+eleven rows (adjusted p about 0.029). It is still one unpinned run on one
 panel, and its interval overlaps `gpt-6.1-sol`'s. It used 123K tokens per
 decision, the fewest of any row, and made 49 `draft` calls and 435
 `trade` calls. These are separate contrasts against the scripted
@@ -105,7 +139,7 @@ reference, not tests between model or harness rows.
 
 ## Cost disclosures
 
-Eight panel rows have `summary.usage.cost_usd: null` and zero decisions
+Nine panel rows have `summary.usage.cost_usd: null` and zero decisions
 with measured cost. The two OpenCode rows carry OpenCode's own cost figure.
 Subscription quota use is not a per-token bill.
 
@@ -121,6 +155,7 @@ Subscription quota use is not a per-token bill.
 | Codex · `gpt-6-astra` | $115.04, a lower bound at short-context list prices; re-derived at redaction because the model had no price entry when the panel ran |
 | OpenCode 2.0.27 · `deepseek-v4.1-flash` | $4.91 as OpenCode reports it, on an OpenCode Go subscription; no API-equivalent estimate |
 | Claude Code · `claude-sonnet-5-5` | $38.31 at API list prices |
+| Claude Code · `claude-opus-5-5` | $129.12 at API list prices |
 
 These estimates come from recorded token usage and the repository's dated
 price entries; they do not measure the subscription's bill or establish
@@ -167,7 +202,10 @@ in the [operator guide](../agentic_lane.md#publishing-a-row).
   harness setup. Cursor's
   servers add seven default User Rules; the prompt audit found only those
   on every panel episode. Cursor's reasoning effort and compactions are
-  unmeasured. The container can reach the public internet. The committed
+  unmeasured. Besides ToolSearch, the `claude-opus-5-5` agent made 47
+  Bash, 9 Write, 1 Edit and 1 Grep calls that listed files and wrote notes
+  inside the episode's fresh container; none read the proxy secret,
+  credentials or seeds. The container can reach the public internet. The committed
   harness tool counts record no web-search or fetch tool use; they do not
   prove an absence of network access through shell commands.
 - **2.0 versus 1.0 is not only agency.** A 2.0 agent can make any number of

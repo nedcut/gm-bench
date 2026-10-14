@@ -116,6 +116,12 @@ const ROW_CAVEATS: Record<string, string> = {
     "prompt is over 100,000 tokens, and 1,037 of the 2,837 requests were; the estimate uses the lower " +
     "rates throughout. Pricing those requests at the higher tier puts the panel at about $12 to $16. " +
     "Played on driver commit 3e8e600.",
+  "agentic:claude-2.1.281:claude-opus-5-5":
+    "Paused once for quota: after episode 25 the 5-hour window reached 98%, and the driver waited about " +
+    "3 hours for it to reset; no episode was cut short. Besides GM-Bench calls the model used Bash, Write " +
+    "and Edit to keep notes in its container's Claude Code memory folder, which started empty in every " +
+    "episode, so nothing carried between seeds. Played on driver commit 73c949b, whose driver files match " +
+    "0f3042d.",
   "agentic:claude-2.1.281:claude-sonnet-5":
     "One episode's tool-call count is a recount: the run recorded 165 of 166 because the event parser " +
     "counted a call to a tool name that does not exist; after the parser fix the count is 165 of 165.",
@@ -125,7 +131,7 @@ const ROW_CAVEATS: Record<string, string> = {
     "The model-independent 2026-10-14 policy reports accepted blind signings as warnings in every season, " +
     "including retained players. This does not rule out leakage. The published row failed the original " +
     "audit and passes the revised audit; its matching raw evidence was unavailable for this retrospective. " +
-    "Significant on its own (p = 0.012) but not under a Holm correction across the ten rows. " +
+    "Significant on its own (p = 0.012) but not under a Holm correction across the eleven rows. " +
     "Played on driver commit 0f3042d.",
   "agentic:codex-0.156.1:gpt-6-luna":
     "Ran with the ChatGPT account's connected apps and plugins available: Codex exposed about 668 extra " +
