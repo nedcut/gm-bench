@@ -763,8 +763,124 @@ main:focus {
 
 /* ---------- how it works ---------- */
 
-.page.how {
-  max-width: 980px;
+.rink-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  align-items: start;
+  gap: clamp(32px, 4vw, 72px);
+  width: 100%;
+  max-width: 1480px;
+  margin-inline: auto;
+  padding: 40px 32px 56px;
+}
+
+.rink-layout .page.how {
+  min-width: 0;
+  max-width: none;
+  padding: 0;
+}
+
+.replays-content { min-width: 0; }
+.replays-content .replays-head { padding: 0; margin-bottom: 24px; }
+.replays-content .replays-head h1 {
+  margin: 0;
+  font-size: clamp(30px, 4vw, 42px);
+  font-weight: 900;
+  line-height: 1;
+}
+.replays-content .view-head { display: block; }
+.replays-content .view-head > span { display: block; margin-top: 16px; }
+.replays-content .legacy .shell { width: 100%; max-width: none; margin: 0; padding-inline: 0; }
+.replays-content .legacy .play { padding: 32px 24px; border-radius: 10px; }
+
+.rink-sidebar { position: sticky; top: min(88px, calc(100dvh - 960px)); padding-top: 4px; }
+.rink-eyebrow, .rink-caption {
+  color: var(--text-3);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.rink-sidebar h2 { margin: 12px 0 6px; font-size: 25px; font-weight: 800; font-stretch: 80%; }
+.rink-intro { margin: 0; color: var(--text-2); font-size: 13px; }
+.rink-board { display: block; width: 100%; max-height: 450px; margin: 14px auto; }
+.rink-outer { fill: var(--raised); stroke: var(--line-2); stroke-width: 1; }
+.rink-ice { fill: var(--surface); stroke: var(--line-2); stroke-width: 1; }
+.rink-board .rink-red { fill: none; stroke: var(--bar); opacity: .5; }
+.rink-board .rink-blue { fill: none; stroke: var(--rink-blue); opacity: .55; }
+.rink-crease { fill: var(--raised); }
+.rink-board .rink-dot { fill: var(--bar); stroke: none; }
+.rink-center-dot { fill: var(--rink-blue); }
+.rink-center-logo { color: var(--text); opacity: .85; }
+.rink-playground { min-width: 0; margin-bottom: 24px; }
+.rink-surface { position: relative; }
+.rink-reset { position: absolute; right: 18%; bottom: 8.5%; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: var(--surface); color: var(--text-3); cursor: pointer; }
+.rink-reset:hover { color: var(--rink-blue); background: var(--raised); }
+.rink-confetti { pointer-events: none; }
+.rink-confetti rect { opacity: 0; transform-box: fill-box; transform-origin: center; }
+.rink-net { fill: none; stroke: var(--bar); stroke-width: 2; opacity: .7; }
+.rink-net-mesh { stroke-width: .5; opacity: .55; }
+.rink-board[data-goal="home"] .rink-net-home { stroke: var(--rink-blue); opacity: 1; stroke-width: 3; }
+.rink-board[data-goal="away"] .rink-net-away { opacity: 1; stroke-width: 3; }
+.rink-playground .rink-board { margin-bottom: 10px; }
+.rink-controls { display: flex; gap: 8px; align-items: center; justify-content: space-between; color: var(--text-3); font-size: 10px; }
+.rink-controls button { padding: 4px 8px; background: var(--surface); border: 1px solid var(--line-2); border-radius: 4px; cursor: pointer; color: var(--text-2); font-size: 11px; }
+.rink-controls button:hover { border-color: var(--rink-blue); }
+.rink-player, .rink-puck { cursor: grab; touch-action: none; user-select: none; }
+.rink-player.is-held, .rink-puck.is-held { cursor: grabbing; }
+.rink-player text { pointer-events: none; }
+.rink-player:focus-visible { outline: none; }
+.rink-player:focus-visible circle { stroke: var(--text); stroke-width: 3; }
+.rink-player circle { fill: var(--surface); stroke: var(--rink-blue); stroke-width: 1.5; }
+.rink-player text { fill: var(--rink-blue); font-size: 9px; font-weight: 750; }
+.rink-player-away circle { fill: var(--bar); stroke: var(--bar); }
+.rink-player-away text { fill: var(--surface); }
+.rink-puck-disc { fill: #172031; stroke: #e9eef4; stroke-width: 1.2; }
+.rink-puck-hit { fill: transparent; stroke: none; }
+.rink-puck path { stroke: #a7b8c8; stroke-width: 1; pointer-events: none; }
+.rink-puck:focus-visible { outline: none; }
+.rink-puck:focus-visible .rink-puck-hit { stroke: var(--focus); stroke-width: 2; }
+.rink-player-art { transform-box: fill-box; transform-origin: center; }
+.rink-player.is-hinting .rink-player-art { animation: rink-wiggle .7s ease-in-out; }
+@keyframes rink-wiggle {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  25% { transform: translateX(-4px) rotate(-12deg); }
+  50% { transform: translateX(4px) rotate(12deg); }
+  75% { transform: translateX(-2px) rotate(-6deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rink-player.is-hinting .rink-player-art { animation: none; }
+}
+.rink-phases { list-style: none; padding: 0; margin: 14px 0 0; }
+.rink-phases li { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-top: 1px solid var(--line); }
+.rink-phase-number { color: var(--text-3); font: 11px var(--font-code); }
+.rink-phases strong { display: block; font-size: 12px; font-weight: 650; }
+.rink-phases div > span { display: block; color: var(--text-3); font-size: 11px; margin-top: 2px; }
+.rink-phases .is-active .rink-phase-number, .rink-phases .is-active strong { color: var(--bar); }
+.rink-footnote { margin: 16px 0 0; color: var(--text-3); font-size: 11px; line-height: 1.6; }
+
+@media (max-width: 1100px) {
+  .rink-layout { grid-template-columns: minmax(0, 1fr) 240px; gap: 28px; padding-inline: 24px; }
+}
+@media (max-width: 900px) {
+  .rink-layout { grid-template-columns: minmax(0, 1fr); max-width: 800px; }
+  .rink-sidebar { position: static; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 24px; border-top: 1px solid var(--line); padding-top: 24px; }
+  .rink-playground { grid-column: 2; grid-row: 1 / 7; align-self: center; margin-bottom: 0; }
+  .rink-playground .rink-board { max-height: 320px; margin-top: 0; }
+  .rink-controls { flex-wrap: wrap; }
+  .rink-sidebar h2 { font-size: 22px; }
+  .rink-caption { margin-top: 24px; }
+  .rink-footnote { grid-column: 1 / -1; }
+}
+@media (max-width: 540px) {
+  .rink-layout { padding: 28px 16px 40px; }
+  .rink-sidebar { display: block; }
+  .rink-playground { grid-column: 1 / -1; grid-row: auto; width: 100%; max-width: 340px; margin: 20px auto; }
+  .rink-playground .rink-board { max-height: 450px; }
+  .rink-eyebrow { font-size: 9px; letter-spacing: .06em; }
+  .rink-sidebar h2 { font-size: 20px; }
+  .rink-phases li { gap: 8px; }
+  .replays-content .legacy .play { padding: 24px 16px; }
 }
 
 .how-steps {

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useTheme } from "../theme";
 import { REPO, REPO_BLOB, routes, type PageKey } from "../site";
 import type { Leaderboard } from "../types";
+import BrandMark from "./BrandMark";
 
 /* Statistics share one destination; the explanation and replays stay separate. */
 const TABS: { page: PageKey; label: string }[] = [
@@ -23,19 +24,6 @@ function ThemeToggle() {
         <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M16.5 12.4A7 7 0 0 1 7.6 3.5a7 7 0 1 0 8.9 8.9Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
       )}
     </button>
-  );
-}
-
-/* The GM-Bench mark (web/public/brand/): the letters are the bench back and the
-   seat plank runs across their feet. Drawn inline so it follows the theme. */
-function BrandMark() {
-  return (
-    <svg className="brand-mark" viewBox="2 10 256 136" width="41" height="22" aria-hidden="true">
-      <path fill="currentColor" d="M116,14 H36 V95 H116 V58 H76 V78 H96 V90 H56 V34 H116 Z" />
-      <path fill="currentColor" d="M128,95 V14 H152 L176,50 L200,14 H224 V95 H204 V50 L176,80 L148,50 V95 Z" />
-      <path fill="var(--bar)" d="M14,98 H246 V111 H234 V139 H224 V111 H36 V139 H26 V111 H14 Z" />
-      <rect fill="var(--rink-blue)" x="6" y="139.5" width="248" height="3" />
-    </svg>
   );
 }
 

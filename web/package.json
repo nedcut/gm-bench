@@ -10,7 +10,7 @@
     "validate:replay:node": "bun scripts/validate_replay_node.mjs",
     "validate:replay": "bun run prepare:replay && bun run validate:replay:node",
     "generate:replay": "python3 ../scripts/build_web_replay_bundle.py --write-fixture",
-    "build": "bun test scripts/chartAxes.test.ts && bun run validate:data && bun run validate:replay && bun run validate:trajectories && tsc -b && vite build",
+    "build": "bun test scripts/chartAxes.test.ts scripts/rinkPhysics.test.ts scripts/rinkGame.test.ts && bun run validate:data && bun run validate:replay && bun run validate:trajectories && tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
     "validate:trajectories": "python3 ../scripts/build_trajectory_demo.py --check && bun test scripts/trajectoryData.test.ts",
