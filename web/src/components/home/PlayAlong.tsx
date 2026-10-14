@@ -1,3 +1,4 @@
+import { routes } from "../../site";
 import { useState } from "react";
 import type { PuzzleSet } from "../../types";
 import PuzzleCard from "../PuzzleCard";
@@ -35,6 +36,7 @@ export default function PlayAlong({ set }: { set: PuzzleSet }) {
             {deck.length} real decisions from recorded games. Each option is a move a scripted
             policy made from that spot. Pick one to see what it did to the roster.
           </p>
+          <p><a className="text-link" href={routes.play}>Take the bench → Play a full GM challenge</a></p>
           <div className="play-tally" aria-live="polite">
             <span className="play-tally-num">
               {best}

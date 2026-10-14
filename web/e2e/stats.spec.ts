@@ -8,7 +8,7 @@ for (const width of [1440, 620, 390, 320]) {
     page.on("pageerror", e => errors.push(e.message));
     await page.goto("/");
     await expect(page.locator(".workspace")).toHaveCount(1);
-    await expect(page.locator(".tabs a")).toHaveCount(3);
+    await expect(page.locator(".tabs a")).toHaveCount(4);
     const index = page.getByRole("navigation", { name: "Statistics sections" });
     for (const [label, id] of [["Score vs cost", "cost"], ["Tool use", "tools"], ["Standings", "standings"]]) {
       await index.getByRole("link", { name: label, exact: true }).click();
