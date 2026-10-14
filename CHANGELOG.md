@@ -9,7 +9,7 @@ correction becomes a new contract version rather than an edit to an old one.
 Work began 2026-09-20; the contract froze 2026-09-25; three panel-grade rows
 were published 2026-09-27, a fourth 2026-09-28, a fifth 2026-10-12 (its
 panel ran 2026-09-28 to 09-29), a sixth to ninth 2026-10-13, and a tenth
-2026-10-14. Not yet tagged. Nothing in GM-Bench 1.0 changes.
+and eleventh 2026-10-14. Not yet tagged. Nothing in GM-Bench 1.0 changes.
 
 Summary:
 
@@ -64,7 +64,7 @@ Summary:
     lower bound, about $12 to $16 with Haiku 5.5's over-100K-token tier.
   - Codex 0.162.1 · `gpt-6-astra`: mean 288.4, lift +39.2 (+15.6 to
     +63.1, p = 0.0036), significant, and still so under a Holm correction
-    across the ten rows; ahead of `pick-trader` on 20 of 32 seeds; 123K
+    across the eleven rows; ahead of `pick-trader` on 20 of 32 seeds; 123K
     tokens per decision. No measured cost; the API-equivalent estimate
     ($115.04) is a lower bound.
   - OpenCode 2.0.27 · `opencode-go/deepseek-v4.1-flash`: mean 244.6, lift
@@ -73,10 +73,15 @@ Summary:
     reports $4.91 for the panel.
   - Claude Code 2.1.281 · `claude-sonnet-5-5`: mean 217.1, lift −32.1
     (−56.3 to −9.7, p = 0.012), significant, but not under a Holm
-    correction across the ten rows (adjusted p about 0.085); ahead of
+    correction across the eleven rows (adjusted p about 0.085); ahead of
     `pick-trader` on 11 of 32 seeds; 295K tokens per decision. No measured
     cost; the API-equivalent estimate is $38.31. Admitted under the
     post-hoc guessed-signing rule below.
+  - Claude Code 2.1.281 · `claude-opus-5-5`: mean 202.5, lift −46.7
+    (−69.6 to −21.3, p = 0.001), significant, and still so under a Holm
+    correction across the eleven rows (adjusted p about 0.009); ahead of
+    `pick-trader` on 7 of 32 seeds; 540K tokens per decision. No measured
+    cost; the API-equivalent estimate is $129.12.
 
   The realized paired-lift SDs (62.5 and 73.4) put the panel's minimum
   detectable difference against `pick-trader` at about 31 to 36 points, so
@@ -86,7 +91,8 @@ Summary:
   row on one panel, resolved with little margin. The `gpt-6-astra` lift
   (+39.2, lift SD 68.6, MDD about 34) is larger than its row's MDD. The
   `claude-sonnet-5-5` lift (−32.1, lift SD 67.5, MDD about 33) is about
-  the size of its row's MDD.
+  the size of its row's MDD. The `claude-opus-5-5` lift (−46.7, lift SD
+  68.8, MDD about 34) is larger than its row's MDD.
 - **Smoke rows and noise probes** (public seeds, not on the site): an 8-seed
   OpenCode row on `opencode/space-bunny-free`, one five-season episode each
   on Codex and Claude Code, and a 4 seeds × 2 runs repeat-noise probe on
@@ -102,7 +108,8 @@ Summary:
   `claude-haiku-5-5` at `3e8e600`, the first Claude row without the
   account's claude.ai connectors, the OpenCode 2.0.27 `deepseek-v4.1-flash`
   at `93b1f7c`, the first with the OpenCode 2.x launcher, `gpt-6-astra`
-  at `5d56c71`, and `claude-sonnet-5-5` at `0f3042d`); a
+  at `5d56c71`, `claude-sonnet-5-5` at `0f3042d`, and `claude-opus-5-5`
+  at `73c949b`, whose driver files are the same as `0f3042d`'s); a
   validation rule that publishes a
   tool-call recount when it resolves a recorded mismatch (one
   `claude-sonnet-5` episode and one OpenCode 2.0.27 episode); and
@@ -122,6 +129,54 @@ Summary:
 The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
+
+- Eleventh panel-grade 2.0 row (2026-10-14): Claude Code 2.1.281 on
+  `claude-opus-5-5`, the frozen 32-seed private panel at five seasons,
+  container isolation, played 2026-10-14 (about 13:13 to 19:45 UTC) at
+  `73c949b` (branch `price-claude-opus-5-5`: `main` at `0f3042d` plus the
+  Sonnet 5.5 pricing entry and smoke (#197) and the Opus pricing entry;
+  clean driver, digest
+  `0c20d2de9ce62901`, the same as the `claude-sonnet-5-5` row's; image
+  `gm-bench-agentic-claude:2.1.281-f0e72cbaea92`)
+  (`results/agentic/claude-2.1.281-claude-opus-5-5-panel-32x5.json`).
+  Mean 202.5 (SD 56.4, seed means 120.3 to 327.8), 640/640 phases closed
+  by the agent, 0 failed decisions, 59 penalized illegal moves (147.5
+  penalty points; 33 of them a draft-pick season outside the tradable
+  window), 0 nudges, 78 empty phases, no guard stops, no provider stalls,
+  no compactions, 540K tokens per decision (cached input included), 152.7
+  GM-Bench tool calls and 6.5 min per episode, ledger = harness on 32/32
+  episodes (4,887/4,887 calls). One quota pause: after episode 25 the
+  five-hour window read 98% used, and the driver waited about 3.0 hours
+  (10,963 s) for the 19:00 UTC reset and went on, the first quota pause on
+  a Claude row; no episode was ended by quota. Against `pick-trader` the
+  paired lift is −46.7, 95% interval −69.6 to −21.3, sign-flip p 0.001,
+  ahead on 7 of 32 seeds, with a realized MDD of about 34; Holm-adjusted
+  across the eleven rows, p is about 0.009. Against Sonnet 5.5 it gained
+  about 12 points per episode on wins, playoffs and titles and lost about
+  23 on the end-of-episode roster credit: it played the last season to
+  win now and let contracts run out, and three episodes ended with zero
+  total assets and zero roster depth. Besides GM-Bench calls the agent made 82
+  ToolSearch, 47 Bash, 9 Write, 1 Edit and 1 Grep calls; the Bash, Write
+  and Edit calls listed `/work` and Claude Code's memory folder and wrote
+  notes into the container's `~/.claude` memory folder or
+  `/work/notes.md`. Each episode starts in a fresh container with that
+  folder empty, so nothing carried between episodes; no call read the
+  proxy secret, credentials, the environment or seeds, and
+  `config_dir_findings` is empty in all 32 episodes. The agent made 83
+  `draft` calls in 160 draft phases and 695 `trade` calls (21.7 per
+  episode; most refused at no cost). Claude Code reports no cost; the
+  API-equivalent estimate is $129.12 for the panel ($4.04 per episode),
+  priced from the Opus 5.5 entry added before the run (`73c949b`). 339.2M
+  of the 344.4M input tokens were cache reads. Reasoning effort is the
+  harness default (Claude Code reports none). The model is unpinned.
+
+- Claude Opus 5.5 priced and smoked (2026-10-14): a `claude-opus-5-5`
+  entry in `gm_bench/pricing.json` (verified against platform.claude.com
+  pricing; $4 input, $20 output, $0.20 cache hits, no long-context tier;
+  without its own key the id matched no entry), and a one-episode,
+  five-season container smoke on public seed 11
+  (`results/agentic/claude-2.1.281-claude-opus-5-5-smoke-1x5.json`, score
+  287.1, $3.64 API-equivalent).
 
 - Tenth panel-grade 2.0 row (2026-10-14): Claude Code 2.1.281 on
   `claude-sonnet-5-5`, the frozen 32-seed private panel at five seasons,

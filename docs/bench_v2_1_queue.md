@@ -96,3 +96,30 @@ change alters what a new row measures against the existing ones.
     shows MCP tools by name and loads schemas through ToolSearch). The
     prompt check proposed in #166 (merged 2026-09-28) records what
     each harness sends; decide whether a row should carry it.
+
+## Brief and tool-schema clarity
+
+Recorded 2026-10-14 from the `claude-opus-5-5` panel. Both would change a
+fingerprinted file (`brief.py`, `tools.py`), so they are candidate
+clarifications for the next contract, not 2.0 changes.
+
+13. **The end-of-episode credit does not say when it is counted.** The
+    brief describes the term only as "a capped credit for the roster,
+    prospects, picks and cap health you leave behind". Nothing in it says
+    that contracts expiring at the end of the final season leave the
+    roster before that credit is taken (`get_rules` says an unextended
+    player expires to free agency at season end, but not that this
+    applies before final scoring). Opus 5.5 played the last season to win
+    now, let contracts run out, and three of its 32 episodes ended with
+    zero total assets and zero roster depth. State the timing in the
+    brief.
+14. **The tradable pick-season window is not in the tool schema.** The
+    `give_pick_seasons` and `receive_pick_seasons` arguments of `trade`
+    and `counter_trade_offer` are described only as "draft seasons, e.g.
+    [4, 5]". The window shifts each season (the next
+    `PICK_TRADE_MAX_SEASONS_AHEAD` seasons); `get_rules` shows it for the
+    current season only. A pick season outside it is an illegal move: 33
+    of `claude-opus-5-5`'s 59 and 24 of `claude-sonnet-5-5`'s 37 illegal
+    moves. The picks the status lists include the current season's,
+    which cannot be traded. Name the window in the argument description or
+    beside the listed picks.

@@ -1259,9 +1259,10 @@ the `pricing.json` this checkout has, so add and verify the model's entry
 (input, output, cache reads, cache writes including Anthropic's 1-hour
 tier, and any long-context threshold) before the smoke, not after the
 panel. The `claude-haiku-5-5` and `gpt-6-astra` panels (2026-10-13) ran
-without one and recorded no estimate; the `claude-sonnet-5-5` panel was
-priced first. A new id can also resolve to an older model's prefix entry
-(`claude-sonnet-5-5` would have matched `claude-sonnet-5`), so check the
+without one and recorded no estimate; the `claude-sonnet-5-5` and
+`claude-opus-5-5` panels were priced first. A new id can also resolve to an
+older model's prefix entry (`claude-sonnet-5-5` would have matched
+`claude-sonnet-5`) or to none (`claude-opus-5-5` matched no entry), so check the
 entry it actually resolves to with `telemetry.model_price_entry`. `agentic-redact` re-derives the
 estimate for a Claude Code or Codex row from its retained event streams
 (`claude-events.jsonl`, `codex-events.jsonl`) with this checkout's
@@ -1398,7 +1399,20 @@ for the panel (Sonnet 5's was $157; Sonnet 5.5's cache reads cost half as
 much, and it used about a third of the input tokens). In one episode it
 signed a free agent the listing had not shown and released him soon
 afterward; that is reported as a guessed signing (a warning), under a rule
-adopted after the panel ran. Every Claude episode spends your Claude subscription's
+adopted after the panel ran. Claude Opus 5.5 was also priced before its
+first run (`73c949b`; a five-season container smoke on seed 11 is committed
+at `results/agentic/claude-2.1.281-claude-opus-5-5-smoke-1x5.json`: score
+287.1, 135 tool calls, 9.0 min, $3.64 at API prices). Its panel
+(2026-10-14, driver commit `73c949b`, driver digest `0c20d2de9ce62901`, the
+same driver files as the Sonnet 5.5 row) is committed at
+`results/agentic/claude-2.1.281-claude-opus-5-5-panel-32x5.json`: mean
+202.5, 640/640 phases closed by the agent, no nudges, provider stalls or
+compactions, 6.5 min per episode, and $129.12 at API prices for the panel
+(339.2M of its 344.4M input tokens were cache reads). It is the first
+Claude row with a quota pause: after episode 25 the five-hour window read
+98% used (a Max 5x plan, which the artifact does not record), and the
+driver waited about 3.0 hours for the reset; no episode was ended by
+quota. Every Claude episode spends your Claude subscription's
 quota (or API money with `ANTHROPIC_API_KEY`). Run it serially (the driver
 has no parallel mode), smoke one short episode before a panel, and budget a
 full panel as hours of quota.
@@ -1549,12 +1563,17 @@ the process for a rejected window to reset instead of exiting, so the
 loop also polls the running invocation and stops it when a rejection is
 open and no result has arrived; that stop is a quota pause, not a guard
 kill. The driver can also record windows streamed with a `utilization`
-figure as `harness_run.quota_windows`, which would drive the
-between-episode pause at 95% used. In practice Claude Code 2.1.281 streamed
-none: every committed Claude row has empty `quota_windows` and no quota
-pauses. So on Claude Code the between-episode pause never fires, and the
-first sign of a spent window is the rejection itself. Check your usage
-before a panel.
+figure as `harness_run.quota_windows`, which drives the
+between-episode pause at 95% used. In practice Claude Code 2.1.281 streams
+a window only once it is nearly spent. Two committed rows have any: on the
+`claude-haiku-5-5` panel episodes 1 and 2 recorded the five-hour window at
+91% and 95%, with no quota pause recorded, and on the `claude-opus-5-5`
+panel episodes 24 and 25 recorded it at 92% and 98%, and the
+between-episode pause fired once, after episode 25 (it waited 10,963 s for
+the 19:00 UTC reset). Every other committed Claude row has empty
+`quota_windows` and no quota pauses. Until a window is streamed, the first
+sign of a spent window is the rejection itself. Check your usage before a
+panel.
 
 The config directory between invocations. The agent's shell runs as the
 same user as Claude Code, so between two invocations it could write a
@@ -1652,9 +1671,16 @@ harness.
   fetch or web search tool, and `dontAsk` denies any other tool. Its
   GM-Bench tools are deferred: the model sees them by name only and calls
   ToolSearch to load a tool's schema before first use (see "Claude Code
-  harness"). The four panel rows made 200 (`claude-sonnet-5`), 167
-  (`claude-haiku-4-5`), 146 (`claude-haiku-5-5`) and 37
-  (`claude-sonnet-5-5`) ToolSearch calls over 32 episodes.
+  harness"). The five panel rows made 200 (`claude-sonnet-5`), 167
+  (`claude-haiku-4-5`), 146 (`claude-haiku-5-5`), 37
+  (`claude-sonnet-5-5`) and 82 (`claude-opus-5-5`) ToolSearch calls over
+  32 episodes. `claude-opus-5-5` also made 47 Bash, 9 Write, 1 Edit and 1
+  Grep calls. They listed `/work` and Claude Code's memory folder and wrote
+  notes to that folder (in the episode's home volume) or to
+  `/work/notes.md`. Each episode's container starts with the folder empty,
+  so nothing carried between episodes; no call read the proxy secret,
+  credentials, the environment or seeds, and `config_dir_findings` is
+  empty in all 32 episodes.
 - **OpenCode and Codex** run with their built-in tool sets unrestricted,
   including any web tool the harness ships (OpenCode's web fetch, Codex's
   web search). OpenCode puts every GM-Bench tool schema in the first
