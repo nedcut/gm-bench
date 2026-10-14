@@ -8,7 +8,8 @@ correction becomes a new contract version rather than an edit to an old one.
 
 Work began 2026-09-20; the contract froze 2026-09-25; three panel-grade rows
 were published 2026-09-27, a fourth 2026-09-28, a fifth 2026-10-12 (its
-panel ran 2026-09-28 to 09-29) and a sixth 2026-10-13. Not yet tagged. Nothing in GM-Bench 1.0 changes.
+panel ran 2026-09-28 to 09-29), and a sixth and seventh 2026-10-13. Not yet
+tagged. Nothing in GM-Bench 1.0 changes.
 
 Summary:
 
@@ -56,6 +57,10 @@ Summary:
   - Codex 0.162.1 · `gpt-6.1-sol`: mean 273.2, lift +24.0 (+1.6 to +45.8,
     p = 0.046), significant; ahead of `pick-trader` on 23 of 32 seeds. The
     first 2.0 row whose interval lies above zero. No measured cost.
+  - Claude Code 2.1.281 · `claude-haiku-5-5`: mean 202.7, lift −46.5
+    (−66.7 to −26.7, p = 0.0002), significant; ahead of `pick-trader` on 9
+    of 32 seeds. No measured cost; the API-equivalent estimate ($4.89) is a
+    lower bound, about $12 to $16 with Haiku 5.5's over-100K-token tier.
 
   The realized paired-lift SDs (62.5 and 73.4) put the panel's minimum
   detectable difference against `pick-trader` at about 31 to 36 points, so
@@ -73,8 +78,10 @@ Summary:
   `claude-haiku-4-5` at `21b71dc`, which differs only in Claude Code
   tool-call counting, `composer-2.5` at `b3d7de7`, the first commit
   with the Cursor container driver, `deepseek-v4.1-flash` at `07de4b2`,
-  the first with OpenCode Go keys, and `gpt-6.1-sol` at `1411e2e`, the
-  first with Codex 0.162.1 and without the account's apps and plugins); a
+  the first with OpenCode Go keys, `gpt-6.1-sol` at `1411e2e`, the
+  first with Codex 0.162.1 and without the account's apps and plugins, and
+  `claude-haiku-5-5` at `3e8e600`, the first Claude row without the
+  account's claude.ai connectors); a
   validation rule that publishes a
   tool-call recount when it resolves a recorded mismatch (one
   `claude-sonnet-5` episode); and
@@ -93,6 +100,36 @@ Summary:
 The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
+
+- Seventh panel-grade 2.0 row (2026-10-13): Claude Code 2.1.281 on
+  `claude-haiku-5-5`, the frozen 32-seed private panel at five seasons,
+  container isolation, played 2026-10-13 from clean `main` at `3e8e600`
+  (#188; driver digest `5232221e589b7553`, image
+  `gm-bench-agentic-claude:2.1.281-f0e72cbaea92`, the first Claude row
+  without the account's claude.ai connectors)
+  (`results/agentic/claude-2.1.281-claude-haiku-5-5-panel-32x5.json`).
+  Mean 202.7 (SD 47.3, seed means 116.1 to 293.0), 640/640 phases closed
+  by the agent, 0 failed decisions, 44 penalized illegal moves, 1 nudge,
+  43 empty phases, no guard stops, no provider stalls, no quota pauses,
+  31 compactions, 132.3 GM-Bench tool calls and 6.4 min per episode,
+  ledger = harness on 32/32 episodes. Besides GM-Bench calls the agent made
+  only 146 ToolSearch calls (Claude Code loads the deferred GM-Bench tool
+  schemas through it). The agent made 151 `draft` calls in 160 draft
+  phases and 121 `trade` calls. Against `pick-trader` the paired lift is
+  −46.5, 95% interval −66.7 to −26.7, sign-flip p 0.0002, ahead on 9 of 32
+  seeds, with a realized MDD of about 29. The validation warning is one
+  rejected move on an unseen id (episode 4); no accepted move named an
+  unseen id. Claude Code reports no cost. `pricing.json` had no Haiku 5.5
+  entry when the panel ran, so the run recorded no API-equivalent
+  estimate; the entry was added (verified 2026-10-13) and the redaction
+  re-derived it from the retained event streams: $4.89 for the panel at
+  the up-to-100K-token rates, flagged `api_equivalent_long_context_possible`.
+  Haiku 5.5 prices a request whose prompt is over 100,000 tokens at 5x on
+  every category; 1,037 of the 2,837 requests were, and repricing them
+  from the per-request frames gives about $12 to $16 for the panel (output
+  tokens are not per-request in Claude Code's stream, hence the range).
+  Reasoning effort is the harness default (Claude Code reports none). The
+  model is unpinned.
 
 - Sixth panel-grade 2.0 row (2026-10-13): Codex 0.162.1 on `gpt-6.1-sol`,
   the frozen 32-seed private panel at five seasons, container isolation,

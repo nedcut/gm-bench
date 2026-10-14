@@ -111,6 +111,11 @@ const ROW_CAVEATS: Record<string, string> = {
     "information, so these picks are reported as warnings, not violations. Played on driver commit 21b71dc; " +
     "the gpt-6-luna and claude-sonnet-5 rows ran on 4d742cc. The two differ only in how Claude Code's tool " +
     "calls are counted, not in scoring.",
+  "agentic:claude-2.1.281:claude-haiku-5-5":
+    "The cost shown is a lower bound. Haiku 5.5 charges 5x on every token category for a request whose " +
+    "prompt is over 100,000 tokens, and 1,037 of the 2,837 requests were; the estimate uses the lower " +
+    "rates throughout. Pricing those requests at the higher tier puts the panel at about $12 to $16. " +
+    "Played on driver commit 3e8e600.",
   "agentic:claude-2.1.281:claude-sonnet-5":
     "One episode's tool-call count is a recount: the run recorded 165 of 166 because the event parser " +
     "counted a call to a tool name that does not exist; after the parser fix the count is 165 of 165.",
