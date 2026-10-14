@@ -19,12 +19,16 @@ function initialPreference(): ThemePreference {
   }
 }
 
+function initialTheme(): Theme {
+  if (typeof window === "undefined") return "dark";
+  const preference = initialPreference();
+  return preference === "system" ? systemTheme() : preference;
+}
+
 /* All colors live in CSS variables keyed off data-theme on <html>. */
 export function useTheme(): [Theme, ThemePreference, () => void] {
   const [preference, setPreference] = useState<ThemePreference>(initialPreference);
-  const [theme, setTheme] = useState<Theme>(() =>
-    typeof window === "undefined" ? "dark" : initialPreference() === "system" ? systemTheme() : initialPreference(),
-  );
+  const [theme, setTheme] = useState<Theme>(initialTheme);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: light)");
