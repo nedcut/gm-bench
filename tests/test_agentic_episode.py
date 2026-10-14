@@ -313,8 +313,8 @@ def test_prospect_ids_carry_no_hidden_potential() -> None:
     assert abs(correlation(indices, potentials)) < 0.05
 
 
-def test_player_ids_carry_no_hidden_potential() -> None:
-    """Why a blind signing is not a leak: a player's id says nothing about its true potential."""
+def test_initial_player_ids_have_small_marginal_potential_correlation() -> None:
+    """Descriptive initial-pool check; neither a leakage test nor a later-pool guarantee."""
     from statistics import correlation
 
     from gm_bench.generator import generate_league_data

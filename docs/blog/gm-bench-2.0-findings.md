@@ -147,12 +147,16 @@ in the [operator guide](../agentic_lane.md#publishing-a-row).
 - **A second post-hoc audit rule admits the Sonnet 5.5 row.** In one
   episode Sonnet 5.5 signed a free agent whose id the listing had not
   shown, at the minimum salary for one year, said it had used the wrong
-  id, and released him on the next call. The audit counted the signing as
-  a violation. After the panel ran, the rule was narrowed the same way:
-  player ids are generation order, drawn independently of hidden
-  potential, so a guessed signing is blind. The other option was to
-  discard the panel and re-run it, which would have meant choosing a
-  sample by the model's own behaviour.
+  id, and released him soon afterward. The audit counted the signing as
+  a violation. After the panel ran, a general rule admitted accepted blind
+  signings as warnings for every model and season, including retained players.
+  Typo, minimum salary and release are observations about this episode, not
+  policy conditions. Valid ID guesses alone do not prove cheating, and
+  initial-pool potential correlation does not prove absence of leakage.
+  The failed-original/passed-revised provenance remains disclosed; see
+  [the raw-run retrospective](../audit-signing-retrospective-2026-10-14.md).
+  No paid rerun was needed to improve eligibility.
+
 - **Harness defaults.** Every row ran at the harness's default reasoning
   effort. Claude Code runs without web tools and loads each game tool's schema
   through ToolSearch; Codex and Cursor keep their built-in tools. The

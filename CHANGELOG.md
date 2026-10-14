@@ -147,9 +147,11 @@ dated; the summary above is the current state.
   him. Under the original rule that accepted signing was a violation and
   failed validation. An accepted `sign_free_agent` whose only unseen id is
   the player it signed is now a `guessed_signing`, a validation warning:
-  player ids are generation order and hidden potential is drawn
-  independently of them (a new test measures the correlation at −0.009
-  over 55,200 rostered players and −0.004 over 7,200 free agents). The
+  the general rule applies to every model and season, including retained
+  players, without a typo, salary or release condition. IDs encode position
+  slots; initial-pool potential correlation does not prove absence of leakage.
+  Both-rule raw coverage is recorded in
+  `docs/audit-signing-retrospective-2026-10-14.md`. The
   other warnings are a rejected move on an unseen id (episode 3) and the
   guessed read that followed the signing. Claude Code reports no cost; the
   API-equivalent estimate is $38.31 for the panel ($1.20 per episode),

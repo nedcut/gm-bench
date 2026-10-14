@@ -75,6 +75,7 @@ RECORD_SOURCES = (
 #: Read, check or publish a finished run; never imported by driver code.
 POST_HOC_SOURCES = (
     f"{_PACKAGE}/audit.py",  # ledger audit, run by validate
+    f"{_PACKAGE}/audit_compare.py",  # retrospective comparison, never plays an episode
     f"{_PACKAGE}/publication.py",  # agentic-redact and artifact validation
     f"{_PACKAGE}/validate.py",  # agentic-validate on a run directory
 )

@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any
 
 from gm_bench.agentic import claude, codex, cursor, opencode
-from gm_bench.agentic.audit import audit_ledger
+from gm_bench.agentic.audit import SIGNING_POLICY, audit_ledger
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import AgenticEpisode
 from gm_bench.agentic.opencode import harness_tool_calls
@@ -63,7 +63,7 @@ EVENT_PARSERS = {
 }
 
 
-def validate_run(run_path: str | Path) -> dict[str, Any]:
+def validate_run(run_path: str | Path, *, audit_policy: str = SIGNING_POLICY) -> dict[str, Any]:
     run_path = Path(run_path)
     if run_path.is_dir():
         run_path = run_path / "run.json"
@@ -100,7 +100,7 @@ def validate_run(run_path: str | Path) -> dict[str, Any]:
     problems = list(run_problems)
     warnings = list(run_warnings)
     for index, episode in enumerate(episodes):
-        report = _validate_episode(episode, run_path.parent, harness_name)
+        report = _validate_episode(episode, run_path.parent, harness_name, audit_policy=audit_policy)
         per_episode.append(report)
         label = f"episode {index} (seed {episode.get('seed')})"
         problems.extend(f"{label}: {item}" for item in report["problems"])
@@ -244,7 +244,9 @@ def _evidence_path(recorded: Any, run_dir: Path) -> Path | None:
     return path if path.is_absolute() else run_dir / path
 
 
-def _validate_episode(episode: dict[str, Any], run_dir: Path, harness_name: str | None) -> dict[str, Any]:
+def _validate_episode(
+    episode: dict[str, Any], run_dir: Path, harness_name: str | None, *, audit_policy: str = SIGNING_POLICY
+) -> dict[str, Any]:
     problems: list[str] = []
     warnings: list[str] = []
     harness_run = episode.get("harness_run") or {}
@@ -280,7 +282,7 @@ def _validate_episode(episode: dict[str, Any], run_dir: Path, harness_name: str 
         except (OSError, ValueError) as exc:
             problems.append(f"ledger phases cannot be read: {exc!r}")
         try:
-            audit = audit_ledger(ledger_path)
+            audit = audit_ledger(ledger_path, policy=audit_policy)
         except Exception as exc:  # noqa: BLE001 - same: report the unreadable ledger, keep validating
             problems.append(f"ledger does not audit: {exc!r}")
         if audit is not None:
@@ -300,7 +302,7 @@ def _validate_episode(episode: dict[str, Any], run_dir: Path, harness_name: str 
             if audit.get("guessed_signings"):
                 warnings.append(
                     f"audit: {len(audit['guessed_signings'])} free-agent signing(s) on guessed player ids "
-                    "(blind signings: player ids carry no hidden information)"
+                    "(blind signings permitted by the 2026-10-14 audit policy; leakage is not ruled out)"
                 )
 
     # Gate 2 of the spec, recomputed from the evidence: the replayed ledger's

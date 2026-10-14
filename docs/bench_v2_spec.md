@@ -272,20 +272,32 @@ state, cannot damage the host, and cannot carry information between episodes.
   (the listing is the top 24 by public overall), signed player 302, which
   that listing had not shown, for one year at the minimum salary, said in
   its next message that it had used an id it did not mean to, inspected
-  him and released him. One accepted move on one id in 32 episodes. The
-  justification is again in the generator, not the result:
-  `generator.generate_league_data` numbers the rostered players and then
-  the free-agent pool sequentially (a 12-team league's opening pool is
-  always ids 277 to 312) and draws each player's hidden potential
-  independently of its slot (a test measures the correlation at −0.009
-  over 55,200 rostered players and −0.004 over 7,200 free agents), so a
-  guessed player id is a blind signing that uses no hidden information,
-  and any player's public card is one `inspect_player` call away. The rule covers signings only:
-  an accepted trade, release, extension or waiver claim on an unseen id
-  is still a violation. It admits the `claude-sonnet-5-5` panel row; no
-  earlier panel row has a guessed signing, so every one passes under
-  either rule. It is a post-hoc rule and is labelled as one wherever the
-  Sonnet 5.5 row is shown.
+  him and released him. One accepted move on one id in 32 episodes.
+
+  This is a general, model-independent audit/publication amendment dated
+  2026-10-14. Any signing accepted under normal simulator rules qualifies
+  when its sole unseen entity id is the signed player. The player may be
+  retained indefinitely; the rule applies in every season, including later
+  free-agent pools, expired contracts and formerly rostered players. It does
+  not require a typo, minimum salary or immediate release. Failed signings
+  remain suspicious; accepted trades, releases, extensions and waiver claims
+  on unseen ids remain violations. Additional unseen entity ids disqualify
+  the signing exception.
+
+  Guessing a valid id alone is not proof of cheating. Equally, this warning
+  classification does not certify absence of leakage. IDs encode generation
+  and position slots; small marginal correlation with hidden potential in
+  the initial pool cannot establish absence of exploitable information or
+  justify claims about later pools. The policy permits blind signings as a
+  gameplay choice while preserving explicit warnings for scrutiny.
+
+  Sonnet 5.5 failed the pre-signing audit and passes the revised audit; that
+  provenance is retained, rather than replaced by the revised result.
+  [The retrospective](audit-signing-retrospective-2026-10-14.md) enumerates
+  retained raw-run coverage, excluded/incomplete runs, both-rule counts and
+  unavailable evidence. Compact artifact validation is not a raw re-audit.
+  This disclosed amendment is permitted without a benchmark version bump;
+  scores, seeds, simulator and tools have not changed.
 
 ## Row identity and eligibility
 
@@ -789,7 +801,7 @@ changes were made under the rule at the top of this file. Each is also in
 | 2026-10-13 | OpenCode 2.x tool calls that OpenCode refused on its own input-schema check (`Invalid arguments for tool "<name>":`, before the tool runs) are counted as skipped, not as GM-Bench calls, as Codex's pre-dispatch refusals are | driver | the OpenCode 2.0.27 `deepseek-v4.1-flash` panel (episode 14 published as the recount, 166/166, with the recorded 166/167 beside it) |
 | 2026-10-13 | Claude Haiku 5.5 list prices added to `gm_bench/pricing.json`, with its 100,000-token prompt threshold as `long_context_input_tokens` | pricing | the `claude-haiku-5-5` panel, which ran before the entry existed; its API-equivalent estimate was re-derived at redaction from the retained event streams, at the up-to-100K rates (a lower bound) |
 | 2026-10-13 | Claude Sonnet 5.5 list prices added to `gm_bench/pricing.json` before its first run; without its own key the id resolved to the `claude-sonnet-5` prefix (#197) | pricing | the `claude-sonnet-5-5` smoke and panel, which ran on it |
-| 2026-10-14 | Guessed free-agent signings are warnings, not violations (#198) | audit, post-hoc | admits the `claude-sonnet-5-5` panel row |
+| 2026-10-14 | Guessed free-agent signings are warnings, not violations (#198) | audit, post-hoc | model-independent across all seasons; Sonnet 5.5 failed pre-signing/passes revised; retrospective coverage linked above |
 
 The ten panel rows ran on nine driver commits: `gpt-6-luna` and `claude-sonnet-5`
 at `4d742cc` (driver digest `8a29130cb6635a4b`), `claude-haiku-4-5` at

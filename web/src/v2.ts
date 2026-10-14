@@ -121,8 +121,10 @@ const ROW_CAVEATS: Record<string, string> = {
     "counted a call to a tool name that does not exist; after the parser fix the count is 165 of 165.",
   "agentic:claude-2.1.281:claude-sonnet-5-5":
     "Admitted under a post-hoc audit rule adopted on 2026-10-14, after this panel ran: in one episode the " +
-    "model signed a free agent whose id the listing had not shown, then released him on the next call. " +
-    "Player ids carry no hidden information, so the signing is reported as a warning, not a violation. " +
+    "model signed a free agent whose id the listing had not shown, then released him soon afterward. " +
+    "The model-independent 2026-10-14 policy reports accepted blind signings as warnings in every season, " +
+    "including retained players. This does not rule out leakage. The published row failed the original " +
+    "audit and passes the revised audit; its matching raw evidence was unavailable for this retrospective. " +
     "Significant on its own (p = 0.012) but not under a Holm correction across the ten rows. " +
     "Played on driver commit 0f3042d.",
   "agentic:codex-0.156.1:gpt-6-luna":

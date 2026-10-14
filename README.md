@@ -86,9 +86,10 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
     2.9 minutes per episode; the API-equivalent estimate is $38.31 for the
     panel, against $157.38 for `claude-sonnet-5`. It passes the ledger
     audit only under a rule adopted after it ran: in one episode it signed
-    a free agent the listing had not shown (and released him on the next
-    call); that signing is reported as a warning, because player ids carry
-    no hidden information.
+    a free agent the listing had not shown (and released him soon afterward);
+    that signing is reported as a warning under the general
+    2026-10-14 blind-signing policy. This does not establish absence of leakage;
+    see [raw re-audit coverage](docs/audit-signing-retrospective-2026-10-14.md).
   - The Cursor CLI on `composer-2.5` averages 230.6, 18.6 points below
     `pick-trader` (95% interval -35.6 to -1.4, p = 0.047). The gap is
     significant, though narrowly, and the row is ahead of `pick-trader` on

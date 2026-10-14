@@ -348,8 +348,10 @@ guessed prospect id is a `guessed_draft_pick`, not a violation: prospect ids
 are `1_000_000 + season * 10_000 + index` and the index is independent of
 hidden potential, so the pick is blind. Validation reports it as a warning.
 Likewise an accepted `sign_free_agent` on a guessed player id is a
-`guessed_signing`: player ids are generation order, independent of hidden
-potential, so the signing is blind too. Both rules were adopted after the
+`guessed_signing` under the general 2026-10-14 policy, for every model and
+season, including players kept after signing. There is no typo, minimum-salary
+or release condition. IDs encode position slots; initial-pool correlation is
+not evidence that leakage is absent. Both rules were adopted after the
 panel they admit had run (see the spec's "Changes after the freeze").
 The audit reports, it does not decide; publication does.
 
@@ -1394,8 +1396,8 @@ five-season container smoke on seed 11 is committed at
 quota pauses or compactions, 2.9 min per episode, and $38.31 at API prices
 for the panel (Sonnet 5's was $157; Sonnet 5.5's cache reads cost half as
 much, and it used about a third of the input tokens). In one episode it
-signed a free agent the listing had not shown and released him on the next
-call; that is reported as a guessed signing (a warning), under a rule
+signed a free agent the listing had not shown and released him soon
+afterward; that is reported as a guessed signing (a warning), under a rule
 adopted after the panel ran. Every Claude episode spends your Claude subscription's
 quota (or API money with `ANTHROPIC_API_KEY`). Run it serially (the driver
 has no parallel mode), smoke one short episode before a panel, and budget a
