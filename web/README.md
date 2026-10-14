@@ -35,6 +35,20 @@ verifier). The social card lives in `public/media/`.
 
 ## Develop
 
+The How it works and Replays pages share a small interactive rink. Drag or
+flick the blue/red players and puck; Blue scores in the top net, Red in the
+bottom. Arrow keys move a focused piece, Shift + arrow throws it, Space shoots,
+and Home returns it to its starting position. Reset clears positions and scores.
+Positions, momentum and scores are saved under `gm-bench.rink.v1` in browser
+storage and carried between pages and reloads. Other open pages mirror saves.
+The rink still works when storage is blocked, but cannot persist then.
+
+Physics uses a fixed step and updates SVG transforms without React frame renders.
+The animation loop stops when settled and pauses offscreen or in a hidden tab.
+The occasional idle wiggle uses CSS and is disabled for reduced motion.
+Builds run the rink physics and scoring/storage tests; `e2e/rink.spec.ts` covers
+pointer/touch interaction, scoring, persistence, idle hints and accessibility behavior.
+
 ```bash
 cd web
 bun install
