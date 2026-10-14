@@ -1,0 +1,5909 @@
+{
+  "new_policy": "blind-signing-2026-10-14",
+  "old_policy": "pre-signing-2026-10-14",
+  "orphan_ledgers": [
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "2d7e940ed59dc26723343dcd20e30bd7281ef71eaa647e6ebae62b9760f2fed5"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "95fad10189867b3d134893ab5866debae35c0efc51609cfb29ce133fa4c75f7a"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "8c9eefc47105f548059f6a3e5d16e022365f0d89370f820497690da1d6c0123f"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "abc6d74e57559f0cf6cf3769f461e37d4f3a134353fd954166306031f672bb6b"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "4696a3a1838fa0dd142b28d4ca5353b0b18974cef2f0bfd7516cfee1c32a4ed4"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "af3b2444a4615ba59a5d039eb01092163d4bf3a96d4c139b7c6c005d37d9900d"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "e06ef5ae5ea71a4e361b7b9f6be8d266461b50553b259430764cc65c37d59278"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "ffab430cce13f34bdfb3c96a5f1700feed64c183b921b3afc4d170e6b92a1ef6"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "6a1ecfd68dde4bbe785103c632a8744ecfe8b72d011677d9e6f95d1bcf0db68d"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "5688edde9b05dd4a01de2c1afcaf68db42b5846c27a1baddebe28748bc549da7"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "aba1060d4e02407eaa70661986cdd7a0c1c09578aa3c1ba356adf21b04700fed"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "a4e5ff4c81ea20334e2bb81636b8180d62fae204a04cd01c6e7d22baa2afc089"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 1,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 1,
+        "violations": 0
+      },
+      "sha256": "3046d7319370178a253c93cde65e8edca037463c26061fb0987bf1d8b7c893bf"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "28a2ddd838d783250ceb5cf101b98f082ca042c5aae0fceb1a756e3209a23ad4"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "17b608d475feb17db797b26ae4a42dacd3b385e49431b2017e080b187133f4f3"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "eeabd2005181143e0cd5aa48564ebee403f9c71424a5ad7cbff7029b12741f18"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "1e96d23dfcda89035573f1f362b870c7f7fe7e61f22d32e9f7f5ddf8c29fccf7"
+    },
+    {
+      "changed": false,
+      "new": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "old": {
+        "guessed_draft_picks": 0,
+        "guessed_reads": 0,
+        "guessed_signings": 0,
+        "status": "pass",
+        "suspicious": 0,
+        "violations": 0
+      },
+      "sha256": "8713c538b1ce944df72d3baf93cc780c214ef82d628acb61a1ab390511ea09af"
+    }
+  ],
+  "runs": [
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "50195fe3a6d0f93a7ab72f424b3d62b66a98f09599385bf5fcf5fb42deb668e5"
+        },
+        {
+          "changed": false,
+          "episode": 1,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "c93f9e009cca88988a314944327665806a3adaaaccd8e9783664ec70595137e3"
+        },
+        {
+          "changed": false,
+          "episode": 2,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "a25f6e8b6132b3699588b422d7c4e8bfaccfe02b7dda0962f16d106d38b1f891"
+        },
+        {
+          "changed": false,
+          "episode": 3,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "57940fe07e9186c02680e06ca8223d9e2c9180529af8b9fbd6a63e039b9832ec"
+        },
+        {
+          "changed": false,
+          "episode": 4,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "83ce8450699910b32168399eb56eb1cac0317f1545c826948ecbd5ebd3e620ca"
+        },
+        {
+          "changed": false,
+          "episode": 5,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "c75c2ffcc9eda16a7de49d1bdf8df1241dc264c8260fa05769cf7d7b6d533eb3"
+        },
+        {
+          "changed": false,
+          "episode": 6,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "078229f321a844ce083df71a24fa4b17cc8ba8b20f98c3294b211d4255091acf"
+        },
+        {
+          "changed": false,
+          "episode": 7,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "6b5000929207d48cb92941177b9ecbe538e4b3599abe2ad1d7e0e68d79ac2f82"
+        }
+      ],
+      "manifest_sha256": "e5988364f98dd1df5c8fc703f6233cf8980ee93080a9240477c3a1644ee31901",
+      "run": 0,
+      "validation": {
+        "new": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 5
+        },
+        "old": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 5
+        }
+      }
+    },
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "7bd877f0c627ea675f461639f959f0aa58bf3d321ed606fb041daa5b1b7b4d14"
+        },
+        {
+          "changed": false,
+          "episode": 1,
+          "new": {
+            "guessed_draft_picks": 1,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 1,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "7beef96f3294d3ce8016358ffe888639b485c669116bf7b7722c7914baa84785"
+        },
+        {
+          "changed": false,
+          "episode": 2,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "1b8a0a75230896df35d14a3414fcb64e905f4d22a7dc76ac3791cb76654bacab"
+        },
+        {
+          "changed": false,
+          "episode": 3,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "d65ef3c91fd9cbe26a81dcd5eb811fb7743a2a59e20937ea8bf6c8ab3b4cbbcd"
+        },
+        {
+          "changed": false,
+          "episode": 4,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "e5c9b59d7095757a1b2a17bcad793857127a90eadb7448fa5504603fd0a5e15e"
+        },
+        {
+          "changed": false,
+          "episode": 5,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "c91374cd140814eb35826ef4214119cfdb9dcb7acaa2bd555abd9113d4f3a3aa"
+        },
+        {
+          "changed": false,
+          "episode": 6,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "484d5100042bc701569dfe632ae3638d04893e9bb0976cd2e03844a69ab943c2"
+        },
+        {
+          "changed": false,
+          "episode": 7,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "8e964ff8adf490979d1b5c701c809af376f19f8f50d9b8e6333169e922b1a580"
+        },
+        {
+          "changed": false,
+          "episode": 8,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "58e3aee417a3c6878b4e05525877aab8c3183afc356167071e96eb17f2e46743"
+        },
+        {
+          "changed": false,
+          "episode": 9,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "2aff8a3476082afb847c04e9a1786246664ca60cbe8b7628004c18f6c2a31e0c"
+        },
+        {
+          "changed": false,
+          "episode": 10,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "6ea466a5a40c19ea16281881ef07fe6961cd3bd6372f3d8515d3e9a83eb0dd28"
+        },
+        {
+          "changed": false,
+          "episode": 11,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "eb523750fa281df36696482759b19e124dd918da5ff7f504f174a66af37c78fb"
+        },
+        {
+          "changed": false,
+          "episode": 12,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "f704217ffd9671670f9146e481b8614399ab179ef26f2aea457bd38dc1880b92"
+        },
+        {
+          "changed": false,
+          "episode": 13,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "8cb5e0edd288536ef759e639c94adaa60ce6327eb80af81320609f05e7d7cfea"
+        },
+        {
+          "changed": false,
+          "episode": 14,
+          "new": {
+            "guessed_draft_picks": 2,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 2,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "49cbc674ec1f7705e4f329ca0a7f7e298c665e82aaa6bcda3c7e6bf09b4d47ef"
+        },
+        {
+          "changed": false,
+          "episode": 15,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "e0151fd157473b98a02cbea2558d750709bb39ede56a2717e1130b93768cb3a1"
+        },
+        {
+          "changed": false,
+          "episode": 16,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "e3f8f455953718d90e34f23f09c16def7954ef381cb6ec0dd455c32a2b51ea87"
+        },
+        {
+          "changed": false,
+          "episode": 17,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "15cc5efaa815f86c5d42397deedac63c57daa2defef7cf87d9fc4d88e44c27c8"
+        },
+        {
+          "changed": false,
+          "episode": 18,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "b58d19f28be17a6379ac58616a82259d0f8bd36d3a2b4a7f9e5a818d9deb133d"
+        },
+        {
+          "changed": false,
+          "episode": 19,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "1942e95f50c2ec6204d8ae46466fffa81cea953229e11822b01d64e44502cbc6"
+        },
+        {
+          "changed": false,
+          "episode": 20,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "81919e644376c62ca520a920e14e0a6654114715c9eabbfb5cb049b87a46f719"
+        },
+        {
+          "changed": false,
+          "episode": 21,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "98e81a163fff499301d6267747a63918b569d6b936189257b0ddce9360a6eba7"
+        },
+        {
+          "changed": false,
+          "episode": 22,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "38e643abeb46a9a61c5a35335eff84dca92cd631538532260fdda446f3d87bc2"
+        },
+        {
+          "changed": false,
+          "episode": 23,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "35db314868c825bc10993469d15a497684d0bfb04398508c889e108bef39d14d"
+        },
+        {
+          "changed": false,
+          "episode": 24,
+          "new": {
+            "guessed_draft_picks": 1,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 1,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "f2b064f1155267bb8685136389896e37c11430596e86beac25fe4e44c668b297"
+        },
+        {
+          "changed": false,
+          "episode": 25,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "586071dafcb6cadd096f7ca59e957db669cfed29e53c2a8e4c1f8c10378a9a57"
+        },
+        {
+          "changed": false,
+          "episode": 26,
+          "new": {
+            "guessed_draft_picks": 2,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 2,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "6e29406a624e05c812429a2525b8376320e34ea6967edae2bee56f0cf5b8c87a"
+        },
+        {
+          "changed": false,
+          "episode": 27,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "5df5ddb71318844455794773d3578797f5d1fd4ed0e8f351fc6724a2be274046"
+        },
+        {
+          "changed": false,
+          "episode": 28,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "49b2cc2c9a91e11ef6c293413b31ab7ff49ed0d195c0f9867dfeb6b8f270f337"
+        },
+        {
+          "changed": false,
+          "episode": 29,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "2d6b5a22d698bdee562e1419bff4834b7524124ddfd86a10e71e6f1613882d31"
+        },
+        {
+          "changed": false,
+          "episode": 30,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "6f8b380fbc25af5e2bd06ccd6fbb7ffafde629a822746a2ea18789962aa2b1b4"
+        },
+        {
+          "changed": false,
+          "episode": 31,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "d284d70b7cd64d6de35870ebc5fdf4de5bc45ff1281c2166ec2d8f33f96778f7"
+        }
+      ],
+      "manifest_sha256": "b2b62c3f0454442b9346a5b82d55785cfdabb96970499932eed6ee59c2348499",
+      "run": 1,
+      "validation": {
+        "new": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 14
+        },
+        "old": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 14
+        }
+      }
+    },
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "564b814ab12796cb2849b88b6e5e095fe05bfae939ada1b65ac842c0667ba870"
+        }
+      ],
+      "manifest_sha256": "b9c8580155241b6a767ebf0a0f9633e4629d7f762d816d97ab179ddf7dafa959",
+      "run": 2,
+      "validation": {
+        "new": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        },
+        "old": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        }
+      }
+    },
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "e31c98d0d831d49c55d2215de0d1f0a9ef1647ed98898ade772ea9b6e7adc280"
+        },
+        {
+          "changed": false,
+          "episode": 1,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "2f25a403f9c9e83bd9784d9bb95da2138f7ab2effc00ad7a0829c2bcab54d694"
+        },
+        {
+          "changed": false,
+          "episode": 2,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "f4f9ede5a84294ea1590b07c5b0796c12f7f542aa17b6bb5f1fa2d5209213ac0"
+        },
+        {
+          "changed": false,
+          "episode": 3,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "774acd6f751b64159f6c4951ed7d9422e81a22006408c171c50f0275ba90802d"
+        },
+        {
+          "changed": false,
+          "episode": 4,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "42072992f026550255c14dfff553f37f7942df1297019318f0ada02b19b65d45"
+        },
+        {
+          "changed": false,
+          "episode": 5,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "0e0cfcd79ecda34693d198979206f7270f8e31e87c30083c41054e21a217f6fa"
+        },
+        {
+          "changed": false,
+          "episode": 6,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "f6423d1ce346d0b937891639a2f17e256e1ef43ecaf28de91b4bf2ccb0b5f24a"
+        },
+        {
+          "changed": false,
+          "episode": 7,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "2c1a0d7c9857c52ace1dc9e0340e2c33d1da73e11ae9544c84d5f8f2cf7ecf38"
+        },
+        {
+          "changed": false,
+          "episode": 8,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "01687bd53429b9123da69b47cc6d0fa6d1daaee9b0baa3d6dde959189c723ce6"
+        },
+        {
+          "changed": false,
+          "episode": 9,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "4c0eb0244eb804128b2a069ffb7a3a5c7dfcfb3c90d2de1dc9e26803d56d9b34"
+        },
+        {
+          "changed": false,
+          "episode": 10,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "ca23a627c76396885ebf729ddbfe59c7b321e5657611c3245809b3153ed947f5"
+        },
+        {
+          "changed": false,
+          "episode": 11,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "3ea4019aed6ba334344c871426d3448fcb2cb2f70bd88a95d40cce61d10899a4"
+        },
+        {
+          "changed": false,
+          "episode": 12,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "436b39409dcac98532cbb1afc21932e62ac451f3191d0b3e9fc8c03e62f8b084"
+        },
+        {
+          "changed": false,
+          "episode": 13,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "f2cfc6df83b6aad43ddfbc8e979aeb99a00e98d67ba6c2b83b9ce8e337037c57"
+        },
+        {
+          "changed": false,
+          "episode": 14,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "12cbd680580e59f65f64d10eca9202523e6bb28262643034b5e746744fdcd2af"
+        },
+        {
+          "changed": false,
+          "episode": 15,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "6316e4dec3dce95f893192736c62c1f9d70aa54aeff207758eca62baa90b0639"
+        },
+        {
+          "changed": false,
+          "episode": 16,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "80c0220a2a340d50802a34826ecbdcc327e9e38718e489866bd72de2bebad283"
+        },
+        {
+          "changed": false,
+          "episode": 17,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "7aaa64a70e6c888995e02181bf0cbb2e14cf8f43d1288666ecd1605d5e6e9100"
+        },
+        {
+          "changed": false,
+          "episode": 18,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "f453e08a5bd11d6b1ac513debafdf21968de267505dd7f1a97c2a4b117e7cdeb"
+        },
+        {
+          "changed": false,
+          "episode": 19,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "d9d610728398fc3bb0828eaef93ce2c4e76a62f7f3fc783b33edfdeab25579a5"
+        },
+        {
+          "changed": false,
+          "episode": 20,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "4e48656d24f348a4fbf8df7b1d5625163923b1491f529fadad9c20f403c3c4ce"
+        },
+        {
+          "changed": false,
+          "episode": 21,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "b73851f7278b5e02cc68a5f6cca85e283c9f2ac6d0a9a8e7ec4fd81a61cf0d8b"
+        },
+        {
+          "changed": false,
+          "episode": 22,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "f8a3694458b79aab09cadc071fb86403a88e857b8323341c80b1d57beacd05ec"
+        },
+        {
+          "changed": false,
+          "episode": 23,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "24b45ab777ca3776c015736e3d65bc0763fdd137b4e75bfaa7e658eb65beb4f7"
+        },
+        {
+          "changed": false,
+          "episode": 24,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "b1a62587a29bc7549074c3645e0fe4a7faa357862c1237441630a8f24d16a68a"
+        },
+        {
+          "changed": false,
+          "episode": 25,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "259dfd1b75797bb8a7cf4022df481eaaf374a263346a58c8cd629a56314ff847"
+        },
+        {
+          "changed": false,
+          "episode": 26,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "ba8b8fbccf2912582e2ed9e5a4a1e47628ab996498afcf03f073bfa70eef132f"
+        },
+        {
+          "changed": false,
+          "episode": 27,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "11c1f1f6611c5b3926f5972c5c969f59359d4713f1796d2ec606722c109f168c"
+        },
+        {
+          "changed": false,
+          "episode": 28,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "153bc5dfec9e626cb2df0f28f174f5887c5773768b6ba729a3d6cdfcf5ab81c1"
+        },
+        {
+          "changed": false,
+          "episode": 29,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "08aafb8bcf3d0af741a15b17cddee6da7bd0d35d6c6ebbc89d58e060d0bb28e1"
+        },
+        {
+          "changed": false,
+          "episode": 30,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "670ae4b06ec1f1abb1898f3c4986398e07680a367400fc138f4ceceaf6d869f7"
+        },
+        {
+          "changed": false,
+          "episode": 31,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "978b2c0bfd199e90cdffdeb8e79d68d587b39def1b16c89b4b66872c112f014a"
+        }
+      ],
+      "manifest_sha256": "bf39fa4d54451622a42403267022330f719fdab26f2216144b8d6dbcd236d9aa",
+      "run": 3,
+      "validation": {
+        "new": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 5
+        },
+        "old": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 5
+        }
+      }
+    },
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "0575c93560bb0f2b53e203b9756ca23298dd9e4364e49b65000ed0ea2f284d5c"
+        },
+        {
+          "changed": false,
+          "episode": 1,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "0f158e984e6e645039d95480adda2b76b86c7be87e7f72b5eda0e481155d8cec"
+        },
+        {
+          "changed": false,
+          "episode": 2,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "943398cf82a5bf21f2cca7f65dd69fa5f31dff048895e69538913a715aa2889d"
+        },
+        {
+          "changed": false,
+          "episode": 3,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "ef4c2b6a3d92b91dd1307e36ff8867816bb7587ff651541fb19c0de25668b1c3"
+        },
+        {
+          "changed": false,
+          "episode": 4,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "a12e880e8008631e57b632d5f47b415b0816c6108534f442b34ff3ae4eaf0687"
+        },
+        {
+          "changed": false,
+          "episode": 5,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "30fbda43585bf8bafef7416e674cbee3ce2aac2d2a68b5498127ee73d3f18948"
+        },
+        {
+          "changed": false,
+          "episode": 6,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "4810363ced1fb5b218800a5bfc814644572820a796da3bc3c02c7077eb23a2ad"
+        },
+        {
+          "changed": false,
+          "episode": 7,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "2d88e184b01b79c69de594e0bcf7f3ba2f149d74e89a2f27d3a61237d6bd0e41"
+        },
+        {
+          "changed": false,
+          "episode": 8,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "7db77d6f33cf9cbf59edff795c7ccd67669ddaeb2720d916f31169960b4a9949"
+        },
+        {
+          "changed": false,
+          "episode": 9,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "21c10d3a333b25e7d6d648bbe440d9daded28ccfe3c9508088a2c353831c5528"
+        },
+        {
+          "changed": false,
+          "episode": 10,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "647b2f7b66eef193a5e72ff83964d95f4a0442eef008710f36cb96d2a71461b0"
+        },
+        {
+          "changed": false,
+          "episode": 11,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "ae03e6d75a5b138d025e227b563630e6f5448435700e5068739f2d66186fee60"
+        },
+        {
+          "changed": false,
+          "episode": 12,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "c131f87f51e77e134745954a861cbc39e86ce8580bc41f5dc9a1cf955a421209"
+        },
+        {
+          "changed": false,
+          "episode": 13,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "dbbbce745339886689e8269e969922e9b309e0ded55cf20f7e2fd7064fa7c04c"
+        },
+        {
+          "changed": false,
+          "episode": 14,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "ecd7b5e4cd088fcc640d9c9e471a96e06e2450b317317e51588772c5f4c5bbac"
+        },
+        {
+          "changed": false,
+          "episode": 15,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "6a0a2fad93f0ba4814a42d1d82b224d10a9c118a56b87b9dba532c942392f95c"
+        },
+        {
+          "changed": false,
+          "episode": 16,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "57b144f527b064010db03c0c28161778a1be4d01e547df3176bbf146d4f4cdc0"
+        },
+        {
+          "changed": false,
+          "episode": 17,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "79a48e42c3147abde0f77948f4e30fad3903f50d667206826c25cbaef15ae614"
+        },
+        {
+          "changed": false,
+          "episode": 18,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "672187430fd339f8bbb995b4501b77d8b8466ff9a39ff50c94b4ad9da188f45b"
+        },
+        {
+          "changed": false,
+          "episode": 19,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "3ea353c254b0749fc60ca4e8adeff21135a6461e6d03b17dcec82e7c583b3f19"
+        },
+        {
+          "changed": false,
+          "episode": 20,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "d18ec17d4b3ad6293e3bed430818b5024f850007b9537b5aa27281aa1161ec8c"
+        },
+        {
+          "changed": false,
+          "episode": 21,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "11ede0f303b9f6472cbf56c650b4476e84e2b8a31efaf3265f0e9b1ad19b5d34"
+        },
+        {
+          "changed": false,
+          "episode": 22,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "a7c6672bb6599cbc1a2afe5b66cb80284e57c7b49b80b2b3251bd731abf498f7"
+        },
+        {
+          "changed": false,
+          "episode": 23,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "bf476d63b11cce49f1f722b94409f7b1ea63a33185c6ca772aeaa5d726eba344"
+        },
+        {
+          "changed": false,
+          "episode": 24,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "4c8be0ca7fa3166088db637eafc89ebaa7a225e1e46781e9224c760ce383f34b"
+        },
+        {
+          "changed": false,
+          "episode": 25,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "aef249d308bb40e9316634e84e48d3f444c6fd55e25ea5ab19de897c578471ba"
+        },
+        {
+          "changed": false,
+          "episode": 26,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "1bad9a68481593378e4d94c36ca7bd1df67802253a95787e62eeee8d1c1267af"
+        },
+        {
+          "changed": false,
+          "episode": 27,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "30397285a1273fc1066d05042162c3b349feceed0fcbfdc8cbf1580d9f856dd3"
+        },
+        {
+          "changed": false,
+          "episode": 28,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "c9b94b2d1b1b87214062ba6aa06d0cc22f4ebbce55973a839aca1ad1407856bd"
+        },
+        {
+          "changed": false,
+          "episode": 29,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "cdcb3dba41c89fe146f01ef8dcdd2645e547b513188e64d99d97404483539260"
+        },
+        {
+          "changed": false,
+          "episode": 30,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "afd87bf7e6bf30994536ba76fdc2943221e59aab0ed5167cc869bfae7f958a16"
+        },
+        {
+          "changed": false,
+          "episode": 31,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "e34edda3e950261bb90958a04e30d7c422e9badd7d8a2a15aee9e685e234a83f"
+        }
+      ],
+      "manifest_sha256": "23397ed6d24af58422ce329e7bf35dec7af2aae7b09713f1bfba06f11aefc49e",
+      "run": 4,
+      "validation": {
+        "new": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 8
+        },
+        "old": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 8
+        }
+      }
+    },
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "d551caf7aaaa2b5423327a4eb48ab7898594229a4b1baf22f9ef455d8c69b1ce"
+        },
+        {
+          "changed": false,
+          "episode": 1,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "0dddcd557641b3d63c6e4cca9729f8f6119c59ae42984b88fa897771b7d76103"
+        },
+        {
+          "changed": false,
+          "episode": 2,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "247211f2cf5b07fe5ef75e96ec0910fde1fb1d877e44d565a83cb1c54093b5e3"
+        },
+        {
+          "changed": false,
+          "episode": 3,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "9dd301abc64fb46e60d26068ca76c37e199d4205cf328c1739d802e3fdb85257"
+        },
+        {
+          "changed": false,
+          "episode": 4,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "57f78d99cc4ed6ff4b4f2450ad08062645152d559dc56930adcc5beb82fc8048"
+        },
+        {
+          "changed": false,
+          "episode": 5,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "a0fab8079942a5f71bb3455140fb4ab9faae68c18b94a4ae1ccdf37e0e6783b2"
+        },
+        {
+          "changed": false,
+          "episode": 6,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "b227502330782c2bca3cbea1f450adb18de652a9f9aeadaf6bf7149b0a8d8570"
+        },
+        {
+          "changed": false,
+          "episode": 7,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "dfe82bb723636072d5dec041fc38d73115249dd9cafb5256d75749c4d8bf7389"
+        },
+        {
+          "changed": false,
+          "episode": 8,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "018009655f57191b36bb534a8fca0be73bacf0c1a340b4d3d36cdcb934547200"
+        },
+        {
+          "changed": false,
+          "episode": 9,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "aeb828f77d3284841d9e07bf113836aacadced1ce72e650372b9cc0230355c4e"
+        },
+        {
+          "changed": false,
+          "episode": 10,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "0048da606197ee57551973506788b3bbee8b68ca0b341196c3a77927964b3e15"
+        },
+        {
+          "changed": false,
+          "episode": 11,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "585e1cd257b786ba3bf53043f255a668a2b8ab62bcfed99ea4a58212a6c5dcaa"
+        },
+        {
+          "changed": false,
+          "episode": 12,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "5ebde5618e70fef78d7083480471c0f212de422d3055f23d80dc65063e841f49"
+        },
+        {
+          "changed": false,
+          "episode": 13,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "aa65c6311d49370bef61a7aaaf9efc7b20ec6bdd0e6edb43f5803ea8e353a10d"
+        },
+        {
+          "changed": false,
+          "episode": 14,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "9edbf3a22c1f5586e3e1fc5b5b2e4fabfc26652793f4d9230c908f3fd8488e2a"
+        },
+        {
+          "changed": false,
+          "episode": 15,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "7654890f0bbfe9647c964cc8a889995c1db888ccef2f5cbd60b52be3eb78b81d"
+        },
+        {
+          "changed": false,
+          "episode": 16,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "8e67e0c5c1f659a0e197dffe542bde03e8d2d9f5740e0645f04db4cea949e9e0"
+        },
+        {
+          "changed": false,
+          "episode": 17,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "fe3df8e7edb9a27172b29437f9f4ad3b55206b20f8591fef355c7686d7dc7c90"
+        },
+        {
+          "changed": false,
+          "episode": 18,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "9766826181c0ce24da2660d687b9328e8dfcc8e3d5dace8d1ccf99bbae496245"
+        },
+        {
+          "changed": false,
+          "episode": 19,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "18bcb0e9acb2108f71c0951a0a58acf8b331f6c7488dd390415bd7c0ee3d47c5"
+        },
+        {
+          "changed": false,
+          "episode": 20,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "7774eae504d080b3426c9160aef814f1e34c8bdb8f9d5145b4d2b6c3efe5a0a9"
+        },
+        {
+          "changed": false,
+          "episode": 21,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "c7b6910d841090c313cf00e96a0d24362e48aca4208abbcf6d52ca8d49da8ff1"
+        },
+        {
+          "changed": false,
+          "episode": 22,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "829295f3f0973b75bdb435f876ea11cb5d9be5c789a3b0eca315b49de85e7715"
+        },
+        {
+          "changed": false,
+          "episode": 23,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "f86c268ff9381b341b222f8090a2e9370de6ea2fd4cdeb76569b0b6d665777bb"
+        },
+        {
+          "changed": false,
+          "episode": 24,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "33cb62e5f93b7c5940389f8fcfe651e420b0929cb39e55237c858cefe6ddc5a1"
+        },
+        {
+          "changed": false,
+          "episode": 25,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "75bbfa5a2ac66a1fae73fc3855775408a970504653a58652fc0eafc59ca3e041"
+        },
+        {
+          "changed": false,
+          "episode": 26,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "622f2a02f19dd594eae9087d386a1701b92c4fd4e6488872ddbfab864548c8ad"
+        },
+        {
+          "changed": false,
+          "episode": 27,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "c31d7ee298a866d7f9eba241057774ba717fed160b900ed8e4808422a7ca5f3f"
+        },
+        {
+          "changed": false,
+          "episode": 28,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "292cfa9cde2d684d2a264bb1253e6a4bc353723d91b478a5ff73c93ec1e261f5"
+        },
+        {
+          "changed": false,
+          "episode": 29,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "a750720105b5ddd33187c8694c09d987afafdaccd3f5cf86f6612ac58d6309f7"
+        },
+        {
+          "changed": false,
+          "episode": 30,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "0cbfe0bc4f98671e8e17c967ccacf605688776239fb33d305804cabbe5af7ed3"
+        },
+        {
+          "changed": false,
+          "episode": 31,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "4ad386b5896c81a1735e78b999ec4e5ad6076db6772e505e67ac115760c67d16"
+        }
+      ],
+      "manifest_sha256": "91a59847187988888cf39a01f82622d602c6a9e0b37ca798776687cb6be2e9ee",
+      "run": 5,
+      "validation": {
+        "new": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        },
+        "old": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        }
+      }
+    },
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "4396b3b1a0fb9c040db56b94bf9dd0dc847b679f9930063554d75bc78b0fd7ca"
+        },
+        {
+          "changed": false,
+          "episode": 1,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "cc44bf6c58c7476e3758ac6015d1676444a16df1c3b9ddffff190190169555ec"
+        },
+        {
+          "changed": false,
+          "episode": 2,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "6923e8f086d34968083bf7589023b44272d9c443ae9e1306d4551e975501ebe2"
+        },
+        {
+          "changed": false,
+          "episode": 3,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "51ec6480172b78e82e1ce24d00ccf4b54d09fe5b52d5ad58ab4b4e2c3a8d0ca0"
+        },
+        {
+          "changed": false,
+          "episode": 4,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "24b5f48543de37ee30a8ca39472b655a96d2dd2f7dfbc01aab9a5a0d89b2af30"
+        },
+        {
+          "changed": false,
+          "episode": 5,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "0136286bdb8f70db57faba1745ca14620c102696f1968d7deba2c21e00e599cf"
+        },
+        {
+          "changed": false,
+          "episode": 6,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "dc65ce2a76bb9c23341faf0296b1eb4084a8bb5487ab4bf034ed94ebf6f59fde"
+        },
+        {
+          "changed": false,
+          "episode": 7,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "2e3770e3a0ff672c51ca3f4a11889cd4d6baf5585c36bee9e151f429b0f31b24"
+        },
+        {
+          "changed": false,
+          "episode": 8,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "cd95ccadc466321d27e84179c6ca73a1d746b8b5b5f2c7a0037f4e49be1a2928"
+        },
+        {
+          "changed": false,
+          "episode": 9,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "ce595477ba5c5d6894f38e2a4589c70f4f5d85be724733d1fe3e6b3bdfd515b7"
+        },
+        {
+          "changed": false,
+          "episode": 10,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "45bbb2fabadbee54c5d4d7dcb9ac9acd96566e7e8afc9fb108ebf984e7c1e688"
+        },
+        {
+          "changed": false,
+          "episode": 11,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "e0d9ca2d18fe61b6f5c19ee5e848602da7ab5d47187c7b9d27ed4f86bc539e4b"
+        },
+        {
+          "changed": false,
+          "episode": 12,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "c403c8eaa14f468125b11edd7a54c277dbfa4f36280931e3468566acb592bc45"
+        },
+        {
+          "changed": false,
+          "episode": 13,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "07c040e2bcbee782893a4996050fdd3e7af31a2ddb69f8e2a36a8d100ba6de9e"
+        },
+        {
+          "changed": false,
+          "episode": 14,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "105c7ab5d11e3d4ebf0b090a115f3acb5af6b6a8f3c8f4274ffe28c3640ad80a"
+        },
+        {
+          "changed": false,
+          "episode": 15,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "e0fc71c0ca8f14a3d112ddaf5d785c008d338abcfaffbd637a82498654edfdb2"
+        },
+        {
+          "changed": false,
+          "episode": 16,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "5213538658b78d6855a4f43afb8583de1f249895a1dff4cbed33f9252f32b4fb"
+        },
+        {
+          "changed": false,
+          "episode": 17,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "17ba39ef0f9c56610530c1e36642a9dc240ede855d51b7beb144c835961161dd"
+        },
+        {
+          "changed": false,
+          "episode": 18,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "a9f11c5dcc56cccfddee74cbe44338fc8c5cd9207539092760508bfa4e03e07b"
+        },
+        {
+          "changed": false,
+          "episode": 19,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "9e9336b78f9cbe1cc1aba7fa4cebee56dc2dd5274ff8002459bf375794ce542e"
+        },
+        {
+          "changed": false,
+          "episode": 20,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "1bd673edc15ba2d67a75d5be54f1f47da27eb1300ed02fbcce81cfcf413470ed"
+        },
+        {
+          "changed": false,
+          "episode": 21,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "f095f285b315bde5cc7add615665aa812bf3ff427d09a4e04bc5f8ce7229d1fc"
+        },
+        {
+          "changed": false,
+          "episode": 22,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "e45814618b2b980b9f52dfcb7cf926b48484f3f488b7a70c7e1b2958d3fdb34c"
+        },
+        {
+          "changed": false,
+          "episode": 23,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "57e53a567210c5f3a7da15239916cf09936c39ffd1e93dfceca3a31c79b57422"
+        },
+        {
+          "changed": false,
+          "episode": 24,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "78c259049457a5e9a5e7373f942d40e54530bbef4560477c8450e056ab4a386a"
+        },
+        {
+          "changed": false,
+          "episode": 25,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "3d72faa7e5aa39eb2f1f28b5b284949f94bb4f9e81f5bf9732b0f7cf76e13618"
+        },
+        {
+          "changed": false,
+          "episode": 26,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "11d9aaa06df8e8b7e2e45a44c6a0bf2ea425ee24ffce1d092b1ec535d7eeb637"
+        },
+        {
+          "changed": false,
+          "episode": 27,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "8ccb264264aa5e5421c7d6e331a86ad110f7f4c2437006cc88b245583896b7e7"
+        },
+        {
+          "changed": false,
+          "episode": 28,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "aa5e41990473689d1f15f730e6242203b832acd9d81336006146849e96fe27bd"
+        },
+        {
+          "changed": false,
+          "episode": 29,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "fa343eb255eafa194a74087bf5099e3bc829641e03528f3956d125b664e0e0c7"
+        },
+        {
+          "changed": false,
+          "episode": 30,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "6b6394b75b14f8f4ca787ceab7070588bb0165f440af133da9abd4af7bc983e2"
+        },
+        {
+          "changed": false,
+          "episode": 31,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "68271be11de01f2d5c80bbb57122c6b9eb43c04122065e5109525a3b8a51c289"
+        }
+      ],
+      "manifest_sha256": "570e16bdb6fc3be00ee90338a44b58370a730a5530b80fc982321e8b4cca8b19",
+      "run": 6,
+      "validation": {
+        "new": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        },
+        "old": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        }
+      }
+    },
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "72f7d0e92906ac8613874e4afd3f375c2653da12a19a18f2a15d2ef01e7d301b"
+        },
+        {
+          "changed": false,
+          "episode": 1,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "47ae049f5fc9f2dcaa92536a595d6139800c97ca9a69eed1e145f92101b2d202"
+        },
+        {
+          "changed": false,
+          "episode": 2,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "49d07a1437612c1d6c507693f9241694fe6480c498f84adf349db42782f70f2c"
+        },
+        {
+          "changed": false,
+          "episode": 3,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "e558138f1872ce0626d50101180a494ed2e590250349e0e749c4afb068d90152"
+        },
+        {
+          "changed": false,
+          "episode": 4,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "cb25c8457f1ea3a83f8e85582fffeb78206d5e502701dd525082245e0fddbf94"
+        },
+        {
+          "changed": false,
+          "episode": 5,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "ec586fb9ec1608de24f7928bd4d6b8ce63ab7b9590b4a09f06f5240e5f0f6d34"
+        },
+        {
+          "changed": false,
+          "episode": 6,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "45f1c18eb8259ce61b07db2106393cfe99bb1ca122d29d6fa2bc4167376705bc"
+        },
+        {
+          "changed": false,
+          "episode": 7,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "e5426fed5f42fdee19b106f25b096605f6cf1bf32ab018dff864b2c62efcb4d3"
+        },
+        {
+          "changed": false,
+          "episode": 8,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "db8ef644ff2f6e54c1d3332b7927e585c90b6749144b82fbad7e33738ca82b46"
+        },
+        {
+          "changed": false,
+          "episode": 9,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "7af50e56c33a83ebff56dcd549c42281f0cf5713b1f91c3090968d35dd35c8f1"
+        },
+        {
+          "changed": false,
+          "episode": 10,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "5503e83584648b9ab7d9c0730a163107679a9d3c4c5d3ebfd58bf1fb1d858bc2"
+        },
+        {
+          "changed": false,
+          "episode": 11,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "d7349c256b07f8e71c873ab58b75e8f135cde82497e168dc05b3adf2e36e0304"
+        },
+        {
+          "changed": false,
+          "episode": 12,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "e459d264ed13a93a838d1a0507b3639d8f4720fe3a90add05ec91bbf45fafa1a"
+        },
+        {
+          "changed": false,
+          "episode": 13,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "ee83fb1d05f3e21f0cb1d75b929887dc5056745df3eeee59aadae11f178c6f88"
+        },
+        {
+          "changed": false,
+          "episode": 14,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "09a0984c064c20a5d0004b2906b63a14fd306fcf4a0a8e9b0e1133508200e12b"
+        },
+        {
+          "changed": false,
+          "episode": 15,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "86f0d206335e57178731650b12daabaefe5e53f589d6a5073563479ac6650e45"
+        },
+        {
+          "changed": false,
+          "episode": 16,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "2a072a784c6210aa0f949bd6434133dad90bcd5a88059c218229c5e3e4b3fd5f"
+        },
+        {
+          "changed": false,
+          "episode": 17,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "2234c2307dde5ecdd942e37daab78bcd21302afb1c3b57aec7ec75034ba8aa3f"
+        },
+        {
+          "changed": false,
+          "episode": 18,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "d77c548c9589df1df43a1a8f0865d67030bc4817fb749d87e25339ee12527c23"
+        },
+        {
+          "changed": false,
+          "episode": 19,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "c41d5637a0d890fdd2f6e9c0a2c6fddbc43b0aed52991dfcbc2efebb4b16ae99"
+        },
+        {
+          "changed": false,
+          "episode": 20,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "87c605cace2a62332b97622df5b4903493ec84fd6e2a82ecf29b90262a8b8f58"
+        },
+        {
+          "changed": false,
+          "episode": 21,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "f62ba3be4b4022cfbbff7bb0f3aae76560188c1822ac923edfa013eea61053c8"
+        },
+        {
+          "changed": false,
+          "episode": 22,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "10214c63c2566fd7aff7459a5c7d7c6833ed4e9b6b3e0c46e2b289e93630e741"
+        },
+        {
+          "changed": false,
+          "episode": 23,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "265e5b26eae0ed34c2375072bffa91fb9e9cfec0ac16a0f2c2f127ea66af34b9"
+        },
+        {
+          "changed": false,
+          "episode": 24,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "1c3765a7f696fa519ac6c7e290a38493b8024038cc54b8a6c841aef8fc661085"
+        },
+        {
+          "changed": false,
+          "episode": 25,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "ddb3c2c60a28b161e6e6e464cfffff9057b1c6979d02d177bf5b9235f76e1e1b"
+        },
+        {
+          "changed": false,
+          "episode": 26,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "e05c4810386c7fc8aa9606ea74a05c74384b27efe18142250758cb9bc2ac02a0"
+        },
+        {
+          "changed": false,
+          "episode": 27,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "1812a10e522fbedb6df686121c3a9bbaf7e4401cd15bb526e47d1a612e9f9c81"
+        },
+        {
+          "changed": false,
+          "episode": 28,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "8070378bcc42cbee79697a12cf6acfb4cb0fbb2f6d317e346c1d58fa68e3c2b4"
+        },
+        {
+          "changed": false,
+          "episode": 29,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "5e059dc079d693923a3e2d91b9f7ed13906314df75e2949c262565654837cbda"
+        },
+        {
+          "changed": false,
+          "episode": 30,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "a8be5c5dbf36be33d6b567767ae1ccab28923f6e3fd8949ac4e15eb86501bd61"
+        },
+        {
+          "changed": false,
+          "episode": 31,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "897cd8b334f06771adb266654e9d72ba99848789200fbc4cac3ccd51d7d436a8"
+        }
+      ],
+      "manifest_sha256": "58a529869bd5e6dcf799f5045276c44a042132c071ca21e760c98c6d5d7640f7",
+      "run": 7,
+      "validation": {
+        "new": {
+          "ok": false,
+          "problems": 11,
+          "warnings": 36
+        },
+        "old": {
+          "ok": false,
+          "problems": 11,
+          "warnings": 36
+        }
+      }
+    },
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "e7e2a8c83ce69fbae26203e6769b963677f78fad839f2db0893d9a10caab715b"
+        },
+        {
+          "changed": false,
+          "episode": 1,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "5f3aa85b73e88dabc44fce2112cedb8729d3eb191521bbec0ce05fef7e31f0df"
+        },
+        {
+          "changed": false,
+          "episode": 2,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "5f9f8f3c105e5e8a5ef66f87e3474a3afea528149e14624e4dad53f7fa5a0641"
+        },
+        {
+          "changed": false,
+          "episode": 3,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "3f5072a85d0e2ee84da7f62e3d413fa37037e3a37f7490d9075893fd078ee3bc"
+        },
+        {
+          "changed": false,
+          "episode": 4,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "827216974d70c7295b9dac4e6d8b85ca6f2a624dd2e69cb6c304fc66f217dbca"
+        },
+        {
+          "changed": false,
+          "episode": 5,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "9496725d1fc86ee9a7e0ad4e99bf7ea616e14fc335b42cc5f31f9ee05a9f1637"
+        },
+        {
+          "changed": false,
+          "episode": 6,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "14d3cf90c5c8b80880f737a78dcbfae2415cbd11d8aa8a4bb124559cc1d7da8c"
+        },
+        {
+          "changed": false,
+          "episode": 7,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "51de2dce6e65839f6c8587d54e187a27a5aa171c3217cba08d49ab404e48574d"
+        },
+        {
+          "changed": false,
+          "episode": 8,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "8493dfed6618e882ffaf346920186f76c0f9dc79cb87ce619076076476629303"
+        },
+        {
+          "changed": false,
+          "episode": 9,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "744a1025989757ad18972f2ff844381de33c2c1f5c54299c58688de25b53f717"
+        },
+        {
+          "changed": false,
+          "episode": 10,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "2f88e13f1c758758ee1e2231d0106a431a285b94f074782079281b2b1c2293f6"
+        },
+        {
+          "changed": false,
+          "episode": 11,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "c5ea19658edf4c9c640348006dfd732c53ef9dcdfe30c70ec29f4fb5e9e274a1"
+        },
+        {
+          "changed": false,
+          "episode": 12,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "25909ba7d33c59c7e182b90a4faf1e3ffdc7fa0fce8feda41b592d9f17897e8d"
+        },
+        {
+          "changed": false,
+          "episode": 13,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "6d6813e55696b7838ae1150c70db1c7cda1335b074860c1766c8c623c7dde969"
+        },
+        {
+          "changed": false,
+          "episode": 14,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "4521745c418aeae8f71bd8f474d5cbc05578d4fba17988f3d58579121c675126"
+        },
+        {
+          "changed": false,
+          "episode": 15,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "3c279e740bb6b08b05f44d0371eb591bb0d6324aab66b8794a85238189119ce8"
+        },
+        {
+          "changed": false,
+          "episode": 16,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "317cff60476c1a72251e16676c7650871c799dfaaa04ac28c0c311dec722cce4"
+        },
+        {
+          "changed": false,
+          "episode": 17,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "1fc0c1bf343b2e4ac65c451933a99ceb9fdb4f1c8642688efe2c13364bd21f63"
+        },
+        {
+          "changed": false,
+          "episode": 18,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "1001f324ab7699a2b5a814c1641caa51958c55a51f28f0e62b1b741601780210"
+        },
+        {
+          "changed": false,
+          "episode": 19,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "d201f09e7a74cfcd21394a45a6fc7132349ab549124b73325c1b5ec03eb74684"
+        },
+        {
+          "changed": false,
+          "episode": 20,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "dd9a1ebbfc34297b42821908c43de8029d846635d77f09b394287a647ee721f8"
+        },
+        {
+          "changed": false,
+          "episode": 21,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "751ec2a59d05c66142c1ea683c5b9588d68d3900b40e9ce0a798ce29789b760c"
+        },
+        {
+          "changed": false,
+          "episode": 22,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "882c669c455fd0ac51d4baa4488267f24b5464b64ad9334851a580b217d45b6a"
+        },
+        {
+          "changed": false,
+          "episode": 23,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "becf814fc2701a3348ad61a2ed292556723af8d0a78211ab97e2dff1b2679289"
+        },
+        {
+          "changed": false,
+          "episode": 24,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "262524c9ba30d2d9f8f007127743ef8d1194e218b257d5af1ce1a9b7f071f7c0"
+        },
+        {
+          "changed": false,
+          "episode": 25,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "fbb85392e23cf4458bae19a8ce8b73baefcccb5cb697409a2823ac63b4afed1f"
+        },
+        {
+          "changed": false,
+          "episode": 26,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "03ec067e20d5dfab3094f7fa24295816ba7b0c67a30d2306d55735199eb9225d"
+        },
+        {
+          "changed": false,
+          "episode": 27,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "30728ea48694a8d5aa8dd7f6e95054da310f48bd7c54c058cf641fca0e10e524"
+        },
+        {
+          "changed": false,
+          "episode": 28,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "46bb8242f3e44b4d08d68c344a118bf9113413ca6208f9554111c8f10af14137"
+        },
+        {
+          "changed": false,
+          "episode": 29,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "26206dba580a044df9b52787cdfec887f59972fa689fa8b6bff7288e71fd7794"
+        },
+        {
+          "changed": false,
+          "episode": 30,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "f138e9f9974d39f93a764bdee6406a5ac07dc2cafb00c3ed2267324497084198"
+        },
+        {
+          "changed": false,
+          "episode": 31,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "3dcbaf9af1234430d1a0b5b5926885591fa22e0cf3fa7f585f3fe759c03a71c4"
+        }
+      ],
+      "manifest_sha256": "7d3288b7096764314139f931b3b2c15b583c3abf1597fb24683ab69752c63bfa",
+      "run": 8,
+      "validation": {
+        "new": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        },
+        "old": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        }
+      }
+    },
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "1e16276a97b82e5e8b352a016255233bbd2300c897cc08fecbb7f34f9e9ba1ba"
+        },
+        {
+          "changed": false,
+          "episode": 1,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "66994333cc619d06454bf626469dcd29e76cb1ca25eae5634c0bb9df62430c38"
+        },
+        {
+          "changed": false,
+          "episode": 2,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "d43b99b29c37aea516ac40fcaf11280827115ded90a46ff963595321e6951325"
+        },
+        {
+          "changed": false,
+          "episode": 3,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "4b55e73eeb1422b6241e510bbb5f61abcdf10161da1db6451a11ab93183d7091"
+        }
+      ],
+      "manifest_sha256": "55478e1bef781dc04d0fe6e5fe7dea1404d5b31ce079ce4d505e3a6cb22ed8ab",
+      "run": 9,
+      "validation": {
+        "new": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        },
+        "old": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        }
+      }
+    },
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 1,
+            "violations": 0
+          },
+          "sha256": "d5e21c7697620b4359536e4f3407afe382db9b4a37b14839e0792397174412ca"
+        },
+        {
+          "changed": false,
+          "episode": 1,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "da90f27bd181b4ffe52b3680c5683a4c6d347a36772ff320ac4c9c23d301264a"
+        },
+        {
+          "changed": false,
+          "episode": 2,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "f51d817b1d3a485b88a852428c469cd64d2368a037c4a75fbddd58ddb8f06dcd"
+        },
+        {
+          "changed": false,
+          "episode": 3,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "d3b6de1b15b314b800f1a250533c7ec9c5bc3daec779c42c8baf3a6eaa2f294d"
+        }
+      ],
+      "manifest_sha256": "82706562726b1d841ca8e6c5a5c36b7d55d90059fbf4eaee3d14368c7940178c",
+      "run": 10,
+      "validation": {
+        "new": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 1
+        },
+        "old": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 1
+        }
+      }
+    },
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "1b1b8fb827a143c47327de409867e2797ef86e6c6b006a4cf607b1cc49bf73b7"
+        },
+        {
+          "changed": false,
+          "episode": 1,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "7be021f02120d257a77c7db351fb2a7804010077a22579e5b9deabc90dbba59b"
+        },
+        {
+          "changed": false,
+          "episode": 2,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "0bf56b23ecef54db6afa5df1ffa65d719e24d5a9e2675d0c204a1a7ea9d84abb"
+        },
+        {
+          "changed": false,
+          "episode": 3,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "ce3eaa8919f5156695215a2d8c90e15dbdc8d23096c0df4e161b56085f0f9d31"
+        }
+      ],
+      "manifest_sha256": "ebbc2c3f77cd1b32402aca29e0cbc7b44ead508239c64e60f2d84bb0e9d0e7e3",
+      "run": 11,
+      "validation": {
+        "new": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        },
+        "old": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        }
+      }
+    },
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "cf57f4605954ee0352277d382edc87942a788ee93fdd528c3588d8eadecbcf2f"
+        },
+        {
+          "changed": false,
+          "episode": 1,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "c0c05e0d52f286fc375cadb5208e3e754c0bc31bc26271425ab5b5f424168abb"
+        },
+        {
+          "changed": false,
+          "episode": 2,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "c13711f390f70d92fa71b01a776b5dee40d1fe1ac8a3e5b925c4576f62bba81e"
+        },
+        {
+          "changed": false,
+          "episode": 3,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "f07eaf0e1c97438710591091fc40d91d620131f8c44a1ff9164869b91a0857f7"
+        }
+      ],
+      "manifest_sha256": "0521ae0a1829060e2b05621cf4568999e3656c96803500477077b79483208c0c",
+      "run": 12,
+      "validation": {
+        "new": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        },
+        "old": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        }
+      }
+    },
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "475039b847582054fe8d3adc450505c36b9b58759a786b8c9d954edc4bf6e320"
+        }
+      ],
+      "manifest_sha256": "e316bd3e08d2744109ec1d2a1ca9585d74a2a72179671ddbfbf06a26db1eef84",
+      "run": 13,
+      "validation": {
+        "new": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        },
+        "old": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        }
+      }
+    },
+    {
+      "episodes": [
+        {
+          "changed": false,
+          "episode": 0,
+          "new": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "old": {
+            "guessed_draft_picks": 0,
+            "guessed_reads": 0,
+            "guessed_signings": 0,
+            "status": "pass",
+            "suspicious": 0,
+            "violations": 0
+          },
+          "sha256": "bcbb2af4d6887fceca955aaa9df14b02fd062f2246bceca539d3cfe5a98f9289"
+        }
+      ],
+      "manifest_sha256": "0f8811d4da6e96808cb5b73ce68ceb85327a4c526446c295e1fc0165eb9efd40",
+      "run": 14,
+      "validation": {
+        "new": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        },
+        "old": {
+          "ok": true,
+          "problems": 0,
+          "warnings": 0
+        }
+      }
+    }
+  ]
+}

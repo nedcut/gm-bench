@@ -13,16 +13,19 @@ A successful *read* on an id (``scout``, ``inspect_player``, ``inspect_team``)
 is the server confirming that entity to the agent, so from that reply on the
 id counts as exposed; the read itself is reported as a ``guessed_read``.
 
-Everything is reported, never silently dropped: an *accepted* move on an id
-no reply exposed and no read confirmed is a ``violation`` (it changed the
-league on information the tools did not provide); a *rejected* move on such
-an id is ``suspicious``; a successful read on an unseen id is a
-``guessed_read``. One exception to ``violation``: an accepted ``draft`` whose
-only unseen id is the ``prospect_id`` is a ``guessed_draft_pick``. A prospect
-id is ``1_000_000 + season * 10_000 + index`` and the index is drawn
-independently of hidden potential (``generator.generate_draft_class``), so
-the guess is a blind pick that carries no hidden information. Publication
-decides what to do with each; the audit only states the facts.
+Everything is reported: accepted unseen-id moves are violations except the
+explicit blind draft and signing rules; rejected moves are suspicious and
+successful reads are guessed_reads. The 2026-10-14 signing amendment applies
+to every model and every season: an accepted sign_free_agent whose sole
+unseen id is its player_id is a guessed_signing warning. Normal simulator
+legality still applies. No typo, salary, immediate release, initial-pool or
+player-retention condition applies. Guessing a valid id alone does not prove
+cheating; warning status does not prove absence of leakage either. IDs encode
+generation and position slots; marginal potential correlation cannot establish
+that IDs contain no useful information. Publication decides eligibility.
+
+For retrospective comparisons, pre-signing-2026-10-14 retains the September
+blind-draft rule but treats accepted unseen-id signings as violations.
 """
 
 from __future__ import annotations
@@ -53,8 +56,14 @@ def load_ledger(source: str | Path | list[dict[str, Any]]) -> list[dict[str, Any
     return [json.loads(line) for line in text.splitlines() if line.strip()]
 
 
-def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
+SIGNING_POLICY = "blind-signing-2026-10-14"
+PRE_SIGNING_POLICY = "pre-signing-2026-10-14"
+
+
+def audit_ledger(source: str | Path | list[dict[str, Any]], *, policy: str = SIGNING_POLICY) -> dict[str, Any]:
     """Check every move against the ids exposed before it."""
+    if policy not in {SIGNING_POLICY, PRE_SIGNING_POLICY}:
+        raise ValueError(f"unknown audit policy: {policy}")
     records = load_ledger(source)
     calls = [record for record in records if record.get("event") == "tool_call"]
     if calls and not any("ids_exposed" in record for record in calls):
@@ -74,6 +83,7 @@ def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
     suspicious: list[dict[str, Any]] = []
     guessed_reads: list[dict[str, Any]] = []
     guessed_draft_picks: list[dict[str, Any]] = []
+    guessed_signings: list[dict[str, Any]] = []
     moves = 0
     for record in records:
         if record.get("event") != "tool_call" or not record.get("executed", True):
@@ -100,6 +110,13 @@ def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
                 # move on an unseen id is what the audit exists for.
                 if spec["kind"] == "move" and record.get("ok") and _blind_draft_pick(tool, record, unseen):
                     guessed_draft_picks.append(finding)
+                elif (
+                    policy == SIGNING_POLICY
+                    and spec["kind"] == "move"
+                    and record.get("ok")
+                    and _blind_signing(tool, record, unseen)
+                ):
+                    guessed_signings.append(finding)
                 elif spec["kind"] == "move" and record.get("ok"):
                     violations.append(finding)
                 elif spec["kind"] == "move":
@@ -118,6 +135,7 @@ def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
         "suspicious": suspicious,
         "guessed_reads": guessed_reads,
         "guessed_draft_picks": guessed_draft_picks,
+        "guessed_signings": guessed_signings,
         "clean": not violations,
     }
 
@@ -125,6 +143,11 @@ def audit_ledger(source: str | Path | list[dict[str, Any]]) -> dict[str, Any]:
 def _blind_draft_pick(tool: Any, record: dict[str, Any], unseen: list[int | str]) -> bool:
     """A draft whose only unseen id is the prospect it picked (see the module docstring)."""
     return tool == "draft" and unseen == [(record.get("arguments") or {}).get("prospect_id")]
+
+
+def _blind_signing(tool: Any, record: dict[str, Any], unseen: list[int | str]) -> bool:
+    """A free-agent signing whose only unseen id is the player it signed (see the module docstring)."""
+    return tool == "sign_free_agent" and unseen == [(record.get("arguments") or {}).get("player_id")]
 
 
 def _referenced_ids(arguments: dict[str, Any]) -> set[int | str]:
