@@ -41,6 +41,15 @@
 .gm-heading p {
   margin: 8px 0;
 }
+.gm-game .gm-heading.is-compact {
+  margin-bottom: 16px;
+}
+.gm-game .is-compact h1 {
+  font-size: 22px;
+}
+.gm-heading .gm-actions {
+  margin: 0;
+}
 .gm-game button,
 .gm-file {
   border: 1px solid var(--line-2);
@@ -216,24 +225,49 @@
   background: var(--raised);
   border-radius: 4px;
 }
-.gm-progress button {
-  margin-left: auto;
-}
 .gm-save-status {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
   color: var(--text-3);
   font-size: 11px;
-  padding: 10px 0 20px;
+}
+/* Tabs, cap room, and the advance button stay in reach while scrolling. */
+.gm-bar {
+  position: sticky;
+  top: 56px;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 20px;
+  padding: 8px 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line-2);
 }
 .gm-nav {
   display: flex;
   flex-wrap: wrap;
-  border-bottom: 1px solid var(--line-2);
   gap: 4px;
-  padding-bottom: 6px;
+}
+.gm-bar-status {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  font-weight: 650;
+  margin-left: auto;
+}
+.gm-badge {
+  display: inline-block;
+  min-width: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
 }
 .gm-nav button {
   border: 0;
@@ -250,6 +284,9 @@
   gap: 28px;
   margin-top: 24px;
   align-items: start;
+}
+.gm-game .gm-layout.is-wide {
+  grid-template-columns: minmax(0, 1fr);
 }
 .gm-main {
   min-width: 0;
@@ -277,6 +314,23 @@
   font-size: 11px;
   padding: 5px 8px;
 }
+.gm-table tr.is-open > * {
+  background: var(--raised);
+}
+.gm-table .gm-detail > td {
+  padding: 0 0 4px;
+  white-space: normal;
+}
+.gm-table .gm-detail .gm-card {
+  /* Stays in view when a wide table is scrolled sideways on phones. */
+  position: sticky;
+  left: 0;
+  width: min(100%, calc(100vw - 28px));
+  box-sizing: border-box;
+  margin: 0;
+  border-radius: 0 0 5px 5px;
+  border-top: 0;
+}
 .gm-game .gm-check {
   display: flex;
   flex-direction: row;
@@ -295,7 +349,7 @@
 }
 .gm-context {
   position: sticky;
-  top: 20px;
+  top: 124px;
   border: 1px solid var(--line);
   background: var(--surface);
   padding: 16px;
@@ -421,14 +475,56 @@
   display: block;
   color: var(--text-3);
 }
-.gm-message {
+/* Move results float above the page so they are seen wherever the move was made. */
+.gm-toasts {
+  position: fixed;
+  z-index: 30;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, calc(100vw - 28px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.gm-game .gm-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  max-width: none;
+  padding: 12px 12px 12px 16px;
   background: var(--raised);
+  color: var(--text);
+  border: 1px solid var(--line-2);
   border-left: 3px solid var(--accent);
-  padding: 12px 16px;
+  border-radius: 6px;
+  box-shadow: 0 8px 28px #0006;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
-.gm-error {
-  border-color: var(--bar);
+.gm-toast.is-ok {
+  border-left-color: var(--pos, var(--accent));
+}
+.gm-toast small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+.gm-game .gm-toast button {
+  border: 0;
+  background: none;
+  padding: 0 4px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-2);
+}
+.gm-game .gm-error {
+  border-left-color: var(--bar);
   white-space: pre-wrap;
 }
 .gm-finale {
@@ -490,7 +586,6 @@
   }
   .gm-context {
     position: static;
-    grid-row: 1;
   }
   .gm-context-scroll {
     max-height: 190px;
@@ -512,9 +607,11 @@
     padding: 4px;
     font-size: 10px;
   }
-  .gm-progress button {
-    margin-top: 6px;
+  .gm-bar-status {
     width: 100%;
+  }
+  .gm-advance {
+    margin-left: auto;
   }
   .gm-heading {
     flex-wrap: wrap;
@@ -552,22 +649,11 @@
     grid-template-columns: 1fr 1fr;
   }
 }
-.gm-context-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin: 0 0 16px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--line-2);
-}
-.gm-context-stats dt {
-  color: var(--text-3);
-  font-size: 10px;
-}
-.gm-context-stats dd {
-  font-size: 14px;
-  font-weight: 650;
-  margin: 4px 0 0;
+@media (max-width: 640px) {
+  /* The site header wraps to two rows here, so the bar scrolls with the page. */
+  .gm-bar {
+    position: static;
+  }
 }
 .gm-score-terms {
   max-width: 500px;
@@ -584,4 +670,13 @@
 }
 .gm-score-terms dd {
   margin: 0;
+}
+@media (max-width: 800px) {
+  /* Keep the player's name visible while a wide table scrolls sideways. */
+  .gm-table tbody th[scope="row"] {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--bg);
+  }
 }

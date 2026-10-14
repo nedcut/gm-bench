@@ -51,7 +51,40 @@ export default function Market({
         </label>
         <span>{players.length} players</span>
       </div>
-      <PlayerTable players={players} reports={s.scout_reports} quotes={!waiver}>
+      <PlayerTable
+        players={players}
+        reports={s.scout_reports}
+        quotes={!waiver}
+        open={waiver ? null : selected}
+        detail={
+          player && (
+            <section className="gm-card">
+              <Contract
+                key={`${player.id}-${s.actions_taken}`}
+                player={player}
+                quotes={
+                  player.contract_quotes ?? { "1": player.asking_salary ?? 0 }
+                }
+                tool="sign_free_agent"
+                s={s}
+                review={review}
+              />
+              <button
+                disabled={
+                  s.done ||
+                  s.rules.scouting.points_remaining === 0 ||
+                  s.scout_reports[player.id] !== undefined
+                }
+                onClick={() => act("scout", { player_id: player.id })}
+              >
+                {s.scout_reports[player.id] !== undefined
+                  ? "Scouted ✓"
+                  : `Scout potential (${s.rules.scouting.points_remaining} left)`}
+              </button>
+            </section>
+          )
+        }
+      >
         {(p) =>
           waiver ? (
             <button
@@ -78,7 +111,8 @@ export default function Market({
           ) : (
             <button
               disabled={s.done || Boolean(p.resign_blocked)}
-              onClick={() => setSelected(p.id)}
+              aria-expanded={selected === p.id}
+              onClick={() => setSelected(selected === p.id ? null : p.id)}
             >
               {p.resign_blocked
                 ? `Released this season: ${p.name}`
@@ -87,31 +121,6 @@ export default function Market({
           )
         }
       </PlayerTable>
-      {player && !waiver && (
-        <section className="gm-card">
-          <h3>{player.name}</h3>
-          <Contract
-            key={`${player.id}-${s.actions_taken}`}
-            player={player}
-            quotes={
-              player.contract_quotes ?? { "1": player.asking_salary ?? 0 }
-            }
-            tool="sign_free_agent"
-            s={s}
-            review={review}
-          />
-          <button
-            disabled={
-              s.done ||
-              s.rules.scouting.points_remaining === 0 ||
-              s.scout_reports[player.id] !== undefined
-            }
-            onClick={() => act("scout", { player_id: player.id })}
-          >
-            Scout potential
-          </button>
-        </section>
-      )}
     </>
   );
 }

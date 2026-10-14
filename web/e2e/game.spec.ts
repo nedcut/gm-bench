@@ -58,7 +58,7 @@ async function confirm(page: Page) {
   await expect(page.locator(".gm-game")).toHaveAttribute("aria-busy", "false");
 }
 async function advance(page: Page) {
-  await page.locator(".gm-progress button").click();
+  await page.locator(".gm-advance").click();
   await confirm(page);
 }
 
@@ -129,7 +129,7 @@ test("play a full challenge: roster, contracts, lineup, scouting, draft, scores 
   await expect(page.locator(".gm-finale")).toContainText(
     "Scripted GM on the same seed and five seasons",
   );
-  await expect(page.locator(".gm-progress button")).toBeDisabled();
+  await expect(page.locator(".gm-advance")).toBeDisabled();
   await office(page, "History");
   await expect(page.locator(".gm-main table tbody tr")).toHaveCount(5);
   const finalSave = await page.evaluate(
@@ -169,7 +169,7 @@ test("trade builder, counteroffers, extensions, releases and waivers expose cons
   await page.getByRole("button", { name: "Review release" }).click();
   await confirm(page);
   await expect(page.getByRole("status")).toContainText("released Kai Anders");
-  await expect(page.locator(".gm-context tbody tr")).toHaveCount(22);
+  await expect(page.locator(".gm-main tbody tr")).toHaveCount(22);
   await office(page, "Trades");
   await page.getByLabel("Trade partner").selectOption("1");
   await page
@@ -308,7 +308,7 @@ test("all game screens and confirmation are accessible in both themes and fit ph
       ).toEqual([]);
     }
   }
-  await page.locator(".gm-progress button").click();
+  await page.locator(".gm-advance").click();
   const axe = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();

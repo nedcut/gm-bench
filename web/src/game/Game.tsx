@@ -39,7 +39,11 @@ export default function Game() {
   const [view, setView] = useState<View>("Office");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<{
+    ok: boolean;
+    text: string;
+    detail: string;
+  } | null>(null);
   const [saveStatus, setSaveStatus] = useState("");
   const [confirm, setConfirm] = useState<{
     title: string;
@@ -48,12 +52,17 @@ export default function Game() {
   } | null>(null);
   const [memo, setMemo] = useState("");
   useEffect(() => () => worker.current?.terminate(), []);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 9000);
+    return () => clearTimeout(timer);
+  }, [notice]);
   function send(request: Omit<GameRequest, "id">) {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
     setError("");
-    setNotice("");
+    setNotice(null);
     if (!worker.current) {
       worker.current = new Worker(new URL("./gameWorker.ts", import.meta.url), {
         type: "module",
@@ -78,20 +87,39 @@ export default function Game() {
         setSnapshot(response.snapshot);
         setSave(response.save);
         setMemo(response.snapshot.memo);
-        if (response.result) {
+        const result = response.result;
+        if (result) {
           const after = response.snapshot;
-          const delta = before
-            ? ` Cap room ${money(before.team.cap_room)} → ${money(after.team.cap_room)} · Roster ${before.team.roster.length} → ${after.team.roster.length} · Score ${rating(before.score.final_score)} → ${rating(after.score.final_score)}.`
-            : "";
-          setNotice(
-            `${response.result.ok ? "✓" : "Move declined:"} ${response.result.message}${response.result.penalized ? " This illegal move costs score." : ""}${response.result.season_result ? ` Season result: ${response.result.season_result.wins} wins, ${response.result.season_result.losses} losses.` : ""}${delta}`,
-          );
+          const changes: string[] = [];
+          if (result.season_result)
+            changes.push(
+              `Season result ${result.season_result.wins}–${result.season_result.losses}`,
+            );
+          if (before) {
+            if (before.team.cap_room !== after.team.cap_room)
+              changes.push(
+                `Cap room ${money(before.team.cap_room)} → ${money(after.team.cap_room)}`,
+              );
+            if (before.team.roster.length !== after.team.roster.length)
+              changes.push(
+                `Roster ${before.team.roster.length} → ${after.team.roster.length}`,
+              );
+            if (before.score.final_score !== after.score.final_score)
+              changes.push(
+                `Score ${rating(before.score.final_score)} → ${rating(after.score.final_score)}`,
+              );
+          }
+          setNotice({
+            ok: result.ok,
+            text: `${result.ok ? "" : "Move declined: "}${result.message}${result.penalized ? " This illegal move costs score." : ""}`,
+            detail: changes.join(" · "),
+          });
         }
         try {
           const text = JSON.stringify(response.save);
           localStorage.setItem(SAVE_KEY, text);
           setStored(text);
-          setSaveStatus("Saved in this browser");
+          setSaveStatus("Autosaved");
         } catch {
           setSaveStatus(
             "Autosave unavailable. Export your save before leaving.",
@@ -185,18 +213,31 @@ export default function Game() {
       "end_phase",
     );
   };
+  // Switching views from deep in a long table lands at the top of the new view.
+  const go = (v: View) => {
+    setView(v);
+    const calendar = document.querySelector(".gm-progress");
+    if (calendar)
+      window.scrollTo({
+        top: Math.min(
+          window.scrollY,
+          calendar.getBoundingClientRect().bottom + window.scrollY - 56,
+        ),
+      });
+  };
   const rank = s
     ? s.standings.findIndex((t) => t.team_id === s.team.id) + 1
     : 0;
   return (
     <article className="gm-game" aria-busy={busy}>
-      <header className="gm-heading">
+      <header className={`gm-heading ${s ? "is-compact" : ""}`}>
         <div>
-          <p className="gm-eyebrow">THE HUMAN CHALLENGE</p>
+          {!s && <p className="gm-eyebrow">THE HUMAN CHALLENGE</p>}
           <h1>Your call, GM.</h1>
-          <p>Five seasons. One franchise. Every decision is yours.</p>
+          {!s && <p>Five seasons. One franchise. Every decision is yours.</p>}
         </div>
         <div className="gm-actions">
+          {s && <span className="gm-save-status">{saveStatus}</span>}
           <button onClick={exportSave} disabled={busy || (!save && !stored)}>
             Export save
           </button>
@@ -238,21 +279,40 @@ export default function Game() {
           </label>
         </div>
       </header>
-      {error && (
-        <div className="gm-message gm-error" role="alert">
-          {error}
+      <div className="gm-toasts">
+        {error && (
+          <div className="gm-toast gm-error" role="alert">
+            <span>{error}</span>
+            <button aria-label="Dismiss message" onClick={() => setError("")}>
+              ×
+            </button>
+          </div>
+        )}
+        <div role="status" aria-live="polite">
+          {busy ? (
+            <p className="gm-toast">
+              <span>
+                {s
+                  ? "Applying your decision…"
+                  : "Loading the real simulator… First launch downloads Python and can take a moment."}
+              </span>
+            </p>
+          ) : notice ? (
+            <p className={`gm-toast ${notice.ok ? "is-ok" : "gm-error"}`}>
+              <span>
+                {notice.ok && "✓ "}
+                {notice.text}
+                {notice.detail && <small>{notice.detail}</small>}
+              </span>
+              <button
+                aria-label="Dismiss message"
+                onClick={() => setNotice(null)}
+              >
+                ×
+              </button>
+            </p>
+          ) : null}
         </div>
-      )}
-      <div role="status" aria-live="polite">
-        {busy ? (
-          <p className="gm-message">
-            {s
-              ? "Applying your decision…"
-              : "Loading the real simulator… First launch downloads Python and can take a moment."}
-          </p>
-        ) : notice ? (
-          <p className="gm-message">{notice}</p>
-        ) : null}
       </div>
       {!s ? (
         <section className="gm-welcome">
@@ -287,7 +347,7 @@ export default function Game() {
                 />
               </label>
               <button className="gm-primary" disabled={busy} onClick={start}>
-                Start challenge
+                {busy ? "Loading simulator…" : "Start challenge"}
               </button>
               {stored && (
                 <button disabled={busy} onClick={() => restore(stored)}>
@@ -360,20 +420,6 @@ export default function Game() {
                 {String(i + 1).padStart(2, "0")} · {LABEL[p]}
               </span>
             ))}
-            <button
-              className="gm-primary"
-              disabled={busy || s.done}
-              onClick={advance}
-            >
-              {s.done ? "Challenge complete" : NEXT[s.phase]} →
-            </button>
-          </div>
-          <div className="gm-save-status">
-            {saveStatus}
-            <span>
-              {s.rules.scouting.points_remaining} scouting points ·{" "}
-              {s.team.roster.length} players · {s.actions_taken} actions
-            </span>
           </div>
           {s.done && (
             <section className="gm-finale">
@@ -408,27 +454,42 @@ export default function Game() {
                 or try another seed below. Public practice results do not enter
                 the model leaderboard.
               </p>
-              <button onClick={() => setView("History")}>
-                View season history
-              </button>
+              <button onClick={() => go("History")}>View season history</button>
             </section>
           )}
-          <nav className="gm-nav" aria-label="Front office">
-            {VIEWS.map((v) => (
+          <div className="gm-bar">
+            <nav className="gm-nav" aria-label="Front office">
+              {VIEWS.map((v) => (
+                <button
+                  key={v}
+                  aria-label={v}
+                  aria-current={view === v ? "page" : undefined}
+                  onClick={() => go(v)}
+                >
+                  {v}
+                  {v === "Trades" && s.incoming_offers.length > 0 && (
+                    <span className="gm-badge">{s.incoming_offers.length}</span>
+                  )}
+                </button>
+              ))}
+            </nav>
+            <div className="gm-bar-status">
+              <span>
+                {s.team.wins}–{s.team.losses}
+              </span>
+              <span className={s.team.cap_room < 0 ? "neg" : "pos"}>
+                {money(s.team.cap_room)} cap room
+              </span>
               <button
-                key={v}
-                aria-label={v}
-                aria-current={view === v ? "page" : undefined}
-                onClick={() => setView(v)}
+                className="gm-primary gm-advance"
+                disabled={busy || s.done}
+                onClick={advance}
               >
-                {v}
-                {v === "Trades" && s.incoming_offers.length > 0
-                  ? ` (${s.incoming_offers.length})`
-                  : ""}
+                {s.done ? "Challenge complete" : NEXT[s.phase]} →
               </button>
-            ))}
-          </nav>
-          <div className="gm-layout">
+            </div>
+          </div>
+          <div className={`gm-layout ${view === "Roster" ? "is-wide" : ""}`}>
             <section className="gm-main" aria-label={view}>
               <fieldset className="gm-controls" disabled={busy}>
                 {view === "Office" && (
@@ -475,7 +536,7 @@ export default function Game() {
                         <button
                           key={v}
                           className="gm-office-card"
-                          onClick={() => setView(v)}
+                          onClick={() => go(v)}
                         >
                           <b>{title} →</b>
                           <span>{text}</span>
@@ -522,7 +583,7 @@ export default function Game() {
                 )}
                 {view === "Roster" && (
                   <Roster
-                    key={`${s.season}-${s.phase}-${s.actions_taken}`}
+                    key={`${s.season}-${s.phase}`}
                     s={s}
                     act={act}
                     review={review}
@@ -545,72 +606,63 @@ export default function Game() {
                 {view === "Rules" && <Rules s={s} />}
               </fieldset>
             </section>
-            <aside className="gm-context">
-              <dl className="gm-context-stats">
-                <div>
-                  <dt>Record / standing</dt>
-                  <dd>
-                    {s.team.wins}–{s.team.losses} ·{" "}
-                    {s.team.wins + s.team.losses ? `${rank} / 12` : "Tied"}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Cap room</dt>
-                  <dd className={s.team.cap_room < 0 ? "neg" : "pos"}>
-                    {money(s.team.cap_room)}
-                  </dd>
-                </div>
-              </dl>
-              <details open>
-                <summary>Your roster · {s.team.roster.length} players</summary>
-                <p className="muted">
-                  {s.effective_lineup.length} dressed · ✓ scouted potential
-                </p>
-                <div
-                  className="gm-context-scroll"
-                  tabIndex={0}
-                  role="region"
-                  aria-label="Your roster ratings and contracts"
-                >
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Player / contract</th>
-                        <th>Ovr</th>
-                        <th>Pot*</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ranked(s.team.roster).map((p) => (
-                        <tr key={p.id}>
-                          <th scope="row">
-                            <span>
-                              {s.effective_lineup.includes(p.id) ? "● " : "○ "}
-                              {p.name}
-                            </span>
-                            <small>
-                              {p.sub_position ?? p.position} · {p.age} ·{" "}
-                              {money(p.salary)} × {p.contract_years}
-                            </small>
-                          </th>
-                          <td>{rating(p.overall)}</td>
-                          <td>
-                            {rating(s.scout_reports[p.id] ?? p.potential)}
-                            {s.scout_reports[p.id] !== undefined ? "✓" : ""}
-                          </td>
+            {view !== "Roster" && (
+              <aside className="gm-context">
+                <details open>
+                  <summary>
+                    Your roster · {s.team.roster.length} players
+                  </summary>
+                  <p className="muted">
+                    {s.effective_lineup.length} dressed · ✓ scouted potential
+                  </p>
+                  <div
+                    className="gm-context-scroll"
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Your roster ratings and contracts"
+                  >
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Player / contract</th>
+                          <th>Ovr</th>
+                          <th>Pot*</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <p className="muted">
-                  ● dressed · ○ bench · *Potential is an estimate
-                </p>
-                <button onClick={() => setView("Roster")}>
-                  Manage roster & lineup
-                </button>
-              </details>
-            </aside>
+                      </thead>
+                      <tbody>
+                        {ranked(s.team.roster).map((p) => (
+                          <tr key={p.id}>
+                            <th scope="row">
+                              <span>
+                                {s.effective_lineup.includes(p.id)
+                                  ? "● "
+                                  : "○ "}
+                                {p.name}
+                              </span>
+                              <small>
+                                {p.sub_position ?? p.position} · {p.age} ·{" "}
+                                {money(p.salary)} × {p.contract_years}
+                              </small>
+                            </th>
+                            <td>{rating(p.overall)}</td>
+                            <td>
+                              {rating(s.scout_reports[p.id] ?? p.potential)}
+                              {s.scout_reports[p.id] !== undefined ? "✓" : ""}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="muted">
+                    ● dressed · ○ bench · *Potential is an estimate
+                  </p>
+                  <button onClick={() => go("Roster")}>
+                    Manage roster & lineup
+                  </button>
+                </details>
+              </aside>
+            )}
           </div>
           <section className="gm-new">
             <label>

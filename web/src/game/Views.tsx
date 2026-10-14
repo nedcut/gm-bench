@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Snapshot } from "./types";
 import {
   PHASES,
@@ -104,6 +104,10 @@ export function Draft({
 export function League({ s }: { s: Snapshot }) {
   const [selected, setSelected] = useState<number | null>(null);
   const team = s.teams.find((t) => t.id === selected);
+  const card = useRef<HTMLElement>(null);
+  useEffect(() => {
+    card.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selected]);
   const played = s.standings.some((t) => t.wins + t.losses > 0);
   return (
     <>
@@ -136,7 +140,10 @@ export function League({ s }: { s: Snapshot }) {
                 <th scope="row">
                   <button
                     className="gm-link"
-                    onClick={() => setSelected(t.team_id)}
+                    aria-expanded={selected === t.team_id}
+                    onClick={() =>
+                      setSelected(selected === t.team_id ? null : t.team_id)
+                    }
                   >
                     {t.team_name}
                     {t.team_id === s.team.id ? " · You" : ""}
@@ -152,7 +159,7 @@ export function League({ s }: { s: Snapshot }) {
         </table>
       </div>
       {team && (
-        <section className="gm-card">
+        <section className="gm-card" ref={card}>
           <h3>{team.name}</h3>
           <p>
             Payroll: {money(team.payroll)} · Cap room: {money(team.cap_room)}

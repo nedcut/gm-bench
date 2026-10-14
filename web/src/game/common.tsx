@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Player, Snapshot } from "./types";
 
 import { money, rating, ranked, type Review } from "./gameConfig";
@@ -44,12 +44,18 @@ export function PlayerTable({
   reports,
   quotes = false,
   children,
+  open,
+  detail,
 }: {
   players: Player[];
   reports?: Snapshot["scout_reports"];
   quotes?: boolean;
   children?: (p: Player) => ReactNode;
+  /** Player whose detail panel opens directly beneath their row. */
+  open?: number | null;
+  detail?: ReactNode;
 }) {
+  const columns = children ? 7 : 6;
   return (
     <div
       className="gm-scroll"
@@ -71,22 +77,29 @@ export function PlayerTable({
         </thead>
         <tbody>
           {ranked(players).map((p) => (
-            <tr key={p.id}>
-              <th scope="row">{p.name}</th>
-              <td>{p.sub_position ?? p.position}</td>
-              <td className="r">{p.age}</td>
-              <td className="r">{rating(p.overall)}</td>
-              <td className="r">
-                {rating(reports?.[p.id] ?? p.potential)}
-                {reports?.[p.id] !== undefined ? " ✓" : ""}
-              </td>
-              <td className="r">
-                {quotes
-                  ? money(p.asking_salary ?? p.salary)
-                  : `${money(p.salary)} / ${p.contract_years}`}
-              </td>
-              {children && <td>{children(p)}</td>}
-            </tr>
+            <Fragment key={p.id}>
+              <tr className={p.id === open ? "is-open" : undefined}>
+                <th scope="row">{p.name}</th>
+                <td>{p.sub_position ?? p.position}</td>
+                <td className="r">{p.age}</td>
+                <td className="r">{rating(p.overall)}</td>
+                <td className="r">
+                  {rating(reports?.[p.id] ?? p.potential)}
+                  {reports?.[p.id] !== undefined ? " ✓" : ""}
+                </td>
+                <td className="r">
+                  {quotes
+                    ? money(p.asking_salary ?? p.salary)
+                    : `${money(p.salary)} / ${p.contract_years}`}
+                </td>
+                {children && <td>{children(p)}</td>}
+              </tr>
+              {p.id === open && detail && (
+                <tr className="gm-detail">
+                  <td colSpan={columns}>{detail}</td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
       </table>
