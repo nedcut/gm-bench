@@ -39,10 +39,12 @@ artifact per row, produced by :func:`compact_agentic_run`, which
   Carlo test cannot resolve (no draw as extreme, so the runner reports 0.0)
   is stored as its bound, ``1 / (draws + 1)``, flagged
   ``sign_flip_p_value_upper_bound``;
-- re-derives, for a Claude Code row, each episode's API-equivalent cost from
-  the retained ``claude-events.jsonl`` with this checkout's parser. The run
-  recorded its cost when it played, so a parser fixed since then (the 1-hour
-  cache-write match of 2026-09-28) would otherwise never reach the row. The
+- re-derives, for a Claude Code or Codex row, each episode's API-equivalent
+  cost from the retained ``claude-events.jsonl`` or ``codex-events.jsonl``
+  with this checkout's parser and ``pricing.json``. The run recorded its cost
+  when it played, so a parser fixed since then (the 1-hour cache-write match
+  of 2026-09-28), or a model priced only after its panel (``gpt-6-astra``,
+  2026-10-13), would otherwise never reach the row. The
   re-derivation must reproduce the recorded token counts exactly; when its
   cost differs, the row carries the new figure with the recorded one beside
   it under ``api_equivalent_recomputed`` (and the driver digest that did the
@@ -72,7 +74,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from gm_bench.agentic import claude
+from gm_bench.agentic import claude, codex
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.cursor import prompt_audit_problems
 from gm_bench.agentic.opencode import TOKEN_SHAPE, _api_equivalent_summary, normalized_tokens
@@ -289,9 +291,9 @@ def compact_agentic_run(
     for episode, report in zip(episodes, validation["per_episode"], strict=True):
         _publish_recount(episode, report)
         episode["empty_phases"] = report.get("empty_phases")
-    if (raw.get("harness") or {}).get("name") == claude.HARNESS_NAME:
+    if (raw.get("harness") or {}).get("name") in (claude.HARNESS_NAME, codex.HARNESS_NAME):
         for episode, raw_episode in zip(episodes, raw_episodes, strict=True):
-            _recost_claude_episode(episode, raw_episode, run_path.parent)
+            _recost_episode(episode, raw_episode, run_path.parent, raw)
     agentic_summary = _published_agentic_summary(raw.get("agentic_summary"), episodes)
     empty = [episode["empty_phases"] for episode in episodes]
     artifact: dict[str, Any] = {
@@ -468,38 +470,45 @@ def _publish_recount(episode: dict[str, Any], report: dict[str, Any]) -> None:
     }
 
 
-def _recost_claude_episode(episode: dict[str, Any], raw_episode: dict[str, Any], run_dir: Path) -> None:
-    """Re-derive a Claude episode's API-equivalent cost from its retained event stream.
+def _recost_episode(episode: dict[str, Any], raw_episode: dict[str, Any], run_dir: Path, raw: dict[str, Any]) -> None:
+    """Re-derive a Claude Code or Codex episode's API-equivalent cost from its retained event stream.
 
     The token counts must come out exactly as recorded, or the stream is not
     the one the run parsed and nothing is published. A cost that differs from
     the recorded one replaces it, with the recorded fields kept under
     ``api_equivalent_recomputed.recorded``.
     """
+    name = (raw.get("harness") or {}).get("name")
+    label = "Claude" if name == claude.HARNESS_NAME else "Codex"
     harness_run = raw_episode.get("harness_run") or {}
     recorded_path = harness_run.get("events_path")
     events = Path(str(recorded_path)) if recorded_path else None
     if events is not None and not events.is_absolute():
         events = run_dir / events
     if events is None or not events.is_file():
-        raise ValueError(f"episode {episode['index']}: the Claude event stream is missing; cannot re-derive its cost")
-    telemetry = claude.parse_claude_events(events.read_text(encoding="utf-8").splitlines())
+        raise ValueError(f"episode {episode['index']}: the {label} event stream is missing; cannot re-derive its cost")
+    lines = events.read_text(encoding="utf-8").splitlines()
+    if name == claude.HARNESS_NAME:
+        telemetry = claude.parse_claude_events(lines)
+        fresh = claude.api_equivalent_fields(telemetry)
+    else:
+        telemetry = codex.parse_codex_events(lines)
+        fresh = codex.api_equivalent_fields(telemetry, str((raw.get("harness") or {}).get("model") or ""))
     usage = raw_episode.get("usage") or {}
     tokens = normalized_tokens(telemetry)
     for key in ("input_tokens", "output_tokens", "cached_input_tokens", "cache_write_input_tokens"):
         if key in usage and usage[key] != tokens[key]:
             raise ValueError(
-                f"episode {episode['index']}: re-parsing the Claude event stream gives {key} {tokens[key]}, "
+                f"episode {episode['index']}: re-parsing the {label} event stream gives {key} {tokens[key]}, "
                 f"the run recorded {usage[key]}; refusing to re-derive its cost"
             )
-    fresh = claude.api_equivalent_fields(telemetry)
     harness = episode["usage"]["harness"]
     recorded = {key: harness.get(key) for key in _API_EQUIVALENT_KEYS}
     if fresh == recorded:
         return
     harness.update(fresh)
     harness["api_equivalent_recomputed"] = {
-        "from": "retained claude-events.jsonl",
+        "from": f"retained {events.name}",
         "driver_digest": driver_digest(),
         "recorded": recorded,
     }

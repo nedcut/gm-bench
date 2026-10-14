@@ -1475,3 +1475,66 @@ def test_rollout_efforts_read_turn_context_records_only() -> None:
     assert codex.rollout_efforts(lines) == ["high", "low"]
     assert codex.reasoning_effort_record(None) == {"reported": None, "source": "rollout turn_context.effort"}
     assert codex.reasoning_effort_record([])["reported"] is None
+
+
+# -- re-deriving a published cost from the retained events ------------------------
+
+
+def test_a_codex_model_priced_after_its_run_gets_its_estimate_at_redaction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from gm_bench.agentic.provenance import driver_digest
+    from gm_bench.agentic.publication import compact_agentic_run, validate_agentic_artifact
+    from gm_bench.telemetry import pricing_table
+
+    binary, _log = _fake_codex(tmp_path, [{"phases": 4}], monkeypatch)
+    run_dir = tmp_path / "run"
+    monkeypatch.setattr(codex.CodexDriver, "check_prompt", lambda self, **kwargs: CLEAN_PROMPT_CHECK)
+    codex.run_panel(
+        [11],
+        prompt_check=True,
+        model="gpt-fake",
+        run_dir=run_dir,
+        seasons=1,
+        binary=str(binary),
+        auth_file=_auth_file(tmp_path),
+    )
+    recorded = json.loads((run_dir / "run.json").read_text())["episodes"][0]["usage"]["harness"]
+    assert recorded["api_equivalent_cost_usd"] is None
+
+    # Unpriced at redaction too: published as recorded.
+    pricing_table.cache_clear()
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    assert "api_equivalent_recomputed" not in artifact["episodes"][0]["usage"]["harness"]
+
+    prices = tmp_path / "pricing.json"
+    prices.write_text(
+        json.dumps(
+            {"models": {"gpt-fake": {"input_per_mtok": 10.0, "cached_input_per_mtok": 1.0, "output_per_mtok": 50.0}}}
+        )
+    )
+    monkeypatch.setenv("GM_BENCH_PRICING", str(prices))
+    pricing_table.cache_clear()
+    try:
+        artifact = compact_agentic_run(run_dir, isolation="same-user")
+        harness = artifact["episodes"][0]["usage"]["harness"]
+        # One turn: 600 uncached and 400 cached input at 10 and 1, 50 output at 50 per million.
+        assert harness["api_equivalent_cost_usd"] == pytest.approx((600 * 10 + 400 * 1 + 50 * 50) / 1e6)
+        assert harness["pricing_source"]["key"] == "gpt-fake"
+        assert harness["api_equivalent_recomputed"] == {
+            "from": "retained codex-events.jsonl",
+            "driver_digest": driver_digest(),
+            "recorded": {key: recorded[key] for key in harness["api_equivalent_recomputed"]["recorded"]},
+        }
+        assert artifact["agentic_summary"]["api_equivalent_cost_usd"] == harness["api_equivalent_cost_usd"]
+        assert artifact["agentic_summary"]["api_equivalent_recorded"]["api_equivalent_cost_usd"] is None
+        assert validate_agentic_artifact(artifact, raw_run=run_dir)["ok"]
+
+        # A stream that no longer gives the recorded tokens is not the one the run parsed: refused.
+        events = run_dir / "seed-11" / "codex-events.jsonl"
+        events.write_text(events.read_text().replace('"output_tokens": 50', '"output_tokens": 51'))
+        with pytest.raises(ValueError, match="refusing to re-derive"):
+            compact_agentic_run(run_dir, isolation="same-user")
+    finally:
+        monkeypatch.delenv("GM_BENCH_PRICING")
+        pricing_table.cache_clear()

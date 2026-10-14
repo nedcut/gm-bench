@@ -568,6 +568,148 @@
       "v1_row_id": null
     },
     {
+      "agent": "codex:gpt-6-astra",
+      "agreement": {
+        "episodes": 32,
+        "episodes_agreeing": 32,
+        "harness_tool_calls": 4956,
+        "ledger_tool_calls": 4956
+      },
+      "artifact_path": "results/agentic/codex-0.162.1-gpt-6-astra-panel-32x5.json",
+      "compacted_at_utc": "2026-10-14T01:08:44+00:00",
+      "contract": {
+        "agentic_fingerprint": "07de948a4f4afbae",
+        "base_benchmark_version": "sota-v5",
+        "base_contract_fingerprint": "a600b7da0c302231",
+        "benchmark_version": "gm-bench-2.0",
+        "brief": "gm-bench-agentic-brief-v1",
+        "scoring_version": "score-v1",
+        "simulator_version": "sim-v4",
+        "tool_surface": "gm-bench-agentic-v1"
+      },
+      "effective_reasoning_effort": {
+        "note": "codex exec --json reports no effort; the driver reads turn_context.effort from the session rollouts, and runs recorded before it did (2026-09-28) kept none",
+        "reported": null,
+        "requested": null
+      },
+      "failed_decisions": 0,
+      "grade": "panel",
+      "harness": {
+        "model": "gpt-6-astra",
+        "name": "codex",
+        "variant": null,
+        "version": "0.162.1"
+      },
+      "id": "agentic:codex-0.162.1:gpt-6-astra",
+      "illegal_actions": 58,
+      "isolation": "container",
+      "lane": "agentic",
+      "max_nudges": 20,
+      "mean_score": 288.417,
+      "model": "gpt-6-astra",
+      "panel": {
+        "distinct_seeds": 32,
+        "episodes": 32,
+        "sha256": "96d4a15dba85e8389dcc12fb7012d6a388ba2c0b7bb710798e88947b964412f7"
+      },
+      "phase_guard_seconds": 1200.0,
+      "pin": null,
+      "raw_artifact_sha256": "091fff8d623165c0fe98538cf10a9c243e03bcd5f89a32dc506455aad2c25154",
+      "reference": {
+        "agent": "pick-trader",
+        "candidate_seed_win_rate": 0.625,
+        "floor": {
+          "agent": "random",
+          "mean_score": 90.367
+        },
+        "mean_score": 249.18,
+        "num_seeds": 32,
+        "paired_lift_ci95": [
+          15.582,
+          63.111
+        ],
+        "paired_lift_mean": 39.237,
+        "paired_lift_stddev": 68.595,
+        "seasons": 5,
+        "sign_flip_p_value": 0.0036,
+        "significant_at_95": true
+      },
+      "score_stddev": 61.139,
+      "seasons": 5,
+      "seed_mean_max": 409.132,
+      "seed_mean_min": 203.519,
+      "telemetry": {
+        "api_equivalent_cost_episodes": 32,
+        "api_equivalent_cost_per_episode_usd": 3.595,
+        "api_equivalent_cost_usd": 115.0386,
+        "api_equivalent_long_context_possible": true,
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 76050432,
+        "compactions": null,
+        "cost_per_episode_usd": null,
+        "cost_usd": null,
+        "empty_phases": 17,
+        "episodes": 32,
+        "guard_kills": 0,
+        "input_tokens": 78702559,
+        "nudges_per_episode": 0.0,
+        "nudges_used": 0,
+        "output_tokens": 249337,
+        "phases_ended_by": {
+          "agent": 640
+        },
+        "provider_stall_wait_seconds": 0.0,
+        "provider_stalls": 0,
+        "quota": {
+          "episodes_ended_by_quota": 0,
+          "episodes_reporting": 32,
+          "max_used_percent": 49.0,
+          "pause_seconds": 0,
+          "pauses": 0,
+          "plan_types": [
+            "prolite"
+          ],
+          "window_minutes": [
+            10080
+          ]
+        },
+        "reasoning_tokens": 67157,
+        "scout_points_used": 122,
+        "silent_harness_kills": 0,
+        "telemetry_episodes": 32,
+        "token_shape": "inclusive-v1",
+        "tool_calls": 4956,
+        "tool_calls_by_tool": {
+          "accept_trade_offer": 2,
+          "claim_waiver": 5,
+          "draft": 49,
+          "end_phase": 640,
+          "extend_contract": 849,
+          "get_rules": 32,
+          "get_status": 640,
+          "get_team": 365,
+          "inspect_player": 29,
+          "inspect_team": 229,
+          "list_draft_class": 49,
+          "list_free_agents": 315,
+          "list_offers": 87,
+          "list_trade_market": 32,
+          "list_waiver_wire": 69,
+          "release_player": 36,
+          "scout": 122,
+          "set_lineup": 607,
+          "sign_free_agent": 364,
+          "trade": 435
+        },
+        "tool_calls_per_episode": 154.88,
+        "uncached_input_tokens": 2652127,
+        "wall_seconds": 9296.9,
+        "wall_seconds_per_episode": 290.5
+      },
+      "unpinned": true,
+      "v1_row_id": null
+    },
+    {
       "agent": "codex:gpt-6-luna",
       "agreement": {
         "episodes": 32,
@@ -986,6 +1128,140 @@
         "uncached_input_tokens": 8409618,
         "wall_seconds": 23687.3,
         "wall_seconds_per_episode": 740.2
+      },
+      "unpinned": true,
+      "v1_row_id": null
+    },
+    {
+      "agent": "opencode:opencode-go/deepseek-v4.1-flash",
+      "agreement": {
+        "episodes": 32,
+        "episodes_agreeing": 32,
+        "harness_tool_calls": 5133,
+        "ledger_tool_calls": 5133
+      },
+      "artifact_path": "results/agentic/opencode-2.0.27-deepseek-v4.1-flash-panel-32x5.json",
+      "compacted_at_utc": "2026-10-14T01:08:09+00:00",
+      "contract": {
+        "agentic_fingerprint": "07de948a4f4afbae",
+        "base_benchmark_version": "sota-v5",
+        "base_contract_fingerprint": "a600b7da0c302231",
+        "benchmark_version": "gm-bench-2.0",
+        "brief": "gm-bench-agentic-brief-v1",
+        "scoring_version": "score-v1",
+        "simulator_version": "sim-v4",
+        "tool_surface": "gm-bench-agentic-v1"
+      },
+      "effective_reasoning_effort": {
+        "note": "OpenCode's event stream reports no effort; requested is the --variant passed to it",
+        "reported": null,
+        "requested": null
+      },
+      "failed_decisions": 0,
+      "grade": "panel",
+      "harness": {
+        "model": "opencode-go/deepseek-v4.1-flash",
+        "name": "opencode",
+        "variant": null,
+        "version": "2.0.27"
+      },
+      "id": "agentic:opencode-2.0.27:opencode-go/deepseek-v4.1-flash",
+      "illegal_actions": 33,
+      "isolation": "container",
+      "lane": "agentic",
+      "max_nudges": 20,
+      "mean_score": 244.586,
+      "model": "opencode-go/deepseek-v4.1-flash",
+      "panel": {
+        "distinct_seeds": 32,
+        "episodes": 32,
+        "sha256": "96d4a15dba85e8389dcc12fb7012d6a388ba2c0b7bb710798e88947b964412f7"
+      },
+      "phase_guard_seconds": 1200.0,
+      "pin": null,
+      "raw_artifact_sha256": "0a2385f9f0b4b2f9e6178089b19f3b1aa304360ee4962d43e565f3d4ea2b6910",
+      "reference": {
+        "agent": "pick-trader",
+        "candidate_seed_win_rate": 0.375,
+        "floor": {
+          "agent": "random",
+          "mean_score": 90.367
+        },
+        "mean_score": 249.18,
+        "num_seeds": 32,
+        "paired_lift_ci95": [
+          -25.795,
+          17.016
+        ],
+        "paired_lift_mean": -4.594,
+        "paired_lift_stddev": 60.062,
+        "seasons": 5,
+        "sign_flip_p_value": 0.6675,
+        "significant_at_95": false
+      },
+      "score_stddev": 52.948,
+      "seasons": 5,
+      "seed_mean_max": 368.784,
+      "seed_mean_min": 126.588,
+      "telemetry": {
+        "api_equivalent_cost_episodes": 0,
+        "api_equivalent_cost_per_episode_usd": null,
+        "api_equivalent_cost_usd": null,
+        "api_equivalent_long_context_possible": false,
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 405804160,
+        "compactions": 0,
+        "cost_per_episode_usd": 0.1534,
+        "cost_usd": 4.9092,
+        "empty_phases": 33,
+        "episodes": 32,
+        "guard_kills": 0,
+        "input_tokens": 420240030,
+        "nudges_per_episode": 0.0,
+        "nudges_used": 0,
+        "output_tokens": 2544030,
+        "phases_ended_by": {
+          "agent": 640
+        },
+        "provider_stall_wait_seconds": 0.0,
+        "provider_stalls": 0,
+        "quota": null,
+        "reasoning_tokens": 2187481,
+        "scout_points_used": 395,
+        "silent_harness_kills": 0,
+        "telemetry_episodes": 32,
+        "token_shape": "inclusive-v1",
+        "tool_calls": 5133,
+        "tool_calls_by_tool": {
+          "accept_trade_offer": 13,
+          "claim_waiver": 5,
+          "counter_trade_offer": 2,
+          "draft": 125,
+          "end_phase": 640,
+          "extend_contract": 762,
+          "get_rules": 32,
+          "get_status": 611,
+          "get_team": 311,
+          "inspect_player": 7,
+          "inspect_team": 117,
+          "list_draft_class": 128,
+          "list_free_agents": 291,
+          "list_offers": 167,
+          "list_trade_market": 107,
+          "list_transactions": 4,
+          "list_waiver_wire": 142,
+          "reject_trade_offer": 347,
+          "release_player": 84,
+          "scout": 396,
+          "set_lineup": 247,
+          "sign_free_agent": 253,
+          "trade": 141,
+          "write_memo": 201
+        },
+        "tool_calls_per_episode": 160.41,
+        "uncached_input_tokens": 14435870,
+        "wall_seconds": 28118.0,
+        "wall_seconds_per_episode": 878.7
       },
       "unpinned": true,
       "v1_row_id": null

@@ -121,6 +121,28 @@ checked against the binary on 2026-10-12:
   (see "Running the harness in a container").
 - OpenCode 2.x is not published to npm (`opencode-ai` stops at 1.19.0); the
   image installs the release binary.
+- 2.x checks a tool call's arguments against the tool's input schema
+  itself, before the tool runs (`cu` and `ip` in 2.0.27's tool runtime).
+  A call that fails the check ends `error` with `Invalid arguments for tool
+  "<name>":` and never reaches the MCP server, so it is not in the ledger.
+  The event parser counts such a call under `harness_tool_calls_skipped`,
+  not as a GM-Bench call, as it does Codex's pre-dispatch refusals; before
+  2026-10-13 it counted it, and the ledger-versus-harness check failed.
+
+The OpenCode 2.0.27 panel on `opencode-go/deepseek-v4.1-flash` (the same
+model and OpenCode Go plan as the 1.18.31 row; 2026-10-13, driver commit
+`93b1f7c`, the launcher's first panel) is committed at
+`results/agentic/opencode-2.0.27-deepseek-v4.1-flash-panel-32x5.json`:
+mean 244.6, 640/640 phases closed by the agent, no nudges, provider stalls
+or compactions, 160.4 tool calls and 14.6 min per episode, $4.91 as
+OpenCode reports it. In episode 14 OpenCode refused one `trade` call on
+its schema check (no `partner_team_id`); the run recorded 166/167, and the
+row publishes the recount, 166/166, with the recorded figure beside it.
+Episode 19 exited 1 with an empty stderr after the agent had closed all 20
+phases; the run records it as a warning. The event streams carry one call
+to `gm-bench-scout`, a tool name that does not exist, and no shell, file
+or `execute` call. The first 2.0.27 panel, played before the launcher, is
+not published (see above).
 
 The run directory must be fresh: an episode directory that already holds
 evidence is refused before any harness launches, because the ledger is
@@ -621,10 +643,11 @@ still validate:
   (`harness_run.reasoning_effort`); runs before that kept none. Claude Code
   2.1.281's stream carries no effort level, and OpenCode's none either, so
   `reported` is `null` with a `note` saying why.
-- For a Claude Code row, the API-equivalent cost is re-derived from the
-  retained `claude-events.jsonl` with this checkout's parser. The run
-  recorded its cost when it played, so a parser fix would otherwise never
-  reach a published row. The re-derivation must give exactly the recorded
+- For a Claude Code or Codex row, the API-equivalent cost is re-derived
+  from the retained `claude-events.jsonl` or `codex-events.jsonl` with
+  this checkout's parser and `pricing.json`. The run recorded its cost
+  when it played, so a parser fix, or a price entry added after the panel,
+  would otherwise never reach a published row. The re-derivation must give exactly the recorded
   token counts or the redaction is refused; a cost that differs is
   published with `usage.harness.api_equivalent_recomputed` (`recorded`
   figures, the `driver_digest` that re-derived them) and the row's
@@ -849,7 +872,7 @@ python -m gm_bench agentic --harness codex --isolation container --model gpt-6-l
 ```
 
 These are the model and flags the committed `gpt-6-luna` rows used; the
-`gpt-6.1-sol` panel used the same flags with `--model gpt-6.1-sol`. No committed
+`gpt-6.1-sol` and `gpt-6-astra` panels used the same flags with their own `--model`. No committed
 row passes `--variant`, on any harness, so every row ran at the harness's
 default reasoning effort. `--variant` sets it explicitly (for Codex,
 `-c model_reasoning_effort="<variant>"`), and a row run with it is a
@@ -858,7 +881,7 @@ different row.
 The Codex CLI is the second harness (`gm_bench/agentic/codex.py`, written
 against Codex CLI 0.156.1, which played the committed `gpt-6-luna` rows,
 and re-verified against 0.162.1, which the container image now pins and
-which played the `gpt-6.1-sol` panel; see "Codex 0.162.1" below). It runs through the same episode loop
+which played the `gpt-6.1-sol` and `gpt-6-astra` panels; see "Codex 0.162.1" below). It runs through the same episode loop
 as OpenCode: same engine, proxy, sandbox check, nudges, provider-stall
 retries, phase guard, ledger, and validation. A Codex row is its own row,
 `codex/<version> · <model>`, never merged with an OpenCode row on the same
@@ -895,7 +918,16 @@ the account's apps and plugins turned off), is committed at
 stalls (780 s of backoff), 170.1 tool calls and 8.5 min per episode, $17.38
 at API prices for the panel, also a lower bound
 (`api_equivalent_long_context_possible: true`). On a ChatGPT `prolite`
-plan the weekly window peaked at 7% used.
+plan the weekly window peaked at 7% used. The third, on `gpt-6-astra`
+(2026-10-13, driver commit `5d56c71`, the same Codex 0.162.1 setup), is
+committed at `results/agentic/codex-0.162.1-gpt-6-astra-panel-32x5.json`:
+mean 288.4, 640/640 phases closed by the agent, no nudges, provider stalls
+or quota pauses, 154.9 tool calls and 4.8 min per episode, and only
+GM-Bench calls in the event streams. `pricing.json` had no `gpt-6-astra`
+entry when it ran, so the run recorded no estimate; redaction re-derived
+it from the retained event streams: $115.04 for the panel, a lower bound
+(every episode had a turn whose input grew past 272K). On the same
+`prolite` plan the weekly window went from 11% to 49% used.
 
 What a run does per episode:
 
@@ -1003,7 +1035,7 @@ OpenCode image is unchanged. `run.json` records it under
 `harness.container`, with `codex_version` as the image reports it. The
 committed `gpt-6-luna` rows ran in `gm-bench-agentic-codex:0.156.1-578af3e044d4`
 and keep validating at the driver commit they record; the `gpt-6.1-sol`
-panel ran in `gm-bench-agentic-codex:0.162.1-f8095c887ac3`.
+and `gpt-6-astra` panels ran in `gm-bench-agentic-codex:0.162.1-f8095c887ac3`.
 
 ### Account plugins and apps
 
@@ -1219,10 +1251,13 @@ Price the model before the run. A run prices its tokens as it plays, from
 the `pricing.json` this checkout has, so add and verify the model's entry
 (input, output, cache reads, cache writes including Anthropic's 1-hour
 tier, and any long-context threshold) before the smoke, not after the
-panel. The `claude-haiku-5-5` panel (2026-10-13) ran without one and
-recorded no estimate. `agentic-redact` re-derives the estimate only for a
-Claude Code row (from its retained event streams); any other harness's row
-publishes whatever the run recorded, `null` for an unpriced model. Note any
+panel. The `claude-haiku-5-5` and `gpt-6-astra` panels (2026-10-13) ran
+without one and recorded no estimate. `agentic-redact` re-derives the
+estimate for a Claude Code or Codex row from its retained event streams
+(`claude-events.jsonl`, `codex-events.jsonl`) with this checkout's
+`pricing.json`, refusing if the stream no longer gives the recorded token
+counts; an OpenCode or Cursor row publishes whatever the run recorded,
+`null` for an unpriced model. Note any
 tiered price the
 estimator can only bound (a `long_context_input_tokens` threshold) in the
 row's disclosures.
