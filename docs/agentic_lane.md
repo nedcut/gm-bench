@@ -1220,9 +1220,10 @@ the `pricing.json` this checkout has, so add and verify the model's entry
 (input, output, cache reads, cache writes including Anthropic's 1-hour
 tier, and any long-context threshold) before the smoke, not after the
 panel. The `claude-haiku-5-5` panel (2026-10-13) ran without one and
-recorded no estimate; a Claude Code row can be re-derived at redaction
-from its retained event streams, but a Codex row cannot, because the
-session rollout goes with the episode's home. Note any tiered price the
+recorded no estimate. `agentic-redact` re-derives the estimate only for a
+Claude Code row (from its retained event streams); any other harness's row
+publishes whatever the run recorded, `null` for an unpriced model. Note any
+tiered price the
 estimator can only bound (a `long_context_input_tokens` threshold) in the
 row's disclosures.
 
