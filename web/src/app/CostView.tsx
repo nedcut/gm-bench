@@ -228,81 +228,84 @@ function Chart({ priced, bar, scale, view }: { priced: ModelRow[]; bar: number; 
             >
               {row.ci && <line x1={px} x2={px} y1={y(row.ci[0])} y2={y(row.ci[1])} stroke={color} strokeOpacity="0.5" strokeWidth="2" />}
               <circle cx={px} cy={py} r={selected ? 7.5 : 6} fill={color} stroke={selected ? "var(--text)" : color} strokeWidth={selected ? 2.5 : 2} />
-              <text className="point-label" x={labels[i].x} y={labels[i].y} textAnchor={labels[i].anchorEnd ? "end" : "start"}>
+              {(!narrow || view.focus === row.id) && <text className="point-label" x={labels[i].x} y={labels[i].y} textAnchor={labels[i].anchorEnd ? "end" : "start"}>
                 {row.model}
                 {!narrow && (
                   <tspan className="axis-label" x={labels[i].x} dy="15">
                     {sub(row)}
                   </tspan>
                 )}
-              </text>
+              </text>}
             </g>
           );
         })}
       </svg>
       {narrow && (
+        <>
+        <p className="view-note">Select a point or model below to highlight its label.</p>
         <ul className="chart-key">
           {[...priced]
             .sort((a, b) => (a.cost.usd as number) - (b.cost.usd as number))
             .map((row) => (
               <li key={row.id}>
+                <button type="button" aria-pressed={view.selected === row.id} onClick={() => view.select(row.id)} onMouseEnter={() => view.hover(row.id)} onMouseLeave={() => view.hover(null)} onFocus={() => view.hover(row.id)} onBlur={() => view.hover(null)}>
                 <span className={`dot vendor-${row.vendor.key}`} aria-hidden="true" />
                 <span>
                   {row.model} <span className="muted">· {row.harness}</span>
                 </span>
                 <span className="val">{usd(row)}</span>
+                </button>
               </li>
             ))}
         </ul>
+        </>
       )}
     </div>
   );
 }
 
-export default function CostView({ data }: { data: Leaderboard }) {
+export function CostSection({ data, view }: { data: Leaderboard; view: WorkspaceView }) {
   const [scale, setScale] = useState<Scale>("log");
   const bar = pickTraderScore(data) ?? 0;
+  const priced = view.shown.filter((row) => row.cost.usd !== null);
+  const unmeasured = view.shown.filter((row) => row.cost.usd === null);
   return (
-    <Workspace data={data} hint="Click a point for its details.">
-      {(view) => {
-        const priced = view.shown.filter((row) => row.cost.usd !== null);
-        const unmeasured = view.shown.filter((row) => row.cost.usd === null);
-        return (
-          <section className="view page-view" aria-labelledby="cost-title">
-            <div className="view-head">
-              <h1 id="cost-title">Score vs cost per game</h1>
-              <span>{takeaway(priced, bar)}</span>
-              {view.filterButton}
-            </div>
-            <div className="card">
-              <div className="card-head">
-                <ul className="legend" aria-label="Legend">
-                  <li><i className="key-dot" /> Model, colored by vendor</li>
-                  <li><i className="key-ci" /> 95% interval</li>
-                  <li><i className="key-bar" /> pick-trader</li>
-                </ul>
-                <div className="seg" role="group" aria-label="Cost axis">
-                  {(["log", "linear"] as const).map((s) => (
-                    <button key={s} type="button" aria-pressed={scale === s} onClick={() => setScale(s)}>
-                      {s === "log" ? "Log" : "Linear"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {priced.length === 0 ? (
-                <p className="view-note">No row in the current filter has a cost measurement.</p>
-              ) : (
-                <Chart priced={priced} bar={bar} scale={scale} view={view} />
-              )}
-            </div>
-            {unmeasured.length > 0 && (
-              <p className="view-note">
-                Not shown, cost unmeasured: {unmeasured.map((row) => `${row.model} (${row.harness})`).join(", ")}.
-              </p>
-            )}
-          </section>
-        );
-      }}
-    </Workspace>
+    <section className="view stats-section" id="cost" tabIndex={-1} aria-labelledby="cost-title">
+      <div className="view-head">
+        <h2 id="cost-title">Score vs cost per game</h2>
+        <span>{takeaway(priced, bar)}</span>
+      </div>
+      <div className="card">
+        <div className="card-head">
+          <ul className="legend" aria-label="Legend">
+            <li><i className="key-dot" /> Model, colored by vendor</li>
+            <li><i className="key-ci" /> 95% interval</li>
+            <li><i className="key-bar" /> pick-trader</li>
+          </ul>
+          <div className="seg" role="group" aria-label="Cost axis">
+            {(["log", "linear"] as const).map((s) => (
+              <button key={s} type="button" aria-pressed={scale === s} onClick={() => setScale(s)}>
+                {s === "log" ? "Log" : "Linear"}
+              </button>
+            ))}
+          </div>
+        </div>
+        {priced.length === 0 ? (
+          <p className="view-note">No row in the current filter has a cost measurement.</p>
+        ) : (
+          <Chart priced={priced} bar={bar} scale={scale} view={view} />
+        )}
+      </div>
+      <p className="view-note">Billed or harness-reported costs and API list-price estimates share this axis. Estimates may be low at long context; select a model for its cost basis. Intervals compare each model with pick-trader, not with other models.</p>
+      {unmeasured.length > 0 && (
+        <p className="view-note">
+          Not shown, cost unmeasured: {unmeasured.map((row) => `${row.model} (${row.harness})`).join(", ")}.
+        </p>
+      )}
+    </section>
   );
+}
+
+export default function CostView({ data }: { data: Leaderboard }) {
+  return <Workspace data={data} hint="Click a point for its details.">{view => <CostSection data={data} view={view} />}</Workspace>;
 }

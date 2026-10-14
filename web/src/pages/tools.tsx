@@ -1,4 +1,4 @@
 import { leaderboard, mountPage } from "../mount";
-import ToolsView from "../app/ToolsView";
+import Stats from "../app/Stats";
 
-mountPage("tools", <ToolsView data={leaderboard} />);
+mountPage("standings", <Stats data={leaderboard} start="tools" />);
