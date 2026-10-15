@@ -2,35 +2,43 @@
   "agentic_bots": [
     {
       "agent": "pick-trader",
-      "mean_score": 249.18
+      "mean_score": 250.068,
+      "score_v1_mean_score": 249.18
     },
     {
       "agent": "strategic",
-      "mean_score": 242.899
+      "mean_score": 239.217,
+      "score_v1_mean_score": 242.899
     },
     {
       "agent": "shrewd",
-      "mean_score": 228.809
+      "mean_score": 233.185,
+      "score_v1_mean_score": 228.809
     },
     {
       "agent": "win-now",
-      "mean_score": 178.751
+      "mean_score": 171.8,
+      "score_v1_mean_score": 178.751
     },
     {
       "agent": "value",
-      "mean_score": 174.355
-    },
-    {
-      "agent": "rebuild",
-      "mean_score": 124.26
+      "mean_score": 171.069,
+      "score_v1_mean_score": 174.355
     },
     {
       "agent": "conservative",
-      "mean_score": 123.925
+      "mean_score": 122.547,
+      "score_v1_mean_score": 123.925
+    },
+    {
+      "agent": "rebuild",
+      "mean_score": 122.199,
+      "score_v1_mean_score": 124.26
     },
     {
       "agent": "random",
-      "mean_score": 90.367
+      "mean_score": 86.891,
+      "score_v1_mean_score": 90.367
     }
   ],
   "agentic_lane": [
@@ -72,7 +80,7 @@
       "isolation": "container",
       "lane": "agentic",
       "max_nudges": 20,
-      "mean_score": 130.129,
+      "mean_score": 128.229,
       "model": "claude-haiku-4-5",
       "panel": {
         "distinct_seeds": 32,
@@ -87,25 +95,51 @@
         "candidate_seed_win_rate": 0.0,
         "floor": {
           "agent": "random",
-          "mean_score": 90.367
+          "mean_score": 86.891
         },
-        "mean_score": 249.18,
+        "mean_score": 250.068,
         "num_seeds": 32,
         "paired_lift_ci95": [
-          -132.814,
-          -104.501
+          -135.432,
+          -107.312
         ],
-        "paired_lift_mean": -119.051,
-        "paired_lift_stddev": 40.731,
+        "paired_lift_mean": -121.839,
+        "paired_lift_stddev": 39.56,
         "seasons": 5,
         "sign_flip_p_value": 5e-05,
         "sign_flip_p_value_upper_bound": true,
         "significant_at_95": true
       },
-      "score_stddev": 36.084,
+      "score_stddev": 29.542,
+      "score_v1": {
+        "mean_score": 130.129,
+        "reference": {
+          "agent": "pick-trader",
+          "candidate_seed_win_rate": 0.0,
+          "floor": {
+            "agent": "random",
+            "mean_score": 90.367
+          },
+          "mean_score": 249.18,
+          "num_seeds": 32,
+          "paired_lift_ci95": [
+            -132.814,
+            -104.501
+          ],
+          "paired_lift_mean": -119.051,
+          "paired_lift_stddev": 40.731,
+          "seasons": 5,
+          "sign_flip_p_value": 5e-05,
+          "sign_flip_p_value_upper_bound": true,
+          "significant_at_95": true
+        },
+        "score_stddev": 36.084,
+        "scoring_version": "score-v1"
+      },
+      "scoring_version": "score-v2",
       "seasons": 5,
-      "seed_mean_max": 246.961,
-      "seed_mean_min": 77.468,
+      "seed_mean_max": 210.392,
+      "seed_mean_min": 76.468,
       "telemetry": {
         "api_equivalent_cost_episodes": 32,
         "api_equivalent_cost_per_episode_usd": 0.8659,
@@ -204,7 +238,7 @@
       "isolation": "container",
       "lane": "agentic",
       "max_nudges": 20,
-      "mean_score": 202.665,
+      "mean_score": 190.278,
       "model": "claude-haiku-5-5",
       "panel": {
         "distinct_seeds": 32,
@@ -216,27 +250,53 @@
       "raw_artifact_sha256": "cdbe19e8c9f3716f5b3a91e382c9ae6bf8413fa61552d84fa7a55f4b8f351d10",
       "reference": {
         "agent": "pick-trader",
-        "candidate_seed_win_rate": 0.281,
+        "candidate_seed_win_rate": 0.062,
         "floor": {
           "agent": "random",
-          "mean_score": 90.367
+          "mean_score": 86.891
         },
-        "mean_score": 249.18,
+        "mean_score": 250.068,
         "num_seeds": 32,
         "paired_lift_ci95": [
-          -66.657,
-          -26.725
+          -72.201,
+          -47.437
         ],
-        "paired_lift_mean": -46.515,
-        "paired_lift_stddev": 59.34,
+        "paired_lift_mean": -59.79,
+        "paired_lift_stddev": 35.902,
         "seasons": 5,
-        "sign_flip_p_value": 0.0002,
+        "sign_flip_p_value": 5e-05,
+        "sign_flip_p_value_upper_bound": true,
         "significant_at_95": true
       },
-      "score_stddev": 47.29,
+      "score_stddev": 30.268,
+      "score_v1": {
+        "mean_score": 202.665,
+        "reference": {
+          "agent": "pick-trader",
+          "candidate_seed_win_rate": 0.281,
+          "floor": {
+            "agent": "random",
+            "mean_score": 90.367
+          },
+          "mean_score": 249.18,
+          "num_seeds": 32,
+          "paired_lift_ci95": [
+            -66.657,
+            -26.725
+          ],
+          "paired_lift_mean": -46.515,
+          "paired_lift_stddev": 59.34,
+          "seasons": 5,
+          "sign_flip_p_value": 0.0002,
+          "significant_at_95": true
+        },
+        "score_stddev": 47.29,
+        "scoring_version": "score-v1"
+      },
+      "scoring_version": "score-v2",
       "seasons": 5,
-      "seed_mean_max": 293.019,
-      "seed_mean_min": 116.148,
+      "seed_mean_max": 258.783,
+      "seed_mean_min": 131.283,
       "telemetry": {
         "api_equivalent_cost_episodes": 32,
         "api_equivalent_cost_per_episode_usd": 0.1527,
@@ -346,7 +406,7 @@
       "isolation": "container",
       "lane": "agentic",
       "max_nudges": 20,
-      "mean_score": 202.496,
+      "mean_score": 214.45,
       "model": "claude-opus-5-5",
       "panel": {
         "distinct_seeds": 32,
@@ -358,27 +418,53 @@
       "raw_artifact_sha256": "474f0951ebe5e586ece980ebee50b208ead45b8bbddaed0e99f4c66288b03fd6",
       "reference": {
         "agent": "pick-trader",
-        "candidate_seed_win_rate": 0.219,
+        "candidate_seed_win_rate": 0.156,
         "floor": {
           "agent": "random",
-          "mean_score": 90.367
+          "mean_score": 86.891
         },
-        "mean_score": 249.18,
+        "mean_score": 250.068,
         "num_seeds": 32,
         "paired_lift_ci95": [
-          -69.592,
-          -21.313
+          -49.433,
+          -22.228
         ],
-        "paired_lift_mean": -46.684,
-        "paired_lift_stddev": 68.804,
+        "paired_lift_mean": -35.618,
+        "paired_lift_stddev": 39.348,
         "seasons": 5,
-        "sign_flip_p_value": 0.001,
+        "sign_flip_p_value": 5e-05,
+        "sign_flip_p_value_upper_bound": true,
         "significant_at_95": true
       },
-      "score_stddev": 56.404,
+      "score_stddev": 30.999,
+      "score_v1": {
+        "mean_score": 202.496,
+        "reference": {
+          "agent": "pick-trader",
+          "candidate_seed_win_rate": 0.219,
+          "floor": {
+            "agent": "random",
+            "mean_score": 90.367
+          },
+          "mean_score": 249.18,
+          "num_seeds": 32,
+          "paired_lift_ci95": [
+            -69.592,
+            -21.313
+          ],
+          "paired_lift_mean": -46.684,
+          "paired_lift_stddev": 68.804,
+          "seasons": 5,
+          "sign_flip_p_value": 0.001,
+          "significant_at_95": true
+        },
+        "score_stddev": 56.404,
+        "scoring_version": "score-v1"
+      },
+      "scoring_version": "score-v2",
       "seasons": 5,
-      "seed_mean_max": 327.798,
-      "seed_mean_min": 120.272,
+      "seed_mean_max": 286.178,
+      "seed_mean_min": 160.098,
       "telemetry": {
         "api_equivalent_cost_episodes": 32,
         "api_equivalent_cost_per_episode_usd": 4.0351,
@@ -489,7 +575,7 @@
       "isolation": "container",
       "lane": "agentic",
       "max_nudges": 20,
-      "mean_score": 227.393,
+      "mean_score": 235.367,
       "model": "claude-sonnet-5",
       "panel": {
         "distinct_seeds": 32,
@@ -504,24 +590,49 @@
         "candidate_seed_win_rate": 0.406,
         "floor": {
           "agent": "random",
-          "mean_score": 90.367
+          "mean_score": 86.891
         },
-        "mean_score": 249.18,
+        "mean_score": 250.068,
         "num_seeds": 32,
         "paired_lift_ci95": [
-          -47.246,
-          3.505
+          -29.462,
+          0.056
         ],
-        "paired_lift_mean": -21.787,
-        "paired_lift_stddev": 73.43,
+        "paired_lift_mean": -14.701,
+        "paired_lift_stddev": 43.688,
         "seasons": 5,
-        "sign_flip_p_value": 0.1082,
+        "sign_flip_p_value": 0.0688,
         "significant_at_95": false
       },
-      "score_stddev": 54.346,
+      "score_stddev": 34.27,
+      "score_v1": {
+        "mean_score": 227.393,
+        "reference": {
+          "agent": "pick-trader",
+          "candidate_seed_win_rate": 0.406,
+          "floor": {
+            "agent": "random",
+            "mean_score": 90.367
+          },
+          "mean_score": 249.18,
+          "num_seeds": 32,
+          "paired_lift_ci95": [
+            -47.246,
+            3.505
+          ],
+          "paired_lift_mean": -21.787,
+          "paired_lift_stddev": 73.43,
+          "seasons": 5,
+          "sign_flip_p_value": 0.1082,
+          "significant_at_95": false
+        },
+        "score_stddev": 54.346,
+        "scoring_version": "score-v1"
+      },
+      "scoring_version": "score-v2",
       "seasons": 5,
-      "seed_mean_max": 381.628,
-      "seed_mean_min": 147.281,
+      "seed_mean_max": 322.831,
+      "seed_mean_min": 194.977,
       "telemetry": {
         "api_equivalent_cost_episodes": 32,
         "api_equivalent_cost_per_episode_usd": 4.918,
@@ -620,7 +731,7 @@
       "isolation": "container",
       "lane": "agentic",
       "max_nudges": 20,
-      "mean_score": 217.06,
+      "mean_score": 213.737,
       "model": "claude-sonnet-5-5",
       "panel": {
         "distinct_seeds": 32,
@@ -632,27 +743,53 @@
       "raw_artifact_sha256": "a1f927753b765272e4a3ba70d95d4013baa4b60fde6d30ea5b06dd7673d73cee",
       "reference": {
         "agent": "pick-trader",
-        "candidate_seed_win_rate": 0.344,
+        "candidate_seed_win_rate": 0.188,
         "floor": {
           "agent": "random",
-          "mean_score": 90.367
+          "mean_score": 86.891
         },
-        "mean_score": 249.18,
+        "mean_score": 250.068,
         "num_seeds": 32,
         "paired_lift_ci95": [
-          -56.331,
-          -9.664
+          -49.689,
+          -23.314
         ],
-        "paired_lift_mean": -32.12,
-        "paired_lift_stddev": 67.516,
+        "paired_lift_mean": -36.33,
+        "paired_lift_stddev": 38.831,
         "seasons": 5,
-        "sign_flip_p_value": 0.0121,
+        "sign_flip_p_value": 5e-05,
+        "sign_flip_p_value_upper_bound": true,
         "significant_at_95": true
       },
-      "score_stddev": 50.272,
+      "score_stddev": 31.798,
+      "score_v1": {
+        "mean_score": 217.06,
+        "reference": {
+          "agent": "pick-trader",
+          "candidate_seed_win_rate": 0.344,
+          "floor": {
+            "agent": "random",
+            "mean_score": 90.367
+          },
+          "mean_score": 249.18,
+          "num_seeds": 32,
+          "paired_lift_ci95": [
+            -56.331,
+            -9.664
+          ],
+          "paired_lift_mean": -32.12,
+          "paired_lift_stddev": 67.516,
+          "seasons": 5,
+          "sign_flip_p_value": 0.0121,
+          "significant_at_95": true
+        },
+        "score_stddev": 50.272,
+        "scoring_version": "score-v1"
+      },
+      "scoring_version": "score-v2",
       "seasons": 5,
-      "seed_mean_max": 341.547,
-      "seed_mean_min": 127.632,
+      "seed_mean_max": 286.009,
+      "seed_mean_min": 147.991,
       "telemetry": {
         "api_equivalent_cost_episodes": 32,
         "api_equivalent_cost_per_episode_usd": 1.1973,
@@ -752,7 +889,7 @@
       "isolation": "container",
       "lane": "agentic",
       "max_nudges": 20,
-      "mean_score": 230.563,
+      "mean_score": 232.289,
       "model": "composer-2.5",
       "panel": {
         "distinct_seeds": 32,
@@ -764,27 +901,52 @@
       "raw_artifact_sha256": "d45a5bbd7299ba271a405ae965b07f32a62ae6c59440cf98a312e85334a59928",
       "reference": {
         "agent": "pick-trader",
-        "candidate_seed_win_rate": 0.375,
+        "candidate_seed_win_rate": 0.312,
         "floor": {
           "agent": "random",
-          "mean_score": 90.367
+          "mean_score": 86.891
         },
-        "mean_score": 249.18,
+        "mean_score": 250.068,
         "num_seeds": 32,
         "paired_lift_ci95": [
-          -35.599,
-          -1.388
+          -28.22,
+          -7.238
         ],
-        "paired_lift_mean": -18.617,
-        "paired_lift_stddev": 49.867,
+        "paired_lift_mean": -17.779,
+        "paired_lift_stddev": 30.419,
         "seasons": 5,
-        "sign_flip_p_value": 0.0469,
+        "sign_flip_p_value": 0.0025,
         "significant_at_95": true
       },
-      "score_stddev": 27.693,
+      "score_stddev": 22.975,
+      "score_v1": {
+        "mean_score": 230.563,
+        "reference": {
+          "agent": "pick-trader",
+          "candidate_seed_win_rate": 0.375,
+          "floor": {
+            "agent": "random",
+            "mean_score": 90.367
+          },
+          "mean_score": 249.18,
+          "num_seeds": 32,
+          "paired_lift_ci95": [
+            -35.599,
+            -1.388
+          ],
+          "paired_lift_mean": -18.617,
+          "paired_lift_stddev": 49.867,
+          "seasons": 5,
+          "sign_flip_p_value": 0.0469,
+          "significant_at_95": true
+        },
+        "score_stddev": 27.693,
+        "scoring_version": "score-v1"
+      },
+      "scoring_version": "score-v2",
       "seasons": 5,
-      "seed_mean_max": 288.11,
-      "seed_mean_min": 176.963,
+      "seed_mean_max": 276.516,
+      "seed_mean_min": 179.641,
       "telemetry": {
         "api_equivalent_cost_episodes": 0,
         "api_equivalent_cost_per_episode_usd": null,
@@ -884,7 +1046,7 @@
       "isolation": "container",
       "lane": "agentic",
       "max_nudges": 20,
-      "mean_score": 288.417,
+      "mean_score": 293.524,
       "model": "gpt-6-astra",
       "panel": {
         "distinct_seeds": 32,
@@ -896,27 +1058,53 @@
       "raw_artifact_sha256": "091fff8d623165c0fe98538cf10a9c243e03bcd5f89a32dc506455aad2c25154",
       "reference": {
         "agent": "pick-trader",
-        "candidate_seed_win_rate": 0.625,
+        "candidate_seed_win_rate": 0.938,
         "floor": {
           "agent": "random",
-          "mean_score": 90.367
+          "mean_score": 86.891
         },
-        "mean_score": 249.18,
+        "mean_score": 250.068,
         "num_seeds": 32,
         "paired_lift_ci95": [
-          15.582,
-          63.111
+          32.69,
+          54.485
         ],
-        "paired_lift_mean": 39.237,
-        "paired_lift_stddev": 68.595,
+        "paired_lift_mean": 43.456,
+        "paired_lift_stddev": 31.871,
         "seasons": 5,
-        "sign_flip_p_value": 0.0036,
+        "sign_flip_p_value": 5e-05,
+        "sign_flip_p_value_upper_bound": true,
         "significant_at_95": true
       },
-      "score_stddev": 61.139,
+      "score_stddev": 29.354,
+      "score_v1": {
+        "mean_score": 288.417,
+        "reference": {
+          "agent": "pick-trader",
+          "candidate_seed_win_rate": 0.625,
+          "floor": {
+            "agent": "random",
+            "mean_score": 90.367
+          },
+          "mean_score": 249.18,
+          "num_seeds": 32,
+          "paired_lift_ci95": [
+            15.582,
+            63.111
+          ],
+          "paired_lift_mean": 39.237,
+          "paired_lift_stddev": 68.595,
+          "seasons": 5,
+          "sign_flip_p_value": 0.0036,
+          "significant_at_95": true
+        },
+        "score_stddev": 61.139,
+        "scoring_version": "score-v1"
+      },
+      "scoring_version": "score-v2",
       "seasons": 5,
-      "seed_mean_max": 409.132,
-      "seed_mean_min": 203.519,
+      "seed_mean_max": 356.463,
+      "seed_mean_min": 253.927,
       "telemetry": {
         "api_equivalent_cost_episodes": 32,
         "api_equivalent_cost_per_episode_usd": 3.595,
@@ -1027,7 +1215,7 @@
       "isolation": "container",
       "lane": "agentic",
       "max_nudges": 20,
-      "mean_score": 227.404,
+      "mean_score": 234.155,
       "model": "gpt-6-luna",
       "panel": {
         "distinct_seeds": 32,
@@ -1039,27 +1227,52 @@
       "raw_artifact_sha256": "ef13bccd411451227f2eb02142689a987a4cf53a276d6a80c14d56e592d2651e",
       "reference": {
         "agent": "pick-trader",
-        "candidate_seed_win_rate": 0.281,
+        "candidate_seed_win_rate": 0.312,
         "floor": {
           "agent": "random",
-          "mean_score": 90.367
+          "mean_score": 86.891
         },
-        "mean_score": 249.18,
+        "mean_score": 250.068,
         "num_seeds": 32,
         "paired_lift_ci95": [
-          -43.318,
-          0.079
+          -26.19,
+          -6.132
         ],
-        "paired_lift_mean": -21.776,
-        "paired_lift_stddev": 62.473,
+        "paired_lift_mean": -15.913,
+        "paired_lift_stddev": 28.861,
         "seasons": 5,
-        "sign_flip_p_value": 0.0617,
-        "significant_at_95": false
+        "sign_flip_p_value": 0.0043,
+        "significant_at_95": true
       },
-      "score_stddev": 41.024,
+      "score_stddev": 27.308,
+      "score_v1": {
+        "mean_score": 227.404,
+        "reference": {
+          "agent": "pick-trader",
+          "candidate_seed_win_rate": 0.281,
+          "floor": {
+            "agent": "random",
+            "mean_score": 90.367
+          },
+          "mean_score": 249.18,
+          "num_seeds": 32,
+          "paired_lift_ci95": [
+            -43.318,
+            0.079
+          ],
+          "paired_lift_mean": -21.776,
+          "paired_lift_stddev": 62.473,
+          "seasons": 5,
+          "sign_flip_p_value": 0.0617,
+          "significant_at_95": false
+        },
+        "score_stddev": 41.024,
+        "scoring_version": "score-v1"
+      },
+      "scoring_version": "score-v2",
       "seasons": 5,
-      "seed_mean_max": 358.867,
-      "seed_mean_min": 173.323,
+      "seed_mean_max": 281.445,
+      "seed_mean_min": 181.23,
       "telemetry": {
         "api_equivalent_cost_episodes": 32,
         "api_equivalent_cost_per_episode_usd": 0.1419,
@@ -1173,7 +1386,7 @@
       "isolation": "container",
       "lane": "agentic",
       "max_nudges": 20,
-      "mean_score": 273.167,
+      "mean_score": 276.862,
       "model": "gpt-6.1-sol",
       "panel": {
         "distinct_seeds": 32,
@@ -1185,27 +1398,52 @@
       "raw_artifact_sha256": "d7f6483ef106f34d3e60296df8a1d9ba56b5057d5a977acf7eb058984dd78969",
       "reference": {
         "agent": "pick-trader",
-        "candidate_seed_win_rate": 0.719,
+        "candidate_seed_win_rate": 0.781,
         "floor": {
           "agent": "random",
-          "mean_score": 90.367
+          "mean_score": 86.891
         },
-        "mean_score": 249.18,
+        "mean_score": 250.068,
         "num_seeds": 32,
         "paired_lift_ci95": [
-          1.627,
-          45.777
+          15.906,
+          37.537
         ],
-        "paired_lift_mean": 23.987,
-        "paired_lift_stddev": 64.012,
+        "paired_lift_mean": 26.794,
+        "paired_lift_stddev": 31.158,
         "seasons": 5,
-        "sign_flip_p_value": 0.0456,
+        "sign_flip_p_value": 0.0001,
         "significant_at_95": true
       },
-      "score_stddev": 49.351,
+      "score_stddev": 30.642,
+      "score_v1": {
+        "mean_score": 273.167,
+        "reference": {
+          "agent": "pick-trader",
+          "candidate_seed_win_rate": 0.719,
+          "floor": {
+            "agent": "random",
+            "mean_score": 90.367
+          },
+          "mean_score": 249.18,
+          "num_seeds": 32,
+          "paired_lift_ci95": [
+            1.627,
+            45.777
+          ],
+          "paired_lift_mean": 23.987,
+          "paired_lift_stddev": 64.012,
+          "seasons": 5,
+          "sign_flip_p_value": 0.0456,
+          "significant_at_95": true
+        },
+        "score_stddev": 49.351,
+        "scoring_version": "score-v1"
+      },
+      "scoring_version": "score-v2",
       "seasons": 5,
-      "seed_mean_max": 373.95,
-      "seed_mean_min": 181.621,
+      "seed_mean_max": 338.671,
+      "seed_mean_min": 204.151,
       "telemetry": {
         "api_equivalent_cost_episodes": 32,
         "api_equivalent_cost_per_episode_usd": 0.5431,
@@ -1318,7 +1556,7 @@
       "isolation": "container",
       "lane": "agentic",
       "max_nudges": 20,
-      "mean_score": 247.134,
+      "mean_score": 246.743,
       "model": "opencode-go/deepseek-v4.1-flash",
       "panel": {
         "distinct_seeds": 32,
@@ -1330,27 +1568,52 @@
       "raw_artifact_sha256": "f1e7abac48ed82318240a1bc8455b352d8b056609762f5760b855d53e489f15c",
       "reference": {
         "agent": "pick-trader",
-        "candidate_seed_win_rate": 0.469,
+        "candidate_seed_win_rate": 0.438,
         "floor": {
           "agent": "random",
-          "mean_score": 90.367
+          "mean_score": 86.891
         },
-        "mean_score": 249.18,
+        "mean_score": 250.068,
         "num_seeds": 32,
         "paired_lift_ci95": [
-          -22.417,
-          17.956
+          -15.591,
+          8.676
         ],
-        "paired_lift_mean": -2.046,
-        "paired_lift_stddev": 58.312,
+        "paired_lift_mean": -3.325,
+        "paired_lift_stddev": 35.143,
         "seasons": 5,
-        "sign_flip_p_value": 0.842,
+        "sign_flip_p_value": 0.6044,
         "significant_at_95": false
       },
-      "score_stddev": 50.338,
+      "score_stddev": 33.911,
+      "score_v1": {
+        "mean_score": 247.134,
+        "reference": {
+          "agent": "pick-trader",
+          "candidate_seed_win_rate": 0.469,
+          "floor": {
+            "agent": "random",
+            "mean_score": 90.367
+          },
+          "mean_score": 249.18,
+          "num_seeds": 32,
+          "paired_lift_ci95": [
+            -22.417,
+            17.956
+          ],
+          "paired_lift_mean": -2.046,
+          "paired_lift_stddev": 58.312,
+          "seasons": 5,
+          "sign_flip_p_value": 0.842,
+          "significant_at_95": false
+        },
+        "score_stddev": 50.338,
+        "scoring_version": "score-v1"
+      },
+      "scoring_version": "score-v2",
       "seasons": 5,
-      "seed_mean_max": 355.338,
-      "seed_mean_min": 132.975,
+      "seed_mean_max": 307.606,
+      "seed_mean_min": 148.231,
       "telemetry": {
         "api_equivalent_cost_episodes": 0,
         "api_equivalent_cost_per_episode_usd": null,
@@ -1453,7 +1716,7 @@
       "isolation": "container",
       "lane": "agentic",
       "max_nudges": 20,
-      "mean_score": 244.586,
+      "mean_score": 238.664,
       "model": "opencode-go/deepseek-v4.1-flash",
       "panel": {
         "distinct_seeds": 32,
@@ -1465,27 +1728,52 @@
       "raw_artifact_sha256": "0a2385f9f0b4b2f9e6178089b19f3b1aa304360ee4962d43e565f3d4ea2b6910",
       "reference": {
         "agent": "pick-trader",
-        "candidate_seed_win_rate": 0.375,
+        "candidate_seed_win_rate": 0.438,
         "floor": {
           "agent": "random",
-          "mean_score": 90.367
+          "mean_score": 86.891
         },
-        "mean_score": 249.18,
+        "mean_score": 250.068,
         "num_seeds": 32,
         "paired_lift_ci95": [
-          -25.795,
-          17.016
+          -26.056,
+          2.376
         ],
-        "paired_lift_mean": -4.594,
-        "paired_lift_stddev": 60.062,
+        "paired_lift_mean": -11.403,
+        "paired_lift_stddev": 40.88,
         "seasons": 5,
-        "sign_flip_p_value": 0.6675,
+        "sign_flip_p_value": 0.1308,
         "significant_at_95": false
       },
-      "score_stddev": 52.948,
+      "score_stddev": 37.952,
+      "score_v1": {
+        "mean_score": 244.586,
+        "reference": {
+          "agent": "pick-trader",
+          "candidate_seed_win_rate": 0.375,
+          "floor": {
+            "agent": "random",
+            "mean_score": 90.367
+          },
+          "mean_score": 249.18,
+          "num_seeds": 32,
+          "paired_lift_ci95": [
+            -25.795,
+            17.016
+          ],
+          "paired_lift_mean": -4.594,
+          "paired_lift_stddev": 60.062,
+          "seasons": 5,
+          "sign_flip_p_value": 0.6675,
+          "significant_at_95": false
+        },
+        "score_stddev": 52.948,
+        "scoring_version": "score-v1"
+      },
+      "scoring_version": "score-v2",
       "seasons": 5,
-      "seed_mean_max": 368.784,
-      "seed_mean_min": 126.588,
+      "seed_mean_max": 307.779,
+      "seed_mean_min": 145.596,
       "telemetry": {
         "api_equivalent_cost_episodes": 0,
         "api_equivalent_cost_per_episode_usd": null,
@@ -1588,7 +1876,7 @@
       "isolation": "container",
       "lane": "agentic",
       "max_nudges": 20,
-      "mean_score": 250.33,
+      "mean_score": 248.779,
       "model": "opencode-go/muse-spark-1.3-contributor",
       "panel": {
         "distinct_seeds": 32,
@@ -1603,24 +1891,49 @@
         "candidate_seed_win_rate": 0.5,
         "floor": {
           "agent": "random",
-          "mean_score": 90.367
+          "mean_score": 86.891
         },
-        "mean_score": 249.18,
+        "mean_score": 250.068,
         "num_seeds": 32,
         "paired_lift_ci95": [
-          -17.24,
-          19.506
+          -11.97,
+          9.098
         ],
-        "paired_lift_mean": 1.15,
-        "paired_lift_stddev": 53.763,
+        "paired_lift_mean": -1.288,
+        "paired_lift_stddev": 30.29,
         "seasons": 5,
-        "sign_flip_p_value": 0.9066,
+        "sign_flip_p_value": 0.8115,
         "significant_at_95": false
       },
-      "score_stddev": 48.599,
+      "score_stddev": 32.212,
+      "score_v1": {
+        "mean_score": 250.33,
+        "reference": {
+          "agent": "pick-trader",
+          "candidate_seed_win_rate": 0.5,
+          "floor": {
+            "agent": "random",
+            "mean_score": 90.367
+          },
+          "mean_score": 249.18,
+          "num_seeds": 32,
+          "paired_lift_ci95": [
+            -17.24,
+            19.506
+          ],
+          "paired_lift_mean": 1.15,
+          "paired_lift_stddev": 53.763,
+          "seasons": 5,
+          "sign_flip_p_value": 0.9066,
+          "significant_at_95": false
+        },
+        "score_stddev": 48.599,
+        "scoring_version": "score-v1"
+      },
+      "scoring_version": "score-v2",
       "seasons": 5,
-      "seed_mean_max": 363.837,
-      "seed_mean_min": 154.593,
+      "seed_mean_max": 337.482,
+      "seed_mean_min": 184.213,
       "telemetry": {
         "api_equivalent_cost_episodes": 32,
         "api_equivalent_cost_per_episode_usd": 2.1845,
@@ -1684,6 +1997,16 @@
       "v1_row_id": null
     }
   ],
+  "agentic_scoring": {
+    "comparison": "score-v1",
+    "method": "Each scripted policy played through the frozen 2.0 engine and scored with score-v2's weights: expected playoff rounds (last three seasons) and expected titles (all seasons) from the bracket odds the simulator used, every season's own wins, and the unchanged end-state terms. The games are 2.0's, so records accumulate in the simulation and the 2.0 draft is unchanged; this rescores the 2.0 rows and is not a 2.1 run.",
+    "primary": "score-v2",
+    "reference_scores": {
+      "pick-trader": 250.068,
+      "random": 86.891
+    },
+    "scoring_scale_fingerprint": "dfdb5369a60bebc3"
+  },
   "baselines": [
     {
       "agent": "pick-trader",

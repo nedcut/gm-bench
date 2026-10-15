@@ -96,6 +96,8 @@ export interface ModelRow {
   nudges: number;
   artifact: string;
   caveat: string | null;
+  /** The row under score-v1, as first published: comparison only. */
+  v1: { score: number; bar: number; lift: number; liftCi: [number, number] | null } | null;
   source: AgenticLaneRow;
 }
 
@@ -104,6 +106,8 @@ export interface BotRow {
   id: string;
   label: string;
   score: number;
+  /** The bot's mean under score-v1, for comparison. */
+  scoreV1: number | null;
   isBar: boolean;
 }
 
@@ -138,7 +142,8 @@ const ROW_CAVEATS: Record<string, string> = {
     "The model-independent 2026-10-14 policy reports accepted blind signings as warnings in every season, " +
     "including retained players. This does not rule out leakage. The published row failed the original " +
     "audit and passes the revised audit; its matching raw evidence was unavailable for this retrospective. " +
-    "Significant on its own (p = 0.012) but not under a Holm correction across the eleven rows. " +
+    "Under score-v1 it was significant on its own (p = 0.012) but not under a Holm correction; under " +
+    "score-v2 it is below pick-trader with p < 0.001. " +
     "Played on driver commit 0f3042d.",
   "agentic:codex-0.156.1:gpt-6-luna":
     "Ran with the ChatGPT account's connected apps and plugins available: Codex exposed about 668 extra " +
@@ -152,8 +157,8 @@ const ROW_CAVEATS: Record<string, string> = {
   "agentic:codex-0.162.1:gpt-6.1-sol":
     "Ran with the ChatGPT account's apps, plugins and connectors turned off, unlike the gpt-6-luna row. " +
     "Codex reports no cost; the estimate is at short-context list prices and may be low. The agent made 36 " +
-    "draft calls across the 160 draft phases and 518 trade calls. The lift's 95% interval starts at +1.6, " +
-    "so the margin is thin. Played on driver commit 1411e2e, the first with Codex 0.162.1.",
+    "draft calls across the 160 draft phases and 518 trade calls. Under score-v1 the lift's 95% interval " +
+    "started at +1.6; under score-v2 it starts at +15.9. Played on driver commit 1411e2e, the first with Codex 0.162.1.",
   "agentic:cursor-2026.09.26-dd393fe:composer-2.5":
     "Cursor's servers add seven default User Rules of their own to every prompt; they are part of the " +
     "harness. Cursor reports no cost and composer-2.5 has no per-token list price, so cost is unmeasured. " +
@@ -175,6 +180,18 @@ const ROW_CAVEATS: Record<string, string> = {
     "The cost shown is the same tokens at Muse Spark 1.3's standard list price, $69.90 for the panel. " +
     "Played on driver commit 3b82ca1.",
 };
+
+function v1Comparison(row: AgenticLaneRow): ModelRow["v1"] {
+  const v1 = row.score_v1;
+  if (!v1) return null;
+  const ci = v1.reference.paired_lift_ci95;
+  return {
+    score: v1.mean_score,
+    bar: v1.reference.mean_score,
+    lift: v1.reference.paired_lift_mean,
+    liftCi: ci?.length === 2 ? [ci[0], ci[1]] : null,
+  };
+}
 
 function modelRow(row: AgenticLaneRow): ModelRow {
   const t = row.telemetry;
@@ -214,6 +231,7 @@ function modelRow(row: AgenticLaneRow): ModelRow {
     nudges: t.nudges_per_episode,
     artifact: row.artifact_path,
     caveat: ROW_CAVEATS[row.id] ?? null,
+    v1: v1Comparison(row),
     source: row,
   };
 }
@@ -230,11 +248,18 @@ export function botRows(data: Leaderboard): BotRow[] {
       ? recorded
       : reference
         ? [
-            { agent: PICK_TRADER, mean_score: reference.mean_score },
-            { agent: reference.floor.agent, mean_score: reference.floor.mean_score },
+            { agent: PICK_TRADER, mean_score: reference.mean_score, score_v1_mean_score: undefined },
+            { agent: reference.floor.agent, mean_score: reference.floor.mean_score, score_v1_mean_score: undefined },
           ]
         : [];
-  return bots.map((bot) => ({ kind: "bot", id: `bot:${bot.agent}`, label: bot.agent, score: bot.mean_score, isBar: bot.agent === PICK_TRADER }));
+  return bots.map((bot) => ({
+    kind: "bot",
+    id: `bot:${bot.agent}`,
+    label: bot.agent,
+    score: bot.mean_score,
+    scoreV1: bot.score_v1_mean_score ?? null,
+    isBar: bot.agent === PICK_TRADER,
+  }));
 }
 
 export function modelRows(data: Leaderboard): ModelRow[] {
@@ -250,6 +275,11 @@ export function modelRows(data: Leaderboard): ModelRow[] {
 
 export function pickTraderScore(data: Leaderboard): number | null {
   return data.agentic_lane?.[0]?.reference.mean_score ?? null;
+}
+
+/** pick-trader's mean under score-v1, for pages that still show score-v1 games (the walkthrough). */
+export function pickTraderScoreV1(data: Leaderboard): number | null {
+  return data.agentic_lane?.[0]?.score_v1?.reference.mean_score ?? null;
 }
 
 /** Ahead of pick-trader by more than the noise: the paired-lift 95% interval sits above zero. */

@@ -20,6 +20,19 @@ published model episode; it inflated the `pick-trader` reference by about
 
 ## Unreleased — GM-Bench 2.0
 
+**Site score changed to score-v2, 2026-10-15.** The 2.0 section now shows every
+panel row under score-v2 (expected playoff value, every season's own wins;
+`gm_bench/v21/scoring.py`), rescored from each row's recorded games by
+`scripts/rescore_agentic_v2.py` into `results/agentic_score_v2/` and bound to
+the row's raw run by hash. Nothing was re-played and no published artifact
+changed; each row's score-v1 mean and pick-trader contrast stay in its
+details as a comparison. pick-trader's bar is 250.068 (score-v1: 249.18). No
+row whose interval excluded zero changes direction (`muse-spark-1.3` moves
+from +1.2 to -1.3, both within noise); `gpt-6-luna` is now clearly below
+pick-trader. The
+walkthrough, replay showcase, trajectory explorer, puzzles and Play game
+still compute score-v1 and are labelled so.
+
 Work began 2026-09-20; the contract froze 2026-09-25; three panel-grade rows
 were published 2026-09-27, a fourth 2026-09-28, a fifth 2026-10-12 (its
 panel ran 2026-09-28 to 09-29), a sixth to ninth 2026-10-13, and a tenth

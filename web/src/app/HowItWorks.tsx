@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { Leaderboard } from "../types";
 import { routes } from "../site";
-import { num, pickTraderScore } from "../v2";
+import { num, pickTraderScoreV1 } from "../v2";
 import walkthroughData from "../data/walkthrough.json";
 import RinkSidebar from "./RinkSidebar";
 
@@ -480,7 +480,8 @@ function BriefStep() {
 }
 
 function RecapStep({ data }: { data: Leaderboard }) {
-  const bar = pickTraderScore(data);
+  // This walkthrough is a recorded score-v1 game, so it is compared with pick-trader under score-v1.
+  const bar = pickTraderScoreV1(data);
   return (
     <>
       <section className="how-block">
@@ -525,7 +526,8 @@ function RecapStep({ data }: { data: Leaderboard }) {
         <p>
           A model plays the same game on a set of private seeds, and its score is compared with pick-trader’s on those same seeds. The{" "}
           {num(walkthrough.final_score)} above is one public seed; pick-trader’s average on the private seeds is {bar === null ? "—" : num(bar)}.
-          See the full scoring in <a href={routes.method}>Method</a>.
+          Both are under score-v1, the score this walkthrough was recorded with; the standings now use score-v2. See
+          the full scoring in <a href={routes.method}>Method</a>.
         </p>
         <p className="how-links">
           <a className="text-link" href={routes.standings}>

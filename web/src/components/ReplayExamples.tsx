@@ -21,7 +21,7 @@ function BestRunSummary() {
   return <section className="best-run shell" aria-labelledby="best-run-title">
     <div className="best-run-heading">
       <div><p className="best-run-kicker">Selected best-case · verified season story</p><h2 id="best-run-title">{summary.model}</h2><p>Codex {summary.harness_version} · {summary.seasons} seasons · private panel</p></div>
-      <div className="best-run-score"><strong>{summary.final_score.toFixed(3)}</strong><span>final score</span></div>
+      <div className="best-run-score"><strong>{summary.final_score.toFixed(3)}</strong><span>final score (score-v1)</span></div>
     </div>
     <p className="best-run-context">The highest-scoring individual episode among {summary.selection_episodes} episodes in the {summary.selection_rows} published GM-Bench 2.0 agentic panel rows. These rows share the same frozen contract, private panel and five-season horizon.</p>
     <dl className="best-run-outcomes">
@@ -59,7 +59,7 @@ function BestRunSummary() {
       </article>)}
     </div>
     <div className="best-run-evidence">
-      <div><h3>One exceptional episode</h3><p>This is a selected best-case, not a representative mean or evidence that this model is superior overall. Astra’s published mean is {summary.panel_mean_score.toFixed(3)} across {summary.panel_episodes} episodes. The final score here is {summary.strategy_score.toFixed(3)} strategy points minus a {summary.protocol_penalty.toFixed(3)} protocol penalty.</p></div>
+      <div><h3>One exceptional episode</h3><p>This is a selected best-case, not a representative mean or evidence that this model is superior overall. Astra’s mean under score-v1, the score this showcase was recorded with, is {summary.panel_mean_score.toFixed(3)} across {summary.panel_episodes} episodes; the standings now use score-v2. The final score here is {summary.strategy_score.toFixed(3)} strategy points minus a {summary.protocol_penalty.toFixed(3)} protocol penalty.</p></div>
       <div><h3>How these highlights were selected</h3><p>We selected the accepted acquisitions, draft selection, largest renewals and a rejected trade target that was later acquired. Supporting detail includes every roster move and rejected attempt, plus lineup counts and rollover departures. Chronology and outcomes come from the retained run and a verified ledger replay; the narrative does not infer Astra’s reasoning or attribute titles to individual moves.</p></div>
       <div><h3>Evidence and disclosure limits</h3><p>The private seed is redacted. This is a sanitized, derived account, not an executable replay: no raw ledger, entity IDs, initial state, full lineups, hidden player attributes, harness text or seed-bearing download is published. Player names and contract terms here are simulated.</p><p>First-round exits are reconstructed from playoff qualification and zero rounds won; opponents, game scores and league points are not retained. Season-summary benchmark points are computed before that summary is appended to scoring history and the calendar advances; they are not the final episode score.</p></div>
       <div><h3>A separate public replay</h3><p>The public Pick Trader replay also spans five seasons, but uses a different, public seed. It is not a matched comparison with this episode. The private episode cannot be loaded into that replay.</p></div>
