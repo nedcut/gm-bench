@@ -9,7 +9,7 @@ correction becomes a new contract version rather than an edit to an old one.
 Work began 2026-09-20; the contract froze 2026-09-25; three panel-grade rows
 were published 2026-09-27, a fourth 2026-09-28, a fifth 2026-10-12 (its
 panel ran 2026-09-28 to 09-29), a sixth to ninth 2026-10-13, and a tenth
-and eleventh 2026-10-14. Not yet tagged. Nothing in GM-Bench 1.0 changes.
+to twelfth 2026-10-14. Not yet tagged. Nothing in GM-Bench 1.0 changes.
 
 Summary:
 
@@ -64,7 +64,7 @@ Summary:
     lower bound, about $12 to $16 with Haiku 5.5's over-100K-token tier.
   - Codex 0.162.1 · `gpt-6-astra`: mean 288.4, lift +39.2 (+15.6 to
     +63.1, p = 0.0036), significant, and still so under a Holm correction
-    across the eleven rows; ahead of `pick-trader` on 20 of 32 seeds; 123K
+    across the twelve rows; ahead of `pick-trader` on 20 of 32 seeds; 123K
     tokens per decision. No measured cost; the API-equivalent estimate
     ($115.04) is a lower bound.
   - OpenCode 2.0.27 · `opencode-go/deepseek-v4.1-flash`: mean 244.6, lift
@@ -73,15 +73,23 @@ Summary:
     reports $4.91 for the panel.
   - Claude Code 2.1.281 · `claude-sonnet-5-5`: mean 217.1, lift −32.1
     (−56.3 to −9.7, p = 0.012), significant, but not under a Holm
-    correction across the eleven rows (adjusted p about 0.085); ahead of
+    correction across the twelve rows (adjusted p about 0.097); ahead of
     `pick-trader` on 11 of 32 seeds; 295K tokens per decision. No measured
     cost; the API-equivalent estimate is $38.31. Admitted under the
     post-hoc guessed-signing rule below.
   - Claude Code 2.1.281 · `claude-opus-5-5`: mean 202.5, lift −46.7
     (−69.6 to −21.3, p = 0.001), significant, and still so under a Holm
-    correction across the eleven rows (adjusted p about 0.009); ahead of
+    correction across the twelve rows (adjusted p about 0.010); ahead of
     `pick-trader` on 7 of 32 seeds; 540K tokens per decision. No measured
     cost; the API-equivalent estimate is $129.12.
+  - OpenCode 2.0.27 · `opencode-go/muse-spark-1.3-contributor`: mean
+    250.3, lift +1.2 (−17.2 to +19.5, p = 0.91), not significant; ahead of
+    `pick-trader` on 16 of 32 seeds; 604K tokens per decision. OpenCode
+    reports $1.70 for the panel (its own figure at Muse Spark 1.3's
+    discounted Contributor rates, where Meta may train on the prompts and
+    completions, counted against the OpenCode Go plan's limits rather than
+    billed per token); the same tokens at the model's list price are an
+    estimated $69.90.
 
   The realized paired-lift SDs (62.5 and 73.4) put the panel's minimum
   detectable difference against `pick-trader` at about 31 to 36 points, so
@@ -92,10 +100,11 @@ Summary:
   (+39.2, lift SD 68.6, MDD about 34) is larger than its row's MDD. The
   `claude-sonnet-5-5` lift (−32.1, lift SD 67.5, MDD about 33) is about
   the size of its row's MDD. The `claude-opus-5-5` lift (−46.7, lift SD
-  68.8, MDD about 34) is larger than its row's MDD.
+  68.8, MDD about 34) is larger than its row's MDD. The Muse Spark 1.3
+  lift (+1.2, lift SD 53.8, MDD about 27) is "cannot tell".
 - **Smoke rows and noise probes** (public seeds, not on the site): an 8-seed
   OpenCode row on `opencode/space-bunny-free`, one five-season episode each
-  on Codex and Claude Code, and a 4 seeds × 2 runs repeat-noise probe on
+  on Codex, Claude Code and OpenCode 2.0.27, and a 4 seeds × 2 runs repeat-noise probe on
   each paid harness.
 - **Changes after the freeze**, none of which moved the fingerprint:
   driver fixes and driver provenance (every row records the driver commit
@@ -108,8 +117,9 @@ Summary:
   `claude-haiku-5-5` at `3e8e600`, the first Claude row without the
   account's claude.ai connectors, the OpenCode 2.0.27 `deepseek-v4.1-flash`
   at `93b1f7c`, the first with the OpenCode 2.x launcher, `gpt-6-astra`
-  at `5d56c71`, `claude-sonnet-5-5` at `0f3042d`, and `claude-opus-5-5`
-  at `73c949b`, whose driver files are the same as `0f3042d`'s); a
+  at `5d56c71`, `claude-sonnet-5-5` at `0f3042d`, `claude-opus-5-5`
+  at `73c949b`, and `muse-spark-1.3-contributor` at `3b82ca1`, both with
+  the same driver files as `0f3042d`); a
   validation rule that publishes a
   tool-call recount when it resolves a recorded mismatch (one
   `claude-sonnet-5` episode and one OpenCode 2.0.27 episode); and
@@ -129,6 +139,66 @@ Summary:
 The entries below were written as the work landed, roughly in order.
 Interim statements that nothing was published yet have been removed or
 dated; the summary above is the current state.
+
+- Twelfth panel-grade 2.0 row (2026-10-14): OpenCode 2.0.27 on
+  `opencode-go/muse-spark-1.3-contributor` (Meta Muse Spark 1.3, Contributor
+  tier, through OpenCode Go), the frozen 32-seed private panel at five
+  seasons, container isolation, played 2026-10-14 from clean `main` at
+  `3b82ca1` (driver digest `0c20d2de9ce62901`, the same as the
+  `claude-sonnet-5-5` and `claude-opus-5-5` rows'; image
+  `gm-bench-agentic-opencode:2.0.27-68c6a0dff0b9`; phase guard 1,200 s; no
+  `--variant`)
+  (`results/agentic/opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5.json`).
+  Mean 250.3 (SD 48.6, seed means 154.6 to 363.8), 640/640 phases closed
+  by the agent, 0 failed decisions, 1 penalized illegal move (episode 23
+  released a player not on its roster), 0 nudges, 14 empty phases, no
+  guard stops, no provider stalls, no silent harness kills, no
+  compactions, 604K tokens per decision (cached input included), 149.3
+  tool calls and 5.6 min per episode (2.98 h for the panel), ledger =
+  harness on 32/32 episodes (4,778/4,778 calls), all of them GM-Bench
+  calls: no shell, file or `execute` call. The ledger audit found no
+  violations, nothing suspicious and no guessed reads, drafts or signings.
+  Against `pick-trader` the paired lift is +1.2, 95% interval −17.2 to
+  +19.5, sign-flip p 0.91, ahead on 16 of 32 seeds, with a realized MDD of
+  about 27: level with `pick-trader`, as both DeepSeek rows are. Against
+  the OpenCode 2.0.27 `deepseek-v4.1-flash` row on the same seeds it is
+  +5.7 per seed and ahead on 19 of 32, no real difference, with fewer
+  calls (149 against 160 per episode) and less time (5.6 against 14.6
+  min). Tokens come from OpenCode's session export in every episode:
+  385.7M input (98.0% cache reads), 0.80M output (0.47M reasoning).
+  OpenCode reports $1.70 for the panel (its own figure at the Contributor
+  rates, $0.10 input, $0.002 cached input, $0.20 output per million
+  tokens, counted against the OpenCode Go plan's limits rather than billed
+  per token; a recompute from the tokens matches). The Contributor tier is discounted
+  because Meta may train on its prompts and completions, and OpenCode
+  serves it only to a workspace that allows paid endpoints that train on
+  request data: the first smoke attempt was refused with a 400 for that
+  reason before any move (nothing spent, not published). At Muse Spark
+  1.3's standard list price ($1.25, $0.15 cached, $4.25 output, no
+  long-context premium) the same tokens cost an estimated $69.90 (about
+  41x). Reasoning effort is the harness default (OpenCode reports none).
+  The model is unpinned.
+
+- Meta Muse Spark 1.3 priced and smoked (2026-10-14): `muse-spark-1.3`
+  and `muse-spark-1.3-contributor` entries in `gm_bench/pricing.json`
+  (verified 2026-10-14 against https://dev.meta.ai/docs/pricing-rate-limits/),
+  and a one-episode, five-season container smoke on a public seed
+  (`results/agentic/opencode-2.0.27-muse-spark-1.3-contributor-smoke-1x5.json`,
+  score 281.6, $0.05 as OpenCode reports it). `agentic-redact` now adds an
+  API-equivalent list-price estimate to an OpenCode row whose model (its id
+  without the provider prefix) `pricing.json` lists, from the recorded
+  token counts, beside the cost OpenCode reports (`cost_usd`). A new
+  optional pricing field, `list_price_key`, marks a discounted tier, and
+  only this OpenCode estimate reads it: it prices that tier's tokens at
+  the named entry's undiscounted rates and records `discounted_tier_key`
+  (`telemetry.api_equivalent_cost_usd` is unchanged). The recorded (empty) fields
+  are kept under `api_equivalent_recomputed`, and the summary's under
+  `api_equivalent_recorded`. Rows recorded before the shared token shape,
+  and unpriced models such as the two DeepSeek rows, are unchanged. The
+  site shows a row whose reported cost is at a discounted data-sharing
+  tier at the model's list price ($2.18 per game, labelled an estimate),
+  with OpenCode's $0.05 a game beside it in the model panel; every other
+  row keeps showing the cost its harness reports when it has one.
 
 - Eleventh panel-grade 2.0 row (2026-10-14): Claude Code 2.1.281 on
   `claude-opus-5-5`, the frozen 32-seed private panel at five seasons,

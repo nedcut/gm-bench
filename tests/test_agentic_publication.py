@@ -237,6 +237,51 @@ def test_api_equivalent_estimate_reaches_the_artifact_and_round_trips(tmp_path: 
     assert reread == artifact
 
 
+def test_an_opencode_row_on_a_discounted_tier_carries_its_list_price_beside_the_billed_cost(tmp_path: Path) -> None:
+    run_dir = _write_run(tmp_path, [11, 12])
+    raw = json.loads((run_dir / "run.json").read_text())
+    raw["harness"]["model"] = "opencode-go/muse-spark-1.3-contributor"
+    for episode in raw["episodes"]:
+        episode["usage"].update(
+            {
+                "input_tokens": 1_000_000,
+                "uncached_input_tokens": 100_000,
+                "cached_input_tokens": 900_000,
+                "cache_write_input_tokens": 0,
+                "output_tokens": 10_000,
+                "reasoning_tokens": 4_000,
+                "token_shape": "inclusive-v1",
+                "cost_usd": 0.0138,
+            }
+        )
+    (run_dir / "run.json").write_text(json.dumps(raw, sort_keys=True), encoding="utf-8")
+
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    for episode in artifact["episodes"]:
+        usage = episode["usage"]
+        # What OpenCode billed on the Contributor tier stays the cost.
+        assert usage["cost_usd"] == 0.0138
+        harness = usage["harness"]
+        # 100k uncached at 1.25 + 900k cached at 0.15 + 10k out at 4.25: Muse Spark 1.3's list price.
+        assert harness["api_equivalent_cost_usd"] == pytest.approx(0.125 + 0.135 + 0.0425)
+        assert harness["pricing_source"]["key"] == "muse-spark-1.3"
+        assert harness["pricing_source"]["discounted_tier_key"] == "muse-spark-1.3-contributor"
+        assert harness["billed_by_harness"] is False
+        assert harness["api_equivalent_recomputed"]["recorded"]["api_equivalent_cost_usd"] is None
+    summary = artifact["agentic_summary"]
+    assert summary["api_equivalent_cost_usd"] == pytest.approx(2 * 0.3025)
+    assert summary["api_equivalent_recorded"]["api_equivalent_cost_usd"] is None
+    report = validate_agentic_artifact(artifact, raw_run=run_dir)
+    assert report["ok"], report
+
+
+def test_an_opencode_row_on_an_unpriced_model_gets_no_estimate(tmp_path: Path) -> None:
+    run_dir = _write_run(tmp_path, [11, 12])
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    assert all("api_equivalent_cost_usd" not in episode["usage"]["harness"] for episode in artifact["episodes"])
+    assert "api_equivalent_cost_usd" not in artifact["agentic_summary"]
+
+
 def test_one_token_shape_for_both_harnesses_and_old_rows_still_validate(tmp_path: Path) -> None:
     from gm_bench.agentic import codex, opencode
     from gm_bench.agentic.publication import token_shape_problems

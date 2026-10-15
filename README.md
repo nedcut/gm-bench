@@ -43,7 +43,7 @@ five-season episode inside a tool-using harness (OpenCode, Codex CLI,
 Claude Code, or the Cursor CLI), acting through an MCP (Model Context
 Protocol) tool server. A 2.0 row is identified by model + harness + harness
 version, and 2.0 rows never enter a 1.0 table. The contract froze on
-2026-09-25, and eleven panel rows have been published so far.
+2026-09-25, and twelve panel rows have been published so far.
 
 - Implemented: drivers for all four harnesses, Docker container isolation
   for the harness, the private 32-seed panel frozen by digest with its seeds
@@ -51,12 +51,13 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
   score the row claims.
 - Smoke rows on public seeds under `results/agentic/`, not shown on the
   site: eight seeds on a free OpenCode model, one five-season episode each
-  on Codex (`gpt-6-luna`) and Claude Code (`claude-sonnet-5`,
-  `claude-sonnet-5-5` and `claude-opus-5-5`), and four
-  repeat-noise rows (seeds 1 to 4, run twice on each of those two).
+  on Codex (`gpt-6-luna`), Claude Code (`claude-sonnet-5`,
+  `claude-sonnet-5-5` and `claude-opus-5-5`) and OpenCode 2.0.27
+  (`muse-spark-1.3-contributor`), and four repeat-noise rows (seeds 1 to
+  4, run twice on `gpt-6-luna` and on `claude-sonnet-5`).
 - Panel rows on the frozen 32-seed private panel, each compared only with
   the `pick-trader` heuristic on the same seeds (249.2 there; the 1.0
-  figure of 247.1 is on the 29-seed 1.0 panel). All eleven are flagged
+  figure of 247.1 is on the 29-seed 1.0 panel). All twelve are flagged
   `unpinned`: the model version behind them is not pinned, so they may not
   be reproducible, and they are extra data points, not headline results.
   - Codex (`gpt-6-luna`) and Claude Code (`claude-sonnet-5`) both average
@@ -80,7 +81,7 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
   - Claude Code on `claude-sonnet-5-5` averages 217.1, 32.1 points below
     `pick-trader` (95% interval -56.3 to -9.7, p = 0.012), and is ahead of
     it on 11 of the 32 seeds. The gap is significant on its own but not
-    under a Holm correction across the eleven rows, and it is about the size
+    under a Holm correction across the twelve rows, and it is about the size
     of this panel's smallest reliably detectable difference (about 33
     points). It used 295K tokens per decision (cached input included) and
     2.9 minutes per episode; the API-equivalent estimate is $38.31 for the
@@ -93,7 +94,7 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
   - Claude Code on `claude-opus-5-5` averages 202.5, 46.7 points below
     `pick-trader` (95% interval -69.6 to -21.3, p = 0.001), and is ahead of
     it on 7 of the 32 seeds, a significant gap that stays so under a Holm
-    correction across the eleven rows. It outscored Sonnet 5.5 on wins,
+    correction across the twelve rows. It outscored Sonnet 5.5 on wins,
     playoffs and titles but played the last season to win now and left
     little roster behind for the end-of-episode credit. It used 540K tokens per decision (cached
     input included) and 6.5 minutes per episode; the API-equivalent
@@ -118,13 +119,25 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
     included), and OpenCode reports $4.91 for the panel. A first 2.0.27
     panel was discarded because OpenCode sent each first request before
     the GM-Bench tools had connected; the driver fix (#193) played this one.
+  - OpenCode 2.0.27 on `opencode-go/muse-spark-1.3-contributor` (Meta Muse
+    Spark 1.3 on its Contributor tier, where Meta may train on prompts and
+    completions in exchange for a discount) averages 250.3, 1.2 points
+    above `pick-trader` (95% interval -17.2 to +19.5, p = 0.91), and is
+    ahead of it on 16 of the 32 seeds: level with `pick-trader`, "can't
+    tell" like both DeepSeek rows. It made one illegal move in 640 phases
+    and used 604K tokens per decision (cached input included) and 5.6
+    minutes per episode. OpenCode reports $1.70 for the panel (its own
+    figure at the Contributor rates, counted against the OpenCode Go plan's
+    limits rather than billed per token); at Muse Spark 1.3's list price
+    the same tokens are an estimated $69.90 ($2.18 per game), the figure
+    the site shows, with OpenCode's $0.05 a game beside it.
   - Codex 0.162.1 on `gpt-6.1-sol` averages 273.2, 24.0 points above
     `pick-trader` (95% interval +1.6 to +45.8, p = 0.046), and is ahead of
     it on 23 of the 32 seeds. It and `gpt-6-astra` are the only 2.0 rows
     so far whose interval lies above zero. The margin is thin: the lower bound is 1.6 points,
     the lift is smaller than this panel's smallest reliably detectable
     difference (about 32 points), and the row is unpinned. Each row's
-    p-value is its own, not adjusted for the eleven rows; under a Holm
+    p-value is its own, not adjusted for the twelve rows; under a Holm
     correction across them neither this p = 0.046 nor Cursor's 0.047 would
     be significant. Codex reports
     no cost; the API-equivalent estimate is $17.38 for the panel, possibly
@@ -134,7 +147,7 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
     of it on 20 of the 32 seeds. It is the highest 2.0 mean so far and the
     first lift above `pick-trader` larger than its panel's smallest
     reliably detectable difference (about 34 points); it stays significant
-    under a Holm correction across the eleven rows. Its interval overlaps
+    under a Holm correction across the twelve rows. Its interval overlaps
     `gpt-6.1-sol`'s, and 2.0 does not test rows against each other. It used
     123K tokens per decision (cached input included). Codex reports no
     cost; the API-equivalent estimate is $115.04 for the panel at
@@ -144,7 +157,7 @@ version, and 2.0 rows never enter a 1.0 table. The contract froze on
 The frozen design is in [docs/bench_v2_spec.md](docs/bench_v2_spec.md), the
 operator guide is [docs/agentic_lane.md](docs/agentic_lane.md), and the
 [clean-clone verification guide](docs/REPRODUCING_GM_BENCH_2_0.md) checks
-the committed 2.0 artifacts without credentials or model spending. The eleven
+the committed 2.0 artifacts without credentials or model spending. The twelve
 rows are public; a 2.0 tag and GitHub release have not been cut.
 
 ## Play along

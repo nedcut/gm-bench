@@ -1,7 +1,7 @@
 # GM-Bench 2.0: a model in its own harness (DRAFT, not published)
 
 > **Draft.** Updated 2026-10-14 for the owner to review before final
-> publication. Eleven panel rows are public under `results/agentic/`; a 2.0
+> publication. Twelve panel rows are public under `results/agentic/`; a 2.0
 > tag and GitHub release have not been cut. Numbers and cost disclosures
 > below reflect the committed artifacts, including the merged release fixes.
 
@@ -15,7 +15,7 @@ are the ones 1.0 used.
 
 ## What ran
 
-Eleven rows on the frozen 32-seed private panel, five seasons, each harness in
+Twelve rows on the frozen 32-seed private panel, five seasons, each harness in
 a firewalled Docker container:
 
 | row | mean | vs `pick-trader` (95% interval) | tokens / decision | cost, whole panel |
@@ -31,6 +31,7 @@ a firewalled Docker container:
 | OpenCode 2.0.27 · `opencode-go/deepseek-v4.1-flash` | 244.6 | −4.6 (−25.8 to +17.0) | 661K | $4.91 (OpenCode's figure) |
 | Claude Code 2.1.281 · `claude-sonnet-5-5` | 217.1 | −32.1 (−56.3 to −9.7) | 295K | $38.31 est. |
 | Claude Code 2.1.281 · `claude-opus-5-5` | 202.5 | −46.7 (−69.6 to −21.3) | 540K | $129.12 est. |
+| OpenCode 2.0.27 · `opencode-go/muse-spark-1.3-contributor` | 250.3 | +1.2 (−17.2 to +19.5) | 604K | $69.90 est. at list price; $1.70 (OpenCode's figure, discounted tier) |
 
 Every row is in the agentic execution lane, inside the harness it names. A
 decision is one phase (20 per episode), and its tokens are everything the
@@ -38,7 +39,7 @@ harness sent and received in it, cached input included. "est." is an
 API-equivalent estimate, not a bill (see Cost disclosures).
 
 `pick-trader`, the scripted reference policy, averages 249.2 on these seeds.
-All eleven rows closed all 640 phases themselves. All eleven are flagged
+All twelve rows closed all 640 phases themselves. All twelve are flagged
 `unpinned`: the served model version is not pinned, so they may not be
 reproducible. Under the frozen eligibility rule they are extra data points,
 not headline results.
@@ -52,8 +53,8 @@ ahead on 9 of 32 seeds, beyond its realized minimum detectable difference
 of about 29. Sonnet 5.5 is below it too: −32.1, 95% interval −56.3 to
 −9.7, sign-flip p 0.012, ahead on 11 of 32 seeds. That lift is about the
 size of its realized minimum detectable difference (about 33), and under
-a Holm correction across the eleven rows it is not significant (adjusted p
-about 0.085), so the margin is thin. Its predecessor `claude-sonnet-5`
+a Holm correction across the twelve rows it is not significant (adjusted p
+about 0.097), so the margin is thin. Its predecessor `claude-sonnet-5`
 averaged 227.4 on the same harness, but 2.0 does not test rows against
 each other. Sonnet 5.5 played fast and cheap by comparison: 2.9 minutes
 and 107 tool calls per episode against 14.5 minutes for Sonnet 5, and
@@ -68,8 +69,8 @@ Opus 5.5, also on Claude Code, is below the scripted bar by about as much
 as Haiku 5.5: a paired lift of −46.7, 95% interval −69.6 to −21.3,
 sign-flip p 0.001, ahead on 7 of 32 seeds. The lift is larger than its
 realized minimum detectable difference of about 34, and it stays
-significant under a Holm correction across the eleven rows (adjusted p
-about 0.009). Its mean, 202.5, is within 0.2 of Haiku 5.5's and below
+significant under a Holm correction across the twelve rows (adjusted p
+about 0.010). Its mean, 202.5, is within 0.2 of Haiku 5.5's and below
 Sonnet 5.5's 217.1. It used 540K tokens per decision and 6.5 minutes per
 episode, and $129.12 for the panel at API prices.
 
@@ -115,13 +116,28 @@ first request of every invocation before the GM-Bench tools had
 connected, and the agent spent its opening steps probing for them. The
 driver fix (#193) played the published panel.
 
+Meta's Muse Spark 1.3, also on OpenCode 2.0.27, is level with the
+scripted bar: a paired lift of +1.2, 95% interval −17.2 to +19.5,
+sign-flip p 0.91, ahead on 16 of 32 seeds, with a realized minimum
+detectable difference of about 27. Like both DeepSeek rows, that is
+"cannot tell". On the same seeds it is 5.7 points per seed above the
+2.0.27 DeepSeek row and ahead on 19 of 32, no real difference, though it
+got there with fewer tool calls (149 against 160 per episode) and in
+less time (5.6 against 14.6 minutes per episode). It made one illegal
+move in 640 phases. It ran on Muse Spark 1.3's Contributor tier through
+OpenCode Go, where Meta may train on the prompts and completions in
+exchange for a discount. OpenCode reports $1.70 for the panel (its own
+figure at the Contributor rates, counted against the OpenCode Go plan's
+limits rather than billed per token); the same tokens at the model's
+standard list price come to about $69.90.
+
 `gpt-6.1-sol` on Codex 0.162.1 is the first 2.0 row whose interval lies
 above `pick-trader`: a paired lift of +24.0, 95% interval +1.6 to +45.8,
 sign-flip p 0.046, ahead on 23 of 32 seeds. The evidence is marginal in
 the same way as Cursor's, in the other direction: the lower bound is 1.6
 points, the lift is below the row's realized minimum detectable difference
 of about 32, and the row is one unpinned run on one panel. Each row's
-p-value is its own, not adjusted for the eleven rows; under a Holm correction
+p-value is its own, not adjusted for the twelve rows; under a Holm correction
 across them neither this 0.046 nor Cursor's 0.047 would be significant.
 The agent made
 36 `draft` calls across the 160 draft phases and 518 `trade` calls.
@@ -131,7 +147,7 @@ far and the clearest result above the scripted bar: a paired lift of
 +39.2, 95% interval +15.6 to +63.1, sign-flip p 0.0036, ahead on 20 of 32
 seeds. The lift is larger than its realized minimum detectable difference
 of about 34, and it stays significant under a Holm correction across the
-eleven rows (adjusted p about 0.029). It is still one unpinned run on one
+twelve rows (adjusted p about 0.032). It is still one unpinned run on one
 panel, and its interval overlaps `gpt-6.1-sol`'s. It used 123K tokens per
 decision, the fewest of any row, and made 49 `draft` calls and 435
 `trade` calls. These are separate contrasts against the scripted
@@ -140,7 +156,7 @@ reference, not tests between model or harness rows.
 ## Cost disclosures
 
 Nine panel rows have `summary.usage.cost_usd: null` and zero decisions
-with measured cost. The two OpenCode rows carry OpenCode's own cost figure.
+with measured cost. The three OpenCode rows carry OpenCode's own cost figure.
 Subscription quota use is not a per-token bill.
 
 | row | API-equivalent estimate for the whole 32-episode panel |
@@ -156,6 +172,7 @@ Subscription quota use is not a per-token bill.
 | OpenCode 2.0.27 · `deepseek-v4.1-flash` | $4.91 as OpenCode reports it, on an OpenCode Go subscription; no API-equivalent estimate |
 | Claude Code · `claude-sonnet-5-5` | $38.31 at API list prices |
 | Claude Code · `claude-opus-5-5` | $129.12 at API list prices |
+| OpenCode 2.0.27 · `muse-spark-1.3-contributor` | $69.90 at Muse Spark 1.3's standard list price, added at redaction from the recorded tokens; OpenCode's $1.70 is at the discounted Contributor rates, where Meta may train on the traffic (about 41x less), on the OpenCode Go subscription |
 
 These estimates come from recorded token usage and the repository's dated
 price entries; they do not measure the subscription's bill or establish
@@ -168,7 +185,11 @@ retained event streams gives about $12 to $16 (a range, because Claude
 Code's stream does not give output tokens per request). The Haiku 4.5
 correction landed in #169: retained events identify 1-hour cache writes
 that had been priced at the 5-minute rate. The artifact preserves the old
-figure beside the recomputed estimate, and no score changed. Details are
+figure beside the recomputed estimate, and no score changed. The Muse
+Spark 1.3 row's OpenCode figure is at a discounted data-sharing tier, so
+the site shows its list-price estimate ($2.18 per game) and puts $0.05 a
+game, as OpenCode reports it, beside it; every other row with a
+harness-reported figure shows that. Details are
 in the [operator guide](../agentic_lane.md#publishing-a-row).
 
 ## What to keep in mind
