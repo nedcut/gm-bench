@@ -33,6 +33,7 @@ subcommands:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -225,8 +226,9 @@ def kendall_tau(a: list[float], b: list[float]) -> float:
 def _panel_job(ledger: Path) -> dict[str, Any]:
     episode, _marked = _replay(ledger)
     seed = int(json.loads(ledger.read_text(encoding="utf-8").splitlines()[0])["seed"])
-    result = ledger.parent / "result.json"
-    recorded = json.loads(result.read_text(encoding="utf-8")).get("final_score") if result.exists() else None
+    # Every episode must carry its recorded score, or the replay check would
+    # silently cover fewer episodes than it reports.
+    recorded = json.loads((ledger.parent / "result.json").read_text(encoding="utf-8"))["final_score"]
     model = raw_terms(episode.league)
     # Guard the term vector against the score it claims to rebuild.
     expected_c = score_v2.variant_scores(episode.league)["C"]
@@ -235,24 +237,44 @@ def _panel_job(ledger: Path) -> dict[str, Any]:
     return {"model": model, "reference": raw_terms(play("pick-trader", seed)), "recorded": recorded}
 
 
-def load_panel(run_dir: Path, jobs: int, cache: Path) -> dict[str, Any]:
-    cached = cache / f"{run_dir.name}.json"
-    if cached.exists():
-        return json.loads(cached.read_text(encoding="utf-8"))
+def run_ledgers(run_dir: Path) -> list[Path]:
     ledgers = sorted(run_dir.glob("episode-*/ledger.jsonl"))
     if not ledgers:
         raise SystemExit(f"{run_dir}: no episode-*/ledger.jsonl")
+    return ledgers
+
+
+def cache_file(cache: Path, run_dir: Path, ledgers: list[Path], kind: str) -> Path:
+    """Key a cache entry by the run's resolved path and every ledger's size and mtime.
+
+    Two runs with the same directory name, or a run whose ledgers changed,
+    must not share an entry.
+    """
+    digest = hashlib.sha256(str(run_dir.resolve()).encode())
+    for ledger in ledgers:
+        stat = ledger.stat()
+        digest.update(f"{ledger.relative_to(run_dir)}:{stat.st_size}:{stat.st_mtime_ns}".encode())
+    return cache / f"{run_dir.name}.{kind}.{digest.hexdigest()[:16]}.json"
+
+
+def write_private(path: Path, payload: Any) -> None:
+    # Per-episode vectors derive from private seeds: owner-only directory and file.
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    os.chmod(path, 0o600)
+
+
+def load_panel(run_dir: Path, jobs: int, cache: Path) -> dict[str, Any]:
+    ledgers = run_ledgers(run_dir)
+    cached = cache_file(cache, run_dir, ledgers, "panel")
+    if cached.exists():
+        return json.loads(cached.read_text(encoding="utf-8"))
     with _pool(jobs) as pool:
         rows = list(pool.map(_panel_job, ledgers))
-    mismatches = sum(
-        1 for row in rows if row["recorded"] is not None and abs(row["recorded"] - round(row["model"]["v1"], 3)) > 1e-6
-    )
+    mismatches = sum(1 for row in rows if abs(row["recorded"] - round(row["model"]["v1"], 3)) > 1e-6)
     run = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
     panel = {"run": run_dir.name, "agent": run.get("agent"), "replay_mismatches": mismatches, "episodes": rows}
-    cache.mkdir(parents=True, exist_ok=True)
-    os.chmod(cache, 0o700)
-    cached.write_text(json.dumps(panel), encoding="utf-8")
-    os.chmod(cached, 0o600)
+    write_private(cached, panel)
     return panel
 
 
@@ -622,16 +644,13 @@ def _continuation_scripted_job(job: tuple[str, int, str]) -> dict[str, Any]:
 
 
 def load_continuation(run_dir: Path, manager: str, jobs: int, cache: Path) -> list[dict[str, Any]]:
-    cached = cache / f"{run_dir.name}.continuation-{manager}.json"
+    ledgers = run_ledgers(run_dir)
+    cached = cache_file(cache, run_dir, ledgers, f"continuation-{manager}")
     if cached.exists():
         return json.loads(cached.read_text(encoding="utf-8"))
-    ledgers = sorted(run_dir.glob("episode-*/ledger.jsonl"))
     with _pool(jobs) as pool:
         rows = list(pool.map(_continuation_panel_job, [(ledger, manager) for ledger in ledgers]))
-    cache.mkdir(parents=True, exist_ok=True)
-    os.chmod(cache, 0o700)
-    cached.write_text(json.dumps(rows), encoding="utf-8")
-    os.chmod(cached, 0o600)
+    write_private(cached, rows)
     return rows
 
 
