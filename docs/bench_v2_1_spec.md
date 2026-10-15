@@ -101,8 +101,9 @@ against 25.
 
 Approved by the operator 2026-10-15 for three models, which replaced the
 four proposed earlier (`gpt-6-luna` and `claude-haiku-5-5` dropped,
-`claude-sonnet-5-5` added). Recorded here before any 2.1 panel episode
-finished.
+`claude-sonnet-5-5` added). Committed at 15:36 on 2026-10-15
+(`2a9c397`), before any 2.1 panel result was read; one Sonnet 5.5 episode
+had finished 74 seconds earlier, unread.
 
 - **Question.** Do the 2.1 rules keep the published picture: the same
   order of models and the same sign of each lift against `pick-trader`?
