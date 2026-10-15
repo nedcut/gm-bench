@@ -275,6 +275,37 @@ def test_an_opencode_row_on_a_discounted_tier_carries_its_list_price_beside_the_
     assert report["ok"], report
 
 
+def test_an_opencode_row_at_standard_prices_keeps_only_its_reported_cost(tmp_path: Path) -> None:
+    from web.scripts.build_study import _agentic_telemetry
+
+    run_dir = _write_run(tmp_path, [11, 12])
+    raw = json.loads((run_dir / "run.json").read_text())
+    raw["harness"]["model"] = "meta/muse-spark-1.3"
+    for episode in raw["episodes"]:
+        episode["usage"].update(
+            input_tokens=1_000_000,
+            uncached_input_tokens=100_000,
+            cached_input_tokens=900_000,
+            cache_write_input_tokens=0,
+            output_tokens=10_000,
+            reasoning_tokens=0,
+            token_shape="inclusive-v1",
+            cost_usd=0.3025,
+        )
+    (run_dir / "run.json").write_text(json.dumps(raw, sort_keys=True), encoding="utf-8")
+
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    telemetry = _agentic_telemetry(artifact["episodes"])
+    assert telemetry["cost_usd"] == 0.605
+    assert telemetry["cost_per_episode_usd"] == 0.3025
+    assert telemetry["api_equivalent_cost_usd"] is None
+    assert telemetry["api_equivalent_discounted_tier"] is None
+    assert all("api_equivalent_cost_usd" not in episode["usage"]["harness"] for episode in artifact["episodes"])
+    assert "api_equivalent_cost_usd" not in artifact["agentic_summary"]
+    report = validate_agentic_artifact(artifact, raw_run=run_dir)
+    assert report["ok"], report
+
+
 def test_an_opencode_row_on_an_unpriced_model_gets_no_estimate(tmp_path: Path) -> None:
     run_dir = _write_run(tmp_path, [11, 12])
     artifact = compact_agentic_run(run_dir, isolation="same-user")

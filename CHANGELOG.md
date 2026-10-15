@@ -185,8 +185,8 @@ dated; the summary above is the current state.
   and a one-episode, five-season container smoke on a public seed
   (`results/agentic/opencode-2.0.27-muse-spark-1.3-contributor-smoke-1x5.json`,
   score 281.6, $0.05 as OpenCode reports it). `agentic-redact` now adds an
-  API-equivalent list-price estimate to an OpenCode row whose model (its id
-  without the provider prefix) `pricing.json` lists, from the recorded
+  API-equivalent list-price estimate to an OpenCode row on a discounted tier
+  with a `list_price_key` in `pricing.json`, from the recorded
   token counts, beside the cost OpenCode reports (`cost_usd`). A new
   optional pricing field, `list_price_key`, marks a discounted tier, and
   only this OpenCode estimate reads it: it prices that tier's tokens at

@@ -39,8 +39,8 @@ artifact per row, produced by :func:`compact_agentic_run`, which
   Carlo test cannot resolve (no draw as extreme, so the runner reports 0.0)
   is stored as its bound, ``1 / (draws + 1)``, flagged
   ``sign_flip_p_value_upper_bound``;
-- prices, for an OpenCode row whose model ``pricing.json`` lists, each
-  episode's recorded tokens at the model's list price, beside the cost
+- prices each OpenCode episode's recorded tokens at the model's list price
+  when its discounted tier has a ``list_price_key`` in ``pricing.json``, beside the cost
   OpenCode reports (``_list_price_opencode_episode``; a discounted tier such as
   Muse Spark 1.3 Contributor is priced at its undiscounted rates);
 - re-derives, for a Claude Code or Codex row, each episode's API-equivalent
@@ -234,7 +234,7 @@ _HARNESS_USAGE_KEYS = (
     # A harness that reports tokens but no cost (Codex): what those tokens would
     # cost at API list price, labelled as an estimate nobody was billed. Absent
     # from runs recorded before the estimate existed. An OpenCode row gets it at
-    # redaction, beside the billed cost, only for a model pricing.json lists.
+    # redaction, beside the billed cost, only for a discounted tier with a list_price_key.
     "api_equivalent_cost_usd",
     "cost_basis",
     "billed_by_harness",
@@ -530,9 +530,9 @@ def _list_price_opencode_episode(episode: dict[str, Any], raw_episode: dict[str,
 
     OpenCode reports its own cost (``cost_usd``), which on a discounted tier
     (Muse Spark 1.3 Contributor on OpenCode Go) is far below the model's list
-    price. When ``pricing.json`` prices the model (its id without the
-    ``provider/`` prefix), the row also carries the tokens at list price,
-    labelled as an estimate nobody was billed, beside OpenCode's figure. The
+    price. When ``pricing.json`` gives the model (its id without the
+    ``provider/`` prefix) a ``list_price_key``, the row also carries the tokens
+    at list price, labelled as an estimate nobody was billed, beside OpenCode's figure. The
     driver records no such estimate, so the row keeps the recorded (empty)
     fields under ``api_equivalent_recomputed``. Rows recorded before the shared
     token shape are left alone: their input excludes cached tokens.
@@ -546,7 +546,9 @@ def _list_price_opencode_episode(episode: dict[str, Any], raw_episode: dict[str,
     tier, price = entry
     # A discounted tier names its model's undiscounted entry (``list_price_key``).
     list_key = price.get("list_price_key")
-    estimate = api_equivalent_cost_usd(usage, list_key or tier)
+    if not list_key:
+        return
+    estimate = api_equivalent_cost_usd(usage, list_key)
     if estimate is None:
         return
     harness = episode["usage"]["harness"]
@@ -557,8 +559,7 @@ def _list_price_opencode_episode(episode: dict[str, Any], raw_episode: dict[str,
             "api_equivalent_cost_usd": estimate["usd"],
             "cost_basis": codex.COST_BASIS,
             "billed_by_harness": False,
-            "pricing_source": {"key": estimate["pricing_key"], **source}
-            | ({"discounted_tier_key": tier} if list_key else {}),
+            "pricing_source": {"key": estimate["pricing_key"], **source, "discounted_tier_key": tier},
             "long_context_requests_possible": estimate["long_context_requests_possible"],
         }
     )

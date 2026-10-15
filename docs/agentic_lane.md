@@ -684,8 +684,8 @@ still validate:
   `agentic_summary` keeps its recorded API fields under
   `api_equivalent_recorded`. `--raw` accepts it only when the fresh
   redaction reproduces it (the digest may differ).
-- For an OpenCode row whose model (its id without the `provider/` prefix)
-  `pricing.json` lists, an API-equivalent list-price estimate is added
+- For an OpenCode row on a discounted tier with a `list_price_key` in
+  `pricing.json`, an API-equivalent list-price estimate is added
   beside the cost OpenCode reports (`cost_usd`), from each episode's recorded token counts
   (OpenCode leaves no event stream to re-derive them from). The driver
   records no estimate for OpenCode, so the empty recorded fields are kept
@@ -697,8 +697,8 @@ still validate:
   this OpenCode estimate reads the field;
   `telemetry.api_equivalent_cost_usd`, which prices runs as they play,
   ignores it. Rows
-  recorded before the shared token shape, and unpriced models such as
-  `deepseek-v4.1-flash`, are unchanged.
+  recorded before the shared token shape, standard-priced models, and
+  unpriced models such as `deepseek-v4.1-flash` are unchanged.
 
 A hand edit that shifts the pick-trader mean and the lift together stays
 internally consistent, and CI never has the raw run. But `pick-trader` and
@@ -1318,8 +1318,8 @@ estimate for a Claude Code or Codex row from its retained event streams
 (`claude-events.jsonl`, `codex-events.jsonl`) with this checkout's
 `pricing.json`, refusing if the stream no longer gives the recorded token
 counts; an OpenCode row gets one at redaction from its recorded token
-counts when its model is priced (see "Publishing a row"), and a Cursor row
-publishes whatever the run recorded, `null` for an unpriced model. Muse
+counts when its discounted tier has a `list_price_key` (see "Publishing a row").
+A Cursor row publishes whatever the run recorded, `null` for an unpriced model. Muse
 Spark 1.3 was priced (both tiers, verified 2026-10-14) before its smoke.
 Note any
 tiered price the
