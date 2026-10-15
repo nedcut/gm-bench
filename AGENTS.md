@@ -9,6 +9,14 @@ other machines. Inspect the current environment before reporting a missing tool.
 Keep Claude and other subscription- or rate-limited CLI usage serial wherever the
 adapter runs. These instructions do not authorize paid model runs or publication.
 
+## Decision log
+
+When a scoring, contract or methodology decision is made, add a dated entry
+to `docs/lab_notebook.html` (internal, not the public site): what was tried,
+what it showed, what was decided, with its charts. Cite a committed
+diagnostic or published row for every number; never put private seeds or
+per-episode panel scores in it.
+
 ## Cursor Cloud specific instructions
 
 This repo has two products:
