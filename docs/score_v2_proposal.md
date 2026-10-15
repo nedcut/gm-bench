@@ -61,6 +61,15 @@ fingerprint.
   expected-playoff score is unbiased for every policy, since the playoff
   dice are drawn after the ratings that set the odds.
 
+**Replication on fresh seeds 35-130** (96 seeds, not used for anything
+above; `score_v2_baselines_35_130.json`). C passes every asserted ordering
+again, and `pick-trader` > `strategic` > `shrewd` holds: `pick-trader` -
+`strategic` +8.8 (t 4.9), `pick-trader` - `shrewd` +11.2 (t 5.5),
+`strategic` - `shrewd` +2.4 (t 1.8). Under v1 on these seeds `pick-trader`
+also leads, but neither of its gaps is resolved (t 1.9 and 1.8), and
+`pick-trader`'s across-seed SD is 45.5 against 27.2 under C. The v1
+ordering flips between seed sets; the luck-neutral one does not.
+
 ### Published 2.0 panel rows (32 private seeds, replayed, no model calls)
 
 All eleven published panel rows. Lift is paired against `pick-trader` on
