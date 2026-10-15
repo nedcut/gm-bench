@@ -113,7 +113,12 @@ function ModelDetails({ row }: { row: ModelRow }) {
         <Stat
           label="Cost / game"
           value={row.cost.kind === "unmeasured" ? "unmeasured" : costText(row.cost)}
-          note={row.cost.kind === "estimate" ? `API list price${row.cost.lowerBound ? ", may be low" : ""}` : undefined}
+          note={
+            row.cost.kind !== "estimate"
+              ? undefined
+              : `API list price${row.cost.lowerBound ? ", may be low" : ""}` +
+                (row.cost.discounted ? `; OpenCode reports $${num(row.cost.discounted.usd, 2)} at ${row.cost.discounted.tier} rates` : "")
+          }
         />
         <Stat label="Minutes / game" value={num(row.minutes)} />
         <Stat label="Empty phases" value={row.emptyPhases === null ? "—" : `${row.emptyPhases} / ${row.phases}`} note="status check, then end" />

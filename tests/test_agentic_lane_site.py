@@ -103,6 +103,7 @@ def test_current_results_publish_only_the_committed_panel_rows(tmp_path: Path) -
         "agentic:cursor-2026.09.26-dd393fe:composer-2.5",
         "agentic:opencode-1.18.31:opencode-go/deepseek-v4.1-flash",
         "agentic:opencode-2.0.27:opencode-go/deepseek-v4.1-flash",
+        "agentic:opencode-2.0.27:opencode-go/muse-spark-1.3-contributor",
     ]
     assert all(row["grade"] == "panel" for row in dataset["agentic_lane"])
     assert json.loads(SITE_DATASET.read_text()) == dataset

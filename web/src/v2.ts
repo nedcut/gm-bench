@@ -42,17 +42,24 @@ export interface Cost {
   kind: "billed" | "estimate" | "unmeasured";
   /** The estimate may be low: some turns exceeded the long-context price threshold. */
   lowerBound: boolean;
+  /** The harness-reported cost on a discounted tier, when `usd` is the undiscounted list price. */
+  discounted?: { usd: number; tier: string };
 }
 
 /* A billed or harness-reported cost wins; without one, the API list-price
-   estimate; with neither, unmeasured (never zero). */
+   estimate; with neither, unmeasured (never zero). A cost reported at a
+   discounted data-sharing tier's rates is shown beside the list price
+   instead, so the row is not read as the model's price. */
 export function costOf(row: AgenticLaneRow): Cost {
   const t = row.telemetry;
-  if (t.cost_per_episode_usd !== null) return { usd: t.cost_per_episode_usd, kind: "billed", lowerBound: false };
   const estimate = t.api_equivalent_cost_per_episode_usd ?? null;
-  if (estimate !== null) {
-    return { usd: estimate, kind: "estimate", lowerBound: Boolean(t.api_equivalent_long_context_possible) };
+  const tier = t.api_equivalent_discounted_tier ?? null;
+  const lowerBound = Boolean(t.api_equivalent_long_context_possible);
+  if (t.cost_per_episode_usd !== null && estimate !== null && tier !== null) {
+    return { usd: estimate, kind: "estimate", lowerBound, discounted: { usd: t.cost_per_episode_usd, tier } };
   }
+  if (t.cost_per_episode_usd !== null) return { usd: t.cost_per_episode_usd, kind: "billed", lowerBound: false };
+  if (estimate !== null) return { usd: estimate, kind: "estimate", lowerBound };
   return { usd: null, kind: "unmeasured", lowerBound: false };
 }
 
@@ -161,6 +168,12 @@ const ROW_CAVEATS: Record<string, string> = {
     "first request before the GM-Bench tools had connected, fixed in driver commit 93b1f7c, which played " +
     "this one. One episode's tool-call count is a recount: OpenCode refused one trade call on its own " +
     "schema check before sending it, so it never reached GM-Bench; counted as 166 of 166.",
+  "agentic:opencode-2.0.27:opencode-go/muse-spark-1.3-contributor":
+    "Run on Muse Spark 1.3's Contributor tier through an OpenCode Go plan: Meta may train on the prompts " +
+    "and completions in exchange for a discount. OpenCode reports $1.70 for the panel ($0.05 a game), its " +
+    "own figure at the Contributor rates, counted against the Go plan's limits rather than billed per token. " +
+    "The cost shown is the same tokens at Muse Spark 1.3's standard list price, $69.90 for the panel. " +
+    "Played on driver commit 3b82ca1.",
 };
 
 function modelRow(row: AgenticLaneRow): ModelRow {

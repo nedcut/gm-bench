@@ -144,6 +144,29 @@ to `gm-bench-scout`, a tool name that does not exist, and no shell, file
 or `execute` call. The first 2.0.27 panel, played before the launcher, is
 not published (see above).
 
+The OpenCode 2.0.27 panel on `opencode-go/muse-spark-1.3-contributor`
+(Meta Muse Spark 1.3 on its Contributor tier through OpenCode Go;
+2026-10-14, driver commit `3b82ca1`, driver digest `0c20d2de9ce62901`, the
+same image as the DeepSeek 2.0.27 row) is committed at
+`results/agentic/opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5.json`:
+mean 250.3, 640/640 phases closed by the agent, one illegal move, no
+nudges, provider stalls, silent harness kills or compactions, 149.3 tool
+calls (all GM-Bench calls; no shell, file or `execute` call) and 5.6 min
+per episode, 604K tokens per decision (cached input included, from the
+session export in every episode). OpenCode reports $1.70 for the panel
+(its own figure at the Contributor rates, counted against the OpenCode Go
+plan's limits rather than billed per token); the row also carries $69.90,
+the same tokens at Muse Spark 1.3's standard list price (see "Publishing
+a row").
+The Contributor tier is discounted because Meta may train on the prompts
+and completions, and OpenCode serves it only when the workspace allows
+paid endpoints that train on request data: the first smoke attempt, made
+without that setting, was refused with a 400 before any move (nothing
+spent, not published). A
+five-season container smoke on a public seed is committed at
+`results/agentic/opencode-2.0.27-muse-spark-1.3-contributor-smoke-1x5.json`:
+score 281.6, 154 tool calls, 5.8 min, $0.05 as OpenCode reports it.
+
 The run directory must be fresh: an episode directory that already holds
 evidence is refused before any harness launches, because the ledger is
 append-only and a rerun would write a second episode onto the first. A seed
@@ -293,7 +316,8 @@ season summaries, transactions) plus:
 - `agentic.phases`: one row per phase with how it ended (`agent`, `guard`,
   `harness_exit`), tool calls, and wall-clock seconds
 - `usage`: model calls, input/output/reasoning/cached tokens, cost when the
-  harness reports it (`null` when it does not), and a `harness` block with
+  harness reports it (`null` when it does not; OpenCode's figure for a
+  discounted tier is below the model's list price), and a `harness` block with
   compactions and the harness's own tool-event counts. OpenCode reports one
   total per session, so the block is one record covering every decision of
   the episode; the run summary's per-decision means divide that total by
@@ -636,7 +660,7 @@ publishes the bound `1 / 20001` (`5e-05`) with
 such a panel. `paired_lift_stddev`, like the site's score spread, is a
 population standard deviation (divides by n).
 
-Three more things are derived at redaction, all optional so older rows
+Four more things are derived at redaction, all optional so older rows
 still validate:
 
 - `empty_phases`, per episode and for the row (`count` of `phases`): phases
@@ -660,6 +684,21 @@ still validate:
   `agentic_summary` keeps its recorded API fields under
   `api_equivalent_recorded`. `--raw` accepts it only when the fresh
   redaction reproduces it (the digest may differ).
+- For an OpenCode row on a discounted tier with a `list_price_key` in
+  `pricing.json`, an API-equivalent list-price estimate is added
+  beside the cost OpenCode reports (`cost_usd`), from each episode's recorded token counts
+  (OpenCode leaves no event stream to re-derive them from). The driver
+  records no estimate for OpenCode, so the empty recorded fields are kept
+  under `usage.harness.api_equivalent_recomputed` and the summary's under
+  `api_equivalent_recorded`. An entry with `list_price_key` is a
+  discounted tier: this estimate prices its tokens at the named entry's
+  undiscounted rates, and `pricing_source.discounted_tier_key` names the
+  tier (`muse-spark-1.3-contributor` is priced at `muse-spark-1.3`). Only
+  this OpenCode estimate reads the field;
+  `telemetry.api_equivalent_cost_usd`, which prices runs as they play,
+  ignores it. Rows
+  recorded before the shared token shape, standard-priced models, and
+  unpriced models such as `deepseek-v4.1-flash` are unchanged.
 
 A hand edit that shifts the pick-trader mean and the lift together stays
 internally consistent, and CI never has the raw run. But `pick-trader` and
@@ -780,6 +819,12 @@ python -m gm_bench agentic --isolation container --model opencode-go/kimi-k3 \
   any other model, `opencode/*` included, is refused.
   The operator's own OpenCode login (`~/.local/share/opencode/auth.json`)
   and `OPENCODE_API_KEY` are never used.
+- A `-contributor` model (`opencode-go/muse-spark-1.3-contributor`) is a
+  discounted tier whose provider may train on the prompts and completions.
+  OpenCode serves it only when the key's workspace allows paid endpoints
+  that train on request data; otherwise the first request fails with a
+  400 before any move. Turn that on deliberately, and price the model at
+  its list rate as well (see "Publishing a row").
 
 The trade-off, as for Codex and Claude Code: the agent can read its own
 harness's credential, from the database in its home. The key is kept out of
@@ -1251,7 +1296,12 @@ date. It never feeds `cost_usd` or `cost_decisions`. The run's
 `api_equivalent_long_context_possible`); the compact artifact keeps the
 episode fields; and the site shows the cost cell as `$0.123 est.` with the
 basis in its tooltip when a row has an estimate but no billed cost, or
-`unmeasured` when it has neither. The site data check rejects a row whose
+`unmeasured` when it has neither. Otherwise the cost the harness reports
+wins, except on a discounted data-sharing tier (a `discounted_tier_key` on
+the estimate): there the site shows the list-price estimate, labelled as
+one, with the reported figure beside it in the model panel, so the row is
+not read as the model's price (`muse-spark-1.3-contributor`: $2.18 per
+game estimated, $0.05 a game as OpenCode reports it). The site data check rejects a row whose
 estimate equals its billed `cost_usd`.
 
 Price the model before the run. A run prices its tokens as it plays, from
@@ -1267,8 +1317,11 @@ entry it actually resolves to with `telemetry.model_price_entry`. `agentic-redac
 estimate for a Claude Code or Codex row from its retained event streams
 (`claude-events.jsonl`, `codex-events.jsonl`) with this checkout's
 `pricing.json`, refusing if the stream no longer gives the recorded token
-counts; an OpenCode or Cursor row publishes whatever the run recorded,
-`null` for an unpriced model. Note any
+counts; an OpenCode row gets one at redaction from its recorded token
+counts when its discounted tier has a `list_price_key` (see "Publishing a row").
+A Cursor row publishes whatever the run recorded, `null` for an unpriced model. Muse
+Spark 1.3 was priced (both tiers, verified 2026-10-14) before its smoke.
+Note any
 tiered price the
 estimator can only bound (a `long_context_input_tokens` threshold) in the
 row's disclosures.
