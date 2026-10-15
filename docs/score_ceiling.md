@@ -111,34 +111,41 @@ only (no seeds, no per-episode scores) are in
 scoring rule these results led to is in
 [score_v2_proposal.md](score_v2_proposal.md).
 
-Six of the eleven published panel rows have their raw run directory on the
-machine this ran on; the other five (`claude-haiku-4-5`, `claude-sonnet-5`,
-`gpt-6-luna`, `composer-2.5`, OpenCode 1.18.31 `deepseek-v4.1-flash`) were
-not rescored. The 1.0 rows were not rescored either: their committed
-artifacts are compact and the raw private-panel artifacts are not local.
+All eleven published panel rows were rescored (five from raw run
+directories copied from the machine that played them). The 1.0 rows were
+not: their committed artifacts are compact and the raw private-panel
+artifacts were not available.
 
 | Row (32 private seeds) | Real lift vs `pick-trader` (se) | p | MDE | Luck-neutral lift (se) | p | MDE |
 |---|---|---|---|---|---|---|
 | Codex `gpt-6-astra` | +39.2 (12.3) | 0.0033 | 34.5 | +43.4 (5.8) | <0.0001 | 16.1 |
 | Codex `gpt-6.1-sol` | +24.0 (11.5) | 0.0475 | 32.2 | +26.9 (5.6) | <0.0001 | 15.7 |
-| OpenCode 2.0.27 `deepseek-v4.1-flash` | -4.6 (10.8) | 0.671 | 30.2 | -11.2 (7.4) | 0.140 | 20.7 |
+| Codex `gpt-6-luna` | -21.8 (11.2) | 0.0620 | 31.4 | -16.3 (5.2) | 0.0043 | 14.7 |
+| OpenCode 1.18.31 `deepseek-v4.1-flash` | -2.0 (10.5) | 0.847 | 29.3 | -3.4 (6.4) | 0.606 | 18.0 |
+| OpenCode 2.0.27 `deepseek-v4.1-flash` | -4.6 (10.8) | 0.671 | 30.2 | -11.2 (7.4) | 0.14 | 20.7 |
+| Cursor `composer-2.5` | -18.6 (9.0) | 0.0441 | 25.1 | -18.0 (5.3) | 0.0019 | 14.9 |
+| Claude Code `claude-sonnet-5` | -21.8 (13.2) | 0.111 | 36.9 | -14.9 (7.8) | 0.0648 | 21.8 |
 | Claude Code `claude-sonnet-5-5` | -32.1 (12.1) | 0.0126 | 34.0 | -36.5 (7.0) | <0.0001 | 19.6 |
 | Claude Code `claude-opus-5-5` | -46.7 (12.4) | 0.0009 | 34.6 | -35.5 (7.1) | <0.0001 | 19.9 |
 | Claude Code `claude-haiku-5-5` | -46.5 (10.7) | 0.0002 | 29.9 | -60.2 (6.5) | <0.0001 | 18.3 |
+| Claude Code `claude-haiku-4-5` | -119.1 (7.3) | <0.0001 | 20.5 | -119.5 (6.9) | <0.0001 | 19.3 |
 
 MDE is the paired difference detectable at 80% power and two-sided 5%
 (normal approximation). p is the runner's two-sided sign-flip test, which
 samples 20,000 flips at 32 seeds, so "<0.0001" means no sampled flip
 reached the observed mean.
 
-- **The panel gets about 44% more sensitive.** Mean MDE falls from 32.6 to
-  18.4 points with no new runs: the same 32 seeds measure what about 100
-  would under the realized score.
-- **No row changes direction, and the borderline calls resolve.**
-  `gpt-6.1-sol`'s +24.0 at p = 0.0475 fails a Holm correction across these
-  six rows; luck-neutral it is +26.9 (95% interval +15.9 to +37.9) and
-  passes. Every row except DeepSeek clears Holm luck-neutral. DeepSeek
-  stays "can't tell", but its interval narrows to -25.7 to +3.3.
+- **The panel gets about 40% more sensitive.** Mean MDE across the eleven
+  rows falls from 30.8 to 18.1 points with no new runs: the same 32 seeds
+  measure about what 90 would under the realized score.
+- **No row changes direction, and most borderline calls resolve.** Under a
+  Holm correction across the eleven rows, 4 differ from `pick-trader` on
+  the realized score and 8 luck-neutral. The four newly resolved are
+  `gpt-6.1-sol` (ahead), and `gpt-6-luna`, `composer-2.5` and
+  `claude-sonnet-5-5` (behind). The three still "can't tell" are
+  `claude-sonnet-5` (-14.9, interval -30.2 to +0.3) and both DeepSeek rows,
+  whose intervals narrow to about -16 to +9 (1.18.31) and -26 to +3
+  (2.0.27).
 - **Playoff luck moved individual rows by up to 14 points.** `haiku-5-5`
   won 26 titles against 18.0 expected and its gap widens from -46.5 to
   -60.2; `opus-5-5` won 23 against 30.2 expected and its gap narrows from

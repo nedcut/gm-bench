@@ -63,35 +63,42 @@ fingerprint.
 
 ### Published 2.0 panel rows (32 private seeds, replayed, no model calls)
 
-The six rows whose raw run directories are on the analysis machine. Lift is
-paired against `pick-trader` on the same seed; MDE is the paired difference
-detectable at 80% power, two-sided 5%.
+All eleven published panel rows. Lift is paired against `pick-trader` on
+the same seed; MDE is the paired difference detectable at 80% power,
+two-sided 5%.
 
 | Row | v1 lift (p, MDE) | A lift (p, MDE) | C lift (p, MDE) |
 |---|---|---|---|
 | Codex `gpt-6-astra` | +39.2 (0.0033, 34.5) | +43.4 (<0.0001, 16.1) | +44.0 (<0.0001, 16.9) |
 | Codex `gpt-6.1-sol` | +24.0 (0.0475, 32.2) | +26.9 (<0.0001, 15.7) | +26.8 (0.0002, 16.2) |
-| OpenCode 2.0.27 `deepseek-v4.1-flash` | -4.6 (0.67, 30.2) | -11.2 (0.14, 20.7) | -12.2 (0.11, 21.0) |
+| Codex `gpt-6-luna` | -21.8 (0.0620, 31.4) | -16.3 (0.0043, 14.7) | -15.0 (0.0060, 14.2) |
+| OpenCode 1.18.31 `deepseek-v4.1-flash` | -2.0 (0.847, 29.3) | -3.4 (0.606, 18.0) | -3.4 (0.585, 17.4) |
+| OpenCode 2.0.27 `deepseek-v4.1-flash` | -4.6 (0.671, 30.2) | -11.2 (0.14, 20.7) | -12.2 (0.112, 21.0) |
+| Cursor `composer-2.5` | -18.6 (0.0441, 25.1) | -18.0 (0.0019, 14.9) | -16.4 (0.0093, 16.5) |
+| Claude Code `claude-sonnet-5` | -21.8 (0.111, 36.9) | -14.9 (0.0648, 21.8) | -14.0 (0.0910, 22.5) |
 | Claude Code `claude-sonnet-5-5` | -32.1 (0.0126, 34.0) | -36.5 (<0.0001, 19.6) | -35.5 (<0.0001, 19.8) |
 | Claude Code `claude-opus-5-5` | -46.7 (0.0009, 34.6) | -35.5 (<0.0001, 19.9) | -34.6 (<0.0001, 20.3) |
 | Claude Code `claude-haiku-5-5` | -46.5 (0.0002, 29.9) | -60.2 (<0.0001, 18.3) | -58.8 (<0.0001, 18.4) |
-| Mean MDE | 32.6 | 18.4 | 18.7 |
+| Claude Code `claude-haiku-4-5` | -119.1 (<0.0001, 20.5) | -119.5 (<0.0001, 19.3) | -124.5 (<0.0001, 21.0) |
+| Mean MDE | 30.8 | 18.1 | 18.6 |
 
-No row changes direction. Under C every row but DeepSeek clears a Holm
-correction across the six; under v1 `gpt-6.1-sol` does not.
+No row changes direction. Under a Holm correction across the eleven rows, 4
+differ from `pick-trader` under v1 and 8 under C (and A): `gpt-6.1-sol`,
+`gpt-6-luna`, `composer-2.5` and `claude-sonnet-5-5` resolve. The three
+still unresolved are `claude-sonnet-5` and both `deepseek-v4.1-flash` rows.
 
 ## Options considered
 
 - **A alone** (expected playoffs, keep v1's recent-wins term). Same
   sensitivity as C, but keeps a term that weights early seasons three times
   as much as the last one while calling itself "recent".
-- **B** (C at v1's 0.42 weight). Lower MDE in points (16.2), but only
+- **B** (C at v1's 0.42 weight). Lower MDE in points (15.9), but only
   because it shrinks every score by about 70 points: relative to the
   `pick-trader` - `value` gap it is no more sensitive than C, and it moves
   the balance between winning and asset building, which `score-v1`'s
   weights were calibrated for (`docs/scoring_calibration.md`).
 - **D** (C with expected regular-season wins). No measurable gain over C
-  (mean MDE 18.3 against 18.7), and it would stop rewarding wins the team
+  (mean MDE 18.1 against 18.6), and it would stop rewarding wins the team
   actually earned. Regular-season dice are not where the noise is.
 - **Best-of series in the simulator.** Would also cut playoff variance, but
   changes the simulation, so every existing row would have to be played
@@ -106,10 +113,8 @@ correction across the six; under v1 `gpt-6.1-sol` does not.
 - **Existing evidence can be rescored without any model run.** Every 2.0
   ledger replays exactly, so each published row could carry a `score-v2`
   figure next to its `score-v1` one, as a separately labelled column.
-  Doing that needs the raw run directories; five published panel rows
-  (`claude-haiku-4-5`, `claude-sonnet-5`, `gpt-6-luna`, `composer-2.5`,
-  OpenCode 1.18.31 `deepseek-v4.1-flash`) were not on the analysis machine.
-  1.0 rows would need their raw private-panel artifacts the same way.
+  All eleven published 2.0 panel rows have been replayed this way. 1.0
+  rows would need their raw private-panel artifacts.
 - **What it does not fix.** Records still never reset in the simulation,
   so playoff qualification and seeding, the lottery order and the
   free-agent win signal still read running totals (queue item 15). That
