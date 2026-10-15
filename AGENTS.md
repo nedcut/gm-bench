@@ -9,6 +9,19 @@ other machines. Inspect the current environment before reporting a missing tool.
 Keep Claude and other subscription- or rate-limited CLI usage serial wherever the
 adapter runs. These instructions do not authorize paid model runs or publication.
 
+## Decision log (lab notebook)
+
+`docs/lab_notebook.html` is the internal record of how scoring, contract and
+methodology decisions were made (not the public site). Keep it in the loop:
+
+- **Before** working on scoring, contracts, the simulator's rules or a
+  methodology question, read its entries (newest first) so you build on what
+  was already tried and decided instead of re-deriving or contradicting it.
+- **After** a decision, or a finding that changes one, add a dated entry:
+  what was tried, what it showed, what was decided, with its charts.
+- Cite a committed diagnostic or published row for every number. Never put
+  private seeds or per-episode panel scores in it.
+
 ## Cursor Cloud specific instructions
 
 This repo has two products:

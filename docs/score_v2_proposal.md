@@ -10,6 +10,15 @@ score_v2_baselines.json` and `score_v2_panels.json` (aggregates only).
 Background: [score_ceiling.md](score_ceiling.md) and
 [bench_v2_1_queue.md](bench_v2_1_queue.md) items 15 and 16.
 
+**Update, 2026-10-15.** The proposal has since been stress-tested
+([score_deep_dive.md](score_deep_dive.md)): term-by-term decomposition of
+the twelve published rows, a five-season continuation check of the
+end-state terms, weight perturbations, a noise split, an exploit search
+and the records fix. It held up, and a variant, `E` (every season's own
+wins at 1.02 instead of the last three seasons' at 1.67), did at least as
+well on every measure. The recommendation is now E; see "Options
+considered".
+
 ## The proposal
 
 Keep the simulator and every `score-v1` term and weight, with two changes:
@@ -97,6 +106,12 @@ differ from `pick-trader` under v1 and 8 under C (and A): `gpt-6.1-sol`,
 still unresolved are `claude-sonnet-5` and both `deepseek-v4.1-flash` rows.
 
 ## Options considered
+
+- **E** (C with every season's own wins, weight 1.02). Same row order and
+  separability as C, mean MDE 17.9 against 18.3, a smaller across-seed
+  spread, and no season whose wins the score ignores. Passes every
+  asserted ordering with records as they are and with records reset.
+  Recommended over C ([score_deep_dive.md](score_deep_dive.md) section 7).
 
 - **A alone** (expected playoffs, keep v1's recent-wins term). Same
   sensitivity as C, but keeps a term that weights early seasons three times

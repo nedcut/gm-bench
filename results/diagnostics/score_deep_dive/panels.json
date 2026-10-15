@@ -1,0 +1,1183 @@
+{
+  "rows": [
+    {
+      "agent": "codex-0.162.1-gpt-6-astra-panel-32x5",
+      "terms": {
+        "recent_wins": {
+          "mean": 18.631,
+          "se": 1.987
+        },
+        "playoff_rounds": {
+          "mean": 19.624,
+          "se": 2.027
+        },
+        "championships": {
+          "mean": 29.11,
+          "se": 2.13
+        },
+        "total_assets": {
+          "mean": 6.419,
+          "se": 1.59
+        },
+        "young_assets": {
+          "mean": -20.446,
+          "se": 1.896
+        },
+        "future_pick_assets": {
+          "mean": -1.248,
+          "se": 0.108
+        },
+        "cap_room": {
+          "mean": -6.041,
+          "se": 0.674
+        },
+        "current_strength": {
+          "mean": 1.038,
+          "se": 0.136
+        },
+        "roster_depth": {
+          "mean": 1.49,
+          "se": 0.192
+        },
+        "protocol_penalty": {
+          "mean": -4.531,
+          "se": 0.599
+        }
+      },
+      "winning": {
+        "mean": 67.366,
+        "se": 5.528
+      },
+      "end_state": {
+        "mean": -18.789,
+        "se": 3.133
+      },
+      "season_win_gap": [
+        {
+          "mean": 3.062,
+          "se": 0.564
+        },
+        {
+          "mean": 3.469,
+          "se": 0.55
+        },
+        {
+          "mean": 3.531,
+          "se": 0.757
+        },
+        {
+          "mean": 5.031,
+          "se": 0.507
+        },
+        {
+          "mean": 2.594,
+          "se": 0.544
+        }
+      ]
+    },
+    {
+      "agent": "codex-0.162.1-gpt-6.1-sol-panel-32x5",
+      "terms": {
+        "recent_wins": {
+          "mean": 13.464,
+          "se": 1.814
+        },
+        "playoff_rounds": {
+          "mean": 15.978,
+          "se": 2.035
+        },
+        "championships": {
+          "mean": 22.363,
+          "se": 2.022
+        },
+        "total_assets": {
+          "mean": 6.989,
+          "se": 1.762
+        },
+        "young_assets": {
+          "mean": -20.209,
+          "se": 1.932
+        },
+        "future_pick_assets": {
+          "mean": -1.296,
+          "se": 0.1
+        },
+        "cap_room": {
+          "mean": -6.721,
+          "se": 0.507
+        },
+        "current_strength": {
+          "mean": 0.775,
+          "se": 0.129
+        },
+        "roster_depth": {
+          "mean": 1.76,
+          "se": 0.192
+        },
+        "protocol_penalty": {
+          "mean": -6.328,
+          "se": 0.683
+        }
+      },
+      "winning": {
+        "mean": 51.805,
+        "se": 5.368
+      },
+      "end_state": {
+        "mean": -18.702,
+        "se": 3.24
+      },
+      "season_win_gap": [
+        {
+          "mean": 3.156,
+          "se": 0.52
+        },
+        {
+          "mean": 2,
+          "se": 0.492
+        },
+        {
+          "mean": 2.562,
+          "se": 0.594
+        },
+        {
+          "mean": 3.75,
+          "se": 0.529
+        },
+        {
+          "mean": 1.75,
+          "se": 0.473
+        }
+      ]
+    },
+    {
+      "agent": "codex-0.156.1-gpt-6-luna-panel-32x5",
+      "terms": {
+        "recent_wins": {
+          "mean": -2.609,
+          "se": 1.901
+        },
+        "playoff_rounds": {
+          "mean": -0.778,
+          "se": 1.565
+        },
+        "championships": {
+          "mean": -3.964,
+          "se": 1.823
+        },
+        "total_assets": {
+          "mean": 2.361,
+          "se": 1.662
+        },
+        "young_assets": {
+          "mean": -8.654,
+          "se": 1.546
+        },
+        "future_pick_assets": {
+          "mean": -0.096,
+          "se": 0.067
+        },
+        "cap_room": {
+          "mean": -0.848,
+          "se": 0.264
+        },
+        "current_strength": {
+          "mean": 0.12,
+          "se": 0.137
+        },
+        "roster_depth": {
+          "mean": 0.969,
+          "se": 0.297
+        },
+        "protocol_penalty": {
+          "mean": -1.484,
+          "se": 0.294
+        }
+      },
+      "winning": {
+        "mean": -7.351,
+        "se": 4.779
+      },
+      "end_state": {
+        "mean": -6.149,
+        "se": 2.659
+      },
+      "season_win_gap": [
+        {
+          "mean": -0.25,
+          "se": 0.484
+        },
+        {
+          "mean": -1.656,
+          "se": 0.534
+        },
+        {
+          "mean": -1.125,
+          "se": 0.508
+        },
+        {
+          "mean": 0.188,
+          "se": 0.457
+        },
+        {
+          "mean": -0.625,
+          "se": 0.627
+        }
+      ]
+    },
+    {
+      "agent": "opencode-1.18.31-deepseek-v4.1-flash-panel-32x5",
+      "terms": {
+        "recent_wins": {
+          "mean": 5.532,
+          "se": 1.937
+        },
+        "playoff_rounds": {
+          "mean": 7.604,
+          "se": 2.343
+        },
+        "championships": {
+          "mean": 7.153,
+          "se": 2.39
+        },
+        "total_assets": {
+          "mean": -6.037,
+          "se": 3.109
+        },
+        "young_assets": {
+          "mean": -13.862,
+          "se": 2.105
+        },
+        "future_pick_assets": {
+          "mean": -0.528,
+          "se": 0.131
+        },
+        "cap_room": {
+          "mean": -0.554,
+          "se": 0.221
+        },
+        "current_strength": {
+          "mean": 0.055,
+          "se": 0.171
+        },
+        "roster_depth": {
+          "mean": -0.031,
+          "se": 0.356
+        },
+        "protocol_penalty": {
+          "mean": -2.734,
+          "se": 0.395
+        }
+      },
+      "winning": {
+        "mean": 20.289,
+        "se": 6.308
+      },
+      "end_state": {
+        "mean": -20.957,
+        "se": 5.102
+      },
+      "season_win_gap": [
+        {
+          "mean": 1.562,
+          "se": 0.516
+        },
+        {
+          "mean": 0.625,
+          "se": 0.562
+        },
+        {
+          "mean": 0.656,
+          "se": 0.573
+        },
+        {
+          "mean": 2.031,
+          "se": 0.48
+        },
+        {
+          "mean": 0.625,
+          "se": 0.523
+        }
+      ]
+    },
+    {
+      "agent": "opencode-2.0.27-deepseek-v4.1-flash-panel-32x5-mcpwait",
+      "terms": {
+        "recent_wins": {
+          "mean": 1.983,
+          "se": 2.125
+        },
+        "playoff_rounds": {
+          "mean": 4.475,
+          "se": 2.459
+        },
+        "championships": {
+          "mean": 3.672,
+          "se": 2.5
+        },
+        "total_assets": {
+          "mean": -5.217,
+          "se": 2.778
+        },
+        "young_assets": {
+          "mean": -12.99,
+          "se": 1.535
+        },
+        "future_pick_assets": {
+          "mean": -0.336,
+          "se": 0.114
+        },
+        "cap_room": {
+          "mean": -1.288,
+          "se": 0.394
+        },
+        "current_strength": {
+          "mean": 0.044,
+          "se": 0.139
+        },
+        "roster_depth": {
+          "mean": 0.073,
+          "se": 0.349
+        },
+        "protocol_penalty": {
+          "mean": -2.578,
+          "se": 0.427
+        }
+      },
+      "winning": {
+        "mean": 10.131,
+        "se": 6.63
+      },
+      "end_state": {
+        "mean": -19.714,
+        "se": 4.201
+      },
+      "season_win_gap": [
+        {
+          "mean": 1.281,
+          "se": 0.434
+        },
+        {
+          "mean": 0.219,
+          "se": 0.564
+        },
+        {
+          "mean": 0.094,
+          "se": 0.621
+        },
+        {
+          "mean": 1.219,
+          "se": 0.56
+        },
+        {
+          "mean": -0.125,
+          "se": 0.575
+        }
+      ]
+    },
+    {
+      "agent": "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5",
+      "terms": {
+        "recent_wins": {
+          "mean": -2.088,
+          "se": 2.283
+        },
+        "playoff_rounds": {
+          "mean": -0.066,
+          "se": 2.308
+        },
+        "championships": {
+          "mean": -2.904,
+          "se": 1.815
+        },
+        "total_assets": {
+          "mean": 1.022,
+          "se": 2.164
+        },
+        "young_assets": {
+          "mean": -8.537,
+          "se": 1.617
+        },
+        "future_pick_assets": {
+          "mean": 0.0,
+          "se": 0.0
+        },
+        "cap_room": {
+          "mean": -0.197,
+          "se": 0.151
+        },
+        "current_strength": {
+          "mean": 0.081,
+          "se": 0.17
+        },
+        "roster_depth": {
+          "mean": 0.562,
+          "se": 0.247
+        },
+        "protocol_penalty": {
+          "mean": -4.297,
+          "se": 0.738
+        }
+      },
+      "winning": {
+        "mean": -5.057,
+        "se": 5.97
+      },
+      "end_state": {
+        "mean": -7.069,
+        "se": 3.597
+      },
+      "season_win_gap": [
+        {
+          "mean": -0.375,
+          "se": 0.418
+        },
+        {
+          "mean": -1.75,
+          "se": 0.498
+        },
+        {
+          "mean": -1.062,
+          "se": 0.601
+        },
+        {
+          "mean": 0.969,
+          "se": 0.572
+        },
+        {
+          "mean": -1.156,
+          "se": 0.669
+        }
+      ]
+    },
+    {
+      "agent": "claude-2.1.281-claude-sonnet-5-panel-32x5",
+      "terms": {
+        "recent_wins": {
+          "mean": 3.81,
+          "se": 2.374
+        },
+        "playoff_rounds": {
+          "mean": 5.996,
+          "se": 2.577
+        },
+        "championships": {
+          "mean": 5.034,
+          "se": 2.523
+        },
+        "total_assets": {
+          "mean": -11.127,
+          "se": 3.079
+        },
+        "young_assets": {
+          "mean": -14.146,
+          "se": 1.857
+        },
+        "future_pick_assets": {
+          "mean": -0.048,
+          "se": 0.048
+        },
+        "cap_room": {
+          "mean": -0.849,
+          "se": 0.349
+        },
+        "current_strength": {
+          "mean": -0.445,
+          "se": 0.166
+        },
+        "roster_depth": {
+          "mean": -0.333,
+          "se": 0.361
+        },
+        "protocol_penalty": {
+          "mean": -1.875,
+          "se": 0.489
+        }
+      },
+      "winning": {
+        "mean": 14.84,
+        "se": 7.145
+      },
+      "end_state": {
+        "mean": -26.948,
+        "se": 4.989
+      },
+      "season_win_gap": [
+        {
+          "mean": 0.781,
+          "se": 0.418
+        },
+        {
+          "mean": -0.031,
+          "se": 0.521
+        },
+        {
+          "mean": 0.188,
+          "se": 0.601
+        },
+        {
+          "mean": 1.875,
+          "se": 0.489
+        },
+        {
+          "mean": 0.219,
+          "se": 0.667
+        }
+      ]
+    },
+    {
+      "agent": "claude-sonnet-5-5-panel",
+      "terms": {
+        "recent_wins": {
+          "mean": 2.557,
+          "se": 1.708
+        },
+        "playoff_rounds": {
+          "mean": 4.668,
+          "se": 1.77
+        },
+        "championships": {
+          "mean": 1.78,
+          "se": 1.876
+        },
+        "total_assets": {
+          "mean": -21.468,
+          "se": 2.492
+        },
+        "young_assets": {
+          "mean": -17.921,
+          "se": 2.05
+        },
+        "future_pick_assets": {
+          "mean": -0.048,
+          "se": 0.048
+        },
+        "cap_room": {
+          "mean": -0.015,
+          "se": 0.015
+        },
+        "current_strength": {
+          "mean": -0.219,
+          "se": 0.243
+        },
+        "roster_depth": {
+          "mean": -1.938,
+          "se": 0.23
+        },
+        "protocol_penalty": {
+          "mean": -2.891,
+          "se": 0.503
+        }
+      },
+      "winning": {
+        "mean": 9.005,
+        "se": 4.887
+      },
+      "end_state": {
+        "mean": -41.608,
+        "se": 4.636
+      },
+      "season_win_gap": [
+        {
+          "mean": 0.719,
+          "se": 0.429
+        },
+        {
+          "mean": -0.562,
+          "se": 0.575
+        },
+        {
+          "mean": 0.156,
+          "se": 0.52
+        },
+        {
+          "mean": 1.344,
+          "se": 0.448
+        },
+        {
+          "mean": 0.031,
+          "se": 0.422
+        }
+      ]
+    },
+    {
+      "agent": "claude-2.1.281-opus-5-5-panel-32x5",
+      "terms": {
+        "recent_wins": {
+          "mean": 9.811,
+          "se": 1.829
+        },
+        "playoff_rounds": {
+          "mean": 13.22,
+          "se": 2.049
+        },
+        "championships": {
+          "mean": 14.085,
+          "se": 1.847
+        },
+        "total_assets": {
+          "mean": -32.172,
+          "se": 2.363
+        },
+        "young_assets": {
+          "mean": -30.54,
+          "se": 1.942
+        },
+        "future_pick_assets": {
+          "mean": -0.96,
+          "se": 0.134
+        },
+        "cap_room": {
+          "mean": -0.056,
+          "se": 0.056
+        },
+        "current_strength": {
+          "mean": -0.884,
+          "se": 0.75
+        },
+        "roster_depth": {
+          "mean": -2.531,
+          "se": 0.185
+        },
+        "protocol_penalty": {
+          "mean": -4.609,
+          "se": 0.391
+        }
+      },
+      "winning": {
+        "mean": 37.116,
+        "se": 5.164
+      },
+      "end_state": {
+        "mean": -67.143,
+        "se": 4.629
+      },
+      "season_win_gap": [
+        {
+          "mean": 1.594,
+          "se": 0.449
+        },
+        {
+          "mean": 1.188,
+          "se": 0.526
+        },
+        {
+          "mean": 2.156,
+          "se": 0.579
+        },
+        {
+          "mean": 2.688,
+          "se": 0.495
+        },
+        {
+          "mean": 1.031,
+          "se": 0.422
+        }
+      ]
+    },
+    {
+      "agent": "claude-2.1.281-haiku-5-5-panel-32x5",
+      "terms": {
+        "recent_wins": {
+          "mean": 1.513,
+          "se": 1.9
+        },
+        "playoff_rounds": {
+          "mean": 2.77,
+          "se": 1.899
+        },
+        "championships": {
+          "mean": 0.699,
+          "se": 1.837
+        },
+        "total_assets": {
+          "mean": -31.117,
+          "se": 1.926
+        },
+        "young_assets": {
+          "mean": -24.999,
+          "se": 1.59
+        },
+        "future_pick_assets": {
+          "mean": -0.432,
+          "se": 0.142
+        },
+        "cap_room": {
+          "mean": 0.0,
+          "se": 0.0
+        },
+        "current_strength": {
+          "mean": -1.221,
+          "se": 0.584
+        },
+        "roster_depth": {
+          "mean": -2.562,
+          "se": 0.191
+        },
+        "protocol_penalty": {
+          "mean": -3.438,
+          "se": 0.725
+        }
+      },
+      "winning": {
+        "mean": 4.982,
+        "se": 5.136
+      },
+      "end_state": {
+        "mean": -60.331,
+        "se": 3.794
+      },
+      "season_win_gap": [
+        {
+          "mean": 0.656,
+          "se": 0.466
+        },
+        {
+          "mean": -1.062,
+          "se": 0.529
+        },
+        {
+          "mean": -0.406,
+          "se": 0.529
+        },
+        {
+          "mean": 1.281,
+          "se": 0.539
+        },
+        {
+          "mean": 0.031,
+          "se": 0.519
+        }
+      ]
+    },
+    {
+      "agent": "claude-2.1.281-claude-haiku-4-5-panel-32x5",
+      "terms": {
+        "recent_wins": {
+          "mean": -17.953,
+          "se": 2.732
+        },
+        "playoff_rounds": {
+          "mean": -10.695,
+          "se": 2.015
+        },
+        "championships": {
+          "mean": -12.187,
+          "se": 1.956
+        },
+        "total_assets": {
+          "mean": -39.383,
+          "se": 2.186
+        },
+        "young_assets": {
+          "mean": -30.483,
+          "se": 1.982
+        },
+        "future_pick_assets": {
+          "mean": 0.0,
+          "se": 0.0
+        },
+        "cap_room": {
+          "mean": 0.0,
+          "se": 0.0
+        },
+        "current_strength": {
+          "mean": -6.134,
+          "se": 1.187
+        },
+        "roster_depth": {
+          "mean": -3.25,
+          "se": 0.205
+        },
+        "protocol_penalty": {
+          "mean": -4.375,
+          "se": 0.87
+        }
+      },
+      "winning": {
+        "mean": -40.834,
+        "se": 5.857
+      },
+      "end_state": {
+        "mean": -79.25,
+        "se": 5.116
+      },
+      "season_win_gap": [
+        {
+          "mean": -1,
+          "se": 0.447
+        },
+        {
+          "mean": -3.281,
+          "se": 0.621
+        },
+        {
+          "mean": -2.625,
+          "se": 0.619
+        },
+        {
+          "mean": -2.156,
+          "se": 0.589
+        },
+        {
+          "mean": -5.969,
+          "se": 1.073
+        }
+      ]
+    },
+    {
+      "agent": "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5",
+      "terms": {
+        "recent_wins": {
+          "mean": 4.018,
+          "se": 1.518
+        },
+        "playoff_rounds": {
+          "mean": 4.733,
+          "se": 1.846
+        },
+        "championships": {
+          "mean": 2.731,
+          "se": 1.908
+        },
+        "total_assets": {
+          "mean": -0.621,
+          "se": 2.953
+        },
+        "young_assets": {
+          "mean": -9.754,
+          "se": 1.849
+        },
+        "future_pick_assets": {
+          "mean": 0.0,
+          "se": 0.0
+        },
+        "cap_room": {
+          "mean": -1.964,
+          "se": 0.502
+        },
+        "current_strength": {
+          "mean": -0.196,
+          "se": 0.125
+        },
+        "roster_depth": {
+          "mean": 0.833,
+          "se": 0.374
+        },
+        "protocol_penalty": {
+          "mean": -0.078,
+          "se": 0.078
+        }
+      },
+      "winning": {
+        "mean": 11.482,
+        "se": 4.646
+      },
+      "end_state": {
+        "mean": -11.702,
+        "se": 4.618
+      },
+      "season_win_gap": [
+        {
+          "mean": 1.031,
+          "se": 0.505
+        },
+        {
+          "mean": -0.469,
+          "se": 0.467
+        },
+        {
+          "mean": 0.438,
+          "se": 0.383
+        },
+        {
+          "mean": 1.562,
+          "se": 0.564
+        },
+        {
+          "mean": 0.406,
+          "se": 0.512
+        }
+      ]
+    }
+  ],
+  "base_separable": 8,
+  "robustness": [
+    {
+      "term": "recent_wins",
+      "factor": 0.5,
+      "sign_flips": [],
+      "separability_changes": [],
+      "separable": 8,
+      "kendall_tau": 0.909,
+      "max_lift_shift": 9.32
+    },
+    {
+      "term": "recent_wins",
+      "factor": 1.5,
+      "sign_flips": [
+        "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5"
+      ],
+      "separability_changes": [
+        "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5"
+      ],
+      "separable": 7,
+      "kendall_tau": 1.0,
+      "max_lift_shift": 9.32
+    },
+    {
+      "term": "playoff_rounds",
+      "factor": 0.5,
+      "sign_flips": [],
+      "separability_changes": [],
+      "separable": 8,
+      "kendall_tau": 0.909,
+      "max_lift_shift": 9.81
+    },
+    {
+      "term": "playoff_rounds",
+      "factor": 1.5,
+      "sign_flips": [
+        "opencode-1.18.31-deepseek-v4.1-flash-panel-32x5",
+        "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5"
+      ],
+      "separability_changes": [
+        "codex-0.156.1-gpt-6-luna-panel-32x5",
+        "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5"
+      ],
+      "separable": 6,
+      "kendall_tau": 1.0,
+      "max_lift_shift": 9.81
+    },
+    {
+      "term": "championships",
+      "factor": 0.5,
+      "sign_flips": [],
+      "separability_changes": [],
+      "separable": 8,
+      "kendall_tau": 0.879,
+      "max_lift_shift": 14.56
+    },
+    {
+      "term": "championships",
+      "factor": 1.5,
+      "sign_flips": [
+        "opencode-1.18.31-deepseek-v4.1-flash-panel-32x5",
+        "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5"
+      ],
+      "separability_changes": [
+        "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5"
+      ],
+      "separable": 7,
+      "kendall_tau": 1.0,
+      "max_lift_shift": 14.56
+    },
+    {
+      "term": "total_assets",
+      "factor": 0.5,
+      "sign_flips": [
+        "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5"
+      ],
+      "separability_changes": [],
+      "separable": 8,
+      "kendall_tau": 0.97,
+      "max_lift_shift": 19.69
+    },
+    {
+      "term": "total_assets",
+      "factor": 1.5,
+      "sign_flips": [],
+      "separability_changes": [
+        "codex-0.156.1-gpt-6-luna-panel-32x5",
+        "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5"
+      ],
+      "separable": 6,
+      "kendall_tau": 0.879,
+      "max_lift_shift": 19.69
+    },
+    {
+      "term": "young_assets",
+      "factor": 0.5,
+      "sign_flips": [
+        "opencode-1.18.31-deepseek-v4.1-flash-panel-32x5",
+        "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5"
+      ],
+      "separability_changes": [
+        "codex-0.156.1-gpt-6-luna-panel-32x5",
+        "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5",
+        "claude-2.1.281-opus-5-5-panel-32x5"
+      ],
+      "separable": 5,
+      "kendall_tau": 1.0,
+      "max_lift_shift": 15.27
+    },
+    {
+      "term": "young_assets",
+      "factor": 1.5,
+      "sign_flips": [],
+      "separability_changes": [
+        "codex-0.162.1-gpt-6.1-sol-panel-32x5"
+      ],
+      "separable": 7,
+      "kendall_tau": 0.909,
+      "max_lift_shift": 15.27
+    },
+    {
+      "term": "future_pick_assets",
+      "factor": 0.5,
+      "sign_flips": [],
+      "separability_changes": [],
+      "separable": 8,
+      "kendall_tau": 1.0,
+      "max_lift_shift": 0.65
+    },
+    {
+      "term": "future_pick_assets",
+      "factor": 1.5,
+      "sign_flips": [],
+      "separability_changes": [],
+      "separable": 8,
+      "kendall_tau": 1.0,
+      "max_lift_shift": 0.65
+    },
+    {
+      "term": "cap_room",
+      "factor": 0.5,
+      "sign_flips": [],
+      "separability_changes": [],
+      "separable": 8,
+      "kendall_tau": 1.0,
+      "max_lift_shift": 2.06
+    },
+    {
+      "term": "cap_room",
+      "factor": 1.5,
+      "sign_flips": [
+        "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5"
+      ],
+      "separability_changes": [
+        "codex-0.156.1-gpt-6-luna-panel-32x5",
+        "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5"
+      ],
+      "separable": 6,
+      "kendall_tau": 1.0,
+      "max_lift_shift": 1.1
+    },
+    {
+      "term": "current_strength",
+      "factor": 0.5,
+      "sign_flips": [],
+      "separability_changes": [],
+      "separable": 8,
+      "kendall_tau": 1.0,
+      "max_lift_shift": 3.07
+    },
+    {
+      "term": "current_strength",
+      "factor": 1.5,
+      "sign_flips": [],
+      "separability_changes": [],
+      "separable": 8,
+      "kendall_tau": 1.0,
+      "max_lift_shift": 3.07
+    },
+    {
+      "term": "roster_depth",
+      "factor": 0.5,
+      "sign_flips": [],
+      "separability_changes": [],
+      "separable": 8,
+      "kendall_tau": 1.0,
+      "max_lift_shift": 1.62
+    },
+    {
+      "term": "roster_depth",
+      "factor": 1.5,
+      "sign_flips": [
+        "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5"
+      ],
+      "separability_changes": [],
+      "separable": 8,
+      "kendall_tau": 1.0,
+      "max_lift_shift": 1.62
+    }
+  ],
+  "candidates": {
+    "v1": {
+      "separable": 4,
+      "mean_mde80": 30.48,
+      "kendall_tau_vs_C": 0.848,
+      "lifts": {
+        "codex-0.162.1-gpt-6-astra-panel-32x5": 39.24,
+        "codex-0.162.1-gpt-6.1-sol-panel-32x5": 23.99,
+        "codex-0.156.1-gpt-6-luna-panel-32x5": -21.78,
+        "opencode-1.18.31-deepseek-v4.1-flash-panel-32x5": -2.05,
+        "opencode-2.0.27-deepseek-v4.1-flash-panel-32x5-mcpwait": -4.59,
+        "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5": -18.62,
+        "claude-2.1.281-claude-sonnet-5-panel-32x5": -21.79,
+        "claude-sonnet-5-5-panel": -32.12,
+        "claude-2.1.281-opus-5-5-panel-32x5": -46.68,
+        "claude-2.1.281-haiku-5-5-panel-32x5": -46.52,
+        "claude-2.1.281-claude-haiku-4-5-panel-32x5": -119.05,
+        "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5": 1.15
+      }
+    },
+    "C": {
+      "separable": 8,
+      "mean_mde80": 18.3,
+      "kendall_tau_vs_C": 1.0,
+      "lifts": {
+        "codex-0.162.1-gpt-6-astra-panel-32x5": 44.05,
+        "codex-0.162.1-gpt-6.1-sol-panel-32x5": 26.78,
+        "codex-0.156.1-gpt-6-luna-panel-32x5": -14.98,
+        "opencode-1.18.31-deepseek-v4.1-flash-panel-32x5": -3.4,
+        "opencode-2.0.27-deepseek-v4.1-flash-panel-32x5-mcpwait": -12.16,
+        "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5": -16.42,
+        "claude-2.1.281-claude-sonnet-5-panel-32x5": -13.98,
+        "claude-sonnet-5-5-panel": -35.49,
+        "claude-2.1.281-opus-5-5-panel-32x5": -34.64,
+        "claude-2.1.281-haiku-5-5-panel-32x5": -58.79,
+        "claude-2.1.281-claude-haiku-4-5-panel-32x5": -124.46,
+        "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5": -0.3
+      }
+    },
+    "D": {
+      "separable": 6,
+      "mean_mde80": 17.88,
+      "kendall_tau_vs_C": 0.97,
+      "lifts": {
+        "codex-0.162.1-gpt-6-astra-panel-32x5": 45.0,
+        "codex-0.162.1-gpt-6.1-sol-panel-32x5": 29.49,
+        "codex-0.156.1-gpt-6-luna-panel-32x5": -13.59,
+        "opencode-1.18.31-deepseek-v4.1-flash-panel-32x5": -3.15,
+        "opencode-2.0.27-deepseek-v4.1-flash-panel-32x5-mcpwait": -11.36,
+        "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5": -15.04,
+        "claude-2.1.281-claude-sonnet-5-panel-32x5": -13.78,
+        "claude-sonnet-5-5-panel": -35.22,
+        "claude-2.1.281-opus-5-5-panel-32x5": -32.59,
+        "claude-2.1.281-haiku-5-5-panel-32x5": -58.42,
+        "claude-2.1.281-claude-haiku-4-5-panel-32x5": -125.06,
+        "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5": -0.14
+      }
+    },
+    "E": {
+      "separable": 8,
+      "mean_mde80": 17.86,
+      "kendall_tau_vs_C": 1.0,
+      "lifts": {
+        "codex-0.162.1-gpt-6-astra-panel-32x5": 43.46,
+        "codex-0.162.1-gpt-6.1-sol-panel-32x5": 26.79,
+        "codex-0.156.1-gpt-6-luna-panel-32x5": -15.91,
+        "opencode-1.18.31-deepseek-v4.1-flash-panel-32x5": -3.32,
+        "opencode-2.0.27-deepseek-v4.1-flash-panel-32x5-mcpwait": -11.4,
+        "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5": -17.78,
+        "claude-2.1.281-claude-sonnet-5-panel-32x5": -14.7,
+        "claude-sonnet-5-5-panel": -36.33,
+        "claude-2.1.281-opus-5-5-panel-32x5": -35.62,
+        "claude-2.1.281-haiku-5-5-panel-32x5": -59.79,
+        "claude-2.1.281-claude-haiku-4-5-panel-32x5": -121.84,
+        "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5": -1.29
+      }
+    }
+  }
+}

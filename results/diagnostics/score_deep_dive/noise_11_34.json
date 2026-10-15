@@ -1,0 +1,88 @@
+{
+  "seeds": [
+    11,
+    34
+  ],
+  "draws": 4,
+  "recent_to_all_wins_ratio": 0.6092,
+  "pairs": {
+    "value - pick-trader": {
+      "v1": {
+        "paired_sd": 34.92,
+        "dice_sd": 40.41,
+        "dice_share": 1.339,
+        "mean_gap": -69.79
+      },
+      "C": {
+        "paired_sd": 21.52,
+        "dice_sd": 20.39,
+        "dice_share": 0.897,
+        "mean_gap": -84.81
+      },
+      "D": {
+        "paired_sd": 24.14,
+        "dice_sd": 18.99,
+        "dice_share": 0.619,
+        "mean_gap": -84.57
+      },
+      "E": {
+        "paired_sd": 19.61,
+        "dice_sd": 17.96,
+        "dice_share": 0.839,
+        "mean_gap": -78.19
+      }
+    },
+    "shrewd - pick-trader": {
+      "v1": {
+        "paired_sd": 57.11,
+        "dice_sd": 51.38,
+        "dice_share": 0.809,
+        "mean_gap": -3.5
+      },
+      "C": {
+        "paired_sd": 20.43,
+        "dice_sd": 17.61,
+        "dice_share": 0.743,
+        "mean_gap": -11.77
+      },
+      "D": {
+        "paired_sd": 20.21,
+        "dice_sd": 16.97,
+        "dice_share": 0.705,
+        "mean_gap": -11.5
+      },
+      "E": {
+        "paired_sd": 18.55,
+        "dice_sd": 16.03,
+        "dice_share": 0.747,
+        "mean_gap": -10.26
+      }
+    },
+    "strategic - pick-trader": {
+      "v1": {
+        "paired_sd": 37.84,
+        "dice_sd": 40.6,
+        "dice_share": 1.151,
+        "mean_gap": -2.74
+      },
+      "C": {
+        "paired_sd": 21.75,
+        "dice_sd": 17.08,
+        "dice_share": 0.617,
+        "mean_gap": -7.27
+      },
+      "D": {
+        "paired_sd": 20.65,
+        "dice_sd": 16.27,
+        "dice_share": 0.621,
+        "mean_gap": -7.35
+      },
+      "E": {
+        "paired_sd": 18.91,
+        "dice_sd": 14.82,
+        "dice_share": 0.614,
+        "mean_gap": -6.49
+      }
+    }
+  }
+}
