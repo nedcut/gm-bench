@@ -28,6 +28,7 @@ gm-bench-gui = "gm_bench.gui:main"
 packages = [
     "gm_bench",
     "gm_bench.agentic",
+    "gm_bench.v21",
     "gm_bench.gui_static",
     "gm_bench._resources.examples",
     "gm_bench._resources.schemas",

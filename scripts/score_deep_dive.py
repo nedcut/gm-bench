@@ -800,6 +800,107 @@ def print_continuation(report: dict[str, Any]) -> None:
 
 
 # --------------------------------------------------------------------------
+# continuation21: the continuation check under the 2.1 rules
+# --------------------------------------------------------------------------
+
+
+def _league21_class(legacy_draft: bool):
+    from gm_bench.v21.rules import League21
+
+    if not legacy_draft:
+        return League21
+
+    class League21LegacyDraft(League21):
+        """2.1 with 1.0's draft, which skips opponent slots behind an unused user pick."""
+
+        run_opponent_draft = League.run_opponent_draft
+
+    return League21LegacyDraft
+
+
+def _play21(cls, name: str, seed: int) -> Any:
+    league = cls.new(seed=seed)
+    agent = score_v2._agent_factory(name)()
+    for index in range(len(ceiling_search.STEPS)):
+        ceiling_search.play_step(league, agent, index)
+    return league
+
+
+def _side21(league: Any, manager: str) -> dict[str, float]:
+    from gm_bench.v21.scoring import SCALE
+    from gm_bench.v21.scoring import score_components as v2_components
+
+    parts = v2_components(league, league.user_team_id)
+    end_state = sum(
+        parts[f"{name}_contribution"]
+        for name in (
+            "total_assets",
+            "young_assets",
+            "future_pick_assets",
+            "cap_room",
+            "current_strength",
+            "roster_depth",
+        )
+    )
+    agent = AGENTS[manager]()
+    start = len(league.summaries)
+    for _ in range(EXTRA_SEASONS):
+        for index in range(len(ceiling_search.PHASES)):
+            ceiling_search.play_step(league, agent, index)
+    future = 0.0
+    for summary in league.summaries[start:]:
+        rounds, title = league.expected_playoffs[summary.season].get(league.user_team_id, (0.0, 0.0))
+        future += summary.wins * SCALE.season_win + rounds * SCALE.playoff_round + title * SCALE.championship
+    return {"end_state": end_state, "future": future}
+
+
+def _continuation21_job(job: tuple[str, int, str, bool]) -> dict[str, Any]:
+    name, seed, manager, legacy = job
+    cls = _league21_class(legacy)
+    model, reference = _side21(_play21(cls, name, seed), manager), _side21(_play21(cls, "pick-trader", seed), manager)
+    return {
+        "name": name,
+        "end_gap": model["end_state"] - reference["end_state"],
+        "future_gap": model["future"] - reference["future"],
+    }
+
+
+def run_continuation21(seeds: list[int], manager: str, jobs: int) -> dict[str, Any]:
+    names = [n for n in (*score_v2.REFERENCES, *(cls.name for cls in CANARY_AGENTS)) if n != "pick-trader"]
+    report: dict[str, Any] = {"seeds": [seeds[0], seeds[-1]], "manager": manager, "extra_seasons": EXTRA_SEASONS}
+    # Plain worker processes: League21 needs none of the score_v2 hooks.
+    with ProcessPoolExecutor(max_workers=max(1, jobs)) as pool:
+        for label, legacy in (("draft_fixed", False), ("legacy_draft", True)):
+            work = [(name, seed, manager, legacy) for name in names for seed in seeds]
+            rows = list(pool.map(_continuation21_job, work))
+            fit = fit_with_se([[1.0, r["end_gap"]] for r in rows], [r["future_gap"] for r in rows])
+            report[label] = {
+                "slope": {"estimate": round(fit[1][0], 3), "se": round(fit[1][1], 3)},
+                "intercept": {"estimate": round(fit[0][0], 2), "se": round(fit[0][1], 2)},
+                "rows": {
+                    name: {
+                        "end_gap": mean_se([r["end_gap"] for r in rows if r["name"] == name]),
+                        "future_gap": mean_se([r["future_gap"] for r in rows if r["name"] == name]),
+                        "residual": mean_se([r["future_gap"] - r["end_gap"] for r in rows if r["name"] == name]),
+                    }
+                    for name in names
+                },
+            }
+    return report
+
+
+def print_continuation21(report: dict[str, Any]) -> None:
+    for label in ("legacy_draft", "draft_fixed"):
+        block = report[label]
+        print(f"\n[{label}] slope {block['slope']} intercept {block['intercept']}")
+        for name, row in block["rows"].items():
+            print(
+                f"  {name:18s} end {row['end_gap']['mean']:+7.1f}  next {report['extra_seasons']} "
+                f"{row['future_gap']['mean']:+7.1f}  residual {row['residual']['mean']:+6.1f} (se {row['residual']['se']})"
+            )
+
+
+# --------------------------------------------------------------------------
 # CLI
 # --------------------------------------------------------------------------
 
@@ -824,7 +925,10 @@ def main(argv: list[str] | None = None) -> int:
     continuation.add_argument("--seeds", default="11-34", help="public seeds for the scripted policies")
     continuation.add_argument("--manager", default="pick-trader", help="scripted policy that runs both teams")
     continuation.add_argument("--cache", type=Path, default=Path("~/.cache/gm-bench-deep-dive").expanduser())
-    for command in (panels, noise, exploit, reset, continuation):
+    continuation21 = sub.add_parser("continuation21", help="the continuation check under the 2.1 rules")
+    continuation21.add_argument("--seeds", default="11-58")
+    continuation21.add_argument("--manager", default="pick-trader")
+    for command in (panels, noise, exploit, reset, continuation, continuation21):
         command.add_argument("--jobs", type=int, default=12)
         command.add_argument("--out", type=Path)
     args = parser.parse_args(argv)
@@ -838,6 +942,9 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "exploit":
         output = run_exploit(ceiling_search._parse_seeds(args.seeds), args.objective, args.worlds, args.jobs)
         print_exploit(output)
+    elif args.command == "continuation21":
+        output = run_continuation21(ceiling_search._parse_seeds(args.seeds), args.manager, args.jobs)
+        print_continuation21(output)
     elif args.command == "reset":
         output = run_reset(ceiling_search._parse_seeds(args.seeds), args.jobs)
         print_reset(output)

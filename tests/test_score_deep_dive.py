@@ -8,6 +8,19 @@ _SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(_SCRIPTS))
 
 
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _restore_league():
+    """The analysis hooks patch ``League`` for the whole process; undo them per test."""
+    yield
+    module = globals().get("score_v2") or globals()["deep_dive"].score_v2
+    module.uninstall_hooks()
+    if "deep_dive" in globals():
+        globals()["deep_dive"].uninstall_records_reset()
+
+
 def _load(name: str):
     spec = importlib.util.spec_from_file_location(name, _SCRIPTS / f"{name}.py")
     module = importlib.util.module_from_spec(spec)

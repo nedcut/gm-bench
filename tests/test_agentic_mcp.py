@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.mcp_server import EPISODE_ENV, SocketMcpServer
 from gm_bench.agentic.opencode import (
     harness_environment,
@@ -447,7 +448,7 @@ def test_nudge_loop_resumes_until_done_and_stops_without_progress(tmp_path: Path
     run = {
         "agent": "opencode:fake/model",
         "harness": {"name": "opencode", "version": "0", "model": "fake/model"},
-        "contract": driver.agentic_contract(),
+        "contract": agentic_contract(),
         "seeds": [11],
         "seasons": 1,
         "episodes": [result],
@@ -1354,7 +1355,7 @@ def test_exit_code_warning_follows_how_the_harness_finished(tmp_path: Path, monk
     run = {
         "agent": "opencode:fake/model",
         "harness": {"name": "opencode", "version": "0", "model": "fake/model"},
-        "contract": driver.agentic_contract(),
+        "contract": agentic_contract(),
         "seeds": [11],
         "seasons": 1,
         "max_nudges": 5,
@@ -1435,7 +1436,7 @@ def test_provider_stall_counts_reach_run_json_and_the_redacted_artifact(tmp_path
     run = {
         "agent": "opencode:fake/model",
         "harness": {"name": "opencode", "version": "0", "model": "fake/model"},
-        "contract": driver.agentic_contract(),
+        "contract": agentic_contract(),
         "seeds": [11],
         "seasons": 1,
         "max_nudges": 5,
@@ -1645,7 +1646,7 @@ def test_silent_kill_counts_reach_run_json_and_the_redacted_artifact(tmp_path: P
     run = {
         "agent": "opencode:fake/model",
         "harness": {"name": "opencode", "version": "0", "model": "fake/model"},
-        "contract": driver.agentic_contract(),
+        "contract": agentic_contract(),
         "seeds": [11],
         "seasons": 1,
         "max_nudges": 5,

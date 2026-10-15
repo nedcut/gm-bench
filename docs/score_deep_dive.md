@@ -22,6 +22,8 @@ replayed from their ledgers); the scripted policies play public seeds.
   dice, one point of C's end-state score predicts 1.0 point of later
   winning value (slope 1.01 +/- 0.06; 0.95 +/- 0.05 with a different
   manager). The models' asset deficits turn into real future losses.
+- **Update: the missing future value was mostly a draft bug** (section 8,
+  queue item 18), fixed in the 2.1 draft.
 - **Model order is robust; "beats `pick-trader`" is not.** Halving or
   raising any weight by half never reorders the rows much (Kendall tau
   0.88 or more) and never flips a sign except on rows within 5 points of
@@ -226,6 +228,39 @@ gains +29.1 (se 4.4) under E, ahead on 21 of 24 seeds, again by winning
 more in every season (+0.6, +0.5, +1.5, +1.6, +1.8 wins against
 `pick-trader`) and keeping more assets (total +5.5, young +3.4 under C's
 weights); expected titles 0.70 against 0.49.
+
+## 8. Update: where the missing value went
+
+The ~35-point continuation offset (section 2) turned out to be mostly a
+simulator bug, not a missing score term (`docs/bench_v2_1_queue.md` item
+18). When the user holds two picks in one draft and leaves one unused, 1.0
+skips every opponent slot between them. Scripted policies draft once, so
+`pick-trader`, which acquires picks, leaves opponents about 12 draftees
+short per episode on public seeds 11-22 (43 opponent picks against
+`strategic`'s 55) and about 17 on the private panel. Its league stays weaker
+for years, and every team compared with it inherits the gap. No published
+model episode triggered it.
+
+`continuation21` reruns the continuation check under the 2.1 rules (records
+reset, score-v2 weights) on seeds 11-58, with 1.0's draft and with the fix
+(`continuation21_pick-trader.json`):
+
+| Policy vs `pick-trader` | Residual, 1.0 draft | Residual, draft fixed |
+|---|---|---|
+| `strategic` | -9.6 (3.3) | -5.0 (3.6) |
+| `shrewd` | -12.2 (3.3) | -8.5 (3.8) |
+| `value` | -12.8 (3.7) | -7.7 (3.7) |
+| canaries | -8.2 to -10.3 | -4.0 to -5.2 |
+| Pooled intercept (free slope) | -11.5 (2.2) | -9.6 (2.4) |
+
+(Residual: five-season future winning value gap minus end-state gap, in
+score-v2 points.) What remains is mostly the picks `pick-trader` takes from
+opponents, which weakens them legitimately. Scoring it would mean rewarding
+weaker opponents, which also rewards fleecing the scripted teams, so it is
+left unscored. Inside the five-season episode the bug was worth about 2
+points to `pick-trader` under score-v1 and about 4 under 2.1, so the
+published 2.0 lifts against `pick-trader` are understated by at most a few
+points.
 
 ## What this changes
 

@@ -70,12 +70,12 @@ from gm_bench.agentic.container import (
     driver_listen_host,
     ensure_image,
 )
-from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import DEFAULT_PHASE_GUARD_SECONDS, AgenticEpisode
 from gm_bench.agentic.harness import HarnessDriver
 from gm_bench.agentic.mcp_server import EPISODE_ENV, SocketMcpServer
 from gm_bench.agentic.prompt_check import PromptCheckError
 from gm_bench.agentic.provenance import driver_digest, driver_provenance
+from gm_bench.agentic.versions import contract_block, episode_class, replay_ledger, resolve
 from gm_bench.agents import external_agent_environment
 from gm_bench.protocol import PHASES
 from gm_bench.runner import summarize_episodes
@@ -985,6 +985,7 @@ def run_episode(
     run_dir: Path,
     seasons: int = 5,
     user_team_id: int = 0,
+    contract_version: str | None = None,
     binary: str = "opencode",
     variant: str | None = None,
     phase_guard_seconds: float = DEFAULT_PHASE_GUARD_SECONDS,
@@ -1019,7 +1020,7 @@ def run_episode(
 
     # The engine and the seed live here, in this process, for the whole
     # episode. Harness restarts and nudges reconnect to the same engine.
-    episode = AgenticEpisode(
+    episode = episode_class(contract_version)(
         seed, seasons, user_team_id, ledger_path=ledger_path, phase_guard_seconds=phase_guard_seconds
     )
     launch = HarnessLaunch(
@@ -1653,13 +1654,15 @@ def tool_call_agreement(agentic: dict[str, Any], telemetry: dict[str, Any]) -> d
     return {"ledger": ledger, "harness": harness, "agree": ledger == harness}
 
 
-def finalize_episode(ledger_path: Path, *, seed: int, seasons: int, user_team_id: int) -> AgenticEpisode:
+def finalize_episode(
+    ledger_path: Path, *, seed: int, seasons: int, user_team_id: int, contract_version: str | None = None
+) -> AgenticEpisode:
     """Rebuild the episode from its ledger and close whatever the harness left open."""
     if ledger_path.exists() and ledger_path.stat().st_size > 0:
-        episode = AgenticEpisode.from_ledger(ledger_path)
+        episode = replay_ledger(ledger_path)
     else:
         # The harness never connected: every phase is a failed decision.
-        episode = AgenticEpisode(seed, seasons, user_team_id, ledger_path=ledger_path)
+        episode = episode_class(contract_version)(seed, seasons, user_team_id, ledger_path=ledger_path)
     if not episode.done:
         episode.abandon()
     return episode
@@ -1671,6 +1674,7 @@ def run_panel(
     model: str,
     run_dir: Path,
     seasons: int = 5,
+    contract_version: str | None = None,
     binary: str = "opencode",
     variant: str | None = None,
     phase_guard_seconds: float = DEFAULT_PHASE_GUARD_SECONDS,
@@ -1736,6 +1740,7 @@ def run_panel(
     image: Cursor does, because its servers add account content whatever the
     isolation.
     """
+    contract_version = resolve(contract_version)
     driver = driver if driver is not None else OPENCODE_DRIVER
     if isolation not in DRIVER_ISOLATION:
         raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
@@ -1780,6 +1785,7 @@ def run_panel(
                 run_dir=run_dir,
                 episode_dir=run_dir / name,
                 seasons=seasons,
+                contract_version=contract_version,
                 binary=binary,
                 variant=variant,
                 phase_guard_seconds=phase_guard_seconds,
@@ -1831,7 +1837,7 @@ def run_panel(
         # Recorded by the driver from what it launched; agentic-redact will
         # not publish a stronger isolation than this.
         "isolation": isolation,
-        "contract": agentic_contract(),
+        "contract": contract_block(contract_version),
         "driver": driver_record,
         # What the harness would send the model, checked before the first episode; None when not asked for.
         "prompt_check": check,
