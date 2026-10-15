@@ -70,6 +70,13 @@ swaps the realized playoff terms for those expectations. Over seeds 101-160
 objective; the scripted-only fair run used the realized score in its
 rollouts and 8 worlds.)
 
+**Replication on fresh seeds 125-172** (48 seeds, after every setting
+above was fixed; `fair_generated_125_172.json`): the fair planner with
+generated moves beats `pick-trader` by **+25.4 luck-neutral (se 3.2),
+ahead on 44 of 48 seeds** (+31.9 real, se 8.8), and expected titles per
+five seasons rise from 0.68 to 0.88. The 1.5-se switching rule tuned on
+seeds 101-104 did not inflate the first estimate.
+
 What the rows say:
 
 1. **Seeing the dice is worth about 130 points, and almost all of it is the
@@ -174,8 +181,9 @@ published rows.
   an earlier menu in which the "no offer accepts" variant filtered the
   wrong action name and so duplicated `pick-trader`; the later runs use the
   fixed menu.
-- 24 seeds; the 1.5-se switching rule was picked after a 4-seed trial on
-  seeds 101-104, which are inside the reported set.
+- The 1.5-se switching rule was picked after a 4-seed trial on seeds
+  101-104, inside the first 24-seed set; the 48-seed replication on
+  125-172 is clear of it.
 - Under the wins-never-reset bug (`docs/bench_v2_1_queue.md` item 15) the
   `recent_wins` term weights early seasons most, which these searches
   optimize like any other term. A fixed contract would move every number
