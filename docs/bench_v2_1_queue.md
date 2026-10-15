@@ -170,4 +170,6 @@ fixed.
     minimum detectable difference from 32.6 to 18.4 points and changed no
     row's direction (`docs/score_ceiling.md`). Scoring expected playoff
     value changes no simulation, so existing ledgers can be rescored
-    exactly; best-of series would need new runs.
+    exactly; best-of series would need new runs. A concrete scoring rule
+    covering this item and the scoring half of item 15 is drafted in
+    [score_v2_proposal.md](score_v2_proposal.md).

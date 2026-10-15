@@ -100,13 +100,16 @@ playoff luck no agent controls.
 
 ## Rescoring the published 2.0 rows
 
-`scripts/luck_neutral_rescore.py` replays each episode ledger of a raw 2.0
+`scripts/score_v2.py panels` replays each episode ledger of a raw 2.0
 panel run through the frozen engine (the replay `agentic-validate` does),
 records the expected playoff outcome each season, and plays `pick-trader`
 on the same private seed. No model is called. Every replay reproduced its
 recorded score and every row's published mean and `pick-trader` mean
-(249.18). Aggregates only (no seeds, no per-episode scores) are in
-`results/diagnostics/score_ceiling/rescore_2_0_panels.json`.
+(249.18). The luck-neutral columns below are its candidate `A`; aggregates
+only (no seeds, no per-episode scores) are in
+`results/diagnostics/score_ceiling/score_v2_panels.json`. The candidate
+scoring rule these results led to is in
+[score_v2_proposal.md](score_v2_proposal.md).
 
 Six of the eleven published panel rows have their raw run directory on the
 machine this ran on; the other five (`claude-haiku-4-5`, `claude-sonnet-5`,
