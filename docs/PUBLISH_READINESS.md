@@ -88,7 +88,7 @@ owner actions still open on 2026-09-03 are done (rechecked 2026-09-22):
   from the site footer.
 
 **GM-Bench 2.0 release checklist (last reviewed 2026-10-14).** The contract
-is frozen and eleven panel rows are on the site; the release is not tagged.
+is frozen and twelve panel rows are on the site; the release is not tagged.
 
 - [x] Contract frozen as `gm-bench-2.0` at agentic fingerprint
   `07de948a4f4afbae` on 2026-09-25 (#149), with all five pre-panel gates in
@@ -109,11 +109,13 @@ is frozen and eleven panel rows are on the site; the release is not tagged.
   2026-10-13), Claude Code `claude-sonnet-5-5` (container, published
   2026-10-14, admitted under the post-hoc guessed-signing rule adopted the
   same day), Claude Code `claude-opus-5-5` (container, published
-  2026-10-14).
+  2026-10-14), OpenCode 2.0.27 `opencode-go/muse-spark-1.3-contributor`
+  (container, published 2026-10-14; OpenCode's cost figure is at a
+  discounted data-sharing tier, so the site shows a list-price estimate).
 - [x] Pre-release documentation audit: freeze rule restated, post-freeze
   changes listed with the rows they affected, realized panel noise (MDD
   about 31 to 36 points against `pick-trader` for the two rows near it at
-  the time; about 20 to 36 across the eleven rows now in the spec), how 2.0 differs from 1.0
+  the time; about 20 to 36 across the twelve rows now in the spec), how 2.0 differs from 1.0
   beyond the interface, deferred contract changes in
   `docs/bench_v2_1_queue.md`, and per-row caveats on the site.
 - [x] Driver and publication fixes from the same audit merged in #169
@@ -128,10 +130,11 @@ is frozen and eleven panel rows are on the site; the release is not tagged.
   validate committed rows without credentials or model spending, with
   explicit limits on reproducing withheld raw evidence and private seeds.
 - [x] [Findings draft](blog/gm-bench-2.0-findings.md) reconciled with all
-  eleven committed panel rows and their cost disclosures (updated
+  twelve committed panel rows and their cost disclosures (updated
   2026-10-12 for the DeepSeek row, 2026-10-13 for the `gpt-6.1-sol`,
   `claude-haiku-5-5`, `gpt-6-astra` and OpenCode 2.0.27 DeepSeek rows, and
-  2026-10-14 for the `claude-sonnet-5-5` and `claude-opus-5-5` rows).
+  2026-10-14 for the `claude-sonnet-5-5`, `claude-opus-5-5` and
+  `muse-spark-1.3-contributor` rows).
 - [ ] Owner approves the findings text for final publication. It remains
   labelled draft; updating it does not cut a release.
 - [ ] Owner cuts the tag and GitHub release and moves the CHANGELOG entry

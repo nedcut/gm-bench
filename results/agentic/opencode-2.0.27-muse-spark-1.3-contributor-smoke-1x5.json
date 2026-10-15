@@ -1,0 +1,463 @@
+{
+  "agent": "opencode:opencode-go/muse-spark-1.3-contributor",
+  "agentic_summary": {
+    "api_equivalent_cost_episodes": 1,
+    "api_equivalent_cost_usd": 2.491267,
+    "api_equivalent_long_context_possible": null,
+    "api_equivalent_recorded": {
+      "api_equivalent_cost_episodes": null,
+      "api_equivalent_cost_usd": null,
+      "api_equivalent_long_context_possible": null
+    },
+    "compactions": 0,
+    "mean_tool_calls_per_episode": 154.0,
+    "mean_wall_seconds": 346.3,
+    "nudges_used": 0,
+    "phases_ended_by": {
+      "agent": 20
+    },
+    "provider_stall_wait_seconds": 0.0,
+    "provider_stalls": 0,
+    "silent_harness_kills": 0,
+    "tool_calls_by_tool": {
+      "accept_trade_offer": 3,
+      "claim_waiver": 1,
+      "draft": 5,
+      "end_phase": 20,
+      "extend_contract": 25,
+      "get_rules": 1,
+      "get_status": 21,
+      "get_team": 6,
+      "list_draft_class": 5,
+      "list_free_agents": 11,
+      "list_offers": 5,
+      "list_trade_market": 1,
+      "list_waiver_wire": 3,
+      "reject_trade_offer": 12,
+      "scout": 16,
+      "set_lineup": 8,
+      "sign_free_agent": 6,
+      "write_memo": 5
+    }
+  },
+  "contract": {
+    "agentic_fingerprint": "07de948a4f4afbae",
+    "base_benchmark_version": "sota-v5",
+    "base_contract_fingerprint": "a600b7da0c302231",
+    "benchmark_version": "gm-bench-2.0",
+    "brief": "gm-bench-agentic-brief-v1",
+    "scoring_scale_fingerprint": "05a60ff4f691e734",
+    "scoring_version": "score-v1",
+    "simulator_version": "sim-v4",
+    "tool_surface": "gm-bench-agentic-v1"
+  },
+  "driver": {
+    "changed_during_run": false,
+    "driver_digest": "0c20d2de9ce62901",
+    "driver_files": [
+      "gm_bench/agentic/_opencode_launch.py",
+      "gm_bench/agentic/_proxy.py",
+      "gm_bench/agentic/claude.py",
+      "gm_bench/agentic/codex.py",
+      "gm_bench/agentic/container.py",
+      "gm_bench/agentic/cursor.py",
+      "gm_bench/agentic/harness.py",
+      "gm_bench/agentic/opencode.py",
+      "gm_bench/agentic/prompt_check.py"
+    ],
+    "git_driver_clean": true,
+    "git_head": "3b82ca17e9192dffcf47c3f3c5a5894ae3672f11"
+  },
+  "effective_reasoning_effort": {
+    "note": "OpenCode's event stream reports no effort; requested is the --variant passed to it",
+    "reported": null,
+    "requested": null
+  },
+  "empty_phases": {
+    "count": 2,
+    "definition": "a closed phase whose every ledger tool call (if any) was get_status or end_phase: the agent read nothing beyond the status and made no move",
+    "phases": 20
+  },
+  "episodes": [
+    {
+      "agentic": {
+        "moves_accepted": 64,
+        "moves_rejected": 1,
+        "phase_guard_seconds": 1200.0,
+        "phases": [
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 1,
+            "seconds": 44.381,
+            "tool_calls": 18
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 1,
+            "seconds": 4.194,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 1,
+            "seconds": 10.196,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 1,
+            "seconds": 9.799,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 2,
+            "seconds": 24.754,
+            "tool_calls": 12
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 2,
+            "seconds": 9.657,
+            "tool_calls": 4
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 2,
+            "seconds": 9.766,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 2,
+            "seconds": 10.399,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 3,
+            "seconds": 46.962,
+            "tool_calls": 18
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 3,
+            "seconds": 3.339,
+            "tool_calls": 1
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 3,
+            "seconds": 12.001,
+            "tool_calls": 5
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 3,
+            "seconds": 8.697,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 4,
+            "seconds": 44.754,
+            "tool_calls": 16
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 4,
+            "seconds": 7.056,
+            "tool_calls": 2
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 4,
+            "seconds": 14.99,
+            "tool_calls": 6
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 4,
+            "seconds": 9.33,
+            "tool_calls": 3
+          },
+          {
+            "ended_by": "agent",
+            "phase": "preseason",
+            "season": 5,
+            "seconds": 48.599,
+            "tool_calls": 17
+          },
+          {
+            "ended_by": "agent",
+            "phase": "midseason",
+            "season": 5,
+            "seconds": 4.887,
+            "tool_calls": 1
+          },
+          {
+            "ended_by": "agent",
+            "phase": "trade_deadline",
+            "season": 5,
+            "seconds": 15.362,
+            "tool_calls": 6
+          },
+          {
+            "ended_by": "agent",
+            "phase": "draft",
+            "season": 5,
+            "seconds": 6.915,
+            "tool_calls": 3
+          }
+        ],
+        "phases_ended_by": {
+          "agent": 20
+        },
+        "scout_points_used": 15,
+        "tool_calls": 154,
+        "tool_calls_by_tool": {
+          "accept_trade_offer": 3,
+          "claim_waiver": 1,
+          "draft": 5,
+          "end_phase": 20,
+          "extend_contract": 25,
+          "get_rules": 1,
+          "get_status": 21,
+          "get_team": 6,
+          "list_draft_class": 5,
+          "list_free_agents": 11,
+          "list_offers": 5,
+          "list_trade_market": 1,
+          "list_waiver_wire": 3,
+          "reject_trade_offer": 12,
+          "scout": 16,
+          "set_lineup": 8,
+          "sign_free_agent": 6,
+          "write_memo": 5
+        },
+        "tool_surface": "gm-bench-agentic-v1"
+      },
+      "championships": 1,
+      "decisions": 20,
+      "empty_phases": 2,
+      "failed_decisions": 0,
+      "final_score": 281.564,
+      "harness_run": {
+        "ended_by_provider": null,
+        "ended_by_quota": null,
+        "exit_code": 0,
+        "final_exit_code": 0,
+        "guard_kills": 0,
+        "max_provider_wait_seconds": 21600.0,
+        "nudges": [],
+        "nudges_used": 0,
+        "nudges_without_progress": 0,
+        "provider_stall_wait_seconds": 0.0,
+        "provider_stalls": 0,
+        "proxy_connections": 1,
+        "quota_pauses": [],
+        "server_drained": true,
+        "silent_kills": 0,
+        "timed_out": false,
+        "tool_call_agreement": {
+          "agree": true,
+          "harness": 154,
+          "ledger": 154
+        },
+        "wall_seconds": 346.327
+      },
+      "illegal_actions": 1,
+      "index": 0,
+      "malformed_decisions": 0,
+      "memo_writes": 5,
+      "protocol_penalty": 2.5,
+      "seed": 11,
+      "seed_group": 0,
+      "strategy_score": 284.064,
+      "usage": {
+        "api_calls": 153,
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 14379288,
+        "cost_usd": 0.051901,
+        "harness": {
+          "api_equivalent_cost_usd": 2.491267,
+          "api_equivalent_recomputed": {
+            "driver_digest": "0c20d2de9ce62901",
+            "from": "recorded token counts",
+            "recorded": {
+              "api_equivalent_cost_usd": null,
+              "billed_by_harness": null,
+              "cost_basis": null,
+              "long_context_requests_possible": null,
+              "pricing_source": null
+            }
+          },
+          "billed_by_harness": false,
+          "cache_write_tokens": 0,
+          "compactions": 0,
+          "cost_basis": "api-list-price-estimate",
+          "errors": 0,
+          "long_context_requests_possible": null,
+          "pricing_source": {
+            "cache_write_rate": "input (no cache-write price)",
+            "cached_input_rate": "cached",
+            "discounted_tier_key": "muse-spark-1.3-contributor",
+            "key": "muse-spark-1.3",
+            "verified": "2026-10-14"
+          },
+          "telemetry_reported": true,
+          "token_source": "session_export",
+          "tool_events": {
+            "gm-bench_accept_trade_offer": 3,
+            "gm-bench_claim_waiver": 1,
+            "gm-bench_draft": 5,
+            "gm-bench_end_phase": 20,
+            "gm-bench_extend_contract": 25,
+            "gm-bench_get_rules": 1,
+            "gm-bench_get_status": 21,
+            "gm-bench_get_team": 6,
+            "gm-bench_list_draft_class": 5,
+            "gm-bench_list_free_agents": 11,
+            "gm-bench_list_offers": 5,
+            "gm-bench_list_trade_market": 1,
+            "gm-bench_list_waiver_wire": 3,
+            "gm-bench_reject_trade_offer": 12,
+            "gm-bench_scout": 16,
+            "gm-bench_set_lineup": 8,
+            "gm-bench_sign_free_agent": 6,
+            "gm-bench_write_memo": 5
+          }
+        },
+        "input_tokens": 14559169,
+        "output_tokens": 25770,
+        "reasoning_tokens": 15005,
+        "token_shape": "inclusive-v1",
+        "uncached_input_tokens": 179881
+      },
+      "wins": 284
+    }
+  ],
+  "grade": "smoke",
+  "harness": {
+    "container": {
+      "base_image": "node:22-bookworm-slim@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9",
+      "docker_server_version": "29.7.2",
+      "dockerfile_sha256": "68c6a0dff0b97c2a85583f9dd11ad67fa5d588c5a13c7e9786783c17e90c233f",
+      "egress": "public internet only: private, loopback, link-local and host-gateway addresses rejected, except DNS to the container's resolvers and the driver's port on the host gateway; no IPv6 beyond loopback",
+      "host_gateway": "172.17.0.1",
+      "image": "gm-bench-agentic-opencode:2.0.27-68c6a0dff0b9",
+      "image_id": "sha256:a86f8e52b0307a173bf1cd0660d9c337c29e563ed0e1232e9ab0724ba198c587",
+      "opencode_version": "2.0.27",
+      "runtime": "docker",
+      "workdir": "/work"
+    },
+    "model": "opencode-go/muse-spark-1.3-contributor",
+    "name": "opencode",
+    "variant": null,
+    "version": "2.0.27"
+  },
+  "isolation": "container",
+  "lane": "agentic",
+  "max_nudges": 20,
+  "max_provider_stall_wait_seconds": 21600.0,
+  "max_provider_stalls": 48,
+  "max_provider_wait_seconds": 21600.0,
+  "panel": {
+    "distinct_seeds": 1,
+    "seed_count": 1,
+    "seeds": [
+      11
+    ],
+    "sha256": "227ade269ad48a32493264031232e11f4ac65282427ae8098dc4b8f0a1544cab"
+  },
+  "phase_guard_seconds": 1200.0,
+  "prompt_check": {
+    "checked": false,
+    "problems": [],
+    "reason": "container isolation: only the scratch directory and a fresh home volume reach the harness"
+  },
+  "publication": {
+    "compacted_at_utc": "2026-10-15T01:00:01+00:00",
+    "format": "gm-bench-agentic-summary-v1",
+    "raw_artifact_sha256": "932a58c5e07868b29b8a16bfe7df2ed3f2ae2fc38307cdf362b66393247a5c5b",
+    "traces_included": false
+  },
+  "seasons": 5,
+  "silent_harness_seconds": 240.0,
+  "summary": {
+    "championships": 1,
+    "decision_failure_rate": 0.0,
+    "decisions": 20,
+    "failed_decisions": 0,
+    "failed_queries": 0,
+    "illegal_actions": 1,
+    "malformed_decisions": 0,
+    "malformed_rate": 0.0,
+    "mean_score": 281.564,
+    "mean_strategy_score": 284.064,
+    "mean_total_wins": 284,
+    "memo_writes": 5,
+    "query_declines": 1,
+    "rejected_offers": 0,
+    "score_stddev": 0.0,
+    "total_protocol_penalty": 2.5,
+    "unrecoverable_decisions": 0,
+    "unrecoverable_rate": 0.0,
+    "usage": {
+      "api_calls": 153,
+      "api_latency_ms": 0.0,
+      "cached_input_tokens": 14379288,
+      "calls_with_finish_reason": 0,
+      "cost_decisions": 20,
+      "cost_usd": 0.051901,
+      "decisions_with_usage": 20,
+      "harness_latency_ms": 0.0,
+      "input_tokens": 14559169,
+      "max_output_tokens_per_call": 1689,
+      "mean_input_tokens_per_decision": 727958.4,
+      "mean_output_tokens_per_decision": 1288.5,
+      "mean_reasoning_tokens_per_decision": 750.2,
+      "mean_tokens_per_decision": 729246.9,
+      "model": "opencode-go/muse-spark-1.3-contributor",
+      "output_tokens": 25770,
+      "protocol_repair_attempts": 0,
+      "protocol_repairs_succeeded": 0,
+      "provider": "opencode",
+      "reasoning_tokens": 15005,
+      "total_tokens": 14584939,
+      "truncated_calls": 0,
+      "upstream_provider": null,
+      "upstream_providers": []
+    },
+    "within_seed_score_stddev": 0.0
+  },
+  "validation": {
+    "audits": [
+      {
+        "auditable": true,
+        "clean": true,
+        "ids_exposed": 391,
+        "moves": 60
+      }
+    ],
+    "ok": true,
+    "problems": [],
+    "warnings": []
+  }
+}

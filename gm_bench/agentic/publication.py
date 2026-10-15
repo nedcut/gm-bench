@@ -39,6 +39,10 @@ artifact per row, produced by :func:`compact_agentic_run`, which
   Carlo test cannot resolve (no draw as extreme, so the runner reports 0.0)
   is stored as its bound, ``1 / (draws + 1)``, flagged
   ``sign_flip_p_value_upper_bound``;
+- prices each OpenCode episode's recorded tokens at the model's list price
+  when its discounted tier has a ``list_price_key`` in ``pricing.json``, beside the cost
+  OpenCode reports (``_list_price_opencode_episode``; a discounted tier such as
+  Muse Spark 1.3 Contributor is priced at its undiscounted rates);
 - re-derives, for a Claude Code or Codex row, each episode's API-equivalent
   cost from the retained ``claude-events.jsonl`` or ``codex-events.jsonl``
   with this checkout's parser and ``pricing.json``. The run recorded its cost
@@ -74,7 +78,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from gm_bench.agentic import claude, codex
+from gm_bench.agentic import claude, codex, opencode
 from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.cursor import prompt_audit_problems
 from gm_bench.agentic.opencode import TOKEN_SHAPE, _api_equivalent_summary, normalized_tokens
@@ -83,6 +87,7 @@ from gm_bench.agentic.provenance import driver_digest, provenance_problems, repr
 from gm_bench.agentic.validate import EMPTY_PHASE_DEFINITION, provider_ended, validate_run
 from gm_bench.publication import canonical_sha256
 from gm_bench.runner import _paired_analysis, _precise_mean_score, run_many_cached_baselines
+from gm_bench.telemetry import api_equivalent_cost_usd, model_price_entry
 
 AGENTIC_PUBLICATION_FORMAT = "gm-bench-agentic-summary-v1"
 RESULTS_DIR = Path("results") / "agentic"
@@ -228,7 +233,8 @@ _HARNESS_USAGE_KEYS = (
     "errors",
     # A harness that reports tokens but no cost (Codex): what those tokens would
     # cost at API list price, labelled as an estimate nobody was billed. Absent
-    # from runs recorded before the estimate existed, and from OpenCode runs.
+    # from runs recorded before the estimate existed. An OpenCode row gets it at
+    # redaction, beside the billed cost, only for a discounted tier with a list_price_key.
     "api_equivalent_cost_usd",
     "cost_basis",
     "billed_by_harness",
@@ -291,9 +297,14 @@ def compact_agentic_run(
     for episode, report in zip(episodes, validation["per_episode"], strict=True):
         _publish_recount(episode, report)
         episode["empty_phases"] = report.get("empty_phases")
-    if (raw.get("harness") or {}).get("name") in (claude.HARNESS_NAME, codex.HARNESS_NAME):
+    harness_name = (raw.get("harness") or {}).get("name")
+    if harness_name in (claude.HARNESS_NAME, codex.HARNESS_NAME):
         for episode, raw_episode in zip(episodes, raw_episodes, strict=True):
             _recost_episode(episode, raw_episode, run_path.parent, raw)
+    elif harness_name == opencode.HARNESS_NAME:
+        model = str((raw.get("harness") or {}).get("model") or "")
+        for episode, raw_episode in zip(episodes, raw_episodes, strict=True):
+            _list_price_opencode_episode(episode, raw_episode, model)
     agentic_summary = _published_agentic_summary(raw.get("agentic_summary"), episodes)
     empty = [episode["empty_phases"] for episode in episodes]
     artifact: dict[str, Any] = {
@@ -514,6 +525,51 @@ def _recost_episode(episode: dict[str, Any], raw_episode: dict[str, Any], run_di
     }
 
 
+def _list_price_opencode_episode(episode: dict[str, Any], raw_episode: dict[str, Any], model: str) -> None:
+    """Add an OpenCode episode's API-equivalent cost at list price, from its recorded token counts.
+
+    OpenCode reports its own cost (``cost_usd``), which on a discounted tier
+    (Muse Spark 1.3 Contributor on OpenCode Go) is far below the model's list
+    price. When ``pricing.json`` gives the model (its id without the
+    ``provider/`` prefix) a ``list_price_key``, the row also carries the tokens
+    at list price, labelled as an estimate nobody was billed, beside OpenCode's figure. The
+    driver records no such estimate, so the row keeps the recorded (empty)
+    fields under ``api_equivalent_recomputed``. Rows recorded before the shared
+    token shape are left alone: their input excludes cached tokens.
+    """
+    usage = raw_episode.get("usage") or {}
+    if usage.get("token_shape") != TOKEN_SHAPE:
+        return
+    entry = model_price_entry(model.rsplit("/", 1)[-1])
+    if entry is None:
+        return
+    tier, price = entry
+    # A discounted tier names its model's undiscounted entry (``list_price_key``).
+    list_key = price.get("list_price_key")
+    if not list_key:
+        return
+    estimate = api_equivalent_cost_usd(usage, list_key)
+    if estimate is None:
+        return
+    harness = episode["usage"]["harness"]
+    recorded = {key: harness.get(key) for key in _API_EQUIVALENT_KEYS}
+    source = {key: estimate[key] for key in ("verified", "cached_input_rate", "cache_write_rate")}
+    harness.update(
+        {
+            "api_equivalent_cost_usd": estimate["usd"],
+            "cost_basis": codex.COST_BASIS,
+            "billed_by_harness": False,
+            "pricing_source": {"key": estimate["pricing_key"], **source, "discounted_tier_key": tier},
+            "long_context_requests_possible": estimate["long_context_requests_possible"],
+        }
+    )
+    harness["api_equivalent_recomputed"] = {
+        "from": "recorded token counts",
+        "driver_digest": driver_digest(),
+        "recorded": recorded,
+    }
+
+
 def _published_agentic_summary(summary: Any, episodes: list[dict[str, Any]]) -> Any:
     """The run's ``agentic_summary`` with its API-equivalent fields taken from the published episodes.
 
@@ -522,9 +578,11 @@ def _published_agentic_summary(summary: Any, episodes: list[dict[str, Any]]) -> 
     (the driver's summary before 2026-09-28); the recorded fields are kept
     under ``api_equivalent_recorded``.
     """
-    if not isinstance(summary, dict) or not any(key in summary for key in _API_SUMMARY_KEYS):
+    if not isinstance(summary, dict):
         return summary
     fresh = _api_equivalent_summary(episodes)
+    if not fresh and not any(key in summary for key in _API_SUMMARY_KEYS):
+        return summary
     recorded = {key: summary.get(key) for key in _API_SUMMARY_KEYS}
     if not fresh or fresh == recorded:
         return summary

@@ -18,7 +18,7 @@ function tokenTotal(row: ModelRow, field: "input_tokens" | "output_tokens") {
 export const CHART_AXES: ChartAxis[] = [
   {
     id: "cost", label: "Cost per game", unit: "USD / game", defaultScale: "log",
-    definition: "Billed or harness-reported cost, otherwise an API list-price estimate. Estimates may be low at long context; select a model for its cost basis.",
+    definition: "Billed or harness-reported cost, otherwise an API list-price estimate; a cost reported at a discounted data-sharing tier's rates is shown at the model's list price. Estimates may be low at long context; select a model for its cost basis.",
     value: row => row.cost.usd, format: v => `$${num(v, 2)}`,
   },
   {
