@@ -1,0 +1,256 @@
+{
+  "seeds": [
+    11,
+    58
+  ],
+  "manager": "pick-trader",
+  "extra_seasons": 5,
+  "draft_fixed": {
+    "slope": {
+      "estimate": 0.888,
+      "se": 0.048
+    },
+    "intercept": {
+      "estimate": -9.55,
+      "se": 2.44
+    },
+    "rows": {
+      "random": {
+        "end_gap": {
+          "mean": -83.503,
+          "se": 2.041
+        },
+        "future_gap": {
+          "mean": -79.868,
+          "se": 4.021
+        },
+        "residual": {
+          "mean": 3.635,
+          "se": 3.871
+        }
+      },
+      "value": {
+        "end_gap": {
+          "mean": -45.616,
+          "se": 1.615
+        },
+        "future_gap": {
+          "mean": -53.313,
+          "se": 4.029
+        },
+        "residual": {
+          "mean": -7.697,
+          "se": 3.687
+        }
+      },
+      "shrewd": {
+        "end_gap": {
+          "mean": -3.985,
+          "se": 1.061
+        },
+        "future_gap": {
+          "mean": -12.531,
+          "se": 4.061
+        },
+        "residual": {
+          "mean": -8.547,
+          "se": 3.754
+        }
+      },
+      "strategic": {
+        "end_gap": {
+          "mean": -3.003,
+          "se": 0.818
+        },
+        "future_gap": {
+          "mean": -7.99,
+          "se": 3.616
+        },
+        "residual": {
+          "mean": -4.986,
+          "se": 3.552
+        }
+      },
+      "exploit": {
+        "end_gap": {
+          "mean": -55.287,
+          "se": 1.676
+        },
+        "future_gap": {
+          "mean": -60.473,
+          "se": 3.988
+        },
+        "residual": {
+          "mean": -5.187,
+          "se": 3.777
+        }
+      },
+      "pick-hoard": {
+        "end_gap": {
+          "mean": -55.73,
+          "se": 1.673
+        },
+        "future_gap": {
+          "mean": -59.748,
+          "se": 3.724
+        },
+        "residual": {
+          "mean": -4.018,
+          "se": 3.685
+        }
+      },
+      "cap-hoard": {
+        "end_gap": {
+          "mean": -62.946,
+          "se": 1.943
+        },
+        "future_gap": {
+          "mean": -67.408,
+          "se": 3.85
+        },
+        "residual": {
+          "mean": -4.461,
+          "se": 3.644
+        }
+      },
+      "accept-everything": {
+        "end_gap": {
+          "mean": -55.596,
+          "se": 1.787
+        },
+        "future_gap": {
+          "mean": -59.817,
+          "se": 3.928
+        },
+        "residual": {
+          "mean": -4.221,
+          "se": 3.804
+        }
+      }
+    }
+  },
+  "legacy_draft": {
+    "slope": {
+      "estimate": 0.951,
+      "se": 0.041
+    },
+    "intercept": {
+      "estimate": -11.45,
+      "se": 2.18
+    },
+    "rows": {
+      "random": {
+        "end_gap": {
+          "mean": -82.937,
+          "se": 2.12
+        },
+        "future_gap": {
+          "mean": -85.274,
+          "se": 4.424
+        },
+        "residual": {
+          "mean": -2.337,
+          "se": 3.844
+        }
+      },
+      "value": {
+        "end_gap": {
+          "mean": -45.05,
+          "se": 1.907
+        },
+        "future_gap": {
+          "mean": -57.816,
+          "se": 4.372
+        },
+        "residual": {
+          "mean": -12.766,
+          "se": 3.677
+        }
+      },
+      "shrewd": {
+        "end_gap": {
+          "mean": -3.418,
+          "se": 0.937
+        },
+        "future_gap": {
+          "mean": -15.66,
+          "se": 3.53
+        },
+        "residual": {
+          "mean": -12.241,
+          "se": 3.344
+        }
+      },
+      "strategic": {
+        "end_gap": {
+          "mean": -2.437,
+          "se": 0.972
+        },
+        "future_gap": {
+          "mean": -12.084,
+          "se": 3.517
+        },
+        "residual": {
+          "mean": -9.647,
+          "se": 3.285
+        }
+      },
+      "exploit": {
+        "end_gap": {
+          "mean": -54.721,
+          "se": 1.678
+        },
+        "future_gap": {
+          "mean": -65.014,
+          "se": 4.34
+        },
+        "residual": {
+          "mean": -10.293,
+          "se": 3.936
+        }
+      },
+      "pick-hoard": {
+        "end_gap": {
+          "mean": -54.601,
+          "se": 1.736
+        },
+        "future_gap": {
+          "mean": -62.751,
+          "se": 3.865
+        },
+        "residual": {
+          "mean": -8.15,
+          "se": 3.448
+        }
+      },
+      "cap-hoard": {
+        "end_gap": {
+          "mean": -62.38,
+          "se": 1.948
+        },
+        "future_gap": {
+          "mean": -72.052,
+          "se": 4.096
+        },
+        "residual": {
+          "mean": -9.671,
+          "se": 3.634
+        }
+      },
+      "accept-everything": {
+        "end_gap": {
+          "mean": -55.03,
+          "se": 1.813
+        },
+        "future_gap": {
+          "mean": -63.891,
+          "se": 3.716
+        },
+        "residual": {
+          "mean": -8.861,
+          "se": 3.308
+        }
+      }
+    }
+  }
+}

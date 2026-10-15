@@ -109,6 +109,14 @@ def install_hooks() -> None:
     League._simulate_playoffs = tracked_playoffs
     League._play_game = tracked_game
     League._score_v2_hooked = True
+    League._score_v2_originals = (simulate_playoffs, play_game)
+
+
+def uninstall_hooks() -> None:
+    """Undo ``install_hooks`` (tests share one process; workers never need to)."""
+    if getattr(League, "_score_v2_hooked", False):
+        League._simulate_playoffs, League._play_game = League._score_v2_originals
+        League._score_v2_hooked = False
 
 
 def per_season_wins(league: League) -> list[int]:

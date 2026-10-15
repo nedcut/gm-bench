@@ -65,6 +65,7 @@ DRIVER_SOURCES = (
     f"{_PACKAGE}/harness.py",  # the interface the shared loop calls
     f"{_PACKAGE}/opencode.py",  # OpenCode adapter and the shared episode loop
     f"{_PACKAGE}/prompt_check.py",  # proves what the harness would send the model before a panel
+    f"{_PACKAGE}/versions.py",  # picks the engine (2.0 or 2.1) a run plays and records its contract
 )
 #: Name the run's identity or document the package; change nothing about play.
 RECORD_SOURCES = (

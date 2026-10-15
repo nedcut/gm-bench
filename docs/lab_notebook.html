@@ -102,11 +102,61 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-10-15-v21">2026-10-15 · Building 2.1, and the draft bug behind the missing 35 points</a></li>
  <li><a href="#e-2026-10-15-stress">2026-10-15 · Stress-testing score-v2: recommend E, build 2.1</a></li>
  <li><a href="#e-2026-10-15-path">2026-10-15 · Plug in, deep dive, or overhaul?</a></li>
  <li><a href="#e-2026-10-15-v2">2026-10-15 · score-v1 vs the proposed score-v2</a></li>
  <li><a href="#e-2026-10-14-ceiling">2026-10-14 · How much headroom is above <code>pick-trader</code>?</a></li>
 </ol></nav>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-15-v21">
+<header><div class="date">2026-10-15</div><h2>Building 2.1, and the draft bug behind the missing 35 points</h2>
+<div class="tags"><span class="tag">docs/bench_v2_1_spec.md</span><span class="tag">gm_bench/v21/</span><span class="tag">queue item 18</span><span class="tag">continuation21_pick-trader.json</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>What happened:</b> while 2.1 was being built, the hunt for the ~35 points of future value <code>pick-trader</code> left behind found a <b>simulator bug</b>. When the GM holds two picks in one draft and uses one, 1.0 silently skips every opponent pick between them. <code>pick-trader</code> trips it in 29 of 32 private-panel episodes, so its whole league stays weaker. No published model episode ever triggered it. 2.1 fixes it.</div>
+
+<div class="stats">
+ <div class="stat"><div class="k">Opponent picks per episode behind <code>pick-trader</code></div><div class="v"><span class="old" style="color:var(--muted-foreground);font-weight:500;font-size:16px;text-decoration:line-through;margin-right:6px">43</span>53 <span class="sub">of 55</span></div></div>
+ <div class="stat"><div class="k">Published model episodes affected</div><div class="v">0 <span class="sub">of 384</span></div></div>
+ <div class="stat"><div class="k">2.1 contract checks</div><div class="v">all pass</div></div>
+ <div class="stat"><div class="k">1.0 / 2.0 fingerprints</div><div class="v">unchanged</div></div>
+</div>
+
+<div>
+ <h3>Opponents' draft picks per 5-season episode <span class="sub">· public seeds 11–22</span></h3>
+ <svg id="c-draft" width="100%" height="150"></svg>
+ <div class="sub">The remaining shortfall behind <code>pick-trader</code> under 2.1 is the picks it legitimately trades for.</div>
+</div>
+
+<div>
+ <h3>Unexplained future value, before and after the fix <span class="sub">· under 2.1 rules, seeds 11–58, 5 more seasons, same dice</span></h3>
+ <div class="legend"><span><i class="dotk" style="background:var(--chart-4)"></i>1.0 draft</span><span><i class="dotk" style="background:var(--chart-1)"></i>draft fixed</span><span>residual = future winning gap − end-state gap (0 = end state captures everything)</span></div>
+ <svg id="c-resid" width="100%" height="300"></svg>
+ <div class="sub">Each policy's leftover gap roughly halves. What remains is mostly picks <code>pick-trader</code> takes from opponents, which weakens them legitimately. Scoring "weaker opponents" would also reward fleecing the scripted teams, so it stays unscored. Inside the 5-season episode the bug was worth only ~2 points to <code>pick-trader</code> under v1 (~4 under 2.1). The 2.0 lifts are understated by at most a few points.</div>
+</div>
+
+<div>
+ <h3>What 2.1 is</h3>
+ <table>
+  <tr><th>Change</th><th>2.0</th><th>2.1</th></tr>
+  <tr><td>Team records</td><td>Running total since season 1</td><td>Reset each season</td></tr>
+  <tr><td>Playoff scoring</td><td>Single-game results</td><td>Exact expectation (same 9 / 35 weights)</td></tr>
+  <tr><td>Wins term</td><td>0.42 × running totals (seasons weighted 3,3,3,2,1)</td><td>1.02 × every season's own wins</td></tr>
+  <tr><td>Opponent draft</td><td>Skips slots behind an unused user pick</td><td>Uses every slot it owns</td></tr>
+  <tr><td>Tools, brief, calendar, guard, ledger</td><td colspan="2">Identical: the 2.1 engine subclasses the frozen 2.0 one</td></tr>
+ </table>
+ <div class="sub" style="margin-top:6px">Built in <code>gm_bench/v21/</code> without editing a single 1.0 or 2.0 contract file. Fingerprint <code>282dbf382c4ee56c</code>. <code>gm-bench agentic --contract 2.1</code>; the default stays 2.0. A free one-season smoke on <code>deepseek-v4.1-flash-free</code> ran end to end under 2.1.</div>
+</div>
+
+<div>
+ <h3>2.1 contract checks <span class="sub">· <code>validate-contract --contract 2.1</code>, seeds 11–34</span></h3>
+ <svg id="c-canary21" width="100%" height="260"></svg>
+ <div class="sub">Every asserted ordering passes with 2.0's margins unchanged. Tightest: <code>value</code> over accept-everything on strategy score, 30.4 against a 25 gate.</div>
+</div>
+
+<div class="decide"><b>Decided:</b> 2.1 = records reset + draft fix + score-v2 (E), no extra scoring term for the leftover gap. Weights stay as pre-registered (1.02 was not recalibrated after the draft fix). Queue items 1–14 stay out: they touch the 2.0 tool surface or brief, which 2.1 reuses unchanged. <b>Next:</b> a small paid round on the 2.0 private panel, pending the user's go-ahead.</div>
+</article>
 
 <!-- ======================================================================= -->
 <article class="entry" id="e-2026-10-15-stress">
@@ -329,7 +379,41 @@ function drawCeiling(){const s=svg('c-ceiling');
   mk(s,'text',{x:x(v+1.96*se)+6,y:y+4,'font-size':11,fill:css('--muted-foreground')},'+'+v)});
  s.setAttribute('height',H+22)}
 
-function drawAll(){drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
+
+// --- 2026-10-15 v21: opponent draft picks (seeds 11-22) ---
+function drawDraft(){const s=svg('c-draft');
+ const rows=[["strategic (1.0 or 2.1)",55.0,'--muted-foreground'],["pick-trader, 1.0",43.4,'--chart-4'],["pick-trader, 2.1",52.5,'--chart-1']];
+ const W=s.clientWidth,L=Math.min(170,W*.36),R=40,T=4,rh=34,x=v=>L+v/60*(W-L-R),H=T+rows.length*rh;
+ for(let t=0;t<=60;t+=10){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},t)}
+ rows.forEach(([n,v,c],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  const b=mk(s,'rect',{x:x(0),y:y-8,width:x(v)-x(0),height:16,rx:3,fill:css(c)});hover(b,`${n}: ${v} opponent picks per episode`);
+  mk(s,'text',{x:x(v)+6,y:y+4,'font-size':11,fill:css('--muted-foreground')},v)});
+ s.setAttribute('height',H+22)}
+
+// --- 2026-10-15 v21: residual by policy, 1.0 draft vs fixed (continuation21_pick-trader.json) ---
+function drawResidual(){const s=svg('c-resid');
+ const rows=[["random",-2.3,3.6],["value",-12.8,-7.7],["shrewd",-12.2,-8.5],["strategic",-9.6,-5.0],["exploit",-10.3,-5.2],["pick-hoard",-8.2,-4.0],["cap-hoard",-9.7,-4.5],["accept-everything",-8.9,-4.2]];
+ const W=s.clientWidth,L=Math.min(130,W*.3),R=12,T=6,rh=32,lo=-16,hi=6,x=v=>L+(v-lo)/(hi-lo)*(W-L-R),H=T+rows.length*rh;
+ for(let t=-15;t<=5;t+=5){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},sgn(t))}
+ rows.forEach(([n,a,b],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  mk(s,'line',{x1:x(a),x2:x(b),y1:y,y2:y,stroke:css('--border'),'stroke-width':3});
+  const p=mk(s,'circle',{cx:x(a),cy:y,r:5,fill:css('--chart-4'),stroke:css('--background'),'stroke-width':2});hover(p,`${n} · 1.0 draft: ${sgn(a)}`);
+  const q=mk(s,'circle',{cx:x(b),cy:y,r:5,fill:css('--chart-1'),stroke:css('--background'),'stroke-width':2});hover(q,`${n} · draft fixed: ${sgn(b)}`)});
+ s.setAttribute('height',H+22)}
+
+// --- 2026-10-15 v21: canary means under 2.1 (validate-contract --contract 2.1) ---
+function drawCanary21(){const s=svg('c-canary21');
+ const rows=[["pick-trader",252.6,'--chart-1'],["strategic",248.8,'--chart-1'],["shrewd",245.9,'--chart-1'],["value",178.2,'--chart-1'],["accept-everything",138.9,'--chart-3'],["pick-hoard",134.7,'--chart-3'],["exploit",121.7,'--chart-3'],["cap-hoard",118.3,'--chart-3']];
+ const W=s.clientWidth,L=Math.min(130,W*.3),R=44,T=4,rh=28,x=v=>L+v/280*(W-L-R),H=T+rows.length*rh;
+ for(let t=0;t<=250;t+=50){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},t)}
+ mk(s,'line',{x1:x(178.2-25),x2:x(178.2-25),y1:T,y2:H,stroke:css('--warning'),'stroke-dasharray':'4 3','stroke-width':1.5});
+ mk(s,'text',{x:x(178.2-25)+4,y:H-4,'font-size':10.5,fill:css('--warning')},'canary gate');
+ rows.forEach(([n,v,c],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  const b=mk(s,'rect',{x:x(0),y:y-7,width:x(v)-x(0),height:14,rx:3,fill:css(c)});hover(b,`${n}: ${v}`);
+  mk(s,'text',{x:x(v)+6,y:y+4,'font-size':11,fill:css('--muted-foreground')},v)});
+ s.setAttribute('height',H+22)}
+
+function drawAll(){drawDraft();drawResidual();drawCanary21();drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
 drawAll();addEventListener('resize',drawAll);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',drawAll);
 </script>

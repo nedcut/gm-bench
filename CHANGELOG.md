@@ -4,6 +4,20 @@ This changelog records public GM-Bench releases: what evidence each one freezes
 and what it does not claim. Frozen releases are never rerun or rewritten; a
 correction becomes a new contract version rather than an edit to an old one.
 
+## Draft — GM-Bench 2.1
+
+Built 2026-10-15; not released, no model rows. The 2.0 agentic lane with
+three simulator fixes (records reset each season, opponents keep every
+draft slot behind an unused user pick, playoff odds recorded) and a new
+scoring version, score-v2 (expected playoff value, every season's own
+wins). Same tools and brief as 2.0. Contract `gm-bench-2.1`, fingerprint
+`282dbf382c4ee56c`; 1.0 and 2.0 are untouched. Play with
+`gm-bench agentic --contract 2.1`; `agentic-validate` checks every run under
+its own contract; CI runs `validate-contract --contract 2.1`. Spec:
+`docs/bench_v2_1_spec.md`. The draft bug (queue item 18) touched no
+published model episode; it inflated the `pick-trader` reference by about
+2 points per episode under score-v1 (not significant).
+
 ## Unreleased — GM-Bench 2.0
 
 Work began 2026-09-20; the contract froze 2026-09-25; three panel-grade rows

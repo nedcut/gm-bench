@@ -79,12 +79,13 @@ from pathlib import Path
 from typing import Any
 
 from gm_bench.agentic import claude, codex, opencode
-from gm_bench.agentic.contract import agentic_contract
+from gm_bench.agentic.contract import AGENTIC_BENCHMARK_VERSION
 from gm_bench.agentic.cursor import prompt_audit_problems
 from gm_bench.agentic.opencode import TOKEN_SHAPE, _api_equivalent_summary, normalized_tokens
 from gm_bench.agentic.prompt_check import prompt_check_problems, unchecked_same_user
 from gm_bench.agentic.provenance import driver_digest, provenance_problems, reproducible_driver
 from gm_bench.agentic.validate import EMPTY_PHASE_DEFINITION, provider_ended, validate_run
+from gm_bench.agentic.versions import DEFAULT_VERSION, VERSIONS, contract_block
 from gm_bench.publication import canonical_sha256
 from gm_bench.runner import _paired_analysis, _precise_mean_score, run_many_cached_baselines
 from gm_bench.telemetry import api_equivalent_cost_usd, model_price_entry
@@ -394,6 +395,12 @@ def reference_contrast(raw: dict[str, Any]) -> dict[str, Any]:
     exactly on re-redaction. Nothing seed-level leaves this function:
     ``per_seed`` is emptied and no cache path or hit count is kept.
     """
+    version = (raw.get("contract") or {}).get("benchmark_version") or AGENTIC_BENCHMARK_VERSION
+    if version != AGENTIC_BENCHMARK_VERSION:
+        # The reference below plays the 1.0 simulator and score, which is 2.0's
+        # league; a 2.1 row would be paired with the wrong one. 2.1 rows are
+        # not publishable until a 2.1 lane (panel, reference pins) is frozen.
+        raise ValueError(f"{version} rows cannot be published yet: no frozen lane pairs them with a reference")
     raw_episodes = raw.get("episodes") or []
     seasons = raw.get("seasons")
     if not _is_int(seasons) or seasons < 1:
@@ -729,8 +736,15 @@ def validate_agentic_artifact(
     if artifact.get("lane") != "agentic":
         errors.append("lane must be 'agentic'")
 
-    expected = checkout_contract if checkout_contract is not None else agentic_contract()
     recorded = artifact.get("contract") or {}
+    if checkout_contract is not None:
+        expected = checkout_contract
+    elif (recorded.get("benchmark_version") or DEFAULT_VERSION) in VERSIONS:
+        # Each row is checked against the contract it was played under.
+        expected = contract_block(recorded.get("benchmark_version") or DEFAULT_VERSION)
+    else:
+        expected = {}
+        errors.append(f"contract.benchmark_version {recorded.get('benchmark_version')!r} is unknown to this checkout")
     for key in _CONTRACT_KEYS:
         if recorded.get(key) != expected.get(key):
             errors.append(f"contract.{key}: artifact has {recorded.get(key)!r}, checkout has {expected.get(key)!r}")
