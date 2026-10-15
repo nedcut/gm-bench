@@ -441,6 +441,14 @@ def _agentic_telemetry(
         if block.get("api_equivalent_cost_usd") is not None and block.get("billed_by_harness") is False
     ]
     estimate = sum(estimate_values) if estimate_values else None
+    # The reported cost is at a discounted tier's rates (Muse Spark 1.3 Contributor), so the
+    # estimate is the model's undiscounted list price for the same tokens.
+    tiers = {
+        (block.get("pricing_source") or {}).get("discounted_tier_key")
+        for block in estimates
+        if block.get("api_equivalent_cost_usd") is not None
+    }
+    discounted_tier = tiers.pop() if len(tiers) == 1 else None
     # Some episode may have crossed the long-context tier (True), none did (False), or some
     # episode could not tell and none did (None: its price entry names no threshold).
     flags = [block.get("long_context_requests_possible") for block in estimates if "api_equivalent_cost_usd" in block]
@@ -479,6 +487,7 @@ def _agentic_telemetry(
         "api_equivalent_cost_per_episode_usd": None if estimate is None else round(estimate / len(estimate_values), 4),
         "api_equivalent_cost_episodes": len(estimate_values),
         "api_equivalent_long_context_possible": long_context,
+        "api_equivalent_discounted_tier": discounted_tier,
         # Phases where the agent only read the status and ended the phase; None for rows redacted before
         # the count existed.
         "empty_phases": sum(empty) if empty and all(isinstance(value, int) for value in empty) else None,

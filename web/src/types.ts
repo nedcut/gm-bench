@@ -310,6 +310,10 @@ export interface AgenticLaneRow {
      * have been billed at the higher tier and the short-context estimate may be low. Null when
      * the model's price names no threshold, so no episode could tell. */
     api_equivalent_long_context_possible?: boolean | null;
+    /** The reported cost is at this discounted tier's rates (e.g. muse-spark-1.3-contributor,
+     * cheap because the provider may train on the traffic); the estimate is the model's
+     * undiscounted list price. Null or absent otherwise. */
+    api_equivalent_discounted_tier?: string | null;
     /** Phases where every tool call was get_status or end_phase: the agent read nothing beyond the
      * status and made no move. Null or absent for rows redacted before the count existed. */
     empty_phases?: number | null;

@@ -1,0 +1,830 @@
+{
+  "seeds": [
+    35,
+    130
+  ],
+  "calibration_ratio": 4.0215,
+  "calibrated_weight": 1.689,
+  "variants": {
+    "v1": {
+      "means": {
+        "random": 91.25,
+        "value": 184.628,
+        "shrewd": 242.575,
+        "strategic": 241.836,
+        "pick-trader": 251.132,
+        "exploit": 126.356,
+        "pick-hoard": 135.219,
+        "cap-hoard": 125.193,
+        "accept-everything": 135.125
+      },
+      "across_seed_sd": {
+        "random": 14.828,
+        "value": 41.212,
+        "shrewd": 42.75,
+        "strategic": 39.631,
+        "pick-trader": 45.474,
+        "exploit": 20.684,
+        "pick-hoard": 22.094,
+        "cap-hoard": 21.481,
+        "accept-everything": 25.723
+      },
+      "asserted": [
+        {
+          "winner": "pick-trader",
+          "loser": "value",
+          "mean": 66.505,
+          "sd": 52.919,
+          "se": 5.401,
+          "t": 12.313,
+          "ci95": [
+            55.919,
+            77.091
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 86,
+          "mde80": 15.131,
+          "ok": true
+        },
+        {
+          "winner": "shrewd",
+          "loser": "value",
+          "mean": 57.947,
+          "sd": 49.703,
+          "se": 5.073,
+          "t": 11.423,
+          "ci95": [
+            48.005,
+            67.89
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 86,
+          "mde80": 14.212,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "exploit",
+          "mean": 58.271,
+          "sd": 40.987,
+          "se": 4.183,
+          "t": 13.93,
+          "ci95": [
+            50.072,
+            66.471
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 93,
+          "mde80": 11.72,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "pick-hoard",
+          "mean": 49.409,
+          "sd": 39.008,
+          "se": 3.981,
+          "t": 12.41,
+          "ci95": [
+            41.606,
+            57.212
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 92,
+          "mde80": 11.154,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "cap-hoard",
+          "mean": 59.435,
+          "sd": 39.554,
+          "se": 4.037,
+          "t": 14.723,
+          "ci95": [
+            51.522,
+            67.347
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 94,
+          "mde80": 11.31,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "accept-everything",
+          "mean": 49.502,
+          "sd": 41.521,
+          "se": 4.238,
+          "t": 11.681,
+          "ci95": [
+            41.196,
+            57.808
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 88,
+          "mde80": 11.872,
+          "ok": true
+        }
+      ],
+      "all_asserted_ok": true,
+      "adjacent": {
+        "pick-trader - strategic": {
+          "mean": 9.296,
+          "sd": 47.378,
+          "se": 4.835,
+          "t": 1.922,
+          "ci95": [
+            -0.181,
+            18.773
+          ],
+          "sign_flip_p": 0.0593,
+          "ahead": 56,
+          "mde80": 13.547
+        },
+        "strategic - shrewd": {
+          "mean": -0.738,
+          "sd": 39.416,
+          "se": 4.023,
+          "t": -0.184,
+          "ci95": [
+            -8.623,
+            7.146
+          ],
+          "sign_flip_p": 0.8568,
+          "ahead": 49,
+          "mde80": 11.27
+        },
+        "pick-trader - shrewd": {
+          "mean": 8.558,
+          "sd": 47.744,
+          "se": 4.873,
+          "t": 1.756,
+          "ci95": [
+            -0.993,
+            18.108
+          ],
+          "sign_flip_p": 0.0809,
+          "ahead": 63,
+          "mde80": 13.652
+        }
+      }
+    },
+    "A": {
+      "means": {
+        "random": 91.97,
+        "value": 181.135,
+        "shrewd": 244.704,
+        "strategic": 246.889,
+        "pick-trader": 253.663,
+        "exploit": 128.183,
+        "pick-hoard": 135.097,
+        "cap-hoard": 123.573,
+        "accept-everything": 136.452
+      },
+      "across_seed_sd": {
+        "random": 15.173,
+        "value": 20.621,
+        "shrewd": 22.398,
+        "strategic": 21.935,
+        "pick-trader": 25.982,
+        "exploit": 17.78,
+        "pick-hoard": 18.261,
+        "cap-hoard": 15.722,
+        "accept-everything": 18.689
+      },
+      "asserted": [
+        {
+          "winner": "pick-trader",
+          "loser": "value",
+          "mean": 72.528,
+          "sd": 24.281,
+          "se": 2.478,
+          "t": 29.267,
+          "ci95": [
+            67.671,
+            77.385
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 96,
+          "mde80": 6.943,
+          "ok": true
+        },
+        {
+          "winner": "shrewd",
+          "loser": "value",
+          "mean": 63.57,
+          "sd": 22.844,
+          "se": 2.332,
+          "t": 27.265,
+          "ci95": [
+            59.0,
+            68.14
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 96,
+          "mde80": 6.532,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "exploit",
+          "mean": 52.952,
+          "sd": 19.576,
+          "se": 1.998,
+          "t": 26.503,
+          "ci95": [
+            49.036,
+            56.868
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 96,
+          "mde80": 5.597,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "pick-hoard",
+          "mean": 46.037,
+          "sd": 20.419,
+          "se": 2.084,
+          "t": 22.09,
+          "ci95": [
+            41.952,
+            50.122
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 94,
+          "mde80": 5.839,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "cap-hoard",
+          "mean": 57.562,
+          "sd": 21.468,
+          "se": 2.191,
+          "t": 26.27,
+          "ci95": [
+            53.267,
+            61.856
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 96,
+          "mde80": 6.139,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "accept-everything",
+          "mean": 44.683,
+          "sd": 21.089,
+          "se": 2.152,
+          "t": 20.76,
+          "ci95": [
+            40.464,
+            48.902
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 94,
+          "mde80": 6.03,
+          "ok": true
+        }
+      ],
+      "all_asserted_ok": true,
+      "adjacent": {
+        "pick-trader - strategic": {
+          "mean": 6.773,
+          "sd": 15.21,
+          "se": 1.552,
+          "t": 4.363,
+          "ci95": [
+            3.731,
+            9.816
+          ],
+          "sign_flip_p": 0.0001,
+          "ahead": 61,
+          "mde80": 4.349
+        },
+        "strategic - shrewd": {
+          "mean": 2.185,
+          "sd": 10.716,
+          "se": 1.094,
+          "t": 1.997,
+          "ci95": [
+            0.041,
+            4.328
+          ],
+          "sign_flip_p": 0.0476,
+          "ahead": 53,
+          "mde80": 3.064
+        },
+        "pick-trader - shrewd": {
+          "mean": 8.958,
+          "sd": 17.496,
+          "se": 1.786,
+          "t": 5.016,
+          "ci95": [
+            5.458,
+            12.458
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 64,
+          "mde80": 5.003
+        }
+      }
+    },
+    "B": {
+      "means": {
+        "random": 49.3,
+        "value": 117.868,
+        "shrewd": 178.152,
+        "strategic": 179.777,
+        "pick-trader": 186.642,
+        "exploit": 76.3,
+        "pick-hoard": 87.987,
+        "cap-hoard": 78.165,
+        "accept-everything": 82.385
+      },
+      "across_seed_sd": {
+        "random": 9.381,
+        "value": 15.138,
+        "shrewd": 19.013,
+        "strategic": 18.97,
+        "pick-trader": 20.435,
+        "exploit": 10.826,
+        "pick-hoard": 10.899,
+        "cap-hoard": 10.32,
+        "accept-everything": 11.998
+      },
+      "asserted": [
+        {
+          "winner": "pick-trader",
+          "loser": "value",
+          "mean": 68.774,
+          "sd": 20.881,
+          "se": 2.131,
+          "t": 32.27,
+          "ci95": [
+            64.597,
+            72.951
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 96,
+          "mde80": 5.971,
+          "ok": true
+        },
+        {
+          "winner": "shrewd",
+          "loser": "value",
+          "mean": 60.284,
+          "sd": 20.65,
+          "se": 2.108,
+          "t": 28.603,
+          "ci95": [
+            56.153,
+            64.415
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 96,
+          "mde80": 5.905,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "exploit",
+          "mean": 41.568,
+          "sd": 15.663,
+          "se": 1.599,
+          "t": 26.002,
+          "ci95": [
+            38.435,
+            44.701
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 95,
+          "mde80": 4.479,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "pick-hoard",
+          "mean": 29.88,
+          "sd": 15.772,
+          "se": 1.61,
+          "t": 18.562,
+          "ci95": [
+            26.725,
+            33.035
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 92,
+          "mde80": 4.51,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "cap-hoard",
+          "mean": 39.703,
+          "sd": 17.529,
+          "se": 1.789,
+          "t": 22.192,
+          "ci95": [
+            36.196,
+            43.209
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 95,
+          "mde80": 5.012,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "accept-everything",
+          "mean": 35.482,
+          "sd": 16.586,
+          "se": 1.693,
+          "t": 20.961,
+          "ci95": [
+            32.164,
+            38.8
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 94,
+          "mde80": 4.743,
+          "ok": true
+        }
+      ],
+      "all_asserted_ok": true,
+      "adjacent": {
+        "pick-trader - strategic": {
+          "mean": 6.865,
+          "sd": 13.888,
+          "se": 1.417,
+          "t": 4.843,
+          "ci95": [
+            4.087,
+            9.644
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 62,
+          "mde80": 3.971
+        },
+        "strategic - shrewd": {
+          "mean": 1.625,
+          "sd": 9.418,
+          "se": 0.961,
+          "t": 1.69,
+          "ci95": [
+            -0.259,
+            3.508
+          ],
+          "sign_flip_p": 0.0929,
+          "ahead": 54,
+          "mde80": 2.693
+        },
+        "pick-trader - shrewd": {
+          "mean": 8.49,
+          "sd": 15.69,
+          "se": 1.601,
+          "t": 5.302,
+          "ci95": [
+            5.351,
+            11.629
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 66,
+          "mde80": 4.486
+        }
+      }
+    },
+    "C": {
+      "means": {
+        "random": 78.415,
+        "value": 169.743,
+        "shrewd": 241.472,
+        "strategic": 243.904,
+        "pick-trader": 252.658,
+        "exploit": 110.766,
+        "pick-hoard": 132.558,
+        "cap-hoard": 116.199,
+        "accept-everything": 127.359
+      },
+      "across_seed_sd": {
+        "random": 14.978,
+        "value": 20.569,
+        "shrewd": 24.836,
+        "strategic": 24.32,
+        "pick-trader": 27.218,
+        "exploit": 15.943,
+        "pick-hoard": 18.839,
+        "cap-hoard": 18.739,
+        "accept-everything": 19.75
+      },
+      "asserted": [
+        {
+          "winner": "pick-trader",
+          "loser": "value",
+          "mean": 82.915,
+          "sd": 27.676,
+          "se": 2.825,
+          "t": 29.353,
+          "ci95": [
+            77.378,
+            88.451
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 96,
+          "mde80": 7.914,
+          "ok": true
+        },
+        {
+          "winner": "shrewd",
+          "loser": "value",
+          "mean": 71.73,
+          "sd": 25.541,
+          "se": 2.607,
+          "t": 27.517,
+          "ci95": [
+            66.62,
+            76.839
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 96,
+          "mde80": 7.303,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "exploit",
+          "mean": 58.977,
+          "sd": 21.334,
+          "se": 2.177,
+          "t": 27.086,
+          "ci95": [
+            54.709,
+            63.245
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 96,
+          "mde80": 6.1,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "pick-hoard",
+          "mean": 37.185,
+          "sd": 22.748,
+          "se": 2.322,
+          "t": 16.016,
+          "ci95": [
+            32.634,
+            41.736
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 90,
+          "mde80": 6.505,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "cap-hoard",
+          "mean": 53.544,
+          "sd": 25.44,
+          "se": 2.596,
+          "t": 20.622,
+          "ci95": [
+            48.455,
+            58.633
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 93,
+          "mde80": 7.274,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "accept-everything",
+          "mean": 42.383,
+          "sd": 24.392,
+          "se": 2.49,
+          "t": 17.025,
+          "ci95": [
+            37.504,
+            47.263
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 93,
+          "mde80": 6.975,
+          "ok": true
+        }
+      ],
+      "all_asserted_ok": true,
+      "adjacent": {
+        "pick-trader - strategic": {
+          "mean": 8.753,
+          "sd": 17.336,
+          "se": 1.769,
+          "t": 4.947,
+          "ci95": [
+            5.285,
+            12.221
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 65,
+          "mde80": 4.957
+        },
+        "strategic - shrewd": {
+          "mean": 2.432,
+          "sd": 12.923,
+          "se": 1.319,
+          "t": 1.844,
+          "ci95": [
+            -0.153,
+            5.017
+          ],
+          "sign_flip_p": 0.0706,
+          "ahead": 53,
+          "mde80": 3.695
+        },
+        "pick-trader - shrewd": {
+          "mean": 11.185,
+          "sd": 20.078,
+          "se": 2.049,
+          "t": 5.458,
+          "ci95": [
+            7.169,
+            15.202
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 66,
+          "mde80": 5.741
+        }
+      }
+    },
+    "D": {
+      "means": {
+        "random": 77.599,
+        "value": 169.273,
+        "shrewd": 241.46,
+        "strategic": 243.822,
+        "pick-trader": 252.312,
+        "exploit": 109.842,
+        "pick-hoard": 131.895,
+        "cap-hoard": 115.501,
+        "accept-everything": 127.204
+      },
+      "across_seed_sd": {
+        "random": 14.575,
+        "value": 18.473,
+        "shrewd": 23.878,
+        "strategic": 23.895,
+        "pick-trader": 25.727,
+        "exploit": 15.142,
+        "pick-hoard": 17.742,
+        "cap-hoard": 17.104,
+        "accept-everything": 17.741
+      },
+      "asserted": [
+        {
+          "winner": "pick-trader",
+          "loser": "value",
+          "mean": 83.038,
+          "sd": 26.244,
+          "se": 2.679,
+          "t": 31.001,
+          "ci95": [
+            77.788,
+            88.288
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 96,
+          "mde80": 7.504,
+          "ok": true
+        },
+        {
+          "winner": "shrewd",
+          "loser": "value",
+          "mean": 72.186,
+          "sd": 24.817,
+          "se": 2.533,
+          "t": 28.5,
+          "ci95": [
+            67.222,
+            77.151
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 96,
+          "mde80": 7.096,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "exploit",
+          "mean": 59.431,
+          "sd": 19.325,
+          "se": 1.972,
+          "t": 30.132,
+          "ci95": [
+            55.565,
+            63.297
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 96,
+          "mde80": 5.526,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "pick-hoard",
+          "mean": 37.379,
+          "sd": 20.246,
+          "se": 2.066,
+          "t": 18.09,
+          "ci95": [
+            33.329,
+            41.429
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 91,
+          "mde80": 5.789,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "cap-hoard",
+          "mean": 53.772,
+          "sd": 22.747,
+          "se": 2.322,
+          "t": 23.162,
+          "ci95": [
+            49.222,
+            58.323
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 95,
+          "mde80": 6.504,
+          "ok": true
+        },
+        {
+          "winner": "value",
+          "loser": "accept-everything",
+          "mean": 42.07,
+          "sd": 21.012,
+          "se": 2.145,
+          "t": 19.617,
+          "ci95": [
+            37.867,
+            46.273
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 94,
+          "mde80": 6.008,
+          "ok": true
+        }
+      ],
+      "all_asserted_ok": true,
+      "adjacent": {
+        "pick-trader - strategic": {
+          "mean": 8.49,
+          "sd": 16.825,
+          "se": 1.717,
+          "t": 4.944,
+          "ci95": [
+            5.124,
+            11.856
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 58,
+          "mde80": 4.811
+        },
+        "strategic - shrewd": {
+          "mean": 2.362,
+          "sd": 11.466,
+          "se": 1.17,
+          "t": 2.018,
+          "ci95": [
+            0.068,
+            4.656
+          ],
+          "sign_flip_p": 0.0461,
+          "ahead": 57,
+          "mde80": 3.278
+        },
+        "pick-trader - shrewd": {
+          "mean": 10.852,
+          "sd": 19.336,
+          "se": 1.973,
+          "t": 5.499,
+          "ci95": [
+            6.984,
+            14.72
+          ],
+          "sign_flip_p": 0.0,
+          "ahead": 68,
+          "mde80": 5.529
+        }
+      }
+    }
+  }
+}
