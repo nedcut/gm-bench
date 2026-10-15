@@ -123,3 +123,47 @@ clarifications for the next contract, not 2.0 changes.
     moves. The picks the status lists include the current season's,
     which cannot be traded. Name the window in the argument description or
     beside the listed picks.
+
+## Simulator and scoring
+
+Found 2026-10-14 while estimating the score ceiling
+([score_ceiling.md](score_ceiling.md)). Both change `gm_bench/simulator.py`
+or `gm_bench/scoring.py`, which the 1.0 contract fingerprints and 2.0 plays
+unchanged, so either fix is a new contract version on both lanes. Neither is
+fixed.
+
+15. **Team records never reset between seasons.** `League.simulate_season`
+    zeroes `wins` and `losses` only when no partial season was played, and
+    `simulate_partial_season` never zeroes them. Every episode plays the
+    midseason leg (`EpisodeConfig.include_midseason` is on, and the agentic
+    episode calls `prepare_midseason` too), so records accumulate over the
+    whole episode: a `pick-trader` season summary on seed 101 reads 17-16,
+    40-26, 58-41, 78-54, 94-71. The bug came in with the midseason port
+    (`afab3cd`). What it touches:
+    - `score_components` sums `summaries[-3:]` wins, which is cumulative
+      wins after seasons 3, 4 and 5, so per-season wins are weighted
+      3, 3, 3, 2, 1 instead of 0, 0, 1, 1, 1. The term meant to reward
+      recent results rewards early ones most, and is about 88 of
+      `pick-trader`'s ~238 points.
+    - Playoff qualification and seeding (top eight by `wins`), the draft
+      lottery group and slot order (`_inverse_standings`), and the
+      free-agent win signal (`_team_win_signal`, whose docstring promises
+      the current season's record) all read the running total.
+    - The public standings show the running total as the season record.
+    Fix: zero records at the start of each season (in
+    `simulate_partial_season` when it opens a season, or at the rollover in
+    `simulate_season`), then rescale `recent_win` if the term should keep
+    its share of the score.
+16. **Single-game playoffs dominate the score's variance.** The bracket is
+    one game per tie, and `playoff_rounds` plus `championships` are worth up
+    to 81 + 175 points. Replacing each season's realized playoff result with
+    its exact expectation given the playoff ratings (the "luck-neutral"
+    score in `scripts/ceiling_search.py`) leaves the `pick-trader` mean
+    unchanged (245.4 realized, 249.2 luck-neutral, difference -3.9 +/- 4.2
+    over seeds 101-160) and cuts its across-seed SD from 42.3 to 25.5:
+    about 64% of the score variance is playoff dice. A clairvoyant search
+    that sees those dice gains about 130 points over `pick-trader`, almost
+    all in playoff terms. Options for the next contract: best-of series,
+    scoring expected playoff value from the bracket (as the diagnostic
+    does), or lowering the playoff weights. Any of them should shrink the
+    panel's minimum detectable difference (about 30 points on 32 seeds).
