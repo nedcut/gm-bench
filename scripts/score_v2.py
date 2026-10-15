@@ -216,7 +216,10 @@ def run_baselines(seeds: list[int], jobs: int) -> dict[str, Any]:
     }
     for variant in VARIANTS:
         means = {name: round(statistics.mean(r[variant] for r in rows), 3) for name, rows in scores.items()}
-        sds = {name: round(statistics.stdev(r[variant] for r in rows), 3) for name, rows in scores.items()}
+        sds = {
+            name: round(statistics.stdev(r[variant] for r in rows), 3) if len(rows) > 1 else None
+            for name, rows in scores.items()
+        }
 
         def contrast(winner: str, loser: str) -> dict[str, Any]:
             return paired([w[variant] - lo[variant] for w, lo in zip(scores[winner], scores[loser])])
@@ -281,8 +284,9 @@ def _panel_job(ledger: Path) -> dict[str, Any]:
     episode, _marked = _replay(ledger)
     seed = int(json.loads(ledger.read_text(encoding="utf-8").splitlines()[0])["seed"])
     reference = play(AGENTS["pick-trader"](), seed)
-    result = ledger.parent / "result.json"
-    recorded = json.loads(result.read_text(encoding="utf-8")).get("final_score") if result.exists() else None
+    # Every episode must carry its recorded score, or a clean replay check
+    # would silently cover fewer episodes than it reports.
+    recorded = json.loads((ledger.parent / "result.json").read_text(encoding="utf-8"))["final_score"]
     return {"model": variant_scores(episode.league), "reference": variant_scores(reference), "recorded": recorded}
 
 
@@ -292,9 +296,7 @@ def run_panel(run_dir: Path, jobs: int) -> dict[str, Any]:
         raise SystemExit(f"{run_dir}: no episode-*/ledger.jsonl")
     with ProcessPoolExecutor(max_workers=max(1, jobs)) as pool:
         rows = list(pool.map(_panel_job, ledgers))
-    mismatches = sum(
-        1 for row in rows if row["recorded"] is not None and abs(row["recorded"] - round(row["model"]["v1"], 3)) > 1e-6
-    )
+    mismatches = sum(1 for row in rows if abs(row["recorded"] - round(row["model"]["v1"], 3)) > 1e-6)
     run = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
     return {
         "run": run_dir.name,
