@@ -130,7 +130,9 @@ Found 2026-10-14 while estimating the score ceiling
 ([score_ceiling.md](score_ceiling.md)). Both change `gm_bench/simulator.py`
 or `gm_bench/scoring.py`, which the 1.0 contract fingerprints and 2.0 plays
 unchanged, so either fix is a new contract version on both lanes. Neither is
-fixed.
+fixed. A hook-based prototype of the item 15 fix leaves the proposed
+scoring's contract checks intact ([score_deep_dive.md](score_deep_dive.md)
+section 6).
 
 15. **Team records never reset between seasons.** `League.simulate_season`
     zeroes `wins` and `losses` only when no partial season was played, and
@@ -173,3 +175,13 @@ fixed.
     exactly; best-of series would need new runs. A concrete scoring rule
     covering this item and the scoring half of item 15 is drafted in
     [score_v2_proposal.md](score_v2_proposal.md).
+17. **The end-state terms miss part of the future value `pick-trader`
+    leaves.** Handing every final league to one scripted manager for five
+    more seasons ([score_deep_dive.md](score_deep_dive.md) section 2), one
+    point of end-state score predicts about one point of later winning
+    value, but at equal end-state score every other team does about 35
+    points worse over five seasons than `pick-trader`'s, whoever manages
+    the continuation. Future picks and hidden potential do not explain it.
+    Model order is unaffected; the size, and for the top rows the sign, of
+    a lift against `pick-trader` depends on it. Find the missing quantity
+    before the next contract, or publish lifts with a horizon caveat.
