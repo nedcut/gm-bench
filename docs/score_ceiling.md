@@ -98,6 +98,58 @@ roughly the size of the panel's minimum detectable difference (about 30
 points on 32 seeds), and most of the remaining spread between seeds is
 playoff luck no agent controls.
 
+## Rescoring the published 2.0 rows
+
+`scripts/luck_neutral_rescore.py` replays each episode ledger of a raw 2.0
+panel run through the frozen engine (the replay `agentic-validate` does),
+records the expected playoff outcome each season, and plays `pick-trader`
+on the same private seed. No model is called. Every replay reproduced its
+recorded score and every row's published mean and `pick-trader` mean
+(249.18). Aggregates only (no seeds, no per-episode scores) are in
+`results/diagnostics/score_ceiling/rescore_2_0_panels.json`.
+
+Six of the eleven published panel rows have their raw run directory on the
+machine this ran on; the other five (`claude-haiku-4-5`, `claude-sonnet-5`,
+`gpt-6-luna`, `composer-2.5`, OpenCode 1.18.31 `deepseek-v4.1-flash`) were
+not rescored. The 1.0 rows were not rescored either: their committed
+artifacts are compact and the raw private-panel artifacts are not local.
+
+| Row (32 private seeds) | Real lift vs `pick-trader` (se) | p | MDE | Luck-neutral lift (se) | p | MDE |
+|---|---|---|---|---|---|---|
+| Codex `gpt-6-astra` | +39.2 (12.3) | 0.0033 | 34.5 | +43.4 (5.8) | <0.0001 | 16.1 |
+| Codex `gpt-6.1-sol` | +24.0 (11.5) | 0.0475 | 32.2 | +26.9 (5.6) | <0.0001 | 15.7 |
+| OpenCode 2.0.27 `deepseek-v4.1-flash` | -4.6 (10.8) | 0.671 | 30.2 | -11.2 (7.4) | 0.140 | 20.7 |
+| Claude Code `claude-sonnet-5-5` | -32.1 (12.1) | 0.0126 | 34.0 | -36.5 (7.0) | <0.0001 | 19.6 |
+| Claude Code `claude-opus-5-5` | -46.7 (12.4) | 0.0009 | 34.6 | -35.5 (7.1) | <0.0001 | 19.9 |
+| Claude Code `claude-haiku-5-5` | -46.5 (10.7) | 0.0002 | 29.9 | -60.2 (6.5) | <0.0001 | 18.3 |
+
+MDE is the paired difference detectable at 80% power and two-sided 5%
+(normal approximation). p is the runner's two-sided sign-flip test, which
+samples 20,000 flips at 32 seeds, so "<0.0001" means no sampled flip
+reached the observed mean.
+
+- **The panel gets about 44% more sensitive.** Mean MDE falls from 32.6 to
+  18.4 points with no new runs: the same 32 seeds measure what about 100
+  would under the realized score.
+- **No row changes direction, and the borderline calls resolve.**
+  `gpt-6.1-sol`'s +24.0 at p = 0.0475 fails a Holm correction across these
+  six rows; luck-neutral it is +26.9 (95% interval +15.9 to +37.9) and
+  passes. Every row except DeepSeek clears Holm luck-neutral. DeepSeek
+  stays "can't tell", but its interval narrows to -25.7 to +3.3.
+- **Playoff luck moved individual rows by up to 14 points.** `haiku-5-5`
+  won 26 titles against 18.0 expected and its gap widens from -46.5 to
+  -60.2; `opus-5-5` won 23 against 30.2 expected and its gap narrows from
+  -46.7 to -35.5. Realized, Opus trails Sonnet 5.5 by 14.6 points;
+  luck-neutral the two are level (213.0 and 212.0). The 2.0 lane publishes
+  no model-to-model ranking, but this is the kind of ordering the playoff
+  dice decide.
+
+Because the luck-neutral score changes no simulation, only the scoring, it
+could be adopted for existing ledgers without re-running any model. That is
+still a scoring-contract change, and it was chosen after seeing these
+results, so it belongs in the next contract, pre-registered, not applied to
+published rows.
+
 ## Caveats
 
 - **The fair planner uses the simulator as its model.** It knows the rules

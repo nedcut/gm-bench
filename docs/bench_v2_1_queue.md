@@ -165,5 +165,9 @@ fixed.
     that sees those dice gains about 130 points over `pick-trader`, almost
     all in playoff terms. Options for the next contract: best-of series,
     scoring expected playoff value from the bracket (as the diagnostic
-    does), or lowering the playoff weights. Any of them should shrink the
-    panel's minimum detectable difference (about 30 points on 32 seeds).
+    does), or lowering the playoff weights. Replaying six published 2.0
+    panel rows under the luck-neutral score (no model calls) cut their mean
+    minimum detectable difference from 32.6 to 18.4 points and changed no
+    row's direction (`docs/score_ceiling.md`). Scoring expected playoff
+    value changes no simulation, so existing ledgers can be rescored
+    exactly; best-of series would need new runs.

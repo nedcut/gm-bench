@@ -1,0 +1,230 @@
+[
+  {
+    "run": "codex-0.162.1-gpt-6-astra-panel-32x5",
+    "agent": "codex:gpt-6-astra",
+    "episodes": 32,
+    "replay_mismatches": [],
+    "mean_score": 288.417,
+    "mean_luck_neutral": 291.932,
+    "reference_mean": 249.18,
+    "reference_mean_luck_neutral": 248.523,
+    "titles": 41,
+    "expected_titles": 43.929,
+    "reference_titles": 18,
+    "reference_expected_titles": 17.314,
+    "real": {
+      "mean": 39.237,
+      "sd": 69.692,
+      "se": 12.32,
+      "ci95": [
+        15.09,
+        63.384
+      ],
+      "sign_flip_p": 0.0033,
+      "ahead": 20,
+      "mde80": 34.515
+    },
+    "luck_neutral": {
+      "mean": 43.409,
+      "sd": 32.599,
+      "se": 5.763,
+      "ci95": [
+        32.114,
+        54.704
+      ],
+      "sign_flip_p": 0.0,
+      "ahead": 29,
+      "mde80": 16.145
+    }
+  },
+  {
+    "run": "codex-0.162.1-gpt-6.1-sol-panel-32x5",
+    "agent": "codex:gpt-6.1-sol",
+    "episodes": 32,
+    "replay_mismatches": [],
+    "mean_score": 273.167,
+    "mean_luck_neutral": 275.444,
+    "reference_mean": 249.18,
+    "reference_mean_luck_neutral": 248.523,
+    "titles": 37,
+    "expected_titles": 37.76,
+    "reference_titles": 18,
+    "reference_expected_titles": 17.314,
+    "real": {
+      "mean": 23.987,
+      "sd": 65.037,
+      "se": 11.497,
+      "ci95": [
+        1.453,
+        46.521
+      ],
+      "sign_flip_p": 0.0475,
+      "ahead": 23,
+      "mde80": 32.21
+    },
+    "luck_neutral": {
+      "mean": 26.921,
+      "sd": 31.752,
+      "se": 5.613,
+      "ci95": [
+        15.92,
+        37.923
+      ],
+      "sign_flip_p": 0.0,
+      "ahead": 25,
+      "mde80": 15.725
+    }
+  },
+  {
+    "run": "opencode-2.0.27-deepseek-v4.1-flash-panel-32x5-mcpwait",
+    "agent": "opencode:opencode-go/deepseek-v4.1-flash",
+    "episodes": 32,
+    "replay_mismatches": [],
+    "mean_score": 244.586,
+    "mean_luck_neutral": 237.357,
+    "reference_mean": 249.18,
+    "reference_mean_luck_neutral": 248.523,
+    "titles": 24,
+    "expected_titles": 20.672,
+    "reference_titles": 18,
+    "reference_expected_titles": 17.314,
+    "real": {
+      "mean": -4.594,
+      "sd": 61.023,
+      "se": 10.788,
+      "ci95": [
+        -25.738,
+        16.55
+      ],
+      "sign_flip_p": 0.671,
+      "ahead": 12,
+      "mde80": 30.222
+    },
+    "luck_neutral": {
+      "mean": -11.165,
+      "sd": 41.827,
+      "se": 7.394,
+      "ci95": [
+        -25.658,
+        3.327
+      ],
+      "sign_flip_p": 0.1401,
+      "ahead": 13,
+      "mde80": 20.715
+    }
+  },
+  {
+    "run": "claude-sonnet-5-5-panel",
+    "agent": "claude:claude-sonnet-5-5",
+    "episodes": 32,
+    "replay_mismatches": [],
+    "mean_score": 217.06,
+    "mean_luck_neutral": 212.007,
+    "reference_mean": 249.18,
+    "reference_mean_luck_neutral": 248.523,
+    "titles": 22,
+    "expected_titles": 18.941,
+    "reference_titles": 18,
+    "reference_expected_titles": 17.314,
+    "real": {
+      "mean": -32.12,
+      "sd": 68.596,
+      "se": 12.126,
+      "ci95": [
+        -55.887,
+        -8.352
+      ],
+      "sign_flip_p": 0.0126,
+      "ahead": 11,
+      "mde80": 33.972
+    },
+    "luck_neutral": {
+      "mean": -36.516,
+      "sd": 39.654,
+      "se": 7.01,
+      "ci95": [
+        -50.255,
+        -22.776
+      ],
+      "sign_flip_p": 0.0,
+      "ahead": 6,
+      "mde80": 19.639
+    }
+  },
+  {
+    "run": "claude-2.1.281-opus-5-5-panel-32x5",
+    "agent": "claude:claude-opus-5-5",
+    "episodes": 32,
+    "replay_mismatches": [],
+    "mean_score": 202.496,
+    "mean_luck_neutral": 212.987,
+    "reference_mean": 249.18,
+    "reference_mean_luck_neutral": 248.523,
+    "titles": 23,
+    "expected_titles": 30.191,
+    "reference_titles": 18,
+    "reference_expected_titles": 17.314,
+    "real": {
+      "mean": -46.684,
+      "sd": 69.905,
+      "se": 12.358,
+      "ci95": [
+        -70.905,
+        -22.463
+      ],
+      "sign_flip_p": 0.0009,
+      "ahead": 7,
+      "mde80": 34.621
+    },
+    "luck_neutral": {
+      "mean": -35.535,
+      "sd": 40.185,
+      "se": 7.104,
+      "ci95": [
+        -49.459,
+        -21.612
+      ],
+      "sign_flip_p": 0.0,
+      "ahead": 6,
+      "mde80": 19.902
+    }
+  },
+  {
+    "run": "claude-2.1.281-haiku-5-5-panel-32x5",
+    "agent": "claude:claude-haiku-5-5",
+    "episodes": 32,
+    "replay_mismatches": [],
+    "mean_score": 202.665,
+    "mean_luck_neutral": 188.288,
+    "reference_mean": 249.18,
+    "reference_mean_luck_neutral": 248.523,
+    "titles": 26,
+    "expected_titles": 17.953,
+    "reference_titles": 18,
+    "reference_expected_titles": 17.314,
+    "real": {
+      "mean": -46.515,
+      "sd": 60.29,
+      "se": 10.658,
+      "ci95": [
+        -67.405,
+        -25.626
+      ],
+      "sign_flip_p": 0.0002,
+      "ahead": 9,
+      "mde80": 29.859
+    },
+    "luck_neutral": {
+      "mean": -60.234,
+      "sd": 36.944,
+      "se": 6.531,
+      "ci95": [
+        -73.035,
+        -47.434
+      ],
+      "sign_flip_p": 0.0,
+      "ahead": 2,
+      "mde80": 18.297
+    }
+  }
+]
