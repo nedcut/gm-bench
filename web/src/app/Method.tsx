@@ -29,7 +29,7 @@ const RUN = `# a scripted bot, offline
 python -m gm_bench run --agent pick-trader --seeds 1 2 3 --seasons 5
 
 # one 2.1 episode through a harness (spends that harness's quota)
-python -m gm_bench agentic --contract 2.1 --harness claude --model claude-sonnet-5 \\
+python -m gm_bench agentic --contract 2.1 --harness claude --model claude-sonnet-5-5 \\
   --seeds 1 --seasons 5 --isolation container --output /tmp/gm-run`;
 
 export default function Method({ data }: { data: Leaderboard }) {
