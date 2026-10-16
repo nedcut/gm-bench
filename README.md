@@ -44,7 +44,7 @@ family, and is never counted with the chat-lane rows; see
 Read the [v5 findings](docs/blog/sota-v5-findings.md), follow the
 [reproduction guide](docs/REPRODUCING_SOTA_V5_RELEASE.md), download the
 [tagged release](https://github.com/nedcut/gm-bench/releases/tag/sota-v5-publication-2026-09-03),
-or explore the [live leaderboard](https://nedcut.github.io/gm-bench/).
+or explore the [live leaderboard](https://gm-bench.pages.dev/).
 
 ## GM-Bench 2.0 status (archived)
 
@@ -180,7 +180,7 @@ rows are public; a 2.0 tag and GitHub release have not been cut.
 
 ## Play along
 
-The site's [Replays](https://nedcut.github.io/gm-bench/replays/) tab has 24 real
+The site's [Replays](https://gm-bench.pages.dev/replays/) tab has 24 real
 decisions taken from recorded episodes. Each one shows the situation and several
 options, where every option is a move some policy actually made from that same
 observation. There are no invented distractors. Pick one and the board reveals
@@ -339,7 +339,7 @@ follow the [clean-clone reproduction guide](docs/REPRODUCING_SOTA_V2_RELEASE.md)
 
 The phase-one study remains frozen under its literal `sota-v2` contract, and the
 findings and release linked above are its record; the site's [1.0
-archive](https://nedcut.github.io/gm-bench/v1/) shows the later `sota-v5` table.
+archive](https://gm-bench.pages.dev/v1/) shows the later `sota-v5` table.
 The terminal `sota-v3` and `sota-v4` smoke campaigns preserve the post-release
 simulator fixes and route outcomes; neither ever ran a panel. `sota-v5` is the
 current published contract and superseded them after v4's Qwen route proved
@@ -404,9 +404,9 @@ GM-Bench includes:
 
 ## Leaderboard & Website
 
-The [live site](https://nedcut.github.io/gm-bench/) leads with the GM-Bench 2.1
+The [live site](https://gm-bench.pages.dev/) leads with the GM-Bench 2.1
 panel rows; the GM-Bench 2.0 rows are on its [2.0
-archive](https://nedcut.github.io/gm-bench/v2/) page. The generated leaderboard
+archive](https://gm-bench.pages.dev/v2/) page. The generated leaderboard
 JSON (`web/src/data/leaderboard.json`) holds both and the archived `sota-v5`
 1.0 table, built only from committed artifacts.
 
@@ -443,8 +443,9 @@ python -m web.scripts.build_study         # refresh web/src/data/leaderboard.jso
 cd web && bun install && bun run dev      # local site
 ```
 
-The site in `web/` deploys to GitHub Pages automatically on pushes to `main`
-(`.github/workflows/pages.yml`).
+The site in `web/` is served at <https://gm-bench.pages.dev/> by Cloudflare Pages,
+which builds on pushes to `main` (root `web`, output `dist`). The older GitHub
+Pages workflow (`.github/workflows/pages.yml`) still runs until it is removed.
 
 The frozen phase-one headline API lane uses the common 4,096-token safety ceiling in
 [`config/sota_v2_lane.json`](config/sota_v2_lane.json), with native-minimum

@@ -82,7 +82,7 @@ owner actions still open on 2026-09-03 are done (rechecked 2026-09-22):
   no-credential verification path) on 2026-09-04 as `36e2d63`.
 - [x] Merged the site PR #132 on 2026-09-04 as `1f3cdcc` and deployed it.
   GitHub Pages serves `sota-v5` as the current result at
-  <https://nedcut.github.io/gm-bench/>.
+  <https://gm-bench.pages.dev/>.
 - [x] Published the v5 findings post in place: `docs/blog/sota-v5-findings.md`
   landed with #132 on 2026-09-04 and is linked from the top of `README.md` and
   from the site footer.
@@ -655,7 +655,7 @@ a PyPI or install-path decision.
   general-manager benchmark for evaluating long-horizon LLM planning, tool use,
   and decision quality."
 - [x] Add the deployed site as the repository homepage.
-  <https://nedcut.github.io/gm-bench/>.
+  <https://gm-bench.pages.dev/>.
 - [x] Add relevant topics such as `llm-evaluation`, `agents`, `benchmark`,
   `simulation`, `sports-analytics`, and `reproducible-research`. Set:
   `ai-evaluation`, `benchmark`, `llm`, `llm-evaluation`, `machine-learning`,
