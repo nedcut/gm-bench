@@ -71,17 +71,21 @@ This repo has two products:
   serial; run one harness at a time and smoke one short episode before a panel.
   Operator guide: `docs/agentic_lane.md`.
 
-### GM-Bench 2.1 draft (`gm_bench/v21/`, `--contract 2.1`)
+### GM-Bench 2.1 (`gm_bench/v21/`, `--contract 2.1`)
 
 - Built on top of 1.0 and 2.0 without editing either: `League21`, score-v2
   and `AgenticEpisode21` subclass or wrap the frozen code. Never put a 2.1
   change into a 1.0 or 2.0 contract source.
-- `gm_bench/v21/{rules,scoring,runner,episode}.py` are 2.1 contract
-  sources (fingerprint pinned in `tests/test_v21.py`). Until 2.1 is
-  released they may change, but only before any model row is played under
-  it; after that, a change is a new version. Spec: `docs/bench_v2_1_spec.md`.
-- `gm-bench agentic` defaults to 2.0. Paid 2.1 runs follow the same rules
-  as 2.0 (serial, smoke first, price checked first).
+- Frozen at fingerprint `282dbf382c4ee56c`: model rows exist under it, so
+  `gm_bench/v21/{rules,scoring,runner,episode}.py` must not change (pinned
+  in `tests/test_v21.py`); a change is a new version. Spec:
+  `docs/bench_v2_1_spec.md`.
+- Lane: `config/bench_v21_lane.json` (same private panel as 2.0, 2.1
+  reference pins); rows in `results/agentic_v21/`, 2.0 rows stay in
+  `results/agentic/`.
+- `gm-bench agentic` defaults to 2.0; pass `--contract 2.1` (the panel
+  launcher passes it through). Paid runs follow the 2.0 rules (serial
+  within a provider, smoke first, price checked first).
 
 ### Web (`web/`)
 

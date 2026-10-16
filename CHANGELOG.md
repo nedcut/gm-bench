@@ -4,9 +4,18 @@ This changelog records public GM-Bench releases: what evidence each one freezes
 and what it does not claim. Frozen releases are never rerun or rewritten; a
 correction becomes a new contract version rather than an edit to an old one.
 
-## Draft — GM-Bench 2.1
+## GM-Bench 2.1 — lane released 2026-10-16
 
-Built 2026-10-15; not released, no model rows. The 2.0 agentic lane with
+Lane config `config/bench_v21_lane.json`: the 2.0 private panel (32 seeds,
+5 seasons), with `pick-trader` 249.618 and `random` 87.479 played under the
+2.1 rules and score-v2 as its reference pins. `agentic-redact` and
+`agentic-validate` check each row against the lane of its own contract;
+CI validates `results/agentic_v21/` beside `results/agentic/`. First rows,
+the paid round's runs: `gpt-6.1-sol` +19.1, `deepseek-v4.1-flash` +1.2,
+`gpt-6-luna` -7.6, `claude-sonnet-5-5` -46.8 against `pick-trader`. Not yet
+on the site.
+
+Built 2026-10-15. The 2.0 agentic lane with
 three simulator fixes (records reset each season, opponents keep every
 draft slot behind an unused user pick, playoff odds recorded) and a new
 scoring version, score-v2 (expected playoff value, every season's own

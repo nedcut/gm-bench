@@ -591,6 +591,13 @@ against the raw `run.json` and that the artifact equals a fresh redaction of
 that run. CI cannot run it (raw runs stay with the operator), so run it
 yourself before committing any panel-grade row.
 
+A run played with `--contract 2.1` publishes the same way, into
+`results/agentic_v21/` instead of `results/agentic/`. Both commands read the
+contract from the run: the reference is played under the 2.1 rules and
+score-v2, and the row is checked against `config/bench_v21_lane.json`
+(same private panel, 2.1 reference pins) instead of
+`config/bench_v2_lane.json`.
+
 The artifact is the only thing committed. It keeps scores, telemetry, the
 contract block, the harness identity, and a hash of the seeds; it drops
 ledgers, event streams, commands, and paths, and it is bound to the raw

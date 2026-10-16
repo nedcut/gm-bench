@@ -81,7 +81,6 @@ from pathlib import Path
 from typing import Any
 
 from gm_bench.agentic import claude, codex, opencode
-from gm_bench.agents import AGENTS
 from gm_bench.agentic.contract import AGENTIC_BENCHMARK_VERSION
 from gm_bench.agentic.cursor import prompt_audit_problems
 from gm_bench.agentic.opencode import TOKEN_SHAPE, _api_equivalent_summary, normalized_tokens
@@ -89,11 +88,12 @@ from gm_bench.agentic.prompt_check import prompt_check_problems, unchecked_same_
 from gm_bench.agentic.provenance import driver_digest, provenance_problems, reproducible_driver
 from gm_bench.agentic.validate import EMPTY_PHASE_DEFINITION, provider_ended, validate_run
 from gm_bench.agentic.versions import DEFAULT_VERSION, VERSIONS, contract_block
-from gm_bench.v21 import contract as v21_contract
-from gm_bench.v21 import runner as v21_runner
+from gm_bench.agents import AGENTS
 from gm_bench.publication import canonical_sha256
 from gm_bench.runner import _paired_analysis, _precise_mean_score, run_many_cached_baselines
 from gm_bench.telemetry import api_equivalent_cost_usd, model_price_entry
+from gm_bench.v21 import contract as v21_contract
+from gm_bench.v21 import runner as v21_runner
 
 AGENTIC_PUBLICATION_FORMAT = "gm-bench-agentic-summary-v1"
 RESULTS_DIR = Path("results") / "agentic"
@@ -753,7 +753,9 @@ def validate_agentic_artifact(
     if lane is None:
         lane = load_lane_config(version=version)
     elif (lane.get("benchmark_version") or DEFAULT_VERSION) != version:
-        errors.append(f"the lane config is for {lane.get('benchmark_version') or DEFAULT_VERSION}, the row for {version}")
+        errors.append(
+            f"the lane config is for {lane.get('benchmark_version') or DEFAULT_VERSION}, the row for {version}"
+        )
     if checkout_contract is not None:
         expected = checkout_contract
     elif (recorded.get("benchmark_version") or DEFAULT_VERSION) in VERSIONS:
@@ -859,9 +861,7 @@ def validate_agentic_artifact(
         errors.append("a smoke row carries no reference contrast (spec, Panel design); drop the reference block")
     elif grade == "panel":
         errors.extend(_reference_errors(artifact.get("reference"), distinct, artifact.get("seasons"), candidate_mean))
-        pin_errors, pin_warnings = _reference_pin_errors(
-            artifact.get("reference"), artifact.get("seasons"), lane
-        )
+        pin_errors, pin_warnings = _reference_pin_errors(artifact.get("reference"), artifact.get("seasons"), lane)
         errors.extend(pin_errors)
         warnings.extend(pin_warnings)
 

@@ -1,8 +1,8 @@
 # GM-Bench 2.1: specification
 
-Built 2026-10-15. Its rules and weights were fixed before any model row was
-played under it; a first paid round (below) has since been played and
-passed, so they are now frozen: any change is a new version.
+Released 2026-10-16 as a lane, after its first paid round passed (below).
+The rules and weights here were fixed before any model row was played under
+2.1 and are now frozen: any change is a new version.
 
 2.1 is the 2.0 agentic lane (`docs/bench_v2_spec.md`) with three simulator
 fixes and a new scoring version. The tools, the task brief, the phase
@@ -171,14 +171,32 @@ zero under E and does not here.
 **Decision (operator, 2026-10-16):** release 2.1 as a lane on the same
 32-seed private panel; these four runs become its first rows.
 
-## Not yet done
+## Lane
 
-- **No 2.1 lane.** `agentic-redact` refuses 2.1 rows: there is no frozen
-  2.1 panel, reference pins or site section yet. A first paid round can
-  reuse the 2.0 private panel (same 32 seeds) so each model's 2.1 run pairs
-  seed by seed with its 2.0 row; a release panel should be larger
-  ([score_deep_dive.md](score_deep_dive.md) section 4 suggests about 50
-  seeds).
+Released 2026-10-16 (`config/bench_v21_lane.json`).
+
+- **Panel.** The 2.0 private panel: 32 seeds, 5 seasons, the same escrow
+  and the same order (the lane's `seed_panel` block is 2.0's, byte for
+  byte), so a model's 2.1 row pairs seed by seed with its 2.0 row. At
+  2.1's paired SD of 26-29 these 32 seeds detect a lift of about 13
+  points, as precise as about 50 seeds would be under score-v2 replayed on
+  2.0 games, so the panel was not enlarged.
+- **Reference.** `pick-trader` and `random` played under the 2.1 rules and
+  score-v2 (`gm_bench.v21.runner`) on the panel, pinned in the lane config:
+  249.618 and 87.479. `agentic-redact` computes a 2.1 row's reference this
+  way; `agentic-validate` checks each row against the lane of the contract
+  it was played under.
+- **Rows.** `results/agentic_v21/`, one artifact per row in the 2.0 format.
+  The first four are the round's runs (`gpt-6.1-sol`, `deepseek-v4.1-flash`,
+  `claude-sonnet-5-5`, `gpt-6-luna`). The pre-registration called them "not
+  publishable" because no lane existed then; the lane's pins come from
+  deterministic scripted play and depend on none of their results.
+- **Site.** Not yet shown; the site still shows the 2.0 rows rescored to
+  score-v2.
+
+## Not in 2.1
+
 - **2.0 queue items 1-14** (tool-surface, brief and audit fixes) are not in
   2.1: each touches a 2.0 contract source the 2.1 engine reuses unchanged.
-  They stay queued for a version that forks the tool surface or brief.
+  They stay queued for a version that forks the tool surface or brief, as
+  does item 17 (end-state value), which is open research.

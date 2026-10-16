@@ -46,7 +46,11 @@ def test_a_2_1_reference_is_played_under_the_2_1_rules() -> None:
 
 
 def test_an_unknown_contract_cannot_be_published() -> None:
-    raw = {"contract": {"benchmark_version": "gm-bench-9.9"}, "seasons": 1, "episodes": [{"seed": 11, "final_score": 1}]}
+    raw = {
+        "contract": {"benchmark_version": "gm-bench-9.9"},
+        "seasons": 1,
+        "episodes": [{"seed": 11, "final_score": 1}],
+    }
     with pytest.raises(ValueError, match="no lane"):
         reference_contrast(raw)
 
@@ -58,9 +62,10 @@ def test_committed_2_1_rows_validate_against_the_2_1_lane(path: Path) -> None:
     report = validate_agentic_artifact(artifact)
     assert report["ok"], report["errors"]
     assert artifact["grade"] == "panel"
-    assert artifact["reference"]["mean_score"] == load_lane_config(version=V21)["reference_scores"]["mean_scores"][
-        REFERENCE_AGENT
-    ]
+    assert (
+        artifact["reference"]["mean_score"]
+        == load_lane_config(version=V21)["reference_scores"]["mean_scores"][REFERENCE_AGENT]
+    )
 
 
 def test_rows_sit_in_the_directory_of_their_contract() -> None:
