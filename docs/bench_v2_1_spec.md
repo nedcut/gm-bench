@@ -198,10 +198,12 @@ Released 2026-10-16 (`config/bench_v21_lane.json`).
   pre-registered). The six 2.1 lifts keep the order of the 2.0 rows
   replayed under score-v2 (Kendall tau = 1; 0.87 against score-v1, where
   the two Claude 5.5 rows swap).
-- **Site.** Its own table (`agentic_v21_lane` in the site data), above the
-  2.0 board, each row against 2.1's `pick-trader`. No row is compared
-  across the two tables; the 2.0 board stays the full one until 2.1
-  covers most of its models.
+- **Site.** 2.1 is the site (decided 2026-10-16): the standings, headline,
+  score-vs-cost and tool-use sections show the 2.1 rows
+  (`agentic_v21_lane` in the site data), each against 2.1's
+  `pick-trader`. The 2.0 board, under score-v2, moved to a 2.0 archive
+  page (`/v2/`) linked from the footer. No row is compared across the two
+  contracts.
 
 ## Not in 2.1
 

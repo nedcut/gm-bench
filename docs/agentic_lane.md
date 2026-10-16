@@ -597,7 +597,7 @@ contract from the run: the reference is played under the 2.1 rules and
 score-v2, and the row is checked against `config/bench_v21_lane.json`
 (same private panel, 2.1 reference pins) instead of
 `config/bench_v2_lane.json`. `web/scripts/build_study.py` publishes every
-panel row there to the site's separate 2.1 table (`agentic_v21_lane`); no
+panel row there to the site's 2.1 standings (`agentic_v21_lane`); no
 rescore file is needed, because a 2.1 row is already score-v2.
 
 The artifact is the only thing committed. It keeps scores, telemetry, the

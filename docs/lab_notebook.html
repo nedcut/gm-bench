@@ -102,6 +102,7 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-10-16-site">2026-10-16 · 2.1 becomes the site; 2.0 moves to an archive page</a></li>
  <li><a href="#e-2026-10-16-opus-astra">2026-10-16 · Opus 5.5 and Astra under 2.1; 2.1 goes on the site</a></li>
  <li><a href="#e-2026-10-16-round">2026-10-16 · First 2.1 paid round: passed; release 2.1</a></li>
  <li><a href="#e-2026-10-15-site">2026-10-15 · The site moves to score-v2</a></li>
@@ -111,6 +112,16 @@ svg{display:block}
  <li><a href="#e-2026-10-15-v2">2026-10-15 · score-v1 vs the proposed score-v2</a></li>
  <li><a href="#e-2026-10-14-ceiling">2026-10-14 · How much headroom is above <code>pick-trader</code>?</a></li>
 </ol></nav>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-16-site">
+<header><div class="date">2026-10-16</div><h2>2.1 becomes the site; 2.0 moves to an archive page</h2>
+<div class="tags"><span class="tag">web/src/app/V2Archive.tsx</span><span class="tag">web/src/data/leaderboard.json</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> the morning's layout put the 2.1 table above the full 2.0 board, with the intro headline, filters, score-vs-cost and tool-use sections still on the 2.0 rows. <b>Showed:</b> the page led with a 2.0 verdict ("2 of 12 models") under a 2.1 table, two <code>pick-trader</code> lines on one page (250.1 under 2.0 score-v2, 249.6 under 2.1), and charts from a different contract than the table above them.</div>
+
+<div class="decide"><b>Decided (by the user):</b> make 2.1 the site now rather than waiting for it to cover most 2.0 models (reverses the "once 2.1 covers most" plan in the entry below). The standings, headline, score-vs-cost and tool-use sections, the filters and the side panel use the six 2.1 rows and 2.1's bots; the headline counts 2.1 rows against 2.1's <code>pick-trader</code> ("2 of 6 models beat pick-trader by more than the noise": <code>gpt-6-astra</code> and <code>gpt-6.1-sol</code>, whose intervals exclude zero). The 12-row 2.0 board, under score-v2 as before, moves to a 2.0 archive page linked from the footer beside the 1.0 archive. The footer names GM-Bench 2.1 and its fingerprint <code>282dbf382c4ee56c</code>. The 2.0 per-row caveats stay on the 2.0 rows; no 2.1 row carries one, since each is about a 2.0 run. The site data keeps both <code>agentic_lane</code> and <code>agentic_v21_lane</code>.</div>
+</article>
 
 <!-- ======================================================================= -->
 <article class="entry" id="e-2026-10-16-opus-astra">
