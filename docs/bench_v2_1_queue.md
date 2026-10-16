@@ -130,7 +130,9 @@ Found 2026-10-14 while estimating the score ceiling
 ([score_ceiling.md](score_ceiling.md)). Both change `gm_bench/simulator.py`
 or `gm_bench/scoring.py`, which the 1.0 contract fingerprints and 2.0 plays
 unchanged, so either fix is a new contract version on both lanes. Neither is
-fixed.
+fixed in 1.0 or 2.0. **Items 15, 16 and 18 are fixed in the 2.1 draft**
+([bench_v2_1_spec.md](bench_v2_1_spec.md)), built on top of both contracts
+without editing either.
 
 15. **Team records never reset between seasons.** `League.simulate_season`
     zeroes `wins` and `losses` only when no partial season was played, and
@@ -173,3 +175,30 @@ fixed.
     exactly; best-of series would need new runs. A concrete scoring rule
     covering this item and the scoring half of item 15 is drafted in
     [score_v2_proposal.md](score_v2_proposal.md).
+17. **The end-state terms miss part of the future value `pick-trader`
+    leaves.** Handing every final league to one scripted manager for five
+    more seasons ([score_deep_dive.md](score_deep_dive.md) section 2), one
+    point of end-state score predicts about one point of later winning
+    value, but at equal end-state score every other team did about 35
+    points worse over five seasons than `pick-trader`'s. **Explained,
+    2026-10-15: mostly item 18.** Under the 2.1 rules the per-policy
+    residual roughly halves with the draft fixed (`strategic` -9.6 to -5.0,
+    `value` -12.8 to -7.7, seeds 11-58; `score_deep_dive.py continuation21`);
+    what remains is mostly the picks `pick-trader` takes from opponents,
+    which is legitimate and not scored (section 8 there).
+18. **Opponents skip draft slots behind an unused user pick.**
+    `League.run_opponent_draft(before_user=False)` finds the user's window
+    again from the user's earliest *unexercised* slot. When the user holds
+    two picks in one draft and uses one, that is the unused later pick, so
+    every opponent slot between the two is never exercised. Scripted
+    policies draft once, so `pick-trader` (which acquires picks) triggers it
+    in 29 of 32 private-panel episodes, about 17 skipped opponent picks per
+    episode; on public seeds 11-22 opponents make 43 picks per episode
+    behind `pick-trader` against 55 behind `strategic`. No published model
+    episode triggered it (every owned opponent slot was used in all 384).
+    Inside the five-season episode it is worth about 2 points to
+    `pick-trader` under score-v1 (not significant) and about 4 under 2.1;
+    it compounds afterwards, because the opponents stay weaker. It is also
+    an exploit open to a model: acquire a second pick, leave it unused.
+    Fixed in 2.1 (`League21.run_opponent_draft`, which records where the
+    user's window opened).

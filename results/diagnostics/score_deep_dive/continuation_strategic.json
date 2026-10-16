@@ -1,0 +1,460 @@
+{
+  "manager": "strategic",
+  "extra_seasons": 5,
+  "scripted_seeds": [
+    11,
+    34
+  ],
+  "rows": [
+    {
+      "row": "codex-0.162.1-gpt-6-astra-panel-32x5",
+      "end_state_gap": {
+        "mean": -18.789,
+        "se": 3.133
+      },
+      "future_gap_3": {
+        "mean": -24.097,
+        "se": 4.013
+      },
+      "future_gap_5": {
+        "mean": -56.269,
+        "se": 6.369
+      }
+    },
+    {
+      "row": "codex-0.162.1-gpt-6.1-sol-panel-32x5",
+      "end_state_gap": {
+        "mean": -18.702,
+        "se": 3.24
+      },
+      "future_gap_3": {
+        "mean": -23.641,
+        "se": 4.481
+      },
+      "future_gap_5": {
+        "mean": -56.919,
+        "se": 6.467
+      }
+    },
+    {
+      "row": "codex-0.156.1-gpt-6-luna-panel-32x5",
+      "end_state_gap": {
+        "mean": -6.149,
+        "se": 2.659
+      },
+      "future_gap_3": {
+        "mean": -24.934,
+        "se": 5.275
+      },
+      "future_gap_5": {
+        "mean": -42.253,
+        "se": 8.705
+      }
+    },
+    {
+      "row": "opencode-1.18.31-deepseek-v4.1-flash-panel-32x5",
+      "end_state_gap": {
+        "mean": -20.957,
+        "se": 5.102
+      },
+      "future_gap_3": {
+        "mean": -33.708,
+        "se": 4.417
+      },
+      "future_gap_5": {
+        "mean": -60.608,
+        "se": 7.043
+      }
+    },
+    {
+      "row": "opencode-2.0.27-deepseek-v4.1-flash-panel-32x5-mcpwait",
+      "end_state_gap": {
+        "mean": -19.714,
+        "se": 4.201
+      },
+      "future_gap_3": {
+        "mean": -29.099,
+        "se": 5.16
+      },
+      "future_gap_5": {
+        "mean": -54.752,
+        "se": 7.423
+      }
+    },
+    {
+      "row": "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5",
+      "end_state_gap": {
+        "mean": -7.069,
+        "se": 3.597
+      },
+      "future_gap_3": {
+        "mean": -28.731,
+        "se": 5.956
+      },
+      "future_gap_5": {
+        "mean": -48.356,
+        "se": 9.609
+      }
+    },
+    {
+      "row": "claude-2.1.281-claude-sonnet-5-panel-32x5",
+      "end_state_gap": {
+        "mean": -26.948,
+        "se": 4.989
+      },
+      "future_gap_3": {
+        "mean": -36.638,
+        "se": 5.038
+      },
+      "future_gap_5": {
+        "mean": -60.454,
+        "se": 7.922
+      }
+    },
+    {
+      "row": "claude-sonnet-5-5-panel",
+      "end_state_gap": {
+        "mean": -41.608,
+        "se": 4.636
+      },
+      "future_gap_3": {
+        "mean": -44.783,
+        "se": 5.319
+      },
+      "future_gap_5": {
+        "mean": -73.37,
+        "se": 8.775
+      }
+    },
+    {
+      "row": "claude-2.1.281-opus-5-5-panel-32x5",
+      "end_state_gap": {
+        "mean": -67.143,
+        "se": 4.629
+      },
+      "future_gap_3": {
+        "mean": -56.337,
+        "se": 5.452
+      },
+      "future_gap_5": {
+        "mean": -97.145,
+        "se": 8.798
+      }
+    },
+    {
+      "row": "claude-2.1.281-haiku-5-5-panel-32x5",
+      "end_state_gap": {
+        "mean": -60.331,
+        "se": 3.794
+      },
+      "future_gap_3": {
+        "mean": -59.297,
+        "se": 5.062
+      },
+      "future_gap_5": {
+        "mean": -94.728,
+        "se": 8.447
+      }
+    },
+    {
+      "row": "claude-2.1.281-claude-haiku-4-5-panel-32x5",
+      "end_state_gap": {
+        "mean": -79.25,
+        "se": 5.116
+      },
+      "future_gap_3": {
+        "mean": -76.444,
+        "se": 3.899
+      },
+      "future_gap_5": {
+        "mean": -114.868,
+        "se": 5.966
+      }
+    },
+    {
+      "row": "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5",
+      "end_state_gap": {
+        "mean": -11.702,
+        "se": 4.618
+      },
+      "future_gap_3": {
+        "mean": -24.603,
+        "se": 5.27
+      },
+      "future_gap_5": {
+        "mean": -41.456,
+        "se": 8.466
+      }
+    },
+    {
+      "row": "random",
+      "end_state_gap": {
+        "mean": -81.938,
+        "se": 2.825
+      },
+      "future_gap_3": {
+        "mean": -71.959,
+        "se": 5.021
+      },
+      "future_gap_5": {
+        "mean": -107.511,
+        "se": 6.848
+      }
+    },
+    {
+      "row": "value",
+      "end_state_gap": {
+        "mean": -48.196,
+        "se": 2.54
+      },
+      "future_gap_3": {
+        "mean": -51.923,
+        "se": 4.566
+      },
+      "future_gap_5": {
+        "mean": -77.291,
+        "se": 6.804
+      }
+    },
+    {
+      "row": "shrewd",
+      "end_state_gap": {
+        "mean": -7.39,
+        "se": 1.748
+      },
+      "future_gap_3": {
+        "mean": -13.106,
+        "se": 3.64
+      },
+      "future_gap_5": {
+        "mean": -20.515,
+        "se": 5.991
+      }
+    },
+    {
+      "row": "strategic",
+      "end_state_gap": {
+        "mean": -5.668,
+        "se": 1.386
+      },
+      "future_gap_3": {
+        "mean": -8.257,
+        "se": 4.251
+      },
+      "future_gap_5": {
+        "mean": -18.523,
+        "se": 6.283
+      }
+    },
+    {
+      "row": "exploit",
+      "end_state_gap": {
+        "mean": -54.182,
+        "se": 2.62
+      },
+      "future_gap_3": {
+        "mean": -59.434,
+        "se": 5.027
+      },
+      "future_gap_5": {
+        "mean": -85.523,
+        "se": 7.034
+      }
+    },
+    {
+      "row": "pick-hoard",
+      "end_state_gap": {
+        "mean": -52.558,
+        "se": 2.549
+      },
+      "future_gap_3": {
+        "mean": -57.02,
+        "se": 4.234
+      },
+      "future_gap_5": {
+        "mean": -81.439,
+        "se": 6.159
+      }
+    },
+    {
+      "row": "cap-hoard",
+      "end_state_gap": {
+        "mean": -60.053,
+        "se": 2.608
+      },
+      "future_gap_3": {
+        "mean": -64.653,
+        "se": 4.832
+      },
+      "future_gap_5": {
+        "mean": -94.638,
+        "se": 7.496
+      }
+    },
+    {
+      "row": "accept-everything",
+      "end_state_gap": {
+        "mean": -53.522,
+        "se": 2.619
+      },
+      "future_gap_3": {
+        "mean": -61.584,
+        "se": 4.302
+      },
+      "future_gap_5": {
+        "mean": -90.595,
+        "se": 6.026
+      }
+    }
+  ],
+  "c_weights": {
+    "total_assets": 0.16,
+    "young_assets": 0.18,
+    "future_pick_assets": 0.16,
+    "cap_room": 0.35,
+    "current_strength": 0.28,
+    "roster_depth": 8.0
+  },
+  "fits": {
+    "3_seasons": {
+      "slope": {
+        "estimate": 0.661,
+        "se": 0.03
+      },
+      "slope_intercept": {
+        "estimate": -17.95,
+        "se": 1.62
+      },
+      "implied_weights": {
+        "intercept": {
+          "estimate": -20.9442,
+          "se": 1.9865
+        },
+        "total_assets": {
+          "estimate": 0.0204,
+          "se": 0.0551
+        },
+        "young_assets": {
+          "estimate": 0.1739,
+          "se": 0.0446
+        },
+        "future_pick_assets": {
+          "estimate": 0.9807,
+          "se": 0.3275
+        },
+        "cap_room": {
+          "estimate": -0.8262,
+          "se": 0.1756
+        },
+        "current_strength": {
+          "estimate": 0.328,
+          "se": 0.1088
+        },
+        "roster_depth": {
+          "estimate": -70.1261,
+          "se": 15.0402
+        }
+      }
+    },
+    "5_seasons": {
+      "slope": {
+        "estimate": 0.948,
+        "se": 0.048
+      },
+      "slope_intercept": {
+        "estimate": -34.24,
+        "se": 2.67
+      },
+      "implied_weights": {
+        "intercept": {
+          "estimate": -31.4396,
+          "se": 3.1791
+        },
+        "total_assets": {
+          "estimate": 0.0116,
+          "se": 0.0826
+        },
+        "young_assets": {
+          "estimate": 0.3348,
+          "se": 0.0676
+        },
+        "future_pick_assets": {
+          "estimate": 2.1025,
+          "se": 0.4757
+        },
+        "cap_room": {
+          "estimate": -1.031,
+          "se": 0.2763
+        },
+        "current_strength": {
+          "estimate": 0.3595,
+          "se": 0.1725
+        },
+        "roster_depth": {
+          "estimate": -93.0305,
+          "se": 23.3099
+        }
+      }
+    }
+  },
+  "pairs": 576,
+  "continuation_scores": {
+    "C": {
+      "separable": 8,
+      "mean_mde80": 18.3,
+      "lifts": {
+        "codex-0.162.1-gpt-6-astra-panel-32x5": 44.05,
+        "codex-0.162.1-gpt-6.1-sol-panel-32x5": 26.77,
+        "codex-0.156.1-gpt-6-luna-panel-32x5": -14.98,
+        "opencode-1.18.31-deepseek-v4.1-flash-panel-32x5": -3.4,
+        "opencode-2.0.27-deepseek-v4.1-flash-panel-32x5-mcpwait": -12.16,
+        "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5": -16.42,
+        "claude-2.1.281-claude-sonnet-5-panel-32x5": -13.98,
+        "claude-sonnet-5-5-panel": -35.49,
+        "claude-2.1.281-opus-5-5-panel-32x5": -34.64,
+        "claude-2.1.281-haiku-5-5-panel-32x5": -58.79,
+        "claude-2.1.281-claude-haiku-4-5-panel-32x5": -124.46,
+        "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5": -0.3
+      },
+      "kendall_tau_vs_C": 1.0
+    },
+    "F3": {
+      "separable": 6,
+      "mean_mde80": 23.96,
+      "lifts": {
+        "codex-0.162.1-gpt-6-astra-panel-32x5": 38.74,
+        "codex-0.162.1-gpt-6.1-sol-panel-32x5": 21.84,
+        "codex-0.156.1-gpt-6-luna-panel-32x5": -33.77,
+        "opencode-1.18.31-deepseek-v4.1-flash-panel-32x5": -16.15,
+        "opencode-2.0.27-deepseek-v4.1-flash-panel-32x5-mcpwait": -21.55,
+        "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5": -38.09,
+        "claude-2.1.281-claude-sonnet-5-panel-32x5": -23.67,
+        "claude-sonnet-5-5-panel": -38.67,
+        "claude-2.1.281-opus-5-5-panel-32x5": -23.83,
+        "claude-2.1.281-haiku-5-5-panel-32x5": -57.75,
+        "claude-2.1.281-claude-haiku-4-5-panel-32x5": -121.65,
+        "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5": -13.2
+      },
+      "kendall_tau_vs_C": 0.939
+    },
+    "F5": {
+      "separable": 10,
+      "mean_mde80": 29.36,
+      "lifts": {
+        "codex-0.162.1-gpt-6-astra-panel-32x5": 6.57,
+        "codex-0.162.1-gpt-6.1-sol-panel-32x5": -11.44,
+        "codex-0.156.1-gpt-6-luna-panel-32x5": -51.09,
+        "opencode-1.18.31-deepseek-v4.1-flash-panel-32x5": -43.05,
+        "opencode-2.0.27-deepseek-v4.1-flash-panel-32x5-mcpwait": -47.2,
+        "cursor-2026.09.26-dd393fe-composer-2.5-panel-32x5": -57.71,
+        "claude-2.1.281-claude-sonnet-5-panel-32x5": -47.49,
+        "claude-sonnet-5-5-panel": -67.26,
+        "claude-2.1.281-opus-5-5-panel-32x5": -64.64,
+        "claude-2.1.281-haiku-5-5-panel-32x5": -93.18,
+        "claude-2.1.281-claude-haiku-4-5-panel-32x5": -160.08,
+        "opencode-2.0.27-muse-spark-1.3-contributor-panel-32x5": -30.05
+      },
+      "kendall_tau_vs_C": 1.0
+    }
+  }
+}

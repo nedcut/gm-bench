@@ -43,10 +43,11 @@ from typing import Any
 
 from gm_bench.agentic import claude, codex, cursor, opencode
 from gm_bench.agentic.audit import SIGNING_POLICY, audit_ledger
-from gm_bench.agentic.contract import agentic_contract
 from gm_bench.agentic.episode import AgenticEpisode
 from gm_bench.agentic.opencode import harness_tool_calls
 from gm_bench.agentic.prompt_check import prompt_check_problems, unchecked_same_user
+from gm_bench.agentic.versions import DEFAULT_VERSION, VERSIONS, contract_block, replay_ledger
+from gm_bench.v21.episode import ledger_benchmark_version
 
 # The engine's reply to a call whose arguments were not a JSON object (``tools.validate_arguments``
 # via ``episode._execute``); the ledger then records ``arguments: {}``.
@@ -71,8 +72,15 @@ def validate_run(run_path: str | Path, *, audit_policy: str = SIGNING_POLICY) ->
     run_problems: list[str] = []
     run_warnings: list[str] = []
 
-    current = agentic_contract()
     recorded = run.get("contract") or {}
+    # Each run is checked against the contract it was played under, so a
+    # checkout that also plays 2.1 still validates every 2.0 run.
+    version = recorded.get("benchmark_version") or DEFAULT_VERSION
+    if version not in VERSIONS:
+        run_problems.append(f"contract.benchmark_version {version!r} is not a contract this checkout knows")
+        current: dict[str, Any] = {}
+    else:
+        current = contract_block(version)
     for key in _CONTRACT_KEYS:
         if recorded.get(key) != current.get(key):
             run_problems.append(f"contract.{key}: run has {recorded.get(key)!r}, checkout has {current.get(key)!r}")
@@ -100,7 +108,9 @@ def validate_run(run_path: str | Path, *, audit_policy: str = SIGNING_POLICY) ->
     problems = list(run_problems)
     warnings = list(run_warnings)
     for index, episode in enumerate(episodes):
-        report = _validate_episode(episode, run_path.parent, harness_name, audit_policy=audit_policy)
+        report = _validate_episode(
+            episode, run_path.parent, harness_name, audit_policy=audit_policy, contract_version=version
+        )
         per_episode.append(report)
         label = f"episode {index} (seed {episode.get('seed')})"
         problems.extend(f"{label}: {item}" for item in report["problems"])
@@ -191,11 +201,11 @@ def _replay(ledger_path: Path) -> tuple[AgenticEpisode, int]:
     records = [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     records, marked = replayable_ledger(records)
     if not marked:
-        return AgenticEpisode.from_ledger(ledger_path, reopen=False), 0
+        return replay_ledger(ledger_path, reopen=False), 0
     with tempfile.TemporaryDirectory(prefix="gmb-replay-") as directory:
         copy = Path(directory) / "ledger.jsonl"
         copy.write_text("".join(json.dumps(record, sort_keys=True) + "\n" for record in records), encoding="utf-8")
-        return AgenticEpisode.from_ledger(copy, reopen=False), marked
+        return replay_ledger(copy, reopen=False), marked
 
 
 # A phase is empty when the agent neither looked at anything beyond the status nor acted in it.
@@ -245,7 +255,12 @@ def _evidence_path(recorded: Any, run_dir: Path) -> Path | None:
 
 
 def _validate_episode(
-    episode: dict[str, Any], run_dir: Path, harness_name: str | None, *, audit_policy: str = SIGNING_POLICY
+    episode: dict[str, Any],
+    run_dir: Path,
+    harness_name: str | None,
+    *,
+    audit_policy: str = SIGNING_POLICY,
+    contract_version: str = DEFAULT_VERSION,
 ) -> dict[str, Any]:
     problems: list[str] = []
     warnings: list[str] = []
@@ -260,6 +275,9 @@ def _validate_episode(
     if ledger_path is None or not ledger_path.is_file():
         problems.append(f"ledger missing at {ledger_path}")
     else:
+        played_under = ledger_benchmark_version(ledger_path)
+        if played_under != contract_version:
+            problems.append(f"ledger was played under {played_under}, but the run records {contract_version}")
         try:
             rebuilt, skipped = _replay(ledger_path)
             if skipped:

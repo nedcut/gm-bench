@@ -15,6 +15,19 @@ _SPEC.loader.exec_module(score_v2)
 GAMES_PER_SEASON = 33
 
 
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _restore_league():
+    """The analysis hooks patch ``League`` for the whole process; undo them per test."""
+    yield
+    module = globals().get("score_v2") or globals()["deep_dive"].score_v2
+    module.uninstall_hooks()
+    if "deep_dive" in globals():
+        globals()["deep_dive"].uninstall_records_reset()
+
+
 def _played(seed: int = 11):
     score_v2.install_hooks()
     return score_v2.play(AGENTS["pick-trader"](), seed)

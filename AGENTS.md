@@ -9,6 +9,19 @@ other machines. Inspect the current environment before reporting a missing tool.
 Keep Claude and other subscription- or rate-limited CLI usage serial wherever the
 adapter runs. These instructions do not authorize paid model runs or publication.
 
+## Decision log (lab notebook)
+
+`docs/lab_notebook.html` is the internal record of how scoring, contract and
+methodology decisions were made (not the public site). Keep it in the loop:
+
+- **Before** working on scoring, contracts, the simulator's rules or a
+  methodology question, read its entries (newest first) so you build on what
+  was already tried and decided instead of re-deriving or contradicting it.
+- **After** a decision, or a finding that changes one, add a dated entry:
+  what was tried, what it showed, what was decided, with its charts.
+- Cite a committed diagnostic or published row for every number. Never put
+  private seeds or per-episode panel scores in it.
+
 ## Cursor Cloud specific instructions
 
 This repo has two products:
@@ -57,6 +70,18 @@ This repo has two products:
 - `agentic --harness claude` (and `codex`) spends subscription quota. The driver is
   serial; run one harness at a time and smoke one short episode before a panel.
   Operator guide: `docs/agentic_lane.md`.
+
+### GM-Bench 2.1 draft (`gm_bench/v21/`, `--contract 2.1`)
+
+- Built on top of 1.0 and 2.0 without editing either: `League21`, score-v2
+  and `AgenticEpisode21` subclass or wrap the frozen code. Never put a 2.1
+  change into a 1.0 or 2.0 contract source.
+- `gm_bench/v21/{rules,scoring,runner,episode}.py` are 2.1 contract
+  sources (fingerprint pinned in `tests/test_v21.py`). Until 2.1 is
+  released they may change, but only before any model row is played under
+  it; after that, a change is a new version. Spec: `docs/bench_v2_1_spec.md`.
+- `gm-bench agentic` defaults to 2.0. Paid 2.1 runs follow the same rules
+  as 2.0 (serial, smoke first, price checked first).
 
 ### Web (`web/`)
 
