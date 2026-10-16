@@ -113,6 +113,23 @@ clarifications for the next contract, not 2.0 changes.
     now, let contracts run out, and three of its 32 episodes ended with
     zero total assets and zero roster depth. State the timing in the
     brief.
+    **2.1 evidence, 2026-10-16** (`results/diagnostics/v21_behavior/behavior.json`): this is the largest
+    single source of the OpenAI-Claude gap. Paired by seed, the three
+    Codex rows lead `claude-opus-5-5` and `claude-sonnet-5-5` by 57.6
+    points, and 45.5 of them come from the end-of-run roster terms
+    (`family_gap.terms.end_roster`). Opus and Sonnet are scored on 4.56
+    and 4.69 players, against 15.9-16.5 for the Codex rows
+    (`end_of_run.roster_at_end`). 21 and 23 of their 32 episodes end
+    with 5 or fewer players. In the season-5 preseason they make 2.91 and
+    1.12 extensions per episode, against 11.06 for astra and 11.94 for
+    sol. All 140 and 149 of their season-5 signings are one-year deals.
+    Their final score is below the score after season 4 in 25 and 28 of
+    32 episodes (`episodes_final_below_after_season_4`). Their own
+    post-mortems give the reason: "the capped credit for future roster and
+    picks will be low". The word "capped" is a candidate cause. In score-v2
+    only cap room is clamped (-12 to +10). The total-asset, young-asset,
+    pick, strength and depth terms are linear. Drop "capped", or say
+    which part is capped, together with the timing.
 14. **The tradable pick-season window is not in the tool schema.** The
     `give_pick_seasons` and `receive_pick_seasons` arguments of `trade`
     and `counter_trade_offer` are described only as "draft seasons, e.g.
@@ -123,6 +140,104 @@ clarifications for the next contract, not 2.0 changes.
     moves. The picks the status lists include the current season's,
     which cannot be traded. Name the window in the argument description or
     beside the listed picks.
+    **2.1 evidence, 2026-10-16** (`results/diagnostics/v21_behavior/behavior.json`,
+    `penalized_rejections`): across the six committed 2.1 rows the window
+    causes 128 of the 285 penalized rejections (45%), in all six models.
+    115 of those 128 offered the current season's pick, which the status
+    lists among the team's picks (`rejections.pick_window_offering_current_season`).
+
+Recorded 2026-10-16 from the 2.1 behaviour diagnostic
+(`results/diagnostics/v21_behavior/behavior.json`, six committed 2.1 rows,
+192 replayed episodes). Each item changes a fingerprinted file (`brief.py`,
+`tools.py`, `episode.py`) unless it says otherwise. Counts are per row,
+summed over its 32 episodes.
+
+19. **The brief does not say when the season is played.** The rest of the
+    regular season (about two thirds of it) and the playoffs are
+    simulated when the **draft** phase closes (`AgenticEpisode._close_phase`
+    calls `simulate_season`). The roster and lineup in force at that moment
+    play them. The phase notes list the draft last, as "use your pick on a
+    prospect", and the deadline as "last trades before the playoffs".
+    They do not say that trades, signings and `set_lineup` stay open in
+    the draft. Models act as if the season ended at the deadline:
+    - Draftees left on the bench at draft close while outranking a dressed
+      player at their position (`lineups.draftees_benched_outranking_a_dressed_player`):
+      Sonnet 116 of 135, deepseek 103 of 141, luna 87 of 149, Opus 27 of
+      77, against sol 3 of 39 and astra 0 of 48.
+    - Sonnet set a lineup in none of its 160 draft phases
+      (`drafts.set_lineup_in_draft`).
+    - Across the six rows, models attempted 4 trades in the draft phase
+      and 271 at the deadline, and signed no free agents in the draft.
+
+    State the calendar in the brief and in the `end_phase` reply that
+    opens the draft.
+20. **A stored lineup persists, and new players dress only into empty
+    slots.** `League._effective_lineup` keeps every stored id still on the
+    roster and tops up with the best remaining players only to fill gaps.
+    A signing, trade or draftee therefore stays on the bench until the
+    agent calls `set_lineup` again. Neither the `set_lineup` description
+    nor the brief says so. Strength with the stored lineup minus the
+    engine's default lineup at draft close (`lineups.mean_gap_to_default_at_draft_close`):
+    Sonnet -1.61, luna -1.11, Opus -0.89, deepseek -0.26, sol -0.11, astra
+    -0.02. Draft closes more than 0.5 below the default: Sonnet 105, luna
+    86, Opus 58, deepseek 48, sol 7, astra 1, out of 160 each. Document
+    the persistence. Optionally show the default lineup's strength in
+    `get_status`.
+21. **Extension semantics are undocumented, and the price disagrees with
+    them.** `years` counts from the current season, replaces the final
+    contract year, and the new salary applies to this season's payroll at
+    once (`League._extend_contract`). A 2-year extension in season 4 ends
+    at the final rollover, so the player leaves before the end-of-run
+    credit. Successful extensions ending at the final rollover
+    (`end_of_run.extensions_ending_at_final_rollover`): Opus 315, astra
+    256, sol 255, Sonnet 247, deepseek 218, luna 105. The schema allows
+    `years: 1` and the simulator refuses it as a penalized move (3
+    rejections, "extension years must be 2-5"; see item 1). The incumbent
+    quote is priced as if the extension "begins next season"
+    (`League._contract_quote` adds one more year of inflation), but the
+    salary is charged now. Document the semantics in `extend_contract`.
+    Then decide whether the simulator should start an extension next
+    season or drop the extra inflation year. That half changes
+    `gm_bench/simulator.py`, so it is a new contract on both lanes.
+22. **The `end_phase` reply does not report the phase's rejected moves.**
+    Models that batch calls close the phase without reading the last
+    reply. Phases closed by an `end_phase` straight after a penalized
+    rejection (`rejections.phases_closed_straight_after_a_penalized_rejection`):
+    sol 22, astra 12, and 2 for each other row. List the phase's rejected
+    and penalized calls in the `end_phase` reply (`episode.py`).
+23. **"player is not an available free agent" does not say why.** 36
+    penalized rejections across the six rows. At the time of the call, 31
+    of the players were on another team (signed since the agent listed
+    them) and 5 were on the waiver wire, where `claim_waiver` is the
+    right tool (`rejections.not_an_available_free_agent`). Name the cause
+    in the message (simulator message text, so also a simulator change).
+24. **The trade rules are worded loosely.**
+    - The brief says a counterparty stops talking "after a few declines".
+      The code stops after 2 (`REJECTED_OFFER_LIMIT_PER_WINDOW`). Sonnet hit
+      "broken off trade talks" 24 times (`rejections.partner_broke_off_talks`).
+    - The per-partner limit of 2 completed trades a season
+      (`TRADE_LIMIT_PER_PARTNER`) is penalized, although the brief says
+      declines cost nothing. `get_rules` lists `trade_limit_per_partner: 2`
+      with no unit and no penalty note. 10 penalized rejections ("partner
+      has no appetite").
+    - "trades must include assets from both teams" is in neither the brief
+      nor the `trade` description. 13 penalized rejections.
+
+    State all three in the `trade` description and `get_rules`.
+25. **The brief pulls two ways on reading the status.** It says "Start
+    each phase with `get_status`" and also that "calling everything every
+    phase is a cost". Tool calls are reported, not scored. The Codex rows
+    read the status in every phase. Opus and Sonnet end 61% and 71% of
+    their phases without reading it (`status_habit.rate_ended_without_status_read`).
+    82 of Opus's 88 and 81 of Sonnet's 97 empty phases have no status
+    read (`empty_phases.without_status_read`). This difference, not missed
+    decisions, drives most of the published empty-phase gap. 82 of Opus's
+    88 empty phases are drafts with no pick to use, and one draft across
+    the six rows was closed with a pick unused
+    (`drafts.closed_holding_unused_pick`). Say whether calls count against
+    the agent. The site should report drafts closed with an unused pick and
+    phases ended without a status read beside the empty-phase count. That
+    is a publication change and needs no contract.
 
 ## Simulator and scoring
 
@@ -202,3 +317,28 @@ without editing either.
     an exploit open to a model: acquire a second pick, leave it unused.
     Fixed in 2.1 (`League21.run_opponent_draft`, which records where the
     user's window opened).
+
+Found 2026-10-16 by the 2.1 behaviour diagnostic
+(`results/diagnostics/v21_behavior/behavior.json`). Both change
+`gm_bench/simulator.py`.
+
+26. **The second-goalie bonus is not published.** `League._team_strength`
+    adds 2.5 per dressed goalie, up to two. `get_rules` publishes
+    `lineup_center_bonus` and its size, and says only "1 G" for goalies.
+    Phase closes with two healthy goalies on the roster and both dressed
+    (`lineups.of_which_2_goalies_dressed` of
+    `phase_closes_with_2_healthy_goalies`): deepseek 263 of 588, astra 132
+    of 301, sol 77 of 268, luna 74 of 565, Opus 68 of 621, Sonnet 31 of 567.
+    Publish it beside the center bonus, or decide that finding it is part
+    of the test and say so in the spec.
+27. **Trade-deadline offers stay listed in the draft phase.**
+    `current_offers` is cleared only at the season rollover. Offers from
+    the deadline are still listed in the draft phase, marked "expires:
+    this decision point", and `legal_tools` advertises accept, reject and
+    counter. Draft phases with live deadline offers
+    (`drafts.with_live_deadline_offers`): 41 to 158 of 160 per row. Draft
+    phases with at least one listed offer that can no longer go through,
+    because a player in it has changed teams (`drafts.with_a_stale_listed_offer`):
+    9 to 81. Accepting one is a penalized move ("offer is stale", 1 case,
+    Opus). Clear the offers when the deadline closes, or drop stale ones
+    from the listing.
