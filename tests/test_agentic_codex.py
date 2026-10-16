@@ -29,6 +29,7 @@ from gm_bench.agentic.codex import (
     ended_in_provider_stall,
     parse_codex_events,
 )
+from gm_bench.agentic.contract import agentic_contract
 from tests.test_agentic_publication import CLEAN_PROMPT_CHECK
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -351,7 +352,7 @@ def test_codex_provider_stall_is_retried_by_resume_and_is_not_a_nudge(
     run = {
         "agent": "codex:gpt-fake",
         "harness": {"name": "codex", "version": "0.162.1", "model": "gpt-fake"},
-        "contract": opencode.agentic_contract(),
+        "contract": agentic_contract(),
         "seeds": [11],
         "seasons": 1,
         "episodes": [result],

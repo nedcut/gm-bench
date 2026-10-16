@@ -1,0 +1,67 @@
+{
+  "rows": [
+    {
+      "model": "codex:gpt-6-luna",
+      "run_2_0": "codex-0.156.1-gpt-6-luna-panel-32x5",
+      "run_2_1": "codex-0.162.1-gpt-6-luna-panel-32x5-v21",
+      "episodes": 32,
+      "lift_2_1": {
+        "mean": -7.596,
+        "sd": 26.02,
+        "se": 4.6,
+        "t": -1.651,
+        "ci95": [
+          -16.611,
+          1.42
+        ],
+        "sign_flip_p": 0.1098,
+        "ahead": 14,
+        "mde80": 12.887
+      },
+      "lift_2_0_score_v1": {
+        "mean": -21.776,
+        "sd": 63.473,
+        "se": 11.22,
+        "t": -1.941,
+        "ci95": [
+          -43.768,
+          0.216
+        ],
+        "sign_flip_p": 0.0617,
+        "ahead": 9,
+        "mde80": 31.435
+      },
+      "lift_2_0_score_v2_e_full_panel": -15.91,
+      "lift_change": {
+        "mean": 14.181,
+        "sd": 67.975,
+        "se": 12.016,
+        "t": 1.18,
+        "ci95": [
+          -9.372,
+          37.733
+        ],
+        "sign_flip_p": 0.2482,
+        "ahead": 20,
+        "mde80": 33.665
+      },
+      "per_episode": {
+        "failed_decisions": {
+          "2.0": 0.0,
+          "2.1": 0.0
+        },
+        "illegal_actions": {
+          "2.0": 0.594,
+          "2.1": 0.656
+        },
+        "tool_calls": {
+          "2.0": 149.812,
+          "2.1": 147.094
+        }
+      }
+    }
+  ],
+  "kendall_tau_vs_2_0_score_v1": null,
+  "kendall_tau_vs_2_0_score_v2_e": null,
+  "sign_conflicts": []
+}

@@ -123,3 +123,82 @@ clarifications for the next contract, not 2.0 changes.
     moves. The picks the status lists include the current season's,
     which cannot be traded. Name the window in the argument description or
     beside the listed picks.
+
+## Simulator and scoring
+
+Found 2026-10-14 while estimating the score ceiling
+([score_ceiling.md](score_ceiling.md)). Both change `gm_bench/simulator.py`
+or `gm_bench/scoring.py`, which the 1.0 contract fingerprints and 2.0 plays
+unchanged, so either fix is a new contract version on both lanes. Neither is
+fixed in 1.0 or 2.0. **Items 15, 16 and 18 are fixed in 2.1**
+([bench_v2_1_spec.md](bench_v2_1_spec.md)), built on top of both contracts
+without editing either.
+
+15. **Team records never reset between seasons.** `League.simulate_season`
+    zeroes `wins` and `losses` only when no partial season was played, and
+    `simulate_partial_season` never zeroes them. Every episode plays the
+    midseason leg (`EpisodeConfig.include_midseason` is on, and the agentic
+    episode calls `prepare_midseason` too), so records accumulate over the
+    whole episode: a `pick-trader` season summary on seed 101 reads 17-16,
+    40-26, 58-41, 78-54, 94-71. The bug came in with the midseason port
+    (`afab3cd`). What it touches:
+    - `score_components` sums `summaries[-3:]` wins, which is cumulative
+      wins after seasons 3, 4 and 5, so per-season wins are weighted
+      3, 3, 3, 2, 1 instead of 0, 0, 1, 1, 1. The term meant to reward
+      recent results rewards early ones most, and is about 88 of
+      `pick-trader`'s ~238 points.
+    - Playoff qualification and seeding (top eight by `wins`), the draft
+      lottery group and slot order (`_inverse_standings`), and the
+      free-agent win signal (`_team_win_signal`, whose docstring promises
+      the current season's record) all read the running total.
+    - The public standings show the running total as the season record.
+    Fix: zero records at the start of each season (in
+    `simulate_partial_season` when it opens a season, or at the rollover in
+    `simulate_season`), then rescale `recent_win` if the term should keep
+    its share of the score.
+16. **Single-game playoffs dominate the score's variance.** The bracket is
+    one game per tie, and `playoff_rounds` plus `championships` are worth up
+    to 81 + 175 points. Replacing each season's realized playoff result with
+    its exact expectation given the playoff ratings (the "luck-neutral"
+    score in `scripts/ceiling_search.py`) leaves the `pick-trader` mean
+    unchanged (245.4 realized, 249.2 luck-neutral, difference -3.9 +/- 4.2
+    over seeds 101-160) and cuts its across-seed SD from 42.3 to 25.5:
+    about 64% of the score variance is playoff dice. A clairvoyant search
+    that sees those dice gains about 130 points over `pick-trader`, almost
+    all in playoff terms. Options for the next contract: best-of series,
+    scoring expected playoff value from the bracket (as the diagnostic
+    does), or lowering the playoff weights. Replaying all eleven published 2.0
+    panel rows under the luck-neutral score (no model calls) cut their mean
+    minimum detectable difference from 30.8 to 18.1 points and changed no
+    row's direction (`docs/score_ceiling.md`). Scoring expected playoff
+    value changes no simulation, so existing ledgers can be rescored
+    exactly; best-of series would need new runs. A concrete scoring rule
+    covering this item and the scoring half of item 15 is drafted in
+    [score_v2_proposal.md](score_v2_proposal.md).
+17. **The end-state terms miss part of the future value `pick-trader`
+    leaves.** Handing every final league to one scripted manager for five
+    more seasons ([score_deep_dive.md](score_deep_dive.md) section 2), one
+    point of end-state score predicts about one point of later winning
+    value, but at equal end-state score every other team did about 35
+    points worse over five seasons than `pick-trader`'s. **Explained,
+    2026-10-15: mostly item 18.** Under the 2.1 rules the per-policy
+    residual roughly halves with the draft fixed (`strategic` -9.6 to -5.0,
+    `value` -12.8 to -7.7, seeds 11-58; `score_deep_dive.py continuation21`);
+    what remains is mostly the picks `pick-trader` takes from opponents,
+    which is legitimate and not scored (section 8 there).
+18. **Opponents skip draft slots behind an unused user pick.**
+    `League.run_opponent_draft(before_user=False)` finds the user's window
+    again from the user's earliest *unexercised* slot. When the user holds
+    two picks in one draft and uses one, that is the unused later pick, so
+    every opponent slot between the two is never exercised. Scripted
+    policies draft once, so `pick-trader` (which acquires picks) triggers it
+    in 29 of 32 private-panel episodes, about 17 skipped opponent picks per
+    episode; on public seeds 11-22 opponents make 43 picks per episode
+    behind `pick-trader` against 55 behind `strategic`. No published model
+    episode triggered it (every owned opponent slot was used in all 384).
+    Inside the five-season episode it is worth about 2 points to
+    `pick-trader` under score-v1 (not significant) and about 4 under 2.1;
+    it compounds afterwards, because the opponents stay weaker. It is also
+    an exploit open to a model: acquire a second pick, leave it unused.
+    Fixed in 2.1 (`League21.run_opponent_draft`, which records where the
+    user's window opened).

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import type { AgenticLaneRow, Leaderboard } from "./types";
 
-/* Everything the 2.0 pages show, derived from the published leaderboard
-   record. Rows are compared with pick-trader and nothing else; the table is
+/* Everything the standings pages show (GM-Bench 2.1, and 2.0 on its archive
+   page), derived from the published leaderboard record. Rows are compared with pick-trader and nothing else; the table is
    sorted by score for reading only. */
 
 export const HARNESSES: Record<string, string> = {
@@ -96,6 +96,8 @@ export interface ModelRow {
   nudges: number;
   artifact: string;
   caveat: string | null;
+  /** The row under score-v1, as first published: comparison only. */
+  v1: { score: number; bar: number; lift: number; liftCi: [number, number] | null } | null;
   source: AgenticLaneRow;
 }
 
@@ -104,13 +106,17 @@ export interface BotRow {
   id: string;
   label: string;
   score: number;
+  /** The bot's mean under score-v1, for comparison. */
+  scoreV1: number | null;
   isBar: boolean;
 }
 
 export type StandingsRow = ModelRow | BotRow;
 
-/* Caveats a row's numbers cannot carry, keyed by row id. Source:
-   docs/bench_v2_spec.md, "Changes after the freeze". */
+/* Caveats a row's numbers cannot carry, keyed by row id. These are 2.0 rows
+   (the archive); each fact is about that run. Source: docs/bench_v2_spec.md,
+   "Changes after the freeze". A 2.1 row gets a caveat only for a fact about
+   its own run. */
 const ROW_CAVEATS: Record<string, string> = {
   "agentic:claude-2.1.281:claude-haiku-4-5":
     "Admitted under a post-hoc audit rule adopted on 2026-09-27, after this panel ran: in 4 episodes the " +
@@ -138,7 +144,8 @@ const ROW_CAVEATS: Record<string, string> = {
     "The model-independent 2026-10-14 policy reports accepted blind signings as warnings in every season, " +
     "including retained players. This does not rule out leakage. The published row failed the original " +
     "audit and passes the revised audit; its matching raw evidence was unavailable for this retrospective. " +
-    "Significant on its own (p = 0.012) but not under a Holm correction across the eleven rows. " +
+    "Under score-v1 it was significant on its own (p = 0.012) but not under a Holm correction; under " +
+    "score-v2 it is below pick-trader with p < 0.001. " +
     "Played on driver commit 0f3042d.",
   "agentic:codex-0.156.1:gpt-6-luna":
     "Ran with the ChatGPT account's connected apps and plugins available: Codex exposed about 668 extra " +
@@ -152,8 +159,8 @@ const ROW_CAVEATS: Record<string, string> = {
   "agentic:codex-0.162.1:gpt-6.1-sol":
     "Ran with the ChatGPT account's apps, plugins and connectors turned off, unlike the gpt-6-luna row. " +
     "Codex reports no cost; the estimate is at short-context list prices and may be low. The agent made 36 " +
-    "draft calls across the 160 draft phases and 518 trade calls. The lift's 95% interval starts at +1.6, " +
-    "so the margin is thin. Played on driver commit 1411e2e, the first with Codex 0.162.1.",
+    "draft calls across the 160 draft phases and 518 trade calls. Under score-v1 the lift's 95% interval " +
+    "started at +1.6; under score-v2 it starts at +15.9. Played on driver commit 1411e2e, the first with Codex 0.162.1.",
   "agentic:cursor-2026.09.26-dd393fe:composer-2.5":
     "Cursor's servers add seven default User Rules of their own to every prompt; they are part of the " +
     "harness. Cursor reports no cost and composer-2.5 has no per-token list price, so cost is unmeasured. " +
@@ -175,6 +182,18 @@ const ROW_CAVEATS: Record<string, string> = {
     "The cost shown is the same tokens at Muse Spark 1.3's standard list price, $69.90 for the panel. " +
     "Played on driver commit 3b82ca1.",
 };
+
+function v1Comparison(row: AgenticLaneRow): ModelRow["v1"] {
+  const v1 = row.score_v1;
+  if (!v1) return null;
+  const ci = v1.reference.paired_lift_ci95;
+  return {
+    score: v1.mean_score,
+    bar: v1.reference.mean_score,
+    lift: v1.reference.paired_lift_mean,
+    liftCi: ci?.length === 2 ? [ci[0], ci[1]] : null,
+  };
+}
 
 function modelRow(row: AgenticLaneRow): ModelRow {
   const t = row.telemetry;
@@ -214,6 +233,7 @@ function modelRow(row: AgenticLaneRow): ModelRow {
     nudges: t.nudges_per_episode,
     artifact: row.artifact_path,
     caveat: ROW_CAVEATS[row.id] ?? null,
+    v1: v1Comparison(row),
     source: row,
   };
 }
@@ -230,16 +250,22 @@ export function botRows(data: Leaderboard): BotRow[] {
       ? recorded
       : reference
         ? [
-            { agent: PICK_TRADER, mean_score: reference.mean_score },
-            { agent: reference.floor.agent, mean_score: reference.floor.mean_score },
+            { agent: PICK_TRADER, mean_score: reference.mean_score, score_v1_mean_score: undefined },
+            { agent: reference.floor.agent, mean_score: reference.floor.mean_score, score_v1_mean_score: undefined },
           ]
         : [];
-  return bots.map((bot) => ({ kind: "bot", id: `bot:${bot.agent}`, label: bot.agent, score: bot.mean_score, isBar: bot.agent === PICK_TRADER }));
+  return bots.map((bot) => ({
+    kind: "bot",
+    id: `bot:${bot.agent}`,
+    label: bot.agent,
+    score: bot.mean_score,
+    scoreV1: bot.score_v1_mean_score ?? null,
+    isBar: bot.agent === PICK_TRADER,
+  }));
 }
 
-export function modelRows(data: Leaderboard): ModelRow[] {
-  const rows = (data.agentic_lane ?? []).map(modelRow);
-  // The same model in two versions of one harness: name the version so the two read apart.
+/* The same model in two versions of one harness: name the version so the two read apart. */
+function labelled(rows: ModelRow[]): ModelRow[] {
   const key = (row: ModelRow) => `${row.harnessKey} ${row.model}`;
   return rows.map((row) => {
     if (rows.filter((other) => key(other) === key(row)).length < 2) return row;
@@ -248,8 +274,56 @@ export function modelRows(data: Leaderboard): ModelRow[] {
   });
 }
 
-export function pickTraderScore(data: Leaderboard): number | null {
-  return data.agentic_lane?.[0]?.reference.mean_score ?? null;
+/** GM-Bench 2.0 rows (the archive), rescored under score-v2. */
+export function modelRows(data: Leaderboard): ModelRow[] {
+  return labelled((data.agentic_lane ?? []).map(modelRow));
+}
+
+/* GM-Bench 2.1: the current lane, its own pick-trader (config/bench_v21_lane.json).
+   Rows are never compared with a 2.0 row. */
+export function v21ModelRows(data: Leaderboard): ModelRow[] {
+  return labelled((data.agentic_v21_lane ?? []).map(modelRow));
+}
+
+export function v21BotRows(data: Leaderboard): BotRow[] {
+  return (data.agentic_v21_bots ?? []).map((bot) => ({
+    kind: "bot",
+    id: `bot-2.1:${bot.agent}`,
+    label: bot.agent,
+    score: bot.mean_score,
+    scoreV1: null,
+    isBar: bot.agent === PICK_TRADER,
+  }));
+}
+
+/* One contract's table: the site shows 2.1; the 2.0 archive page shows 2.0. */
+export type Contract = "2.1" | "2.0";
+
+export interface Lane {
+  contract: Contract;
+  models: ModelRow[];
+  bots: BotRow[];
+  /** pick-trader's mean under this contract: the bar every row is tested against. */
+  bar: number | null;
+  seeds: number | null;
+  fingerprint: string | null;
+}
+
+export function laneOf(data: Leaderboard, contract: Contract): Lane {
+  const rows = (contract === "2.1" ? data.agentic_v21_lane : data.agentic_lane) ?? [];
+  return {
+    contract,
+    models: contract === "2.1" ? v21ModelRows(data) : modelRows(data),
+    bots: contract === "2.1" ? v21BotRows(data) : botRows(data),
+    bar: rows[0]?.reference.mean_score ?? null,
+    seeds: rows[0]?.reference.num_seeds ?? null,
+    fingerprint: rows[0]?.contract.agentic_fingerprint ?? null,
+  };
+}
+
+/** pick-trader's mean under score-v1, for pages that still show score-v1 games (the walkthrough). */
+export function pickTraderScoreV1(data: Leaderboard): number | null {
+  return data.agentic_lane?.[0]?.score_v1?.reference.mean_score ?? null;
 }
 
 /** Ahead of pick-trader by more than the noise: the paired-lift 95% interval sits above zero. */
@@ -257,9 +331,6 @@ export function clearsBar(row: ModelRow): boolean {
   return row.liftCi !== null && row.liftCi[0] > 0;
 }
 
-export function seedCount(data: Leaderboard): number | null {
-  return data.agentic_lane?.[0]?.reference.num_seeds ?? null;
-}
 
 /* ---------- filters, shared by every tab through the URL and localStorage ---------- */
 

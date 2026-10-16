@@ -1,0 +1,255 @@
+{
+  "format": "gm-bench-agentic-score-v2-rescore-v1",
+  "artifact": "claude-2.1.281-claude-sonnet-5-5-panel-32x5.json",
+  "raw_artifact_sha256": "a1f927753b765272e4a3ba70d95d4013baa4b60fde6d30ea5b06dd7673d73cee",
+  "scoring_version": "score-v2",
+  "scoring_scale_fingerprint": "dfdb5369a60bebc3",
+  "method": "Each 2.0 episode replayed from its ledger through the frozen 2.0 engine and scored with score-v2's weights: expected playoff rounds (last three seasons) and expected titles (all seasons) from the bracket odds the simulator used, every season's own wins, and the unchanged end-state terms. The games are 2.0's, so records accumulate in the simulation and the 2.0 draft is unchanged; this rescores the 2.0 rows and is not a 2.1 run.",
+  "episodes": [
+    {
+      "index": 0,
+      "seed_group": 0,
+      "final_score": 211.038,
+      "strategy_score": 211.038,
+      "protocol_penalty": 0.0
+    },
+    {
+      "index": 1,
+      "seed_group": 1,
+      "final_score": 184.356,
+      "strategy_score": 184.356,
+      "protocol_penalty": 0.0
+    },
+    {
+      "index": 2,
+      "seed_group": 2,
+      "final_score": 208.316,
+      "strategy_score": 213.316,
+      "protocol_penalty": 5.0
+    },
+    {
+      "index": 3,
+      "seed_group": 3,
+      "final_score": 215.635,
+      "strategy_score": 215.635,
+      "protocol_penalty": 0.0
+    },
+    {
+      "index": 4,
+      "seed_group": 4,
+      "final_score": 189.796,
+      "strategy_score": 192.296,
+      "protocol_penalty": 2.5
+    },
+    {
+      "index": 5,
+      "seed_group": 5,
+      "final_score": 247.195,
+      "strategy_score": 247.195,
+      "protocol_penalty": 0.0
+    },
+    {
+      "index": 6,
+      "seed_group": 6,
+      "final_score": 246.595,
+      "strategy_score": 254.095,
+      "protocol_penalty": 7.5
+    },
+    {
+      "index": 7,
+      "seed_group": 7,
+      "final_score": 277.023,
+      "strategy_score": 287.023,
+      "protocol_penalty": 10.0
+    },
+    {
+      "index": 8,
+      "seed_group": 8,
+      "final_score": 160.006,
+      "strategy_score": 160.006,
+      "protocol_penalty": 0.0
+    },
+    {
+      "index": 9,
+      "seed_group": 9,
+      "final_score": 251.162,
+      "strategy_score": 253.662,
+      "protocol_penalty": 2.5
+    },
+    {
+      "index": 10,
+      "seed_group": 10,
+      "final_score": 225.699,
+      "strategy_score": 228.199,
+      "protocol_penalty": 2.5
+    },
+    {
+      "index": 11,
+      "seed_group": 11,
+      "final_score": 191.092,
+      "strategy_score": 196.092,
+      "protocol_penalty": 5.0
+    },
+    {
+      "index": 12,
+      "seed_group": 12,
+      "final_score": 147.991,
+      "strategy_score": 147.991,
+      "protocol_penalty": 0.0
+    },
+    {
+      "index": 13,
+      "seed_group": 13,
+      "final_score": 195.833,
+      "strategy_score": 195.833,
+      "protocol_penalty": 0.0
+    },
+    {
+      "index": 14,
+      "seed_group": 14,
+      "final_score": 237.098,
+      "strategy_score": 242.098,
+      "protocol_penalty": 5.0
+    },
+    {
+      "index": 15,
+      "seed_group": 15,
+      "final_score": 238.63,
+      "strategy_score": 243.63,
+      "protocol_penalty": 5.0
+    },
+    {
+      "index": 16,
+      "seed_group": 16,
+      "final_score": 207.431,
+      "strategy_score": 207.431,
+      "protocol_penalty": 0.0
+    },
+    {
+      "index": 17,
+      "seed_group": 17,
+      "final_score": 161.236,
+      "strategy_score": 166.236,
+      "protocol_penalty": 5.0
+    },
+    {
+      "index": 18,
+      "seed_group": 18,
+      "final_score": 244.186,
+      "strategy_score": 244.186,
+      "protocol_penalty": 0.0
+    },
+    {
+      "index": 19,
+      "seed_group": 19,
+      "final_score": 228.532,
+      "strategy_score": 231.032,
+      "protocol_penalty": 2.5
+    },
+    {
+      "index": 20,
+      "seed_group": 20,
+      "final_score": 215.786,
+      "strategy_score": 218.286,
+      "protocol_penalty": 2.5
+    },
+    {
+      "index": 21,
+      "seed_group": 21,
+      "final_score": 203.514,
+      "strategy_score": 203.514,
+      "protocol_penalty": 0.0
+    },
+    {
+      "index": 22,
+      "seed_group": 22,
+      "final_score": 189.403,
+      "strategy_score": 189.403,
+      "protocol_penalty": 0.0
+    },
+    {
+      "index": 23,
+      "seed_group": 23,
+      "final_score": 215.101,
+      "strategy_score": 217.601,
+      "protocol_penalty": 2.5
+    },
+    {
+      "index": 24,
+      "seed_group": 24,
+      "final_score": 201.869,
+      "strategy_score": 206.869,
+      "protocol_penalty": 5.0
+    },
+    {
+      "index": 25,
+      "seed_group": 25,
+      "final_score": 162.561,
+      "strategy_score": 172.561,
+      "protocol_penalty": 10.0
+    },
+    {
+      "index": 26,
+      "seed_group": 26,
+      "final_score": 205.392,
+      "strategy_score": 207.892,
+      "protocol_penalty": 2.5
+    },
+    {
+      "index": 27,
+      "seed_group": 27,
+      "final_score": 286.009,
+      "strategy_score": 288.509,
+      "protocol_penalty": 2.5
+    },
+    {
+      "index": 28,
+      "seed_group": 28,
+      "final_score": 216.976,
+      "strategy_score": 221.976,
+      "protocol_penalty": 5.0
+    },
+    {
+      "index": 29,
+      "seed_group": 29,
+      "final_score": 219.08,
+      "strategy_score": 221.58,
+      "protocol_penalty": 2.5
+    },
+    {
+      "index": 30,
+      "seed_group": 30,
+      "final_score": 247.588,
+      "strategy_score": 250.088,
+      "protocol_penalty": 2.5
+    },
+    {
+      "index": 31,
+      "seed_group": 31,
+      "final_score": 207.466,
+      "strategy_score": 212.466,
+      "protocol_penalty": 5.0
+    }
+  ],
+  "reference": {
+    "agent": "pick-trader",
+    "mean_score": 250.068,
+    "floor": {
+      "agent": "random",
+      "mean_score": 86.891
+    },
+    "seasons": 5,
+    "num_seeds": 32,
+    "paired_lift_mean": -36.33,
+    "paired_lift_stddev": 38.831,
+    "paired_lift_ci95": [
+      -49.689,
+      -23.314
+    ],
+    "sign_flip_p_value": 5e-05,
+    "sign_flip_p_value_upper_bound": true,
+    "significant_at_95": true,
+    "candidate_seed_win_rate": 0.188,
+    "per_seed": []
+  }
+}

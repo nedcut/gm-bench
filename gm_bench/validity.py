@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import Any, Callable
 
 from gm_bench.agent_utils import position_aware_lineup, public_asset_value
 from gm_bench.agents import Agent, ExploitAgent, PickTraderAgent, ShrewdAgent, StrategicAgent, ValueAgent
@@ -159,17 +159,20 @@ def run_validity_canaries(
     *,
     seeds: list[int] | None = None,
     seasons: int | None = None,
+    run: Callable[..., dict[str, Any]] = run_many,
 ) -> dict[str, Any]:
+    """Assert the contract's orderings. ``run`` plays one policy over the seeds;
+    the default is the 1.0 runner, ``gm_bench.v21.runner.run_many`` checks 2.1."""
     leaderboard = PRESETS["leaderboard"]
     resolved_seeds = list(seeds or CANARY_SEEDS)
     resolved_seasons = int(seasons or leaderboard["seasons"])
 
-    value = run_many(ValueAgent(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1)
-    shrewd = run_many(ShrewdAgent(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1)
-    strategic = run_many(StrategicAgent(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1)
-    pick_trader = run_many(PickTraderAgent(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1)
+    value = run(ValueAgent(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1)
+    shrewd = run(ShrewdAgent(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1)
+    strategic = run(StrategicAgent(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1)
+    pick_trader = run(PickTraderAgent(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1)
     canaries = [
-        run_many(agent_cls(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1) for agent_cls in CANARY_AGENTS
+        run(agent_cls(), seeds=resolved_seeds, seasons=resolved_seasons, workers=1) for agent_cls in CANARY_AGENTS
     ]
 
     mechanic_coverage, mechanic_checks = _mechanic_coverage(pick_trader, len(resolved_seeds))

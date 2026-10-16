@@ -290,6 +290,12 @@ def main(argv: list[str] | None = None) -> None:
     validate_contract_parser.add_argument("--seeds", nargs="+", type=int, help="override the official seed panel")
     validate_contract_parser.add_argument("--seasons", type=int, help="override official season count")
     validate_contract_parser.add_argument("--json", action="store_true", help="emit machine-readable canary output")
+    validate_contract_parser.add_argument(
+        "--contract",
+        choices=["1.0", "2.1"],
+        default="1.0",
+        help="rules to check: 1.0 (the 1.0 simulator and score-v1, which 2.0 plays) or 2.1 (League21, score-v2)",
+    )
 
     calibrate_parser = subparsers.add_parser(
         "calibrate-score",
@@ -323,6 +329,12 @@ def main(argv: list[str] | None = None) -> None:
         "is refused",
     )
     agentic_parser.add_argument("--seasons", type=int, default=5)
+    agentic_parser.add_argument(
+        "--contract",
+        choices=["2.0", "2.1"],
+        default="2.0",
+        help="agentic contract to play under: 2.0 (frozen, default) or 2.1 (records reset each season, score-v2)",
+    )
     agentic_parser.add_argument("--output", required=True, help="run directory for ledgers, events and results")
     agentic_parser.add_argument(
         "--variant",
@@ -398,9 +410,10 @@ def main(argv: list[str] | None = None) -> None:
     )
     agentic_parser.add_argument(
         "--opencode-auth-file",
-        help="file holding one OpenCode API key (--harness opencode only; required for opencode-go/* models), "
-        "written as OpenCode's auth.json for opencode-go only in the episode's own home, never on a "
-        "command line or in the environment; the host OpenCode login is not used",
+        help="file holding one API key (--harness opencode only; required for opencode-go/* models, an OpenCode "
+        "key, and openrouter/* models, an OpenRouter key), stored in OpenCode's credential store for the run's "
+        "own provider only, in the episode's own home, never on a command line or in the environment; the host "
+        "OpenCode login is not used",
     )
     agentic_parser.add_argument(
         "--skip-prompt-check",
@@ -931,7 +944,12 @@ def _compact_result_command(args: argparse.Namespace) -> None:
 
 
 def _validate_contract_command(args: argparse.Namespace) -> None:
-    result = run_validity_canaries(seeds=args.seeds, seasons=args.seasons)
+    if getattr(args, "contract", "1.0") == "2.1":
+        from gm_bench.v21.runner import run_many as run_v21
+
+        result = run_validity_canaries(seeds=args.seeds, seasons=args.seasons, run=run_v21)
+    else:
+        result = run_validity_canaries(seeds=args.seeds, seasons=args.seasons)
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
@@ -1346,6 +1364,7 @@ def _agentic_command(args: argparse.Namespace) -> None:
                 model=args.model,
                 run_dir=_Path(args.output),
                 seasons=args.seasons,
+                contract_version=args.contract,
                 binary=args.binary or ("cursor-agent" if args.harness == "cursor" else args.harness),
                 variant=args.variant,
                 phase_guard_seconds=args.phase_guard_seconds,

@@ -19,6 +19,7 @@ from tests.test_agentic_publication import clean_driver, fixture_reference
 from web.scripts.build_study import build_study
 
 SITE_DATASET = Path("web/src/data/leaderboard.json")
+SCORE_V2_LANE = json.loads(Path("results/agentic_score_v2/lane.json").read_text())
 SMOKE_ROW = Path("results/agentic/opencode-1.18.31-space-bunny-free-smoke-8x5.json")
 LANE_PANEL = json.loads(Path("config/bench_v2_lane.json").read_text())["seed_panel"]
 
@@ -57,6 +58,37 @@ def _panel_fixture(*, isolation: str = "separate-user", model: str | None = None
     return row
 
 
+def _rescore_fixture(name: str, artifact: dict, *, shift: float = 1.0) -> dict:
+    """A score-v2 rescore coherent with a hand-built panel row (real ones replay its raw run)."""
+    from gm_bench.v21 import scoring as v2
+
+    episodes = [
+        {
+            "index": e["index"],
+            "seed_group": e["seed_group"],
+            "final_score": round(e["final_score"] + shift, 3),
+            "strategy_score": round(e["final_score"] + shift + e.get("protocol_penalty", 0.0), 3),
+            "protocol_penalty": e.get("protocol_penalty", 0.0),
+        }
+        for e in artifact["episodes"]
+    ]
+    pins = SCORE_V2_LANE["reference_scores"]
+    reference = fixture_reference(
+        {"episodes": episodes, "seasons": artifact["seasons"]}, reference_mean=pins["pick-trader"]
+    )
+    reference["floor"]["mean_score"] = pins["random"]
+    return {
+        "format": "gm-bench-agentic-score-v2-rescore-v1",
+        "artifact": name,
+        "raw_artifact_sha256": artifact["publication"]["raw_artifact_sha256"],
+        "scoring_version": v2.SCORING_VERSION,
+        "scoring_scale_fingerprint": v2.scale_fingerprint(),
+        "method": "fixture",
+        "episodes": episodes,
+        "reference": reference,
+    }
+
+
 def _build(
     tmp_path: Path,
     *rows: tuple[str, dict],
@@ -66,10 +98,17 @@ def _build(
 ) -> dict:
     agentic_dir = tmp_path / "agentic"
     agentic_dir.mkdir()
+    score_v2_dir = tmp_path / "agentic_score_v2"
+    score_v2_dir.mkdir()
+    (score_v2_dir / "lane.json").write_text(json.dumps(SCORE_V2_LANE))
     for name, payload in rows:
         (agentic_dir / name).write_text(json.dumps(payload))
+        if payload.get("grade") == "panel" and payload.get("episodes"):
+            (score_v2_dir / name).write_text(json.dumps(_rescore_fixture(name, payload)))
     if pinned_models is None and reference_scores is None and bot_scores is None:
-        return build_study(output_path=tmp_path / "leaderboard.json", agentic_dir=agentic_dir)
+        return build_study(
+            output_path=tmp_path / "leaderboard.json", agentic_dir=agentic_dir, agentic_score_v2_dir=score_v2_dir
+        )
     root = tmp_path / "root"
     shutil.copytree(Path("config"), root / "config")
     (root / "results").mkdir()
@@ -84,7 +123,9 @@ def _build(
     if bot_scores is not None:
         lane["scripted_bot_scores"]["mean_scores"] = bot_scores
     lane_path.write_text(json.dumps(lane))
-    return build_study(root=root, output_path=tmp_path / "leaderboard.json", agentic_dir=agentic_dir)
+    return build_study(
+        root=root, output_path=tmp_path / "leaderboard.json", agentic_dir=agentic_dir, agentic_score_v2_dir=score_v2_dir
+    )
 
 
 def test_current_results_publish_only_the_committed_panel_rows(tmp_path: Path) -> None:
@@ -152,10 +193,16 @@ def test_panel_row_is_published_beside_every_1_0_table(tmp_path: Path) -> None:
         "episodes": PANEL_MIN_SEEDS,
         "sha256": LANE_PANEL["artifact_panel_sha256"],
     }
+    # The primary score is score-v2, from the row's rescore (the fixture shifts every episode by +1).
     smoke_scores = [e["final_score"] for e in _smoke()["episodes"]]
-    assert row["mean_score"] == pytest.approx(sum(smoke_scores) / len(smoke_scores), abs=1e-3)
+    assert row["scoring_version"] == "score-v2"
+    assert row["mean_score"] == pytest.approx(sum(smoke_scores) / len(smoke_scores) + 1.0, abs=1e-3)
     assert row["score_stddev"] == pytest.approx(_smoke()["summary"]["score_stddev"], abs=1e-3)
-    assert row["seed_mean_min"] == min(smoke_scores) and row["seed_mean_max"] == max(smoke_scores)
+    assert row["seed_mean_min"] == pytest.approx(min(smoke_scores) + 1.0, abs=1e-3)
+    assert row["seed_mean_max"] == pytest.approx(max(smoke_scores) + 1.0, abs=1e-3)
+    # score-v1, as the artifact publishes it, rides along as a comparison only.
+    assert row["score_v1"]["scoring_version"] == "score-v1"
+    assert row["score_v1"]["mean_score"] == pytest.approx(sum(smoke_scores) / len(smoke_scores), abs=1e-3)
     assert row["contract"]["agentic_fingerprint"] == panel["contract"]["agentic_fingerprint"]
     assert row["contract"]["tool_surface"] == "gm-bench-agentic-v1"
     assert row["contract"]["brief"] == "gm-bench-agentic-brief-v1"
@@ -178,17 +225,23 @@ def test_panel_row_is_published_beside_every_1_0_table(tmp_path: Path) -> None:
         "ledger_tool_calls": repeats * smoke_calls,
         "harness_tool_calls": repeats * smoke_calls,
     }
-    # The one inference the spec supports: pick-trader on this row's own seeds.
+    # The one inference the spec supports: pick-trader on this row's own seeds, under score-v2;
+    # the artifact's own score-v1 contrast is kept, unchanged, under score_v1.
+    rescore = _rescore_fixture("panel.json", panel)["reference"]
+    assert row["reference"] == {key: value for key, value in rescore.items() if key != "per_seed"}
+    assert row["reference"]["mean_score"] == SCORE_V2_LANE["reference_scores"]["pick-trader"]
     reference = panel["reference"]
-    assert row["reference"] == {key: value for key, value in reference.items() if key != "per_seed"}
+    assert row["score_v1"]["reference"] == {key: value for key, value in reference.items() if key != "per_seed"}
     assert row["reference"]["agent"] == "pick-trader"
     assert row["reference"]["num_seeds"] == row["panel"]["distinct_seeds"] == LANE_PANEL["count"]
     assert row["v1_row_id"] is None
     assert row["artifact_path"] == "panel.json"
     text = json.dumps(row)
     assert "seeds" not in row and '"seed"' not in text and "per_seed" not in text
-    outside_reference = json.dumps({key: value for key, value in row.items() if key != "reference"})
+    outside_reference = json.dumps({key: value for key, value in row.items() if key not in ("reference", "score_v1")})
     assert "p_value" not in outside_reference, "no p-value between rows, harnesses, or models"
+    v1_outside_reference = json.dumps({key: value for key, value in row["score_v1"].items() if key != "reference"})
+    assert "p_value" not in v1_outside_reference and "paired" not in v1_outside_reference
     one_zero_ids = {m["id"] for m in dataset["models"] + dataset["decision_lane_models"]}
     assert row["id"] not in one_zero_ids
 
@@ -326,6 +379,73 @@ def test_recorded_reference_scores_fail_a_row_off_them(tmp_path: Path) -> None:
     (tmp_path / "ok").mkdir()
     (tmp_path / "off").mkdir()
     (row,) = _build(tmp_path / "ok", ("panel.json", _panel_fixture()), reference_scores=honest)["agentic_lane"]
-    assert row["reference"]["mean_score"] == 249.18
+    assert row["score_v1"]["reference"]["mean_score"] == 249.18
     with pytest.raises(ValueError, match="frozen panel"):
         _build(tmp_path / "off", ("panel.json", _panel_fixture()), reference_scores=dict(honest, random=91.0))
+
+
+def test_a_panel_row_without_a_matching_score_v2_rescore_fails_the_build(tmp_path: Path) -> None:
+    panel = _panel_fixture()
+    agentic_dir, score_v2_dir = tmp_path / "agentic", tmp_path / "agentic_score_v2"
+    agentic_dir.mkdir()
+    score_v2_dir.mkdir()
+    (score_v2_dir / "lane.json").write_text(json.dumps(SCORE_V2_LANE))
+    (agentic_dir / "panel.json").write_text(json.dumps(panel))
+
+    def build() -> dict:
+        return build_study(
+            output_path=tmp_path / "leaderboard.json", agentic_dir=agentic_dir, agentic_score_v2_dir=score_v2_dir
+        )
+
+    with pytest.raises(ValueError, match="has no score-v2 rescore"):
+        build()
+    rescore = _rescore_fixture("panel.json", panel)
+    for edit, message in (
+        (lambda r: r.update(raw_artifact_sha256="0" * 64), "different raw run"),
+        (lambda r: r.update(scoring_scale_fingerprint="0" * 16), "score-v2 scale"),
+        (lambda r: r["episodes"].reverse(), "episodes in its order"),
+        (lambda r: r["reference"].update(mean_score=1.0), "off the score-v2 lane pins"),
+    ):
+        broken = copy.deepcopy(rescore)
+        edit(broken)
+        (score_v2_dir / "panel.json").write_text(json.dumps(broken))
+        with pytest.raises(ValueError, match=message):
+            build()
+    (score_v2_dir / "panel.json").write_text(json.dumps(rescore))
+    assert build()["agentic_lane"][0]["scoring_version"] == "score-v2"
+
+
+def test_bots_show_score_v2_with_score_v1_beside_them(tmp_path: Path) -> None:
+    dataset = build_study(output_path=tmp_path / "leaderboard.json")
+    bots = {bot["agent"]: bot for bot in dataset["agentic_bots"]}
+    lane = json.loads(Path("config/bench_v2_lane.json").read_text())
+    for agent, bot in bots.items():
+        assert bot["mean_score"] == SCORE_V2_LANE["scripted_bot_scores"][agent]
+        assert bot["score_v1_mean_score"] == lane["scripted_bot_scores"]["mean_scores"][agent]
+    assert dataset["agentic_scoring"]["primary"] == "score-v2"
+
+
+def test_the_2_1_rows_have_their_own_table_and_pick_trader(tmp_path: Path) -> None:
+    """Every committed 2.1 panel row is published in agentic_v21_lane, against the 2.1 pins, with no score-v1 block."""
+    dataset = build_study(output_path=tmp_path / "leaderboard.json")
+    lane = json.loads(Path("config/bench_v21_lane.json").read_text())
+    rows = dataset["agentic_v21_lane"]
+    assert len(rows) == len(list(Path("results/agentic_v21").glob("*-panel-*.json")))
+    assert not {row["id"] for row in rows} & {row["id"] for row in dataset["agentic_lane"]}
+    for row in rows:
+        assert row["id"].startswith("agentic-2.1:")
+        assert row["contract"]["benchmark_version"] == "gm-bench-2.1"
+        assert row["artifact_path"].startswith("results/agentic_v21/")
+        assert "score_v1" not in row
+        assert row["reference"]["mean_score"] == lane["reference_scores"]["mean_scores"]["pick-trader"]
+        assert row["reference"]["floor"]["mean_score"] == lane["reference_scores"]["mean_scores"]["random"]
+    bots = {bot["agent"]: bot["mean_score"] for bot in dataset["agentic_v21_bots"]}
+    assert bots == lane["scripted_bot_scores"]["mean_scores"]
+
+
+def test_a_2_0_artifact_in_the_2_1_directory_fails_the_build(tmp_path: Path) -> None:
+    v21_dir = tmp_path / "agentic_v21"
+    v21_dir.mkdir()
+    (v21_dir / "stray.json").write_text(json.dumps(_panel_fixture()))
+    with pytest.raises(ValueError, match="is not a gm-bench-2.1 artifact"):
+        build_study(output_path=tmp_path / "leaderboard.json", agentic_v21_dir=v21_dir)

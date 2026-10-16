@@ -18,7 +18,7 @@ dependencies = []
 # mcp is dev-only as well: the 2.0 tool server is hand-written on the standard
 # library so its wire output stays under this repo's contract fingerprint, and
 # the official SDK is used purely as a client in tests/test_agentic_conformance.py.
-dev = ["pytest>=8", "jsonschema>=4.0", "ruff>=0.8", "tiktoken>=0.7", "mcp>=1.12"]
+dev = ["pytest>=8", "pytest-xdist>=3.8", "jsonschema>=4.0", "ruff>=0.8", "tiktoken>=0.7", "mcp>=1.12"]
 
 [project.scripts]
 gm-bench = "gm_bench.cli:main"
@@ -28,6 +28,7 @@ gm-bench-gui = "gm_bench.gui:main"
 packages = [
     "gm_bench",
     "gm_bench.agentic",
+    "gm_bench.v21",
     "gm_bench.gui_static",
     "gm_bench._resources.examples",
     "gm_bench._resources.schemas",

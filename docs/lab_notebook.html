@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GM-Bench lab notebook</title>
+<!--
+  Internal decision log: what we tried, what we found, what we decided, with
+  the charts behind each call. Not part of the public site.
+
+  Adding an entry: copy an <article class="entry"> block, give it a new id and
+  date, add it to the contents list, and put its chart data and draw call in
+  the ENTRIES script at the bottom. Numbers must come from a committed
+  diagnostic (cite the file) or a published row. Newest entry first.
+-->
+<style>
+:root{
+  --background:#ffffff;--foreground:#18181b;--muted-foreground:#6b7280;--card:#f8f8fa;--border:#e4e4e7;
+  --popover:#ffffff;--popover-foreground:#18181b;--secondary:#ececf0;--secondary-foreground:#18181b;
+  --chart-1:#2563eb;--chart-3:#d97706;--chart-4:#9333ea;--success:#15803d;--warning:#b45309;--destructive:#dc2626;
+  --font-sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;--font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;--radius:10px;
+}
+@media (prefers-color-scheme:dark){:root{
+  --background:#0d0d10;--foreground:#ededf0;--muted-foreground:#9a9aa6;--card:#16161b;--border:#2a2a32;
+  --popover:#1c1c22;--popover-foreground:#ededf0;--secondary:#26262e;--secondary-foreground:#ededf0;
+  --chart-1:#5b8cff;--chart-3:#f5b041;--chart-4:#b48cff;--success:#34d399;--warning:#fbbf24;--destructive:#f87171;
+}}
+html{background:var(--background);color:var(--foreground);font-family:var(--font-sans)}
+body{margin:0;font-size:14px;line-height:1.5}
+main{max-width:860px;margin:0 auto;padding:32px 20px 80px}
+h1{font-size:24px;margin:0 0 4px}
+.lede{color:var(--muted-foreground);margin:0 0 20px}
+nav.toc{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:28px}
+nav.toc ol{margin:6px 0 0;padding-left:18px}nav.toc li{margin:3px 0}
+nav.toc a{color:var(--foreground)}
+article.entry{border-top:1px solid var(--border);padding-top:22px;margin-top:34px;display:flex;flex-direction:column;gap:22px}
+.entry header .date{font-family:var(--font-mono);font-size:12px;color:var(--muted-foreground)}
+.entry header h2{font-size:19px;margin:2px 0 6px}
+.entry header .tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:11px;font-family:var(--font-mono);padding:1px 7px;border-radius:999px;border:1px solid var(--border);color:var(--muted-foreground)}
+.tag.decision{border-color:var(--chart-1);color:var(--chart-1)}
+h3{font-size:15px;margin:0 0 4px;font-weight:600}
+.sub{color:var(--muted-foreground);font-size:12.5px}
+code{font-family:var(--font-mono);font-size:12px}
+.key{border-left:3px solid var(--chart-1);padding:10px 14px;background:color-mix(in srgb,var(--chart-1) 8%,transparent);border-radius:0 var(--radius) var(--radius) 0}
+.decide{border-left:3px solid var(--success);padding:10px 14px;background:color-mix(in srgb,var(--success) 8%,transparent);border-radius:0 var(--radius) var(--radius) 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.stat .k{font-size:12px;color:var(--muted-foreground)}
+.stat .v{font-size:22px;font-weight:650;margin-top:2px;font-variant-numeric:tabular-nums}
+.stat .v .old{color:var(--muted-foreground);font-weight:500;font-size:16px;text-decoration:line-through;margin-right:6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:620px){.grid2,.grid3{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.card.rec{border-color:var(--chart-1);box-shadow:0 0 0 1px var(--chart-1)}
+.card h4{margin:0;font-size:14px}
+.card ul{margin:0;padding-left:16px;font-size:12.5px}.card li{margin:2px 0}
+.badge{font-size:11px;font-weight:600;color:var(--chart-1);text-transform:uppercase;letter-spacing:.04em}
+.verdict{font-size:12.5px;color:var(--muted-foreground);border-top:1px solid var(--border);padding-top:8px;margin-top:auto}
+.vrow{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:start;font-size:13px}
+.vtag{font-family:var(--font-mono);font-size:11px;padding:2px 6px;border-radius:5px;text-align:center}
+.t1{background:color-mix(in srgb,var(--chart-4) 18%,transparent);color:var(--chart-4)}
+.t2{background:color-mix(in srgb,var(--chart-1) 18%,transparent);color:var(--chart-1)}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.pill{font-size:12px;border:1px solid var(--border);border-radius:999px;padding:3px 10px;color:var(--muted-foreground)}
+table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-weight:600;color:var(--muted-foreground);font-size:11.5px}
+td.num,th.num{text-align:right}
+.y{color:var(--success);font-weight:600}.n{color:var(--muted-foreground)}.p{color:var(--warning);font-weight:600}
+.neg{color:var(--destructive)}.pos{color:var(--success)}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--muted-foreground);margin:6px 0;flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:8px;border-radius:2px;display:inline-block}
+.dotk{width:9px;height:9px;border-radius:50%;display:inline-block}
+.ring{width:7px;height:7px;border-radius:50%;display:inline-block;border:2px solid var(--chart-3)}
+.dia{width:8px;height:8px;transform:rotate(45deg);display:inline-block;border:2px solid var(--chart-3)}
+.ln{width:16px;height:0;border-top:2px solid var(--muted-foreground);display:inline-block}
+.dl{width:16px;height:0;border-top:2px dashed var(--muted-foreground);display:inline-block}
+.steps{display:flex;flex-direction:column}
+.step{display:grid;grid-template-columns:28px 1fr;gap:12px}
+.rail{display:flex;flex-direction:column;align-items:center}
+.rail::after{content:"";flex:1;width:2px;background:var(--border);margin:4px 0}
+.step:last-child .rail::after{display:none}
+.num-dot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:650;background:var(--secondary);color:var(--secondary-foreground)}
+.step.paid .num-dot{background:var(--warning);color:var(--background)}
+.step .body{padding-bottom:14px}
+.step h4{margin:2px 0 4px;font-size:13.5px}
+.cost{font-size:11px;font-family:var(--font-mono);padding:1px 6px;border-radius:5px;margin-left:6px}
+.free{background:color-mix(in srgb,var(--success) 18%,transparent);color:var(--success)}
+.paidc{background:color-mix(in srgb,var(--warning) 20%,transparent);color:var(--warning)}
+.ok{color:var(--success);font-weight:600;white-space:nowrap}.warn{color:var(--warning);font-weight:600;white-space:nowrap}
+svg{display:block}
+#tip{position:fixed;pointer-events:none;background:var(--popover);color:var(--popover-foreground);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12px;display:none;z-index:9}
+</style>
+</head>
+<body>
+<div id="tip"></div>
+<main>
+<h1>GM-Bench lab notebook</h1>
+<p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
+
+<nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-10-16-site">2026-10-16 · 2.1 becomes the site; 2.0 moves to an archive page</a></li>
+ <li><a href="#e-2026-10-16-opus-astra">2026-10-16 · Opus 5.5 and Astra under 2.1; 2.1 goes on the site</a></li>
+ <li><a href="#e-2026-10-16-round">2026-10-16 · First 2.1 paid round: passed; release 2.1</a></li>
+ <li><a href="#e-2026-10-15-site">2026-10-15 · The site moves to score-v2</a></li>
+ <li><a href="#e-2026-10-15-v21">2026-10-15 · Building 2.1, and the draft bug behind the missing 35 points</a></li>
+ <li><a href="#e-2026-10-15-stress">2026-10-15 · Stress-testing score-v2: recommend E, build 2.1</a></li>
+ <li><a href="#e-2026-10-15-path">2026-10-15 · Plug in, deep dive, or overhaul?</a></li>
+ <li><a href="#e-2026-10-15-v2">2026-10-15 · score-v1 vs the proposed score-v2</a></li>
+ <li><a href="#e-2026-10-14-ceiling">2026-10-14 · How much headroom is above <code>pick-trader</code>?</a></li>
+</ol></nav>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-16-site">
+<header><div class="date">2026-10-16</div><h2>2.1 becomes the site; 2.0 moves to an archive page</h2>
+<div class="tags"><span class="tag">web/src/app/V2Archive.tsx</span><span class="tag">web/src/data/leaderboard.json</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> the morning's layout put the 2.1 table above the full 2.0 board, with the intro headline, filters, score-vs-cost and tool-use sections still on the 2.0 rows. <b>Showed:</b> the page led with a 2.0 verdict ("2 of 12 models") under a 2.1 table, two <code>pick-trader</code> lines on one page (250.1 under 2.0 score-v2, 249.6 under 2.1), and charts from a different contract than the table above them.</div>
+
+<div class="decide"><b>Decided (by the user):</b> make 2.1 the site now rather than waiting for it to cover most 2.0 models (reverses the "once 2.1 covers most" plan in the entry below). The standings, headline, score-vs-cost and tool-use sections, the filters and the side panel use the six 2.1 rows and 2.1's bots; the headline counts 2.1 rows against 2.1's <code>pick-trader</code> ("2 of 6 models beat pick-trader by more than the noise": <code>gpt-6-astra</code> and <code>gpt-6.1-sol</code>, whose intervals exclude zero). The 12-row 2.0 board, under score-v2 as before, moves to a 2.0 archive page linked from the footer beside the 1.0 archive. The footer names GM-Bench 2.1 and its fingerprint <code>282dbf382c4ee56c</code>. The 2.0 per-row caveats stay on the 2.0 rows; no 2.1 row carries one, since each is about a 2.0 run. The site data keeps both <code>agentic_lane</code> and <code>agentic_v21_lane</code>.</div>
+</article>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-16-opus-astra">
+<header><div class="date">2026-10-16</div><h2>Opus 5.5 and Astra under 2.1; 2.1 goes on the site</h2>
+<div class="tags"><span class="tag">results/agentic_v21/</span><span class="tag">results/diagnostics/v21_round/opus-5-5_astra_exploratory.json</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> <code>claude-opus-5-5</code> (Claude Code 2.1.281) and <code>gpt-6-astra</code> (Codex 0.162.1) played the 32-seed private panel under 2.1 overnight, in parallel (different providers, each serial inside), from the clean lane commit. Not pre-registered: the same comparison as the round, run as exploratory. <b>Showed:</b> both finished 32/32 with 0 failed decisions and validate under 2.1. <code>gpt-6-astra</code> +46.9 against <code>pick-trader</code> (+36.4 to +57.3), ahead on all 32 seeds; <code>claude-opus-5-5</code> -29.5 (-42.3 to -16.7), ahead on 8. Each moved by less than its noise against its 2.0 row (+7.6 and +17.2, both intervals spanning 0).</div>
+
+<div class="stats">
+ <div class="stat"><div class="k">2.1 rows</div><div class="v">6</div></div>
+ <div class="stat"><div class="k">Kendall tau, six models, vs 2.0 replayed score-v2</div><div class="v">1.0</div></div>
+ <div class="stat"><div class="k">vs 2.0 score-v1</div><div class="v">0.87</div></div>
+ <div class="stat"><div class="k">Sign conflicts</div><div class="v">0</div></div>
+</div>
+
+<table>
+<thead><tr><th>Model</th><th>2.0, score-v1</th><th>2.0, score-v2 replayed</th><th>2.1</th><th>2.1 paired SD</th><th>Seeds ahead</th></tr></thead>
+<tbody>
+<tr><td><code>gpt-6-astra</code></td><td>+39.2</td><td>+43.5</td><td><b>+46.9</b></td><td>30.2</td><td>32/32</td></tr>
+<tr><td><code>claude-opus-5-5</code></td><td>-46.7</td><td>-35.6</td><td><b>-29.5</b></td><td>37.0</td><td>8/32</td></tr>
+</tbody></table>
+
+<div class="key">With the round's four, the six 2.1 lifts keep the replayed score-v2 order exactly. Against score-v1 one pair swaps: <code>claude-opus-5-5</code> and <code>claude-sonnet-5-5</code> (-46.7 and -32.1 under score-v1, -35.6 and -36.3 replayed, -29.5 and -46.8 under 2.1). score-v1's paired SD of about 70 could not order those two; score-v2 already tied them. <code>claude-opus-5-5</code>'s 2.1 SD (37) is the widest of the six, so its interval is the least precise.</div>
+
+<div class="decide"><b>Decided (by the user):</b> show 2.1 on the site now as its own table above the 2.0 board, each row against 2.1's own <code>pick-trader</code>, and make it the default view once 2.1 covers most of the 2.0 models. The 2.0 board stays the full one until then. No row is compared across the two tables.</div>
+</article>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-16-round">
+<header><div class="date">2026-10-16</div><h2>First 2.1 paid round: passed; release 2.1</h2>
+<div class="tags"><span class="tag">docs/bench_v2_1_spec.md</span><span class="tag">results/diagnostics/v21_round/</span><span class="tag">scripts/compare_v21_round.py</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> the pre-registered round. <code>gpt-6.1-sol</code>, <code>deepseek-v4.1-flash</code> and <code>claude-sonnet-5-5</code> each played the 32-seed private panel under 2.1, paired seed by seed with their own published 2.0 games. <code>gpt-6-luna</code> was added afterwards as an exploratory fourth. <b>Showed:</b> the order and signs hold (Kendall tau = 1, no sign conflict), and the paired noise falls to about 26-29 for every model, so 32 seeds now detect about 13 points.</div>
+
+<div class="stats">
+ <div class="stat"><div class="k">Pre-registered test</div><div class="v">passed</div></div>
+ <div class="stat"><div class="k">Smallest detectable gap (32 seeds)</div><div class="v"><span class="old" style="color:var(--muted-foreground);font-weight:500;font-size:16px;text-decoration:line-through;margin-right:6px">~32</span>~13</div></div>
+ <div class="stat"><div class="k">Failed decisions</div><div class="v">0 / 2,560</div></div>
+ <div class="stat"><div class="k">Sign conflicts</div><div class="v">0</div></div>
+</div>
+
+<div>
+ <h3>Lift vs <code>pick-trader</code>, same 32 seeds <span class="sub">· line = 2.1 95% interval; a filled 2.1 marker = its interval excludes 0</span></h3>
+ <div class="legend"><span><i class="dotk" style="background:var(--chart-4)"></i>2.0 games, score-v1</span><span><i class="dotk" style="background:var(--chart-3)"></i>2.0 games replayed, score-v2</span><span><i class="dotk" style="background:var(--chart-1)"></i>2.1 games</span></div>
+ <svg id="c-round" width="100%" height="200"></svg>
+ <div class="sub"><code>gpt-6-luna</code> is exploratory (added after pre-registration; its 2.0 row used Codex 0.156.1, the 2.1 run 0.162.1).</div>
+</div>
+
+<div>
+ <h3>Paired SD of the lift, per model <span class="sub">· lower = fewer seeds needed</span></h3>
+ <svg id="c-round-sd" width="100%" height="160"></svg>
+ <div class="sub">Most of the drop comes from scoring expected playoff value instead of realized games (score-v2); the 2.1 runs (records reset, draft fix, fresh games) are a further 10-35% lower.</div>
+</div>
+
+<div class="decide"><b>Decided (by the user):</b> release 2.1 as a lane on the same 32-seed private panel, with these four runs as its first rows, and start <code>claude-opus-5-5</code> and <code>gpt-6-astra</code> under it. No further rule changes go into 2.1: model rows exist, so any change is a new version. Queue items 1-14 (tool, brief and audit clarity) and 17 (end-state value) wait for a later one; none justifies rerunning every row. <b>Open:</b> <code>deepseek</code> and <code>gpt-6-luna</code> sit within 8 points of <code>pick-trader</code>, under what 32 seeds can resolve.</div>
+
+<div class="decide"><b>Released (same day):</b> <code>config/bench_v21_lane.json</code>, sharing 2.0's private panel byte for byte, with <code>pick-trader</code> 249.618 and <code>random</code> 87.479 played under 2.1 as its pins (2.0's: 249.18 and 90.367). The four runs are its first rows in <code>results/agentic_v21/</code>; each redacts to panel grade and passes <code>agentic-validate --raw</code>. On the site from the next entry.</div>
+</article>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-15-site">
+<header><div class="date">2026-10-15</div><h2>The site moves to score-v2</h2>
+<div class="tags"><span class="tag">scripts/rescore_agentic_v2.py</span><span class="tag">results/agentic_score_v2/</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Decided (by the user):</b> score-v2 is the site's score. score-v1 stays only as a comparison in each row's details. The twelve published 2.0 rows are <b>rescored</b> from their recorded games (nothing re-played), so their v2 numbers use the 2.0 simulation: records still accumulate inside it and the 2.0 draft is unchanged. The published artifacts are untouched; each row's v2 file is bound to its raw run by hash.</div>
+
+<div class="stats">
+ <div class="stat"><div class="k"><code>pick-trader</code> bar</div><div class="v"><span class="old" style="color:var(--muted-foreground);font-weight:500;font-size:16px;text-decoration:line-through;margin-right:6px">249.18</span>250.07</div></div>
+ <div class="stat"><div class="k">Smallest detectable gap</div><div class="v"><span class="old" style="color:var(--muted-foreground);font-weight:500;font-size:16px;text-decoration:line-through;margin-right:6px">20–37</span>15–22</div></div>
+ <div class="stat"><div class="k">Rows clearly ≠ <code>pick-trader</code> (Holm, 12)</div><div class="v">8</div></div>
+ <div class="stat"><div class="k">Clear results that change direction</div><div class="v">0</div></div>
+</div>
+
+<div>
+ <h3>Each row's lift vs <code>pick-trader</code>, old score → new <span class="sub">· 32 private seeds; filled = 95% interval excludes 0</span></h3>
+ <div class="legend"><span><i class="dotk" style="background:var(--chart-4)"></i>score-v1 (as first published)</span><span><i class="dotk" style="background:var(--chart-1)"></i>score-v2 (site)</span></div>
+ <svg id="c-site" width="100%" height="420"></svg>
+ <div class="sub">One row moves from "can't tell" to clearly behind <code>pick-trader</code> (<code>gpt-6-luna</code>); none moves the other way. Opus 5.5 and Sonnet 5.5 swap order once title luck is out.</div>
+</div>
+
+<div class="decide"><b>Shipped in this change:</b> standings, cost view, model and bot details, and Method use score-v2; the per-row caveats quoting score-v1 statistics were rewritten. <b>Still score-v1, labelled as such:</b> the How-it-works walkthrough, the replay showcase, the trajectory explorer, the puzzles and the Play game. Each computes one demo game live with the frozen engine, so migrating them is a follow-up.</div>
+</article>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-15-v21">
+<header><div class="date">2026-10-15</div><h2>Building 2.1, and the draft bug behind the missing 35 points</h2>
+<div class="tags"><span class="tag">docs/bench_v2_1_spec.md</span><span class="tag">gm_bench/v21/</span><span class="tag">queue item 18</span><span class="tag">continuation21_pick-trader.json</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>What happened:</b> while 2.1 was being built, the hunt for the ~35 points of future value <code>pick-trader</code> left behind found a <b>simulator bug</b>. When the GM holds two picks in one draft and uses one, 1.0 silently skips every opponent pick between them. <code>pick-trader</code> trips it in 29 of 32 private-panel episodes, so its whole league stays weaker. No published model episode ever triggered it. 2.1 fixes it.</div>
+
+<div class="stats">
+ <div class="stat"><div class="k">Opponent picks per episode behind <code>pick-trader</code></div><div class="v"><span class="old" style="color:var(--muted-foreground);font-weight:500;font-size:16px;text-decoration:line-through;margin-right:6px">43</span>53 <span class="sub">of 55</span></div></div>
+ <div class="stat"><div class="k">Published model episodes affected</div><div class="v">0 <span class="sub">of 384</span></div></div>
+ <div class="stat"><div class="k">2.1 contract checks</div><div class="v">all pass</div></div>
+ <div class="stat"><div class="k">1.0 / 2.0 fingerprints</div><div class="v">unchanged</div></div>
+</div>
+
+<div>
+ <h3>Opponents' draft picks per 5-season episode <span class="sub">· public seeds 11–22</span></h3>
+ <svg id="c-draft" width="100%" height="150"></svg>
+ <div class="sub">The remaining shortfall behind <code>pick-trader</code> under 2.1 is the picks it legitimately trades for.</div>
+</div>
+
+<div>
+ <h3>Unexplained future value, before and after the fix <span class="sub">· under 2.1 rules, seeds 11–58, 5 more seasons, same dice</span></h3>
+ <div class="legend"><span><i class="dotk" style="background:var(--chart-4)"></i>1.0 draft</span><span><i class="dotk" style="background:var(--chart-1)"></i>draft fixed</span><span>residual = future winning gap − end-state gap (0 = end state captures everything)</span></div>
+ <svg id="c-resid" width="100%" height="300"></svg>
+ <div class="sub">Each policy's leftover gap roughly halves. What remains is mostly picks <code>pick-trader</code> takes from opponents, which weakens them legitimately. Scoring "weaker opponents" would also reward fleecing the scripted teams, so it stays unscored. Inside the 5-season episode the bug was worth only ~2 points to <code>pick-trader</code> under v1 (~4 under 2.1). The 2.0 lifts are understated by at most a few points.</div>
+</div>
+
+<div>
+ <h3>What 2.1 is</h3>
+ <table>
+  <tr><th>Change</th><th>2.0</th><th>2.1</th></tr>
+  <tr><td>Team records</td><td>Running total since season 1</td><td>Reset each season</td></tr>
+  <tr><td>Playoff scoring</td><td>Single-game results</td><td>Exact expectation (same 9 / 35 weights)</td></tr>
+  <tr><td>Wins term</td><td>0.42 × running totals (seasons weighted 3,3,3,2,1)</td><td>1.02 × every season's own wins</td></tr>
+  <tr><td>Opponent draft</td><td>Skips slots behind an unused user pick</td><td>Uses every slot it owns</td></tr>
+  <tr><td>Tools, brief, calendar, guard, ledger</td><td colspan="2">Identical: the 2.1 engine subclasses the frozen 2.0 one</td></tr>
+ </table>
+ <div class="sub" style="margin-top:6px">Built in <code>gm_bench/v21/</code> without editing a single 1.0 or 2.0 contract file. Fingerprint <code>282dbf382c4ee56c</code>. <code>gm-bench agentic --contract 2.1</code>; the default stays 2.0. A free one-season smoke on <code>deepseek-v4.1-flash-free</code> ran end to end under 2.1.</div>
+</div>
+
+<div>
+ <h3>2.1 contract checks <span class="sub">· <code>validate-contract --contract 2.1</code>, seeds 11–34</span></h3>
+ <svg id="c-canary21" width="100%" height="260"></svg>
+ <div class="sub">Every asserted ordering passes with 2.0's margins unchanged. Tightest: <code>value</code> over accept-everything on strategy score, 30.4 against a 25 gate.</div>
+</div>
+
+<div class="decide"><b>Decided:</b> 2.1 = records reset + draft fix + score-v2 (E), no extra scoring term for the leftover gap. Weights stay as pre-registered (1.02 was not recalibrated after the draft fix). Queue items 1–14 stay out: they touch the 2.0 tool surface or brief, which 2.1 reuses unchanged. <b>Next:</b> a small paid round on the 2.0 private panel, pending the user's go-ahead.</div>
+</article>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-15-stress">
+<header><div class="date">2026-10-15</div><h2>Stress-testing score-v2: recommend E, build 2.1</h2>
+<div class="tags"><span class="tag">docs/score_deep_dive.md</span><span class="tag">results/diagnostics/score_deep_dive/</span><span class="tag">PR #211</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Bottom line:</b> score-v2 survived every test, and a small variant (<b>E</b>: count every season's wins, not just the last three) is equal or better on every measure. The surprise is <i>why</i> models trail <code>pick-trader</code>: most of them win <b>more</b>, but leave the franchise weaker. Simulating five more seasons shows that's a real cost, not an accounting quirk.</div>
+
+<div class="stats">
+ <div class="stat"><div class="k">Rows that out-win <code>pick-trader</code></div><div class="v">9 <span class="sub">of 12</span></div></div>
+ <div class="stat"><div class="k">Future wins per point of end-state score</div><div class="v">1.0 <span class="sub">± 0.06</span></div></div>
+ <div class="stat"><div class="k">Exploits the planner found</div><div class="v">0</div></div>
+ <div class="stat"><div class="k">Cost</div><div class="v">$0 <span class="sub">CPU only</span></div></div>
+</div>
+
+<div>
+ <h3>Where each row's lift comes from <span class="sub">· under C, vs <code>pick-trader</code>, 32 private seeds (<code>panels.json</code>)</span></h3>
+ <div class="legend"><span><i class="sw" style="background:var(--chart-1)"></i>winning now (wins, playoffs, titles)</span><span><i class="sw" style="background:var(--chart-4)"></i>end state (assets, young players, cap)</span><span><i class="dotk" style="background:var(--foreground)"></i>net lift</span></div>
+ <svg id="c-dec" width="100%" height="420"></svg>
+</div>
+
+<div>
+ <h3>Do lost assets really cost future wins? <span class="sub">· both teams handed to the same manager for 5 more seasons, same dice (<code>continuation_pick-trader.json</code>)</span></h3>
+ <div class="legend"><span><i class="dotk" style="background:var(--chart-1)"></i>published model row</span><span><i class="ring"></i>scripted policy / canary</span><span><i class="dl"></i>if end state captured everything</span><span><i class="ln"></i>best fit (slope 1.0, offset −35)</span></div>
+ <svg id="c-sc" width="100%" height="330"></svg>
+ <div class="sub">How it works: rebuild each final league from its ledger, hand both the model's team and <code>pick-trader</code>'s team on the same seed to one scripted manager, and keep simulating seasons 6–10. The simulator draws its dice on a fixed schedule, so both continuations get identical luck. A slope of 1 means the asset terms are priced right. The fit runs about 35 points below the dashed line with either manager (<code>strategic</code> gives slope 0.95, offset −34): <code>pick-trader</code> leaves future value no term captures. Picks and hidden potential were ruled out. Model <i>order</i> doesn't depend on it, but "beats <code>pick-trader</code>" does: valued five seasons ahead, astra's +44 becomes about +5.</div>
+</div>
+
+<div>
+ <h3>All six checks</h3>
+ <table>
+  <tr><th>Check</th><th>What we did</th><th>Result</th><th></th></tr>
+  <tr><td><b>Lift breakdown</b></td><td>Rebuilt every final league, split the score term by term</td><td>Gains are real winning (astra: +3 to +5 wins a season). Losses are mostly young-player value.</td><td class="ok">✓ sound</td></tr>
+  <tr><td><b>Continuation</b></td><td>Five more simulated seasons, same dice, two managers</td><td>End-state terms predict future winning 1:1. Unexplained −35 offset in <code>pick-trader</code>'s favor.</td><td class="warn">✓ open question</td></tr>
+  <tr><td><b>Weights</b></td><td>Each of 9 weights halved and raised by half (18 versions)</td><td>Order nearly unchanged (tau ≥ 0.88). Signs flip only within 5 pts of zero.</td><td class="ok">✓ robust</td></tr>
+  <tr><td><b>Noise</b></td><td>Same starting league, all later dice rerolled 4×</td><td>60–90% of paired spread is still dice (development, injuries, prices). More seeds is the lever.</td><td class="ok">✓ understood</td></tr>
+  <tr><td><b>Exploit search</b></td><td>Fair planner optimizing C, then E, on 24 public seeds</td><td>C +27, E +29, both by winning more and keeping assets. No tanking.</td><td class="ok">✓ none found</td></tr>
+  <tr><td><b>Records fix</b></td><td>In-memory hook resetting records each season</td><td>C and E pass every contract check on 24 and 96 seeds.</td><td class="ok">✓ safe</td></tr>
+ </table>
+</div>
+
+<div class="decide"><b>Decided:</b> recommend score <b>E</b> (expected playoffs, every season's own wins at 1.02) plus the <b>records-reset fix</b> for a 2.1 contract; plan ~50 seeds per panel; publish model order with a caveat on lifts vs <code>pick-trader</code>. Build 2.1 for free first; a small paid round only once it exists. Keep digging on the missing ~35 points (queue item 17).</div>
+</article>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-15-path">
+<header><div class="date">2026-10-15</div><h2>Plug in, deep dive, or overhaul?</h2>
+<div class="tags"><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>The key fact:</b> replays are exact. Every scoring question can be answered from the ledgers we already have, for free. Paying to rerun models only teaches us something when the <b>simulator</b> changes. So: perfect the scoring offline, bundle the simulator fixes, then pay for one rerun round.</div>
+
+<div class="grid3">
+ <div class="card"><h4>Plug in v2, no reruns</h4>
+  <ul><li>Shadow column on the 2.0 rows</li><li>Fixes playoff noise and the recent-wins triple count</li><li>Leaves the records bug</li></ul>
+  <div class="verdict">Free and safe, but stops halfway.</div></div>
+ <div class="card rec"><span class="badge">Chosen</span><h4>Targeted deep dive → 2.1</h4>
+  <ul><li>Free checks, each with a stopping rule</li><li>Fix the simulator, recalibrate on scripted agents</li><li>Pre-register, then rerun 3–4 models</li></ul>
+  <div class="verdict">The only path whose paid run tests something new.</div></div>
+ <div class="card"><h4>Full overhaul</h4>
+  <ul><li>Redesign terms and weights</li><li>Best-of series plus a new score</li><li>Rerun the whole panel</li></ul>
+  <div class="verdict">Nothing shows the structure is broken; tuning against the same 11 rows invites overfitting.</div></div>
+</div>
+
+<div>
+ <h3>Where the published rows sat before the deep dive <span class="sub">· proposal C lift vs <code>pick-trader</code></span></h3>
+ <div class="legend"><span><i class="dotk" style="background:var(--chart-1)"></i>published model row</span><span><i class="dia"></i>our search planners (public seeds, approx.)</span></div>
+ <svg id="c-strip" width="100%" height="150"></svg>
+ <div class="sub">The open question this raised: <code>gpt-6-astra</code> (+44) beat our fair planner (+25) and even the clairvoyant search (+41). The deep dive answered it: astra wins three to five more games a season. It isn't an accounting quirk.</div>
+</div>
+
+<div>
+ <h3>Seeds needed to detect a given gap <span class="sub">· 80% power, paired with <code>pick-trader</code></span></h3>
+ <div class="legend"><span><i class="dotk" style="background:var(--chart-4)"></i>v1</span><span><i class="dotk" style="background:var(--chart-1)"></i>v2</span></div>
+ <svg id="c-seeds" width="100%" height="240"></svg>
+ <div class="sub">Scaled from the mean detectable gap across the published rows (30.8 and 18.6 points at 32 seeds). A 15-point gap needs about 135 seeds under v1 and about 49 under v2.</div>
+</div>
+
+<div class="decide"><b>Decided (with the user):</b> targeted deep dive, no paid reruns yet; merge #208.</div>
+</article>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-15-v2">
+<header><div class="date">2026-10-15</div><h2>score-v1 vs the proposed score-v2</h2>
+<div class="tags"><span class="tag">docs/score_v2_proposal.md</span><span class="tag">PR #208</span></div></header>
+
+<div class="stats">
+ <div class="stat"><div class="k">Smallest detectable gap (mean, 11 rows)</div><div class="v"><span class="old">30.8</span>18.6 <span class="sub">pts</span></div></div>
+ <div class="stat"><div class="k">Rows clearly ≠ <code>pick-trader</code> (Holm)</div><div class="v"><span class="old">4</span>8 <span class="sub">of 11</span></div></div>
+ <div class="stat"><div class="k"><code>pick-trader</code> seed-to-seed SD</div><div class="v"><span class="old">42.3</span>32.3</div></div>
+ <div class="stat"><div class="k">Games, trades or draws changed</div><div class="v">0</div></div>
+</div>
+
+<div class="grid2">
+ <div class="card"><h4>1 · Playoffs: score the odds, not the coin flip</h4>
+  <div class="vrow"><span class="vtag t1">v1</span><div>9 pts per playoff round won, 35 per title, from the actual single-game results.</div></div>
+  <div class="vrow"><span class="vtag t2">v2</span><div>Same 9 and 35, times the <b>expected</b> rounds and title chance, worked out exactly from the bracket and ratings.</div></div>
+  <div class="verdict">Playoff dice account for ~64% of score variance, and no GM controls them. The expectation is unbiased.</div></div>
+ <div class="card"><h4>2 · Recent wins: fix the hidden triple count</h4>
+  <div class="vrow"><span class="vtag t1">v1</span><div>0.42 × win totals after seasons 3, 4, 5. Records never reset, so seasons weigh 3, 3, 3, 2, 1.</div></div>
+  <div class="vrow"><span class="vtag t2">v2</span><div>1.67 × the wins <b>in</b> seasons 3–5 only, calibrated so <code>pick-trader</code> keeps the same points. (Superseded by E: every season at 1.02.)</div></div>
+  <div class="verdict">The simulator still used running totals for seeding and the lottery; that half needs the records fix.</div></div>
+</div>
+<div><div class="sub">Unchanged, same weights:</div>
+ <div class="pills"><span class="pill">total assets 0.16</span><span class="pill">young assets 0.18</span><span class="pill">future picks 0.16</span><span class="pill">cap room 0.35 (−12…+10)</span><span class="pill">current strength 0.28</span><span class="pill">roster depth 8</span><span class="pill">illegal action −2.5</span></div></div>
+
+<div>
+ <h3>Scripted references <span class="sub">· canary seeds 11–34</span></h3>
+ <table>
+  <tr><th>Policy</th><th class="num">v1 mean</th><th class="num">v2 mean</th></tr>
+  <tr><td><code>pick-trader</code></td><td class="num">251.3</td><td class="num"><b>258.3</b></td></tr>
+  <tr><td><code>strategic</code></td><td class="num">256.6</td><td class="num">249.0</td></tr>
+  <tr><td><code>shrewd</code></td><td class="num"><b>264.0</b></td><td class="num">244.8</td></tr>
+  <tr><td><code>value</code></td><td class="num">187.7</td><td class="num">174.5</td></tr>
+  <tr><td><code>random</code></td><td class="num">94.6</td><td class="num">79.7</td></tr>
+ </table>
+ <div class="sub" style="margin-top:6px">Under v1, <code>shrewd</code>'s lead was title luck (17.6 pts more from playoffs than its brackets were worth). Under v2 the order is <code>pick-trader</code> &gt; <code>strategic</code> &gt; <code>shrewd</code>, and it held on 96 fresh seeds.</div>
+</div>
+
+<div>
+ <h3>Published 2.0 rows vs <code>pick-trader</code> <span class="sub">· 32 private seeds, replayed, no model calls</span></h3>
+ <div class="legend"><span><i class="dotk" style="background:var(--chart-4)"></i>v1</span><span><i class="dotk" style="background:var(--chart-1)"></i>v2</span><span>bar = 95% interval · filled dot = clearly different after Holm correction</span></div>
+ <svg id="c-ci" width="100%" height="430"></svg>
+</div>
+</article>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-14-ceiling">
+<header><div class="date">2026-10-14</div><h2>How much headroom is above <code>pick-trader</code>?</h2>
+<div class="tags"><span class="tag">docs/score_ceiling.md</span><span class="tag">results/diagnostics/score_ceiling/</span></div></header>
+
+<div class="key">For one seed the simulator is a deterministic function of the GM's 20 decisions, so a per-seed optimum exists. We bracketed it with two searches: a <b>clairvoyant</b> beam search that sees the dice, and a <b>fair</b> planner that resamples everything a GM can't observe.</div>
+
+<div>
+ <h3>Lift over <code>pick-trader</code> <span class="sub">· public seeds 101–124 (fair replicated on 125–172)</span></h3>
+ <svg id="c-ceiling" width="100%" height="190"></svg>
+ <div class="sub">"Luck-neutral" swaps realized playoff results for their exact expectation. Seeing the dice is worth ~130 points, almost all of it playoffs. With playoff luck removed, clairvoyance is worth ~41 and a fair planner gets ~26 of it, ahead on 22 of 24 seeds and on 44 of 48 fresh seeds. About 64% of score variance turned out to be playoff dice, which led to score-v2.</div>
+</div>
+</article>
+
+</main>
+<script>
+const NS='http://www.w3.org/2000/svg',tip=document.getElementById('tip');
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function mk(s,n,a,t){const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;s.appendChild(e);return e}
+function hover(e,txt){e.addEventListener('mousemove',ev=>{tip.style.display='block';tip.textContent=txt;tip.style.left=(ev.clientX+12)+'px';tip.style.top=(ev.clientY-28)+'px'});e.addEventListener('mouseleave',()=>tip.style.display='none')}
+const svg=id=>{const s=document.getElementById(id);s.innerHTML='';return s};
+const sgn=v=>(v>0?'+':'')+v;
+
+// --- 2026-10-15 stress test: winning vs end state (panels.json) ---
+function drawDecomposition(){const s=svg('c-dec');
+ const rows=[["gpt-6-astra",67.4,-18.8,44.0],["gpt-6.1-sol",51.8,-18.7,26.8],["muse-spark-1.3",11.5,-11.7,-0.3],["deepseek 1.18",20.3,-21.0,-3.4],["deepseek 2.0",10.1,-19.7,-12.2],["sonnet-5",14.8,-26.9,-14.0],["gpt-6-luna",-7.4,-6.1,-15.0],["composer-2.5",-5.1,-7.1,-16.4],["opus-5-5",37.1,-67.1,-34.6],["sonnet-5-5",9.0,-41.6,-35.5],["haiku-5-5",5.0,-60.3,-58.8],["haiku-4-5",-40.8,-79.2,-124.5]];
+ const W=s.clientWidth,L=Math.min(108,W*.27),R=8,T=6,rh=32,lo=-130,hi=75,x=v=>L+(v-lo)/(hi-lo)*(W-L-R),H=T+rows.length*rh;
+ for(let t=-120;t<=60;t+=20){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},sgn(t))}
+ rows.forEach(([n,w,e,net],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  [[w,-5,'--chart-1','winning now'],[e,4,'--chart-4','end state']].forEach(([v,dy,c,lab])=>{const r=mk(s,'rect',{x:Math.min(x(0),x(v)),y:y+dy-3.5,width:Math.max(1,Math.abs(x(v)-x(0))),height:7,rx:2,fill:css(c)});hover(r,`${n} · ${lab}: ${sgn(v)}`)});
+  const d=mk(s,'circle',{cx:x(net),cy:y,r:4.5,fill:css('--foreground'),stroke:css('--background'),'stroke-width':2});hover(d,`${n} · net lift ${sgn(net)}`)});
+ s.setAttribute('height',H+22)}
+
+// --- 2026-10-15 stress test: continuation scatter (continuation_pick-trader.json) ---
+function drawContinuation(){const s=svg('c-sc');
+ const pts=[["gpt-6-astra",-18.8,-58.3,1],["gpt-6.1-sol",-18.7,-58.0,1],["gpt-6-luna",-6.1,-42.2,1],["deepseek 1.18",-21.0,-64.2,1],["deepseek 2.0",-19.7,-57.0,1],["composer-2.5",-7.1,-50.6,1],["sonnet-5",-26.9,-62.7,1],["sonnet-5-5",-41.6,-73.0,1],["opus-5-5",-67.1,-98.4,1],["haiku-5-5",-60.3,-98.2,1],["haiku-4-5",-79.2,-116.6,1],["muse-spark-1.3",-11.7,-39.6,1],["random",-81.9,-115.1,0],["value",-48.2,-87.6,0],["shrewd",-7.4,-27.5,0],["strategic",-5.7,-19.7,0],["exploit",-54.2,-92.7,0],["pick-hoard",-52.6,-91.6,0],["cap-hoard",-60.1,-102.9,0],["accept-everything",-53.5,-98.4,0]];
+ const W=s.clientWidth,L=44,R=10,T=8,B=36,H=330,x0=-90,x1=5,y0=-125,y1=5,x=v=>L+(v-x0)/(x1-x0)*(W-L-R),y=v=>T+(1-(v-y0)/(y1-y0))*(H-T-B);
+ for(let t=-80;t<=0;t+=20){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H-B,stroke:css('--border'),'stroke-width':.6});mk(s,'text',{x:x(t),y:H-B+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},t)}
+ for(let t=-120;t<=0;t+=20){mk(s,'line',{x1:L,x2:W-R,y1:y(t),y2:y(t),stroke:css('--border'),'stroke-width':.6});mk(s,'text',{x:L-6,y:y(t)+4,'text-anchor':'end','font-size':10.5,fill:css('--muted-foreground')},t)}
+ mk(s,'text',{x:(L+W-R)/2,y:H-4,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},'end-state gap vs pick-trader at season 5 (score points)');
+ mk(s,'text',{x:12,y:(T+H-B)/2,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground'),transform:`rotate(-90 12 ${(T+H-B)/2})`},'future winning gap, seasons 6–10');
+ mk(s,'line',{x1:x(-90),y1:y(-90),x2:x(5),y2:y(5),stroke:css('--muted-foreground'),'stroke-width':1.5,'stroke-dasharray':'5 4'});
+ mk(s,'line',{x1:x(-90),y1:y(-90*1.013-35.3),x2:x(5),y2:y(5*1.013-35.3),stroke:css('--muted-foreground'),'stroke-width':2});
+ const lab={"opus-5-5":[6,-6],"haiku-4-5":[6,4],"gpt-6-astra":[6,-6],"strategic":[-6,12,'end'],"sonnet-5-5":[6,12],"muse-spark-1.3":[6,4]};
+ pts.forEach(([n,a,b,m])=>{const c=m?mk(s,'circle',{cx:x(a),cy:y(b),r:5,fill:css('--chart-1'),stroke:css('--background'),'stroke-width':2}):mk(s,'circle',{cx:x(a),cy:y(b),r:4.5,fill:css('--background'),stroke:css('--chart-3'),'stroke-width':2});
+  hover(c,`${n}: end state ${a}, next 5 seasons ${b}`);
+  if(lab[n])mk(s,'text',{x:x(a)+lab[n][0],y:y(b)+lab[n][1],'text-anchor':lab[n][2]||'start','font-size':11,fill:css('--foreground')},n)})}
+
+// --- 2026-10-15 path: rows strip and seeds-needed curves ---
+function drawStrip(){const s=svg('c-strip');
+ const models=[["haiku-4-5",-124.5],["haiku-5-5",-58.8],["sonnet-5-5",-35.5],["opus-5-5",-34.6],["composer-2.5",-16.4],["gpt-6-luna",-15.0],["sonnet-5",-14.0],["deepseek 2.0",-12.2],["deepseek 1.18",-3.4],["gpt-6.1-sol",26.8],["gpt-6-astra",44.0]];
+ const refs=[["fair planner",25.4,"public seeds 125–172, luck-neutral"],["clairvoyant",41.2,"sees the dice; seeds 101–124, luck-neutral"]];
+ const W=s.clientWidth,L=8,R=12,lo=-135,hi=60,x=v=>L+(v-lo)/(hi-lo)*(W-L-R),y=70;
+ for(let t=-120;t<=60;t+=20){mk(s,'line',{x1:x(t),x2:x(t),y1:30,y2:110,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:126,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},sgn(t))}
+ mk(s,'text',{x:x(0),y:142,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},'pick-trader = 0');
+ const lab={"haiku-4-5":-12,"haiku-5-5":-12,"gpt-6.1-sol":20,"gpt-6-astra":20};
+ models.forEach(([n,v])=>{const c=mk(s,'circle',{cx:x(v),cy:y,r:5,fill:css('--chart-1'),stroke:css('--background'),'stroke-width':2});hover(c,`${n}: ${sgn(v)}`);
+  if(lab[n])mk(s,'text',{x:x(v),y:y+lab[n],'text-anchor':'middle','font-size':11,fill:css('--foreground')},n)});
+ mk(s,'text',{x:x(-35),y:y+20,'text-anchor':'middle','font-size':11,fill:css('--muted-foreground')},'opus · sonnet-5-5');
+ mk(s,'text',{x:x(-10),y:y-12,'text-anchor':'middle','font-size':11,fill:css('--muted-foreground')},'5 rows: −16 to −3');
+ refs.forEach(([n,v,d],i)=>{const p=mk(s,'rect',{x:x(v)-5,y:37,width:10,height:10,transform:`rotate(45 ${x(v)} 42)`,fill:css('--background'),stroke:css('--chart-3'),'stroke-width':2});hover(p,`${n}: +${v} (${d})`);
+  mk(s,'text',{x:x(v)+(i?10:-10),y:46,'text-anchor':i?'start':'end','font-size':11,fill:css('--foreground')},n)})}
+function drawSeeds(){const s=svg('c-seeds');
+ const W=s.clientWidth,L=40,R=14,T=10,B=34,H=240,g0=9,g1=30,ymax=400,x=g=>L+(g-g0)/(g1-g0)*(W-L-R),y=n=>T+(1-Math.min(n,ymax)/ymax)*(H-T-B);
+ for(let n=0;n<=ymax;n+=100){mk(s,'line',{x1:L,x2:W-R,y1:y(n),y2:y(n),stroke:css('--border'),'stroke-width':.6});mk(s,'text',{x:L-6,y:y(n)+4,'text-anchor':'end','font-size':10.5,fill:css('--muted-foreground')},n)}
+ for(let g=10;g<=30;g+=5)mk(s,'text',{x:x(g),y:H-B+16,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},g);
+ mk(s,'text',{x:(L+W-R)/2,y:H-4,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},'gap you want to detect (points)');
+ mk(s,'line',{x1:L,x2:W-R,y1:y(32),y2:y(32),stroke:css('--muted-foreground'),'stroke-dasharray':'3 3','stroke-width':1});
+ mk(s,'text',{x:W-R,y:y(32)-6,'text-anchor':'end','font-size':10.5,fill:css('--muted-foreground')},'today: 32 seeds');
+ [[30.8,'--chart-4','v1'],[18.6,'--chart-1','v2']].forEach(([m,c,n])=>{let d='';for(let g=g0;g<=g1;g+=.25){d+=(d?'L':'M')+x(g)+','+y(32*(m/g)**2)}
+  mk(s,'path',{d,fill:'none',stroke:css(c),'stroke-width':2});
+  [10,15,20,25].forEach(g=>{const v=32*(m/g)**2;if(v>ymax)return;const p=mk(s,'circle',{cx:x(g),cy:y(v),r:4,fill:css(c),stroke:css('--background'),'stroke-width':2});hover(p,`${n}: ${Math.round(v)} seeds to detect a ${g}-pt gap`)});
+  mk(s,'text',{x:x(11)+8,y:y(32*(m/11)**2)-8,'font-size':11.5,'font-weight':600,fill:css('--foreground')},n)})}
+
+// --- 2026-10-15 v1 vs v2: lift intervals (score_v2_panels.json; MDE -> 95% half-width = 0.6996 * MDE) ---
+function drawIntervals(){const s=svg('c-ci');
+ const rows=[["gpt-6-astra",39.2,34.5,1,44.0,16.9,1],["gpt-6.1-sol",24.0,32.2,0,26.8,16.2,1],["deepseek 1.18",-2.0,29.3,0,-3.4,17.4,0],["deepseek 2.0",-4.6,30.2,0,-12.2,21.0,0],["sonnet-5",-21.8,36.9,0,-14.0,22.5,0],["composer-2.5",-18.6,25.1,0,-16.4,16.5,1],["gpt-6-luna",-21.8,31.4,0,-15.0,14.2,1],["sonnet-5-5",-32.1,34.0,0,-35.5,19.8,1],["opus-5-5",-46.7,34.6,1,-34.6,20.3,1],["haiku-5-5",-46.5,29.9,1,-58.8,18.4,1],["haiku-4-5",-119.1,20.5,1,-124.5,21.0,1]];
+ const W=s.clientWidth,L=Math.min(110,W*.28),R=10,T=8,rh=36,lo=-145,hi=70,x=v=>L+(v-lo)/(hi-lo)*(W-L-R),H=T+rows.length*rh;
+ for(let t=-140;t<=60;t+=20){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+16,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},sgn(t))}
+ mk(s,'text',{x:x(0)+4,y:H+30,'font-size':10.5,fill:css('--muted-foreground')},'← worse than pick-trader · better →');
+ rows.forEach((r,i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},r[0]);
+  [[1,-6,'--chart-4','v1'],[4,6,'--chart-1','v2']].forEach(([j,dy,c,lab])=>{const m=r[j],h=0.6996*r[j+1],cc=css(c);
+   mk(s,'line',{x1:x(m-h),x2:x(m+h),y1:y+dy,y2:y+dy,stroke:cc,'stroke-width':2.5,'stroke-linecap':'round',opacity:.55});
+   const p=mk(s,'circle',{cx:x(m),cy:y+dy,r:4.5,fill:r[j+2]?cc:css('--background'),stroke:cc,'stroke-width':2});hover(p,`${r[0]} · ${lab}: ${sgn(m)} (±${h.toFixed(1)})`)})});
+ s.setAttribute('height',H+38)}
+
+// --- 2026-10-14 ceiling: lift ladder (score_ceiling.md results table) ---
+function drawCeiling(){const s=svg('c-ceiling');
+ const rows=[["Clairvoyant (realized)",129.8,8.8,'--chart-3'],["Clairvoyant (luck-neutral)",41.2,3.4,'--chart-3'],["Fair planner (luck-neutral)",26.2,4.2,'--chart-1'],["Fair planner, 48 fresh seeds",25.4,3.2,'--chart-1'],["Fair planner, scripted menu (realized)",11.9,7.6,'--chart-1']];
+ const W=s.clientWidth,L=Math.min(210,W*.42),R=40,T=4,rh=34,x=v=>L+v/150*(W-L-R),H=T+rows.length*rh;
+ for(let t=0;t<=150;t+=25){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},'+'+t)}
+ rows.forEach(([n,v,se,c],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  const b=mk(s,'rect',{x:x(0),y:y-7,width:x(v)-x(0),height:14,rx:3,fill:css(c)});hover(b,`${n}: +${v} (se ${se})`);
+  mk(s,'line',{x1:x(v-1.96*se),x2:x(v+1.96*se),y1:y,y2:y,stroke:css('--foreground'),'stroke-width':1.5});
+  mk(s,'text',{x:x(v+1.96*se)+6,y:y+4,'font-size':11,fill:css('--muted-foreground')},'+'+v)});
+ s.setAttribute('height',H+22)}
+
+
+// --- 2026-10-15 v21: opponent draft picks (seeds 11-22) ---
+function drawDraft(){const s=svg('c-draft');
+ const rows=[["strategic (1.0 or 2.1)",55.0,'--muted-foreground'],["pick-trader, 1.0",43.4,'--chart-4'],["pick-trader, 2.1",52.5,'--chart-1']];
+ const W=s.clientWidth,L=Math.min(170,W*.36),R=40,T=4,rh=34,x=v=>L+v/60*(W-L-R),H=T+rows.length*rh;
+ for(let t=0;t<=60;t+=10){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},t)}
+ rows.forEach(([n,v,c],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  const b=mk(s,'rect',{x:x(0),y:y-8,width:x(v)-x(0),height:16,rx:3,fill:css(c)});hover(b,`${n}: ${v} opponent picks per episode`);
+  mk(s,'text',{x:x(v)+6,y:y+4,'font-size':11,fill:css('--muted-foreground')},v)});
+ s.setAttribute('height',H+22)}
+
+// --- 2026-10-15 v21: residual by policy, 1.0 draft vs fixed (continuation21_pick-trader.json) ---
+function drawResidual(){const s=svg('c-resid');
+ const rows=[["random",-2.3,3.6],["value",-12.8,-7.7],["shrewd",-12.2,-8.5],["strategic",-9.6,-5.0],["exploit",-10.3,-5.2],["pick-hoard",-8.2,-4.0],["cap-hoard",-9.7,-4.5],["accept-everything",-8.9,-4.2]];
+ const W=s.clientWidth,L=Math.min(130,W*.3),R=12,T=6,rh=32,lo=-16,hi=6,x=v=>L+(v-lo)/(hi-lo)*(W-L-R),H=T+rows.length*rh;
+ for(let t=-15;t<=5;t+=5){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},sgn(t))}
+ rows.forEach(([n,a,b],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  mk(s,'line',{x1:x(a),x2:x(b),y1:y,y2:y,stroke:css('--border'),'stroke-width':3});
+  const p=mk(s,'circle',{cx:x(a),cy:y,r:5,fill:css('--chart-4'),stroke:css('--background'),'stroke-width':2});hover(p,`${n} · 1.0 draft: ${sgn(a)}`);
+  const q=mk(s,'circle',{cx:x(b),cy:y,r:5,fill:css('--chart-1'),stroke:css('--background'),'stroke-width':2});hover(q,`${n} · draft fixed: ${sgn(b)}`)});
+ s.setAttribute('height',H+22)}
+
+// --- 2026-10-15 v21: canary means under 2.1 (validate-contract --contract 2.1) ---
+function drawCanary21(){const s=svg('c-canary21');
+ const rows=[["pick-trader",252.6,'--chart-1'],["strategic",248.8,'--chart-1'],["shrewd",245.9,'--chart-1'],["value",178.2,'--chart-1'],["accept-everything",138.9,'--chart-3'],["pick-hoard",134.7,'--chart-3'],["exploit",121.7,'--chart-3'],["cap-hoard",118.3,'--chart-3']];
+ const W=s.clientWidth,L=Math.min(130,W*.3),R=44,T=4,rh=28,x=v=>L+v/280*(W-L-R),H=T+rows.length*rh;
+ for(let t=0;t<=250;t+=50){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},t)}
+ mk(s,'line',{x1:x(178.2-25),x2:x(178.2-25),y1:T,y2:H,stroke:css('--warning'),'stroke-dasharray':'4 3','stroke-width':1.5});
+ mk(s,'text',{x:x(178.2-25)+4,y:H-4,'font-size':10.5,fill:css('--warning')},'canary gate');
+ rows.forEach(([n,v,c],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  const b=mk(s,'rect',{x:x(0),y:y-7,width:x(v)-x(0),height:14,rx:3,fill:css(c)});hover(b,`${n}: ${v}`);
+  mk(s,'text',{x:x(v)+6,y:y+4,'font-size':11,fill:css('--muted-foreground')},v)});
+ s.setAttribute('height',H+22)}
+
+// --- 2026-10-15 site: v1 -> v2 lift per published row (results/agentic_score_v2, leaderboard.json) ---
+function drawRound(){const s=svg('c-round');
+ const rows=[["gpt-6.1-sol",24.0,26.8,19.1,10.3,28.0],["deepseek-v4.1-flash",-4.6,-11.4,1.2,-8.2,10.5],["gpt-6-luna *",-21.8,-15.9,-7.6,-16.6,1.4],["claude-sonnet-5-5",-32.1,-36.3,-46.8,-56.9,-36.7]];
+ const W=s.clientWidth,L=Math.min(150,W*.32),R=10,T=6,rh=40,lo=-60,hi=40,x=v=>L+(v-lo)/(hi-lo)*(W-L-R),H=T+rows.length*rh;
+ for(let t=-60;t<=40;t+=20){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},sgn(t))}
+ rows.forEach(([n,a,e,b,l,h],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  mk(s,'line',{x1:x(l),x2:x(h),y1:y+9,y2:y+9,stroke:css('--chart-1'),'stroke-width':2});
+  const sig=l>0||h<0;
+  [[a,'--chart-4','2.0 score-v1',y-9,1],[e,'--chart-3','2.0 replayed score-v2',y,1],[b,'--chart-1','2.1',y+9,sig]].forEach(([v,c,lab,yy,f])=>{const cc=css(c);const p=mk(s,'circle',{cx:x(v),cy:yy,r:5,fill:f?cc:css('--background'),stroke:cc,'stroke-width':2});hover(p,`${n} · ${lab}: ${sgn(v)}`)})});
+ s.setAttribute('height',H+22)}
+
+function drawRoundSd(){const s=svg('c-round-sd');
+ const rows=[["gpt-6.1-sol",65.0,31.2,25.6],["deepseek-v4.1-flash",61.0,40.9,27.0],["gpt-6-luna *",63.5,28.9,26.0],["claude-sonnet-5-5",68.6,38.8,29.1]];
+ const W=s.clientWidth,L=Math.min(150,W*.32),R=10,T=6,rh=34,hi=70,x=v=>L+v/hi*(W-L-R),H=T+rows.length*rh;
+ for(let t=0;t<=70;t+=10){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},t)}
+ rows.forEach(([n,a,e,b],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  [[a,'--chart-4','2.0 score-v1',-8],[e,'--chart-3','2.0 replayed score-v2',0],[b,'--chart-1','2.1',8]].forEach(([v,c,lab,dy])=>{const r=mk(s,'rect',{x:L,y:y+dy-3.5,width:x(v)-L,height:7,rx:2,fill:css(c)});hover(r,`${n} · ${lab}: SD ${v}`)})});
+ s.setAttribute('height',H+22)}
+
+function drawSite(){const s=svg('c-site');
+ const rows=[["gpt-6-astra",39.2,43.5,1,1],["gpt-6.1-sol",24.0,26.8,1,1],["muse-spark-1.3",1.2,-1.3,0,0],["deepseek (OC 1.18)",-2.0,-3.3,0,0],["deepseek (OC 2.0)",-4.6,-11.4,0,0],["claude-sonnet-5",-21.8,-14.7,0,0],["gpt-6-luna",-21.8,-15.9,0,1],["composer-2.5",-18.6,-17.8,1,1],["claude-opus-5-5",-46.7,-35.6,1,1],["claude-sonnet-5-5",-32.1,-36.3,1,1],["claude-haiku-5-5",-46.5,-59.8,1,1],["claude-haiku-4-5",-119.1,-121.8,1,1]];
+ const W=s.clientWidth,L=Math.min(130,W*.3),R=10,T=6,rh=32,lo=-130,hi=55,x=v=>L+(v-lo)/(hi-lo)*(W-L-R),H=T+rows.length*rh;
+ for(let t=-120;t<=40;t+=20){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},sgn(t))}
+ rows.forEach(([n,a,b,sa,sb],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  mk(s,'line',{x1:x(a),x2:x(b),y1:y,y2:y,stroke:css('--border'),'stroke-width':3});
+  [[a,sa,'--chart-4','score-v1'],[b,sb,'--chart-1','score-v2']].forEach(([v,sig,c,lab])=>{const cc=css(c);const p=mk(s,'circle',{cx:x(v),cy:y,r:5,fill:sig?cc:css('--background'),stroke:cc,'stroke-width':2});hover(p,`${n} · ${lab}: ${sgn(v)}`)})});
+ s.setAttribute('height',H+22)}
+
+function drawAll(){drawRound();drawRoundSd();drawSite();drawDraft();drawResidual();drawCanary21();drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
+drawAll();addEventListener('resize',drawAll);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',drawAll);
+</script>
+</body>
+</html>
