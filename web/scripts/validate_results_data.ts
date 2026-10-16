@@ -1,8 +1,17 @@
 import leaderboardData from "../src/data/leaderboard.json";
 import benchV2Lane from "../../config/bench_v2_lane.json";
-import { AGENTIC_REFERENCE_AGENT, agenticLaneIssues, type AgenticLanePanel } from "../src/agenticLane";
+import benchV21Lane from "../../config/bench_v21_lane.json";
+import scoreV2Lane from "../../results/agentic_score_v2/lane.json";
+import {
+  AGENTIC_REFERENCE_AGENT,
+  AGENTIC_V21_VERSION,
+  agenticLaneIssues,
+  agenticV21LaneIssues,
+  type AgenticLanePanel,
+} from "../src/agenticLane";
 import { buildBenchmarkView, scoreCi95, seedCount } from "../src/benchmarkData";
 import type { AgenticLaneRow, Leaderboard, LeaderboardModel } from "../src/types";
+import { laneOf } from "../src/v2";
 
 const leaderboard = leaderboardData as Leaderboard;
 const benchmark = buildBenchmarkView(leaderboard);
@@ -49,36 +58,95 @@ if (benchV2Lane.panel_design.reference_agent !== AGENTIC_REFERENCE_AGENT) {
       `the site checks ${AGENTIC_REFERENCE_AGENT}`,
   );
 }
+// Rows are published under score-v2 (results/agentic_score_v2/lane.json pins its
+// pick-trader and random means); score-v1 survives only as each row's
+// comparison block, pinned to config/bench_v2_lane.json as before.
+if ((leaderboard.agentic_lane ?? []).length > 0 && leaderboard.agentic_scoring?.primary !== "score-v2") {
+  throw new Error("The 2.0 section is not declared as scored with score-v2 (agentic_scoring.primary)");
+}
 const lanePanel: AgenticLanePanel = {
   artifact_panel_sha256: benchV2Lane.seed_panel.artifact_panel_sha256,
   count: benchV2Lane.seed_panel.count,
-  reference_scores: benchV2Lane.reference_scores as AgenticLanePanel["reference_scores"],
+  reference_scores: { seasons: scoreV2Lane.seasons, mean_scores: scoreV2Lane.reference_scores },
+  reference_scores_v1: benchV2Lane.reference_scores as AgenticLanePanel["reference_scores"],
 };
 const agenticIssues = agenticLaneIssues(leaderboard, lanePanel);
 if (agenticIssues.length > 0) {
   throw new Error(`Agentic lane data is not publishable:\n  ${agenticIssues.join("\n  ")}`);
 }
 
-// Bots shown beside the 2.0 rows must be exactly the lane's recorded means, and
-// pick-trader and random must equal the pins every row's contrast uses.
+// Bots shown beside the 2.0 rows must be exactly the lane's recorded means
+// (score-v2, with score-v1 beside each for comparison), and pick-trader and
+// random must equal the pins every row's contrast uses under each score.
 const botBlock = (benchV2Lane as { scripted_bot_scores?: { mean_scores: Record<string, number> } }).scripted_bot_scores;
 const shownBots = leaderboard.agentic_bots ?? [];
 if (botBlock) {
-  const expected = Object.entries(botBlock.mean_scores).sort(([, a], [, b]) => b - a);
+  const v2Means: Record<string, number> = scoreV2Lane.scripted_bot_scores;
+  const expected = Object.entries(v2Means).sort(([, a], [, b]) => b - a);
   if (JSON.stringify(shownBots.map((bot) => [bot.agent, bot.mean_score])) !== JSON.stringify(expected)) {
-    throw new Error("agentic_bots does not match config/bench_v2_lane.json scripted_bot_scores");
+    throw new Error("agentic_bots does not match results/agentic_score_v2/lane.json scripted_bot_scores");
+  }
+  for (const bot of shownBots) {
+    if (bot.score_v1_mean_score !== botBlock.mean_scores[bot.agent]) {
+      throw new Error(`agentic_bots ${bot.agent} score-v1 mean differs from config/bench_v2_lane.json`);
+    }
   }
   for (const [agent, pinned] of Object.entries(benchV2Lane.reference_scores.mean_scores)) {
     if (pinned !== null && botBlock.mean_scores[agent] !== pinned) {
       throw new Error(`scripted_bot_scores.${agent} differs from the reference_scores pin ${pinned}`);
     }
   }
+  for (const [agent, pinned] of Object.entries(scoreV2Lane.reference_scores as Record<string, number>)) {
+    if (v2Means[agent] !== pinned) {
+      throw new Error(`score-v2 scripted_bot_scores.${agent} differs from its reference_scores pin ${pinned}`);
+    }
+  }
 } else if (shownBots.length > 0) {
   throw new Error("agentic_bots is published but the lane config records no scripted_bot_scores");
 }
 
+// GM-Bench 2.1 rows live only in agentic_v21_lane, under the same rules on the
+// same private panel, held to config/bench_v21_lane.json's pins.
+if (benchV21Lane.benchmark_version !== AGENTIC_V21_VERSION) {
+  throw new Error(`config/bench_v21_lane.json is for ${benchV21Lane.benchmark_version}, not ${AGENTIC_V21_VERSION}`);
+}
+if (benchV21Lane.seed_panel.artifact_panel_sha256 !== benchV2Lane.seed_panel.artifact_panel_sha256) {
+  throw new Error("The 2.1 lane is not on the 2.0 lane's private panel");
+}
+const v21LanePanel: AgenticLanePanel = {
+  artifact_panel_sha256: benchV21Lane.seed_panel.artifact_panel_sha256,
+  count: benchV21Lane.seed_panel.count,
+  reference_scores: benchV21Lane.reference_scores as AgenticLanePanel["reference_scores"],
+};
+const v21Issues = agenticV21LaneIssues(leaderboard, v21LanePanel);
+if (v21Issues.length > 0) {
+  throw new Error(`GM-Bench 2.1 lane data is not publishable:\n  ${v21Issues.join("\n  ")}`);
+}
+const v21Bots = Object.entries(benchV21Lane.scripted_bot_scores.mean_scores as Record<string, number>).sort(
+  ([, a], [, b]) => b - a,
+);
+if (
+  JSON.stringify((leaderboard.agentic_v21_bots ?? []).map((bot) => [bot.agent, bot.mean_score])) !==
+  JSON.stringify(v21Bots)
+) {
+  throw new Error("agentic_v21_bots does not match config/bench_v21_lane.json scripted_bot_scores");
+}
+// The site's standings, headline and charts show the 2.1 table; the 2.0 board
+// is on its archive page. So the data must carry 2.1 rows, and the pick-trader
+// drawn as the bar must be the one every 2.1 row is tested against.
+const siteLane = laneOf(leaderboard, "2.1");
+if (siteLane.models.length === 0) {
+  throw new Error("The site's standings are the 2.1 table, but agentic_v21_lane is empty");
+}
+if (siteLane.bots.find((bot) => bot.isBar)?.score !== siteLane.bar) {
+  throw new Error("The 2.1 table's pick-trader bot is not the reference its rows are tested against");
+}
+
 // The same rules must reject each way a 2.0 row could go wrong. The fixture is
 // synthetic and lives only in memory.
+const V2_PICK_TRADER = scoreV2Lane.reference_scores["pick-trader"];
+const V2_RANDOM = scoreV2Lane.reference_scores.random;
+const round3 = (value: number): number => Math.round(value * 1000) / 1000;
 const agenticFixture = {
   id: "agentic:opencode-0.0.0:fixture/model",
   lane: "agentic",
@@ -95,19 +163,38 @@ const agenticFixture = {
     sha256: lanePanel.artifact_panel_sha256,
   },
   seasons: 5,
+  scoring_version: "score-v2",
   mean_score: 200,
   reference: {
     agent: "pick-trader",
-    mean_score: 249.18,
-    floor: { agent: "random", mean_score: 90.367 },
+    mean_score: V2_PICK_TRADER,
+    floor: { agent: "random", mean_score: V2_RANDOM },
     seasons: 5,
     num_seeds: lanePanel.count,
-    paired_lift_mean: -49.18,
+    paired_lift_mean: round3(200 - V2_PICK_TRADER),
     paired_lift_stddev: 30,
-    paired_lift_ci95: [-59.18, -39.18],
+    paired_lift_ci95: [round3(190 - V2_PICK_TRADER), round3(210 - V2_PICK_TRADER)],
     sign_flip_p_value: 0.0001,
     significant_at_95: true,
     candidate_seed_win_rate: 0.1,
+  },
+  score_v1: {
+    scoring_version: "score-v1",
+    mean_score: 200,
+    score_stddev: 20,
+    reference: {
+      agent: "pick-trader",
+      mean_score: 249.18,
+      floor: { agent: "random", mean_score: 90.367 },
+      seasons: 5,
+      num_seeds: lanePanel.count,
+      paired_lift_mean: -49.18,
+      paired_lift_stddev: 30,
+      paired_lift_ci95: [-59.18, -39.18],
+      sign_flip_p_value: 0.0001,
+      significant_at_95: true,
+      candidate_seed_win_rate: 0.1,
+    },
   },
   artifact_path: "results/agentic/fixture.json",
 } as unknown as AgenticLaneRow;
@@ -125,14 +212,14 @@ const pinnedPanel = (pickTrader: number, random: number): AgenticLanePanel => ({
   ...lanePanel,
   reference_scores: { seasons: 5, mean_scores: { "pick-trader": pickTrader, random } },
 });
-const pinnedMatchIssues = withAgentic(() => {}, pinnedPanel(249.18, 90.367));
+const pinnedMatchIssues = withAgentic(() => {}, pinnedPanel(V2_PICK_TRADER, V2_RANDOM));
 if (pinnedMatchIssues.length !== 0) {
   throw new Error(`A row matching the pinned reference means was rejected: ${pinnedMatchIssues.join("; ")}`);
 }
-if (withAgentic(() => {}, pinnedPanel(40, 90.367)).length === 0) {
+if (withAgentic(() => {}, pinnedPanel(40, V2_RANDOM)).length === 0) {
   throw new Error("The agentic-lane check accepted a pick-trader mean off the pinned value");
 }
-if (withAgentic(() => {}, pinnedPanel(249.18, 91)).length === 0) {
+if (withAgentic(() => {}, pinnedPanel(V2_PICK_TRADER, 91)).length === 0) {
   throw new Error("The agentic-lane check accepted a random mean off the pinned value");
 }
 const emptyPerSeedIssues = withAgentic((_, row) => Object.assign(row.reference, { per_seed: [] }));
@@ -188,6 +275,12 @@ const agenticMustReject: Array<[string, (data: Leaderboard, row: AgenticLaneRow)
   ["a p-value inside the floor", (_, row) => Object.assign(row.reference.floor, { p_value: 0.01 })],
   ["a comparison inside the floor", (_, row) => Object.assign(row.reference.floor, { vs_model: "x" })],
   ["a lift that is not the row mean minus pick-trader's", (_, row) => (row.mean_score = 300)],
+  ["a row not published under score-v2", (_, row) => Object.assign(row, { scoring_version: "score-v1" })],
+  ["a row with no score-v1 comparison", (_, row) => delete (row as { score_v1?: unknown }).score_v1],
+  ["a score-v1 comparison with a stray p-value", (_, row) => Object.assign(row.score_v1, { p_value: 0.01 })],
+  ["a score-v1 comparison off the score-v1 pin", (_, row) => (row.score_v1.reference.mean_score = 260)],
+  ["a score-v1 lift that is not its mean minus pick-trader's", (_, row) => (row.score_v1.mean_score = 300)],
+  ["a score-v1 comparison with per-seed lifts", (_, row) => Object.assign(row.score_v1.reference, { per_seed: [{ lift: 1 }] })],
   [
     "an internally impossible reference",
     (_, row) => {
@@ -205,7 +298,7 @@ const agenticMustReject: Array<[string, (data: Leaderboard, row: AgenticLaneRow)
   [
     "a win rate of 0 with a positive lift",
     (_, row) => {
-      row.mean_score = 289.18;
+      row.mean_score = round3(V2_PICK_TRADER + 40);
       row.reference.paired_lift_mean = 40;
       row.reference.paired_lift_ci95 = [30, 50];
       row.reference.candidate_seed_win_rate = 0;
@@ -269,6 +362,65 @@ for (const [label, edit] of agenticMustReject) {
   }
 }
 
+// And each way a 2.1 row could: the fixture is the 2.0 one moved to 2.1's
+// table, pins and directory, with no score-v1 block.
+const V21_PICK_TRADER = benchV21Lane.reference_scores.mean_scores["pick-trader"];
+const v21Fixture = structuredClone(agenticFixture);
+delete (v21Fixture as { score_v1?: unknown }).score_v1;
+Object.assign(v21Fixture, {
+  id: "agentic-2.1:opencode-0.0.0:fixture/model",
+  artifact_path: "results/agentic_v21/fixture.json",
+  contract: { benchmark_version: AGENTIC_V21_VERSION },
+});
+Object.assign(v21Fixture.reference, {
+  mean_score: V21_PICK_TRADER,
+  floor: { agent: "random", mean_score: benchV21Lane.reference_scores.mean_scores.random },
+  paired_lift_mean: round3(200 - V21_PICK_TRADER),
+  paired_lift_ci95: [round3(190 - V21_PICK_TRADER), round3(210 - V21_PICK_TRADER)],
+});
+function withV21(edit: (data: Leaderboard, row: AgenticLaneRow) => void): string[] {
+  const data = structuredClone(leaderboard) as Leaderboard;
+  const row = structuredClone(v21Fixture);
+  data.agentic_v21_lane = [row];
+  edit(data, row);
+  return agenticV21LaneIssues(data, v21LanePanel);
+}
+if (withV21(() => {}).length !== 0) {
+  throw new Error(`A valid 2.1 fixture row was rejected: ${withV21(() => {}).join("; ")}`);
+}
+const v21MustReject: Array<[string, (data: Leaderboard, row: AgenticLaneRow) => void]> = [
+  ["a 2.0 row in the 2.1 table", (_, row) => (row.contract.benchmark_version = "gm-bench-2.0")],
+  ["a 2.1 row pointing into results/agentic/", (_, row) => (row.artifact_path = "results/agentic/fixture.json")],
+  ["a 2.1 row with a score-v1 block", (_, row) => Object.assign(row, { score_v1: agenticFixture.score_v1 })],
+  ["a 2.1 row without the 2.1 id prefix", (_, row) => (row.id = "agentic:opencode-0.0.0:fixture/model")],
+  ["a 2.1 row sharing an id with a 2.0 row", (data, row) => data.agentic_lane?.push({ ...agenticFixture, id: row.id })],
+  [
+    "a 2.1 row measured against the 2.0 pick-trader",
+    (_, row) => {
+      row.reference.mean_score = V2_PICK_TRADER;
+      row.reference.paired_lift_mean = round3(200 - V2_PICK_TRADER);
+      row.reference.paired_lift_ci95 = [round3(190 - V2_PICK_TRADER), round3(210 - V2_PICK_TRADER)];
+    },
+  ],
+  ["a smoke 2.1 row", (_, row) => ((row as { grade: string }).grade = "smoke")],
+  ["a 2.1 row off the frozen panel", (_, row) => (row.panel.sha256 = "0".repeat(64))],
+  ["a 2.1 row with a paired p-value", (_, row) => Object.assign(row, { paired_p_value: 0.01 })],
+  ["a duplicate 2.1 row", (data, row) => data.agentic_v21_lane?.push(structuredClone(row))],
+  [
+    "a 2.1 row with mixed token shapes",
+    (_, row) => Object.assign(row, { telemetry: { cost_usd: null, token_shape: "mixed" } }),
+  ],
+  [
+    "a 2.1 row with a negative API-equivalent estimate",
+    (_, row) => Object.assign(row, { telemetry: { cost_usd: null, api_equivalent_cost_usd: -1 } }),
+  ],
+];
+for (const [label, edit] of v21MustReject) {
+  if (withV21(edit).length === 0) {
+    throw new Error(`The 2.1 lane check accepted ${label}`);
+  }
+}
+
 const redactedPrivateRow = {
   mean_score: 100,
   score_stddev: 10,
@@ -297,6 +449,7 @@ console.log(
   `Validated ${benchmark.modelCount} result rows from one leaderboard source ` +
     `(${benchmark.repeats} repeats; ${benchmark.modelsAboveBar} above scripted bar; ` +
     `${(leaderboard.decision_lane_models ?? []).length} decision-lane row(s) kept apart; ` +
-    `${(leaderboard.agentic_lane ?? []).length} GM-Bench 2.0 panel row(s); ` +
-    `${agenticMustReject.length} agentic-lane rejection checks passed).`,
+    `${(leaderboard.agentic_lane ?? []).length} GM-Bench 2.0 and ` +
+    `${(leaderboard.agentic_v21_lane ?? []).length} GM-Bench 2.1 panel row(s); ` +
+    `${agenticMustReject.length} + ${v21MustReject.length} agentic-lane rejection checks passed).`,
 );

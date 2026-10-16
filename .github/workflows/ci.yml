@@ -158,17 +158,19 @@ jobs:
                       assert "per_decision" not in usage, f"{path}: per_decision usage must not be committed"
           PY
           done < <(find results/leaderboard -type f -name '*.json' -not -path 'results/leaderboard/archive-v1/*' -print0)
-      - name: Validate committed GM-Bench 2.0 (agentic) rows
-        # Each artifact carries the 2.0 contract it was run under; the check
-        # compares it with the contract this checkout computes, so a tool,
-        # brief, engine or server edit invalidates every committed row loudly.
+      - name: Validate committed GM-Bench 2.0 and 2.1 (agentic) rows
+        # Each artifact carries the contract it was run under (2.0 rows in
+        # results/agentic, 2.1 rows in results/agentic_v21); the check compares
+        # it with the contract this checkout computes and the row's own lane
+        # config, so a tool, brief, engine, rules or score edit invalidates
+        # every committed row loudly.
         run: |
           count=0
           while IFS= read -r -d '' artifact; do
             echo "validating $artifact"
             python -m gm_bench agentic-validate "$artifact"
             count=$((count + 1))
-          done < <(find results/agentic -type f -name '*.json' -print0 2>/dev/null || true)
+          done < <(find results/agentic results/agentic_v21 -type f -name '*.json' -print0 2>/dev/null || true)
           echo "validated $count agentic row(s)"
           # Zero rows means the directory moved or the glob broke, not that everything passed.
           if [ "$count" -eq 0 ]; then

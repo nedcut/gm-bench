@@ -17,7 +17,8 @@ export default function V1Archive({ data }: { data: Leaderboard }) {
     <article className="page page-wide">
       <h1>GM-Bench 1.0 archive</h1>
       <p className="lede">
-        Superseded by <a href={routes.standings}>GM-Bench 2.0</a>. In 1.0 a model answered one prompt per decision instead
+        Superseded by <a href={routes.v2}>GM-Bench 2.0</a>, itself superseded by{" "}
+        <a href={routes.standings}>GM-Bench 2.1</a>. In 1.0 a model answered one prompt per decision instead
         of playing inside an agent harness. {benchmark.modelCount} models, {data.preset.seed_count ?? "—"} private seeds,
         five seasons ({data.contract?.benchmark_version}).
       </p>

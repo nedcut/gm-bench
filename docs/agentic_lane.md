@@ -591,6 +591,15 @@ against the raw `run.json` and that the artifact equals a fresh redaction of
 that run. CI cannot run it (raw runs stay with the operator), so run it
 yourself before committing any panel-grade row.
 
+A run played with `--contract 2.1` publishes the same way, into
+`results/agentic_v21/` instead of `results/agentic/`. Both commands read the
+contract from the run: the reference is played under the 2.1 rules and
+score-v2, and the row is checked against `config/bench_v21_lane.json`
+(same private panel, 2.1 reference pins) instead of
+`config/bench_v2_lane.json`. `web/scripts/build_study.py` publishes every
+panel row there to the site's 2.1 standings (`agentic_v21_lane`); no
+rescore file is needed, because a 2.1 row is already score-v2.
+
 The artifact is the only thing committed. It keeps scores, telemetry, the
 contract block, the harness identity, and a hash of the seeds; it drops
 ledgers, event streams, commands, and paths, and it is bound to the raw
@@ -781,6 +790,30 @@ provisioned unless you pass `--opencode-auth-file`. Do not mount
 `~/.config/opencode` or the home directory to get a key, because that
 directory's `AGENTS.md`, skills and commands would change what the harness
 plays with. The harness's only configuration is the staged `opencode.json`.
+
+OpenRouter models (`openrouter/<maker>/<model>`) take an OpenRouter API key
+through the same flag, stored for the `openrouter` provider only:
+
+```bash
+python -m gm_bench agentic --isolation container --model openrouter/z-ai/glm-5.3-flash \
+  --opencode-auth-file ~/.config/gm-bench/openrouter-key \
+  --seeds 11 --seasons 1 --output /tmp/agentic-openrouter
+```
+
+OpenRouter serves one model id from many hosts, at different prices,
+quantizations and cache support, and by default falls back between them.
+The driver therefore refuses an OpenRouter model unless
+`OPENROUTER_ROUTES` in `gm_bench/agentic/opencode.py` pins it to one host,
+and writes that pin into the staged `opencode.json`
+(`provider.openrouter.models.<id>.options.provider = {"order": [host],
+"allow_fallbacks": false}`), so every request of a panel reaches the same
+weights. The run record names the pin (`provider_routing`). Pins as of
+2026-10-16: the model's maker where OpenRouter lists one (`z-ai` for
+GLM-5.3-flash, `xiaomi` for MiMo-v2.6-flash and -pro); DeepSeek V4 Pro has
+no DeepSeek endpoint, so it is pinned to `baidu` (fp8). Their prices are in
+`gm_bench/pricing.json` under `openrouter/<model>`. Use a key with a credit
+limit set on OpenRouter: almost every input token in a game is a cache
+read, so a host that stopped caching would cost 10-20x the estimate.
 
 OpenCode Go subscription models (`opencode-go/*`) take one OpenCode API key:
 

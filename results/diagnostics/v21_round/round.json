@@ -1,0 +1,187 @@
+{
+  "rows": [
+    {
+      "model": "codex:gpt-6.1-sol",
+      "run_2_0": "codex-0.162.1-gpt-6.1-sol-panel-32x5",
+      "run_2_1": "codex-0.162.1-gpt-6.1-sol-panel-32x5-v21",
+      "episodes": 32,
+      "lift_2_1": {
+        "mean": 19.123,
+        "sd": 25.587,
+        "se": 4.523,
+        "t": 4.228,
+        "ci95": [
+          10.258,
+          27.988
+        ],
+        "sign_flip_p": 0.0002,
+        "ahead": 24,
+        "mde80": 12.672
+      },
+      "lift_2_0_score_v1": {
+        "mean": 23.987,
+        "sd": 65.037,
+        "se": 11.497,
+        "t": 2.086,
+        "ci95": [
+          1.453,
+          46.521
+        ],
+        "sign_flip_p": 0.0456,
+        "ahead": 23,
+        "mde80": 32.21
+      },
+      "lift_2_0_score_v2_e_full_panel": 26.79,
+      "lift_change": {
+        "mean": -4.864,
+        "sd": 66.408,
+        "se": 11.739,
+        "t": -0.414,
+        "ci95": [
+          -27.873,
+          18.145
+        ],
+        "sign_flip_p": 0.674,
+        "ahead": 13,
+        "mde80": 32.889
+      },
+      "per_episode": {
+        "failed_decisions": {
+          "2.0": 0.0,
+          "2.1": 0.0
+        },
+        "illegal_actions": {
+          "2.0": 2.531,
+          "2.1": 2.469
+        },
+        "tool_calls": {
+          "2.0": 170.125,
+          "2.1": 161.188
+        }
+      }
+    },
+    {
+      "model": "opencode:opencode-go/deepseek-v4.1-flash",
+      "run_2_0": "opencode-2.0.27-deepseek-v4.1-flash-panel-32x5-mcpwait",
+      "run_2_1": "opencode-2.0.27-deepseek-v4.1-flash-panel-32x5-v21",
+      "episodes": 32,
+      "lift_2_1": {
+        "mean": 1.164,
+        "sd": 26.981,
+        "se": 4.77,
+        "t": 0.244,
+        "ci95": [
+          -8.184,
+          10.513
+        ],
+        "sign_flip_p": 0.8081,
+        "ahead": 21,
+        "mde80": 13.362
+      },
+      "lift_2_0_score_v1": {
+        "mean": -4.594,
+        "sd": 61.023,
+        "se": 10.788,
+        "t": -0.426,
+        "ci95": [
+          -25.738,
+          16.549
+        ],
+        "sign_flip_p": 0.6675,
+        "ahead": 12,
+        "mde80": 30.222
+      },
+      "lift_2_0_score_v2_e_full_panel": -11.4,
+      "lift_change": {
+        "mean": 5.758,
+        "sd": 64.763,
+        "se": 11.449,
+        "t": 0.503,
+        "ci95": [
+          -16.681,
+          28.198
+        ],
+        "sign_flip_p": 0.6167,
+        "ahead": 16,
+        "mde80": 32.074
+      },
+      "per_episode": {
+        "failed_decisions": {
+          "2.0": 0.0,
+          "2.1": 0.0
+        },
+        "illegal_actions": {
+          "2.0": 1.031,
+          "2.1": 0.812
+        },
+        "tool_calls": {
+          "2.0": 160.406,
+          "2.1": 155.5
+        }
+      }
+    },
+    {
+      "model": "claude:claude-sonnet-5-5",
+      "run_2_0": "claude-sonnet-5-5-panel",
+      "run_2_1": "claude-2.1.281-sonnet-5-5-panel-32x5-v21",
+      "episodes": 32,
+      "lift_2_1": {
+        "mean": -46.807,
+        "sd": 29.112,
+        "se": 5.146,
+        "t": -9.095,
+        "ci95": [
+          -56.894,
+          -36.72
+        ],
+        "sign_flip_p": 0.0,
+        "ahead": 3,
+        "mde80": 14.418
+      },
+      "lift_2_0_score_v1": {
+        "mean": -32.12,
+        "sd": 68.596,
+        "se": 12.126,
+        "t": -2.649,
+        "ci95": [
+          -55.887,
+          -8.352
+        ],
+        "sign_flip_p": 0.0121,
+        "ahead": 11,
+        "mde80": 33.972
+      },
+      "lift_2_0_score_v2_e_full_panel": -36.33,
+      "lift_change": {
+        "mean": -14.687,
+        "sd": 63.672,
+        "se": 11.256,
+        "t": -1.305,
+        "ci95": [
+          -36.748,
+          7.374
+        ],
+        "sign_flip_p": 0.2041,
+        "ahead": 13,
+        "mde80": 31.534
+      },
+      "per_episode": {
+        "failed_decisions": {
+          "2.0": 0.0,
+          "2.1": 0.0
+        },
+        "illegal_actions": {
+          "2.0": 1.156,
+          "2.1": 1.344
+        },
+        "tool_calls": {
+          "2.0": 106.562,
+          "2.1": 106.969
+        }
+      }
+    }
+  ],
+  "kendall_tau_vs_2_0_score_v1": 1.0,
+  "kendall_tau_vs_2_0_score_v2_e": 1.0,
+  "sign_conflicts": []
+}

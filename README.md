@@ -386,10 +386,11 @@ GM-Bench includes:
 
 ## Leaderboard & Website
 
-The [live site](https://nedcut.github.io/gm-bench/) leads with the GM-Bench 2.0
-panel rows. The generated leaderboard JSON (`web/src/data/leaderboard.json`)
-holds those rows and the archived `sota-v5` 1.0 table, built only from committed
-artifacts.
+The [live site](https://nedcut.github.io/gm-bench/) leads with the GM-Bench 2.1
+panel rows; the GM-Bench 2.0 rows are on its [2.0
+archive](https://nedcut.github.io/gm-bench/v2/) page. The generated leaderboard
+JSON (`web/src/data/leaderboard.json`) holds both and the archived `sota-v5`
+1.0 table, built only from committed artifacts.
 
 Official results use the `leaderboard` preset (8 held-back seeds × 5 seasons,
 full baseline panel; `GM_BENCH_PRIVATE_SEEDS` swaps in a private panel). Every

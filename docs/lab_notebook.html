@@ -102,12 +102,108 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-10-16-site">2026-10-16 · 2.1 becomes the site; 2.0 moves to an archive page</a></li>
+ <li><a href="#e-2026-10-16-opus-astra">2026-10-16 · Opus 5.5 and Astra under 2.1; 2.1 goes on the site</a></li>
+ <li><a href="#e-2026-10-16-round">2026-10-16 · First 2.1 paid round: passed; release 2.1</a></li>
+ <li><a href="#e-2026-10-15-site">2026-10-15 · The site moves to score-v2</a></li>
  <li><a href="#e-2026-10-15-v21">2026-10-15 · Building 2.1, and the draft bug behind the missing 35 points</a></li>
  <li><a href="#e-2026-10-15-stress">2026-10-15 · Stress-testing score-v2: recommend E, build 2.1</a></li>
  <li><a href="#e-2026-10-15-path">2026-10-15 · Plug in, deep dive, or overhaul?</a></li>
  <li><a href="#e-2026-10-15-v2">2026-10-15 · score-v1 vs the proposed score-v2</a></li>
  <li><a href="#e-2026-10-14-ceiling">2026-10-14 · How much headroom is above <code>pick-trader</code>?</a></li>
 </ol></nav>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-16-site">
+<header><div class="date">2026-10-16</div><h2>2.1 becomes the site; 2.0 moves to an archive page</h2>
+<div class="tags"><span class="tag">web/src/app/V2Archive.tsx</span><span class="tag">web/src/data/leaderboard.json</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> the morning's layout put the 2.1 table above the full 2.0 board, with the intro headline, filters, score-vs-cost and tool-use sections still on the 2.0 rows. <b>Showed:</b> the page led with a 2.0 verdict ("2 of 12 models") under a 2.1 table, two <code>pick-trader</code> lines on one page (250.1 under 2.0 score-v2, 249.6 under 2.1), and charts from a different contract than the table above them.</div>
+
+<div class="decide"><b>Decided (by the user):</b> make 2.1 the site now rather than waiting for it to cover most 2.0 models (reverses the "once 2.1 covers most" plan in the entry below). The standings, headline, score-vs-cost and tool-use sections, the filters and the side panel use the six 2.1 rows and 2.1's bots; the headline counts 2.1 rows against 2.1's <code>pick-trader</code> ("2 of 6 models beat pick-trader by more than the noise": <code>gpt-6-astra</code> and <code>gpt-6.1-sol</code>, whose intervals exclude zero). The 12-row 2.0 board, under score-v2 as before, moves to a 2.0 archive page linked from the footer beside the 1.0 archive. The footer names GM-Bench 2.1 and its fingerprint <code>282dbf382c4ee56c</code>. The 2.0 per-row caveats stay on the 2.0 rows; no 2.1 row carries one, since each is about a 2.0 run. The site data keeps both <code>agentic_lane</code> and <code>agentic_v21_lane</code>.</div>
+</article>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-16-opus-astra">
+<header><div class="date">2026-10-16</div><h2>Opus 5.5 and Astra under 2.1; 2.1 goes on the site</h2>
+<div class="tags"><span class="tag">results/agentic_v21/</span><span class="tag">results/diagnostics/v21_round/opus-5-5_astra_exploratory.json</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> <code>claude-opus-5-5</code> (Claude Code 2.1.281) and <code>gpt-6-astra</code> (Codex 0.162.1) played the 32-seed private panel under 2.1 overnight, in parallel (different providers, each serial inside), from the clean lane commit. Not pre-registered: the same comparison as the round, run as exploratory. <b>Showed:</b> both finished 32/32 with 0 failed decisions and validate under 2.1. <code>gpt-6-astra</code> +46.9 against <code>pick-trader</code> (+36.4 to +57.3), ahead on all 32 seeds; <code>claude-opus-5-5</code> -29.5 (-42.3 to -16.7), ahead on 8. Each moved by less than its noise against its 2.0 row (+7.6 and +17.2, both intervals spanning 0).</div>
+
+<div class="stats">
+ <div class="stat"><div class="k">2.1 rows</div><div class="v">6</div></div>
+ <div class="stat"><div class="k">Kendall tau, six models, vs 2.0 replayed score-v2</div><div class="v">1.0</div></div>
+ <div class="stat"><div class="k">vs 2.0 score-v1</div><div class="v">0.87</div></div>
+ <div class="stat"><div class="k">Sign conflicts</div><div class="v">0</div></div>
+</div>
+
+<table>
+<thead><tr><th>Model</th><th>2.0, score-v1</th><th>2.0, score-v2 replayed</th><th>2.1</th><th>2.1 paired SD</th><th>Seeds ahead</th></tr></thead>
+<tbody>
+<tr><td><code>gpt-6-astra</code></td><td>+39.2</td><td>+43.5</td><td><b>+46.9</b></td><td>30.2</td><td>32/32</td></tr>
+<tr><td><code>claude-opus-5-5</code></td><td>-46.7</td><td>-35.6</td><td><b>-29.5</b></td><td>37.0</td><td>8/32</td></tr>
+</tbody></table>
+
+<div class="key">With the round's four, the six 2.1 lifts keep the replayed score-v2 order exactly. Against score-v1 one pair swaps: <code>claude-opus-5-5</code> and <code>claude-sonnet-5-5</code> (-46.7 and -32.1 under score-v1, -35.6 and -36.3 replayed, -29.5 and -46.8 under 2.1). score-v1's paired SD of about 70 could not order those two; score-v2 already tied them. <code>claude-opus-5-5</code>'s 2.1 SD (37) is the widest of the six, so its interval is the least precise.</div>
+
+<div class="decide"><b>Decided (by the user):</b> show 2.1 on the site now as its own table above the 2.0 board, each row against 2.1's own <code>pick-trader</code>, and make it the default view once 2.1 covers most of the 2.0 models. The 2.0 board stays the full one until then. No row is compared across the two tables.</div>
+</article>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-16-round">
+<header><div class="date">2026-10-16</div><h2>First 2.1 paid round: passed; release 2.1</h2>
+<div class="tags"><span class="tag">docs/bench_v2_1_spec.md</span><span class="tag">results/diagnostics/v21_round/</span><span class="tag">scripts/compare_v21_round.py</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> the pre-registered round. <code>gpt-6.1-sol</code>, <code>deepseek-v4.1-flash</code> and <code>claude-sonnet-5-5</code> each played the 32-seed private panel under 2.1, paired seed by seed with their own published 2.0 games. <code>gpt-6-luna</code> was added afterwards as an exploratory fourth. <b>Showed:</b> the order and signs hold (Kendall tau = 1, no sign conflict), and the paired noise falls to about 26-29 for every model, so 32 seeds now detect about 13 points.</div>
+
+<div class="stats">
+ <div class="stat"><div class="k">Pre-registered test</div><div class="v">passed</div></div>
+ <div class="stat"><div class="k">Smallest detectable gap (32 seeds)</div><div class="v"><span class="old" style="color:var(--muted-foreground);font-weight:500;font-size:16px;text-decoration:line-through;margin-right:6px">~32</span>~13</div></div>
+ <div class="stat"><div class="k">Failed decisions</div><div class="v">0 / 2,560</div></div>
+ <div class="stat"><div class="k">Sign conflicts</div><div class="v">0</div></div>
+</div>
+
+<div>
+ <h3>Lift vs <code>pick-trader</code>, same 32 seeds <span class="sub">· line = 2.1 95% interval; a filled 2.1 marker = its interval excludes 0</span></h3>
+ <div class="legend"><span><i class="dotk" style="background:var(--chart-4)"></i>2.0 games, score-v1</span><span><i class="dotk" style="background:var(--chart-3)"></i>2.0 games replayed, score-v2</span><span><i class="dotk" style="background:var(--chart-1)"></i>2.1 games</span></div>
+ <svg id="c-round" width="100%" height="200"></svg>
+ <div class="sub"><code>gpt-6-luna</code> is exploratory (added after pre-registration; its 2.0 row used Codex 0.156.1, the 2.1 run 0.162.1).</div>
+</div>
+
+<div>
+ <h3>Paired SD of the lift, per model <span class="sub">· lower = fewer seeds needed</span></h3>
+ <svg id="c-round-sd" width="100%" height="160"></svg>
+ <div class="sub">Most of the drop comes from scoring expected playoff value instead of realized games (score-v2); the 2.1 runs (records reset, draft fix, fresh games) are a further 10-35% lower.</div>
+</div>
+
+<div class="decide"><b>Decided (by the user):</b> release 2.1 as a lane on the same 32-seed private panel, with these four runs as its first rows, and start <code>claude-opus-5-5</code> and <code>gpt-6-astra</code> under it. No further rule changes go into 2.1: model rows exist, so any change is a new version. Queue items 1-14 (tool, brief and audit clarity) and 17 (end-state value) wait for a later one; none justifies rerunning every row. <b>Open:</b> <code>deepseek</code> and <code>gpt-6-luna</code> sit within 8 points of <code>pick-trader</code>, under what 32 seeds can resolve.</div>
+
+<div class="decide"><b>Released (same day):</b> <code>config/bench_v21_lane.json</code>, sharing 2.0's private panel byte for byte, with <code>pick-trader</code> 249.618 and <code>random</code> 87.479 played under 2.1 as its pins (2.0's: 249.18 and 90.367). The four runs are its first rows in <code>results/agentic_v21/</code>; each redacts to panel grade and passes <code>agentic-validate --raw</code>. On the site from the next entry.</div>
+</article>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-15-site">
+<header><div class="date">2026-10-15</div><h2>The site moves to score-v2</h2>
+<div class="tags"><span class="tag">scripts/rescore_agentic_v2.py</span><span class="tag">results/agentic_score_v2/</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Decided (by the user):</b> score-v2 is the site's score. score-v1 stays only as a comparison in each row's details. The twelve published 2.0 rows are <b>rescored</b> from their recorded games (nothing re-played), so their v2 numbers use the 2.0 simulation: records still accumulate inside it and the 2.0 draft is unchanged. The published artifacts are untouched; each row's v2 file is bound to its raw run by hash.</div>
+
+<div class="stats">
+ <div class="stat"><div class="k"><code>pick-trader</code> bar</div><div class="v"><span class="old" style="color:var(--muted-foreground);font-weight:500;font-size:16px;text-decoration:line-through;margin-right:6px">249.18</span>250.07</div></div>
+ <div class="stat"><div class="k">Smallest detectable gap</div><div class="v"><span class="old" style="color:var(--muted-foreground);font-weight:500;font-size:16px;text-decoration:line-through;margin-right:6px">20–37</span>15–22</div></div>
+ <div class="stat"><div class="k">Rows clearly ≠ <code>pick-trader</code> (Holm, 12)</div><div class="v">8</div></div>
+ <div class="stat"><div class="k">Clear results that change direction</div><div class="v">0</div></div>
+</div>
+
+<div>
+ <h3>Each row's lift vs <code>pick-trader</code>, old score → new <span class="sub">· 32 private seeds; filled = 95% interval excludes 0</span></h3>
+ <div class="legend"><span><i class="dotk" style="background:var(--chart-4)"></i>score-v1 (as first published)</span><span><i class="dotk" style="background:var(--chart-1)"></i>score-v2 (site)</span></div>
+ <svg id="c-site" width="100%" height="420"></svg>
+ <div class="sub">One row moves from "can't tell" to clearly behind <code>pick-trader</code> (<code>gpt-6-luna</code>); none moves the other way. Opus 5.5 and Sonnet 5.5 swap order once title luck is out.</div>
+</div>
+
+<div class="decide"><b>Shipped in this change:</b> standings, cost view, model and bot details, and Method use score-v2; the per-row caveats quoting score-v1 statistics were rewritten. <b>Still score-v1, labelled as such:</b> the How-it-works walkthrough, the replay showcase, the trajectory explorer, the puzzles and the Play game. Each computes one demo game live with the frozen engine, so migrating them is a follow-up.</div>
+</article>
 
 <!-- ======================================================================= -->
 <article class="entry" id="e-2026-10-15-v21">
@@ -413,7 +509,35 @@ function drawCanary21(){const s=svg('c-canary21');
   mk(s,'text',{x:x(v)+6,y:y+4,'font-size':11,fill:css('--muted-foreground')},v)});
  s.setAttribute('height',H+22)}
 
-function drawAll(){drawDraft();drawResidual();drawCanary21();drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
+// --- 2026-10-15 site: v1 -> v2 lift per published row (results/agentic_score_v2, leaderboard.json) ---
+function drawRound(){const s=svg('c-round');
+ const rows=[["gpt-6.1-sol",24.0,26.8,19.1,10.3,28.0],["deepseek-v4.1-flash",-4.6,-11.4,1.2,-8.2,10.5],["gpt-6-luna *",-21.8,-15.9,-7.6,-16.6,1.4],["claude-sonnet-5-5",-32.1,-36.3,-46.8,-56.9,-36.7]];
+ const W=s.clientWidth,L=Math.min(150,W*.32),R=10,T=6,rh=40,lo=-60,hi=40,x=v=>L+(v-lo)/(hi-lo)*(W-L-R),H=T+rows.length*rh;
+ for(let t=-60;t<=40;t+=20){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},sgn(t))}
+ rows.forEach(([n,a,e,b,l,h],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  mk(s,'line',{x1:x(l),x2:x(h),y1:y+9,y2:y+9,stroke:css('--chart-1'),'stroke-width':2});
+  const sig=l>0||h<0;
+  [[a,'--chart-4','2.0 score-v1',y-9,1],[e,'--chart-3','2.0 replayed score-v2',y,1],[b,'--chart-1','2.1',y+9,sig]].forEach(([v,c,lab,yy,f])=>{const cc=css(c);const p=mk(s,'circle',{cx:x(v),cy:yy,r:5,fill:f?cc:css('--background'),stroke:cc,'stroke-width':2});hover(p,`${n} · ${lab}: ${sgn(v)}`)})});
+ s.setAttribute('height',H+22)}
+
+function drawRoundSd(){const s=svg('c-round-sd');
+ const rows=[["gpt-6.1-sol",65.0,31.2,25.6],["deepseek-v4.1-flash",61.0,40.9,27.0],["gpt-6-luna *",63.5,28.9,26.0],["claude-sonnet-5-5",68.6,38.8,29.1]];
+ const W=s.clientWidth,L=Math.min(150,W*.32),R=10,T=6,rh=34,hi=70,x=v=>L+v/hi*(W-L-R),H=T+rows.length*rh;
+ for(let t=0;t<=70;t+=10){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},t)}
+ rows.forEach(([n,a,e,b],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  [[a,'--chart-4','2.0 score-v1',-8],[e,'--chart-3','2.0 replayed score-v2',0],[b,'--chart-1','2.1',8]].forEach(([v,c,lab,dy])=>{const r=mk(s,'rect',{x:L,y:y+dy-3.5,width:x(v)-L,height:7,rx:2,fill:css(c)});hover(r,`${n} · ${lab}: SD ${v}`)})});
+ s.setAttribute('height',H+22)}
+
+function drawSite(){const s=svg('c-site');
+ const rows=[["gpt-6-astra",39.2,43.5,1,1],["gpt-6.1-sol",24.0,26.8,1,1],["muse-spark-1.3",1.2,-1.3,0,0],["deepseek (OC 1.18)",-2.0,-3.3,0,0],["deepseek (OC 2.0)",-4.6,-11.4,0,0],["claude-sonnet-5",-21.8,-14.7,0,0],["gpt-6-luna",-21.8,-15.9,0,1],["composer-2.5",-18.6,-17.8,1,1],["claude-opus-5-5",-46.7,-35.6,1,1],["claude-sonnet-5-5",-32.1,-36.3,1,1],["claude-haiku-5-5",-46.5,-59.8,1,1],["claude-haiku-4-5",-119.1,-121.8,1,1]];
+ const W=s.clientWidth,L=Math.min(130,W*.3),R=10,T=6,rh=32,lo=-130,hi=55,x=v=>L+(v-lo)/(hi-lo)*(W-L-R),H=T+rows.length*rh;
+ for(let t=-120;t<=40;t+=20){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},sgn(t))}
+ rows.forEach(([n,a,b,sa,sb],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  mk(s,'line',{x1:x(a),x2:x(b),y1:y,y2:y,stroke:css('--border'),'stroke-width':3});
+  [[a,sa,'--chart-4','score-v1'],[b,sb,'--chart-1','score-v2']].forEach(([v,sig,c,lab])=>{const cc=css(c);const p=mk(s,'circle',{cx:x(v),cy:y,r:5,fill:sig?cc:css('--background'),stroke:cc,'stroke-width':2});hover(p,`${n} · ${lab}: ${sgn(v)}`)})});
+ s.setAttribute('height',H+22)}
+
+function drawAll(){drawRound();drawRoundSd();drawSite();drawDraft();drawResidual();drawCanary21();drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
 drawAll();addEventListener('resize',drawAll);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',drawAll);
 </script>

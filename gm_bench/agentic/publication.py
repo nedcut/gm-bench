@@ -1,4 +1,4 @@
-"""Publication artifacts for GM-Bench 2.0 rows.
+"""Publication artifacts for GM-Bench 2.0 and 2.1 rows.
 
 A run directory written by ``gm-bench agentic`` is raw evidence: it holds the
 seeds, every ledger, the harness event stream, and local paths. None of that
@@ -61,12 +61,15 @@ artifact per row, produced by :func:`compact_agentic_run`, which
 
 :func:`validate_agentic_artifact` checks a committed artifact against the
 contract this checkout computes and against those grade rules. A panel-grade
-row must also be a run of the lane's frozen private panel: its
-``panel.sha256`` and distinct-seed count must equal ``seed_panel`` in
-``config/bench_v2_lane.json``. Once the operator records the frozen panel's
+row must also be a run of its lane's frozen private panel: its
+``panel.sha256`` and distinct-seed count must equal ``seed_panel`` in the
+lane config of the contract it was played under (``LANE_CONFIGS``:
+``config/bench_v2_lane.json`` for 2.0, ``config/bench_v21_lane.json`` for
+2.1; both lanes share one private panel). Once the operator records the frozen panel's
 ``pick-trader`` and ``random`` means under ``reference_scores`` in that file,
 a panel row's reference must carry exactly those means. CI runs it on every
-file under ``results/agentic/``.
+file under ``results/agentic/`` (2.0 rows) and ``results/agentic_v21/`` (2.1
+rows).
 """
 
 from __future__ import annotations
@@ -86,13 +89,19 @@ from gm_bench.agentic.prompt_check import prompt_check_problems, unchecked_same_
 from gm_bench.agentic.provenance import driver_digest, provenance_problems, reproducible_driver
 from gm_bench.agentic.validate import EMPTY_PHASE_DEFINITION, provider_ended, validate_run
 from gm_bench.agentic.versions import DEFAULT_VERSION, VERSIONS, contract_block
+from gm_bench.agents import AGENTS
 from gm_bench.publication import canonical_sha256
 from gm_bench.runner import _paired_analysis, _precise_mean_score, run_many_cached_baselines
 from gm_bench.telemetry import api_equivalent_cost_usd, model_price_entry
+from gm_bench.v21 import contract as v21_contract
+from gm_bench.v21 import runner as v21_runner
 
 AGENTIC_PUBLICATION_FORMAT = "gm-bench-agentic-summary-v1"
 RESULTS_DIR = Path("results") / "agentic"
 LANE_CONFIG = Path("config") / "bench_v2_lane.json"
+LANE_CONFIG_V21 = Path("config") / "bench_v21_lane.json"
+# Each contract's rows are checked against its own lane: frozen panel and reference pins.
+LANE_CONFIGS = {AGENTIC_BENCHMARK_VERSION: LANE_CONFIG, v21_contract.BENCHMARK_VERSION: LANE_CONFIG_V21}
 # The lane config is a checkout file, not package data: panel rows are only
 # ever validated from a checkout (CI, the operator before committing).
 _CHECKOUT_ROOT = Path(__file__).resolve().parents[2]
@@ -396,11 +405,8 @@ def reference_contrast(raw: dict[str, Any]) -> dict[str, Any]:
     ``per_seed`` is emptied and no cache path or hit count is kept.
     """
     version = (raw.get("contract") or {}).get("benchmark_version") or AGENTIC_BENCHMARK_VERSION
-    if version != AGENTIC_BENCHMARK_VERSION:
-        # The reference below plays the 1.0 simulator and score, which is 2.0's
-        # league; a 2.1 row would be paired with the wrong one. 2.1 rows are
-        # not publishable until a 2.1 lane (panel, reference pins) is frozen.
-        raise ValueError(f"{version} rows cannot be published yet: no frozen lane pairs them with a reference")
+    if version not in LANE_CONFIGS:
+        raise ValueError(f"{version} rows cannot be published: no lane pairs them with a reference")
     raw_episodes = raw.get("episodes") or []
     seasons = raw.get("seasons")
     if not _is_int(seasons) or seasons < 1:
@@ -415,8 +421,13 @@ def reference_contrast(raw: dict[str, Any]) -> dict[str, Any]:
     seeds = list(dict.fromkeys(episode["seed"] for episode in candidate["episodes"]))
     if not seeds:
         raise ValueError("the raw run has no episodes to pair with the reference")
-    reference, _ = run_many_cached_baselines(REFERENCE_AGENT, seeds, seasons, use_cache=False)
-    floor, _ = run_many_cached_baselines(REFERENCE_FLOOR_AGENT, seeds, seasons, use_cache=False)
+    if version == v21_contract.BENCHMARK_VERSION:
+        # A 2.1 row is paired with the references played under the 2.1 rules and score-v2.
+        reference = v21_runner.run_many(AGENTS[REFERENCE_AGENT](), seeds, seasons)
+        floor = v21_runner.run_many(AGENTS[REFERENCE_FLOOR_AGENT](), seeds, seasons)
+    else:
+        reference, _ = run_many_cached_baselines(REFERENCE_AGENT, seeds, seasons, use_cache=False)
+        floor, _ = run_many_cached_baselines(REFERENCE_FLOOR_AGENT, seeds, seasons, use_cache=False)
     paired = _paired_analysis(seeds, candidate, [reference])
     p_value = paired["sign_flip_p_value"]
     # Beyond 20 seeds the runner samples SIGN_FLIP_DRAWS flips; with no draw as extreme it
@@ -679,9 +690,11 @@ def token_shape_problems(episode: dict[str, Any]) -> list[str]:
     return problems
 
 
-def load_lane_config(path: str | Path | None = None) -> dict[str, Any] | None:
-    """The committed 2.0 lane config, or ``None`` when this is not a checkout."""
-    lane_path = Path(path) if path is not None else _CHECKOUT_ROOT / LANE_CONFIG
+def load_lane_config(path: str | Path | None = None, *, version: str | None = None) -> dict[str, Any] | None:
+    """The committed lane config of a contract (default 2.0), or ``None`` when this is not a checkout."""
+    if path is None and (version or DEFAULT_VERSION) not in LANE_CONFIGS:
+        return None
+    lane_path = Path(path) if path is not None else _CHECKOUT_ROOT / LANE_CONFIGS[version or DEFAULT_VERSION]
     if not lane_path.is_file():
         return None
     payload = json.loads(lane_path.read_text(encoding="utf-8"))
@@ -737,6 +750,14 @@ def validate_agentic_artifact(
         errors.append("lane must be 'agentic'")
 
     recorded = artifact.get("contract") or {}
+    version = recorded.get("benchmark_version") or DEFAULT_VERSION
+    lane_name = LANE_CONFIGS.get(version, LANE_CONFIG)
+    if lane is None:
+        lane = load_lane_config(version=version)
+    elif (lane.get("benchmark_version") or DEFAULT_VERSION) != version:
+        errors.append(
+            f"the lane config is for {lane.get('benchmark_version') or DEFAULT_VERSION}, the row for {version}"
+        )
     if checkout_contract is not None:
         expected = checkout_contract
     elif (recorded.get("benchmark_version") or DEFAULT_VERSION) in VERSIONS:
@@ -781,7 +802,7 @@ def validate_agentic_artifact(
             errors.append("panel grade needs the harness isolated from the driver by user or container")
         if not redacted:
             errors.append("panel grade needs redacted seeds")
-        errors.extend(_lane_panel_errors(panel, distinct, lane if lane is not None else load_lane_config()))
+        errors.extend(_lane_panel_errors(panel, distinct, lane, lane_name))
     elif grade != "smoke":
         errors.append("grade must be 'panel' or 'smoke'")
     driver_errors, driver_warnings = _driver_findings(artifact, grade, checkout_driver_digest)
@@ -843,7 +864,7 @@ def validate_agentic_artifact(
     elif grade == "panel":
         errors.extend(_reference_errors(artifact.get("reference"), distinct, artifact.get("seasons"), candidate_mean))
         pin_errors, pin_warnings = _reference_pin_errors(
-            artifact.get("reference"), artifact.get("seasons"), lane if lane is not None else load_lane_config()
+            artifact.get("reference"), artifact.get("seasons"), lane, lane_name
         )
         errors.extend(pin_errors)
         warnings.extend(pin_warnings)
@@ -1050,7 +1071,9 @@ def _reference_coherence_errors(lift: float, ci: list[float] | None, stddev: Any
     return errors
 
 
-def _reference_pin_errors(reference: Any, seasons: Any, lane: dict[str, Any] | None) -> tuple[list[str], list[str]]:
+def _reference_pin_errors(
+    reference: Any, seasons: Any, lane: dict[str, Any] | None, lane_name: Path = LANE_CONFIG
+) -> tuple[list[str], list[str]]:
     """``pick-trader`` and ``random`` are deterministic, so on the one frozen panel their means are constants.
 
     ``reference_scores`` in the lane config records them once (from the first
@@ -1062,44 +1085,46 @@ def _reference_pin_errors(reference: Any, seasons: Any, lane: dict[str, Any] | N
         return [], []
     pins = lane.get("reference_scores")
     if not isinstance(pins, dict):
-        return [], [f"{LANE_CONFIG} has no reference_scores block; the reference means are not pinned"]
+        return [], [f"{lane_name} has no reference_scores block; the reference means are not pinned"]
     floor = reference.get("floor") if isinstance(reference.get("floor"), dict) else {}
     errors: list[str] = []
     warnings: list[str] = []
     pinned_seasons = pins.get("seasons")
     means = pins.get("mean_scores") or {}
     if seasons != pinned_seasons:
-        return [], [f"{LANE_CONFIG} reference_scores covers {pinned_seasons!r} seasons, not {seasons!r}; not pinned"]
+        return [], [f"{lane_name} reference_scores covers {pinned_seasons!r} seasons, not {seasons!r}; not pinned"]
     for agent, value in (
         (REFERENCE_AGENT, reference.get("mean_score")),
         (REFERENCE_FLOOR_AGENT, floor.get("mean_score")),
     ):
         pinned = means.get(agent)
         if pinned is None:
-            warnings.append(f"{LANE_CONFIG} reference_scores has no recorded {agent} mean; not pinned")
+            warnings.append(f"{lane_name} reference_scores has no recorded {agent} mean; not pinned")
         elif not _is_finite_number(pinned):
-            errors.append(f"{LANE_CONFIG} reference_scores.mean_scores.{agent} must be a number or null")
+            errors.append(f"{lane_name} reference_scores.mean_scores.{agent} must be a number or null")
         elif not (_is_finite_number(value) and abs(float(value) - float(pinned)) <= 1e-6):
             errors.append(
                 f"reference {agent} mean {value!r} is not the frozen panel's {pinned!r} "
-                f"({LANE_CONFIG} reference_scores); every panel row shares it"
+                f"({lane_name} reference_scores); every panel row shares it"
             )
     return errors, warnings
 
 
-def _lane_panel_errors(panel: dict[str, Any], distinct: int, lane: dict[str, Any] | None) -> list[str]:
+def _lane_panel_errors(
+    panel: dict[str, Any], distinct: int, lane: dict[str, Any] | None, lane_name: Path = LANE_CONFIG
+) -> list[str]:
     """A panel row is a run of the lane's frozen private panel, checked by digest and size only."""
     if lane is None:
-        return [f"{LANE_CONFIG} not found; a panel-grade row can only be validated against the lane's frozen panel"]
+        return [f"{lane_name} not found; a panel-grade row can only be validated against the lane's frozen panel"]
     seed_panel = lane.get("seed_panel") or {}
     expected_sha = seed_panel.get("artifact_panel_sha256")
     expected_count = seed_panel.get("count")
     errors: list[str] = []
     if not _SHA256_RE.match(str(expected_sha or "")) or not _is_int(expected_count):
-        return [f"{LANE_CONFIG} has no seed_panel.artifact_panel_sha256 and count to check a panel row against"]
+        return [f"{lane_name} has no seed_panel.artifact_panel_sha256 and count to check a panel row against"]
     if panel.get("sha256") != expected_sha:
         errors.append(
-            f"panel.sha256 is not the lane's frozen private panel ({LANE_CONFIG} seed_panel.artifact_panel_sha256)"
+            f"panel.sha256 is not the lane's frozen private panel ({lane_name} seed_panel.artifact_panel_sha256)"
         )
     if distinct != expected_count:
         errors.append(
@@ -1108,7 +1133,7 @@ def _lane_panel_errors(panel: dict[str, Any], distinct: int, lane: dict[str, Any
     reference_agent = (lane.get("panel_design") or {}).get("reference_agent", REFERENCE_AGENT)
     if reference_agent != REFERENCE_AGENT:
         errors.append(
-            f"{LANE_CONFIG} panel_design.reference_agent is {reference_agent!r}; this checkout computes {REFERENCE_AGENT!r}"
+            f"{lane_name} panel_design.reference_agent is {reference_agent!r}; this checkout computes {REFERENCE_AGENT!r}"
         )
     return errors
 

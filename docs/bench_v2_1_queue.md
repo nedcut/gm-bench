@@ -130,7 +130,7 @@ Found 2026-10-14 while estimating the score ceiling
 ([score_ceiling.md](score_ceiling.md)). Both change `gm_bench/simulator.py`
 or `gm_bench/scoring.py`, which the 1.0 contract fingerprints and 2.0 plays
 unchanged, so either fix is a new contract version on both lanes. Neither is
-fixed in 1.0 or 2.0. **Items 15, 16 and 18 are fixed in the 2.1 draft**
+fixed in 1.0 or 2.0. **Items 15, 16 and 18 are fixed in 2.1**
 ([bench_v2_1_spec.md](bench_v2_1_spec.md)), built on top of both contracts
 without editing either.
 

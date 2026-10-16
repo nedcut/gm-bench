@@ -632,7 +632,7 @@ def public_panel(monkeypatch) -> dict:
     from gm_bench.agentic import publication
 
     monkeypatch.setattr(publication, "PANEL_MIN_SEEDS", len(PUBLIC_SEEDS))
-    monkeypatch.setattr(publication, "load_lane_config", lambda path=None: PUBLIC_LANE)
+    monkeypatch.setattr(publication, "load_lane_config", lambda path=None, version=None: PUBLIC_LANE)
     return PUBLIC_LANE
 
 

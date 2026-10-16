@@ -65,7 +65,7 @@ AGENT_RUNS = (
 # Identifies the engine checkout used for these demonstrations. Later site-only
 # edits do not pretend to have regenerated scientific evidence on a new engine.
 SOURCE_COMMIT = "4f87f40a73269a32ab1e3789569dd48d2d1084ec"
-SOURCE_PACKAGE_SHA256 = "53d9d8c00ccc237f14baeefdb63d79c4c579b729175af7c6d6645519d8660f43"
+SOURCE_PACKAGE_SHA256 = "bb0a475cba1416657b3c2f09a214104878f1875724b95268bfeffe0b2528a6eb"
 
 
 # Pin the original source surface, not every module in a future checkout.

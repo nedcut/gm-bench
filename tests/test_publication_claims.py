@@ -57,10 +57,12 @@ def test_public_claim_surfaces_use_the_frozen_lane_and_current_gate() -> None:
 def test_employer_facing_site_links_current_evidence_and_metadata() -> None:
     shell = Path("web/src/app/Shell.tsx").read_text()
     archive = Path("web/src/app/V1Archive.tsx").read_text()
+    v2_archive = Path("web/src/app/V2Archive.tsx").read_text()
     index = Path("web/index.html").read_text()
 
     assert "Ned Cutler" in shell
-    assert "REPRODUCING_GM_BENCH_2_0.md" in shell
+    assert "bench_v2_1_spec.md#running-and-checking" in shell
+    assert "REPRODUCING_GM_BENCH_2_0.md" in v2_archive
     assert "sota-v5-publication-2026-09-03" in archive
     assert "REPRODUCING_SOTA_V5_RELEASE.md" in archive
     assert "holmRejectedCount" in archive

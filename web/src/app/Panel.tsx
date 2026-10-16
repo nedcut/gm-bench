@@ -128,7 +128,19 @@ function ModelDetails({ row }: { row: ModelRow }) {
         <li>
           {row.seeds} private seeds, harness in a {row.isolation}.
         </li>
+        {row.source.contract.benchmark_version === "gm-bench-2.1" ? (
+          <li>Played under GM-Bench 2.1, against pick-trader under the 2.1 rules.</li>
+        ) : (
+          <li>Played under GM-Bench 2.0, now archived, and rescored with score-v2 from its recorded games.</li>
+        )}
         {row.unpinned && <li>The model version is not pinned, so this row may not reproduce.</li>}
+        {row.v1 && (
+          <li>
+            Under score-v1, the score this row was first published with: {num(row.v1.score)}, {signed(row.v1.lift)} vs
+            pick-trader ({num(row.v1.bar)})
+            {row.v1.liftCi ? ` [${signed(row.v1.liftCi[0])}, ${signed(row.v1.liftCi[1])}]` : ""}.
+          </li>
+        )}
         {row.caveat && <li>{row.caveat}</li>}
       </ul>
       <a className="text-link" href={`${REPO_BLOB}${row.artifact}`}>
@@ -149,7 +161,7 @@ function BotDetails({ row }: { row: BotRow }) {
         </div>
       </div>
       <dl className="stats">
-        <Stat label="Score" value={num(row.score)} />
+        <Stat label="Score" value={num(row.score)} note={row.scoreV1 === null ? undefined : `${num(row.scoreV1)} under score-v1`} />
       </dl>
       <p className="detail-copy">{BOT_NOTES[row.label] ?? "A scripted baseline policy."}</p>
       <a className="text-link" href={`${REPO_BLOB}gm_bench/agents.py`}>

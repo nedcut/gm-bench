@@ -4,9 +4,22 @@ This changelog records public GM-Bench releases: what evidence each one freezes
 and what it does not claim. Frozen releases are never rerun or rewritten; a
 correction becomes a new contract version rather than an edit to an old one.
 
-## Draft — GM-Bench 2.1
+## GM-Bench 2.1 — lane released 2026-10-16
 
-Built 2026-10-15; not released, no model rows. The 2.0 agentic lane with
+Lane config `config/bench_v21_lane.json`: the 2.0 private panel (32 seeds,
+5 seasons), with `pick-trader` 249.618 and `random` 87.479 played under the
+2.1 rules and score-v2 as its reference pins. `agentic-redact` and
+`agentic-validate` check each row against the lane of its own contract;
+CI validates `results/agentic_v21/` beside `results/agentic/`. First rows,
+the paid round's runs: `gpt-6.1-sol` +19.1, `deepseek-v4.1-flash` +1.2,
+`gpt-6-luna` -7.6, `claude-sonnet-5-5` -46.8 against `pick-trader`; then
+`gpt-6-astra` +46.9 and `claude-opus-5-5` -29.5. The site shows 2.1: its
+standings, headline, score-vs-cost and tool-use sections use the 2.1 rows,
+each against 2.1's `pick-trader`. The 2.0 board (score-v2) moved to a
+2.0 archive page linked from the footer beside the 1.0 archive; scores are
+not compared across contracts.
+
+Built 2026-10-15. The 2.0 agentic lane with
 three simulator fixes (records reset each season, opponents keep every
 draft slot behind an unused user pick, playoff odds recorded) and a new
 scoring version, score-v2 (expected playoff value, every season's own
@@ -18,7 +31,29 @@ its own contract; CI runs `validate-contract --contract 2.1`. Spec:
 published model episode; it inflated the `pick-trader` reference by about
 2 points per episode under score-v1 (not significant).
 
+First paid round (2026-10-16, pre-registered): on the 32-seed private
+panel, `gpt-6.1-sol` +19.1, `deepseek-v4.1-flash` +1.2 and
+`claude-sonnet-5-5` -46.8 against `pick-trader` keep their 2.0 order
+(Kendall tau = 1), and no lift whose 2.1 interval excludes zero changes
+sign (DeepSeek's moves from -4.6 to +1.2, both intervals spanning zero).
+The paired SD falls to 26-29, so 32 seeds detect about 13 points.
+`gpt-6-luna` (exploratory) -7.6. Aggregates in
+`results/diagnostics/v21_round/`; spec section "First paid round".
+
 ## Unreleased — GM-Bench 2.0
+
+**Site score changed to score-v2, 2026-10-15.** The 2.0 section now shows every
+panel row under score-v2 (expected playoff value, every season's own wins;
+`gm_bench/v21/scoring.py`), rescored from each row's recorded games by
+`scripts/rescore_agentic_v2.py` into `results/agentic_score_v2/` and bound to
+the row's raw run by hash. Nothing was re-played and no published artifact
+changed; each row's score-v1 mean and pick-trader contrast stay in its
+details as a comparison. pick-trader's bar is 250.068 (score-v1: 249.18). No
+row whose interval excluded zero changes direction (`muse-spark-1.3` moves
+from +1.2 to -1.3, both within noise); `gpt-6-luna` is now clearly below
+pick-trader. The
+walkthrough, replay showcase, trajectory explorer, puzzles and Play game
+still compute score-v1 and are labelled so.
 
 Work began 2026-09-20; the contract froze 2026-09-25; three panel-grade rows
 were published 2026-09-27, a fourth 2026-09-28, a fifth 2026-10-12 (its

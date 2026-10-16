@@ -1,6 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
+import { readFileSync } from "node:fs";
+
+const data = JSON.parse(readFileSync(new URL("../src/data/leaderboard.json", import.meta.url), "utf8"));
+type Telemetry = { cost_per_episode_usd: number | null; api_equivalent_cost_per_episode_usd?: number | null };
+const unmeasured = (data.agentic_v21_lane as Array<{ model: string; telemetry: Telemetry }>)
+  .filter((row) => row.telemetry.cost_per_episode_usd === null && (row.telemetry.api_equivalent_cost_per_episode_usd ?? null) === null)
+  .map((row) => row.model.split("/").at(-1)!);
 
 for (const width of [1440, 390, 320]) {
   test(`axis switching preserves shared selection and filters at ${width}px`, async ({ page }) => {
@@ -17,7 +24,7 @@ for (const width of [1440, 390, 320]) {
       for (const id of ["output-total", "time", "calls", "input-total", "output-game", "cost"]) {
         await picker.selectOption(id);
         await expect(page.locator(".pt[aria-pressed=true]")).toHaveCount(1);
-        await expect(page.locator(".standings tr[aria-selected=true]")).toHaveCount(1);
+        await expect(page.locator("#standings .standings tr[aria-selected=true]")).toHaveCount(1);
         await expect(page.locator("#tools .hbar[aria-pressed=true]")).toHaveCount(6);
         expect(await page.locator("#cost").innerHTML()).not.toMatch(/NaN|Infinity/);
         await page.getByRole("button", { name: "Log", exact: true }).click();
@@ -25,7 +32,8 @@ for (const width of [1440, 390, 320]) {
         await page.getByRole("button", { name: "Linear", exact: true }).click();
       }
     }
-    await expect(page.locator("#cost")).toContainText("cost unmeasured: composer-2.5");
+    if (unmeasured.length > 0) await expect(page.locator("#cost")).toContainText(`cost unmeasured: ${unmeasured[0]}`);
+    else await expect(page.locator("#cost")).not.toContainText("cost unmeasured");
     await picker.selectOption("output-total");
     mkdirSync("../output/playwright", { recursive: true });
     await page.screenshot({ path: `../output/playwright/output-tokens-${width}.png` });
@@ -54,7 +62,9 @@ for (const width of [1440, 390, 320]) {
 
 test("all filtered out has a clear no-data state for every axis", async ({ page }) => {
   await page.goto("/");
-  for (const label of [/Claude Code/, /Codex/, /Cursor/, /OpenCode/]) await page.getByRole("group", { name: "Harness", exact: true }).getByRole("checkbox", { name: label }).uncheck();
+  const harnesses = page.getByRole("group", { name: "Harness", exact: true }).getByRole("checkbox");
+  await expect(harnesses).not.toHaveCount(0);
+  for (const box of await harnesses.all()) await box.uncheck();
   for (const id of ["cost", "output-total", "time", "calls", "input-total", "output-game"]) {
     await page.getByRole("combobox", { name: "X-axis", exact: true }).selectOption(id);
     await expect(page.locator("#cost")).toContainText("No row in the current filter");

@@ -207,6 +207,25 @@ export interface DecisionLaneModel extends LeaderboardModel {
  * is never a 1.0 row and carries nothing paired against one; its only paired
  * statistic is the pick-trader reference on its own seeds.
  */
+export interface AgenticReference {
+  agent: "pick-trader";
+  mean_score: number;
+  floor: { agent: "random"; mean_score: number };
+  seasons: number;
+  num_seeds: number;
+  paired_lift_mean: number;
+  /** Population SD (divides by n) of the per-seed lifts. */
+  paired_lift_stddev: number;
+  paired_lift_ci95: number[];
+  sign_flip_p_value: number;
+  /** Present (true) when no Monte Carlo sign flip was as extreme as the observed lift: the p-value is
+   * then the bound 1 / (draws + 1), not an estimate. */
+  sign_flip_p_value_upper_bound?: true;
+  significant_at_95: boolean;
+  candidate_seed_win_rate: number;
+}
+
+
 export interface AgenticLaneRow {
   id: string;
   lane: "agentic";
@@ -233,29 +252,18 @@ export interface AgenticLaneRow {
   seed_mean_max: number;
   illegal_actions: number | null;
   failed_decisions: number | null;
+  /** The row's primary score: always "score-v2" (rescored from the row's raw run). */
+  scoring_version: "score-v2";
   /**
    * The spec's only supported inference: the predeclared pick-trader contrast
-   * on this row's own seeds and seasons, computed at redaction from the raw
-   * run. Lift is the row's per-seed score minus pick-trader's. Aggregates
+   * on this row's own seeds and seasons, under score-v2, computed from the
+   * raw run. Lift is the row's per-seed score minus pick-trader's. Aggregates
    * only; per-seed values never reach the site.
    */
-  reference: {
-    agent: "pick-trader";
-    mean_score: number;
-    floor: { agent: "random"; mean_score: number };
-    seasons: number;
-    num_seeds: number;
-    paired_lift_mean: number;
-    /** Population SD (divides by n) of the per-seed lifts. */
-    paired_lift_stddev: number;
-    paired_lift_ci95: number[];
-    sign_flip_p_value: number;
-    /** Present (true) when no Monte Carlo sign flip was as extreme as the observed lift: the p-value is
-     * then the bound 1 / (draws + 1), not an estimate. */
-    sign_flip_p_value_upper_bound?: true;
-    significant_at_95: boolean;
-    candidate_seed_win_rate: number;
-  };
+  reference: AgenticReference;
+  /** The row as published under score-v1: comparison only, never the headline. */
+  /** Absent on a 2.1 row, which was never scored with score-v1. */
+  score_v1?: { scoring_version: "score-v1"; mean_score: number; score_stddev: number; reference: AgenticReference };
   contract: {
     benchmark_version: string;
     agentic_fingerprint: string;
@@ -383,12 +391,26 @@ export interface Leaderboard {
   /** Optional so the archived sota-v2 dataset, which predates the lane, still types. */
   decision_lane_models?: DecisionLaneModel[];
   /**
-   * GM-Bench 2.0 rows, panel grade only. A different contract from every
-   * array above; optional so the archived sota-v2 dataset still types.
+   * GM-Bench 2.0 rows, panel grade only, shown on the 2.0 archive page. A
+   * different contract from every array above; optional so the archived
+   * sota-v2 dataset still types.
    */
   agentic_lane?: AgenticLaneRow[];
   /** Scripted baselines on the frozen 2.0 panel (config/bench_v2_lane.json scripted_bot_scores). Context only. */
-  agentic_bots?: Array<{ agent: string; mean_score: number }>;
+  /** Scripted baselines on the 2.0 panel: score-v2 mean, with the score-v1 mean for comparison. */
+  agentic_bots?: Array<{ agent: string; mean_score: number; score_v1_mean_score?: number }>;
+  /** How the 2.0 section is scored: score-v2 primary, score-v1 kept for comparison. */
+  agentic_scoring?: {
+    primary: "score-v2";
+    scoring_scale_fingerprint: string;
+    comparison: "score-v1";
+    method: string;
+    reference_scores: Record<string, number>;
+  };
+  /** GM-Bench 2.1 rows (results/agentic_v21/), panel grade only: the site's standings, their own contract. */
+  agentic_v21_lane?: AgenticLaneRow[];
+  /** Scripted baselines on the 2.1 panel (config/bench_v21_lane.json scripted_bot_scores). Context only. */
+  agentic_v21_bots?: Array<{ agent: string; mean_score: number }>;
   excluded_models: Array<{ id: string | null; issues: string[] }>;
   publication: {
     status: string;

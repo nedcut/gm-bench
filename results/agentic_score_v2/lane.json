@@ -1,0 +1,22 @@
+{
+  "format": "gm-bench-agentic-score-v2-rescore-v1",
+  "scoring_version": "score-v2",
+  "scoring_scale_fingerprint": "dfdb5369a60bebc3",
+  "method": "Each scripted policy played through the frozen 2.0 engine and scored with score-v2's weights: expected playoff rounds (last three seasons) and expected titles (all seasons) from the bracket odds the simulator used, every season's own wins, and the unchanged end-state terms. The games are 2.0's, so records accumulate in the simulation and the 2.0 draft is unchanged; this rescores the 2.0 rows and is not a 2.1 run.",
+  "seasons": 5,
+  "num_seeds": 32,
+  "reference_scores": {
+    "pick-trader": 250.068,
+    "random": 86.891
+  },
+  "scripted_bot_scores": {
+    "pick-trader": 250.068,
+    "strategic": 239.217,
+    "shrewd": 233.185,
+    "win-now": 171.8,
+    "value": 171.069,
+    "rebuild": 122.199,
+    "conservative": 122.547,
+    "random": 86.891
+  }
+}

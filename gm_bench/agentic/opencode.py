@@ -251,7 +251,7 @@ def harness_python(env: dict[str, str]) -> str:
     )
 
 
-def opencode_config(target: str | Path, *, python: str = "python3") -> dict[str, Any]:
+def opencode_config(target: str | Path, *, python: str = "python3", model: str | None = None) -> dict[str, Any]:
     """The ``opencode.json`` written into the scratch directory.
 
     Everything in it is readable by the agent, so it names only the proxy
@@ -263,8 +263,11 @@ def opencode_config(target: str | Path, *, python: str = "python3") -> dict[str,
     for its own built-in tools (session, worktree and MCP-resource helpers
     default to Code Mode), which the agent cannot use for the task, so the
     permission denies it and the tool is not offered at all.
+
+    An ``openrouter/*`` ``model`` also gets its pinned host
+    (:data:`OPENROUTER_ROUTES`), with fallbacks off.
     """
-    return {
+    config: dict[str, Any] = {
         "$schema": "https://opencode.ai/config.json",
         "permission": {"execute": "deny"},
         "mcp": {
@@ -277,6 +280,11 @@ def opencode_config(target: str | Path, *, python: str = "python3") -> dict[str,
             }
         },
     }
+    routing = openrouter_routing(model) if model is not None else None
+    if routing is not None:
+        model_id = model_name(model).split("/", 1)[1]
+        config["provider"] = {"openrouter": {"models": {model_id: {"options": {"provider": routing}}}}}
+    return config
 
 
 def stage_scratch(
@@ -286,6 +294,7 @@ def stage_scratch(
     *,
     python: str | None = None,
     secret: str | None = None,
+    model: str | None = None,
 ) -> None:
     """Write the proxy and the config into an otherwise empty scratch directory.
 
@@ -296,7 +305,7 @@ def stage_scratch(
     (scratch / LAUNCHER_FILENAME).write_text(
         Path(_opencode_launch.__file__).read_text(encoding="utf-8"), encoding="utf-8"
     )
-    config = opencode_config(target, python=python or harness_python(env))
+    config = opencode_config(target, python=python or harness_python(env), model=model)
     (scratch / "opencode.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
 
 
@@ -2006,13 +2015,49 @@ OPENCODE_HOME_ENV = ("HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME
 CREDENTIALS_PATH = "opencode/gmb-credentials.json"
 CONTAINER_DATA_DIR = ".local/share"
 IMPORT_SECONDS = 120.0
-# The key is stored for the Go subscription (``opencode-go``) only. The same key
-# would also unlock paid Zen (``opencode``) models, billed to the account's Zen
-# balance, and would move free Zen models off the shared key ``public`` onto the
-# operator's; leaving ``opencode`` out keeps both of those from happening silently.
-AUTH_PROVIDERS = ("opencode-go",)
-# OpenCode loads ``opencode-go`` only with a key.
-KEY_REQUIRED_PROVIDERS = ("opencode-go",)
+# The key is stored for the run's own provider only: an OpenCode key for the Go
+# subscription (``opencode-go``), or an OpenRouter key (``openrouter``). An
+# OpenCode key would also unlock paid Zen (``opencode``) models, billed to the
+# account's Zen balance, and would move free Zen models off the shared key
+# ``public`` onto the operator's; leaving ``opencode`` out keeps both of those
+# from happening silently.
+AUTH_PROVIDERS = ("opencode-go", "openrouter")
+# OpenCode loads these providers only with a key.
+KEY_REQUIRED_PROVIDERS = ("opencode-go", "openrouter")
+# OpenRouter serves one model id from many hosts, at different prices,
+# quantizations and cache support, and by default falls back between them. A
+# row on OpenRouter is pinned to one host (OpenRouter's provider slug) with
+# fallbacks off, so every request of a panel reaches the same weights and the
+# row is reproducible; a model without a pin here is refused. Pins: the
+# model's maker where OpenRouter lists it (Z.AI, Xiaomi). DeepSeek V4 Pro has
+# no DeepSeek endpoint on OpenRouter, so it is pinned to Baidu (fp8), its
+# cheapest host with prompt caching (2026-10-16).
+OPENROUTER_ROUTES = {
+    "z-ai/glm-5.3-flash": "z-ai",
+    "xiaomi/mimo-v2.6-flash": "xiaomi",
+    "xiaomi/mimo-v2.6-pro": "xiaomi",
+    "deepseek/deepseek-v4-pro": "baidu",
+}
+
+
+def model_name(model: str) -> str:
+    """``provider/model`` without a ``#variant`` suffix."""
+    return model.split("#", 1)[0]
+
+
+def openrouter_routing(model: str) -> dict[str, Any] | None:
+    """OpenRouter's ``provider`` request option pinning an ``openrouter/*`` model to one host; ``None`` otherwise."""
+    name = model_name(model)
+    provider, _, model_id = name.partition("/")
+    if provider != "openrouter":
+        return None
+    host = OPENROUTER_ROUTES.get(model_id)
+    if host is None:
+        raise ValueError(
+            f"--model {model} has no pinned OpenRouter host; add one to OPENROUTER_ROUTES "
+            "(OpenRouter would otherwise route each request to any host serving it)"
+        )
+    return {"order": [host], "allow_fallbacks": False}
 
 
 def read_auth_file(path: str | Path) -> str:
@@ -2029,8 +2074,10 @@ def read_auth_file(path: str | Path) -> str:
     return key
 
 
-def opencode_credentials_json(key: str) -> bytes:
-    """What ``opencode auth import`` reads (``auth export``'s format): ``key`` for each of :data:`AUTH_PROVIDERS`."""
+def opencode_credentials_json(key: str, provider: str) -> bytes:
+    """What ``opencode auth import`` reads (``auth export``'s format): ``key`` for the run's ``provider`` only."""
+    if provider not in AUTH_PROVIDERS:
+        raise ValueError(f"no OpenCode credential is staged for provider {provider!r}")
     entries = [
         {
             "id": f"cred_gmbench_{provider.replace('-', '_')}",
@@ -2039,7 +2086,6 @@ def opencode_credentials_json(key: str) -> bytes:
             "active": True,
             "value": {"type": "key", "key": key},
         }
-        for provider in AUTH_PROVIDERS
     ]
     return json.dumps(entries, indent=2).encode()
 
@@ -2102,6 +2148,8 @@ class OpenCodeDriver(HarnessDriver):
         self._secrets: dict[Path, set[str]] = {}
         # Per launch: the token counts read from the session store, or why they could not be.
         self._session_usage: dict[Path, tuple[dict[str, Any] | None, str | None]] = {}
+        # The run's model, set by ``check_model``: its provider gets the key, and an OpenRouter model its pinned host.
+        self.model: str | None = None
 
     def preflight(self, isolation: str) -> None:
         if self.auth_file is not None:
@@ -2109,6 +2157,7 @@ class OpenCodeDriver(HarnessDriver):
 
     def check_model(self, model: str) -> None:
         provider = model.split("/", 1)[0]
+        openrouter_routing(model)
         if self.auth_file is None and provider in KEY_REQUIRED_PROVIDERS:
             raise ValueError(
                 f"--model {model} needs an OpenCode API key: pass --opencode-auth-file (a file holding the key); "
@@ -2116,9 +2165,9 @@ class OpenCodeDriver(HarnessDriver):
             )
         if self.auth_file is not None and provider not in AUTH_PROVIDERS:
             raise ValueError(
-                f"--opencode-auth-file holds an OpenCode API key, which serves only {' and '.join(AUTH_PROVIDERS)} "
-                f"models, not {model}"
+                f"--opencode-auth-file holds an API key for {' or '.join(AUTH_PROVIDERS)} models, not {model}"
             )
+        self.model = model
 
     def environment(self, env: dict[str, str], scratch: Path, isolation: str) -> dict[str, str]:
         for key in tuple(env):
@@ -2162,8 +2211,11 @@ class OpenCodeDriver(HarnessDriver):
         # Whether a key was staged, and for which providers; never the value.
         record: dict[str, Any] = {
             "auth": "auth-file" if self.auth_file is not None else "none",
-            "auth_providers": list(AUTH_PROVIDERS) if self.auth_file is not None else [],
+            "auth_providers": [self._key_provider()] if self.auth_file is not None else [],
         }
+        routing = openrouter_routing(self.model) if self.model is not None else None
+        if routing is not None:
+            record["provider_routing"] = routing
         if launch.container is not None:
             return record
         return {
@@ -2198,13 +2250,26 @@ class OpenCodeDriver(HarnessDriver):
     def ensure_image(self, *, docker: str, env: dict[str, str]) -> dict[str, Any]:
         return ensure_image(docker=docker, env=env)
 
+    def _key_provider(self) -> str:
+        """The provider the auth file's key is staged for: the run's model's, which ``check_model`` must name first."""
+        if self.model is None:
+            raise RuntimeError("check_model must name the run's model before its key is staged")
+        return self.model.split("/", 1)[0]
+
     def stage(self, launch: HarnessLaunch) -> None:
-        stage_scratch(launch.scratch, launch.proxy_target, launch.env, python=launch.proxy_python, secret=launch.secret)
+        stage_scratch(
+            launch.scratch,
+            launch.proxy_target,
+            launch.env,
+            python=launch.proxy_python,
+            secret=launch.secret,
+            model=self.model,
+        )
         if self.auth_file is None:
             return
         key = read_auth_file(self.auth_file)
         self._secrets.setdefault(launch.scratch, set()).add(key)
-        data = opencode_credentials_json(key)
+        data = opencode_credentials_json(key, self._key_provider())
         if launch.container is not None:
             # Into the episode's home volume over stdin; never the bind-mounted scratch.
             relative = f"{CONTAINER_DATA_DIR}/{CREDENTIALS_PATH}"
