@@ -12,7 +12,20 @@ front-office dynasty games. Agents manage a fictional hockey-style league over
 multiple seasons by making roster, trade, free-agency, draft, and lineup
 decisions through a JSON-compatible API.
 
-The current result is the `sota-v5` publication panel (2026-09-03). Sixteen
+The current benchmark is **GM-Bench 2.1** (released 2026-10-16): an agentic
+lane where a model plays one five-season game inside its own agent harness,
+scored under score-v2 on a 32-seed private panel. Six rows are published, each
+compared only with the scripted `pick-trader` (249.6 under 2.1) on the same
+seeds. `gpt-6-astra` (+46.9, interval +36.5 to +57.4) and `gpt-6.1-sol`
+(+19.1, +10.6 to +27.8) beat it; `deepseek-v4.1-flash` (+1.2) and
+`gpt-6-luna` (-7.6) cannot be told apart from it; `claude-opus-5-5` (-29.5)
+and `claude-sonnet-5-5` (-46.8) trail it. Every row is `unpinned` (its model
+version is not pinned), so rows may not reproduce, and no model-to-model
+ranking is published. See [the 2.1 section of the changelog](CHANGELOG.md) and
+[docs/bench_v2_1_spec.md](docs/bench_v2_1_spec.md).
+
+GM-Bench 1.0 (below) is the earlier, single-prompt study. Its last result is
+the `sota-v5` publication panel (2026-09-03). Sixteen
 model cells were pre-registered and all sixteen are accounted for: eleven
 strict headline rows, three ineligible on model behavior, and two excluded at
 the two-attempt infrastructure limit. Every eligible model trails the
@@ -20,7 +33,7 @@ deterministic `pick-trader` baseline (mean 247.109), and ten of the eleven
 headline rows reject at Holm-adjusted alpha 0.05 against the registered family
 of sixteen. No model-to-model ranking is published.
 
-Beside that headline, a separate decision-model lane (2026-09-18) publishes
+Beside that 1.0 headline, a separate decision-model lane (2026-09-18) publishes
 TypeSafe's Jev, a model that answers typed questions instead of writing the
 action batch, on the same contract and private panel. It scores 229.0 against
 a baseline-panel mean of 175.3 and trails `pick-trader` by 18.1 points. That
@@ -33,7 +46,12 @@ Read the [v5 findings](docs/blog/sota-v5-findings.md), follow the
 [tagged release](https://github.com/nedcut/gm-bench/releases/tag/sota-v5-publication-2026-09-03),
 or explore the [live leaderboard](https://nedcut.github.io/gm-bench/).
 
-## GM-Bench 2.0 status
+## GM-Bench 2.0 status (archived)
+
+GM-Bench 2.0 is superseded by 2.1 (above), which is 2.0 plus three simulator
+fixes and score-v2; the 2.0 board is kept on the site's 2.0 archive, rescored
+with score-v2. The figures in this section are the 2.0 rows as first published,
+under score-v1, and are not comparable with 2.1 scores.
 
 The `sota-v5` contract above, with its decision-model lane, is GM-Bench 1.0.
 GM-Bench 2.0 is the agentic version. It uses the same simulator and the same
@@ -421,7 +439,7 @@ python -m gm_bench compact-result /tmp/openai-gpt-5.4.raw.json \
   --output /tmp/openai-gpt-5.4.compact.json --policy sota-v5
 python -m gm_bench validate-contract
 python -m gm_bench calibrate-score --json
-python web/scripts/build_leaderboard.py   # refresh web/src/data/leaderboard.json
+python -m web.scripts.build_study         # refresh web/src/data/leaderboard.json
 cd web && bun install && bun run dev      # local site
 ```
 
@@ -617,8 +635,8 @@ The public site (Vite + React + TypeScript, managed with Bun) lives in
 [`web/`](web/README.md). It is a small data app over a committed snapshot of
 real benchmark output: Standings (`/`), How it works (`/how-it-works/`), Score
 vs cost (`/cost/`), Tool use
-(`/tools/`), Replays (`/replays/`), Method (`/method/`) and the 1.0 archive
-(`/v1/`). It builds to a fully static bundle:
+(`/tools/`), Replays (`/replays/`), Method (`/method/`) and the 2.0 and 1.0
+archives (`/v2/`, `/v1/`). It builds to a fully static bundle:
 
 ```bash
 cd web
