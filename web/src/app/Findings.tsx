@@ -2,7 +2,8 @@ import { REPO_BLOB } from "../site";
 import { findings, type Findings, type ModelFindings, type Term } from "../findings";
 import { HARNESSES, num, signed, vendorOf } from "../v2";
 
-const pct = (share: number) => `${num(share * 100, 0)}%`;
+// One decimal below 10%, so a 0.5% rate does not read as zero.
+const pct = (share: number) => `${num(share * 100, share !== 0 && Math.abs(share) < 0.1 ? 1 : 0).replace("-", "−")}%`;
 const list = (items: string[]) => (items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`);
 const range = (values: number[]) => {
   const lo = Math.min(...values);

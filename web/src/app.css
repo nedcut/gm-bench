@@ -861,6 +861,7 @@ main:focus {
 
 .findings-table .row-name {
   cursor: default;
+  white-space: nowrap;
 }
 
 @media (max-width: 540px) {
