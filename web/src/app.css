@@ -772,6 +772,107 @@ main:focus {
   line-height: 1.6;
 }
 
+/* ---------- findings ---------- */
+
+.gap-chart {
+  display: grid;
+  gap: 4px;
+  margin: 14px 0 6px;
+}
+
+.gap-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 210px) minmax(0, 1fr) 92px;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px;
+}
+
+.gap-row.is-total {
+  font-weight: 650;
+}
+
+.gap-label small,
+.gap-value small,
+.findings-table .row-name small {
+  display: block;
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 400;
+}
+
+.gap-track {
+  position: relative;
+  height: 18px;
+}
+
+.gap-track i {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 3px;
+  background: var(--text-2);
+}
+
+.gap-row.is-total .gap-track i {
+  background: var(--accent);
+}
+
+.gap-track s {
+  position: absolute;
+  top: 8px;
+  height: 2px;
+  background: var(--text);
+  opacity: 0.6;
+}
+
+.gap-zero {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 1px;
+  background: var(--line-2);
+}
+
+.gap-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-scroll {
+  margin-top: 18px;
+  overflow-x: auto;
+}
+
+.findings-table {
+  min-width: 720px;
+}
+
+.findings-table thead th {
+  vertical-align: bottom;
+}
+
+.findings-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+.findings-table .row-name {
+  cursor: default;
+}
+
+@media (max-width: 540px) {
+  .gap-row {
+    grid-template-columns: minmax(0, 1fr) 76px;
+    gap: 4px 10px;
+  }
+
+  .gap-label {
+    grid-column: 1 / -1;
+  }
+}
+
 /* ---------- how it works ---------- */
 
 .rink-layout {

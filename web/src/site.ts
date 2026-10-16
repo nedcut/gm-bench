@@ -11,6 +11,7 @@ export const routes = {
   play: `${BASE}play/`,
   replays: `${BASE}replays/`,
   method: `${BASE}method/`,
+  findings: `${BASE}findings/`,
   v2: `${BASE}v2/`,
   v1: `${BASE}v1/`,
 } as const;
