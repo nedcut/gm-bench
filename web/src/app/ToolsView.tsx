@@ -1,5 +1,4 @@
-import type { Leaderboard } from "../types";
-import { compact, num, seedCount, type ModelRow } from "../v2";
+import { compact, num, type ModelRow } from "../v2";
 import { type WorkspaceView } from "./Workspace";
 
 interface Metric {
@@ -75,12 +74,12 @@ const GROUPS = [
   { title: "Phase outcomes", note: "Status-only phases and rejected moves", metrics: METRICS.slice(4) },
 ];
 
-export function ToolsSection({ data, view }: { data: Leaderboard; view: WorkspaceView }) {
+export function ToolsSection({ view }: { view: WorkspaceView }) {
   return (
     <section className="view stats-section" id="tools" tabIndex={-1} aria-labelledby="tools-title">
       <div className="view-head">
         <h2 id="tools-title">How each agent used its harness</h2>
-        <span>Averages over {seedCount(data) ?? "—"} five-season games. Longer bars are not better.</span>
+        <span>Averages over {view.lane.seeds ?? "—"} five-season games. Longer bars are not better.</span>
       </div>
       {view.shown.length === 0 && <p className="view-note">No models match the current filters. Reset the filters to see their statistics.</p>}
       <div className="tool-ledger">

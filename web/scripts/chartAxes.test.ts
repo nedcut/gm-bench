@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import data from "../src/data/leaderboard.json";
-import { modelRows } from "../src/v2";
+import { modelRows, v21ModelRows } from "../src/v2";
 import type { Leaderboard } from "../src/types";
 import { CHART_AXES, chartRows, logTicks } from "../src/app/chartAxes";
 
-const rows = modelRows(data as Leaderboard);
+// The site charts 2.1; the 2.0 archive keeps the same telemetry shape.
+const v20 = modelRows(data as Leaderboard);
+const v21 = v21ModelRows(data as Leaderboard);
+const rows = [...v21, ...v20];
 const axis = (id: string) => CHART_AXES.find(item => item.id === id)!;
 
 describe("chart measurements from published telemetry", () => {
@@ -36,7 +39,8 @@ describe("chart measurements from published telemetry", () => {
     expect(chartRows([row], axis("calls"))).toEqual([]);
   });
   test("cost excludes the unmeasured row and log ticks match wide token magnitudes", () => {
-    expect(chartRows(rows, axis("cost"))).toHaveLength(rows.length - 1);
+    expect(chartRows(v21, axis("cost"))).toHaveLength(v21.length);
+    expect(chartRows(v20, axis("cost"))).toHaveLength(v20.length - 1);
     expect(logTicks(100_000, 5_000_000)).toEqual([100_000, 300_000, 1_000_000, 3_000_000]);
     expect(logTicks(0.01, 0.3)).toEqual([0.01, 0.03, 0.1, 0.3]);
   });

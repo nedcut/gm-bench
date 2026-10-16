@@ -191,8 +191,19 @@ Released 2026-10-16 (`config/bench_v21_lane.json`).
   `claude-sonnet-5-5`, `gpt-6-luna`). The pre-registration called them "not
   publishable" because no lane existed then; the lane's pins come from
   deterministic scripted play and depend on none of their results.
-- **Site.** Not yet shown; the site still shows the 2.0 rows rescored to
-  score-v2.
+  `claude-opus-5-5` (Claude Code 2.1.281) and `gpt-6-astra` (Codex
+  0.162.1) followed the same night: -29.5 (-42.3 to -16.7) and +46.9
+  (+36.4 to +57.3), each within its noise of its 2.0 row
+  (`results/diagnostics/v21_round/opus-5-5_astra_exploratory.json`, not
+  pre-registered). The six 2.1 lifts keep the order of the 2.0 rows
+  replayed under score-v2 (Kendall tau = 1; 0.87 against score-v1, where
+  the two Claude 5.5 rows swap).
+- **Site.** 2.1 is the site (decided 2026-10-16): the standings, headline,
+  score-vs-cost and tool-use sections show the 2.1 rows
+  (`agentic_v21_lane` in the site data), each against 2.1's
+  `pick-trader`. The 2.0 board, under score-v2, moved to a 2.0 archive
+  page (`/v2/`) linked from the footer. No row is compared across the two
+  contracts.
 
 ## Not in 2.1
 

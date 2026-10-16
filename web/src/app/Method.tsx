@@ -1,6 +1,6 @@
 import type { Leaderboard } from "../types";
 import { REPO_BLOB, routes } from "../site";
-import { num, pickTraderScore, seedCount } from "../v2";
+import { laneOf, num } from "../v2";
 import ReplayVerifier from "../components/ReplayVerifier";
 import "../legacy.css";
 
@@ -28,12 +28,12 @@ const SCORE_ROWS = [
 const RUN = `# a scripted bot, offline
 python -m gm_bench run --agent pick-trader --seeds 1 2 3 --seasons 5
 
-# one 2.0 episode through a harness (spends that harness's quota)
-python -m gm_bench agentic --harness claude --model claude-sonnet-5 \\
+# one 2.1 episode through a harness (spends that harness's quota)
+python -m gm_bench agentic --contract 2.1 --harness claude --model claude-sonnet-5 \\
   --seeds 1 --seasons 5 --isolation container --output /tmp/gm-run`;
 
 export default function Method({ data }: { data: Leaderboard }) {
-  const seeds = seedCount(data);
+  const { seeds, bar } = laneOf(data, "2.1");
   return (
     <article className="page">
       <h1>Method</h1>
@@ -54,7 +54,7 @@ export default function Method({ data }: { data: Leaderboard }) {
         </tbody>
       </table>
 
-      <h2>How a 2.0 game is played</h2>
+      <h2>How a game is played</h2>
       <ul>
         <li>The model runs inside its own agent harness (Claude Code, Codex, Cursor or OpenCode) as one session per five-season game.</li>
         <li>It reads the league and makes moves through tools on an MCP server, then ends each phase itself.</li>
@@ -92,9 +92,12 @@ export default function Method({ data }: { data: Leaderboard }) {
         five more seasons from each final league shows the end-of-game assets are worth about what they score.
       </p>
       <p>
-        The 2.0 rows were played and first published under score-v1, which scored realized playoff results and, because
-        team records never reset, weighted early seasons' wins most. Each row here is rescored from its recorded games,
-        with nothing re-played; its score-v1 numbers stay beside it in the row's details for comparison.{" "}
+        GM-Bench 2.1 is played and scored this way: 2.0 with three simulator fixes and this score. Team records reset
+        each season, rival teams use every draft pick they own, and playoff runs count by their odds. The 2.0 rows were
+        played under score-v1, which scored realized playoff results and, because team records never reset, weighted
+        early seasons' wins most; they are kept, rescored with score-v2, in the <a href={routes.v2}>2.0 archive</a>.
+        Scores are not comparable across the two contracts.{" "}
+        <a href={`${REPO_BLOB}docs/bench_v2_1_spec.md`}>What 2.1 changed</a>,{" "}
         <a href={`${REPO_BLOB}docs/score_v2_proposal.md`}>Why the score changed</a>,{" "}
         <a href={`${REPO_BLOB}docs/score_deep_dive.md`}>how it was tested</a>.
       </p>
@@ -103,15 +106,15 @@ export default function Method({ data }: { data: Leaderboard }) {
       <ul>
         <li>
           Every row plays the same {seeds ?? "—"} private seeds. Its only test is against pick-trader
-          ({num(pickTraderScore(data))}) on those seeds: the mean per-seed difference, a 95% bootstrap interval, and a
+          under 2.1 ({num(bar)}) on those seeds: the mean per-seed difference, a 95% bootstrap interval, and a
           sign-flip p-value.
         </li>
         <li>Rows are never tested against each other. The standings are sorted by score for reading, not ranked.</li>
         <li>The other scripted bots are shown for context only.</li>
         <li>
-          A difference smaller than about 15 to 22 points can't be told apart from zero on this panel (it was 20 to 37
-          under score-v1, when playoff luck was in the score). "Not significant" means the panel can't tell, not that a
-          row matches pick-trader.
+          This panel reliably detects a difference of about 13 points under 2.1; smaller ones can't always be told
+          apart from zero (it took 20 to 37 under score-v1, when playoff luck was in the score). "Not significant" means
+          the panel can't tell, not that a row matches pick-trader.
         </li>
       </ul>
 
@@ -129,8 +132,9 @@ export default function Method({ data }: { data: Leaderboard }) {
       </pre>
       <p>
         Full guides: <a href={`${REPO_BLOB}docs/agentic_lane.md`}>operator guide</a>,{" "}
+        <a href={`${REPO_BLOB}docs/bench_v2_1_spec.md`}>2.1 specification</a>,{" "}
         <a href={`${REPO_BLOB}docs/bench_v2_spec.md`}>2.0 specification</a>,{" "}
-        <a href={`${REPO_BLOB}docs/REPRODUCING_GM_BENCH_2_0.md`}>checking the published rows</a>.
+        <a href={`${REPO_BLOB}docs/REPRODUCING_GM_BENCH_2_0.md`}>checking the 2.0 rows</a>.
       </p>
 
       <h2>Check a recorded game in your browser</h2>
@@ -140,7 +144,8 @@ export default function Method({ data }: { data: Leaderboard }) {
       </div>
 
       <p className="view-note">
-        The earlier single-prompt version is in the <a href={routes.v1}>1.0 archive</a>.
+        Earlier versions: the <a href={routes.v2}>2.0 archive</a> and the single-prompt{" "}
+        <a href={routes.v1}>1.0 archive</a>.
       </p>
     </article>
   );

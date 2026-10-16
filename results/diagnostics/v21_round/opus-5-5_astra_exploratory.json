@@ -1,0 +1,127 @@
+{
+  "rows": [
+    {
+      "model": "claude:claude-opus-5-5",
+      "run_2_0": "claude-2.1.281-opus-5-5-panel-32x5",
+      "run_2_1": "claude-2.1.281-opus-5-5-panel-32x5-v21",
+      "episodes": 32,
+      "lift_2_1": {
+        "mean": -29.501,
+        "sd": 36.967,
+        "se": 6.535,
+        "t": -4.514,
+        "ci95": [
+          -42.309,
+          -16.692
+        ],
+        "sign_flip_p": 0.0001,
+        "ahead": 8,
+        "mde80": 18.308
+      },
+      "lift_2_0_score_v1": {
+        "mean": -46.684,
+        "sd": 69.905,
+        "se": 12.358,
+        "t": -3.778,
+        "ci95": [
+          -70.905,
+          -22.463
+        ],
+        "sign_flip_p": 0.001,
+        "ahead": 7,
+        "mde80": 34.621
+      },
+      "lift_2_0_score_v2_e_full_panel": -35.62,
+      "lift_change": {
+        "mean": 17.183,
+        "sd": 78.278,
+        "se": 13.838,
+        "t": 1.242,
+        "ci95": [
+          -9.939,
+          44.305
+        ],
+        "sign_flip_p": 0.22,
+        "ahead": 21,
+        "mde80": 38.768
+      },
+      "per_episode": {
+        "failed_decisions": {
+          "2.0": 0.0,
+          "2.1": 0.0
+        },
+        "illegal_actions": {
+          "2.0": 1.844,
+          "2.1": 2.0
+        },
+        "tool_calls": {
+          "2.0": 152.719,
+          "2.1": 154.969
+        }
+      }
+    },
+    {
+      "model": "codex:gpt-6-astra",
+      "run_2_0": "codex-0.162.1-gpt-6-astra-panel-32x5",
+      "run_2_1": "codex-0.162.1-gpt-6-astra-panel-32x5-v21",
+      "episodes": 32,
+      "lift_2_1": {
+        "mean": 46.88,
+        "sd": 30.158,
+        "se": 5.331,
+        "t": 8.793,
+        "ci95": [
+          36.43,
+          57.329
+        ],
+        "sign_flip_p": 0.0,
+        "ahead": 32,
+        "mde80": 14.936
+      },
+      "lift_2_0_score_v1": {
+        "mean": 39.237,
+        "sd": 69.692,
+        "se": 12.32,
+        "t": 3.185,
+        "ci95": [
+          15.09,
+          63.384
+        ],
+        "sign_flip_p": 0.0036,
+        "ahead": 20,
+        "mde80": 34.515
+      },
+      "lift_2_0_score_v2_e_full_panel": 43.46,
+      "lift_change": {
+        "mean": 7.643,
+        "sd": 71.878,
+        "se": 12.706,
+        "t": 0.601,
+        "ci95": [
+          -17.262,
+          32.547
+        ],
+        "sign_flip_p": 0.5513,
+        "ahead": 18,
+        "mde80": 35.598
+      },
+      "per_episode": {
+        "failed_decisions": {
+          "2.0": 0.0,
+          "2.1": 0.0
+        },
+        "illegal_actions": {
+          "2.0": 1.812,
+          "2.1": 1.625
+        },
+        "tool_calls": {
+          "2.0": 154.875,
+          "2.1": 153.594
+        }
+      }
+    }
+  ],
+  "kendall_tau_vs_2_0_score_v1": 1.0,
+  "kendall_tau_vs_2_0_score_v2_e": 1.0,
+  "sign_conflicts": []
+}
