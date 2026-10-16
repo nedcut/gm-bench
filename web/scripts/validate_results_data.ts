@@ -1,7 +1,14 @@
 import leaderboardData from "../src/data/leaderboard.json";
 import benchV2Lane from "../../config/bench_v2_lane.json";
+import benchV21Lane from "../../config/bench_v21_lane.json";
 import scoreV2Lane from "../../results/agentic_score_v2/lane.json";
-import { AGENTIC_REFERENCE_AGENT, agenticLaneIssues, type AgenticLanePanel } from "../src/agenticLane";
+import {
+  AGENTIC_REFERENCE_AGENT,
+  AGENTIC_V21_VERSION,
+  agenticLaneIssues,
+  agenticV21LaneIssues,
+  type AgenticLanePanel,
+} from "../src/agenticLane";
 import { buildBenchmarkView, scoreCi95, seedCount } from "../src/benchmarkData";
 import type { AgenticLaneRow, Leaderboard, LeaderboardModel } from "../src/types";
 
@@ -95,6 +102,33 @@ if (botBlock) {
   }
 } else if (shownBots.length > 0) {
   throw new Error("agentic_bots is published but the lane config records no scripted_bot_scores");
+}
+
+// GM-Bench 2.1 rows live only in agentic_v21_lane, under the same rules on the
+// same private panel, held to config/bench_v21_lane.json's pins.
+if (benchV21Lane.benchmark_version !== AGENTIC_V21_VERSION) {
+  throw new Error(`config/bench_v21_lane.json is for ${benchV21Lane.benchmark_version}, not ${AGENTIC_V21_VERSION}`);
+}
+if (benchV21Lane.seed_panel.artifact_panel_sha256 !== benchV2Lane.seed_panel.artifact_panel_sha256) {
+  throw new Error("The 2.1 lane is not on the 2.0 lane's private panel");
+}
+const v21LanePanel: AgenticLanePanel = {
+  artifact_panel_sha256: benchV21Lane.seed_panel.artifact_panel_sha256,
+  count: benchV21Lane.seed_panel.count,
+  reference_scores: benchV21Lane.reference_scores as AgenticLanePanel["reference_scores"],
+};
+const v21Issues = agenticV21LaneIssues(leaderboard, v21LanePanel);
+if (v21Issues.length > 0) {
+  throw new Error(`GM-Bench 2.1 lane data is not publishable:\n  ${v21Issues.join("\n  ")}`);
+}
+const v21Bots = Object.entries(benchV21Lane.scripted_bot_scores.mean_scores as Record<string, number>).sort(
+  ([, a], [, b]) => b - a,
+);
+if (
+  JSON.stringify((leaderboard.agentic_v21_bots ?? []).map((bot) => [bot.agent, bot.mean_score])) !==
+  JSON.stringify(v21Bots)
+) {
+  throw new Error("agentic_v21_bots does not match config/bench_v21_lane.json scripted_bot_scores");
 }
 
 // The same rules must reject each way a 2.0 row could go wrong. The fixture is
@@ -317,6 +351,57 @@ for (const [label, edit] of agenticMustReject) {
   }
 }
 
+// And each way a 2.1 row could: the fixture is the 2.0 one moved to 2.1's
+// table, pins and directory, with no score-v1 block.
+const V21_PICK_TRADER = benchV21Lane.reference_scores.mean_scores["pick-trader"];
+const v21Fixture = structuredClone(agenticFixture);
+delete (v21Fixture as { score_v1?: unknown }).score_v1;
+Object.assign(v21Fixture, {
+  id: "agentic-2.1:opencode-0.0.0:fixture/model",
+  artifact_path: "results/agentic_v21/fixture.json",
+  contract: { benchmark_version: AGENTIC_V21_VERSION },
+});
+Object.assign(v21Fixture.reference, {
+  mean_score: V21_PICK_TRADER,
+  floor: { agent: "random", mean_score: benchV21Lane.reference_scores.mean_scores.random },
+  paired_lift_mean: round3(200 - V21_PICK_TRADER),
+  paired_lift_ci95: [round3(190 - V21_PICK_TRADER), round3(210 - V21_PICK_TRADER)],
+});
+function withV21(edit: (data: Leaderboard, row: AgenticLaneRow) => void): string[] {
+  const data = structuredClone(leaderboard) as Leaderboard;
+  const row = structuredClone(v21Fixture);
+  data.agentic_v21_lane = [row];
+  edit(data, row);
+  return agenticV21LaneIssues(data, v21LanePanel);
+}
+if (withV21(() => {}).length !== 0) {
+  throw new Error(`A valid 2.1 fixture row was rejected: ${withV21(() => {}).join("; ")}`);
+}
+const v21MustReject: Array<[string, (data: Leaderboard, row: AgenticLaneRow) => void]> = [
+  ["a 2.0 row in the 2.1 table", (_, row) => (row.contract.benchmark_version = "gm-bench-2.0")],
+  ["a 2.1 row pointing into results/agentic/", (_, row) => (row.artifact_path = "results/agentic/fixture.json")],
+  ["a 2.1 row with a score-v1 block", (_, row) => Object.assign(row, { score_v1: agenticFixture.score_v1 })],
+  ["a 2.1 row without the 2.1 id prefix", (_, row) => (row.id = "agentic:opencode-0.0.0:fixture/model")],
+  ["a 2.1 row sharing an id with a 2.0 row", (data, row) => data.agentic_lane?.push({ ...agenticFixture, id: row.id })],
+  [
+    "a 2.1 row measured against the 2.0 pick-trader",
+    (_, row) => {
+      row.reference.mean_score = V2_PICK_TRADER;
+      row.reference.paired_lift_mean = round3(200 - V2_PICK_TRADER);
+      row.reference.paired_lift_ci95 = [round3(190 - V2_PICK_TRADER), round3(210 - V2_PICK_TRADER)];
+    },
+  ],
+  ["a smoke 2.1 row", (_, row) => ((row as { grade: string }).grade = "smoke")],
+  ["a 2.1 row off the frozen panel", (_, row) => (row.panel.sha256 = "0".repeat(64))],
+  ["a 2.1 row with a paired p-value", (_, row) => Object.assign(row, { paired_p_value: 0.01 })],
+  ["a duplicate 2.1 row", (data, row) => data.agentic_v21_lane?.push(structuredClone(row))],
+];
+for (const [label, edit] of v21MustReject) {
+  if (withV21(edit).length === 0) {
+    throw new Error(`The 2.1 lane check accepted ${label}`);
+  }
+}
+
 const redactedPrivateRow = {
   mean_score: 100,
   score_stddev: 10,
@@ -345,6 +430,7 @@ console.log(
   `Validated ${benchmark.modelCount} result rows from one leaderboard source ` +
     `(${benchmark.repeats} repeats; ${benchmark.modelsAboveBar} above scripted bar; ` +
     `${(leaderboard.decision_lane_models ?? []).length} decision-lane row(s) kept apart; ` +
-    `${(leaderboard.agentic_lane ?? []).length} GM-Bench 2.0 panel row(s); ` +
-    `${agenticMustReject.length} agentic-lane rejection checks passed).`,
+    `${(leaderboard.agentic_lane ?? []).length} GM-Bench 2.0 and ` +
+    `${(leaderboard.agentic_v21_lane ?? []).length} GM-Bench 2.1 panel row(s); ` +
+    `${agenticMustReject.length} + ${v21MustReject.length} agentic-lane rejection checks passed).`,
 );

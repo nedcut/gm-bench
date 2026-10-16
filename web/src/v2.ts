@@ -273,6 +273,27 @@ export function modelRows(data: Leaderboard): ModelRow[] {
   });
 }
 
+/* GM-Bench 2.1: the same lane under the 2.1 rules, its own table and its own
+   pick-trader (config/bench_v21_lane.json). Rows are never compared with a 2.0 row. */
+export function v21ModelRows(data: Leaderboard): ModelRow[] {
+  return (data.agentic_v21_lane ?? []).map(modelRow);
+}
+
+export function v21BotRows(data: Leaderboard): BotRow[] {
+  return (data.agentic_v21_bots ?? []).map((bot) => ({
+    kind: "bot",
+    id: `bot-2.1:${bot.agent}`,
+    label: bot.agent,
+    score: bot.mean_score,
+    scoreV1: null,
+    isBar: bot.agent === PICK_TRADER,
+  }));
+}
+
+export function v21PickTraderScore(data: Leaderboard): number | null {
+  return data.agentic_v21_lane?.[0]?.reference.mean_score ?? null;
+}
+
 export function pickTraderScore(data: Leaderboard): number | null {
   return data.agentic_lane?.[0]?.reference.mean_score ?? null;
 }

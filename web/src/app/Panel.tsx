@@ -128,6 +128,9 @@ function ModelDetails({ row }: { row: ModelRow }) {
         <li>
           {row.seeds} private seeds, harness in a {row.isolation}.
         </li>
+        {row.source.contract.benchmark_version === "gm-bench-2.1" && (
+          <li>Played under GM-Bench 2.1, against pick-trader under the 2.1 rules.</li>
+        )}
         {row.unpinned && <li>The model version is not pinned, so this row may not reproduce.</li>}
         {row.v1 && (
           <li>

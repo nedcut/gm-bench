@@ -12,8 +12,9 @@ Lane config `config/bench_v21_lane.json`: the 2.0 private panel (32 seeds,
 `agentic-validate` check each row against the lane of its own contract;
 CI validates `results/agentic_v21/` beside `results/agentic/`. First rows,
 the paid round's runs: `gpt-6.1-sol` +19.1, `deepseek-v4.1-flash` +1.2,
-`gpt-6-luna` -7.6, `claude-sonnet-5-5` -46.8 against `pick-trader`. Not yet
-on the site.
+`gpt-6-luna` -7.6, `claude-sonnet-5-5` -46.8 against `pick-trader`; then
+`gpt-6-astra` +46.9 and `claude-opus-5-5` -29.5. The site shows them as
+their own table above the 2.0 board, each against 2.1's `pick-trader`.
 
 Built 2026-10-15. The 2.0 agentic lane with
 three simulator fixes (records reset each season, opponents keep every

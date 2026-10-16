@@ -262,7 +262,8 @@ export interface AgenticLaneRow {
    */
   reference: AgenticReference;
   /** The row as published under score-v1: comparison only, never the headline. */
-  score_v1: { scoring_version: "score-v1"; mean_score: number; score_stddev: number; reference: AgenticReference };
+  /** Absent on a 2.1 row, which was never scored with score-v1. */
+  score_v1?: { scoring_version: "score-v1"; mean_score: number; score_stddev: number; reference: AgenticReference };
   contract: {
     benchmark_version: string;
     agentic_fingerprint: string;
@@ -405,6 +406,10 @@ export interface Leaderboard {
     method: string;
     reference_scores: Record<string, number>;
   };
+  /** GM-Bench 2.1 rows (results/agentic_v21/), panel grade only: their own contract and table. */
+  agentic_v21_lane?: AgenticLaneRow[];
+  /** Scripted baselines on the 2.1 panel (config/bench_v21_lane.json scripted_bot_scores). Context only. */
+  agentic_v21_bots?: Array<{ agent: string; mean_score: number }>;
   excluded_models: Array<{ id: string | null; issues: string[] }>;
   publication: {
     status: string;

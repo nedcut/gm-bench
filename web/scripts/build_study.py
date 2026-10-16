@@ -63,6 +63,14 @@ AGENTIC_LANE_CONFIG = Path("config") / "bench_v2_lane.json"
 # labelled comparison (``score_v1``).
 AGENTIC_SCORE_V2_DIR = ROOT / "results" / "agentic_score_v2"
 AGENTIC_SCORE_V2_FORMAT = "gm-bench-agentic-score-v2-rescore-v1"
+# GM-Bench 2.1 rows (docs/bench_v2_1_spec.md): the same lane and private panel
+# under the 2.1 rules, played and redacted under score-v2, so a row's own
+# artifact is its score and nothing is rescored. A different contract from the
+# 2.0 rows: they go to their own ``agentic_v21_lane`` block, each checked
+# against the 2.1 lane config and nothing else.
+AGENTIC_V21_ARTIFACTS_DIR = ROOT / "results" / "agentic_v21"
+AGENTIC_V21_LANE_CONFIG = Path("config") / "bench_v21_lane.json"
+AGENTIC_V21_VERSION = "gm-bench-2.1"
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -209,6 +217,59 @@ def _agentic_lane_rows(
     return rows
 
 
+def _agentic_v21_rows(source: Path, *, lane: dict[str, Any], v1_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Panel-grade GM-Bench 2.1 rows, one per committed artifact under ``results/agentic_v21/``.
+
+    The same rules as the 2.0 rows (:func:`_agentic_lane_rows`), against the
+    2.1 lane config: every file must be a 2.1 artifact, smoke rows are
+    skipped, and a panel row must validate on the frozen private panel with
+    the 2.1 reference pins. The artifact is already score-v2, so its own mean
+    and ``reference`` block are published and there is no score-v1 block.
+    """
+    if not source.is_dir():
+        return []
+    pinned_models = _agentic_pinned_models(lane)
+    rows: list[dict[str, Any]] = []
+    seen: dict[str, str] = {}
+    for path in sorted(source.glob("*.json")):
+        payload = _read(path)
+        if not is_agentic_artifact(payload):
+            raise ValueError(f"{path.name} is not a {AGENTIC_PUBLICATION_FORMAT} artifact")
+        if (payload.get("contract") or {}).get("benchmark_version") != AGENTIC_V21_VERSION:
+            raise ValueError(f"{path.name} is not a {AGENTIC_V21_VERSION} artifact")
+        if payload.get("grade") != "panel":
+            continue
+        report = validate_agentic_artifact(payload, lane=lane)
+        if not report["ok"]:
+            raise ValueError(f"{path.name} does not validate as a panel-grade 2.1 row: {report['errors']}")
+        row = _agentic_row(payload, path, pinned_models=pinned_models, v1_rows=v1_rows, rescore=None)
+        if row["id"] in seen:
+            raise ValueError(f"{path.name} repeats 2.1 row {row['id']!r} already published from {seen[row['id']]}")
+        seen[row["id"]] = path.name
+        rows.append(row)
+    _require_one_reference_per_season_count(rows)
+    rows.sort(key=lambda item: (item["unpinned"], item["model"], item["harness"]["name"], item["harness"]["version"]))
+    return rows
+
+
+def _agentic_v21_bots(lane: dict[str, Any]) -> list[dict[str, Any]]:
+    """Scripted baselines on the 2.1 panel (``scripted_bot_scores``), pick-trader and random equal to the row pins."""
+    block = lane.get("scripted_bot_scores")
+    if not block:
+        return []
+    means = block["mean_scores"]
+    reference = lane.get("reference_scores") or {}
+    if block.get("seasons") != reference.get("seasons"):
+        raise ValueError("2.1 scripted_bot_scores and reference_scores cover different season counts")
+    for agent, pinned in (reference.get("mean_scores") or {}).items():
+        if pinned is not None and means.get(agent) != pinned:
+            raise ValueError(
+                f"2.1 scripted_bot_scores.{agent} is {means.get(agent)!r} but reference_scores pins {pinned!r}"
+            )
+    bots = [{"agent": agent, "mean_score": float(score)} for agent, score in means.items()]
+    return sorted(bots, key=lambda bot: -bot["mean_score"])
+
+
 def _require_one_reference_per_season_count(rows: list[dict[str, Any]]) -> None:
     """pick-trader and random are deterministic on the one frozen panel, so rows at a season count share their means.
 
@@ -340,21 +401,23 @@ def _agentic_row(
     *,
     pinned_models: dict[str, str],
     v1_rows: list[dict[str, Any]],
-    rescore: dict[str, Any],
+    rescore: dict[str, Any] | None,
 ) -> dict[str, Any]:
+    """One published row. A 2.0 row's score is its score-v2 ``rescore``; a 2.1 row (``rescore=None``) is its own."""
     harness = payload.get("harness") or {}
     contract = payload.get("contract") or {}
     panel = payload.get("panel") or {}
     publication = payload.get("publication") or {}
     episodes = payload.get("episodes") or []
     distinct = len({int(episode["seed_group"]) for episode in episodes})
-    primary = _score_stats(rescore["episodes"])
-    v1 = _score_stats(episodes)
+    primary = _score_stats(rescore["episodes"] if rescore is not None else episodes)
     name, version, model = str(harness["name"]), str(harness["version"]), str(harness["model"])
     variant = harness.get("variant")
     # Row identity is model + harness + harness version (+ variant): two
     # harnesses on one model are two rows, never one row with two scores.
-    row_id = f"{AGENTIC_LANE}:{name}-{version}:{model}" + (f":{variant}" if variant else "")
+    # 2.1 rows carry their own prefix, so no id names a row in both contracts.
+    prefix = AGENTIC_LANE if rescore is not None else f"{AGENTIC_LANE}-2.1"
+    row_id = f"{prefix}:{name}-{version}:{model}" + (f":{variant}" if variant else "")
     summary = payload.get("summary") or {}
     return {
         "id": row_id,
@@ -380,14 +443,8 @@ def _agentic_row(
         **primary,
         "illegal_actions": summary.get("illegal_actions"),
         "failed_decisions": summary.get("failed_decisions"),
-        "reference": _agentic_reference(rescore.get("reference") or {}),
-        # The row as published under score-v1, for comparison only.
-        "score_v1": {
-            "scoring_version": "score-v1",
-            "mean_score": v1["mean_score"],
-            "score_stddev": v1["score_stddev"],
-            "reference": _agentic_reference(payload.get("reference") or {}),
-        },
+        "reference": _agentic_reference((rescore if rescore is not None else payload).get("reference") or {}),
+        **({"score_v1": _score_v1_block(payload)} if rescore is not None else {}),
         "contract": {
             key: contract.get(key)
             for key in (
@@ -409,6 +466,17 @@ def _agentic_row(
         "artifact_path": str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else path.name,
         "raw_artifact_sha256": publication.get("raw_artifact_sha256"),
         "compacted_at_utc": publication.get("compacted_at_utc"),
+    }
+
+
+def _score_v1_block(payload: dict[str, Any]) -> dict[str, Any]:
+    """A 2.0 row as published under score-v1, for comparison only."""
+    v1 = _score_stats(payload.get("episodes") or [])
+    return {
+        "scoring_version": "score-v1",
+        "mean_score": v1["mean_score"],
+        "score_stddev": v1["score_stddev"],
+        "reference": _agentic_reference(payload.get("reference") or {}),
     }
 
 
@@ -626,6 +694,7 @@ def build_study(
     decision_lane_dir: Path | None = None,
     agentic_dir: Path | None = None,
     agentic_score_v2_dir: Path | None = None,
+    agentic_v21_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Build v5 only after publication authorization and complete analysis."""
 
@@ -717,9 +786,18 @@ def build_study(
     v1_ids = headline_ids | {row["id"] for row in decision_lane_models}
     if any(row["id"] in v1_ids for row in agentic_lane):
         raise ValueError("an agentic-lane row shares an id with a 1.0 row")
+    v21_source = agentic_v21_dir or root / AGENTIC_V21_ARTIFACTS_DIR.relative_to(ROOT)
+    if not v21_source.is_absolute():
+        v21_source = root / v21_source
+    v21_lane_config = _read(root / AGENTIC_V21_LANE_CONFIG)
+    agentic_v21_lane = _agentic_v21_rows(
+        v21_source,
+        lane=v21_lane_config,
+        v1_rows=[*models, *(row for row in current_rows if row.get("lane") == "cli-harness"), *decision_lane_models],
+    )
     timestamps = [str((p.get("run_info") or {}).get("timestamp_utc") or "") for p in payloads]
     timestamps += [str(row.get("timestamp_utc") or "") for row in decision_lane_models]
-    timestamps += [str(row.get("compacted_at_utc") or "") for row in agentic_lane]
+    timestamps += [str(row.get("compacted_at_utc") or "") for row in [*agentic_lane, *agentic_v21_lane]]
     dataset = {
         "updated": max(timestamps, default="")[:10],
         "contract": dict(POLICIES["sota-v5"].expected_contract or {}),
@@ -745,6 +823,8 @@ def build_study(
             "method": score_v2_lane["method"],
             "reference_scores": score_v2_lane["reference_scores"],
         },
+        "agentic_v21_lane": agentic_v21_lane,
+        "agentic_v21_bots": _agentic_v21_bots(v21_lane_config),
         "excluded_models": [],
         "publication": publication,
         "headroom": headroom,
@@ -764,6 +844,7 @@ if __name__ == "__main__":
     parser.add_argument("--decision-lane-dir", type=Path)
     parser.add_argument("--agentic-dir", type=Path)
     parser.add_argument("--agentic-score-v2-dir", type=Path)
+    parser.add_argument("--agentic-v21-dir", type=Path)
     args = parser.parse_args()
     result = build_study(
         output_path=args.output,
@@ -771,9 +852,10 @@ if __name__ == "__main__":
         decision_lane_dir=args.decision_lane_dir,
         agentic_dir=args.agentic_dir,
         agentic_score_v2_dir=args.agentic_score_v2_dir,
+        agentic_v21_dir=args.agentic_v21_dir,
     )
     print(
         f"wrote {args.output or V5_OUTPUT_PATH} "
         f"({len(result['models'])} model(s), {len(result['decision_lane_models'])} decision-lane row(s), "
-        f"{len(result['agentic_lane'])} agentic panel row(s))"
+        f"{len(result['agentic_lane'])} 2.0 and {len(result['agentic_v21_lane'])} 2.1 agentic panel row(s))"
     )

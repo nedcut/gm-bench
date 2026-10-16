@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Leaderboard } from "../types";
-import { botRows, modelRows, useFilters, visible, type BotRow, type Filters, type ModelRow } from "../v2";
+import { botRows, modelRows, useFilters, v21BotRows, v21ModelRows, visible, type BotRow, type Filters, type ModelRow } from "../v2";
 import Panel from "./Panel";
 
 export interface WorkspaceView {
@@ -8,6 +8,8 @@ export interface WorkspaceView {
   bots: BotRow[];
   /** Models left after the reader's filters. */
   shown: ModelRow[];
+  /** The GM-Bench 2.1 table's rows: its own contract and pick-trader, under the same filters. */
+  v21: { models: ModelRow[]; bots: BotRow[]; shown: ModelRow[] };
   filters: Filters;
   setFilters: (next: Filters) => void;
   selected: string | null;
@@ -23,6 +25,8 @@ export interface WorkspaceView {
 export default function Workspace({ data, hint, children }: { data: Leaderboard; hint: string; children: (view: WorkspaceView) => ReactNode }) {
   const models = useMemo(() => modelRows(data), [data]);
   const bots = useMemo(() => botRows(data), [data]);
+  const v21Models = useMemo(() => v21ModelRows(data), [data]);
+  const v21Bots = useMemo(() => v21BotRows(data), [data]);
   const [filters, setFilters] = useFilters();
   const [selected, setSelected] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -56,7 +60,7 @@ export default function Workspace({ data, hint, children }: { data: Leaderboard;
       Filter
     </button>
   );
-  const row = [...models, ...bots].find((item) => item.id === selected) ?? null;
+  const row = [...models, ...bots, ...v21Models, ...v21Bots].find((item) => item.id === selected) ?? null;
 
   return (
     <div className="workspace">
@@ -64,6 +68,7 @@ export default function Workspace({ data, hint, children }: { data: Leaderboard;
         models,
         bots,
         shown: models.filter((model) => visible(model, filters)),
+        v21: { models: v21Models, bots: v21Bots, shown: v21Models.filter((model) => visible(model, filters)) },
         filters,
         setFilters,
         selected,

@@ -423,3 +423,29 @@ def test_bots_show_score_v2_with_score_v1_beside_them(tmp_path: Path) -> None:
         assert bot["mean_score"] == SCORE_V2_LANE["scripted_bot_scores"][agent]
         assert bot["score_v1_mean_score"] == lane["scripted_bot_scores"]["mean_scores"][agent]
     assert dataset["agentic_scoring"]["primary"] == "score-v2"
+
+
+def test_the_2_1_rows_have_their_own_table_and_pick_trader(tmp_path: Path) -> None:
+    """Every committed 2.1 panel row is published in agentic_v21_lane, against the 2.1 pins, with no score-v1 block."""
+    dataset = build_study(output_path=tmp_path / "leaderboard.json")
+    lane = json.loads(Path("config/bench_v21_lane.json").read_text())
+    rows = dataset["agentic_v21_lane"]
+    assert len(rows) == len(list(Path("results/agentic_v21").glob("*-panel-*.json")))
+    assert not {row["id"] for row in rows} & {row["id"] for row in dataset["agentic_lane"]}
+    for row in rows:
+        assert row["id"].startswith("agentic-2.1:")
+        assert row["contract"]["benchmark_version"] == "gm-bench-2.1"
+        assert row["artifact_path"].startswith("results/agentic_v21/")
+        assert "score_v1" not in row
+        assert row["reference"]["mean_score"] == lane["reference_scores"]["mean_scores"]["pick-trader"]
+        assert row["reference"]["floor"]["mean_score"] == lane["reference_scores"]["mean_scores"]["random"]
+    bots = {bot["agent"]: bot["mean_score"] for bot in dataset["agentic_v21_bots"]}
+    assert bots == lane["scripted_bot_scores"]["mean_scores"]
+
+
+def test_a_2_0_artifact_in_the_2_1_directory_fails_the_build(tmp_path: Path) -> None:
+    v21_dir = tmp_path / "agentic_v21"
+    v21_dir.mkdir()
+    (v21_dir / "stray.json").write_text(json.dumps(_panel_fixture()))
+    with pytest.raises(ValueError, match="is not a gm-bench-2.1 artifact"):
+        build_study(output_path=tmp_path / "leaderboard.json", agentic_v21_dir=v21_dir)
